@@ -15,6 +15,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+import warnings
 from glob import glob
 
 import nibabel as nib
@@ -281,6 +282,16 @@ class IntegrationWorkflows(DistTestCase):
             self.assertTrue(test_integration_value(TASK, key="output_sums_2", data=results[2:], rtol=1e-2))
         else:
             self.assertTrue(test_integration_value(TASK, key="output_sums", data=results[2:], rtol=1e-2))
+        try:
+            os.remove(model_file)
+        except Exception as e:
+            warnings.warn(f"Fail to remove {model_file}: {e}.")
+        if torch.cuda.is_available():
+            try:
+                torch.cuda.empty_cache()
+            except Exception:
+                pass
+
         return results
 
     def test_training(self):
@@ -291,7 +302,7 @@ class IntegrationWorkflows(DistTestCase):
             repeated.append(results)
         np.testing.assert_allclose(repeated[0], repeated[1])
 
-    @TimedCall(seconds=200, skip_timing=not torch.cuda.is_available(), daemon=False)
+    @TimedCall(seconds=300, skip_timing=not torch.cuda.is_available(), daemon=False)
     def test_timing(self):
         self.train_and_infer(idx=2)
 

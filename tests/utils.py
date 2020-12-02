@@ -423,7 +423,7 @@ class TorchImageTestCase3D(NumpyImageTestCase3D):
         self.segn = torch.tensor(self.segn)
 
 
-def test_script_save(net, *inputs, eval_nets=True, device=None):
+def test_script_save(net, *inputs, eval_nets=True, device=None, rtol=1e-4):
     """
     Test the ability to save `net` as a Torchscript object, reload it, and apply inference. The value `inputs` is
     forward-passed through the original and loaded copy of the network and their results returned. Both `net` and its
@@ -468,7 +468,7 @@ def test_script_save(net, *inputs, eval_nets=True, device=None):
             np.testing.assert_allclose(
                 r1.detach().cpu().numpy(),
                 r2.detach().cpu().numpy(),
-                rtol=1e-5,
+                rtol=rtol,
                 atol=0,
                 err_msg=f"failed on comparison number: {i}",
             )
