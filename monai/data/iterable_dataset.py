@@ -34,6 +34,7 @@ class IterableDataset(_TorchIterableDataset):
         """
         self.data = data
         self.transform = transform
+        self.source = None
 
     def __iter__(self):
         self.source = iter(self.data)
