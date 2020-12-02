@@ -21,7 +21,6 @@ import numpy as np
 from monai.data import DataLoader, IterableDataset
 from monai.transforms import Compose, LoadNiftid, SimulateDelayd
 
-
 lock = Lock()
 
 
