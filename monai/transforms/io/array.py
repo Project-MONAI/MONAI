@@ -119,6 +119,9 @@ class LoadImage(Transform):
                         reader = r
                         break
 
+        if reader is None:
+            raise RuntimeError(f"can not find suitable reader for this file: {filename}.")
+
         img = reader.read(filename)
         img_array, meta_data = reader.get_data(img)
         img_array = img_array.astype(self.dtype)
