@@ -20,6 +20,7 @@ from monai.losses import DiceLoss
 from monai.networks.nets import UNet
 from monai.transforms import AddChannel, Compose, RandRotate90, RandSpatialCrop, ScaleIntensity, ToTensor
 from monai.utils import set_determinism
+from tests.utils import DistTestCase, TimedCall
 
 
 def run_test(batch_size=64, train_steps=200, device="cuda:0"):
@@ -67,15 +68,16 @@ def run_test(batch_size=64, train_steps=200, device="cuda:0"):
     return epoch_loss, step
 
 
-class TestDeterminism(unittest.TestCase):
+class TestDeterminism(DistTestCase):
     def setUp(self):
-        set_determinism(seed=0)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
 
     def tearDown(self):
         set_determinism(seed=None)
 
+    @TimedCall(seconds=30)
     def test_training(self):
+        set_determinism(seed=0)
         loss, step = run_test(device=self.device)
         print(f"Deterministic loss {loss} at training step {step}")
         np.testing.assert_allclose(step, 4)

@@ -30,7 +30,7 @@ from monai.networks import normal_init
 from monai.networks.nets import Discriminator, Generator
 from monai.transforms import AsChannelFirstd, Compose, LoadNiftid, RandFlipd, ScaleIntensityd, ToTensord
 from monai.utils import set_determinism
-from tests.utils import skip_if_quick
+from tests.utils import DistTestCase, TimedCall, skip_if_quick
 
 
 def run_training_test(root_dir, device="cuda:0"):
@@ -127,7 +127,7 @@ def run_training_test(root_dir, device="cuda:0"):
 
 
 @skip_if_quick
-class IntegrationWorkflowsGAN(unittest.TestCase):
+class IntegrationWorkflowsGAN(DistTestCase):
     def setUp(self):
         set_determinism(seed=0)
 
@@ -145,6 +145,7 @@ class IntegrationWorkflowsGAN(unittest.TestCase):
         set_determinism(seed=None)
         shutil.rmtree(self.data_dir)
 
+    @TimedCall(seconds=100, daemon=False)
     def test_training(self):
         torch.manual_seed(0)
 
