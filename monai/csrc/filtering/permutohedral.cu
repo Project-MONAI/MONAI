@@ -404,8 +404,8 @@ __global__ static void slice(const int elementCount, float *values, MatrixEntry 
 }
  
 template<int vd, int pd>
-void filter_(float* values, float* positions, int elementCount, int w, int h, bool accurate) {    
-    int n = elementCount;
+void filter_(float* values, float* positions, int elementCount, bool accurate) {    
+    
     float blurVariance = accurate ? 0.5 : 0;
 
     float* scaleFactor;
@@ -419,13 +419,13 @@ void filter_(float* values, float* positions, int elementCount, int w, int h, bo
     cudaMemcpy(scaleFactor, scaleFactorHost, pd * sizeof(float), cudaMemcpyHostToDevice);
 
     MatrixEntry* matrix;
-    cudaMalloc(&matrix, n * (pd + 1) * sizeof(MatrixEntry));
+    cudaMalloc(&matrix, elementCount * (pd + 1) * sizeof(MatrixEntry));
     
-    createHashTable<pd, vd + 1>(n * (pd + 1));
+    createHashTable<pd, vd + 1>(elementCount * (pd + 1));
 
     // Populate constant memory for hash helpers
     unsigned long long int __host_two32 = ((unsigned long long int)1)<<32;
-    unsigned int __host_div_c = 2*(n*(pd+1));
+    unsigned int __host_div_c = 2*(elementCount*(pd+1));
     unsigned int __host_div_l = ceilf(logf((float)__host_div_c) / logf(2.0f));
     unsigned int __host_div_m = (__host_two32<<__host_div_l)/__host_div_c - __host_two32 + 1;
     cudaMemcpyToSymbol(__div_c, &__host_div_c, sizeof(unsigned int));
@@ -441,10 +441,10 @@ void filter_(float* values, float* positions, int elementCount, int w, int h, bo
     }
     cudaMemcpyToSymbol(hOffset, &hOffset_host, sizeof(unsigned int)*(pd+1));
 
-    int newBlocks = (elementCount + 1) / BLOCK_SIZE + 1;
-    int newBlockSize = BLOCK_SIZE;
+    int blockCount = (elementCount + 1) / BLOCK_SIZE + 1;
+    int blockSize = BLOCK_SIZE;
 
-    createMatrix<pd><<<newBlocks, newBlockSize>>>(elementCount, positions, values, scaleFactor, matrix);
+    createMatrix<pd><<<blockCount, blockSize>>>(elementCount, positions, values, scaleFactor, matrix);
 
     // fix duplicate hash table entries
     int tableSize = elementCount * 2 * (pd + 1);
@@ -452,8 +452,9 @@ void filter_(float* values, float* positions, int elementCount, int w, int h, bo
     int cleanBlocks = (tableSize - 1) / cleanBlockSize + 1;
     cleanHashTable<pd><<<cleanBlocks, cleanBlockSize>>>(tableSize, matrix);
 
-    splatCache<pd, vd><<<dim3(newBlocks, 1), dim3(newBlockSize, pd+1)>>>(elementCount, values, matrix);
-
+    // splat splits by color, so extend the y coordinate to our blocks to represent that
+    splatCache<pd, vd><<<dim3(blockCount, 1), dim3(newBblockSizelockSize, pd+1)>>>(elementCount, values, matrix);
+    
     if (accurate) 
     {
         float *newValues;
@@ -469,62 +470,62 @@ void filter_(float* values, float* positions, int elementCount, int w, int h, bo
         cudaFree(newValues);
     }
 
-    slice<pd, vd><<<newBlocks, newBlockSize>>>(elementCount, values, matrix);
+    slice<pd, vd><<<blockCount, blockSize>>>(elementCount, values, matrix);
     
     destroyHashTable();
 }
 
-void filter(float *im, float *ref, int pd, int vd, int elementCount, int w, int h, bool accurate) {
+void filter(float *im, float *ref, int pd, int vd, int elementCount, bool accurate) {
     switch (vd*1000 + pd) {
-    case 1001: filter_<1, 1>(im, ref, elementCount, w, h, accurate); break;
-    case 2001: filter_<2, 1>(im, ref, elementCount, w, h, accurate); break;
-    case 3001: filter_<3, 1>(im, ref, elementCount, w, h, accurate); break;
-    case 1002: filter_<1, 2>(im, ref, elementCount, w, h, accurate); break;
-    case 2002: filter_<2, 2>(im, ref, elementCount, w, h, accurate); break;
-    case 3002: filter_<3, 2>(im, ref, elementCount, w, h, accurate); break;
-    case 1003: filter_<1, 3>(im, ref, elementCount, w, h, accurate); break;
-    case 2003: filter_<2, 3>(im, ref, elementCount, w, h, accurate); break;
-    case 3003: filter_<3, 3>(im, ref, elementCount, w, h, accurate); break;
-    case 1004: filter_<1, 4>(im, ref, elementCount, w, h, accurate); break;
-    case 2004: filter_<2, 4>(im, ref, elementCount, w, h, accurate); break;
-    case 3004: filter_<3, 4>(im, ref, elementCount, w, h, accurate); break;
-    case 1005: filter_<1, 5>(im, ref, elementCount, w, h, accurate); break;
-    case 2005: filter_<2, 5>(im, ref, elementCount, w, h, accurate); break;
-    case 3005: filter_<3, 5>(im, ref, elementCount, w, h, accurate); break;
-    case 1006: filter_<1, 6>(im, ref, elementCount, w, h, accurate); break;
-    case 2006: filter_<2, 6>(im, ref, elementCount, w, h, accurate); break;
-    case 3006: filter_<3, 6>(im, ref, elementCount, w, h, accurate); break;
-    case 1007: filter_<1, 7>(im, ref, elementCount, w, h, accurate); break;
-    case 2007: filter_<2, 7>(im, ref, elementCount, w, h, accurate); break;
-    case 3007: filter_<3, 7>(im, ref, elementCount, w, h, accurate); break;
-    case 1008: filter_<1, 8>(im, ref, elementCount, w, h, accurate); break;
-    case 2008: filter_<2, 8>(im, ref, elementCount, w, h, accurate); break;
-    case 3008: filter_<3, 8>(im, ref, elementCount, w, h, accurate); break;
-    case 1009: filter_<1, 9>(im, ref, elementCount, w, h, accurate); break;
-    case 2009: filter_<2, 9>(im, ref, elementCount, w, h, accurate); break;
-    case 3009: filter_<3, 9>(im, ref, elementCount, w, h, accurate); break;
-    case 1010: filter_<1, 10>(im, ref,elementCount, w, h, accurate); break;
-    case 2010: filter_<2, 10>(im, ref, elementCount, w, h, accurate); break;
-    case 3010: filter_<3, 10>(im, ref, elementCount, w, h, accurate); break;
-    case 1011: filter_<1, 11>(im, ref, elementCount, w, h, accurate); break;
-    case 2011: filter_<2, 11>(im, ref, elementCount, w, h, accurate); break;
-    case 3011: filter_<3, 11>(im, ref, elementCount, w, h, accurate); break;
-    case 1012: filter_<1, 12>(im, ref, elementCount, w, h, accurate); break;
-    case 2012: filter_<2, 12>(im, ref, elementCount, w, h, accurate); break;
-    case 3012: filter_<3, 12>(im, ref, elementCount, w, h, accurate); break;
-    case 1013: filter_<1, 13>(im, ref, elementCount, w, h, accurate); break;
-    case 2013: filter_<2, 13>(im, ref, elementCount, w, h, accurate); break;
-    case 3013: filter_<3, 13>(im, ref, elementCount, w, h, accurate); break;
-    case 1014: filter_<1, 14>(im, ref, elementCount, w, h, accurate); break;
-    case 2014: filter_<2, 14>(im, ref, elementCount, w, h, accurate); break;
-    case 3014: filter_<3, 14>(im, ref, elementCount, w, h, accurate); break;
-    case 1015: filter_<1, 15>(im, ref, elementCount, w, h, accurate); break;
-    case 2015: filter_<2, 15>(im, ref, elementCount, w, h, accurate); break;
-    case 3015: filter_<3, 15>(im, ref, elementCount, w, h, accurate); break;
-    case 1016: filter_<1, 16>(im, ref, elementCount, w, h, accurate); break;
-    case 2016: filter_<2, 16>(im, ref, elementCount, w, h, accurate); break;
-    case 3016: filter_<3, 16>(im, ref, elementCount, w, h, accurate); break;
+    case 1001: filter_<1, 1>(im, ref, elementCount, accurate); break;
+    case 2001: filter_<2, 1>(im, ref, elementCount, accurate); break;
+    case 3001: filter_<3, 1>(im, ref, elementCount, accurate); break;
+    case 1002: filter_<1, 2>(im, ref, elementCount, accurate); break;
+    case 2002: filter_<2, 2>(im, ref, elementCount, accurate); break;
+    case 3002: filter_<3, 2>(im, ref, elementCount, accurate); break;
+    case 1003: filter_<1, 3>(im, ref, elementCount, accurate); break;
+    case 2003: filter_<2, 3>(im, ref, elementCount, accurate); break;
+    case 3003: filter_<3, 3>(im, ref, elementCount, accurate); break;
+    case 1004: filter_<1, 4>(im, ref, elementCount, accurate); break;
+    case 2004: filter_<2, 4>(im, ref, elementCount, accurate); break;
+    case 3004: filter_<3, 4>(im, ref, elementCount, accurate); break;
+    case 1005: filter_<1, 5>(im, ref, elementCount, accurate); break;
+    case 2005: filter_<2, 5>(im, ref, elementCount, accurate); break;
+    case 3005: filter_<3, 5>(im, ref, elementCount, accurate); break;
+    case 1006: filter_<1, 6>(im, ref, elementCount, accurate); break;
+    case 2006: filter_<2, 6>(im, ref, elementCount, accurate); break;
+    case 3006: filter_<3, 6>(im, ref, elementCount, accurate); break;
+    case 1007: filter_<1, 7>(im, ref, elementCount, accurate); break;
+    case 2007: filter_<2, 7>(im, ref, elementCount, accurate); break;
+    case 3007: filter_<3, 7>(im, ref, elementCount, accurate); break;
+    case 1008: filter_<1, 8>(im, ref, elementCount, accurate); break;
+    case 2008: filter_<2, 8>(im, ref, elementCount, accurate); break;
+    case 3008: filter_<3, 8>(im, ref, elementCount, accurate); break;
+    case 1009: filter_<1, 9>(im, ref, elementCount, accurate); break;
+    case 2009: filter_<2, 9>(im, ref, elementCount, accurate); break;
+    case 3009: filter_<3, 9>(im, ref, elementCount, accurate); break;
+    case 1010: filter_<1, 10>(im, ref, elementCount, accurate); break;
+    case 2010: filter_<2, 10>(im, ref, elementCount, accurate); break;
+    case 3010: filter_<3, 10>(im, ref, elementCount, accurate); break;
+    case 1011: filter_<1, 11>(im, ref, elementCount, accurate); break;
+    case 2011: filter_<2, 11>(im, ref, elementCount, accurate); break;
+    case 3011: filter_<3, 11>(im, ref, elementCount, accurate); break;
+    case 1012: filter_<1, 12>(im, ref, elementCount, accurate); break;
+    case 2012: filter_<2, 12>(im, ref, elementCount, accurate); break;
+    case 3012: filter_<3, 12>(im, ref, elementCount, accurate); break;
+    case 1013: filter_<1, 13>(im, ref, elementCount, accurate); break;
+    case 2013: filter_<2, 13>(im, ref, elementCount, accurate); break;
+    case 3013: filter_<3, 13>(im, ref, elementCount, accurate); break;
+    case 1014: filter_<1, 14>(im, ref, elementCount, accurate); break;
+    case 2014: filter_<2, 14>(im, ref, elementCount, accurate); break;
+    case 3014: filter_<3, 14>(im, ref, elementCount, accurate); break;
+    case 1015: filter_<1, 15>(im, ref, elementCount, accurate); break;
+    case 2015: filter_<2, 15>(im, ref, elementCount, accurate); break;
+    case 3015: filter_<3, 15>(im, ref, elementCount, accurate); break;
+    case 1016: filter_<1, 16>(im, ref, elementCount, accurate); break;
+    case 2016: filter_<2, 16>(im, ref, elementCount, accurate); break;
+    case 3016: filter_<3, 16>(im, ref, elementCount, accurate); break;
     default:
-	printf("Unsupported channel count. Reference image must have 1 to 16 channels, input image must have 1 to 3 channels\n");	    
-    } 
+	printf("Unsupported channel counts. Reference image must have 1 to 16 channels, input image must have 1 to 3 channels\n");	    
+    }    
 }

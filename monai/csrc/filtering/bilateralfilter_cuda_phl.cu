@@ -13,84 +13,113 @@ limitations under the License.
 #include <torch/extension.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include "utils/common_utils.h"
 
-//#include "permutohedral.cu"
+//defined in "permutohedral.cu"
+void filter(float *im, float *ref, int pd, int vd, int elementCount, bool accurate);
 
-void filter(float *im, float *ref, int pd, int vd, int elementCount, int w, int h, bool accurate);
-
-__constant__ int cChannelCount;
-__constant__ int cWidthStride;
+__constant__ int cBatchStride;
 __constant__ int cChannelStride;
+__constant__ int cSpatialStrides[3];
 __constant__ float cInvSpatialSigma;
 __constant__ float cInvColorSigma;
 
+template <int C, int D>
 __global__ void FeatureCreation(const float* inputTensor, float* outputData, float* outputFeatures)
 {
-    int dispatchIndex = blockIdx.x * blockDim.x + threadIdx.x;
+    int elementIndex = blockIdx.x * blockDim.x + threadIdx.x;
+    int batchOffset = blockIdx.y * cBatchStride;
 
-    int x = dispatchIndex / cWidthStride;
-    int y = (dispatchIndex - x * cWidthStride);
-    
-    for (int i = 0; i < cChannelCount; i++)
+    #pragma unroll
+    for (int i = 0; i < C; i++)
     {
-        outputData[dispatchIndex * cChannelCount + i] = inputTensor[dispatchIndex + i * cChannelStride];
-        outputFeatures[dispatchIndex * (cChannelCount + 2) + i] = inputTensor[dispatchIndex + i * cChannelStride] * cInvColorSigma;
+        outputData[batchOffset + elementIndex * C + i] = inputTensor[batchOffset + elementIndex + i * cChannelStride];
+        outputFeatures[batchOffset + elementIndex * (C + D) + i] = inputTensor[batchOffset + elementIndex + i * cChannelStride] * cInvColorSigma;
     }
 
-    outputFeatures[dispatchIndex * (cChannelCount + 2) + cChannelCount + 0] = x * cInvSpatialSigma;
-    outputFeatures[dispatchIndex * (cChannelCount + 2) + cChannelCount + 1] = y * cInvSpatialSigma;
+    int remainder = elementIndex;
+
+    #pragma unroll
+    for (int i = 0; i < D; i++)
+    {
+        int coord = remainder / cSpatialStrides[i];
+        remainder -= coord * cSpatialStrides[i];
+
+        outputFeatures[batchOffset + elementIndex * (C + D) + C + i] = coord * cInvSpatialSigma;
+    }
 }
 
+template <int C>
 __global__ void WriteOutput(const float* data, float* outputTensor)
 {
-    int dispatchIndex = blockIdx.x * blockDim.x + threadIdx.x;
+    int elementIndex = blockIdx.x * blockDim.x + threadIdx.x;
+    int batchIndex = blockIdx.y * blockDim.y + threadIdx.y;
+    int batchOffset = batchIndex * cBatchStride;
 
-    for (int i = 0; i < cChannelCount; i++)
+    #pragma unroll
+    for (int i = 0; i < C; i++)
     {
-        outputTensor[dispatchIndex + i * cChannelStride] = data[dispatchIndex * cChannelCount + i];
+        outputTensor[batchOffset + elementIndex + i * cChannelStride] = data[batchOffset + elementIndex * C + i];
     }
+}
+
+template<int C, int D>
+void RunFilter(torch::Tensor inputTensor, torch::Tensor outputTensor, float spatialSigma, float colorSigma)
+{
+    // Getting tensor descriptors
+    int dimensions = inputTensor.dim() - 2;
+    int* strides = new int[dimensions];
+    int elementCount = 1;
+
+    for (int i = 0; i < dimensions; i++)
+    {
+        strides[i] = inputTensor.stride(i+2);
+        elementCount *= inputTensor.size(i+2);
+    }
+
+    int batchStride = inputTensor.stride(0);
+    int batchCount = inputTensor.size(0);
+
+    int channelStride = inputTensor.stride(1);
+    int dataChannels = inputTensor.size(1);
+    int featureChannels = dataChannels + dimensions;
+
+    float* data;
+    float* features;
+
+    cudaMalloc(&data, elementCount * dataChannels * sizeof(float));
+    cudaMalloc(&features, elementCount * featureChannels * sizeof(float));
+
+    float invSpatialSigma = 1.0f/spatialSigma;
+    float invColorSigma = 1.0f/colorSigma;
+
+    cudaMemcpyToSymbol(cBatchStride, &batchStride, sizeof(int));
+    cudaMemcpyToSymbol(cChannelStride, &channelStride, sizeof(int));
+    cudaMemcpyToSymbol(cSpatialStrides, strides, sizeof(int) * dimensions);
+    cudaMemcpyToSymbol(cInvSpatialSigma, &invSpatialSigma, sizeof(float));
+    cudaMemcpyToSymbol(cInvColorSigma, &invColorSigma, sizeof(float));
+
+    // Creating features
+    FeatureCreation<C, D><<<dim3(elementCount, batchCount), dim3(1, 1)>>>(inputTensor.data_ptr<float>(), data, features);
+
+    // Filtering data with respect to the features for each sample in batch
+    for (int batchIndex = 0; batchIndex < batchCount; batchIndex++)
+    {
+        filter(data + batchIndex * batchStride, features + batchIndex * batchStride, featureChannels, dataChannels, elementCount, true);
+    }
+
+    // Writing output
+    WriteOutput<C><<<dim3(elementCount, batchCount), dim3(1, 1)>>>(data, outputTensor.data_ptr<float>());
+
+    cudaFree(data);
+    cudaFree(features);
 }
 
 torch::Tensor BilateralFilterPHLCuda(torch::Tensor inputTensor, float spatialSigma, float colorSigma)
 {
     torch::Tensor outputTensor = torch::zeros_like(inputTensor);
-    
-    int channelCount = inputTensor.size(1);
-    int width = inputTensor.size(2);
-    int height = inputTensor.size(3);
 
-    int batchStride = inputTensor.stride(0);
-    int channelStride = inputTensor.stride(1);
-    int widthStride = inputTensor.stride(2);
-
-    int elementCount = width * height;
-    int featureCount = channelCount + 2;
-
-    float* data;
-    float* features;
-
-    cudaMalloc(&data, elementCount * channelCount * sizeof(float));
-    cudaMalloc(&features, elementCount * featureCount * sizeof(float));
-
-    float invSpatialSigma = 1.0f/spatialSigma;
-    float invColorSigma = 1.0f/colorSigma;
-
-    cudaMemcpyToSymbol(cChannelCount, &channelCount, sizeof(int));
-    cudaMemcpyToSymbol(cChannelStride, &channelStride, sizeof(int));
-    cudaMemcpyToSymbol(cWidthStride, &widthStride, sizeof(int));
-    cudaMemcpyToSymbol(cInvSpatialSigma, &invSpatialSigma, sizeof(float));
-    cudaMemcpyToSymbol(cInvColorSigma, &invColorSigma, sizeof(float));
-
-    //No batch handling at present. Need to either loop through or make changes to filter()
-
-    FeatureCreation<<<dim3(elementCount, 1), dim3(1, 1)>>>(inputTensor.data_ptr<float>(), data, features);
-
-    filter(data, features, featureCount, channelCount, elementCount, width, height, true);
-
-    WriteOutput<<<dim3(elementCount, 1), dim3(1, 1)>>>(data, outputTensor.data_ptr<float>());
-
-    cudaFree(data);
-    cudaFree(features);
+    SPECIALISE_C_AND_D(inputTensor.size(1), inputTensor.dim()-2, RunFilter, inputTensor, outputTensor, spatialSigma, colorSigma);
 
     return outputTensor;
 }

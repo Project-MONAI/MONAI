@@ -79,3 +79,66 @@ limitations under the License.
 #define CHECK_SPATIAL_LENGTH(value, dim) \
   TORCH_CHECK(((int64_t)(value.size()) == dim - 2), "(): expected ", dim, #value " elements but got ", value.size());
 #define CHECK_VEC_NOT_EMPTY(value) TORCH_CHECK(!value.empty(), "(): expected nonempty value " #value);
+
+
+// Dynamic template specialisation to ease template use based on variable parameters.
+
+#define __DIMENSION_SWITCH__(C, D, FUNC, ...)	                \
+{													                    	              \
+	switch (D)										              	              \
+	{												                    	              \
+		case(1): FUNC<C, 1>(__VA_ARGS__); break;		              \
+		case(2): FUNC<C, 2>(__VA_ARGS__); break;		              \
+		case(3): FUNC<C, 3>(__VA_ARGS__); break;		              \
+		default: throw std::invalid_argument(                     \
+      "Tensor has invalid spatial dimensions, should be 1-3"  \
+      );		                                                  \
+	}													                                  \
+}													                     	
+
+#define __CHANNEL_SWITCH__(C, D, FUNC, ...)								          \
+{																	                                  \
+	switch (C)													                      	      \
+	{																                                  \
+		case( 1): __DIMENSION_SWITCH__( 1, D, FUNC, __VA_ARGS__) break;	\
+		case( 2): __DIMENSION_SWITCH__( 2, D, FUNC, __VA_ARGS__) break;	\
+		case( 3): __DIMENSION_SWITCH__( 3, D, FUNC, __VA_ARGS__) break;	\
+		case( 4): __DIMENSION_SWITCH__( 4, D, FUNC, __VA_ARGS__) break;	\
+		case( 5): __DIMENSION_SWITCH__( 5, D, FUNC, __VA_ARGS__) break;	\
+		case( 6): __DIMENSION_SWITCH__( 6, D, FUNC, __VA_ARGS__) break;	\
+		case( 7): __DIMENSION_SWITCH__( 7, D, FUNC, __VA_ARGS__) break;	\
+		case( 8): __DIMENSION_SWITCH__( 8, D, FUNC, __VA_ARGS__) break;	\
+		case( 9): __DIMENSION_SWITCH__( 9, D, FUNC, __VA_ARGS__) break;	\
+		case(10): __DIMENSION_SWITCH__(10, D, FUNC, __VA_ARGS__) break;	\
+		case(11): __DIMENSION_SWITCH__(11, D, FUNC, __VA_ARGS__) break;	\
+		case(12): __DIMENSION_SWITCH__(12, D, FUNC, __VA_ARGS__) break;	\
+		case(13): __DIMENSION_SWITCH__(13, D, FUNC, __VA_ARGS__) break;	\
+		case(14): __DIMENSION_SWITCH__(14, D, FUNC, __VA_ARGS__) break;	\
+		case(15): __DIMENSION_SWITCH__(15, D, FUNC, __VA_ARGS__) break;	\
+		case(16): __DIMENSION_SWITCH__(16, D, FUNC, __VA_ARGS__) break;	\
+		case(17): __DIMENSION_SWITCH__(17, D, FUNC, __VA_ARGS__) break;	\
+		case(18): __DIMENSION_SWITCH__(18, D, FUNC, __VA_ARGS__) break;	\
+		case(19): __DIMENSION_SWITCH__(19, D, FUNC, __VA_ARGS__) break;	\
+		case(20): __DIMENSION_SWITCH__(20, D, FUNC, __VA_ARGS__) break;	\
+		case(21): __DIMENSION_SWITCH__(21, D, FUNC, __VA_ARGS__) break;	\
+		case(22): __DIMENSION_SWITCH__(22, D, FUNC, __VA_ARGS__) break;	\
+		case(23): __DIMENSION_SWITCH__(23, D, FUNC, __VA_ARGS__) break;	\
+		case(24): __DIMENSION_SWITCH__(24, D, FUNC, __VA_ARGS__) break;	\
+		case(25): __DIMENSION_SWITCH__(25, D, FUNC, __VA_ARGS__) break;	\
+		case(26): __DIMENSION_SWITCH__(26, D, FUNC, __VA_ARGS__) break;	\
+		case(27): __DIMENSION_SWITCH__(27, D, FUNC, __VA_ARGS__) break;	\
+		case(28): __DIMENSION_SWITCH__(28, D, FUNC, __VA_ARGS__) break;	\
+		case(29): __DIMENSION_SWITCH__(29, D, FUNC, __VA_ARGS__) break;	\
+		case(30): __DIMENSION_SWITCH__(30, D, FUNC, __VA_ARGS__) break;	\
+		case(31): __DIMENSION_SWITCH__(31, D, FUNC, __VA_ARGS__) break;	\
+		case(32): __DIMENSION_SWITCH__(32, D, FUNC, __VA_ARGS__) break;	\
+		default: throw std::invalid_argument(                           \
+      "Tensor has invalid channel count, should be 1-32"            \
+      );		                                                        \
+	}																                                  \
+}																	                            
+
+#define SPECIALISE_C_AND_D(Channels, Dimensions, TemplateFunction, ...)	    \
+{													                                                  \
+	__CHANNEL_SWITCH__(Channels, Dimensions, TemplateFunction, __VA_ARGS__);	\
+}													                                                            	
