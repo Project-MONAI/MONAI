@@ -21,10 +21,10 @@ from .dataset import (
     SmartCacheDataset,
     ZipDataset,
 )
-from .iterable_dataset import IterableDataset
 from .decathlon_datalist import load_decathlon_datalist, load_decathlon_properties
 from .grid_dataset import *
 from .image_reader import *
+from .iterable_dataset import IterableDataset
 from .nifti_reader import NiftiDataset
 from .nifti_saver import NiftiSaver
 from .nifti_writer import write_nifti

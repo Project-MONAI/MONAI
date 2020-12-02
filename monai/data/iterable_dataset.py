@@ -9,7 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Iterable
+from typing import Callable, Iterable, Optional
+
 from torch.utils.data import IterableDataset as _TorchIterableDataset
 
 from monai.transforms import apply_transform
