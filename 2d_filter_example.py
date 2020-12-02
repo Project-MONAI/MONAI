@@ -9,20 +9,22 @@ import time
 
 def run_testcase(test_name, plot_position, function, args):
     print("test case: {}".format(test_name))
-    start = time.time()
-    result = function(*args)
-    torch.cuda.synchronize()
-    time_elapsed = time.time() - start
-    print("completed in: {}".format(time_elapsed))
+
+    with torch.autograd.profiler.profile(use_cuda=True) as prof:
+        result = function(*args)
+
+    cpu_time = sum([item.cpu_time for item in prof.function_events]) / 1e3
+    gpu_time = sum([item.cuda_time for item in prof.function_events]) / 1e3
+    print("cpu time: {}ms, gpu time: {}ms".format('%.2f' % cpu_time, '%.2f' % gpu_time))
     
     result = result.squeeze(0).permute(1, 2, 0).cpu().numpy()
     
     plt.subplot(plot_position).axis('off')
-    plt.title('{}: {}sec'.format(test_name, '%.2f' % time_elapsed))
+    plt.title(test_name)
     plt.imshow(result)
 
 # filter parameters
-spatial_sigma = 10
+spatial_sigma = 4
 color_sigma = 0.2
 
 # input data

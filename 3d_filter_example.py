@@ -8,13 +8,23 @@ import nibabel as nib
 import matplotlib.pyplot as plt
 import time
 
+def run(function, args):
+    with torch.autograd.profiler.profile(use_cuda=True) as prof:
+        result = function(*args)
+
+    cpu_time = sum([item.cpu_time for item in prof.function_events]) / 1e3
+    gpu_time = sum([item.cuda_time for item in prof.function_events]) / 1e3
+    print("cpu time: {}ms, gpu time: {}ms".format('%.2f' % cpu_time, '%.2f' % gpu_time))
+    
+    return result
+
 # helper method for plotting
 def show_result(position, data):
     plt.subplot(position).axis('off')
     plt.imshow(data, cmap='gray')
 
 # load ct scan data (128x128x128)
-scan = nib.load('temp_abdominal_ct.nii').get_fdata()
+scan = nib.load('temp_abdominal_ct.nii').get_fdata()[:, :, 30:-30, 30:-30, 30:-30]
 scan += np.min(scan)
 scan /= np.max(scan)
 
@@ -23,35 +33,23 @@ scan_tensor = torch.from_numpy(scan).type(torch.FloatTensor).contiguous()
 scan_tensor_cuda = scan_tensor.cuda()
 
 # filter parameters
-spatial_sigma = 30
+spatial_sigma = 4
 color_sigma = 0.05
 
 # filter
 print('running 3D bilateral filter...')
 
 print('cpu bruteforce')
-start=time.time()
-result_tensor_cpu_brute = BilateralFilter.apply(scan_tensor, spatial_sigma, color_sigma, False)
-time_elapsed = time.time()-start
-print("completed in: {}".format(time_elapsed))
+result_tensor_cpu_brute = run(BilateralFilter.apply, (scan_tensor, spatial_sigma, color_sigma, False))
 
 print('cpu phl')
-start=time.time()
-result_tensor_cpu_phl = BilateralFilter.apply(scan_tensor, spatial_sigma, color_sigma, True)
-time_elapsed = time.time()-start
-print("completed in: {}".format(time_elapsed))
+result_tensor_cpu_phl = run(BilateralFilter.apply, (scan_tensor, spatial_sigma, color_sigma, True))
 
 print('cuda bruteforce')
-start=time.time()
-result_tensor_cuda_brute = BilateralFilter.apply(scan_tensor_cuda, spatial_sigma, color_sigma, False)
-time_elapsed = time.time()-start
-print("completed in: {}".format(time_elapsed))
+result_tensor_cuda_brute = run(BilateralFilter.apply, (scan_tensor_cuda, spatial_sigma, color_sigma, False))
 
 print('cuda phl')
-start=time.time()
-result_tensor_cuda_phl = BilateralFilter.apply(scan_tensor_cuda, spatial_sigma, color_sigma, True)
-time_elapsed = time.time()-start
-print("completed in: {}".format(time_elapsed))
+result_tensor_cuda_phl = run(BilateralFilter.apply, (scan_tensor_cuda, spatial_sigma, color_sigma, True))
 
 # results
 sliceIndex = 64
