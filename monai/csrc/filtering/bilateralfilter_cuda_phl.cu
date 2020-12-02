@@ -16,7 +16,7 @@ limitations under the License.
 
 //#include "permutohedral.cu"
 
-void filter(float *im, float *ref, int pd, int vd, int w, int h, bool accurate);
+void filter(float *im, float *ref, int pd, int vd, int elementCount, int w, int h, bool accurate);
 
 __constant__ int cChannelCount;
 __constant__ int cWidthStride;
@@ -85,7 +85,7 @@ torch::Tensor BilateralFilterPHLCuda(torch::Tensor inputTensor, float spatialSig
 
     FeatureCreation<<<dim3(elementCount, 1), dim3(1, 1)>>>(inputTensor.data_ptr<float>(), data, features);
 
-    filter(data, features, featureCount, channelCount, width, height, true);
+    filter(data, features, featureCount, channelCount, elementCount, width, height, true);
 
     WriteOutput<<<dim3(elementCount, 1), dim3(1, 1)>>>(data, outputTensor.data_ptr<float>());
 

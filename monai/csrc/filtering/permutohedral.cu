@@ -13,151 +13,186 @@ struct MatrixEntry {
 };
 
 template<int pd>
-__global__ static void createMatrix(const int w, const int h, 
+__global__ static void createMatrix(const int elementCount, 
 				    const float *positions, 
 				    const float *values, 
 				    const float *scaleFactor,
 				    MatrixEntry *matrix) {
 
-    const int x = threadIdx.x + blockIdx.x * blockDim.x;
-    const int y = threadIdx.y + blockIdx.y * blockDim.y;
-    const int threadId = threadIdx.y*blockDim.x + threadIdx.x;
-    const int idx = y*w + x;
-    const bool outOfBounds = (x >= w) || (y >= h);
+    const int threadId = threadIdx.x;
+    const int idx = threadIdx.x + blockIdx.x * BLOCK_SIZE;
+    const bool outOfBounds = idx >= elementCount;
 
-    float myElevated[pd+1];
-    const float *myPosition = positions + idx*pd;
+    float myElevated[pd + 1];
+    const float* myPosition = positions + idx * pd;
 
-    int myGreedy[pd+1];
-    int myRank[pd+1];
+    int myGreedy[pd + 1];
+    int myRank[pd + 1];
 
-    float myBarycentric[pd+2];
-    __shared__ short keys[pd*BLOCK_SIZE];
-    short *myKey = keys + threadId * pd;
+    float myBarycentric[pd + 2];
+    __shared__ short keys[pd * BLOCK_SIZE];
+    short* myKey = keys + threadId * pd;
 
-    if (!outOfBounds) {
+    if (!outOfBounds) 
+    {
+        myElevated[pd] = -pd * myPosition[pd - 1] * scaleFactor[pd - 1];
 
-        myElevated[pd] = -pd*(myPosition[pd-1])*scaleFactor[pd-1];
         for (int i = pd-1; i > 0; i--) {
-            myElevated[i] = (myElevated[i+1] - 
-                    i*(myPosition[i-1])*scaleFactor[i-1] + 
-                    (i+2)*(myPosition[i])*scaleFactor[i]);
+            myElevated[i] = myElevated[i + 1] - i * (myPosition[i - 1]) * scaleFactor[i - 1] + (i + 2) * myPosition[i] * scaleFactor[i];
         }
-        myElevated[0] = myElevated[1] + 2*(myPosition[0])*scaleFactor[0];
+
+        myElevated[0] = myElevated[1] + 2 * myPosition[0] * scaleFactor[0];
         
             
         // find the closest zero-colored lattice point
 
         // greedily search for the closest zero-colored lattice point
         signed short sum = 0;
-        for (int i = 0; i <= pd; i++) {
-            float v = myElevated[i]*(1.0f/(pd+1));
-            float up = ceilf(v) * (pd+1);
-            float down = floorf(v) * (pd+1);
-            if (up - myElevated[i] < myElevated[i] - down) {
-            myGreedy[i] = (signed short)up;
-            } else {
-            myGreedy[i] = (signed short)down;
-            }
+
+        for (int i = 0; i <= pd; i++) 
+        {
+            float v = myElevated[i] * (1.0f / (pd + 1));
+            float up = ceilf(v) * (pd + 1);
+            float down = floorf(v) * (pd + 1);
+
+            myGreedy[i] = (signed short)(up - myElevated[i] < myElevated[i] - down ? up : down);
             sum += myGreedy[i];
         }
-        sum /= pd+1;
+
+        sum /= pd + 1;
         
         // sort differential to find the permutation between this simplex and the canonical one
-        for (int i = 0; i <= pd; i++) {
+        for (int i = 0; i <= pd; i++) 
+        {
             myRank[i] = 0;
-            for (int j = 0; j <= pd; j++) {
-            if (myElevated[i] - myGreedy[i] < myElevated[j] - myGreedy[j] ||
-                (myElevated[i] - myGreedy[i] == myElevated[j] - myGreedy[j]
-                && i > j)) {
-                myRank[i]++;
-            }
+
+            for (int j = 0; j <= pd; j++) 
+            {
+                float iDiff = myElevated[i] - myGreedy[i];
+                float jDiff = myElevated[j] - myGreedy[j];
+
+                if (iDiff < jDiff || (iDiff == jDiff && i > j)) 
+                {
+                    myRank[i]++;
+                }
             }
         }
         
-        if (sum > 0) { // sum too large, need to bring down the ones with the smallest differential
-            for (int i = 0; i <= pd; i++) {
-            if (myRank[i] >= pd + 1 - sum) {
-                myGreedy[i] -= pd+1;
-                myRank[i] += sum - (pd+1);
-            } else {
-                myRank[i] += sum;
+        if (sum > 0) // sum too large, need to bring down the ones with the smallest differential
+        { 
+            for (int i = 0; i <= pd; i++) 
+            {
+                if (myRank[i] >= pd + 1 - sum) 
+                {
+                    myGreedy[i] -= (pd + 1);
+                    myRank[i] += sum - (pd + 1);
+                } 
+                else 
+                {
+                    myRank[i] += sum;
+                }
             }
-            }
-        } else if (sum < 0) { // sum too small, need to bring up the ones with largest differential
-            for (int i = 0; i <= pd; i++) {
-            if (myRank[i] < -sum) {
-                myGreedy[i] += pd+1;
-                myRank[i] += (pd+1) + sum;
-            } else {
-                myRank[i] += sum;
-            }
+        } 
+        else if (sum < 0) // sum too small, need to bring up the ones with largest differential
+        { 
+            for (int i = 0; i <= pd; i++)
+            {
+                if (myRank[i] < -sum) 
+                {
+                    myGreedy[i] += (pd + 1);
+                    myRank[i] += sum + (pd + 1);
+                } 
+                else 
+                {
+                    myRank[i] += sum;
+                }
             }
         }
 
-            #ifdef LINEAR_D_MEMORY
-        for (int i = 0; i <= pd; i++) {
-            table_zeros[idx*(pd+1)+i] = myGreedy[i];
-            table_rank[idx*(pd+1)+i] = myRank[i];
+        #ifdef LINEAR_D_MEMORY
+        for (int i = 0; i <= pd; i++) 
+        {
+            table_zeros[idx * (pd + 1) + i] = myGreedy[i];
+            table_rank[idx * (pd + 1) + i] = myRank[i];
         }
         #endif
 
         // turn delta into barycentric coords
-        for (int i = 0; i <= pd+1; i++) {
+        for (int i = 0; i <= pd + 1; i++) 
+        {
             myBarycentric[i] = 0;
         }
         
-        for (int i = 0; i <= pd; i++) {
-            float delta = (myElevated[i] - myGreedy[i]) * (1.0f/(pd+1));
-            myBarycentric[pd-myRank[i]] += delta;
-            myBarycentric[pd+1-myRank[i]] -= delta;
+        for (int i = 0; i <= pd; i++) 
+        {
+            float delta = (myElevated[i] - myGreedy[i]) * (1.0f / (pd + 1));
+            myBarycentric[pd - myRank[i]] += delta;
+            myBarycentric[pd + 1  -myRank[i]] -= delta;
         }
-        myBarycentric[0] += 1.0f + myBarycentric[pd+1];
+
+        myBarycentric[0] += 1.0f + myBarycentric[pd + 1];
     }
 
     #ifdef USE_ADDITIVE_HASH
     unsigned int cumulative_hash = hash<pd>(myGreedy);
     #endif
-    for (int color = 0; color <= pd; color++) {
+
+    for (int color = 0; color <= pd; color++) 
+    {
         // Compute the location of the lattice point explicitly (all but
         // the last coordinate - it's redundant because they sum to zero)
-        if (!outOfBounds) {
-            for (int i = 0; i < pd; i++) {
-            myKey[i] = myGreedy[i] + color;
-            if (myRank[i] > pd-color) myKey[i] -= (pd+1);
+        if (!outOfBounds) 
+        {
+            for (int i = 0; i < pd; i++) 
+            {
+                myKey[i] = myGreedy[i] + color;
+
+                if (myRank[i] > pd-color) 
+                {
+                    myKey[i] -= (pd+1);
+                }
             }
         }
 
         #ifdef USE_ADDITIVE_HASH
-        for (int i = 0; i < pd; i++) {
-            if (myRank[i] == pd-color) cumulative_hash += hOffset[i];
+        for (int i = 0; i < pd; i++) 
+        {
+            if (myRank[i] == pd - color)
+            {
+                cumulative_hash += hOffset[i];
+            }
         }
         #endif
         
-        if (!outOfBounds) {
+        if (!outOfBounds) 
+        {
             MatrixEntry r;
+
             #ifdef USE_ADDITIVE_HASH
             r.index = hashTableInsert<pd>(cumulative_hash, myKey, idx*(pd+1)+color);
             #else
             r.index = hashTableInsert<pd>(myKey, idx*(pd+1)+color);
             #endif
+
             r.weight = myBarycentric[color];
-            matrix[idx*(pd+1) + color] = r;
+            matrix[idx * (pd + 1) + color] = r;
         }
-    }    
+    }
 }
 
 template<int kd>
-__global__ static void cleanHashTable(int n, MatrixEntry *matrix) {
-    const int idx = (blockIdx.y * gridDim.x + blockIdx.x) * blockDim.x * blockDim.y + threadIdx.x;
+__global__ static void cleanHashTable(const int elementCount, MatrixEntry *matrix) 
+{
+    const int idx = threadIdx.x + blockIdx.x * blockDim.x;
     
-    if (idx >= n) return;
+    if (idx >= elementCount) return;
 
     // find my hash table entry
     int *e = table_entries + idx;
 
     // Check if I created my own key in the previous phase
-    if (*e >= 0) {
+    if (*e >= 0) 
+    {
 	// Rehash my key and reset the pointer in order to merge with
 	// any other pixel that created a different entry under the
 	// same key. If the computation was serial this would never
@@ -169,12 +204,11 @@ __global__ static void cleanHashTable(int n, MatrixEntry *matrix) {
         // Get my key      
         short myKey[kd];
         generateKey<kd>(*e, myKey);
-	*e = hashTableRetrieve<kd>(myKey);
+        *e = hashTableRetrieve<kd>(myKey);
         #else
-	*e = hashTableRetrieve<kd>(table_keys + *e*kd);
-	#endif
+        *e = hashTableRetrieve<kd>(table_keys + *e*kd);
+        #endif
     }
-
 }
 
 
@@ -204,17 +238,16 @@ __global__ static void splat(const int w, const int h, float *values, MatrixEntr
 }
 
 template<int pd, int vd>
-__global__ static void splatCache(const int w, const int h, float *values, MatrixEntry *matrix) {
-
-    const int x = threadIdx.x + blockIdx.x * blockDim.x;
-    const int y = threadIdx.y + (blockIdx.y/(pd+1)) * blockDim.y;
-    const int threadId = threadIdx.y*blockDim.x + threadIdx.x;
-    const int color = blockIdx.y % (pd+1);
-    const int idx = y*w + x;
-    const bool outOfBounds = (x >= w) || (y >= h);
+__global__ static void splatCache(const int elementCount, float *values, MatrixEntry *matrix)
+{
+    const int threadId = threadIdx.x;
+    const int color = threadIdx.y;
+    const int idx = threadIdx.x + blockIdx.x * BLOCK_SIZE;
+    const bool outOfBounds = idx >= elementCount;
     
     __shared__ int sharedOffsets[BLOCK_SIZE];
     __shared__ float sharedValues[BLOCK_SIZE*(vd+1)];
+
     int myOffset = -1;
     float *myValue = sharedValues + threadId*(vd+1);
     
@@ -334,43 +367,45 @@ __global__ static void blur(int n, float *newValues, MatrixEntry *matrix, int co
 }
 
 template<int pd, int vd>
-__global__ static void slice(const int w, const int h, float *values, MatrixEntry *matrix) {
-    //const int idx = blockIdx.x * BLOCK_SIZE + threadIdx.x;    
-
-    const int x = threadIdx.x + blockIdx.x * blockDim.x;
-    const int y = threadIdx.y + blockIdx.y * blockDim.y;
-    const int threadId = threadIdx.y*blockDim.x + threadIdx.x;
-    const int idx = y*w + x;
-    const bool outOfBounds = (x >= w) || (y >= h);
+__global__ static void slice(const int elementCount, float *values, MatrixEntry *matrix) 
+{
+    const int threadId = threadIdx.x;
+    const int idx = threadIdx.x + blockIdx.x * BLOCK_SIZE;
+    const bool outOfBounds = idx >= elementCount;
 
     if (outOfBounds) return;
 
-    __shared__ float localValue[BLOCK_SIZE*vd];
+    __shared__ float localValue[BLOCK_SIZE * vd];
 
-    float *myValue = localValue + threadId*vd;
+    float *myValue = localValue + threadId * vd;
     float myWeight = 0;
 
     for (int i = 0; i < vd; i++) {
-	myValue[i] = 0;
+	    myValue[i] = 0;
     }
 
     for (int i = 0; i <= pd; i++) {
-	MatrixEntry r = matrix[idx*(pd+1) + i];
-	float *val = table_values + r.index*(vd+1);
-	for (int j = 0; j < vd; j++) {
-	    myValue[j] += r.weight*val[j];
-	}
-	myWeight += r.weight*val[vd];
+
+        MatrixEntry r = matrix[idx * (pd + 1) + i];
+        float* val = table_values + r.index * (vd + 1);
+
+        for (int j = 0; j < vd; j++) {
+            myValue[j] += r.weight * val[j];
+        }
+
+        myWeight += r.weight * val[vd];
     }
 
-    myWeight = 1.0f/myWeight;
-    for (int j = 0; j < vd; j++) 
-	values[idx*vd + j] = myValue[j]*myWeight;
+    myWeight = 1.0f / myWeight;
+
+    for (int j = 0; j < vd; j++) {
+        values[idx * vd + j] = myValue[j] * myWeight;
+    }
 }
  
 template<int vd, int pd>
-void filter_(float* values, float* positions, int w, int h, bool accurate) {    
-    int n = w*h;
+void filter_(float* values, float* positions, int elementCount, int w, int h, bool accurate) {    
+    int n = elementCount;
     float blurVariance = accurate ? 0.5 : 0;
 
     float* scaleFactor;
@@ -406,87 +441,90 @@ void filter_(float* values, float* positions, int w, int h, bool accurate) {
     }
     cudaMemcpyToSymbol(hOffset, &hOffset_host, sizeof(unsigned int)*(pd+1));
 
-    dim3 blocks((w-1)/8+1, (h-1)/8+1, 1);
-    dim3 blockSize(8, 8, 1); 
+    int newBlocks = (elementCount + 1) / BLOCK_SIZE + 1;
+    int newBlockSize = BLOCK_SIZE;
 
-    createMatrix<pd><<<blocks, blockSize>>>(w, h, positions, values, scaleFactor, matrix);
+    createMatrix<pd><<<newBlocks, newBlockSize>>>(elementCount, positions, values, scaleFactor, matrix);
 
     // fix duplicate hash table entries
+    int tableSize = elementCount * 2 * (pd + 1);
     int cleanBlockSize = 32;
-    dim3 cleanBlocks((n-1)/cleanBlockSize+1, 2*(pd+1), 1);
-    cleanHashTable<pd><<<cleanBlocks, cleanBlockSize>>>(2*n*(pd+1), matrix);
+    int cleanBlocks = (tableSize - 1) / cleanBlockSize + 1;
+    cleanHashTable<pd><<<cleanBlocks, cleanBlockSize>>>(tableSize, matrix);
 
-    // splat splits by color, so extend the y coordinate to our blocks to represent that
-    blocks.y *= pd+1;
-    splatCache<pd, vd><<<blocks, blockSize>>>(w, h, values, matrix);
-    
-    if (accurate) {
-	float *newValues;
-	cudaMalloc(&newValues, n * (pd+1) * (vd+1) * sizeof(float));
-	cudaMemset(newValues, 0, n * (pd+1) * (vd+1) * sizeof(float));
-	
-	for (int color = 0; color <= pd; color++) {	
-        blur<pd, vd><<<cleanBlocks, cleanBlockSize>>>(n*(pd+1), newValues, matrix, color);
-	    newValues = swapHashTableValues(newValues);
-	}
+    splatCache<pd, vd><<<dim3(newBlocks, 1), dim3(newBlockSize, pd+1)>>>(elementCount, values, matrix);
+
+    if (accurate) 
+    {
+        float *newValues;
+        cudaMalloc(&newValues, elementCount * (pd+1) * (vd+1) * sizeof(float));
+        cudaMemset(newValues, 0, elementCount * (pd+1) * (vd+1) * sizeof(float));
+        
+        for (int color = 0; color <= pd; color++) 
+        {	
+            blur<pd, vd><<<cleanBlocks, cleanBlockSize>>>(elementCount*(pd+1), newValues, matrix, color);
+            newValues = swapHashTableValues(newValues);
+        }
+
+        cudaFree(newValues);
     }
-    blocks.y /= (pd+1);
-    slice<pd, vd><<<blocks, blockSize>>>(w, h, values, matrix);
+
+    slice<pd, vd><<<newBlocks, newBlockSize>>>(elementCount, values, matrix);
     
     destroyHashTable();
 }
 
-void filter(float *im, float *ref, int pd, int vd, int w, int h, bool accurate) {
+void filter(float *im, float *ref, int pd, int vd, int elementCount, int w, int h, bool accurate) {
     switch (vd*1000 + pd) {
-    case 1001: filter_<1, 1>(im, ref, w, h, accurate); break;
-    case 2001: filter_<2, 1>(im, ref, w, h, accurate); break;
-    case 3001: filter_<3, 1>(im, ref, w, h, accurate); break;
-    case 1002: filter_<1, 2>(im, ref, w, h, accurate); break;
-    case 2002: filter_<2, 2>(im, ref, w, h, accurate); break;
-    case 3002: filter_<3, 2>(im, ref, w, h, accurate); break;
-    case 1003: filter_<1, 3>(im, ref, w, h, accurate); break;
-    case 2003: filter_<2, 3>(im, ref, w, h, accurate); break;
-    case 3003: filter_<3, 3>(im, ref, w, h, accurate); break;
-    case 1004: filter_<1, 4>(im, ref, w, h, accurate); break;
-    case 2004: filter_<2, 4>(im, ref, w, h, accurate); break;
-    case 3004: filter_<3, 4>(im, ref, w, h, accurate); break;
-    case 1005: filter_<1, 5>(im, ref, w, h, accurate); break;
-    case 2005: filter_<2, 5>(im, ref, w, h, accurate); break;
-    case 3005: filter_<3, 5>(im, ref, w, h, accurate); break;
-    case 1006: filter_<1, 6>(im, ref, w, h, accurate); break;
-    case 2006: filter_<2, 6>(im, ref, w, h, accurate); break;
-    case 3006: filter_<3, 6>(im, ref, w, h, accurate); break;
-    case 1007: filter_<1, 7>(im, ref, w, h, accurate); break;
-    case 2007: filter_<2, 7>(im, ref, w, h, accurate); break;
-    case 3007: filter_<3, 7>(im, ref, w, h, accurate); break;
-    case 1008: filter_<1, 8>(im, ref, w, h, accurate); break;
-    case 2008: filter_<2, 8>(im, ref, w, h, accurate); break;
-    case 3008: filter_<3, 8>(im, ref, w, h, accurate); break;
-    case 1009: filter_<1, 9>(im, ref, w, h, accurate); break;
-    case 2009: filter_<2, 9>(im, ref, w, h, accurate); break;
-    case 3009: filter_<3, 9>(im, ref, w, h, accurate); break;
-    case 1010: filter_<1, 10>(im, ref, w, h, accurate); break;
-    case 2010: filter_<2, 10>(im, ref, w, h, accurate); break;
-    case 3010: filter_<3, 10>(im, ref, w, h, accurate); break;
-    case 1011: filter_<1, 11>(im, ref, w, h, accurate); break;
-    case 2011: filter_<2, 11>(im, ref, w, h, accurate); break;
-    case 3011: filter_<3, 11>(im, ref, w, h, accurate); break;
-    case 1012: filter_<1, 12>(im, ref, w, h, accurate); break;
-    case 2012: filter_<2, 12>(im, ref, w, h, accurate); break;
-    case 3012: filter_<3, 12>(im, ref, w, h, accurate); break;
-    case 1013: filter_<1, 13>(im, ref, w, h, accurate); break;
-    case 2013: filter_<2, 13>(im, ref, w, h, accurate); break;
-    case 3013: filter_<3, 13>(im, ref, w, h, accurate); break;
-    case 1014: filter_<1, 14>(im, ref, w, h, accurate); break;
-    case 2014: filter_<2, 14>(im, ref, w, h, accurate); break;
-    case 3014: filter_<3, 14>(im, ref, w, h, accurate); break;
-    case 1015: filter_<1, 15>(im, ref, w, h, accurate); break;
-    case 2015: filter_<2, 15>(im, ref, w, h, accurate); break;
-    case 3015: filter_<3, 15>(im, ref, w, h, accurate); break;
-    case 1016: filter_<1, 16>(im, ref, w, h, accurate); break;
-    case 2016: filter_<2, 16>(im, ref, w, h, accurate); break;
-    case 3016: filter_<3, 16>(im, ref, w, h, accurate); break;
+    case 1001: filter_<1, 1>(im, ref, elementCount, w, h, accurate); break;
+    case 2001: filter_<2, 1>(im, ref, elementCount, w, h, accurate); break;
+    case 3001: filter_<3, 1>(im, ref, elementCount, w, h, accurate); break;
+    case 1002: filter_<1, 2>(im, ref, elementCount, w, h, accurate); break;
+    case 2002: filter_<2, 2>(im, ref, elementCount, w, h, accurate); break;
+    case 3002: filter_<3, 2>(im, ref, elementCount, w, h, accurate); break;
+    case 1003: filter_<1, 3>(im, ref, elementCount, w, h, accurate); break;
+    case 2003: filter_<2, 3>(im, ref, elementCount, w, h, accurate); break;
+    case 3003: filter_<3, 3>(im, ref, elementCount, w, h, accurate); break;
+    case 1004: filter_<1, 4>(im, ref, elementCount, w, h, accurate); break;
+    case 2004: filter_<2, 4>(im, ref, elementCount, w, h, accurate); break;
+    case 3004: filter_<3, 4>(im, ref, elementCount, w, h, accurate); break;
+    case 1005: filter_<1, 5>(im, ref, elementCount, w, h, accurate); break;
+    case 2005: filter_<2, 5>(im, ref, elementCount, w, h, accurate); break;
+    case 3005: filter_<3, 5>(im, ref, elementCount, w, h, accurate); break;
+    case 1006: filter_<1, 6>(im, ref, elementCount, w, h, accurate); break;
+    case 2006: filter_<2, 6>(im, ref, elementCount, w, h, accurate); break;
+    case 3006: filter_<3, 6>(im, ref, elementCount, w, h, accurate); break;
+    case 1007: filter_<1, 7>(im, ref, elementCount, w, h, accurate); break;
+    case 2007: filter_<2, 7>(im, ref, elementCount, w, h, accurate); break;
+    case 3007: filter_<3, 7>(im, ref, elementCount, w, h, accurate); break;
+    case 1008: filter_<1, 8>(im, ref, elementCount, w, h, accurate); break;
+    case 2008: filter_<2, 8>(im, ref, elementCount, w, h, accurate); break;
+    case 3008: filter_<3, 8>(im, ref, elementCount, w, h, accurate); break;
+    case 1009: filter_<1, 9>(im, ref, elementCount, w, h, accurate); break;
+    case 2009: filter_<2, 9>(im, ref, elementCount, w, h, accurate); break;
+    case 3009: filter_<3, 9>(im, ref, elementCount, w, h, accurate); break;
+    case 1010: filter_<1, 10>(im, ref,elementCount, w, h, accurate); break;
+    case 2010: filter_<2, 10>(im, ref, elementCount, w, h, accurate); break;
+    case 3010: filter_<3, 10>(im, ref, elementCount, w, h, accurate); break;
+    case 1011: filter_<1, 11>(im, ref, elementCount, w, h, accurate); break;
+    case 2011: filter_<2, 11>(im, ref, elementCount, w, h, accurate); break;
+    case 3011: filter_<3, 11>(im, ref, elementCount, w, h, accurate); break;
+    case 1012: filter_<1, 12>(im, ref, elementCount, w, h, accurate); break;
+    case 2012: filter_<2, 12>(im, ref, elementCount, w, h, accurate); break;
+    case 3012: filter_<3, 12>(im, ref, elementCount, w, h, accurate); break;
+    case 1013: filter_<1, 13>(im, ref, elementCount, w, h, accurate); break;
+    case 2013: filter_<2, 13>(im, ref, elementCount, w, h, accurate); break;
+    case 3013: filter_<3, 13>(im, ref, elementCount, w, h, accurate); break;
+    case 1014: filter_<1, 14>(im, ref, elementCount, w, h, accurate); break;
+    case 2014: filter_<2, 14>(im, ref, elementCount, w, h, accurate); break;
+    case 3014: filter_<3, 14>(im, ref, elementCount, w, h, accurate); break;
+    case 1015: filter_<1, 15>(im, ref, elementCount, w, h, accurate); break;
+    case 2015: filter_<2, 15>(im, ref, elementCount, w, h, accurate); break;
+    case 3015: filter_<3, 15>(im, ref, elementCount, w, h, accurate); break;
+    case 1016: filter_<1, 16>(im, ref, elementCount, w, h, accurate); break;
+    case 2016: filter_<2, 16>(im, ref, elementCount, w, h, accurate); break;
+    case 3016: filter_<3, 16>(im, ref, elementCount, w, h, accurate); break;
     default:
-	printf("Unsupported channel counts. Reference image must have 1 to 16 channels, input image must have 1 to 3 channels\n");	    
-    }    
+	printf("Unsupported channel count. Reference image must have 1 to 16 channels, input image must have 1 to 3 channels\n");	    
+    } 
 }
