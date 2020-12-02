@@ -25,7 +25,7 @@ from monai.networks.nets import densenet121
 from monai.transforms import AddChannel, Compose, LoadPNG, RandFlip, RandRotate, RandZoom, ScaleIntensity, ToTensor
 from monai.utils import set_determinism
 from tests.testing_data.integration_answers import test_integration_value
-from tests.utils import skip_if_quick
+from tests.utils import DistTestCase, TimedCall, skip_if_quick
 
 TEST_DATA_URL = "https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz?dl=1"
 MD5_VALUE = "0bc7306e7427e00ad1c5526a6677552d"
@@ -45,7 +45,7 @@ class MedNISTDataset(torch.utils.data.Dataset):
         return self.transforms(self.image_files[index]), self.labels[index]
 
 
-def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0"):
+def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0", num_workers=10):
 
     monai.config.print_config()
     # define transforms for image and classification
@@ -65,10 +65,10 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0")
 
     # create train, val data loaders
     train_ds = MedNISTDataset(train_x, train_y, train_transforms)
-    train_loader = DataLoader(train_ds, batch_size=300, shuffle=True, num_workers=10)
+    train_loader = DataLoader(train_ds, batch_size=300, shuffle=True, num_workers=num_workers)
 
     val_ds = MedNISTDataset(val_x, val_y, val_transforms)
-    val_loader = DataLoader(val_ds, batch_size=300, num_workers=10)
+    val_loader = DataLoader(val_ds, batch_size=300, num_workers=num_workers)
 
     model = densenet121(spatial_dims=2, in_channels=1, out_channels=len(np.unique(train_y))).to(device)
     loss_function = torch.nn.CrossEntropyLoss()
@@ -127,11 +127,11 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0")
     return epoch_loss_values, best_metric, best_metric_epoch
 
 
-def run_inference_test(root_dir, test_x, test_y, device="cuda:0"):
+def run_inference_test(root_dir, test_x, test_y, device="cuda:0", num_workers=10):
     # define transforms for image and classification
     val_transforms = Compose([LoadPNG(image_only=True), AddChannel(), ScaleIntensity(), ToTensor()])
     val_ds = MedNISTDataset(test_x, test_y, val_transforms)
-    val_loader = DataLoader(val_ds, batch_size=300, num_workers=10)
+    val_loader = DataLoader(val_ds, batch_size=300, num_workers=num_workers)
 
     model = densenet121(spatial_dims=2, in_channels=1, out_channels=len(np.unique(test_y))).to(device)
 
@@ -152,7 +152,7 @@ def run_inference_test(root_dir, test_x, test_y, device="cuda:0"):
 
 
 @skip_if_quick
-class IntegrationClassification2D(unittest.TestCase):
+class IntegrationClassification2D(DistTestCase):
     def setUp(self):
         set_determinism(seed=0)
         self.data_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
@@ -198,7 +198,7 @@ class IntegrationClassification2D(unittest.TestCase):
                 self.train_x.append(image_file_list[i])
                 self.train_y.append(image_classes[i])
 
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
+        self.device = "cuda:0" if torch.cuda.is_available() else "cpu:0"
 
     def tearDown(self):
         set_determinism(seed=None)
@@ -208,37 +208,44 @@ class IntegrationClassification2D(unittest.TestCase):
             warnings.warn("not found best_metric_model.pth, training skipped?")
             pass
 
-    def test_training(self):
+    def train_and_infer(self, idx=0):
+        results = []
         if not os.path.exists(os.path.join(self.data_dir, "MedNIST")):
             # skip test if no MedNIST dataset
-            return
+            return results
+
+        set_determinism(seed=0)
+        losses, best_metric, best_metric_epoch = run_training_test(
+            self.data_dir, self.train_x, self.train_y, self.val_x, self.val_y, device=self.device
+        )
+        infer_metric = run_inference_test(self.data_dir, self.test_x, self.test_y, device=self.device)
+
+        print(f"integration_classification_2d {losses}")
+        print("best metric", best_metric)
+        print("infer metric", infer_metric)
+        # check training properties
+        self.assertTrue(test_integration_value(TASK, key="losses", data=losses, rtol=1e-2))
+        self.assertTrue(test_integration_value(TASK, key="best_metric", data=best_metric, rtol=1e-4))
+        np.testing.assert_allclose(best_metric_epoch, 4)
+        model_file = os.path.join(self.data_dir, "best_metric_model.pth")
+        self.assertTrue(os.path.exists(model_file))
+        # check inference properties
+        self.assertTrue(test_integration_value(TASK, key="infer_prop", data=np.asarray(infer_metric), rtol=1))
+        results.extend(losses)
+        results.append(best_metric)
+        results.extend(infer_metric)
+        return results
+
+    def test_training(self):
         repeated = []
         for i in range(2):
-            set_determinism(seed=0)
-
-            repeated.append([])
-            losses, best_metric, best_metric_epoch = run_training_test(
-                self.data_dir, self.train_x, self.train_y, self.val_x, self.val_y, device=self.device
-            )
-
-            # check training properties
-            print(f"integration_classification_2d {losses}")
-            self.assertTrue(test_integration_value(TASK, key="losses", data=losses, rtol=1e-2))
-            repeated[i].extend(losses)
-            print("best metric", best_metric)
-            self.assertTrue(test_integration_value(TASK, key="best_metric", data=best_metric, rtol=1e-4))
-            repeated[i].append(best_metric)
-            np.testing.assert_allclose(best_metric_epoch, 4)
-            model_file = os.path.join(self.data_dir, "best_metric_model.pth")
-            self.assertTrue(os.path.exists(model_file))
-
-            infer_metric = run_inference_test(self.data_dir, self.test_x, self.test_y, device=self.device)
-            print("infer metric", infer_metric)
-            # check inference properties
-            self.assertTrue(test_integration_value(TASK, key="infer_prop", data=np.asarray(infer_metric), rtol=1))
-            repeated[i].extend(infer_metric)
-
+            results = self.train_and_infer(i)
+            repeated.append(results)
         np.testing.assert_allclose(repeated[0], repeated[1])
+
+    @TimedCall(seconds=500, skip_timing=not torch.cuda.is_available(), daemon=False)
+    def test_timing(self):
+        self.train_and_infer()
 
 
 if __name__ == "__main__":

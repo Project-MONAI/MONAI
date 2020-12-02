@@ -40,7 +40,7 @@ from monai.transforms import (
 from monai.utils import set_determinism
 from monai.visualize import plot_2d_or_3d_image
 from tests.testing_data.integration_answers import test_integration_value
-from tests.utils import skip_if_quick
+from tests.utils import DistTestCase, TimedCall, skip_if_quick
 
 TASK = "integration_segmentation_3d"
 
@@ -191,7 +191,7 @@ def run_inference_test(root_dir, device="cuda:0"):
         ]
     )
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
-    # sliding window inferene need to input 1 image in every iteration
+    # sliding window inference need to input 1 image in every iteration
     val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
     val_post_tran = Compose([Activations(sigmoid=True), AsDiscrete(threshold_values=True)])
     dice_metric = DiceMetric(include_background=True, reduction="mean")
@@ -228,7 +228,7 @@ def run_inference_test(root_dir, device="cuda:0"):
 
 
 @skip_if_quick
-class IntegrationSegmentation3D(unittest.TestCase):
+class IntegrationSegmentation3D(DistTestCase):
     def setUp(self):
         set_determinism(seed=0)
 
@@ -240,47 +240,53 @@ class IntegrationSegmentation3D(unittest.TestCase):
             n = nib.Nifti1Image(seg, np.eye(4))
             nib.save(n, os.path.join(self.data_dir, f"seg{i:d}.nii.gz"))
 
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
+        self.device = "cuda:0" if torch.cuda.is_available() else "cpu:0"
 
     def tearDown(self):
         set_determinism(seed=None)
         shutil.rmtree(self.data_dir)
 
+    def train_and_infer(self, idx=0):
+        results = []
+        set_determinism(0)
+        losses, best_metric, best_metric_epoch = run_training_test(self.data_dir, device=self.device, cachedataset=idx)
+        infer_metric = run_inference_test(self.data_dir, device=self.device)
+
+        # check training properties
+        print("losses", losses)
+        print("best metric", best_metric)
+        print("infer metric", infer_metric)
+        self.assertTrue(test_integration_value(TASK, key="losses", data=losses, rtol=1e-3))
+        self.assertTrue(test_integration_value(TASK, key="best_metric", data=best_metric, rtol=1e-2))
+        self.assertTrue(len(glob(os.path.join(self.data_dir, "runs"))) > 0)
+        model_file = os.path.join(self.data_dir, "best_metric_model.pth")
+        self.assertTrue(os.path.exists(model_file))
+
+        # check inference properties
+        self.assertTrue(test_integration_value(TASK, key="infer_metric", data=infer_metric, rtol=1e-2))
+        output_files = sorted(glob(os.path.join(self.data_dir, "output", "img*", "*.nii.gz")))
+        print([np.mean(nib.load(output).get_fdata()) for output in output_files])
+        results.extend(losses)
+        results.append(best_metric)
+        results.append(infer_metric)
+        for output in output_files:
+            ave = np.mean(nib.load(output).get_fdata())
+            results.append(ave)
+        self.assertTrue(test_integration_value(TASK, key="output_sums", data=results[8:], rtol=1e-2))
+        return results
+
     def test_training(self):
         repeated = []
         for i in range(4):
-            set_determinism(0)
-
-            repeated.append([])
-            losses, best_metric, best_metric_epoch = run_training_test(
-                self.data_dir, device=self.device, cachedataset=i
-            )
-
-            # check training properties
-            print("losses", losses)
-            self.assertTrue(test_integration_value(TASK, key="losses", data=losses, rtol=1e-3))
-            repeated[i].extend(losses)
-            print("best metric", best_metric)
-            self.assertTrue(test_integration_value(TASK, key="best_metric", data=best_metric, rtol=1e-2))
-            repeated[i].append(best_metric)
-            self.assertTrue(len(glob(os.path.join(self.data_dir, "runs"))) > 0)
-            model_file = os.path.join(self.data_dir, "best_metric_model.pth")
-            self.assertTrue(os.path.exists(model_file))
-
-            infer_metric = run_inference_test(self.data_dir, device=self.device)
-
-            # check inference properties
-            print("infer metric", infer_metric)
-            self.assertTrue(test_integration_value(TASK, key="infer_metric", data=infer_metric, rtol=1e-2))
-            repeated[i].append(infer_metric)
-            output_files = sorted(glob(os.path.join(self.data_dir, "output", "img*", "*.nii.gz")))
-            print([np.mean(nib.load(output).get_fdata()) for output in output_files])
-            for output in output_files:
-                ave = np.mean(nib.load(output).get_fdata())
-                repeated[i].append(ave)
-            self.assertTrue(test_integration_value(TASK, key="output_sums", data=repeated[i][8:], rtol=1e-2))
+            results = self.train_and_infer(i)
+            repeated.append(results)
         np.testing.assert_allclose(repeated[0], repeated[1])
         np.testing.assert_allclose(repeated[0], repeated[2])
+        np.testing.assert_allclose(repeated[0], repeated[3])
+
+    @TimedCall(seconds=180, daemon=False)
+    def test_timing(self):
+        self.train_and_infer(idx=3)
 
 
 if __name__ == "__main__":
