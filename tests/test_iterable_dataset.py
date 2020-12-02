@@ -57,6 +57,7 @@ class _Stream:
 
 class TestIterableDataset(unittest.TestCase):
     def test_shape(self):
+        expected_shape = (128, 128, 128)
         test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]), np.eye(4))
         test_data = list()
         with tempfile.TemporaryDirectory() as tempdir:
@@ -75,12 +76,12 @@ class TestIterableDataset(unittest.TestCase):
 
             dataset = IterableDataset(data=test_stream, transform=test_transform)
             for d in dataset:
-                self.assertTupleEqual(d["image"].shape, (128, 128, 128))
+                self.assertTupleEqual(d["image"].shape, expected_shape)
 
             test_stream.reset()
             dataloader = DataLoader(dataset=dataset, batch_size=3, num_workers=2)
             for d in dataloader:
-                self.assertTupleEqual(d["image"].shape, (3, 128, 128, 128))
+                self.assertTupleEqual(d["image"].shape[1:], expected_shape)
 
 
 if __name__ == "__main__":
