@@ -14,57 +14,99 @@ limitations under the License.
 #include <torch/extension.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include "utils/common_utils.h"
 
-__constant__ int cInputDimensions[5];
-__constant__ int cInputStrides[5];
+__constant__ int cBatchStride;
+__constant__ int cColorStride;
+
+__constant__ int cSizes[5];
+__constant__ int cStrides[5];
 
 __constant__ int cKernelSize;
 __constant__ float cKernel[256];
 
 __constant__ float cColorExponentFactor;
 
-__global__ void BilateralFilterCudaKernel(float* input, float* output)
+template<int C>
+__global__ void BilateralFilterCudaKernel1D(float* input, float* output)
 {
-    int batchCount = cInputDimensions[0];
-    int channelCount = cInputDimensions[1];
-    int width = cInputDimensions[2];
-    int height = cInputDimensions[3];
-
-    int batchStride = cInputStrides[0];
-    int channelStride = cInputStrides[1];
-    int widthStride = cInputStrides[2];
-    int heightStride = cInputStrides[3];
-
-    int kernelSize = cKernelSize;
-    int kernelHalfSize = (int)(kernelSize * 0.5f);
-
-    int batchOffset = blockIdx.y * batchStride;
+    int kernelHalfSize = cKernelSize / 2;
 
     int homeOffset = blockIdx.x * blockDim.x + threadIdx.x;
-    int homeX = homeOffset / widthStride;
-    int homeY = (homeOffset - homeX * widthStride) / heightStride;
+    int batchOffset = blockIdx.y * cBatchStride;
 
     float weightSum = 0;
 
-    for(int kernelX = 0; kernelX < kernelSize; kernelX++)
+    for(int kernelOffset = 0; kernelOffset < cKernelSize; kernelOffset++)
     {
-        int neighbourX = max(0, min(homeX + (kernelX - kernelHalfSize), width));
+        int neighbourOffset = max(0, min(homeOffset + (kernelOffset - kernelHalfSize), cSizes[0]));
+        float gaussian = cKernel[kernelOffset];
+        
+        float distanceSquared = 0;
+
+        #pragma unroll
+        for(int c = 0; c < C; c++)
+        {
+            float a = input[batchOffset + homeOffset + c * cColorStride];
+            float b = input[batchOffset + neighbourOffset + c * cColorStride];
+            float diff = a - b;
+            distanceSquared += diff * diff;
+        }
+
+        float spatialWeight = gaussian;
+        float colorWeight = exp(cColorExponentFactor * distanceSquared);
+        float totalWeight = spatialWeight * colorWeight;
+        
+        #pragma unroll
+        for(int c = 0; c < C; c++)
+        {
+            float a = input[batchOffset + neighbourOffset + c * cColorStride];
+
+            output[batchOffset + homeOffset + c * cColorStride] += a * totalWeight;
+        }
+
+        weightSum += totalWeight;
+    }
+
+    #pragma unroll
+    for(int c = 0; c < C; c++)
+    {
+        output[batchOffset + homeOffset + c * cColorStride] /= weightSum;
+    }
+}
+
+template<int C>
+__global__ void BilateralFilterCudaKernel2D(float* input, float* output)
+{
+    int kernelHalfSize = cKernelSize / 2;
+
+    int homeOffset = blockIdx.x * blockDim.x + threadIdx.x;
+    int batchOffset = blockIdx.y * cBatchStride;
+
+    int homeX = homeOffset / cStrides[0];
+    int homeY = (homeOffset - homeX * cStrides[0]) / cStrides[1];
+
+    float weightSum = 0;
+
+    for(int kernelX = 0; kernelX < cKernelSize; kernelX++)
+    {
+        int neighbourX = max(0, min(homeX + (kernelX - kernelHalfSize), cSizes[0]));
         float gaussianX = cKernel[kernelX];
 
-        for(int kernelY = 0; kernelY < kernelSize; kernelY++)
+        for(int kernelY = 0; kernelY < cKernelSize; kernelY++)
         {
-            int neighbourY = max(0, min(homeY + (kernelY - kernelHalfSize), height));
-            float gaussianY = cKernel[kernelX];
+            int neighbourY = max(0, min(homeY + (kernelY - kernelHalfSize), cSizes[1]));
+            float gaussianY = cKernel[kernelY];
           
-            int neighbourOffset = neighbourX * widthStride + neighbourY;
+            int neighbourOffset = neighbourX * cStrides[0] + neighbourY;
             
-
             float distanceSquared = 0;
 
-            for(int i = 0; i < channelCount; i++)
+            #pragma unroll
+            for(int c = 0; c < C; c++)
             {
-                float a = input[batchOffset + homeOffset + i * channelStride];
-                float b = input[batchOffset + neighbourOffset + i * channelStride];
+                float a = input[batchOffset + homeOffset + c * cColorStride];
+                float b = input[batchOffset + neighbourOffset + c * cColorStride];
                 float diff = a - b;
                 distanceSquared += diff * diff;
             }
@@ -73,38 +115,106 @@ __global__ void BilateralFilterCudaKernel(float* input, float* output)
             float colorWeight = exp(cColorExponentFactor * distanceSquared);
             float totalWeight = spatialWeight * colorWeight;
             
-            for(int i = 0; i < channelCount; i++)
+            #pragma unroll
+            for(int c = 0; c < C; c++)
             {
-                float a = input[batchOffset + neighbourOffset + i * channelStride];
+                float a = input[batchOffset + neighbourOffset + c * cColorStride];
 
-                output[batchOffset + homeOffset + i * channelStride] += a * totalWeight;
+                output[batchOffset + homeOffset + c * cColorStride] += a * totalWeight;
             }
 
             weightSum += totalWeight;
         }
     }
 
-    for(int i = 0; i < channelCount; i++)
+    #pragma unroll
+    for(int c = 0; c < C; c++)
     {
-        output[batchOffset + homeOffset + i * channelStride] /= weightSum;
+        output[batchOffset + homeOffset + c * cColorStride] /= weightSum;
     }
 }
 
-torch::Tensor BilateralFilterCuda(torch::Tensor input, float spatialSigma, float colorSigma)
+template<int C>
+__global__ void BilateralFilterCudaKernel3D(float* input, float* output)
 {
-    // Preparing output tensor.
-    torch::Tensor output = torch::zeros_like(input);
+    int kernelHalfSize = cKernelSize / 2;
 
-    // Gathering and input description.
-    int* inputDimensions = new int[5];
-    int* inputStrides = new int[5];
+    int homeOffset = blockIdx.x * blockDim.x + threadIdx.x;
+    int batchOffset = blockIdx.y * cBatchStride;
 
-    int dimensionCount = input.dim();
+    int homeX = homeOffset / cStrides[0];
+    int homeY = (homeOffset - homeX * cStrides[0]) / cStrides[1];
+    int homeZ = (homeOffset - homeX * cStrides[0] - homeY * cStrides[1]) / cStrides[2];
 
-    for (int i = 0; i < dimensionCount; i++)
+    float weightSum = 0;
+
+    for(int kernelX = 0; kernelX < cKernelSize; kernelX++)
     {
-        inputDimensions[i] = input.size(i);
-        inputStrides[i] = input.stride(i);
+        int neighbourX = max(0, min(homeX + (kernelX - kernelHalfSize), cSizes[0]));
+        float gaussianX = cKernel[kernelX];
+
+        for(int kernelY = 0; kernelY < cKernelSize; kernelY++)
+        {
+            int neighbourY = max(0, min(homeY + (kernelY - kernelHalfSize), cSizes[1]));
+            float gaussianY = cKernel[kernelY];
+
+            for(int kernelZ = 0; kernelZ < cKernelSize; kernelZ++)
+            {
+                int neighbourZ = max(0, min(homeZ + (kernelZ - kernelHalfSize), cSizes[2]));
+                float gaussianZ = cKernel[kernelZ];
+            
+                int neighbourOffset = neighbourX * cStrides[0] + neighbourY *cStrides[1] + neighbourZ;
+                
+                float distanceSquared = 0;
+
+                #pragma unroll
+                for(int c = 0; c < C; c++)
+                {
+                    float a = input[batchOffset + homeOffset + c * cColorStride];
+                    float b = input[batchOffset + neighbourOffset + c * cColorStride];
+                    float diff = a - b;
+                    distanceSquared += diff * diff;
+                }
+
+                float spatialWeight = gaussianX * gaussianY * gaussianZ;
+                float colorWeight = exp(cColorExponentFactor * distanceSquared);
+                float totalWeight = spatialWeight * colorWeight;
+                
+                #pragma unroll
+                for(int c = 0; c < C; c++)
+                {
+                    float a = input[batchOffset + neighbourOffset + c * cColorStride];
+                    output[batchOffset + homeOffset + c * cColorStride] += a * totalWeight;
+                }
+
+                weightSum += totalWeight;
+            }
+        }
+    }
+
+    #pragma unroll
+    for(int c = 0; c < C; c++)
+    {
+        output[batchOffset + homeOffset + c * cColorStride] /= weightSum;
+    }
+}
+
+template<int C, int D>
+void BilateralFilterCuda(torch::Tensor input, torch::Tensor output, float spatialSigma, float colorSigma)
+{
+    // Gathering and input description.
+    int batchCount = input.size(0);
+    int batchStride = input.stride(0);
+    int channelStride = input.stride(1);
+    int elementCount = channelStride;
+
+    int sizes[D];
+    int strides[D];
+
+    for (int d = 0; d < D; d++)
+    {
+        sizes[d] = input.size(2 + d);
+        strides[d] = input.stride(2 + d);
     }
 
     // Pre-calculating exponent factors.
@@ -123,20 +233,30 @@ torch::Tensor BilateralFilterCuda(torch::Tensor input, float spatialSigma, float
     }
     
     // Writing constant memory.
-    cudaMemcpyToSymbol(cInputDimensions, inputDimensions, sizeof(int) * 5);
-    cudaMemcpyToSymbol(cInputStrides, inputStrides, sizeof(int) * 5);
+    cudaMemcpyToSymbol(cBatchStride, &batchStride, sizeof(int));
+    cudaMemcpyToSymbol(cColorStride, &channelStride, sizeof(int));
+    cudaMemcpyToSymbol(cSizes, sizes, sizeof(int) * D);
+    cudaMemcpyToSymbol(cStrides, strides, sizeof(int) * D);
     cudaMemcpyToSymbol(cKernelSize, &kernelSize, sizeof(int));
     cudaMemcpyToSymbol(cKernel, kernel, sizeof(float) * kernelSize);
     cudaMemcpyToSymbol(cColorExponentFactor, &colorExponentFactor, sizeof(float));
 
-    // Calculate dispatch parameters.
-    int batchCount = inputDimensions[0];
-    int elementCount = inputDimensions[2] * inputDimensions[3];
-    int blockCount = elementCount;
-    int blockWidth = 1;
+    // Dispatch kernel. (Partial template function specialisation not supported at present so using this switch instead)
+    switch(D)
+    {
+        case(1): BilateralFilterCudaKernel1D<C><<<dim3(elementCount, batchCount), dim3(1, 1)>>>(input.data_ptr<float>(), output.data_ptr<float>()); break;
+        case(2): BilateralFilterCudaKernel2D<C><<<dim3(elementCount, batchCount), dim3(1, 1)>>>(input.data_ptr<float>(), output.data_ptr<float>()); break;
+        case(3): BilateralFilterCudaKernel3D<C><<<dim3(elementCount, batchCount), dim3(1, 1)>>>(input.data_ptr<float>(), output.data_ptr<float>()); break;
+    }
 
-    // Dispatch kernel.
-    BilateralFilterCudaKernel<<<dim3(blockCount, batchCount), dim3(blockWidth, 1)>>>(input.data<float>(), output.data<float>());
+    delete[] kernel;
+}
 
-    return output;
+torch::Tensor BilateralFilterCuda(torch::Tensor inputTensor, float spatialSigma, float colorSigma)
+{
+    torch::Tensor outputTensor = torch::zeros_like(inputTensor);
+
+    SPECIALISE_C_AND_D(inputTensor.size(1), inputTensor.dim()-2, BilateralFilterCuda, inputTensor, outputTensor, spatialSigma, colorSigma);
+
+    return outputTensor;
 }
