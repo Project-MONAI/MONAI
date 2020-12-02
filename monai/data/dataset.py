@@ -93,14 +93,11 @@ class IterableDataset(_TorchIterableDataset):
         self.transform = transform
 
     def __iter__(self):
-        return self
+        for data in self.data:
+            if self.transform is not None:
+                data = apply_transform(self.transform, data)
 
-    def __next__(self):
-        data = next(self.data)
-        if self.transform is not None:
-            data = apply_transform(self.transform, data)
-
-        return data
+            yield data
 
 
 class PersistentDataset(Dataset):

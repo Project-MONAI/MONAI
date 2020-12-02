@@ -22,9 +22,42 @@ from monai.data import DataLoader, IterableDataset
 from monai.transforms import Compose, LoadNiftid, SimulateDelayd
 
 
+lock = Lock()
+
+
+class _Stream:
+    def __init__(self, data, dbpath):
+        # simulate a database at the website
+        self.dbpath = dbpath
+        self.reset()
+        self.data = data
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        data = None
+        # support multi-process access to the database
+        lock.acquire()
+        with open(self.dbpath) as f:
+            count = json.load(f)["count"]
+            if count > 0:
+                data = self.data[count - 1]
+                with open(self.dbpath, "w") as f:
+                    json.dump({"count": count - 1}, f)
+        lock.release()
+
+        if count == 0:
+            raise StopIteration
+        return data
+
+    def reset(self):
+        with open(self.dbpath, "w") as f:
+            json.dump({"count": 6}, f)
+
+
 class TestIterableDataset(unittest.TestCase):
     def test_shape(self):
-        lock = Lock()
         test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]), np.eye(4))
         test_data = list()
         with tempfile.TemporaryDirectory() as tempdir:
@@ -38,36 +71,6 @@ class TestIterableDataset(unittest.TestCase):
                     SimulateDelayd(keys="image", delay_time=1e-7),
                 ]
             )
-
-            class _Stream:
-                def __init__(self, data, dbpath):
-                    # simulate a database at the website
-                    self.dbpath = dbpath
-                    self.reset()
-                    self.data = data
-
-                def __iter__(self):
-                    return self
-
-                def __next__(self):
-                    data = None
-                    # support multi-process access to the database
-                    lock.acquire()
-                    with open(self.dbpath) as f:
-                        count = json.load(f)["count"]
-                        if count > 0:
-                            data = self.data[count - 1]
-                            with open(self.dbpath, "w") as f:
-                                json.dump({"count": count - 1}, f)
-                    lock.release()
-
-                    if count == 0:
-                        raise StopIteration
-                    return data
-
-                def reset(self):
-                    with open(self.dbpath, "w") as f:
-                        json.dump({"count": 6}, f)
 
             test_stream = _Stream(data=test_data, dbpath=os.path.join(tempdir, "countDB"))
 
