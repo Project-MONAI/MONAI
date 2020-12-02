@@ -41,6 +41,7 @@ class LoadImaged(MapTransform):
     (npz, npy -> NumpyReader), (others -> ITKReader).
 
     """
+
     def __init__(
         self,
         keys: KeysCollection,
