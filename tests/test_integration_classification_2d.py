@@ -208,64 +208,44 @@ class IntegrationClassification2D(DistTestCase):
             warnings.warn("not found best_metric_model.pth, training skipped?")
             pass
 
-    def test_training(self):
+    def train_and_infer(self, idx=0):
+        results = []
         if not os.path.exists(os.path.join(self.data_dir, "MedNIST")):
             # skip test if no MedNIST dataset
-            return
+            return results
+
+        set_determinism(seed=0)
+        losses, best_metric, best_metric_epoch = run_training_test(
+            self.data_dir, self.train_x, self.train_y, self.val_x, self.val_y, device=self.device
+        )
+        infer_metric = run_inference_test(self.data_dir, self.test_x, self.test_y, device=self.device)
+
+        print(f"integration_classification_2d {losses}")
+        print("best metric", best_metric)
+        print("infer metric", infer_metric)
+        # check training properties
+        self.assertTrue(test_integration_value(TASK, key="losses", data=losses, rtol=1e-2))
+        self.assertTrue(test_integration_value(TASK, key="best_metric", data=best_metric, rtol=1e-4))
+        np.testing.assert_allclose(best_metric_epoch, 4)
+        model_file = os.path.join(self.data_dir, "best_metric_model.pth")
+        self.assertTrue(os.path.exists(model_file))
+        # check inference properties
+        self.assertTrue(test_integration_value(TASK, key="infer_prop", data=np.asarray(infer_metric), rtol=1))
+        results.extend(losses)
+        results.append(best_metric)
+        results.extend(infer_metric)
+        return results
+
+    def test_training(self):
         repeated = []
         for i in range(2):
-            set_determinism(seed=0)
-
-            repeated.append([])
-            losses, best_metric, best_metric_epoch = run_training_test(
-                self.data_dir, self.train_x, self.train_y, self.val_x, self.val_y, device=self.device
-            )
-
-            # check training properties
-            print(f"integration_classification_2d {losses}")
-            self.assertTrue(test_integration_value(TASK, key="losses", data=losses, rtol=1e-2))
-            repeated[i].extend(losses)
-            print("best metric", best_metric)
-            self.assertTrue(test_integration_value(TASK, key="best_metric", data=best_metric, rtol=1e-4))
-            repeated[i].append(best_metric)
-            np.testing.assert_allclose(best_metric_epoch, 4)
-            model_file = os.path.join(self.data_dir, "best_metric_model.pth")
-            self.assertTrue(os.path.exists(model_file))
-
-            infer_metric = run_inference_test(self.data_dir, self.test_x, self.test_y, device=self.device)
-            print("infer metric", infer_metric)
-            # check inference properties
-            self.assertTrue(test_integration_value(TASK, key="infer_prop", data=np.asarray(infer_metric), rtol=1))
-            repeated[i].extend(infer_metric)
-
+            results = self.train_and_infer(i)
+            repeated.append(results)
         np.testing.assert_allclose(repeated[0], repeated[1])
 
     @TimedCall(seconds=400, skip_timing=not torch.cuda.is_available(), daemon=False)
     def test_timing(self):
-        if not os.path.exists(os.path.join(self.data_dir, "MedNIST")):
-            # skip test if no MedNIST dataset
-            return
-        set_determinism(seed=0)
-        # run training
-        losses, best_metric, best_metric_epoch = run_training_test(
-            self.data_dir,
-            self.train_x,
-            self.train_y,
-            self.val_x,
-            self.val_y,
-            device=self.device,
-        )
-        # check training properties
-        print(f"integration_classification_2d {losses}")
-        self.assertTrue(test_integration_value(TASK, key="losses", data=losses, rtol=1e-2))
-        print("best metric", best_metric)
-        self.assertTrue(test_integration_value(TASK, key="best_metric", data=best_metric, rtol=1e-4))
-        np.testing.assert_allclose(best_metric_epoch, 4)
-
-        infer_metric = run_inference_test(self.data_dir, self.test_x, self.test_y, device=self.device)
-        print("infer metric", infer_metric)
-        # check inference properties
-        self.assertTrue(test_integration_value(TASK, key="infer_prop", data=np.asarray(infer_metric), rtol=1))
+        self.train_and_infer()
 
 
 if __name__ == "__main__":

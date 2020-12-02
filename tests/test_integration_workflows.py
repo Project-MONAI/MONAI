@@ -253,54 +253,47 @@ class IntegrationWorkflows(DistTestCase):
         set_determinism(seed=None)
         shutil.rmtree(self.data_dir)
 
+    def train_and_infer(self, idx=0):
+        results = []
+        set_determinism(seed=0)
+        best_metric = run_training_test(self.data_dir, device=self.device, amp=(idx == 2))
+        model_file = sorted(glob(os.path.join(self.data_dir, "net_key_metric*.pt")))[-1]
+        infer_metric = run_inference_test(self.data_dir, model_file, device=self.device, amp=(idx == 2))
+
+        print("best metric", best_metric)
+        print("infer metric", infer_metric)
+        if idx == 2:
+            self.assertTrue(test_integration_value(TASK, key="best_metric_2", data=best_metric, rtol=1e-2))
+        else:
+            self.assertTrue(test_integration_value(TASK, key="best_metric", data=best_metric, rtol=1e-2))
+        # check inference properties
+        if idx == 2:
+            self.assertTrue(test_integration_value(TASK, key="infer_metric_2", data=infer_metric, rtol=1e-2))
+        else:
+            self.assertTrue(test_integration_value(TASK, key="infer_metric", data=infer_metric, rtol=1e-2))
+        results.append(best_metric)
+        results.append(infer_metric)
+        output_files = sorted(glob(os.path.join(self.data_dir, "img*", "*.nii.gz")))
+        for output in output_files:
+            ave = np.mean(nib.load(output).get_fdata())
+            results.append(ave)
+        if idx == 2:
+            self.assertTrue(test_integration_value(TASK, key="output_sums_2", data=results[2:], rtol=1e-2))
+        else:
+            self.assertTrue(test_integration_value(TASK, key="output_sums", data=results[2:], rtol=1e-2))
+        return results
+
     def test_training(self):
         repeated = []
         test_rounds = 3 if monai.config.get_torch_version_tuple() >= (1, 6) else 2
         for i in range(test_rounds):
-            set_determinism(seed=0)
-
-            repeated.append([])
-            best_metric = run_training_test(self.data_dir, device=self.device, amp=(i == 2))
-            print("best metric", best_metric)
-            if i == 2:
-                self.assertTrue(test_integration_value(TASK, key="best_metric_2", data=best_metric, rtol=1e-2))
-            else:
-                self.assertTrue(test_integration_value(TASK, key="best_metric", data=best_metric, rtol=1e-2))
-            repeated[i].append(best_metric)
-
-            model_file = sorted(glob(os.path.join(self.data_dir, "net_key_metric*.pt")))[-1]
-            infer_metric = run_inference_test(self.data_dir, model_file, device=self.device, amp=(i == 2))
-            print("infer metric", infer_metric)
-            # check inference properties
-            if i == 2:
-                self.assertTrue(test_integration_value(TASK, key="infer_metric_2", data=infer_metric, rtol=1e-2))
-            else:
-                self.assertTrue(test_integration_value(TASK, key="infer_metric", data=infer_metric, rtol=1e-2))
-            repeated[i].append(infer_metric)
-
-            output_files = sorted(glob(os.path.join(self.data_dir, "img*", "*.nii.gz")))
-            for output in output_files:
-                ave = np.mean(nib.load(output).get_fdata())
-                repeated[i].append(ave)
-            if i == 2:
-                self.assertTrue(test_integration_value(TASK, key="output_sums_2", data=repeated[i][2:], rtol=1e-2))
-            else:
-                self.assertTrue(test_integration_value(TASK, key="output_sums", data=repeated[i][2:], rtol=1e-2))
+            results = self.train_and_infer(idx=i)
+            repeated.append(results)
         np.testing.assert_allclose(repeated[0], repeated[1])
 
     @TimedCall(seconds=200, skip_timing=not torch.cuda.is_available(), daemon=False)
     def test_timing(self):
-        set_determinism(seed=0)
-
-        best_metric = run_training_test(self.data_dir, device=self.device, amp=True, num_workers=4)
-        print("best metric", best_metric)
-        self.assertTrue(test_integration_value(TASK, key="best_metric_2", data=best_metric, rtol=1e-2))
-
-        model_file = sorted(glob(os.path.join(self.data_dir, "net_key_metric*.pt")))[-1]
-        infer_metric = run_inference_test(self.data_dir, model_file, device=self.device, amp=True, num_workers=4)
-        print("infer metric", infer_metric)
-        # check inference properties
-        self.assertTrue(test_integration_value(TASK, key="infer_metric_2", data=infer_metric, rtol=1e-2))
+        self.train_and_infer(idx=2)
 
 
 if __name__ == "__main__":
