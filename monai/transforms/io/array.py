@@ -32,11 +32,12 @@ Image, _ = optional_import("PIL.Image")
 
 class LoadImage(Transform):
     """
-    Load image file or files from provided path based on reader, default reader is Nibabel.
+    Load image file or files from provided path based on reader.
     Automatically choose readers based on the supported suffixes and in below order:
     - User specified reader at runtime when call this loader.
-    - Registered readers from the first to the last in list.
-    - Default Nibabel reader.
+    - Registered readers from the latest to the first in list.
+    - Default readers: (nii, nii.gz -> NibabelReader), (png, jpg, bmp -> PILReader),
+    (npz, npy -> NumpyReader), (others -> ITKReader).
 
     """
 
@@ -51,7 +52,7 @@ class LoadImage(Transform):
         """
         Args:
             reader: register reader to load image file and meta data, if None, still can register readers
-                at runtime or use the default NIbabel reader. If a string of reader name provided, will construct
+                at runtime or use the default readers. If a string of reader name provided, will construct
                 a reader object with the `*args` and `**kwargs` parameters, supported reader name: "NibabelReader",
                 "PILReader", "ITKReader", "NumpyReader"
             image_only: if True return only the image volume, otherwise return image data array and header dict.
@@ -64,8 +65,8 @@ class LoadImage(Transform):
             or a tuple of two elements containing the data array, and the meta data in a dict format otherwise.
 
         """
-        self.default_reader: NibabelReader = NibabelReader()
-        self.readers: List[ImageReader] = list()
+        # set predefined readers as default
+        self.readers: List[ImageReader] = [ITKReader(), NumpyReader(), PILReader(), NibabelReader()]
         if reader is not None:
             if isinstance(reader, str):
                 supported_readers = {
@@ -87,12 +88,12 @@ class LoadImage(Transform):
 
     def register(self, reader: ImageReader) -> List[ImageReader]:
         """
-        Register image reader to load image file and meta data.
+        Register image reader to load image file and meta data, latest registered reader has higher priority.
         Return all the registered image readers.
 
         Args:
             reader: registered reader to load image file and meta data based on suffix,
-                if all registered readers can't match suffix at runtime, use the default Nibabel reader.
+                if all registered readers can't match suffix at runtime, use the default readers.
 
         """
         self.readers.append(reader)
@@ -112,9 +113,8 @@ class LoadImage(Transform):
 
         """
         if reader is None or not reader.verify_suffix(filename):
-            reader = self.default_reader
             if len(self.readers) > 0:
-                for r in self.readers:
+                for r in reversed(self.readers):
                     if r.verify_suffix(filename):
                         reader = r
                         break

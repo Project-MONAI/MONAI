@@ -33,8 +33,14 @@ class LoadImaged(MapTransform):
     meta data of the first image to represent the stacked result. Note that the affine
     transform of all the stacked images should be same. The output metadata field will
     be created as ``key_{meta_key_postfix}``.
-    """
 
+    It can automatically choose readers based on the supported suffixes and in below order:
+    - User specified reader at runtime when call this loader.
+    - Registered readers from the latest to the first in list.
+    - Default readers: (nii, nii.gz -> NibabelReader), (png, jpg, bmp -> PILReader),
+    (npz, npy -> NumpyReader), (others -> ITKReader).
+
+    """
     def __init__(
         self,
         keys: KeysCollection,
@@ -50,7 +56,7 @@ class LoadImaged(MapTransform):
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             reader: register reader to load image file and meta data, if None, still can register readers
-                at runtime or use the default Nibabel reader. If a string of reader name provided, will construct
+                at runtime or use the default readers. If a string of reader name provided, will construct
                 a reader object with the `*args` and `**kwargs` parameters, supported reader name: "NibabelReader",
                 "PILReader", "ITKReader", "NumpyReader"
             dtype: if not None convert the loaded image data to this data type.

@@ -21,7 +21,6 @@ from PIL import Image
 
 from monai.data import ITKReader, NibabelReader
 from monai.transforms import LoadImage
-from tests.utils import SkipIfNoModule
 
 TEST_CASE_1 = [{"image_only": True}, ["test_image.nii.gz"], (128, 128, 128)]
 
@@ -111,7 +110,6 @@ class TestLoadImage(unittest.TestCase):
             self.assertTupleEqual(result.shape, expected_shape)
 
     @parameterized.expand([TEST_CASE_10, TEST_CASE_11])
-    @SkipIfNoModule("itk")
     def test_itk_dicom_series_reader(self, input_param, filenames, expected_shape):
         result, header = LoadImage(**input_param)(filenames)
         self.assertTrue("affine" in header)
@@ -149,11 +147,9 @@ class TestLoadImage(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             filename = os.path.join(tempdir, "test_image.png")
             Image.fromarray(test_image.astype("uint8")).save(filename)
-            result, header = LoadImage(reader=ITKReader(), image_only=False)(filename)
+            result, header = LoadImage(image_only=False)(filename)
             self.assertTupleEqual(tuple(header["spatial_shape"]), spatial_size)
             self.assertTupleEqual(result.shape, spatial_size)
-            np.testing.assert_allclose(header["affine"], np.eye(3))
-            np.testing.assert_allclose(header["original_affine"], np.eye(3))
             np.testing.assert_allclose(result, test_image)
 
     def test_register(self):
