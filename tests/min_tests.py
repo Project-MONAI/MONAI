@@ -32,6 +32,7 @@ def run_testsuit():
         "test_cachedataset",
         "test_cachedataset_parallel",
         "test_dataset",
+        "test_iterable_dataset",
         "test_ensemble_evaluator",
         "test_handler_checkpoint_loader",
         "test_handler_checkpoint_saver",

@@ -324,4 +324,4 @@ def test_integration_value(test_name, key, data, rtol=1e-2):
         value = expected[test_name][key]
         if np.allclose(data, value, rtol=rtol):
             return True
-    return False
+    raise ValueError(f"no matched results for {test_name}, {key}. {data}.")

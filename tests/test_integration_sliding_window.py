@@ -26,7 +26,7 @@ from monai.networks import predict_segmentation
 from monai.networks.nets import UNet
 from monai.transforms import AddChannel
 from monai.utils import set_determinism
-from tests.utils import make_nifti_image, skip_if_quick
+from tests.utils import DistTestCase, TimedCall, make_nifti_image, skip_if_quick
 
 
 def run_test(batch_size, img_name, seg_name, output_dir, device="cuda:0"):
@@ -60,7 +60,7 @@ def run_test(batch_size, img_name, seg_name, output_dir, device="cuda:0"):
 
 
 @skip_if_quick
-class TestIntegrationSlidingWindow(unittest.TestCase):
+class TestIntegrationSlidingWindow(DistTestCase):
     def setUp(self):
         set_determinism(seed=0)
 
@@ -76,7 +76,9 @@ class TestIntegrationSlidingWindow(unittest.TestCase):
         if os.path.exists(self.seg_name):
             os.remove(self.seg_name)
 
+    @TimedCall(seconds=10)
     def test_training(self):
+        set_determinism(seed=0)
         with tempfile.TemporaryDirectory() as tempdir:
             output_file = run_test(
                 batch_size=2, img_name=self.img_name, seg_name=self.seg_name, output_dir=tempdir, device=self.device

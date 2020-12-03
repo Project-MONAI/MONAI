@@ -23,7 +23,7 @@ from monai.data import (
     partition_dataset,
     select_cross_validation_folds,
 )
-from monai.transforms import LoadNiftid, LoadPNGd, Randomizable
+from monai.transforms import LoadImaged, Randomizable
 from monai.utils import ensure_tuple
 
 
@@ -92,7 +92,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
             )
         data = self._generate_data_list(dataset_dir)
         if transform == ():
-            transform = LoadPNGd("image")
+            transform = LoadImaged("image")
         super().__init__(data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers)
 
     def randomize(self, data: Optional[Any] = None) -> None:
@@ -268,7 +268,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         ]
         self._properties = load_decathlon_properties(os.path.join(dataset_dir, "dataset.json"), property_keys)
         if transform == ():
-            transform = LoadNiftid(["image", "label"])
+            transform = LoadImaged(["image", "label"])
         super().__init__(data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers)
 
     def get_indices(self) -> np.ndarray:

@@ -18,15 +18,15 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.data import SmartCacheDataset
-from monai.transforms import Compose, LoadNiftid
+from monai.transforms import Compose, LoadImaged
 
-TEST_CASE_1 = [0.1, 0, Compose([LoadNiftid(keys=["image", "label", "extra"])])]
+TEST_CASE_1 = [0.1, 0, Compose([LoadImaged(keys=["image", "label", "extra"])])]
 
-TEST_CASE_2 = [0.1, 4, Compose([LoadNiftid(keys=["image", "label", "extra"])])]
+TEST_CASE_2 = [0.1, 4, Compose([LoadImaged(keys=["image", "label", "extra"])])]
 
 TEST_CASE_3 = [0.1, 4, None]
 
-TEST_CASE_4 = [0.5, 2, Compose([LoadNiftid(keys=["image", "label", "extra"])])]
+TEST_CASE_4 = [0.5, 2, Compose([LoadImaged(keys=["image", "label", "extra"])])]
 
 
 class TestSmartCacheDataset(unittest.TestCase):

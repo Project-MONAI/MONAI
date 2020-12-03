@@ -18,12 +18,12 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.data import PersistentDataset, json_hashing
-from monai.transforms import Compose, LoadNiftid, SimulateDelayd, Transform
+from monai.transforms import Compose, LoadImaged, SimulateDelayd, Transform
 
 TEST_CASE_1 = [
     Compose(
         [
-            LoadNiftid(keys=["image", "label", "extra"]),
+            LoadImaged(keys=["image", "label", "extra"]),
             SimulateDelayd(keys=["image", "label", "extra"], delay_time=[1e-7, 1e-6, 1e-5]),
         ]
     ),
@@ -32,7 +32,7 @@ TEST_CASE_1 = [
 
 TEST_CASE_2 = [
     [
-        LoadNiftid(keys=["image", "label", "extra"]),
+        LoadImaged(keys=["image", "label", "extra"]),
         SimulateDelayd(keys=["image", "label", "extra"], delay_time=[1e-7, 1e-6, 1e-5]),
     ],
     (128, 128, 128),

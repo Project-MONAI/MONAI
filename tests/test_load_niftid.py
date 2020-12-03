@@ -17,7 +17,7 @@ import nibabel as nib
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms import LoadNiftid
+from monai.transforms import LoadImaged
 
 KEYS = ["image", "label", "extra"]
 
@@ -33,7 +33,7 @@ class TestLoadNiftid(unittest.TestCase):
             for key in KEYS:
                 nib.save(test_image, os.path.join(tempdir, key + ".nii.gz"))
                 test_data.update({key: os.path.join(tempdir, key + ".nii.gz")})
-            result = LoadNiftid(**input_param)(test_data)
+            result = LoadImaged(**input_param)(test_data)
 
         for key in KEYS:
             self.assertTupleEqual(result[key].shape, expected_shape)

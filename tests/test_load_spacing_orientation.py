@@ -18,7 +18,7 @@ import numpy as np
 from nibabel.processing import resample_to_output
 from parameterized import parameterized
 
-from monai.transforms import AddChanneld, LoadNiftid, Orientationd, Spacingd
+from monai.transforms import AddChanneld, LoadImaged, Orientationd, Spacingd
 
 FILES = tuple(
     os.path.join(os.path.dirname(__file__), "testing_data", filename)
@@ -30,7 +30,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
     @parameterized.expand(FILES)
     def test_load_spacingd(self, filename):
         data = {"image": filename}
-        data_dict = LoadNiftid(keys="image")(data)
+        data_dict = LoadImaged(keys="image")(data)
         data_dict = AddChanneld(keys="image")(data_dict)
         t = time.time()
         res_dict = Spacingd(keys="image", pixdim=(1, 0.2, 1), diagonal=True, padding_mode="zeros")(data_dict)
@@ -48,7 +48,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
     @parameterized.expand(FILES)
     def test_load_spacingd_rotate(self, filename):
         data = {"image": filename}
-        data_dict = LoadNiftid(keys="image")(data)
+        data_dict = LoadImaged(keys="image")(data)
         data_dict = AddChanneld(keys="image")(data_dict)
         affine = data_dict["image_meta_dict"]["affine"]
         data_dict["image_meta_dict"]["original_affine"] = data_dict["image_meta_dict"]["affine"] = (
@@ -74,7 +74,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
 
     def test_load_spacingd_non_diag(self):
         data = {"image": FILES[1]}
-        data_dict = LoadNiftid(keys="image")(data)
+        data_dict = LoadImaged(keys="image")(data)
         data_dict = AddChanneld(keys="image")(data_dict)
         affine = data_dict["image_meta_dict"]["affine"]
         data_dict["image_meta_dict"]["original_affine"] = data_dict["image_meta_dict"]["affine"] = (
@@ -95,7 +95,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
 
     def test_load_spacingd_rotate_non_diag(self):
         data = {"image": FILES[0]}
-        data_dict = LoadNiftid(keys="image")(data)
+        data_dict = LoadImaged(keys="image")(data)
         data_dict = AddChanneld(keys="image")(data_dict)
         res_dict = Spacingd(keys="image", pixdim=(1, 2, 3), diagonal=False, padding_mode="border")(data_dict)
         np.testing.assert_allclose(
@@ -105,7 +105,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
 
     def test_load_spacingd_rotate_non_diag_ornt(self):
         data = {"image": FILES[0]}
-        data_dict = LoadNiftid(keys="image")(data)
+        data_dict = LoadImaged(keys="image")(data)
         data_dict = AddChanneld(keys="image")(data_dict)
         res_dict = Spacingd(keys="image", pixdim=(1, 2, 3), diagonal=False, padding_mode="border")(data_dict)
         res_dict = Orientationd(keys="image", axcodes="LPI")(res_dict)
@@ -116,7 +116,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
 
     def test_load_spacingd_non_diag_ornt(self):
         data = {"image": FILES[1]}
-        data_dict = LoadNiftid(keys="image")(data)
+        data_dict = LoadImaged(keys="image")(data)
         data_dict = AddChanneld(keys="image")(data_dict)
         affine = data_dict["image_meta_dict"]["affine"]
         data_dict["image_meta_dict"]["original_affine"] = data_dict["image_meta_dict"]["affine"] = (
