@@ -198,8 +198,7 @@ class TestAHNET(unittest.TestCase):
     def test_script(self):
         net = AHNet(spatial_dims=2, out_channels=2)
         test_data = torch.randn(1, 1, 128, 64)
-        out_orig, out_reloaded = test_script_save(net, test_data)
-        assert torch.allclose(out_orig, out_reloaded)
+        test_script_save(net, test_data)
 
 
 class TestAHNETWithPretrain(unittest.TestCase):

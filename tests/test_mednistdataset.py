@@ -15,7 +15,7 @@ import unittest
 from urllib.error import ContentTooShortError, HTTPError
 
 from monai.apps import MedNISTDataset
-from monai.transforms import AddChanneld, Compose, LoadPNGd, ScaleIntensityd, ToTensord
+from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
 from tests.utils import skip_if_quick
 
 
@@ -25,7 +25,7 @@ class TestMedNISTDataset(unittest.TestCase):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
         transform = Compose(
             [
-                LoadPNGd(keys="image"),
+                LoadImaged(keys="image"),
                 AddChanneld(keys="image"),
                 ScaleIntensityd(keys="image"),
                 ToTensord(keys=["image", "label"]),

@@ -206,6 +206,40 @@ class TestSlidingWindowInference(unittest.TestCase):
         result = SlidingWindowInferer(roi_shape, sw_batch_size, overlap=0.5, mode="constant", cval=-1)(inputs, compute)
         np.testing.assert_allclose(result.cpu().numpy(), expected, rtol=1e-4)
 
+    def test_args_kwargs(self):
+        device = "cuda" if torch.cuda.is_available() else "cpu:0"
+        inputs = torch.ones((1, 1, 3, 3)).to(device=device)
+        t1 = torch.ones(1).to(device=device)
+        t2 = torch.ones(1).to(device=device)
+        roi_shape = (5, 5)
+        sw_batch_size = 10
+
+        def compute(data, test1, test2):
+            return data + test1 + test2
+
+        result = sliding_window_inference(
+            inputs,
+            roi_shape,
+            sw_batch_size,
+            compute,
+            0.5,
+            "constant",
+            1.0,
+            "constant",
+            0.0,
+            device,
+            device,
+            t1,
+            test2=t2,
+        )
+        expected = np.ones((1, 1, 3, 3)) + 2.0
+        np.testing.assert_allclose(result.cpu().numpy(), expected, rtol=1e-4)
+
+        result = SlidingWindowInferer(roi_shape, sw_batch_size, overlap=0.5, mode="constant", cval=-1)(
+            inputs, compute, t1, test2=t2
+        )
+        np.testing.assert_allclose(result.cpu().numpy(), expected, rtol=1e-4)
+
 
 if __name__ == "__main__":
     unittest.main()

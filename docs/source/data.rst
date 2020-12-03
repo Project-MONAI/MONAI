@@ -15,9 +15,27 @@ Generic Interfaces
   :members:
   :special-members: __getitem__
 
+`IterableDataset`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: IterableDataset
+  :members:
+  :special-members: __next__
+
 `PersistentDataset`
 ~~~~~~~~~~~~~~~~~~~
 .. autoclass:: PersistentDataset
+  :members:
+  :special-members: __getitem__
+
+`CacheNTransDataset`
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: CacheNTransDataset
+  :members:
+  :special-members: __getitem__
+
+`LMDBDataset`
+~~~~~~~~~~~~~
+.. autoclass:: LMDBDataset
   :members:
   :special-members: __getitem__
 

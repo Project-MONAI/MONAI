@@ -35,6 +35,14 @@ Segmentation Losses
 .. autoclass:: generalized_dice
     :members:
 
+`GeneralizedWassersteinDiceLoss`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: GeneralizedWassersteinDiceLoss
+    :members:
+
+.. autoclass:: generalized_wasserstein_dice
+    :members:
+
 `FocalLoss`
 ~~~~~~~~~~~
 .. autoclass:: FocalLoss

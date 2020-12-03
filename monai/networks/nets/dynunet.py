@@ -97,6 +97,7 @@ class DynUNet(nn.Module):
         kernels, strides = self.kernel_size, self.strides
         error_msg = "length of kernel_size and strides should be the same, and no less than 3."
         assert len(kernels) == len(strides) and len(kernels) >= 3, error_msg
+
         for idx in range(len(kernels)):
             kernel, stride = kernels[idx], strides[idx]
             if not isinstance(kernel, int):
@@ -115,20 +116,26 @@ class DynUNet(nn.Module):
     def forward(self, x):
         out = self.input_block(x)
         outputs = [out]
+
         for downsample in self.downsamples:
             out = downsample(out)
-            outputs.append(out)
+            outputs.insert(0, out)
+
         out = self.bottleneck(out)
         upsample_outs = []
-        for upsample, skip in zip(self.upsamples, reversed(outputs)):
+
+        for upsample, skip in zip(self.upsamples, outputs):
             out = upsample(out, skip)
             upsample_outs.append(out)
+
         out = self.output_block(out)
+
         if self.training and self.deep_supervision:
             start_output_idx = len(upsample_outs) - 1 - self.deep_supr_num
             upsample_outs = upsample_outs[start_output_idx:-1][::-1]
             preds = [self.deep_supervision_heads[i](out) for i, out in enumerate(upsample_outs)]
             return [out] + preds
+
         return out
 
     def get_input_block(self):

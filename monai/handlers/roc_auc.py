@@ -9,21 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, List, Optional, Sequence, Union
+from typing import Callable, Optional, Union
 
 import torch
-import torch.distributed as dist
 
 from monai.metrics import compute_roc_auc
 from monai.utils import Average, exact_version, optional_import
 
-from .utils import all_gather
-
-Metric, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "Metric")
-reinit__is_reduced, _ = optional_import("ignite.metrics.metric", "0.4.2", exact_version, "reinit__is_reduced")
+EpochMetric, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "EpochMetric")
 
 
-class ROCAUC(Metric):  # type: ignore[valid-type, misc]  # due to optional_import
+class ROCAUC(EpochMetric):  # type: ignore[valid-type, misc]  # due to optional_import
     """
     Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC).
     accumulating predictions and the ground-truth during an epoch and applying `compute_roc_auc`.
@@ -65,54 +61,19 @@ class ROCAUC(Metric):  # type: ignore[valid-type, misc]  # due to optional_impor
         output_transform: Callable = lambda x: x,
         device: Optional[torch.device] = None,
     ) -> None:
-        super().__init__(output_transform, device=device)
-        self.to_onehot_y = to_onehot_y
-        self.softmax = softmax
-        self.other_act = other_act
-        self.average: Average = Average(average)
+        def _compute_fn(pred, label):
+            return compute_roc_auc(
+                y_pred=pred,
+                y=label,
+                to_onehot_y=to_onehot_y,
+                softmax=softmax,
+                other_act=other_act,
+                average=Average(average),
+            )
 
-    @reinit__is_reduced
-    def reset(self) -> None:
-        self._predictions: List[torch.Tensor] = []
-        self._targets: List[torch.Tensor] = []
-
-    @reinit__is_reduced
-    def update(self, output: Sequence[torch.Tensor]) -> None:
-        """
-        Args:
-            output: sequence with contents [y_pred, y].
-
-        Raises:
-            ValueError: When ``output`` length is not 2. ROCAUC metric can only support y_pred and y.
-            ValueError: When ``y_pred`` dimension is not one of [1, 2].
-            ValueError: When ``y`` dimension is not one of [1, 2].
-
-        """
-        if len(output) != 2:
-            raise ValueError(f"output must have length 2, got {len(output)}.")
-        y_pred, y = output
-        if y_pred.ndimension() not in (1, 2):
-            raise ValueError("Predictions should be of shape (batch_size, n_classes) or (batch_size, ).")
-        if y.ndimension() not in (1, 2):
-            raise ValueError("Targets should be of shape (batch_size, n_classes) or (batch_size, ).")
-
-        self._predictions.append(y_pred.clone())
-        self._targets.append(y.clone())
-
-    def compute(self):
-        _prediction_tensor = torch.cat(self._predictions, dim=0)
-        _target_tensor = torch.cat(self._targets, dim=0)
-
-        if dist.is_available() and dist.is_initialized() and not self._is_reduced:
-            _prediction_tensor = all_gather(_prediction_tensor)
-            _target_tensor = all_gather(_target_tensor)
-            self._is_reduced = True
-
-        return compute_roc_auc(
-            y_pred=_prediction_tensor,
-            y=_target_tensor,
-            to_onehot_y=self.to_onehot_y,
-            softmax=self.softmax,
-            other_act=self.other_act,
-            average=self.average,
+        super().__init__(
+            compute_fn=_compute_fn,
+            output_transform=output_transform,
+            check_compute_fn=False,
+            device=device,
         )

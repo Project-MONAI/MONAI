@@ -21,28 +21,19 @@ from PIL import Image
 
 from monai.data import ITKReader, NibabelReader
 from monai.transforms import LoadImage
-from tests.utils import SkipIfNoModule
 
-TEST_CASE_1 = [
-    {"reader": NibabelReader(), "image_only": True},
-    ["test_image.nii.gz"],
-    (128, 128, 128),
-]
+TEST_CASE_1 = [{"image_only": True}, ["test_image.nii.gz"], (128, 128, 128)]
 
-TEST_CASE_2 = [
-    {"reader": NibabelReader(), "image_only": False},
-    ["test_image.nii.gz"],
-    (128, 128, 128),
-]
+TEST_CASE_2 = [{"image_only": False}, ["test_image.nii.gz"], (128, 128, 128)]
 
 TEST_CASE_3 = [
-    {"reader": NibabelReader(), "image_only": True},
+    {"image_only": True},
     ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
     (3, 128, 128, 128),
 ]
 
 TEST_CASE_4 = [
-    {"reader": NibabelReader(), "image_only": False},
+    {"image_only": False},
     ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
     (3, 128, 128, 128),
 ]
@@ -53,24 +44,30 @@ TEST_CASE_5 = [
     (128, 128, 128),
 ]
 
-TEST_CASE_6 = [{"image_only": True}, ["test_image.nii.gz"], (128, 128, 128)]
+TEST_CASE_6 = [{"reader": ITKReader(), "image_only": True}, ["test_image.nii.gz"], (128, 128, 128)]
 
-TEST_CASE_7 = [{"image_only": False}, ["test_image.nii.gz"], (128, 128, 128)]
+TEST_CASE_7 = [{"reader": ITKReader(), "image_only": False}, ["test_image.nii.gz"], (128, 128, 128)]
 
 TEST_CASE_8 = [
-    {"image_only": True},
+    {"reader": ITKReader(), "image_only": True},
     ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
     (3, 128, 128, 128),
 ]
 
 TEST_CASE_9 = [
-    {"image_only": False},
+    {"reader": ITKReader(), "image_only": False},
     ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
     (3, 128, 128, 128),
 ]
 
 TEST_CASE_10 = [
     {"image_only": False, "reader": ITKReader(pixel_type=itk.UC)},
+    "tests/testing_data/CT_DICOM",
+    (4, 16, 16),
+]
+
+TEST_CASE_11 = [
+    {"image_only": False, "reader": "ITKReader", "pixel_type": itk.UC},
     "tests/testing_data/CT_DICOM",
     (4, 16, 16),
 ]
@@ -112,8 +109,7 @@ class TestLoadImage(unittest.TestCase):
                 np.testing.assert_allclose(header["original_affine"], np.eye(4))
             self.assertTupleEqual(result.shape, expected_shape)
 
-    @parameterized.expand([TEST_CASE_10])
-    @SkipIfNoModule("itk")
+    @parameterized.expand([TEST_CASE_10, TEST_CASE_11])
     def test_itk_dicom_series_reader(self, input_param, filenames, expected_shape):
         result, header = LoadImage(**input_param)(filenames)
         self.assertTrue("affine" in header)
@@ -138,7 +134,7 @@ class TestLoadImage(unittest.TestCase):
             filename = os.path.join(tempdir, "test_image.png")
             itk_np_view = itk.image_view_from_array(test_image, is_vector=True)
             itk.imwrite(itk_np_view, filename)
-            result, header = LoadImage()(filename)
+            result, header = LoadImage(reader=ITKReader())(filename)
 
             self.assertTupleEqual(tuple(header["spatial_shape"]), (256, 256))
             np.testing.assert_allclose(result[0, :, :], test_image[:, :, 0])
@@ -154,8 +150,6 @@ class TestLoadImage(unittest.TestCase):
             result, header = LoadImage(image_only=False)(filename)
             self.assertTupleEqual(tuple(header["spatial_shape"]), spatial_size)
             self.assertTupleEqual(result.shape, spatial_size)
-            np.testing.assert_allclose(header["affine"], np.eye(3))
-            np.testing.assert_allclose(header["original_affine"], np.eye(3))
             np.testing.assert_allclose(result, test_image)
 
     def test_register(self):
@@ -189,7 +183,7 @@ class TestLoadImage(unittest.TestCase):
             reader = ITKReader()
             img = reader.read(filename, fallback_only=False)
             result_raw, header_raw = reader.get_data(img)
-            self.assertListEqual(header["spatial_shape"], header_raw["spatial_shape"])
+            np.testing.assert_allclose(header["spatial_shape"], header_raw["spatial_shape"])
             self.assertTupleEqual(result.shape, result_raw.shape)
 
 

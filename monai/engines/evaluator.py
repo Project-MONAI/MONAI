@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence
+from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Tuple
 
 import torch
 from torch.utils.data import DataLoader
@@ -37,6 +37,8 @@ class Evaluator(Workflow):
         device: an object representing the device on which to run.
         val_data_loader: Ignite engine use data_loader to run, must be torch.DataLoader.
         epoch_length: number of iterations for one epoch, default to `len(val_data_loader)`.
+        non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
+            with respect to the host. For other cases, this argument has no effect.
         prepare_batch: function to parse image and label for current iteration.
         iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
@@ -57,6 +59,7 @@ class Evaluator(Workflow):
         device: torch.device,
         val_data_loader: DataLoader,
         epoch_length: Optional[int] = None,
+        non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
         post_transform: Optional[Transform] = None,
@@ -70,6 +73,7 @@ class Evaluator(Workflow):
             max_epochs=1,
             data_loader=val_data_loader,
             epoch_length=epoch_length,
+            non_blocking=non_blocking,
             prepare_batch=prepare_batch,
             iteration_update=iteration_update,
             post_transform=post_transform,
@@ -106,6 +110,8 @@ class SupervisedEvaluator(Evaluator):
         val_data_loader: Ignite engine use data_loader to run, must be torch.DataLoader.
         network: use the network to run model forward.
         epoch_length: number of iterations for one epoch, default to `len(val_data_loader)`.
+        non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
+            with respect to the host. For other cases, this argument has no effect.
         prepare_batch: function to parse image and label for current iteration.
         iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
@@ -128,6 +134,7 @@ class SupervisedEvaluator(Evaluator):
         val_data_loader: DataLoader,
         network: torch.nn.Module,
         epoch_length: Optional[int] = None,
+        non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
         inferer: Optional[Inferer] = None,
@@ -141,6 +148,7 @@ class SupervisedEvaluator(Evaluator):
             device=device,
             val_data_loader=val_data_loader,
             epoch_length=epoch_length,
+            non_blocking=non_blocking,
             prepare_batch=prepare_batch,
             iteration_update=iteration_update,
             post_transform=post_transform,
@@ -171,19 +179,22 @@ class SupervisedEvaluator(Evaluator):
         """
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
-        inputs, targets = self.prepare_batch(batchdata)
-        inputs = inputs.to(engine.state.device)
-        if targets is not None:
-            targets = targets.to(engine.state.device)
+        batch = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)
+        if len(batch) == 2:
+            inputs, targets = batch
+            args: Tuple = tuple()
+            kwargs: Dict = dict()
+        else:
+            inputs, targets, args, kwargs = batch
 
         # execute forward computation
         self.network.eval()
         with torch.no_grad():
             if self.amp:
                 with torch.cuda.amp.autocast():
-                    predictions = self.inferer(inputs, self.network)
+                    predictions = self.inferer(inputs, self.network, *args, **kwargs)
             else:
-                predictions = self.inferer(inputs, self.network)
+                predictions = self.inferer(inputs, self.network, *args, **kwargs)
 
         return {Keys.IMAGE: inputs, Keys.LABEL: targets, Keys.PRED: predictions}
 
@@ -200,6 +211,8 @@ class EnsembleEvaluator(Evaluator):
         networks: use the networks to run model forward in order.
         pred_keys: the keys to store every prediction data.
             the length must exactly match the number of networks.
+        non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
+            with respect to the host. For other cases, this argument has no effect.
         prepare_batch: function to parse image and label for current iteration.
         iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
@@ -223,6 +236,7 @@ class EnsembleEvaluator(Evaluator):
         networks: Sequence[torch.nn.Module],
         pred_keys: Sequence[str],
         epoch_length: Optional[int] = None,
+        non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
         inferer: Optional[Inferer] = None,
@@ -236,6 +250,7 @@ class EnsembleEvaluator(Evaluator):
             device=device,
             val_data_loader=val_data_loader,
             epoch_length=epoch_length,
+            non_blocking=non_blocking,
             prepare_batch=prepare_batch,
             iteration_update=iteration_update,
             post_transform=post_transform,
@@ -270,10 +285,13 @@ class EnsembleEvaluator(Evaluator):
         """
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
-        inputs, targets = self.prepare_batch(batchdata)
-        inputs = inputs.to(engine.state.device)
-        if targets is not None:
-            targets = targets.to(engine.state.device)
+        batch = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)
+        if len(batch) == 2:
+            inputs, targets = batch
+            args: Tuple = tuple()
+            kwargs: Dict = dict()
+        else:
+            inputs, targets, args, kwargs = batch
 
         # execute forward computation
         predictions = {Keys.IMAGE: inputs, Keys.LABEL: targets}
@@ -282,8 +300,8 @@ class EnsembleEvaluator(Evaluator):
             with torch.no_grad():
                 if self.amp:
                     with torch.cuda.amp.autocast():
-                        predictions.update({self.pred_keys[idx]: self.inferer(inputs, network)})
+                        predictions.update({self.pred_keys[idx]: self.inferer(inputs, network, *args, **kwargs)})
                 else:
-                    predictions.update({self.pred_keys[idx]: self.inferer(inputs, network)})
+                    predictions.update({self.pred_keys[idx]: self.inferer(inputs, network, *args, **kwargs)})
 
         return predictions
