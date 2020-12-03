@@ -17,8 +17,10 @@ from ._version import get_versions
 PY_REQUIRED_MAJOR = 3
 PY_REQUIRED_MINOR = 6
 
-__version__ = get_versions()["version"]
-del get_versions
+version_dict = get_versions()
+__version__ = version_dict.get("version", "0+unknown")
+__revision_id__ = version_dict.get("full-revisionid", None)
+del get_versions, version_dict
 
 __copyright__ = "(c) 2020 MONAI Consortium"
 

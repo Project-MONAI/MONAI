@@ -83,6 +83,7 @@ def print_config(file=sys.stdout):
     for k, v in get_config_values().items():
         print(f"{k} version: {v}", file=file, flush=True)
     print(f"MONAI flags: HAS_EXT = {HAS_EXT}, USE_COMPILED = {USE_COMPILED}")
+    print(f"MONAI rev id: {monai.__revision_id__}")
 
     print("\nOptional dependencies:", file=file, flush=True)
     for k, v in get_optional_config_values().items():
@@ -114,7 +115,7 @@ def _dict_append(in_dict, key, fn):
         in_dict[key] = "UNKNOWN for given OS"
 
 
-def get_system_info(file=sys.stdout) -> OrderedDict:
+def get_system_info() -> OrderedDict:
     """
     Get system info as an ordered dictionary.
     """
@@ -180,7 +181,7 @@ def print_system_info(file=sys.stdout) -> None:
     if not has_psutil:
         print("`psutil` required for `print_system_info`", file=file, flush=True)
     else:
-        for k, v in get_system_info(file).items():
+        for k, v in get_system_info().items():
             print(f"{k}: {v}", file=file, flush=True)
 
 
