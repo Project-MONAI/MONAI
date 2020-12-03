@@ -124,7 +124,8 @@ def get_system_info() -> OrderedDict:
     _dict_append(output, "System", lambda: platform.system())
     if output["System"] == "Windows":
         _dict_append(output, "Win32 version", lambda: platform.win32_ver())
-        _dict_append(output, "Win32 edition", lambda: platform.win32_edition())
+        if hasattr(platform, "win32_edition"):
+            _dict_append(output, "Win32 edition", lambda: platform.win32_edition())  # type:ignore[attr-defined]
     elif output["System"] == "Darwin":
         _dict_append(output, "Mac version", lambda: platform.mac_ver()[0])
     else:
