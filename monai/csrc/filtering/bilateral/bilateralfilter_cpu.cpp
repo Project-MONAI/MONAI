@@ -54,62 +54,6 @@ private:
     int* m_index;
 };
 
-
-// These helper functions handle operations for an n dimensional vectors.
-// These loops would ideally be unrolled for reasonable vector lengths (<16?)
-inline void ReadValue(float* dst, float* src, int offset, int stride, int count)
-{
-    for(int i = 0; i < count; i++)
-    {
-        dst[i] = src[offset + i * stride];
-    }
-}
-
-inline void WriteValue(float* dst, float* src, int offset, int stride, int count)
-{
-    for(int i = 0; i < count; i++)
-    {
-        dst[offset + i * stride] = src[i];
-    }
-}
-
-inline float DistanceSquared(float* a, float* b, int count)
-{
-    float result = 0;
-
-    for(int i = 0; i < count; i++)
-    {
-        float diff = a[i] - b[i];
-        result += diff * diff;
-    }
-
-    return result;
-}
-
-inline void SetValue(float* a, float scalar, int count)
-{
-    for(int i = 0; i < count; i++)
-    {
-        a[i] = scalar;
-    }
-}
-
-inline void MulValue(float* a, float scalar, int count)
-{
-    for(int i = 0; i < count; i++)
-    {
-        a[i] *= scalar;
-    }
-}
-
-inline void AddValue(float* a, float* b, int count)
-{
-    for(int i = 0; i < count; i++)
-    {
-        a[i] += b[i];
-    }
-}
-
 torch::Tensor BilateralFilterCpu(torch::Tensor input, float spatialSigma, float colorSigma)
 {
     // Prepare output tensor
@@ -153,10 +97,6 @@ torch::Tensor BilateralFilterCpu(torch::Tensor input, float spatialSigma, float 
         gaussianKernel[i] = exp(distance * spatialExpConstant);
     }
 
-    // Allocating arrays for color reads.
-    float* homeColor = new float[channelCount];
-    float* neighbourColor = new float[channelCount];
-
     // Kernel aggregates used to calculate
     // the output value.
     float* valueSum = new float[channelCount];
@@ -172,19 +112,20 @@ torch::Tensor BilateralFilterCpu(torch::Tensor input, float spatialSigma, float 
         do // while(homeIndex++)
         {
             // Calculating indexing offset for the home element
-            int homeOffset = 0;
+            int homeOffset = batchOffset;
 
             for(int i = 0; i < spatialDimensionCount; i++)
             {
                 homeOffset += homeIndex[i] * spatialDimensionStrides[i];
             }
 
-            // Reading the home "color" value.
-            ReadValue(homeColor, inputData, batchOffset + homeOffset, channelStride, channelCount);
-
             // Zero kernel aggregates.
-            SetValue(valueSum, 0, channelCount);
-            weightSum = 1.0f;
+            for(int i = 0; i < channelCount; i++)
+            {
+                valueSum[i] = 0;
+            }
+
+            weightSum = 0.0f;
 
             // Looping over all dimensions for the neighbour element
             Indexer kernelIndex = Indexer(spatialDimensionCount, kernelSize);
@@ -192,7 +133,7 @@ torch::Tensor BilateralFilterCpu(torch::Tensor input, float spatialSigma, float 
             {
                 // Calculating buffer offset for the neighbour element
                 // Index is clamped to the border in each dimension.
-                int neighbourOffset = 0;
+                int neighbourOffset = batchOffset;
 
                 for(int i = 0; i < spatialDimensionCount; i++)
                 {
@@ -201,11 +142,15 @@ torch::Tensor BilateralFilterCpu(torch::Tensor input, float spatialSigma, float 
                     neighbourOffset += neighbourIndexClamped * spatialDimensionStrides[i];
                 }
 
-                // Read the neighbour "color" value.
-                ReadValue(neighbourColor, inputData, batchOffset + neighbourOffset, channelStride, channelCount);
 
                 // Euclidean color distance.
-                float colorDistanceSquared = DistanceSquared(homeColor, neighbourColor, channelCount);
+                float colorDistanceSquared = 0;
+
+                for (int i = 0; i < channelCount; i++)
+                {
+                    float diff = inputData[homeOffset + i * channelStride] - inputData[neighbourOffset + i * channelStride];
+                    colorDistanceSquared += diff * diff;
+                }
 
                 // Calculating and combining the spatial 
                 // and color weights.
@@ -217,18 +162,23 @@ torch::Tensor BilateralFilterCpu(torch::Tensor input, float spatialSigma, float 
                 }
 
                 float colorWeight = exp(colorDistanceSquared * colorExpConstant);
-
                 float totalWeight = spatialWeight * colorWeight;
 
                 // Aggregating values.
-                MulValue(neighbourColor, totalWeight, channelCount);
-                AddValue(valueSum, neighbourColor, channelCount);
+                for (int i = 0; i < channelCount; i++)
+                {
+                    valueSum[i] += inputData[neighbourOffset + i * channelStride] * totalWeight;
+                }
+
                 weightSum += totalWeight;
             } 
             while(kernelIndex++);
-            
-            MulValue(valueSum, 1.0f/weightSum, channelCount);
-            WriteValue(outputData, valueSum, batchOffset + homeOffset, channelStride, channelCount);
+
+
+            for (int i = 0; i < channelCount; i++)
+            {
+                outputData[homeOffset + i * channelStride] = valueSum[i] / weightSum;
+            }
         } 
         while(homeIndex++);
     } 
