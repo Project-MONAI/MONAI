@@ -243,7 +243,7 @@ class Pseudo3DLayer(nn.Module):
 class PSP(nn.Module):
     def __init__(self, spatial_dims: int, psp_block_num: int, in_ch: int, upsample_mode: str = "transpose"):
         super(PSP, self).__init__()
-
+        self.up_modules = nn.ModuleList()
         conv_type = Conv[Conv.CONV, spatial_dims]
         pool_type: Type[Union[nn.MaxPool2d, nn.MaxPool3d]] = Pool[Pool.MAX, spatial_dims]
 
@@ -269,7 +269,6 @@ class PSP(nn.Module):
 
         if self.upsample_mode == "transpose":
             conv_trans_type = Conv[Conv.CONVTRANS, spatial_dims]
-            self.up_modules = nn.ModuleList()
             for i in range(psp_block_num):
                 size = (2 ** (i + 3), 2 ** (i + 3), 1)[-spatial_dims:]
                 pad_size = (2 ** (i + 3), 2 ** (i + 3), 0)[-spatial_dims:]

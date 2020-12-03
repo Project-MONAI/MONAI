@@ -15,7 +15,7 @@ import unittest
 from urllib.error import ContentTooShortError, HTTPError
 
 from monai.apps import DecathlonDataset
-from monai.transforms import AddChanneld, Compose, LoadNiftid, ScaleIntensityd, ToTensord
+from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
 from tests.utils import skip_if_quick
 
 
@@ -25,7 +25,7 @@ class TestDecathlonDataset(unittest.TestCase):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
         transform = Compose(
             [
-                LoadNiftid(keys=["image", "label"]),
+                LoadImaged(keys=["image", "label"]),
                 AddChanneld(keys=["image", "label"]),
                 ScaleIntensityd(keys="image"),
                 ToTensord(keys=["image", "label"]),

@@ -18,11 +18,11 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.data import CacheNTransDataset
-from monai.transforms import LoadNiftid, ShiftIntensityd
+from monai.transforms import LoadImaged, ShiftIntensityd
 
 TEST_CASE_1 = [
     [
-        LoadNiftid(keys="image"),
+        LoadImaged(keys="image"),
         ShiftIntensityd(keys="image", offset=1.0),
         ShiftIntensityd(keys="image", offset=2.0),
         ShiftIntensityd(keys="image", offset=3.0),

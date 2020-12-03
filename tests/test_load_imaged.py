@@ -25,9 +25,11 @@ KEYS = ["image", "label", "extra"]
 
 TEST_CASE_1 = [{"keys": KEYS}, (128, 128, 128)]
 
+TEST_CASE_2 = [{"keys": KEYS, "reader": "ITKReader", "fallback_only": False}, (128, 128, 128)]
+
 
 class TestLoadImaged(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape(self, input_param, expected_shape):
         test_image = nib.Nifti1Image(np.random.rand(128, 128, 128), np.eye(4))
         test_data = dict()

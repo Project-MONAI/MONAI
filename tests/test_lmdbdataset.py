@@ -18,13 +18,13 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.data import LMDBDataset, json_hashing
-from monai.transforms import Compose, LoadNiftid, SimulateDelayd, Transform
+from monai.transforms import Compose, LoadImaged, SimulateDelayd, Transform
 from tests.utils import skip_if_windows
 
 TEST_CASE_1 = [
     Compose(
         [
-            LoadNiftid(keys=["image", "label", "extra"]),
+            LoadImaged(keys=["image", "label", "extra"]),
             SimulateDelayd(keys=["image", "label", "extra"], delay_time=[1e-7, 1e-6, 1e-5]),
         ]
     ),
@@ -33,7 +33,7 @@ TEST_CASE_1 = [
 
 TEST_CASE_2 = [
     [
-        LoadNiftid(keys=["image", "label", "extra"]),
+        LoadImaged(keys=["image", "label", "extra"]),
         SimulateDelayd(keys=["image", "label", "extra"], delay_time=[1e-7, 1e-6, 1e-5]),
     ],
     (128, 128, 128),
@@ -43,7 +43,7 @@ TEST_CASE_3 = [None, (128, 128, 128), None]
 
 TEST_CASE_4 = [
     [
-        LoadNiftid(keys=["image", "label", "extra"]),
+        LoadImaged(keys=["image", "label", "extra"]),
         SimulateDelayd(keys=["image", "label", "extra"], delay_time=[1e-7, 1e-6, 1e-5]),
     ],
     (128, 128, 128),
@@ -52,7 +52,7 @@ TEST_CASE_4 = [
 
 TEST_CASE_5 = [
     [
-        LoadNiftid(keys=["image", "label", "extra"]),
+        LoadImaged(keys=["image", "label", "extra"]),
         SimulateDelayd(keys=["image", "label", "extra"], delay_time=[1e-7, 1e-6, 1e-5]),
     ],
     (128, 128, 128),
@@ -61,7 +61,7 @@ TEST_CASE_5 = [
 
 TEST_CASE_6 = [
     [
-        LoadNiftid(keys=["image", "label", "extra"]),
+        LoadImaged(keys=["image", "label", "extra"]),
         SimulateDelayd(keys=["image", "label", "extra"], delay_time=[1e-7, 1e-6, 1e-5]),
     ],
     (128, 128, 128),
@@ -70,7 +70,7 @@ TEST_CASE_6 = [
 
 TEST_CASE_7 = [
     [
-        LoadNiftid(keys=["image", "label", "extra"]),
+        LoadImaged(keys=["image", "label", "extra"]),
         SimulateDelayd(keys=["image", "label", "extra"], delay_time=[1e-7, 1e-6, 1e-5]),
     ],
     (128, 128, 128),

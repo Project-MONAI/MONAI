@@ -19,7 +19,7 @@ import nibabel as nib
 import numpy as np
 
 from monai.data import DataLoader, IterableDataset
-from monai.transforms import Compose, LoadNiftid, SimulateDelayd
+from monai.transforms import Compose, LoadImaged, SimulateDelayd
 
 lock = Lock()
 
@@ -40,10 +40,10 @@ class _Stream:
         lock.acquire()
         with open(self.dbpath) as f:
             count = json.load(f)["count"]
-            if count > 0:
-                data = self.data[count - 1]
-                with open(self.dbpath, "w") as f:
-                    json.dump({"count": count - 1}, f)
+        if count > 0:
+            data = self.data[count - 1]
+            with open(self.dbpath, "w") as f:
+                json.dump({"count": count - 1}, f)
         lock.release()
 
         if count == 0:
@@ -67,7 +67,7 @@ class TestIterableDataset(unittest.TestCase):
 
             test_transform = Compose(
                 [
-                    LoadNiftid(keys="image"),
+                    LoadImaged(keys="image"),
                     SimulateDelayd(keys="image", delay_time=1e-7),
                 ]
             )

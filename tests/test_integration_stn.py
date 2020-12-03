@@ -22,6 +22,7 @@ import torch.optim as optim
 from monai.data import create_test_image_2d
 from monai.networks.layers import AffineTransform
 from monai.utils import set_determinism
+from tests.utils import DistTestCase, TimedCall
 
 
 class STNBenchmark(nn.Module):
@@ -96,13 +97,14 @@ def compare_2d(is_ref=True, device=None, reverse_indexing=False):
     return model(img_a).detach().cpu().numpy(), loss.item(), init_loss
 
 
-class TestSpatialTransformerCore(unittest.TestCase):
+class TestSpatialTransformerCore(DistTestCase):
     def setUp(self):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
 
     def tearDown(self):
         set_determinism(seed=None)
 
+    @TimedCall(seconds=60)
     def test_training(self):
         """
         check that the quality AffineTransform backpropagation
