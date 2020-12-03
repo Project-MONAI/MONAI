@@ -11,6 +11,7 @@
 
 import os
 import platform
+import re
 import sys
 from collections import OrderedDict
 
@@ -18,63 +19,7 @@ import numpy as np
 import torch
 
 import monai
-from monai.utils import OptionalImportError, optional_import
-
-try:
-    import ignite
-
-    ignite_version = ignite.__version__
-    del ignite
-except (ImportError, AttributeError):
-    ignite_version = "NOT INSTALLED or UNKNOWN VERSION."
-
-try:
-    import nibabel
-
-    nibabel_version = nibabel.__version__
-    del nibabel
-except (ImportError, AttributeError):
-    nibabel_version = "NOT INSTALLED or UNKNOWN VERSION."
-
-try:
-    import skimage
-
-    skimage_version = skimage.__version__
-    del skimage
-except (ImportError, AttributeError):
-    skimage_version = "NOT INSTALLED or UNKNOWN VERSION."
-
-try:
-    import PIL
-
-    PIL_version = PIL.__version__
-    del PIL
-except (ImportError, AttributeError):
-    PIL_version = "NOT INSTALLED or UNKNOWN VERSION."
-
-try:
-    import tensorboard
-
-    tensorboard_version = tensorboard.__version__
-    del tensorboard
-except (ImportError, AttributeError):
-    tensorboard_version = "NOT INSTALLED or UNKNOWN VERSION."
-
-try:
-    import gdown
-
-    gdown_version = gdown.__version__
-    del gdown
-except (ImportError, AttributeError):
-    gdown_version = "NOT INSTALLED or UNKNOWN VERSION."
-
-try:
-    import torchvision
-
-    torchvision_version = torchvision.__version__
-    del torchvision
-except (ImportError, AttributeError):
-    torchvision_version = "NOT INSTALLED or UNKNOWN VERSION."
+from monai.utils import OptionalImportError, get_package_version, optional_import
 
 try:
     import itk  # type: ignore
@@ -85,30 +30,13 @@ except (ImportError, AttributeError):
     itk_version = "NOT INSTALLED or UNKNOWN VERSION."
 
 try:
-    import tqdm
-
-    tqdm_version = tqdm.__version__
-    del tqdm
-except (ImportError, AttributeError):
-    tqdm_version = "NOT INSTALLED or UNKNOWN VERSION."
-
-
-try:
-    import lmdb  # type: ignore
-
-    lmdb_version = lmdb.__version__
-    del lmdb
-except (ImportError, AttributeError):
-    lmdb_version = "NOT INSTALLED or UNKNOWN VERSION."
-
-
-try:
     _, HAS_EXT = optional_import("monai._C")
     USE_COMPILED = HAS_EXT and os.getenv("BUILD_MONAI", "0") == "1"
 except (OptionalImportError, ImportError, AttributeError):
     HAS_EXT = USE_COMPILED = False
 
 psutil, has_psutil = optional_import("psutil")
+psutil_version = psutil.__version__ if has_psutil else "NOT INSTALLED or UNKNOWN VERSION."
 
 
 def get_config_values():
@@ -118,8 +46,6 @@ def get_config_values():
     output = OrderedDict()
 
     output["MONAI"] = monai.__version__
-    output["Python"] = sys.version.replace("\n", " ")
-    output["OS"] = f"{platform.system()} ({platform.release()})"
     output["Numpy"] = np.version.full_version
     output["Pytorch"] = torch.__version__
 
@@ -132,16 +58,17 @@ def get_optional_config_values():
     """
     output = OrderedDict()
 
-    output["Pytorch Ignite"] = ignite_version
-    output["Nibabel"] = nibabel_version
-    output["scikit-image"] = skimage_version
-    output["Pillow"] = PIL_version
-    output["Tensorboard"] = tensorboard_version
-    output["gdown"] = gdown_version
-    output["TorchVision"] = torchvision_version
+    output["Pytorch Ignite"] = get_package_version("ignite")
+    output["Nibabel"] = get_package_version("nibabel")
+    output["scikit-image"] = get_package_version("skimage")
+    output["Pillow"] = get_package_version("PIL")
+    output["Tensorboard"] = get_package_version("tensorboard")
+    output["gdown"] = get_package_version("gdown")
+    output["TorchVision"] = get_package_version("torchvision")
     output["ITK"] = itk_version
-    output["tqdm"] = tqdm_version
-    output["lmdb"] = lmdb_version
+    output["tqdm"] = get_package_version("tqdm")
+    output["lmdb"] = get_package_version("lmdb")
+    output["psutil"] = psutil_version
 
     return output
 
@@ -156,6 +83,7 @@ def print_config(file=sys.stdout):
     for k, v in get_config_values().items():
         print(f"{k} version: {v}", file=file, flush=True)
     print(f"MONAI flags: HAS_EXT = {HAS_EXT}, USE_COMPILED = {USE_COMPILED}")
+    print(f"MONAI rev id: {monai.__revision_id__}")
 
     print("\nOptional dependencies:", file=file, flush=True)
     for k, v in get_optional_config_values().items():
@@ -187,37 +115,58 @@ def _dict_append(in_dict, key, fn):
         in_dict[key] = "UNKNOWN for given OS"
 
 
-def get_system_info(file=sys.stdout) -> OrderedDict:
+def get_system_info() -> OrderedDict:
     """
     Get system info as an ordered dictionary.
     """
     output: OrderedDict = OrderedDict()
 
-    if not has_psutil:
-        print("`psutil` required for `get_system_info", file=file, flush=True)
-        return output
+    _dict_append(output, "System", lambda: platform.system())
+    if output["System"] == "Windows":
+        _dict_append(output, "Win32 version", lambda: platform.win32_ver())
+        _dict_append(output, "Win32 edition", lambda: platform.win32_edition())
+    elif output["System"] == "Darwin":
+        _dict_append(output, "Mac version", lambda: platform.mac_ver()[0])
+    else:
+        linux_ver = re.search(r'PRETTY_NAME="(.*)"', open("/etc/os-release", "r").read())
+        if linux_ver:
+            _dict_append(output, "Linux version", lambda: linux_ver.group(1))
 
-    p = psutil.Process()
-    with p.oneshot():
-        _dict_append(output, "Process name", lambda: p.name())
-        _dict_append(output, "Command", lambda: p.cmdline())
-        _dict_append(output, "Open files", lambda: p.open_files())
-        _dict_append(output, "Num physical CPUs", lambda: psutil.cpu_count(logical=False))
-        _dict_append(output, "Num logical CPUs", lambda: psutil.cpu_count(logical=True))
-        _dict_append(output, "Num usable CPUs", lambda: len(psutil.Process().cpu_affinity()))
-        _dict_append(output, "CPU usage (%)", lambda: psutil.cpu_percent(percpu=True))
-        _dict_append(output, "CPU freq. (MHz)", lambda: round(psutil.cpu_freq(percpu=False)[0]))
-        _dict_append(
-            output,
-            "Load avg. in last 1, 5, 15 mins (%)",
-            lambda: [round(x / psutil.cpu_count() * 100, 1) for x in psutil.getloadavg()],
-        )
-        _dict_append(output, "Disk usage (%)", lambda: psutil.disk_usage(os.getcwd()).percent)
-        _dict_append(
-            output,
-            "Avg. sensor temp. (°C)",
-            lambda: np.mean([item.current for sublist in psutil.sensors_temperatures().values() for item in sublist]),
-        )
+    _dict_append(output, "Platform", lambda: platform.platform())
+    _dict_append(output, "Processor", lambda: platform.processor())
+    _dict_append(output, "Machine", lambda: platform.machine())
+    _dict_append(output, "Python version", lambda: platform.python_version())
+
+    if not has_psutil:
+        _dict_append(output, "`psutil` missing", lambda: "run `pip install monai[psutil]`")
+    else:
+        p = psutil.Process()
+        with p.oneshot():
+            _dict_append(output, "Process name", lambda: p.name())
+            _dict_append(output, "Command", lambda: p.cmdline())
+            _dict_append(output, "Open files", lambda: p.open_files())
+            _dict_append(output, "Num physical CPUs", lambda: psutil.cpu_count(logical=False))
+            _dict_append(output, "Num logical CPUs", lambda: psutil.cpu_count(logical=True))
+            _dict_append(output, "Num usable CPUs", lambda: len(psutil.Process().cpu_affinity()))
+            _dict_append(output, "CPU usage (%)", lambda: psutil.cpu_percent(percpu=True))
+            _dict_append(output, "CPU freq. (MHz)", lambda: round(psutil.cpu_freq(percpu=False)[0]))
+            _dict_append(
+                output,
+                "Load avg. in last 1, 5, 15 mins (%)",
+                lambda: [round(x / psutil.cpu_count() * 100, 1) for x in psutil.getloadavg()],
+            )
+            _dict_append(output, "Disk usage (%)", lambda: psutil.disk_usage(os.getcwd()).percent)
+            _dict_append(
+                output,
+                "Avg. sensor temp. (Celsius)",
+                lambda: round(
+                    np.mean([item.current for sublist in psutil.sensors_temperatures().values() for item in sublist], 1)
+                ),
+            )
+            mem = psutil.virtual_memory()
+            _dict_append(output, "Total physical memory (GB)", lambda: round(mem.total / 1024 ** 3, 1))
+            _dict_append(output, "Available memory (GB)", lambda: round(mem.available / 1024 ** 3, 1))
+            _dict_append(output, "Used memory (GB)", lambda: round(mem.used / 1024 ** 3, 1))
 
     return output
 
@@ -232,7 +181,7 @@ def print_system_info(file=sys.stdout) -> None:
     if not has_psutil:
         print("`psutil` required for `print_system_info`", file=file, flush=True)
     else:
-        for k, v in get_system_info(file).items():
+        for k, v in get_system_info().items():
             print(f"{k}: {v}", file=file, flush=True)
 
 
@@ -242,6 +191,15 @@ def get_gpu_info() -> OrderedDict:
 
     num_gpus = torch.cuda.device_count()
     _dict_append(output, "Num GPUs", lambda: num_gpus)
+
+    _dict_append(output, "Has CUDA", lambda: bool(torch.cuda.is_available()))
+    if output["Has CUDA"]:
+        _dict_append(output, "CUDA version", lambda: torch.version.cuda)
+    cudnn_ver = torch.backends.cudnn.version()
+    _dict_append(output, "cuDNN enabled", lambda: bool(cudnn_ver))
+    if cudnn_ver:
+        _dict_append(output, "cuDNN version", lambda: cudnn_ver)
+
     if num_gpus > 0:
         _dict_append(output, "Current device", lambda: torch.cuda.current_device())
         _dict_append(output, "Library compiled for CUDA architectures", lambda: torch.cuda.get_arch_list())
