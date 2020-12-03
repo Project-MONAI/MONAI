@@ -153,7 +153,9 @@ class PersistentDataset(Dataset):
             random transform object
 
         """
-        for _transform in self.transform.transforms:  # pytype: disable=attribute-error
+        if not isinstance(self.transform, Compose):
+            raise ValueError("transform must be an instance of monai.transforms.Compose.")
+        for _transform in self.transform.transforms:
             # execute all the deterministic transforms
             if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
                 break
@@ -171,8 +173,10 @@ class PersistentDataset(Dataset):
             the transformed element through the random transforms
 
         """
+        if not isinstance(self.transform, Compose):
+            raise ValueError("transform must be an instance of monai.transforms.Compose.")
         start_post_randomize_run = False
-        for _transform in self.transform.transforms:  # pytype: disable=attribute-error
+        for _transform in self.transform.transforms:
             if (
                 start_post_randomize_run
                 or isinstance(_transform, Randomizable)
@@ -268,7 +272,9 @@ class CacheNTransDataset(PersistentDataset):
         Returns:
             the transformed element up to the N transform object
         """
-        for i, _transform in enumerate(self.transform.transforms):  # type: ignore
+        if not isinstance(self.transform, Compose):
+            raise ValueError("transform must be an instance of monai.transforms.Compose.")
+        for i, _transform in enumerate(self.transform.transforms):
             if i == self.cache_n_trans:
                 break
             item_transformed = apply_transform(_transform, item_transformed)
@@ -284,7 +290,9 @@ class CacheNTransDataset(PersistentDataset):
         Returns:
             the final transformed result
         """
-        for i, _transform in enumerate(self.transform.transforms):  # type: ignore
+        if not isinstance(self.transform, Compose):
+            raise ValueError("transform must be an instance of monai.transforms.Compose.")
+        for i, _transform in enumerate(self.transform.transforms):
             if i >= self.cache_n_trans:
                 item_transformed = apply_transform(_transform, item_transformed)
         return item_transformed
@@ -471,7 +479,9 @@ class CacheDataset(Dataset):
             num_workers: the number of worker processes to use.
                 If num_workers is None then the number returned by os.cpu_count() is used.
         """
-        super().__init__(data=data, transform=transform if isinstance(transform, Compose) else Compose(transform))
+        if not isinstance(transform, Compose):
+            transform = Compose(transform)
+        super().__init__(data=data, transform=transform)
         self.cache_num = min(int(cache_num), int(len(data) * cache_rate), len(data))
         self.num_workers = num_workers
         if self.num_workers is not None:
@@ -494,7 +504,9 @@ class CacheDataset(Dataset):
             idx: the index of the input data sequence.
         """
         item = self.data[idx]
-        for _transform in self.transform.transforms:  # type: ignore
+        if not isinstance(self.transform, Compose):
+            raise ValueError("transform must be an instance of monai.transforms.Compose.")
+        for _transform in self.transform.transforms:
             # execute all the deterministic transforms
             if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
                 break
@@ -510,7 +522,9 @@ class CacheDataset(Dataset):
         if self._cache is None:
             self._cache = self._fill_cache()
         data = self._cache[index]
-        for _transform in self.transform.transforms:  # pytype: disable=attribute-error
+        if not isinstance(self.transform, Compose):
+            raise ValueError("transform must be an instance of monai.transforms.Compose.")
+        for _transform in self.transform.transforms:
             if start_run or isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
                 start_run = True
                 data = apply_transform(_transform, data)

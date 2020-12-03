@@ -302,9 +302,14 @@ class IntegrationWorkflows(DistTestCase):
             repeated.append(results)
         np.testing.assert_allclose(repeated[0], repeated[1])
 
-    @TimedCall(seconds=300, skip_timing=not torch.cuda.is_available(), daemon=False)
+    @TimedCall(
+        seconds=300,
+        skip_timing=not torch.cuda.is_available(),
+        daemon=False,
+    )
     def test_timing(self):
-        self.train_and_infer(idx=2)
+        if monai.config.get_torch_version_tuple() >= (1, 6):
+            self.train_and_infer(idx=2)
 
 
 if __name__ == "__main__":
