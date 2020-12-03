@@ -12,6 +12,7 @@
 from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence
 
 import torch
+import torch.distributed as dist
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
@@ -45,6 +46,8 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         max_epochs: the total epoch number for engine to run, validator and evaluator have only 1 epoch.
         data_loader: Ignite engine use data_loader to run, must be torch.DataLoader.
         epoch_length: number of iterations for one epoch, default to `len(data_loader)`.
+        non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
+            with respect to the host. For other cases, this argument has no effect.
         prepare_batch: function to parse image and label for every iteration.
         iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
@@ -72,6 +75,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         max_epochs: int,
         data_loader: DataLoader,
         epoch_length: Optional[int] = None,
+        non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
         post_transform: Optional[Callable] = None,
@@ -97,6 +101,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
 
         # set all sharable data for the workflow based on Ignite engine.state
         self.state = State(
+            rank=dist.get_rank() if dist.is_available() and dist.is_initialized() else 0,
             seed=0,
             iteration=0,
             epoch=0,
@@ -112,6 +117,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             best_metric_epoch=-1,
         )
         self.data_loader = data_loader
+        self.non_blocking = non_blocking
         self.prepare_batch = prepare_batch
 
         if post_transform is not None:

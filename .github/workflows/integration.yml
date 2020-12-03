@@ -1,0 +1,54 @@
+name: integration
+
+on:
+  repository_dispatch:
+    type: [integration-test-command]
+
+jobs:
+  integration-py3:
+    container:
+      image: nvcr.io/nvidia/pytorch:20.03-py3  # CUDA 10.2
+      options: --gpus all
+    runs-on: [self-hosted, linux, x64, common]
+    steps:
+    # checkout the pull request branch
+    - uses: actions/checkout@v2
+      with:
+        token: ${{ secrets.PR_MAINTAIN }}
+        repository: ${{ github.event.client_payload.pull_request.head.repo.full_name }}
+        ref: ${{ github.event.client_payload.pull_request.head.ref }}
+    - name: cache weekly timestamp
+      id: pip-cache
+      run: |
+        echo "::set-output name=datew::$(date '+%Y-%V')"
+    - name: cache for pip
+      uses: actions/cache@v2
+      id: cache
+      with:
+        path: |
+          ~/.cache/pip
+          ~/.cache/torch
+        key: docker-20-03-py3-pip-${{ steps.pip-cache.outputs.datew }}
+    - name: Install the dependencies
+      run: |
+        which python
+        python -m pip install --upgrade pip wheel
+        python -m pip uninstall -y torch torchvision
+        python -m pip install torch==1.7.0 torchvision==0.8.1
+        python -m pip install -r requirements-dev.txt
+    - name: Run integration tests
+      run: |
+        python -m pip list
+        nvidia-smi
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        echo $CUDA_VISIBLE_DEVICES
+        python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
+        python -c 'import torch; print(torch.rand(5,3, device=torch.device("cuda:0")))'
+        BUILD_MONAI=1 ./runtests.sh --net
+    - name: Add reaction
+      uses: peter-evans/create-or-update-comment@v1
+      with:
+        token: ${{ secrets.PR_MAINTAIN }}
+        repository: ${{ github.event.client_payload.github.payload.repository.full_name }}
+        comment-id: ${{ github.event.client_payload.github.payload.comment.id }}
+        reaction-type: rocket

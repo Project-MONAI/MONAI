@@ -15,9 +15,27 @@ Generic Interfaces
   :members:
   :special-members: __getitem__
 
+`IterableDataset`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: IterableDataset
+  :members:
+  :special-members: __next__
+
 `PersistentDataset`
 ~~~~~~~~~~~~~~~~~~~
 .. autoclass:: PersistentDataset
+  :members:
+  :special-members: __getitem__
+
+`CacheNTransDataset`
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: CacheNTransDataset
+  :members:
+  :special-members: __getitem__
+
+`LMDBDataset`
+~~~~~~~~~~~~~
+.. autoclass:: LMDBDataset
   :members:
   :special-members: __getitem__
 
@@ -121,6 +139,18 @@ Utilities
 .. automodule:: monai.data.utils
   :members:
 
+Partition Dataset
+~~~~~~~~~~~~~~~~~
+.. autofunction:: monai.data.partition_dataset
+
+Partition Dataset based on classes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autofunction:: monai.data.partition_dataset_classes
+
+DistributedSampler
+~~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.DistributedSampler
+
 
 Decathlon Datalist
 ~~~~~~~~~~~~~~~~~~
@@ -129,4 +159,9 @@ Decathlon Datalist
 
 DataLoader
 ~~~~~~~~~~
-.. autofunction:: monai.data.DataLoader
+.. autoclass:: monai.data.DataLoader
+
+
+ThreadBuffer
+~~~~~~~~~~~~
+.. autoclass:: monai.data.ThreadBuffer

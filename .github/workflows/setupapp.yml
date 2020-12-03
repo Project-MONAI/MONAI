@@ -12,10 +12,11 @@ jobs:
   #   - ubuntu py36 37 38-pip-
   #   - os-latest-pip (shared)
   coverage-py3:
+    if: github.repository == 'Project-MONAI/MONAI'
     container:
-      image: nvcr.io/nvidia/pytorch:20.03-py3
+      image: nvcr.io/nvidia/pytorch:20.03-py3  # CUDA 10.2
       options: --gpus all
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux, x64, common]
     steps:
     - uses: actions/checkout@v2
     - name: cache weekly timestamp
@@ -26,14 +27,16 @@ jobs:
       uses: actions/cache@v2
       id: cache
       with:
-        path: ~/.cache/pip
+        path: |
+          ~/.cache/pip
+          ~/.cache/torch
         key: docker-20-03-py3-pip-${{ steps.pip-cache.outputs.datew }}
     - name: Install the dependencies
       run: |
         which python
         python -m pip install --upgrade pip wheel
         python -m pip uninstall -y torch torchvision
-        python -m pip install torch==1.4 torchvision==0.5.0
+        python -m pip install torch==1.7.0 torchvision==0.8.1
         python -m pip install -r requirements-dev.txt
     - name: Run unit tests report coverage
       run: |
@@ -72,12 +75,14 @@ jobs:
       uses: actions/cache@v2
       id: cache
       with:
-        path: ~/.cache/pip
+        path: |
+          ~/.cache/pip
+          ~/.cache/torch
         key: ${{ runner.os }}-${{ matrix.python-version }}-pip-${{ steps.pip-cache.outputs.datew }}
     - name: Install the dependencies
       run: |
         python -m pip install --upgrade pip wheel
-        python -m pip install torch==1.4 torchvision==0.5.0
+        python -m pip install torch==1.7.0 torchvision==0.8.1
         python -m pip install -r requirements-dev.txt
     - name: Run quick tests CPU ubuntu
       run: |
@@ -106,7 +111,9 @@ jobs:
       uses: actions/cache@v2
       id: cache
       with:
-        path: ~/.cache/pip
+        path: |
+          ~/.cache/pip
+          ~/.cache/torch
         key: ${{ runner.os }}-pip-${{ steps.pip-cache.outputs.datew }}
     - name: Install the default branch no build
       run: |
@@ -132,11 +139,29 @@ jobs:
       env:
         QUICKTEST: True
 
+  local_docker:
+    if: github.repository == 'Project-MONAI/MONAI'
+    runs-on: [self-hosted, linux, x64, build_only]
+    # we only push built container if it is built from master branch
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        ref: master
+    - name: docker_build
+      run: |
+        docker build -t localhost:5000/local_monai:latest -f Dockerfile .
+        docker push localhost:5000/local_monai:latest
+        docker tag localhost:5000/local_monai:latest projectmonai/monai:latest
+        docker login -u projectmonai -p ${{ secrets.DOCKER_PW }}
+        docker push projectmonai/monai:latest
+        docker logout
 
   docker:
+    if: github.repository == 'Project-MONAI/MONAI'
+    needs: local_docker
     container:
-      image: docker://projectmonai/monai:latest
-    runs-on: [self-hosted, linux, x64]
+      image: localhost:5000/local_monai:latest
+    runs-on: [self-hosted, linux, x64, common]
     steps:
     - name: Import
       run: |

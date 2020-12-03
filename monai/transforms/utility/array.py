@@ -15,7 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 import logging
 import time
-from typing import Callable, Optional, Sequence, Tuple, TypeVar, Union
+from typing import Callable, List, Optional, Sequence, Tuple, TypeVar, Union
 
 import numpy as np
 import torch
@@ -139,6 +139,45 @@ class RepeatChannel(Transform):
         return np.repeat(img, self.repeats, 0)
 
 
+class SplitChannel(Transform):
+    """
+    Split Numpy array or PyTorch Tensor data according to the channel dim.
+    It can help applying different following transforms to different channels.
+    Channel number must be greater than 1.
+
+    Args:
+        channel_dim: which dimension of input image is the channel, default to None
+            to automatically select: if data is numpy array, channel_dim is 0 as
+            `numpy array` is used in the pre transforms, if PyTorch Tensor, channel_dim
+            is 1 as in most of the cases `Tensor` is uses in the post transforms.
+    """
+
+    def __init__(self, channel_dim: Optional[int] = None) -> None:
+        self.channel_dim = channel_dim
+
+    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> List[Union[np.ndarray, torch.Tensor]]:
+        if self.channel_dim is None:
+            # automatically select the default channel dim based on data type
+            if isinstance(img, torch.Tensor):
+                channel_dim = 1
+            else:
+                channel_dim = 0
+        else:
+            channel_dim = self.channel_dim
+
+        n_classes = img.shape[channel_dim]
+        if n_classes <= 1:
+            raise RuntimeError("input image does not contain multiple channels.")
+
+        outputs = list()
+        slices = [slice(None)] * len(img.shape)
+        for i in range(n_classes):
+            slices[channel_dim] = slice(i, i + 1)
+            outputs.append(img[tuple(slices)])
+
+        return outputs
+
+
 class CastToType(Transform):
     """
     Cast the Numpy data to specified numpy data type, or cast the PyTorch Tensor to
@@ -189,15 +228,15 @@ class ToTensor(Transform):
 
 class ToNumpy(Transform):
     """
-    Converts the input Tensor data to numpy array.
+    Converts the input data to numpy array, can support list or tuple of numbers and PyTorch Tensor.
     """
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> np.ndarray:
+    def __call__(self, img: Union[List, Tuple, np.ndarray, torch.Tensor]) -> np.ndarray:
         """
         Apply the transform to `img` and make it contiguous.
         """
         if torch.is_tensor(img):
-            img = img.detach().cpu().numpy()
+            img = img.detach().cpu().numpy()  # type: ignore
         return np.ascontiguousarray(img)
 
 

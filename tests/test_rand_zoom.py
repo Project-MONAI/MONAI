@@ -61,6 +61,20 @@ class TestRandZoom(NumpyImageTestCase2D):
             random_zoom = RandZoom(prob=1.0, min_zoom=min_zoom, max_zoom=max_zoom, mode=mode)
             random_zoom(self.imt[0])
 
+    def test_auto_expand_3d(self):
+        random_zoom = RandZoom(
+            prob=1.0,
+            min_zoom=[0.8, 0.7],
+            max_zoom=[1.2, 1.3],
+            mode="nearest",
+            keep_size=False,
+        )
+        random_zoom.set_random_state(1234)
+        test_data = np.random.randint(0, 2, size=[2, 2, 3, 4])
+        zoomed = random_zoom(test_data)
+        np.testing.assert_allclose(random_zoom._zoom, (1.048844, 1.048844, 0.962637), atol=1e-2)
+        np.testing.assert_allclose(zoomed.shape, (2, 2, 3, 3))
+
 
 if __name__ == "__main__":
     unittest.main()

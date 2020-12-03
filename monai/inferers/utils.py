@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, List, Sequence, Tuple, Union
 
 import torch
 import torch.nn.functional as F
@@ -22,13 +22,16 @@ def sliding_window_inference(
     inputs: torch.Tensor,
     roi_size: Union[Sequence[int], int],
     sw_batch_size: int,
-    predictor: Callable[[torch.Tensor], torch.Tensor],
+    predictor: Callable[..., torch.Tensor],
     overlap: float = 0.25,
     mode: Union[BlendMode, str] = BlendMode.CONSTANT,
     sigma_scale: Union[Sequence[float], float] = 0.125,
     padding_mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
     cval: float = 0.0,
-    device: Optional[torch.device] = None,
+    sw_device: Union[torch.device, str, None] = None,
+    device: Union[torch.device, str, None] = None,
+    *args: Any,
+    **kwargs: Any,
 ) -> torch.Tensor:
     """
     Sliding window inference on `inputs` with `predictor`.
@@ -62,17 +65,18 @@ def sliding_window_inference(
             Padding mode for ``inputs``, when ``roi_size`` is larger than inputs. Defaults to ``"constant"``
             See also: https://pytorch.org/docs/stable/nn.functional.html#pad
         cval: fill value for 'constant' padding mode. Default: 0
-        device: device running the concatenation of the windows.
-            By default the device and accordingly the memory of the input device is used. If for example
+        sw_device: device for the window data.
+            By default the device (and accordingly the memory) of the `inputs` is used.
+            Normally `sw_device` should be consistent with the device where `predictor` is defined.
+        device: device for the stitched output prediction.
+            By default the device (and accordingly the memory) of the `inputs` is used. If for example
             set to device=torch.device('cpu') the gpu memory consumption is less and independent of the
-            input and roi_size parameter. Output is on the device set or if not set the inputs device.
-
-    Raises:
-        NotImplementedError: When ``inputs`` does not have batch size = 1.
+            `inputs` and `roi_size`. Output is on the `device`.
+        args: optional args to be passed to ``predictor``.
+        kwargs: optional keyword args to be passed to ``predictor``.
 
     Note:
-        - input must be channel-first and have a batch dim, support both spatial 2D and 3D.
-        - currently only supports `inputs` with batch_size=1.
+        - input must be channel-first and have a batch dim, supports N-D sliding window.
 
     """
     num_spatial_dims = len(inputs.shape) - 2
@@ -83,12 +87,10 @@ def sliding_window_inference(
     image_size_ = list(inputs.shape[2:])
     batch_size = inputs.shape[0]
 
-    # TODO: Enable batch sizes > 1 in future
-    if batch_size > 1:
-        raise NotImplementedError("Currently only inputs with batch size = 1 are supported.")
-
     if device is None:
         device = inputs.device
+    if sw_device is None:
+        sw_device = inputs.device
 
     roi_size = fall_back_tuple(roi_size, image_size_)
     # in case that image size is smaller than roi size
@@ -104,68 +106,49 @@ def sliding_window_inference(
 
     # Store all slices in list
     slices = dense_patch_slices(image_size, roi_size, scan_interval)
+    num_win = len(slices)  # number of windows per image
+    total_slices = num_win * batch_size  # total number of windows
 
-    slice_batches = []
-    for slice_index in range(0, len(slices), sw_batch_size):
-        slice_index_range = range(slice_index, min(slice_index + sw_batch_size, len(slices)))
-        input_slices = []
-        for curr_index in slice_index_range:
-            curr_slice = slices[curr_index]
-            if len(curr_slice) == 3:
-                input_slices.append(inputs[0, :, curr_slice[0], curr_slice[1], curr_slice[2]])
-            else:
-                input_slices.append(inputs[0, :, curr_slice[0], curr_slice[1]])
-        slice_batches.append(torch.stack(input_slices))
-
-    # Perform predictions
-    output_rois = list()
-    for data in slice_batches:
-        seg_prob = predictor(data)  # batched patch segmentation
-        output_rois.append(seg_prob.to(device))
-
-    # stitching output image
-    output_classes = output_rois[0].shape[1]
-    output_shape = [batch_size, output_classes] + list(image_size)
-
-    # Create importance map
+    # Create window-level importance map
     importance_map = compute_importance_map(
         get_valid_patch_size(image_size, roi_size), mode=mode, sigma_scale=sigma_scale, device=device
     )
 
-    # allocate memory to store the full output and the count for overlapping parts
-    output_image = torch.zeros(output_shape, dtype=torch.float32, device=device)
-    count_map = torch.zeros(output_shape, dtype=torch.float32, device=device)
+    # Perform predictions
+    output_image, count_map = torch.tensor(0.0, device=device), torch.tensor(0.0, device=device)
+    _initialized = False
+    for slice_g in range(0, total_slices, sw_batch_size):
+        slice_range = range(slice_g, min(slice_g + sw_batch_size, total_slices))
+        unravel_slice = [
+            [slice(int(idx / num_win), int(idx / num_win) + 1), slice(None)] + list(slices[idx % num_win])
+            for idx in slice_range
+        ]
+        window_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+        seg_prob = predictor(window_data, *args, **kwargs).to(device)  # batched patch segmentation
 
-    for window_id, slice_index in enumerate(range(0, len(slices), sw_batch_size)):
-        slice_index_range = range(slice_index, min(slice_index + sw_batch_size, len(slices)))
+        if not _initialized:  # init. buffer at the first iteration
+            output_classes = seg_prob.shape[1]
+            output_shape = [batch_size, output_classes] + list(image_size)
+            # allocate memory to store the full output and the count for overlapping parts
+            output_image = torch.zeros(output_shape, dtype=torch.float32, device=device)
+            count_map = torch.zeros(output_shape, dtype=torch.float32, device=device)
+            _initialized = True
 
         # store the result in the proper location of the full output. Apply weights from importance map.
-        for curr_index in slice_index_range:
-            curr_slice = slices[curr_index]
-            if len(curr_slice) == 3:
-                output_image[0, :, curr_slice[0], curr_slice[1], curr_slice[2]] += (
-                    importance_map * output_rois[window_id][curr_index - slice_index, :]
-                )
-                count_map[0, :, curr_slice[0], curr_slice[1], curr_slice[2]] += importance_map
-            else:
-                output_image[0, :, curr_slice[0], curr_slice[1]] += (
-                    importance_map * output_rois[window_id][curr_index - slice_index, :]
-                )
-                count_map[0, :, curr_slice[0], curr_slice[1]] += importance_map
+        for idx, original_idx in zip(slice_range, unravel_slice):
+            output_image[original_idx] += importance_map * seg_prob[idx - slice_g]
+            count_map[original_idx] += importance_map
 
     # account for any overlapping sections
     output_image = output_image / count_map
 
-    if num_spatial_dims == 3:
-        return output_image[
-            ...,
-            pad_size[4] : image_size_[0] + pad_size[4],
-            pad_size[2] : image_size_[1] + pad_size[2],
-            pad_size[0] : image_size_[2] + pad_size[0],
-        ]
-    return output_image[
-        ..., pad_size[2] : image_size_[0] + pad_size[2], pad_size[0] : image_size_[1] + pad_size[0]
-    ]  # 2D
+    final_slicing: List[slice] = []
+    for sp in range(num_spatial_dims):
+        slice_dim = slice(pad_size[sp * 2], image_size_[num_spatial_dims - sp - 1] + pad_size[sp * 2])
+        final_slicing.insert(0, slice_dim)
+    while len(final_slicing) < len(output_image.shape):
+        final_slicing.insert(0, slice(None))
+    return output_image[final_slicing]
 
 
 def _get_scan_interval(
