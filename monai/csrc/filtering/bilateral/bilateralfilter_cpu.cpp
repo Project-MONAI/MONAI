@@ -11,17 +11,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// This cpu implementaion of a bilateral filter is inteded as a backup for the gpu version.
-// It is fully generic in number of channels and spatial dimensions. This flexability
-// comes at the cost of speed. Any future optimisation should aim to implement loop 
-// unrolling by specialising for common channel numbers (1, 3) and spatial dimensions (1, 2, 3) 
-// From my initial test this would bring about a 30% performance boost for those cases. 
-
 #include <torch/extension.h>
 #include <math.h>
 
-// This structures allows us perform a nested for loop
-// with an arbitrary depth. Most use cases will likely be 1-3d
 struct Indexer
 {
 public:

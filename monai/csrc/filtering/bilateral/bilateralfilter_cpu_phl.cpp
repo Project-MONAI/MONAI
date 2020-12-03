@@ -12,8 +12,7 @@ limitations under the License.
 */
 
 #include <torch/extension.h>
-#include "permutohedral.h"
-
+#include "../permutohedral/permutohedral.h"
 
 torch::Tensor BilateralFilterPHLCpu(torch::Tensor input_tensor, float spatial_sigma, float color_sigma)
 {
@@ -63,7 +62,7 @@ torch::Tensor BilateralFilterPHLCpu(torch::Tensor input_tensor, float spatial_si
     }
 
     // Filtering data with respect to the features
-    float* output = PermutohedralLattice::filter(data, features, elementCount, dataChannels, featureChannels);
+    float* output = PermutohedralCPU(data, features, dataChannels, featureChannels, elementCount);
 
     // Writing output tensor
     torch::Tensor output_tensor = torch::zeros_like(input_tensor);

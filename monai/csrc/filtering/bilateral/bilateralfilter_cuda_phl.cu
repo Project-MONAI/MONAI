@@ -10,13 +10,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 #include <torch/extension.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include "utils/common_utils.h"
 
-//defined in "permutohedral.cu"
-void filter(float *im, float *ref, int pd, int vd, int elementCount, bool accurate);
+#include "utils/common_utils.h"
+#include "../permutohedral/permutohedral.h"
 
 __constant__ int cBatchStride;
 __constant__ int cChannelStride;
@@ -105,7 +105,7 @@ void RunFilter(torch::Tensor inputTensor, torch::Tensor outputTensor, float spat
     // Filtering data with respect to the features for each sample in batch
     for (int batchIndex = 0; batchIndex < batchCount; batchIndex++)
     {
-        filter(data + batchIndex * batchStride, features + batchIndex * batchStride, featureChannels, dataChannels, elementCount, true);
+        PermutohedralCuda(data + batchIndex * batchStride, features + batchIndex * batchStride, dataChannels, featureChannels, elementCount);
     }
 
     // Writing output

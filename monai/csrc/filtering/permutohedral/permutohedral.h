@@ -13,4 +13,5 @@ limitations under the License.
 
 #pragma once
 
-#include "bilateral/bilateral.h"
+float* PermutohedralCPU(float* data, float* features, int dataChannels, int featureChannels, int elementCount);
+void PermutohedralCuda(float* data, float* features, int dataChannels, int featureChannels, int elementCount);

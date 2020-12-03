@@ -11,8 +11,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#pragma once
-
 #include <math.h>
 #include <string.h>
 
@@ -175,8 +173,8 @@ class PermutohedralLattice {
    *   im : image to be bilateral-filtered.
    *  ref : reference image whose edges are to be respected.
    */
-  static float* filter(float* data, float* features, int elementCount, int dataChannels, int featureChannels) {
-
+  static float* filter(float* data, float* features, int dataChannels, int featureChannels,  int elementCount) 
+  {
     // Create lattice
     PermutohedralLattice lattice(featureChannels, dataChannels+1, elementCount);
 
@@ -458,3 +456,9 @@ class PermutohedralLattice {
     short *greedy;
     HashTablePermutohedral hashTable;
 };
+
+
+float* PermutohedralCPU(float* data, float* features, int dataChannels, int featureChannels, int elementCount)
+{
+  return PermutohedralLattice::filter(data, features, dataChannels, featureChannels, elementCount);
+}
