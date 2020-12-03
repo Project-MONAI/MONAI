@@ -157,7 +157,7 @@ def get_system_info(file=sys.stdout) -> OrderedDict:
             _dict_append(output, "Disk usage (%)", lambda: psutil.disk_usage(os.getcwd()).percent)
             _dict_append(
                 output,
-                "Avg. sensor temp. (°C)",
+                "Avg. sensor temp. (Celsius)",
                 lambda: round(
                     np.mean([item.current for sublist in psutil.sensors_temperatures().values() for item in sublist], 1)
                 ),
