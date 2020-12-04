@@ -14,13 +14,15 @@ limitations under the License.
 #include <torch/extension.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
+
 #include "utils/common_utils.h"
+#include "utils/tensor_description.h"
 
 __constant__ int cBatchStride;
 __constant__ int cColorStride;
 
-__constant__ int cSizes[5];
-__constant__ int cStrides[5];
+__constant__ int cSizes[3];
+__constant__ int cStrides[3];
 
 __constant__ int cKernelSize;
 __constant__ float cKernel[256];
@@ -200,22 +202,10 @@ __global__ void BilateralFilterCudaKernel3D(float* input, float* output)
 }
 
 template<int C, int D>
-void BilateralFilterCuda(torch::Tensor input, torch::Tensor output, float spatialSigma, float colorSigma)
+void BilateralFilterCuda(torch::Tensor inputTensor, torch::Tensor outputTensor, float spatialSigma, float colorSigma)
 {
-    // Gathering and input description.
-    int batchCount = input.size(0);
-    int batchStride = input.stride(0);
-    int channelStride = input.stride(1);
-    int elementCount = channelStride;
-
-    int sizes[D];
-    int strides[D];
-
-    for (int d = 0; d < D; d++)
-    {
-        sizes[d] = input.size(2 + d);
-        strides[d] = input.stride(2 + d);
-    }
+    // Getting tensor description.
+    TensorDescription desc = TensorDescription(inputTensor);
 
     // Pre-calculating exponent factors.
     float spatialExponentFactor = -1.0f / (2 * spatialSigma * spatialSigma);
@@ -233,10 +223,10 @@ void BilateralFilterCuda(torch::Tensor input, torch::Tensor output, float spatia
     }
     
     // Writing constant memory.
-    cudaMemcpyToSymbol(cBatchStride, &batchStride, sizeof(int));
-    cudaMemcpyToSymbol(cColorStride, &channelStride, sizeof(int));
-    cudaMemcpyToSymbol(cSizes, sizes, sizeof(int) * D);
-    cudaMemcpyToSymbol(cStrides, strides, sizeof(int) * D);
+    cudaMemcpyToSymbol(cBatchStride, &desc.batchStride, sizeof(int));
+    cudaMemcpyToSymbol(cColorStride, &desc.channelStride, sizeof(int));
+    cudaMemcpyToSymbol(cSizes, desc.sizes, sizeof(int) * D);
+    cudaMemcpyToSymbol(cStrides, desc.strides, sizeof(int) * D);
     cudaMemcpyToSymbol(cKernelSize, &kernelSize, sizeof(int));
     cudaMemcpyToSymbol(cKernel, kernel, sizeof(float) * kernelSize);
     cudaMemcpyToSymbol(cColorExponentFactor, &colorExponentFactor, sizeof(float));
@@ -244,9 +234,9 @@ void BilateralFilterCuda(torch::Tensor input, torch::Tensor output, float spatia
     // Dispatch kernel. (Partial template function specialisation not supported at present so using this switch instead)
     switch(D)
     {
-        case(1): BilateralFilterCudaKernel1D<C><<<dim3(elementCount, batchCount), dim3(1, 1)>>>(input.data_ptr<float>(), output.data_ptr<float>()); break;
-        case(2): BilateralFilterCudaKernel2D<C><<<dim3(elementCount, batchCount), dim3(1, 1)>>>(input.data_ptr<float>(), output.data_ptr<float>()); break;
-        case(3): BilateralFilterCudaKernel3D<C><<<dim3(elementCount, batchCount), dim3(1, 1)>>>(input.data_ptr<float>(), output.data_ptr<float>()); break;
+        case(1): BilateralFilterCudaKernel1D<C><<<dim3(desc.channelStride, desc.batchCount), dim3(1, 1)>>>(inputTensor.data_ptr<float>(), outputTensor.data_ptr<float>()); break;
+        case(2): BilateralFilterCudaKernel2D<C><<<dim3(desc.channelStride, desc.batchCount), dim3(1, 1)>>>(inputTensor.data_ptr<float>(), outputTensor.data_ptr<float>()); break;
+        case(3): BilateralFilterCudaKernel3D<C><<<dim3(desc.channelStride, desc.batchCount), dim3(1, 1)>>>(inputTensor.data_ptr<float>(), outputTensor.data_ptr<float>()); break;
     }
 
     delete[] kernel;

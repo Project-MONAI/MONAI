@@ -14,10 +14,12 @@ limitations under the License.
 #include <torch/extension.h>
 #include <math.h>
 
+#include "utils/tensor_description.h"
+
 struct Indexer
 {
 public:
-    Indexer(int dimensions, int64_t* sizes)
+    Indexer(int dimensions, int* sizes)
     {
         m_dimensions = dimensions;
         m_sizes = sizes;
@@ -50,29 +52,21 @@ public:
 
 private:
     int m_dimensions;
-    int64_t* m_sizes;
+    int* m_sizes;
     int* m_index;
 };
 
-torch::Tensor BilateralFilterCpu(torch::Tensor input, float spatialSigma, float colorSigma)
+torch::Tensor BilateralFilterCpu(torch::Tensor inputTensor, float spatialSigma, float colorSigma)
 {
-    // Prepare output tensor
-    torch::Tensor output = torch::zeros_like(input);
+    // Preparing output tensor.
+    torch::Tensor outputTensor = torch::zeros_like(inputTensor);
 
-    // Tensor descriptors.
-    int batchCount = input.size(0);
-    int channelCount = input.size(1);
-
-    int batchStride = input.stride(0);
-    int channelStride = input.stride(1);
-
-    int spatialDimensionCount = input.dim() - 2;
-    int64_t* spatialDimensionSizes = (int64_t*)input.sizes().data() + 2;
-    int64_t* spatialDimensionStrides = (int64_t*)input.strides().data() + 2;
-
+    // Getting tensor description.
+    TensorDescription desc = TensorDescription(inputTensor);
+   
     // Raw tensor data pointers. 
-    float* inputData = input.data_ptr<float>();
-    float* outputData = output.data_ptr<float>();
+    float* inputTensorData = inputTensor.data_ptr<float>();
+    float* outputTensorData = outputTensor.data_ptr<float>();
 
     // Pre-calculate common values
     int windowSize = ceil(3 * spatialSigma);
@@ -80,12 +74,12 @@ torch::Tensor BilateralFilterCpu(torch::Tensor input, float spatialSigma, float 
     float spatialExpConstant = -1.0f / (2 * spatialSigma * spatialSigma);
     float colorExpConstant = -1.0f / (2 * colorSigma * colorSigma);
 
-    // Kernel size array
-    int64_t* kernelSize = new int64_t[spatialDimensionCount];
+    // Kernel sizes.
+    int* kernelSizes = new int[desc.dimensions];
 
-    for (int i = 0; i < spatialDimensionCount; i++)
+    for (int i = 0; i < desc.dimensions; i++)
     {
-        kernelSize[i] = windowSize;
+        kernelSizes[i] = windowSize;
     }
 
     // Pre-calculate gaussian kernel in 1D.
@@ -99,28 +93,28 @@ torch::Tensor BilateralFilterCpu(torch::Tensor input, float spatialSigma, float 
 
     // Kernel aggregates used to calculate
     // the output value.
-    float* valueSum = new float[channelCount];
+    float* valueSum = new float[desc.channelCount];
     float weightSum = 0;
 
     // Looping over the batches
-    for (int b = 0; b < batchCount; b++)
+    for (int b = 0; b < desc.batchCount; b++)
     {
-        int batchOffset = b * batchStride;
+        int batchOffset = b * desc.batchStride;
 
         // Looping over all dimensions for the home element
-        Indexer homeIndex = Indexer(spatialDimensionCount, spatialDimensionSizes);
+        Indexer homeIndex = Indexer(desc.dimensions, desc.sizes);
         do // while(homeIndex++)
         {
             // Calculating indexing offset for the home element
             int homeOffset = batchOffset;
 
-            for(int i = 0; i < spatialDimensionCount; i++)
+            for(int i = 0; i < desc.dimensions; i++)
             {
-                homeOffset += homeIndex[i] * spatialDimensionStrides[i];
+                homeOffset += homeIndex[i] * desc.strides[i];
             }
 
             // Zero kernel aggregates.
-            for(int i = 0; i < channelCount; i++)
+            for(int i = 0; i < desc.channelCount; i++)
             {
                 valueSum[i] = 0;
             }
@@ -128,27 +122,26 @@ torch::Tensor BilateralFilterCpu(torch::Tensor input, float spatialSigma, float 
             weightSum = 0.0f;
 
             // Looping over all dimensions for the neighbour element
-            Indexer kernelIndex = Indexer(spatialDimensionCount, kernelSize);
+            Indexer kernelIndex = Indexer(desc.dimensions, kernelSizes);
             do // while(kernelIndex++)
             {
                 // Calculating buffer offset for the neighbour element
                 // Index is clamped to the border in each dimension.
                 int neighbourOffset = batchOffset;
 
-                for(int i = 0; i < spatialDimensionCount; i++)
+                for(int i = 0; i < desc.dimensions; i++)
                 {
                     int neighbourIndex = homeIndex[i] + kernelIndex[i] - halfWindowSize;
-                    int neighbourIndexClamped = std::min((int)spatialDimensionSizes[i] - 1, std::max(0, neighbourIndex));
-                    neighbourOffset += neighbourIndexClamped * spatialDimensionStrides[i];
+                    int neighbourIndexClamped = std::min(desc.sizes[i] - 1, std::max(0, neighbourIndex));
+                    neighbourOffset += neighbourIndexClamped * desc.strides[i];
                 }
-
 
                 // Euclidean color distance.
                 float colorDistanceSquared = 0;
 
-                for (int i = 0; i < channelCount; i++)
+                for (int i = 0; i < desc.channelCount; i++)
                 {
-                    float diff = inputData[homeOffset + i * channelStride] - inputData[neighbourOffset + i * channelStride];
+                    float diff = inputTensorData[homeOffset + i * desc.channelStride] - inputTensorData[neighbourOffset + i * desc.channelStride];
                     colorDistanceSquared += diff * diff;
                 }
 
@@ -156,7 +149,7 @@ torch::Tensor BilateralFilterCpu(torch::Tensor input, float spatialSigma, float 
                 // and color weights.
                 float spatialWeight = 1;
 
-                for (int i = 0; i < spatialDimensionCount; i++)
+                for (int i = 0; i < desc.dimensions; i++)
                 {
                     spatialWeight *= gaussianKernel[kernelIndex[i]];
                 }
@@ -165,23 +158,22 @@ torch::Tensor BilateralFilterCpu(torch::Tensor input, float spatialSigma, float 
                 float totalWeight = spatialWeight * colorWeight;
 
                 // Aggregating values.
-                for (int i = 0; i < channelCount; i++)
+                for (int i = 0; i < desc.channelCount; i++)
                 {
-                    valueSum[i] += inputData[neighbourOffset + i * channelStride] * totalWeight;
+                    valueSum[i] += inputTensorData[neighbourOffset + i * desc.channelStride] * totalWeight;
                 }
 
                 weightSum += totalWeight;
             } 
             while(kernelIndex++);
 
-
-            for (int i = 0; i < channelCount; i++)
+            for (int i = 0; i < desc.channelCount; i++)
             {
-                outputData[homeOffset + i * channelStride] = valueSum[i] / weightSum;
+                outputTensorData[homeOffset + i * desc.channelStride] = valueSum[i] / weightSum;
             }
         } 
         while(homeIndex++);
     } 
 
-    return output;
+    return outputTensor;
 }

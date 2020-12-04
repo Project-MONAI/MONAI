@@ -12,69 +12,74 @@ limitations under the License.
 */
 
 #include <torch/extension.h>
-#include "../permutohedral/permutohedral.h"
 
-torch::Tensor BilateralFilterPHLCpu(torch::Tensor input_tensor, float spatial_sigma, float color_sigma)
+#include "utils/tensor_description.h"
+#include "filtering/permutohedral/permutohedral.h"
+
+
+torch::Tensor BilateralFilterPHLCpu(torch::Tensor inputTensor, float spatialSigma, float colorSigma)
 {
-    // Getting tensor descriptors
-    int dimensions = input_tensor.dim() - 2;
-    int* sizes = new int[dimensions];
-    int* strides = new int[dimensions];
-    int elementCount = 1;
+    // Preparing output tensor.
+    torch::Tensor outputTensor = torch::zeros_like(inputTensor);
 
-    for (int i = 0; i < dimensions; i++)
-    {
-        sizes[i] = input_tensor.size(i+2);
-        strides[i] = input_tensor.stride(i+2);
-        elementCount *= sizes[i];
-    }
-
-    int dataChannels = input_tensor.size(1);
-    int featureChannels = dataChannels + dimensions;
-    int channelStride = input_tensor.stride(1);
+    // Getting tensor description.
+    TensorDescription desc = TensorDescription(inputTensor);
+    
+    int featureChannels = desc.channelCount + desc.dimensions;
 
     // Preparing memory
-    float* input_tensor_ptr = input_tensor.data_ptr<float>();
-    float* data = new float[elementCount * dataChannels];
-    float* features = new float[elementCount * featureChannels];
+    float* inputTensorData = inputTensor.data_ptr<float>();
+    float* outputTensorData = outputTensor.data_ptr<float>();
+    float* data = new float[desc.channelStride * desc.channelCount];
+    float* features = new float[desc.channelStride * featureChannels];
 
-    // Creating features
-    float invSpatialStdev = 1.0f/spatial_sigma;
-    float invColorStdev = 1.0f/color_sigma;
+    // Precalculating inverse sigmas    
+    float invSpatialSigma= 1.0f/spatialSigma;
+    float invColorSigma = 1.0f/colorSigma;
 
-    for (int i = 0; i < elementCount; i++) 
+    // Looping over batches
+    for (int b = 0; b < desc.batchCount; b++)
     {
-        for (int c = 0; c < dataChannels; c++)
+        int batchOffset = b * desc.batchStride;
+
+        // Creating features (also permuting input data to be channel last. Permutohedral 
+        // implementation should be changed to channel first to avoid this)
+        for (int i = 0; i < desc.channelStride; i++) 
         {
-            features[i*featureChannels + c] = invColorStdev * input_tensor_ptr[i + c * channelStride];
-            data[i*dataChannels + c] = input_tensor_ptr[i + c * channelStride];
+            // Color features (and permutation)
+            for (int c = 0; c < desc.channelCount; c++)
+            {
+                features[i * featureChannels + c] = invColorSigma * inputTensorData[batchOffset + i + c * desc.channelStride];
+                data[i * desc.channelCount + c] = inputTensorData[batchOffset + i + c * desc.channelStride];
+            }
+
+            // Spatial features
+            int offsetRemanider = i;
+
+            for (int d = 0; d < desc.dimensions; d++)
+            {
+                int coord = offsetRemanider / desc.strides[d];
+                offsetRemanider -= coord * desc.strides[d];
+
+                features[i * featureChannels + desc.channelCount + d] = invSpatialSigma * coord;
+            }
         }
 
-        int remainder = i;
+        // Filtering data with respect to the features.
+        float* output = PermutohedralCPU(data, features, desc.channelCount, featureChannels, desc.channelStride);
 
-        for (int d = 0; d < dimensions; d++)
+        // Writing output tensor.
+        for (int i = 0; i < desc.channelStride; i++)
         {
-            int coord = remainder / strides[d];
-            remainder -= coord * strides[d];
-
-            features[i*featureChannels + dataChannels + d] = invSpatialStdev * coord;
+            for (int c = 0; c < desc.channelCount; c++)
+            {
+                outputTensorData[batchOffset + i + c * desc.channelStride] = output[i * desc.channelCount + c];
+            }
         }
     }
 
-    // Filtering data with respect to the features
-    float* output = PermutohedralCPU(data, features, dataChannels, featureChannels, elementCount);
+    delete[] data;
+    delete[] features;
 
-    // Writing output tensor
-    torch::Tensor output_tensor = torch::zeros_like(input_tensor);
-    float* output_tensor_ptr = output_tensor.data_ptr<float>();
-
-    for (int i = 0; i < elementCount; i++)
-    {
-        for (int c = 0; c < dataChannels; c++)
-        {
-            output_tensor_ptr[i + c * channelStride] = output[i * dataChannels + c];
-        }
-    }
-
-    return output_tensor;
+    return outputTensor;
 }

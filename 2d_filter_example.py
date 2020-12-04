@@ -24,8 +24,8 @@ def run_testcase(test_name, plot_position, function, args):
     plt.imshow(result)
 
 # filter parameters
-spatial_sigma = 4
-color_sigma = 0.2
+spatial_sigma = 20
+color_sigma = 0.3
 
 # input data
 data = np.array(skimage.data.astronaut()) / 255.0
