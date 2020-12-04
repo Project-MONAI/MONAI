@@ -9,50 +9,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
 import os
 import tempfile
 import unittest
-from multiprocessing import Lock
 
 import nibabel as nib
 import numpy as np
 
-from monai.data import DataLoader, IterableDataset
+from monai.data import DataLoader, Dataset, IterableDataset
 from monai.transforms import Compose, LoadImaged, SimulateDelayd
-
-lock = Lock()
 
 
 class _Stream:
-    def __init__(self, data, dbpath):
-        # simulate a database at the website
-        self.dbpath = dbpath
-        self.reset()
+    def __init__(self, data):
         self.data = data
 
     def __iter__(self):
-        return self
-
-    def __next__(self):
-        data = None
-        # support multi-process access to the database
-        lock.acquire()
-        with open(self.dbpath) as f:
-            count = json.load(f)["count"]
-        if count > 0:
-            data = self.data[count - 1]
-            with open(self.dbpath, "w") as f:
-                json.dump({"count": count - 1}, f)
-        lock.release()
-
-        if count == 0:
-            raise StopIteration
-        return data
-
-    def reset(self):
-        with open(self.dbpath, "w") as f:
-            json.dump({"count": 6}, f)
+        return iter(self.data)
 
 
 class TestIterableDataset(unittest.TestCase):
@@ -72,13 +45,15 @@ class TestIterableDataset(unittest.TestCase):
                 ]
             )
 
-            test_stream = _Stream(data=test_data, dbpath=os.path.join(tempdir, "countDB"))
-
-            dataset = IterableDataset(data=test_stream, transform=test_transform)
+            data_iterator = _Stream(test_data)
+            with self.assertRaises(TypeError):  # Dataset doesn't work
+                dataset = Dataset(data=data_iterator, transform=test_transform)
+                for _ in dataset:
+                    pass
+            dataset = IterableDataset(data=data_iterator, transform=test_transform)
             for d in dataset:
                 self.assertTupleEqual(d["image"].shape, expected_shape)
 
-            test_stream.reset()
             dataloader = DataLoader(dataset=dataset, batch_size=3, num_workers=2)
             for d in dataloader:
                 self.assertTupleEqual(d["image"].shape[1:], expected_shape)
