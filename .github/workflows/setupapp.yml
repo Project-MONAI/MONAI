@@ -151,7 +151,8 @@ jobs:
       run: |
         docker build -t localhost:5000/local_monai:latest -f Dockerfile .
         docker push localhost:5000/local_monai:latest
-        docker tag localhost:5000/local_monai:latest projectmonai/monai:latest
+        sed -i '/flake/d' requirements-dev.txt 
+        docker build -t projectmonai/monai:latest -f Dockerfile .
         docker login -u projectmonai -p ${{ secrets.DOCKER_PW }}
         docker push projectmonai/monai:latest
         docker logout
