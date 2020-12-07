@@ -121,7 +121,8 @@ class ITKReader(ImageReader):
     def __init__(self, **kwargs):
         super().__init__()
         self.kwargs = kwargs
-        if itk.Version.GetITKVersion() < "5.2.1":
+        if int(itk.Version.GetITKMajorVersion()) == 5 and int(itk.Version.GetITKMinorVersion()) <= 2 \
+                and int(itk.Version.GetITKBuildVersion()) <= 0:
             # warning the ITK LazyLoading mechanism was not threadsafe until version 5.2.1,
             # a silly call to force loading the required modules before the multi-threading is called
             _ = itk.imread
