@@ -121,6 +121,10 @@ class ITKReader(ImageReader):
     def __init__(self, **kwargs):
         super().__init__()
         self.kwargs = kwargs
+        if itk.Version.GetITKVersion() < "5.2.1":
+            # warning the ITK LazyLoading mechanism was not threadsafe until version 5.2.1,
+            # a silly call to force loading the required modules before the multi-threading is called
+            _ = itk.imread
 
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
         """
