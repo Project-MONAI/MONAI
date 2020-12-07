@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import itertools
 import random
 import warnings
 from typing import Callable, List, Optional, Sequence, Tuple, Union
@@ -535,6 +536,32 @@ def generate_spatial_bounding_box(
         box_start.append(max(0, np.min(nonzero_idx[i]) - margin[i]))
         box_end.append(min(data.shape[i], np.max(nonzero_idx[i]) + margin[i] + 1))
     return box_start, box_end
+
+
+def compute_bounding_rect(image: np.array):
+    """
+    Compute ND coordinates of a bounding rectangle from the positive intensities.
+    The output format of the coordinates is:
+
+        [1st_spatial_dim_start, 1st_spatial_dim_end,
+         2nd_spatial_dim_start, 2nd_spatial_dim_end,
+         ...,
+         Nth_spatial_dim_start, Nth_spatial_dim_end,]
+
+    The bounding boxes edges are aligned with the input image edges.
+    This function returns [-1, -1, ...] if there's no positive intensity.
+    """
+    _binary_image = image > 0
+    ndim = len(_binary_image.shape)
+    bbox = [0] * (2 * ndim)
+    for di, ax in enumerate(itertools.combinations(reversed(range(ndim)), ndim - 1)):
+        dt = _binary_image.any(axis=ax)
+        if not np.any(dt):
+            return np.asarray([-1] * len(bbox))
+        min_d = np.argmax(dt)
+        max_d = max(_binary_image.shape[di] - np.argmax(dt[::-1]), min_d + 1)
+        bbox[di * 2], bbox[di * 2 + 1] = min_d, max_d
+    return np.asarray(bbox)
 
 
 def get_largest_connected_component_mask(img: torch.Tensor, connectivity: Optional[int] = None) -> torch.Tensor:
