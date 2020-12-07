@@ -126,8 +126,9 @@ class ITKReader(ImageReader):
             and int(itk.Version.GetITKMinorVersion()) <= 2
             and int(itk.Version.GetITKBuildVersion()) <= 0
         ):
-            # warning the ITK LazyLoading mechanism was not threadsafe until version 5.2.1,
-            # a silly call to force loading the required modules before the multi-threading is called
+            # warning the ITK LazyLoading mechanism was not threadsafe until version 5.2.0,
+            # requesting access to the itk.imread function triggers the lazy loading of the relevant itk modules
+            # before the parallel use of the function.
             _ = itk.imread
 
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
