@@ -41,7 +41,7 @@ __global__ void BilateralFilterCudaKernel1D(float* input, float* output)
 
     for(int kernelOffset = 0; kernelOffset < cKernelSize; kernelOffset++)
     {
-        int neighbourOffset = max(0, min(homeOffset + (kernelOffset - kernelHalfSize), cSizes[0]));
+        int neighbourOffset = max(0, min(homeOffset + (kernelOffset - kernelHalfSize), cSizes[0] - 1));
         float gaussian = cKernel[kernelOffset];
         
         float distanceSquared = 0;
@@ -92,12 +92,12 @@ __global__ void BilateralFilterCudaKernel2D(float* input, float* output)
 
     for(int kernelX = 0; kernelX < cKernelSize; kernelX++)
     {
-        int neighbourX = max(0, min(homeX + (kernelX - kernelHalfSize), cSizes[0]));
+        int neighbourX = max(0, min(homeX + (kernelX - kernelHalfSize), cSizes[0] - 1));
         float gaussianX = cKernel[kernelX];
 
         for(int kernelY = 0; kernelY < cKernelSize; kernelY++)
         {
-            int neighbourY = max(0, min(homeY + (kernelY - kernelHalfSize), cSizes[1]));
+            int neighbourY = max(0, min(homeY + (kernelY - kernelHalfSize), cSizes[1] - 1));
             float gaussianY = cKernel[kernelY];
           
             int neighbourOffset = neighbourX * cStrides[0] + neighbourY;
@@ -152,20 +152,20 @@ __global__ void BilateralFilterCudaKernel3D(float* input, float* output)
 
     for(int kernelX = 0; kernelX < cKernelSize; kernelX++)
     {
-        int neighbourX = max(0, min(homeX + (kernelX - kernelHalfSize), cSizes[0]));
+        int neighbourX = max(0, min(homeX + (kernelX - kernelHalfSize), cSizes[0] - 1));
         float gaussianX = cKernel[kernelX];
 
         for(int kernelY = 0; kernelY < cKernelSize; kernelY++)
         {
-            int neighbourY = max(0, min(homeY + (kernelY - kernelHalfSize), cSizes[1]));
+            int neighbourY = max(0, min(homeY + (kernelY - kernelHalfSize), cSizes[1] - 1));
             float gaussianY = cKernel[kernelY];
 
             for(int kernelZ = 0; kernelZ < cKernelSize; kernelZ++)
             {
-                int neighbourZ = max(0, min(homeZ + (kernelZ - kernelHalfSize), cSizes[2]));
+                int neighbourZ = max(0, min(homeZ + (kernelZ - kernelHalfSize), cSizes[2] - 1));
                 float gaussianZ = cKernel[kernelZ];
             
-                int neighbourOffset = neighbourX * cStrides[0] + neighbourY *cStrides[1] + neighbourZ;
+                int neighbourOffset = neighbourX * cStrides[0] + neighbourY * cStrides[1] + neighbourZ;
                 
                 float distanceSquared = 0;
 
