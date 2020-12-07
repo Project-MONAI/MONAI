@@ -28,19 +28,19 @@ from monai.engines.utils import GanKeys as Keys
 from monai.handlers import CheckpointSaver, StatsHandler, TensorBoardStatsHandler
 from monai.networks import normal_init
 from monai.networks.nets import Discriminator, Generator
-from monai.transforms import AsChannelFirstd, Compose, LoadNiftid, RandFlipd, ScaleIntensityd, ToTensord
+from monai.transforms import AsChannelFirstd, Compose, LoadImaged, RandFlipd, ScaleIntensityd, ToTensord
 from monai.utils import set_determinism
-from tests.utils import skip_if_quick
+from tests.utils import DistTestCase, TimedCall, skip_if_quick
 
 
-def run_training_test(root_dir, device=torch.device("cuda:0")):
+def run_training_test(root_dir, device="cuda:0"):
     real_images = sorted(glob(os.path.join(root_dir, "img*.nii.gz")))
     train_files = [{"reals": img} for img in zip(real_images)]
 
     # prepare real data
     train_transforms = Compose(
         [
-            LoadNiftid(keys=["reals"]),
+            LoadImaged(keys=["reals"]),
             AsChannelFirstd(keys=["reals"]),
             ScaleIntensityd(keys=["reals"]),
             RandFlipd(keys=["reals"], prob=0.5),
@@ -126,7 +126,8 @@ def run_training_test(root_dir, device=torch.device("cuda:0")):
     return trainer.state
 
 
-class IntegrationWorkflowsGAN(unittest.TestCase):
+@skip_if_quick
+class IntegrationWorkflowsGAN(DistTestCase):
     def setUp(self):
         set_determinism(seed=0)
 
@@ -144,7 +145,7 @@ class IntegrationWorkflowsGAN(unittest.TestCase):
         set_determinism(seed=None)
         shutil.rmtree(self.data_dir)
 
-    @skip_if_quick
+    @TimedCall(seconds=100, daemon=False)
     def test_training(self):
         torch.manual_seed(0)
 

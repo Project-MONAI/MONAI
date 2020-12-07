@@ -26,12 +26,12 @@ class DiceLoss(_Loss):
     Compute average Dice loss between two tensors. It can support both multi-classes and multi-labels tasks.
     Input logits `input` (BNHW[D] where N is number of classes) is compared with ground truth `target` (BNHW[D]).
     Axis N of `input` is expected to have logit predictions for each class rather than being image channels,
-    while the same axis of `target` can be 1 or N (one-hot format). The `smooth` parameter is a value added to the
-    intersection and union components of the inter-over-union calculation to smooth results and prevent divide by 0,
-    this value should be small. The `include_background` class attribute can be set to False for an instance of
-    DiceLoss to exclude the first category (channel index 0) which is by convention assumed to be background.
-    If the non-background segmentations are small compared to the total image size they can get overwhelmed by
-    the signal from the background so excluding it in such cases helps convergence.
+    while the same axis of `target` can be 1 or N (one-hot format). The `smooth_nr` and `smooth_dr` parameters are
+    values added to the intersection and union components of the inter-over-union calculation to smooth results
+    respectively, these values should be small. The `include_background` class attribute can be set to False for
+    an instance of DiceLoss to exclude the first category (channel index 0) which is by convention assumed to be
+    background. If the non-background segmentations are small compared to the total image size they can get
+    overwhelmed by the signal from the background so excluding it in such cases helps convergence.
 
     Milletari, F. et. al. (2016) V-Net: Fully Convolutional Neural Networks forVolumetric Medical Image Segmentation, 3DV, 2016.
 
@@ -47,6 +47,9 @@ class DiceLoss(_Loss):
         squared_pred: bool = False,
         jaccard: bool = False,
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
+        smooth_nr: float = 1e-5,
+        smooth_dr: float = 1e-5,
+        batch: bool = False,
     ) -> None:
         """
         Args:
@@ -66,6 +69,12 @@ class DiceLoss(_Loss):
                 - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
                 - ``"sum"``: the output will be summed.
 
+            smooth_nr: a small constant added to the numerator to avoid zero.
+            smooth_dr: a small constant added to the denominator to avoid nan.
+            batch: whether to sum the intersection and union areas over the batch dimension before the dividing.
+                Defaults to False, a Dice loss value is computed independently from each item in the batch
+                before any `reduction`.
+
         Raises:
             TypeError: When ``other_act`` is not an ``Optional[Callable]``.
             ValueError: When more than 1 of [``sigmoid=True``, ``softmax=True``, ``other_act is not None``].
@@ -84,13 +93,15 @@ class DiceLoss(_Loss):
         self.other_act = other_act
         self.squared_pred = squared_pred
         self.jaccard = jaccard
+        self.smooth_nr = float(smooth_nr)
+        self.smooth_dr = float(smooth_dr)
+        self.batch = batch
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5) -> torch.Tensor:
+    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Args:
             input: the shape should be BNH[WD].
             target: the shape should be BNH[WD].
-            smooth: a small constant to avoid nan.
 
         Raises:
             ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
@@ -129,6 +140,10 @@ class DiceLoss(_Loss):
 
         # reducing only spatial dimensions (not batch nor channels)
         reduce_axis = list(range(2, len(input.shape)))
+        if self.batch:
+            # reducing spatial dimensions and batch
+            reduce_axis = [0] + reduce_axis
+
         intersection = torch.sum(target * input, dim=reduce_axis)
 
         if self.squared_pred:
@@ -143,7 +158,7 @@ class DiceLoss(_Loss):
         if self.jaccard:
             denominator = 2.0 * (denominator - intersection)
 
-        f: torch.Tensor = 1.0 - (2.0 * intersection + smooth) / (denominator + smooth)
+        f: torch.Tensor = 1.0 - (2.0 * intersection + self.smooth_nr) / (denominator + self.smooth_dr)
 
         if self.reduction == LossReduction.MEAN.value:
             f = torch.mean(f)  # the batch and channel average
@@ -167,14 +182,11 @@ class MaskedDiceLoss(DiceLoss):
 
     """
 
-    def forward(
-        self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5, mask: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
+    def forward(self, input: torch.Tensor, target: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
         Args:
             input: the shape should be BNH[WD].
             target: the shape should be BNH[WD].
-            smooth: a small constant to avoid nan.
             mask: the shape should B1H[WD] or 11H[WD].
         """
         if mask is not None:
@@ -195,7 +207,7 @@ class MaskedDiceLoss(DiceLoss):
         else:
             warnings.warn("no mask value specified for the MaskedDiceLoss.")
 
-        return super().forward(input=input, target=target, smooth=smooth)
+        return super().forward(input=input, target=target)
 
 
 class GeneralizedDiceLoss(_Loss):
@@ -218,6 +230,9 @@ class GeneralizedDiceLoss(_Loss):
         other_act: Optional[Callable] = None,
         w_type: Union[Weight, str] = Weight.SQUARE,
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
+        smooth_nr: float = 1e-5,
+        smooth_dr: float = 1e-5,
+        batch: bool = False,
     ) -> None:
         """
         Args:
@@ -237,6 +252,10 @@ class GeneralizedDiceLoss(_Loss):
                 - ``"none"``: no reduction will be applied.
                 - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
                 - ``"sum"``: the output will be summed.
+            smooth_nr: a small constant added to the numerator to avoid zero.
+            smooth_dr: a small constant added to the denominator to avoid nan.
+            batch: whether to sum the intersection and union areas over the batch dimension before the dividing.
+                Defaults to False, intersection over union is computed from each item in the batch.
 
         Raises:
             TypeError: When ``other_act`` is not an ``Optional[Callable]``.
@@ -262,12 +281,15 @@ class GeneralizedDiceLoss(_Loss):
         elif w_type == Weight.SQUARE:
             self.w_func = lambda x: torch.reciprocal(x * x)
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5) -> torch.Tensor:
+        self.smooth_nr = float(smooth_nr)
+        self.smooth_dr = float(smooth_dr)
+        self.batch = batch
+
+    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Args:
             input: the shape should be BNH[WD].
             target: the shape should be BNH[WD].
-            smooth: a small constant to avoid nan.
 
         Raises:
             ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
@@ -305,6 +327,8 @@ class GeneralizedDiceLoss(_Loss):
 
         # reducing only spatial dimensions (not batch nor channels)
         reduce_axis = list(range(2, len(input.shape)))
+        if self.batch:
+            reduce_axis = [0] + reduce_axis
         intersection = torch.sum(target * input, reduce_axis)
 
         ground_o = torch.sum(target, reduce_axis)
@@ -318,7 +342,9 @@ class GeneralizedDiceLoss(_Loss):
             b[infs] = 0.0
             b[infs] = torch.max(b)
 
-        f: torch.Tensor = 1.0 - (2.0 * (intersection * w).sum(1) + smooth) / ((denominator * w).sum(1) + smooth)
+        f: torch.Tensor = 1.0 - (2.0 * (intersection * w).sum(0 if self.batch else 1) + self.smooth_nr) / (
+            (denominator * w).sum(0 if self.batch else 1) + self.smooth_dr
+        )
 
         if self.reduction == LossReduction.MEAN.value:
             f = torch.mean(f)  # the batch and channel average
@@ -334,52 +360,72 @@ class GeneralizedDiceLoss(_Loss):
 
 class GeneralizedWassersteinDiceLoss(_Loss):
     """
-    Generalized Wasserstein Dice Loss [1] in PyTorch.
-    Compared to [1] we used a weighting method similar to the one
-    used in the generalized Dice Loss [2].
+    Compute the generalized Wasserstein Dice Loss defined in:
 
-    References:
-    ===========
-    [1] "Generalised Wasserstein Dice Score for Imbalanced Multi-class
-        Segmentation using Holistic Convolutional Networks",
-        Fidon L. et al. MICCAI BrainLes 2017.
-    [2] "Generalised dice overlap as a deep learning loss function
-        for highly unbalanced segmentations",
-        Sudre C., et al. MICCAI DLMIA 2017.
+        Fidon L. et al. (2017) Generalised Wasserstein Dice Score for Imbalanced Multi-class
+        Segmentation using Holistic Convolutional Networks. BrainLes 2017.
 
-    wasserstein_distance_map:
-    Compute the voxel-wise Wasserstein distance (eq. 6 in [1]) between the
-    flattened prediction and the flattened labels (ground_truth) with respect
-    to the distance matrix on the label space M.
-    References:
-    [1] "Generalised Wasserstein Dice Score for Imbalanced Multi-class
-        Segmentation using Holistic Convolutional Networks",
-        Fidon L. et al. MICCAI BrainLes 2017
+    Or its variant (use the option weighting_mode="GDL") defined in the Appendix of:
 
-    compute_weights_generalized_true_positives:
-    Compute the weights \alpha_l of eq. 9 in [1] but using the weighting
-    method proposed in the generalized Dice Loss [2].
-    References:
-    [1] "Generalised Wasserstein Dice Score for Imbalanced Multi-class
-        Segmentation using Holistic Convolutional Networks",
-        Fidon L. et al. MICCAI BrainLes 2017
-    [2] "Generalised dice overlap as a deep learning loss function
-        for highly unbalanced segmentations." Sudre C., et al.
-        MICCAI DLMIA 2017.
+        Tilborghs, S. et al. (2020) Comparative study of deep learning methods for the automatic
+        segmentation of lung, lesion and lesion type in CT scans of COVID-19 patients.
+        arXiv preprint arXiv:2007.15546
+
+    Adapted from:
+        https://github.com/LucasFidon/GeneralizedWassersteinDiceLoss
     """
 
     def __init__(
-        self, dist_matrix: Union[np.ndarray, torch.Tensor], reduction: Union[LossReduction, str] = LossReduction.MEAN
+        self,
+        dist_matrix: Union[np.ndarray, torch.Tensor],
+        weighting_mode: str = "default",
+        reduction: Union[LossReduction, str] = LossReduction.MEAN,
+        smooth_nr: float = 1e-5,
+        smooth_dr: float = 1e-5,
     ) -> None:
         """
         Args:
-            dist_matrix: 2d tensor or 2d numpy array; matrix of distances
-                between the classes. It must have dimension C x C where C is the
-                number of classes.
-            reduction: str; reduction mode.
+            dist_matrix: 2d tensor or 2d numpy array; matrix of distances between the classes.
+            It must have dimension C x C where C is the number of classes.
+            weighting_mode: {``"default"``, ``"GDL"``}
+                Specifies how to weight the class-specific sum of errors.
+                Default to ``"default"``.
+
+                - ``"default"``: (recommended) use the original weighting method as in:
+                    Fidon L. et al. (2017) Generalised Wasserstein Dice Score for Imbalanced Multi-class
+                    Segmentation using Holistic Convolutional Networks. BrainLes 2017.
+                - ``"GDL"``: use a GDL-like weighting method as in the Appendix of:
+                    Tilborghs, S. et al. (2020) Comparative study of deep learning methods for the automatic
+                    segmentation of lung, lesion and lesion type in CT scans of COVID-19 patients.
+                    arXiv preprint arXiv:2007.15546
+            reduction: {``"none"``, ``"mean"``, ``"sum"``}
+                Specifies the reduction to apply to the output. Defaults to ``"mean"``.
+
+                - ``"none"``: no reduction will be applied.
+                - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
+                - ``"sum"``: the output will be summed.
+            smooth_nr: a small constant added to the numerator to avoid zero.
+            smooth_dr: a small constant added to the denominator to avoid nan.
 
         Raises:
             ValueError: When ``dist_matrix`` is not a square matrix.
+
+        Example:
+            .. code-block:: python
+
+                import torch
+                import numpy as np
+                from monai.losses import GeneralizedWassersteinDiceLoss
+
+                # Example with 3 classes (including the background: label 0).
+                # The distance between the background class (label 0) and the other classes is the maximum, equal to 1.
+                # The distance between class 1 and class 2 is 0.5.
+                dist_mat = np.array([[0.0, 1.0, 1.0], [1.0, 0.0, 0.5], [1.0, 0.5, 0.0]], dtype=np.float32)
+                wass_loss = GeneralizedWassersteinDiceLoss(dist_matrix=dist_mat)
+
+                pred_score = torch.tensor([[1000, 0, 0], [0, 1000, 0], [0, 0, 1000]], dtype=torch.float32)
+                grnd = torch.tensor([0, 1, 2], dtype=torch.int64)
+                wass_loss(pred_score, grnd)  # 0
 
         """
         super(GeneralizedWassersteinDiceLoss, self).__init__(reduction=LossReduction(reduction).value)
@@ -387,19 +433,24 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         if dist_matrix.shape[0] != dist_matrix.shape[1]:
             raise ValueError(f"dist_matrix must be C x C, got {dist_matrix.shape[0]} x {dist_matrix.shape[1]}.")
 
+        if weighting_mode not in ["default", "GDL"]:
+            raise ValueError("weighting_mode must be either 'default' or 'GDL, got %s." % weighting_mode)
+
         self.m = dist_matrix
         if isinstance(self.m, np.ndarray):
             self.m = torch.from_numpy(self.m)
         if torch.max(self.m) != 1:
             self.m = self.m / torch.max(self.m)
+        self.alpha_mode = weighting_mode
         self.num_classes = self.m.size(0)
+        self.smooth_nr = float(smooth_nr)
+        self.smooth_dr = float(smooth_dr)
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor, smooth: float = 1e-5) -> torch.Tensor:
+    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Args:
             input: the shape should be BNH[WD].
             target: the shape should be BNH[WD].
-            smooth: a small constant to avoid nan.
 
         """
         # Aggregate spatial dimensions
@@ -412,18 +463,47 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         # Compute the Wasserstein distance map
         wass_dist_map = self.wasserstein_distance_map(probs, flat_target)
 
-        # Compute the generalised number of true positives
-        alpha = self.compute_weights_generalized_true_positives(flat_target)
-        true_pos = self.compute_generalized_true_positive(alpha, flat_target, wass_dist_map)
-        denom = self.compute_denominator(alpha, flat_target, wass_dist_map)
+        # Compute the values of alpha to use
+        alpha = self._compute_alpha_generalized_true_positives(flat_target)
 
-        # Compute and return the final loss
-        wass_dice: torch.Tensor = (2.0 * true_pos + smooth) / (denom + smooth)
+        # Compute the nemerator and denominator of the generalized Wasserstein Dice loss
+        if self.alpha_mode == "GDL":
+            # use GDL-style alpha weights (i.e. normalize by the volume of each class)
+            # contrary to the original definition we also use alpha in the "generalized all error".
+            true_pos = self._compute_generalized_true_positive(alpha, flat_target, wass_dist_map)
+            denom = self._compute_denominator(alpha, flat_target, wass_dist_map)
+        else:  # default: as in the original paper
+            # (i.e. alpha=1 for all foreground classes and 0 for the background).
+            # Compute the generalised number of true positives
+            true_pos = self._compute_generalized_true_positive(alpha, flat_target, wass_dist_map)
+            all_error = torch.sum(wass_dist_map, dim=1)
+            denom = 2 * true_pos + all_error
+
+        # Compute the final loss
+        wass_dice: torch.Tensor = (2.0 * true_pos + self.smooth_nr) / (denom + self.smooth_dr)
         wass_dice_loss: torch.Tensor = 1.0 - wass_dice
-        return wass_dice_loss.mean()
+
+        if self.reduction == LossReduction.MEAN.value:
+            wass_dice_loss = torch.mean(wass_dice_loss)  # the batch and channel average
+        elif self.reduction == LossReduction.SUM.value:
+            wass_dice_loss = torch.sum(wass_dice_loss)  # sum over the batch and channel dims
+        elif self.reduction == LossReduction.NONE.value:
+            pass  # returns [N, n_classes] losses
+        else:
+            raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
+
+        return wass_dice_loss
 
     def wasserstein_distance_map(self, flat_proba: torch.Tensor, flat_target: torch.Tensor) -> torch.Tensor:
         """
+        Compute the voxel-wise Wasserstein distance between the
+        flattened prediction and the flattened labels (ground_truth) with respect
+        to the distance matrix on the label space M.
+        This corresponds to eq. 6 in:
+
+            Fidon L. et al. (2017) Generalised Wasserstein Dice Score for Imbalanced Multi-class
+            Segmentation using Holistic Convolutional Networks. BrainLes 2017.
+
         Args:
             flat_proba: the probabilities of input(predicted) tensor.
             flat_target: the target tensor.
@@ -452,7 +532,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         wasserstein_map = torch.sum(wasserstein_map, dim=1)
         return wasserstein_map
 
-    def compute_generalized_true_positive(
+    def _compute_generalized_true_positive(
         self, alpha: torch.Tensor, flat_target: torch.Tensor, wasserstein_distance_map: torch.Tensor
     ) -> torch.Tensor:
         """
@@ -474,7 +554,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         )
         return generalized_true_pos
 
-    def compute_denominator(
+    def _compute_denominator(
         self, alpha: torch.Tensor, flat_target: torch.Tensor, wasserstein_distance_map: torch.Tensor
     ) -> torch.Tensor:
         """
@@ -496,14 +576,21 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         )
         return generalized_true_pos
 
-    def compute_weights_generalized_true_positives(self, flat_target: torch.Tensor) -> torch.Tensor:
+    def _compute_alpha_generalized_true_positives(self, flat_target: torch.Tensor) -> torch.Tensor:
         """
         Args:
             flat_target: the target tensor.
         """
-        one_hot = F.one_hot(flat_target, num_classes=self.num_classes).permute(0, 2, 1).float()
-        volumes = torch.sum(one_hot, dim=2)
-        alpha: torch.Tensor = 1.0 / (volumes + 1.0)
+        alpha: torch.Tensor = torch.ones((flat_target.size(0), self.num_classes)).float().to(flat_target.device)
+        if self.alpha_mode == "GDL":  # GDL style
+            # Define alpha like in the generalized dice loss
+            # i.e. the inverse of the volume of each class.
+            one_hot = F.one_hot(flat_target, num_classes=self.num_classes).permute(0, 2, 1).float()
+            volumes = torch.sum(one_hot, dim=2)
+            alpha = 1.0 / (volumes + 1.0)
+        else:  # default, i.e. like in the original paper
+            # alpha weights are 0 for the background and 1 the other classes
+            alpha[:, 0] = 0.0
         return alpha
 
 

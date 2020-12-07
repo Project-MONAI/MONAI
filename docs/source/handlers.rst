@@ -34,6 +34,12 @@ ROC AUC metrics handler
     :members:
 
 
+Confusion Matrix metrics handler
+--------------------------------
+.. autoclass:: ConfusionMatrix
+    :members:
+
+
 Metric logger
 -------------
 .. autoclass:: MetricLogger
@@ -52,9 +58,12 @@ Training stats handler
     :members:
 
 
-Tensorboard handler
--------------------
+Tensorboard handlers
+--------------------
 .. autoclass:: TensorBoardStatsHandler
+    :members:
+
+.. autoclass:: TensorBoardImageHandler
     :members:
 
 
