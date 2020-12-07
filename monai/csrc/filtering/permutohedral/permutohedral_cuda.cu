@@ -223,38 +223,61 @@ __global__ static void cleanHashTable(const int elementCount, MatrixEntry *matri
     }
 }
 
-
 template<int pd, int vd>
-__global__ static void splat(const int w, const int h, float *values, MatrixEntry *matrix) {
-    //const int idx = blockIdx.x * BLOCK_SIZE + threadIdx.x;    
+__global__ static void splat(const int elementCount, float *values, MatrixEntry *matrix) 
+{
+    const int color = threadIdx.y;
+    const int idx =  threadIdx.x + blockIdx.x * blockDim.x;
+
+    const bool outOfBounds = idx >= elementCount;
     
-    // 8x8 blocks    
-    const int x = threadIdx.x + blockIdx.x * blockDim.x;
-    const int y = threadIdx.y + (blockIdx.y/(pd+1)) * blockDim.y;
-    //const int threadId = threadIdx.y*blockDim.x + threadIdx.x;
-    const int color = blockIdx.y % (pd+1);
-    const int idx = y*w + x;
-    const bool outOfBounds = (x >= w) || (y >= h);
-    
-    if (outOfBounds) return;
-    
-    float *myValue = values + idx*vd;
-    
-    MatrixEntry r = matrix[idx*(pd+1)+color];
-    matrix[idx*(pd+1)+color].index = r.index = table_entries[r.index];
-    float *val = table_values + r.index*(vd+1);
-    for (int j = 0; j < vd; j++) {
-	atomicAdd(val+j, myValue[j]*r.weight);
+    if (outOfBounds) 
+    {
+        return;
     }
-    atomicAdd(val+vd, r.weight);
+    
+    float* myValue = values + idx * vd;
+    
+    MatrixEntry r = matrix[idx * (pd + 1) + color];
+
+    matrix[idx * (pd + 1) + color].index = r.index = table_entries[r.index];
+    float* val = table_values + r.index * (vd + 1);
+
+    for (int j = 0; j < vd; j++) 
+    {
+	    atomicAdd(val + j, myValue[j] * r.weight);
+    }
+
+    atomicAdd(val + vd, r.weight);
 }
 
+// splat splits by color, so extend the y coordinate to our blocks to represent that
+// dim3 oldblocks((w-1)/8+1, (h-1)/8+1, 1);
+// dim3 oldblockSize(8, 8, 1); 
+// oldblocks.y *= pd+1;
+// splatCache<pd, vd><<<oldblocks, oldblockSize>>>(w, h, values, matrix);
+
+// int blockCount = (elementCount + 1) / BLOCK_SIZE + 1;
+// int blockSize = BLOCK_SIZE;
+
+// splatCache<pd, vd><<<dim3(blockCount, 1), dim3(blockSize, pd+1)>>>(elementCount, values, matrix);
+
 template<int pd, int vd>
-__global__ static void splatCache(const int elementCount, float *values, MatrixEntry *matrix)
-{
+__global__ static void splatCache(const int elementCount, float *values, MatrixEntry *matrix) {
+
+    // const int x = threadIdx.x + blockIdx.x * blockDim.x;
+    // const int y = threadIdx.y + (blockIdx.y/(pd+1)) * blockDim.y;
+
+    // const int threadId = threadIdx.y*blockDim.x + threadIdx.x;
+    // const int color = blockIdx.y % (pd+1);
+    // const int idx = y*w + x;
+
+    
     const int threadId = threadIdx.x;
     const int color = threadIdx.y;
     const int idx = threadIdx.x + blockIdx.x * BLOCK_SIZE;
+
+    
     const bool outOfBounds = idx >= elementCount;
     
     __shared__ int sharedOffsets[BLOCK_SIZE];
@@ -378,6 +401,7 @@ __global__ static void blur(int n, float *newValues, MatrixEntry *matrix, int co
     
 }
 
+
 template<int pd, int vd>
 __global__ static void slice(const int elementCount, float *values, MatrixEntry *matrix) 
 {
@@ -462,11 +486,11 @@ void filter_(float* values, float* positions, int elementCount, bool accurate)
     int tableSize = elementCount * 2 * (pd + 1);
     int cleanBlockSize = 32;
     int cleanBlocks = (tableSize - 1) / cleanBlockSize + 1;
+
     cleanHashTable<pd><<<cleanBlocks, cleanBlockSize>>>(tableSize, matrix);
 
-    // splat splits by color, so extend the y coordinate to our blocks to represent that
-    splatCache<pd, vd><<<dim3(blockCount, 1), dim3(blockSize, pd+1)>>>(elementCount, values, matrix);
-    
+    splat<pd, vd><<<dim3(blockCount, 1), dim3(blockSize, pd+1)>>>(elementCount, values, matrix);
+
     if (accurate) 
     {
         float *newValues;
