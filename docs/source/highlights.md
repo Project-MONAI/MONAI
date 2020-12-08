@@ -137,7 +137,7 @@ MONAI provides a multi-threads `CacheDataset` to accelerate these transformation
 ![image](../images/cache_dataset.png)
 
 ### 2. Cache intermediate outcomes into persistent storage
-The `PersistentDataset` is similar to the CacheDataset, where the intermediate cache values are persisted to disk storage for rapid retrieval between experimental runs (as is the case when tuning hyperparameters), or when the entire data set size exceeds available memory. The `PersistentDataset` could achieve similar performance when comparing to `CacheDataset` in [Datasets experiment](https://github.com/Project-MONAI/tutorials/blob/master/acceleration/dataset_type_performance.ipynb).
+The `PersistentDataset` is similar to the CacheDataset, where the intermediate cache values are persisted to disk storage or LMDB for rapid retrieval between experimental runs (as is the case when tuning hyperparameters), or when the entire data set size exceeds available memory. The `PersistentDataset` could achieve similar performance when comparing to `CacheDataset` in [Datasets experiment](https://github.com/Project-MONAI/tutorials/blob/master/acceleration/dataset_type_performance.ipynb).
 ![image](../images/datasets_speed.png)
 
 ### 3. SmartCache mechanism for big datasets
@@ -171,7 +171,10 @@ class DatasetB(Dataset):
 dataset = ZipDataset([DatasetA(), DatasetB()], transform)
 ```
 
-### 5. Predefined Datasets for public medical data
+### 5. PatchDataset
+<FIXME: need to add some description>
+
+### 6. Predefined Datasets for public medical data
 To quickly get started with popular training data in the medical domain, MONAI provides several data-specific Datasets(like: `MedNISTDataset`, `DecathlonDataset`, etc.), which include downloading from our AWS storage, extracting data files and support generation of training/evaluation items with transforms. And they are flexible that users can easily modify the JSON config file to change the default behaviors.
 
 MONAI always welcome new contributions of public datasets, please refer to existing Datasets and leverage the download and extracting APIs, etc. [Public datasets tutorial](https://github.com/Project-MONAI/tutorials/blob/master/modules/public_datasets.ipynb) indicates how to quickly set up training workflows with `MedNISTDataset` and `DecathlonDataset` and how to create a new `Dataset` for public data.
@@ -179,11 +182,14 @@ MONAI always welcome new contributions of public datasets, please refer to exist
 The common workflow of predefined datasets:
 ![image](../images/dataset_progress.png)
 
+### 7. Partition dataset for cross validation
+The `partition_dataset` utility in MONAI can perform several kinds of mechanism to partition dataset for training and validation or cross validation, etc. It can support shuffle based on specified random seed, and will return a set of datasets, every dataset contains 1 partition of the original dataset. And it can split the dataset based on specified ratios or evenly split into `num_partitions`. For given class labels, it can also make sure the same ratio of classes in every partition.
+
 ## Losses
 There are domain-specific loss functions in the medical imaging research which are not typically used in the generic computer vision tasks. As an important module of MONAI, these loss functions are implemented in PyTorch, such as `DiceLoss`, `GeneralizedDiceLoss`, `MaskedDiceLoss`, `TverskyLoss` and `FocalLoss`, etc.
 
 ## Optimizers
-MONAI provides several advanced features in optimizers to help accelerate the training or finetuning progress. For example, `Novograd` optimizer can be used to converge obviously faster than traditional optimizers. And users can easily define different learning rate values for specified layers based on the `generate_param_groups` utility API.
+MONAI provides several advanced features in optimizers to help accelerate the training or fine-tuning progress. For example, `Novograd` optimizer can be used to converge obviously faster than traditional optimizers. And users can easily define different learning rate values for specified layers based on the `generate_param_groups` utility API.
 
 ## Network architectures
 Some deep neural network architectures have shown to be particularly effective for medical imaging analysis tasks. MONAI implements reference networks with the aims of both flexibility and code readability.
