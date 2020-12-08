@@ -18,6 +18,7 @@ The rest of this page provides more details for each module.
 * [Data I/O, processing and augmentation](#medical-image-data-i-o-processing-and-augmentation)
 * [Datasets](#datasets)
 * [Loss functions](#losses)
+* [Optimizers](#optimizers)
 * [Network architectures](#network-architectures)
 * [Evaluation](#evaluation)
 * [Visualization](#visualization)
@@ -119,7 +120,12 @@ The design of MONAI transforms emphasis code readability and usability. It works
 For more details, please check out the tutorial: [integrate 3rd party transforms into MONAI program](https://github.com/Project-MONAI/tutorials/blob/master/modules/integrate_3rd_party_transforms.ipynb).
 
 ### 10. IO factory for medical image formats
-Many popular image formats exist in the medical domain, and they are quite different with rich meta data information. To easily handle different medical image formats in the same pipeline, MONAI provides `LoadImage` transform, which uses `ITKReader` as the default image reader and also supports to register other readers, like `NibabelReader`, `NumpyReader`, and `PILReader`. The `ImageReader` API is quite straight-forward, users can easily extend for their own customized image readers.
+Many popular image formats exist in the medical domain, and they are quite different with rich meta data information. To easily handle different medical image formats in the same pipeline, MONAI provides `LoadImage` transform, which can automatically choose image readers based on the supported suffixes and in below priority order:
+- User specified reader at runtime when call this loader.
+- Registered readers from the latest to the first in list.
+- Default readers: (nii, nii.gz -> NibabelReader), (png, jpg, bmp -> PILReader), (npz, npy -> NumpyReader), (others -> ITKReader).
+
+The `ImageReader` API is quite straight-forward, users can easily extend for their own customized image readers.
 
 With these pre-defined image readers, MONAI can load images in formats: `NIfTI`, `DICOM`, `PNG`, `JPG`, `BMP`, `NPY/NPZ`, etc.
 
@@ -176,6 +182,9 @@ The common workflow of predefined datasets:
 ## Losses
 There are domain-specific loss functions in the medical imaging research which are not typically used in the generic computer vision tasks. As an important module of MONAI, these loss functions are implemented in PyTorch, such as `DiceLoss`, `GeneralizedDiceLoss`, `MaskedDiceLoss`, `TverskyLoss` and `FocalLoss`, etc.
 
+## Optimizers
+MONAI provides several advanced features in optimizers to help accelerate the training or finetuning progress. For example, `Novograd` optimizer can be used to converge obviously faster than traditional optimizers. And users can easily define different learning rate values for specified layers based on the `generate_param_groups` utility API.
+
 ## Network architectures
 Some deep neural network architectures have shown to be particularly effective for medical imaging analysis tasks. MONAI implements reference networks with the aims of both flexibility and code readability.
 
@@ -192,7 +201,7 @@ name, dimension = Conv.CONVTRANS, 3
 conv_type = Conv[name, dimension]
 add_module('conv1', conv_type(in_channels, out_channels, kernel_size=1, bias=False))
 ```
-And there are several 1D/2D/3D-compatible implementations of intermediate blocks and generic networks, such as UNet, DynUNet, DenseNet, GAN, AHNet, VNet, SENet(and SEResNet, SEResNeXt), SegResNet, etc.
+And there are several 1D/2D/3D-compatible implementations of intermediate blocks and generic networks, such as UNet, DynUNet, DenseNet, GAN, AHNet, VNet, SENet(and SEResNet, SEResNeXt), SegResNet, etc. All the networks can support PyTorch serialization pipeline based on `torch.jit.script`.
 
 ## Evaluation
 To run model inferences and evaluate the model quality, MONAI provides reference implementations for the relevant widely-used approaches. Currently, several popular evaluation metrics and inference patterns are included:
@@ -210,12 +219,14 @@ A typical process is:
 The [Spleen 3D segmentation tutorial](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/spleen_segmentation_3d.ipynb) leverages `SlidingWindow` inference for validation.
 
 ### 2. Metrics for medical tasks
-Various useful evaluation metrics have been used to measure the quality of medical image specific models. MONAI already implemented many medical domain-specific metrics, such as: `Mean Dice`, `ROCAUC`, `Confusion Matrices`, `Hausdorff Distance`, `Surface Distance`, etc.
+Various useful evaluation metrics have been used to measure the quality of medical image specific models. MONAI already implemented many medical domain-specific metrics, such as: `Mean Dice`, `ROCAUC`, `Confusion Matrices`, `Hausdorff Distance`, `Surface Distance`, `Occlusion Sensitivity`, etc.
 
 For example, `Mean Dice` score can be used for segmentation tasks and the area under the ROC curve(`ROCAUC`) for classification tasks. We continue to integrate more options.
 
 ## Visualization
 Beyond the simple point and curve plotting, MONAI provides intuitive interfaces to visualize multidimensional data as GIF animations in TensorBoard. This could provide a quick qualitative assessment of the model by visualizing, for example, the volumetric inputs, segmentation maps, and intermediate feature maps. A runnable example with visualization is available at [UNet training example](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/torch/unet_training_dict.py).
+
+And to visualize the class activation map during training, MONAI provides Cam/GradCam/GradCam++ APIs.<FIXME: missing demo chart and tutorials link>
 
 ## Result writing
 Currently MONAI supports writing the model outputs as NIfTI files or PNG files for segmentation tasks, and as CSV files for classification tasks. And the writers can restore the data spacing, orientation or shape according to the `original_shape` or `original_affine` information from the input image.
