@@ -243,7 +243,7 @@ class IntegrationClassification2D(DistTestCase):
             repeated.append(results)
         np.testing.assert_allclose(repeated[0], repeated[1])
 
-    @TimedCall(seconds=1000, skip_timing=not torch.cuda.is_available(), daemon=False, force_quit=False)
+    @TimedCall(seconds=1000, skip_timing=not torch.cuda.is_available(), daemon=False)
     def test_timing(self):
         self.train_and_infer()
 
