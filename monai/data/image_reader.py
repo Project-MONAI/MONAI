@@ -28,12 +28,14 @@ if TYPE_CHECKING:
     from itk import Image  # type: ignore
     from nibabel.nifti1 import Nifti1Image
     from PIL import Image as PILImage
+
+    has_itk = has_nib = has_pil = True
 else:
-    itk, _ = optional_import("itk", allow_namespace_pkg=True)
+    itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
     Image, _ = optional_import("itk", allow_namespace_pkg=True, name="Image")
-    nib, _ = optional_import("nibabel")
+    nib, has_nib = optional_import("nibabel")
     Nifti1Image, _ = optional_import("nibabel.nifti1", name="Nifti1Image")
-    PILImage, _ = optional_import("PIL.Image")
+    PILImage, has_pil = optional_import("PIL.Image")
 
 
 class ImageReader(ABC):
@@ -121,7 +123,7 @@ class ITKReader(ImageReader):
     def __init__(self, **kwargs):
         super().__init__()
         self.kwargs = kwargs
-        if int(itk.Version.GetITKMajorVersion()) == 5 and int(itk.Version.GetITKMinorVersion()) < 2:
+        if has_itk and int(itk.Version.GetITKMajorVersion()) == 5 and int(itk.Version.GetITKMinorVersion()) < 2:
             # warning the ITK LazyLoading mechanism was not threadsafe until version 5.2.0,
             # requesting access to the itk.imread function triggers the lazy loading of the relevant itk modules
             # before the parallel use of the function.
@@ -136,7 +138,7 @@ class ITKReader(ImageReader):
                 if a list of files, verify all the suffixes.
 
         """
-        return True
+        return has_itk
 
     def read(self, data: Union[Sequence[str], str], **kwargs):
         """
@@ -307,7 +309,7 @@ class NibabelReader(ImageReader):
 
         """
         suffixes: Sequence[str] = ["nii", "nii.gz"]
-        return is_supported_format(filename, suffixes)
+        return has_nib and is_supported_format(filename, suffixes)
 
     def read(self, data: Union[Sequence[str], str], **kwargs):
         """
@@ -522,7 +524,7 @@ class PILReader(ImageReader):
                 if a list of files, verify all the suffixes.
         """
         suffixes: Sequence[str] = ["png", "jpg", "bmp"]
-        return is_supported_format(filename, suffixes)
+        return has_pil and is_supported_format(filename, suffixes)
 
     def read(self, data: Union[Sequence[str], str, np.ndarray], **kwargs):
         """
