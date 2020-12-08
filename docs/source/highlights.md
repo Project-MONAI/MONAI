@@ -12,7 +12,7 @@ The design principle of MONAI is to provide flexible and light APIs for users wi
 4. Researchers contribute implementations based on the state-of-the-art for the latest research challenges, including COVID-19 image analysis, Model Parallel, etc.
 
 The overall architecture and modules are shown in the following figure:
-![image](../images/arch_modules_v0.3.png)
+![image](../images/arch_modules_v0.4.png)
 The rest of this page provides more details for each module.
 
 * [Data I/O, processing and augmentation](#medical-image-data-i-o-processing-and-augmentation)
