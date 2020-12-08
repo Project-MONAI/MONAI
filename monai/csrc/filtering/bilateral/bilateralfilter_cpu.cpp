@@ -69,8 +69,8 @@ torch::Tensor BilateralFilterCpu(torch::Tensor inputTensor, float spatialSigma, 
     float* outputTensorData = outputTensor.data_ptr<float>();
 
     // Pre-calculate common values
-    int windowSize = ceil(3 * spatialSigma);
-    int halfWindowSize = 0.5f * windowSize;
+    int windowSize = ceil(3.0f * spatialSigma);
+    int halfWindowSize = floor(0.5f * windowSize);
     float spatialExpConstant = -1.0f / (2 * spatialSigma * spatialSigma);
     float colorExpConstant = -1.0f / (2 * colorSigma * colorSigma);
 
@@ -88,7 +88,7 @@ torch::Tensor BilateralFilterCpu(torch::Tensor inputTensor, float spatialSigma, 
     for (int i = 0; i < windowSize; i++)
     {
         int distance = i - halfWindowSize;
-        gaussianKernel[i] = exp(distance * spatialExpConstant);
+        gaussianKernel[i] = exp(distance * distance * spatialExpConstant);
     }
 
     // Kernel aggregates used to calculate

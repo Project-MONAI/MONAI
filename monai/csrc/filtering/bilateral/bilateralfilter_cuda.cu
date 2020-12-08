@@ -212,14 +212,14 @@ void BilateralFilterCuda(torch::Tensor inputTensor, torch::Tensor outputTensor, 
     float colorExponentFactor = -1.0f / (2 * colorSigma * colorSigma);
     
     // Pre-calculating gaussian kernel.
-    int kernelSize = ceil(3 * spatialSigma);
-    int kernelHalfSize = 0.5f * kernelSize;
+    int kernelSize = ceil(3.0f * spatialSigma);
+    int kernelHalfSize = floor(0.5f * kernelSize);
     float* kernel = new float[kernelSize];
 
     for (int i = 0; i < kernelSize; i++)
     {
         int distance = i - kernelHalfSize;
-        kernel[i] = exp(distance * spatialExponentFactor);
+        kernel[i] = exp(distance * distance * spatialExponentFactor);
     }
     
     // Writing constant memory.
