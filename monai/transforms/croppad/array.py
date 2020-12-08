@@ -21,6 +21,7 @@ from monai.config import IndexSelection
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.utils import (
+    compute_bounding_rect,
     generate_pos_neg_label_crop_centers,
     generate_spatial_bounding_box,
     map_binary_to_indices,
@@ -632,3 +633,16 @@ class ResizeWithPadOrCrop(Transform):
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
         """
         return self.padder(self.cropper(img), mode=mode)
+
+
+class BoundingRect(Transform):
+    """
+    Compute coordinates of axis-aligned bounding rectangles from input image `img`.
+    """
+
+    def __call__(self, img: np.ndarray) -> np.ndarray:
+        """
+        See also: :py:class:`monai.transforms.utils.compute_bounding_rect`.
+        """
+        bbox = [compute_bounding_rect(channel) for channel in img]
+        return np.stack(bbox, axis=0)

@@ -24,6 +24,7 @@ from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.croppad.array import (
     BorderPad,
+    BoundingRect,
     CenterSpatialCrop,
     DivisiblePad,
     ResizeWithPadOrCrop,
@@ -580,6 +581,36 @@ class ResizeWithPadOrCropd(MapTransform):
         return d
 
 
+class BoundingRectd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.BoundingRect`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: monai.transforms.MapTransform
+        bbox_key_postfix: the output bounding box coordinates will be
+            written to the value of `{key}_{bbox_key_postfix}`.
+    """
+
+    def __init__(self, keys: KeysCollection, bbox_key_postfix: str = "bbox"):
+        super().__init__(keys=keys)
+        self.bbox = BoundingRect()
+        self.bbox_key_postfix = bbox_key_postfix
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        """
+        See also: :py:class:`monai.transforms.utils.compute_bounding_rect`.
+        """
+        d = dict(data)
+        for key in self.keys:
+            bbox = self.bbox(d[key])
+            key_to_add = f"{key}_{self.bbox_key_postfix}"
+            if key_to_add in d:
+                raise KeyError(f"Bounding box data with key {key_to_add} already exists.")
+            d[key_to_add] = bbox
+        return d
+
+
 SpatialPadD = SpatialPadDict = SpatialPadd
 BorderPadD = BorderPadDict = BorderPadd
 DivisiblePadD = DivisiblePadDict = DivisiblePadd
@@ -591,3 +622,4 @@ CropForegroundD = CropForegroundDict = CropForegroundd
 RandWeightedCropD = RandWeightedCropDict = RandWeightedCropd
 RandCropByPosNegLabelD = RandCropByPosNegLabelDict = RandCropByPosNegLabeld
 ResizeWithPadOrCropD = ResizeWithPadOrCropDict = ResizeWithPadOrCropd
+BoundingRectD = BoundingRectDict = BoundingRectd
