@@ -69,7 +69,7 @@ torch::Tensor BilateralFilterCpu(torch::Tensor inputTensor, float spatialSigma, 
     float* outputTensorData = outputTensor.data_ptr<float>();
 
     // Pre-calculate common values
-    int windowSize = ceil(3.0f * spatialSigma);
+    int windowSize = (int)ceil(5.0f * spatialSigma) | 1; // ORing last bit to ensure odd window size
     int halfWindowSize = floor(0.5f * windowSize);
     float spatialExpConstant = -1.0f / (2 * spatialSigma * spatialSigma);
     float colorExpConstant = -1.0f / (2 * colorSigma * colorSigma);
