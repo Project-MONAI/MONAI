@@ -516,6 +516,13 @@ def generate_spatial_bounding_box(
     generate the spatial bounding box of foreground in the image with start-end positions.
     Users can define arbitrary function to select expected foreground from the whole image or specified channels.
     And it can also add margin to every dim of the bounding box.
+    The output format of the coordinates is:
+
+        [1st_spatial_dim_start, 2nd_spatial_dim_start, ..., Nth_spatial_dim_start],
+        [1st_spatial_dim_end, 2nd_spatial_dim_end, ..., Nth_spatial_dim_end]
+
+    The bounding boxes edges are aligned with the input image edges.
+    This function returns [-1, -1, ...], [-1, -1, ...] if there's no positive intensity.
 
     Args:
         img: source image to generate bounding box from.
@@ -524,44 +531,27 @@ def generate_spatial_bounding_box(
             of image. if None, select foreground on the whole image.
         margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
     """
-    data = img[[*(ensure_tuple(channel_indices))]] if channel_indices is not None else img
+    data = img[list(ensure_tuple(channel_indices))] if channel_indices is not None else img
     data = np.any(select_fn(data), axis=0)
-    nonzero_idx = np.nonzero(data)
-    margin = ensure_tuple_rep(margin, data.ndim)
+    ndim = len(data.shape)
+    margin = ensure_tuple_rep(margin, ndim)
+    for m in margin:
+        if m < 0:
+            raise ValueError("margin value should not be negative number.")
 
-    box_start = list()
-    box_end = list()
-    for i in range(data.ndim):
-        assert len(nonzero_idx[i]) > 0, f"did not find nonzero index at spatial dim {i}"
-        box_start.append(max(0, np.min(nonzero_idx[i]) - margin[i]))
-        box_end.append(min(data.shape[i], np.max(nonzero_idx[i]) + margin[i] + 1))
-    return box_start, box_end
+    box_start = [0] * ndim
+    box_end = [0] * ndim
 
-
-def compute_bounding_rect(image: np.array):
-    """
-    Compute ND coordinates of a bounding rectangle from the positive intensities.
-    The output format of the coordinates is:
-
-        [1st_spatial_dim_start, 1st_spatial_dim_end,
-         2nd_spatial_dim_start, 2nd_spatial_dim_end,
-         ...,
-         Nth_spatial_dim_start, Nth_spatial_dim_end,]
-
-    The bounding boxes edges are aligned with the input image edges.
-    This function returns [-1, -1, ...] if there's no positive intensity.
-    """
-    _binary_image = image > 0
-    ndim = len(_binary_image.shape)
-    bbox = [0] * (2 * ndim)
     for di, ax in enumerate(itertools.combinations(reversed(range(ndim)), ndim - 1)):
-        dt = _binary_image.any(axis=ax)
+        dt = data.any(axis=ax)
         if not np.any(dt):
-            return np.asarray([-1] * len(bbox))
-        min_d = np.argmax(dt)
-        max_d = max(_binary_image.shape[di] - np.argmax(dt[::-1]), min_d + 1)
-        bbox[di * 2], bbox[di * 2 + 1] = min_d, max_d
-    return np.asarray(bbox)
+            return [-1] * ndim, [-1] * ndim
+
+        min_d = max(np.argmax(dt) - margin[di], 0)
+        max_d = max(data.shape[di] - max(np.argmax(dt[::-1]) - margin[di], 0), min_d + 1)
+        box_start[di], box_end[di] = min_d, max_d
+
+    return box_start, box_end
 
 
 def get_largest_connected_component_mask(img: torch.Tensor, connectivity: Optional[int] = None) -> torch.Tensor:
