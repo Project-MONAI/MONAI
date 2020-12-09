@@ -38,6 +38,12 @@ class TestBoundingRect(unittest.TestCase):
         result = BoundingRect()(test_data)
         np.testing.assert_allclose(result, expected)
 
+    def test_select_fn(self):
+        test_data = np.random.randint(0, 8, size=(2, 3))
+        test_data = test_data == 7
+        bbox = BoundingRect(select_fn=lambda x: x < 1)(test_data)
+        np.testing.assert_allclose(bbox, [[0, 3], [0, 3]])
+
 
 if __name__ == "__main__":
     unittest.main()
