@@ -458,14 +458,10 @@ def test_script_save(net, *inputs, eval_nets=True, device=None, rtol=1e-4):
         result2 = reloaded_net(*inputs)
         set_determinism(seed=None)
         
-    # When using e.g., VAR, we will produce a tuple of outputs.
-    # Hence, convert all to tuples and then compare all elements.
+    # convert results to tuples if needed to allow iterating over pairs of outputs
     result1=ensure_tuple(result1)
     result2=ensure_tuple(result2)
-#     if not isinstance(result1, tuple):
-#         result1 = (result1,)
-#         result2 = (result2,)
-
+    
     for i, (r1, r2) in enumerate(zip(result1, result2)):
         if None not in (r1, r2):  # might be None
             np.testing.assert_allclose(
