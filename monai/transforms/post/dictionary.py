@@ -28,54 +28,9 @@ from monai.transforms.post.array import (
     KeepLargestConnectedComponent,
     LabelToContour,
     MeanEnsemble,
-    SplitChannel,
     VoteEnsemble,
 )
 from monai.utils import ensure_tuple_rep
-
-
-class SplitChanneld(MapTransform):
-    """
-    Dictionary-based wrapper of :py:class:`monai.transforms.SplitChannel`.
-    All the input specified by `keys` should be splitted into same count of data.
-
-    """
-
-    def __init__(
-        self,
-        keys: KeysCollection,
-        output_postfixes: Sequence[str],
-        to_onehot: Union[Sequence[bool], bool] = False,
-        num_classes: Optional[Union[Sequence[int], int]] = None,
-    ) -> None:
-        """
-        Args:
-            keys: keys of the corresponding items to be transformed.
-                See also: :py:class:`monai.transforms.compose.MapTransform`
-            output_postfixes: the postfixes to construct keys to store split data.
-                for example: if the key of input data is `pred` and split 2 classes, the output
-                data keys will be: pred_(output_postfixes[0]), pred_(output_postfixes[1])
-            to_onehot: whether to convert the data to One-Hot format, default is False.
-                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
-            num_classes: the class number used to convert to One-Hot format
-                if `to_onehot` is True. it also can be a sequence of int, each element corresponds
-                to a key in ``keys``.
-
-        """
-        super().__init__(keys)
-        self.output_postfixes = output_postfixes
-        self.to_onehot = ensure_tuple_rep(to_onehot, len(self.keys))
-        self.num_classes = ensure_tuple_rep(num_classes, len(self.keys))
-        self.splitter = SplitChannel()
-
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = dict(data)
-        for idx, key in enumerate(self.keys):
-            rets = self.splitter(d[key], self.to_onehot[idx], self.num_classes[idx])
-            assert len(self.output_postfixes) == len(rets), "count of split results must match output_postfixes."
-            for i, r in enumerate(rets):
-                d[f"{key}_{self.output_postfixes[i]}"] = r
-        return d
 
 
 class Activationsd(MapTransform):
@@ -329,7 +284,6 @@ class VoteEnsembled(Ensembled):
         super().__init__(keys, ensemble, output_key)
 
 
-SplitChannelD = SplitChannelDict = SplitChanneld
 ActivationsD = ActivationsDict = Activationsd
 AsDiscreteD = AsDiscreteDict = AsDiscreted
 KeepLargestConnectedComponentD = KeepLargestConnectedComponentDict = KeepLargestConnectedComponentd

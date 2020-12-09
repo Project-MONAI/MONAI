@@ -49,6 +49,13 @@ jobs:
         os: [windows-latest, macOS-latest, ubuntu-latest]
     timeout-minutes: 60
     steps:
+    - if: runner.os == 'windows'
+      name: Config pagefile (Windows only)
+      uses: al-cheb/configure-pagefile-action@v1.2
+      with:
+        minimum-size: 8
+        maximum-size: 16
+        disk-root: "D:"
     - uses: actions/checkout@v2
     - name: Set up Python 3.8
       uses: actions/setup-python@v2
@@ -73,23 +80,24 @@ jobs:
     - if: runner.os == 'windows'
       name: Install torch cpu from pytorch.org (Windows only)
       run: |
-        python -m pip install torch==1.6.0 torchvision==0.7.0 -f https://download.pytorch.org/whl/torch_stable.html
+        python -m pip install torch==1.7.0+cpu torchvision==0.8.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
         # min. requirements for windows instances
-        python -c "f=open('requirements-dev.txt', 'r'); txt=f.readlines(); f.close(); print(txt); f=open('requirements-dev.txt', 'w'); f.writelines(txt[1:11]); f.close()"
+        python -c "f=open('requirements-dev.txt', 'r'); txt=f.readlines(); f.close(); print(txt); f=open('requirements-dev.txt', 'w'); f.writelines(txt[1:12]); f.close()"
     - name: Install the dependencies
       run: |
-        python -m pip install torch==1.6
-        python -m pip install torchvision==0.7.0
+        python -m pip install torch==1.7.0
+        python -m pip install torchvision==0.8.1
         cat "requirements-dev.txt"
         python -m pip install -r requirements-dev.txt
         python -m pip list
-        python setup.py develop
+        python setup.py develop  # test no compile installation
         python setup.py develop --uninstall
         BUILD_MONAI=1 python setup.py develop  # compile the cpp extensions
       shell: bash
     - name: Run quick tests (CPU ${{ runner.os }})
       run: |
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
+        python -c "import monai; monai.config.print_config()"
         python -m unittest -v
       env:
         QUICKTEST: True
@@ -126,11 +134,11 @@ jobs:
     - if: runner.os == 'windows'
       name: Install torch cpu from pytorch.org (Windows only)
       run: |
-        python -m pip install torch==1.6 -f https://download.pytorch.org/whl/cpu/torch_stable.html
+        python -m pip install torch==1.7.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
     - name: Install the dependencies
       run: |
-        # min. requirements for windows instances
-        python -m pip install torch==1.6
+        # min. requirements
+        python -m pip install torch==1.7.0
         python -m pip install -r requirements-min.txt
         python -m pip list
         BUILD_MONAI=0 python setup.py develop  # no compile of extensions
@@ -138,40 +146,43 @@ jobs:
     - name: Run quick tests (CPU ${{ runner.os }})
       run: |
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
+        python -c "import monai; monai.config.print_config()"
         python -m tests.min_tests
       env:
         QUICKTEST: True
 
   GPU-quick-py3:  # GPU with full dependencies
+    if: github.repository == 'Project-MONAI/MONAI'
     strategy:
       matrix:
         environment:
           - "PT15+CUDA101"
-          - "PT16+CUDA101"
-          - "PT15+CUDA102"
           - "PT16+CUDA102"
           - "PT16+CUDA110"
+          - "PT17+CUDA102"
+          - "PT17+CUDA110"
         include:
           - environment: PT15+CUDA101
             pytorch: "torch==1.5.0+cu101 torchvision==0.6.0+cu101 -f https://download.pytorch.org/whl/torch_stable.html"
             base: "nvcr.io/nvidia/cuda:10.1-devel-ubuntu18.04"
-          - environment: PT16+CUDA101
-            pytorch: "torch==1.6.0+cu101 torchvision==0.7.0+cu101 -f https://download.pytorch.org/whl/torch_stable.html"
-            base: "nvcr.io/nvidia/cuda:10.1-devel-ubuntu18.04"
-          - environment: PT15+CUDA102
-            pytorch: "torch==1.5.0 torchvision==0.6.0"
-            base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
           - environment: PT16+CUDA102
-            pytorch: "torch torchvision"
+            pytorch: "torch==1.6.0 torchvision==0.7.0"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
           - environment: PT16+CUDA110
             # we explicitly set pytorch to -h to avoid pip install error
             pytorch: "-h"
             base: "nvcr.io/nvidia/pytorch:20.07-py3"
+          - environment: PT17+CUDA102
+            pytorch: "torch==1.7.0 torchvision==0.8.1"
+            base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
+          - environment: PT17+CUDA110
+            # we explicitly set pytorch to -h to avoid pip install error
+            pytorch: "-h"
+            base: "nvcr.io/nvidia/pytorch:20.09-py3"
     container:
       image: ${{ matrix.base }}
       options: --gpus all
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux, x64, common]
     steps:
     - uses: actions/checkout@v2
     - name: apt install
@@ -221,6 +232,7 @@ jobs:
         echo $CUDA_VISIBLE_DEVICES
         python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
         python -c 'import torch; print(torch.rand(5,3, device=torch.device("cuda:0")))'
+        python -c "import monai; monai.config.print_config()"
         BUILD_MONAI=1 ./runtests.sh --quick
         if [ ${{ matrix.environment }} == "PT16+CUDA110" ]; then
           # test the clang-format tool downloading once
@@ -250,7 +262,9 @@ jobs:
       uses: actions/cache@v2
       id: cache
       with:
-        path: ~/.cache/pip
+        path: |
+          ~/.cache/pip
+          ~/.cache/torch
         key: ${{ runner.os }}-pip-${{ steps.pip-cache.outputs.datew }}
     - name: Install dependencies
       run: |
@@ -258,7 +272,7 @@ jobs:
         # install the latest pytorch for testing
         # however, "pip install monai*.tar.gz" will build cpp/cuda with an isolated
         # fresh torch installation according to pyproject.toml
-        python -m pip install torch>=1.4 torchvision
+        python -m pip install torch>=1.5 torchvision
     - name: Test source archive and wheel file
       run: |
         git fetch --depth=1 origin +refs/tags/*:refs/tags/*
@@ -312,7 +326,9 @@ jobs:
       uses: actions/cache@v2
       id: cache
       with:
-        path: ~/.cache/pip
+        path: |
+          ~/.cache/pip
+          ~/.cache/torch
         key: ${{ runner.os }}-pip-${{ steps.pip-cache.outputs.datew }}
     - name: Install dependencies
       run: |

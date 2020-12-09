@@ -24,6 +24,7 @@ from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.croppad.array import (
     BorderPad,
+    BoundingRect,
     CenterSpatialCrop,
     DivisiblePad,
     ResizeWithPadOrCrop,
@@ -34,6 +35,7 @@ from monai.transforms.utils import (
     generate_pos_neg_label_crop_centers,
     generate_spatial_bounding_box,
     map_binary_to_indices,
+    weighted_patch_samples,
 )
 from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
 
@@ -341,6 +343,8 @@ class CropForegroundd(MapTransform):
         select_fn: Callable = lambda x: x > 0,
         channel_indices: Optional[IndexSelection] = None,
         margin: int = 0,
+        start_coord_key: str = "foreground_start_coord",
+        end_coord_key: str = "foreground_end_coord",
     ) -> None:
         """
         Args:
@@ -351,22 +355,92 @@ class CropForegroundd(MapTransform):
             channel_indices: if defined, select foreground only on the specified channels
                 of image. if None, select foreground on the whole image.
             margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
+            start_coord_key: key to record the start coordinate of spatial bounding box for foreground.
+            end_coord_key: key to record the end coordinate of spatial bounding box for foreground.
         """
         super().__init__(keys)
         self.source_key = source_key
         self.select_fn = select_fn
         self.channel_indices = ensure_tuple(channel_indices) if channel_indices is not None else None
         self.margin = margin
+        self.start_coord_key = start_coord_key
+        self.end_coord_key = end_coord_key
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         box_start, box_end = generate_spatial_bounding_box(
             d[self.source_key], self.select_fn, self.channel_indices, self.margin
         )
+        d[self.start_coord_key] = box_start
+        d[self.end_coord_key] = box_end
         cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
         for key in self.keys:
             d[key] = cropper(d[key])
         return d
+
+
+class RandWeightedCropd(Randomizable, MapTransform):
+    """
+    Samples a list of `num_samples` image patches according to the provided `weight_map`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        w_key: key for the weight map. The corresponding value will be used as the sampling weights,
+            it should be a single-channel array in size, for example, `(1, spatial_dim_0, spatial_dim_1, ...)`
+        spatial_size: the spatial size of the image patch e.g. [224, 224, 128].
+            If its components have non-positive values, the corresponding size of `img` will be used.
+        num_samples: number of samples (image patches) to take in the returned list.
+        center_coord_key: if specified, the actual sampling location will be stored with the corresponding key.
+
+    See Also:
+        :py:class:`monai.transforms.RandWeightedCrop`
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        w_key: str,
+        spatial_size: Union[Sequence[int], int],
+        num_samples: int = 1,
+        center_coord_key: Optional[str] = None,
+    ):
+        super().__init__(keys)
+        self.spatial_size = ensure_tuple(spatial_size)
+        self.w_key = w_key
+        self.num_samples = int(num_samples)
+        self.center_coord_key = center_coord_key
+        self.centers: List[np.ndarray] = []
+
+    def randomize(self, weight_map: np.ndarray) -> None:
+        self.centers = weighted_patch_samples(
+            spatial_size=self.spatial_size, w=weight_map[0], n_samples=self.num_samples, r_state=self.R
+        )
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> List[Dict[Hashable, np.ndarray]]:
+        d = dict(data)
+        self.randomize(d[self.w_key])
+        _spatial_size = fall_back_tuple(self.spatial_size, d[self.w_key].shape[1:])
+
+        results: List[Dict[Hashable, np.ndarray]] = [dict() for _ in range(self.num_samples)]
+        for key in data.keys():
+            if key in self.keys:
+                img = d[key]
+                if img.shape[1:] != d[self.w_key].shape[1:]:
+                    raise ValueError(
+                        f"data {key} and weight map {self.w_key} spatial shape mismatch: "
+                        f"{img.shape[1:]} vs {d[self.w_key].shape[1:]}."
+                    )
+                for i, center in enumerate(self.centers):
+                    cropper = SpatialCrop(roi_center=center, roi_size=_spatial_size)
+                    results[i][key] = cropper(img)
+                    if self.center_coord_key:
+                        results[i][self.center_coord_key] = center
+            else:
+                for i in range(self.num_samples):
+                    results[i][key] = data[key]
+
+        return results
 
 
 class RandCropByPosNegLabeld(Randomizable, MapTransform):
@@ -507,6 +581,36 @@ class ResizeWithPadOrCropd(MapTransform):
         return d
 
 
+class BoundingRectd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.BoundingRect`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: monai.transforms.MapTransform
+        bbox_key_postfix: the output bounding box coordinates will be
+            written to the value of `{key}_{bbox_key_postfix}`.
+    """
+
+    def __init__(self, keys: KeysCollection, bbox_key_postfix: str = "bbox"):
+        super().__init__(keys=keys)
+        self.bbox = BoundingRect()
+        self.bbox_key_postfix = bbox_key_postfix
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        """
+        See also: :py:class:`monai.transforms.utils.compute_bounding_rect`.
+        """
+        d = dict(data)
+        for key in self.keys:
+            bbox = self.bbox(d[key])
+            key_to_add = f"{key}_{self.bbox_key_postfix}"
+            if key_to_add in d:
+                raise KeyError(f"Bounding box data with key {key_to_add} already exists.")
+            d[key_to_add] = bbox
+        return d
+
+
 SpatialPadD = SpatialPadDict = SpatialPadd
 BorderPadD = BorderPadDict = BorderPadd
 DivisiblePadD = DivisiblePadDict = DivisiblePadd
@@ -515,5 +619,7 @@ CenterSpatialCropD = CenterSpatialCropDict = CenterSpatialCropd
 RandSpatialCropD = RandSpatialCropDict = RandSpatialCropd
 RandSpatialCropSamplesD = RandSpatialCropSamplesDict = RandSpatialCropSamplesd
 CropForegroundD = CropForegroundDict = CropForegroundd
+RandWeightedCropD = RandWeightedCropDict = RandWeightedCropd
 RandCropByPosNegLabelD = RandCropByPosNegLabelDict = RandCropByPosNegLabeld
 ResizeWithPadOrCropD = ResizeWithPadOrCropDict = ResizeWithPadOrCropd
+BoundingRectD = BoundingRectDict = BoundingRectd

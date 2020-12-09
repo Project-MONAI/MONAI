@@ -22,12 +22,13 @@ A clear and concise description of what you expected to happen.
 **Screenshots**
 If applicable, add screenshots to help explain your problem.
 
-**Environment (please complete the following information; e.g. using `sh runtests.sh -v`):**
- - OS
- - Python version
- - MONAI version [e.g. git commit hash]
- - CUDA/cuDNN version
- - GPU models and configuration
+**Environment**
+
+Ensuring you use the relevant python executable, please paste the output of:
+
+```
+python -c 'import monai; monai.config.print_debug_info()'
+```
 
 **Additional context**
 Add any other context about the problem here.

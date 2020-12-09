@@ -35,7 +35,6 @@ from monai.transforms.spatial.array import (
     Rotate90,
     Spacing,
     Zoom,
-    _torch_interp,
 )
 from monai.transforms.utils import create_grid
 from monai.utils import (
@@ -522,7 +521,8 @@ class Rand2DElasticd(Randomizable, MapTransform):
         if self.rand_2d_elastic.do_transform:
             grid = self.rand_2d_elastic.deform_grid(spatial_size=sp_size)
             grid = self.rand_2d_elastic.rand_affine_grid(grid=grid)
-            grid = _torch_interp(
+            grid = torch.nn.functional.interpolate(  # type: ignore
+                recompute_scale_factor=True,
                 input=grid.unsqueeze(0),
                 scale_factor=ensure_tuple_rep(self.rand_2d_elastic.deform_grid.spacing, 2),
                 mode=InterpolateMode.BICUBIC.value,
@@ -722,7 +722,7 @@ class Rotated(MapTransform):
 
     Args:
         keys: Keys to pick data for transformation.
-        angle: Rotation angle(s) in degrees.
+        angle: Rotation angle(s) in radians.
         keep_size: If it is False, the output shape is adapted so that the
             input array is contained completely in the output.
             If it is True, the output shape is the same as the input. Default is True.
@@ -781,11 +781,11 @@ class RandRotated(Randomizable, MapTransform):
 
     Args:
         keys: Keys to pick data for transformation.
-        range_x: Range of rotation angle in degrees in the plane defined by the first and second axes.
+        range_x: Range of rotation angle in radians in the plane defined by the first and second axes.
             If single number, angle is uniformly sampled from (-range_x, range_x).
-        range_y: Range of rotation angle in degrees in the plane defined by the first and third axes.
+        range_y: Range of rotation angle in radians in the plane defined by the first and third axes.
             If single number, angle is uniformly sampled from (-range_y, range_y).
-        range_z: Range of rotation angle in degrees in the plane defined by the second and third axes.
+        range_z: Range of rotation angle in radians in the plane defined by the second and third axes.
             If single number, angle is uniformly sampled from (-range_z, range_z).
         prob: Probability of rotation.
         keep_size: If it is False, the output shape is adapted so that the
@@ -932,10 +932,12 @@ class RandZoomd(Randomizable, MapTransform):
             If a float, select a random factor from `[min_zoom, max_zoom]` then apply to all spatial dims
             to keep the original spatial shape ratio.
             If a sequence, min_zoom should contain one value for each spatial axis.
+            If 2 values provided for 3D data, use the first value for both H & W dims to keep the same zoom ratio.
         max_zoom: Max zoom factor. Can be float or sequence same size as image.
             If a float, select a random factor from `[min_zoom, max_zoom]` then apply to all spatial dims
             to keep the original spatial shape ratio.
             If a sequence, max_zoom should contain one value for each spatial axis.
+            If 2 values provided for 3D data, use the first value for both H & W dims to keep the same zoom ratio.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
@@ -974,14 +976,11 @@ class RandZoomd(Randomizable, MapTransform):
         self.keep_size = keep_size
 
         self._do_transform = False
-        self._zoom: Union[Sequence[float], float]
+        self._zoom: Sequence[float] = [1.0]
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self._do_transform = self.R.random_sample() < self.prob
         self._zoom = [self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom)]
-        if len(self._zoom) == 1:
-            # to keep the spatial shape ratio, use same random zoom factor for all dims
-            self._zoom = self._zoom[0]
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         # match the spatial dim of first item
@@ -989,6 +988,14 @@ class RandZoomd(Randomizable, MapTransform):
         d = dict(data)
         if not self._do_transform:
             return d
+
+        img_dims = data[self.keys[0]].ndim
+        if len(self._zoom) == 1:
+            # to keep the spatial shape ratio, use same random zoom factor for all dims
+            self._zoom = ensure_tuple_rep(self._zoom[0], img_dims - 1)
+        elif len(self._zoom) == 2 and img_dims > 3:
+            # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
+            self._zoom = ensure_tuple_rep(self._zoom[0], img_dims - 2) + ensure_tuple(self._zoom[-1])
         zoomer = Zoom(self._zoom, keep_size=self.keep_size)
         for idx, key in enumerate(self.keys):
             d[key] = zoomer(

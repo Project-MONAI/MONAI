@@ -10,3 +10,7 @@ Optimizers
 ----------
 .. autoclass:: Novograd
     :members:
+
+`Generate parameter groups`
+---------------------------
+.. autofunction:: generate_param_groups

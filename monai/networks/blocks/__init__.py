@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .acti_norm import ADN
+from .activation import Mish, Swish
 from .aspp import SimpleASPP
 from .convolutions import Convolution, ResidualUnit
 from .downsample import MaxAvgPool
@@ -23,4 +25,4 @@ from .squeeze_and_excitation import (
     SEResNetBottleneck,
     SEResNeXtBottleneck,
 )
-from .upsample import SubpixelUpsample, UpSample
+from .upsample import *

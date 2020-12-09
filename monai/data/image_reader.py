@@ -14,6 +14,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
+from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
 from monai.config import KeysCollection
 from monai.data.utils import correct_nifti_header_if_necessary
@@ -27,12 +28,14 @@ if TYPE_CHECKING:
     from itk import Image  # type: ignore
     from nibabel.nifti1 import Nifti1Image
     from PIL import Image as PILImage
+
+    has_itk = has_nib = has_pil = True
 else:
-    itk, _ = optional_import("itk", allow_namespace_pkg=True)
+    itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
     Image, _ = optional_import("itk", allow_namespace_pkg=True, name="Image")
-    nib, _ = optional_import("nibabel")
+    nib, has_nib = optional_import("nibabel")
     Nifti1Image, _ = optional_import("nibabel.nifti1", name="Nifti1Image")
-    PILImage, _ = optional_import("PIL.Image")
+    PILImage, has_pil = optional_import("PIL.Image")
 
 
 class ImageReader(ABC):
@@ -80,12 +83,36 @@ class ImageReader(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
+def _copy_compatible_dict(from_dict: Dict, to_dict: Dict):
+    if not isinstance(to_dict, dict):
+        raise ValueError(f"to_dict must be a Dict, got {type(to_dict)}.")
+    if not to_dict:
+        for key in from_dict:
+            datum = from_dict[key]
+            if isinstance(datum, np.ndarray) and np_str_obj_array_pattern.search(datum.dtype.str) is not None:
+                continue
+            to_dict[key] = datum
+    else:
+        affine_key, shape_key = "affine", "spatial_shape"
+        if affine_key in from_dict and not np.allclose(from_dict[affine_key], to_dict[affine_key]):
+            raise RuntimeError(
+                "affine matrix of all images should be the same for channel-wise concatenation. "
+                f"Got {from_dict[affine_key]} and {to_dict[affine_key]}."
+            )
+        if shape_key in from_dict and not np.allclose(from_dict[shape_key], to_dict[shape_key]):
+            raise RuntimeError(
+                "spatial_shape of all images should be the same for channel-wise concatenation. "
+                f"Got {from_dict[shape_key]} and {to_dict[shape_key]}."
+            )
+
+
 class ITKReader(ImageReader):
     """
     Load medical images based on ITK library.
     All the supported image formats can be found:
     https://github.com/InsightSoftwareConsortium/ITK/tree/master/Modules/IO
-    The loaded data array will be in C order, for example, a 3D image will be `CDWH`.
+    The loaded data array will be in C order, for example, a 3D image NumPy
+    array index order will be `CDWH`.
 
     Args:
         kwargs: additional args for `itk.imread` API. more details about available args:
@@ -96,6 +123,11 @@ class ITKReader(ImageReader):
     def __init__(self, **kwargs):
         super().__init__()
         self.kwargs = kwargs
+        if has_itk and int(itk.Version.GetITKMajorVersion()) == 5 and int(itk.Version.GetITKMinorVersion()) < 2:
+            # warning the ITK LazyLoading mechanism was not threadsafe until version 5.2.0,
+            # requesting access to the itk.imread function triggers the lazy loading of the relevant itk modules
+            # before the parallel use of the function.
+            _ = itk.imread
 
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
         """
@@ -106,7 +138,7 @@ class ITKReader(ImageReader):
                 if a list of files, verify all the suffixes.
 
         """
-        return True
+        return has_itk
 
     def read(self, data: Union[Sequence[str], str], **kwargs):
         """
@@ -158,7 +190,7 @@ class ITKReader(ImageReader):
 
         """
         img_array: List[np.ndarray] = list()
-        compatible_meta: Dict = None
+        compatible_meta: Dict = {}
 
         for i in ensure_tuple(img):
             header = self._get_meta_dict(i)
@@ -166,14 +198,7 @@ class ITKReader(ImageReader):
             header["affine"] = header["original_affine"].copy()
             header["spatial_shape"] = self._get_spatial_shape(i)
             img_array.append(self._get_array_data(i))
-
-            if compatible_meta is None:
-                compatible_meta = header
-            else:
-                if not np.allclose(header["affine"], compatible_meta["affine"]):
-                    raise RuntimeError("affine matrix of all images should be same.")
-                if not np.allclose(header["spatial_shape"], compatible_meta["spatial_shape"]):
-                    raise RuntimeError("spatial_shape of all images should be same.")
+            _copy_compatible_dict(header, compatible_meta)
 
         img_array_ = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
         return img_array_, compatible_meta
@@ -187,7 +212,7 @@ class ITKReader(ImageReader):
 
         """
         img_meta_dict = img.GetMetaDataDictionary()
-        meta_dict = dict()
+        meta_dict = {}
         for key in img_meta_dict.GetKeys():
             # ignore deprecated, legacy members that cause issues
             if key.startswith("ITK_original_"):
@@ -219,7 +244,7 @@ class ITKReader(ImageReader):
         affine[(slice(-1), -1)] = origin
         return affine
 
-    def _get_spatial_shape(self, img) -> Sequence:
+    def _get_spatial_shape(self, img) -> np.ndarray:
         """
         Get the spatial shape of image data, it doesn't contain the channel dim.
 
@@ -229,17 +254,32 @@ class ITKReader(ImageReader):
         """
         shape = list(itk.size(img))
         shape.reverse()
-        return shape
+        return np.asarray(shape)
 
     def _get_array_data(self, img) -> np.ndarray:
         """
         Get the raw array data of the image, converted to Numpy array.
 
+        Following PyTorch conventions, the returned array data has contiguous channels,
+        e.g. for an RGB image, all red channel image pixels are contiguous in memory.
+        The first axis of the returned array is the channel axis.
+
         Args:
             img: a ITK image object loaded from a image file.
 
         """
-        return itk.array_view_from_image(img, keep_axes=False)
+        channels = img.GetNumberOfComponentsPerPixel()
+        if channels == 1:
+            return itk.array_view_from_image(img, keep_axes=False)
+        # The memory layout of itk.Image has all pixel's channels adjacent
+        # in memory, i.e. R1G1B1R2G2B2R3G3B3. For PyTorch/MONAI, we need
+        # channels to be contiguous, i.e. R1R2R3G1G2G3B1B2B3.
+        arr = itk.array_view_from_image(img, keep_axes=False)
+        dest = list(range(img.ndim))
+        source = dest.copy()
+        end = source.pop()
+        source.insert(0, end)
+        return np.moveaxis(arr, source, dest)
 
 
 class NibabelReader(ImageReader):
@@ -253,9 +293,10 @@ class NibabelReader(ImageReader):
 
     """
 
-    def __init__(self, as_closest_canonical: bool = False, **kwargs):
+    def __init__(self, as_closest_canonical: bool = False, dtype: Optional[np.dtype] = np.float32, **kwargs):
         super().__init__()
         self.as_closest_canonical = as_closest_canonical
+        self.dtype = dtype
         self.kwargs = kwargs
 
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
@@ -268,7 +309,7 @@ class NibabelReader(ImageReader):
 
         """
         suffixes: Sequence[str] = ["nii", "nii.gz"]
-        return is_supported_format(filename, suffixes)
+        return has_nib and is_supported_format(filename, suffixes)
 
     def read(self, data: Union[Sequence[str], str], **kwargs):
         """
@@ -306,26 +347,19 @@ class NibabelReader(ImageReader):
 
         """
         img_array: List[np.ndarray] = list()
-        compatible_meta: Dict = None
+        compatible_meta: Dict = {}
 
         for i in ensure_tuple(img):
             header = self._get_meta_dict(i)
+            header["affine"] = self._get_affine(i)
             header["original_affine"] = self._get_affine(i)
-            header["affine"] = header["original_affine"].copy()
+            header["as_closest_canonical"] = self.as_closest_canonical
             if self.as_closest_canonical:
                 i = nib.as_closest_canonical(i)
                 header["affine"] = self._get_affine(i)
-            header["as_closest_canonical"] = self.as_closest_canonical
             header["spatial_shape"] = self._get_spatial_shape(i)
             img_array.append(self._get_array_data(i))
-
-            if compatible_meta is None:
-                compatible_meta = header
-            else:
-                if not np.allclose(header["affine"], compatible_meta["affine"]):
-                    raise RuntimeError("affine matrix of all images should be same.")
-                if not np.allclose(header["spatial_shape"], compatible_meta["spatial_shape"]):
-                    raise RuntimeError("spatial_shape of all images should be same.")
+            _copy_compatible_dict(header, compatible_meta)
 
         img_array_ = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
         return img_array_, compatible_meta
@@ -349,9 +383,9 @@ class NibabelReader(ImageReader):
             img: a Nibabel image object loaded from a image file.
 
         """
-        return img.affine
+        return img.affine.copy()
 
-    def _get_spatial_shape(self, img) -> Sequence:
+    def _get_spatial_shape(self, img) -> np.ndarray:
         """
         Get the spatial shape of image data, it doesn't contain the channel dim.
 
@@ -361,7 +395,7 @@ class NibabelReader(ImageReader):
         """
         ndim = img.header["dim"][0]
         spatial_rank = min(ndim, 3)
-        return list(img.header["dim"][1 : spatial_rank + 1])
+        return np.asarray(img.header["dim"][1 : spatial_rank + 1])
 
     def _get_array_data(self, img) -> np.ndarray:
         """
@@ -371,7 +405,9 @@ class NibabelReader(ImageReader):
             img: a Nibabel image object loaded from a image file.
 
         """
-        return np.asarray(img.dataobj)
+        _array = np.array(img.get_fdata(dtype=self.dtype))
+        img.uncache()
+        return _array
 
 
 class NumpyReader(ImageReader):
@@ -448,7 +484,7 @@ class NumpyReader(ImageReader):
 
         """
         img_array: List[np.ndarray] = list()
-        compatible_meta: Dict = None
+        compatible_meta: Dict = {}
         if isinstance(img, np.ndarray):
             img = (img,)
 
@@ -457,12 +493,7 @@ class NumpyReader(ImageReader):
             if isinstance(i, np.ndarray):
                 header["spatial_shape"] = i.shape
             img_array.append(i)
-
-            if compatible_meta is None:
-                compatible_meta = header
-            else:
-                if not np.allclose(header["spatial_shape"], compatible_meta["spatial_shape"]):
-                    raise RuntimeError("spatial_shape of all images should be same.")
+            _copy_compatible_dict(header, compatible_meta)
 
         img_array_ = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
         return img_array_, compatible_meta
@@ -493,7 +524,7 @@ class PILReader(ImageReader):
                 if a list of files, verify all the suffixes.
         """
         suffixes: Sequence[str] = ["png", "jpg", "bmp"]
-        return is_supported_format(filename, suffixes)
+        return has_pil and is_supported_format(filename, suffixes)
 
     def read(self, data: Union[Sequence[str], str, np.ndarray], **kwargs):
         """
@@ -533,18 +564,13 @@ class PILReader(ImageReader):
 
         """
         img_array: List[np.ndarray] = list()
-        compatible_meta: Dict = None
+        compatible_meta: Dict = {}
 
         for i in ensure_tuple(img):
             header = self._get_meta_dict(i)
             header["spatial_shape"] = self._get_spatial_shape(i)
             img_array.append(np.asarray(i))
-
-            if compatible_meta is None:
-                compatible_meta = header
-            else:
-                if not np.allclose(header["spatial_shape"], compatible_meta["spatial_shape"]):
-                    raise RuntimeError("spatial_shape of all images should be same.")
+            _copy_compatible_dict(header, compatible_meta)
 
         img_array_ = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
         return img_array_, compatible_meta
@@ -556,18 +582,17 @@ class PILReader(ImageReader):
             img: a PIL Image object loaded from a image file.
 
         """
-        meta = dict()
-        meta["format"] = img.format
-        meta["mode"] = img.mode
-        meta["width"] = img.width
-        meta["height"] = img.height
-        meta["info"] = img.info
-        return meta
+        return {
+            "format": img.format,
+            "mode": img.mode,
+            "width": img.width,
+            "height": img.height,
+        }
 
-    def _get_spatial_shape(self, img) -> Sequence:
+    def _get_spatial_shape(self, img) -> np.ndarray:
         """
         Get the spatial shape of image data, it doesn't contain the channel dim.
         Args:
             img: a PIL Image object loaded from a image file.
         """
-        return [img.width, img.height]
+        return np.asarray((img.width, img.height))
