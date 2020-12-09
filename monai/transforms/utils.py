@@ -535,6 +535,10 @@ def generate_spatial_bounding_box(
     data = np.any(select_fn(data), axis=0)
     ndim = len(data.shape)
     margin = ensure_tuple_rep(margin, ndim)
+    for m in margin:
+        if m < 0:
+            raise ValueError("margin value should not be negative number.")
+
     box_start = [0] * ndim
     box_end = [0] * ndim
 
