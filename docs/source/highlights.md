@@ -232,7 +232,9 @@ For example, `Mean Dice` score can be used for segmentation tasks and the area u
 ## Visualization
 Beyond the simple point and curve plotting, MONAI provides intuitive interfaces to visualize multidimensional data as GIF animations in TensorBoard. This could provide a quick qualitative assessment of the model by visualizing, for example, the volumetric inputs, segmentation maps, and intermediate feature maps. A runnable example with visualization is available at [UNet training example](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/torch/unet_training_dict.py).
 
-And to visualize the class activation map during training, MONAI provides Cam/GradCam/GradCam++ APIs.<FIXME: missing demo chart and tutorials link>
+And to visualize the class activation mapping for a trained classification model, MONAI provides Cam/GradCAM/GradCAM++ APIs for both 2D and 3D models:
+
+![image](../images/cam.png)
 
 ## Result writing
 Currently MONAI supports writing the model outputs as NIfTI files or PNG files for segmentation tasks, and as CSV files for classification tasks. And the writers can restore the data spacing, orientation or shape according to the `original_shape` or `original_affine` information from the input image.
