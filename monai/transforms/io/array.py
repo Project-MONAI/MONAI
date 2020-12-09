@@ -70,13 +70,14 @@ class LoadImage(Transform):
         if reader is not None:
             if isinstance(reader, str):
                 supported_readers = {
-                    "NibabelReader": NibabelReader,
-                    "PILReader": PILReader,
-                    "ITKReader": ITKReader,
-                    "NumpyReader": NumpyReader,
+                    "nibabelreader": NibabelReader,
+                    "pilreader": PILReader,
+                    "itkreader": ITKReader,
+                    "numpyreader": NumpyReader,
                 }
+                reader = reader.lower()
                 if reader not in supported_readers:
-                    raise ValueError(f"unsupported reader type: {reader}.")
+                    raise ValueError(f"unsupported reader type: {reader}, available options: {supported_readers}.")
                 self.register(supported_readers[reader](*args, **kwargs))
             else:
                 self.register(reader)

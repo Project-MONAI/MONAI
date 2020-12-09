@@ -85,7 +85,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0):
     if cachedataset == 2:
         train_ds = monai.data.CacheDataset(data=train_files, transform=train_transforms, cache_rate=0.8)
     elif cachedataset == 3:
-        train_ds = monai.data.LMDBDataset(data=train_files, transform=train_transforms)
+        train_ds = monai.data.LMDBDataset(data=train_files, transform=train_transforms, cache_dir=root_dir)
     else:
         train_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
     # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training

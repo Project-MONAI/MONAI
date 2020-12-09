@@ -86,15 +86,14 @@ def get_extensions():
     ext_dir = os.path.join(this_dir, "monai", "csrc")
     include_dirs = [ext_dir]
 
-    main_src = glob.glob(os.path.join(ext_dir, "*.cpp"))
-    source_cpu = glob.glob(os.path.join(ext_dir, "**", "*.cpp"))
-    source_cuda = glob.glob(os.path.join(ext_dir, "**", "*.cu"))
+    source_cpu = glob.glob(os.path.join(ext_dir, "**", "*.cpp"), recursive=True)
+    source_cuda = glob.glob(os.path.join(ext_dir, "**", "*.cu"), recursive=True)
 
     extension = None
     define_macros = [(f"{torch_parallel_backend()}", 1), ("MONAI_TORCH_VERSION", TORCH_VERSION)]
     extra_compile_args = {}
     extra_link_args = []
-    sources = main_src + source_cpu
+    sources = source_cpu
     if BUILD_CPP:
         extension = CppExtension
         extra_compile_args.setdefault("cxx", [])

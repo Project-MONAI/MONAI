@@ -105,6 +105,12 @@ Crop and Pad
     :members:
     :special-members: __call__
 
+`BoundingRect`
+""""""""""""""
+.. autoclass:: BoundingRect
+    :members:
+    :special-members: __call__
+
 Intensity
 ^^^^^^^^^
 
@@ -561,6 +567,12 @@ Crop and Pad (Dict)
 `ResizeWithPadOrCropd`
 """"""""""""""""""""""
 .. autoclass:: ResizeWithPadOrCropd
+    :members:
+    :special-members: __call__
+
+`BoundingRectd`
+"""""""""""""""
+.. autoclass:: BoundingRectd
     :members:
     :special-members: __call__
 
