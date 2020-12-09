@@ -589,7 +589,7 @@ class BoundingRectd(MapTransform):
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
         bbox_key_postfix: the output bounding box coordinates will be
-            written to the value of `{key}_{bbox_key_postfix}`, it's a tuple of (bbox_start, bbox_end).
+            written to the value of `{key}_{bbox_key_postfix}`.
         select_fn: function to select expected foreground, default is to select values > 0.
     """
 

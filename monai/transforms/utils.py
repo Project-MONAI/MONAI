@@ -518,13 +518,11 @@ def generate_spatial_bounding_box(
     And it can also add margin to every dim of the bounding box.
     The output format of the coordinates is:
 
-        [1st_spatial_dim_start, 1st_spatial_dim_end,
-         2nd_spatial_dim_start, 2nd_spatial_dim_end,
-         ...,
-         Nth_spatial_dim_start, Nth_spatial_dim_end,]
+        [1st_spatial_dim_start, 2nd_spatial_dim_start, ..., Nth_spatial_dim_start],
+        [1st_spatial_dim_end, 2nd_spatial_dim_end, ..., Nth_spatial_dim_end]
 
     The bounding boxes edges are aligned with the input image edges.
-    This function returns [-1, -1, ...] if there's no positive intensity.
+    This function returns [-1, -1, ...], [-1, -1, ...] if there's no positive intensity.
 
     Args:
         img: source image to generate bounding box from.
@@ -533,7 +531,7 @@ def generate_spatial_bounding_box(
             of image. if None, select foreground on the whole image.
         margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
     """
-    data = img[[*(ensure_tuple(channel_indices))]] if channel_indices is not None else img
+    data = img[list(ensure_tuple(channel_indices))] if channel_indices is not None else img
     data = np.any(select_fn(data), axis=0)
     ndim = len(data.shape)
     margin = ensure_tuple_rep(margin, ndim)

@@ -17,11 +17,11 @@ from parameterized import parameterized
 import monai
 from monai.transforms import BoundingRectD
 
-TEST_CASE_1 = [(2, 3), [[-1], [1]], [[-1], [2]]]
+TEST_CASE_1 = [(2, 3), [[-1, -1], [1, 2]]]
 
-TEST_CASE_2 = [(1, 8, 10), [[0, 1]], [[7, 9]]]
+TEST_CASE_2 = [(1, 8, 10), [[0, 7, 1, 9]]]
 
-TEST_CASE_3 = [(2, 16, 20, 18), [[0, 0, 0], [0, 0, 0]], [[16, 20, 18], [16, 20, 18]]]
+TEST_CASE_3 = [(2, 16, 20, 18), [[0, 16, 0, 20, 0, 18], [0, 16, 0, 20, 0, 18]]]
 
 
 class TestBoundingRectD(unittest.TestCase):
@@ -32,16 +32,14 @@ class TestBoundingRectD(unittest.TestCase):
         monai.utils.set_determinism(None)
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
-    def test_shape(self, input_shape, expected_start, expected_end):
+    def test_shape(self, input_shape, expected):
         test_data = np.random.randint(0, 8, size=input_shape)
         test_data = test_data == 7
         result = BoundingRectD("image")({"image": test_data})
-        np.testing.assert_allclose(result["image_bbox"][0], expected_start)
-        np.testing.assert_allclose(result["image_bbox"][1], expected_end)
+        np.testing.assert_allclose(result["image_bbox"], expected)
 
         result = BoundingRectD("image", "cc")({"image": test_data})
-        np.testing.assert_allclose(result["image_cc"][0], expected_start)
-        np.testing.assert_allclose(result["image_cc"][1], expected_end)
+        np.testing.assert_allclose(result["image_cc"], expected)
 
         with self.assertRaises(KeyError):
             BoundingRectD("image", "cc")({"image": test_data, "image_cc": None})

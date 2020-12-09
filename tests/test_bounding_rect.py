@@ -17,11 +17,11 @@ from parameterized import parameterized
 import monai
 from monai.transforms import BoundingRect
 
-TEST_CASE_1 = [(2, 3), [[-1], [1]], [[-1], [2]]]
+TEST_CASE_1 = [(2, 3), [[-1, -1], [1, 2]]]
 
-TEST_CASE_2 = [(1, 8, 10), [[0, 1]], [[7, 9]]]
+TEST_CASE_2 = [(1, 8, 10), [[0, 7, 1, 9]]]
 
-TEST_CASE_3 = [(2, 16, 20, 18), [[0, 0, 0], [0, 0, 0]], [[16, 20, 18], [16, 20, 18]]]
+TEST_CASE_3 = [(2, 16, 20, 18), [[0, 16, 0, 20, 0, 18], [0, 16, 0, 20, 0, 18]]]
 
 
 class TestBoundingRect(unittest.TestCase):
@@ -32,19 +32,17 @@ class TestBoundingRect(unittest.TestCase):
         monai.utils.set_determinism(None)
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
-    def test_shape(self, input_shape, expected_start, expected_end):
+    def test_shape(self, input_shape, expected):
         test_data = np.random.randint(0, 8, size=input_shape)
         test_data = test_data == 7
-        bbox_start, bbox_end = BoundingRect()(test_data)
-        np.testing.assert_allclose(bbox_start, expected_start)
-        np.testing.assert_allclose(bbox_end, expected_end)
+        result = BoundingRect()(test_data)
+        np.testing.assert_allclose(result, expected)
 
     def test_select_fn(self):
         test_data = np.random.randint(0, 8, size=(2, 3))
         test_data = test_data == 7
-        bbox_start, bbox_end = BoundingRect(select_fn=lambda x: x < 1)(test_data)
-        np.testing.assert_allclose(bbox_start, [[0], [0]])
-        np.testing.assert_allclose(bbox_end, [[3], [3]])
+        bbox = BoundingRect(select_fn=lambda x: x < 1)(test_data)
+        np.testing.assert_allclose(bbox, [[0, 3], [0, 3]])
 
 
 if __name__ == "__main__":

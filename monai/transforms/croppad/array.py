@@ -637,6 +637,22 @@ class ResizeWithPadOrCrop(Transform):
 class BoundingRect(Transform):
     """
     Compute coordinates of axis-aligned bounding rectangles from input image `img`.
+    The output format of the coordinates is (shape is [channel, 2 * spatial dims]):
+
+        [[1st_spatial_dim_start, 1st_spatial_dim_end,
+         2nd_spatial_dim_start, 2nd_spatial_dim_end,
+         ...,
+         Nth_spatial_dim_start, Nth_spatial_dim_end],
+
+         ...
+
+         [1st_spatial_dim_start, 1st_spatial_dim_end,
+         2nd_spatial_dim_start, 2nd_spatial_dim_end,
+         ...,
+         Nth_spatial_dim_start, Nth_spatial_dim_end]]
+
+    The bounding boxes edges are aligned with the input image edges.
+    This function returns [-1, -1, ...] if there's no positive intensity.
 
     Args:
         select_fn: function to select expected foreground, default is to select values > 0.
@@ -649,11 +665,10 @@ class BoundingRect(Transform):
         """
         See also: :py:class:`monai.transforms.utils.generate_spatial_bounding_box`.
         """
-        bbox_start = list()
-        bbox_end = list()
+        bbox = list()
 
         for channel in range(img.shape[0]):
             start_, end_ = generate_spatial_bounding_box(img, select_fn=self.select_fn, channel_indices=channel)
-            bbox_start.append(start_)
-            bbox_end.append(end_)
-        return np.stack(bbox_start, axis=0), np.stack(bbox_end, axis=0)
+            bbox.append([i for k in zip(start_, end_) for i in k])
+
+        return np.stack(bbox, axis=0)
