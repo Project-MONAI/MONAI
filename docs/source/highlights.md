@@ -172,7 +172,15 @@ dataset = ZipDataset([DatasetA(), DatasetB()], transform)
 ```
 
 ### 5. PatchDataset
-<FIXME: need to add some description>
+`monai.data.PatchDataset` provides a flexible API to combine both image- and patch-level preprocessing:
+```python
+image_dataset = Dataset(input_images, transforms=image_transforms)
+patch_dataset = PatchDataset(
+    dataset=image_dataset, patch_func=sampler,
+    samples_per_image=n_samples, transform=patch_transforms)
+```
+It supports user-specified `image_transforms` and `patch_transforms` with customisable patch sampling strategies,
+which decouples the two-level computations in a multiprocess context.
 
 ### 6. Predefined Datasets for public medical data
 To quickly get started with popular training data in the medical domain, MONAI provides several data-specific Datasets(like: `MedNISTDataset`, `DecathlonDataset`, etc.), which include downloading from our AWS storage, extracting data files and support generation of training/evaluation items with transforms. And they are flexible that users can easily modify the JSON config file to change the default behaviors.
