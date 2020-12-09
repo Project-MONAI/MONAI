@@ -19,6 +19,37 @@ from monai.networks.blocks.dynunet_block import *
 __all__ = ["DynUNet", "DynUnet", "Dynunet"]
 
 
+class DynUNetSkipLayer(nn.Module):
+    """
+    Defines a layer in the UNet topology which combines the downsample and upsample pathways with the skip connection.
+    The member `next_layer` may refer to instances of this class or the final bottleneck layer at the bottom the UNet
+    structure. The purpose of using a recursive class like this is to get around the Torchscript restrictions on
+    looping over lists of layers and accumulating lists of output tensors which much be indexed. The `heads` list is
+    shared amongst all the instances of this class and is used to store the output from the supervision heads during
+    forward passes of the network.
+    """
+
+    heads: List[torch.Tensor]
+
+    def __init__(self, index, heads, downsample, upsample, super_head, next_layer):
+        super().__init__()
+        self.downsample = downsample
+        self.upsample = upsample
+        self.next_layer = next_layer
+        self.super_head = super_head
+        self.heads = heads
+        self.index = index
+
+    def forward(self, x):
+        downout = self.downsample(x)
+        nextout = self.next_layer(downout)
+        upout = self.upsample(nextout, downout)
+
+        self.heads[self.index] = self.super_head(upout)
+
+        return upout
+
+
 class DynUNet(nn.Module):
     """
     This reimplementation of a dynamic UNet (DynUNet) is based on:
@@ -93,6 +124,43 @@ class DynUNet(nn.Module):
         self.check_kernel_stride()
         self.check_deep_supr_num()
 
+        # initialize the typed list of supervision head outputs so that Torchscript can recognize what's going on
+        self.heads: List[torch.Tensor] = [torch.rand(1)] * (len(self.deep_supervision_heads) + 1)
+
+        def create_skips(index, downsamples, upsamples, superheads, bottleneck):
+            """
+            Construct the UNet topology as a sequence of skip layers terminating with the bottleneck layer. This is
+            done recursively from the top down since a recursive nn.Module subclass is being used to be compatible
+            with Torchscript. Initially the length of `downsamples` will be one more than that of `superheads`
+            since the `input_block` is passed to this function as the first item in `downsamples`, however this
+            shouldn't be associated with a supervision head.
+            """
+
+            assert len(downsamples) == len(upsamples), f"{len(downsamples)} != {len(upsamples)}"
+            assert (len(downsamples) - len(superheads)) in (1, 0), f"{len(downsamples)}-(0,1) != {len(superheads)}"
+
+            if len(downsamples) == 0:  # bottom of the network, pass the bottleneck block
+                return bottleneck
+            elif index == 0:  # don't associate a supervision head with self.input_block
+                current_head, rest_heads = nn.Identity(), superheads
+            elif not self.deep_supervision:  # bypass supervision heads by passing nn.Identity in place of a real one
+                current_head, rest_heads = nn.Identity(), superheads[1:]
+            else:
+                current_head, rest_heads = superheads[0], superheads[1:]
+
+            # create the next layer down, this will stop at the bottleneck layer
+            next_layer = create_skips(1 + index, downsamples[1:], upsamples[1:], rest_heads, bottleneck)
+
+            return DynUNetSkipLayer(index, self.heads, downsamples[0], upsamples[0], current_head, next_layer)
+
+        self.skip_layers = create_skips(
+            0,
+            [self.input_block] + list(self.downsamples),
+            self.upsamples[::-1],
+            self.deep_supervision_heads,
+            self.bottleneck,
+        )
+
     def check_kernel_stride(self):
         kernels, strides = self.kernel_size, self.strides
         error_msg = "length of kernel_size and strides should be the same, and no less than 3."
@@ -114,29 +182,13 @@ class DynUNet(nn.Module):
         assert 1 <= deep_supr_num < num_up_layers, error_msg
 
     def forward(self, x):
-        out = self.input_block(x)
-        outputs = [out]
-
-        for downsample in self.downsamples:
-            out = downsample(out)
-            outputs.insert(0, out)
-
-        out = self.bottleneck(out)
-        upsample_outs = []
-
-        for upsample, skip in zip(self.upsamples, outputs):
-            out = upsample(out, skip)
-            upsample_outs.append(out)
-
+        out = self.skip_layers(x)
         out = self.output_block(out)
 
         if self.training and self.deep_supervision:
-            start_output_idx = len(upsample_outs) - 1 - self.deep_supr_num
-            upsample_outs = upsample_outs[start_output_idx:-1][::-1]
-            preds = [self.deep_supervision_heads[i](out) for i, out in enumerate(upsample_outs)]
-            return [out] + preds
+            return [out] + self.heads[1 : self.deep_supr_num + 1]
 
-        return out
+        return [out]
 
     def get_input_block(self):
         return self.conv_block(
