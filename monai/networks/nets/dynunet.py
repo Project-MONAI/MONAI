@@ -115,7 +115,7 @@ class DynUNet(nn.Module):
         self.check_kernel_stride()
         self.check_deep_supr_num()
 
-        self.heads: List[torch.tensor] = [torch.rand(1)] * (len(self.deep_supervision_heads) + 1)
+        self.heads: List[torch.Tensor] = [torch.rand(1)] * (len(self.deep_supervision_heads) + 1)
 
         def create_skips(index, downsamples, upsamples, superheads, bottleneck):
             assert len(downsamples) == len(upsamples), f"{len(downsamples)} != {len(upsamples)}"
@@ -123,7 +123,7 @@ class DynUNet(nn.Module):
 
             if len(downsamples) == 0:
                 return bottleneck
-            elif index == 0:  # don't associate a supervision head with self.input_block 
+            elif index == 0:  # don't associate a supervision head with self.input_block
                 current_head, rest_heads = nn.Identity(), superheads
             else:
                 current_head, rest_heads = superheads[0], superheads[1:]
@@ -163,24 +163,38 @@ class DynUNet(nn.Module):
     def forward(self, x):
         out = self.skip_layers(x)
         out = self.output_block(out)
-        
+
         if self.training and self.deep_supervision:
-            return [out]+self.heads[1:self.deep_supr_num+1]
-        
+            return [out] + self.heads[1 : self.deep_supr_num + 1]
+
         return [out]
 
     def get_input_block(self):
         return self.conv_block(
-            self.spatial_dims, self.in_channels, self.filters[0], self.kernel_size[0], self.strides[0], self.norm_name,
+            self.spatial_dims,
+            self.in_channels,
+            self.filters[0],
+            self.kernel_size[0],
+            self.strides[0],
+            self.norm_name,
         )
 
     def get_bottleneck(self):
         return self.conv_block(
-            self.spatial_dims, self.filters[-2], self.filters[-1], self.kernel_size[-1], self.strides[-1], self.norm_name,
+            self.spatial_dims,
+            self.filters[-2],
+            self.filters[-1],
+            self.kernel_size[-1],
+            self.strides[-1],
+            self.norm_name,
         )
 
     def get_output_block(self, idx: int):
-        return UnetOutBlock(self.spatial_dims, self.filters[idx], self.out_channels,)
+        return UnetOutBlock(
+            self.spatial_dims,
+            self.filters[idx],
+            self.out_channels,
+        )
 
     def get_downsamples(self):
         inp, out = self.filters[:-2], self.filters[1:-1]

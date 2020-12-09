@@ -29,7 +29,7 @@ import torch
 import torch.distributed as dist
 
 from monai.data import create_test_image_2d, create_test_image_3d
-from monai.utils import optional_import, set_determinism, ensure_tuple
+from monai.utils import ensure_tuple, optional_import, set_determinism
 
 nib, _ = optional_import("nibabel")
 
@@ -457,11 +457,11 @@ def test_script_save(net, *inputs, eval_nets=True, device=None, rtol=1e-4):
         result1 = net(*inputs)
         result2 = reloaded_net(*inputs)
         set_determinism(seed=None)
-        
+
     # convert results to tuples if needed to allow iterating over pairs of outputs
-    result1=ensure_tuple(result1)
-    result2=ensure_tuple(result2)
-    
+    result1 = ensure_tuple(result1)
+    result2 = ensure_tuple(result2)
+
     for i, (r1, r2) in enumerate(zip(result1, result2)):
         if None not in (r1, r2):  # might be None
             np.testing.assert_allclose(

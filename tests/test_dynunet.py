@@ -16,7 +16,6 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.nets import DynUNet
-
 from tests.utils import test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
