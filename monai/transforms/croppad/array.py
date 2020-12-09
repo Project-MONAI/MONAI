@@ -21,7 +21,6 @@ from monai.config import IndexSelection
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.utils import (
-    compute_bounding_rect,
     generate_pos_neg_label_crop_centers,
     generate_spatial_bounding_box,
     map_binary_to_indices,
@@ -638,11 +637,23 @@ class ResizeWithPadOrCrop(Transform):
 class BoundingRect(Transform):
     """
     Compute coordinates of axis-aligned bounding rectangles from input image `img`.
+
+    Args:
+        select_fn: function to select expected foreground, default is to select values > 0.
     """
+
+    def __init__(self, select_fn: Callable = lambda x: x > 0) -> None:
+        self.select_fn = select_fn
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
         """
-        See also: :py:class:`monai.transforms.utils.compute_bounding_rect`.
+        See also: :py:class:`monai.transforms.utils.generate_spatial_bounding_box`.
         """
-        bbox = [compute_bounding_rect(channel) for channel in img]
-        return np.stack(bbox, axis=0)
+        bbox_start = list()
+        bbox_end = list()
+
+        for channel in range(img.shape[0]):
+            start_, end_ = generate_spatial_bounding_box(img, select_fn=self.select_fn, channel_indices=channel)
+            bbox_start.append(start_)
+            bbox_end.append(end_)
+        return np.stack(bbox_start, axis=0), np.stack(bbox_end, axis=0)

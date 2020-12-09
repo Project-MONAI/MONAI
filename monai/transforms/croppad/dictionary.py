@@ -589,17 +589,18 @@ class BoundingRectd(MapTransform):
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
         bbox_key_postfix: the output bounding box coordinates will be
-            written to the value of `{key}_{bbox_key_postfix}`.
+            written to the value of `{key}_{bbox_key_postfix}`, it's a tuple of (bbox_start, bbox_end).
+        select_fn: function to select expected foreground, default is to select values > 0.
     """
 
-    def __init__(self, keys: KeysCollection, bbox_key_postfix: str = "bbox"):
+    def __init__(self, keys: KeysCollection, bbox_key_postfix: str = "bbox", select_fn: Callable = lambda x: x > 0):
         super().__init__(keys=keys)
-        self.bbox = BoundingRect()
+        self.bbox = BoundingRect(select_fn=select_fn)
         self.bbox_key_postfix = bbox_key_postfix
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         """
-        See also: :py:class:`monai.transforms.utils.compute_bounding_rect`.
+        See also: :py:class:`monai.transforms.utils.generate_spatial_bounding_box`.
         """
         d = dict(data)
         for key in self.keys:
