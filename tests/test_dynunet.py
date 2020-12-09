@@ -113,23 +113,6 @@ class TestDynUNet(unittest.TestCase):
             result = net(torch.randn(input_shape).to(device))
             self.assertEqual(result[0].shape, expected_shape)
 
-    def test_print(self):
-        input_param={
-            'spatial_dims': 2, 
-            'in_channels': 2, 
-            'out_channels': 2, 
-            'kernel_size': (3, 1, 1), 'strides': (1, 1, 1), 
-            'upsample_kernel_size': (1,), 
-            'norm_name': 'batch', 
-            'deep_supervision': False, 
-            'res_block': False
-        }
-        input_shape=(1,2,64,64)
-        input_param, input_shape, _ = TEST_CASE_DYNUNET_2D[0]
-        test_data = torch.randn(input_shape)
-        net = DynUNet(**input_param)
-        assert net(test_data) is not None
-
     def test_script(self):
         input_param, input_shape, _ = TEST_CASE_DYNUNET_2D[0]
         net = DynUNet(**input_param)
