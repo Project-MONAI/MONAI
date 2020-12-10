@@ -9,36 +9,39 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import torch
 import time
 from functools import wraps
 
-def torch_profiler_full(func):    
+import torch
+
+
+def torch_profiler_full(func):
     """
-    A decorator which will run the torch profiler for the decorated function, 
-    printing the results in full. 
+    A decorator which will run the torch profiler for the decorated function,
+    printing the results in full.
     Note: Enforces a gpu sync point which could slow down pipelines.
     """
-    
+
     @wraps(func)
     def wrapper(*args, **kwargs):
 
         with torch.autograd.profiler.profile(use_cuda=True) as prof:
             result = func(*args, **kwargs)
-            
+
         print(prof, flush=True)
 
         return result
 
     return wrapper
 
-def torch_profiler_time_cpu_gpu(func):    
+
+def torch_profiler_time_cpu_gpu(func):
     """
     A decorator which measures the execution time of both the CPU and GPU components
-    of the decorated function, printing both results. 
+    of the decorated function, printing both results.
     Note: Enforces a gpu sync point which could slow down pipelines.
     """
-    
+
     @wraps(func)
     def wrapper(*args, **kwargs):
 
@@ -50,20 +53,21 @@ def torch_profiler_time_cpu_gpu(func):
 
         cpu_time = torch.autograd.profiler.format_time(cpu_time)
         gpu_time = torch.autograd.profiler.format_time(gpu_time)
-        
+
         print("cpu time: {}, gpu time: {}".format(cpu_time, gpu_time), flush=True)
 
         return result
 
     return wrapper
 
-def torch_profiler_time_end_to_end(func):    
+
+def torch_profiler_time_end_to_end(func):
     """
-    A decorator which measures the total execution time from when the decorated 
-    function is called to when the last cuda operation finishes, printing the result. 
+    A decorator which measures the total execution time from when the decorated
+    function is called to when the last cuda operation finishes, printing the result.
     Note: Enforces a gpu sync point which could slow down pipelines.
     """
-    
+
     @wraps(func)
     def wrapper(*args, **kwargs):
 
@@ -82,4 +86,3 @@ def torch_profiler_time_end_to_end(func):
         return result
 
     return wrapper
-    

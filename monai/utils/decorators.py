@@ -11,6 +11,7 @@
 
 from functools import wraps
 
+
 class RestartGenerator:
     """
     Wraps a generator callable which will be called whenever this class is iterated and its result returned. This is
