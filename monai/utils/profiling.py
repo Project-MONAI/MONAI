@@ -49,7 +49,7 @@ def torch_profiler_time_cpu_gpu(func):
             result = func(*args, **kwargs)
 
         cpu_time = prof.self_cpu_time_total
-        gpu_time = sum([evt.self_cuda_time_total for evt in prof.function_events])
+        gpu_time = sum(evt.self_cuda_time_total for evt in prof.function_events)
 
         cpu_time = torch.autograd.profiler.format_time(cpu_time)
         gpu_time = torch.autograd.profiler.format_time(gpu_time)
