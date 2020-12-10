@@ -21,6 +21,7 @@ from .misc import ensure_tuple
 OPTIONAL_IMPORT_MSG_FMT = "{}"
 
 __all__ = [
+    "InvalidPyTorchVersionError",
     "OptionalImportError",
     "exact_version",
     "export",
@@ -103,6 +104,17 @@ def exact_version(the_module, version_str: str = "") -> bool:
     Returns True if the module's __version__ matches version_str
     """
     return bool(the_module.__version__ == version_str)
+
+
+class InvalidPyTorchVersionError(Exception):
+    """
+    Raised when called function or method requires a more recent
+    PyTorch version than that installed.
+    """
+
+    def __init__(self, required_version, name):
+        message = f"{name} requires PyTorch version {required_version} or later"
+        super().__init__(message)
 
 
 class OptionalImportError(ImportError):
