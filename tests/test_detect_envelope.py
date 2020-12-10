@@ -156,9 +156,8 @@ class TestHilbertTransformNoFFTMod(unittest.TestCase):
 @SkipIfAtLeastPyTorchVersion((1, 7))
 class TestDetectEnvelopeInvalidPyTorch(unittest.TestCase):
     def test_invalid_pytorch_error(self):
-        with self.assertRaises(InvalidPyTorchVersionError) as cm:
+        with self.assertRaisesRegexp(InvalidPyTorchVersionError, "version"):
             DetectEnvelope()
-            self.assertEqual("DetectEnvelope requires PyTorch version 1.7.0 or later", str(cm.exception))
 
 
 if __name__ == "__main__":

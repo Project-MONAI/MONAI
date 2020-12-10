@@ -17,12 +17,11 @@ import torch.nn.functional as F
 from torch import nn
 from torch.autograd import Function
 
-from monai.config import get_torch_version_tuple
 from monai.networks.layers.convutils import gaussian_1d, same_padding
-from monai.utils import InvalidPyTorchVersionError, SkipMode, ensure_tuple_rep, optional_import
+from monai.utils import PT_BEFORE_1_7, InvalidPyTorchVersionError, SkipMode, ensure_tuple_rep, optional_import
 
 _C, _ = optional_import("monai._C")
-if tuple(int(s) for s in torch.__version__.split(".")[0:2]) >= (1, 7):
+if not PT_BEFORE_1_7:
     fft, _ = optional_import("torch.fft")
 
 __all__ = ["SkipConnection", "Flatten", "GaussianFilter", "LLTM", "Reshape", "separable_filtering", "HilbertTransform"]
@@ -145,7 +144,7 @@ class HilbertTransform(nn.Module):
 
     def __init__(self, axis: int = 2, n: Union[int, None] = None) -> None:
 
-        if get_torch_version_tuple() < (1, 7):
+        if PT_BEFORE_1_7:
             raise InvalidPyTorchVersionError("1.7.0", self.__class__.__name__)
 
         super().__init__()

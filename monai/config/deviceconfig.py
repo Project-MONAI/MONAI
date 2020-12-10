@@ -100,14 +100,6 @@ def set_visible_devices(*dev_inds):
     os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, dev_inds))
 
 
-def get_torch_version_tuple():
-    """
-    Returns:
-        tuple of ints represents the pytorch major/minor version.
-    """
-    return tuple((int(x) for x in torch.__version__.split(".")[:2]))
-
-
 def _dict_append(in_dict, key, fn):
     try:
         in_dict[key] = fn()
