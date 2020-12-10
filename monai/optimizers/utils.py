@@ -61,20 +61,30 @@ def generate_param_groups(
     match_types = ensure_tuple_rep(match_types, len(layer_matches))
     lr_values = ensure_tuple_rep(lr_values, len(layer_matches))
 
+    def _get_select(f):
+        def _select():
+            return f(network).parameters()
+
+        return _select
+
+    def _get_filter(f):
+        def _filter():
+            return filter(f, network.named_parameters())
+
+        return _filter
+
     params = list()
     _layers = list()
     for func, ty, lr in zip(layer_matches, match_types, lr_values):
         if ty.lower() == "select":
-            layer_params = func(network).parameters()
-            layer_ids = func(network).parameters()
+            layer_params = _get_select(func)
         elif ty.lower() == "filter":
-            layer_params = filter(func, network.named_parameters())
-            layer_ids = filter(func, network.named_parameters())
+            layer_params = _get_filter(func)
         else:
             raise ValueError(f"unsupported layer match type: {ty}.")
 
-        params.append({"params": layer_params, "lr": lr})
-        _layers.extend(list(map(id, layer_ids)))
+        params.append({"params": layer_params(), "lr": lr})
+        _layers.extend(list(map(id, layer_params())))
 
     if include_others:
         params.append({"params": filter(lambda p: id(p) not in _layers, network.parameters())})
