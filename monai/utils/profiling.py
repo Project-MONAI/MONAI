@@ -14,12 +14,7 @@ from functools import wraps
 
 import torch
 
-
-__all__ = [
-    "torch_profiler_full",
-    "torch_profiler_time_cpu_gpu",
-    "torch_profiler_time_end_to_end"
-]
+__all__ = ["torch_profiler_full", "torch_profiler_time_cpu_gpu", "torch_profiler_time_end_to_end"]
 
 
 def torch_profiler_full(func):
