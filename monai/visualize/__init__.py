@@ -9,4 +9,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .class_activation_maps import *
 from .img2tensorboard import *

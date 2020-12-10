@@ -19,6 +19,7 @@ from collections.abc import Iterable
 from typing import Any, Dict, Hashable, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
+import torch
 
 from monai.config import KeysCollection
 from monai.transforms.compose import MapTransform, Randomizable
@@ -34,7 +35,7 @@ from monai.transforms.intensity.array import (
     ShiftIntensity,
     ThresholdIntensity,
 )
-from monai.utils import ensure_tuple_size
+from monai.utils import dtype_torch_to_numpy, ensure_tuple_size
 
 
 class RandGaussianNoised(Randomizable, MapTransform):
@@ -73,7 +74,8 @@ class RandGaussianNoised(Randomizable, MapTransform):
         if not self._do_transform:
             return d
         for key in self.keys:
-            d[key] = d[key] + self._noise.astype(d[key].dtype)
+            dtype = dtype_torch_to_numpy(d[key].dtype) if isinstance(d[key], torch.Tensor) else d[key].dtype
+            d[key] = d[key] + self._noise.astype(dtype)
         return d
 
 

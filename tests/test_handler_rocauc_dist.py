@@ -10,40 +10,34 @@
 # limitations under the License.
 
 
+import unittest
+
 import numpy as np
 import torch
 import torch.distributed as dist
 
 from monai.handlers import ROCAUC
+from tests.utils import DistCall, DistTestCase
 
 
-def main():
-    dist.init_process_group(backend="nccl", init_method="env://")
+class DistributedROCAUC(DistTestCase):
+    @DistCall(nnodes=1, nproc_per_node=2, node_rank=0)
+    def test_compute(self):
+        auc_metric = ROCAUC(to_onehot_y=True, softmax=True)
+        device = f"cuda:{dist.get_rank()}" if torch.cuda.is_available() else "cpu"
+        if dist.get_rank() == 0:
+            y_pred = torch.tensor([[0.1, 0.9], [0.3, 1.4]], device=device)
+            y = torch.tensor([[0], [1]], device=device)
+            auc_metric.update([y_pred, y])
 
-    torch.cuda.set_device(dist.get_rank())
-    auc_metric = ROCAUC(to_onehot_y=True, softmax=True)
+        if dist.get_rank() == 1:
+            y_pred = torch.tensor([[0.2, 0.1], [0.1, 0.5]], device=device)
+            y = torch.tensor([[0], [1]], device=device)
+            auc_metric.update([y_pred, y])
 
-    if dist.get_rank() == 0:
-        y_pred = torch.tensor([[0.1, 0.9], [0.3, 1.4]], device=torch.device("cuda:0"))
-        y = torch.tensor([[0], [1]], device=torch.device("cuda:0"))
-        auc_metric.update([y_pred, y])
+        result = auc_metric.compute()
+        np.testing.assert_allclose(0.75, result)
 
-    if dist.get_rank() == 1:
-        y_pred = torch.tensor([[0.2, 0.1], [0.1, 0.5]], device=torch.device("cuda:1"))
-        y = torch.tensor([[0], [1]], device=torch.device("cuda:1"))
-        auc_metric.update([y_pred, y])
-
-    result = auc_metric.compute()
-    np.testing.assert_allclose(0.75, result)
-
-    dist.destroy_process_group()
-
-
-# suppose to execute on 2 rank processes
-# python -m torch.distributed.launch --nproc_per_node=NUM_GPUS_PER_NODE
-#        --nnodes=NUM_NODES --node_rank=INDEX_CURRENT_NODE
-#        --master_addr="192.168.1.1" --master_port=1234
-#        test_handler_rocauc_dist.py
 
 if __name__ == "__main__":
-    main()
+    unittest.main()

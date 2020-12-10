@@ -19,25 +19,25 @@ from monai.transforms import Rotate
 from tests.utils import NumpyImageTestCase2D, NumpyImageTestCase3D
 
 TEST_CASES_2D = [
-    (30, False, "bilinear", "border", False),
-    (45, True, "bilinear", "border", False),
-    (-40, True, "nearest", "reflection", False),
-    (180, False, "nearest", "zeros", False),
-    (-90, False, "bilinear", "zeros", True),
+    (np.pi / 6, False, "bilinear", "border", False),
+    (np.pi / 4, True, "bilinear", "border", False),
+    (-np.pi / 4.5, True, "nearest", "reflection", False),
+    (np.pi, False, "nearest", "zeros", False),
+    (-np.pi / 2, False, "bilinear", "zeros", True),
 ]
 
 TEST_CASES_3D = [
-    (-90.0, True, "nearest", "border", False),
-    (45, True, "bilinear", "border", False),
-    (-40, True, "nearest", "reflection", False),
-    (180, False, "nearest", "zeros", False),
-    (-90, False, "bilinear", "zeros", False),
+    (-np.pi / 2, True, "nearest", "border", False),
+    (np.pi / 4, True, "bilinear", "border", False),
+    (-np.pi / 4.5, True, "nearest", "reflection", False),
+    (np.pi, False, "nearest", "zeros", False),
+    (-np.pi / 2, False, "bilinear", "zeros", False),
 ]
 
 TEST_CASES_SHAPE_3D = [
-    ([-90.0, 1.0, 2.0], "nearest", "border", False),
-    ([45, 0, 0], "bilinear", "border", False),
-    ([-40, -20, 20], "nearest", "reflection", False),
+    ([-np.pi / 2, 1.0, 2.0], "nearest", "border", False),
+    ([np.pi / 4, 0, 0], "bilinear", "border", False),
+    ([-np.pi / 4.5, -20, 20], "nearest", "reflection", False),
 ]
 
 
@@ -59,7 +59,15 @@ class TestRotate2D(NumpyImageTestCase2D):
         expected = list()
         for channel in self.imt[0]:
             expected.append(
-                scipy.ndimage.rotate(channel, -angle, (0, 1), not keep_size, order=_order, mode=_mode, prefilter=False)
+                scipy.ndimage.rotate(
+                    channel,
+                    -np.rad2deg(angle),
+                    (0, 1),
+                    not keep_size,
+                    order=_order,
+                    mode=_mode,
+                    prefilter=False,
+                )
             )
         expected = np.stack(expected).astype(np.float32)
         np.testing.assert_allclose(expected, rotated, atol=1e-1)
@@ -83,7 +91,15 @@ class TestRotate3D(NumpyImageTestCase3D):
         expected = list()
         for channel in self.imt[0]:
             expected.append(
-                scipy.ndimage.rotate(channel, -angle, (1, 2), not keep_size, order=_order, mode=_mode, prefilter=False)
+                scipy.ndimage.rotate(
+                    channel,
+                    -np.rad2deg(angle),
+                    (1, 2),
+                    not keep_size,
+                    order=_order,
+                    mode=_mode,
+                    prefilter=False,
+                )
             )
         expected = np.stack(expected).astype(np.float32)
         np.testing.assert_allclose(expected, rotated, atol=1e-1)
