@@ -14,7 +14,7 @@ from functools import wraps
 
 import torch
 
-__all__ = ["torch_profiler_full", "torch_profiler_time_cpu_gpu", "torch_profiler_time_end_to_end"]
+__all__ = ["torch_profiler_full", "torch_profiler_time_cpu_gpu", "torch_profiler_time_end_to_end", "PerfContext"]
 
 
 def torch_profiler_full(func):
@@ -88,3 +88,23 @@ def torch_profiler_time_end_to_end(func):
         return result
 
     return wrapper
+
+
+class PerfContext:
+    """
+    Context manager for tracking how much time is spent within context blocks. This uses `time.perf_counter` to
+    accumulate the total amount of time in seconds in the attribute `total_time` over however many context blocks
+    the object is used in.
+    """
+
+    def __init__(self):
+        self.total_time = 0
+        self.start_time = None
+
+    def __enter__(self):
+        self.start_time = time.perf_counter()
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.total_time += time.perf_counter() - self.start_time
+        self.start_time = None
