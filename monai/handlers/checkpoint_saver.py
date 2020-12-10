@@ -193,6 +193,7 @@ class CheckpointSaver:
         if len(saved) > 0:
             item = saved.pop(0)
             self._final_checkpoint.save_handler.remove(item.filename)
+            self.logger.info(f"Deleted previous saved final checkpoint: {item.filename}")
 
     def completed(self, engine: Engine) -> None:
         """Callback for train or validation/evaluation completed Event.
