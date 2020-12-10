@@ -20,10 +20,11 @@ from warnings import warn
 import numpy as np
 import torch
 
-from monai.networks.layers import GaussianFilter
+from monai.config import get_torch_version_tuple
+from monai.networks.layers import GaussianFilter, HilbertTransform
 from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.utils import rescale_array
-from monai.utils import dtype_torch_to_numpy, ensure_tuple_size
+from monai.utils import InvalidPyTorchVersionError, dtype_torch_to_numpy, ensure_tuple_size
 
 
 class RandGaussianNoise(Randomizable, Transform):
@@ -507,6 +508,46 @@ class MaskIntensity(Transform):
             )
 
         return img * mask_data_
+
+
+class DetectEnvelope(Transform):
+    """
+    Find the envelope of the input data along the requested axis using a Hilbert transform.
+    Requires PyTorch 1.7.0+ and the PyTorch FFT module (which is not included in NVIDIA PyTorch Release 20.10).
+
+    Args:
+        axis: Axis along which to detect the envelope. Default 1, i.e. the first spatial dimension.
+        N: FFT size. Default img.shape[axis]. Input will be zero-padded or truncated to this size along dimension
+        ``axis``.
+
+    """
+
+    def __init__(self, axis: int = 1, n: Union[int, None] = None) -> None:
+
+        if get_torch_version_tuple() < (1, 7):
+            raise InvalidPyTorchVersionError("1.7.0", self.__class__.__name__)
+
+        if axis < 0:
+            raise ValueError("axis must be zero or positive.")
+
+        self.axis = axis
+        self.n = n
+
+    def __call__(self, img: np.ndarray) -> np.ndarray:
+        """
+
+        Args:
+            img: numpy.ndarray containing input data. Must be real and in shape [channels, spatial1, spatial2, ...].
+
+        Returns:
+            np.ndarray containing envelope of data in img along the specified axis.
+
+        """
+        # add one to transform axis because a batch axis will be added at dimension 0
+        hilbert_transform = HilbertTransform(self.axis + 1, self.n)
+        # convert to Tensor and add Batch axis expected by HilbertTransform
+        input_data = torch.as_tensor(np.ascontiguousarray(img)).unsqueeze(0)
+        return np.abs(hilbert_transform(input_data).squeeze(0).numpy())
 
 
 class GaussianSmooth(Transform):
