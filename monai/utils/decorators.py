@@ -9,26 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import time
 from functools import wraps
-
-
-def timing(func):
-    """
-    This simple timing function decorator prints to stdout/logfile (it uses printFlush) how many seconds a call to the
-    original function took to execute, as well as the name before and after the call.
-    """
-
-    @wraps(func)
-    def timingwrap(*args, **kwargs):
-        print(func.__name__, flush=True)
-        start = time.perf_counter()
-        res = func(*args, **kwargs)
-        end = time.perf_counter()
-        print(func.__name__, "dT (s) =", (end - start), flush=True)
-        return res
-
-    return timingwrap
 
 
 class RestartGenerator:
