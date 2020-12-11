@@ -16,6 +16,8 @@ from pkgutil import walk_packages
 from re import match
 from typing import Any, Callable, List, Sequence, Tuple, Union
 
+import torch
+
 from .misc import ensure_tuple
 
 OPTIONAL_IMPORT_MSG_FMT = "{}"
@@ -31,6 +33,8 @@ __all__ = [
     "get_full_type_name",
     "has_option",
     "get_package_version",
+    "get_torch_version_tuple",
+    "PT_BEFORE_1_7",
 ]
 
 
@@ -264,3 +268,22 @@ def get_package_version(dep_name, default="NOT INSTALLED or UNKNOWN VERSION."):
             del dep
             del sys.modules[dep_name]
     return dep_ver
+
+
+def get_torch_version_tuple():
+    """
+    Returns:
+        tuple of ints represents the pytorch major/minor version.
+    """
+    return tuple((int(x) for x in torch.__version__.split(".")[:2]))
+
+
+PT_BEFORE_1_7 = True
+ver, has_ver = optional_import("pkg_resources", name="parse_version")
+try:
+    if has_ver:
+        PT_BEFORE_1_7 = ver(torch.__version__) < ver("1.7")
+    else:
+        PT_BEFORE_1_7 = get_torch_version_tuple() < (1, 7)
+except (AttributeError, TypeError):
+    pass
