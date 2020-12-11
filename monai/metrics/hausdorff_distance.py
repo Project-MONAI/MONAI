@@ -63,7 +63,7 @@ class HausdorffDistance:
             y_pred: input data to compute, typical segmentation model output.
                 It must be one-hot format and first dim is batch, example shape: [16, 3, 32, 32]. The values
                 should be binarized.
-            y: ground truth to compute mean dice metric. It must be one-hot format and first dim is batch.
+            y: ground truth to compute the distance. It must be one-hot format and first dim is batch.
                 The values should be binarized.
 
         Raises:
@@ -77,7 +77,7 @@ class HausdorffDistance:
         dims = y_pred.ndimension()
         if dims < 3:
             raise ValueError("y_pred should have at least three dimensions.")
-        # compute dice (BxC) for each channel for each batch
+        # compute (BxC) for each channel for each batch
         f = compute_hausdorff_distance(
             y_pred=y_pred,
             y=y,
@@ -107,7 +107,7 @@ def compute_hausdorff_distance(
         y_pred: input data to compute, typical segmentation model output.
             It must be one-hot format and first dim is batch, example shape: [16, 3, 32, 32]. The values
             should be binarized.
-        y: ground truth to compute mean dice metric. It must be one-hot format and first dim is batch.
+        y: ground truth to compute mean the distance. It must be one-hot format and first dim is batch.
             The values should be binarized.
         include_background: whether to skip distance computation on the first channel of
             the predicted output. Defaults to ``True``.
@@ -141,8 +141,7 @@ def compute_hausdorff_distance(
         else:
             distance_2 = compute_percent_hausdorff_distance(edges_gt, edges_pred, distance_metric, percentile)
             hd[b, c] = max(distance_1, distance_2)
-    hd = torch.from_numpy(hd).double()
-    return hd
+    return torch.from_numpy(hd)
 
 
 def compute_percent_hausdorff_distance(

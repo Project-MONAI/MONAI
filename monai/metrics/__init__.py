@@ -14,5 +14,5 @@ from .hausdorff_distance import HausdorffDistance, compute_hausdorff_distance
 from .meandice import DiceMetric, compute_meandice
 from .occlusion_sensitivity import compute_occlusion_sensitivity
 from .rocauc import compute_roc_auc
-from .surface_distance import compute_average_surface_distance
+from .surface_distance import SurfaceDistance, compute_average_surface_distance
 from .utils import *

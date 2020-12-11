@@ -28,9 +28,15 @@ Metrics
 --------------------
 .. autofunction:: compute_hausdorff_distance
 
+.. autoclass:: HausdorffDistance
+    :members:
+
 `Average Surface Distance`
 --------------------------
 .. autofunction:: compute_average_surface_distance
+
+.. autoclass:: SurfaceDistance
+    :members:
 
 `Occlusion sensitivity`
 -----------------------
