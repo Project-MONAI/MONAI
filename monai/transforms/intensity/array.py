@@ -20,11 +20,10 @@ from warnings import warn
 import numpy as np
 import torch
 
-from monai.config import get_torch_version_tuple
 from monai.networks.layers import GaussianFilter, HilbertTransform
 from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.utils import rescale_array
-from monai.utils import InvalidPyTorchVersionError, dtype_torch_to_numpy, ensure_tuple_size
+from monai.utils import PT_BEFORE_1_7, InvalidPyTorchVersionError, dtype_torch_to_numpy, ensure_tuple_size
 
 
 class RandGaussianNoise(Randomizable, Transform):
@@ -524,7 +523,7 @@ class DetectEnvelope(Transform):
 
     def __init__(self, axis: int = 1, n: Union[int, None] = None) -> None:
 
-        if get_torch_version_tuple() < (1, 7):
+        if PT_BEFORE_1_7:
             raise InvalidPyTorchVersionError("1.7.0", self.__class__.__name__)
 
         if axis < 0:

@@ -36,7 +36,7 @@ jobs:
         which python
         python -m pip install --upgrade pip wheel
         python -m pip uninstall -y torch torchvision
-        python -m pip install torch==1.7.0 torchvision==0.8.1
+        python -m pip install torch==1.7.1 torchvision==0.8.2
         python -m pip install -r requirements-dev.txt
     - name: Run unit tests report coverage
       run: |
@@ -82,7 +82,7 @@ jobs:
     - name: Install the dependencies
       run: |
         python -m pip install --upgrade pip wheel
-        python -m pip install torch==1.7.0 torchvision==0.8.1
+        python -m pip install torch==1.7.1 torchvision==0.8.2
         python -m pip install -r requirements-dev.txt
     - name: Run quick tests CPU ubuntu
       run: |
@@ -151,7 +151,7 @@ jobs:
       run: |
         docker build -t localhost:5000/local_monai:latest -f Dockerfile .
         docker push localhost:5000/local_monai:latest
-        sed -i '/flake/d' requirements-dev.txt 
+        sed -i '/flake/d' requirements-dev.txt
         docker build -t projectmonai/monai:latest -f Dockerfile .
         docker login -u projectmonai -p ${{ secrets.DOCKER_PW }}
         docker push projectmonai/monai:latest

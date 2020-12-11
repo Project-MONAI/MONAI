@@ -217,9 +217,8 @@ class TestHilbertTransformNoFFTMod(unittest.TestCase):
 @SkipIfAtLeastPyTorchVersion((1, 7))
 class TestHilbertTransformInvalidPyTorch(unittest.TestCase):
     def test_invalid_pytorch_error(self):
-        with self.assertRaises(InvalidPyTorchVersionError) as cm:
+        with self.assertRaisesRegex(InvalidPyTorchVersionError, "version"):
             HilbertTransform()
-            self.assertEqual("HilbertTransform requires PyTorch version 1.7.0 or later", str(cm.exception))
 
 
 if __name__ == "__main__":
