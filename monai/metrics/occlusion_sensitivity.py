@@ -10,7 +10,8 @@
 # limitations under the License.
 
 from collections.abc import Sequence
-from typing import Union, Optional
+from functools import partial
+from typing import Optional, Union
 
 import numpy as np
 import torch
@@ -18,6 +19,8 @@ import torch.nn as nn
 
 try:
     from tqdm import trange
+
+    trange = partial(trange, desc="Computing occlusion sensitivity")
 except (ImportError, AttributeError):
     trange = range
 
@@ -86,7 +89,7 @@ def compute_occlusion_sensitivity(
     n_batch: int = 128,
     b_box: Optional[Sequence] = None,
     stride: Union[int, Sequence] = 1,
-    upsample_mode: str = 'nearest',
+    upsample_mode: str = "nearest",
 ) -> np.ndarray:
     """
     This function computes the occlusion sensitivity for a model's prediction
@@ -159,17 +162,17 @@ def compute_occlusion_sensitivity(
 
     # Calculate the downsampled shape
     if not isinstance(stride, Sequence):
-        stride = np.full_like(im_shape, stride, dtype=np.int32)
-        stride[0] = 1  # always do stride 1 in channel dimension
+        stride_np = np.full_like(im_shape, stride, dtype=np.int32)
+        stride_np[0] = 1  # always do stride 1 in channel dimension
     else:
         # Convert to numpy array and check dimensions match
-        stride = np.array(stride, dtype=np.int32)
-        if stride.size != im_shape.size:
+        stride_np = np.array(stride, dtype=np.int32)
+        if stride_np.size != im_shape.size:
             raise ValueError("Sizes of image shape and stride should match.")
 
     # Obviously if stride = 1, downsampled_im_shape == output_im_shape
-    downsampled_im_shape = np.floor(output_im_shape / stride).astype(np.int32)
-    downsampled_im_shape[downsampled_im_shape==0] = 1  # make sure dimension sizes are >= 1
+    downsampled_im_shape = np.floor(output_im_shape / stride_np).astype(np.int32)
+    downsampled_im_shape[downsampled_im_shape == 0] = 1  # make sure dimension sizes are >= 1
     num_required_predictions = np.prod(downsampled_im_shape)
 
     # Loop 1D over image
@@ -177,7 +180,7 @@ def compute_occlusion_sensitivity(
         # Get corresponding ND index
         idx = np.unravel_index(i, downsampled_im_shape)
         # Multiply by stride
-        idx *= stride
+        idx *= stride_np
         # If a bounding box is being used, we need to add on
         # the min to shift to start of region of interest
         if b_box_min is not None:
@@ -210,7 +213,7 @@ def compute_occlusion_sensitivity(
     sensitivity_im = sensitivity_im.reshape(tuple(downsampled_im_shape))
 
     # If necessary, upsample
-    if np.any(stride!=1):
+    if np.any(stride_np != 1):
         output_im_shape = tuple(output_im_shape[1:])  # needs to be given as 3D tuple
         upsampler = nn.Upsample(size=output_im_shape, mode=upsample_mode)
         sensitivity_im = upsampler(sensitivity_im.unsqueeze(0))
