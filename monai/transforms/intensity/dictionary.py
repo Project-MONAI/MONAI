@@ -227,6 +227,7 @@ class NormalizeIntensityd(MapTransform):
         nonzero: whether only normalize non-zero values.
         channel_wise: if using calculated mean and std, calculate on each channel separately
             or calculate on the entire image directly.
+        dtype: output data type, defaut to float32.
     """
 
     def __init__(
@@ -236,9 +237,10 @@ class NormalizeIntensityd(MapTransform):
         divisor: Optional[np.ndarray] = None,
         nonzero: bool = False,
         channel_wise: bool = False,
+        dtype: np.dtype = np.float32,
     ) -> None:
         super().__init__(keys)
-        self.normalizer = NormalizeIntensity(subtrahend, divisor, nonzero, channel_wise)
+        self.normalizer = NormalizeIntensity(subtrahend, divisor, nonzero, channel_wise, dtype)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
