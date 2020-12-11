@@ -65,7 +65,7 @@ def do_metric_reduction(
     not_nans = (~nans).float()
     f[nans] = 0
 
-    t_zero = torch.zeros(1, device=f.device, dtype=torch.float64)
+    t_zero = torch.zeros(1, device=f.device, dtype=f.dtype)
     reduction = MetricReduction(reduction)
 
     if reduction == MetricReduction.MEAN:
