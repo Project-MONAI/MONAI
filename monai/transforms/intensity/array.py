@@ -20,10 +20,10 @@ from warnings import warn
 import numpy as np
 import torch
 
-from monai.networks.layers import GaussianFilter
+from monai.networks.layers import GaussianFilter, HilbertTransform
 from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.utils import rescale_array
-from monai.utils import ensure_tuple_size
+from monai.utils import PT_BEFORE_1_7, InvalidPyTorchVersionError, dtype_torch_to_numpy, ensure_tuple_size
 
 
 class RandGaussianNoise(Randomizable, Transform):
@@ -47,13 +47,16 @@ class RandGaussianNoise(Randomizable, Transform):
         self._do_transform = self.R.random() < self.prob
         self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: Union[torch.Tensor, np.ndarray]) -> Union[torch.Tensor, np.ndarray]:
         """
         Apply the transform to `img`.
         """
         self.randomize(img.shape)
         assert self._noise is not None
-        return img + self._noise.astype(img.dtype) if self._do_transform else img
+        if not self._do_transform:
+            return img
+        dtype = dtype_torch_to_numpy(img.dtype) if isinstance(img, torch.Tensor) else img.dtype
+        return img + self._noise.astype(dtype)
 
 
 class ShiftIntensity(Transform):
@@ -148,7 +151,7 @@ class ScaleIntensity(Transform):
 class RandScaleIntensity(Randomizable, Transform):
     """
     Randomly scale the intensity of input image by ``v = v * (1 + factor)`` where the `factor`
-    is randomly picked from (factors[0], factors[0]).
+    is randomly picked from (-factors[0], factors[0]).
     """
 
     def __init__(self, factors: Union[Tuple[float, float], float], prob: float = 0.1) -> None:
@@ -504,6 +507,46 @@ class MaskIntensity(Transform):
             )
 
         return img * mask_data_
+
+
+class DetectEnvelope(Transform):
+    """
+    Find the envelope of the input data along the requested axis using a Hilbert transform.
+    Requires PyTorch 1.7.0+ and the PyTorch FFT module (which is not included in NVIDIA PyTorch Release 20.10).
+
+    Args:
+        axis: Axis along which to detect the envelope. Default 1, i.e. the first spatial dimension.
+        N: FFT size. Default img.shape[axis]. Input will be zero-padded or truncated to this size along dimension
+        ``axis``.
+
+    """
+
+    def __init__(self, axis: int = 1, n: Union[int, None] = None) -> None:
+
+        if PT_BEFORE_1_7:
+            raise InvalidPyTorchVersionError("1.7.0", self.__class__.__name__)
+
+        if axis < 0:
+            raise ValueError("axis must be zero or positive.")
+
+        self.axis = axis
+        self.n = n
+
+    def __call__(self, img: np.ndarray) -> np.ndarray:
+        """
+
+        Args:
+            img: numpy.ndarray containing input data. Must be real and in shape [channels, spatial1, spatial2, ...].
+
+        Returns:
+            np.ndarray containing envelope of data in img along the specified axis.
+
+        """
+        # add one to transform axis because a batch axis will be added at dimension 0
+        hilbert_transform = HilbertTransform(self.axis + 1, self.n)
+        # convert to Tensor and add Batch axis expected by HilbertTransform
+        input_data = torch.as_tensor(np.ascontiguousarray(img)).unsqueeze(0)
+        return np.abs(hilbert_transform(input_data).squeeze(0).numpy())
 
 
 class GaussianSmooth(Transform):

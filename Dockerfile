@@ -9,18 +9,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:20.08-py3
+ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:20.10-py3
 
 FROM ${PYTORCH_IMAGE} as base
 
 WORKDIR /opt/monai
-COPY . .
-
-ENV PYTHONPATH=$PYTHONPATH:/opt/monai
 ENV PATH=/opt/tools:$PATH
 
-RUN python -m pip install --no-cache-dir -U pip wheel \
-  && python -m pip install --no-cache-dir -r requirements-dev.txt
+# install full deps
+COPY requirements.txt requirements-min.txt requirements-dev.txt /tmp/
+RUN cp /tmp/requirements.txt /tmp/req.bak \
+  && awk '!/torch/' /tmp/requirements.txt > /tmp/tmp && mv /tmp/tmp /tmp/requirements.txt \
+  && python -m pip install --no-cache-dir --use-feature=2020-resolver -r /tmp/requirements-dev.txt
+
+# compile ext and remove temp files
+COPY . .
+RUN BUILD_MONAI=1 FORCE_CUDA=1 python setup.py develop \
+  && rm -rf build __pycache__
 
 # NGC Client
 WORKDIR /opt/tools

@@ -9,15 +9,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import inspect
 import sys
 from importlib import import_module
 from pkgutil import walk_packages
 from re import match
-from typing import Any, Callable, List, Tuple
+from typing import Any, Callable, List, Sequence, Tuple, Union
+
+import torch
+
+from .misc import ensure_tuple
 
 OPTIONAL_IMPORT_MSG_FMT = "{}"
 
 __all__ = [
+    "InvalidPyTorchVersionError",
     "OptionalImportError",
     "exact_version",
     "export",
@@ -25,6 +31,10 @@ __all__ = [
     "optional_import",
     "load_submodules",
     "get_full_type_name",
+    "has_option",
+    "get_package_version",
+    "get_torch_version_tuple",
+    "PT_BEFORE_1_7",
 ]
 
 
@@ -98,6 +108,17 @@ def exact_version(the_module, version_str: str = "") -> bool:
     Returns True if the module's __version__ matches version_str
     """
     return bool(the_module.__version__ == version_str)
+
+
+class InvalidPyTorchVersionError(Exception):
+    """
+    Raised when called function or method requires a more recent
+    PyTorch version than that installed.
+    """
+
+    def __init__(self, required_version, name):
+        message = f"{name} requires PyTorch version {required_version} or later"
+        super().__init__(message)
 
 
 class OptionalImportError(ImportError):
@@ -214,3 +235,55 @@ def optional_import(
             raise self._exception
 
     return _LazyRaise(), False
+
+
+def has_option(obj, keywords: Union[str, Sequence[str]]) -> bool:
+    """
+    Return a boolean indicating whether the given callable `obj` has the `keywords` in its signature.
+    """
+    if not callable(obj):
+        return False
+    sig = inspect.signature(obj)
+    for key in ensure_tuple(keywords):
+        if key not in sig.parameters:
+            return False
+    return True
+
+
+def get_package_version(dep_name, default="NOT INSTALLED or UNKNOWN VERSION."):
+    """
+    Try to load package and get version. If not found, return `default`.
+
+    If the package was already loaded, leave it. If wasn't previously loaded, unload it.
+    """
+    dep_ver = default
+    dep_already_loaded = dep_name not in sys.modules
+
+    dep, has_dep = optional_import(dep_name)
+    if has_dep:
+        if hasattr(dep, "__version__"):
+            dep_ver = dep.__version__
+        # if not previously loaded, unload it
+        if not dep_already_loaded:
+            del dep
+            del sys.modules[dep_name]
+    return dep_ver
+
+
+def get_torch_version_tuple():
+    """
+    Returns:
+        tuple of ints represents the pytorch major/minor version.
+    """
+    return tuple((int(x) for x in torch.__version__.split(".")[:2]))
+
+
+PT_BEFORE_1_7 = True
+ver, has_ver = optional_import("pkg_resources", name="parse_version")
+try:
+    if has_ver:
+        PT_BEFORE_1_7 = ver(torch.__version__) < ver("1.7")
+    else:
+        PT_BEFORE_1_7 = get_torch_version_tuple() < (1, 7)
+except (AttributeError, TypeError):
+    pass

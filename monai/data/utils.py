@@ -9,15 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import hashlib
+import json
 import math
 import os
+import pickle
 import warnings
+from collections import defaultdict
 from itertools import product, starmap
 from pathlib import PurePath
-from typing import Dict, Generator, List, Optional, Sequence, Tuple, Union
+from typing import Dict, Generator, Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
+from torch.utils.data import DistributedSampler as _TorchDistributedSampler
 from torch.utils.data._utils.collate import default_collate
 
 from monai.networks.layers.simplelayers import GaussianFilter
@@ -96,63 +101,40 @@ def dense_patch_slices(
     scan_interval: Sequence[int],
 ) -> List[Tuple[slice, ...]]:
     """
-    Enumerate all slices defining 2D/3D patches of size `patch_size` from an `image_size` input image.
+    Enumerate all slices defining ND patches of size `patch_size` from an `image_size` input image.
 
     Args:
         image_size: dimensions of image to iterate over
         patch_size: size of patches to generate slices
         scan_interval: dense patch sampling interval
 
-    Raises:
-        ValueError: When ``image_size`` length is not one of [2, 3].
-
     Returns:
         a list of slice objects defining each patch
 
     """
     num_spatial_dims = len(image_size)
-    if num_spatial_dims not in (2, 3):
-        raise ValueError(f"Unsupported image_size length: {len(image_size)}, available options are [2, 3]")
     patch_size = get_valid_patch_size(image_size, patch_size)
     scan_interval = ensure_tuple_size(scan_interval, num_spatial_dims)
 
-    scan_num = list()
+    scan_num = []
     for i in range(num_spatial_dims):
         if scan_interval[i] == 0:
             scan_num.append(1)
         else:
             num = int(math.ceil(float(image_size[i]) / scan_interval[i]))
             scan_dim = first(d for d in range(num) if d * scan_interval[i] + patch_size[i] >= image_size[i])
-            scan_num.append(scan_dim + 1)
+            scan_num.append(scan_dim + 1 if scan_dim is not None else 1)
 
-    slices: List[Tuple[slice, ...]] = []
-    if num_spatial_dims == 3:
-        for i in range(scan_num[0]):
-            start_i = i * scan_interval[0]
-            start_i -= max(start_i + patch_size[0] - image_size[0], 0)
-            slice_i = slice(start_i, start_i + patch_size[0])
-
-            for j in range(scan_num[1]):
-                start_j = j * scan_interval[1]
-                start_j -= max(start_j + patch_size[1] - image_size[1], 0)
-                slice_j = slice(start_j, start_j + patch_size[1])
-
-                for k in range(0, scan_num[2]):
-                    start_k = k * scan_interval[2]
-                    start_k -= max(start_k + patch_size[2] - image_size[2], 0)
-                    slice_k = slice(start_k, start_k + patch_size[2])
-                    slices.append((slice_i, slice_j, slice_k))
-    else:
-        for i in range(scan_num[0]):
-            start_i = i * scan_interval[0]
-            start_i -= max(start_i + patch_size[0] - image_size[0], 0)
-            slice_i = slice(start_i, start_i + patch_size[0])
-
-            for j in range(scan_num[1]):
-                start_j = j * scan_interval[1]
-                start_j -= max(start_j + patch_size[1] - image_size[1], 0)
-                slice_j = slice(start_j, start_j + patch_size[1])
-                slices.append((slice_i, slice_j))
+    starts = []
+    for dim in range(num_spatial_dims):
+        dim_starts = []
+        for idx in range(scan_num[dim]):
+            start_idx = idx * scan_interval[dim]
+            start_idx -= max(start_idx + patch_size[dim] - image_size[dim], 0)
+            dim_starts.append(start_idx)
+        starts.append(dim_starts)
+    out = np.asarray([x.flatten() for x in np.meshgrid(*starts, indexing="ij")]).T
+    slices = [tuple(slice(s, s + patch_size[d]) for d, s in enumerate(x)) for x in out]
     return slices
 
 
@@ -458,7 +440,12 @@ def create_file_basename(
 ) -> str:
     """
     Utility function to create the path to the output file based on the input
-    filename (extension is added by lib level writer before writing the file)
+    filename (file name extension is not added by this function).
+    When `data_root_dir` is not specified, the output file name is:
+
+        `folder_path/input_file_name (no ext.) /input_file_name (no ext.)[_postfix]`
+
+    otherwise the relative path with respect to `data_root_dir` will be inserted.
 
     Args:
         postfix: output name's postfix
@@ -478,7 +465,7 @@ def create_file_basename(
         filename, ext = os.path.splitext(filename)
     # use data_root_dir to find relative path to file
     filedir_rel_path = ""
-    if data_root_dir:
+    if data_root_dir and filedir:
         filedir_rel_path = os.path.relpath(filedir, data_root_dir)
 
     # sub-folder path will be original name without the extension
@@ -486,15 +473,19 @@ def create_file_basename(
     if not os.path.exists(subfolder_path):
         os.makedirs(subfolder_path)
 
-    # add the sub-folder plus the postfix name to become the file basename in the output path
-    return os.path.join(subfolder_path, filename + "_" + postfix)
+    if postfix:
+        # add the sub-folder plus the postfix name to become the file basename in the output path
+        output = os.path.join(subfolder_path, filename + "_" + postfix)
+    else:
+        output = os.path.join(subfolder_path, filename)
+    return os.path.abspath(output)
 
 
 def compute_importance_map(
     patch_size: Tuple[int, ...],
     mode: Union[BlendMode, str] = BlendMode.CONSTANT,
     sigma_scale: Union[Sequence[float], float] = 0.125,
-    device: Optional[torch.device] = None,
+    device: Union[torch.device, int, str] = "cpu",
 ) -> torch.Tensor:
     """Get importance map for different weight modes.
 
@@ -518,6 +509,7 @@ def compute_importance_map(
 
     """
     mode = BlendMode(mode)
+    device = torch.device(device)  # type: ignore[arg-type]
     if mode == BlendMode.CONSTANT:
         importance_map = torch.ones(patch_size, device=device).float()
     elif mode == BlendMode.GAUSSIAN:
@@ -562,3 +554,250 @@ def is_supported_format(filename: Union[Sequence[str], str], suffixes: Sequence[
             return False
 
     return True
+
+
+def partition_dataset(
+    data: Sequence,
+    ratios: Optional[Sequence[float]] = None,
+    num_partitions: Optional[int] = None,
+    shuffle: bool = False,
+    seed: int = 0,
+    drop_last: bool = False,
+    even_divisible: bool = False,
+):
+    """
+    Split the dataset into N partitions. It can support shuffle based on specified random seed.
+    Will return a set of datasets, every dataset contains 1 partion of original dataset.
+    And it can split the dataset based on specified ratios or evenly split into `num_partitions`.
+    Refer to: https://github.com/pytorch/pytorch/blob/master/torch/utils/data/distributed.py.
+
+    Args:
+        data: input dataset to split, expect a list of data.
+        ratios: a list of ratio number to split the dataset, like [8, 1, 1].
+        num_partitions: expected number of the partitions to evenly split, only works when `ratios` not specified.
+        shuffle: whether to shuffle the original dataset before splitting.
+        seed: random seed to shuffle the dataset, only works when `shuffle` is True.
+        drop_last: only works when `even_divisible` is False and no ratios specified.
+            if True, will drop the tail of the data to make it evenly divisible across partitions.
+            if False, will add extra indices to make the data evenly divisible across partitions.
+        even_divisible: if True, guarantee every partition has same length.
+
+    Examples::
+
+        >>> data = [1, 2, 3, 4, 5]
+        >>> partition_dataset(data, ratios=[0.6, 0.2, 0.2], shuffle=False)
+        [[1, 2, 3], [4], [5]]
+        >>> partition_dataset(data, num_partitions=2, shuffle=False)
+        [[1, 3, 5], [2, 4]]
+        >>> partition_dataset(data, num_partitions=2, shuffle=False, even_divisible=True, drop_last=True)
+        [[1, 3], [2, 4]]
+        >>> partition_dataset(data, num_partitions=2, shuffle=False, even_divisible=True, drop_last=False)
+        [[1, 3, 5], [2, 4, 1]]
+        >>> partition_dataset(data, num_partitions=2, shuffle=False, even_divisible=False, drop_last=False)
+        [[1, 3, 5], [2, 4]]
+
+    """
+    data_len = len(data)
+    datasets = list()
+
+    indices = list(range(data_len))
+    if shuffle:
+        # deterministically shuffle based on fixed seed for every process
+        rs = np.random.RandomState(seed)
+        rs.shuffle(indices)
+
+    if ratios:
+        next_idx = 0
+        rsum = sum(ratios)
+        for r in ratios:
+            start_idx = next_idx
+            next_idx = min(start_idx + int(r / rsum * data_len + 0.5), data_len)
+            datasets.append([data[i] for i in indices[start_idx:next_idx]])
+        return datasets
+
+    if not num_partitions:
+        raise ValueError("must specify number of partitions or ratios.")
+    # evenly split the data without ratios
+    if not even_divisible and drop_last:
+        raise RuntimeError("drop_last only works when even_divisible is True.")
+    if data_len < num_partitions:
+        raise RuntimeError(f"there is no enough data to be split into {num_partitions} partitions.")
+
+    if drop_last and data_len % num_partitions != 0:
+        # split to nearest available length that is evenly divisible
+        num_samples = math.ceil((data_len - num_partitions) / num_partitions)
+    else:
+        num_samples = math.ceil(data_len / num_partitions)
+    # use original data length if not even divisible
+    total_size = num_samples * num_partitions if even_divisible else data_len
+
+    if not drop_last and total_size - data_len > 0:
+        # add extra samples to make it evenly divisible
+        indices += indices[: (total_size - data_len)]
+    else:
+        # remove tail of data to make it evenly divisible
+        indices = indices[:total_size]
+
+    for i in range(num_partitions):
+        _indices = indices[i:total_size:num_partitions]
+        datasets.append([data[j] for j in _indices])
+
+    return datasets
+
+
+def partition_dataset_classes(
+    data: Sequence,
+    classes: Sequence[int],
+    ratios: Optional[Sequence[float]] = None,
+    num_partitions: Optional[int] = None,
+    shuffle: bool = False,
+    seed: int = 0,
+    drop_last: bool = False,
+    even_divisible: bool = False,
+):
+    """
+    Split the dataset into N partitions based on the given class labels.
+    It can make sure the same ratio of classes in every partition.
+    Others are same as :py:class:`monai.data.partition_dataset`.
+
+    Args:
+        data: input dataset to split, expect a list of data.
+        classes: a list of labels to help split the data, the length must match the length of data.
+        ratios: a list of ratio number to split the dataset, like [8, 1, 1].
+        num_partitions: expected number of the partitions to evenly split, only works when no `ratios`.
+        shuffle: whether to shuffle the original dataset before splitting.
+        seed: random seed to shuffle the dataset, only works when `shuffle` is True.
+        drop_last: only works when `even_divisible` is False and no ratios specified.
+            if True, will drop the tail of the data to make it evenly divisible across partitions.
+            if False, will add extra indices to make the data evenly divisible across partitions.
+        even_divisible: if True, guarantee every partition has same length.
+
+    Examples::
+
+        >>> data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+        >>> classes = [2, 0, 2, 1, 3, 2, 2, 0, 2, 0, 3, 3, 1, 3]
+        >>> partition_dataset_classes(data, classes, shuffle=False, ratios=[2, 1])
+        [[2, 8, 4, 1, 3, 6, 5, 11, 12], [10, 13, 7, 9, 14]]
+
+    """
+    if not classes or len(classes) != len(data):
+        raise ValueError(f"length of classes {classes} must match the dataset length {len(data)}.")
+    datasets = list()
+    class_indices = defaultdict(list)
+    for i, c in enumerate(classes):
+        class_indices[c].append(i)
+
+    class_partition_indices: List[Sequence] = list()
+    for _, per_class_indices in sorted(class_indices.items()):
+        per_class_partition_indices = partition_dataset(
+            data=per_class_indices,
+            ratios=ratios,
+            num_partitions=num_partitions,
+            shuffle=shuffle,
+            seed=seed,
+            drop_last=drop_last,
+            even_divisible=even_divisible,
+        )
+        if len(class_partition_indices) == 0:
+            class_partition_indices = per_class_partition_indices
+        else:
+            for part, data_indices in zip(class_partition_indices, per_class_partition_indices):
+                part += data_indices
+
+    rs = np.random.RandomState(seed)
+    for indices in class_partition_indices:
+        if shuffle:
+            rs.shuffle(indices)
+        datasets.append([data[j] for j in indices])
+
+    return datasets
+
+
+def select_cross_validation_folds(partitions: Sequence[Iterable], folds: Union[Sequence[int], int]) -> List:
+    """
+    Select cross validation data based on data partitions and specified fold index.
+    if a list of fold indices is provided, concatenate the partitions of these folds.
+
+    Args:
+        partitions: a sequence of datasets, each item is a iterable
+        folds: the indices of the partitions to be combined.
+
+    Returns:
+        A list of combined datasets.
+
+    Example::
+
+        >>> partitions = [[1, 2], [3, 4], [5, 6], [7, 8], [9, 10]]
+        >>> select_cross_validation_folds(partitions, 2)
+        [5, 6]
+        >>> select_cross_validation_folds(partitions, [1, 2])
+        [3, 4, 5, 6]
+        >>> select_cross_validation_folds(partitions, [-1, 2])
+        [9, 10, 5, 6]
+    """
+    data_list = [data_item for fold_id in ensure_tuple(folds) for data_item in partitions[fold_id]]
+    return data_list
+
+
+class DistributedSampler(_TorchDistributedSampler):
+    """
+    Enhance PyTorch DistributedSampler to support non-evenly divisible sampling.
+
+    Args:
+        even_divisible: if False, different ranks can have different data length.
+        for example, input data: [1, 2, 3, 4, 5], rank 0: [1, 3, 5], rank 1: [2, 4].
+
+    More information about DistributedSampler, please check:
+    https://github.com/pytorch/pytorch/blob/master/torch/utils/data/distributed.py
+
+    """
+
+    def __init__(self, even_divisible: bool = True, *args, **kwargs):
+        self.total_size: int = 0
+        self.rank: int = 0
+        self.num_samples: int = 0
+        self.num_replicas: int = 0
+        super().__init__(*args, **kwargs)
+
+        if not even_divisible:
+            data_len = len(kwargs["dataset"])
+            extra_size = self.total_size - data_len
+            if self.rank + extra_size >= self.num_replicas:
+                self.num_samples -= 1
+            self.total_size = data_len
+
+
+def json_hashing(item) -> bytes:
+    """
+
+    Args:
+        item: data item to be hashed
+
+    Returns: the corresponding hash key
+
+    """
+    # TODO: Find way to hash transforms content as part of the cache
+    cache_key = hashlib.md5(json.dumps(item, sort_keys=True).encode("utf-8")).hexdigest()
+    return f"{cache_key}".encode("utf-8")
+
+
+def pickle_hashing(item, protocol=pickle.HIGHEST_PROTOCOL) -> bytes:
+    """
+
+    Args:
+        item: data item to be hashed
+        protocol: protocol version used for pickling,
+            defaults to `pickle.HIGHEST_PROTOCOL`.
+
+    Returns: the corresponding hash key
+
+    """
+    cache_key = hashlib.md5(pickle.dumps(sorted_dict(item), protocol=protocol)).hexdigest()
+    return f"{cache_key}".encode("utf-8")
+
+
+def sorted_dict(item, key=None, reverse=False):
+    """Return a new sorted dictionary from the `item`."""
+    if not isinstance(item, dict):
+        return item
+    return {k: sorted_dict(v) if isinstance(v, dict) else v for k, v in sorted(item.items(), key=key, reverse=reverse)}

@@ -147,7 +147,7 @@ class TestDataStatsd(unittest.TestCase):
             transform.printer._logger.removeHandler(handler)
             with open(filename, "r") as f:
                 content = f.read()
-                self.assertEqual(content, expected_print)
+            self.assertEqual(content, expected_print)
 
 
 if __name__ == "__main__":

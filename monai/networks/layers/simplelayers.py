@@ -18,25 +18,49 @@ from torch import nn
 from torch.autograd import Function
 
 from monai.networks.layers.convutils import gaussian_1d, same_padding
-from monai.utils import ensure_tuple_rep, optional_import
+from monai.utils import PT_BEFORE_1_7, InvalidPyTorchVersionError, SkipMode, ensure_tuple_rep, optional_import
 
 _C, _ = optional_import("monai._C")
+if not PT_BEFORE_1_7:
+    fft, _ = optional_import("torch.fft")
 
-__all__ = ["SkipConnection", "Flatten", "GaussianFilter", "LLTM", "Reshape", "separable_filtering"]
+__all__ = ["SkipConnection", "Flatten", "GaussianFilter", "LLTM", "Reshape", "separable_filtering", "HilbertTransform"]
 
 
 class SkipConnection(nn.Module):
     """
-    Concats the forward pass input with the result from the given submodule.
+    Combine the forward pass input with the result from the given submodule::
+
+        --+--submodule--o--
+          |_____________|
+
+    The available modes are ``"cat"``, ``"add"``, ``"mul"``.
     """
 
-    def __init__(self, submodule, cat_dim: int = 1) -> None:
+    def __init__(self, submodule, dim: int = 1, mode: Union[str, SkipMode] = "cat") -> None:
+        """
+
+        Args:
+            submodule: the module defines the trainable branch.
+            dim: the dimension over which the tensors are concatenated.
+                Used when mode is ``"cat"``.
+            mode: ``"cat"``, ``"add"``, ``"mul"``. defaults to ``"cat"``.
+        """
         super().__init__()
         self.submodule = submodule
-        self.cat_dim = cat_dim
+        self.dim = dim
+        self.mode = SkipMode(mode).value
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return torch.cat([x, self.submodule(x)], self.cat_dim)
+        y = self.submodule(x)
+
+        if self.mode == "cat":
+            return torch.cat([x, y], dim=self.dim)
+        if self.mode == "add":
+            return torch.add(x, y)
+        if self.mode == "mul":
+            return torch.mul(x, y)
+        raise NotImplementedError(f"Unsupported mode {self.mode}.")
 
 
 class Flatten(nn.Module):
@@ -106,6 +130,72 @@ def separable_filtering(x: torch.Tensor, kernels: Union[Sequence[torch.Tensor], 
         return conv_type(input=_conv(input_, d - 1), weight=_kernel, padding=_padding, groups=n_chns)
 
     return _conv(x, spatial_dims - 1)
+
+
+class HilbertTransform(nn.Module):
+    """
+    Determine the analytical signal of a Tensor along a particular axis.
+    Requires PyTorch 1.7.0+ and the PyTorch FFT module (which is not included in NVIDIA PyTorch Release 20.10).
+
+    Args:
+        axis: Axis along which to apply Hilbert transform. Default 2 (first spatial dimension).
+        N: Number of Fourier components (i.e. FFT size). Default: ``x.shape[axis]``.
+    """
+
+    def __init__(self, axis: int = 2, n: Union[int, None] = None) -> None:
+
+        if PT_BEFORE_1_7:
+            raise InvalidPyTorchVersionError("1.7.0", self.__class__.__name__)
+
+        super().__init__()
+        self.axis = axis
+        self.n = n
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x: Tensor or array-like to transform. Must be real and in shape ``[Batch, chns, spatial1, spatial2, ...]``.
+        Returns:
+            torch.Tensor: Analytical signal of ``x``, transformed along axis specified in ``self.axis`` using
+            FFT of size ``self.N``. The absolute value of ``x_ht`` relates to the envelope of ``x`` along axis ``self.axis``.
+        """
+
+        # Make input a real tensor
+        x = torch.as_tensor(x, device=x.device if torch.is_tensor(x) else None)
+        if torch.is_complex(x):
+            raise ValueError("x must be real.")
+        else:
+            x = x.to(dtype=torch.float)
+
+        if (self.axis < 0) or (self.axis > len(x.shape) - 1):
+            raise ValueError("Invalid axis for shape of x.")
+
+        n = x.shape[self.axis] if self.n is None else self.n
+        if n <= 0:
+            raise ValueError("N must be positive.")
+        x = torch.as_tensor(x, dtype=torch.complex64)
+        # Create frequency axis
+        f = torch.cat(
+            [
+                torch.true_divide(torch.arange(0, (n - 1) // 2 + 1, device=x.device), float(n)),
+                torch.true_divide(torch.arange(-(n // 2), 0, device=x.device), float(n)),
+            ]
+        )
+        xf = fft.fft(x, n=n, dim=self.axis)
+        # Create step function
+        u = torch.heaviside(f, torch.tensor([0.5], device=f.device))
+        u = torch.as_tensor(u, dtype=x.dtype, device=u.device)
+        new_dims_before = self.axis
+        new_dims_after = len(xf.shape) - self.axis - 1
+        for _ in range(new_dims_before):
+            u.unsqueeze_(0)
+        for _ in range(new_dims_after):
+            u.unsqueeze_(-1)
+
+        ht = fft.ifft(xf * 2 * u, dim=self.axis)
+
+        # Apply transform
+        return torch.as_tensor(ht, device=ht.device, dtype=ht.dtype)
 
 
 class GaussianFilter(nn.Module):

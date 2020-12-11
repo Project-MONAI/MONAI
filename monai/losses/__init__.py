@@ -17,6 +17,7 @@ from .dice import (
     MaskedDiceLoss,
     dice,
     generalized_dice,
+    generalized_wasserstein_dice,
 )
 from .focal_loss import FocalLoss
 from .tversky import TverskyLoss
