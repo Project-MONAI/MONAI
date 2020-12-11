@@ -29,9 +29,11 @@ import torch
 import torch.distributed as dist
 
 from monai.data import create_test_image_2d, create_test_image_3d
-from monai.utils import optional_import, set_determinism
+from monai.utils import ensure_tuple, optional_import, set_determinism
+from monai.utils.module import get_torch_version_tuple
 
 nib, _ = optional_import("nibabel")
+ver, has_pkg_res = optional_import("pkg_resources", name="parse_version")
 
 quick_test_var = "QUICKTEST"
 
@@ -66,6 +68,18 @@ class SkipIfNoModule(object):
         return unittest.skipIf(self.module_missing, f"optional module not present: {self.module_name}")(obj)
 
 
+class SkipIfModule(object):
+    """Decorator to be used if test should be skipped
+    when optional module is present."""
+
+    def __init__(self, module_name):
+        self.module_name = module_name
+        self.module_avail = optional_import(self.module_name)[1]
+
+    def __call__(self, obj):
+        return unittest.skipIf(self.module_avail, f"Skipping because optional module present: {self.module_name}")(obj)
+
+
 def skip_if_no_cuda(obj):
     """
     Skip the unit tests if torch.cuda.is_available is False
@@ -78,6 +92,40 @@ def skip_if_windows(obj):
     Skip the unit tests if platform is win32
     """
     return unittest.skipIf(sys.platform == "win32", "Skipping tests on Windows")(obj)
+
+
+class SkipIfBeforePyTorchVersion(object):
+    """Decorator to be used if test should be skipped
+    with PyTorch versions older than that given."""
+
+    def __init__(self, pytorch_version_tuple):
+        self.min_version = pytorch_version_tuple
+        if has_pkg_res:
+            self.version_too_old = ver(torch.__version__) < ver(".".join(map(str, self.min_version)))
+        else:
+            self.version_too_old = get_torch_version_tuple() < self.min_version
+
+    def __call__(self, obj):
+        return unittest.skipIf(
+            self.version_too_old, f"Skipping tests that fail on PyTorch versions before: {self.min_version}"
+        )(obj)
+
+
+class SkipIfAtLeastPyTorchVersion(object):
+    """Decorator to be used if test should be skipped
+    with PyTorch versions older than that given."""
+
+    def __init__(self, pytorch_version_tuple):
+        self.max_version = pytorch_version_tuple
+        if has_pkg_res:
+            self.version_too_new = ver(torch.__version__) >= ver(".".join(map(str, self.max_version)))
+        else:
+            self.version_too_new = get_torch_version_tuple() >= self.max_version
+
+    def __call__(self, obj):
+        return unittest.skipIf(
+            self.version_too_new, f"Skipping tests that fail on PyTorch versions at least: {self.max_version}"
+        )(obj)
 
 
 def make_nifti_image(array, affine=None):
@@ -457,11 +505,10 @@ def test_script_save(net, *inputs, eval_nets=True, device=None, rtol=1e-4):
         result1 = net(*inputs)
         result2 = reloaded_net(*inputs)
         set_determinism(seed=None)
-    # When using e.g., VAR, we will produce a tuple of outputs.
-    # Hence, convert all to tuples and then compare all elements.
-    if not isinstance(result1, tuple):
-        result1 = (result1,)
-        result2 = (result2,)
+
+    # convert results to tuples if needed to allow iterating over pairs of outputs
+    result1 = ensure_tuple(result1)
+    result2 = ensure_tuple(result2)
 
     for i, (r1, r2) in enumerate(zip(result1, result2)):
         if None not in (r1, r2):  # might be None
