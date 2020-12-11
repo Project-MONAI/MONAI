@@ -20,7 +20,6 @@ from .utils import get_mask_edges, get_surface_distance
 def compute_average_surface_distance(
     seg_pred: Union[np.ndarray, torch.Tensor],
     seg_gt: Union[np.ndarray, torch.Tensor],
-    label_idx: int,
     symmetric: bool = False,
     distance_metric: str = "euclidean",
 ):
@@ -33,15 +32,13 @@ def compute_average_surface_distance(
     Args:
         seg_pred: first binary or labelfield image.
         seg_gt: second binary or labelfield image.
-        label_idx: for labelfield images, convert to binary with
-            `seg_pred = seg_pred == label_idx`.
         symmetric: if calculate the symmetric average surface distance between
             `seg_pred` and `seg_gt`. Defaults to ``False``.
         distance_metric: : [``"euclidean"``, ``"chessboard"``, ``"taxicab"``]
             the metric used to compute surface distance. Defaults to ``"euclidean"``.
     """
-    (edges_pred, edges_gt) = get_mask_edges(seg_pred, seg_gt, label_idx)
-    surface_distance = get_surface_distance(edges_pred, edges_gt, label_idx, distance_metric=distance_metric)
+    (edges_pred, edges_gt) = get_mask_edges(seg_pred, seg_gt)
+    surface_distance = get_surface_distance(edges_pred, edges_gt, distance_metric=distance_metric)
     if surface_distance.shape == (0,):
         return np.inf
 
@@ -49,7 +46,7 @@ def compute_average_surface_distance(
     if not symmetric:
         return avg_surface_distance
 
-    surface_distance_2 = get_surface_distance(edges_gt, edges_pred, label_idx, distance_metric=distance_metric)
+    surface_distance_2 = get_surface_distance(edges_gt, edges_pred, distance_metric=distance_metric)
     if surface_distance_2.shape == (0,):
         return np.inf
 
