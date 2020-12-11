@@ -200,6 +200,7 @@ class NormalizeIntensity(Transform):
         nonzero: whether only normalize non-zero values.
         channel_wise: if using calculated mean and std, calculate on each channel separately
             or calculate on the entire image directly.
+        dtype: output data type, defaut to float32.
     """
 
     def __init__(
@@ -208,11 +209,13 @@ class NormalizeIntensity(Transform):
         divisor: Optional[Sequence] = None,
         nonzero: bool = False,
         channel_wise: bool = False,
+        dtype: np.dtype = np.float32,
     ) -> None:
         self.subtrahend = subtrahend
         self.divisor = divisor
         self.nonzero = nonzero
         self.channel_wise = channel_wise
+        self.dtype = dtype
 
     def _normalize(self, img: np.ndarray, sub=None, div=None) -> np.ndarray:
         slices = (img != 0) if self.nonzero else np.ones(img.shape, dtype=np.bool_)
@@ -237,7 +240,6 @@ class NormalizeIntensity(Transform):
         """
         Apply the transform to `img`, assuming `img` is a channel-first array if `self.channel_wise` is True,
         """
-        img_dtype = img.dtype
         if self.channel_wise:
             if self.subtrahend is not None and len(self.subtrahend) != len(img):
                 raise ValueError(f"img has {len(img)} channels, but subtrahend has {len(self.subtrahend)} components.")
@@ -253,7 +255,7 @@ class NormalizeIntensity(Transform):
         else:
             img = self._normalize(img, self.subtrahend, self.divisor)
 
-        return img.astype(img_dtype)
+        return img.astype(self.dtype)
 
 
 class ThresholdIntensity(Transform):
