@@ -207,7 +207,7 @@ def compute_occlusion_sensitivity(
             batch_ids = []
 
     # Subtract from baseline
-    sensitivity_im -= baseline
+    sensitivity_im = baseline - sensitivity_im
 
     # Reshape to match downsampled image
     sensitivity_im = sensitivity_im.reshape(tuple(downsampled_im_shape))
