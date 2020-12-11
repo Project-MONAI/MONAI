@@ -5,6 +5,77 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.4.0] - 2020-12-15
+### Added
+* Overview document for [feature highlights in v0.4.0](https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md)
+* Torchscript support for the net modules
+* New networks and layers:
+  * Discrete Gaussian kernels
+  * Hilbert transform and envelope detection
+  * Swish and mish activation
+  * Acti-norm-dropout block
+  * Upsampling layer
+  * Autoencoder, Variational autoencoder
+  * FCNet
+* Support of initialisation from pretrained weights for densenet, senet, multichannel AHNet
+* Layer-wise learning rate API
+* New model metrics and event handlers based on occlusion sensitivity, confusion matrix, surface distance
+* CAM/GradCAM/GradCAM++
+* File format-agnostic image loader APIs with Nibabel, ITK readers
+* Enhancements for dataset partition, cross-validation APIs
+* New data APIs:
+  * LMDB-based caching dataset
+  * Cache-N-transforms dataset
+  * Iterable dataset
+  * Patch dataset
+* Weekly PyPI release
+* Fully compatible with PyTorch 1.7
+* CI/CD enhancements:
+  * Skipping, speed up, fail fast, timed, quick tests
+  * Distributed training tests
+  * Performance profiling utilities
+* New tutorials and demos:
+  * Autoencoder, VAE tutorial
+  * Cross-validation demo
+  * Model interpretability tutorial
+  * COVID-19 Lung CT segmentation challenge open-source baseline
+  * Threadbuffer demo
+  * Dataset partitioning tutorial
+  * Layer-wise learning rate demo
+  * [MONAI Bootcamp 2020](https://github.com/Project-MONAI/MONAIBootcamp2020)
+
+### Changed
+* Base Docker image upgraded to `nvcr.io/nvidia/pytorch:20.10-py3` from `nvcr.io/nvidia/pytorch:20.08-py3`
+
+#### Backwards Incompatible Changes
+* `monai.apps.CVDecathlonDataset` is extended to a generic `monai.apps.CrossValidation` with an `dataset_cls` option
+* Cache dataset now requires a `monai.transforms.Compose` instance as the transform argument
+* Model checkpoint file name extensions changed from `.pth` to `.pt`
+* Readers' `get_spatial_shape` returns a numpy array instead of list
+* Decoupled postprocessing steps such as `sigmoid`, `to_onehot_y`, `mutually_exclusive`, `logit_thresh` from metrics and event handlers,
+the postprocessing steps should be used before calling the metrics methods
+* `ConfusionMatrixMetric` and `DiceMetric` computation now returns an additional `not_nans` flag to indicate valid results
+* `UpSample` optional `mode` now supports `"deconv"`, `"nontrainable"`, `"pixelshuffle"`; `interp_mode` is only used when `mode` is `"nontrainable"`
+* `SegResNet` optional `upsample_mode` now supports `"deconv"`, `"nontrainable"`, `"pixelshuffle"`
+* `monai.transforms.Compose` class inherits `monai.transforms.Transform`
+* In `Rotate`, `Rotated`, `RandRotate`, `RandRotated`  transforms, the `angle` related parameters are interpreted as angles in radians instead of degrees.
+* `SplitChannel` and `SplitChanneld` moved from `transforms.post` to `transforms.utility`
+
+### Removed
+* Support of PyTorch 1.4
+
+### Fixed
+* Enhanced loss functions for stability and flexibility
+* Sliding window inference memory and device issues
+* Revised transforms:
+  * Normalize intensity datatype and normalizer types
+  * Padding modes for zoom
+  * Crop returns coordinates
+  * Select items transform
+  * Weighted patch sampling
+  * Option to keep aspect ratio for zoom
+* Various CI/CD issues
+
 ## [0.3.0] - 2020-10-02
 ### Added
 * Overview document for [feature highlights in v0.3.0](https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md)
@@ -102,7 +173,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 [highlights]: https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md
 
-[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/0.3.0...HEAD
+[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/0.4.0...HEAD
+[0.4.0]: https://github.com/Project-MONAI/MONAI/compare/0.3.0...0.4.0
 [0.3.0]: https://github.com/Project-MONAI/MONAI/compare/0.2.0...0.3.0
 [0.2.0]: https://github.com/Project-MONAI/MONAI/compare/0.1.0...0.2.0
 [0.1.0]: https://github.com/Project-MONAI/MONAI/commits/0.1.0
