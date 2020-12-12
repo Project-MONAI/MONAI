@@ -1,306 +1,230 @@
+# Copyright 2020 MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""
+A collection of "vanilla" transforms for spatial operations
+https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
+"""
+
 import numpy as np
-import skimage
-import skimage.measure
-from scipy.ndimage.filters import gaussian_filter
-from scipy.ndimage.morphology import distance_transform_cdt
+
+from monai.transforms.compose import Randomizable, Transform
+from monai.utils import min_version, optional_import
+
+measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
+distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_cdt")
+gaussian_filter, _ = optional_import("scipy.ndimage", name="gaussian_filter")
 
 
-# TODO:: Fix Base Class
-# TODO:: Fix class names (for interactions)
-# TODO:: Fix param names for each class init
-# TODO:: Add 3D support for each of the following transforms
-# TODO:: Unit Test
-#####################################################################################
-# FOR 2D
-# Following are used while training
-#####################################################################################
-class AddInitialSeedPoint(object):
-    def __init__(self, label_field, positive_guidance_field, negative_guidance_field):
-        self.label_field = label_field
-        self.positive_guidance_field = positive_guidance_field
-        self.negative_guidance_field = negative_guidance_field
+class AddInitialSeedPointd(Randomizable, Transform):
+    def __init__(self, label='label', guidance='guidance', dim=2, connected_regions=6):
+        self.label = label
+        self.guidance = guidance
+        self.dim = dim
+        self.connected_regions = connected_regions
 
-    def __call__(self, data):
-        positive_guidance = data[self.positive_guidance_field]
-        negative_guidance = data[self.negative_guidance_field]
+    def randomize(self, data=None):
+        pass
 
-        if type(positive_guidance) is np.ndarray:
-            positive_guidance = positive_guidance.tolist()
+    def _apply(self, label):
+        label = (label > 0.5).astype(np.float32)
 
-        if type(negative_guidance) is np.ndarray:
-            negative_guidance = negative_guidance.tolist()
+        blobs_labels = measure.label(label.astype(int), background=0) if self.dim == 2 else label
+        assert np.max(blobs_labels) > 0, "Not a valid Label"
 
-        curr_label = data[self.label_field]
-        curr_label = (curr_label > 0.5).astype(np.float32)
+        default_guidance = [-1] * (self.dim + 1)
+        pos_guidance = []
+        for ridx in range(1, 2 if self.dim == 3 else self.connected_regions):
+            if self.dim == 2:
+                label = (blobs_labels == ridx).astype(np.float32)
+                if np.sum(label) == 0:
+                    pos_guidance.append(default_guidance)
+                    continue
 
-        blobs_labels = skimage.measure.label(curr_label.astype(int), background=0)
-        assert np.max(blobs_labels) > 0
-
-        for ridx in range(1, 6):
-            curr_label = (blobs_labels == ridx).astype(np.float32)
-            if np.sum(curr_label) == 0:
-                positive_guidance.append([-1, -1, -1])
-                negative_guidance.append([-1, -1, -1])
-                continue
-
-            distance = distance_transform_cdt(curr_label).flatten()
+            distance = distance_transform_cdt(label).flatten()
             probability = np.exp(distance) - 1.0
 
-            idx = np.where(curr_label.flatten() > 0)[0]
+            idx = np.where(label.flatten() > 0)[0]
             seed = np.random.choice(idx, size=1, p=probability[idx] / np.sum(probability[idx]))
             dst = distance[seed]
 
-            pg = np.asarray(np.unravel_index(seed, curr_label.shape)).transpose().tolist()[0]
-            pg[0] = dst[0]
+            g = np.asarray(np.unravel_index(seed, label.shape)).transpose().tolist()[0]
+            g[0] = dst[0]
+            pos_guidance.append(g)
 
-            assert curr_label[..., pg[-2], pg[-1]] == 1
-            assert len(pg) == 3
+        return np.asarray([pos_guidance, [default_guidance] * len(pos_guidance)])
 
-            positive_guidance.append(pg)
-            negative_guidance.append([-1, -1, -1])
-
-        data[self.positive_guidance_field] = np.asarray(positive_guidance)
-        data[self.negative_guidance_field] = np.asarray(negative_guidance)
+    def __call__(self, data):
+        data[self.guidance] = self._apply(data[self.label])
         return data
 
 
-class AddGuidanceSignal(object):
-    def __init__(self, field, positive_guidance_field, negative_guidance_field, sigma=2):
-        self.field = field
+class AddGuidanceSignald(Transform):
+    def __init__(self, image='image', guidance='guidance', sigma=2, dim=2, number_intensity_ch=1, batched=False):
+        self.image = image
+        self.guidance = guidance
         self.sigma = sigma
-        self.positive_guidance_field = positive_guidance_field
-        self.negative_guidance_field = negative_guidance_field
+        self.dim = dim
+        self.number_intensity_ch = number_intensity_ch
+        self.batched = batched
 
-    def signal(self, img, pos, neg):
-        signal = np.zeros((2, img.shape[-2], img.shape[-1]), dtype=np.float32)
-        for p in pos:
-            if np.any(np.asarray(p) < 0):
-                continue
-            signal[0, int(p[-2]), int(p[-1])] = 1.0
+    def _get_signal(self, image, guidance):
+        guidance = guidance.tolist() if isinstance(guidance, np.ndarray) else guidance
+        if self.dim == 3:
+            signal = np.zeros((len(guidance), image.shape[-3], image.shape[-2], image.shape[-1]), dtype=np.float32)
+        else:
+            signal = np.zeros((len(guidance), image.shape[-2], image.shape[-1]), dtype=np.float32)
 
-        signal[0] = gaussian_filter(signal[0], sigma=self.sigma)
-        signal[0] = (signal[0] - np.min(signal[0])) / (np.max(signal[0]) - np.min(signal[0]))
+        for i in range(len(guidance)):
+            for point in guidance[i]:
+                if np.any(np.asarray(point) < 0):
+                    continue
 
-        assert np.max(signal[0]) == 1
+                # print('{}:: Point: {}'.format('-VE' if i else '+VE', np.asarray(point)))
+                if self.dim == 3:
+                    signal[i, int(point[-3]), int(point[-2]), int(point[-1])] = 1.0
+                else:
+                    signal[i, int(point[-2]), int(point[-1])] = 1.0
 
-        for n in neg:
-            if np.any(np.asarray(n) < 0):
-                continue
-            signal[1, int(n[-2]), int(n[-1])] = 1.0
-
-        if np.max(signal[1]) > 0:
-            signal[1] = gaussian_filter(signal[1], sigma=self.sigma)
-            signal[1] = (signal[1] - np.min(signal[1])) / (np.max(signal[1]) - np.min(signal[1]))
-
+            if np.max(signal[i]) > 0:
+                signal[i] = gaussian_filter(signal[i], sigma=self.sigma)
+                signal[i] = (signal[i] - np.min(signal[i])) / (np.max(signal[i]) - np.min(signal[i]))
         return signal
 
-    def __call__(self, data):
-        img = data[self.field]
-        pos = data[self.positive_guidance_field]
-        neg = data[self.negative_guidance_field]
+    def _apply(self, image, guidance):
+        if not self.batched:
+            signal = self._get_signal(image, guidance)
+            return np.concatenate([image, signal], axis=0)
 
-        sig = self.signal(img, pos, neg)
-        data[self.field] = np.concatenate([img, sig], axis=0)
-        return data
-
-
-#####################################################################################
-# FOR 2D
-# Following are click-transforms used by batch training/validation step
-#####################################################################################
-# NOTE:: All the Interaction* Works on batch Data
-
-class InteractionFindDiscrepancyRegions(object):
-    def __init__(self, prediction_field, label_field, positive_disparity_field, negative_disparity_field):
-        self.prediction_field = prediction_field
-        self.label_field = label_field
-        self.positive_disparity_field = positive_disparity_field
-        self.negative_disparity_field = negative_disparity_field
-
-    def __call__(self, data):
-        positive_disparity = []
-        negative_disparity = []
-
-        for pred, gt in zip(data[self.prediction_field], data[self.label_field]):
-            pred = (pred > 0.5).astype(np.float32)
-            gt = (gt > 0.5).astype(np.float32)
-
-            disparity = gt - pred
-
-            negative_disparity.append((disparity < 0).astype(np.float32))
-            positive_disparity.append((disparity > 0).astype(np.float32))
-
-        data[self.positive_disparity_field] = positive_disparity
-        data[self.negative_disparity_field] = negative_disparity
-        return data
-
-
-class InteractionAddRandomGuidance(object):
-    def __init__(self, label_field, positive_guidance_field, negative_guidance_field, positive_disparity_field,
-                 negative_disparity_field, p_interact_field):
-        self.label_field = label_field
-        self.positive_guidance_field = positive_guidance_field
-        self.negative_guidance_field = negative_guidance_field
-        self.positive_disparity_field = positive_disparity_field
-        self.negative_disparity_field = negative_disparity_field
-        self.p_interact_field = p_interact_field
-
-    def __call__(self, data):
-        positive_guidance = data[self.positive_guidance_field]
-        negative_guidance = data[self.negative_guidance_field]
-
-        if type(positive_guidance) is np.ndarray:
-            positive_guidance = positive_guidance.tolist()
-
-        if type(negative_guidance) is np.ndarray:
-            negative_guidance = negative_guidance.tolist()
-
-        for i, pos_discr, neg_discr, curr_label, probability in zip(
-                range(len(data[self.label_field])),
-                data[self.positive_disparity_field],
-                data[self.negative_disparity_field],
-                data[self.label_field],
-                data[self.p_interact_field]
-        ):
-            will_interact = np.random.choice([True, False], p=[probability, 1.0 - probability])
-            if not will_interact:
-                continue
-
-            can_be_negative = np.sum(neg_discr) > 0
-            can_be_positive = np.sum(pos_discr) > 0
-            correct_pos = np.sum(pos_discr) >= np.sum(neg_discr)
-
-            if correct_pos and can_be_positive:
-                distance = distance_transform_cdt(pos_discr).flatten()
-                probability = np.exp(distance) - 1.0
-                idx = np.where(pos_discr.flatten() > 0)[0]
-
-                if np.sum(pos_discr > 0) > 0:
-                    seed = np.random.choice(idx, size=1, p=probability[idx] / np.sum(probability[idx]))
-                    dst = distance[seed]
-
-                    pg = np.asarray(np.unravel_index(seed, pos_discr.shape)).transpose().tolist()[0]
-                    pg[0] = dst[0]
-
-                    assert curr_label[..., pg[-2], pg[-1]] == 1
-                    assert len(pg) == 3
-
-                    negative_guidance[i].append([-1, -1, -1])
-                    positive_guidance[i].append(pg)
-
-            if not correct_pos and can_be_negative:
-                distance = distance_transform_cdt(neg_discr).flatten()
-
-                probability = np.exp(distance) - 1.0
-                idx = np.where(neg_discr.flatten() > 0)[0]
-
-                if np.sum(neg_discr > 0) > 0:
-                    seed = np.random.choice(idx, size=1, p=probability[idx] / np.sum(probability[idx]))
-                    dst = distance[seed]
-
-                    ng = np.asarray(np.unravel_index(seed, neg_discr.shape)).transpose().tolist()[0]
-                    ng[0] = dst[0]
-
-                    assert curr_label[..., ng[-2], ng[-1]] == 0
-                    assert len(ng) == 3
-
-                    negative_guidance[i].append(ng)
-                    positive_guidance[i].append([-1, -1, -1])
-            else:
-                positive_guidance[i].append([-1, -1, -1])
-                negative_guidance[i].append([-1, -1, -1])
-
-        data[self.positive_guidance_field] = np.asarray(positive_guidance)
-        data[self.negative_guidance_field] = np.asarray(negative_guidance)
-        return data
-
-
-class InteractionAddGuidanceSignal(AddGuidanceSignal):
-    def __init__(self, field, positive_guidance_field, negative_guidance_field, sigma=2, number_intensity_ch=1):
-        super().__init__(field, positive_guidance_field, negative_guidance_field, sigma)
-        self.number_intensity_ch = number_intensity_ch
-
-    def __call__(self, data):
         images = []
-        for img, pos, neg in zip(
-                data[self.field],
-                data[self.positive_guidance_field],
-                data[self.negative_guidance_field]
-        ):
-            img = img[0:0 + self.number_intensity_ch, ...]  # image can have only number_intensity_ch channels
-            signal = self.signal(img, pos, neg)
-            images.append(np.concatenate([img, signal], axis=0))
+        for i, g in zip(image, guidance):
+            i = i[0:0 + self.number_intensity_ch, ...]
+            signal = self._get_signal(i, g)
+            images.append(np.concatenate([i, signal], axis=0))
+        return images
 
-        data[self.field] = images
+    def __call__(self, data):
+        image = data[self.image]
+        guidance = data[self.guidance]
+
+        data[self.image] = self._apply(image, guidance)
         return data
 
 
-class InteractionAddGuidanceSignalClickSize(InteractionAddGuidanceSignal):
-    def __init__(self, bins, sigma_multiplier, normalize=False, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.normalize = normalize
-        self.bins = bins
-        self.sigma_multiplier = sigma_multiplier
-
-        assert len(self.bins) == len(self.sigma_multiplier)
+class FindDiscrepancyRegionsd(Transform):
+    def __init__(self, label='label', pred='pred', discrepancy='discrepancy', batched=True):
+        self.label = label
+        self.pred = pred
+        self.discrepancy = discrepancy
+        self.batched = batched
 
     @staticmethod
-    def digitize(array, bins):
-        array = np.asarray(array)
-        bins = np.asarray(bins)
+    def disparity(label, pred):
+        label = (label > 0.5).astype(np.float32)
+        pred = (pred > 0.5).astype(np.float32)
+        disparity = label - pred
 
-        distances = np.sqrt((array[:, np.newaxis] - bins[np.newaxis]) ** 2)
-        assignment = np.argmin(distances, axis=1)
-        return assignment
+        pos_disparity = (disparity > 0).astype(np.float32)
+        neg_disparity = (disparity < 0).astype(np.float32)
+        return [pos_disparity, neg_disparity]
+
+    def _apply(self, label, pred):
+        if not self.batched:
+            return self.disparity(label, pred)
+
+        disparity = []
+        for la, pr in zip(label, pred):
+            disparity.append(self.disparity(la, pr))
+        return disparity
 
     def __call__(self, data):
-        img = data[self.field]
-        pos = data[self.positive_guidance_field]
-        neg = data[self.negative_guidance_field]
+        label = data[self.label]
+        pred = data[self.pred]
 
-        img = img[0:0 + self.number_intensity_ch, ...]  # image can have only number_intensity_ch channels
-        signal = np.zeros((2, img.shape[-2], img.shape[-1]), dtype=np.float32)
+        data[self.discrepancy] = self._apply(label, pred)
+        return data
 
-        positive_interactions = np.asarray(pos)
-        positive_interactions = positive_interactions[positive_interactions[:, 0] > 0]
 
-        if len(positive_interactions) > 0:
-            level = self.digitize(positive_interactions[:, 0], self.bins)
+class AddRandomGuidanced(Randomizable, Transform):
+    def __init__(self, guidance='guidance', discrepancy='discrepancy', probability='probability', dim=2, batched=True):
+        self.guidance = guidance
+        self.discrepancy = discrepancy
+        self.probability = probability
+        self.dim = dim
+        self.batched = batched
 
-            for l in range(np.max(level), -1, -1):
-                curr_interactions = positive_interactions[level == l]
-                for location in curr_interactions:
-                    if np.any(location < 0):
-                        continue
-                    signal[0, int(location[-2]), int(location[-1])] = 1.0
+    def randomize(self, data=None):
+        pass
 
-                signal[0] = gaussian_filter(signal[0], sigma=self.sigma * self.sigma_multiplier[l])
-                if self.normalize:
-                    signal[0] = (signal[0] - np.min(signal[0])) / (np.max(signal[0]) - np.min(signal[0]))
+    @staticmethod
+    def find_guidance(discrepancy):
+        distance = distance_transform_cdt(discrepancy).flatten()
+        probability = np.exp(distance) - 1.0
+        idx = np.where(discrepancy.flatten() > 0)[0]
 
-            signal[0] = (signal[0] - np.min(signal[0])) / (np.max(signal[0]) - np.min(signal[0]))
-            assert np.isclose(np.max(signal[0]), 1)
+        if np.sum(discrepancy > 0) > 0:
+            seed = np.random.choice(idx, size=1, p=probability[idx] / np.sum(probability[idx]))
+            dst = distance[seed]
 
-        negative_interactions = np.asarray(neg)
-        negative_interactions = negative_interactions[negative_interactions[:, 0] > 0]
+            g = np.asarray(np.unravel_index(seed, discrepancy.shape)).transpose().tolist()[0]
+            g[0] = dst[0]
+            return g
+        return None
 
-        if len(negative_interactions) > 0:
-            level = self.digitize(negative_interactions[:, 0], self.bins)
+    @staticmethod
+    def add_guidance(discrepancy, probability):
+        will_interact = np.random.choice([True, False], p=[probability, 1.0 - probability])
+        if not will_interact:
+            return None, None
 
-            for l in range(np.max(level), -1, -1):
-                current_locations = negative_interactions[level == l]
-                for location in current_locations:
-                    if np.any(location < 0):
-                        continue
-                    signal[1, int(location[-2]), int(location[-1])] = 1.0
+        pos_discr = discrepancy[0]
+        neg_discr = discrepancy[1]
 
-                signal[1] = gaussian_filter(signal[1], sigma=self.sigma * self.sigma_multiplier[l])
-                if self.normalize:
-                    signal[1] = (signal[1] - np.min(signal[1])) / (np.max(signal[1]) - np.min(signal[1]))
+        can_be_positive = np.sum(pos_discr) > 0
+        can_be_negative = np.sum(neg_discr) > 0
+        correct_pos = np.sum(pos_discr) >= np.sum(neg_discr)
 
-            signal[1] = (signal[1] - np.min(signal[1])) / (np.max(signal[1]) - np.min(signal[1]))
-            assert np.isclose(np.max(signal[1]), 1)
+        if correct_pos and can_be_positive:
+            return AddRandomGuidanced.find_guidance(pos_discr), None
 
-        data[self.field] = np.concatenate([img, signal], axis=0)
+        if not correct_pos and can_be_negative:
+            return None, AddRandomGuidanced.find_guidance(neg_discr)
+        return None, None
+
+    def _apply(self, guidance, discrepancy, probability):
+        guidance = guidance.tolist() if isinstance(guidance, np.ndarray) else guidance
+        default_guidance = [-1] * (self.dim + 1)
+
+        if not self.batched:
+            pos, neg = self.add_guidance(discrepancy, probability)
+            if pos:
+                guidance[0].append(pos)
+                guidance[1].append(default_guidance)
+            if neg:
+                guidance[0].append(default_guidance)
+                guidance[1].append(neg)
+        else:
+            for g, d, p in zip(guidance, discrepancy, probability):
+                pos, neg = self.add_guidance(d, p)
+                if pos:
+                    g[0].append(pos)
+                    g[1].append(default_guidance)
+                if neg:
+                    g[0].append(default_guidance)
+                    g[1].append(neg)
+        return np.asarray(guidance)
+
+    def __call__(self, data):
+        guidance = data[self.guidance]
+        discrepancy = data[self.discrepancy]
+        probability = data[self.probability]
+
+        data[self.guidance] = self._apply(guidance, discrepancy, probability)
         return data

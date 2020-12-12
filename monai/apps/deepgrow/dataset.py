@@ -1,3 +1,14 @@
+# Copyright 2020 MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import json
 import os
 import sys
@@ -11,8 +22,8 @@ from monai.transforms import (
     Spacingd,
     LoadNiftid,
     Orientationd,
-    ResizeWithPadOrCropd,
-    Compose, GridSampleMode,
+    Compose,
+    GridSampleMode
 )
 
 
@@ -59,14 +70,13 @@ class DeepgrowDataset(DecathlonDataset):
 
         tmp_dataset_dir = dataset_dir + "_{}.deep".format(self.section)
         new_datalist = create_dataset(
-            dataset,
-            ['image', 'label'],
-            tmp_dataset_dir,
-            self.dimension,
-            self.pixdim,
-            self.spatial_size,
-            self.limit,
-            False)
+            datalist=dataset,
+            keys=['image', 'label'],
+            output_dir=tmp_dataset_dir,
+            dimension=self.dimension,
+            pixdim=self.pixdim,
+            limit=self.limit,
+            relative_path=False)
 
         dataset_json = os.path.join(tmp_dataset_dir, "dataset.json")
         with open(dataset_json, 'w') as fp:
@@ -74,7 +84,7 @@ class DeepgrowDataset(DecathlonDataset):
         return new_datalist
 
 
-def _get_transforms(keys, dimension, pixdim, spatial_size):
+def _get_transforms(keys, pixdim):
     mode = [GridSampleMode.BILINEAR, GridSampleMode.NEAREST] if len(keys) == 2 else [GridSampleMode.BILINEAR]
     transforms = [
         LoadNiftid(keys=keys),
@@ -83,8 +93,6 @@ def _get_transforms(keys, dimension, pixdim, spatial_size):
         Orientationd(keys=keys, axcodes="RAS"),
     ]
 
-    if dimension == 2:
-        transforms.append(ResizeWithPadOrCropd(keys=keys, spatial_size=spatial_size))
     return Compose(transforms)
 
 
@@ -115,8 +123,6 @@ def _save_data_2d(vol_idx, data, keys, dataset_dir, relative_path):
         if vol_label is None:
             data_list.append({
                 'image': image_file.replace(dataset_dir + '/', '') if relative_path else image_file,
-                'positive_guidance': [[-1, -1, -1]],
-                'negative_guidance': [[-1, -1, -1]],
             })
             continue
 
@@ -138,8 +144,6 @@ def _save_data_2d(vol_idx, data, keys, dataset_dir, relative_path):
             data_list.append({
                 'image': image_file.replace(dataset_dir + '/', '') if relative_path else image_file,
                 'label': label_file.replace(dataset_dir + '/', '') if relative_path else label_file,
-                'positive_guidance': [[-1, -1, -1]],
-                'negative_guidance': [[-1, -1, -1]],
                 'region': int(idx)
             })
 
@@ -175,8 +179,6 @@ def _save_data_3d(vol_idx, data, keys, dataset_dir, relative_path):
     if vol_label is None:
         data_list.append({
             'image': image_file.replace(dataset_dir + '/', '') if relative_path else image_file,
-            'positive_guidance': [[-1, -1, -1, -1]],
-            'negative_guidance': [[-1, -1, -1, -1]],
         })
     else:
         # For all Labels
@@ -197,8 +199,6 @@ def _save_data_3d(vol_idx, data, keys, dataset_dir, relative_path):
             data_list.append({
                 'image': image_file.replace(dataset_dir + '/', '') if relative_path else image_file,
                 'label': label_file.replace(dataset_dir + '/', '') if relative_path else label_file,
-                'positive_guidance': [[-1, -1, -1, -1]],
-                'negative_guidance': [[-1, -1, -1, -1]],
                 'region': int(idx)
             })
 
@@ -215,17 +215,17 @@ def _save_data_3d(vol_idx, data, keys, dataset_dir, relative_path):
 
 def create_dataset(
         datalist,
-        keys,
-        dataset_dir,
+        output_dir,
+        keys=('image', 'label'),
+        base_dir=None,
         dimension=2,
-        pixdim=[1.0, 1.0, 1.0],
-        spatial_size=[512, 512],
+        pixdim=(1.0, 1.0),
         limit=0,
         relative_path=False) -> List[Dict]:
-    if not isinstance(keys, list):
+    if not isinstance(keys, list) and not isinstance(keys, tuple):
         keys = [keys]
 
-    transforms = _get_transforms(keys, dimension, pixdim, spatial_size)
+    transforms = _get_transforms(keys, pixdim)
     new_datalist = []
     for idx in range(len(datalist)):
         if limit and idx >= limit:
@@ -233,22 +233,25 @@ def create_dataset(
 
         image = datalist[idx][keys[0]]
         label = datalist[idx].get(keys[1]) if len(keys) > 1 else None
-        print('{} => {}'.format(os.path.basename(image), os.path.basename(label) if label else None))
+        if base_dir:
+            image = os.path.join(base_dir, image)
+            label = os.path.join(base_dir, label) if label else None
 
+        print('{} => {}'.format(image, label if label else None))
         if dimension == 2:
             data = _save_data_2d(
                 vol_idx=idx,
                 data=transforms({'image': image, 'label': label}),
-                keys=['image', 'label'],
-                dataset_dir=dataset_dir,
+                keys=('image', 'label'),
+                dataset_dir=output_dir,
                 relative_path=relative_path
             )
         else:
             data = _save_data_3d(
                 vol_idx=idx,
                 data=transforms({'image': image, 'label': label}),
-                keys=['image', 'label'],
-                dataset_dir=dataset_dir,
+                keys=('image', 'label'),
+                dataset_dir=output_dir,
                 relative_path=relative_path
             )
         new_datalist.extend(data)
