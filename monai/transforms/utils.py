@@ -571,3 +571,56 @@ def get_largest_connected_component_mask(img: torch.Tensor, connectivity: Option
         if item.max() != 0:
             largest_cc[i, ...] = item == (np.argmax(np.bincount(item.flat)[1:]) + 1)
     return torch.as_tensor(largest_cc, device=img.device)
+
+
+def get_extreme_points(
+    img: np.ndarray, rand_state: np.random.RandomState = np.random, background: int = 0, pert: float = 0.0
+) -> List[Tuple[int, ...]]:
+    """
+    Generate extreme points from an image. These are used to generate initial segmentation
+    for annotation models. An optional perturbation can be passed to simulate user clicks.
+
+    Args:
+        img:
+            Image to generate extreme points from. Expected Shape is ``(spatial_dim1, [, spatial_dim2, ...])``.
+        rand_state: `np.random.RandomState` object used to select random indices.
+        background: Value to be consider as background, defaults to 0.
+        pert: Random perturbation amount to add to the points, defaults to 0.0.
+
+    Returns:
+        A list of extreme points, its length is equal to 2 * spatial dimension of input image.
+        The output format of the coordinates is:
+
+        [1st_spatial_dim_min, 1st_spatial_dim_max, 2nd_spatial_dim_min, ..., Nth_spatial_dim_max]
+
+    Raises:
+        ValueError: When the input image does not have any foreground pixel.
+    """
+    indices = np.where(img != background)
+    if np.size(indices[0]) == 0:
+        raise ValueError("get_extreme_points: no foreground object in mask!")
+
+    def _get_point(val, dim):
+        """
+        Select one of the indices within slice containing val.
+
+        Args:
+            val : value for comparison
+            dim : dimension in which to look for value
+        """
+        idx = rand_state.choice(np.where(indices[dim] == val)[0])
+        pt = []
+        for j in range(img.ndim):
+            # add +- pert to each dimension
+            val = int(indices[j][idx] + 2.0 * pert * (rand_state.rand() - 0.5))
+            val = max(val, 0)
+            val = min(val, img.shape[j] - 1)
+            pt.append(val)
+        return pt
+
+    points = []
+    for i in range(img.ndim):
+        points.append(tuple(_get_point(np.min(indices[i][...]), i)))
+        points.append(tuple(_get_point(np.max(indices[i][...]), i)))
+
+    return points
