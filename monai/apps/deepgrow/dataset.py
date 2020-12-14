@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import json
+import logging
 import os
 import sys
 from typing import Callable, Dict, List, Sequence, Union
@@ -101,6 +102,11 @@ def _save_data_2d(vol_idx, data, keys, dataset_dir, relative_path):
     vol_label = data.get(keys[1])
     data_list = []
 
+    if len(vol_image.shape) == 4:
+        logging.info('4D-Image, pick only first series; Image: {}; Label: {}'.format(vol_image.shape, vol_label.shape))
+        vol_image = vol_image[0]
+        vol_image = np.moveaxis(vol_image, -1, 0)
+
     image_count = 0
     label_count = 0
     unique_labels_count = 0
@@ -163,6 +169,11 @@ def _save_data_3d(vol_idx, data, keys, dataset_dir, relative_path):
     vol_label = data.get(keys[1])
     data_list = []
 
+    if len(vol_image.shape) == 4:
+        logging.info('4D-Image, pick only first series; Image: {}; Label: {}'.format(vol_image.shape, vol_label.shape))
+        vol_image = vol_image[0]
+        vol_image = np.moveaxis(vol_image, -1, 0)
+
     image_count = 0
     label_count = 0
     unique_labels_count = 0
@@ -216,10 +227,10 @@ def _save_data_3d(vol_idx, data, keys, dataset_dir, relative_path):
 def create_dataset(
         datalist,
         output_dir,
+        dimension,
+        pixdim,
         keys=('image', 'label'),
         base_dir=None,
-        dimension=2,
-        pixdim=(1.0, 1.0),
         limit=0,
         relative_path=False) -> List[Dict]:
     if not isinstance(keys, list) and not isinstance(keys, tuple):
