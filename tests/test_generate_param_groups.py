@@ -21,7 +21,7 @@ from monai.utils import ensure_tuple
 TEST_CASE_1 = [
     {
         "layer_matches": [lambda x: x.model[-1]],
-        "match_types": ["select"],
+        "match_types": "select",
         "lr_values": [1],
     },
     (1, 100),
@@ -30,7 +30,7 @@ TEST_CASE_1 = [
 TEST_CASE_2 = [
     {
         "layer_matches": [lambda x: x.model[-1], lambda x: x.model[-2], lambda x: x.model[-3]],
-        "match_types": ["select", "select", "select"],
+        "match_types": "select",
         "lr_values": [1, 2, 3],
     },
     (1, 2, 3, 100),
@@ -83,6 +83,30 @@ class TestGenerateParamGroups(unittest.TestCase):
 
         for param_group, value in zip(optimizer.param_groups, ensure_tuple(expected_values)):
             torch.testing.assert_allclose(param_group["lr"], value)
+
+        n = [len(p["params"]) for p in params]
+        assert sum(n) == 26 or all(n), "should have either full model or non-empty subsets."
+
+    def test_wrong(self):
+        """overlapped"""
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        net = Unet(
+            dimensions=3,
+            in_channels=1,
+            out_channels=3,
+            channels=(16, 32, 64),
+            strides=(2, 2),
+            num_res_units=1,
+        ).to(device)
+
+        params = generate_param_groups(
+            network=net,
+            layer_matches=[lambda x: x.model[-1], lambda x: x.model[-1]],
+            match_types="select",
+            lr_values=0.1,
+        )
+        with self.assertRaises(ValueError):
+            torch.optim.Adam(params, 100)
 
 
 if __name__ == "__main__":

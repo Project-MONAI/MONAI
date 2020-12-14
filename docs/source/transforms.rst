@@ -216,6 +216,12 @@ Intensity
     :members:
     :special-members: __call__
 
+`DetectEnvelope`
+"""""""""""""""""""""
+.. autoclass:: DetectEnvelope
+    :members:
+    :special-members: __call__
+
 IO
 ^^
 

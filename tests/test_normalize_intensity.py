@@ -59,6 +59,7 @@ class TestNormalizeIntensity(NumpyImageTestCase2D):
     def test_default(self):
         normalizer = NormalizeIntensity()
         normalized = normalizer(self.imt)
+        self.assertTrue(normalized.dtype == np.float32)
         expected = (self.imt - np.mean(self.imt)) / np.std(self.imt)
         np.testing.assert_allclose(normalized, expected, rtol=1e-6)
 
