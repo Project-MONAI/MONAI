@@ -179,6 +179,11 @@ Layers
 .. autoclass:: GaussianFilter
     :members:
 
+`HilbertTransform`
+~~~~~~~~~~~~~~~~~~
+.. autoclass:: HilbertTransform
+    :members:
+
 `Affine Transform`
 ~~~~~~~~~~~~~~~~~~
 .. autoclass:: monai.networks.layers.AffineTransform

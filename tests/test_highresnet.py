@@ -53,7 +53,7 @@ class TestHighResNet(DistTestCase):
             result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
-    @TimedCall(seconds=100, force_quit=True)
+    @TimedCall(seconds=200, force_quit=True)
     def test_script(self):
         input_param, input_shape, expected_shape = TEST_CASE_1
         net = HighResNet(**input_param)

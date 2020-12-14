@@ -17,7 +17,7 @@ within the MONAI package. The intent is to explicitly identify information
 that should be used consistently throughout the entire MONAI package.
 
 A type would be named as type_definitions.KeysCollection
-which includes a meaningful name for the concent in the name itself. The
+which includes a meaningful name for the consent in the name itself. The
 definitions in this file map context meaningful names to the underlying
 object properties that define the expected API.
 

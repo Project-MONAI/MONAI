@@ -144,11 +144,15 @@ class TestLMDBDataset(unittest.TestCase):
             ]
 
             cache_dir = os.path.join(os.path.join(tempdir, "cache"), "data")
-            dataset_precached = LMDBDataset(data=test_data, transform=transform, cache_dir=cache_dir, **kwargs)
+            dataset_precached = LMDBDataset(
+                data=test_data, transform=transform, progress=False, cache_dir=cache_dir, **kwargs
+            )
             data1_precached = dataset_precached[0]
             data2_precached = dataset_precached[1]
 
-            dataset_postcached = LMDBDataset(data=test_data, transform=transform, cache_dir=cache_dir, **kwargs)
+            dataset_postcached = LMDBDataset(
+                data=test_data, transform=transform, progress=False, cache_dir=cache_dir, **kwargs
+            )
             data1_postcached = dataset_postcached[0]
             data2_postcached = dataset_postcached[1]
 

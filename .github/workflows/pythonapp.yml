@@ -80,13 +80,13 @@ jobs:
     - if: runner.os == 'windows'
       name: Install torch cpu from pytorch.org (Windows only)
       run: |
-        python -m pip install torch==1.7.0+cpu torchvision==0.8.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
+        python -m pip install torch==1.7.1+cpu torchvision==0.8.2+cpu -f https://download.pytorch.org/whl/torch_stable.html
         # min. requirements for windows instances
         python -c "f=open('requirements-dev.txt', 'r'); txt=f.readlines(); f.close(); print(txt); f=open('requirements-dev.txt', 'w'); f.writelines(txt[1:12]); f.close()"
     - name: Install the dependencies
       run: |
-        python -m pip install torch==1.7.0
-        python -m pip install torchvision==0.8.1
+        python -m pip install torch==1.7.1
+        python -m pip install torchvision==0.8.2
         cat "requirements-dev.txt"
         python -m pip install -r requirements-dev.txt
         python -m pip list
@@ -108,7 +108,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, macOS-latest, ubuntu-latest]
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python 3.8
@@ -134,11 +134,11 @@ jobs:
     - if: runner.os == 'windows'
       name: Install torch cpu from pytorch.org (Windows only)
       run: |
-        python -m pip install torch==1.7.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
+        python -m pip install torch==1.7.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
     - name: Install the dependencies
       run: |
         # min. requirements
-        python -m pip install torch==1.7.0
+        python -m pip install torch==1.7.1
         python -m pip install -r requirements-min.txt
         python -m pip list
         BUILD_MONAI=0 python setup.py develop  # no compile of extensions
@@ -173,7 +173,7 @@ jobs:
             pytorch: "-h"
             base: "nvcr.io/nvidia/pytorch:20.07-py3"
           - environment: PT17+CUDA102
-            pytorch: "torch==1.7.0 torchvision==0.8.1"
+            pytorch: "torch==1.7.1 torchvision==0.8.2"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
           - environment: PT17+CUDA110
             # we explicitly set pytorch to -h to avoid pip install error

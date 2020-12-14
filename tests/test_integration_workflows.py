@@ -296,7 +296,7 @@ class IntegrationWorkflows(DistTestCase):
 
     def test_training(self):
         repeated = []
-        test_rounds = 3 if monai.config.get_torch_version_tuple() >= (1, 6) else 2
+        test_rounds = 3 if monai.utils.module.get_torch_version_tuple() >= (1, 6) else 2
         for i in range(test_rounds):
             results = self.train_and_infer(idx=i)
             repeated.append(results)
@@ -308,7 +308,7 @@ class IntegrationWorkflows(DistTestCase):
         daemon=False,
     )
     def test_timing(self):
-        if monai.config.get_torch_version_tuple() >= (1, 6):
+        if monai.utils.module.get_torch_version_tuple() >= (1, 6):
             self.train_and_infer(idx=2)
 
 
