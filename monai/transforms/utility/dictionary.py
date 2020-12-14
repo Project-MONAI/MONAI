@@ -17,16 +17,16 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 import copy
 import logging
-from typing import Callable, Dict, Hashable, Mapping, Optional, Sequence, Union
+from typing import Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
 from monai.config import KeysCollection
-from monai.transforms.compose import MapTransform
+from monai.transforms import extreme_points_to_image, get_extreme_points
+from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.utility.array import (
     AddChannel,
-    AddExtremePointsChannel,
     AsChannelFirst,
     AsChannelLast,
     CastToType,
@@ -661,7 +661,7 @@ class ConvertToMultiChannelBasedOnBratsClassesd(MapTransform):
         return d
 
 
-class AddExtremePointsChanneld(MapTransform):
+class AddExtremePointsChanneld(Randomizable, MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.AddExtremePointsChannel`.
 
@@ -690,22 +690,37 @@ class AddExtremePointsChanneld(MapTransform):
         rescale_max: float = 1.0,
     ):
         super().__init__(keys)
+        self.background = background
+        self.pert = pert
+        self.points: List[Tuple[int, ...]] = []
         self.label_key = label_key
-        self.add_extreme_points_channel = AddExtremePointsChannel(background=background, pert=pert)
         self.sigma = sigma
         self.rescale_min = rescale_min
         self.rescale_max = rescale_max
 
+    def randomize(self, label: np.ndarray) -> None:
+        self.points = get_extreme_points(label, rand_state=self.R, background=self.background, pert=self.pert)
+
     def __call__(self, data):
         d = dict(data)
         label = d[self.label_key]
+        if label.shape[0] != 1:
+            raise ValueError("Only supports single channel labels!")
+
+        # Generate extreme points
+        self.randomize(label[0, :])
 
         for key in data.keys():
             if key in self.keys:
                 img = d[key]
-                d[key] = self.add_extreme_points_channel(
-                    img, label=label, sigma=self.sigma, rescale_min=self.rescale_min, rescale_max=self.rescale_max
+                points_image = extreme_points_to_image(
+                    points=self.points,
+                    label=label,
+                    sigma=self.sigma,
+                    rescale_min=self.rescale_min,
+                    rescale_max=self.rescale_max,
                 )
+                d[key] = np.concatenate([img, points_image], axis=0)
         return d
 
 

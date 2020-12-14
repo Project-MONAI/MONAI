@@ -45,7 +45,7 @@ TEST_CASE_2 = [
 
 class TestAddExtremePointsChanneld(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
-    def test_type_shape(self, input_data, expected):
+    def test_correct_results(self, input_data, expected):
         add_extreme_points_channel = AddExtremePointsChanneld(
             keys="img", label_key="label", sigma=1.0, rescale_min=0.0, rescale_max=1.0
         )
