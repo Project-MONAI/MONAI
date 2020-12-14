@@ -18,7 +18,7 @@ import torch
 from monai.metrics.utils import *
 
 
-class SurfaceDistance:
+class SurfaceDistanceMetric:
     """
     Compute Surface Distance between two tensors. It can support both multi-classes and multi-labels tasks.
     It supports both symmetric and asymmetric surface distance calculation.
@@ -28,7 +28,7 @@ class SurfaceDistance:
 
     Args:
         include_background: whether to skip distance computation on the first channel of
-            the predicted output. Defaults to ``True``.
+            the predicted output. Defaults to ``False``.
         symmetric: whether to calculate the symmetric average surface distance between
             `seg_pred` and `seg_gt`. Defaults to ``False``.
         distance_metric: : [``"euclidean"``, ``"chessboard"``, ``"taxicab"``]
@@ -41,7 +41,7 @@ class SurfaceDistance:
 
     def __init__(
         self,
-        include_background: bool = True,
+        include_background: bool = False,
         symmetric: bool = False,
         distance_metric: str = "euclidean",
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
@@ -89,7 +89,7 @@ class SurfaceDistance:
 def compute_average_surface_distance(
     y_pred: Union[np.ndarray, torch.Tensor],
     y: Union[np.ndarray, torch.Tensor],
-    include_background: bool = True,
+    include_background: bool = False,
     symmetric: bool = False,
     distance_metric: str = "euclidean",
 ):
@@ -106,7 +106,7 @@ def compute_average_surface_distance(
         y: ground truth to compute mean the distance. It must be one-hot format and first dim is batch.
             The values should be binarized.
         include_background: whether to skip distance computation on the first channel of
-            the predicted output. Defaults to ``True``.
+            the predicted output. Defaults to ``False``.
         symmetric: whether to calculate the symmetric average surface distance between
             `seg_pred` and `seg_gt`. Defaults to ``False``.
         distance_metric: : [``"euclidean"``, ``"chessboard"``, ``"taxicab"``]
@@ -132,7 +132,7 @@ def compute_average_surface_distance(
         (edges_pred, edges_gt) = get_mask_edges(y_pred[b, c], y[b, c])
         surface_distance = get_surface_distance(edges_pred, edges_gt, distance_metric=distance_metric)
         if surface_distance.shape == (0,):
-            avg_surface_distance = np.inf
+            avg_surface_distance = np.nan
         else:
             avg_surface_distance = surface_distance.mean()
         if not symmetric:
@@ -140,7 +140,7 @@ def compute_average_surface_distance(
         else:
             surface_distance_2 = get_surface_distance(edges_gt, edges_pred, distance_metric=distance_metric)
             if surface_distance_2.shape == (0,):
-                avg_surface_distance_2 = np.inf
+                avg_surface_distance_2 = np.nan
             else:
                 avg_surface_distance_2 = surface_distance_2.mean()
             asd[b, c] = np.mean((avg_surface_distance, avg_surface_distance_2))

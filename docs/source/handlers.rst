@@ -40,6 +40,18 @@ Confusion Matrix metrics handler
     :members:
 
 
+Hausdorff Distance metrics handler
+----------------------------------
+.. autoclass:: HausdorffDistance
+    :members:
+
+
+Surface Distance metrics handler
+--------------------------------
+.. autoclass:: SurfaceDistance
+    :members:
+
+
 Metric logger
 -------------
 .. autoclass:: MetricLogger

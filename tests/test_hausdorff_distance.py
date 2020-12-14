@@ -16,7 +16,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.metrics import HausdorffDistance
+from monai.metrics import HausdorffDistanceMetric
 
 
 def create_spherical_seg_3d(
@@ -76,6 +76,7 @@ TEST_CASES = [
     ],
     [
         [
+            # pred does not have foreground (but gt has), the metric should be inf
             np.zeros([99, 99, 99]),
             create_spherical_seg_3d(radius=40, centre=(20, 33, 22)),
         ],
@@ -83,13 +84,7 @@ TEST_CASES = [
     ],
     [
         [
-            np.zeros([99, 99, 99]),
-            np.zeros([99, 99, 99]),
-        ],
-        [np.inf, np.inf, np.inf, np.inf, np.inf, np.inf],
-    ],
-    [
-        [
+            # gt does not have foreground (but pred has), the metric should be inf
             create_spherical_seg_3d(),
             np.zeros([99, 99, 99]),
         ],
@@ -102,6 +97,16 @@ TEST_CASES = [
             95,
         ],
         [19.924858845171276, 20.09975124224178, 14, 18, 22, 33],
+    ],
+]
+
+TEST_CASES_NANS = [
+    [
+        [
+            # both pred and gt do not have foreground, metric and not_nans should be 0
+            np.zeros([99, 99, 99]),
+            np.zeros([99, 99, 99]),
+        ],
     ],
 ]
 
@@ -119,7 +124,7 @@ class TestHausdorffDistance(unittest.TestCase):
         seg_2 = torch.tensor(seg_2)
         for metric in ["euclidean", "chessboard", "taxicab"]:
             for directed in [True, False]:
-                hd_metric = HausdorffDistance(
+                hd_metric = HausdorffDistanceMetric(
                     include_background=False, distance_metric=metric, percentile=percentile, directed=directed
                 )
                 # shape of seg_1, seg_2 are: HWD, converts to BNHWD
@@ -130,6 +135,18 @@ class TestHausdorffDistance(unittest.TestCase):
                 expected_value_curr = expected_value[ct]
                 np.testing.assert_allclose(expected_value_curr, result, rtol=1e-7)
                 ct += 1
+
+    @parameterized.expand(TEST_CASES_NANS)
+    def test_nans(self, input_data):
+        [seg_1, seg_2] = input_data
+        seg_1 = torch.tensor(seg_1)
+        seg_2 = torch.tensor(seg_2)
+        hd_metric = HausdorffDistanceMetric(include_background=False)
+        batch_seg_1 = seg_1.unsqueeze(0).unsqueeze(0)
+        batch_seg_2 = seg_2.unsqueeze(0).unsqueeze(0)
+        result, not_nans = hd_metric(batch_seg_1, batch_seg_2)
+        np.testing.assert_allclose(0, result, rtol=1e-7)
+        np.testing.assert_allclose(0, not_nans, rtol=1e-7)
 
 
 if __name__ == "__main__":

@@ -18,7 +18,7 @@ import torch
 from monai.metrics.utils import *
 
 
-class HausdorffDistance:
+class HausdorffDistanceMetric:
     """
     Compute Hausdorff Distance between two tensors. It can support both multi-classes and multi-labels tasks.
     It supports both directed and non-directed Hausdorff distance calculation. In addition, specify the `percentile`
@@ -28,8 +28,8 @@ class HausdorffDistance:
     You can use suitable transforms in ``monai.transforms.post`` first to achieve binarized values.
 
     Args:
-        include_background: whether to skip distance computation on the first channel of
-            the predicted output. Defaults to ``True``.
+        include_background: whether to include distance computation on the first channel of
+            the predicted output. Defaults to ``False``.
         distance_metric: : [``"euclidean"``, ``"chessboard"``, ``"taxicab"``]
             the metric used to compute surface distance. Defaults to ``"euclidean"``.
         percentile: an optional float number between 0 and 100. If specified, the corresponding
@@ -44,7 +44,7 @@ class HausdorffDistance:
 
     def __init__(
         self,
-        include_background: bool = True,
+        include_background: bool = False,
         distance_metric: str = "euclidean",
         percentile: Optional[float] = None,
         directed: bool = False,
@@ -95,7 +95,7 @@ class HausdorffDistance:
 def compute_hausdorff_distance(
     y_pred: Union[np.ndarray, torch.Tensor],
     y: Union[np.ndarray, torch.Tensor],
-    include_background: bool = True,
+    include_background: bool = False,
     distance_metric: str = "euclidean",
     percentile: Optional[float] = None,
     directed: bool = False,
@@ -110,7 +110,7 @@ def compute_hausdorff_distance(
         y: ground truth to compute mean the distance. It must be one-hot format and first dim is batch.
             The values should be binarized.
         include_background: whether to skip distance computation on the first channel of
-            the predicted output. Defaults to ``True``.
+            the predicted output. Defaults to ``False``.
         distance_metric: : [``"euclidean"``, ``"chessboard"``, ``"taxicab"``]
             the metric used to compute surface distance. Defaults to ``"euclidean"``.
         percentile: an optional float number between 0 and 100. If specified, the corresponding
@@ -156,9 +156,9 @@ def compute_percent_hausdorff_distance(
 
     surface_distance = get_surface_distance(edges_pred, edges_gt, distance_metric=distance_metric)
 
-    # for input without foreground
+    # for both pred and gt do not have foreground
     if surface_distance.shape == (0,):
-        return np.inf
+        return np.nan
 
     if not percentile:
         return surface_distance.max()

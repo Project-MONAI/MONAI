@@ -167,16 +167,16 @@ def get_mask_edges(
 
 
 def get_surface_distance(
-    edges_pred: np.ndarray,
-    edges_gt: np.ndarray,
+    seg_pred: np.ndarray,
+    seg_gt: np.ndarray,
     distance_metric: str = "euclidean",
 ) -> np.ndarray:
     """
     This function is used to compute the surface distances from `seg_pred` to `seg_gt`.
 
     Args:
-        edges_pred: the edge of the predictions.
-        edges_gt: the edge of the ground truth.
+        seg_pred: the edge of the predictions.
+        seg_gt: the edge of the ground truth.
         distance_metric: : [``"euclidean"``, ``"chessboard"``, ``"taxicab"``]
             the metric used to compute surface distance. Defaults to ``"euclidean"``.
 
@@ -185,17 +185,20 @@ def get_surface_distance(
             - ``"taxicab"``, uses `taxicab` metric in chamfer type of transform.
     """
 
-    if not np.any(edges_pred):
-        return np.array([])
-
-    if not np.any(edges_gt):
-        dis = np.inf * np.ones_like(edges_gt)
+    if not np.any(seg_gt):
+        if not np.any(seg_pred):
+            return np.array([])
+        else:
+            dis = np.inf * np.ones_like(seg_gt)
+            return dis[seg_pred]
     else:
+        if not np.any(seg_pred):
+            dis = np.inf * np.ones_like(seg_gt)
+            return dis[seg_gt]
         if distance_metric == "euclidean":
-            dis = distance_transform_edt(~edges_gt)
+            dis = distance_transform_edt(~seg_gt)
         elif distance_metric == "chessboard" or distance_metric == "taxicab":
-            dis = distance_transform_cdt(~edges_gt, metric=distance_metric)
+            dis = distance_transform_cdt(~seg_gt, metric=distance_metric)
         else:
             raise ValueError(f"distance_metric {distance_metric} is not implemented.")
-    surface_distance = dis[edges_pred]
-    return surface_distance
+        return dis[seg_pred]

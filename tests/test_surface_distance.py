@@ -16,7 +16,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.metrics import SurfaceDistance
+from monai.metrics import SurfaceDistanceMetric
 
 
 def create_spherical_seg_3d(
@@ -100,18 +100,21 @@ TEST_CASES = [
     ],
     [
         [
-            np.zeros([99, 99, 99]),
-            np.zeros([99, 99, 99]),
-        ],
-        [np.inf, np.inf],
-    ],
-    [
-        [
             create_spherical_seg_3d(),
             np.zeros([99, 99, 99]),
             "taxicab",
         ],
         [np.inf, np.inf],
+    ],
+]
+
+TEST_CASES_NANS = [
+    [
+        [
+            # both pred and gt do not have foreground, metric and not_nans should be 0
+            np.zeros([99, 99, 99]),
+            np.zeros([99, 99, 99]),
+        ],
     ],
 ]
 
@@ -128,7 +131,7 @@ class TestAllSurfaceMetrics(unittest.TestCase):
         seg_1 = torch.tensor(seg_1)
         seg_2 = torch.tensor(seg_2)
         for symmetric in [True, False]:
-            sur_metric = SurfaceDistance(include_background=False, symmetric=symmetric, distance_metric=metric)
+            sur_metric = SurfaceDistanceMetric(include_background=False, symmetric=symmetric, distance_metric=metric)
             # shape of seg_1, seg_2 are: HWD, converts to BNHWD
             batch, n_class = 2, 3
             batch_seg_1 = seg_1.unsqueeze(0).unsqueeze(0).repeat([batch, n_class, 1, 1, 1])
@@ -137,6 +140,18 @@ class TestAllSurfaceMetrics(unittest.TestCase):
             expected_value_curr = expected_value[ct]
             np.testing.assert_allclose(expected_value_curr, result, rtol=1e-7)
             ct += 1
+
+    @parameterized.expand(TEST_CASES_NANS)
+    def test_nans(self, input_data):
+        [seg_1, seg_2] = input_data
+        seg_1 = torch.tensor(seg_1)
+        seg_2 = torch.tensor(seg_2)
+        sur_metric = SurfaceDistanceMetric(include_background=False)
+        batch_seg_1 = seg_1.unsqueeze(0).unsqueeze(0)
+        batch_seg_2 = seg_2.unsqueeze(0).unsqueeze(0)
+        result, not_nans = sur_metric(batch_seg_1, batch_seg_2)
+        np.testing.assert_allclose(0, result, rtol=1e-7)
+        np.testing.assert_allclose(0, not_nans, rtol=1e-7)
 
 
 if __name__ == "__main__":
