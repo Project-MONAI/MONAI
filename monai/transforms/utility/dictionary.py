@@ -26,6 +26,7 @@ from monai.config import KeysCollection
 from monai.transforms.compose import MapTransform
 from monai.transforms.utility.array import (
     AddChannel,
+    AddExtremePointsChannel,
     AsChannelFirst,
     AsChannelLast,
     CastToType,
@@ -660,6 +661,54 @@ class ConvertToMultiChannelBasedOnBratsClassesd(MapTransform):
         return d
 
 
+class AddExtremePointsChanneld(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.AddExtremePointsChannel`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        label_key: key to label source to get the extreme points.
+        background: Class index of background label, defaults to 0.
+        pert: Random perturbation amount to add to the points, defaults to 0.0.
+        sigma: if a list of values, must match the count of spatial dimensions of input data,
+            and apply every value in the list to 1 spatial dimension. if only 1 value provided,
+            use it for all spatial dimensions.
+        rescale_min: minimum value of output data.
+        rescale_max: maximum value of output data.
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        label_key: str,
+        background: int = 0,
+        pert: float = 0.0,
+        sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 3.0,
+        rescale_min: float = -1.0,
+        rescale_max: float = 1.0,
+    ):
+        super().__init__(keys)
+        self.label_key = label_key
+        self.add_extreme_points_channel = AddExtremePointsChannel(background=background, pert=pert)
+        self.sigma = sigma
+        self.rescale_min = rescale_min
+        self.rescale_max = rescale_max
+
+    def __call__(self, data):
+        d = dict(data)
+        label = d[self.label_key]
+
+        for key in data.keys():
+            if key in self.keys:
+                img = d[key]
+                d[key] = self.add_extreme_points_channel(
+                    img, label=label, sigma=self.sigma, rescale_min=self.rescale_min, rescale_max=self.rescale_max
+                )
+        return d
+
+
 IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
@@ -680,3 +729,4 @@ FgBgToIndicesD = FgBgToIndicesDict = FgBgToIndicesd
 ConvertToMultiChannelBasedOnBratsClassesD = (
     ConvertToMultiChannelBasedOnBratsClassesDict
 ) = ConvertToMultiChannelBasedOnBratsClassesd
+AddExtremePointsChannelD = AddExtremePointsChannelDict = AddExtremePointsChanneld
