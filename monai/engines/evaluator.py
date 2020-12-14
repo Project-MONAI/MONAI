@@ -28,6 +28,8 @@ else:
     Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
     Metric, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "Metric")
 
+__all__ = ["Evaluator", "SupervisedEvaluator", "EnsembleEvaluator"]
+
 
 class Evaluator(Workflow):
     """

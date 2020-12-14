@@ -21,6 +21,8 @@ if TYPE_CHECKING:
 else:
     Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
 
+__all__ = ["stopping_fn_from_metric", "stopping_fn_from_loss", "all_gather"]
+
 
 def stopping_fn_from_metric(metric_name: str) -> Callable[[Engine], Any]:
     """

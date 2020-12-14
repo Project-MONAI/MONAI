@@ -60,10 +60,7 @@ def zero_margins(img: np.ndarray, margin: int) -> bool:
     if np.any(img[:, :, :margin]) or np.any(img[:, :, -margin:]):
         return False
 
-    if np.any(img[:, :margin, :]) or np.any(img[:, -margin:, :]):
-        return False
-
-    return True
+    return not np.any(img[:, :margin, :]) and not np.any(img[:, -margin:, :])
 
 
 def rescale_array(
@@ -262,8 +259,7 @@ def weighted_patch_samples(
         idx = v.searchsorted(r_state.random(n_samples) * v[-1], side="right")
     # compensate 'valid' mode
     diff = np.minimum(win_size, img_size) // 2
-    centers = [np.unravel_index(i, v_size) + diff for i in np.asarray(idx, dtype=np.int)]
-    return centers
+    return [np.unravel_index(i, v_size) + diff for i in np.asarray(idx, dtype=np.int)]
 
 
 def generate_pos_neg_label_crop_centers(
@@ -427,7 +423,7 @@ def create_rotate(spatial_dims: int, radians: Union[Sequence[float], float]) -> 
             return np.array([[cos_, -sin_, 0.0], [sin_, cos_, 0.0], [0.0, 0.0, 1.0]])
         raise ValueError("radians must be non empty.")
 
-    if spatial_dims == 3:
+    elif spatial_dims == 3:
         affine = None
         if len(radians) >= 1:
             sin_, cos_ = np.sin(radians[0]), np.cos(radians[0])
@@ -466,7 +462,7 @@ def create_shear(spatial_dims: int, coefs: Union[Sequence[float], float]) -> np.
     if spatial_dims == 2:
         coefs = ensure_tuple_size(coefs, dim=2, pad_val=0.0)
         return np.array([[1, coefs[0], 0.0], [coefs[1], 1.0, 0.0], [0.0, 0.0, 1.0]])
-    if spatial_dims == 3:
+    elif spatial_dims == 3:
         coefs = ensure_tuple_size(coefs, dim=6, pad_val=0.0)
         return np.array(
             [
