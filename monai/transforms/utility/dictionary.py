@@ -158,7 +158,7 @@ class RepeatChanneld(MapTransform):
 class SplitChanneld(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SplitChannel`.
-    All the input specified by `keys` should be splitted into same count of data.
+    All the input specified by `keys` should be split into same count of data.
 
     """
 

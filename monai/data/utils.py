@@ -567,7 +567,7 @@ def partition_dataset(
 ):
     """
     Split the dataset into N partitions. It can support shuffle based on specified random seed.
-    Will return a set of datasets, every dataset contains 1 partion of original dataset.
+    Will return a set of datasets, every dataset contains 1 partition of original dataset.
     And it can split the dataset based on specified ratios or evenly split into `num_partitions`.
     Refer to: https://github.com/pytorch/pytorch/blob/master/torch/utils/data/distributed.py.
 
