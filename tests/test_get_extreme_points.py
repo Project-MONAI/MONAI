@@ -21,7 +21,7 @@ TEST_CASE_1 = [
         "img": np.array([[0, 1, 0], [0, 0, 1], [0, 1, 0], [1, 0, 0]]),
         "rand_state": np.random,
         "background": 0,
-        "permutation": 0.0,
+        "pert": 0.0,
     },
     [(0, 1), (3, 0), (3, 0), (1, 2)],
 ]
@@ -31,7 +31,7 @@ TEST_CASE_2 = [
         "img": np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0], [0, 1, 0]]),
         "rand_state": np.random,
         "background": 0,
-        "permutation": 0.0,
+        "pert": 0.0,
     },
     [(0, 1), (3, 1), (1, 0), (1, 2)],
 ]

@@ -574,18 +574,18 @@ def get_largest_connected_component_mask(img: torch.Tensor, connectivity: Option
 
 
 def get_extreme_points(
-    img: np.ndarray, rand_state: np.random.RandomState = np.random, background: int = 0, permutation: float = 0.0
+    img: np.ndarray, rand_state: np.random.RandomState = np.random, background: int = 0, pert: float = 0.0
 ) -> List[Tuple[int, ...]]:
     """
     Generate extreme points from an image. These are used to generate initial segmentation
-    for annotation models. An optional permutation can be passed to simulate user clicks.
+    for annotation models. An optional perturbation can be passed to simulate user clicks.
 
     Args:
         img:
             Image to generate extreme points from. Expected Shape is ``(spatial_dim1, [, spatial_dim2, ...])``.
         rand_state: `np.random.RandomState` object used to select random indices.
         background: Value to be consider as background, defaults to 0.
-        permutation: Random permutation amount to add to the points, defaults to 0.0.
+        pert: Random perturbation amount to add to the points, defaults to 0.0.
 
     Returns:
         A list of extreme points, its length is equal to 2 * spatial dimension of input image.
@@ -612,7 +612,7 @@ def get_extreme_points(
         pt = []
         for j in range(img.ndim):
             # add +- pert to each dimension
-            val = int(indices[j][idx] + 2.0 * permutation * (rand_state.rand() - 0.5))
+            val = int(indices[j][idx] + 2.0 * pert * (rand_state.rand() - 0.5))
             val = max(val, 0)
             val = min(val, img.shape[j] - 1)
             pt.append(val)

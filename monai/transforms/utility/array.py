@@ -551,21 +551,21 @@ class AddExtremePointsChannel(Transform, Randomizable):
 
     Args:
         background: Class index of background label, defaults to 0.
-        permutation: Random permutation amount to add to the points, defaults to 0.0.
+        pert: Random perturbation amount to add to the points, defaults to 0.0.
 
     Raises:
         ValueError: When no label image provided.
         ValueError: When label image is not single channel.
     """
 
-    def __init__(self, background: int = 0, permutation: float = 0.0) -> None:
+    def __init__(self, background: int = 0, pert: float = 0.0) -> None:
         self._background = background
-        self._permutation = permutation
+        self._pert = pert
         self._points: List[Tuple[int, ...]] = []
 
     def randomize(self, label: np.ndarray) -> None:
         self._points = get_extreme_points(
-            label, rand_state=self.R, background=self._background, permutation=self._permutation
+            label, rand_state=self.R, background=self._background, pert=self._pert
         )
 
     def __call__(
