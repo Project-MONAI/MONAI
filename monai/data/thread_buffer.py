@@ -22,7 +22,7 @@ class ThreadBuffer:
 
     One issue raised by using a thread in this way is that during the lifetime of the thread the source object is being
     iterated over, so if the thread hasn't finished another attempt to iterate over it will raise an exception or yield
-    inexpected results. To ensure the thread releases the iteration and proper cleanup is done the stop() method must
+    unexpected results. To ensure the thread releases the iteration and proper cleanup is done the stop() method must
     be called which will join with the thread.
 
     Args:
