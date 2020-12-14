@@ -35,7 +35,6 @@ class DeepgrowDataset(DecathlonDataset):
             self,
             dimension: int,
             pixdim: Sequence[float],
-            spatial_size: Union[Sequence[int], int],
             root_dir: str,
             task: str,
             section: str,
@@ -50,7 +49,6 @@ class DeepgrowDataset(DecathlonDataset):
     ) -> None:
         self.dimension = dimension
         self.pixdim = pixdim
-        self.spatial_size = spatial_size
         self.limit = limit
 
         super().__init__(
