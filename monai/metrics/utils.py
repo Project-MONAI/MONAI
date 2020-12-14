@@ -186,11 +186,8 @@ def get_surface_distance(
     """
 
     if not np.any(seg_gt):
-        if not np.any(seg_pred):
-            return np.array([])
-        else:
-            dis = np.inf * np.ones_like(seg_gt)
-            return dis[seg_pred]
+        dis = np.inf * np.ones_like(seg_gt)
+        return dis[seg_pred]
     else:
         if not np.any(seg_pred):
             dis = np.inf * np.ones_like(seg_gt)
