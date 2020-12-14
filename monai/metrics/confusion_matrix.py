@@ -257,7 +257,6 @@ def compute_confusion_matrix_metric(metric_name: str, confusion_matrix: torch.Te
     elif metric == "mk":
         ppv = torch.where((tp + fp) > 0, tp / (tp + fp), nan_tensor)
         npv = torch.where((tn + fn) > 0, tn / (tn + fn), nan_tensor)
-        npv = tn / (tn + fn)
         numerator = ppv + npv - 1.0
         denominator = 1.0
     else:

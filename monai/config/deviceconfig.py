@@ -102,7 +102,7 @@ def set_visible_devices(*dev_inds):
 
 def _dict_append(in_dict, key, fn):
     try:
-        in_dict[key] = fn()
+        in_dict[key] = fn() if callable(fn) else fn
     except BaseException:
         in_dict[key] = "UNKNOWN for given OS"
 
@@ -197,7 +197,7 @@ def get_gpu_info() -> OrderedDict:
         _dict_append(output, "Current device", lambda: torch.cuda.current_device())
         _dict_append(output, "Library compiled for CUDA architectures", lambda: torch.cuda.get_arch_list())
     for gpu in range(num_gpus):
-        _dict_append(output, "Info for GPU", lambda: gpu)
+        _dict_append(output, "Info for GPU", gpu)
         gpu_info = torch.cuda.get_device_properties(gpu)
         _dict_append(output, "\tName", lambda: gpu_info.name)
         _dict_append(output, "\tIs integrated", lambda: bool(gpu_info.is_integrated))
