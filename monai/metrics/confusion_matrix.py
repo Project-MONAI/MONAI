@@ -15,6 +15,7 @@ from typing import Sequence, Union
 import torch
 
 from monai.metrics.utils import *
+from monai.utils import MetricReduction
 
 
 class ConfusionMatrixMetric:
@@ -263,10 +264,9 @@ def compute_confusion_matrix_metric(metric_name: str, confusion_matrix: torch.Te
         raise NotImplementedError("the metric is not implemented.")
 
     if isinstance(denominator, torch.Tensor):
-        result = torch.where(denominator != 0, numerator / denominator, nan_tensor)
+        return torch.where(denominator != 0, numerator / denominator, nan_tensor)
     else:
-        result = numerator / denominator
-    return result
+        return numerator / denominator
 
 
 def check_confusion_matrix_metric_name(metric_name: str):

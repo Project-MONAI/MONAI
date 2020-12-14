@@ -16,6 +16,7 @@ import numpy as np
 import torch
 
 from monai.metrics.utils import *
+from monai.utils import MetricReduction
 
 
 class SurfaceDistanceMetric:

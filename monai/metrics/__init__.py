@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from .confusion_matrix import ConfusionMatrixMetric, compute_confusion_matrix_metric, get_confusion_matrix
-from .hausdorff_distance import HausdorffDistanceMetric, compute_hausdorff_distance
+from .hausdorff_distance import *
 from .meandice import DiceMetric, compute_meandice
 from .occlusion_sensitivity import compute_occlusion_sensitivity
 from .rocauc import compute_roc_auc

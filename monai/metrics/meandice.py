@@ -15,6 +15,7 @@ from typing import Union
 import torch
 
 from monai.metrics.utils import *
+from monai.utils import MetricReduction
 
 
 class DiceMetric:

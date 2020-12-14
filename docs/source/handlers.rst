@@ -34,19 +34,19 @@ ROC AUC metrics handler
     :members:
 
 
-Confusion Matrix metrics handler
+Confusion matrix metrics handler
 --------------------------------
 .. autoclass:: ConfusionMatrix
     :members:
 
 
-Hausdorff Distance metrics handler
+Hausdorff distance metrics handler
 ----------------------------------
 .. autoclass:: HausdorffDistance
     :members:
 
 
-Surface Distance metrics handler
+Surface distance metrics handler
 --------------------------------
 .. autoclass:: SurfaceDistance
     :members:

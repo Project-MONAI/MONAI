@@ -37,6 +37,8 @@ else:
     Nifti1Image, _ = optional_import("nibabel.nifti1", name="Nifti1Image")
     PILImage, has_pil = optional_import("PIL.Image")
 
+__all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReader"]
+
 
 class ImageReader(ABC):
     """Abstract class to define interface APIs to load image files.

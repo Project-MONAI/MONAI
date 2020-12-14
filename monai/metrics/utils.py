@@ -22,6 +22,8 @@ binary_erosion, _ = optional_import("scipy.ndimage.morphology", name="binary_ero
 distance_transform_edt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_edt")
 distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_cdt")
 
+__all__ = ["ignore_background", "do_metric_reduction", "get_mask_edges", "get_surface_distance"]
+
 
 def ignore_background(
     y_pred: torch.Tensor,
@@ -91,9 +93,7 @@ def do_metric_reduction(
     elif reduction == MetricReduction.SUM_CHANNEL:
         not_nans = not_nans.sum(dim=1)
         f = f.sum(dim=1)  # the channel sum
-    elif reduction == MetricReduction.NONE:
-        pass
-    else:
+    elif reduction != MetricReduction.NONE:
         raise ValueError(
             f"Unsupported reduction: {reduction}, available options are "
             '["mean", "sum", "mean_batch", "sum_batch", "mean_channel", "sum_channel" "none"].'
@@ -187,15 +187,15 @@ def get_surface_distance(
 
     if not np.any(seg_gt):
         dis = np.inf * np.ones_like(seg_gt)
-        return dis[seg_pred]
     else:
         if not np.any(seg_pred):
             dis = np.inf * np.ones_like(seg_gt)
             return dis[seg_gt]
         if distance_metric == "euclidean":
             dis = distance_transform_edt(~seg_gt)
-        elif distance_metric == "chessboard" or distance_metric == "taxicab":
+        elif distance_metric in ["chessboard", "taxicab"]:
             dis = distance_transform_cdt(~seg_gt, metric=distance_metric)
         else:
             raise ValueError(f"distance_metric {distance_metric} is not implemented.")
-        return dis[seg_pred]
+
+    return dis[seg_pred]

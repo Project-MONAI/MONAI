@@ -16,6 +16,9 @@ import numpy as np
 import torch
 
 from monai.metrics.utils import *
+from monai.utils import MetricReduction
+
+__all__ = ["HausdorffDistanceMetric", "compute_hausdorff_distance", "compute_percent_hausdorff_distance"]
 
 
 class HausdorffDistanceMetric:
