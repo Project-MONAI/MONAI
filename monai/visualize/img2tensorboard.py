@@ -28,6 +28,9 @@ else:
     SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
 
+__all__ = ["make_animated_gif_summary", "add_animated_gif", "add_animated_gif_no_channels", "plot_2d_or_3d_image"]
+
+
 def _image3_animated_gif(tag: str, image: Union[np.ndarray, torch.Tensor], scale_factor: float = 1.0) -> Summary:
     """Function to actually create the animated gif.
 
@@ -76,10 +79,7 @@ def make_animated_gif_summary(
             if the image data is between 0 and 1, using 255 for this value will scale it to displayable range
     """
 
-    if max_out == 1:
-        suffix = "/image"
-    else:
-        suffix = "/image/{}"
+    suffix = "/image" if max_out == 1 else "/image/{}"
     if other_indices is None:
         other_indices = {}
     axis_order = [0] + list(animation_axes) + list(image_axes)
@@ -194,9 +194,9 @@ def plot_2d_or_3d_image(
             dataformats = "CHW"
             writer.add_image(f"{tag}_{dataformats}", d, step, dataformats=dataformats)
             return
+        dataformats = "HW"
         for j, d2 in enumerate(d[:max_channels]):
             d2 = rescale_array(d2, 0, 1)
-            dataformats = "HW"
             writer.add_image(f"{tag}_{dataformats}_{j}", d2, step, dataformats=dataformats)
         return
 

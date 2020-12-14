@@ -15,6 +15,8 @@ import torch
 
 from monai.utils import ensure_tuple, ensure_tuple_rep
 
+__all__ = ["generate_param_groups"]
+
 
 def generate_param_groups(
     network: torch.nn.Module,
