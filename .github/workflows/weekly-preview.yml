@@ -29,7 +29,7 @@ jobs:
         git config user.email "monai.miccai2019@gmail.com"
         git add setup.cfg monai/__init__.py
         git commit -m "Weekly build at $HEAD_COMMIT_ID"
-        git tag 0.4.dev$(date +'%y%U')
+        git tag 0.5.dev$(date +'%y%U')
         python setup.py sdist bdist_wheel
 
     - name: Publish to PyPI
