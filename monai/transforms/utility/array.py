@@ -20,9 +20,8 @@ from typing import Callable, List, Optional, Sequence, Tuple, TypeVar, Union
 import numpy as np
 import torch
 
-from monai.networks.layers import GaussianFilter
 from monai.transforms.compose import Randomizable, Transform
-from monai.transforms.utils import get_extreme_points, map_binary_to_indices
+from monai.transforms.utils import extreme_points_to_image, get_extreme_points, map_binary_to_indices
 from monai.utils import ensure_tuple
 
 # Generic type which can represent either a numpy.ndarray or a torch.Tensor
@@ -593,20 +592,8 @@ class AddExtremePointsChannel(Transform, Randomizable):
         # Generate extreme points
         self.randomize(label[0, :])
 
-        # points to image
-        points_image = torch.zeros(label.shape[1:], dtype=torch.float)
-        for p in self._points:
-            points_image[p] = 1.0
-
-        # add channel and add batch
-        points_image = points_image.unsqueeze(0).unsqueeze(0)
-        gaussian_filter = GaussianFilter(img.ndim - 1, sigma=sigma)
-        points_image = gaussian_filter(points_image).squeeze(0).detach().numpy()
-
-        # rescale the points image to [rescale_min, rescale_max]
-        min_intensity = np.min(points_image)
-        max_intensity = np.max(points_image)
-        points_image = (points_image - min_intensity) / (max_intensity - min_intensity)
-        points_image = points_image * (rescale_max - rescale_min) + rescale_min
+        points_image = extreme_points_to_image(
+            points=self._points, label=label, sigma=sigma, rescale_min=rescale_min, rescale_max=rescale_max
+        )
 
         return np.concatenate([img, points_image], axis=0)
