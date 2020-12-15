@@ -629,7 +629,7 @@ def get_extreme_points(
 
 def extreme_points_to_image(
     points: List[Tuple[int, ...]],
-    label: Optional[np.ndarray],
+    label: np.ndarray,
     sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 0.0,
     rescale_min: float = -1.0,
     rescale_max: float = 1.0,
