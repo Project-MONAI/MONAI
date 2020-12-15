@@ -46,7 +46,7 @@ __all__ = [
 
 class ChannelPad(nn.Module):
     """
-    Expand the input tensor's channel dimension from lenth `in_channels` to `out_channels`, 
+    Expand the input tensor's channel dimension from lenth `in_channels` to `out_channels`,
     by padding or a projection.
     """
 
