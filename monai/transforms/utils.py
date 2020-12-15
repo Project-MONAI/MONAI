@@ -18,6 +18,7 @@ import numpy as np
 import torch
 
 from monai.config import IndexSelection
+from monai.networks.layers import GaussianFilter
 from monai.utils import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple, min_version, optional_import
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
@@ -620,3 +621,44 @@ def get_extreme_points(
         points.append(tuple(_get_point(np.max(indices[i][...]), i)))
 
     return points
+
+
+def extreme_points_to_image(
+    points: List[Tuple[int, ...]],
+    label: np.ndarray,
+    sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 0.0,
+    rescale_min: float = -1.0,
+    rescale_max: float = 1.0,
+):
+    """
+    Please refer to :py:class:`monai.transforms.AddExtremePointsChannel` for the usage.
+
+    Applies a gaussian filter to the extreme points image. Then the pixel values in points image are rescaled
+    to range [rescale_min, rescale_max].
+
+    Args:
+        points: Extreme points of the object/organ.
+        label: label image to get extreme points from. Shape must be
+            (1, spatial_dim1, [, spatial_dim2, ...]). Doesn't support one-hot labels.
+        sigma: if a list of values, must match the count of spatial dimensions of input data,
+            and apply every value in the list to 1 spatial dimension. if only 1 value provided,
+            use it for all spatial dimensions.
+        rescale_min: minimum value of output data.
+        rescale_max: maximum value of output data.
+    """
+    # points to image
+    points_image = torch.zeros(label.shape[1:], dtype=torch.float)
+    for p in points:
+        points_image[p] = 1.0
+
+    # add channel and add batch
+    points_image = points_image.unsqueeze(0).unsqueeze(0)
+    gaussian_filter = GaussianFilter(label.ndim - 1, sigma=sigma)
+    points_image = gaussian_filter(points_image).squeeze(0).detach().numpy()
+
+    # rescale the points image to [rescale_min, rescale_max]
+    min_intensity = np.min(points_image)
+    max_intensity = np.max(points_image)
+    points_image = (points_image - min_intensity) / (max_intensity - min_intensity)
+    points_image = points_image * (rescale_max - rescale_min) + rescale_min
+    return points_image
