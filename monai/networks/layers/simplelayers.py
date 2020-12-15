@@ -46,15 +46,15 @@ __all__ = [
 
 class ChannelPad(nn.Module):
     """
-    Expand the input tensor's channel dimension from lenth `in_channels` to `out_channels`,
+    Expand the input tensor's channel dimension from length `in_channels` to `out_channels`,
     by padding or a projection.
     """
 
     def __init__(
         self,
-        spatial_dims,
-        in_channels,
-        out_channels,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
         mode: Union[ChannelMatching, str] = ChannelMatching.PAD,
     ):
         """
