@@ -164,6 +164,11 @@ Layers
 
 .. currentmodule:: monai.networks.layers
 
+`ChannelPad`
+~~~~~~~~~~~~
+.. autoclass:: ChannelPad
+    :members:
+
 `SkipConnection`
 ~~~~~~~~~~~~~~~~
 .. autoclass:: SkipConnection
