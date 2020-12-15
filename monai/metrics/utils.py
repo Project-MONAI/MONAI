@@ -22,6 +22,8 @@ binary_erosion, _ = optional_import("scipy.ndimage.morphology", name="binary_ero
 distance_transform_edt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_edt")
 distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_cdt")
 
+__all__ = ["ignore_background", "do_metric_reduction", "get_mask_edges", "get_surface_distance"]
+
 
 def ignore_background(
     y_pred: torch.Tensor,
@@ -65,7 +67,7 @@ def do_metric_reduction(
     not_nans = (~nans).float()
     f[nans] = 0
 
-    t_zero = torch.zeros(1, device=f.device, dtype=torch.float)
+    t_zero = torch.zeros(1, device=f.device, dtype=f.dtype)
     reduction = MetricReduction(reduction)
 
     if reduction == MetricReduction.MEAN:
@@ -91,9 +93,7 @@ def do_metric_reduction(
     elif reduction == MetricReduction.SUM_CHANNEL:
         not_nans = not_nans.sum(dim=1)
         f = f.sum(dim=1)  # the channel sum
-    elif reduction == MetricReduction.NONE:
-        pass
-    else:
+    elif reduction != MetricReduction.NONE:
         raise ValueError(
             f"Unsupported reduction: {reduction}, available options are "
             '["mean", "sum", "mean_batch", "sum_batch", "mean_channel", "sum_channel" "none"].'
@@ -104,7 +104,7 @@ def do_metric_reduction(
 def get_mask_edges(
     seg_pred: Union[np.ndarray, torch.Tensor],
     seg_gt: Union[np.ndarray, torch.Tensor],
-    label_idx: int,
+    label_idx: int = 1,
     crop: bool = True,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
@@ -141,9 +141,8 @@ def get_mask_edges(
     if torch.is_tensor(seg_gt):
         seg_gt = seg_gt.detach().cpu().numpy()
 
-    # Check non-zero number of elements and same shape
-    if seg_pred.size == 0 or seg_pred.shape != seg_gt.shape:
-        raise ValueError("Labelfields should have same shape (and non-zero number of elements)")
+    if seg_pred.shape != seg_gt.shape:
+        raise ValueError("seg_pred and seg_gt should have same shapes.")
 
     # If not binary images, convert them
     if seg_pred.dtype != bool:
@@ -168,28 +167,16 @@ def get_mask_edges(
 
 
 def get_surface_distance(
-    edges_pred: np.ndarray,
-    edges_gt: np.ndarray,
-    label_idx: int,
-    crop: bool = True,
+    seg_pred: np.ndarray,
+    seg_gt: np.ndarray,
     distance_metric: str = "euclidean",
 ) -> np.ndarray:
     """
     This function is used to compute the surface distances from `seg_pred` to `seg_gt`.
 
-    In order to improve the computing efficiency, before getting the edges,
-    the images can be cropped and only keep the foreground if not specifies
-    ``crop = False``.
-
     Args:
-        edges_pred: the edge of the predictions.
-        edges_gt: the edge of the ground truth.
-        label_idx: for labelfield images, convert to binary with
-            `seg_pred = seg_pred == label_idx`.
-        crop: crop input images and only keep the foregrounds. In order to
-            maintain two inputs' shapes, here the bounding box is achieved
-            by ``(seg_pred | seg_gt)`` which represents the union set of two
-            images. Defaults to ``True``.
+        seg_pred: the edge of the predictions.
+        seg_gt: the edge of the ground truth.
         distance_metric: : [``"euclidean"``, ``"chessboard"``, ``"taxicab"``]
             the metric used to compute surface distance. Defaults to ``"euclidean"``.
 
@@ -198,17 +185,17 @@ def get_surface_distance(
             - ``"taxicab"``, uses `taxicab` metric in chamfer type of transform.
     """
 
-    if not np.any(edges_pred):
-        return np.array([])
-
-    if not np.any(edges_gt):
-        dis = np.inf * np.ones_like(edges_gt)
+    if not np.any(seg_gt):
+        dis = np.inf * np.ones_like(seg_gt)
     else:
+        if not np.any(seg_pred):
+            dis = np.inf * np.ones_like(seg_gt)
+            return dis[seg_gt]
         if distance_metric == "euclidean":
-            dis = distance_transform_edt(~edges_gt)
-        elif distance_metric == "chessboard" or distance_metric == "taxicab":
-            dis = distance_transform_cdt(~edges_gt, metric=distance_metric)
+            dis = distance_transform_edt(~seg_gt)
+        elif distance_metric in ["chessboard", "taxicab"]:
+            dis = distance_transform_cdt(~seg_gt, metric=distance_metric)
         else:
             raise ValueError(f"distance_metric {distance_metric} is not implemented.")
-    surface_distance = dis[edges_pred]
-    return surface_distance
+
+    return dis[seg_pred]

@@ -13,27 +13,24 @@ import unittest
 from typing import Tuple
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
-from monai.metrics import compute_average_surface_distance
+from monai.metrics import SurfaceDistanceMetric
 
 
 def create_spherical_seg_3d(
     radius: float = 20.0,
     centre: Tuple[int, int, int] = (49, 49, 49),
-    labelfield_value: int = 1,
-    background_value: int = 0,
     im_shape: Tuple[int, int, int] = (99, 99, 99),
 ) -> np.ndarray:
     """
     Return a 3D image with a sphere inside. Voxel values will be
-    `labelfield_value` inside the sphere, and `background_value` elsewhere.
+    1 inside the sphere, and 0 elsewhere.
 
     Args:
         radius: radius of sphere (in terms of number of voxels, can be partial)
         centre: location of sphere centre.
-        labelfield_value: index of labelfield.
-        background_value: index of background.
         im_shape: shape of image to create
 
     See also:
@@ -46,30 +43,28 @@ def create_spherical_seg_3d(
     ]
     circle = (spx * spx + spy * spy + spz * spz) <= radius * radius
 
-    image[circle] = labelfield_value
-    image[~circle] = background_value
+    image[circle] = 1
+    image[~circle] = 0
     return image
 
 
 TEST_CASES = [
     [
-        [create_spherical_seg_3d(), create_spherical_seg_3d(), 1],
+        [create_spherical_seg_3d(), create_spherical_seg_3d()],
         [0, 0],
     ],
     [
         [
             create_spherical_seg_3d(radius=20, centre=(20, 20, 20)),
             create_spherical_seg_3d(radius=20, centre=(19, 19, 19)),
-            1,
             "taxicab",
         ],
         [1.0380029806259314, 1.0380029806259314],
     ],
     [
         [
-            create_spherical_seg_3d(radius=33, labelfield_value=2, centre=(19, 33, 22)),
-            create_spherical_seg_3d(radius=33, labelfield_value=2, centre=(20, 33, 22)),
-            2,
+            create_spherical_seg_3d(radius=33, centre=(19, 33, 22)),
+            create_spherical_seg_3d(radius=33, centre=(20, 33, 22)),
         ],
         [0.35021200688332677, 0.3483278807706289],
     ],
@@ -77,7 +72,6 @@ TEST_CASES = [
         [
             create_spherical_seg_3d(radius=20, centre=(20, 33, 22)),
             create_spherical_seg_3d(radius=40, centre=(20, 33, 22)),
-            1,
         ],
         [13.975673696300824, 12.040033513150455],
     ],
@@ -85,7 +79,6 @@ TEST_CASES = [
         [
             create_spherical_seg_3d(radius=20, centre=(20, 33, 22)),
             create_spherical_seg_3d(radius=40, centre=(20, 33, 22)),
-            1,
             "chessboard",
         ],
         [10.792254295459173, 9.605067064083457],
@@ -94,7 +87,6 @@ TEST_CASES = [
         [
             create_spherical_seg_3d(radius=20, centre=(20, 33, 22)),
             create_spherical_seg_3d(radius=40, centre=(20, 33, 22)),
-            1,
             "taxicab",
         ],
         [17.32691760951026, 12.432687531048186],
@@ -103,15 +95,6 @@ TEST_CASES = [
         [
             np.zeros([99, 99, 99]),
             create_spherical_seg_3d(radius=40, centre=(20, 33, 22)),
-            1,
-        ],
-        [np.inf, np.inf],
-    ],
-    [
-        [
-            np.zeros([99, 99, 99]),
-            np.zeros([99, 99, 99]),
-            1,
         ],
         [np.inf, np.inf],
     ],
@@ -119,10 +102,19 @@ TEST_CASES = [
         [
             create_spherical_seg_3d(),
             np.zeros([99, 99, 99]),
-            1,
             "taxicab",
         ],
         [np.inf, np.inf],
+    ],
+]
+
+TEST_CASES_NANS = [
+    [
+        [
+            # both pred and gt do not have foreground, metric and not_nans should be 0
+            np.zeros([99, 99, 99]),
+            np.zeros([99, 99, 99]),
+        ],
     ],
 ]
 
@@ -130,19 +122,36 @@ TEST_CASES = [
 class TestAllSurfaceMetrics(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_value(self, input_data, expected_value):
-        if len(input_data) == 4:
-            [seg_1, seg_2, label_idx, metric] = input_data
+        if len(input_data) == 3:
+            [seg_1, seg_2, metric] = input_data
         else:
-            [seg_1, seg_2, label_idx] = input_data
+            [seg_1, seg_2] = input_data
             metric = "euclidean"
         ct = 0
+        seg_1 = torch.tensor(seg_1)
+        seg_2 = torch.tensor(seg_2)
         for symmetric in [True, False]:
+            sur_metric = SurfaceDistanceMetric(include_background=False, symmetric=symmetric, distance_metric=metric)
+            # shape of seg_1, seg_2 are: HWD, converts to BNHWD
+            batch, n_class = 2, 3
+            batch_seg_1 = seg_1.unsqueeze(0).unsqueeze(0).repeat([batch, n_class, 1, 1, 1])
+            batch_seg_2 = seg_2.unsqueeze(0).unsqueeze(0).repeat([batch, n_class, 1, 1, 1])
+            result, _ = sur_metric(batch_seg_1, batch_seg_2)
             expected_value_curr = expected_value[ct]
-            result = compute_average_surface_distance(
-                seg_1, seg_2, label_idx, symmetric=symmetric, distance_metric=metric
-            )
             np.testing.assert_allclose(expected_value_curr, result, rtol=1e-7)
             ct += 1
+
+    @parameterized.expand(TEST_CASES_NANS)
+    def test_nans(self, input_data):
+        [seg_1, seg_2] = input_data
+        seg_1 = torch.tensor(seg_1)
+        seg_2 = torch.tensor(seg_2)
+        sur_metric = SurfaceDistanceMetric(include_background=False)
+        batch_seg_1 = seg_1.unsqueeze(0).unsqueeze(0)
+        batch_seg_2 = seg_2.unsqueeze(0).unsqueeze(0)
+        result, not_nans = sur_metric(batch_seg_1, batch_seg_2)
+        np.testing.assert_allclose(0, result, rtol=1e-7)
+        np.testing.assert_allclose(0, not_nans, rtol=1e-7)
 
 
 if __name__ == "__main__":

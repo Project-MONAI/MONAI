@@ -17,6 +17,8 @@ import torch.nn.functional as F
 from monai.data.utils import compute_importance_map, dense_patch_slices, get_valid_patch_size
 from monai.utils import BlendMode, PytorchPadMode, fall_back_tuple
 
+__all__ = ["sliding_window_inference"]
+
 
 def sliding_window_inference(
     inputs: torch.Tensor,

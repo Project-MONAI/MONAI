@@ -13,6 +13,7 @@ from .checkpoint_loader import CheckpointLoader
 from .checkpoint_saver import CheckpointSaver
 from .classification_saver import ClassificationSaver
 from .confusion_matrix import ConfusionMatrix
+from .hausdorff_distance import HausdorffDistance
 from .lr_schedule_handler import LrScheduleHandler
 from .mean_dice import MeanDice
 from .metric_logger import MetricLogger
@@ -20,6 +21,7 @@ from .roc_auc import ROCAUC
 from .segmentation_saver import SegmentationSaver
 from .smartcache_handler import SmartCacheHandler
 from .stats_handler import StatsHandler
+from .surface_distance import SurfaceDistance
 from .tensorboard_handlers import TensorBoardImageHandler, TensorBoardStatsHandler
 from .utils import *
 from .validation_handler import ValidationHandler

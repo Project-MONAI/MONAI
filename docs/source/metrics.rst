@@ -17,20 +17,26 @@ Metrics
 --------------------------
 .. autofunction:: compute_roc_auc
 
-`Confusion Matrix`
+`Confusion matrix`
 ------------------
 .. autofunction:: get_confusion_matrix
 
 .. autoclass:: ConfusionMatrixMetric
     :members:
 
-`Hausdorff Distance`
+`Hausdorff distance`
 --------------------
 .. autofunction:: compute_hausdorff_distance
 
-`Average Surface Distance`
+.. autoclass:: HausdorffDistanceMetric
+    :members:
+
+`Average surface distance`
 --------------------------
 .. autofunction:: compute_average_surface_distance
+
+.. autoclass:: SurfaceDistanceMetric
+    :members:
 
 `Occlusion sensitivity`
 -----------------------

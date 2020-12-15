@@ -15,6 +15,7 @@ from typing import Union
 import torch
 
 from monai.metrics.utils import *
+from monai.utils import MetricReduction
 
 
 class DiceMetric:
@@ -30,7 +31,7 @@ class DiceMetric:
 
     Args:
         include_background: whether to skip Dice computation on the first channel of
-            the predicted output. Defaults to True.
+            the predicted output. Defaults to ``True``.
         reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}
             Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.

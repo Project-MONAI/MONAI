@@ -31,6 +31,13 @@ if TYPE_CHECKING:
 else:
     tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 
+__all__ = [
+    "check_hash",
+    "download_url",
+    "extractall",
+    "download_and_extract",
+]
+
 
 def check_hash(filepath: str, val: Optional[str] = None, hash_type: str = "md5") -> bool:
     """

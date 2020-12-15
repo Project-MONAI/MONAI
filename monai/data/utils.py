@@ -134,8 +134,7 @@ def dense_patch_slices(
             dim_starts.append(start_idx)
         starts.append(dim_starts)
     out = np.asarray([x.flatten() for x in np.meshgrid(*starts, indexing="ij")]).T
-    slices = [tuple(slice(s, s + patch_size[d]) for d, s in enumerate(x)) for x in out]
-    return slices
+    return [tuple(slice(s, s + patch_size[d]) for d, s in enumerate(x)) for x in out]
 
 
 def iter_patch(
@@ -550,7 +549,7 @@ def is_supported_format(filename: Union[Sequence[str], str], suffixes: Sequence[
     filenames: Sequence[str] = ensure_tuple(filename)
     for name in filenames:
         tokens: Sequence[str] = PurePath(name).suffixes
-        if len(tokens) == 0 or not any(("." + s.lower()) in "".join(tokens) for s in suffixes):
+        if len(tokens) == 0 or all("." + s.lower() not in "".join(tokens) for s in suffixes):
             return False
 
     return True
@@ -598,7 +597,7 @@ def partition_dataset(
 
     """
     data_len = len(data)
-    datasets = list()
+    datasets = []
 
     indices = list(range(data_len))
     if shuffle:
@@ -682,7 +681,7 @@ def partition_dataset_classes(
     """
     if not classes or len(classes) != len(data):
         raise ValueError(f"length of classes {classes} must match the dataset length {len(data)}.")
-    datasets = list()
+    datasets = []
     class_indices = defaultdict(list)
     for i, c in enumerate(classes):
         class_indices[c].append(i)
@@ -698,7 +697,7 @@ def partition_dataset_classes(
             drop_last=drop_last,
             even_divisible=even_divisible,
         )
-        if len(class_partition_indices) == 0:
+        if not class_partition_indices:
             class_partition_indices = per_class_partition_indices
         else:
             for part, data_indices in zip(class_partition_indices, per_class_partition_indices):
@@ -735,8 +734,7 @@ def select_cross_validation_folds(partitions: Sequence[Iterable], folds: Union[S
         >>> select_cross_validation_folds(partitions, [-1, 2])
         [9, 10, 5, 6]
     """
-    data_list = [data_item for fold_id in ensure_tuple(folds) for data_item in partitions[fold_id]]
-    return data_list
+    return [data_item for fold_id in ensure_tuple(folds) for data_item in partitions[fold_id]]
 
 
 class DistributedSampler(_TorchDistributedSampler):

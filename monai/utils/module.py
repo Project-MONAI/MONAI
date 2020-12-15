@@ -244,10 +244,7 @@ def has_option(obj, keywords: Union[str, Sequence[str]]) -> bool:
     if not callable(obj):
         return False
     sig = inspect.signature(obj)
-    for key in ensure_tuple(keywords):
-        if key not in sig.parameters:
-            return False
-    return True
+    return all(key in sig.parameters for key in ensure_tuple(keywords))
 
 
 def get_package_version(dep_name, default="NOT INSTALLED or UNKNOWN VERSION."):

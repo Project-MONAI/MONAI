@@ -26,6 +26,8 @@ from monai.data import (
 from monai.transforms import LoadImaged, Randomizable
 from monai.utils import ensure_tuple
 
+__all__ = ["MedNISTDataset", "DecathlonDataset", "CrossValidation"]
+
 
 class MedNISTDataset(Randomizable, CacheDataset):
     """
@@ -121,7 +123,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
             image_class.extend([i] * num_each[i])
         num_total = len(image_class)
 
-        data = list()
+        data = []
 
         for i in range(num_total):
             self.randomize()
@@ -302,18 +304,17 @@ class DecathlonDataset(Randomizable, CacheDataset):
     def _split_datalist(self, datalist: List[Dict]) -> List[Dict]:
         if self.section == "test":
             return datalist
+        length = len(datalist)
+        indices = np.arange(length)
+        self.randomize(indices)
+
+        val_length = int(length * self.val_frac)
+        if self.section == "training":
+            self.indices = indices[val_length:]
         else:
-            length = len(datalist)
-            indices = np.arange(length)
-            self.randomize(indices)
+            self.indices = indices[:val_length]
 
-            val_length = int(length * self.val_frac)
-            if self.section == "training":
-                self.indices = indices[val_length:]
-            else:
-                self.indices = indices[:val_length]
-
-            return [datalist[i] for i in self.indices]
+        return [datalist[i] for i in self.indices]
 
 
 class CrossValidation:

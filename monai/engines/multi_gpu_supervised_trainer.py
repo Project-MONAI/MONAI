@@ -29,6 +29,11 @@ else:
     Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
     Metric, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "Metric")
 
+__all__ = [
+    "create_multigpu_supervised_trainer",
+    "create_multigpu_supervised_evaluator",
+]
+
 
 def _default_transform(_x: torch.Tensor, _y: torch.Tensor, _y_pred: torch.Tensor, loss: torch.Tensor) -> float:
     return loss.item()

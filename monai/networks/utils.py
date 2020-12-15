@@ -20,6 +20,17 @@ import torch.nn as nn
 
 from monai.utils import ensure_tuple_size
 
+__all__ = [
+    "one_hot",
+    "slice_channels",
+    "predict_segmentation",
+    "normalize_transform",
+    "to_norm_affine",
+    "normal_init",
+    "icnr_init",
+    "pixelshuffle",
+]
+
 
 def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.float, dim: int = 1) -> torch.Tensor:
     """
@@ -72,11 +83,10 @@ def predict_segmentation(
     """
     if not mutually_exclusive:
         return (cast(torch.Tensor, logits >= threshold)).int()
-    else:
-        if logits.shape[1] == 1:
-            warnings.warn("single channel prediction, `mutually_exclusive=True` ignored, use threshold instead.")
-            return (cast(torch.Tensor, logits >= threshold)).int()
-        return logits.argmax(1, keepdim=True)
+    if logits.shape[1] == 1:
+        warnings.warn("single channel prediction, `mutually_exclusive=True` ignored, use threshold instead.")
+        return (cast(torch.Tensor, logits >= threshold)).int()
+    return logits.argmax(1, keepdim=True)
 
 
 def normalize_transform(
@@ -145,8 +155,7 @@ def to_norm_affine(
 
     src_xform = normalize_transform(src_size, affine.device, affine.dtype, align_corners)
     dst_xform = normalize_transform(dst_size, affine.device, affine.dtype, align_corners)
-    new_affine = src_xform @ affine @ torch.inverse(dst_xform)
-    return new_affine
+    return src_xform @ affine @ torch.inverse(dst_xform)
 
 
 def normal_init(
