@@ -18,13 +18,82 @@ from torch import nn
 from torch.autograd import Function
 
 from monai.networks.layers.convutils import gaussian_1d, same_padding
-from monai.utils import PT_BEFORE_1_7, InvalidPyTorchVersionError, SkipMode, ensure_tuple_rep, optional_import
+from monai.networks.layers.factories import Conv
+from monai.utils import (
+    PT_BEFORE_1_7,
+    ChannelMatching,
+    InvalidPyTorchVersionError,
+    SkipMode,
+    ensure_tuple_rep,
+    optional_import,
+)
 
 _C, _ = optional_import("monai._C")
 if not PT_BEFORE_1_7:
     fft, _ = optional_import("torch.fft")
 
-__all__ = ["SkipConnection", "Flatten", "GaussianFilter", "LLTM", "Reshape", "separable_filtering", "HilbertTransform"]
+__all__ = [
+    "SkipConnection",
+    "Flatten",
+    "GaussianFilter",
+    "LLTM",
+    "Reshape",
+    "separable_filtering",
+    "HilbertTransform",
+    "ChannelPad",
+]
+
+
+class ChannelPad(nn.Module):
+    """
+    Expand the input tensor's channel dimension from length `in_channels` to `out_channels`,
+    by padding or a projection.
+    """
+
+    def __init__(
+        self,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
+        mode: Union[ChannelMatching, str] = ChannelMatching.PAD,
+    ):
+        """
+
+        Args:
+            spatial_dims: number of spatial dimensions of the input image.
+            in_channels: number of input channels.
+            out_channels: number of output channels.
+            mode: {``"pad"``, ``"project"``}
+                Specifies handling residual branch and conv branch channel mismatches. Defaults to ``"pad"``.
+
+                - ``"pad"``: with zero padding.
+                - ``"project"``: with a trainable conv with kernel size one.
+        """
+        super().__init__()
+        self.project = None
+        self.pad = None
+        if in_channels == out_channels:
+            return
+        mode = ChannelMatching(mode)
+        if mode == ChannelMatching.PROJECT:
+            conv_type = Conv[Conv.CONV, spatial_dims]
+            self.project = conv_type(in_channels, out_channels, kernel_size=1)
+            return
+        if mode == ChannelMatching.PAD:
+            if in_channels > out_channels:
+                raise ValueError('Incompatible values: channel_matching="pad" and in_channels > out_channels.')
+            pad_1 = (out_channels - in_channels) // 2
+            pad_2 = out_channels - in_channels - pad_1
+            pad = [0, 0] * spatial_dims + [pad_1, pad_2] + [0, 0]
+            self.pad = tuple(pad)
+            return
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if self.project is not None:
+            return torch.as_tensor(self.project(x))  # as_tensor used to get around mypy typing bug
+        if self.pad is not None:
+            return F.pad(x, self.pad)
+        return x
 
 
 class SkipConnection(nn.Module):
