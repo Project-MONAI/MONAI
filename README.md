@@ -61,7 +61,7 @@ For guidance on making a contribution to MONAI, see the [contributing guidelines
 ## Community
 Join the conversation on Twitter [@ProjectMONAI](https://twitter.com/ProjectMONAI) or join our [Slack channel](https://forms.gle/QTxJq3hFictp31UM9).
 
-Ask and answer questions over on the [PyTorch Forums](https://discuss.pytorch.org/) or [StackOverflow](https://stackoverflow.com/tags/monai). Make sure to tag @monai.
+Ask and answer questions over on [MONAI's GitHub Discussions tab](https://github.com/Project-MONAI/MONAI/discussions).
 
 ## Links
 - Website: https://monai.io/
