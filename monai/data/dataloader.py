@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import torch
+import numpy as np
 from torch.utils.data import DataLoader as _TorchDataLoader
 from torch.utils.data import Dataset
 
@@ -40,7 +40,7 @@ class DataLoader(_TorchDataLoader):
             # when num_workers > 0, random states are determined by worker_init_fn
             # this is to make the behavior consistent when num_workers == 0
             # torch.int64 doesn't work well on some versions of windows
-            _seed = torch.empty((), dtype=torch.int32).random_(generator=None).item()
+            _seed = np.random.randint(np.iinfo(np.uint32).max + 1)
             set_rnd(dataset, int(_seed))
         if "collate_fn" not in kwargs:
             kwargs.update({"collate_fn": list_data_collate})
