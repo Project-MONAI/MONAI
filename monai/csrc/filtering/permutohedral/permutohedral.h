@@ -12,9 +12,9 @@ limitations under the License.
 */
 
 #pragma once
-template<typename scalar_t>
+template <typename scalar_t>
 scalar_t* PermutohedralCPU(scalar_t* data, scalar_t* features, int dataChannels, int featureChannels, int elementCount);
 #ifdef WITH_CUDA
-template<typename scalar_t, int dc, int fc>
+template <typename scalar_t, int dc, int fc>
 void PermutohedralCuda(scalar_t* data, scalar_t* features, int elementCount, bool accurate);
 #endif

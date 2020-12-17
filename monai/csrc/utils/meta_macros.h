@@ -1,6 +1,6 @@
 #pragma once
 
-//Helper Macros: for internal use (see below)
+// Helper Macros: for internal use (see below)
 #define _DO_1(TARGET) TARGET(1)
 #define _DO_2(TARGET) TARGET(2) _DO_1(TARGET)
 #define _DO_3(TARGET) TARGET(3) _DO_2(TARGET)
@@ -105,18 +105,15 @@
 #define DO_FOR_AB(TARGET, A_RANGE, B_RANGE) _DO_##A_RANGE##_B(TARGET, B_RANGE)
 
 // Switch Statement Generators
-#define _CASE_A(A) case(A): CASE(A) break;
-#define _CASE_AB(A, B) case(A * 100 + B): CASE(A, B) break;
+#define _CASE_A(A) \
+  case (A):        \
+    CASE(A) break;
+#define _CASE_AB(A, B) \
+  case (A * 100 + B):  \
+    CASE(A, B) break;
 
-#define SWITCH_A(CASE, A_RANGE, A)		\
-	switch(A)							\
-	{									\
-		DO_FOR_A(_CASE_A, A_RANGE)		\
-	}									
+#define SWITCH_A(CASE, A_RANGE, A) \
+  switch (A) { DO_FOR_A(_CASE_A, A_RANGE) }
 
-#define SWITCH_AB(CALL, A_RANGE, B_RANGE, A, B)		\
-	switch(A * 100 + B)								\
-	{												\
-		DO_FOR_AB(_CASE_AB, A_RANGE, B_RANGE)		\
-	}	
-							
+#define SWITCH_AB(CALL, A_RANGE, B_RANGE, A, B) \
+  switch (A * 100 + B) { DO_FOR_AB(_CASE_AB, A_RANGE, B_RANGE) }
