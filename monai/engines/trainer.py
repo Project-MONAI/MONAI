@@ -282,7 +282,7 @@ class GanTrainer(Trainer):
         if batchdata is None:
             raise ValueError("must provide batch data for current iteration.")
 
-        d_input = self.prepare_batch(batchdata, engine.state.device)
+        d_input = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)
         batch_size = self.data_loader.batch_size
         g_input = self.g_prepare_batch(batch_size, self.latent_shape, engine.state.device, engine.non_blocking)
         g_output = self.g_inferer(g_input, self.g_network)
