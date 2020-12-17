@@ -11,6 +11,6 @@
 
 from .convutils import *
 from .factories import *
-from .permutohedrallattice import *
+from .filtering import *
 from .simplelayers import *
 from .spatial_transforms import *
