@@ -62,6 +62,15 @@ TEST_CASE_3 = [  # 4-channel 3D, batch 4
 CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3]
 
 
+TEST_CASE_FAIL = {  # 2-channel 2D, should fail because of stride/channel mismatch.
+    "dimensions": 2,
+    "in_channels": 2,
+    "out_channels": 2,
+    "channels": (4, 8, 16),
+    "strides": (2, 2),
+}
+
+
 class TestAutoEncoder(unittest.TestCase):
     @parameterized.expand(CASES)
     def test_shape(self, input_param, input_shape, expected_shape):
@@ -75,6 +84,10 @@ class TestAutoEncoder(unittest.TestCase):
         net = AutoEncoder(dimensions=2, in_channels=1, out_channels=1, channels=(4, 8), strides=(2, 2))
         test_data = torch.randn(2, 1, 32, 32)
         test_script_save(net, test_data)
+
+    def test_channel_stride_difference(self):
+        with self.assertRaises(ValueError):
+            net = AutoEncoder(**TEST_CASE_FAIL)
 
 
 if __name__ == "__main__":
