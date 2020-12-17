@@ -525,7 +525,7 @@ class PILReader(ImageReader):
             filename: file name or a list of file names to read.
                 if a list of files, verify all the suffixes.
         """
-        suffixes: Sequence[str] = ["png", "jpg", "bmp"]
+        suffixes: Sequence[str] = ["png", "jpg", "jpeg", "bmp"]
         return has_pil and is_supported_format(filename, suffixes)
 
     def read(self, data: Union[Sequence[str], str, np.ndarray], **kwargs):
