@@ -21,7 +21,7 @@ The rest of this page provides more details for each module.
 * [Optimizers](#optimizers)
 * [Network architectures](#network-architectures)
 * [Evaluation](#evaluation)
-* [Visualiz`ation](#visualization)
+* [Visualization](#visualization)
 * [Result writing](#result-writing)
 * [Workflows](#workflows)
 * [Research](#research)
