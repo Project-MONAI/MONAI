@@ -15,12 +15,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from monai.visualise import ModelWithHooks, NetVisualiser, default_normalizer, default_upsampler
+from monai.visualize import ModelWithHooks, NetVisualizer, default_normalizer, default_upsampler
 
 __all__ = ["CAM", "GradCAM", "GradCAMpp"]
 
 
-class CAM(NetVisualiser):
+class CAM(NetVisualizer):
     """
     Compute class activation map from the last fully-connected layers before the spatial pooling.
 
@@ -30,7 +30,7 @@ class CAM(NetVisualiser):
 
         # densenet 2d
         from monai.networks.nets import densenet121
-        from monai.visualise import CAM
+        from monai.visualize import CAM
 
         model_2d = densenet121(spatial_dims=2, in_channels=1, out_channels=3)
         cam = CAM(nn_module=model_2d, target_layers="class_layers.relu", fc_layers="class_layers.out")
@@ -38,7 +38,7 @@ class CAM(NetVisualiser):
 
         # resnet 2d
         from monai.networks.nets import se_resnet50
-        from monai.visualise import CAM
+        from monai.visualize import CAM
 
         model_2d = se_resnet50(spatial_dims=2, in_channels=3, num_classes=4)
         cam = CAM(nn_module=model_2d, target_layers="layer4", fc_layers="last_linear")
@@ -46,7 +46,7 @@ class CAM(NetVisualiser):
 
     See Also:
 
-        - :py:class:`monai.visualise.class_activation_maps.GradCAM`
+        - :py:class:`monai.visualize.class_activation_maps.GradCAM`
 
     """
 
@@ -60,7 +60,7 @@ class CAM(NetVisualiser):
     ) -> None:
         """
         Args:
-            nn_module: the model to be visualised
+            nn_module: the model to be visualized
             target_layers: name of the model layer to generate the feature map.
             fc_layers: a string or a callable used to get fully-connected weights to compute activation map
                 from the target_layers (without pooling).  and evaluate it at every spatial location.
@@ -117,7 +117,7 @@ class CAM(NetVisualiser):
 
         Args:
             x: input tensor, shape must be compatible with `nn_module`.
-            class_idx: index of the class to be visualised. Default to argmax(logits)
+            class_idx: index of the class to be visualized. Default to argmax(logits)
             layer_idx: index of the target layer if there are multiple target layers. Defaults to -1.
 
         Returns:
@@ -148,7 +148,7 @@ class GradCAM:
 
         # densenet 2d
         from monai.networks.nets import densenet121
-        from monai.visualise import GradCAM
+        from monai.visualize import GradCAM
 
         model_2d = densenet121(spatial_dims=2, in_channels=1, out_channels=3)
         cam = GradCAM(nn_module=model_2d, target_layers="class_layers.relu")
@@ -156,7 +156,7 @@ class GradCAM:
 
         # resnet 2d
         from monai.networks.nets import se_resnet50
-        from monai.visualise import GradCAM
+        from monai.visualize import GradCAM
 
         model_2d = se_resnet50(spatial_dims=2, in_channels=3, num_classes=4)
         cam = GradCAM(nn_module=model_2d, target_layers="layer4")
@@ -164,7 +164,7 @@ class GradCAM:
 
     See Also:
 
-        - :py:class:`monai.visualise.class_activation_maps.CAM`
+        - :py:class:`monai.visualize.class_activation_maps.CAM`
 
     """
 
@@ -172,7 +172,7 @@ class GradCAM:
         """
 
         Args:
-            nn_module: the model to be used to generate the visualisations.
+            nn_module: the model to be used to generate the visualizations.
             target_layers: name of the model layer to generate the feature map.
             upsampler: an upsampling method to upsample the feature map.
             postprocessing: a callable that applies on the upsampled feature map.
@@ -215,7 +215,7 @@ class GradCAM:
 
         Args:
             x: input tensor, shape must be compatible with `nn_module`.
-            class_idx: index of the class to be visualised. Default to argmax(logits)
+            class_idx: index of the class to be visualized. Default to argmax(logits)
             layer_idx: index of the target layer if there are multiple target layers. Defaults to -1.
             retain_graph: whether to retain_graph for torch module backward call.
 
@@ -243,7 +243,7 @@ class GradCAMpp(GradCAM):
 
     See Also:
 
-        - :py:class:`monai.visualise.class_activation_maps.GradCAM`
+        - :py:class:`monai.visualize.class_activation_maps.GradCAM`
 
     """
 

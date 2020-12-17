@@ -15,7 +15,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.nets import DenseNet, densenet121
-from monai.visualise import OcclusionSensitivity
+from monai.visualize import OcclusionSensitivity
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 model_2d = densenet121(spatial_dims=2, in_channels=1, out_channels=3).to(device)

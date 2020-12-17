@@ -17,7 +17,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from monai.visualise import NetVisualiser, default_normalizer, default_upsampler
+from monai.visualize import NetVisualizer, default_normalizer, default_upsampler
 
 try:
     from tqdm import trange
@@ -84,7 +84,7 @@ def _append_to_sensitivity_im(model, batch_images, batch_ids, sensitivity_im):
     return torch.cat((sensitivity_im, scores))
 
 
-class OcclusionSensitivity(NetVisualiser):
+class OcclusionSensitivity(NetVisualizer):
     """
     This class computes the occlusion sensitivity for a model's prediction
     of a given image. By occlusion sensitivity, we mean how the probability of a given
@@ -108,7 +108,7 @@ class OcclusionSensitivity(NetVisualiser):
 
         # densenet 2d
         from monai.networks.nets import densenet121
-        from monai.visualise import OcclusionSensitivity
+        from monai.visualize import OcclusionSensitivity
 
         model_2d = densenet121(spatial_dims=2, in_channels=1, out_channels=3)
         occ_sens = OcclusionSensitivity(nn_module=model_2d)
@@ -116,7 +116,7 @@ class OcclusionSensitivity(NetVisualiser):
 
         # densenet 3d
         from monai.networks.nets import DenseNet
-        from monai.visualise import OcclusionSensitivity
+        from monai.visualize import OcclusionSensitivity
 
         model_3d = DenseNet(spatial_dims=3, in_channels=1, out_channels=3, init_features=2, growth_rate=2, block_config=(6,))
         occ_sens = OcclusionSensitivity(nn_module=model_3d, n_batch=10, stride=2)
@@ -124,7 +124,7 @@ class OcclusionSensitivity(NetVisualiser):
 
     See Also:
 
-        - :py:class:`monai.visualise.occlusion_sensitivity.OcclusionSensitivity.`
+        - :py:class:`monai.visualize.occlusion_sensitivity.OcclusionSensitivity.`
     """
 
     def __init__(

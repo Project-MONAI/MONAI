@@ -43,7 +43,7 @@ exclude_patterns = [
     "config",
     "handlers",
     "losses",
-    "visualise",
+    "visualize",
     "utils",
     "inferers",
     "optimizers",

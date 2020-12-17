@@ -16,7 +16,7 @@ import numpy as np
 import torch
 
 from monai.utils import exact_version, is_scalar, optional_import
-from monai.visualise import plot_2d_or_3d_image
+from monai.visualize import plot_2d_or_3d_image
 
 Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
 if TYPE_CHECKING:
@@ -174,7 +174,7 @@ class TensorBoardStatsHandler(object):
 
 class TensorBoardImageHandler(object):
     """
-    TensorBoardImageHandler is an Ignite Event handler that can visualise images, labels and outputs as 2D/3D images.
+    TensorBoardImageHandler is an Ignite Event handler that can visualize images, labels and outputs as 2D/3D images.
     2D output (shape in Batch, channel, H, W) will be shown as simple image using the first element in the batch,
     for 3D to ND output (shape in Batch, channel, H, W, D) input, each of ``self.max_channels`` number of images'
     last three dimensions will be shown as animated GIF along the last axis (typically Depth).

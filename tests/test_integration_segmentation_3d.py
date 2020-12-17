@@ -38,7 +38,7 @@ from monai.transforms import (
     ToTensord,
 )
 from monai.utils import set_determinism
-from monai.visualise import plot_2d_or_3d_image
+from monai.visualize import plot_2d_or_3d_image
 from tests.testing_data.integration_answers import test_integration_value
 from tests.utils import DistTestCase, TimedCall, skip_if_quick
 

@@ -20,7 +20,7 @@ import torch.nn.functional as F
 from monai.transforms import ScaleIntensity
 from monai.utils import InterpolateMode, ensure_tuple
 
-__all__ = ["default_upsampler", "default_normalizer", "ModelWithHooks", "NetVisualiser"]
+__all__ = ["default_upsampler", "default_normalizer", "ModelWithHooks", "NetVisualizer"]
 
 
 def default_upsampler(spatial_size) -> Callable[[torch.Tensor], torch.Tensor]:
@@ -141,7 +141,7 @@ class ModelWithHooks:
         return logits, acti, grad
 
 
-class NetVisualiser(ABC):
+class NetVisualizer(ABC):
     def __init__(
         self,
         nn_module: torch.nn.Module,
