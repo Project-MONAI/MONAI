@@ -12,3 +12,4 @@
 from .evaluator import *
 from .multi_gpu_supervised_trainer import *
 from .trainer import *
+from .utils import *
