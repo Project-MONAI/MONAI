@@ -15,7 +15,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.nets import DenseNet, densenet121, se_resnet50
-from monai.visualize import GradCAM
+from monai.visualise import GradCAM
 
 # 2D
 TEST_CASE_0 = [

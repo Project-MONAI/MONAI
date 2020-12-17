@@ -16,7 +16,7 @@ import numpy as np
 import torch
 
 from monai.utils import exact_version, is_scalar, optional_import
-from monai.visualize import plot_2d_or_3d_image
+from monai.visualise import plot_2d_or_3d_image
 
 Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
 if TYPE_CHECKING:

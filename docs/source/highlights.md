@@ -21,7 +21,7 @@ The rest of this page provides more details for each module.
 * [Optimizers](#optimizers)
 * [Network architectures](#network-architectures)
 * [Evaluation](#evaluation)
-* [Visualization](#visualization)
+* [Visualisation](#visualisation)
 * [Result writing](#result-writing)
 * [Workflows](#workflows)
 * [Research](#research)
@@ -111,7 +111,7 @@ MONAI also provides post-processing transforms for handling the model outputs. C
 - Removing segmentation noise based on Connected Component Analysis, as below figure (c).
 - Extracting contour of segmentation result, which can be used to map to original image and evaluate the model, as below figure (d) and (e).
 
-After applying the post-processing transforms, it's easier to compute metrics, save model output into files or visualize data in the TensorBoard. [Post transforms tutorial](https://github.com/Project-MONAI/tutorials/blob/master/modules/post_transforms.ipynb) shows an example with several main post transforms.
+After applying the post-processing transforms, it's easier to compute metrics, save model output into files or visualise data in the TensorBoard. [Post transforms tutorial](https://github.com/Project-MONAI/tutorials/blob/master/modules/post_transforms.ipynb) shows an example with several main post transforms.
 ![image](../images/post_transforms.png)
 
 ### 9. Integrate third-party transforms
@@ -237,10 +237,10 @@ Various useful evaluation metrics have been used to measure the quality of medic
 
 For example, `Mean Dice` score can be used for segmentation tasks, and the area under the ROC curve(`ROCAUC`) for classification tasks. We continue to integrate more options.
 
-## Visualization
-Beyond the simple point and curve plotting, MONAI provides intuitive interfaces to visualize multidimensional data as GIF animations in TensorBoard. This could provide a quick qualitative assessment of the model by visualizing, for example, the volumetric inputs, segmentation maps, and intermediate feature maps. A runnable example with visualization is available at [UNet training example](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/torch/unet_training_dict.py).
+## Visualisation
+Beyond the simple point and curve plotting, MONAI provides intuitive interfaces to visualise multidimensional data as GIF animations in TensorBoard. This could provide a quick qualitative assessment of the model by visualising, for example, the volumetric inputs, segmentation maps, and intermediate feature maps. A runnable example with visualisation is available at [UNet training example](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/torch/unet_training_dict.py).
 
-And to visualize the class activation mapping for a trained classification model, MONAI provides CAM, GradCAM, GradCAM++ APIs for both 2D and 3D models:
+And to visualise the class activation mapping for a trained classification model, MONAI provides CAM, GradCAM, GradCAM++ APIs for both 2D and 3D models:
 
 ![image](../images/cam.png)
 

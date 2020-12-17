@@ -61,7 +61,7 @@ Technical documentation is available at `docs.monai.io <https://docs.monai.io>`_
    engines
    inferers
    handlers
-   visualize
+   visualise
    utils
 
 .. toctree::

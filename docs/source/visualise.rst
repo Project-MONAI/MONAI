@@ -1,20 +1,20 @@
 :github_url: https://github.com/Project-MONAI/MONAI
 
-.. _visualize:
+.. _visualise:
 
-Visualizations
+Visualisations
 ==============
 
-.. currentmodule:: monai.visualize
+.. currentmodule:: monai.visualise
 
 Tensorboard visuals
 -------------------
 
-.. automodule:: monai.visualize.img2tensorboard
+.. automodule:: monai.visualise.img2tensorboard
   :members:
 
 Class activation map
 --------------------
 
-.. automodule:: monai.visualize.class_activation_maps
+.. automodule:: monai.visualise.class_activation_maps
   :members:

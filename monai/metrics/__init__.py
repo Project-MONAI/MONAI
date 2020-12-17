@@ -12,7 +12,6 @@
 from .confusion_matrix import ConfusionMatrixMetric, compute_confusion_matrix_metric, get_confusion_matrix
 from .hausdorff_distance import *
 from .meandice import DiceMetric, compute_meandice
-from .occlusion_sensitivity import compute_occlusion_sensitivity
 from .rocauc import compute_roc_auc
 from .surface_distance import SurfaceDistanceMetric, compute_average_surface_distance
 from .utils import *

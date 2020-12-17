@@ -9,138 +9,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
-from typing import Callable, Dict, Sequence, Union
+from typing import Callable, Union
 
-import numpy as np
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 
-from monai.transforms import ScaleIntensity
-from monai.utils import InterpolateMode, ensure_tuple
+from monai.visualise import ModelWithHooks, NetVisualiser, default_normalizer, default_upsampler
 
-__all__ = ["ModelWithHooks", "default_upsampler", "default_normalizer", "CAM", "GradCAM", "GradCAMpp"]
-
-
-class ModelWithHooks:
-    """
-    A model wrapper to run model forward/backward steps and storing some intermediate feature/gradient information.
-    """
-
-    def __init__(
-        self,
-        nn_module,
-        target_layer_names: Union[str, Sequence[str]],
-        register_forward: bool = False,
-        register_backward: bool = False,
-    ):
-        """
-
-        Args:
-            nn_module: the model to be wrapped.
-            target_layer_names: the names of the layer to cache.
-            register_forward: whether to cache the forward pass output corresponding to `target_layer_names`.
-            register_backward: whether to cache the backward pass output corresponding to `target_layer_names`.
-        """
-        self.model = nn_module
-        self.target_layers = ensure_tuple(target_layer_names)
-
-        self.gradients: Dict[str, torch.Tensor] = {}
-        self.activations: Dict[str, torch.Tensor] = {}
-        self.score = None
-        self.class_idx = None
-        self.register_backward = register_backward
-        self.register_forward = register_forward
-
-        _registered = []
-        for name, mod in nn_module.named_modules():
-            if name not in self.target_layers:
-                continue
-            _registered.append(name)
-            if self.register_backward:
-                mod.register_backward_hook(self.backward_hook(name))
-            if self.register_forward:
-                mod.register_forward_hook(self.forward_hook(name))
-        if len(_registered) != len(self.target_layers):
-            warnings.warn(f"Not all target_layers exist in the network module: targets: {self.target_layers}.")
-
-    def backward_hook(self, name):
-        def _hook(_module, _grad_input, grad_output):
-            self.gradients[name] = grad_output[0]
-
-        return _hook
-
-    def forward_hook(self, name):
-        def _hook(_module, _input, output):
-            self.activations[name] = output
-
-        return _hook
-
-    def get_layer(self, layer_id: Union[str, Callable]):
-        """
-
-        Args:
-            layer_id: a layer name string or a callable. If it is a callable such as `lambda m: m.fc`,
-                this method will return the module `self.model.fc`.
-
-        Returns:
-            a submodule from self.model.
-        """
-        if callable(layer_id):
-            return layer_id(self.model)
-        if isinstance(layer_id, str):
-            for name, mod in self.model.named_modules():
-                if name == layer_id:
-                    return mod
-        raise NotImplementedError(f"Could not find {layer_id}.")
-
-    def class_score(self, logits, class_idx=None):
-        if class_idx is not None:
-            return logits[:, class_idx].squeeze(), class_idx
-        class_idx = logits.max(1)[-1]
-        return logits[:, class_idx].squeeze(), class_idx
-
-    def __call__(self, x, class_idx=None, retain_graph=False):
-        logits = self.model(x)
-        acti, grad = None, None
-        if self.register_forward:
-            acti = tuple(self.activations[layer] for layer in self.target_layers)
-        if self.register_backward:
-            score, class_idx = self.class_score(logits, class_idx)
-            self.model.zero_grad()
-            self.score, self.class_idx = score, class_idx
-            score.sum().backward(retain_graph=retain_graph)
-            grad = tuple(self.gradients[layer] for layer in self.target_layers)
-        return logits, acti, grad
+__all__ = ["CAM", "GradCAM", "GradCAMpp"]
 
 
-def default_upsampler(spatial_size) -> Callable[[torch.Tensor], torch.Tensor]:
-    """
-    A linear interpolation method for upsampling the feature map.
-    The output of this function is a callable `func`,
-    such that `func(activation_map)` returns an upsampled tensor.
-    """
-
-    def up(acti_map):
-        linear_mode = [InterpolateMode.LINEAR, InterpolateMode.BILINEAR, InterpolateMode.TRILINEAR]
-        interp_mode = linear_mode[len(spatial_size) - 1]
-        return F.interpolate(acti_map, size=spatial_size, mode=str(interp_mode.value), align_corners=False)
-
-    return up
-
-
-def default_normalizer(acti_map) -> np.ndarray:
-    """
-    A linear intensity scaling by mapping the (min, max) to (1, 0).
-    """
-    if isinstance(acti_map, torch.Tensor):
-        acti_map = acti_map.detach().cpu().numpy()
-    scaler = ScaleIntensity(minv=1.0, maxv=0.0)
-    acti_map = [scaler(x) for x in acti_map]
-    return np.stack(acti_map, axis=0)
-
-
-class CAM:
+class CAM(NetVisualiser):
     """
     Compute class activation map from the last fully-connected layers before the spatial pooling.
 
@@ -150,7 +30,7 @@ class CAM:
 
         # densenet 2d
         from monai.networks.nets import densenet121
-        from monai.visualize import CAM
+        from monai.visualise import CAM
 
         model_2d = densenet121(spatial_dims=2, in_channels=1, out_channels=3)
         cam = CAM(nn_module=model_2d, target_layers="class_layers.relu", fc_layers="class_layers.out")
@@ -158,7 +38,7 @@ class CAM:
 
         # resnet 2d
         from monai.networks.nets import se_resnet50
-        from monai.visualize import CAM
+        from monai.visualise import CAM
 
         model_2d = se_resnet50(spatial_dims=2, in_channels=3, num_classes=4)
         cam = CAM(nn_module=model_2d, target_layers="layer4", fc_layers="last_linear")
@@ -166,34 +46,40 @@ class CAM:
 
     See Also:
 
-        - :py:class:`monai.visualize.class_activation_maps.GradCAM`
+        - :py:class:`monai.visualise.class_activation_maps.GradCAM`
 
     """
 
     def __init__(
         self,
-        nn_module,
+        nn_module: nn.Module,
         target_layers: str,
         fc_layers: Union[str, Callable] = "fc",
-        upsampler=default_upsampler,
+        upsampler: Callable = default_upsampler,
         postprocessing: Callable = default_normalizer,
-    ):
+    ) -> None:
         """
-
         Args:
             nn_module: the model to be visualised
             target_layers: name of the model layer to generate the feature map.
             fc_layers: a string or a callable used to get fully-connected weights to compute activation map
                 from the target_layers (without pooling).  and evaluate it at every spatial location.
-            upsampler: an upsampling method to upsample the feature map.
-            postprocessing: a callable that applies on the upsampled feature map.
+            upsampler: An upsampling method to upsample the output image. Default is
+                N dimensional linear (bilinear, trilinear, etc.) depending on num spatial
+                dimensions of input.
+            postprocessing: a callable that applies on the upsampled output image.
+                default is normalising between 0 and 1.
         """
         if not isinstance(nn_module, ModelWithHooks):
             self.net = ModelWithHooks(nn_module, target_layers, register_forward=True)
         else:
             self.net = nn_module
-        self.upsampler = upsampler
-        self.postprocessing = postprocessing
+
+        super().__init__(
+            nn_module=nn_module,
+            upsampler=upsampler,
+            postprocessing=postprocessing,
+        )
         self.fc_layers = fc_layers
 
     def compute_map(self, x, class_idx=None, layer_idx=-1):
@@ -262,7 +148,7 @@ class GradCAM:
 
         # densenet 2d
         from monai.networks.nets import densenet121
-        from monai.visualize import GradCAM
+        from monai.visualise import GradCAM
 
         model_2d = densenet121(spatial_dims=2, in_channels=1, out_channels=3)
         cam = GradCAM(nn_module=model_2d, target_layers="class_layers.relu")
@@ -270,7 +156,7 @@ class GradCAM:
 
         # resnet 2d
         from monai.networks.nets import se_resnet50
-        from monai.visualize import GradCAM
+        from monai.visualise import GradCAM
 
         model_2d = se_resnet50(spatial_dims=2, in_channels=3, num_classes=4)
         cam = GradCAM(nn_module=model_2d, target_layers="layer4")
@@ -278,7 +164,7 @@ class GradCAM:
 
     See Also:
 
-        - :py:class:`monai.visualize.class_activation_maps.CAM`
+        - :py:class:`monai.visualise.class_activation_maps.CAM`
 
     """
 
@@ -357,7 +243,7 @@ class GradCAMpp(GradCAM):
 
     See Also:
 
-        - :py:class:`monai.visualize.class_activation_maps.GradCAM`
+        - :py:class:`monai.visualise.class_activation_maps.GradCAM`
 
     """
 

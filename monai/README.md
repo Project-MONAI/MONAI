@@ -27,4 +27,4 @@
 * **utils**: generic utilities intended to be implemented in pure Python or using Numpy,
 and not with Pytorch, such as namespace aliasing, auto module loading.
 
-* **visualize**: utilities for data visualization.
+* **visualise**: utilities for data visualisation.

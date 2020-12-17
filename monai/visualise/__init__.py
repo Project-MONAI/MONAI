@@ -9,5 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .visualiser import ModelWithHooks, NetVisualiser, default_normalizer, default_upsampler  # isort:skip
 from .class_activation_maps import *
 from .img2tensorboard import *
+from .occlusion_sensitivity import OcclusionSensitivity
