@@ -16,22 +16,19 @@ limitations under the License.
 #include "utils/tensor_description.h"
 #include "filtering/permutohedral/permutohedral.h"
 
-
-torch::Tensor BilateralFilterPHLCpu(torch::Tensor inputTensor, float spatialSigma, float colorSigma)
+template<typename scalar_t>
+void BilateralFilterPHLCpu(torch::Tensor inputTensor, torch::Tensor outputTensor, float spatialSigma, float colorSigma)
 {
-    // Preparing output tensor.
-    torch::Tensor outputTensor = torch::zeros_like(inputTensor);
-
     // Getting tensor description.
     TensorDescription desc = TensorDescription(inputTensor);
     
     int featureChannels = desc.channelCount + desc.dimensions;
 
     // Preparing memory
-    float* inputTensorData = inputTensor.data_ptr<float>();
-    float* outputTensorData = outputTensor.data_ptr<float>();
-    float* data = new float[desc.channelStride * desc.channelCount];
-    float* features = new float[desc.channelStride * featureChannels];
+    scalar_t* inputTensorData = inputTensor.data_ptr<scalar_t>();
+    scalar_t* outputTensorData = outputTensor.data_ptr<scalar_t>();
+    scalar_t* data = new scalar_t[desc.channelStride * desc.channelCount];
+    scalar_t* features = new scalar_t[desc.channelStride * featureChannels];
 
     // Precalculating inverse sigmas    
     float invSpatialSigma= 1.0f/spatialSigma;
@@ -66,7 +63,7 @@ torch::Tensor BilateralFilterPHLCpu(torch::Tensor inputTensor, float spatialSigm
         }
 
         // Filtering data with respect to the features.
-        float* output = PermutohedralCPU(data, features, desc.channelCount, featureChannels, desc.channelStride);
+        scalar_t* output = PermutohedralCPU<scalar_t>(data, features, desc.channelCount, featureChannels, desc.channelStride);
 
         // Writing output tensor.
         for (int i = 0; i < desc.channelStride; i++)
@@ -80,6 +77,16 @@ torch::Tensor BilateralFilterPHLCpu(torch::Tensor inputTensor, float spatialSigm
 
     delete[] data;
     delete[] features;
+}
+
+// Function to choose template implementation based on dynamic, channels and dimensions
+torch::Tensor BilateralFilterPHLCpu(torch::Tensor inputTensor, float spatialSigma, float colorSigma)
+{
+    torch::Tensor outputTensor = torch::zeros_like(inputTensor);
+                                                                                                                                 
+    AT_DISPATCH_FLOATING_TYPES_AND_HALF(inputTensor.type(), "BilateralFilterPhlCpu", ([&] {           
+        BilateralFilterPHLCpu<scalar_t>(inputTensor, outputTensor, spatialSigma, colorSigma);   
+    }));
 
     return outputTensor;
 }

@@ -13,35 +13,38 @@ limitations under the License.
 
 #define BLOCK_SIZE 64
 
+#include <torch/extension.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <stdio.h>
 
+#include "utils/meta_macros.h"
 #include "hash_table.cu"
 
+template<typename scalar_t>
 struct MatrixEntry {
     int index;
-    float weight;
+    scalar_t weight;
 };
 
-template<int pd>
+template<typename scalar_t, int pd>
 __global__ static void createMatrix(const int elementCount, 
-				    const float *positions, 
-				    const float *values, 
-				    const float *scaleFactor,
-				    MatrixEntry *matrix) {
+				    const scalar_t *positions, 
+				    const scalar_t *values, 
+				    const scalar_t *scaleFactor,
+				    MatrixEntry<scalar_t> *matrix) {
 
     const int threadId = threadIdx.x;
     const int idx = threadIdx.x + blockIdx.x * BLOCK_SIZE;
     const bool outOfBounds = idx >= elementCount;
 
-    float myElevated[pd + 1];
-    const float* myPosition = positions + idx * pd;
+    scalar_t myElevated[pd + 1];
+    const scalar_t* myPosition = positions + idx * pd;
 
     int myGreedy[pd + 1];
     int myRank[pd + 1];
 
-    float myBarycentric[pd + 2];
+    scalar_t myBarycentric[pd + 2];
     __shared__ short keys[pd * BLOCK_SIZE];
     short* myKey = keys + threadId * pd;
 
@@ -63,9 +66,9 @@ __global__ static void createMatrix(const int elementCount,
 
         for (int i = 0; i <= pd; i++) 
         {
-            float v = myElevated[i] * (1.0f / (pd + 1));
-            float up = ceilf(v) * (pd + 1);
-            float down = floorf(v) * (pd + 1);
+            scalar_t v = myElevated[i] * (1.0f / (pd + 1));
+            scalar_t up = ceilf(v) * (pd + 1);
+            scalar_t down = floorf(v) * (pd + 1);
 
             myGreedy[i] = (signed short)(up - myElevated[i] < myElevated[i] - down ? up : down);
             sum += myGreedy[i];
@@ -80,8 +83,8 @@ __global__ static void createMatrix(const int elementCount,
 
             for (int j = 0; j <= pd; j++) 
             {
-                float iDiff = myElevated[i] - myGreedy[i];
-                float jDiff = myElevated[j] - myGreedy[j];
+                scalar_t iDiff = myElevated[i] - myGreedy[i];
+                scalar_t jDiff = myElevated[j] - myGreedy[j];
 
                 if (iDiff < jDiff || (iDiff == jDiff && i > j)) 
                 {
@@ -137,7 +140,7 @@ __global__ static void createMatrix(const int elementCount,
         
         for (int i = 0; i <= pd; i++) 
         {
-            float delta = (myElevated[i] - myGreedy[i]) * (1.0f / (pd + 1));
+            scalar_t delta = (myElevated[i] - myGreedy[i]) * (1.0f / (pd + 1));
             myBarycentric[pd - myRank[i]] += delta;
             myBarycentric[pd + 1  -myRank[i]] -= delta;
         }
@@ -178,7 +181,7 @@ __global__ static void createMatrix(const int elementCount,
         
         if (!outOfBounds) 
         {
-            MatrixEntry r;
+            MatrixEntry<scalar_t> r;
 
             #ifdef USE_ADDITIVE_HASH
             r.index = hashTableInsert<pd>(cumulative_hash, myKey, idx*(pd+1)+color);
@@ -192,8 +195,8 @@ __global__ static void createMatrix(const int elementCount,
     }
 }
 
-template<int kd>
-__global__ static void cleanHashTable(const int elementCount, MatrixEntry *matrix) 
+template<typename scalar_t, int kd>
+__global__ static void cleanHashTable(const int elementCount, MatrixEntry<scalar_t> *matrix) 
 {
     const int idx = threadIdx.x + blockIdx.x * blockDim.x;
     
@@ -223,8 +226,8 @@ __global__ static void cleanHashTable(const int elementCount, MatrixEntry *matri
     }
 }
 
-template<int pd, int vd>
-__global__ static void splat(const int elementCount, float *values, MatrixEntry *matrix) 
+template<typename scalar_t, int pd, int vd>
+__global__ static void splat(const int elementCount, scalar_t *values, MatrixEntry<scalar_t> *matrix, scalar_t* table_values) 
 {
     const int color = threadIdx.y;
     const int idx =  threadIdx.x + blockIdx.x * blockDim.x;
@@ -236,12 +239,12 @@ __global__ static void splat(const int elementCount, float *values, MatrixEntry 
         return;
     }
     
-    float* myValue = values + idx * vd;
+    scalar_t* myValue = values + idx * vd;
     
-    MatrixEntry r = matrix[idx * (pd + 1) + color];
+    MatrixEntry<scalar_t> r = matrix[idx * (pd + 1) + color];
 
     matrix[idx * (pd + 1) + color].index = r.index = table_entries[r.index];
-    float* val = table_values + r.index * (vd + 1);
+    scalar_t* val = table_values + r.index * (vd + 1);
 
     for (int j = 0; j < vd; j++) 
     {
@@ -262,8 +265,9 @@ __global__ static void splat(const int elementCount, float *values, MatrixEntry 
 
 // splatCache<pd, vd><<<dim3(blockCount, 1), dim3(blockSize, pd+1)>>>(elementCount, values, matrix);
 
-template<int pd, int vd>
-__global__ static void splatCache(const int elementCount, float *values, MatrixEntry *matrix) {
+template<typename scalar_t, int pd, int vd>
+__global__ static void splatCache(const int elementCount, scalar_t *values, MatrixEntry<scalar_t> *matrix, scalar_t* table_values) 
+{
 
     // const int x = threadIdx.x + blockIdx.x * blockDim.x;
     // const int y = threadIdx.y + (blockIdx.y/(pd+1)) * blockDim.y;
@@ -281,16 +285,16 @@ __global__ static void splatCache(const int elementCount, float *values, MatrixE
     const bool outOfBounds = idx >= elementCount;
     
     __shared__ int sharedOffsets[BLOCK_SIZE];
-    __shared__ float sharedValues[BLOCK_SIZE*(vd+1)];
+    __shared__ scalar_t sharedValues[BLOCK_SIZE*(vd+1)];
 
     int myOffset = -1;
-    float *myValue = sharedValues + threadId*(vd+1);
+    scalar_t *myValue = sharedValues + threadId*(vd+1);
     
     if (!outOfBounds) {
 	
-	float *value = values + idx*vd;
+	scalar_t *value = values + idx*vd;
 	
-	MatrixEntry r = matrix[idx*(pd+1)+color];
+	MatrixEntry<scalar_t> r = matrix[idx*(pd+1)+color];
 	
 	// convert the matrix entry from a pointer into the entries array to a pointer into the keys/values array
 	matrix[idx*(pd+1)+color].index = r.index = table_entries[r.index];
@@ -329,14 +333,14 @@ __global__ static void splatCache(const int elementCount, float *values, MatrixE
     }
     
     // only the threads with something to write to main memory are still going
-    float *val = table_values + myOffset;
+    scalar_t *val = table_values + myOffset;
     for (int j = 0; j <= vd; j++) {
 	atomicAdd(val+j, myValue[j]);
     }
 }
 
-template<int pd, int vd>
-__global__ static void blur(int n, float *newValues, MatrixEntry *matrix, int color) {
+template<typename scalar_t, int pd, int vd>
+__global__ static void blur(int n, scalar_t *newValues, MatrixEntry<scalar_t> *matrix, int color, scalar_t* table_values) {
     const int idx = (blockIdx.y * gridDim.x + blockIdx.x) * blockDim.x * blockDim.y + threadIdx.x;
 
     if (idx >= n) return;
@@ -376,10 +380,10 @@ __global__ static void blur(int n, float *newValues, MatrixEntry *matrix, int co
     int offNm = hashTableRetrieve<pd>(nm);
 #endif
 
-    float *valMe = table_values + (vd+1)*idx;
-    float *valNp = table_values + (vd+1)*offNp;
-    float *valNm = table_values + (vd+1)*offNm;	
-    float *valOut = newValues + (vd+1)*idx;
+    scalar_t *valMe = table_values + (vd+1)*idx;
+    scalar_t *valNp = table_values + (vd+1)*offNp;
+    scalar_t *valNm = table_values + (vd+1)*offNm;	
+    scalar_t *valOut = newValues + (vd+1)*idx;
 
     if (offNp >= 0 && offNm >= 0) {
 	for (int i = 0; i <= vd; i++) {
@@ -402,8 +406,8 @@ __global__ static void blur(int n, float *newValues, MatrixEntry *matrix, int co
 }
 
 
-template<int pd, int vd>
-__global__ static void slice(const int elementCount, float *values, MatrixEntry *matrix) 
+template<typename scalar_t, int pd, int vd>
+__global__ static void slice(const int elementCount, scalar_t *values, MatrixEntry<scalar_t> *matrix, scalar_t* table_values) 
 {
     const int threadId = threadIdx.x;
     const int idx = threadIdx.x + blockIdx.x * BLOCK_SIZE;
@@ -411,10 +415,10 @@ __global__ static void slice(const int elementCount, float *values, MatrixEntry 
 
     if (outOfBounds) return;
 
-    __shared__ float localValue[BLOCK_SIZE * vd];
+    __shared__ scalar_t localValue[BLOCK_SIZE * vd];
 
-    float *myValue = localValue + threadId * vd;
-    float myWeight = 0;
+    scalar_t *myValue = localValue + threadId * vd;
+    scalar_t myWeight = 0;
 
     for (int i = 0; i < vd; i++) {
 	    myValue[i] = 0;
@@ -422,8 +426,8 @@ __global__ static void slice(const int elementCount, float *values, MatrixEntry 
 
     for (int i = 0; i <= pd; i++) {
 
-        MatrixEntry r = matrix[idx * (pd + 1) + i];
-        float* val = table_values + r.index * (vd + 1);
+        MatrixEntry<scalar_t> r = matrix[idx * (pd + 1) + i];
+        scalar_t* val = table_values + r.index * (vd + 1);
 
         for (int j = 0; j < vd; j++) {
             myValue[j] += r.weight * val[j];
@@ -439,26 +443,26 @@ __global__ static void slice(const int elementCount, float *values, MatrixEntry 
     }
 }
  
-template<int vd, int pd>
-void filter_(float* values, float* positions, int elementCount, bool accurate) 
+template<typename scalar_t, int vd, int pd>
+void PermutohedralCuda(scalar_t* values, scalar_t* positions, int elementCount, bool accurate) 
 {    
-    float blurVariance = accurate ? 0.5 : 0;
+    scalar_t blurVariance = accurate ? 0.5 : 0;
 
-    float* scaleFactor;
-    cudaMalloc(&scaleFactor, pd * sizeof(float));
+    scalar_t* scaleFactor;
+    cudaMalloc(&scaleFactor, pd * sizeof(scalar_t));
 
-    float scaleFactorHost[pd];
+    scalar_t scaleFactorHost[pd];
     for (int i = 0; i < pd; i++){
         scaleFactorHost[i] = (pd+1)*sqrtf((1.0/6 + blurVariance)/((i+1)*(i+2)));
     }
 
-    cudaMemcpy(scaleFactor, scaleFactorHost, pd * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(scaleFactor, scaleFactorHost, pd * sizeof(scalar_t), cudaMemcpyHostToDevice);
 
-    MatrixEntry* matrix;
-    cudaMalloc(&matrix, elementCount * (pd + 1) * sizeof(MatrixEntry));
+    MatrixEntry<scalar_t>* matrix;
+    cudaMalloc(&matrix, elementCount * (pd + 1) * sizeof(MatrixEntry<scalar_t>));
     
-    createHashTable<pd, vd + 1>(elementCount * (pd + 1));
-
+    scalar_t* table_values = createHashTable<scalar_t, pd, vd + 1>(elementCount * (pd + 1));
+  
     // Populate constant memory for hash helpers
     unsigned long long int __host_two32 = ((unsigned long long int)1)<<32;
     unsigned int __host_div_c = 2*(elementCount*(pd+1));
@@ -480,89 +484,42 @@ void filter_(float* values, float* positions, int elementCount, bool accurate)
     int blockCount = (elementCount + 1) / BLOCK_SIZE + 1;
     int blockSize = BLOCK_SIZE;
 
-    createMatrix<pd><<<blockCount, blockSize>>>(elementCount, positions, values, scaleFactor, matrix);
+    createMatrix<scalar_t, pd><<<blockCount, blockSize>>>(elementCount, positions, values, scaleFactor, matrix);
 
     // fix duplicate hash table entries
     int tableSize = elementCount * 2 * (pd + 1);
     int cleanBlockSize = 32;
     int cleanBlocks = (tableSize - 1) / cleanBlockSize + 1;
 
-    cleanHashTable<pd><<<cleanBlocks, cleanBlockSize>>>(tableSize, matrix);
-
-    splat<pd, vd><<<dim3(blockCount, 1), dim3(blockSize, pd+1)>>>(elementCount, values, matrix);
-
+    cleanHashTable<scalar_t, pd><<<cleanBlocks, cleanBlockSize>>>(tableSize, matrix);
+    
+    splat<scalar_t, pd, vd><<<dim3(blockCount, 1), dim3(blockSize, pd+1)>>>(elementCount, values, matrix, table_values);
+    
     if (accurate) 
     {
-        float *newValues;
-        cudaMalloc(&newValues, elementCount * (pd+1) * (vd+1) * sizeof(float));
-        cudaMemset(newValues, 0, elementCount * (pd+1) * (vd+1) * sizeof(float));
+        scalar_t *newValues;
+        cudaMalloc(&newValues, elementCount * (pd+1) * (vd+1) * sizeof(scalar_t));
+        cudaMemset(newValues, 0, elementCount * (pd+1) * (vd+1) * sizeof(scalar_t));
         
         for (int color = 0; color <= pd; color++) 
         {	
-            blur<pd, vd><<<cleanBlocks, cleanBlockSize>>>(elementCount*(pd+1), newValues, matrix, color);
-            newValues = swapHashTableValues(newValues);
+            blur<scalar_t, pd, vd><<<cleanBlocks, cleanBlockSize>>>(elementCount*(pd+1), newValues, matrix, color, table_values);
+        
+            scalar_t* swap = newValues;
+            newValues = table_values;
+            table_values = swap;
         }
 
         cudaFree(newValues);
     }
 
-    slice<pd, vd><<<blockCount, blockSize>>>(elementCount, values, matrix);
+    slice<scalar_t, pd, vd><<<blockCount, blockSize>>>(elementCount, values, matrix, table_values);
     
-    destroyHashTable();
+    destroyHashTable<scalar_t>();
+    cudaFree(table_values);
 }
 
-void PermutohedralCuda(float* data, float* features, int dataChannels, int featureChannels, int elementCount) 
-{
-    switch (dataChannels*1000 + featureChannels) {
-    case 1001: filter_<1, 1>(data, features, elementCount, true); break;
-    case 2001: filter_<2, 1>(data, features, elementCount, true); break;
-    case 3001: filter_<3, 1>(data, features, elementCount, true); break;
-    case 1002: filter_<1, 2>(data, features, elementCount, true); break;
-    case 2002: filter_<2, 2>(data, features, elementCount, true); break;
-    case 3002: filter_<3, 2>(data, features, elementCount, true); break;
-    case 1003: filter_<1, 3>(data, features, elementCount, true); break;
-    case 2003: filter_<2, 3>(data, features, elementCount, true); break;
-    case 3003: filter_<3, 3>(data, features, elementCount, true); break;
-    case 1004: filter_<1, 4>(data, features, elementCount, true); break;
-    case 2004: filter_<2, 4>(data, features, elementCount, true); break;
-    case 3004: filter_<3, 4>(data, features, elementCount, true); break;
-    case 1005: filter_<1, 5>(data, features, elementCount, true); break;
-    case 2005: filter_<2, 5>(data, features, elementCount, true); break;
-    case 3005: filter_<3, 5>(data, features, elementCount, true); break;
-    case 1006: filter_<1, 6>(data, features, elementCount, true); break;
-    case 2006: filter_<2, 6>(data, features, elementCount, true); break;
-    case 3006: filter_<3, 6>(data, features, elementCount, true); break;
-    case 1007: filter_<1, 7>(data, features, elementCount, true); break;
-    case 2007: filter_<2, 7>(data, features, elementCount, true); break;
-    case 3007: filter_<3, 7>(data, features, elementCount, true); break;
-    case 1008: filter_<1, 8>(data, features, elementCount, true); break;
-    case 2008: filter_<2, 8>(data, features, elementCount, true); break;
-    case 3008: filter_<3, 8>(data, features, elementCount, true); break;
-    case 1009: filter_<1, 9>(data, features, elementCount, true); break;
-    case 2009: filter_<2, 9>(data, features, elementCount, true); break;
-    case 3009: filter_<3, 9>(data, features, elementCount, true); break;
-    case 1010: filter_<1, 10>(data, features, elementCount, true); break;
-    case 2010: filter_<2, 10>(data, features, elementCount, true); break;
-    case 3010: filter_<3, 10>(data, features, elementCount, true); break;
-    case 1011: filter_<1, 11>(data, features, elementCount, true); break;
-    case 2011: filter_<2, 11>(data, features, elementCount, true); break;
-    case 3011: filter_<3, 11>(data, features, elementCount, true); break;
-    case 1012: filter_<1, 12>(data, features, elementCount, true); break;
-    case 2012: filter_<2, 12>(data, features, elementCount, true); break;
-    case 3012: filter_<3, 12>(data, features, elementCount, true); break;
-    case 1013: filter_<1, 13>(data, features, elementCount, true); break;
-    case 2013: filter_<2, 13>(data, features, elementCount, true); break;
-    case 3013: filter_<3, 13>(data, features, elementCount, true); break;
-    case 1014: filter_<1, 14>(data, features, elementCount, true); break;
-    case 2014: filter_<2, 14>(data, features, elementCount, true); break;
-    case 3014: filter_<3, 14>(data, features, elementCount, true); break;
-    case 1015: filter_<1, 15>(data, features, elementCount, true); break;
-    case 2015: filter_<2, 15>(data, features, elementCount, true); break;
-    case 3015: filter_<3, 15>(data, features, elementCount, true); break;
-    case 1016: filter_<1, 16>(data, features, elementCount, true); break;
-    case 2016: filter_<2, 16>(data, features, elementCount, true); break;
-    case 3016: filter_<3, 16>(data, features, elementCount, true); break;
-    default:
-	printf("Unsupported channel counts. Reference image must have 1 to 16 channels, input image must have 1 to 3 channels\n");	    
-    }    
-}
+#define DECLARATION(dc, fc)                                                                                                  \
+template void PermutohedralCuda<float, dc, fc>(float* values, float* positions, int elementCount, bool accurate);            \
+template void PermutohedralCuda<double, dc, fc>(double* values, double* positions, int elementCount, bool accurate); 
+DO_FOR_AB(DECLARATION, 16, 19)

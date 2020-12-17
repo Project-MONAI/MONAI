@@ -14,6 +14,8 @@ limitations under the License.
 #include <math.h>
 #include <string.h>
 
+#include <torch/extension.h>
+
 using namespace std;
 
 /***************************************************************/
@@ -24,6 +26,7 @@ using namespace std;
  * dimensional space.
  */
 /***************************************************************/
+template<typename scalar_t>
 class HashTablePermutohedral {
  public:
   /* Constructor
@@ -35,8 +38,8 @@ class HashTablePermutohedral {
     filled = 0;
     entries = new Entry[capacity];
     keys = new short[kd*capacity/2];
-    values = new float[vd*capacity/2];
-    memset(values, 0, sizeof(float)*vd*capacity/2);
+    values = new scalar_t[vd*capacity/2];
+    memset(values, 0, sizeof(scalar_t)*vd*capacity/2);
   }
 
   // Returns the number of vectors stored.
@@ -46,7 +49,7 @@ class HashTablePermutohedral {
   short *getKeys() { return keys; }
 
   // Returns a pointer to the values array.
-  float *getValues() { return values; }
+  scalar_t *getValues() { return values; }
 
   /* Returns the index into the hash table for a given key.
    *     key: a pointer to the position vector.
@@ -92,7 +95,7 @@ class HashTablePermutohedral {
    *        k : pointer to the key vector to be looked up.
    *   create : true if a non-existing key should be created.
    */
-  float *lookup(short *k, bool create = true) {
+  scalar_t *lookup(short *k, bool create = true) {
     size_t h = hash(k) % capacity;
     int offset = lookupOffset(k, h, create);
     if (offset < 0) return NULL;
@@ -117,9 +120,9 @@ class HashTablePermutohedral {
     capacity *= 2;
 
     // Migrate the value vectors.
-    float *newValues = new float[vd*capacity/2];
-    memset(newValues, 0, sizeof(float)*vd*capacity/2);
-    memcpy(newValues, values, sizeof(float)*vd*filled);
+    scalar_t *newValues = new scalar_t[vd*capacity/2];
+    memset(newValues, 0, sizeof(scalar_t)*vd*capacity/2);
+    memcpy(newValues, values, sizeof(scalar_t)*vd*filled);
     delete[] values;
     values = newValues;	   
     
@@ -153,7 +156,7 @@ class HashTablePermutohedral {
   };
 
   short *keys;
-  float *values;
+  scalar_t *values;
   Entry *entries;
   size_t capacity, filled;
   int kd, vd;  
@@ -166,6 +169,7 @@ class HashTablePermutohedral {
  *
  */
 /***************************************************************/
+template<typename scalar_t>
 class PermutohedralLattice {
   public:
 
@@ -173,13 +177,13 @@ class PermutohedralLattice {
    *   im : image to be bilateral-filtered.
    *  ref : reference image whose edges are to be respected.
    */
-  static float* filter(float* data, float* features, int dataChannels, int featureChannels,  int elementCount) 
+  static scalar_t* filter(scalar_t* data, scalar_t* features, int dataChannels, int featureChannels,  int elementCount) 
   {
     // Create lattice
     PermutohedralLattice lattice(featureChannels, dataChannels+1, elementCount);
 
     // Splat into the lattice
-    float *col = new float[dataChannels+1]; 
+    scalar_t *col = new scalar_t[dataChannels+1]; 
     col[dataChannels] = 1; // homogeneous coordinate
 	
     for (int i = 0, e = 0; e < elementCount; e++)
@@ -189,7 +193,7 @@ class PermutohedralLattice {
         col[c] = data[i];
       }
       
-      float* featureVec = features + e * featureChannels;
+      scalar_t* featureVec = features + e * featureChannels;
       lattice.splat(featureVec, col);
     }
 
@@ -198,7 +202,7 @@ class PermutohedralLattice {
     lattice.blur();
     
     // Slice from the lattice
-    float* outputData = new float[elementCount * dataChannels];
+    scalar_t* outputData = new scalar_t[elementCount * dataChannels];
 	
     lattice.beginSlice();
 
@@ -206,7 +210,7 @@ class PermutohedralLattice {
     {
       lattice.slice(col);
 
-      float scale = 1.0f/col[dataChannels];
+      scalar_t scale = 1.0f/col[dataChannels];
       for (int c = 0; c < dataChannels; c++, i++) 
       {
         outputData[i] = col[c] * scale;
@@ -225,12 +229,12 @@ class PermutohedralLattice {
   d(d_), vd(vd_), nData(nData_), hashTable(d_, vd_) {
 
     // Allocate storage for various arrays
-    elevated = new float[d+1];
-    scaleFactor = new float[d];
+    elevated = new scalar_t[d+1];
+    scaleFactor = new scalar_t[d];
 	
     greedy = new short[d+1];
     rank = new char[d+1];	
-    barycentric = new float[d+2];
+    barycentric = new scalar_t[d+2];
     replay = new ReplayEntry[nData*(d+1)];
     nReplay = 0;
     canonical = new short[(d+1)*(d+1)];
@@ -249,7 +253,7 @@ class PermutohedralLattice {
     // Compute parts of the rotation matrix E. (See pg.4-5 of paper.)      
     for (int i = 0; i < d; i++) {
       // the diagonal entries for normalization
-      scaleFactor[i] = 1.0f/(sqrtf((float)(i+1)*(i+2)));
+      scaleFactor[i] = 1.0f/(sqrtf((scalar_t)(i+1)*(i+2)));
 
       /* We presume that the user would like to do a Gaussian blur of standard deviation
        * 1 in each dimension (or a total variance of d, summed over dimensions.)
@@ -269,7 +273,7 @@ class PermutohedralLattice {
 
 
   /* Performs splatting with given position and value vectors */
-  void splat(float *position, float *value) {
+  void splat(scalar_t *position, scalar_t *value) {
 
     // first rotate position into the (d+1)-dimensional hyperplane
     elevated[d] = -d*position[d-1]*scaleFactor[d-1];
@@ -280,16 +284,16 @@ class PermutohedralLattice {
     elevated[0] = elevated[1] + 2*position[0]*scaleFactor[0];
     
     // prepare to find the closest lattice points
-    float scale = 1.0f/(d+1);	
+    scalar_t scale = 1.0f/(d+1);	
     char * myrank = rank;
     short * mygreedy = greedy;
 
     // greedily search for the closest zero-colored lattice point
     int sum = 0;
     for (int i = 0; i <= d; i++) {
-      float v = elevated[i]*scale;
-      float up = ceilf(v)*(d+1);
-      float down = floorf(v)*(d+1);
+      scalar_t v = elevated[i]*scale;
+      scalar_t up = ceilf(v)*(d+1);
+      scalar_t down = floorf(v)*(d+1);
 
       if (up - elevated[i] < elevated[i] - down) mygreedy[i] = (short)up;
       else mygreedy[i] = (short)down;
@@ -328,7 +332,7 @@ class PermutohedralLattice {
     }
    
     // Compute barycentric coordinates (See pg.10 of paper.)
-    memset(barycentric, 0, sizeof(float)*(d+2));
+    memset(barycentric, 0, sizeof(scalar_t)*(d+2));
     for (int i = 0; i <= d; i++) {
       barycentric[d-myrank[i]] += (elevated[i] - mygreedy[i]) * scale;
       barycentric[d+1-myrank[i]] -= (elevated[i] - mygreedy[i]) * scale;
@@ -342,7 +346,7 @@ class PermutohedralLattice {
 	key[i] = mygreedy[i] + canonical[remainder*(d+1) + myrank[i]];
   
       // Retrieve pointer to the value at this vertex.
-      float * val = hashTable.lookup(key, true);
+      scalar_t * val = hashTable.lookup(key, true);
 
       // Accumulate values with barycentric weight.
       for (int i = 0; i < vd; i++)
@@ -365,8 +369,8 @@ class PermutohedralLattice {
    * containing each position vector were calculated and stored in the splatting step.
    * We may reuse this to accelerate the algorithm. (See pg. 6 in paper.)
    */
-   void slice(float *col) {
-     float *base = hashTable.getValues();
+   void slice(scalar_t *col) {
+     scalar_t *base = hashTable.getValues();
      for (int j = 0; j < vd; j++) col[j] = 0;
      for (int i = 0; i <= d; i++) {
        ReplayEntry r = replay[nReplay++];
@@ -381,11 +385,11 @@ class PermutohedralLattice {
       // Prepare arrays
       short *neighbor1 = new short[d+1];
       short *neighbor2 = new short[d+1];
-      float *newValue = new float[vd*hashTable.size()];
-      float *oldValue = hashTable.getValues();
-      float *hashTableBase = oldValue;
+      scalar_t *newValue = new scalar_t[vd*hashTable.size()];
+      scalar_t *oldValue = hashTable.getValues();
+      scalar_t *hashTableBase = oldValue;
 
-      float *zero = new float[vd];
+      scalar_t *zero = new scalar_t[vd];
       for (int k = 0; k < vd; k++) zero[k] = 0;
 
       // For each of d+1 axes,
@@ -401,10 +405,10 @@ class PermutohedralLattice {
 	  neighbor1[j] = key[j] - d;
 	  neighbor2[j] = key[j] + d; // keys to the neighbors along the given axis.
 	  
-	  float *oldVal = oldValue + i*vd;		
-	  float *newVal = newValue + i*vd;
+	  scalar_t *oldVal = oldValue + i*vd;		
+	  scalar_t *newVal = newValue + i*vd;
 
-	  float *vm1, *vp1;
+	  scalar_t *vm1, *vp1;
 
 	  vm1 = hashTable.lookup(neighbor1, false); // look up first neighbor
 	  if (vm1) vm1 = vm1 - hashTableBase + oldValue;
@@ -418,7 +422,7 @@ class PermutohedralLattice {
 	  for (int k = 0; k < vd; k++)
 	    newVal[k] = (0.25f*vm1[k] + 0.5f*oldVal[k] + 0.25f*vp1[k]);
 	}  
-	float *tmp = newValue;
+	scalar_t *tmp = newValue;
 	newValue = oldValue;
 	oldValue = tmp;
 	// the freshest data is now in oldValue, and newValue is ready to be written over
@@ -426,7 +430,7 @@ class PermutohedralLattice {
       
       // depending where we ended up, we may have to copy data
       if (oldValue != hashTableBase) {
-	memcpy(hashTableBase, oldValue, hashTable.size()*vd*sizeof(float));
+	memcpy(hashTableBase, oldValue, hashTable.size()*vd*sizeof(scalar_t));
 	delete oldValue;
       } else {
 	delete newValue;
@@ -440,25 +444,30 @@ class PermutohedralLattice {
     private:
 
     int d, vd, nData;
-    float *elevated, *scaleFactor, *barycentric;
+    scalar_t *elevated, *scaleFactor, *barycentric;
     short *canonical;    
     short *key;
 
     // slicing is done by replaying splatting (ie storing the sparse matrix)
     struct ReplayEntry {
 	int offset;
-	float weight;
+	scalar_t weight;
     } *replay;
     int nReplay, nReplaySub;
 
  public:
     char  *rank;
     short *greedy;
-    HashTablePermutohedral hashTable;
+    HashTablePermutohedral<scalar_t> hashTable;
 };
 
 
-float* PermutohedralCPU(float* data, float* features, int dataChannels, int featureChannels, int elementCount)
+template<typename scalar_t>
+scalar_t* PermutohedralCPU(scalar_t* data, scalar_t* features, int dataChannels, int featureChannels, int elementCount)
 {
-  return PermutohedralLattice::filter(data, features, dataChannels, featureChannels, elementCount);
+  return PermutohedralLattice<scalar_t>::filter(data, features, dataChannels, featureChannels, elementCount);
 }
+
+template at::Half* PermutohedralCPU(at::Half* data, at::Half* features, int dataChannels, int featureChannels, int elementCount);  
+template float* PermutohedralCPU(float* data, float* features, int dataChannels, int featureChannels, int elementCount);          
+template double* PermutohedralCPU(double* data, double* features, int dataChannels, int featureChannels, int elementCount); 

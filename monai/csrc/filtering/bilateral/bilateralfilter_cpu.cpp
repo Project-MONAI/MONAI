@@ -56,23 +56,21 @@ private:
     int* m_index;
 };
 
-torch::Tensor BilateralFilterCpu(torch::Tensor inputTensor, float spatialSigma, float colorSigma)
+template<typename scalar_t>
+void BilateralFilterCpu(torch::Tensor inputTensor, torch::Tensor outputTensor, float spatialSigma, float colorSigma)
 {
-    // Preparing output tensor.
-    torch::Tensor outputTensor = torch::zeros_like(inputTensor);
-
     // Getting tensor description.
     TensorDescription desc = TensorDescription(inputTensor);
    
     // Raw tensor data pointers. 
-    float* inputTensorData = inputTensor.data_ptr<float>();
-    float* outputTensorData = outputTensor.data_ptr<float>();
+    scalar_t* inputTensorData = inputTensor.data_ptr<scalar_t>();
+    scalar_t* outputTensorData = outputTensor.data_ptr<scalar_t>();
 
     // Pre-calculate common values
     int windowSize = (int)ceil(5.0f * spatialSigma) | 1; // ORing last bit to ensure odd window size
     int halfWindowSize = floor(0.5f * windowSize);
-    float spatialExpConstant = -1.0f / (2 * spatialSigma * spatialSigma);
-    float colorExpConstant = -1.0f / (2 * colorSigma * colorSigma);
+    scalar_t spatialExpConstant = -1.0f / (2 * spatialSigma * spatialSigma);
+    scalar_t colorExpConstant = -1.0f / (2 * colorSigma * colorSigma);
 
     // Kernel sizes.
     int* kernelSizes = new int[desc.dimensions];
@@ -83,7 +81,7 @@ torch::Tensor BilateralFilterCpu(torch::Tensor inputTensor, float spatialSigma, 
     }
 
     // Pre-calculate gaussian kernel in 1D.
-    float* gaussianKernel = new float[windowSize];
+    scalar_t* gaussianKernel = new scalar_t[windowSize];
 
     for (int i = 0; i < windowSize; i++)
     {
@@ -93,8 +91,8 @@ torch::Tensor BilateralFilterCpu(torch::Tensor inputTensor, float spatialSigma, 
 
     // Kernel aggregates used to calculate
     // the output value.
-    float* valueSum = new float[desc.channelCount];
-    float weightSum = 0;
+    scalar_t* valueSum = new scalar_t[desc.channelCount];
+    scalar_t weightSum = 0;
 
     // Looping over the batches
     for (int b = 0; b < desc.batchCount; b++)
@@ -137,25 +135,25 @@ torch::Tensor BilateralFilterCpu(torch::Tensor inputTensor, float spatialSigma, 
                 }
 
                 // Euclidean color distance.
-                float colorDistanceSquared = 0;
+                scalar_t colorDistanceSquared = 0;
 
                 for (int i = 0; i < desc.channelCount; i++)
                 {
-                    float diff = inputTensorData[homeOffset + i * desc.channelStride] - inputTensorData[neighbourOffset + i * desc.channelStride];
+                    scalar_t diff = inputTensorData[homeOffset + i * desc.channelStride] - inputTensorData[neighbourOffset + i * desc.channelStride];
                     colorDistanceSquared += diff * diff;
                 }
 
                 // Calculating and combining the spatial 
                 // and color weights.
-                float spatialWeight = 1;
+                scalar_t spatialWeight = 1;
 
                 for (int i = 0; i < desc.dimensions; i++)
                 {
                     spatialWeight *= gaussianKernel[kernelIndex[i]];
                 }
 
-                float colorWeight = exp(colorDistanceSquared * colorExpConstant);
-                float totalWeight = spatialWeight * colorWeight;
+                scalar_t colorWeight = exp(colorDistanceSquared * colorExpConstant);
+                scalar_t totalWeight = spatialWeight * colorWeight;
 
                 // Aggregating values.
                 for (int i = 0; i < desc.channelCount; i++)
@@ -173,7 +171,17 @@ torch::Tensor BilateralFilterCpu(torch::Tensor inputTensor, float spatialSigma, 
             }
         } 
         while(homeIndex++);
-    } 
+    }
+}
+
+torch::Tensor BilateralFilterCpu(torch::Tensor inputTensor, float spatialSigma, float colorSigma)
+{
+    // Preparing output tensor.
+    torch::Tensor outputTensor = torch::zeros_like(inputTensor);
+
+    AT_DISPATCH_FLOATING_TYPES_AND_HALF(inputTensor.type(), "BilateralFilterCpu", ([&] {
+        BilateralFilterCpu<scalar_t>(inputTensor, outputTensor, spatialSigma, colorSigma);
+    }));
 
     return outputTensor;
 }
