@@ -21,7 +21,7 @@ The rest of this page provides more details for each module.
 * [Optimizers](#optimizers)
 * [Network architectures](#network-architectures)
 * [Evaluation](#evaluation)
-* [Vizualisation](#vizualisation)
+* [Visualiz`ation](#visualization)
 * [Result writing](#result-writing)
 * [Workflows](#workflows)
 * [Research](#research)
@@ -238,7 +238,7 @@ Various useful evaluation metrics have been used to measure the quality of medic
 For example, `Mean Dice` score can be used for segmentation tasks, and the area under the ROC curve(`ROCAUC`) for classification tasks. We continue to integrate more options.
 
 ## Visualization
-Beyond the simple point and curve plotting, MONAI provides intuitive interfaces to visualize multidimensional data as GIF animations in TensorBoard. This could provide a quick qualitative assessment of the model by viualizing, for example, the volumetric inputs, segmentation maps, and intermediate feature maps. A runnable example with visualization is available at [UNet training example](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/torch/unet_training_dict.py).
+Beyond the simple point and curve plotting, MONAI provides intuitive interfaces to visualize multidimensional data as GIF animations in TensorBoard. This could provide a quick qualitative assessment of the model by visualizing, for example, the volumetric inputs, segmentation maps, and intermediate feature maps. A runnable example with visualization is available at [UNet training example](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/torch/unet_training_dict.py).
 
 And to visualize the class activation mapping for a trained classification model, MONAI provides CAM, GradCAM, GradCAM++ APIs for both 2D and 3D models:
 
