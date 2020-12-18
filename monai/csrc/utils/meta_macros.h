@@ -1,3 +1,16 @@
+/*
+Copyright 2020 MONAI Consortium
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 #pragma once
 
 // Helper Macros: for internal use (see below)
@@ -100,20 +113,13 @@
 #define _DO_31_B(TARGET, B_RANGE) _DO_A_##B_RANGE(TARGET, 31) _DO_30_B(TARGET, B_RANGE)
 #define _DO_32_B(TARGET, B_RANGE) _DO_A_##B_RANGE(TARGET, 32) _DO_31_B(TARGET, B_RANGE)
 
+#define _CASE_A(A) case (A): CASE(A) break;
+#define _CASE_AB(A, B) case (A * 100 + B): CASE(A, B) break;
+
 // Preproccessor For Loops
 #define DO_FOR_A(TARGET, A_RANGE) _DO_##A_RANGE(TARGET)
 #define DO_FOR_AB(TARGET, A_RANGE, B_RANGE) _DO_##A_RANGE##_B(TARGET, B_RANGE)
 
-// Switch Statement Generators
-#define _CASE_A(A) \
-  case (A):        \
-    CASE(A) break;
-#define _CASE_AB(A, B) \
-  case (A * 100 + B):  \
-    CASE(A, B) break;
-
-#define SWITCH_A(CASE, A_RANGE, A) \
-  switch (A) { DO_FOR_A(_CASE_A, A_RANGE) }
-
-#define SWITCH_AB(CALL, A_RANGE, B_RANGE, A, B) \
-  switch (A * 100 + B) { DO_FOR_AB(_CASE_AB, A_RANGE, B_RANGE) }
+// Preproccessor Switch Statement Generators
+#define SWITCH_A(CASE, A_RANGE, A) switch (A) { DO_FOR_A(_CASE_A, A_RANGE) }
+#define SWITCH_AB(CALL, A_RANGE, B_RANGE, A, B) switch (A * 100 + B) { DO_FOR_AB(_CASE_AB, A_RANGE, B_RANGE) }
