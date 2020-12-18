@@ -17,6 +17,7 @@ limitations under the License.
 #include <cuda_runtime.h>
 #include <stdio.h>
 #include <torch/extension.h>
+#include <THC/THCAtomics.cuh>
 
 #include "hash_table.cu"
 #include "utils/meta_macros.h"
@@ -224,10 +225,10 @@ __global__ static void splat(
   scalar_t* val = table_values + r.index * (vd + 1);
 
   for (int j = 0; j < vd; j++) {
-    atomicAdd(val + j, myValue[j] * r.weight);
+    gpuAtomicAdd(val + j, myValue[j] * r.weight);
   }
 
-  atomicAdd(val + vd, r.weight);
+  gpuAtomicAdd(val + vd, r.weight);
 }
 
 // splat splits by color, so extend the y coordinate to our blocks to represent that
@@ -311,7 +312,7 @@ __global__ static void splatCache(
   // only the threads with something to write to main memory are still going
   scalar_t* val = table_values + myOffset;
   for (int j = 0; j <= vd; j++) {
-    atomicAdd(val + j, myValue[j]);
+    gpuAtomicAdd(val + j, myValue[j]);
   }
 }
 
