@@ -16,7 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.layers.filtering import BilateralFilter
-from tests.utils import skip_if_no_cpp_extention, skip_if_no_cuda
+from tests.utils import skip_if_no_cpp_extention
 
 TEST_CASES = [
     [
