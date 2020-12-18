@@ -22,5 +22,5 @@ Class activation map
 Occlusion sensitivity
 ---------------------
 
-.. automodule:: monai.visualize.OcclusionSensitivity
+.. automodule:: monai.visualize.occlusion_sensitivity
   :members:
