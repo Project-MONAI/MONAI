@@ -43,7 +43,7 @@ class TestSENET(unittest.TestCase):
     def test_senet_shape(self, net, net_args):
         input_data = torch.randn(2, 2, 64, 64, 64).to(device)
         expected_shape = (2, 2)
-        net = net(**net_args)
+        net = net(**net_args).to(device)
         with eval_mode(net):
             result = net(input_data)
             self.assertEqual(result.shape, expected_shape)
