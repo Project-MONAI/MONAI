@@ -123,7 +123,7 @@ class TestDynUNetDeepSupervision(unittest.TestCase):
     @parameterized.expand(TEST_CASE_DEEP_SUPERVISION)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = DynUNet(**input_param).to(device)
-        with eval_mode(net):
+        with torch.no_grad():
             results = net(torch.randn(input_shape).to(device))
             self.assertEqual(len(results), len(expected_shape))
             for idx in range(len(results)):
