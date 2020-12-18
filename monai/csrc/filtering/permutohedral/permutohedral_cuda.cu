@@ -12,7 +12,7 @@ limitations under the License.
 */
 
 /*
-Adapted from https://github.com/abadams/permutohedral 
+Adapted from https://github.com/abadams/permutohedral
 which has the following license...
 
 MIT License
