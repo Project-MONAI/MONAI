@@ -480,12 +480,6 @@ scalar_t* PermutohedralCPU(
   return PermutohedralLattice<scalar_t>::filter(data, features, dataChannels, featureChannels, elementCount);
 }
 
-template at::Half* PermutohedralCPU(
-    at::Half* data,
-    at::Half* features,
-    int dataChannels,
-    int featureChannels,
-    int elementCount);
 template float* PermutohedralCPU(float* data, float* features, int dataChannels, int featureChannels, int elementCount);
 template double* PermutohedralCPU(
     double* data,
