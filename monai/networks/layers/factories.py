@@ -16,7 +16,7 @@ a layer is requested the factory name and any necessary arguments are passed to 
 is typically a type but can be any callable producing a layer object.
 
 The factory objects contain functions keyed to names converted to upper case, these names can be referred to as members
-of the factory so that they can function as constant identifiers. eg. instance normalisation is named `Norm.INSTANCE`.
+of the factory so that they can function as constant identifiers. eg. instance normalization is named `Norm.INSTANCE`.
 
 For example, to get a transpose convolution layer the name is needed and then a dimension argument is provided which is
 passed to the factory function:
