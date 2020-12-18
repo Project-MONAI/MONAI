@@ -16,6 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.layers.filtering import BilateralFilter
+from tests.utils import skip_if_no_cpp_extention, skip_if_no_cuda
 
 TEST_CASES = [
     [
@@ -359,7 +360,8 @@ TEST_CASES = [
 ]
 
 
-class BilateralFilterTestCase(unittest.TestCase):
+@skip_if_no_cpp_extention
+class BilateralFilterTestCaseCpuPrecised(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_cpu_precised(self, test_case_description, sigmas, input, expected):
 
@@ -374,6 +376,10 @@ class BilateralFilterTestCase(unittest.TestCase):
         # Ensure result are as expected
         np.testing.assert_allclose(output, expected, atol=1e-5)
 
+
+@skip_if_no_cuda
+@skip_if_no_cpp_extention
+class BilateralFilterTestCaseCudaPrecised(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_cuda_precised(self, test_case_description, sigmas, input, expected):
 

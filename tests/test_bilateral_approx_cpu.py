@@ -16,6 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.layers.filtering import BilateralFilter
+from tests.utils import skip_if_no_cpp_extention, skip_if_no_cuda
 
 TEST_CASES = [
     [
@@ -359,7 +360,8 @@ TEST_CASES = [
 ]
 
 
-class BilateralFilterTestCase(unittest.TestCase):
+@skip_if_no_cpp_extention
+class BilateralFilterTestCaseCpuApprox(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_cpu_approx(self, test_case_description, sigmas, input, expected):
 
