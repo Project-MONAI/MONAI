@@ -376,7 +376,7 @@ class BilateralFilterTestCase(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES)
     def test_cuda_precised(self, test_case_description, sigmas, input, expected):
-        
+
         # Skip this test
         if not torch.cuda.is_available():
             return
