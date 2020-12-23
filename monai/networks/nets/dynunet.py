@@ -183,12 +183,14 @@ class DynUNet(nn.Module):
 
     def forward(self, x):
         out = self.skip_layers(x)
-        out = self.output_block(out)
+        return self.output_block(out)
 
-        if self.training and self.deep_supervision:
-            return [out] + self.heads[1 : self.deep_supr_num + 1]
+    def get_feature_maps(self):
+        """
+        Return the feature maps if set `deep_supervision=True`.
 
-        return [out]
+        """
+        return self.heads[1 : self.deep_supr_num + 1] if self.deep_supervision else None
 
     def get_input_block(self):
         return self.conv_block(

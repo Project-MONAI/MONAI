@@ -110,7 +110,7 @@ class TestDynUNet(unittest.TestCase):
         net.eval()
         with torch.no_grad():
             result = net(torch.randn(input_shape).to(device))
-            self.assertEqual(result[0].shape, expected_shape)
+            self.assertEqual(result.shape, expected_shape)
 
     def test_script(self):
         input_param, input_shape, _ = TEST_CASE_DYNUNET_2D[0]
@@ -124,7 +124,7 @@ class TestDynUNetDeepSupervision(unittest.TestCase):
     def test_shape(self, input_param, input_shape, expected_shape):
         net = DynUNet(**input_param).to(device)
         with torch.no_grad():
-            results = net(torch.randn(input_shape).to(device))
+            results = [net(torch.randn(input_shape).to(device))] + net.get_feature_maps()
             self.assertEqual(len(results), len(expected_shape))
             for idx in range(len(results)):
                 result, sub_expected_shape = results[idx], expected_shape[idx]
