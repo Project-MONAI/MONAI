@@ -12,10 +12,10 @@
 from typing import Dict
 
 import torch
-from ignite.engine import Engine, Events
 from torch.cuda.amp import autocast
 
 from monai.engines.utils import CommonKeys
+from monai.engines.workflow import Engine, Events
 
 # TODO:: Unit Test
 
