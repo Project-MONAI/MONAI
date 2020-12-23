@@ -16,9 +16,7 @@ import statistics
 import numpy as np
 import torch
 import torch.distributed
-import torchvision
 from torch.utils.tensorboard import SummaryWriter
-from torchvision.utils import make_grid
 
 from monai.engines.workflow import Engine, Events
 from monai.metrics import compute_meandice
@@ -26,8 +24,11 @@ from monai.transforms import rescale_array
 from monai.utils import optional_import
 from monai.visualize import plot_2d_or_3d_image
 
-# TODO:: Unit Test
 nib, _ = optional_import("nibabel")
+torchvision, _ = optional_import("torchvision")
+make_grid, _ = optional_import("torchvision.utils", name="make_grid")
+
+# TODO:: Unit Test
 
 
 class MeanDice:
