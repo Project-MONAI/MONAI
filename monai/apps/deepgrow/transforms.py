@@ -12,11 +12,23 @@
 A collection of "vanilla" transforms for spatial operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
+import json
+from typing import Optional, Union
 
 import numpy as np
 
-from monai.transforms.compose import Randomizable, Transform
-from monai.utils import min_version, optional_import
+from monai.config import KeysCollection
+from monai.transforms import (
+    SpatialCrop,
+    Resize,
+    InterpolateModeSequence,
+    InterpolateMode
+)
+from monai.transforms.compose import Randomizable, Transform, MapTransform
+from monai.transforms.utils import generate_spatial_bounding_box
+from monai.utils import (
+    min_version, optional_import, ensure_tuple_rep, Sequence
+)
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_cdt")
@@ -24,10 +36,10 @@ gaussian_filter, _ = optional_import("scipy.ndimage", name="gaussian_filter")
 
 
 class AddInitialSeedPointd(Randomizable, Transform):
-    def __init__(self, label='label', guidance='guidance', dim=2, connected_regions=6):
+    def __init__(self, label='label', guidance='guidance', dimensions=2, connected_regions=6):
         self.label = label
         self.guidance = guidance
-        self.dim = dim
+        self.dimensions = dimensions
         self.connected_regions = connected_regions
 
     def randomize(self, data=None):
@@ -36,13 +48,13 @@ class AddInitialSeedPointd(Randomizable, Transform):
     def _apply(self, label):
         label = (label > 0.5).astype(np.float32)
 
-        blobs_labels = measure.label(label.astype(int), background=0) if self.dim == 2 else label
+        blobs_labels = measure.label(label.astype(int), background=0) if self.dimensions == 2 else label
         assert np.max(blobs_labels) > 0, "Not a valid Label"
 
-        default_guidance = [-1] * (self.dim + 1)
+        default_guidance = [-1] * (self.dimensions + 1)
         pos_guidance = []
-        for ridx in range(1, 2 if self.dim == 3 else self.connected_regions):
-            if self.dim == 2:
+        for ridx in range(1, 2 if self.dimensions == 3 else self.connected_regions):
+            if self.dimensions == 2:
                 label = (blobs_labels == ridx).astype(np.float32)
                 if np.sum(label) == 0:
                     pos_guidance.append(default_guidance)
@@ -67,17 +79,17 @@ class AddInitialSeedPointd(Randomizable, Transform):
 
 
 class AddGuidanceSignald(Transform):
-    def __init__(self, image='image', guidance='guidance', sigma=2, dim=2, number_intensity_ch=1, batched=False):
+    def __init__(self, image='image', guidance='guidance', sigma=2, dimensions=2, number_intensity_ch=1, batched=False):
         self.image = image
         self.guidance = guidance
         self.sigma = sigma
-        self.dim = dim
+        self.dimensions = dimensions
         self.number_intensity_ch = number_intensity_ch
         self.batched = batched
 
     def _get_signal(self, image, guidance):
         guidance = guidance.tolist() if isinstance(guidance, np.ndarray) else guidance
-        if self.dim == 3:
+        if self.dimensions == 3:
             signal = np.zeros((len(guidance), image.shape[-3], image.shape[-2], image.shape[-1]), dtype=np.float32)
         else:
             signal = np.zeros((len(guidance), image.shape[-2], image.shape[-1]), dtype=np.float32)
@@ -87,8 +99,7 @@ class AddGuidanceSignald(Transform):
                 if np.any(np.asarray(point) < 0):
                     continue
 
-                # print('{}:: Point: {}'.format('-VE' if i else '+VE', np.asarray(point)))
-                if self.dim == 3:
+                if self.dimensions == 3:
                     signal[i, int(point[-3]), int(point[-2]), int(point[-1])] = 1.0
                 else:
                     signal[i, int(point[-2]), int(point[-1])] = 1.0
@@ -153,11 +164,12 @@ class FindDiscrepancyRegionsd(Transform):
 
 
 class AddRandomGuidanced(Randomizable, Transform):
-    def __init__(self, guidance='guidance', discrepancy='discrepancy', probability='probability', dim=2, batched=True):
+    def __init__(self, guidance='guidance', discrepancy='discrepancy', probability='probability', dimensions=2,
+                 batched=True):
         self.guidance = guidance
         self.discrepancy = discrepancy
         self.probability = probability
-        self.dim = dim
+        self.dimensions = dimensions
         self.batched = batched
 
     def randomize(self, data=None):
@@ -200,7 +212,7 @@ class AddRandomGuidanced(Randomizable, Transform):
 
     def _apply(self, guidance, discrepancy, probability):
         guidance = guidance.tolist() if isinstance(guidance, np.ndarray) else guidance
-        default_guidance = [-1] * (self.dim + 1)
+        default_guidance = [-1] * (self.dimensions + 1)
 
         if not self.batched:
             pos, neg = self.add_guidance(discrepancy, probability)
@@ -227,4 +239,318 @@ class AddRandomGuidanced(Randomizable, Transform):
         probability = data[self.probability]
 
         data[self.guidance] = self._apply(guidance, discrepancy, probability)
+        return data
+
+
+class SpatialCropForegroundd(MapTransform):
+    def __init__(
+            self,
+            keys,
+            source_key: str,
+            spatial_size,
+            select_fn=lambda x: x > 0,
+            channel_indices=None,
+            margin: int = 0,
+            meta_key_postfix="meta_dict",
+            start_coord_key: str = "foreground_start_coord",
+            end_coord_key: str = "foreground_end_coord",
+            original_shape_key: str = "foreground_original_shape",
+            cropped_shape_key: str = "foreground_cropped_shape",
+    ) -> None:
+        super().__init__(keys)
+
+        self.source_key = source_key
+        self.spatial_size = spatial_size
+        self.select_fn = select_fn
+        self.channel_indices = channel_indices
+        self.margin = margin
+        self.meta_key_postfix = meta_key_postfix
+        self.start_coord_key = start_coord_key
+        self.end_coord_key = end_coord_key
+        self.original_shape_key = original_shape_key
+        self.cropped_shape_key = cropped_shape_key
+
+    def __call__(self, data):
+        box_start, box_end = generate_spatial_bounding_box(
+            data[self.source_key], self.select_fn, self.channel_indices, self.margin
+        )
+
+        center = np.mean([box_start, box_end], axis=0).astype(int).tolist()
+        current_size = np.subtract(box_end, box_start).astype(int).tolist()
+
+        if np.all(np.less(current_size, self.spatial_size)):
+            cropper = SpatialCrop(roi_center=center, roi_size=self.spatial_size)
+            box_start = cropper.roi_start
+            box_end = cropper.roi_end
+        else:
+            cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
+
+        for key in self.keys:
+            meta_key = f"{key}_{self.meta_key_postfix}"
+            data[meta_key][self.start_coord_key] = box_start
+            data[meta_key][self.end_coord_key] = box_end
+            data[meta_key][self.original_shape_key] = data[key].shape
+
+            image = cropper(data[key])
+            data[meta_key][self.cropped_shape_key] = image.shape
+            data[key] = image
+        return data
+
+
+# Transforms to support Inference
+class SpatialCropGuidanced(MapTransform):
+    def __init__(
+            self,
+            keys,
+            guidance: str,
+            spatial_size,
+            spatial_size_key: str = "spatial_size",
+            meta_key_postfix="meta_dict",
+            start_coord_key: str = "foreground_start_coord",
+            end_coord_key: str = "foreground_end_coord",
+            original_shape_key: str = "foreground_original_shape",
+            cropped_shape_key: str = "foreground_cropped_shape",
+    ) -> None:
+        super().__init__(keys)
+
+        self.guidance = guidance
+        self.spatial_size = spatial_size
+        self.spatial_size_key = spatial_size_key
+        self.meta_key_postfix = meta_key_postfix
+        self.start_coord_key = start_coord_key
+        self.end_coord_key = end_coord_key
+        self.original_shape_key = original_shape_key
+        self.cropped_shape_key = cropped_shape_key
+
+    def __call__(self, data):
+        guidance = data[self.guidance]
+        center = np.mean(guidance[0] + guidance[1], axis=0).astype(int).tolist()
+        spatial_size = data.get(self.spatial_size_key, self.spatial_size)
+
+        cropper = SpatialCrop(roi_center=center, roi_size=spatial_size)
+        box_start, box_end = cropper.roi_start, cropper.roi_end
+
+        for key in self.keys:
+            meta_key = f"{key}_{self.meta_key_postfix}"
+            data[meta_key][self.start_coord_key] = box_start
+            data[meta_key][self.end_coord_key] = box_end
+            data[meta_key][self.original_shape_key] = data[key].shape
+
+            image = cropper(data[key])
+            data[meta_key][self.cropped_shape_key] = image.shape
+            data[key] = image
+
+        pos_clicks, neg_clicks = guidance[0], guidance[1]
+        pos = np.subtract(pos_clicks, box_start).tolist() if len(pos_clicks) else []
+        neg = np.subtract(neg_clicks, box_start).tolist() if len(neg_clicks) else []
+
+        data[self.guidance] = [pos, neg]
+        return data
+
+
+class ResizeGuidanced(Transform):
+    def __init__(
+            self,
+            guidance: str,
+            ref_image,
+            meta_key_postfix="meta_dict",
+            cropped_shape_key: str = "foreground_cropped_shape",
+    ) -> None:
+        self.guidance = guidance
+        self.ref_image = ref_image
+        self.meta_key_postfix = meta_key_postfix
+        self.cropped_shape_key = cropped_shape_key
+
+    def __call__(self, data):
+        guidance = data[self.guidance]
+        meta_dict = data[f"{self.ref_image}_{self.meta_key_postfix}"]
+        current_shape = data[self.ref_image].shape[1:]
+        cropped_shape = meta_dict[self.cropped_shape_key][1:]
+        factor = np.divide(current_shape, cropped_shape)
+
+        pos_clicks, neg_clicks = guidance[0], guidance[1]
+        pos = np.multiply(pos_clicks, factor).astype(int).tolist() if len(pos_clicks) else []
+        neg = np.multiply(neg_clicks, factor).astype(int).tolist() if len(neg_clicks) else []
+
+        data[self.guidance] = [pos, neg]
+        return data
+
+
+class RestoreCroppedLabeld(MapTransform):
+    def __init__(
+            self,
+            keys: KeysCollection,
+            ref_image: str,
+            slice_only=False,
+            channel_first=True,
+            mode: InterpolateModeSequence = InterpolateMode.NEAREST,
+            align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
+            meta_key_postfix: str = "meta_dict",
+            start_coord_key: str = "foreground_start_coord",
+            end_coord_key: str = "foreground_end_coord",
+            original_shape_key: str = "foreground_original_shape",
+            cropped_shape_key: str = "foreground_cropped_shape",
+    ) -> None:
+        super().__init__(keys)
+        self.ref_image = ref_image
+        self.slice_only = slice_only
+        self.channel_first = channel_first
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
+        self.meta_key_postfix = meta_key_postfix
+        self.start_coord_key = start_coord_key
+        self.end_coord_key = end_coord_key
+        self.original_shape_key = original_shape_key
+        self.cropped_shape_key = cropped_shape_key
+
+    def __call__(self, data):
+        meta_dict = data[f"{self.ref_image}_{self.meta_key_postfix}"]
+
+        for idx, key in enumerate(self.keys):
+            image = data[key]
+
+            # Undo Resize
+            current_size = image.shape
+            cropped_size = meta_dict[self.cropped_shape_key]
+            if np.any(np.not_equal(current_size, cropped_size)):
+                resizer = Resize(spatial_size=cropped_size[1:], mode=self.mode[idx])
+                image = resizer(image, mode=self.mode[idx], align_corners=self.align_corners[idx])
+
+            # Undo Crop
+            original_shape = meta_dict[self.original_shape_key]
+            result = np.zeros(original_shape, dtype=np.float32)
+            box_start = meta_dict[self.start_coord_key]
+            box_end = meta_dict[self.end_coord_key]
+
+            sd = min(len(box_start), len(box_end), len(image.shape[1:]))  # spatial dims
+            slices = [slice(None)] + [slice(s, e) for s, e in zip(box_start[:sd], box_end[:sd])]
+            slices = tuple(slices)
+            result[slices] = image
+
+            # Undo Spacing
+            current_size = result.shape[1:]
+            spatial_shape = np.roll(meta_dict['spatial_shape'], 1).tolist()
+            spatial_size = spatial_shape[-len(current_size):]
+
+            if np.any(np.not_equal(current_size, spatial_size)):
+                resizer = Resize(spatial_size=spatial_size, mode=self.mode[idx])
+                result = resizer(result, mode=self.mode[idx], align_corners=self.align_corners[idx])
+
+            # Undo Slicing
+            slice_idx = meta_dict.get('slice_idx')
+            if slice_idx is None or self.slice_only:
+                final_result = result if len(result.shape) <= 3 else result[0]
+            else:
+                slice_idx = meta_dict['slice_idx'][0]
+                final_result = np.zeros(spatial_shape)
+                if self.channel_first:
+                    final_result[slice_idx] = result
+                else:
+                    final_result[..., slice_idx] = result
+            data[key] = final_result
+
+            meta = data.get(f"{key}_{self.meta_key_postfix}")
+            if meta is None:
+                meta = dict()
+                data[f"{key}_{self.meta_key_postfix}"] = meta
+            meta['slice_idx'] = slice_idx
+            meta['affine'] = meta_dict['original_affine']
+        return data
+
+
+class AddGuidanceFromPointsd(Randomizable, Transform):
+    def __init__(
+            self,
+            ref_image,
+            guidance='guidance',
+            foreground='foreground',
+            background='background',
+            axis=0,
+            channel_first=True,
+            dimensions=2,
+            slice_key='slice',
+            meta_key_postfix: str = "meta_dict"
+    ):
+        self.ref_image = ref_image
+        self.guidance = guidance
+        self.foreground = foreground
+        self.background = background
+        self.axis = axis
+        self.channel_first = channel_first
+        self.dimensions = dimensions
+        self.slice_key = slice_key
+        self.meta_key_postfix = meta_key_postfix
+
+    def randomize(self, data=None):
+        pass
+
+    def _apply(self, pos_clicks, neg_clicks, factor, slice_num=None):
+        points = pos_clicks
+        points.extend(neg_clicks)
+        points = np.array(points)
+
+        if self.dimensions == 2:
+            slices = np.unique(points[:, self.axis]).tolist()
+            slice_idx = slices[0] if slice_num is None else next(x for x in slices if x == slice_num)
+
+            pos = neg = []
+            if len(pos_clicks):
+                pos_clicks = np.array(pos_clicks)
+                pos = (pos_clicks[np.where(pos_clicks[:, self.axis] == slice_idx)] * factor)[:, 1:].astype(int).tolist()
+            if len(neg_clicks):
+                neg_clicks = np.array(neg_clicks)
+                neg = (neg_clicks[np.where(neg_clicks[:, self.axis] == slice_idx)] * factor)[:, 1:].astype(int).tolist()
+
+            guidance = [pos, neg, slice_idx, factor]
+        else:
+            pos = neg = []
+            if len(pos_clicks):
+                pos = np.multiply(pos_clicks, factor).astype(int).tolist()
+            if len(neg_clicks):
+                neg = np.multiply(neg_clicks, factor).astype(int).tolist()
+            guidance = [pos, neg]
+        return guidance
+
+    def __call__(self, data):
+        meta_dict = data[f"{self.ref_image}_{self.meta_key_postfix}"]
+        original_shape = meta_dict['spatial_shape']
+        current_shape = list(data[self.ref_image].shape)
+
+        clicks = [data[self.foreground], data[self.background]]
+        if self.channel_first:
+            original_shape = np.roll(original_shape, 1).tolist()
+            for i in range(len(clicks)):
+                clicks[i] = json.loads(clicks[i]) if isinstance(clicks[i], str) else clicks[i]
+                clicks[i] = np.array(clicks[i]).astype(int).tolist()
+                for j in range(len(clicks[i])):
+                    clicks[i][j] = np.roll(clicks[i][j], 1).tolist()
+
+        factor = np.array(current_shape) / original_shape
+
+        data[self.guidance] = self._apply(clicks[0], clicks[1], factor, data.get(self.slice_key))
+        return data
+
+
+class Fetch2DSliced(MapTransform):
+    def __init__(self, keys, guidance='guidance', axis=0, meta_key_postfix: str = "meta_dict"):
+        super().__init__(keys)
+        self.guidance = guidance
+        self.axis = axis
+        self.meta_key_postfix = meta_key_postfix
+
+    def _apply(self, image, guidance):
+        slice_idx = guidance[2]
+        idx = []
+        for i in range(len(image.shape)):
+            idx.append(slice_idx) if i == self.axis else idx.append(slice(0, image.shape[i]))
+
+        idx = tuple(idx)
+        return image[idx], idx
+
+    def __call__(self, data):
+        guidance = data[self.guidance]
+        for key in self.keys:
+            img, idx = self._apply(data[key], guidance)
+            data[key] = img
+            data[f'{key}_{self.meta_key_postfix}']['slice_idx'] = idx
         return data
