@@ -72,7 +72,7 @@ TEST_CASE_3 = [  # 4-channel 3D, batch 16
     (16, 3, 32, 64, 48),
 ]
 
-TEST_CASE_4 = [  # 4-channel 3D, batch 16, batch normalisation
+TEST_CASE_4 = [  # 4-channel 3D, batch 16, batch normalization
     {
         "dimensions": 3,
         "in_channels": 4,

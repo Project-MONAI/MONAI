@@ -28,6 +28,7 @@ import numpy as np
 import torch
 import torch.distributed as dist
 
+from monai.config.deviceconfig import USE_COMPILED
 from monai.data import create_test_image_2d, create_test_image_3d
 from monai.utils import ensure_tuple, optional_import, set_determinism
 from monai.utils.module import get_torch_version_tuple
@@ -78,6 +79,13 @@ class SkipIfModule(object):
 
     def __call__(self, obj):
         return unittest.skipIf(self.module_avail, f"Skipping because optional module present: {self.module_name}")(obj)
+
+
+def skip_if_no_cpp_extention(obj):
+    """
+    Skip the unit tests if the cpp extention isnt available
+    """
+    return unittest.skipIf(not USE_COMPILED, "Skipping cpp extention tests")(obj)
 
 
 def skip_if_no_cuda(obj):
