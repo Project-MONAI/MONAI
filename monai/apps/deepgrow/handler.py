@@ -26,8 +26,6 @@ from monai.metrics import compute_meandice
 from monai.transforms import rescale_array
 from monai.visualize import plot_2d_or_3d_image
 
-from .utils import make_grid_with_titles
-
 # TODO:: Unit Test
 
 
@@ -45,10 +43,10 @@ class MeanDice:
         score = compute_meandice(y_pred=y_pred, y=y, include_background=False).mean()
         self.data.append(score.item())
 
-    def mean(self) -> float:
+    def mean(self):
         return statistics.mean(self.data)
 
-    def stdev(self) -> float:
+    def stdev(self):
         return statistics.stdev(self.data) if len(self.data) > 1 else 0
 
 
@@ -112,11 +110,8 @@ class DeepgrowStatsHandler(object):
             )
 
         if len(all_imgs[0].shape) == 3:
-            colors = [(0, 0, 255), (0, 0, 255), (255, 0, 0)]
-            img_tensor = make_grid_with_titles(
+            img_tensor = make_grid(
                 tensor=torch.from_numpy(np.array(all_imgs)),
-                titles=titles,
-                colors=colors,
                 nrow=3,
                 normalize=True,
                 pad_value=2,

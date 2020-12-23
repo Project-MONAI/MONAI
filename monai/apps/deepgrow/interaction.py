@@ -9,14 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, Optional
+from typing import Dict
 
 import torch
 from ignite.engine import Engine, Events
 from torch.cuda.amp import autocast
 
 from monai.engines.utils import CommonKeys
-from monai.transforms import Transform
 
 # TODO:: Unit Test
 
@@ -33,9 +32,7 @@ class Interaction:
         key_probability: field name to fill probability for every interaction
     """
 
-    def __init__(
-        self, transforms: Optional[Transform], max_interactions: int, train: bool, key_probability: str = "probability"
-    ) -> None:
+    def __init__(self, transforms, max_interactions: int, train: bool, key_probability: str = "probability") -> None:
         self.transforms = transforms
         self.max_interactions = max_interactions
         self.train = train
