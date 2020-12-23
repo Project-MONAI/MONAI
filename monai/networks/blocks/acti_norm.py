@@ -80,7 +80,7 @@ class ADN(nn.Sequential):
         super().__init__()
 
         op_dict = {"A": None, "D": None, "N": None}
-        # define the normalisation type and the arguments to the constructor
+        # define the normalization type and the arguments to the constructor
         if norm is not None:
             if norm_dim is None and dropout_dim is None:
                 raise ValueError("norm_dim or dropout_dim needs to be specified.")

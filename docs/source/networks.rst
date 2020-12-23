@@ -183,6 +183,11 @@ Layers
 ~~~~~~~~~~~~~~~~
 .. autoclass:: GaussianFilter
     :members:
+    
+`BilateralFilter`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: BilateralFilter
+    :members:
 
 `HilbertTransform`
 ~~~~~~~~~~~~~~~~~~
