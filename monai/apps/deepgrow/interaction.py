@@ -18,8 +18,8 @@ from torch.cuda.amp import autocast
 from monai.engines.utils import CommonKeys
 from monai.transforms import Transform
 
-
 # TODO:: Unit Test
+
 
 class Interaction:
     """
@@ -34,11 +34,7 @@ class Interaction:
     """
 
     def __init__(
-            self,
-            transforms: Optional[Transform],
-            max_interactions: int,
-            train: bool,
-            key_probability: str = "probability"
+        self, transforms: Optional[Transform], max_interactions: int, train: bool, key_probability: str = "probability"
     ) -> None:
         self.transforms = transforms
         self.max_interactions = max_interactions
@@ -66,7 +62,8 @@ class Interaction:
 
             batchdata.update({CommonKeys.PRED: predictions})
             batchdata[self.key_probability] = torch.as_tensor(
-                ([1.0 - ((1.0 / self.max_interactions) * j)] if self.train else [1.0]) * len(inputs))
+                ([1.0 - ((1.0 / self.max_interactions) * j)] if self.train else [1.0]) * len(inputs)
+            )
             batchdata = self.transforms(batchdata)
 
         return engine._iteration(engine, batchdata)

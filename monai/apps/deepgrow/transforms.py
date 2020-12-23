@@ -18,17 +18,10 @@ from typing import Optional, Union
 import numpy as np
 
 from monai.config import KeysCollection
-from monai.transforms import (
-    SpatialCrop,
-    Resize,
-    InterpolateModeSequence,
-    InterpolateMode
-)
-from monai.transforms.compose import Randomizable, Transform, MapTransform
+from monai.transforms import InterpolateMode, InterpolateModeSequence, Resize, SpatialCrop
+from monai.transforms.compose import MapTransform, Randomizable, Transform
 from monai.transforms.utils import generate_spatial_bounding_box
-from monai.utils import (
-    min_version, optional_import, ensure_tuple_rep, Sequence
-)
+from monai.utils import Sequence, ensure_tuple_rep, min_version, optional_import
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_cdt")
@@ -36,7 +29,7 @@ gaussian_filter, _ = optional_import("scipy.ndimage", name="gaussian_filter")
 
 
 class AddInitialSeedPointd(Randomizable, Transform):
-    def __init__(self, label='label', guidance='guidance', dimensions=2, connected_regions=6):
+    def __init__(self, label="label", guidance="guidance", dimensions=2, connected_regions=6):
         self.label = label
         self.guidance = guidance
         self.dimensions = dimensions
@@ -79,7 +72,7 @@ class AddInitialSeedPointd(Randomizable, Transform):
 
 
 class AddGuidanceSignald(Transform):
-    def __init__(self, image='image', guidance='guidance', sigma=2, dimensions=2, number_intensity_ch=1, batched=False):
+    def __init__(self, image="image", guidance="guidance", sigma=2, dimensions=2, number_intensity_ch=1, batched=False):
         self.image = image
         self.guidance = guidance
         self.sigma = sigma
@@ -116,7 +109,7 @@ class AddGuidanceSignald(Transform):
 
         images = []
         for i, g in zip(image, guidance):
-            i = i[0:0 + self.number_intensity_ch, ...]
+            i = i[0 : 0 + self.number_intensity_ch, ...]
             signal = self._get_signal(i, g)
             images.append(np.concatenate([i, signal], axis=0))
         return images
@@ -130,7 +123,7 @@ class AddGuidanceSignald(Transform):
 
 
 class FindDiscrepancyRegionsd(Transform):
-    def __init__(self, label='label', pred='pred', discrepancy='discrepancy', batched=True):
+    def __init__(self, label="label", pred="pred", discrepancy="discrepancy", batched=True):
         self.label = label
         self.pred = pred
         self.discrepancy = discrepancy
@@ -164,8 +157,9 @@ class FindDiscrepancyRegionsd(Transform):
 
 
 class AddRandomGuidanced(Randomizable, Transform):
-    def __init__(self, guidance='guidance', discrepancy='discrepancy', probability='probability', dimensions=2,
-                 batched=True):
+    def __init__(
+        self, guidance="guidance", discrepancy="discrepancy", probability="probability", dimensions=2, batched=True
+    ):
         self.guidance = guidance
         self.discrepancy = discrepancy
         self.probability = probability
@@ -244,18 +238,18 @@ class AddRandomGuidanced(Randomizable, Transform):
 
 class SpatialCropForegroundd(MapTransform):
     def __init__(
-            self,
-            keys,
-            source_key: str,
-            spatial_size,
-            select_fn=lambda x: x > 0,
-            channel_indices=None,
-            margin: int = 0,
-            meta_key_postfix="meta_dict",
-            start_coord_key: str = "foreground_start_coord",
-            end_coord_key: str = "foreground_end_coord",
-            original_shape_key: str = "foreground_original_shape",
-            cropped_shape_key: str = "foreground_cropped_shape",
+        self,
+        keys,
+        source_key: str,
+        spatial_size,
+        select_fn=lambda x: x > 0,
+        channel_indices=None,
+        margin: int = 0,
+        meta_key_postfix="meta_dict",
+        start_coord_key: str = "foreground_start_coord",
+        end_coord_key: str = "foreground_end_coord",
+        original_shape_key: str = "foreground_original_shape",
+        cropped_shape_key: str = "foreground_cropped_shape",
     ) -> None:
         super().__init__(keys)
 
@@ -300,16 +294,16 @@ class SpatialCropForegroundd(MapTransform):
 # Transforms to support Inference
 class SpatialCropGuidanced(MapTransform):
     def __init__(
-            self,
-            keys,
-            guidance: str,
-            spatial_size,
-            spatial_size_key: str = "spatial_size",
-            meta_key_postfix="meta_dict",
-            start_coord_key: str = "foreground_start_coord",
-            end_coord_key: str = "foreground_end_coord",
-            original_shape_key: str = "foreground_original_shape",
-            cropped_shape_key: str = "foreground_cropped_shape",
+        self,
+        keys,
+        guidance: str,
+        spatial_size,
+        spatial_size_key: str = "spatial_size",
+        meta_key_postfix="meta_dict",
+        start_coord_key: str = "foreground_start_coord",
+        end_coord_key: str = "foreground_end_coord",
+        original_shape_key: str = "foreground_original_shape",
+        cropped_shape_key: str = "foreground_cropped_shape",
     ) -> None:
         super().__init__(keys)
 
@@ -350,11 +344,11 @@ class SpatialCropGuidanced(MapTransform):
 
 class ResizeGuidanced(Transform):
     def __init__(
-            self,
-            guidance: str,
-            ref_image,
-            meta_key_postfix="meta_dict",
-            cropped_shape_key: str = "foreground_cropped_shape",
+        self,
+        guidance: str,
+        ref_image,
+        meta_key_postfix="meta_dict",
+        cropped_shape_key: str = "foreground_cropped_shape",
     ) -> None:
         self.guidance = guidance
         self.ref_image = ref_image
@@ -378,18 +372,18 @@ class ResizeGuidanced(Transform):
 
 class RestoreCroppedLabeld(MapTransform):
     def __init__(
-            self,
-            keys: KeysCollection,
-            ref_image: str,
-            slice_only=False,
-            channel_first=True,
-            mode: InterpolateModeSequence = InterpolateMode.NEAREST,
-            align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
-            meta_key_postfix: str = "meta_dict",
-            start_coord_key: str = "foreground_start_coord",
-            end_coord_key: str = "foreground_end_coord",
-            original_shape_key: str = "foreground_original_shape",
-            cropped_shape_key: str = "foreground_cropped_shape",
+        self,
+        keys: KeysCollection,
+        ref_image: str,
+        slice_only=False,
+        channel_first=True,
+        mode: InterpolateModeSequence = InterpolateMode.NEAREST,
+        align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
+        meta_key_postfix: str = "meta_dict",
+        start_coord_key: str = "foreground_start_coord",
+        end_coord_key: str = "foreground_end_coord",
+        original_shape_key: str = "foreground_original_shape",
+        cropped_shape_key: str = "foreground_cropped_shape",
     ) -> None:
         super().__init__(keys)
         self.ref_image = ref_image
@@ -429,19 +423,19 @@ class RestoreCroppedLabeld(MapTransform):
 
             # Undo Spacing
             current_size = result.shape[1:]
-            spatial_shape = np.roll(meta_dict['spatial_shape'], 1).tolist()
-            spatial_size = spatial_shape[-len(current_size):]
+            spatial_shape = np.roll(meta_dict["spatial_shape"], 1).tolist()
+            spatial_size = spatial_shape[-len(current_size) :]
 
             if np.any(np.not_equal(current_size, spatial_size)):
                 resizer = Resize(spatial_size=spatial_size, mode=self.mode[idx])
                 result = resizer(result, mode=self.mode[idx], align_corners=self.align_corners[idx])
 
             # Undo Slicing
-            slice_idx = meta_dict.get('slice_idx')
+            slice_idx = meta_dict.get("slice_idx")
             if slice_idx is None or self.slice_only:
                 final_result = result if len(result.shape) <= 3 else result[0]
             else:
-                slice_idx = meta_dict['slice_idx'][0]
+                slice_idx = meta_dict["slice_idx"][0]
                 final_result = np.zeros(spatial_shape)
                 if self.channel_first:
                     final_result[slice_idx] = result
@@ -453,23 +447,23 @@ class RestoreCroppedLabeld(MapTransform):
             if meta is None:
                 meta = dict()
                 data[f"{key}_{self.meta_key_postfix}"] = meta
-            meta['slice_idx'] = slice_idx
-            meta['affine'] = meta_dict['original_affine']
+            meta["slice_idx"] = slice_idx
+            meta["affine"] = meta_dict["original_affine"]
         return data
 
 
 class AddGuidanceFromPointsd(Randomizable, Transform):
     def __init__(
-            self,
-            ref_image,
-            guidance='guidance',
-            foreground='foreground',
-            background='background',
-            axis=0,
-            channel_first=True,
-            dimensions=2,
-            slice_key='slice',
-            meta_key_postfix: str = "meta_dict"
+        self,
+        ref_image,
+        guidance="guidance",
+        foreground="foreground",
+        background="background",
+        axis=0,
+        channel_first=True,
+        dimensions=2,
+        slice_key="slice",
+        meta_key_postfix: str = "meta_dict",
     ):
         self.ref_image = ref_image
         self.guidance = guidance
@@ -513,7 +507,7 @@ class AddGuidanceFromPointsd(Randomizable, Transform):
 
     def __call__(self, data):
         meta_dict = data[f"{self.ref_image}_{self.meta_key_postfix}"]
-        original_shape = meta_dict['spatial_shape']
+        original_shape = meta_dict["spatial_shape"]
         current_shape = list(data[self.ref_image].shape)
 
         clicks = [data[self.foreground], data[self.background]]
@@ -532,7 +526,7 @@ class AddGuidanceFromPointsd(Randomizable, Transform):
 
 
 class Fetch2DSliced(MapTransform):
-    def __init__(self, keys, guidance='guidance', axis=0, meta_key_postfix: str = "meta_dict"):
+    def __init__(self, keys, guidance="guidance", axis=0, meta_key_postfix: str = "meta_dict"):
         super().__init__(keys)
         self.guidance = guidance
         self.axis = axis
@@ -552,5 +546,5 @@ class Fetch2DSliced(MapTransform):
         for key in self.keys:
             img, idx = self._apply(data[key], guidance)
             data[key] = img
-            data[f'{key}_{self.meta_key_postfix}']['slice_idx'] = idx
+            data[f"{key}_{self.meta_key_postfix}"]["slice_idx"] = idx
         return data

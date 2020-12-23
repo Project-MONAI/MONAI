@@ -18,18 +18,18 @@ import numpy as np
 import torch
 import torch.distributed
 import torchvision
-from monai.visualize import plot_2d_or_3d_image
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.utils import make_grid
 
-from monai.engines import Engine
-from monai.engines.workflow import Events
+from monai.engines.workflow import Engine, Events
 from monai.metrics import compute_meandice
 from monai.transforms import rescale_array
+from monai.visualize import plot_2d_or_3d_image
+
 from .utils import make_grid_with_titles
 
-
 # TODO:: Unit Test
+
 
 class MeanDice:
     def __init__(self):
@@ -54,20 +54,20 @@ class MeanDice:
 
 class DeepgrowStatsHandler(object):
     def __init__(
-            self,
-            summary_writer=None,
-            interval=1,
-            log_dir="./runs",
-            tag_name='val_dice',
-            compute_metric=True,
-            images=True,
-            image_interval=1,
-            max_channels=1,
-            max_frames=64,
-            add_scalar=True,
-            add_stdev=False,
-            merge_scalar=False,
-            fold_size=0,
+        self,
+        summary_writer=None,
+        interval=1,
+        log_dir="./runs",
+        tag_name="val_dice",
+        compute_metric=True,
+        images=True,
+        image_interval=1,
+        max_channels=1,
+        max_frames=64,
+        add_scalar=True,
+        add_stdev=False,
+        merge_scalar=False,
+        fold_size=0,
     ):
         self.writer = SummaryWriter(log_dir=log_dir) if summary_writer is None else summary_writer
         self.interval = interval
@@ -83,14 +83,14 @@ class DeepgrowStatsHandler(object):
         self.fold_size = fold_size
 
         if torch.distributed.is_initialized():
-            self.tag_name = '{}-r{}'.format(self.tag_name, torch.distributed.get_rank())
+            self.tag_name = "{}-r{}".format(self.tag_name, torch.distributed.get_rank())
 
         self.plot_data = {}
         self.metric_data = {}
 
     def attach(self, engine: Engine) -> None:
-        engine.add_event_handler(Events.ITERATION_COMPLETED(every=self.interval), self, 'iteration')
-        engine.add_event_handler(Events.EPOCH_COMPLETED(every=1), self, 'epoch')
+        engine.add_event_handler(Events.ITERATION_COMPLETED(every=self.interval), self, "iteration")
+        engine.add_event_handler(Events.EPOCH_COMPLETED(every=1), self, "epoch")
 
     def write_images(self, epoch):
         if not self.plot_data or not len(self.plot_data):
@@ -101,13 +101,15 @@ class DeepgrowStatsHandler(object):
         for region in sorted(self.plot_data.keys()):
             all_imgs.extend(self.plot_data[region])
             metric = self.metric_data.get(region)
-            dice = '{:.4f}'.format(metric.mean()) if self.compute_metric and metric else ''
-            stdev = '{:.4f}'.format(metric.stdev()) if self.compute_metric and metric else ''
-            titles.extend([
-                'x({})'.format(region),
-                'y({})'.format(region),
-                'dice: {} +/- {}'.format(dice, stdev) if self.compute_metric else 'yh({})'.format(region)
-            ])
+            dice = "{:.4f}".format(metric.mean()) if self.compute_metric and metric else ""
+            stdev = "{:.4f}".format(metric.stdev()) if self.compute_metric and metric else ""
+            titles.extend(
+                [
+                    "x({})".format(region),
+                    "y({})".format(region),
+                    "dice: {} +/- {}".format(dice, stdev) if self.compute_metric else "yh({})".format(region),
+                ]
+            )
 
         if len(all_imgs[0].shape) == 3:
             colors = [(0, 0, 255), (0, 0, 255), (255, 0, 0)]
@@ -117,8 +119,9 @@ class DeepgrowStatsHandler(object):
                 colors=colors,
                 nrow=3,
                 normalize=True,
-                pad_value=2)
-            self.writer.add_image(tag=f'Deepgrow Regions ({self.tag_name})', img_tensor=img_tensor, global_step=epoch)
+                pad_value=2,
+            )
+            self.writer.add_image(tag=f"Deepgrow Regions ({self.tag_name})", img_tensor=img_tensor, global_step=epoch)
 
         if len(all_imgs[0].shape) == 4:
             for region in sorted(self.plot_data.keys()):
@@ -129,8 +132,11 @@ class DeepgrowStatsHandler(object):
                         img[np.newaxis], epoch, self.writer, 0, self.max_channels, self.max_frames, tags[i]
                     )
 
-        logging.info("Saved {} Regions {} into Tensorboard at epoch: {}".format(
-            len(self.plot_data), sorted([*self.plot_data]), epoch))
+        logging.info(
+            "Saved {} Regions {} into Tensorboard at epoch: {}".format(
+                len(self.plot_data), sorted([*self.plot_data]), epoch
+            )
+        )
         self.writer.flush()
 
     def write_region_metrics(self, epoch):
@@ -141,8 +147,8 @@ class DeepgrowStatsHandler(object):
             metric = self.metric_data[region].mean()
             stdev = self.metric_data[region].stdev()
             if self.merge_scalar:
-                means['{:0>2d}'.format(region)] = metric
-                stdevs['{:0>2d}'.format(region)] = stdev
+                means["{:0>2d}".format(region)] = metric
+                stdevs["{:0>2d}".format(region)] = stdev
             else:
                 if self.add_stdev:
                     self.writer.add_scalar("{}_{:0>2d}_mean".format(self.tag_name, region), metric, epoch)
@@ -164,7 +170,7 @@ class DeepgrowStatsHandler(object):
         if total_steps < engine.state.epoch_length:
             total_steps = engine.state.epoch_length * (engine.state.epoch - 1) + total_steps
 
-        if action == 'epoch' and not self.fold_size:
+        if action == "epoch" and not self.fold_size:
             epoch = engine.state.epoch
         elif self.fold_size and total_steps % self.fold_size == 0:
             epoch = int(total_steps / self.fold_size)
@@ -177,7 +183,7 @@ class DeepgrowStatsHandler(object):
             if self.add_scalar:
                 self.write_region_metrics(epoch)
 
-        if action == 'epoch' or epoch:
+        if action == "epoch" or epoch:
             self.plot_data = {}
             self.metric_data = {}
             return
@@ -186,32 +192,31 @@ class DeepgrowStatsHandler(object):
         batch_data = engine.state.batch
         output_data = engine.state.output
 
-        for bidx in range(len(batch_data.get('region', []))):
-            region = batch_data.get('region')[bidx]
+        for bidx in range(len(batch_data.get("region", []))):
+            region = batch_data.get("region")[bidx]
             region = region.item() if torch.is_tensor(region) else region
 
             if self.images and self.plot_data.get(region) is None:
                 self.plot_data[region] = [
                     rescale_array(batch_data["image"][bidx][0].detach().cpu().numpy()[np.newaxis], 0, 1),
                     rescale_array(batch_data["label"][bidx].detach().cpu().numpy(), 0, 1),
-                    rescale_array(output_data['pred'][bidx].detach().cpu().numpy(), 0, 1)
+                    rescale_array(output_data["pred"][bidx].detach().cpu().numpy(), 0, 1),
                 ]
 
             if self.compute_metric:
                 if self.metric_data.get(region) is None:
                     self.metric_data[region] = MeanDice()
                 self.metric_data[region].update(
-                    y_pred=output_data['pred'][bidx].to(device),
-                    y=batch_data['label'][bidx].to(device),
-                    batched=False)
+                    y_pred=output_data["pred"][bidx].to(device), y=batch_data["label"][bidx].to(device), batched=False
+                )
 
 
 class SegmentationSaver:
     def __init__(
-            self,
-            output_dir: str = "./runs",
-            save_np=False,
-            images=True,
+        self,
+        output_dir: str = "./runs",
+        save_np=False,
+        images=True,
     ):
         self.output_dir = output_dir
         self.save_np = save_np
@@ -226,26 +231,34 @@ class SegmentationSaver:
         batch_data = engine.state.batch
         output_data = engine.state.output
         device = engine.state.device
-        tag = ''
+        tag = ""
         if torch.distributed.is_initialized():
-            tag = 'r{}-'.format(torch.distributed.get_rank())
+            tag = "r{}-".format(torch.distributed.get_rank())
 
-        for bidx in range(len(batch_data.get('image'))):
+        for bidx in range(len(batch_data.get("image"))):
             step = engine.state.iteration
-            region = batch_data.get('region')[bidx]
+            region = batch_data.get("region")[bidx]
             region = region.item() if torch.is_tensor(region) else region
 
-            image = batch_data['image'][bidx][0].detach().cpu().numpy()[np.newaxis]
-            label = batch_data['label'][bidx].detach().cpu().numpy()
-            pred = output_data['pred'][bidx].detach().cpu().numpy()
+            image = batch_data["image"][bidx][0].detach().cpu().numpy()[np.newaxis]
+            label = batch_data["label"][bidx].detach().cpu().numpy()
+            pred = output_data["pred"][bidx].detach().cpu().numpy()
             dice = compute_meandice(
-                y_pred=output_data['pred'][bidx][None].to(device),
-                y=batch_data['label'][bidx][None].to(device),
-                include_background=False).mean()
+                y_pred=output_data["pred"][bidx][None].to(device),
+                y=batch_data["label"][bidx][None].to(device),
+                include_background=False,
+            ).mean()
 
             if self.save_np:
-                np.savez(os.path.join(self.output_dir, "{}img_label_pred_{}_{:0>4d}_{:0>2d}_{:.4f}".format(
-                    tag, region, step, bidx, dice)), image, label, pred)
+                np.savez(
+                    os.path.join(
+                        self.output_dir,
+                        "{}img_label_pred_{}_{:0>4d}_{:0>2d}_{:.4f}".format(tag, region, step, bidx, dice),
+                    ),
+                    image,
+                    label,
+                    pred,
+                )
 
             if self.images and len(image.shape) == 3:
                 img = make_grid(torch.from_numpy(rescale_array(image, 0, 1)[0]))
@@ -256,20 +269,22 @@ class SegmentationSaver:
                 pre = make_grid(torch.from_numpy(np.array([rescale_array(pred, 0, 1)[0], pos, neg])))
 
                 torchvision.utils.save_image(
-                    tensor=[
-                        img,
-                        lab,
-                        pre
-                    ],
+                    tensor=[img, lab, pre],
                     nrow=3,
                     pad_value=2,
-                    fp=os.path.join(self.output_dir, "{}img_label_pred_{}_{:0>4d}_{:0>2d}_{:.4f}.png".format(
-                        tag, region, step, bidx, dice))
+                    fp=os.path.join(
+                        self.output_dir,
+                        "{}img_label_pred_{}_{:0>4d}_{:0>2d}_{:.4f}.png".format(tag, region, step, bidx, dice),
+                    ),
                 )
 
             if self.images and len(image.shape) == 4:
-                samples = {'image': image[0], 'label': label[0], 'pred': pred[0]}
+                samples = {"image": image[0], "label": label[0], "pred": pred[0]}
                 for sample in samples:
                     img = nib.Nifti1Image(samples[sample], np.eye(4))
-                    nib.save(img, os.path.join(self.output_dir, "{}{}_{:0>4d}_{:0>2d}_{:.4f}.nii.gz".format(
-                        tag, sample, step, bidx, dice)))
+                    nib.save(
+                        img,
+                        os.path.join(
+                            self.output_dir, "{}{}_{:0>4d}_{:0>2d}_{:.4f}.nii.gz".format(tag, sample, step, bidx, dice)
+                        ),
+                    )
