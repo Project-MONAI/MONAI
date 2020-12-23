@@ -16,9 +16,9 @@ import statistics
 import numpy as np
 import torch
 import torch.distributed
-from torch.utils.tensorboard import SummaryWriter
 
 from monai.engines.workflow import Engine, Events
+from monai.handlers.tensorboard_handlers import SummaryWriter
 from monai.metrics import compute_meandice
 from monai.transforms import rescale_array
 from monai.utils import optional_import
