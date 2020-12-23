@@ -12,7 +12,6 @@
 from typing import Dict
 
 import torch
-from torch.cuda.amp import autocast
 
 from monai.engines.utils import CommonKeys
 from monai.engines.workflow import Engine, Events
@@ -52,7 +51,7 @@ class Interaction:
             engine.network.eval()
             with torch.no_grad():
                 if engine.amp:
-                    with autocast():
+                    with torch.cuda.amp.autocast():
                         predictions = engine.inferer(inputs, engine.network)
                 else:
                     predictions = engine.inferer(inputs, engine.network)
