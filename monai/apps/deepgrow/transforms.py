@@ -87,15 +87,21 @@ class AddGuidanceSignald(Transform):
         else:
             signal = np.zeros((len(guidance), image.shape[-2], image.shape[-1]), dtype=np.float32)
 
+        sshape = signal.shape
         for i in range(len(guidance)):
             for point in guidance[i]:
                 if np.any(np.asarray(point) < 0):
                     continue
 
                 if self.dimensions == 3:
-                    signal[i, int(point[-3]), int(point[-2]), int(point[-1])] = 1.0
+                    p1 = max(0, min(int(point[-3]), sshape[-3] - 1))
+                    p2 = max(0, min(int(point[-2]), sshape[-2] - 1))
+                    p3 = max(0, min(int(point[-1]), sshape[-1] - 1))
+                    signal[i, p1, p2, p3] = 1.0
                 else:
-                    signal[i, int(point[-2]), int(point[-1])] = 1.0
+                    p1 = max(0, min(int(point[-2]), sshape[-2] - 1))
+                    p2 = max(0, min(int(point[-1]), sshape[-1] - 1))
+                    signal[i, p1, p2] = 1.0
 
             if np.max(signal[i]) > 0:
                 signal[i] = gaussian_filter(signal[i], sigma=self.sigma)
@@ -299,6 +305,7 @@ class SpatialCropGuidanced(MapTransform):
         guidance: str,
         spatial_size,
         spatial_size_key: str = "spatial_size",
+        margin: int = 20,
         meta_key_postfix="meta_dict",
         start_coord_key: str = "foreground_start_coord",
         end_coord_key: str = "foreground_end_coord",
@@ -310,21 +317,44 @@ class SpatialCropGuidanced(MapTransform):
         self.guidance = guidance
         self.spatial_size = spatial_size
         self.spatial_size_key = spatial_size_key
+        self.margin = margin
         self.meta_key_postfix = meta_key_postfix
         self.start_coord_key = start_coord_key
         self.end_coord_key = end_coord_key
         self.original_shape_key = original_shape_key
         self.cropped_shape_key = cropped_shape_key
 
+    def bounding_box(self, points, img_shape):
+        ndim = len(img_shape)
+        margin = ensure_tuple_rep(self.margin, ndim)
+        for m in margin:
+            if m < 0:
+                raise ValueError("margin value should not be negative number.")
+
+        box_start = [0] * ndim
+        box_end = [0] * ndim
+
+        for di in range(ndim):
+            dt = points[..., di]
+            min_d = max(min(dt - margin[di]), 0)
+            max_d = min(img_shape[di] - 1, max(dt + margin[di]))
+            box_start[di], box_end[di] = min_d, max_d
+        return box_start, box_end
+
     def __call__(self, data):
         guidance = data[self.guidance]
-        center = np.mean(guidance[0] + guidance[1], axis=0).astype(int).tolist()
-        spatial_size = data.get(self.spatial_size_key, self.spatial_size)
-
-        cropper = SpatialCrop(roi_center=center, roi_size=spatial_size)
-        box_start, box_end = cropper.roi_start, cropper.roi_end
-
         for key in self.keys:
+            box_start, box_end = self.bounding_box(np.array(guidance[0] + guidance[1]), data[key].shape[1:])
+            center = np.mean([box_start, box_end], axis=0).astype(int).tolist()
+            spatial_size = data.get(self.spatial_size_key, self.spatial_size)
+
+            current_size = np.subtract(box_start, box_end).astype(int).tolist()
+            if np.all(np.less(current_size, self.spatial_size)):
+                cropper = SpatialCrop(roi_center=center, roi_size=spatial_size)
+            else:
+                cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
+            box_start, box_end = cropper.roi_start, cropper.roi_end
+
             meta_key = f"{key}_{self.meta_key_postfix}"
             data[meta_key][self.start_coord_key] = box_start
             data[meta_key][self.end_coord_key] = box_end

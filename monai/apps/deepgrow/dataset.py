@@ -246,6 +246,9 @@ def create_dataset(
             image = os.path.join(base_dir, image)
             label = os.path.join(base_dir, label) if label else None
 
+        image = os.path.abspath(image)
+        label = os.path.abspath(label) if label else None
+
         print("{} => {}".format(image, label if label else None))
         if dimension == 2:
             data = _save_data_2d(

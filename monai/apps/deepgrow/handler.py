@@ -27,6 +27,9 @@ from monai.visualize import plot_2d_or_3d_image
 nib, _ = optional_import("nibabel")
 torchvision, _ = optional_import("torchvision")
 make_grid, _ = optional_import("torchvision.utils", name="make_grid")
+Image, _ = optional_import("PIL.Image")
+ImageDraw, _ = optional_import("PIL.ImageDraw")
+
 
 # TODO:: Unit Test
 
@@ -65,7 +68,6 @@ class DeepgrowStatsHandler(object):
         max_channels=1,
         max_frames=64,
         add_scalar=True,
-        add_stdev=False,
         merge_scalar=False,
         fold_size=0,
     ):
@@ -78,7 +80,6 @@ class DeepgrowStatsHandler(object):
         self.max_channels = max_channels
         self.max_frames = max_frames
         self.add_scalar = add_scalar
-        self.add_stdev = add_stdev
         self.merge_scalar = merge_scalar
         self.fold_size = fold_size
 
@@ -97,27 +98,23 @@ class DeepgrowStatsHandler(object):
             return
 
         all_imgs = []
-        titles = []
         for region in sorted(self.plot_data.keys()):
-            all_imgs.extend(self.plot_data[region])
             metric = self.metric_data.get(region)
-            dice = "{:.4f}".format(metric.mean()) if self.compute_metric and metric else ""
-            stdev = "{:.4f}".format(metric.stdev()) if self.compute_metric and metric else ""
-            titles.extend(
-                [
-                    "x({})".format(region),
-                    "y({})".format(region),
-                    "dice: {} +/- {}".format(dice, stdev) if self.compute_metric else "yh({})".format(region),
-                ]
-            )
+            region_data = self.plot_data[region]
+            if len(region_data[0].shape) == 3:
+                ti = Image.new("RGB", region_data[0].shape[1:])
+                d = ImageDraw.Draw(ti)
+                t = "region: {}".format(region)
+                if self.compute_metric:
+                    t = t + "\ndice: {:.4f}".format(metric.mean())
+                    t = t + "\nstdev: {:.4f}".format(metric.stdev())
+                d.multiline_text((10, 10), t, fill=(255, 255, 0))
+                ti = rescale_array(np.rollaxis(np.array(ti), 2, 0)[0][np.newaxis])
+                all_imgs.append(ti)
+            all_imgs.extend(region_data)
 
         if len(all_imgs[0].shape) == 3:
-            img_tensor = make_grid(
-                tensor=torch.from_numpy(np.array(all_imgs)),
-                nrow=3,
-                normalize=True,
-                pad_value=2,
-            )
+            img_tensor = make_grid(tensor=torch.from_numpy(np.array(all_imgs)), nrow=4, normalize=True, pad_value=2)
             self.writer.add_image(tag=f"Deepgrow Regions ({self.tag_name})", img_tensor=img_tensor, global_step=epoch)
 
         if len(all_imgs[0].shape) == 4:
@@ -139,20 +136,16 @@ class DeepgrowStatsHandler(object):
     def write_region_metrics(self, epoch):
         metric_sum = 0
         means = {}
-        stdevs = {}
         for region in self.metric_data:
             metric = self.metric_data[region].mean()
-            stdev = self.metric_data[region].stdev()
+            logging.info(
+                "Epoch[{}] Metrics -- Region: {:0>2d}, {}: {:.4f}".format(epoch, region, self.tag_name, metric)
+            )
+
             if self.merge_scalar:
                 means["{:0>2d}".format(region)] = metric
-                stdevs["{:0>2d}".format(region)] = stdev
             else:
-                if self.add_stdev:
-                    self.writer.add_scalar("{}_{:0>2d}_mean".format(self.tag_name, region), metric, epoch)
-                    self.writer.add_scalar("{}_{:0>2d}_mean+".format(self.tag_name, region), metric + stdev, epoch)
-                    self.writer.add_scalar("{}_{:0>2d}_mean-".format(self.tag_name, region), metric - stdev, epoch)
-                else:
-                    self.writer.add_scalar("{}_{:0>2d}".format(self.tag_name, region), metric, epoch)
+                self.writer.add_scalar("{}_{:0>2d}".format(self.tag_name, region), metric, epoch)
             metric_sum += metric
         if self.merge_scalar:
             self.writer.add_scalars("{}_region".format(self.tag_name), means, epoch)
