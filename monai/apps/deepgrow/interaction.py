@@ -8,13 +8,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import importlib
 from typing import Dict
 
 import torch
 
 from monai.engines.utils import CommonKeys
 from monai.engines.workflow import Engine, Events
+from monai.transforms import Compose
 
 # TODO:: Unit Test
 
@@ -36,6 +37,22 @@ class Interaction:
         self.max_interactions = max_interactions
         self.train = train
         self.key_probability = key_probability
+
+        if not isinstance(self.transforms, Compose):
+            transforms = []
+            for t in transforms:
+                transforms.append(self.init_external_class(t))
+            self.transforms = Compose(transforms)
+
+    @staticmethod
+    def init_external_class(config_dict):
+        class_args = None if config_dict.get("args") is None else dict(config_dict.get("args"))
+        class_path = config_dict.get("path", config_dict["name"])
+
+        module_name, class_name = class_path.rsplit(".", 1)
+        m = importlib.import_module(module_name)
+        c = getattr(m, class_name)
+        return c(**class_args) if class_args else c()
 
     def attach(self, engine: Engine) -> None:
         engine.add_event_handler(Events.ITERATION_STARTED, self)

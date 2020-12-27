@@ -55,7 +55,7 @@ class MeanDice:
         return statistics.stdev(self.data) if len(self.data) > 1 else 0
 
 
-class DeepgrowStatsHandler(object):
+class DeepgrowStatsHandler:
     def __init__(
         self,
         summary_writer=None,
@@ -82,6 +82,7 @@ class DeepgrowStatsHandler(object):
         self.add_scalar = add_scalar
         self.merge_scalar = merge_scalar
         self.fold_size = fold_size
+        self.logger = logging.getLogger(__name__)
 
         if torch.distributed.is_initialized():
             self.tag_name = "{}-r{}".format(self.tag_name, torch.distributed.get_rank())
@@ -122,11 +123,12 @@ class DeepgrowStatsHandler(object):
                 tags = [f"region_{region}_image", f"region_{region}_label", f"region_{region}_output"]
                 for i in range(3):
                     img = self.plot_data[region][i]
+                    img = np.moveaxis(img, -3, -1)
                     plot_2d_or_3d_image(
                         img[np.newaxis], epoch, self.writer, 0, self.max_channels, self.max_frames, tags[i]
                     )
 
-        logging.info(
+        self.logger.info(
             "Saved {} Regions {} into Tensorboard at epoch: {}".format(
                 len(self.plot_data), sorted([*self.plot_data]), epoch
             )
@@ -138,7 +140,7 @@ class DeepgrowStatsHandler(object):
         means = {}
         for region in self.metric_data:
             metric = self.metric_data[region].mean()
-            logging.info(
+            self.logger.info(
                 "Epoch[{}] Metrics -- Region: {:0>2d}, {}: {:.4f}".format(epoch, region, self.tag_name, metric)
             )
 
@@ -271,7 +273,8 @@ class SegmentationSaver:
             if self.images and len(image.shape) == 4:
                 samples = {"image": image[0], "label": label[0], "pred": pred[0]}
                 for sample in samples:
-                    img = nib.Nifti1Image(samples[sample], np.eye(4))
+                    img = np.moveaxis(samples[sample], -3, -1)
+                    img = nib.Nifti1Image(img, np.eye(4))
                     nib.save(
                         img,
                         os.path.join(
