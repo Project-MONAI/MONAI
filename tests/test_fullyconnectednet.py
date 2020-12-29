@@ -3,6 +3,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
+from monai.networks import eval_mode
 from monai.networks.nets import FullyConnectedNet, VarFullyConnectedNet
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -45,8 +46,7 @@ class TestFullyConnectedNet(unittest.TestCase):
     @parameterized.expand(VFC_CASES)
     def test_vfc_shape(self, input_param, input_shape, expected_shape):
         net = VarFullyConnectedNet(**input_param).to(device)
-        net.eval()
-        with torch.no_grad():
+        with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device))[0]
             self.assertEqual(result.shape, expected_shape)
 

@@ -14,6 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
+from monai.networks import eval_mode
 from monai.networks.nets import BasicUNet
 from tests.utils import test_script_save
 
@@ -95,8 +96,7 @@ class TestBasicUNET(unittest.TestCase):
         device = "cuda" if torch.cuda.is_available() else "cpu"
         print(input_param)
         net = BasicUNet(**input_param).to(device)
-        net.eval()
-        with torch.no_grad():
+        with eval_mode(net):
             result = net(torch.randn(input_shape).to(device))
         self.assertEqual(result.shape, expected_shape)
 
