@@ -194,7 +194,7 @@ class Compose(Randomizable, Transform):
         set of functions must be called as if it were a sequence.
 
         Example: images and labels
-        Images typically require some kind of normalisation that labels do not.
+        Images typically require some kind of normalization that labels do not.
         Both are then typically augmented through the use of random rotations,
         flips, and deformations.
         Compose can be used with a series of transforms that take a dictionary
