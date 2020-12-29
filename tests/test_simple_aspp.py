@@ -14,6 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
+from monai.networks import eval_mode
 from monai.networks.blocks import SimpleASPP
 
 TEST_CASES = [
@@ -69,8 +70,7 @@ class TestChannelSELayer(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = SimpleASPP(**input_param)
-        net.eval()
-        with torch.no_grad():
+        with eval_mode(net):
             result = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
 

@@ -14,6 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
+from monai.networks import eval_mode
 from monai.networks.nets import SegResNet, SegResNetVAE
 from monai.utils import UpsampleMode
 from tests.utils import test_script_save
@@ -82,8 +83,7 @@ class TestResNet(unittest.TestCase):
     @parameterized.expand(TEST_CASE_SEGRESNET + TEST_CASE_SEGRESNET_2)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = SegResNet(**input_param).to(device)
-        net.eval()
-        with torch.no_grad():
+        with eval_mode(net):
             result = net(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
@@ -102,7 +102,7 @@ class TestResNetVAE(unittest.TestCase):
     @parameterized.expand(TEST_CASE_SEGRESNET_VAE)
     def test_vae_shape(self, input_param, input_shape, expected_shape):
         net = SegResNetVAE(**input_param).to(device)
-        with torch.no_grad():
+        with eval_mode(net):
             result, _ = net(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 

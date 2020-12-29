@@ -14,6 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
+from monai.networks import eval_mode
 from monai.networks.layers import SkipConnection
 
 TEST_CASES_3D = []
@@ -35,8 +36,7 @@ class TestSkipConnection(unittest.TestCase):
     @parameterized.expand(TEST_CASES_3D)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = SkipConnection(submodule=torch.nn.Softmax(dim=1), **input_param)
-        net.eval()
-        with torch.no_grad():
+        with eval_mode(net):
             result = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
 
