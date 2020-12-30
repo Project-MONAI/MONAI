@@ -15,6 +15,7 @@ from typing import Any, Sequence, Union
 import torch
 from parameterized import parameterized
 
+from monai.networks import eval_mode
 from monai.networks.nets import DynUNet
 from tests.utils import test_script_save
 
@@ -107,8 +108,7 @@ class TestDynUNet(unittest.TestCase):
     @parameterized.expand(TEST_CASE_DYNUNET_2D + TEST_CASE_DYNUNET_3D)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = DynUNet(**input_param).to(device)
-        net.eval()
-        with torch.no_grad():
+        with eval_mode(net):
             result = net(torch.randn(input_shape).to(device))
             self.assertEqual(result[0].shape, expected_shape)
 

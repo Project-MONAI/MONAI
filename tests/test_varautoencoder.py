@@ -3,6 +3,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
+from monai.networks import eval_mode
 from monai.networks.layers import Act
 from monai.networks.nets import VarAutoEncoder
 from tests.utils import test_script_save
@@ -70,8 +71,7 @@ class TestVarAutoEncoder(unittest.TestCase):
     @parameterized.expand(CASES)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = VarAutoEncoder(**input_param).to(device)
-        net.eval()
-        with torch.no_grad():
+        with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device))[0]
             self.assertEqual(result.shape, expected_shape)
 

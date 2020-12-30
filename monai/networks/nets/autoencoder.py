@@ -53,6 +53,10 @@ class AutoEncoder(nn.Module):
         self.inter_channels = inter_channels if inter_channels is not None else list()
         self.inter_dilations = list(inter_dilations or [1] * len(self.inter_channels))
 
+        # The number of channels and strides should match
+        if len(channels) != len(strides):
+            raise ValueError("Autoencoder expects matching number of channels and strides")
+
         self.encoded_channels = in_channels
         decode_channel_list = list(channels[-2::-1]) + [out_channels]
 
