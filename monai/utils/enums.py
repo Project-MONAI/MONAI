@@ -144,7 +144,7 @@ class Weight(Enum):
     UNIFORM = "uniform"
 
 
-class Normalisation(Enum):
+class Normalization(Enum):
     """
     See also:
         - :py:class:`monai.networks.nets.ConvNormActi`

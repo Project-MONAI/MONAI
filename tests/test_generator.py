@@ -14,6 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
+from monai.networks import eval_mode
 from monai.networks.nets import Generator
 from tests.utils import test_script_save
 
@@ -42,8 +43,7 @@ class TestGenerator(unittest.TestCase):
     @parameterized.expand(CASES)
     def test_shape(self, input_param, input_data, expected_shape):
         net = Generator(**input_param)
-        net.eval()
-        with torch.no_grad():
+        with eval_mode(net):
             result = net.forward(input_data)
             self.assertEqual(result.shape, expected_shape)
 

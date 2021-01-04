@@ -518,7 +518,7 @@ class AffineTransform(nn.Module):
         if spatial_size is not None:
             dst_size = src_size[:2] + ensure_tuple(spatial_size)
 
-        # reverse and normalise theta if needed
+        # reverse and normalize theta if needed
         if not self.normalized:
             theta = to_norm_affine(
                 affine=theta, src_size=src_size[2:], dst_size=dst_size[2:], align_corners=self.align_corners

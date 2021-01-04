@@ -14,6 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
+from monai.networks import eval_mode
 from monai.networks.blocks import SEBlock
 from monai.networks.layers.factories import Act, Norm
 from tests.utils import test_script_save
@@ -63,8 +64,7 @@ class TestSEBlockLayer(unittest.TestCase):
     @parameterized.expand(TEST_CASES + TEST_CASES_3D)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = SEBlock(**input_param).to(device)
-        net.eval()
-        with torch.no_grad():
+        with eval_mode(net):
             result = net(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
