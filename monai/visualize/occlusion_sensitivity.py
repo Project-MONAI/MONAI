@@ -137,7 +137,7 @@ class OcclusionSensitivity(NetVisualizer):
         upsampler: Callable = default_upsampler,
         postprocessing: Callable = default_normalizer,
     ) -> None:
-        """ Occlusion sensitivitiy constructor.
+        """Occlusion sensitivitiy constructor.
 
         :param nn_module: classification model to use for inference
         :param pad_val: when occluding part of the image, which values should we put
