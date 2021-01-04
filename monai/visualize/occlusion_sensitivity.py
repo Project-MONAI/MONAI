@@ -137,31 +137,31 @@ class OcclusionSensitivity(NetVisualizer):
         upsampler: Callable = default_upsampler,
         postprocessing: Callable = default_normalizer,
     ) -> None:
-        """
-        Args:
-        nn_module: classification model to use for inference
-        pad_val: when occluding part of the image, which values should we put
+        """ Occlusion sensitivitiy constructor.
+
+        :param nn_module: classification model to use for inference
+        :param pad_val: when occluding part of the image, which values should we put
             in the image?
-        margin: we'll create a cuboid/cube around the voxel to be occluded. if
+        :param margin: we'll create a cuboid/cube around the voxel to be occluded. if
             ``margin==2``, then we'll create a cube that is +/- 2 voxels in
             all directions (i.e., a cube of 5 x 5 x 5 voxels). A ``Sequence``
             can be supplied to have a margin of different sizes (i.e., create
             a cuboid).
-        n_batch: number of images in a batch before inference.
-        b_box: Bounding box on which to perform the analysis. The output image
+        :param n_batch: number of images in a batch before inference.
+        :param b_box: Bounding box on which to perform the analysis. The output image
             will also match in size. There should be a minimum and maximum for
             all dimensions except batch: ``[min1, max1, min2, max2,...]``.
             * By default, the whole image will be used. Decreasing the size will
             speed the analysis up, which might be useful for larger images.
             * Min and max are inclusive, so [0, 63, ...] will have size (64, ...).
             * Use -ve to use 0 for min values and im.shape[x]-1 for xth dimension.
-        stride: Stride in spatial directions for performing occlusions. Can be single
+        :param stride: Stride in spatial directions for performing occlusions. Can be single
             value or sequence (for varying stride in the different directions).
             Should be >= 1. Striding in the channel direction will always be 1.
-        upsampler: An upsampling method to upsample the output image. Default is
+        :param upsampler: An upsampling method to upsample the output image. Default is
             N dimensional linear (bilinear, trilinear, etc.) depending on num spatial
             dimensions of input.
-        postprocessing: a callable that applies on the upsampled output image.
+        :param postprocessing: a callable that applies on the upsampled output image.
             default is normalising between 0 and 1.
         """
 
