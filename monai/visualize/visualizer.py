@@ -11,12 +11,14 @@
 
 import warnings
 from abc import ABC
+from contextlib import nullcontext
 from typing import Callable, Dict, Sequence, Union
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 
+from monai.networks.utils import eval_mode
 from monai.transforms import ScaleIntensity
 from monai.utils import InterpolateMode, ensure_tuple
 
@@ -128,7 +130,9 @@ class ModelWithHooks:
         return logits[:, class_idx].squeeze(), class_idx
 
     def __call__(self, x, class_idx=None, retain_graph=False):
-        logits = self.model(x)
+        # Can only use eval mode if back grad isn't required
+        with eval_mode(self.model) if not self.register_backward else nullcontext():
+            logits = self.model(x)
         acti, grad = None, None
         if self.register_forward:
             acti = tuple(self.activations[layer] for layer in self.target_layers)
@@ -140,11 +144,14 @@ class ModelWithHooks:
             grad = tuple(self.gradients[layer] for layer in self.target_layers)
         return logits, acti, grad
 
+    def get_wrapped_net(self):
+        return self.model
+
 
 class NetVisualizer(ABC):
     def __init__(
         self,
-        nn_module: torch.nn.Module,
+        nn_module: Union[torch.nn.Module, ModelWithHooks],
         upsampler: Callable,
         postprocessing: Callable,
     ) -> None:

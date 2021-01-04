@@ -17,6 +17,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from monai.networks.utils import eval_mode
 from monai.visualize import NetVisualizer, default_normalizer, default_upsampler
 
 try:
@@ -275,20 +276,22 @@ class OcclusionSensitivity(NetVisualizer):
             as the input image.
         """
 
-        # Check input arguments
-        x = _check_input_image(x)
-        class_idx = _check_input_label(self.nn_module, class_idx, x)
+        with eval_mode(self.nn_module):
 
-        # Generate sensitivity image
-        sensitivity_im, output_im_shape = self._compute_occlusion_sensitivity(x, class_idx, b_box)
+            # Check input arguments
+            x = _check_input_image(x)
+            class_idx = _check_input_label(self.nn_module, class_idx, x)
 
-        # upsampling and postprocessing
-        if self.upsampler is not None:
-            if np.any(output_im_shape != x.shape[1:]):
-                img_spatial = tuple(output_im_shape[1:])
-                sensitivity_im = self.upsampler(img_spatial)(sensitivity_im)
-        if self.postprocessing:
-            sensitivity_im = self.postprocessing(sensitivity_im)
+            # Generate sensitivity image
+            sensitivity_im, output_im_shape = self._compute_occlusion_sensitivity(x, class_idx, b_box)
 
-        # Squeeze and return
-        return sensitivity_im
+            # upsampling and postprocessing
+            if self.upsampler is not None:
+                if np.any(output_im_shape != x.shape[1:]):
+                    img_spatial = tuple(output_im_shape[1:])
+                    sensitivity_im = self.upsampler(img_spatial)(sensitivity_im)
+            if self.postprocessing:
+                sensitivity_im = self.postprocessing(sensitivity_im)
+
+            # Squeeze and return
+            return sensitivity_im

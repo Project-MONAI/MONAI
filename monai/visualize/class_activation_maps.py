@@ -20,7 +20,57 @@ from monai.visualize import ModelWithHooks, NetVisualizer, default_normalizer, d
 __all__ = ["CAM", "GradCAM", "GradCAMpp"]
 
 
-class CAM(NetVisualizer):
+class CAMBase(NetVisualizer):
+    """
+    Base class for CAM methods.
+    """
+
+    def __init__(
+        self,
+        nn_module: nn.Module,
+        target_layers: str,
+        upsampler: Callable = default_upsampler,
+        postprocessing: Callable = default_normalizer,
+        register_backward: bool = True,
+    ) -> None:
+        # Convert to model with hooks if necessary
+        if not isinstance(nn_module, ModelWithHooks):
+            net = ModelWithHooks(nn_module, target_layers, register_forward=True, register_backward=register_backward)
+        else:
+            net = nn_module
+
+        super().__init__(
+            nn_module=net,
+            upsampler=upsampler,
+            postprocessing=postprocessing,
+        )
+
+    def feature_map_size(self, input_size, device="cpu", layer_idx=-1):
+        """
+        Computes the actual feature map size given `nn_module` and the target_layer name.
+        Args:
+            input_size: shape of the input tensor
+            device: the device used to initialise the input tensor
+            layer_idx: index of the target layer if there are multiple target layers. Defaults to -1.
+        Returns:
+            shape of the actual feature map.
+        """
+        return self.compute_map(torch.zeros(*input_size, device=device), layer_idx=layer_idx).shape
+
+    def _upsample_and_post_process(self, acti_map, x):
+        # upsampling and postprocessing
+        if self.upsampler:
+            img_spatial = x.shape[2:]
+            acti_map = self.upsampler(img_spatial)(acti_map)
+        if self.postprocessing:
+            acti_map = self.postprocessing(acti_map)
+        return acti_map
+
+    def __call__(self):
+        raise NotImplementedError()
+
+
+class CAM(CAMBase):
     """
     Compute class activation map from the last fully-connected layers before the spatial pooling.
 
@@ -70,15 +120,12 @@ class CAM(NetVisualizer):
             postprocessing: a callable that applies on the upsampled output image.
                 default is normalising between 0 and 1.
         """
-        if not isinstance(nn_module, ModelWithHooks):
-            self.net = ModelWithHooks(nn_module, target_layers, register_forward=True)
-        else:
-            self.net = nn_module
-
         super().__init__(
             nn_module=nn_module,
+            target_layers=target_layers,
             upsampler=upsampler,
             postprocessing=postprocessing,
+            register_backward=False,
         )
         self.fc_layers = fc_layers
 
@@ -86,30 +133,16 @@ class CAM(NetVisualizer):
         """
         Compute the actual feature map with input tensor `x`.
         """
-        logits, acti, _ = self.net(x)
+        logits, acti, _ = self.nn_module(x)
         acti = acti[layer_idx]
         if class_idx is None:
             class_idx = logits.max(1)[-1]
         b, c, *spatial = acti.shape
         acti = torch.split(acti.reshape(b, c, -1), 1, dim=2)  # make the spatial dims 1D
-        fc_layers = self.net.get_layer(self.fc_layers)
+        fc_layers = self.nn_module.get_layer(self.fc_layers)
         output = torch.stack([fc_layers(a[..., 0]) for a in acti], dim=2)
         output = torch.stack([output[i, b : b + 1] for i, b in enumerate(class_idx)], dim=0)
         return output.reshape(b, 1, *spatial)  # resume the spatial dims on the selected class
-
-    def feature_map_size(self, input_size, device="cpu", layer_idx=-1):
-        """
-        Computes the actual feature map size given `nn_module` and the target_layer name.
-
-        Args:
-            input_size: shape of the input tensor
-            device: the device used to initialise the input tensor
-            layer_idx: index of the target layer if there are multiple target layers. Defaults to -1.
-
-        Returns:
-            shape of the actual feature map.
-        """
-        return self.compute_map(torch.zeros(*input_size, device=device), layer_idx=layer_idx).shape
 
     def __call__(self, x, class_idx=None, layer_idx=-1):
         """
@@ -124,17 +157,10 @@ class CAM(NetVisualizer):
             activation maps
         """
         acti_map = self.compute_map(x, class_idx, layer_idx)
-
-        # upsampling and postprocessing
-        if self.upsampler:
-            img_spatial = x.shape[2:]
-            acti_map = self.upsampler(img_spatial)(acti_map)
-        if self.postprocessing:
-            acti_map = self.postprocessing(acti_map)
-        return acti_map
+        return self._upsample_and_post_process(acti_map, x)
 
 
-class GradCAM:
+class GradCAM(CAMBase):
     """
     Computes Gradient-weighted Class Activation Mapping (Grad-CAM).
     This implementation is based on:
@@ -168,46 +194,16 @@ class GradCAM:
 
     """
 
-    def __init__(self, nn_module, target_layers: str, upsampler=default_upsampler, postprocessing=default_normalizer):
-        """
-
-        Args:
-            nn_module: the model to be used to generate the visualizations.
-            target_layers: name of the model layer to generate the feature map.
-            upsampler: an upsampling method to upsample the feature map.
-            postprocessing: a callable that applies on the upsampled feature map.
-        """
-        if not isinstance(nn_module, ModelWithHooks):
-            self.net = ModelWithHooks(nn_module, target_layers, register_forward=True, register_backward=True)
-        else:
-            self.net = nn_module
-        self.upsampler = upsampler
-        self.postprocessing = postprocessing
-
     def compute_map(self, x, class_idx=None, retain_graph=False, layer_idx=-1):
         """
         Compute the actual feature map with input tensor `x`.
         """
-        logits, acti, grad = self.net(x, class_idx=class_idx, retain_graph=retain_graph)
+        _, acti, grad = self.nn_module(x, class_idx=class_idx, retain_graph=retain_graph)
         acti, grad = acti[layer_idx], grad[layer_idx]
         b, c, *spatial = grad.shape
         weights = grad.view(b, c, -1).mean(2).view(b, c, *[1] * len(spatial))
         acti_map = (weights * acti).sum(1, keepdim=True)
         return F.relu(acti_map)
-
-    def feature_map_size(self, input_size, device="cpu", layer_idx=-1):
-        """
-        Computes the actual feature map size given `nn_module` and the target_layer name.
-
-        Args:
-            input_size: shape of the input tensor
-            device: the device used to initialise the input tensor
-            layer_idx: index of the target layer if there are multiple target layers. Defaults to -1.
-
-        Returns:
-            shape of the actual feature map.
-        """
-        return self.compute_map(torch.zeros(*input_size, device=device), layer_idx=layer_idx).shape
 
     def __call__(self, x, class_idx=None, layer_idx=-1, retain_graph=False):
         """
@@ -223,14 +219,7 @@ class GradCAM:
             activation maps
         """
         acti_map = self.compute_map(x, class_idx=class_idx, retain_graph=retain_graph, layer_idx=layer_idx)
-
-        # upsampling and postprocessing
-        if self.upsampler:
-            img_spatial = x.shape[2:]
-            acti_map = self.upsampler(img_spatial)(acti_map)
-        if self.postprocessing:
-            acti_map = self.postprocessing(acti_map)
-        return acti_map
+        return self._upsample_and_post_process(acti_map, x)
 
 
 class GradCAMpp(GradCAM):
@@ -251,14 +240,14 @@ class GradCAMpp(GradCAM):
         """
         Compute the actual feature map with input tensor `x`.
         """
-        logits, acti, grad = self.net(x, class_idx=class_idx, retain_graph=retain_graph)
+        _, acti, grad = self.nn_module(x, class_idx=class_idx, retain_graph=retain_graph)
         acti, grad = acti[layer_idx], grad[layer_idx]
         b, c, *spatial = grad.shape
         alpha_nr = grad.pow(2)
         alpha_dr = alpha_nr.mul(2) + acti.mul(grad.pow(3)).view(b, c, -1).sum(-1).view(b, c, *[1] * len(spatial))
         alpha_dr = torch.where(alpha_dr != 0.0, alpha_dr, torch.ones_like(alpha_dr))
         alpha = alpha_nr.div(alpha_dr + 1e-7)
-        relu_grad = F.relu(self.net.score.exp() * grad)
+        relu_grad = F.relu(self.nn_module.score.exp() * grad)
         weights = (alpha * relu_grad).view(b, c, -1).sum(-1).view(b, c, *[1] * len(spatial))
         acti_map = (weights * acti).sum(1, keepdim=True)
         return F.relu(acti_map)
