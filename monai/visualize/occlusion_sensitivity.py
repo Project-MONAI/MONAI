@@ -33,7 +33,6 @@ def _check_input_image(image):
     # Only accept batch size of 1
     if image.shape[0] > 1:
         raise RuntimeError("Expected batch size of 1.")
-    return image
 
 
 def _check_input_label(model, label, image):
@@ -229,7 +228,7 @@ class OcclusionSensitivity(NetVisualizer):
             max_idx = [min(j, i + self.margin) for i, j in zip(idx, im_shape)]
 
             # Clone and replace target area with `pad_val`
-            occlu_im = x.clone()
+            occlu_im = x.detach().clone()
             occlu_im[(...,) + tuple(slice(i, j) for i, j in zip(min_idx, max_idx))] = self.pad_val
 
             # Add to list
@@ -279,7 +278,7 @@ class OcclusionSensitivity(NetVisualizer):
         with eval_mode(self.nn_module):
 
             # Check input arguments
-            x = _check_input_image(x)
+            _check_input_image(x)
             class_idx = _check_input_label(self.nn_module, class_idx, x)
 
             # Generate sensitivity image

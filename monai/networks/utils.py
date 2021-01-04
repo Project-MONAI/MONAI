@@ -306,7 +306,7 @@ def train_mode(*nets: nn.Module):
     try:
         # set to train mode
         with torch.set_grad_enabled(True):
-            yield [n.eval() for n in nets]
+            yield [n.train() for n in nets]
     finally:
         # Return required networks to eval
         for n in eval:
