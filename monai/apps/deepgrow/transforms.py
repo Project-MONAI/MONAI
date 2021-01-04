@@ -28,26 +28,54 @@ distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="di
 gaussian_filter, _ = optional_import("scipy.ndimage", name="gaussian_filter")
 
 
-class AddInitialSeedPointd(Randomizable, Transform):
-    def __init__(self, label="label", guidance="guidance", dimensions=2, connected_regions=6):
+class FindAllValidSlicesd(Transform):
+    def __init__(self, label="label", sids="sids"):
         self.label = label
+        self.sids = sids
+
+    def _apply(self, label):
+        if len(label.shape) != 4:  # only for 3D
+            return None
+
+        sids = []
+        for sid in range(label.shape[1]):  # Assume channel is first
+            if np.sum(label[0][sid]) == 0:
+                continue
+            sids.append(sid)
+        return np.asarray(sids)
+
+    def __call__(self, data):
+        data[self.sids] = self._apply(data[self.label])
+        return data
+
+
+class AddInitialSeedPointd(Randomizable, Transform):
+    def __init__(self, label="label", guidance="guidance", sids="sids", sid="sid", connected_regions=6):
+        self.label = label
+        self.sids = sids
+        self.sid = sid
         self.guidance = guidance
-        self.dimensions = dimensions
         self.connected_regions = connected_regions
 
     def randomize(self, data=None):
         pass
 
-    def _apply(self, label):
-        label = (label > 0.5).astype(np.float32)
+    def _apply(self, label, sid):
+        dimensions = 3 if len(label.shape) > 3 else 2
+        default_guidance = [-1] * (dimensions + 1)
 
-        blobs_labels = measure.label(label.astype(int), background=0) if self.dimensions == 2 else label
+        dims = dimensions
+        if sid is not None and dimensions == 3:
+            dims = 2
+            label = label[0][sid][np.newaxis]  # Assume channel is first
+
+        label = (label > 0.5).astype(np.float32)
+        blobs_labels = measure.label(label.astype(int), background=0) if dims == 2 else label
         assert np.max(blobs_labels) > 0, "Not a valid Label"
 
-        default_guidance = [-1] * (self.dimensions + 1)
         pos_guidance = []
-        for ridx in range(1, 2 if self.dimensions == 3 else self.connected_regions):
-            if self.dimensions == 2:
+        for ridx in range(1, 2 if dims == 3 else self.connected_regions):
+            if dims == 2:
                 label = (blobs_labels == ridx).astype(np.float32)
                 if np.sum(label) == 0:
                     pos_guidance.append(default_guidance)
@@ -57,32 +85,42 @@ class AddInitialSeedPointd(Randomizable, Transform):
             probability = np.exp(distance) - 1.0
 
             idx = np.where(label.flatten() > 0)[0]
-            seed = np.random.choice(idx, size=1, p=probability[idx] / np.sum(probability[idx]))
+            seed = self.R.choice(idx, size=1, p=probability[idx] / np.sum(probability[idx]))
             dst = distance[seed]
 
             g = np.asarray(np.unravel_index(seed, label.shape)).transpose().tolist()[0]
             g[0] = dst[0]
-            pos_guidance.append(g)
+            if dimensions == 2 or dims == 3:
+                pos_guidance.append(g)
+            else:
+                pos_guidance.append([g[0], sid, g[-2], g[-1]])
 
         return np.asarray([pos_guidance, [default_guidance] * len(pos_guidance)])
 
     def __call__(self, data):
-        data[self.guidance] = self._apply(data[self.label])
+        sid = data.get(self.sid)
+        sids = data.get(self.sids)
+        if sids is not None:
+            if sid is None or sid not in sids:
+                sid = self.R.choice(sids, replace=False)
+        else:
+            sid = None
+        data[self.guidance] = self._apply(data[self.label], sid)
         return data
 
 
 class AddGuidanceSignald(Transform):
-    def __init__(self, image="image", guidance="guidance", sigma=2, dimensions=2, number_intensity_ch=1, batched=False):
+    def __init__(self, image="image", guidance="guidance", sigma=2, number_intensity_ch=1, batched=False):
         self.image = image
         self.guidance = guidance
         self.sigma = sigma
-        self.dimensions = dimensions
         self.number_intensity_ch = number_intensity_ch
         self.batched = batched
 
     def _get_signal(self, image, guidance):
+        dimensions = 3 if len(image.shape) > 3 else 2
         guidance = guidance.tolist() if isinstance(guidance, np.ndarray) else guidance
-        if self.dimensions == 3:
+        if dimensions == 3:
             signal = np.zeros((len(guidance), image.shape[-3], image.shape[-2], image.shape[-1]), dtype=np.float32)
         else:
             signal = np.zeros((len(guidance), image.shape[-2], image.shape[-1]), dtype=np.float32)
@@ -93,7 +131,7 @@ class AddGuidanceSignald(Transform):
                 if np.any(np.asarray(point) < 0):
                     continue
 
-                if self.dimensions == 3:
+                if dimensions == 3:
                     p1 = max(0, min(int(point[-3]), sshape[-3] - 1))
                     p2 = max(0, min(int(point[-2]), sshape[-2] - 1))
                     p3 = max(0, min(int(point[-1]), sshape[-1] - 1))
@@ -163,13 +201,10 @@ class FindDiscrepancyRegionsd(Transform):
 
 
 class AddRandomGuidanced(Randomizable, Transform):
-    def __init__(
-        self, guidance="guidance", discrepancy="discrepancy", probability="probability", dimensions=2, batched=True
-    ):
+    def __init__(self, guidance="guidance", discrepancy="discrepancy", probability="probability", batched=True):
         self.guidance = guidance
         self.discrepancy = discrepancy
         self.probability = probability
-        self.dimensions = dimensions
         self.batched = batched
 
     def randomize(self, data=None):
@@ -212,24 +247,22 @@ class AddRandomGuidanced(Randomizable, Transform):
 
     def _apply(self, guidance, discrepancy, probability):
         guidance = guidance.tolist() if isinstance(guidance, np.ndarray) else guidance
-        default_guidance = [-1] * (self.dimensions + 1)
-
         if not self.batched:
             pos, neg = self.add_guidance(discrepancy, probability)
             if pos:
                 guidance[0].append(pos)
-                guidance[1].append(default_guidance)
+                guidance[1].append([-1] * len(pos))
             if neg:
-                guidance[0].append(default_guidance)
+                guidance[0].append([-1] * len(neg))
                 guidance[1].append(neg)
         else:
             for g, d, p in zip(guidance, discrepancy, probability):
                 pos, neg = self.add_guidance(d, p)
                 if pos:
                     g[0].append(pos)
-                    g[1].append(default_guidance)
+                    g[1].append([-1] * len(pos))
                 if neg:
-                    g[0].append(default_guidance)
+                    g[0].append([-1] * len(neg))
                     g[1].append(neg)
         return np.asarray(guidance)
 
@@ -343,12 +376,17 @@ class SpatialCropGuidanced(MapTransform):
 
     def __call__(self, data):
         guidance = data[self.guidance]
+        box_start = None
         for key in self.keys:
             box_start, box_end = self.bounding_box(np.array(guidance[0] + guidance[1]), data[key].shape[1:])
             center = np.mean([box_start, box_end], axis=0).astype(int).tolist()
             spatial_size = data.get(self.spatial_size_key, self.spatial_size)
 
             current_size = np.subtract(box_start, box_end).astype(int).tolist()
+            spatial_size = spatial_size[-len(current_size) :]
+            if len(spatial_size) < len(current_size):  # 3D spatial_size = [256,256] (include all slices in such case)
+                diff = len(current_size) - len(spatial_size)
+                spatial_size = list(data[key].shape[1 : (1 + diff)]) + spatial_size
             if np.all(np.less(current_size, self.spatial_size)):
                 cropper = SpatialCrop(roi_center=center, roi_size=spatial_size)
             else:
@@ -491,7 +529,6 @@ class AddGuidanceFromPointsd(Randomizable, Transform):
         background="background",
         axis=0,
         channel_first=True,
-        dimensions=2,
         slice_key="slice",
         meta_key_postfix: str = "meta_dict",
     ):
@@ -501,19 +538,18 @@ class AddGuidanceFromPointsd(Randomizable, Transform):
         self.background = background
         self.axis = axis
         self.channel_first = channel_first
-        self.dimensions = dimensions
         self.slice_key = slice_key
         self.meta_key_postfix = meta_key_postfix
 
     def randomize(self, data=None):
         pass
 
-    def _apply(self, pos_clicks, neg_clicks, factor, slice_num=None):
+    def _apply(self, dimensions, pos_clicks, neg_clicks, factor, slice_num=None):
         points = pos_clicks
         points.extend(neg_clicks)
         points = np.array(points)
 
-        if self.dimensions == 2:
+        if dimensions == 2:
             slices = np.unique(points[:, self.axis]).tolist()
             slice_idx = slices[0] if slice_num is None else next(x for x in slices if x == slice_num)
 
@@ -539,6 +575,7 @@ class AddGuidanceFromPointsd(Randomizable, Transform):
         meta_dict = data[f"{self.ref_image}_{self.meta_key_postfix}"]
         original_shape = meta_dict["spatial_shape"]
         current_shape = list(data[self.ref_image].shape)
+        dimensions = 3 if len(current_shape) >= 3 else 2
 
         clicks = [data[self.foreground], data[self.background]]
         if self.channel_first:
@@ -551,7 +588,7 @@ class AddGuidanceFromPointsd(Randomizable, Transform):
 
         factor = np.array(current_shape) / original_shape
 
-        data[self.guidance] = self._apply(clicks[0], clicks[1], factor, data.get(self.slice_key))
+        data[self.guidance] = self._apply(dimensions, clicks[0], clicks[1], factor, data.get(self.slice_key))
         return data
 
 

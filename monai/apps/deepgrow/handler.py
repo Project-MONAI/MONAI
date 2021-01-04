@@ -121,6 +121,9 @@ class DeepgrowStatsHandler:
         if len(all_imgs[0].shape) == 4:
             for region in sorted(self.plot_data.keys()):
                 tags = [f"region_{region}_image", f"region_{region}_label", f"region_{region}_output"]
+                if torch.distributed.is_initialized():
+                    rank = "r{}-".format(torch.distributed.get_rank())
+                    tags = [rank + tags[0], rank + tags[1], rank + tags[2]]
                 for i in range(3):
                     img = self.plot_data[region][i]
                     img = np.moveaxis(img, -3, -1)
@@ -149,10 +152,11 @@ class DeepgrowStatsHandler:
             else:
                 self.writer.add_scalar("{}_{:0>2d}".format(self.tag_name, region), metric, epoch)
             metric_sum += metric
-        if self.merge_scalar:
-            self.writer.add_scalars("{}_region".format(self.tag_name), means, epoch)
 
-        if len(self.metric_data) > 1:
+        if self.merge_scalar:
+            means["avg"] = metric_sum / len(self.metric_data)
+            self.writer.add_scalars("{}_region".format(self.tag_name), means, epoch)
+        elif len(self.metric_data) > 1:
             metric_avg = metric_sum / len(self.metric_data)
             self.writer.add_scalar("{}_regions_avg".format(self.tag_name), metric_avg, epoch)
         self.writer.flush()
