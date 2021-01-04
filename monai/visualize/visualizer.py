@@ -11,14 +11,13 @@
 
 import warnings
 from abc import ABC
-from contextlib import nullcontext
 from typing import Callable, Dict, Sequence, Union
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 
-from monai.networks.utils import eval_mode
+from monai.networks.utils import eval_mode, train_mode
 from monai.transforms import ScaleIntensity
 from monai.utils import InterpolateMode, ensure_tuple
 
@@ -130,18 +129,19 @@ class ModelWithHooks:
         return logits[:, class_idx].squeeze(), class_idx
 
     def __call__(self, x, class_idx=None, retain_graph=False):
-        # Can only use eval mode if back grad isn't required
-        with eval_mode(self.model) if not self.register_backward else nullcontext():
+        # Use train_mode if grad is required, else eval_mode
+        mode = train_mode if self.register_backward else eval_mode
+        with mode(self.model):
             logits = self.model(x)
-        acti, grad = None, None
-        if self.register_forward:
-            acti = tuple(self.activations[layer] for layer in self.target_layers)
-        if self.register_backward:
-            score, class_idx = self.class_score(logits, class_idx)
-            self.model.zero_grad()
-            self.score, self.class_idx = score, class_idx
-            score.sum().backward(retain_graph=retain_graph)
-            grad = tuple(self.gradients[layer] for layer in self.target_layers)
+            acti, grad = None, None
+            if self.register_forward:
+                acti = tuple(self.activations[layer] for layer in self.target_layers)
+            if self.register_backward:
+                score, class_idx = self.class_score(logits, class_idx)
+                self.model.zero_grad()
+                self.score, self.class_idx = score, class_idx
+                score.sum().backward(retain_graph=retain_graph)
+                grad = tuple(self.gradients[layer] for layer in self.target_layers)
         return logits, acti, grad
 
     def get_wrapped_net(self):
