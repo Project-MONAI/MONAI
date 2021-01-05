@@ -6,7 +6,7 @@ on:
 
 jobs:
   cron-gpu:
-    if: github.repository == 'Project-MONAI/MONAI'
+    if: github.repository == 'danielschulz/MONAI'
     container:
       image: nvcr.io/nvidia/pytorch:20.03-py3  # CUDA 10.2
       options: "--gpus all"
@@ -54,7 +54,7 @@ jobs:
         file: ./coverage.xml
 
   cron-docker:
-    if: github.repository == 'Project-MONAI/MONAI'
+    if: github.repository == 'danielschulz/MONAI'
     container:
       image: docker://projectmonai/monai:latest
       options: "--gpus all"
