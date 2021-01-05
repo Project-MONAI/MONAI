@@ -56,9 +56,6 @@ Segmentation Losses
 Registration Losses
 -------------------
 
-.. automodule:: monai.losses
-.. currentmodule:: monai.losses
-
 `BendingEnergyLoss`
 ~~~~~~~~~~~~~~~~~~~
 .. autoclass:: BendingEnergyLoss
