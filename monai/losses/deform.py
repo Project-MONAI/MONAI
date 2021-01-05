@@ -45,7 +45,7 @@ def gradient_dz(fz: torch.Tensor) -> torch.Tensor:
     Returns:
         gradient_dy: the shape should be BDHW
     """
-    return (fz[..., 2:, 1:-1, 1:-1] - fz[..., :-2, 1:-1, 1:-1]) / 2
+    return (fz[..., 2:, 1:-1, 1:-1] - fz[..., :-2, 1:-1, 1:-1]) / 2.0
 
 
 class BendingEnergyLoss(_Loss):
