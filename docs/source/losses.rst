@@ -52,3 +52,14 @@ Segmentation Losses
 ~~~~~~~~~~~~~
 .. autoclass:: TverskyLoss
     :members:
+
+Registration Losses
+-------------------
+
+.. automodule:: monai.losses
+.. currentmodule:: monai.losses
+
+`BendingEnergyLoss`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: BendingEnergyLoss
+    :members:
