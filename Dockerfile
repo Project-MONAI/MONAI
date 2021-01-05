@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,8 +13,10 @@ ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:20.10-py3
 
 FROM ${PYTORCH_IMAGE} as base
 
+MAINTAINER Wenqi Li <wenqil@nvidia.com>, Nic Ma <nma@nvidia.com>, Daniel Schulz <danielschulz2005@hotmail.com>
+
 WORKDIR /opt/monai
-ENV PATH=/opt/tools:$PATH
+ENV PATH=/opt/tools:${PATH}
 
 # install full deps
 COPY requirements.txt requirements-min.txt requirements-dev.txt /tmp/
@@ -29,7 +31,11 @@ RUN BUILD_MONAI=1 FORCE_CUDA=1 python setup.py develop \
 
 # NGC Client
 WORKDIR /opt/tools
-RUN wget -q https://ngc.nvidia.com/downloads/ngccli_cat_linux.zip && \
+ARG NGC_CLI_SHA256_HASH="03c86402449469a6d12ac2fbbf5c8b460bdbed4f1e01f692e07eb1c144f6de0f"
+ARG NGC_CLI_URI="https://ngc.nvidia.com/downloads/ngccli_cat_linux.zip"
+RUN wget -q ${NGC_CLI_URI} && \
+    # check integrity of downloaded archive using SHA256 hash; append "-s" option to supress print oneliner
+    echo "${NGC_CLI_SHA256_HASH}  ./ngccli_cat_linux.zip" | sha256sum -c && \
     unzip ngccli_cat_linux.zip && chmod u+x ngc && \
     rm -rf ngccli_cat_linux.zip ngc.md5
 WORKDIR /opt/monai
