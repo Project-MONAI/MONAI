@@ -23,7 +23,7 @@ class TestEvalMode(unittest.TestCase):
         p.eval()
         self.assertFalse(p.training)  # False
         with train_mode(p):
-            self.assertFalse(p.training)  # True
+            self.assertTrue(p.training)  # True
             p(t).sum().backward()
 
 
