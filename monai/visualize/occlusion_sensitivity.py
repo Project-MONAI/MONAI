@@ -136,6 +136,7 @@ class OcclusionSensitivity(NetVisualizer):
         stride: Union[int, Sequence] = 1,
         upsampler: Callable = default_upsampler,
         postprocessing: Callable = default_normalizer,
+        verbose: bool = True,
     ) -> None:
         """Occlusion sensitivitiy constructor.
 
@@ -163,6 +164,7 @@ class OcclusionSensitivity(NetVisualizer):
             dimensions of input.
         :param postprocessing: a callable that applies on the upsampled output image.
             default is normalising between 0 and 1.
+        :param verbose: use ``tdqm.trange`` output (if available).
         """
 
         super().__init__(
@@ -175,6 +177,7 @@ class OcclusionSensitivity(NetVisualizer):
         self.margin = margin
         self.n_batch = n_batch
         self.stride = stride
+        self.verbose = verbose
 
     def _compute_occlusion_sensitivity(self, x, class_idx, b_box):
 
@@ -213,7 +216,8 @@ class OcclusionSensitivity(NetVisualizer):
         num_required_predictions = np.prod(downsampled_im_shape)
 
         # Loop 1D over image
-        for i in trange(num_required_predictions):
+        verbose_range = trange if self.verbose else range
+        for i in verbose_range(num_required_predictions):
             # Get corresponding ND index
             idx = np.unravel_index(i, downsampled_im_shape)
             # Multiply by stride
