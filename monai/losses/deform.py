@@ -6,7 +6,7 @@ from torch.nn.modules.loss import _Loss
 from monai.utils import LossReduction
 
 
-def gradient(input: torch.Tensor, dim: int) -> torch.Tensor:
+def spatial_gradient(input: torch.Tensor, dim: int) -> torch.Tensor:
     """
     Calculate gradients on single dimension of a tensor using central finite difference.
     It moves the tensor along the dimension to calculate the approximate gradient
@@ -70,14 +70,14 @@ class BendingEnergyLoss(_Loss):
             ), f"all spatial dimensions must > 4, got input of shape {input.shape}"
 
         # first order gradient
-        first_order_gradient = [gradient(input, dim) for dim in range(2, input.ndim)]
+        first_order_gradient = [spatial_gradient(input, dim) for dim in range(2, input.ndim)]
 
-        energy = 0
+        energy = torch.tensor(0)
         for dim_1, g in enumerate(first_order_gradient):
             dim_1 += 2
-            energy += gradient(g, dim_1) ** 2
+            energy += spatial_gradient(g, dim_1) ** 2
             for dim_2 in range(dim_1 + 1, input.ndim):
-                energy += 2 * gradient(g, dim_2) ** 2
+                energy += 2 * spatial_gradient(g, dim_2) ** 2
 
         if self.reduction == LossReduction.MEAN.value:
             energy = torch.mean(energy)  # the batch and channel average
