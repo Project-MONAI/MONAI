@@ -149,10 +149,16 @@ jobs:
         ref: master
     - name: docker_build
       run: |
+        # build and run original docker image for local registry
         docker build -t localhost:5000/local_monai:latest -f Dockerfile .
         docker push localhost:5000/local_monai:latest
+        # build once more w/ tag "latest": remove flake package as it is not needed on hub.docker.com
         sed -i '/flake/d' requirements-dev.txt
         docker build -t projectmonai/monai:latest -f Dockerfile .
+        # also push as tag "stable" to local registry
+        docker build tag projectmonai/monai:latest localhost:5000/local_monai:stable
+        docker push localhost:5000/local_monai:stable
+        # distribute as always w/ tag "latest" to hub.docker.com
         docker login -u projectmonai -p ${{ secrets.DOCKER_PW }}
         docker push projectmonai/monai:latest
         docker logout
