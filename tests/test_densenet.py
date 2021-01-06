@@ -14,6 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
+from monai.networks import eval_mode
 from monai.networks.nets import densenet121, densenet169, densenet201, densenet264
 from tests.utils import skip_if_quick, test_pretrained_networks, test_script_save
 
@@ -66,8 +67,7 @@ class TestPretrainedDENSENET(unittest.TestCase):
     @skip_if_quick
     def test_121_3d_shape_pretrain(self, model, input_param, input_shape, expected_shape):
         net = test_pretrained_networks(model, input_param, device)
-        net.eval()
-        with torch.no_grad():
+        with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
@@ -76,8 +76,7 @@ class TestDENSENET(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_densenet_shape(self, model, input_param, input_shape, expected_shape):
         net = model(**input_param).to(device)
-        net.eval()
-        with torch.no_grad():
+        with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
