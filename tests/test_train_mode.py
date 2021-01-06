@@ -9,17 +9,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .deform import BendingEnergyLoss
-from .dice import (
-    Dice,
-    DiceCELoss,
-    DiceLoss,
-    GeneralizedDiceLoss,
-    GeneralizedWassersteinDiceLoss,
-    MaskedDiceLoss,
-    dice,
-    generalized_dice,
-    generalized_wasserstein_dice,
-)
-from .focal_loss import FocalLoss
-from .tversky import TverskyLoss
+import unittest
+
+import torch
+
+from monai.networks.utils import train_mode
+
+
+class TestEvalMode(unittest.TestCase):
+    def test_eval_mode(self):
+        t = torch.rand(1, 1, 4, 4)
+        p = torch.nn.Conv2d(1, 1, 3)
+        p.eval()
+        self.assertFalse(p.training)  # False
+        with train_mode(p):
+            self.assertTrue(p.training)  # True
+            p(t).sum().backward()
+
+
+if __name__ == "__main__":
+    unittest.main()
