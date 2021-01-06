@@ -11,9 +11,9 @@
 
 ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:20.10-py3
 
-FROM ${PYTORCH_IMAGE} as base
+FROM ${PYTORCH_IMAGE}
 
-MAINTAINER Wenqi Li <wenqil@nvidia.com>, Nic Ma <nma@nvidia.com>, Daniel Schulz <danielschulz2005@hotmail.com>
+MAINTAINER MONAI Consortium <monai.miccai2019@gmail.com>
 
 WORKDIR /opt/monai
 ENV PATH=/opt/tools:${PATH}
