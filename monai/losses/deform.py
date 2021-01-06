@@ -11,6 +11,7 @@ def spatial_gradient(input: torch.Tensor, dim: int) -> torch.Tensor:
     Calculate gradients on single dimension of a tensor using central finite difference.
     It moves the tensor along the dimension to calculate the approximate gradient
     dx[i] = (x[i+1] - x[i-1]) / 2.
+    Adapted from DeepReg (https://github.com/DeepRegNet/DeepReg)
     Args:
         input: the shape should be BCH(WD).
         dim: dimension to calculate gradient along.
@@ -31,11 +32,13 @@ def spatial_gradient(input: torch.Tensor, dim: int) -> torch.Tensor:
 
 
 class BendingEnergyLoss(_Loss):
+
     def __init__(
         self,
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
     ) -> None:
         """
+        Adapted from DeepReg (https://github.com/DeepRegNet/DeepReg)
         Args:
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
                 Specifies the reduction to apply to the output. Defaults to ``"mean"``.
