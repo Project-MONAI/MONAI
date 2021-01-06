@@ -11,6 +11,7 @@
 
 from .dice import (
     Dice,
+    DiceCELoss,
     DiceLoss,
     GeneralizedDiceLoss,
     GeneralizedWassersteinDiceLoss,
