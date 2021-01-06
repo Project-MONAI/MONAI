@@ -12,6 +12,7 @@
 from .deform import BendingEnergyLoss
 from .dice import (
     Dice,
+    DiceCELoss,
     DiceLoss,
     GeneralizedDiceLoss,
     GeneralizedWassersteinDiceLoss,
