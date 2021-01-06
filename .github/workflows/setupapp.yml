@@ -12,7 +12,7 @@ jobs:
   #   - ubuntu py36 37 38-pip-
   #   - os-latest-pip (shared)
   coverage-py3:
-    if: github.repository == 'danielschulz/MONAI'
+    if: ggithub.repository == 'Project-MONAI/MONAI'
     container:
       image: nvcr.io/nvidia/pytorch:20.03-py3  # CUDA 10.2
       options: --gpus all
@@ -140,7 +140,7 @@ jobs:
         QUICKTEST: True
 
   local_docker:
-    if: github.repository == 'danielschulz/MONAI'
+    if: ggithub.repository == 'Project-MONAI/MONAI'
     runs-on: [self-hosted, linux, x64, build_only]
     # we only push built container if it is built from master branch
     steps:
@@ -164,7 +164,7 @@ jobs:
         docker logout
 
   docker:
-    if: github.repository == 'danielschulz/MONAI'
+    if: ggithub.repository == 'Project-MONAI/MONAI'
     needs: local_docker
     container:
       image: localhost:5000/local_monai:latest
