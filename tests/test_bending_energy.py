@@ -22,6 +22,16 @@ TEST_CASES = [
         {"input": torch.arange(0, 5)[None, None, None, None, :].expand(1, 3, 5, 5, 5) ** 2},
         4.0,
     ],
+    [
+        {},
+        {"input": torch.arange(0, 5)[None, None, None, :].expand(1, 3, 5, 5) ** 2},
+        4.0,
+    ],
+    [
+        {},
+        {"input": torch.arange(0, 5)[None, None, :].expand(1, 3, 5) ** 2},
+        4.0,
+    ],
 ]
 
 
@@ -33,8 +43,12 @@ class TestBendingEnergy(unittest.TestCase):
 
     def test_ill_shape(self):
         loss = BendingEnergyLoss()
+        # not in 3-d, 4-d, 5-d
         with self.assertRaisesRegex(AssertionError, ""):
-            loss.forward(torch.ones((1, 5, 5, 5)))
+            loss.forward(torch.ones((1, 3)))
+        with self.assertRaisesRegex(AssertionError, ""):
+            loss.forward(torch.ones((1, 3, 5, 5, 5, 5)))
+        # spatial_dim < 5
         with self.assertRaisesRegex(AssertionError, ""):
             loss.forward(torch.ones((1, 3, 4, 5, 5)))
         with self.assertRaisesRegex(AssertionError, ""):
