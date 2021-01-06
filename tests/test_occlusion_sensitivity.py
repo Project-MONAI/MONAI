@@ -14,8 +14,8 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.metrics import compute_occlusion_sensitivity
 from monai.networks.nets import DenseNet, densenet121
+from monai.visualize import OcclusionSensitivity
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 model_2d = densenet121(spatial_dims=2, in_channels=1, out_channels=3).to(device)
@@ -28,32 +28,55 @@ model_3d.eval()
 # 2D w/ bounding box
 TEST_CASE_0 = [
     {
-        "model": model_2d,
-        "image": torch.rand(1, 1, 48, 64).to(device),
-        "label": torch.tensor([[0]], dtype=torch.int64).to(device),
+        "nn_module": model_2d,
+    },
+    {
+        "x": torch.rand(1, 1, 48, 64).to(device),
+        "class_idx": torch.tensor([[0]], dtype=torch.int64).to(device),
         "b_box": [-1, -1, 2, 40, 1, 62],
     },
-    (39, 62),
+    (1, 1, 39, 62),
 ]
-# 3D w/ bounding box
+# 3D w/ bounding box and stride
 TEST_CASE_1 = [
     {
-        "model": model_3d,
-        "image": torch.rand(1, 1, 6, 6, 6).to(device),
-        "label": 0,
-        "b_box": [-1, -1, 2, 3, -1, -1, -1, -1],
+        "nn_module": model_3d,
         "n_batch": 10,
         "stride": 2,
     },
-    (2, 6, 6),
+    {
+        "x": torch.rand(1, 1, 6, 6, 6).to(device),
+        "class_idx": None,
+        "b_box": [-1, -1, 2, 3, -1, -1, -1, -1],
+    },
+    (1, 1, 2, 6, 6),
+]
+
+TEST_CASE_FAIL = [  # 2D should fail, since 3 stride values given
+    {
+        "nn_module": model_2d,
+        "n_batch": 10,
+        "stride": (2, 2, 2),
+    },
+    {
+        "x": torch.rand(1, 1, 48, 64).to(device),
+        "class_idx": None,
+        "b_box": [-1, -1, 2, 3, -1, -1],
+    },
 ]
 
 
 class TestComputeOcclusionSensitivity(unittest.TestCase):
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1])
-    def test_shape(self, input_data, expected_shape):
-        result = compute_occlusion_sensitivity(**input_data)
+    def test_shape(self, init_data, call_data, expected_shape):
+        occ_sens = OcclusionSensitivity(**init_data)
+        result = occ_sens(**call_data)
         self.assertTupleEqual(result.shape, expected_shape)
+
+    def test_fail(self):
+        occ_sens = OcclusionSensitivity(**TEST_CASE_FAIL[0])
+        with self.assertRaises(ValueError):
+            occ_sens(**TEST_CASE_FAIL[1])
 
 
 if __name__ == "__main__":

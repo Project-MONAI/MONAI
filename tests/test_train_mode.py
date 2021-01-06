@@ -1,4 +1,4 @@
-# Copyright 2020 - 2021 MONAI Consortium
+# Copyright 2020 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,9 +9,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .confusion_matrix import ConfusionMatrixMetric, compute_confusion_matrix_metric, get_confusion_matrix
-from .hausdorff_distance import *
-from .meandice import DiceMetric, compute_meandice
-from .rocauc import compute_roc_auc
-from .surface_distance import SurfaceDistanceMetric, compute_average_surface_distance
-from .utils import *
+import unittest
+
+import torch
+
+from monai.networks.utils import train_mode
+
+
+class TestEvalMode(unittest.TestCase):
+    def test_eval_mode(self):
+        t = torch.rand(1, 1, 4, 4)
+        p = torch.nn.Conv2d(1, 1, 3)
+        p.eval()
+        self.assertFalse(p.training)  # False
+        with train_mode(p):
+            self.assertTrue(p.training)  # True
+            p(t).sum().backward()
+
+
+if __name__ == "__main__":
+    unittest.main()

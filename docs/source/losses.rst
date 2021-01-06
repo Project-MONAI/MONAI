@@ -57,3 +57,11 @@ Segmentation Losses
 ~~~~~~~~~~~~~
 .. autoclass:: TverskyLoss
     :members:
+
+Registration Losses
+-------------------
+
+`BendingEnergyLoss`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: BendingEnergyLoss
+    :members:
