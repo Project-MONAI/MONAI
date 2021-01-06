@@ -66,7 +66,7 @@ class BendingEnergyLoss(_Loss):
             ), f"all spatial dimensions must > 4, got input of shape {input.shape}"
         elif input.ndim == 5:
             assert (
-                    input.shape[-1] > 4 and input.shape[-2] > 4 and input.shape[-3] > 4
+                input.shape[-1] > 4 and input.shape[-2] > 4 and input.shape[-3] > 4
             ), f"all spatial dimensions must > 4, got input of shape {input.shape}"
 
         # first order gradient
