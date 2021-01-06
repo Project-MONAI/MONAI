@@ -31,11 +31,12 @@ RUN BUILD_MONAI=1 FORCE_CUDA=1 python setup.py develop \
 
 # NGC Client
 WORKDIR /opt/tools
-ARG NGC_CLI_SHA256_HASH="03c86402449469a6d12ac2fbbf5c8b460bdbed4f1e01f692e07eb1c144f6de0f"
 ARG NGC_CLI_URI="https://ngc.nvidia.com/downloads/ngccli_cat_linux.zip"
 RUN wget -q ${NGC_CLI_URI} && \
     # check integrity of downloaded archive using SHA256 hash; append "-s" option to supress print oneliner
-    echo "${NGC_CLI_SHA256_HASH}  ./ngccli_cat_linux.zip" | sha256sum -c && \
+    md5sum -c ngc.md5 && \
     unzip ngccli_cat_linux.zip && chmod u+x ngc && \
     rm -rf ngccli_cat_linux.zip ngc.md5
+# append /opt/tools to runtime path for NGC CLI to be accessible from all file system locations
+ENV PATH=${PATH}:/opt/tools
 WORKDIR /opt/monai
