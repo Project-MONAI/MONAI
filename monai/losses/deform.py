@@ -17,7 +17,7 @@ def gradient_dx(fx: torch.Tensor) -> torch.Tensor:
     Returns:
         gradient_dx: the shape should be BDHW
     """
-    return (fx[..., 1:-1, 1:-1, 2:] - fx[..., 1:-1, 1:-1, :-2]) / 2
+    return (fx[..., 1:-1, 1:-1, 2:] - fx[..., 1:-1, 1:-1, :-2]) / 2.0
 
 
 def gradient_dy(fy: torch.Tensor) -> torch.Tensor:
@@ -31,7 +31,7 @@ def gradient_dy(fy: torch.Tensor) -> torch.Tensor:
     Returns:
         gradient_dy: the shape should be BDHW
     """
-    return (fy[..., 1:-1, 2:, 1:-1] - fy[..., 1:-1, :-2, 1:-1]) / 2
+    return (fy[..., 1:-1, 2:, 1:-1] - fy[..., 1:-1, :-2, 1:-1]) / 2.0
 
 
 def gradient_dz(fz: torch.Tensor) -> torch.Tensor:
