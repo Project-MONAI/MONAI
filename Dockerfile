@@ -25,6 +25,9 @@ RUN cp /tmp/requirements.txt /tmp/req.bak \
   && python -m pip install --no-cache-dir --use-feature=2020-resolver -r /tmp/requirements-dev.txt
 
 # compile ext and remove temp files
+# TODO: remark for issue [revise the dockerfile #1276](https://github.com/Project-MONAI/MONAI/issues/1276)
+# please specify exact files and folders to be copied -- else, basically always, the Docker build process cannot cache
+# this or anything below it and always will build from at most here; one file change leads to no caching from here on...
 COPY . .
 RUN BUILD_MONAI=1 FORCE_CUDA=1 python setup.py develop \
   && rm -rf build __pycache__
