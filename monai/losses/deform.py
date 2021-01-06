@@ -6,46 +6,28 @@ from torch.nn.modules.loss import _Loss
 from monai.utils import LossReduction
 
 
-def gradient_dx(fx: torch.Tensor) -> torch.Tensor:
+def gradient(input: torch.Tensor, dim: int) -> torch.Tensor:
     """
-    Calculate gradients on x-axis of a 3D tensor using central finite difference.
-    It moves the tensor along axis 1 to calculate the approximate gradient, the x axis,
+    Calculate gradients on single dimension of a tensor using central finite difference.
+    It moves the tensor along the dimension to calculate the approximate gradient
     dx[i] = (x[i+1] - x[i-1]) / 2.
     Args:
-        fx: the shape should be BDHW.
-
+        input: the shape should be BCH(WD).
+        dim: dimension to calculate gradient along.
     Returns:
-        gradient_dx: the shape should be BDHW
+        gradient_dx: the shape should be BCH(WD)
     """
-    return (fx[..., 1:-1, 1:-1, 2:] - fx[..., 1:-1, 1:-1, :-2]) / 2.0
-
-
-def gradient_dy(fy: torch.Tensor) -> torch.Tensor:
-    """
-    Calculate gradients on y-axis of a 3D tensor using central finite difference.
-    It moves the tensor along axis 1 to calculate the approximate gradient, the y axis,
-    dy[i] = (y[i+1] - y[i-1]) / 2.
-    Args:
-        fy: the shape should be BDHW.
-
-    Returns:
-        gradient_dy: the shape should be BDHW
-    """
-    return (fy[..., 1:-1, 2:, 1:-1] - fy[..., 1:-1, :-2, 1:-1]) / 2.0
-
-
-def gradient_dz(fz: torch.Tensor) -> torch.Tensor:
-    """
-    Calculate gradients on z-axis of a 3D tensor using central finite difference.
-    It moves the tensor along axis 1 to calculate the approximate gradient, the z axis,
-    dz[i] = (z[i+1] - z[i-1]) / 2.
-    Args:
-        fz: the shape should be BDHW.
-
-    Returns:
-        gradient_dy: the shape should be BDHW
-    """
-    return (fz[..., 2:, 1:-1, 1:-1] - fz[..., :-2, 1:-1, 1:-1]) / 2.0
+    slice_1 = slice(1, -1)
+    slice_2_s = slice(2, None)
+    slice_2_e = slice(None, -2)
+    slice_all = slice(None)
+    slicing = [slice_all, slice_all]
+    while len(slicing) < input.ndim:
+        slicing = slicing + [slice_1]
+    slicing_s, slicing_e = slicing, slicing
+    slicing_s[dim] = slice_2_s
+    slicing_e[dim] = slice_2_e
+    return (input[slicing_s] - input[slicing_e]) / 2.0
 
 
 class BendingEnergyLoss(_Loss):
