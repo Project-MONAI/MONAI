@@ -83,9 +83,9 @@ class BendingEnergyLoss(_Loss):
         energy = torch.tensor(0)
         for dim_1, g in enumerate(first_order_gradient):
             dim_1 += 2
-            energy += spatial_gradient(g, dim_1) ** 2
+            energy = spatial_gradient(g, dim_1) ** 2 + energy
             for dim_2 in range(dim_1 + 1, input.ndim):
-                energy += 2 * spatial_gradient(g, dim_2) ** 2
+                energy = 2 * spatial_gradient(g, dim_2) ** 2 + energy
 
         if self.reduction == LossReduction.MEAN.value:
             energy = torch.mean(energy)  # the batch and channel average
