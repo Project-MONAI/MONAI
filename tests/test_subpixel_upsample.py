@@ -15,6 +15,7 @@ import torch
 import torch.nn as nn
 from parameterized import parameterized
 
+from monai.networks import eval_mode
 from monai.networks.blocks import SubpixelUpsample
 from monai.networks.layers.factories import Conv
 
@@ -75,8 +76,7 @@ class TestSUBPIXEL(unittest.TestCase):
     @parameterized.expand(TEST_CASE_SUBPIXEL)
     def test_subpixel_shape(self, input_param, input_shape, expected_shape):
         net = SubpixelUpsample(**input_param)
-        net.eval()
-        with torch.no_grad():
+        with eval_mode(net):
             result = net.forward(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
 

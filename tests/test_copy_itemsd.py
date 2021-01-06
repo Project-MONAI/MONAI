@@ -15,6 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai.networks import eval_mode
 from monai.transforms import CopyItemsd
 from monai.utils import ensure_tuple
 
@@ -61,8 +62,7 @@ class TestCopyItemsd(unittest.TestCase):
     def test_graph_tensor_values(self):
         device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu:0")
         net = torch.nn.PReLU().to(device)
-        net.eval()
-        with torch.no_grad():
+        with eval_mode(net):
             pred = net(torch.tensor([[0.0, 1.0], [1.0, 2.0]], device=device))
         input_data = {"pred": pred, "seg": torch.tensor([[0.0, 1.0], [1.0, 2.0]], device=device)}
         result = CopyItemsd(keys="pred", times=1, names="pred_1")(input_data)
