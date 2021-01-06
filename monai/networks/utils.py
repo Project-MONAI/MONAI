@@ -311,4 +311,3 @@ def train_mode(*nets: nn.Module):
         # Return required networks to eval
         for n in eval:
             n.eval()
-

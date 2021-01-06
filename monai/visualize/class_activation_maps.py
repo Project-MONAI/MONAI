@@ -9,18 +9,119 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Union
+import warnings
+from typing import Callable, Dict, Sequence, Union
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from monai.visualize import ModelWithHooks, NetVisualizer, default_normalizer, default_upsampler
+from monai.networks.utils import eval_mode, train_mode
+from monai.utils import ensure_tuple
+from monai.visualize import default_normalizer, default_upsampler
 
-__all__ = ["CAM", "GradCAM", "GradCAMpp"]
+__all__ = ["CAM", "GradCAM", "GradCAMpp", "ModelWithHooks"]
 
 
-class CAMBase(NetVisualizer):
+class ModelWithHooks:
+    """
+    A model wrapper to run model forward/backward steps and storing some intermediate feature/gradient information.
+    """
+
+    def __init__(
+        self,
+        nn_module,
+        target_layer_names: Union[str, Sequence[str]],
+        register_forward: bool = False,
+        register_backward: bool = False,
+    ):
+        """
+
+        Args:
+            nn_module: the model to be wrapped.
+            target_layer_names: the names of the layer to cache.
+            register_forward: whether to cache the forward pass output corresponding to `target_layer_names`.
+            register_backward: whether to cache the backward pass output corresponding to `target_layer_names`.
+        """
+        self.model = nn_module
+        self.target_layers = ensure_tuple(target_layer_names)
+
+        self.gradients: Dict[str, torch.Tensor] = {}
+        self.activations: Dict[str, torch.Tensor] = {}
+        self.score = None
+        self.class_idx = None
+        self.register_backward = register_backward
+        self.register_forward = register_forward
+
+        _registered = []
+        for name, mod in nn_module.named_modules():
+            if name not in self.target_layers:
+                continue
+            _registered.append(name)
+            if self.register_backward:
+                mod.register_backward_hook(self.backward_hook(name))
+            if self.register_forward:
+                mod.register_forward_hook(self.forward_hook(name))
+        if len(_registered) != len(self.target_layers):
+            warnings.warn(f"Not all target_layers exist in the network module: targets: {self.target_layers}.")
+
+    def backward_hook(self, name):
+        def _hook(_module, _grad_input, grad_output):
+            self.gradients[name] = grad_output[0]
+
+        return _hook
+
+    def forward_hook(self, name):
+        def _hook(_module, _input, output):
+            self.activations[name] = output
+
+        return _hook
+
+    def get_layer(self, layer_id: Union[str, Callable]):
+        """
+
+        Args:
+            layer_id: a layer name string or a callable. If it is a callable such as `lambda m: m.fc`,
+                this method will return the module `self.model.fc`.
+
+        Returns:
+            a submodule from self.model.
+        """
+        if callable(layer_id):
+            return layer_id(self.model)
+        if isinstance(layer_id, str):
+            for name, mod in self.model.named_modules():
+                if name == layer_id:
+                    return mod
+        raise NotImplementedError(f"Could not find {layer_id}.")
+
+    def class_score(self, logits, class_idx=None):
+        if class_idx is not None:
+            return logits[:, class_idx].squeeze(), class_idx
+        class_idx = logits.max(1)[-1]
+        return logits[:, class_idx].squeeze(), class_idx
+
+    def __call__(self, x, class_idx=None, retain_graph=False):
+        # Use train_mode if grad is required, else eval_mode
+        mode = train_mode if self.register_backward else eval_mode
+        with mode(self.model):
+            logits = self.model(x)
+            acti, grad = None, None
+            if self.register_forward:
+                acti = tuple(self.activations[layer] for layer in self.target_layers)
+            if self.register_backward:
+                score, class_idx = self.class_score(logits, class_idx)
+                self.model.zero_grad()
+                self.score, self.class_idx = score, class_idx
+                score.sum().backward(retain_graph=retain_graph)
+                grad = tuple(self.gradients[layer] for layer in self.target_layers)
+        return logits, acti, grad
+
+    def get_wrapped_net(self):
+        return self.model
+
+
+class CAMBase:
     """
     Base class for CAM methods.
     """
@@ -35,15 +136,14 @@ class CAMBase(NetVisualizer):
     ) -> None:
         # Convert to model with hooks if necessary
         if not isinstance(nn_module, ModelWithHooks):
-            net = ModelWithHooks(nn_module, target_layers, register_forward=True, register_backward=register_backward)
+            self.nn_module = ModelWithHooks(
+                nn_module, target_layers, register_forward=True, register_backward=register_backward
+            )
         else:
-            net = nn_module
+            self.nn_module = nn_module
 
-        super().__init__(
-            nn_module=net,
-            upsampler=upsampler,
-            postprocessing=postprocessing,
-        )
+        self.upsampler = upsampler
+        self.postprocessing = postprocessing
 
     def feature_map_size(self, input_size, device="cpu", layer_idx=-1):
         """
@@ -56,6 +156,9 @@ class CAMBase(NetVisualizer):
             shape of the actual feature map.
         """
         return self.compute_map(torch.zeros(*input_size, device=device), layer_idx=layer_idx).shape
+
+    def compute_map(self, x, class_idx=None, layer_idx=-1):
+        raise NotImplementedError()
 
     def _upsample_and_post_process(self, acti_map, x):
         # upsampling and postprocessing

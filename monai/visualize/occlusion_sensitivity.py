@@ -18,7 +18,7 @@ import torch
 import torch.nn as nn
 
 from monai.networks.utils import eval_mode
-from monai.visualize import NetVisualizer, default_normalizer, default_upsampler
+from monai.visualize import default_normalizer, default_upsampler
 
 try:
     from tqdm import trange
@@ -84,7 +84,7 @@ def _append_to_sensitivity_im(model, batch_images, batch_ids, sensitivity_im):
     return torch.cat((sensitivity_im, scores))
 
 
-class OcclusionSensitivity(NetVisualizer):
+class OcclusionSensitivity:
     """
     This class computes the occlusion sensitivity for a model's prediction
     of a given image. By occlusion sensitivity, we mean how the probability of a given
@@ -167,12 +167,9 @@ class OcclusionSensitivity(NetVisualizer):
         :param verbose: use ``tdqm.trange`` output (if available).
         """
 
-        super().__init__(
-            nn_module=nn_module,
-            upsampler=upsampler,
-            postprocessing=postprocessing,
-        )
-
+        self.nn_module = nn_module
+        self.upsampler = upsampler
+        self.postprocessing = postprocessing
         self.pad_val = pad_val
         self.margin = margin
         self.n_batch = n_batch
