@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - fixes-ci
 
 jobs:
   # caching of these jobs:
