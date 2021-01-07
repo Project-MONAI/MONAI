@@ -47,6 +47,23 @@ from monai.utils import (
     fall_back_tuple,
 )
 
+__all__ = [
+    "Spacingd",
+    "Orientationd",
+    "Rotate90d",
+    "RandRotate90d",
+    "Resized",
+    "RandAffined",
+    "Rand2DElasticd",
+    "Rand3DElasticd",
+    "Flipd",
+    "RandFlipd",
+    "Rotated",
+    "RandRotated",
+    "Zoomd",
+    "RandZoomd",
+]
+
 GridSampleModeSequence = Union[Sequence[Union[GridSampleMode, str]], GridSampleMode, str]
 GridSamplePadModeSequence = Union[Sequence[Union[GridSamplePadMode, str]], GridSamplePadMode, str]
 InterpolateModeSequence = Union[Sequence[Union[InterpolateMode, str]], InterpolateMode, str]

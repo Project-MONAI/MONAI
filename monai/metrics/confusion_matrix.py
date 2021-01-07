@@ -14,7 +14,7 @@ from typing import Sequence, Union
 
 import torch
 
-from monai.metrics.utils import *
+from monai.metrics.utils import do_metric_reduction, ignore_background
 from monai.utils import MetricReduction
 
 

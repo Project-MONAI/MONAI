@@ -25,4 +25,4 @@ from .squeeze_and_excitation import (
     SEResNetBottleneck,
     SEResNeXtBottleneck,
 )
-from .upsample import *
+from .upsample import SubpixelUpsample, Subpixelupsample, SubpixelUpSample, Upsample, UpSample
