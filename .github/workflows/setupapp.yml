@@ -160,7 +160,7 @@ jobs:
         docker image tag projectmonai/monai:latest localhost:5000/local_monai:dockerhub
         docker push localhost:5000/local_monai:dockerhub
         # distribute as always w/ tag "latest" to hub.docker.com
-        docker login -u projectmonai -p ${{ secrets.DOCKER_PW }}
+        echo "${{ secrets.DOCKER_PW }}" | docker login -u projectmonai --password-stdin
         docker push projectmonai/monai:latest
         docker logout
 
