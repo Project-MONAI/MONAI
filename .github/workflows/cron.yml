@@ -56,7 +56,7 @@ jobs:
   cron-docker:
     if: github.repository == 'Project-MONAI/MONAI'
     container:
-      image: localhost:5000/local_monai:stable # use currently latest, stable locally available docker image
+      image: localhost:5000/local_monai:dockerhub # use currently latest, locally available dockerhub image
       options: "--gpus all"
     runs-on: [self-hosted, linux, x64, common]
     steps:
