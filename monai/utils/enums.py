@@ -11,6 +11,25 @@
 
 from enum import Enum
 
+all = [
+    "NumpyPadMode",
+    "GridSampleMode",
+    "InterpolateMode",
+    "UpsampleMode",
+    "BlendMode",
+    "PytorchPadMode",
+    "GridSamplePadMode",
+    "Average",
+    "MetricReduction",
+    "LossReduction",
+    "Weight",
+    "Normalization",
+    "Activation",
+    "ChannelMatching",
+    "SkipMode",
+    "Method",
+]
+
 
 class NumpyPadMode(Enum):
     """

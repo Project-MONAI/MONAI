@@ -13,9 +13,10 @@ from typing import Optional, Sequence, Union
 
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 
-from monai.networks.blocks.segresnet_block import *
+from monai.networks.blocks.segresnet_block import ResBlock, get_conv_layer, get_norm_layer, get_upsample_layer
 from monai.networks.layers.factories import Act, Dropout
 from monai.utils import UpsampleMode
 

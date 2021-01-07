@@ -19,6 +19,8 @@ from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.simplelayers import SkipConnection
 from monai.utils import alias, export
 
+__all__ = ["UNet", "Unet", "unet"]
+
 
 @export("monai.networks.nets")
 @alias("Unet")

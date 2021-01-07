@@ -10,4 +10,4 @@
 # limitations under the License.
 
 from .novograd import Novograd
-from .utils import *
+from .utils import generate_param_groups
