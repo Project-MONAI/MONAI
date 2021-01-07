@@ -43,7 +43,7 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
                 - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
                 - ``"sum"``: the output will be summed.
         """
-        super(LocalNormalizedCrossCorrelation, self).__init__(reduction=LossReduction(reduction).value)
+        super(LocalNormalizedCrossCorrelationLoss, self).__init__(reduction=LossReduction(reduction).value)
         self.in_channels = in_channels
         self.ndim = ndim
         if self.ndim not in [1, 2, 3]:
