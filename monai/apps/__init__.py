@@ -9,5 +9,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .datasets import *
-from .utils import *
+from .datasets import CrossValidation, DecathlonDataset, MedNISTDataset
+from .utils import check_hash, download_and_extract, download_url, extractall

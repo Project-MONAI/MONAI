@@ -17,6 +17,8 @@ import torch.nn as nn
 from monai.networks.layers.factories import Act, Norm, split_args
 from monai.networks.nets.regressor import Regressor
 
+__all__ = ["Classifier", "Discriminator", "Critic"]
+
 
 class Classifier(Regressor):
     """

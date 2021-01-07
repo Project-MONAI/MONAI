@@ -17,6 +17,8 @@ import torch.nn as nn
 from monai.networks.blocks import ADN
 from monai.networks.layers.factories import Act
 
+__all__ = ["FullyConnectedNet", "VarFullyConnectedNet"]
+
 
 def _get_adn_layer(
     act: Optional[Union[Tuple, str]], dropout: Optional[Union[Tuple, str, float]], ordering: Optional[str]

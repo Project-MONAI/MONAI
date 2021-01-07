@@ -9,4 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .utils import *
+from .utils import (
+    eval_mode,
+    icnr_init,
+    normal_init,
+    normalize_transform,
+    one_hot,
+    pixelshuffle,
+    predict_segmentation,
+    slice_channels,
+    to_norm_affine,
+    train_mode,
+)

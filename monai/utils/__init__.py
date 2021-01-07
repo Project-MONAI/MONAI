@@ -10,9 +10,57 @@
 # limitations under the License.
 
 # have to explicitly bring these in here to resolve circular import issues
-from .aliases import *
-from .decorators import *
-from .enums import *
-from .misc import *
-from .module import *
-from .profiling import *
+from .aliases import alias, resolve_name
+from .decorators import MethodReplacer, RestartGenerator
+from .enums import (
+    Activation,
+    Average,
+    BlendMode,
+    ChannelMatching,
+    GridSampleMode,
+    GridSamplePadMode,
+    InterpolateMode,
+    LossReduction,
+    Method,
+    MetricReduction,
+    Normalization,
+    NumpyPadMode,
+    PytorchPadMode,
+    SkipMode,
+    UpsampleMode,
+    Weight,
+)
+from .misc import (
+    MAX_SEED,
+    dtype_numpy_to_torch,
+    dtype_torch_to_numpy,
+    ensure_tuple,
+    ensure_tuple_rep,
+    ensure_tuple_size,
+    fall_back_tuple,
+    first,
+    get_seed,
+    is_scalar,
+    is_scalar_tensor,
+    issequenceiterable,
+    list_to_dict,
+    progress_bar,
+    set_determinism,
+    star_zip_with,
+    zip_with,
+)
+from .module import (
+    PT_BEFORE_1_7,
+    InvalidPyTorchVersionError,
+    OptionalImportError,
+    exact_version,
+    export,
+    get_full_type_name,
+    get_package_version,
+    get_torch_version_tuple,
+    has_option,
+    load_submodules,
+    min_version,
+    optional_import,
+)
+from .profiling import PerfContext, torch_profiler_full, torch_profiler_time_cpu_gpu, torch_profiler_time_end_to_end
