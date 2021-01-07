@@ -16,7 +16,6 @@ FROM ${PYTORCH_IMAGE}
 MAINTAINER MONAI Consortium <monai.miccai2019@gmail.com>
 
 WORKDIR /opt/monai
-ENV PATH=/opt/tools:${PATH}
 
 # install full deps
 COPY requirements.txt requirements-min.txt requirements-dev.txt /tmp/
@@ -28,7 +27,11 @@ RUN cp /tmp/requirements.txt /tmp/req.bak \
 # TODO: remark for issue [revise the dockerfile #1276](https://github.com/Project-MONAI/MONAI/issues/1276)
 # please specify exact files and folders to be copied -- else, basically always, the Docker build process cannot cache
 # this or anything below it and always will build from at most here; one file change leads to no caching from here on...
-COPY . .
+
+COPY LICENSE setup.py setup.cfg versioneer.py runtests.sh .gitignore .gitattributes README.md MANIFEST.in ./
+COPY tests ./tests
+COPY monai ./monai
+COPY .git ./.git
 RUN BUILD_MONAI=1 FORCE_CUDA=1 python setup.py develop \
   && rm -rf build __pycache__
 

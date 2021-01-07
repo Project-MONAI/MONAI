@@ -61,6 +61,7 @@ jobs:
     runs-on: [self-hosted, linux, x64, common]
     steps:
     - name: Run tests report coverage
+      # The docker image process has done the compilation.  BUILD_MONAI=1 may not be necessary.
       run: |
         cd /opt/monai
         nvidia-smi
