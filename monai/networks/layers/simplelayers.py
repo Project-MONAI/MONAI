@@ -39,9 +39,9 @@ __all__ = [
     "LLTM",
     "Reshape",
     "separable_filtering",
-    "SavitskyGolayFilter",
+    "SavitzkyGolayFilter",
     "HilbertTransform",
-    "ChannelPad"
+    "ChannelPad",
 ]
 
 
@@ -174,12 +174,14 @@ def separable_filtering(
         x: the input image. must have shape (batch, channels, H[, W, ...]).
         kernels: kernel along each spatial dimension.
             could be a single kernel (duplicated for all dimension), or `spatial_dims` number of kernels.
-        mode (string, optional): padding mode passed to convolution class. ``'zeros'``, ``'reflect'``, ``'replicate'`` or
-        ``'circular'``. Default: ``'zeros'``. See torch.nn.Conv1d() for more information.
+        mode (string, optional): padding mode passed to convolution class. ``'zeros'``, ``'reflect'``, ``'replicate'``
+            or ``'circular'``. Default: ``'zeros'``. Modes other than ``'zeros'`` require PyTorch version >= 1.5.1. See
+            torch.nn.Conv1d() for more information.
 
     Raises:
         TypeError: When ``x`` is not a ``torch.Tensor``.
     """
+
     if not torch.is_tensor(x):
         raise TypeError(f"x must be a torch.Tensor but is {type(x).__name__}.")
 
@@ -198,30 +200,27 @@ def separable_filtering(
         s[d + 2] = -1
         _kernel = kernels[d].reshape(s)
         # if filter kernel is unity, don't convolve
-        if torch.equal(_kernel.squeeze(), torch.ones(1, device=_kernel.device)):
+        if _kernel.numel() == 1 and _kernel[0] == 1:
             return _conv(input_, d - 1)
         _kernel = _kernel.repeat([n_chs, 1] + [1] * spatial_dims)
         _padding = [0] * spatial_dims
         _padding[d] = _paddings[d]
-
-        if mode == "zeros":  # if zero padding (default), can use functional convolution
-            conv_type = [F.conv1d, F.conv2d, F.conv3d][spatial_dims - 1]
-            return conv_type(input=_conv(input_, d - 1), weight=_kernel, padding=_padding, groups=n_chs)
-        else:
-            conv_type = [
-                nn.Conv1d(n_chs, n_chs, _kernel.shape, padding=_padding, groups=n_chs, bias=False, padding_mode=mode),
-                nn.Conv2d(n_chs, n_chs, _kernel.shape, padding=_padding, groups=n_chs, bias=False, padding_mode=mode),
-                nn.Conv3d(n_chs, n_chs, _kernel.shape, padding=_padding, groups=n_chs, bias=False, padding_mode=mode),
-            ][spatial_dims - 1]
-            conv_type.weight = torch.nn.Parameter(_kernel, requires_grad=_kernel.requires_grad)
-            return conv_type(input=_conv(input_, d - 1))
+        conv_type = [F.conv1d, F.conv2d, F.conv3d][spatial_dims - 1]
+        # translate padding for input to torch.nn.functional.pad
+        _reversed_padding_repeated_twice = [p for p in reversed(_padding) for _ in range(2)]
+        pad_mode = "constant" if mode == "zeros" else mode
+        return conv_type(
+            input=_conv(F.pad(input_, _reversed_padding_repeated_twice, mode=pad_mode), d - 1),
+            weight=_kernel,
+            groups=n_chs,
+        )
 
     return _conv(x, spatial_dims - 1)
 
 
-class SavitskyGolayFilter(nn.Module):
+class SavitzkyGolayFilter(nn.Module):
     """
-    Convolve a Tensor along a particular axis with a Savitsky-Golay kernel.
+    Convolve a Tensor along a particular axis with a Savitzky-Golay kernel.
 
     Args:
         window_length: Length of the filter window, must be a positive odd integer.
@@ -247,7 +246,7 @@ class SavitskyGolayFilter(nn.Module):
             x: Tensor or array-like to filter. Must be real, in shape ``[Batch, chns, spatial1, spatial2, ...]`` and
                 have a device type of ``'cpu'``.
         Returns:
-            torch.Tensor: ``x`` filtered by Savitsky-Golay kernel with window length ``self.window_length`` using
+            torch.Tensor: ``x`` filtered by Savitzky-Golay kernel with window length ``self.window_length`` using
             polynomials of order ``self.order``, along axis specified in ``self.axis``.
         """
 
@@ -282,9 +281,7 @@ class SavitskyGolayFilter(nn.Module):
         if rem == 0:
             raise ValueError("window_length must be odd.")
 
-        idx = torch.arange(
-            window_length - half_length - 1, -half_length - 1, -1, dtype=torch.float, device="cpu"
-        )
+        idx = torch.arange(window_length - half_length - 1, -half_length - 1, -1, dtype=torch.float, device="cpu")
         a = idx ** torch.arange(order + 1, dtype=torch.float, device="cpu").reshape(-1, 1)
         y = torch.zeros(order + 1, dtype=torch.float, device="cpu")
         y[0] = 1.0

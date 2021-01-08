@@ -20,7 +20,7 @@ from warnings import warn
 import numpy as np
 import torch
 
-from monai.networks.layers import GaussianFilter, HilbertTransform, SavitskyGolayFilter
+from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
 from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.utils import rescale_array
 from monai.utils import PT_BEFORE_1_7, InvalidPyTorchVersionError, dtype_torch_to_numpy, ensure_tuple_size
@@ -39,7 +39,7 @@ __all__ = [
     "ScaleIntensityRangePercentiles",
     "MaskIntensity",
     "DetectEnvelope",
-    "SavitskyGolaySmooth",
+    "SavitzkyGolaySmooth",
     "GaussianSmooth",
     "RandGaussianSmooth",
     "GaussianSharpen",
@@ -534,9 +534,9 @@ class MaskIntensity(Transform):
         return img * mask_data_
 
 
-class SavitskyGolaySmooth(Transform):
+class SavitzkyGolaySmooth(Transform):
     """
-    Smooth the input data along the given axis using a Savitsky-Golay filter.
+    Smooth the input data along the given axis using a Savitzky-Golay filter.
 
     Args:
         window_length: Length of the filter window, must be a positive odd integer.
@@ -566,7 +566,7 @@ class SavitskyGolaySmooth(Transform):
 
         """
         # add one to transform axis because a batch axis will be added at dimension 0
-        savgol_filter = SavitskyGolayFilter(self.window_length, self.order, self.axis + 1, self.mode)
+        savgol_filter = SavitzkyGolayFilter(self.window_length, self.order, self.axis + 1, self.mode)
         # convert to Tensor and add Batch axis expected by HilbertTransform
         input_data = torch.as_tensor(np.ascontiguousarray(img)).unsqueeze(0)
         return savgol_filter(input_data).squeeze(0).numpy()

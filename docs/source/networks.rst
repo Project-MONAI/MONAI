@@ -189,6 +189,11 @@ Layers
 .. autoclass:: BilateralFilter
     :members:
 
+`SavitzkyGolayFilter`
+~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: SavitzkyGolayFilter
+    :members:
+
 `HilbertTransform`
 ~~~~~~~~~~~~~~~~~~
 .. autoclass:: HilbertTransform

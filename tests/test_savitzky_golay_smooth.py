@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms import SavitskyGolaySmooth
+from monai.transforms import SavitzkyGolaySmooth
 
 # Zero-padding trivial tests
 
@@ -56,10 +56,15 @@ TEST_CASE_SINE_SMOOTH = [
 ]
 
 
-class TestSavitskyGolaySmooth(unittest.TestCase):
-    @parameterized.expand(
-        [TEST_CASE_SINGLE_VALUE, TEST_CASE_2D_AXIS_2, TEST_CASE_SINGLE_VALUE_REP, TEST_CASE_SINE_SMOOTH]
-    )
+class TestSavitzkyGolaySmooth(unittest.TestCase):
+    @parameterized.expand([TEST_CASE_SINGLE_VALUE, TEST_CASE_2D_AXIS_2, TEST_CASE_SINE_SMOOTH])
     def test_value(self, arguments, image, expected_data, atol):
-        result = SavitskyGolaySmooth(**arguments)(image)
+        result = SavitzkyGolaySmooth(**arguments)(image)
+        np.testing.assert_allclose(result, expected_data, atol=atol)
+
+
+class TestSavitzkyGolaySmoothREP(unittest.TestCase):
+    @parameterized.expand([TEST_CASE_SINGLE_VALUE_REP])
+    def test_value(self, arguments, image, expected_data, atol):
+        result = SavitzkyGolaySmooth(**arguments)(image)
         np.testing.assert_allclose(result, expected_data, atol=atol)

@@ -19,7 +19,7 @@ from .simplelayers import (
     GaussianFilter,
     HilbertTransform,
     Reshape,
-    SavitskyGolayFilter,
+    SavitzkyGolayFilter,
     SkipConnection,
     separable_filtering,
 )

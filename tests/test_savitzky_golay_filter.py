@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.networks.layers import SavitskyGolayFilter
+from monai.networks.layers import SavitzkyGolayFilter
 from tests.utils import skip_if_no_cuda
 
 # Zero-padding trivial tests
@@ -97,40 +97,56 @@ TEST_CASE_SINE_SMOOTH = [
 ]
 
 
-class TestSavitskyGolayCPU(unittest.TestCase):
+class TestSavitzkyGolayCPU(unittest.TestCase):
     @parameterized.expand(
         [
             TEST_CASE_SINGLE_VALUE,
             TEST_CASE_1D,
             TEST_CASE_2D_AXIS_2,
             TEST_CASE_2D_AXIS_3,
-            TEST_CASE_SINGLE_VALUE_REP,
-            TEST_CASE_1D_REP,
-            TEST_CASE_2D_AXIS_2_REP,
-            TEST_CASE_2D_AXIS_3_REP,
             TEST_CASE_SINE_SMOOTH,
         ]
     )
     def test_value(self, arguments, image, expected_data, atol):
-        result = SavitskyGolayFilter(**arguments)(image)
+        result = SavitzkyGolayFilter(**arguments)(image)
+        np.testing.assert_allclose(result, expected_data, atol=atol)
+
+
+class TestSavitzkyGolayCPUREP(unittest.TestCase):
+    @parameterized.expand(
+        [TEST_CASE_SINGLE_VALUE_REP, TEST_CASE_1D_REP, TEST_CASE_2D_AXIS_2_REP, TEST_CASE_2D_AXIS_3_REP]
+    )
+    def test_value(self, arguments, image, expected_data, atol):
+        result = SavitzkyGolayFilter(**arguments)(image)
         np.testing.assert_allclose(result, expected_data, atol=atol)
 
 
 @skip_if_no_cuda
-class TestSavitskyGolayGPU(unittest.TestCase):
+class TestSavitzkyGolayGPU(unittest.TestCase):
     @parameterized.expand(
         [
             TEST_CASE_SINGLE_VALUE,
             TEST_CASE_1D,
             TEST_CASE_2D_AXIS_2,
             TEST_CASE_2D_AXIS_3,
-            TEST_CASE_SINGLE_VALUE_REP,
-            TEST_CASE_1D_REP,
-            TEST_CASE_2D_AXIS_2_REP,
-            TEST_CASE_2D_AXIS_3_REP,
             TEST_CASE_SINE_SMOOTH,
         ]
     )
     def test_value(self, arguments, image, expected_data, atol):
-        result = SavitskyGolayFilter(**arguments)(image.to(device="cuda"))
+        result = SavitzkyGolayFilter(**arguments)(image.to(device="cuda"))
+        np.testing.assert_allclose(result.cpu(), expected_data, atol=atol)
+
+
+@skip_if_no_cuda
+class TestSavitzkyGolayGPUREP(unittest.TestCase):
+    @parameterized.expand(
+        [
+            TEST_CASE_SINGLE_VALUE_REP,
+            TEST_CASE_1D_REP,
+            TEST_CASE_2D_AXIS_2_REP,
+            TEST_CASE_2D_AXIS_3_REP,
+        ]
+    )
+    def test_value(self, arguments, image, expected_data, atol):
+        result = SavitzkyGolayFilter(**arguments)(image.to(device="cuda"))
         np.testing.assert_allclose(result.cpu(), expected_data, atol=atol)
