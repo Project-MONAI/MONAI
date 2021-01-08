@@ -17,6 +17,7 @@ from .simplelayers import (
     ChannelPad,
     Flatten,
     GaussianFilter,
+    SavitskyGolayFilter,
     HilbertTransform,
     Reshape,
     SkipConnection,
