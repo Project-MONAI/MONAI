@@ -8,7 +8,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Union
+from typing import Union, Tuple
 
 import torch
 from torch.nn import functional as F
@@ -192,7 +192,7 @@ class GlobalMutualInformationLoss(_Loss):
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
 
-    def parzen_windowing(self, input: torch.Tensor) -> (torch.Tensor, torch.Tensor):
+    def parzen_windowing(self, input: torch.Tensor) -> Tuple[torch.Tensor,torch.Tensor]:
         """
         Args:
             input: the shape should be BNH[WD].
