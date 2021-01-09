@@ -8,7 +8,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Union, Tuple
+from typing import Tuple, Union
 
 import torch
 from torch.nn import functional as F
@@ -185,6 +185,7 @@ class GlobalMutualInformationLoss(_Loss):
             smooth_dr: a small constant added to the denominator to avoid nan.
         """
         super(GlobalMutualInformationLoss, self).__init__(reduction=LossReduction(reduction).value)
+        assert num_bins > 0, f"num_bins must > 0, got f{num_bins}"
         bin_centers = torch.linspace(0.0, 1.0, num_bins)  # (num_bins,)
         sigma = torch.mean(bin_centers[1:] - bin_centers[:-1]) * sigma_ratio
         self.preterm = 1 / (2 * sigma ** 2)
@@ -192,7 +193,7 @@ class GlobalMutualInformationLoss(_Loss):
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
 
-    def parzen_windowing(self, input: torch.Tensor) -> Tuple[torch.Tensor,torch.Tensor]:
+    def parzen_windowing(self, input: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
             input: the shape should be BNH[WD].
@@ -211,6 +212,9 @@ class GlobalMutualInformationLoss(_Loss):
             target: the shape should be BNH[WD].
         Raises:
         """
+        assert (
+            target.shape == input.shape
+        ), f"ground truth has differing shape ({target.shape}) from input ({input.shape})"
         wa, pa = self.parzen_windowing(input)  # (batch, num_sample, num_bin), (batch, 1, num_bin)
         wb, pb = self.parzen_windowing(target)  # (batch, num_sample, num_bin), (batch, 1, num_bin)
         pab = torch.bmm(wa.permute(0, 2, 1), wb).div(wa.shape[1])  # (batch, num_bins, num_bins)
