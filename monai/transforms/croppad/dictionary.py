@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -38,6 +38,46 @@ from monai.transforms.utils import (
     weighted_patch_samples,
 )
 from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
+
+__all__ = [
+    "NumpyPadModeSequence",
+    "SpatialPadd",
+    "BorderPadd",
+    "DivisiblePadd",
+    "SpatialCropd",
+    "CenterSpatialCropd",
+    "RandSpatialCropd",
+    "RandSpatialCropSamplesd",
+    "CropForegroundd",
+    "RandWeightedCropd",
+    "RandCropByPosNegLabeld",
+    "ResizeWithPadOrCropd",
+    "BoundingRectd",
+    "SpatialPadD",
+    "SpatialPadDict",
+    "BorderPadD",
+    "BorderPadDict",
+    "DivisiblePadD",
+    "DivisiblePadDict",
+    "SpatialCropD",
+    "SpatialCropDict",
+    "CenterSpatialCropD",
+    "CenterSpatialCropDict",
+    "RandSpatialCropD",
+    "RandSpatialCropDict",
+    "RandSpatialCropSamplesD",
+    "RandSpatialCropSamplesDict",
+    "CropForegroundD",
+    "CropForegroundDict",
+    "RandWeightedCropD",
+    "RandWeightedCropDict",
+    "RandCropByPosNegLabelD",
+    "RandCropByPosNegLabelDict",
+    "ResizeWithPadOrCropD",
+    "ResizeWithPadOrCropDict",
+    "BoundingRectD",
+    "BoundingRectDict",
+]
 
 NumpyPadModeSequence = Union[Sequence[Union[NumpyPadMode, str]], NumpyPadMode, str]
 
