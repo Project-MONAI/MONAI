@@ -8,13 +8,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from typing import Union
 
 import torch
 from torch.nn import functional as F
 from torch.nn.modules.loss import _Loss
 
 from monai.networks.layers import gaussian_1d, separable_filtering
-from monai.utils import LossReduction, Union
+from monai.utils import LossReduction
 
 
 class LocalNormalizedCrossCorrelationLoss(_Loss):
