@@ -38,6 +38,7 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         kernel_size: int = 9,
         kernel_type: str = "rectangular",
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
+        smooth_nr: float = 1e-7,
         smooth_dr: float = 1e-7,
     ) -> None:
         """
@@ -52,6 +53,7 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
                 - ``"none"``: no reduction will be applied.
                 - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
                 - ``"sum"``: the output will be summed.
+            smooth_nr: a small constant added to the numerator to avoid zero.
             smooth_dr: a small constant added to the denominator to avoid nan.
         """
         super(LocalNormalizedCrossCorrelationLoss, self).__init__(reduction=LossReduction(reduction).value)
@@ -77,6 +79,7 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
             )
 
         self.kernel_vol = torch.sum(self.kernel) ** self.ndim
+        self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
 
     def make_rectangular_kernel(self):
@@ -140,11 +143,11 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         cross = tp_sum - p_avg * t_sum
         t_var = t2_sum - t_avg * t_sum  # std[t] ** 2
         p_var = p2_sum - p_avg * p_sum  # std[p] ** 2
-        ncc: torch.Tensor = (cross * cross + self.smooth_dr) / (t_var * p_var + self.smooth_dr)
+        ncc: torch.Tensor = (cross * cross + self.smooth_nr) / (t_var * p_var + self.smooth_dr)
         # shape = (batch, 1, D, H, W)
 
         if self.reduction == LossReduction.SUM.value:
-            return -torch.sum(ncc).neg()  # sum over the batch and channel ndims
+            return torch.sum(ncc).neg()  # sum over the batch and channel ndims
         if self.reduction == LossReduction.NONE.value:
             return ncc.neg()
         if self.reduction == LossReduction.MEAN.value:
