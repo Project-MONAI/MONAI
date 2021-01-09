@@ -185,7 +185,7 @@ class GlobalMutualInformationLoss(_Loss):
             smooth_dr: a small constant added to the denominator to avoid nan.
         """
         super(GlobalMutualInformationLoss, self).__init__(reduction=LossReduction(reduction).value)
-        assert num_bins > 0, f"num_bins must > 0, got f{num_bins}"
+        assert num_bins > 0, f"num_bins must > 0, got {num_bins}"
         bin_centers = torch.linspace(0.0, 1.0, num_bins)  # (num_bins,)
         sigma = torch.mean(bin_centers[1:] - bin_centers[:-1]) * sigma_ratio
         self.preterm = 1 / (2 * sigma ** 2)
@@ -196,7 +196,7 @@ class GlobalMutualInformationLoss(_Loss):
     def parzen_windowing(self, input: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
-            input: the shape should be BNH[WD].
+            input: the shape should be B[NDHW].
         """
         input = torch.clamp(input, 0, 1)
         input = input.reshape(input.shape[0], -1, 1)  # (batch, num_sample, 1)
@@ -208,9 +208,10 @@ class GlobalMutualInformationLoss(_Loss):
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            input: the shape should be BNH[WD].
-            target: the shape should be BNH[WD].
+            input: the shape should be B[NDHW].
+            target: the shape should be same as the input shape.
         Raises:
+            ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
         """
         assert (
             target.shape == input.shape
