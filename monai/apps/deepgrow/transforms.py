@@ -45,7 +45,9 @@ class FindAllValidSlicesd(Transform):
         return np.asarray(sids)
 
     def __call__(self, data):
-        data[self.sids] = self._apply(data[self.label])
+        sids = self._apply(data[self.label])
+        if sids is not None and len(sids):
+            data[self.sids] = sids
         return data
 
 
@@ -382,12 +384,15 @@ class SpatialCropGuidanced(MapTransform):
             center = np.mean([box_start, box_end], axis=0).astype(int).tolist()
             spatial_size = data.get(self.spatial_size_key, self.spatial_size)
 
-            current_size = np.subtract(box_start, box_end).astype(int).tolist()
+            current_size = np.absolute(np.subtract(box_start, box_end)).astype(int).tolist()
             spatial_size = spatial_size[-len(current_size) :]
             if len(spatial_size) < len(current_size):  # 3D spatial_size = [256,256] (include all slices in such case)
                 diff = len(current_size) - len(spatial_size)
                 spatial_size = list(data[key].shape[1 : (1 + diff)]) + spatial_size
-            if np.all(np.less(current_size, self.spatial_size)):
+
+            if np.all(np.less(current_size, spatial_size)):
+                if len(center) == 3:
+                    center[0] = center[0] + (spatial_size[0] // 2 - center[0])
                 cropper = SpatialCrop(roi_center=center, roi_size=spatial_size)
             else:
                 cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
@@ -529,6 +534,7 @@ class AddGuidanceFromPointsd(Randomizable, Transform):
         background="background",
         axis=0,
         channel_first=True,
+        dimensions=2,
         slice_key="slice",
         meta_key_postfix: str = "meta_dict",
     ):
@@ -538,18 +544,19 @@ class AddGuidanceFromPointsd(Randomizable, Transform):
         self.background = background
         self.axis = axis
         self.channel_first = channel_first
+        self.dimensions = dimensions
         self.slice_key = slice_key
         self.meta_key_postfix = meta_key_postfix
 
     def randomize(self, data=None):
         pass
 
-    def _apply(self, dimensions, pos_clicks, neg_clicks, factor, slice_num=None):
+    def _apply(self, pos_clicks, neg_clicks, factor, slice_num=None):
         points = pos_clicks
         points.extend(neg_clicks)
         points = np.array(points)
 
-        if dimensions == 2:
+        if self.dimensions == 2:
             slices = np.unique(points[:, self.axis]).tolist()
             slice_idx = slices[0] if slice_num is None else next(x for x in slices if x == slice_num)
 
@@ -575,7 +582,6 @@ class AddGuidanceFromPointsd(Randomizable, Transform):
         meta_dict = data[f"{self.ref_image}_{self.meta_key_postfix}"]
         original_shape = meta_dict["spatial_shape"]
         current_shape = list(data[self.ref_image].shape)
-        dimensions = 3 if len(current_shape) >= 3 else 2
 
         clicks = [data[self.foreground], data[self.background]]
         if self.channel_first:
@@ -587,8 +593,7 @@ class AddGuidanceFromPointsd(Randomizable, Transform):
                     clicks[i][j] = np.roll(clicks[i][j], 1).tolist()
 
         factor = np.array(current_shape) / original_shape
-
-        data[self.guidance] = self._apply(dimensions, clicks[0], clicks[1], factor, data.get(self.slice_key))
+        data[self.guidance] = self._apply(clicks[0], clicks[1], factor, data.get(self.slice_key))
         return data
 
 
@@ -600,7 +605,7 @@ class Fetch2DSliced(MapTransform):
         self.meta_key_postfix = meta_key_postfix
 
     def _apply(self, image, guidance):
-        slice_idx = guidance[2]
+        slice_idx = guidance[2]  # (pos, neg, slice_idx, factor)
         idx = []
         for i in range(len(image.shape)):
             idx.append(slice_idx) if i == self.axis else idx.append(slice(0, image.shape[i]))
