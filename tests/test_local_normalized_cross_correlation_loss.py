@@ -83,12 +83,12 @@ TEST_CASES = [
         -0.06062524,
     ],
     [
-        {"in_channels": 3, "ndim": 3, "kernel_size": 6, "kernel_type": "triangular"},
+        {"in_channels": 3, "ndim": 3, "kernel_size": 5, "kernel_type": "triangular"},
         {
             "input": torch.arange(0, 3, dtype=torch.float)[None, :, None, None, None].expand(1, 3, 3, 3, 3),
             "target": torch.arange(0, 3, dtype=torch.float)[None, :, None, None, None].expand(1, 3, 3, 3, 3) ** 2,
         },
-        -0.9368649,
+        -0.923356,
     ],
     [
         {"in_channels": 3, "ndim": 3, "kernel_size": 3, "kernel_type": "gaussian"},
@@ -96,7 +96,7 @@ TEST_CASES = [
             "input": torch.arange(0, 3, dtype=torch.float)[None, :, None, None, None].expand(1, 3, 3, 3, 3),
             "target": torch.arange(0, 3, dtype=torch.float)[None, :, None, None, None].expand(1, 3, 3, 3, 3) ** 2,
         },
-        -0.50272596,
+        -1.306177,
     ],
 ]
 
@@ -105,7 +105,7 @@ class TestLocalNormalizedCrossCorrelationLoss(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_data, expected_val):
         result = LocalNormalizedCrossCorrelationLoss(**input_param).forward(**input_data)
-        np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, rtol=1e-2)
+        np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, rtol=1e-4)
 
     def test_ill_shape(self):
         loss = LocalNormalizedCrossCorrelationLoss(in_channels=3, ndim=3)
@@ -122,6 +122,8 @@ class TestLocalNormalizedCrossCorrelationLoss(unittest.TestCase):
     def test_ill_opts(self):
         input = torch.ones((1, 3, 3, 3, 3), dtype=torch.float)
         target = torch.ones((1, 3, 3, 3, 3), dtype=torch.float)
+        with self.assertRaisesRegex(ValueError, ""):
+            LocalNormalizedCrossCorrelationLoss(in_channels=3, kernel_size=4)(input, target)
         with self.assertRaisesRegex(ValueError, ""):
             LocalNormalizedCrossCorrelationLoss(in_channels=3, reduction="unknown")(input, target)
         with self.assertRaisesRegex(ValueError, ""):

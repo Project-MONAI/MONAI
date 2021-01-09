@@ -13,9 +13,8 @@ import torch
 from torch.nn import functional as F
 from torch.nn.modules.loss import _Loss
 
+from monai.networks.layers import gaussian_1d, separable_filtering
 from monai.utils import LossReduction, Union
-
-conv_dict = {1: F.conv1d, 2: F.conv2d, 3: F.conv3d}
 
 
 class LocalNormalizedCrossCorrelationLoss(_Loss):
@@ -44,7 +43,7 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         Args:
             in_channels: number of input channels
             ndim: number of spatial ndimensions, {``1``, ``2``, ``3``}. Defaults to 3.
-            kernel_size: kernel size or kernel sigma for kernel_type=``"gaussian"``
+            kernel_size: kernel spatial size, must be odd.
             kernel_type: {``"rectangular"``, ``"triangular"``, ``"gaussian"``}. Defaults to ``"rectangular"``.
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
                 Specifies the reduction to apply to the output. Defaults to ``"mean"``.
@@ -56,62 +55,46 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         """
         super(LocalNormalizedCrossCorrelationLoss, self).__init__(reduction=LossReduction(reduction).value)
         self.in_channels = in_channels
+
         self.ndim = ndim
         if self.ndim not in [1, 2, 3]:
             raise ValueError(f"Unsupported ndim: {self.ndim}-d, only 1-d, 2-d, and 3-d inputs are supported")
-        self.fn = conv_dict[self.ndim]
+
         self.kernel_size = kernel_size
+        if self.kernel_size % 2 == 0:
+            raise ValueError(f"kernel_size must be odd, got {self.kernel_size}")
+
         if kernel_type == "rectangular":
-            self.kernel, self.kernel_vol, self.padding = self.make_rectangular_kernel()
+            self.kernel = self.make_rectangular_kernel()
         elif kernel_type == "triangular":
-            self.kernel, self.kernel_vol, self.padding = self.make_triangular_kernel()
+            self.kernel = self.make_triangular_kernel()
         elif kernel_type == "gaussian":
-            self.kernel, self.kernel_vol, self.padding = self.make_gaussian_kernel()
+            self.kernel = self.make_gaussian_kernel()
         else:
             raise ValueError(
                 f'Unsupported kernel_type: {kernel_type}, available options are ["rectangular", "triangular", "gaussian"].'
             )
+
+        self.kernel_vol = torch.sum(self.kernel) ** self.ndim
         self.smooth_dr = float(smooth_dr)
 
     def make_rectangular_kernel(self):
-        shape = [1, self.in_channels] + [self.kernel_size] * self.ndim
-        return torch.ones(shape, dtype=torch.float), self.kernel_size ** self.ndim, int((self.kernel_size - 1) / 2)
+        return torch.ones(self.kernel_size)
 
     def make_triangular_kernel(self):
-        fsize = int((self.kernel_size + 1) // 2)
-        f1 = torch.ones([1, 1] + [fsize] * self.ndim, dtype=torch.float).div(fsize)  # (1, 1, D, H, W)
-        f1 = F.pad(f1, [(fsize - 1) // 2, (fsize - 1) // 2] * self.ndim)
-        f2 = torch.ones([self.in_channels, 1] + [fsize] * self.ndim, dtype=torch.float).div(fsize)
-        # (in_channels, 1, D, H, W)
-        # (1, 1, D, H, W) -> (1, in_channels, D, H, W)
-        padding_needed = max(fsize - 1, 0)
-        padding = [padding_needed // 2, padding_needed - padding_needed // 2] * self.ndim
-        f1 = F.pad(f1, padding)
-        kernel = self.fn(f1, f2)
-
-        return kernel, torch.sum(kernel ** 2), int((fsize - 1) / 2.0)
+        fsize = (self.kernel_size + 1) // 2
+        if fsize % 2 == 0:
+            fsize -= 1
+        f = torch.ones((1, 1, fsize), dtype=torch.float).div(fsize)
+        padding = (self.kernel_size - fsize) // 2 + fsize // 2
+        return F.conv1d(f, f, padding=padding).reshape(-1)
 
     def make_gaussian_kernel(self):
-        mean = (self.kernel_size - 1) / 2.0
-        sigma = self.kernel_size / 3.0
-
-        grid_ndim = torch.arange(0, self.kernel_size)
-        grid_ndim_ch = torch.arange(0, self.in_channels)
-
-        if self.ndim == 1:
-            grid = torch.meshgrid(grid_ndim_ch, grid_ndim)
-        elif self.ndim == 2:
-            grid = torch.meshgrid(grid_ndim_ch, grid_ndim, grid_ndim)
-        elif self.ndim == 3:
-            grid = torch.meshgrid(grid_ndim_ch, grid_ndim, grid_ndim, grid_ndim)
-        else:
-            raise ValueError
-
-        grid = torch.stack(grid, dim=-1).to(dtype=torch.float)
-        kernel = torch.exp(-torch.sum(torch.square(grid - mean), dim=-1) / (2 * sigma ** 2)).unsqueeze(
-            0
-        )  # (1, in_channel, kernel_size, kernel_size, kernel_size)
-        return kernel, torch.sum(kernel ** 2), int((self.kernel_size - 1) / 2.0)
+        sigma = torch.tensor(self.kernel_size / 3.0)
+        kernel = gaussian_1d(sigma=sigma, truncated=self.kernel_size // 2, approx="sampled", normalize=False) * (
+            2.5066282 * sigma
+        )
+        return kernel[: self.kernel_size]
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -134,11 +117,11 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         t2, p2, tp = target ** 2, input ** 2, target * input
 
         # sum over kernel
-        t_sum = self.fn(target, weight=self.kernel, padding=self.padding)
-        p_sum = self.fn(input, weight=self.kernel, padding=self.padding)
-        t2_sum = self.fn(t2, weight=self.kernel, padding=self.padding)
-        p2_sum = self.fn(p2, weight=self.kernel, padding=self.padding)
-        tp_sum = self.fn(tp, weight=self.kernel, padding=self.padding)
+        t_sum = separable_filtering(target, kernels=[self.kernel] * self.ndim).sum(1, keepdim=True)
+        p_sum = separable_filtering(input, kernels=[self.kernel] * self.ndim).sum(1, keepdim=True)
+        t2_sum = separable_filtering(t2, kernels=[self.kernel] * self.ndim).sum(1, keepdim=True)
+        p2_sum = separable_filtering(p2, kernels=[self.kernel] * self.ndim).sum(1, keepdim=True)
+        tp_sum = separable_filtering(tp, kernels=[self.kernel] * self.ndim).sum(1, keepdim=True)
 
         # average over kernel
         t_avg = t_sum / self.kernel_vol

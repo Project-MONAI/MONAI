@@ -365,3 +365,9 @@ class LLTM(nn.Module):
 
     def forward(self, input, state):
         return LLTMFunction.apply(input, self.weights, self.bias, *state)
+
+
+if __name__ == "__main__":
+    input = torch.ones((1, 3, 3, 3))
+    kernels = [torch.ones(1, 3)] * 2
+    print(separable_filtering(input, kernels))
