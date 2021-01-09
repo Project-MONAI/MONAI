@@ -38,6 +38,7 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         kernel_size: int = 9,
         kernel_type: str = "rectangular",
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
+        smooth_nr: float = 1e-7,
         smooth_dr: float = 1e-7,
     ) -> None:
         """
@@ -52,6 +53,7 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
                 - ``"none"``: no reduction will be applied.
                 - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
                 - ``"sum"``: the output will be summed.
+            smooth_nr: a small constant added to the numerator to avoid nan.
             smooth_dr: a small constant added to the denominator to avoid nan.
         """
         super(LocalNormalizedCrossCorrelationLoss, self).__init__(reduction=LossReduction(reduction).value)
@@ -77,6 +79,7 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
             )
 
         self.kernel_vol = torch.sum(self.kernel) ** self.ndim
+        self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
 
     def make_rectangular_kernel(self):
@@ -140,7 +143,7 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         cross = tp_sum - p_avg * t_sum
         t_var = t2_sum - t_avg * t_sum  # std[t] ** 2
         p_var = p2_sum - p_avg * p_sum  # std[p] ** 2
-        ncc: torch.Tensor = (cross * cross + self.smooth_dr) / (t_var * p_var + self.smooth_dr)
+        ncc: torch.Tensor = (cross * cross + self.smooth_nr) / (t_var * p_var + self.smooth_dr)
         # shape = (batch, 1, D, H, W)
 
         if self.reduction == LossReduction.SUM.value:
@@ -149,4 +152,77 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
             return ncc.neg()
         if self.reduction == LossReduction.MEAN.value:
             return torch.mean(ncc).neg()  # average over the batch and channel ndims
+        raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
+
+
+class GlobalMutualInformationLoss(_Loss):
+    """
+    Differentiable global mutual information loss via Parzen windowing method.
+
+    Reference:
+        https://dspace.mit.edu/handle/1721.1/123142, Section 3.1, equation 3.1-3.5, Algorithm 1
+    """
+
+    def __init__(
+        self,
+        num_bins: int = 23,
+        sigma_ratio: float = 0.5,
+        reduction: Union[LossReduction, str] = LossReduction.MEAN,
+        smooth_nr: float = 1e-7,
+        smooth_dr: float = 1e-7,
+    ) -> None:
+        """
+        Args:
+            num_bins: number of bins for intensity
+            sigma_ratio: a hyper param for gaussian function
+            reduction: {``"none"``, ``"mean"``, ``"sum"``}
+                Specifies the reduction to apply to the output. Defaults to ``"mean"``.
+
+                - ``"none"``: no reduction will be applied.
+                - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
+                - ``"sum"``: the output will be summed.
+            smooth_nr: a small constant added to the numerator to avoid nan.
+            smooth_dr: a small constant added to the denominator to avoid nan.
+        """
+        super(GlobalMutualInformationLoss, self).__init__(reduction=LossReduction(reduction).value)
+        bin_centers = torch.linspace(0.0, 1.0, num_bins)  # (num_bins,)
+        sigma = torch.mean(bin_centers[1:] - bin_centers[:-1]) * sigma_ratio
+        self.preterm = 1 / (2 * sigma ** 2)
+        self.bin_centers = bin_centers[None, None, ...]
+        self.smooth_nr = float(smooth_nr)
+        self.smooth_dr = float(smooth_dr)
+
+    def parzen_windowing(self, input: torch.Tensor) -> (torch.Tensor, torch.Tensor):
+        """
+        Args:
+            input: the shape should be BNH[WD].
+        """
+        input = torch.clamp(input, 0, 1)
+        input = input.reshape(input.shape[0], -1, 1)  # (batch, num_sample, 1)
+        weight = torch.exp(-self.preterm * (input - self.bin_centers) ** 2)  # (batch, num_sample, num_bin)
+        weight = weight / torch.sum(weight, dim=-1, keepdim=True)  # (batch, num_sample, num_bin)
+        probability = torch.mean(weight, dim=-2, keepdim=True)  # (batch, 1, num_bin)
+        return weight, probability
+
+    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            input: the shape should be BNH[WD].
+            target: the shape should be BNH[WD].
+        Raises:
+        """
+        wa, pa = self.parzen_windowing(input)  # (batch, num_sample, num_bin), (batch, 1, num_bin)
+        wb, pb = self.parzen_windowing(target)  # (batch, num_sample, num_bin), (batch, 1, num_bin)
+        pab = torch.bmm(wa.permute(0, 2, 1), wb).div(wa.shape[1])  # (batch, num_bins, num_bins)
+
+        papb = torch.bmm(pa.permute(0, 2, 1), pb)  # (batch, num_bins, num_bins)
+        mi = torch.sum(
+            pab * torch.log((pab + self.smooth_nr) / (papb + self.smooth_dr) + self.smooth_dr), dim=(1, 2)
+        )  # (batch)
+        if self.reduction == LossReduction.SUM.value:
+            return torch.sum(mi).neg()  # sum over the batch and channel ndims
+        if self.reduction == LossReduction.NONE.value:
+            return mi.neg()
+        if self.reduction == LossReduction.MEAN.value:
+            return torch.mean(mi).neg()  # average over the batch and channel ndims
         raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
