@@ -146,7 +146,7 @@ def download_url(url: str, filepath: str, hash_val: Optional[str] = None, hash_t
             if has_tqdm:
                 pbar.close()
         except IOError as e:
-            logging.debug("IO Error - %s" % e)
+            logging.debug("IO Error - %s", e)
         finally:
             if file_size == os.path.getsize(tmp_file_path):
                 if hash_val and not check_hash(tmp_file_path, hash_val, hash_type):
