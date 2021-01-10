@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -22,4 +22,5 @@ from .dice import (
     generalized_wasserstein_dice,
 )
 from .focal_loss import FocalLoss
+from .image_dissimilarity import LocalNormalizedCrossCorrelationLoss
 from .tversky import TverskyLoss

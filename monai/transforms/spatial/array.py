@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -45,6 +45,28 @@ from monai.utils import (
 )
 
 nib, _ = optional_import("nibabel")
+
+__all__ = [
+    "Spacing",
+    "Orientation",
+    "Flip",
+    "Resize",
+    "Rotate",
+    "Zoom",
+    "Rotate90",
+    "RandRotate90",
+    "RandRotate",
+    "RandFlip",
+    "RandZoom",
+    "AffineGrid",
+    "RandAffineGrid",
+    "RandDeformGrid",
+    "Resample",
+    "Affine",
+    "RandAffine",
+    "Rand2DElastic",
+    "Rand3DElastic",
+]
 
 
 class Spacing(Transform):

@@ -60,7 +60,7 @@ pip install -U -r requirements-dev.txt  # install the latest tools
 
 License information: all source code files should start with this paragraph:
 ```
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -72,6 +72,13 @@ License information: all source code files should start with this paragraph:
 # limitations under the License.
 
 ```
+
+##### Exporting modules
+
+If you intend for any variables/functions/classes to be available outside of the file with the edited functionality, then:
+
+- Create or append to the `__all__` variable (in the file in which functionality has been added), and
+- Add to the `__init__.py` file.
 
 #### Unit testing
 MONAI tests are located under `tests/`.

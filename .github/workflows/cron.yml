@@ -56,11 +56,12 @@ jobs:
   cron-docker:
     if: github.repository == 'Project-MONAI/MONAI'
     container:
-      image: docker://projectmonai/monai:latest
+      image: localhost:5000/local_monai:dockerhub # use currently latest, locally available dockerhub image
       options: "--gpus all"
     runs-on: [self-hosted, linux, x64, common]
     steps:
     - name: Run tests report coverage
+      # The docker image process has done the compilation.  BUILD_MONAI=1 may not be necessary.
       run: |
         cd /opt/monai
         nvidia-smi
