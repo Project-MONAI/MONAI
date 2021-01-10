@@ -136,7 +136,7 @@ def load_decathlon_properties(
     with open(data_property_file_path) as json_file:
         json_data = json.load(json_file)
 
-    properties = dict()
+    properties = {}
     for key in ensure_tuple(property_keys):
         if key not in json_data:
             raise KeyError(f"key {key} is not in the data property file.")

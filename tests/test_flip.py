@@ -32,7 +32,7 @@ class TestFlip(NumpyImageTestCase2D):
     @parameterized.expand(VALID_CASES)
     def test_correct_results(self, _, spatial_axis):
         flip = Flip(spatial_axis=spatial_axis)
-        expected = list()
+        expected = []
         for channel in self.imt[0]:
             expected.append(np.flip(channel, spatial_axis))
         expected = np.stack(expected)

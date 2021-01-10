@@ -75,8 +75,8 @@ def generate_param_groups(
 
         return _filter
 
-    params = list()
-    _layers = list()
+    params = []
+    _layers = []
     for func, ty, lr in zip(layer_matches, match_types, lr_values):
         if ty.lower() == "select":
             layer_params = _get_select(func)

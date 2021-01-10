@@ -807,7 +807,7 @@ class ZipDataset(Dataset):
         def to_list(x):
             return list(x) if isinstance(x, (tuple, list)) else [x]
 
-        data = list()
+        data = []
         for dataset in self.data:
             data.extend(to_list(dataset[index]))
         if self.transform is not None:

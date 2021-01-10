@@ -32,7 +32,7 @@ class TestLoadImaged(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape(self, input_param, expected_shape):
         test_image = nib.Nifti1Image(np.random.rand(128, 128, 128), np.eye(4))
-        test_data = dict()
+        test_data = {}
         with tempfile.TemporaryDirectory() as tempdir:
             for key in KEYS:
                 nib.save(test_image, os.path.join(tempdir, key + ".nii.gz"))
