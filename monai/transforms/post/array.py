@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -24,6 +24,15 @@ from monai.networks import one_hot
 from monai.transforms.compose import Transform
 from monai.transforms.utils import get_largest_connected_component_mask
 from monai.utils import ensure_tuple
+
+__all__ = [
+    "Activations",
+    "AsDiscrete",
+    "KeepLargestConnectedComponent",
+    "LabelToContour",
+    "MeanEnsemble",
+    "VoteEnsemble",
+]
 
 
 class Activations(Transform):

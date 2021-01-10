@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -28,6 +28,8 @@ from monai.utils import ensure_tuple, optional_import
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
+
+__all__ = ["LoadImage", "LoadNifti", "LoadPNG", "LoadNumpy"]
 
 
 class LoadImage(Transform):
