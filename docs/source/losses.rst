@@ -67,6 +67,6 @@ Registration Losses
     :members:
 
 `LocalNormalizedCrossCorrelationLoss`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: LocalNormalizedCrossCorrelationLoss
     :members:
