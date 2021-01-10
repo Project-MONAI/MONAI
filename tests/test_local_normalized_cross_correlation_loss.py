@@ -75,6 +75,14 @@ TEST_CASES = [
         -1.0,
     ],
     [
+        {"in_channels": 3, "ndim": 1, "kernel_size": 3, "kernel_type": "gaussian", "reduction": "sum"},
+        {
+            "input": torch.arange(0, 3, dtype=torch.float)[None, :, None].expand(2, 3, 3),
+            "target": torch.arange(0, 3, dtype=torch.float)[None, :, None].expand(2, 3, 3),
+        },
+        -6.0,
+    ],
+    [
         {"in_channels": 3, "ndim": 3, "kernel_size": 3, "kernel_type": "rectangular"},
         {
             "input": torch.arange(0, 3, dtype=torch.float)[None, :, None, None, None].expand(1, 3, 3, 3, 3),
@@ -122,6 +130,10 @@ class TestLocalNormalizedCrossCorrelationLoss(unittest.TestCase):
     def test_ill_opts(self):
         input = torch.ones((1, 3, 3, 3, 3), dtype=torch.float)
         target = torch.ones((1, 3, 3, 3, 3), dtype=torch.float)
+        with self.assertRaisesRegex(ValueError, ""):
+            LocalNormalizedCrossCorrelationLoss(in_channels=3, kernel_type="unknown")(input, target)
+        with self.assertRaisesRegex(ValueError, ""):
+            LocalNormalizedCrossCorrelationLoss(in_channels=3, kernel_type=None)(input, target)
         with self.assertRaisesRegex(ValueError, ""):
             LocalNormalizedCrossCorrelationLoss(in_channels=3, kernel_size=4)(input, target)
         with self.assertRaisesRegex(ValueError, ""):

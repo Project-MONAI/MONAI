@@ -18,6 +18,34 @@ from monai.networks.layers import gaussian_1d, separable_filtering
 from monai.utils import LossReduction
 
 
+def make_rectangular_kernel(kernel_size: int) -> torch.Tensor:
+    return torch.ones(kernel_size)
+
+
+def make_triangular_kernel(kernel_size: int) -> torch.Tensor:
+    fsize = (kernel_size + 1) // 2
+    if fsize % 2 == 0:
+        fsize -= 1
+    f = torch.ones((1, 1, fsize), dtype=torch.float).div(fsize)
+    padding = (kernel_size - fsize) // 2 + fsize // 2
+    return F.conv1d(f, f, padding=padding).reshape(-1)
+
+
+def make_gaussian_kernel(kernel_size: int) -> torch.Tensor:
+    sigma = torch.tensor(kernel_size / 3.0)
+    kernel = gaussian_1d(sigma=sigma, truncated=kernel_size // 2, approx="sampled", normalize=False) * (
+        2.5066282 * sigma
+    )
+    return kernel[:kernel_size]
+
+
+kernel_dict = {
+    "rectangular": make_rectangular_kernel,
+    "triangular": make_triangular_kernel,
+    "gaussian": make_gaussian_kernel,
+}
+
+
 class LocalNormalizedCrossCorrelationLoss(_Loss):
     """
     Local squared zero-normalized cross-correlation.
@@ -67,38 +95,14 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         if self.kernel_size % 2 == 0:
             raise ValueError(f"kernel_size must be odd, got {self.kernel_size}")
 
-        if kernel_type == "rectangular":
-            self.kernel = self.make_rectangular_kernel()
-        elif kernel_type == "triangular":
-            self.kernel = self.make_triangular_kernel()
-        elif kernel_type == "gaussian":
-            self.kernel = self.make_gaussian_kernel()
-        else:
+        if kernel_type not in kernel_dict.keys():
             raise ValueError(
                 f'Unsupported kernel_type: {kernel_type}, available options are ["rectangular", "triangular", "gaussian"].'
             )
-
+        self.kernel = kernel_dict[kernel_type](self.kernel_size)
         self.kernel_vol = torch.sum(self.kernel) ** self.ndim
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
-
-    def make_rectangular_kernel(self):
-        return torch.ones(self.kernel_size)
-
-    def make_triangular_kernel(self):
-        fsize = (self.kernel_size + 1) // 2
-        if fsize % 2 == 0:
-            fsize -= 1
-        f = torch.ones((1, 1, fsize), dtype=torch.float).div(fsize)
-        padding = (self.kernel_size - fsize) // 2 + fsize // 2
-        return F.conv1d(f, f, padding=padding).reshape(-1)
-
-    def make_gaussian_kernel(self):
-        sigma = torch.tensor(self.kernel_size / 3.0)
-        kernel = gaussian_1d(sigma=sigma, truncated=self.kernel_size // 2, approx="sampled", normalize=False) * (
-            2.5066282 * sigma
-        )
-        return kernel[: self.kernel_size]
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -147,11 +151,11 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         # shape = (batch, 1, D, H, W)
 
         if self.reduction == LossReduction.SUM.value:
-            return -torch.sum(ncc).neg()  # sum over the batch and channel ndims
+            return torch.sum(ncc).neg()  # sum over the batch and spatial ndims
         if self.reduction == LossReduction.NONE.value:
             return ncc.neg()
         if self.reduction == LossReduction.MEAN.value:
-            return torch.mean(ncc).neg()  # average over the batch and channel ndims
+            return torch.mean(ncc).neg()  # average over the batch and spatial ndims
         raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
 
 
