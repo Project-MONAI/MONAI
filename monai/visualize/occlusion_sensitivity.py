@@ -150,7 +150,6 @@ class OcclusionSensitivity:
         n_batch: int = 128,
         stride: Union[int, Sequence] = 1,
         upsampler: Optional[Callable] = default_upsampler,
-        postprocessing: Optional[Callable] = None,
         verbose: bool = True,
     ) -> None:
         """Occlusion sensitivitiy constructor.
@@ -161,28 +160,17 @@ class OcclusionSensitivity:
         :param mask_size: size of box to be occluded, centred on the central voxel. To ensure that the occluded area
             is correctly centred, ``mask_size`` and ``stride`` should both be odd or even.
         :param n_batch: number of images in a batch for inference.
-        :param b_box: Bounding box on which to perform the analysis. The output image
-            will also match in size. There should be a minimum and maximum for
-            all dimensions except batch: ``[min1, max1, min2, max2,...]``.
-                - By default, the whole image will be used.
-                - Decreasing the size will speed the analysis up, which might be useful for larger images.
-                - Min and max are inclusive, so ``[0, 63, ...]`` will have size ``(64, ...)``.
-                - Use -ve to use ``0`` for min values and ``im.shape[x]-1`` for xth dimension.
-
         :param stride: Stride in spatial directions for performing occlusions. Can be single
             value or sequence (for varying stride in the different directions).
             Should be >= 1. Striding in the channel direction will always be 1.
         :param upsampler: An upsampling method to upsample the output image. Default is
             N-dimensional linear (bilinear, trilinear, etc.) depending on num spatial
             dimensions of input.
-        :param postprocessing: a callable that applies on the upsampled output image.
-            default is ``None``.
         :param verbose: use ``tdqm.trange`` output (if available).
         """
 
         self.nn_module = nn_module
         self.upsampler = upsampler
-        self.postprocessing = postprocessing
         self.pad_val = pad_val
         self.mask_size = mask_size
         self.n_batch = n_batch
@@ -311,7 +299,7 @@ class OcclusionSensitivity:
             # Loop over image for each classification
             for i in range(len(sensitivity_ims)):
 
-                # upsampling and postprocessing
+                # upsample
                 if self.upsampler is not None:
                     if np.any(output_im_shape != x.shape[1:]):
                         img_spatial = tuple(output_im_shape[1:])
