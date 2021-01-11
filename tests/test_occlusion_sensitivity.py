@@ -45,6 +45,7 @@ TEST_CASE_1 = [
         "nn_module": model_3d,
         "n_batch": 10,
         "stride": (2, 1, 2),
+        "mask_size": (16,15,14)
     },
     {
         "x": torch.rand(1, 1, 6, 6, 6).to(device),

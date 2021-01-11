@@ -81,7 +81,7 @@ def _get_as_np_array(val, numel):
     # If not a sequence, then convert scalar to numpy array
     if not isinstance(val, Sequence):
         out = np.full(numel, val, dtype=np.int32)
-        out[0] = 1  # margin and stride always 1 in channel dimension
+        out[0] = 1  # mask_size and stride always 1 in channel dimension
     else:
         # Convert to numpy array and check dimensions match
         out = np.array(val, dtype=np.int32)
@@ -89,7 +89,7 @@ def _get_as_np_array(val, numel):
         out = np.insert(out, 0, 1)
         if out.size != numel:
             raise ValueError(
-                "If supplying stride/margin as sequence, number of elements should match number of spatial dimensions."
+                "If supplying stride/mask_size as sequence, number of elements should match number of spatial dimensions."
             )
     return out
 
@@ -146,7 +146,7 @@ class OcclusionSensitivity:
         self,
         nn_module: nn.Module,
         pad_val: Optional[float] = None,
-        margin: Union[int, Sequence] = 2,
+        mask_size: Union[int, Sequence] = 15,
         n_batch: int = 128,
         stride: Union[int, Sequence] = 1,
         upsampler: Optional[Callable] = default_upsampler,
@@ -158,11 +158,8 @@ class OcclusionSensitivity:
         :param nn_module: classification model to use for inference
         :param pad_val: when occluding part of the image, which values should we put
             in the image? If ``None`` is used, then the average of the image will be used.
-        :param margin: we'll create a cuboid/cube around the voxel to be occluded. if
-            ``margin==2``, then we'll create a cube that is +/- 2 voxels in
-            all directions (i.e., a cube of 5 x 5 x 5 voxels). A ``Sequence``
-            can be supplied to have a margin of different sizes (i.e., create
-            a cuboid).
+        :param mask_size: size of box to be occluded, centred on the central voxel. To ensure that the occluded area
+            is correctly centred, ``mask_size`` and ``stride`` should both be odd or even.
         :param n_batch: number of images in a batch for inference.
         :param b_box: Bounding box on which to perform the analysis. The output image
             will also match in size. There should be a minimum and maximum for
@@ -187,7 +184,7 @@ class OcclusionSensitivity:
         self.upsampler = upsampler
         self.postprocessing = postprocessing
         self.pad_val = pad_val
-        self.margin = margin
+        self.mask_size = mask_size
         self.n_batch = n_batch
         self.stride = stride
         self.verbose = verbose
@@ -214,21 +211,29 @@ class OcclusionSensitivity:
         # If bounding box is present, shape is max - min + 1
         output_im_shape = im_shape if b_box is None else b_box_max - b_box_min + 1
 
-        # Get the stride and margin as numpy arrays
+        # Get the stride and mask_size as numpy arrays
         self.stride = _get_as_np_array(self.stride, len(im_shape))
-        self.margin = _get_as_np_array(self.margin, len(im_shape))
+        self.mask_size = _get_as_np_array(self.mask_size, len(im_shape))
 
-        # For each dimension, if the size is > 1, then check that the stride is a factor of the output image shape
+        # For each dimension, ...
         for o, s in zip(output_im_shape, self.stride):
+            # if the size is > 1, then check that the stride is a factor of the output image shape
             if o > 1 and o % s != 0:
-                raise ValueError(
-                    "Stride should be a factor of the image shape. Im shape "
-                    + f"(taking bounding box into account): {output_im_shape}, stride: {self.stride}"
-                )
+                raise ValueError("Stride should be a factor of the image shape. Im shape "
+                                 + f"(taking bounding box into account): {output_im_shape}, stride: {self.stride}")
+
+        # to ensure the occluded area is nicely centred if stride is even, ensure that so is the mask_size
+        if np.any(self.mask_size % 2 != self.stride % 2):
+            raise ValueError("Stride and mask size should both be odd or even (element-wise). "
+                             + f"``stride={self.stride}``, ``mask_size={self.mask_size}``")
 
         downsampled_im_shape = (output_im_shape / self.stride).astype(np.int32)
         downsampled_im_shape[downsampled_im_shape == 0] = 1  # make sure dimension sizes are >= 1
         num_required_predictions = np.prod(downsampled_im_shape)
+
+        # Get bottom left and top right corners of occluded region
+        lower_corner = (self.stride - self.mask_size) // 2
+        upper_corner = (self.stride + self.mask_size) // 2 - 1
 
         # Loop 1D over image
         verbose_range = trange if self.verbose else range
@@ -242,21 +247,9 @@ class OcclusionSensitivity:
             if b_box_min is not None:
                 idx += b_box_min
 
-            # Get min and max index of box to occlude
-            min_idx = idx.copy()
-            max_idx = idx.copy()
-            for q in range(len(im_shape)):
-                # if stride is even, occlude two central voxels plus margin
-                if self.stride[q] % 2 == 0:
-                    min_idx[q] += np.floor((self.stride[q] - 1) / 2) - self.margin[q]
-                    max_idx[q] += np.ceil((self.stride[q] - 1) / 2) + self.margin[q]
-                # if stride is odd, occlude central voxel plus margin
-                else:
-                    min_idx[q] += (self.stride[q] - 1) / 2 - self.margin[q]
-                    max_idx[q] += (self.stride[q] - 1) / 2 + self.margin[q]
-                # make sure it's in bounds
-                min_idx[q] = max(0, min_idx[q])
-                max_idx[q] = min(im_shape[q], max_idx[q])
+            # Get min and max index of box to occlude (and make sure it's in bounds)
+            min_idx = np.maximum(idx + lower_corner, 0)
+            max_idx = np.minimum(idx + upper_corner, im_shape)
 
             # Clone and replace target area with `pad_val`
             occlu_im = x.detach().clone()
