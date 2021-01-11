@@ -21,7 +21,7 @@ TEST_CASES = [
     [
         {},
         {
-            "input": torch.arange(0, 3, dtype=torch.float)[None, :, None, None, None].expand(1, 3, 3, 3, 3).div(3),
+            "pred": torch.arange(0, 3, dtype=torch.float)[None, :, None, None, None].expand(1, 3, 3, 3, 3).div(3),
             "target": torch.arange(0, 3, dtype=torch.float)[None, :, None, None, None].expand(1, 3, 3, 3, 3).div(3),
         },
         -1.0986018,
@@ -29,7 +29,7 @@ TEST_CASES = [
     [
         {},
         {
-            "input": torch.arange(0, 3, dtype=torch.float)[None, :, None, None, None].expand(1, 3, 3, 3, 3).div(3),
+            "pred": torch.arange(0, 3, dtype=torch.float)[None, :, None, None, None].expand(1, 3, 3, 3, 3).div(3),
             "target": torch.arange(0, 3, dtype=torch.float)[None, :, None, None, None].expand(1, 3, 3, 3, 3).div(3)
             ** 2,
         },
@@ -38,7 +38,7 @@ TEST_CASES = [
     [
         {},
         {
-            "input": torch.arange(0, 3, dtype=torch.float)[None, :, None, None].expand(1, 3, 3, 3).div(3),
+            "pred": torch.arange(0, 3, dtype=torch.float)[None, :, None, None].expand(1, 3, 3, 3).div(3),
             "target": torch.arange(0, 3, dtype=torch.float)[None, :, None, None].expand(1, 3, 3, 3).div(3) ** 2,
         },
         -1.083999,
@@ -46,7 +46,7 @@ TEST_CASES = [
     [
         {},
         {
-            "input": torch.arange(0, 3, dtype=torch.float)[None, :, None].expand(1, 3, 3).div(3),
+            "pred": torch.arange(0, 3, dtype=torch.float)[None, :, None].expand(1, 3, 3).div(3),
             "target": torch.arange(0, 3, dtype=torch.float)[None, :, None].expand(1, 3, 3).div(3) ** 2,
         },
         -1.083999,
@@ -54,7 +54,7 @@ TEST_CASES = [
     [
         {},
         {
-            "input": torch.arange(0, 3, dtype=torch.float)[None, :].div(3),
+            "pred": torch.arange(0, 3, dtype=torch.float)[None, :].div(3),
             "target": torch.arange(0, 3, dtype=torch.float)[None, :].div(3) ** 2,
         },
         -1.083999,
@@ -62,7 +62,7 @@ TEST_CASES = [
     [
         {},
         {
-            "input": torch.arange(0, 3, dtype=torch.float).div(3),
+            "pred": torch.arange(0, 3, dtype=torch.float).div(3),
             "target": torch.arange(0, 3, dtype=torch.float).div(3) ** 2,
         },
         -1.1920927e-07,
@@ -78,22 +78,22 @@ class TestGlobalMutualInformationLoss(unittest.TestCase):
 
     def test_ill_shape(self):
         loss = GlobalMutualInformationLoss()
-        with self.assertRaisesRegex(AssertionError, ""):
+        with self.assertRaisesRegex(ValueError, ""):
             loss.forward(torch.ones((1, 2), dtype=torch.float), torch.ones((1, 3), dtype=torch.float))
-        with self.assertRaisesRegex(AssertionError, ""):
+        with self.assertRaisesRegex(ValueError, ""):
             loss.forward(torch.ones((1, 3, 3), dtype=torch.float), torch.ones((1, 3), dtype=torch.float))
 
     def test_ill_opts(self):
-        input = torch.ones((1, 3, 3, 3, 3), dtype=torch.float)
+        pred = torch.ones((1, 3, 3, 3, 3), dtype=torch.float)
         target = torch.ones((1, 3, 3, 3, 3), dtype=torch.float)
-        with self.assertRaisesRegex(AssertionError, ""):
-            GlobalMutualInformationLoss(num_bins=0)(input, target)
-        with self.assertRaisesRegex(AssertionError, ""):
-            GlobalMutualInformationLoss(num_bins=-1)(input, target)
         with self.assertRaisesRegex(ValueError, ""):
-            GlobalMutualInformationLoss(reduction="unknown")(input, target)
+            GlobalMutualInformationLoss(num_bins=0)(pred, target)
         with self.assertRaisesRegex(ValueError, ""):
-            GlobalMutualInformationLoss(reduction=None)(input, target)
+            GlobalMutualInformationLoss(num_bins=-1)(pred, target)
+        with self.assertRaisesRegex(ValueError, ""):
+            GlobalMutualInformationLoss(reduction="unknown")(pred, target)
+        with self.assertRaisesRegex(ValueError, ""):
+            GlobalMutualInformationLoss(reduction=None)(pred, target)
 
 
 if __name__ == "__main__":

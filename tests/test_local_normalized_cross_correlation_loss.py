@@ -21,7 +21,7 @@ TEST_CASES = [
     [
         {"in_channels": 3, "ndim": 3, "kernel_size": 3, "kernel_type": "rectangular"},
         {
-            "input": torch.arange(0, 3, dtype=torch.float)[None, :, None, None, None].expand(1, 3, 3, 3, 3),
+            "pred": torch.arange(0, 3, dtype=torch.float)[None, :, None, None, None].expand(1, 3, 3, 3, 3),
             "target": torch.arange(0, 3, dtype=torch.float)[None, :, None, None, None].expand(1, 3, 3, 3, 3),
         },
         -1.0,
@@ -29,7 +29,7 @@ TEST_CASES = [
     [
         {"in_channels": 3, "ndim": 2, "kernel_size": 3, "kernel_type": "rectangular"},
         {
-            "input": torch.arange(0, 3, dtype=torch.float)[None, :, None, None].expand(1, 3, 3, 3),
+            "pred": torch.arange(0, 3, dtype=torch.float)[None, :, None, None].expand(1, 3, 3, 3),
             "target": torch.arange(0, 3, dtype=torch.float)[None, :, None, None].expand(1, 3, 3, 3),
         },
         -1.0,
@@ -37,7 +37,7 @@ TEST_CASES = [
     [
         {"in_channels": 3, "ndim": 2, "kernel_size": 3, "kernel_type": "triangular"},
         {
-            "input": torch.arange(0, 3, dtype=torch.float)[None, :, None, None].expand(1, 3, 3, 3),
+            "pred": torch.arange(0, 3, dtype=torch.float)[None, :, None, None].expand(1, 3, 3, 3),
             "target": torch.arange(0, 3, dtype=torch.float)[None, :, None, None].expand(1, 3, 3, 3),
         },
         -1.0,
@@ -45,7 +45,7 @@ TEST_CASES = [
     [
         {"in_channels": 3, "ndim": 2, "kernel_size": 3, "kernel_type": "gaussian"},
         {
-            "input": torch.arange(0, 3, dtype=torch.float)[None, :, None, None].expand(1, 3, 3, 3),
+            "pred": torch.arange(0, 3, dtype=torch.float)[None, :, None, None].expand(1, 3, 3, 3),
             "target": torch.arange(0, 3, dtype=torch.float)[None, :, None, None].expand(1, 3, 3, 3),
         },
         -1.0,
@@ -53,7 +53,7 @@ TEST_CASES = [
     [
         {"in_channels": 3, "ndim": 1, "kernel_size": 3, "kernel_type": "rectangular"},
         {
-            "input": torch.arange(0, 3, dtype=torch.float)[None, :, None].expand(1, 3, 3),
+            "pred": torch.arange(0, 3, dtype=torch.float)[None, :, None].expand(1, 3, 3),
             "target": torch.arange(0, 3, dtype=torch.float)[None, :, None].expand(1, 3, 3),
         },
         -1.0,
@@ -61,7 +61,7 @@ TEST_CASES = [
     [
         {"in_channels": 3, "ndim": 1, "kernel_size": 3, "kernel_type": "triangular"},
         {
-            "input": torch.arange(0, 3, dtype=torch.float)[None, :, None].expand(1, 3, 3),
+            "pred": torch.arange(0, 3, dtype=torch.float)[None, :, None].expand(1, 3, 3),
             "target": torch.arange(0, 3, dtype=torch.float)[None, :, None].expand(1, 3, 3),
         },
         -1.0,
@@ -69,7 +69,7 @@ TEST_CASES = [
     [
         {"in_channels": 3, "ndim": 1, "kernel_size": 3, "kernel_type": "gaussian"},
         {
-            "input": torch.arange(0, 3, dtype=torch.float)[None, :, None].expand(1, 3, 3),
+            "pred": torch.arange(0, 3, dtype=torch.float)[None, :, None].expand(1, 3, 3),
             "target": torch.arange(0, 3, dtype=torch.float)[None, :, None].expand(1, 3, 3),
         },
         -1.0,
@@ -77,7 +77,7 @@ TEST_CASES = [
     [
         {"in_channels": 3, "ndim": 1, "kernel_size": 3, "kernel_type": "gaussian", "reduction": "sum"},
         {
-            "input": torch.arange(0, 3, dtype=torch.float)[None, :, None].expand(2, 3, 3),
+            "pred": torch.arange(0, 3, dtype=torch.float)[None, :, None].expand(2, 3, 3),
             "target": torch.arange(0, 3, dtype=torch.float)[None, :, None].expand(2, 3, 3),
         },
         -6.0,
@@ -85,7 +85,7 @@ TEST_CASES = [
     [
         {"in_channels": 3, "ndim": 3, "kernel_size": 3, "kernel_type": "rectangular"},
         {
-            "input": torch.arange(0, 3, dtype=torch.float)[None, :, None, None, None].expand(1, 3, 3, 3, 3),
+            "pred": torch.arange(0, 3, dtype=torch.float)[None, :, None, None, None].expand(1, 3, 3, 3, 3),
             "target": torch.arange(0, 3, dtype=torch.float)[None, :, None, None, None].expand(1, 3, 3, 3, 3) ** 2,
         },
         -0.06062524,
@@ -93,7 +93,7 @@ TEST_CASES = [
     [
         {"in_channels": 3, "ndim": 3, "kernel_size": 5, "kernel_type": "triangular"},
         {
-            "input": torch.arange(0, 3, dtype=torch.float)[None, :, None, None, None].expand(1, 3, 3, 3, 3),
+            "pred": torch.arange(0, 3, dtype=torch.float)[None, :, None, None, None].expand(1, 3, 3, 3, 3),
             "target": torch.arange(0, 3, dtype=torch.float)[None, :, None, None, None].expand(1, 3, 3, 3, 3) ** 2,
         },
         -0.923356,
@@ -101,7 +101,7 @@ TEST_CASES = [
     [
         {"in_channels": 3, "ndim": 3, "kernel_size": 3, "kernel_type": "gaussian"},
         {
-            "input": torch.arange(0, 3, dtype=torch.float)[None, :, None, None, None].expand(1, 3, 3, 3, 3),
+            "pred": torch.arange(0, 3, dtype=torch.float)[None, :, None, None, None].expand(1, 3, 3, 3, 3),
             "target": torch.arange(0, 3, dtype=torch.float)[None, :, None, None, None].expand(1, 3, 3, 3, 3) ** 2,
         },
         -1.306177,
@@ -118,28 +118,28 @@ class TestLocalNormalizedCrossCorrelationLoss(unittest.TestCase):
     def test_ill_shape(self):
         loss = LocalNormalizedCrossCorrelationLoss(in_channels=3, ndim=3)
         # in_channel unmatch
-        with self.assertRaisesRegex(AssertionError, ""):
+        with self.assertRaisesRegex(ValueError, ""):
             loss.forward(torch.ones((1, 2, 3, 3, 3), dtype=torch.float), torch.ones((1, 2, 3, 3, 3), dtype=torch.float))
         # ndim unmatch
-        with self.assertRaisesRegex(AssertionError, ""):
+        with self.assertRaisesRegex(ValueError, ""):
             loss.forward(torch.ones((1, 3, 3, 3), dtype=torch.float), torch.ones((1, 3, 3, 3), dtype=torch.float))
-        # input, target shape unmatch
-        with self.assertRaisesRegex(AssertionError, ""):
+        # pred, target shape unmatch
+        with self.assertRaisesRegex(ValueError, ""):
             loss.forward(torch.ones((1, 3, 3, 3, 3), dtype=torch.float), torch.ones((1, 3, 4, 4, 4), dtype=torch.float))
 
     def test_ill_opts(self):
-        input = torch.ones((1, 3, 3, 3, 3), dtype=torch.float)
+        pred = torch.ones((1, 3, 3, 3, 3), dtype=torch.float)
         target = torch.ones((1, 3, 3, 3, 3), dtype=torch.float)
         with self.assertRaisesRegex(ValueError, ""):
-            LocalNormalizedCrossCorrelationLoss(in_channels=3, kernel_type="unknown")(input, target)
+            LocalNormalizedCrossCorrelationLoss(in_channels=3, kernel_type="unknown")(pred, target)
         with self.assertRaisesRegex(ValueError, ""):
-            LocalNormalizedCrossCorrelationLoss(in_channels=3, kernel_type=None)(input, target)
+            LocalNormalizedCrossCorrelationLoss(in_channels=3, kernel_type=None)(pred, target)
         with self.assertRaisesRegex(ValueError, ""):
-            LocalNormalizedCrossCorrelationLoss(in_channels=3, kernel_size=4)(input, target)
+            LocalNormalizedCrossCorrelationLoss(in_channels=3, kernel_size=4)(pred, target)
         with self.assertRaisesRegex(ValueError, ""):
-            LocalNormalizedCrossCorrelationLoss(in_channels=3, reduction="unknown")(input, target)
+            LocalNormalizedCrossCorrelationLoss(in_channels=3, reduction="unknown")(pred, target)
         with self.assertRaisesRegex(ValueError, ""):
-            LocalNormalizedCrossCorrelationLoss(in_channels=3, reduction=None)(input, target)
+            LocalNormalizedCrossCorrelationLoss(in_channels=3, reduction=None)(pred, target)
 
 
 if __name__ == "__main__":

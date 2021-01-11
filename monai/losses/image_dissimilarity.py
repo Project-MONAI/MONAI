@@ -76,11 +76,11 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
             kernel_size: kernel spatial size, must be odd.
             kernel_type: {``"rectangular"``, ``"triangular"``, ``"gaussian"``}. Defaults to ``"rectangular"``.
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
-                Specifies the reduction to apply to the output. Defaults to ``"mean"``.
+                Specifies the reduction to apply to the pred. Defaults to ``"mean"``.
 
                 - ``"none"``: no reduction will be applied.
-                - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
-                - ``"sum"``: the output will be summed.
+                - ``"mean"``: the sum of the pred will be divided by the number of elements in the pred.
+                - ``"sum"``: the pred will be summed.
             smooth_nr: a small constant added to the numerator to avoid nan.
             smooth_dr: a small constant added to the denominator to avoid nan.
         """
@@ -89,7 +89,7 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
 
         self.ndim = ndim
         if self.ndim not in [1, 2, 3]:
-            raise ValueError(f"Unsupported ndim: {self.ndim}-d, only 1-d, 2-d, and 3-d inputs are supported")
+            raise ValueError(f"Unsupported ndim: {self.ndim}-d, only 1-d, 2-d, and 3-d preds are supported")
 
         self.kernel_size = kernel_size
         if self.kernel_size % 2 == 0:
@@ -104,29 +104,26 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            input: the shape should be BNH[WD].
+            pred: the shape should be BNH[WD].
             target: the shape should be BNH[WD].
         Raises:
             ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
         """
-        assert (
-            input.shape[1] == self.in_channels
-        ), f"expecting input with {self.in_channels} channels, got input of shape {input.shape}"
-        assert (
-            input.ndim - 2 == self.ndim
-        ), f"expecting input with {self.ndim} spatial dimensions, got input of shape {input.shape}"
-        assert (
-            target.shape == input.shape
-        ), f"ground truth has differing shape ({target.shape}) from input ({input.shape})"
+        if pred.shape[1] != self.in_channels:
+            raise ValueError(f"expecting pred with {self.in_channels} channels, got pred of shape {pred.shape}")
+        if pred.ndim - 2 != self.ndim:
+            raise ValueError(f"expecting pred with {self.ndim} spatial dimensions, got pred of shape {pred.shape}")
+        if target.shape != pred.shape:
+            raise ValueError(f"ground truth has differing shape ({target.shape}) from pred ({pred.shape})")
 
-        t2, p2, tp = target ** 2, input ** 2, target * input
+        t2, p2, tp = target ** 2, pred ** 2, target * pred
 
         # sum over kernel
         t_sum = separable_filtering(target, kernels=[self.kernel] * self.ndim).sum(1, keepdim=True)
-        p_sum = separable_filtering(input, kernels=[self.kernel] * self.ndim).sum(1, keepdim=True)
+        p_sum = separable_filtering(pred, kernels=[self.kernel] * self.ndim).sum(1, keepdim=True)
         t2_sum = separable_filtering(t2, kernels=[self.kernel] * self.ndim).sum(1, keepdim=True)
         p2_sum = separable_filtering(p2, kernels=[self.kernel] * self.ndim).sum(1, keepdim=True)
         tp_sum = separable_filtering(tp, kernels=[self.kernel] * self.ndim).sum(1, keepdim=True)
@@ -180,16 +177,17 @@ class GlobalMutualInformationLoss(_Loss):
             num_bins: number of bins for intensity
             sigma_ratio: a hyper param for gaussian function
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
-                Specifies the reduction to apply to the output. Defaults to ``"mean"``.
+                Specifies the reduction to apply to the pred. Defaults to ``"mean"``.
 
                 - ``"none"``: no reduction will be applied.
-                - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
-                - ``"sum"``: the output will be summed.
+                - ``"mean"``: the sum of the pred will be divided by the number of elements in the pred.
+                - ``"sum"``: the pred will be summed.
             smooth_nr: a small constant added to the numerator to avoid nan.
             smooth_dr: a small constant added to the denominator to avoid nan.
         """
         super(GlobalMutualInformationLoss, self).__init__(reduction=LossReduction(reduction).value)
-        assert num_bins > 0, f"num_bins must > 0, got {num_bins}"
+        if num_bins <= 0:
+            raise ValueError("num_bins must > 0, got {num_bins}")
         bin_centers = torch.linspace(0.0, 1.0, num_bins)  # (num_bins,)
         sigma = torch.mean(bin_centers[1:] - bin_centers[:-1]) * sigma_ratio
         self.preterm = 1 / (2 * sigma ** 2)
@@ -197,30 +195,29 @@ class GlobalMutualInformationLoss(_Loss):
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
 
-    def parzen_windowing(self, input: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def parzen_windowing(self, pred: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
-            input: the shape should be B[NDHW].
+            pred: the shape should be B[NDHW].
         """
-        input = torch.clamp(input, 0, 1)
-        input = input.reshape(input.shape[0], -1, 1)  # (batch, num_sample, 1)
-        weight = torch.exp(-self.preterm * (input - self.bin_centers) ** 2)  # (batch, num_sample, num_bin)
+        pred = torch.clamp(pred, 0, 1)
+        pred = pred.reshape(pred.shape[0], -1, 1)  # (batch, num_sample, 1)
+        weight = torch.exp(-self.preterm * (pred - self.bin_centers) ** 2)  # (batch, num_sample, num_bin)
         weight = weight / torch.sum(weight, dim=-1, keepdim=True)  # (batch, num_sample, num_bin)
         probability = torch.mean(weight, dim=-2, keepdim=True)  # (batch, 1, num_bin)
         return weight, probability
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            input: the shape should be B[NDHW].
-            target: the shape should be same as the input shape.
+            pred: the shape should be B[NDHW].
+            target: the shape should be same as the pred shape.
         Raises:
             ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
         """
-        assert (
-            target.shape == input.shape
-        ), f"ground truth has differing shape ({target.shape}) from input ({input.shape})"
-        wa, pa = self.parzen_windowing(input)  # (batch, num_sample, num_bin), (batch, 1, num_bin)
+        if target.shape != pred.shape:
+            raise ValueError(f"ground truth has differing shape ({target.shape}) from pred ({pred.shape})")
+        wa, pa = self.parzen_windowing(pred)  # (batch, num_sample, num_bin), (batch, 1, num_bin)
         wb, pb = self.parzen_windowing(target)  # (batch, num_sample, num_bin), (batch, 1, num_bin)
         pab = torch.bmm(wa.permute(0, 2, 1), wb).div(wa.shape[1])  # (batch, num_bins, num_bins)
 
@@ -228,6 +225,7 @@ class GlobalMutualInformationLoss(_Loss):
         mi = torch.sum(
             pab * torch.log((pab + self.smooth_nr) / (papb + self.smooth_dr) + self.smooth_dr), dim=(1, 2)
         )  # (batch)
+
         if self.reduction == LossReduction.SUM.value:
             return torch.sum(mi).neg()  # sum over the batch and channel ndims
         if self.reduction == LossReduction.NONE.value:

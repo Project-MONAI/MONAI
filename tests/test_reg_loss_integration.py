@@ -11,7 +11,6 @@
 
 import unittest
 
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -20,23 +19,23 @@ from parameterized import parameterized
 from monai.losses import BendingEnergyLoss, GlobalMutualInformationLoss, LocalNormalizedCrossCorrelationLoss
 
 TEST_CASES = [
-    [BendingEnergyLoss, {}, ["input"]],
+    [BendingEnergyLoss, {}, ["pred"]],
     [
         LocalNormalizedCrossCorrelationLoss,
         {"in_channels": 3, "kernel_size": 5, "kernel_type": "rectangular"},
-        ["input", "target"],
+        ["pred", "target"],
     ],
     [
         LocalNormalizedCrossCorrelationLoss,
         {"in_channels": 3, "kernel_size": 5, "kernel_type": "triangular"},
-        ["input", "target"],
+        ["pred", "target"],
     ],
     [
         LocalNormalizedCrossCorrelationLoss,
         {"in_channels": 3, "kernel_size": 5, "kernel_type": "gaussian"},
-        ["input", "target"],
+        ["pred", "target"],
     ],
-    [GlobalMutualInformationLoss, {"num_bins": 5}, ["input", "target"]],
+    [GlobalMutualInformationLoss, {"num_bins": 5}, ["pred", "target"]],
 ]
 
 
@@ -89,13 +88,13 @@ class TestRegLossIntegration(unittest.TestCase):
         optimizer = optim.Adam(net.parameters(), lr=learning_rate)
 
         # train the network
-        for iter_i in range(max_iter):
+        for _ in range(max_iter):
             # set the gradient to zero
             optimizer.zero_grad()
 
             # forward pass
             output = net(image)
-            loss_input = {"input": output, "target": target}
+            loss_input = {"pred": output, "target": target}
 
             loss_val = loss(**{k: loss_input[k] for k in forward_args})
 
