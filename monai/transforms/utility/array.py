@@ -189,7 +189,7 @@ class SplitChannel(Transform):
         if n_classes <= 1:
             raise RuntimeError("input image does not contain multiple channels.")
 
-        outputs = list()
+        outputs = []
         slices = [slice(None)] * len(img.shape)
         for i in range(n_classes):
             slices[channel_dim] = slice(i, i + 1)

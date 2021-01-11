@@ -50,7 +50,7 @@ class AutoEncoder(nn.Module):
         self.norm = norm
         self.dropout = dropout
         self.num_inter_units = num_inter_units
-        self.inter_channels = inter_channels if inter_channels is not None else list()
+        self.inter_channels = inter_channels if inter_channels is not None else []
         self.inter_dilations = list(inter_dilations or [1] * len(self.inter_channels))
 
         # The number of channels and strides should match

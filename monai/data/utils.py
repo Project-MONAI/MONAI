@@ -712,7 +712,7 @@ def partition_dataset_classes(
     for i, c in enumerate(classes):
         class_indices[c].append(i)
 
-    class_partition_indices: List[Sequence] = list()
+    class_partition_indices: List[Sequence] = []
     for _, per_class_indices in sorted(class_indices.items()):
         per_class_partition_indices = partition_dataset(
             data=per_class_indices,
