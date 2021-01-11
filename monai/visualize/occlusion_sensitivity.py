@@ -219,13 +219,17 @@ class OcclusionSensitivity:
         for o, s in zip(output_im_shape, self.stride):
             # if the size is > 1, then check that the stride is a factor of the output image shape
             if o > 1 and o % s != 0:
-                raise ValueError("Stride should be a factor of the image shape. Im shape "
-                                 + f"(taking bounding box into account): {output_im_shape}, stride: {self.stride}")
+                raise ValueError(
+                    "Stride should be a factor of the image shape. Im shape "
+                    + f"(taking bounding box into account): {output_im_shape}, stride: {self.stride}"
+                )
 
         # to ensure the occluded area is nicely centred if stride is even, ensure that so is the mask_size
         if np.any(self.mask_size % 2 != self.stride % 2):
-            raise ValueError("Stride and mask size should both be odd or even (element-wise). "
-                             + f"``stride={self.stride}``, ``mask_size={self.mask_size}``")
+            raise ValueError(
+                "Stride and mask size should both be odd or even (element-wise). "
+                + f"``stride={self.stride}``, ``mask_size={self.mask_size}``"
+            )
 
         downsampled_im_shape = (output_im_shape / self.stride).astype(np.int32)
         downsampled_im_shape[downsampled_im_shape == 0] = 1  # make sure dimension sizes are >= 1
