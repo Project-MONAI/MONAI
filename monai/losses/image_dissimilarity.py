@@ -202,7 +202,9 @@ class GlobalMutualInformationLoss(_Loss):
         """
         pred = torch.clamp(pred, 0, 1)
         pred = pred.reshape(pred.shape[0], -1, 1)  # (batch, num_sample, 1)
-        weight = torch.exp(-self.preterm.to(pred) * (pred - self.bin_centers.to(pred)) ** 2)  # (batch, num_sample, num_bin)
+        weight = torch.exp(
+            -self.preterm.to(pred) * (pred - self.bin_centers.to(pred)) ** 2
+        )  # (batch, num_sample, num_bin)
         weight = weight / torch.sum(weight, dim=-1, keepdim=True)  # (batch, num_sample, num_bin)
         probability = torch.mean(weight, dim=-2, keepdim=True)  # (batch, 1, num_bin)
         return weight, probability
