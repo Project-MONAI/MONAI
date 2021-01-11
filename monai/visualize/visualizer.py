@@ -12,17 +12,15 @@
 
 from typing import Callable
 
-import numpy as np
 import torch
 import torch.nn.functional as F
 
-from monai.transforms import ScaleIntensity
 from monai.utils import InterpolateMode
 
-__all__ = ["default_upsampler", "default_normalizer"]
+__all__ = ["default_upsampler"]
 
 
-def default_upsampler(spatial_size) -> Callable[[torch.Tensor], torch.Tensor]:
+def default_upsampler(spatial_size, align_corners=False) -> Callable[[torch.Tensor], torch.Tensor]:
     """
     A linear interpolation method for upsampling the feature map.
     The output of this function is a callable `func`,
@@ -30,19 +28,9 @@ def default_upsampler(spatial_size) -> Callable[[torch.Tensor], torch.Tensor]:
     """
 
     def up(x):
+
         linear_mode = [InterpolateMode.LINEAR, InterpolateMode.BILINEAR, InterpolateMode.TRILINEAR]
         interp_mode = linear_mode[len(spatial_size) - 1]
-        return F.interpolate(x, size=spatial_size, mode=str(interp_mode.value), align_corners=False)
+        return F.interpolate(x, size=spatial_size, mode=str(interp_mode.value), align_corners=align_corners)
 
     return up
-
-
-def default_normalizer(x) -> np.ndarray:
-    """
-    A linear intensity scaling by mapping the (min, max) to (1, 0).
-    """
-    if isinstance(x, torch.Tensor):
-        x = x.detach().cpu().numpy()
-    scaler = ScaleIntensity(minv=1.0, maxv=0.0)
-    x = [scaler(x) for x in x]
-    return np.stack(x, axis=0)
