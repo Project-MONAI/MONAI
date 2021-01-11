@@ -299,7 +299,7 @@ class Flip(Transform):
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-        flipped = list()
+        flipped = []
         for channel in img:
             flipped.append(np.flip(channel, self.spatial_axis))
         return np.stack(flipped).astype(img.dtype)
@@ -584,7 +584,7 @@ class Rotate90(Transform):
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-        rotated = list()
+        rotated = []
         for channel in img:
             rotated.append(np.rot90(channel, self.k, self.spatial_axes))
         return np.stack(rotated).astype(img.dtype)

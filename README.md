@@ -29,17 +29,18 @@ Its ambitions are:
 
 
 ## Installation
-To install [the current release](https://pypi.org/project/monai/):
+
+### Installing [the current release](https://pypi.org/project/monai/):
 ```bash
 pip install monai
 ```
 
-To install from the source code repository:
+### Installing the master branch from the source code repository:
 ```bash
 pip install git+https://github.com/Project-MONAI/MONAI#egg=MONAI
 ```
 
-Alternatively, pre-built Docker image is available via [DockerHub](https://hub.docker.com/r/projectmonai/monai):
+### Using the pre-built Docker image [DockerHub](https://hub.docker.com/r/projectmonai/monai):
   ```bash
   # with docker v19.03+
   docker run --gpus all --rm -ti --ipc=host projectmonai/monai:latest

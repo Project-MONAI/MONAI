@@ -18,7 +18,7 @@ import unittest
 
 from monai.utils import PerfContext
 
-results: dict = dict()
+results: dict = {}
 
 
 class TimeLoggingTestResult(unittest.TextTestResult):
@@ -26,7 +26,7 @@ class TimeLoggingTestResult(unittest.TextTestResult):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.timed_tests = dict()
+        self.timed_tests = {}
 
     def startTest(self, test):  # noqa: N802
         """Start timer, print test name, do normal test."""

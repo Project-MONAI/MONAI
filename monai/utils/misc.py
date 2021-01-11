@@ -265,7 +265,7 @@ def list_to_dict(items):
             value = items[1].strip(" \n\r\t'")
         return key, value
 
-    d = dict()
+    d = {}
     if items:
         for item in items:
             key, value = _parse_var(item)
