@@ -26,7 +26,7 @@ def spatial_gradient(x: torch.Tensor, dim: int) -> torch.Tensor:
         DeepReg (https://github.com/DeepRegNet/DeepReg)
 
     Args:
-        pred: the shape should be BCH(WD).
+        x: the shape should be BCH(WD).
         dim: dimension to calculate gradient along.
     Returns:
         gradient_dx: the shape should be BCH(WD)

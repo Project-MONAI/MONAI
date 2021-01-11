@@ -76,11 +76,11 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
             kernel_size: kernel spatial size, must be odd.
             kernel_type: {``"rectangular"``, ``"triangular"``, ``"gaussian"``}. Defaults to ``"rectangular"``.
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
-                Specifies the reduction to apply to the pred. Defaults to ``"mean"``.
+                Specifies the reduction to apply to the output. Defaults to ``"mean"``.
 
                 - ``"none"``: no reduction will be applied.
-                - ``"mean"``: the sum of the pred will be divided by the number of elements in the pred.
-                - ``"sum"``: the pred will be summed.
+                - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
+                - ``"sum"``: the output will be summed.
             smooth_nr: a small constant added to the numerator to avoid nan.
             smooth_dr: a small constant added to the denominator to avoid nan.
         """
@@ -89,7 +89,7 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
 
         self.ndim = ndim
         if self.ndim not in [1, 2, 3]:
-            raise ValueError(f"Unsupported ndim: {self.ndim}-d, only 1-d, 2-d, and 3-d preds are supported")
+            raise ValueError(f"Unsupported ndim: {self.ndim}-d, only 1-d, 2-d, and 3-d inputs are supported")
 
         self.kernel_size = kernel_size
         if self.kernel_size % 2 == 0:
@@ -177,11 +177,11 @@ class GlobalMutualInformationLoss(_Loss):
             num_bins: number of bins for intensity
             sigma_ratio: a hyper param for gaussian function
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
-                Specifies the reduction to apply to the pred. Defaults to ``"mean"``.
+                Specifies the reduction to apply to the output. Defaults to ``"mean"``.
 
                 - ``"none"``: no reduction will be applied.
-                - ``"mean"``: the sum of the pred will be divided by the number of elements in the pred.
-                - ``"sum"``: the pred will be summed.
+                - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
+                - ``"sum"``: the output will be summed.
             smooth_nr: a small constant added to the numerator to avoid nan.
             smooth_dr: a small constant added to the denominator to avoid nan.
         """
