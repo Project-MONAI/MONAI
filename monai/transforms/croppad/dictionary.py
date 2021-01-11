@@ -462,7 +462,7 @@ class RandWeightedCropd(Randomizable, MapTransform):
         self.randomize(d[self.w_key])
         _spatial_size = fall_back_tuple(self.spatial_size, d[self.w_key].shape[1:])
 
-        results: List[Dict[Hashable, np.ndarray]] = [dict() for _ in range(self.num_samples)]
+        results: List[Dict[Hashable, np.ndarray]] = [{} for _ in range(self.num_samples)]
         for key in data.keys():
             if key in self.keys:
                 img = d[key]
@@ -575,7 +575,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         self.randomize(label, fg_indices, bg_indices, image)
         assert isinstance(self.spatial_size, tuple)
         assert self.centers is not None
-        results: List[Dict[Hashable, np.ndarray]] = [dict() for _ in range(self.num_samples)]
+        results: List[Dict[Hashable, np.ndarray]] = [{} for _ in range(self.num_samples)]
         for key in data.keys():
             if key in self.keys:
                 img = d[key]

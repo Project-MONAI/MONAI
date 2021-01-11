@@ -56,7 +56,7 @@ class TestRotate2D(NumpyImageTestCase2D):
         else:
             _mode = "constant"
 
-        expected = list()
+        expected = []
         for channel in self.imt[0]:
             expected.append(
                 scipy.ndimage.rotate(
@@ -88,7 +88,7 @@ class TestRotate3D(NumpyImageTestCase3D):
         else:
             _mode = "constant"
 
-        expected = list()
+        expected = []
         for channel in self.imt[0]:
             expected.append(
                 scipy.ndimage.rotate(

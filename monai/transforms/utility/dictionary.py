@@ -535,7 +535,7 @@ class ConcatItemsd(MapTransform):
 
         """
         d = dict(data)
-        output = list()
+        output = []
         data_type = None
         for key in self.keys:
             if data_type is None:
@@ -674,7 +674,7 @@ class ConvertToMultiChannelBasedOnBratsClassesd(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
-            result = list()
+            result = []
             # merge labels 1 (tumor non-enh) and 4 (tumor enh) to TC
             result.append(np.logical_or(d[key] == 1, d[key] == 4))
             # merge labels 1 (tumor non-enh) and 4 (tumor enh) and 2 (large edema) to WT
