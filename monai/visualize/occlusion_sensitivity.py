@@ -237,7 +237,7 @@ class OcclusionSensitivity:
 
         # Get bottom left and top right corners of occluded region
         lower_corner = (self.stride - self.mask_size) // 2
-        upper_corner = (self.stride + self.mask_size) // 2 - 1
+        upper_corner = (self.stride + self.mask_size) // 2
 
         # Loop 1D over image
         verbose_range = trange if self.verbose else range
