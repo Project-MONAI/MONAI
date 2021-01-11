@@ -32,6 +32,8 @@ _Pull request early_
 
 We encourage you to create pull requests early. It helps us track the contributions under development, whether they are ready to be merged or not. Change your pull request's title to begin with `[WIP]` until it is ready for formal review.
 
+Please note that, as per PyTorch, MONAI uses American English spelling. This means classes and variables should be: normali**z**e, visuali**z**e, colo~~u~~r, etc.
+
 ### Preparing pull requests
 To ensure the code quality, MONAI relies on several linting tools ([flake8 and its plugins](https://gitlab.com/pycqa/flake8), [black](https://github.com/psf/black), [isort](https://github.com/timothycrosley/isort)),
 static type analysis tools ([mypy](https://github.com/python/mypy), [pytype](https://github.com/google/pytype)), as well as a set of unit/integration tests.
@@ -58,7 +60,7 @@ pip install -U -r requirements-dev.txt  # install the latest tools
 
 License information: all source code files should start with this paragraph:
 ```
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -70,6 +72,13 @@ License information: all source code files should start with this paragraph:
 # limitations under the License.
 
 ```
+
+##### Exporting modules
+
+If you intend for any variables/functions/classes to be available outside of the file with the edited functionality, then:
+
+- Create or append to the `__all__` variable (in the file in which functionality has been added), and
+- Add to the `__init__.py` file.
 
 #### Unit testing
 MONAI tests are located under `tests/`.

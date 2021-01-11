@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,6 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
+from monai.networks import eval_mode
 from monai.networks.blocks.dynunet_block import UnetBasicBlock, UnetResBlock, UnetUpBlock, get_padding
 from tests.utils import test_script_save
 
@@ -70,8 +71,7 @@ class TestResBasicBlock(unittest.TestCase):
     @parameterized.expand(TEST_CASE_RES_BASIC_BLOCK)
     def test_shape(self, input_param, input_shape, expected_shape):
         for net in [UnetResBlock(**input_param), UnetBasicBlock(**input_param)]:
-            net.eval()
-            with torch.no_grad():
+            with eval_mode(net):
                 result = net(torch.randn(input_shape))
                 self.assertEqual(result.shape, expected_shape)
 
@@ -94,8 +94,7 @@ class TestUpBlock(unittest.TestCase):
     @parameterized.expand(TEST_UP_BLOCK)
     def test_shape(self, input_param, input_shape, expected_shape, skip_shape):
         net = UnetUpBlock(**input_param)
-        net.eval()
-        with torch.no_grad():
+        with eval_mode(net):
             result = net(torch.randn(input_shape), torch.randn(skip_shape))
             self.assertEqual(result.shape, expected_shape)
 
