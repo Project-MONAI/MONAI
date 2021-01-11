@@ -64,6 +64,7 @@ class TestRegLossIntegration(unittest.TestCase):
         # define a simple 3d example
         target = torch.rand((1, 3, 5, 5, 5), device=self.device)
         image = 12 * target + 27
+        image = image.to(device=self.device)
 
         # define a one layer model
         class OnelayerNet(nn.Module):
@@ -82,7 +83,7 @@ class TestRegLossIntegration(unittest.TestCase):
         net = OnelayerNet().to(self.device)
 
         # initialize the loss
-        loss = loss_type(**loss_args)
+        loss = loss_type(**loss_args).to(self.device)
 
         # initialize a SGD optimizer
         optimizer = optim.Adam(net.parameters(), lr=learning_rate)
