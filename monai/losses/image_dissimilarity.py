@@ -120,17 +120,17 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
             raise ValueError(f"ground truth has differing shape ({target.shape}) from pred ({pred.shape})")
 
         t2, p2, tp = target ** 2, pred ** 2, target * pred
-
+        kernel, kernel_vol = self.kernel.to(pred), self.kernel_vol.to(pred)
         # sum over kernel
-        t_sum = separable_filtering(target, kernels=[self.kernel] * self.ndim).sum(1, keepdim=True)
-        p_sum = separable_filtering(pred, kernels=[self.kernel] * self.ndim).sum(1, keepdim=True)
-        t2_sum = separable_filtering(t2, kernels=[self.kernel] * self.ndim).sum(1, keepdim=True)
-        p2_sum = separable_filtering(p2, kernels=[self.kernel] * self.ndim).sum(1, keepdim=True)
-        tp_sum = separable_filtering(tp, kernels=[self.kernel] * self.ndim).sum(1, keepdim=True)
+        t_sum = separable_filtering(target, kernels=[kernel] * self.ndim).sum(1, keepdim=True)
+        p_sum = separable_filtering(pred, kernels=[kernel] * self.ndim).sum(1, keepdim=True)
+        t2_sum = separable_filtering(t2, kernels=[kernel] * self.ndim).sum(1, keepdim=True)
+        p2_sum = separable_filtering(p2, kernels=[kernel] * self.ndim).sum(1, keepdim=True)
+        tp_sum = separable_filtering(tp, kernels=[kernel] * self.ndim).sum(1, keepdim=True)
 
         # average over kernel
-        t_avg = t_sum / self.kernel_vol
-        p_avg = p_sum / self.kernel_vol
+        t_avg = t_sum / kernel_vol
+        p_avg = p_sum / kernel_vol
 
         # normalized cross correlation between t and p
         # sum[(t - mean[t]) * (p - mean[p])] / std[t] / std[p]
@@ -202,7 +202,7 @@ class GlobalMutualInformationLoss(_Loss):
         """
         pred = torch.clamp(pred, 0, 1)
         pred = pred.reshape(pred.shape[0], -1, 1)  # (batch, num_sample, 1)
-        weight = torch.exp(-self.preterm * (pred - self.bin_centers) ** 2)  # (batch, num_sample, num_bin)
+        weight = torch.exp(-self.preterm.to(pred) * (pred - self.bin_centers.to(pred)) ** 2)  # (batch, num_sample, num_bin)
         weight = weight / torch.sum(weight, dim=-1, keepdim=True)  # (batch, num_sample, num_bin)
         probability = torch.mean(weight, dim=-2, keepdim=True)  # (batch, 1, num_bin)
         return weight, probability
