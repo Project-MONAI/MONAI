@@ -79,7 +79,7 @@ class BendingEnergyLoss(_Loss):
         if pred.ndim not in [3, 4, 5]:
             raise ValueError(f"expecting 3-d, 4-d or 5-d pred, instead got pred of shape {pred.shape}")
         for i in range(pred.ndim - 2):
-            if pred.shape[- i - 1] <= 4:
+            if pred.shape[-i - 1] <= 4:
                 raise ValueError("all spatial dimensions must > 4, got pred of shape {pred.shape}")
 
         # first order gradient
