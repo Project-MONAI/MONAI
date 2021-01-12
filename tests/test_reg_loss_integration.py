@@ -22,20 +22,20 @@ TEST_CASES = [
     [BendingEnergyLoss, {}, ["pred"]],
     [
         LocalNormalizedCrossCorrelationLoss,
-        {"in_channels": 3, "kernel_size": 5, "kernel_type": "rectangular"},
+        {"in_channels": 1, "kernel_size": 7, "kernel_type": "rectangular"},
         ["pred", "target"],
     ],
     [
         LocalNormalizedCrossCorrelationLoss,
-        {"in_channels": 3, "kernel_size": 5, "kernel_type": "triangular"},
+        {"in_channels": 1, "kernel_size": 5, "kernel_type": "triangular"},
         ["pred", "target"],
     ],
     [
         LocalNormalizedCrossCorrelationLoss,
-        {"in_channels": 3, "kernel_size": 5, "kernel_type": "gaussian"},
+        {"in_channels": 1, "kernel_size": 3, "kernel_type": "gaussian"},
         ["pred", "target"],
     ],
-    [GlobalMutualInformationLoss, {"num_bins": 5}, ["pred", "target"]],
+    [GlobalMutualInformationLoss, {"num_bins": 10}, ["pred", "target"]],
 ]
 
 
@@ -62,7 +62,7 @@ class TestRegLossIntegration(unittest.TestCase):
         max_iter = 40
 
         # define a simple 3d example
-        target = torch.rand((1, 3, 5, 5, 5), device=self.device)
+        target = torch.rand((1, 1, 10, 10, 10), device=self.device)
         image = 12 * target + 27
         image = image.to(device=self.device)
 
@@ -71,9 +71,9 @@ class TestRegLossIntegration(unittest.TestCase):
             def __init__(self):
                 super(OnelayerNet, self).__init__()
                 self.layer = nn.Sequential(
-                    nn.Conv3d(in_channels=3, out_channels=3, kernel_size=3, padding=1),
+                    nn.Conv3d(in_channels=1, out_channels=1, kernel_size=3, padding=1),
                     nn.ReLU(),
-                    nn.Conv3d(in_channels=3, out_channels=3, kernel_size=3, padding=1),
+                    nn.Conv3d(in_channels=1, out_channels=1, kernel_size=3, padding=1),
                 )
 
             def forward(self, x):
@@ -89,7 +89,7 @@ class TestRegLossIntegration(unittest.TestCase):
         optimizer = optim.Adam(net.parameters(), lr=learning_rate)
 
         # train the network
-        for _ in range(max_iter):
+        for iter in range(max_iter):
             # set the gradient to zero
             optimizer.zero_grad()
 
@@ -98,10 +98,13 @@ class TestRegLossIntegration(unittest.TestCase):
             loss_input = {"pred": output, "target": target}
 
             loss_val = loss(**{k: loss_input[k] for k in forward_args})
+            if iter == 0:
+                init_loss = loss_val
 
             # backward pass
             loss_val.backward()
             optimizer.step()
+        assert init_loss > loss_val, f"loss did not decrease"
 
 
 if __name__ == "__main__":

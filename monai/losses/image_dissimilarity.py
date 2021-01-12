@@ -63,7 +63,7 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         self,
         in_channels: int,
         ndim: int = 3,
-        kernel_size: int = 9,
+        kernel_size: int = 3,
         kernel_type: str = "rectangular",
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
         smooth_nr: float = 1e-7,
@@ -100,9 +100,16 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
                 f'Unsupported kernel_type: {kernel_type}, available options are ["rectangular", "triangular", "gaussian"].'
             )
         self.kernel = kernel_dict[kernel_type](self.kernel_size)
-        self.kernel_vol = torch.sum(self.kernel) ** self.ndim
+        self.kernel_vol = self.get_kernel_vol()
+
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
+
+    def get_kernel_vol(self):
+        vol = self.kernel
+        for _ in range(self.ndim - 1):
+            vol = torch.matmul(vol.unsqueeze(-1), self.kernel.unsqueeze(0))
+        return torch.sum(vol)
 
     def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -122,11 +129,11 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         t2, p2, tp = target ** 2, pred ** 2, target * pred
         kernel, kernel_vol = self.kernel.to(pred), self.kernel_vol.to(pred)
         # sum over kernel
-        t_sum = separable_filtering(target, kernels=[kernel] * self.ndim).sum(1, keepdim=True)
-        p_sum = separable_filtering(pred, kernels=[kernel] * self.ndim).sum(1, keepdim=True)
-        t2_sum = separable_filtering(t2, kernels=[kernel] * self.ndim).sum(1, keepdim=True)
-        p2_sum = separable_filtering(p2, kernels=[kernel] * self.ndim).sum(1, keepdim=True)
-        tp_sum = separable_filtering(tp, kernels=[kernel] * self.ndim).sum(1, keepdim=True)
+        t_sum = separable_filtering(target, kernels=[kernel] * self.ndim)
+        p_sum = separable_filtering(pred, kernels=[kernel] * self.ndim)
+        t2_sum = separable_filtering(t2, kernels=[kernel] * self.ndim)
+        p2_sum = separable_filtering(p2, kernels=[kernel] * self.ndim)
+        tp_sum = separable_filtering(tp, kernels=[kernel] * self.ndim)
 
         # average over kernel
         t_avg = t_sum / kernel_vol
@@ -148,11 +155,11 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         # shape = (batch, 1, D, H, W)
 
         if self.reduction == LossReduction.SUM.value:
-            return torch.sum(ncc).neg()  # sum over the batch and spatial ndims
+            return torch.sum(ncc).neg()  # sum over the batch, channel and spatial ndims
         if self.reduction == LossReduction.NONE.value:
             return ncc.neg()
         if self.reduction == LossReduction.MEAN.value:
-            return torch.mean(ncc).neg()  # average over the batch and spatial ndims
+            return torch.mean(ncc).neg()  # average over the batch, channel and spatial ndims
         raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
 
 
@@ -235,3 +242,7 @@ class GlobalMutualInformationLoss(_Loss):
         if self.reduction == LossReduction.MEAN.value:
             return torch.mean(mi).neg()  # average over the batch and channel ndims
         raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
+
+
+if __name__ == "__main__":
+    print(LocalNormalizedCrossCorrelationLoss(in_channels=1)(torch.ones((1, 1, 1, 3, 3)), torch.ones((1, 1, 1, 3, 3))))
