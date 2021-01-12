@@ -577,7 +577,10 @@ class Rotate90(Transform):
                 Default: (0, 1), this is the first two axis in spatial dimensions.
         """
         self.k = k
-        self.spatial_axes = spatial_axes
+        spatial_axes_ = ensure_tuple(spatial_axes)
+        if len(spatial_axes_) != 2:
+            raise ValueError("spatial_axes must be 2 int numbers to indicate the axes to rotate 90 degrees.")
+        self.spatial_axes = spatial_axes_
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
         """

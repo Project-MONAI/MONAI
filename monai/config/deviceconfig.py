@@ -123,11 +123,11 @@ def get_system_info() -> OrderedDict:
     """
     output: OrderedDict = OrderedDict()
 
-    _dict_append(output, "System", lambda: platform.system())
+    _dict_append(output, "System", platform.system)
     if output["System"] == "Windows":
-        _dict_append(output, "Win32 version", lambda: platform.win32_ver())
+        _dict_append(output, "Win32 version", platform.win32_ver)
         if hasattr(platform, "win32_edition"):
-            _dict_append(output, "Win32 edition", lambda: platform.win32_edition())  # type:ignore[attr-defined]
+            _dict_append(output, "Win32 edition", platform.win32_edition)  # type:ignore[attr-defined]
     elif output["System"] == "Darwin":
         _dict_append(output, "Mac version", lambda: platform.mac_ver()[0])
     else:
@@ -135,19 +135,19 @@ def get_system_info() -> OrderedDict:
         if linux_ver:
             _dict_append(output, "Linux version", lambda: linux_ver.group(1))
 
-    _dict_append(output, "Platform", lambda: platform.platform())
-    _dict_append(output, "Processor", lambda: platform.processor())
-    _dict_append(output, "Machine", lambda: platform.machine())
-    _dict_append(output, "Python version", lambda: platform.python_version())
+    _dict_append(output, "Platform", platform.platform)
+    _dict_append(output, "Processor", platform.processor)
+    _dict_append(output, "Machine", platform.machine)
+    _dict_append(output, "Python version", platform.python_version)
 
     if not has_psutil:
         _dict_append(output, "`psutil` missing", lambda: "run `pip install monai[psutil]`")
     else:
         p = psutil.Process()
         with p.oneshot():
-            _dict_append(output, "Process name", lambda: p.name())
-            _dict_append(output, "Command", lambda: p.cmdline())
-            _dict_append(output, "Open files", lambda: p.open_files())
+            _dict_append(output, "Process name", p.name)
+            _dict_append(output, "Command", p.cmdline)
+            _dict_append(output, "Open files", p.open_files)
             _dict_append(output, "Num physical CPUs", lambda: psutil.cpu_count(logical=False))
             _dict_append(output, "Num logical CPUs", lambda: psutil.cpu_count(logical=True))
             _dict_append(output, "Num usable CPUs", lambda: len(psutil.Process().cpu_affinity()))
@@ -204,8 +204,9 @@ def get_gpu_info() -> OrderedDict:
         _dict_append(output, "cuDNN version", lambda: cudnn_ver)
 
     if num_gpus > 0:
-        _dict_append(output, "Current device", lambda: torch.cuda.current_device())
-        _dict_append(output, "Library compiled for CUDA architectures", lambda: torch.cuda.get_arch_list())
+        _dict_append(output, "Current device", torch.cuda.current_device)
+        if hasattr(torch.cuda, "get_arch_list"):  # get_arch_list is new in torch 1.7.1
+            _dict_append(output, "Library compiled for CUDA architectures", torch.cuda.get_arch_list)
     for gpu in range(num_gpus):
         _dict_append(output, "Info for GPU", gpu)
         gpu_info = torch.cuda.get_device_properties(gpu)
