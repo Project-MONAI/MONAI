@@ -62,9 +62,9 @@ def torch_parallel_backend():
         backend = match.group("backend")
         if backend == "OpenMP":
             return "AT_PARALLEL_OPENMP"
-        elif backend == "native thread pool":
+        if backend == "native thread pool":
             return "AT_PARALLEL_NATIVE"
-        elif backend == "native thread pool and TBB":
+        if backend == "native thread pool and TBB":
             return "AT_PARALLEL_NATIVE_TBB"
     except (NameError, AttributeError):  # no torch or no binaries
         warnings.warn("Could not determine torch parallel_info.")

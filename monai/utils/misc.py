@@ -120,7 +120,7 @@ def ensure_tuple_rep(tup: Any, dim: int) -> Tuple[Any, ...]:
     """
     if not issequenceiterable(tup):
         return (tup,) * dim
-    elif len(tup) == dim:
+    if len(tup) == dim:
         return tuple(tup)
 
     raise ValueError(f"Sequence must have length {dim}, got {len(tup)}.")

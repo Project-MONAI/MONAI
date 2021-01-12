@@ -136,7 +136,7 @@ class DynUNet(nn.Module):
 
             if len(downsamples) == 0:  # bottom of the network, pass the bottleneck block
                 return bottleneck
-            elif index == 0:  # don't associate a supervision head with self.input_block
+            if index == 0:  # don't associate a supervision head with self.input_block
                 current_head, rest_heads = nn.Identity(), superheads
             else:
                 current_head, rest_heads = superheads[0], superheads[1:]
