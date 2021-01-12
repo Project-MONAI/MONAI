@@ -11,7 +11,7 @@
 
 from collections.abc import Sequence
 from functools import partial
-from typing import Callable, Optional, Union, Tuple
+from typing import Callable, Optional, Tuple, Union
 
 import numpy as np
 import torch
