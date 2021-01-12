@@ -451,7 +451,7 @@ def create_rotate(spatial_dims: int, radians: Union[Sequence[float], float]) -> 
             return np.array([[cos_, -sin_, 0.0], [sin_, cos_, 0.0], [0.0, 0.0, 1.0]])
         raise ValueError("radians must be non empty.")
 
-    elif spatial_dims == 3:
+    if spatial_dims == 3:
         affine = None
         if len(radians) >= 1:
             sin_, cos_ = np.sin(radians[0]), np.cos(radians[0])
