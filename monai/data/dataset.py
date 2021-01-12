@@ -699,8 +699,7 @@ class SmartCacheDataset(CacheDataset):
                 self._round = 0
                 self._replace_done = False
                 return True
-            else:
-                return False
+            return False
 
     def shutdown(self):
         """
