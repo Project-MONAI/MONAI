@@ -79,8 +79,7 @@ class SpatialPad(Transform):
                 width = max(self.spatial_size[i] - data_shape[i], 0)
                 pad_width.append((width // 2, width - (width // 2)))
             return pad_width
-        else:
-            return [(0, max(self.spatial_size[i] - data_shape[i], 0)) for i in range(len(self.spatial_size))]
+        return [(0, max(self.spatial_size[i] - data_shape[i], 0)) for i in range(len(self.spatial_size))]
 
     def __call__(self, img: np.ndarray, mode: Optional[Union[NumpyPadMode, str]] = None) -> np.ndarray:
         """
@@ -97,9 +96,8 @@ class SpatialPad(Transform):
         if not np.asarray(all_pad_width).any():
             # all zeros, skip padding
             return img
-        else:
-            img = np.pad(img, all_pad_width, mode=self.mode.value if mode is None else NumpyPadMode(mode).value)
-            return img
+        img = np.pad(img, all_pad_width, mode=self.mode.value if mode is None else NumpyPadMode(mode).value)
+        return img
 
 
 class BorderPad(Transform):
@@ -317,9 +315,8 @@ class RandSpatialCrop(Randomizable, Transform):
         assert self._size is not None
         if self.random_center:
             return img[self._slices]
-        else:
-            cropper = CenterSpatialCrop(self._size)
-            return cropper(img)
+        cropper = CenterSpatialCrop(self._size)
+        return cropper(img)
 
 
 class RandSpatialCropSamples(Randomizable, Transform):

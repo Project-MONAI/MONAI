@@ -414,6 +414,5 @@ class VoteEnsemble(Transform):
         if self.num_classes is not None:
             # if not One-Hot, use "argmax" to vote the most common class
             return torch.argmax(img_, dim=1, keepdim=has_ch_dim)
-        else:
-            # for One-Hot data, round the float number to 0 or 1
-            return torch.round(img_)
+        # for One-Hot data, round the float number to 0 or 1
+        return torch.round(img_)
