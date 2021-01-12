@@ -308,14 +308,6 @@ class DeleteItemsd(MapTransform):
     It will remove the key-values and copy the others to construct a new dictionary.
     """
 
-    def __init__(self, keys: KeysCollection) -> None:
-        """
-        Args:
-            keys: keys of the corresponding items to be transformed.
-                See also: :py:class:`monai.transforms.compose.MapTransform`
-        """
-        super().__init__(keys)
-
     def __call__(self, data):
         return {key: val for key, val in data.items() if key not in self.keys}
 
@@ -325,14 +317,6 @@ class SelectItemsd(MapTransform):
     Select only specified items from data dictionary to release memory.
     It will copy the selected key-values and construct and new dictionary.
     """
-
-    def __init__(self, keys):
-        """
-        Args:
-            keys: keys of the corresponding items to be transformed.
-                See also: :py:class:`monai.transforms.compose.MapTransform`
-        """
-        super().__init__(keys)
 
     def __call__(self, data):
         result = {key: val for key, val in data.items() if key in self.keys}
@@ -535,7 +519,7 @@ class ConcatItemsd(MapTransform):
 
         """
         d = dict(data)
-        output = list()
+        output = []
         data_type = None
         for key in self.keys:
             if data_type is None:
@@ -674,7 +658,7 @@ class ConvertToMultiChannelBasedOnBratsClassesd(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
-            result = list()
+            result = []
             # merge labels 1 (tumor non-enh) and 4 (tumor enh) to TC
             result.append(np.logical_or(d[key] == 1, d[key] == 4))
             # merge labels 1 (tumor non-enh) and 4 (tumor enh) and 2 (large edema) to WT

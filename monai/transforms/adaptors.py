@@ -196,7 +196,7 @@ def adaptor(function, outputs, inputs=None):
             if len(ret) != len(outputs):
                 raise ValueError("'outputs' must have the same length as the number of elements that were returned")
 
-            ret = {k: v for k, v in zip(op, ret)}
+            ret = dict(zip(op, ret))
         else:
             must_be_types("outputs", op, (str, list, tuple))
             if isinstance(op, (list, tuple)):

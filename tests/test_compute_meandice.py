@@ -184,7 +184,7 @@ class TestComputeMeanDice(unittest.TestCase):
     def test_value_class(self, input_data, expected_value):
 
         # same test as for compute_meandice
-        vals = dict()
+        vals = {}
         vals["y_pred"] = input_data.pop("y_pred")
         vals["y"] = input_data.pop("y")
         dice_metric = DiceMetric(**input_data, reduction="none")
