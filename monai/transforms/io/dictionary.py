@@ -24,7 +24,21 @@ from monai.data.image_reader import ImageReader
 from monai.transforms.compose import MapTransform
 from monai.transforms.io.array import LoadImage, LoadNifti, LoadNumpy, LoadPNG
 
-__all__ = ["LoadImaged", "LoadDatad", "LoadNiftid", "LoadPNGd", "LoadNumpyd"]
+__all__ = [
+    "LoadImaged",
+    "LoadDatad",
+    "LoadNiftid",
+    "LoadPNGd",
+    "LoadNumpyd",
+    "LoadImageD",
+    "LoadImageDict",
+    "LoadNiftiD",
+    "LoadNiftiDict",
+    "LoadPNGD",
+    "LoadPNGDict",
+    "LoadNumpyD",
+    "LoadNumpyDict",
+]
 
 
 class LoadImaged(MapTransform):
