@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -22,6 +22,33 @@ from monai.networks.layers import GaussianFilter
 from monai.utils import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple, min_version, optional_import
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
+
+__all__ = [
+    "rand_choice",
+    "img_bounds",
+    "in_bounds",
+    "is_empty",
+    "zero_margins",
+    "rescale_array",
+    "rescale_instance_array",
+    "rescale_array_int_max",
+    "copypaste_arrays",
+    "resize_center",
+    "map_binary_to_indices",
+    "weighted_patch_samples",
+    "generate_pos_neg_label_crop_centers",
+    "apply_transform",
+    "create_grid",
+    "create_control_grid",
+    "create_rotate",
+    "create_shear",
+    "create_scale",
+    "create_translate",
+    "generate_spatial_bounding_box",
+    "get_largest_connected_component_mask",
+    "get_extreme_points",
+    "extreme_points_to_image",
+]
 
 
 def rand_choice(prob: float = 0.5) -> bool:

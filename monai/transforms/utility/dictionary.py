@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -43,6 +43,30 @@ from monai.transforms.utility.array import (
     ToTensor,
 )
 from monai.utils import ensure_tuple, ensure_tuple_rep
+
+__all__ = [
+    "Identityd",
+    "AsChannelFirstd",
+    "AsChannelLastd",
+    "AddChanneld",
+    "RepeatChanneld",
+    "SplitChanneld",
+    "CastToTyped",
+    "ToTensord",
+    "ToNumpyd",
+    "DeleteItemsd",
+    "SelectItemsd",
+    "SqueezeDimd",
+    "DataStatsd",
+    "SimulateDelayd",
+    "CopyItemsd",
+    "ConcatItemsd",
+    "Lambdad",
+    "LabelToMaskd",
+    "FgBgToIndicesd",
+    "ConvertToMultiChannelBasedOnBratsClassesd",
+    "AddExtremePointsChanneld",
+]
 
 
 class Identityd(MapTransform):
@@ -511,7 +535,7 @@ class ConcatItemsd(MapTransform):
 
         """
         d = dict(data)
-        output = list()
+        output = []
         data_type = None
         for key in self.keys:
             if data_type is None:
@@ -650,7 +674,7 @@ class ConvertToMultiChannelBasedOnBratsClassesd(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
-            result = list()
+            result = []
             # merge labels 1 (tumor non-enh) and 4 (tumor enh) to TC
             result.append(np.logical_or(d[key] == 1, d[key] == 4))
             # merge labels 1 (tumor non-enh) and 4 (tumor enh) and 2 (large edema) to WT

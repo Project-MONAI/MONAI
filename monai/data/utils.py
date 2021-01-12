@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -38,6 +38,32 @@ from monai.utils import (
 )
 
 nib, _ = optional_import("nibabel")
+
+__all__ = [
+    "get_random_patch",
+    "iter_patch_slices",
+    "dense_patch_slices",
+    "iter_patch",
+    "get_valid_patch_size",
+    "list_data_collate",
+    "worker_init_fn",
+    "set_rnd",
+    "correct_nifti_header_if_necessary",
+    "rectify_header_sform_qform",
+    "zoom_affine",
+    "compute_shape_offset",
+    "to_affine_nd",
+    "create_file_basename",
+    "compute_importance_map",
+    "is_supported_format",
+    "partition_dataset",
+    "partition_dataset_classes",
+    "select_cross_validation_folds",
+    "DistributedSampler",
+    "json_hashing",
+    "pickle_hashing",
+    "sorted_dict",
+]
 
 
 def get_random_patch(
@@ -686,7 +712,7 @@ def partition_dataset_classes(
     for i, c in enumerate(classes):
         class_indices[c].append(i)
 
-    class_partition_indices: List[Sequence] = list()
+    class_partition_indices: List[Sequence] = []
     for _, per_class_indices in sorted(class_indices.items()):
         per_class_partition_indices = partition_dataset(
             data=per_class_indices,

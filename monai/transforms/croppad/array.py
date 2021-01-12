@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -27,6 +27,21 @@ from monai.transforms.utils import (
     weighted_patch_samples,
 )
 from monai.utils import Method, NumpyPadMode, ensure_tuple, fall_back_tuple
+
+__all__ = [
+    "SpatialPad",
+    "BorderPad",
+    "DivisiblePad",
+    "SpatialCrop",
+    "CenterSpatialCrop",
+    "RandSpatialCrop",
+    "RandSpatialCropSamples",
+    "CropForeground",
+    "RandWeightedCrop",
+    "RandCropByPosNegLabel",
+    "ResizeWithPadOrCrop",
+    "BoundingRect",
+]
 
 
 class SpatialPad(Transform):
@@ -59,7 +74,7 @@ class SpatialPad(Transform):
     def _determine_data_pad_width(self, data_shape: Sequence[int]) -> List[Tuple[int, int]]:
         self.spatial_size = fall_back_tuple(self.spatial_size, data_shape)
         if self.method == Method.SYMMETRIC:
-            pad_width = list()
+            pad_width = []
             for i in range(len(self.spatial_size)):
                 width = max(self.spatial_size[i] - data_shape[i], 0)
                 pad_width.append((width // 2, width - (width // 2)))
@@ -586,7 +601,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
             else:
                 fg_indices, bg_indices = map_binary_to_indices(label, image, self.image_threshold)
         self.randomize(label, fg_indices, bg_indices, image)
-        results: List[np.ndarray] = list()
+        results: List[np.ndarray] = []
         if self.centers is not None:
             for center in self.centers:
                 cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)
@@ -665,7 +680,7 @@ class BoundingRect(Transform):
         """
         See also: :py:class:`monai.transforms.utils.generate_spatial_bounding_box`.
         """
-        bbox = list()
+        bbox = []
 
         for channel in range(img.shape[0]):
             start_, end_ = generate_spatial_bounding_box(img, select_fn=self.select_fn, channel_indices=channel)

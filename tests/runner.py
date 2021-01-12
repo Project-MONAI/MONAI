@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,7 +18,7 @@ import unittest
 
 from monai.utils import PerfContext
 
-results: dict = dict()
+results: dict = {}
 
 
 class TimeLoggingTestResult(unittest.TextTestResult):
@@ -26,7 +26,7 @@ class TimeLoggingTestResult(unittest.TextTestResult):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.timed_tests = dict()
+        self.timed_tests = {}
 
     def startTest(self, test):  # noqa: N802
         """Start timer, print test name, do normal test."""

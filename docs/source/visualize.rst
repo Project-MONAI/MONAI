@@ -18,3 +18,9 @@ Class activation map
 
 .. automodule:: monai.visualize.class_activation_maps
   :members:
+
+Occlusion sensitivity
+---------------------
+
+.. automodule:: monai.visualize.occlusion_sensitivity
+  :members:

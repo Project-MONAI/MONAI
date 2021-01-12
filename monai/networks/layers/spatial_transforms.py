@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -518,7 +518,7 @@ class AffineTransform(nn.Module):
         if spatial_size is not None:
             dst_size = src_size[:2] + ensure_tuple(spatial_size)
 
-        # reverse and normalise theta if needed
+        # reverse and normalize theta if needed
         if not self.normalized:
             theta = to_norm_affine(
                 affine=theta, src_size=src_size[2:], dst_size=dst_size[2:], align_corners=self.align_corners

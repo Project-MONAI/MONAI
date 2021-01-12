@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -136,7 +136,7 @@ def load_decathlon_properties(
     with open(data_property_file_path) as json_file:
         json_data = json.load(json_file)
 
-    properties = dict()
+    properties = {}
     for key in ensure_tuple(property_keys):
         if key not in json_data:
             raise KeyError(f"key {key} is not in the data property file.")

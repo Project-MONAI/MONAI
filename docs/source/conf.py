@@ -22,7 +22,7 @@ import monai  # noqa: E402
 
 # -- Project information -----------------------------------------------------
 project = "MONAI"
-copyright = "2020 MONAI Consortium"
+copyright = "2020 - 2021 MONAI Consortium"
 author = "MONAI Contributors"
 
 # The full version, including alpha/beta/rc tags
