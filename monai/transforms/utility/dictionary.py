@@ -23,7 +23,6 @@ import numpy as np
 import torch
 
 from monai.config import KeysCollection
-from monai.transforms import extreme_points_to_image, get_extreme_points
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.utility.array import (
     AddChannel,
@@ -42,6 +41,7 @@ from monai.transforms.utility.array import (
     ToNumpy,
     ToTensor,
 )
+from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.utils import ensure_tuple, ensure_tuple_rep
 
 __all__ = [
@@ -308,14 +308,6 @@ class DeleteItemsd(MapTransform):
     It will remove the key-values and copy the others to construct a new dictionary.
     """
 
-    def __init__(self, keys: KeysCollection) -> None:
-        """
-        Args:
-            keys: keys of the corresponding items to be transformed.
-                See also: :py:class:`monai.transforms.compose.MapTransform`
-        """
-        super().__init__(keys)
-
     def __call__(self, data):
         return {key: val for key, val in data.items() if key not in self.keys}
 
@@ -325,14 +317,6 @@ class SelectItemsd(MapTransform):
     Select only specified items from data dictionary to release memory.
     It will copy the selected key-values and construct and new dictionary.
     """
-
-    def __init__(self, keys):
-        """
-        Args:
-            keys: keys of the corresponding items to be transformed.
-                See also: :py:class:`monai.transforms.compose.MapTransform`
-        """
-        super().__init__(keys)
 
     def __call__(self, data):
         result = {key: val for key, val in data.items() if key in self.keys}

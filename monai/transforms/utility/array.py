@@ -226,10 +226,9 @@ class CastToType(Transform):
         """
         if isinstance(img, np.ndarray):
             return img.astype(self.dtype if dtype is None else dtype)
-        elif torch.is_tensor(img):
+        if torch.is_tensor(img):
             return torch.as_tensor(img, dtype=self.dtype if dtype is None else dtype)
-        else:
-            raise TypeError(f"img must be one of (numpy.ndarray, torch.Tensor) but is {type(img).__name__}.")
+        raise TypeError(f"img must be one of (numpy.ndarray, torch.Tensor) but is {type(img).__name__}.")
 
 
 class ToTensor(Transform):
@@ -460,8 +459,7 @@ class Lambda(Transform):
             return func(img)
         if self.func is not None:
             return self.func(img)
-        else:
-            raise ValueError("Incompatible values: func=None and self.func=None.")
+        raise ValueError("Incompatible values: func=None and self.func=None.")
 
 
 class LabelToMask(Transform):
