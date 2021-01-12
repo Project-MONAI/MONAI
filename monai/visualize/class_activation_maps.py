@@ -20,7 +20,7 @@ import torch.nn.functional as F
 from monai.networks.utils import eval_mode, train_mode
 from monai.transforms import ScaleIntensity
 from monai.utils import ensure_tuple
-from monai.visualize import default_upsampler
+from monai.visualize.visualizer import default_upsampler
 
 __all__ = ["CAM", "GradCAM", "GradCAMpp", "ModelWithHooks", "default_normalizer"]
 

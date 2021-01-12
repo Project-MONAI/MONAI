@@ -11,14 +11,14 @@
 
 from collections.abc import Sequence
 from functools import partial
-from typing import Callable, Optional, Union
+from typing import Callable, Optional, Union, Tuple
 
 import numpy as np
 import torch
 import torch.nn as nn
 
 from monai.networks.utils import eval_mode
-from monai.visualize import default_upsampler
+from monai.visualize.visualizer import default_upsampler
 
 try:
     from tqdm import trange
@@ -154,19 +154,20 @@ class OcclusionSensitivity:
     ) -> None:
         """Occlusion sensitivitiy constructor.
 
-        :param nn_module: classification model to use for inference
-        :param pad_val: when occluding part of the image, which values should we put
-            in the image? If ``None`` is used, then the average of the image will be used.
-        :param mask_size: size of box to be occluded, centred on the central voxel. To ensure that the occluded area
-            is correctly centred, ``mask_size`` and ``stride`` should both be odd or even.
-        :param n_batch: number of images in a batch for inference.
-        :param stride: Stride in spatial directions for performing occlusions. Can be single
-            value or sequence (for varying stride in the different directions).
-            Should be >= 1. Striding in the channel direction will always be 1.
-        :param upsampler: An upsampling method to upsample the output image. Default is
-            N-dimensional linear (bilinear, trilinear, etc.) depending on num spatial
-            dimensions of input.
-        :param verbose: use ``tdqm.trange`` output (if available).
+        Args:
+            nn_module: Classification model to use for inference
+            pad_val: When occluding part of the image, which values should we put
+                in the image? If ``None`` is used, then the average of the image will be used.
+            mask_size: Size of box to be occluded, centred on the central voxel. To ensure that the occluded area
+                is correctly centred, ``mask_size`` and ``stride`` should both be odd or even.
+            n_batch: Number of images in a batch for inference.
+            stride: Stride in spatial directions for performing occlusions. Can be single
+                value or sequence (for varying stride in the different directions).
+                Should be >= 1. Striding in the channel direction will always be 1.
+            upsampler: An upsampling method to upsample the output image. Default is
+                N-dimensional linear (bilinear, trilinear, etc.) depending on num spatial
+                dimensions of input.
+            verbose: Use ``tdqm.trange`` output (if available).
         """
 
         self.nn_module = nn_module
@@ -267,18 +268,18 @@ class OcclusionSensitivity:
         self,
         x: torch.Tensor,
         b_box: Optional[Sequence] = None,
-    ):
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        :param x: image to test. Should be tensor consisting of 1 batch; spatially can be 2- or 3D.
-        :param b_box: Bounding box on which to perform the analysis. The output image will be limited to this size.
-            There should be a minimum and maximum for all dimensions except batch: ``[min1, max1, min2, max2,...]``.
-            * By default, the whole image will be used. Decreasing the size will speed the analysis up, which might
-                be useful for larger images.
-            * Min and max are inclusive, so ``[0, 63, ...]`` will have size ``(64, ...)``.
-            * Use -ve to use ``min=0`` and ``max=im.shape[x]-1`` for xth dimension.
+        Args:
+            x: Image to use for inference. Should be a tensor consisting of 1 batch.
+            b_box: Bounding box on which to perform the analysis. The output image will be limited to this size.
+                There should be a minimum and maximum for all dimensions except batch: ``[min1, max1, min2, max2,...]``.
+                * By default, the whole image will be used. Decreasing the size will speed the analysis up, which might
+                    be useful for larger images.
+                * Min and max are inclusive, so ``[0, 63, ...]`` will have size ``(64, ...)``.
+                * Use -ve to use ``min=0`` and ``max=im.shape[x]-1`` for xth dimension.
 
-        :return: Two ``torch.Tensor`` will be returned: an occlusion map and an image of the most probable class.
-        Both images will be cropped if a bounding box used, but voxel sizes will always match the input.
+        Returns:
             * Occlusion map:
                 * Shows the inference probabilities when the corresponding part of the image is occluded.
                     Hence, more -ve values imply that region was important in the decision process.
@@ -286,6 +287,7 @@ class OcclusionSensitivity:
                     network. Hence, the occlusion for class ``i`` can be seen with ``map[...,i]``.
             * Most probable class:
                 * The most probable class when the corresponding part of the image is occluded (``argmax(dim=-1)``).
+            Both images will be cropped if a bounding box used, but voxel sizes will always match the input.
         """
 
         with eval_mode(self.nn_module):
@@ -294,19 +296,19 @@ class OcclusionSensitivity:
             _check_input_image(x)
 
             # Generate sensitivity images
-            sensitivity_ims, output_im_shape = self._compute_occlusion_sensitivity(x, b_box)
+            sensitivity_ims_list, output_im_shape = self._compute_occlusion_sensitivity(x, b_box)
 
             # Loop over image for each classification
-            for i in range(len(sensitivity_ims)):
+            for i in range(len(sensitivity_ims_list)):
 
                 # upsample
                 if self.upsampler is not None:
                     if np.any(output_im_shape != x.shape[1:]):
                         img_spatial = tuple(output_im_shape[1:])
-                        sensitivity_ims[i] = self.upsampler(img_spatial)(sensitivity_ims[i])
+                        sensitivity_ims_list[i] = self.upsampler(img_spatial)(sensitivity_ims_list[i])
 
             # Convert list of tensors to tensor
-            sensitivity_ims = torch.stack(sensitivity_ims, dim=-1)
+            sensitivity_ims = torch.stack(sensitivity_ims_list, dim=-1)
 
             # The most probable class is the max in the classification dimension (last)
             most_probable_class = sensitivity_ims.argmax(dim=-1)
