@@ -114,33 +114,30 @@ def compute_roc_auc(
         if softmax:
             warnings.warn("y_pred has only one channel, softmax=True ignored.")
         return _calculate(y, y_pred)
-    else:
-        n_classes = y_pred.shape[1]
-        if to_onehot_y:
-            y = one_hot(y, n_classes)
-        if softmax and other_act is not None:
-            raise ValueError("Incompatible values: softmax=True and other_act is not None.")
-        if softmax:
-            y_pred = y_pred.float().softmax(dim=1)
-        if other_act is not None:
-            if not callable(other_act):
-                raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
-            y_pred = other_act(y_pred)
+    n_classes = y_pred.shape[1]
+    if to_onehot_y:
+        y = one_hot(y, n_classes)
+    if softmax and other_act is not None:
+        raise ValueError("Incompatible values: softmax=True and other_act is not None.")
+    if softmax:
+        y_pred = y_pred.float().softmax(dim=1)
+    if other_act is not None:
+        if not callable(other_act):
+            raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
+        y_pred = other_act(y_pred)
 
-        assert y.shape == y_pred.shape, "data shapes of y_pred and y do not match."
+    assert y.shape == y_pred.shape, "data shapes of y_pred and y do not match."
 
-        average = Average(average)
-        if average == Average.MICRO:
-            return _calculate(y.flatten(), y_pred.flatten())
-        y, y_pred = y.transpose(0, 1), y_pred.transpose(0, 1)
-        auc_values = [_calculate(y_, y_pred_) for y_, y_pred_ in zip(y, y_pred)]
-        if average == Average.NONE:
-            return auc_values
-        if average == Average.MACRO:
-            return np.mean(auc_values)
-        if average == Average.WEIGHTED:
-            weights = [sum(y_) for y_ in y]
-            return np.average(auc_values, weights=weights)
-        raise ValueError(
-            f'Unsupported average: {average}, available options are ["macro", "weighted", "micro", "none"].'
-        )
+    average = Average(average)
+    if average == Average.MICRO:
+        return _calculate(y.flatten(), y_pred.flatten())
+    y, y_pred = y.transpose(0, 1), y_pred.transpose(0, 1)
+    auc_values = [_calculate(y_, y_pred_) for y_, y_pred_ in zip(y, y_pred)]
+    if average == Average.NONE:
+        return auc_values
+    if average == Average.MACRO:
+        return np.mean(auc_values)
+    if average == Average.WEIGHTED:
+        weights = [sum(y_) for y_ in y]
+        return np.average(auc_values, weights=weights)
+    raise ValueError(f'Unsupported average: {average}, available options are ["macro", "weighted", "micro", "none"].')
