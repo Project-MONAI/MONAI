@@ -62,7 +62,7 @@ class TestRegLossIntegration(unittest.TestCase):
         max_iter = 100
 
         # define a simple 3d example
-        target = torch.rand((1, 1, 10, 10, 10), device=self.device)
+        target = torch.rand((1, 1, 5, 5, 5), device=self.device)
         image = 12 * target + 27
         image = image.to(device=self.device)
 
@@ -73,7 +73,7 @@ class TestRegLossIntegration(unittest.TestCase):
                 self.layer = nn.Sequential(
                     nn.Conv3d(in_channels=1, out_channels=1, kernel_size=3, padding=1),
                     nn.ReLU(),
-                    # nn.Conv3d(in_channels=1, out_channels=1, kernel_size=3, padding=1),
+                    nn.Conv3d(in_channels=1, out_channels=1, kernel_size=3, padding=1),
                 )
 
             def forward(self, x):
