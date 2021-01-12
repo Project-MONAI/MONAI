@@ -977,7 +977,7 @@ Utility (Dict)
 
 `TorchVisiond`
 """"""""""""""
-.. autoclass:: TorchVision
+.. autoclass:: TorchVisiond
     :members:
     :special-members: __call__
 
