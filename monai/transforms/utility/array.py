@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,6 +23,26 @@ import torch
 from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points, map_binary_to_indices
 from monai.utils import ensure_tuple
+
+__all__ = [
+    "Identity",
+    "AsChannelFirst",
+    "AsChannelLast",
+    "AddChannel",
+    "RepeatChannel",
+    "SplitChannel",
+    "CastToType",
+    "ToTensor",
+    "ToNumpy",
+    "Transpose",
+    "SqueezeDim",
+    "DataStats",
+    "SimulateDelay",
+    "Lambda",
+    "LabelToMask",
+    "FgBgToIndices",
+    "AddExtremePointsChannel",
+]
 
 # Generic type which can represent either a numpy.ndarray or a torch.Tensor
 # Unlike Union can create a dependence between parameter(s) / return(s)
@@ -169,7 +189,7 @@ class SplitChannel(Transform):
         if n_classes <= 1:
             raise RuntimeError("input image does not contain multiple channels.")
 
-        outputs = list()
+        outputs = []
         slices = [slice(None)] * len(img.shape)
         for i in range(n_classes):
             slices[channel_dim] = slice(i, i + 1)

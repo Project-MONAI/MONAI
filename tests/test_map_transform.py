@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,7 +17,7 @@ from monai.transforms import MapTransform
 
 TEST_CASES = [["item", ("item",)], [None, (None,)], [["item1", "item2"], ("item1", "item2")]]
 
-TEST_ILL_CASES = [[ValueError, list()], [ValueError, tuple()], [TypeError, [list()]]]
+TEST_ILL_CASES = [[ValueError, []], [ValueError, ()], [TypeError, [[]]]]
 
 
 class MapTest(MapTransform):

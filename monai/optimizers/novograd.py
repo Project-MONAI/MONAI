@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -44,15 +44,15 @@ class Novograd(Optimizer):
         grad_averaging: bool = False,
         amsgrad: bool = False,
     ):
-        if not 0.0 <= lr:
+        if 0.0 > lr:
             raise ValueError("Invalid learning rate: {}".format(lr))
-        if not 0.0 <= eps:
+        if 0.0 > eps:
             raise ValueError("Invalid epsilon value: {}".format(eps))
         if not 0.0 <= betas[0] < 1.0:
             raise ValueError("Invalid beta parameter at index 0: {}".format(betas[0]))
         if not 0.0 <= betas[1] < 1.0:
             raise ValueError("Invalid beta parameter at index 1: {}".format(betas[1]))
-        if not 0.0 <= weight_decay:
+        if 0.0 > weight_decay:
             raise ValueError("Invalid weight_decay value: {}".format(weight_decay))
         defaults = dict(
             lr=lr,

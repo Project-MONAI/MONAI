@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -32,7 +32,7 @@ class TestIterableDataset(unittest.TestCase):
     def test_shape(self):
         expected_shape = (128, 128, 128)
         test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]), np.eye(4))
-        test_data = list()
+        test_data = []
         with tempfile.TemporaryDirectory() as tempdir:
             for i in range(6):
                 nib.save(test_image, os.path.join(tempdir, f"test_image{str(i)}.nii.gz"))

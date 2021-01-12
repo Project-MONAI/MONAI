@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -46,6 +46,23 @@ from monai.utils import (
     ensure_tuple_rep,
     fall_back_tuple,
 )
+
+__all__ = [
+    "Spacingd",
+    "Orientationd",
+    "Rotate90d",
+    "RandRotate90d",
+    "Resized",
+    "RandAffined",
+    "Rand2DElasticd",
+    "Rand3DElasticd",
+    "Flipd",
+    "RandFlipd",
+    "Rotated",
+    "RandRotated",
+    "Zoomd",
+    "RandZoomd",
+]
 
 GridSampleModeSequence = Union[Sequence[Union[GridSampleMode, str]], GridSampleMode, str]
 GridSamplePadModeSequence = Union[Sequence[Union[GridSamplePadMode, str]], GridSamplePadMode, str]

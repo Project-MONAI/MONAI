@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -143,8 +143,8 @@ class SupervisedTrainer(Trainer):
         batch = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)
         if len(batch) == 2:
             inputs, targets = batch
-            args: Tuple = tuple()
-            kwargs: Dict = dict()
+            args: Tuple = ()
+            kwargs: Dict = {}
         else:
             inputs, targets, args, kwargs = batch
 
@@ -282,7 +282,7 @@ class GanTrainer(Trainer):
         if batchdata is None:
             raise ValueError("must provide batch data for current iteration.")
 
-        d_input = self.prepare_batch(batchdata, engine.state.device)
+        d_input = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)
         batch_size = self.data_loader.batch_size
         g_input = self.g_prepare_batch(batch_size, self.latent_shape, engine.state.device, engine.non_blocking)
         g_output = self.g_inferer(g_input, self.g_network)

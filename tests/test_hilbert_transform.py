@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -51,7 +51,7 @@ hann_windowed_sine = np.sin(2 * np.pi * 10 * np.linspace(0, 1, n_samples)) * np.
 
 # CPU TEST DATA
 
-cpu_input_data = dict()
+cpu_input_data = {}
 cpu_input_data["1D"] = torch.as_tensor(hann_windowed_sine, device=cpu).unsqueeze(0).unsqueeze(0)
 cpu_input_data["2D"] = (
     torch.as_tensor(np.stack([hann_windowed_sine] * 10, axis=1), device=cpu).unsqueeze(0).unsqueeze(0)
@@ -110,7 +110,7 @@ TEST_CASE_2D_2CH_SINE_CPU = [
 if torch.cuda.is_available():
     gpu = torch.device("cuda")
 
-    gpu_input_data = dict()
+    gpu_input_data = {}
     gpu_input_data["1D"] = torch.as_tensor(hann_windowed_sine, device=gpu).unsqueeze(0).unsqueeze(0)
     gpu_input_data["2D"] = (
         torch.as_tensor(np.stack([hann_windowed_sine] * 10, axis=1), device=gpu).unsqueeze(0).unsqueeze(0)
