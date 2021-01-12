@@ -40,8 +40,8 @@ from monai.transforms.utility.array import (
     SplitChannel,
     SqueezeDim,
     ToNumpy,
-    ToTensor,
     TorchVision,
+    ToTensor,
 )
 from monai.utils import ensure_tuple, ensure_tuple_rep
 
@@ -748,6 +748,7 @@ class AddExtremePointsChanneld(Randomizable, MapTransform):
                 )
                 d[key] = np.concatenate([img, points_image], axis=0)
         return d
+
 
 class TorchVisiond(MapTransform):
     """
