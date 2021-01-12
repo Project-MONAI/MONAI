@@ -242,7 +242,3 @@ class GlobalMutualInformationLoss(_Loss):
         if self.reduction == LossReduction.MEAN.value:
             return torch.mean(mi).neg()  # average over the batch and channel ndims
         raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
-
-
-if __name__ == "__main__":
-    print(LocalNormalizedCrossCorrelationLoss(in_channels=1)(torch.ones((1, 1, 1, 3, 3)), torch.ones((1, 1, 1, 3, 3))))

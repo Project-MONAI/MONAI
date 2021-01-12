@@ -104,7 +104,7 @@ class TestRegLossIntegration(unittest.TestCase):
             # backward pass
             loss_val.backward()
             optimizer.step()
-        assert init_loss > loss_val, "loss did not decrease"
+        self.assertTrue(init_loss > loss_val, "loss did not decrease")
 
 
 if __name__ == "__main__":
