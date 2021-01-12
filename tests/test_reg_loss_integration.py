@@ -59,7 +59,7 @@ class TestRegLossIntegration(unittest.TestCase):
         We verify that the loss is decreasing in almost all SGD steps.
         """
         learning_rate = 0.001
-        max_iter = 40
+        max_iter = 100
 
         # define a simple 3d example
         target = torch.rand((1, 1, 10, 10, 10), device=self.device)
@@ -104,7 +104,7 @@ class TestRegLossIntegration(unittest.TestCase):
             # backward pass
             loss_val.backward()
             optimizer.step()
-        assert init_loss > loss_val, f"loss did not decrease"
+        assert init_loss > loss_val, "loss did not decrease"
 
 
 if __name__ == "__main__":
