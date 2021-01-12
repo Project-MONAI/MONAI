@@ -95,10 +95,9 @@ def default_prepare_batch(
             batchdata[CommonKeys.IMAGE].to(device=device, non_blocking=non_blocking),
             batchdata[CommonKeys.LABEL].to(device=device, non_blocking=non_blocking),
         )
-    elif GanKeys.REALS in batchdata:
+    if GanKeys.REALS in batchdata:
         return batchdata[GanKeys.REALS].to(device=device, non_blocking=non_blocking)
-    else:
-        return batchdata[CommonKeys.IMAGE].to(device=device, non_blocking=non_blocking), None
+    return batchdata[CommonKeys.IMAGE].to(device=device, non_blocking=non_blocking), None
 
 
 def default_make_latent(

@@ -490,7 +490,7 @@ def create_shear(spatial_dims: int, coefs: Union[Sequence[float], float]) -> np.
     if spatial_dims == 2:
         coefs = ensure_tuple_size(coefs, dim=2, pad_val=0.0)
         return np.array([[1, coefs[0], 0.0], [coefs[1], 1.0, 0.0], [0.0, 0.0, 1.0]])
-    elif spatial_dims == 3:
+    if spatial_dims == 3:
         coefs = ensure_tuple_size(coefs, dim=6, pad_val=0.0)
         return np.array(
             [
