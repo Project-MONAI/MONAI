@@ -637,7 +637,7 @@ class TorchVision:
 
         """
         super().__init__()
-        transform = optional_import("torchvision.transforms", name=name)
+        transform, _ = optional_import("torchvision.transforms", name=name)
         self.trans = transform(*args, **kwargs)
 
     def __call__(self, img: torch.Tensor) -> torch.Tensor:

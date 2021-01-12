@@ -41,6 +41,7 @@ from monai.transforms.utility.array import (
     SqueezeDim,
     ToNumpy,
     ToTensor,
+    TorchVision,
 )
 from monai.utils import ensure_tuple, ensure_tuple_rep
 
@@ -66,6 +67,7 @@ __all__ = [
     "FgBgToIndicesd",
     "ConvertToMultiChannelBasedOnBratsClassesd",
     "AddExtremePointsChanneld",
+    "TorchVisiond",
 ]
 
 
@@ -747,6 +749,32 @@ class AddExtremePointsChanneld(Randomizable, MapTransform):
                 d[key] = np.concatenate([img, points_image], axis=0)
         return d
 
+class TorchVisiond(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.TorchVision`.
+    As most of the TorchVision transforms only work for PIL image and PyTorch Tensor, this transform expects input
+    data to be dict of PyTorch Tensors, users can easily call `ToTensord` transform to convert Numpy to Tensor.
+    """
+
+    def __init__(self, keys: KeysCollection, name: str, *args, **kwargs) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            name: The transform name in TorchVision package.
+            args: parameters for the TorchVision transform.
+            kwargs: parameters for the TorchVision transform.
+
+        """
+        super().__init__(keys)
+        self.trans = TorchVision(name=name, *args, **kwargs)
+
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.trans(d[key])
+        return d
+
 
 IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
@@ -769,3 +797,4 @@ ConvertToMultiChannelBasedOnBratsClassesD = (
     ConvertToMultiChannelBasedOnBratsClassesDict
 ) = ConvertToMultiChannelBasedOnBratsClassesd
 AddExtremePointsChannelD = AddExtremePointsChannelDict = AddExtremePointsChanneld
+TorchVisionD = TorchVisionDict = TorchVisiond

@@ -102,6 +102,8 @@ def run_testsuit():
         "test_zoom_affine",
         "test_zoomd",
         "test_occlusion_sensitivity",
+        "test_torchvision",
+        "test_torchvisiond",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
