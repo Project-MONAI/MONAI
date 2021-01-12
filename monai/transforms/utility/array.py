@@ -638,7 +638,7 @@ class TorchVision:
         transform, _ = optional_import("torchvision.transforms", name=name)
         self.trans = transform(*args, **kwargs)
 
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:
+    def __call__(self, img: torch.Tensor):
         """
         Args:
             img: PyTorch Tensor data for the TorchVision transform.

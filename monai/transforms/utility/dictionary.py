@@ -752,7 +752,7 @@ class TorchVisiond(MapTransform):
 
         """
         super().__init__(keys)
-        self.trans = TorchVision(name=name, *args, **kwargs)
+        self.trans = TorchVision(name, *args, **kwargs)
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
