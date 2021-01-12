@@ -23,7 +23,6 @@ import numpy as np
 import torch
 
 from monai.config import KeysCollection
-from monai.transforms import extreme_points_to_image, get_extreme_points
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.utility.array import (
     AddChannel,
@@ -43,6 +42,7 @@ from monai.transforms.utility.array import (
     TorchVision,
     ToTensor,
 )
+from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.utils import ensure_tuple, ensure_tuple_rep
 
 __all__ = [
