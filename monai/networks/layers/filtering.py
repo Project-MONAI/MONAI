@@ -60,9 +60,9 @@ class BilateralFilter(torch.autograd.Function):
 
 class PHLFilter(torch.autograd.Function):
     """
-    Filters input based on arbitrary feature vectors. Uses a permutohedral 
+    Filters input based on arbitrary feature vectors. Uses a permutohedral
     lattice data structure to efficiently approximate n-dimensional gaussian
-    filtering. Complexity is broadly independant of kernel size. Most applicable 
+    filtering. Complexity is broadly independant of kernel size. Most applicable
     to higher filter dimensions and larger kernel sizes.
 
     See:
@@ -81,7 +81,7 @@ class PHLFilter(torch.autograd.Function):
 
     @staticmethod
     def forward(ctx, input, features, sigmas=None):
-        
+
         scaled_features = features
         if sigmas is not None:
             for i in range(features.size(1)):

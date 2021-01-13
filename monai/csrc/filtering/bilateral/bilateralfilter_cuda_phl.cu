@@ -30,6 +30,8 @@ __global__ void FeatureCreation(const scalar_t* inputTensor, scalar_t* outputDat
   int elementIndex = blockIdx.x * blockDim.x + threadIdx.x;
   int batchIndex = blockIdx.y;
 
+  if (elementIndex >= cChannelStride) return;
+
   int dataBatchOffset = batchIndex * cBatchStride;
   int featureBatchOffset = batchIndex * (D + C) * cChannelStride;
 
@@ -56,6 +58,10 @@ template <typename scalar_t, int C>
 __global__ void WriteOutput(const scalar_t* data, scalar_t* outputTensor) {
   int elementIndex = blockIdx.x * blockDim.x + threadIdx.x;
   int batchIndex = blockIdx.y;
+
+  
+  if (elementIndex >= cChannelStride) return;
+
   int batchOffset = batchIndex * cBatchStride;
 
 #pragma unroll
@@ -97,7 +103,7 @@ void BilateralFilterPHLCuda(
 
   // Creating features
   FeatureCreation<scalar_t, C, D>
-      <<<dim3(desc.channelStride, desc.batchCount), dim3(1, 1)>>>(inputTensorData, data, features);
+      <<<dim3(int(desc.channelStride/32) + 1, desc.batchCount), dim3(32, 1)>>>(inputTensorData, data, features);
 
   // Filtering data with respect to the features for each sample in batch
   for (int batchIndex = 0; batchIndex < desc.batchCount; batchIndex++) {
@@ -108,7 +114,7 @@ void BilateralFilterPHLCuda(
   }
 
   // Writing output
-  WriteOutput<scalar_t, C><<<dim3(desc.channelStride, desc.batchCount), dim3(1, 1)>>>(data, outputTensorData);
+  WriteOutput<scalar_t, C><<<dim3(int(desc.channelStride/32) + 1, desc.batchCount), dim3(32, 1)>>>(data, outputTensorData);
 
   cudaFree(data);
   cudaFree(features);
