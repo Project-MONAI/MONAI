@@ -15,7 +15,7 @@ from monai.utils.module import optional_import
 
 _C, _ = optional_import("monai._C")
 
-__all__ = ["BilateralFilter"]
+__all__ = ["BilateralFilter", "PHLFilter"]
 
 
 class BilateralFilter(torch.autograd.Function):
@@ -55,4 +55,44 @@ class BilateralFilter(torch.autograd.Function):
     def backward(ctx, grad_output):
         spatial_sigma, color_sigma, fast_approx = ctx.saved_variables
         grad_input = _C.bilateral_filter(grad_output, spatial_sigma, color_sigma, fast_approx)
+        return grad_input
+
+
+class PHLFilter(torch.autograd.Function):
+    """
+    Filters input based on arbitrary feature vectors. Uses a permutohedral 
+    lattice data structure to efficiently approximate n-dimensional gaussian
+    filtering. Complexity is broadly independant of kernel size. Most applicable 
+    to higher filter dimensions and larger kernel sizes.
+
+    See:
+        https://graphics.stanford.edu/papers/permutohedral/
+
+    Args:
+        input: input tensor to be filtered.
+
+        features: feature tensor used to filter the input.
+
+        sigmas: the standard deviations of each feature in the filter.
+
+    Returns:
+        output (torch.Tensor): output tensor.
+    """
+
+    @staticmethod
+    def forward(ctx, input, features, sigmas=None):
+        
+        scaled_features = features
+        if sigmas is not None:
+            for i in range(features.size(1)):
+                scaled_features[:, i, ...] /= sigmas[i]
+
+        ctx.save_for_backward(scaled_features)
+        output_data = _C.phl_filter(input, scaled_features)
+        return output_data
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        scaled_features = ctx.saved_variables
+        grad_input = PHLFilter.scale(grad_output, scaled_features)
         return grad_input

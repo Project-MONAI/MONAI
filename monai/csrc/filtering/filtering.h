@@ -14,3 +14,4 @@ limitations under the License.
 #pragma once
 
 #include "bilateral/bilateral.h"
+#include "permutohedral/permutohedral.h"

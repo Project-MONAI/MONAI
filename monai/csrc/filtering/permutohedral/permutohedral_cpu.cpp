@@ -215,7 +215,7 @@ class PermutohedralLattice {
    *   im : image to be bilateral-filtered.
    *  ref : reference image whose edges are to be respected.
    */
-  static scalar_t* filter(scalar_t* data, scalar_t* features, int dataChannels, int featureChannels, int elementCount) {
+  static void filter(scalar_t* data, scalar_t* features, int dataChannels, int featureChannels, int elementCount) {
     // Create lattice
     PermutohedralLattice lattice(featureChannels, dataChannels + 1, elementCount);
 
@@ -236,8 +236,6 @@ class PermutohedralLattice {
     lattice.blur();
 
     // Slice from the lattice
-    scalar_t* outputData = new scalar_t[elementCount * dataChannels];
-
     lattice.beginSlice();
 
     for (int i = 0, e = 0; e < elementCount; e++) {
@@ -245,11 +243,9 @@ class PermutohedralLattice {
 
       scalar_t scale = 1.0f / col[dataChannels];
       for (int c = 0; c < dataChannels; c++, i++) {
-        outputData[i] = col[c] * scale;
+        data[i] = col[c] * scale;
       }
     }
-
-    return outputData;
   }
 
   /* Constructor
@@ -498,17 +494,17 @@ class PermutohedralLattice {
 };
 
 template <typename scalar_t>
-scalar_t* PermutohedralCPU(
+void PermutohedralCPU(
     scalar_t* data,
     scalar_t* features,
     int dataChannels,
     int featureChannels,
     int elementCount) {
-  return PermutohedralLattice<scalar_t>::filter(data, features, dataChannels, featureChannels, elementCount);
+  PermutohedralLattice<scalar_t>::filter(data, features, dataChannels, featureChannels, elementCount);
 }
 
-template float* PermutohedralCPU(float* data, float* features, int dataChannels, int featureChannels, int elementCount);
-template double* PermutohedralCPU(
+template void PermutohedralCPU(float* data, float* features, int dataChannels, int featureChannels, int elementCount);
+template void PermutohedralCPU(
     double* data,
     double* features,
     int dataChannels,

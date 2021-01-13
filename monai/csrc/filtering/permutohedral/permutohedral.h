@@ -11,10 +11,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+#include <torch/extension.h>
+
 #pragma once
 template <typename scalar_t>
-scalar_t* PermutohedralCPU(scalar_t* data, scalar_t* features, int dataChannels, int featureChannels, int elementCount);
+void PermutohedralCPU(scalar_t* data, scalar_t* features, int dataChannels, int featureChannels, int elementCount);
 #ifdef WITH_CUDA
 template <typename scalar_t, int dc, int fc>
 void PermutohedralCuda(scalar_t* data, scalar_t* features, int elementCount, bool accurate);
 #endif
+
+torch::Tensor PermutohedralFilter(torch::Tensor input, torch::Tensor features);
