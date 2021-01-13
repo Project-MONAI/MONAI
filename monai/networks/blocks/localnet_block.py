@@ -128,8 +128,10 @@ class LocalNetResidualBlock(nn.Module):
 class LocalNetDownSampleBlock(nn.Module):
     """
     A down-sample module that can be used for LocalNet, based on:
-    `Weakly-supervised convolutional neural networks for multimodal image registration <https://doi.org/10.1016/j.media.2018.07.002>`_.
-    `Label-driven weakly-supervised learning for multimodal deformable image registration <https://arxiv.org/abs/1711.01666>`_.
+    `Weakly-supervised convolutional neural networks for multimodal image registration
+    <https://doi.org/10.1016/j.media.2018.07.002>`_.
+    `Label-driven weakly-supervised learning for multimodal deformable image registration
+    <https://arxiv.org/abs/1711.01666>`_.
 
     Adapted from:
         DeepReg (https://github.com/DeepRegNet/DeepReg)
@@ -188,8 +190,10 @@ class LocalNetDownSampleBlock(nn.Module):
 class LocalNetUpSampleBlock(nn.Module):
     """
     A up-sample module that can be used for LocalNet, based on:
-    `Weakly-supervised convolutional neural networks for multimodal image registration <https://doi.org/10.1016/j.media.2018.07.002>`_.
-    `Label-driven weakly-supervised learning for multimodal deformable image registration <https://arxiv.org/abs/1711.01666>`_.
+    `Weakly-supervised convolutional neural networks for multimodal image registration
+    <https://doi.org/10.1016/j.media.2018.07.002>`_.
+    `Label-driven weakly-supervised learning for multimodal deformable image registration
+    <https://arxiv.org/abs/1711.01666>`_.
 
     Adapted from:
         DeepReg (https://github.com/DeepRegNet/DeepReg)
@@ -246,7 +250,8 @@ class LocalNetUpSampleBlock(nn.Module):
 
         Args:
             x: feature to be up-sampled, in shape (batch, ``in_channels``, insize_1, insize_2, [insize_3])
-            mid: mid-level feature saved during down-sampling, in shape (batch, ``out_channels``, midsize_1, midsize_2, [midnsize_3])
+            mid: mid-level feature saved during down-sampling,
+                in shape (batch, ``out_channels``, midsize_1, midsize_2, [midnsize_3])
 
         Raises:
             ValueError: when ``midsize != insize * 2``
@@ -266,8 +271,10 @@ class LocalNetUpSampleBlock(nn.Module):
 class LocalNetFeatureExtractorBlock(nn.Module):
     """
     A feature-extraction module that can be used for LocalNet, based on:
-    `Weakly-supervised convolutional neural networks for multimodal image registration <https://doi.org/10.1016/j.media.2018.07.002>`_.
-    `Label-driven weakly-supervised learning for multimodal deformable image registration <https://arxiv.org/abs/1711.01666>`_.
+    `Weakly-supervised convolutional neural networks for multimodal image registration
+    <https://doi.org/10.1016/j.media.2018.07.002>`_.
+    `Label-driven weakly-supervised learning for multimodal deformable image registration
+    <https://arxiv.org/abs/1711.01666>`_.
 
     Adapted from:
         DeepReg (https://github.com/DeepRegNet/DeepReg)
