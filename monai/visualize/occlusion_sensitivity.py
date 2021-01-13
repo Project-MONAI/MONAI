@@ -303,7 +303,8 @@ class OcclusionSensitivity:
 
                 # upsample
                 if self.upsampler is not None:
-                    if np.any(output_im_shape != x.shape[1:]):
+                    assert len(sensitivity_ims_list[i].shape) == len(x.shape)
+                    if np.any(sensitivity_ims_list[i].shape != x.shape):
                         img_spatial = tuple(output_im_shape[1:])
                         sensitivity_ims_list[i] = self.upsampler(img_spatial)(sensitivity_ims_list[i])
 
