@@ -8,6 +8,8 @@ torch::Tensor PermutohedralFilter(torch::Tensor input, torch::Tensor features) {
 
     input = input.contiguous();
 
+    int batchCount = input.size(0);
+    int batchStride = input.stride(0);
     int elementCount = input.stride(1);
     int channelCount = input.size(1);
     int featureCount = features.size(1);
@@ -19,21 +21,26 @@ torch::Tensor PermutohedralFilter(torch::Tensor input, torch::Tensor features) {
     if (torch::cuda::is_available() && data.is_cuda()) {
         CHECK_CONTIGUOUS_CUDA(data);
     
-        #define CASE(dc, fc) AT_DISPATCH_FLOATING_TYPES(data.scalar_type(), "PermutohedralCuda", ([&] {   \
-            PermutohedralCuda<scalar_t, dc, fc>(data.data_ptr<scalar_t>(), features.data_ptr<scalar_t>(), elementCount, true);                                   \
-        }));
+        #define CASE(dc, fc) AT_DISPATCH_FLOATING_TYPES(data.scalar_type(), "PermutohedralCuda", ([&] {     \
+            for (int batchIndex = 0; batchIndex < batchCount; batchIndex++) {                               \
+                scalar_t* offsetData = data.data_ptr<scalar_t>() + batchIndex * batchStride;                \
+                scalar_t* offsetFeatures = features.data_ptr<scalar_t>() + batchIndex * fc * elementCount;  \
+                PermutohedralCuda<scalar_t, dc, fc>(offsetData, offsetFeatures, elementCount, true);        \
+        }}));
         SWITCH_AB(CASE, 16, 19, channelCount, featureCount);
 
-  } else {
-        AT_DISPATCH_FLOATING_TYPES(data.scalar_type(), "PermutohedralCPU", ([&] {    \
-            PermutohedralCPU<scalar_t>(data.data_ptr<scalar_t>(), features.data_ptr<scalar_t>(), channelCount, featureCount, elementCount);                \
-        }));
-  }
-#else
-    AT_DISPATCH_FLOATING_TYPES(data.scalar_type(), "PermutohedralCPU", ([&] {    \
-        PermutohedralCPU<scalar_t>(data.data_ptr<scalar_t>(), features.data_ptr<scalar_t>(), channelCount, featureCount, elementCount);                \
-    }));
-#endif
+    } 
+    else {
+    #endif
+        AT_DISPATCH_FLOATING_TYPES(data.scalar_type(), "PermutohedralCPU", ([&] {                                   \
+            for (int batchIndex = 0; batchIndex < batchCount; batchIndex++) {                                       \
+                scalar_t* offsetData = data.data_ptr<scalar_t>() + batchIndex * batchStride;                        \
+                scalar_t* offsetFeatures = features.data_ptr<scalar_t>() + batchIndex * featureCount * elementCount;\
+                PermutohedralCPU<scalar_t>(offsetData, offsetFeatures, channelCount, featureCount, elementCount);   \
+        }}));
+    #ifdef WITH_CUDA
+    }
+    #endif
 
     data = data.movedim(-1, 1);
 
