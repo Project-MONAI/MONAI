@@ -199,6 +199,7 @@ from .utility.array import (
     AsChannelFirst,
     AsChannelLast,
     CastToType,
+    ConvertToMultiChannelBasedOnBratsClasses,
     DataStats,
     FgBgToIndices,
     Identity,
