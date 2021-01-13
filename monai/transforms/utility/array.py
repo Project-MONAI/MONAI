@@ -41,6 +41,7 @@ __all__ = [
     "Lambda",
     "LabelToMask",
     "FgBgToIndices",
+    "ConvertToMultiChannelBasedOnBratsClasses",
     "AddExtremePointsChannel",
     "TorchVision",
 ]
@@ -554,6 +555,27 @@ class FgBgToIndices(Transform):
             bg_indices = np.stack([np.unravel_index(i, output_shape) for i in bg_indices])
 
         return fg_indices, bg_indices
+
+
+class ConvertToMultiChannelBasedOnBratsClasses(Transform):
+    """
+    Convert labels to multi channels based on brats18 classes:
+    label 1 is the necrotic and non-enhancing tumor core
+    label 2 is the the peritumoral edema
+    label 4 is the GD-enhancing tumor
+    The possible classes are TC (Tumor core), WT (Whole tumor)
+    and ET (Enhancing tumor).
+    """
+
+    def __call__(self, img: np.ndarray) -> np.ndarray:
+        result = []
+        # merge labels 1 (tumor non-enh) and 4 (tumor enh) to TC
+        result.append(np.logical_or(img == 1, img == 4))
+        # merge labels 1 (tumor non-enh) and 4 (tumor enh) and 2 (large edema) to WT
+        result.append(np.logical_or(np.logical_or(img == 1, img == 4), img == 2))
+        # label 4 is ET
+        result.append(img == 4)
+        return np.stack(result, axis=0).astype(np.float32)
 
 
 class AddExtremePointsChannel(Transform, Randomizable):
