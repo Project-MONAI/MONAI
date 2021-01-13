@@ -504,6 +504,12 @@ Utility
     :members:
     :special-members: __call__
 
+`TorchVision`
+"""""""""""""
+.. autoclass:: TorchVision
+    :members:
+    :special-members: __call__
+
 Dictionary Transforms
 ---------------------
 
@@ -966,6 +972,12 @@ Utility (Dict)
 `FgBgToIndicesd`
 """"""""""""""""
 .. autoclass:: FgBgToIndicesd
+    :members:
+    :special-members: __call__
+
+`TorchVisiond`
+""""""""""""""
+.. autoclass:: TorchVisiond
     :members:
     :special-members: __call__
 

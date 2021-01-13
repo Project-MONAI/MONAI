@@ -209,6 +209,7 @@ from .utility.array import (
     SplitChannel,
     SqueezeDim,
     ToNumpy,
+    TorchVision,
     ToTensor,
     Transpose,
 )
@@ -233,6 +234,7 @@ from .utility.dictionary import (
     SplitChanneld,
     SqueezeDimd,
     ToNumpyd,
+    TorchVisiond,
     ToTensord,
 )
 from .utils import (
