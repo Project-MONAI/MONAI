@@ -15,8 +15,10 @@ from monai.networks.blocks.localnet_block import (
 class LocalNet(nn.Module):
     """
     Reimplementation of LocalNet, based on:
-    `Weakly-supervised convolutional neural networks for multimodal image registration <https://doi.org/10.1016/j.media.2018.07.002>`_.
-    `Label-driven weakly-supervised learning for multimodal deformable image registration <https://arxiv.org/abs/1711.01666>`_.
+    `Weakly-supervised convolutional neural networks for multimodal image registration
+    <https://doi.org/10.1016/j.media.2018.07.002>`_.
+    `Label-driven weakly-supervised learning for multimodal deformable image registration
+    <https://arxiv.org/abs/1711.01666>`_.
 
     Adapted from:
         DeepReg (https://github.com/DeepRegNet/DeepReg)
