@@ -29,6 +29,7 @@ from monai.transforms.utility.array import (
     AsChannelFirst,
     AsChannelLast,
     CastToType,
+    ConvertToMultiChannelBasedOnBratsClasses,
     DataStats,
     FgBgToIndices,
     Identity,
@@ -39,6 +40,7 @@ from monai.transforms.utility.array import (
     SplitChannel,
     SqueezeDim,
     ToNumpy,
+    TorchVision,
     ToTensor,
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
@@ -104,6 +106,9 @@ __all__ = [
     "ConvertToMultiChannelBasedOnBratsClassesDict",
     "AddExtremePointsChannelD",
     "AddExtremePointsChannelDict",
+    "TorchVisiond",
+    "TorchVisionD",
+    "TorchVisionDict",
 ]
 
 
@@ -685,6 +690,7 @@ class FgBgToIndicesd(MapTransform):
 
 class ConvertToMultiChannelBasedOnBratsClassesd(MapTransform):
     """
+    Dictionary-based wrapper of :py:class:`monai.transforms.ConvertToMultiChannelBasedOnBratsClasses`.
     Convert labels to multi channels based on brats18 classes:
     label 1 is the necrotic and non-enhancing tumor core
     label 2 is the the peritumoral edema
@@ -693,17 +699,14 @@ class ConvertToMultiChannelBasedOnBratsClassesd(MapTransform):
     and ET (Enhancing tumor).
     """
 
+    def __init__(self, keys: KeysCollection):
+        super().__init__(keys)
+        self.converter = ConvertToMultiChannelBasedOnBratsClasses()
+
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
-            result = []
-            # merge labels 1 (tumor non-enh) and 4 (tumor enh) to TC
-            result.append(np.logical_or(d[key] == 1, d[key] == 4))
-            # merge labels 1 (tumor non-enh) and 4 (tumor enh) and 2 (large edema) to WT
-            result.append(np.logical_or(np.logical_or(d[key] == 1, d[key] == 4), d[key] == 2))
-            # label 4 is ET
-            result.append(d[key] == 4)
-            d[key] = np.stack(result, axis=0).astype(np.float32)
+            d[key] = self.converter(d[key])
         return d
 
 
@@ -770,6 +773,33 @@ class AddExtremePointsChanneld(Randomizable, MapTransform):
         return d
 
 
+class TorchVisiond(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.TorchVision`.
+    As most of the TorchVision transforms only work for PIL image and PyTorch Tensor, this transform expects input
+    data to be dict of PyTorch Tensors, users can easily call `ToTensord` transform to convert Numpy to Tensor.
+    """
+
+    def __init__(self, keys: KeysCollection, name: str, *args, **kwargs) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            name: The transform name in TorchVision package.
+            args: parameters for the TorchVision transform.
+            kwargs: parameters for the TorchVision transform.
+
+        """
+        super().__init__(keys)
+        self.trans = TorchVision(name, *args, **kwargs)
+
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.trans(d[key])
+        return d
+
+
 IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
@@ -791,3 +821,4 @@ ConvertToMultiChannelBasedOnBratsClassesD = (
     ConvertToMultiChannelBasedOnBratsClassesDict
 ) = ConvertToMultiChannelBasedOnBratsClassesd
 AddExtremePointsChannelD = AddExtremePointsChannelDict = AddExtremePointsChanneld
+TorchVisionD = TorchVisionDict = TorchVisiond

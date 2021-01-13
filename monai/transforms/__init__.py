@@ -253,6 +253,7 @@ from .utility.array import (
     AsChannelFirst,
     AsChannelLast,
     CastToType,
+    ConvertToMultiChannelBasedOnBratsClasses,
     DataStats,
     FgBgToIndices,
     Identity,
@@ -263,6 +264,7 @@ from .utility.array import (
     SplitChannel,
     SqueezeDim,
     ToNumpy,
+    TorchVision,
     ToTensor,
     Transpose,
 )
@@ -323,6 +325,7 @@ from .utility.dictionary import (
     SqueezeDimD,
     SqueezeDimDict,
     ToNumpyd,
+    TorchVisiond,
     ToTensord,
     ToTensorD,
     ToTensorDict,
