@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -699,8 +699,7 @@ class SmartCacheDataset(CacheDataset):
                 self._round = 0
                 self._replace_done = False
                 return True
-            else:
-                return False
+            return False
 
     def shutdown(self):
         """
@@ -807,7 +806,7 @@ class ZipDataset(Dataset):
         def to_list(x):
             return list(x) if isinstance(x, (tuple, list)) else [x]
 
-        data = list()
+        data = []
         for dataset in self.data:
             data.extend(to_list(dataset[index]))
         if self.transform is not None:

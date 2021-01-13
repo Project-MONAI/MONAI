@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,6 +20,8 @@ import threading
 
 alias_lock = threading.RLock()
 GlobalAliases = {}
+
+all = ["alias", "resolve_name"]
 
 
 def alias(*names):
@@ -89,8 +91,7 @@ def resolve_name(name):
                     modnames = [m.__name__ for m in foundmods]
                     msg = f"Multiple modules ({modnames!r}) with declaration name {name!r} found, resolution is ambiguous."
                     raise ValueError(msg)
-                else:
-                    mods = list(foundmods)
+                mods = list(foundmods)
 
             obj = getattr(mods[0], name)
 

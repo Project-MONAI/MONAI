@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -291,10 +291,9 @@ class DecathlonDataset(Randomizable, CacheDataset):
         """
         if keys is None:
             return self._properties
-        elif self._properties is not None:
+        if self._properties is not None:
             return {key: self._properties[key] for key in ensure_tuple(keys)}
-        else:
-            return {}
+        return {}
 
     def _generate_data_list(self, dataset_dir: str) -> List[Dict]:
         section = "training" if self.section in ["training", "validation"] else "test"

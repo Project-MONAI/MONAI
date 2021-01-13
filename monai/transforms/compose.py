@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -194,7 +194,7 @@ class Compose(Randomizable, Transform):
         set of functions must be called as if it were a sequence.
 
         Example: images and labels
-        Images typically require some kind of normalisation that labels do not.
+        Images typically require some kind of normalization that labels do not.
         Both are then typically augmented through the use of random rotations,
         flips, and deformations.
         Compose can be used with a series of transforms that take a dictionary

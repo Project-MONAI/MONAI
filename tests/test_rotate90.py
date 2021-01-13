@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,7 +21,7 @@ class TestRotate90(NumpyImageTestCase2D):
     def test_rotate90_default(self):
         rotate = Rotate90()
         rotated = rotate(self.imt[0])
-        expected = list()
+        expected = []
         for channel in self.imt[0]:
             expected.append(np.rot90(channel, 1, (0, 1)))
         expected = np.stack(expected)
@@ -30,7 +30,7 @@ class TestRotate90(NumpyImageTestCase2D):
     def test_k(self):
         rotate = Rotate90(k=2)
         rotated = rotate(self.imt[0])
-        expected = list()
+        expected = []
         for channel in self.imt[0]:
             expected.append(np.rot90(channel, 2, (0, 1)))
         expected = np.stack(expected)
@@ -39,7 +39,7 @@ class TestRotate90(NumpyImageTestCase2D):
     def test_spatial_axes(self):
         rotate = Rotate90(spatial_axes=(0, 1))
         rotated = rotate(self.imt[0])
-        expected = list()
+        expected = []
         for channel in self.imt[0]:
             expected.append(np.rot90(channel, 1, (0, 1)))
         expected = np.stack(expected)
@@ -48,7 +48,7 @@ class TestRotate90(NumpyImageTestCase2D):
     def test_prob_k_spatial_axes(self):
         rotate = Rotate90(k=2, spatial_axes=(0, 1))
         rotated = rotate(self.imt[0])
-        expected = list()
+        expected = []
         for channel in self.imt[0]:
             expected.append(np.rot90(channel, 2, (0, 1)))
         expected = np.stack(expected)

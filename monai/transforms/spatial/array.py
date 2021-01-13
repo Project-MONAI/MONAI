@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -45,6 +45,28 @@ from monai.utils import (
 )
 
 nib, _ = optional_import("nibabel")
+
+__all__ = [
+    "Spacing",
+    "Orientation",
+    "Flip",
+    "Resize",
+    "Rotate",
+    "Zoom",
+    "Rotate90",
+    "RandRotate90",
+    "RandRotate",
+    "RandFlip",
+    "RandZoom",
+    "AffineGrid",
+    "RandAffineGrid",
+    "RandDeformGrid",
+    "Resample",
+    "Affine",
+    "RandAffine",
+    "Rand2DElastic",
+    "Rand3DElastic",
+]
 
 
 class Spacing(Transform):
@@ -277,7 +299,7 @@ class Flip(Transform):
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-        flipped = list()
+        flipped = []
         for channel in img:
             flipped.append(np.flip(channel, self.spatial_axis))
         return np.stack(flipped).astype(img.dtype)
@@ -555,14 +577,17 @@ class Rotate90(Transform):
                 Default: (0, 1), this is the first two axis in spatial dimensions.
         """
         self.k = k
-        self.spatial_axes = spatial_axes
+        spatial_axes_ = ensure_tuple(spatial_axes)
+        if len(spatial_axes_) != 2:
+            raise ValueError("spatial_axes must be 2 int numbers to indicate the axes to rotate 90 degrees.")
+        self.spatial_axes = spatial_axes_
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-        rotated = list()
+        rotated = []
         for channel in img:
             rotated.append(np.rot90(channel, self.k, self.spatial_axes))
         return np.stack(rotated).astype(img.dtype)

@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,7 +23,7 @@ TEST_CASE_1 = [{"keys": [str(i) for i in range(30)]}, 30]
 class TestSelectItemsd(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
     def test_memory(self, input_param, expected_key_size):
-        input_data = dict()
+        input_data = {}
         for i in range(50):
             input_data[str(i)] = [time.time()] * 100000
         result = SelectItemsd(**input_param)(input_data)

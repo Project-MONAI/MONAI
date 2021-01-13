@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,6 +18,26 @@ from typing import Any, Callable, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
+
+all = [
+    "zip_with",
+    "star_zip_with",
+    "first",
+    "issequenceiterable",
+    "ensure_tuple",
+    "ensure_tuple_size",
+    "ensure_tuple_rep",
+    "fall_back_tuple",
+    "is_scalar_tensor",
+    "is_scalar",
+    "progress_bar",
+    "get_seed",
+    "set_determinism",
+    "list_to_dict",
+    "dtype_torch_to_numpy",
+    "dtype_numpy_to_torch",
+    "MAX_SEED",
+]
 
 _seed = None
 _flag_deterministic = torch.backends.cudnn.deterministic
@@ -100,7 +120,7 @@ def ensure_tuple_rep(tup: Any, dim: int) -> Tuple[Any, ...]:
     """
     if not issequenceiterable(tup):
         return (tup,) * dim
-    elif len(tup) == dim:
+    if len(tup) == dim:
         return tuple(tup)
 
     raise ValueError(f"Sequence must have length {dim}, got {len(tup)}.")
@@ -245,7 +265,7 @@ def list_to_dict(items):
             value = items[1].strip(" \n\r\t'")
         return key, value
 
-    d = dict()
+    d = {}
     if items:
         for item in items:
             key, value = _parse_var(item)

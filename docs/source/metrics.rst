@@ -37,7 +37,3 @@ Metrics
 
 .. autoclass:: SurfaceDistanceMetric
     :members:
-
-`Occlusion sensitivity`
------------------------
-.. autofunction:: compute_occlusion_sensitivity

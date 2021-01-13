@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -22,7 +22,28 @@ import torch
 
 from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points, map_binary_to_indices
-from monai.utils import ensure_tuple
+from monai.utils import ensure_tuple, min_version, optional_import
+
+__all__ = [
+    "Identity",
+    "AsChannelFirst",
+    "AsChannelLast",
+    "AddChannel",
+    "RepeatChannel",
+    "SplitChannel",
+    "CastToType",
+    "ToTensor",
+    "ToNumpy",
+    "Transpose",
+    "SqueezeDim",
+    "DataStats",
+    "SimulateDelay",
+    "Lambda",
+    "LabelToMask",
+    "FgBgToIndices",
+    "AddExtremePointsChannel",
+    "TorchVision",
+]
 
 # Generic type which can represent either a numpy.ndarray or a torch.Tensor
 # Unlike Union can create a dependence between parameter(s) / return(s)
@@ -169,7 +190,7 @@ class SplitChannel(Transform):
         if n_classes <= 1:
             raise RuntimeError("input image does not contain multiple channels.")
 
-        outputs = list()
+        outputs = []
         slices = [slice(None)] * len(img.shape)
         for i in range(n_classes):
             slices[channel_dim] = slice(i, i + 1)
@@ -206,10 +227,9 @@ class CastToType(Transform):
         """
         if isinstance(img, np.ndarray):
             return img.astype(self.dtype if dtype is None else dtype)
-        elif torch.is_tensor(img):
+        if torch.is_tensor(img):
             return torch.as_tensor(img, dtype=self.dtype if dtype is None else dtype)
-        else:
-            raise TypeError(f"img must be one of (numpy.ndarray, torch.Tensor) but is {type(img).__name__}.")
+        raise TypeError(f"img must be one of (numpy.ndarray, torch.Tensor) but is {type(img).__name__}.")
 
 
 class ToTensor(Transform):
@@ -440,8 +460,7 @@ class Lambda(Transform):
             return func(img)
         if self.func is not None:
             return self.func(img)
-        else:
-            raise ValueError("Incompatible values: func=None and self.func=None.")
+        raise ValueError("Incompatible values: func=None and self.func=None.")
 
 
 class LabelToMask(Transform):
@@ -597,3 +616,32 @@ class AddExtremePointsChannel(Transform, Randomizable):
         )
 
         return np.concatenate([img, points_image], axis=0)
+
+
+class TorchVision:
+    """
+    This is a wrapper transform for PyTorch TorchVision transform based on the specified transform name and args.
+    As most of the TorchVision transforms only work for PIL image and PyTorch Tensor, this transform expects input
+    data to be PyTorch Tensor, users can easily call `ToTensor` transform to convert a Numpy array to Tensor.
+
+    """
+
+    def __init__(self, name: str, *args, **kwargs) -> None:
+        """
+        Args:
+            name: The transform name in TorchVision package.
+            args: parameters for the TorchVision transform.
+            kwargs: parameters for the TorchVision transform.
+
+        """
+        super().__init__()
+        transform, _ = optional_import("torchvision.transforms", "0.8.0", min_version, name=name)
+        self.trans = transform(*args, **kwargs)
+
+    def __call__(self, img: torch.Tensor):
+        """
+        Args:
+            img: PyTorch Tensor data for the TorchVision transform.
+
+        """
+        return self.trans(img)

@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -36,6 +36,60 @@ from monai.transforms.intensity.array import (
     ThresholdIntensity,
 )
 from monai.utils import dtype_torch_to_numpy, ensure_tuple_size
+
+__all__ = [
+    "RandGaussianNoised",
+    "ShiftIntensityd",
+    "RandShiftIntensityd",
+    "ScaleIntensityd",
+    "RandScaleIntensityd",
+    "NormalizeIntensityd",
+    "ThresholdIntensityd",
+    "ScaleIntensityRanged",
+    "AdjustContrastd",
+    "RandAdjustContrastd",
+    "ScaleIntensityRangePercentilesd",
+    "MaskIntensityd",
+    "GaussianSmoothd",
+    "RandGaussianSmoothd",
+    "GaussianSharpend",
+    "RandGaussianSharpend",
+    "RandHistogramShiftd",
+    "RandGaussianNoiseD",
+    "RandGaussianNoiseDict",
+    "ShiftIntensityD",
+    "ShiftIntensityDict",
+    "RandShiftIntensityD",
+    "RandShiftIntensityDict",
+    "ScaleIntensityD",
+    "ScaleIntensityDict",
+    "RandScaleIntensityD",
+    "RandScaleIntensityDict",
+    "NormalizeIntensityD",
+    "NormalizeIntensityDict",
+    "ThresholdIntensityD",
+    "ThresholdIntensityDict",
+    "ScaleIntensityRangeD",
+    "ScaleIntensityRangeDict",
+    "AdjustContrastD",
+    "AdjustContrastDict",
+    "RandAdjustContrastD",
+    "RandAdjustContrastDict",
+    "ScaleIntensityRangePercentilesD",
+    "ScaleIntensityRangePercentilesDict",
+    "MaskIntensityD",
+    "MaskIntensityDict",
+    "GaussianSmoothD",
+    "GaussianSmoothDict",
+    "RandGaussianSmoothD",
+    "RandGaussianSmoothDict",
+    "GaussianSharpenD",
+    "GaussianSharpenDict",
+    "RandGaussianSharpenD",
+    "RandGaussianSharpenDict",
+    "RandHistogramShiftD",
+    "RandHistogramShiftDict",
+]
 
 
 class RandGaussianNoised(Randomizable, MapTransform):
