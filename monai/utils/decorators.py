@@ -11,7 +11,7 @@
 
 from functools import wraps
 
-all = ["RestartGenerator", "MethodReplacer"]
+__all__ = ["RestartGenerator", "MethodReplacer"]
 
 
 class RestartGenerator:
