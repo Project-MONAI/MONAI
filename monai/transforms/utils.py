@@ -451,7 +451,7 @@ def create_rotate(spatial_dims: int, radians: Union[Sequence[float], float]) -> 
             return np.array([[cos_, -sin_, 0.0], [sin_, cos_, 0.0], [0.0, 0.0, 1.0]])
         raise ValueError("radians must be non empty.")
 
-    elif spatial_dims == 3:
+    if spatial_dims == 3:
         affine = None
         if len(radians) >= 1:
             sin_, cos_ = np.sin(radians[0]), np.cos(radians[0])
@@ -490,7 +490,7 @@ def create_shear(spatial_dims: int, coefs: Union[Sequence[float], float]) -> np.
     if spatial_dims == 2:
         coefs = ensure_tuple_size(coefs, dim=2, pad_val=0.0)
         return np.array([[1, coefs[0], 0.0], [coefs[1], 1.0, 0.0], [0.0, 0.0, 1.0]])
-    elif spatial_dims == 3:
+    if spatial_dims == 3:
         coefs = ensure_tuple_size(coefs, dim=6, pad_val=0.0)
         return np.array(
             [

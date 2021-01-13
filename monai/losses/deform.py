@@ -17,7 +17,7 @@ from torch.nn.modules.loss import _Loss
 from monai.utils import LossReduction
 
 
-def spatial_gradient(input: torch.Tensor, dim: int) -> torch.Tensor:
+def spatial_gradient(x: torch.Tensor, dim: int) -> torch.Tensor:
     """
     Calculate gradients on single dimension of a tensor using central finite difference.
     It moves the tensor along the dimension to calculate the approximate gradient
@@ -26,7 +26,7 @@ def spatial_gradient(input: torch.Tensor, dim: int) -> torch.Tensor:
         DeepReg (https://github.com/DeepRegNet/DeepReg)
 
     Args:
-        input: the shape should be BCH(WD).
+        x: the shape should be BCH(WD).
         dim: dimension to calculate gradient along.
     Returns:
         gradient_dx: the shape should be BCH(WD)
@@ -36,17 +36,17 @@ def spatial_gradient(input: torch.Tensor, dim: int) -> torch.Tensor:
     slice_2_e = slice(None, -2)
     slice_all = slice(None)
     slicing_s, slicing_e = [slice_all, slice_all], [slice_all, slice_all]
-    while len(slicing_s) < input.ndim:
+    while len(slicing_s) < x.ndim:
         slicing_s = slicing_s + [slice_1]
         slicing_e = slicing_e + [slice_1]
     slicing_s[dim] = slice_2_s
     slicing_e[dim] = slice_2_e
-    return (input[slicing_s] - input[slicing_e]) / 2.0
+    return (x[slicing_s] - x[slicing_e]) / 2.0
 
 
 class BendingEnergyLoss(_Loss):
     """
-    Calculate the bending energy based on second-order differentiation of input using central finite difference.
+    Calculate the bending energy based on second-order differentiation of pred using central finite difference.
 
     Adapted from:
         DeepReg (https://github.com/DeepRegNet/DeepReg)
@@ -67,35 +67,29 @@ class BendingEnergyLoss(_Loss):
         """
         super(BendingEnergyLoss, self).__init__(reduction=LossReduction(reduction).value)
 
-    def forward(self, input: torch.Tensor) -> torch.Tensor:
+    def forward(self, pred: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            input: the shape should be BCH(WD)
+            pred: the shape should be BCH(WD)
 
         Raises:
             ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
 
         """
-        assert input.ndim in [3, 4, 5], f"expecting 3-d, 4-d or 5-d input, instead got input of shape {input.shape}"
-        if input.ndim == 3:
-            assert input.shape[-1] > 4, f"all spatial dimensions must > 4, got input of shape {input.shape}"
-        elif input.ndim == 4:
-            assert (
-                input.shape[-1] > 4 and input.shape[-2] > 4
-            ), f"all spatial dimensions must > 4, got input of shape {input.shape}"
-        elif input.ndim == 5:
-            assert (
-                input.shape[-1] > 4 and input.shape[-2] > 4 and input.shape[-3] > 4
-            ), f"all spatial dimensions must > 4, got input of shape {input.shape}"
+        if pred.ndim not in [3, 4, 5]:
+            raise ValueError(f"expecting 3-d, 4-d or 5-d pred, instead got pred of shape {pred.shape}")
+        for i in range(pred.ndim - 2):
+            if pred.shape[-i - 1] <= 4:
+                raise ValueError("all spatial dimensions must > 4, got pred of shape {pred.shape}")
 
         # first order gradient
-        first_order_gradient = [spatial_gradient(input, dim) for dim in range(2, input.ndim)]
+        first_order_gradient = [spatial_gradient(pred, dim) for dim in range(2, pred.ndim)]
 
         energy = torch.tensor(0)
         for dim_1, g in enumerate(first_order_gradient):
             dim_1 += 2
             energy = spatial_gradient(g, dim_1) ** 2 + energy
-            for dim_2 in range(dim_1 + 1, input.ndim):
+            for dim_2 in range(dim_1 + 1, pred.ndim):
                 energy = 2 * spatial_gradient(g, dim_2) ** 2 + energy
 
         if self.reduction == LossReduction.MEAN.value:
