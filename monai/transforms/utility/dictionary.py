@@ -658,6 +658,7 @@ class ConvertToMultiChannelBasedOnBratsClassesd(MapTransform):
     The possible classes are TC (Tumor core), WT (Whole tumor)
     and ET (Enhancing tumor).
     """
+
     def __init__(self, keys: KeysCollection):
         super().__init__(keys)
         self.converter = ConvertToMultiChannelBasedOnBratsClasses()
