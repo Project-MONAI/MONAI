@@ -24,7 +24,8 @@ extract_param_option = {
     "act": ["sigmoid", None],
     "kernel_initializer": ["zeros", "kaiming_normal"],
 }
-TEST_CASE_EXTRACT = [dict(zip(extract_param_option.keys(), v)) for v in product(*extract_param_option.values())]
+TEST_CASE_EXTRACT = [dict(zip(list(extract_param_option.keys()), v))
+                     for v in product(*list(extract_param_option.values()))]
 TEST_CASE_EXTRACT = [[i] for i in TEST_CASE_EXTRACT]
 
 in_size = 4

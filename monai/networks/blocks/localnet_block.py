@@ -96,8 +96,8 @@ class ResidualBlock(nn.Module):
         self.relu = nn.ReLU()
 
     def forward(self, x) -> torch.Tensor:
-        x: torch.Tensor = self.relu(self.norm(self.conv(self.conv_block(x))) + x)
-        return x
+        out: torch.Tensor = self.relu(self.norm(self.conv(self.conv_block(x))) + x)
+        return out
 
 
 class LocalNetResidualBlock(nn.Module):
@@ -121,8 +121,8 @@ class LocalNetResidualBlock(nn.Module):
         self.relu = nn.ReLU()
 
     def forward(self, x, mid) -> torch.Tensor:
-        x = self.relu(self.norm(self.conv_layer(x)) + mid)
-        return x
+        out: torch.Tensor = self.relu(self.norm(self.conv_layer(x)) + mid)
+        return out
 
 
 class LocalNetDownSampleBlock(nn.Module):
@@ -241,8 +241,8 @@ class LocalNetUpSampleBlock(nn.Module):
         # [(batch, out_channels, ...), (batch, out_channels, ...)]
         x = x.split(split_size=int(self.out_channels), dim=1)
         # (batch, out_channels, ...)
-        x: torch.Tensor = torch.sum(torch.stack(x, dim=-1), dim=-1)
-        return x
+        out: torch.Tensor = torch.sum(torch.stack(x, dim=-1), dim=-1)
+        return out
 
     def forward(self, x, mid) -> torch.Tensor:
         """
@@ -265,8 +265,8 @@ class LocalNetUpSampleBlock(nn.Module):
         h0 = self.deconv_block(x) + self.addictive_upsampling(x, mid)
         r1 = h0 + mid
         r2 = self.conv_block(h0)
-        x = self.residual_block(r2, r1)
-        return x
+        out: torch.Tensor = self.residual_block(r2, r1)
+        return out
 
 
 class LocalNetFeatureExtractorBlock(nn.Module):
@@ -301,12 +301,13 @@ class LocalNetFeatureExtractorBlock(nn.Module):
         self.conv_block = get_conv_block(
             spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels, act=act, norm=None
         )
-        initializer_dict[kernel_initializer](self.conv_block.conv.weight)
+        initialize = initializer_dict[kernel_initializer]
+        initialize(self.conv_block.weight)
 
     def forward(self, x) -> torch.Tensor:
         """
         Args:
             x: Tensor in shape (batch, ``in_channels``, insize_1, insize_2, [insize_3])
         """
-        x = self.conv_block(x)
-        return x
+        out: torch.Tensor = self.conv_block(x)
+        return out
