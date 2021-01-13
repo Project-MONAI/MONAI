@@ -205,9 +205,7 @@ class LoadNifti(Transform):
                         continue
                     compatible_meta[meta_key] = meta_datum
             else:
-                if not np.allclose(
-                    header["affine"], compatible_meta["affine"]
-                ):
+                if not np.allclose(header["affine"], compatible_meta["affine"]):
                     raise AssertionError("affine data of all images should be same.")
 
         img_array = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
@@ -263,9 +261,7 @@ class LoadPNG(Transform):
             if not compatible_meta:
                 compatible_meta = meta
             else:
-                if not np.allclose(
-                    meta["spatial_shape"], compatible_meta["spatial_shape"]
-                ):
+                if not np.allclose(meta["spatial_shape"], compatible_meta["spatial_shape"]):
                     raise AssertionError("all the images in the list should have same spatial shape.")
 
         img_array = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
@@ -328,9 +324,7 @@ class LoadNumpy(Transform):
                 if not compatible_meta:
                     compatible_meta = meta
                 else:
-                    if not np.allclose(
-                        meta["spatial_shape"], compatible_meta["spatial_shape"]
-                    ):
+                    if not np.allclose(meta["spatial_shape"], compatible_meta["spatial_shape"]):
                         raise AssertionError("all the data in the list should have same shape.")
             return compatible_meta
 

@@ -20,13 +20,9 @@ from monai.utils import Average
 
 
 def _calculate(y: torch.Tensor, y_pred: torch.Tensor) -> float:
-    if not (y.ndimension() == y_pred.ndimension() == 1 and len(y) == len(
-        y_pred
-    )):
+    if not (y.ndimension() == y_pred.ndimension() == 1 and len(y) == len(y_pred)):
         raise AssertionError("y and y_pred must be 1 dimension data with same length.")
-    if not y.unique().equal(
-        torch.tensor([0, 1], dtype=y.dtype, device=y.device)
-    ):
+    if not y.unique().equal(torch.tensor([0, 1], dtype=y.dtype, device=y.device)):
         raise AssertionError("y values must be 0 or 1, can not be all 0 or all 1.")
     n = len(y)
     indices = y_pred.argsort()

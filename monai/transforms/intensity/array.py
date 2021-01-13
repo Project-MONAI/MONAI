@@ -384,7 +384,9 @@ class RandAdjustContrast(Randomizable, Transform):
 
         if isinstance(gamma, (int, float)):
             if gamma <= 0.5:
-                raise AssertionError("if gamma is single number, must greater than 0.5 and value is picked from (0.5, gamma)")
+                raise AssertionError(
+                    "if gamma is single number, must greater than 0.5 and value is picked from (0.5, gamma)"
+                )
             self.gamma = (0.5, gamma)
         else:
             if len(gamma) != 2:

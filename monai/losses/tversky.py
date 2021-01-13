@@ -130,9 +130,7 @@ class TverskyLoss(_Loss):
                 target = target[:, 1:]
                 input = input[:, 1:]
 
-        if (
-            target.shape != input.shape
-        ):
+        if target.shape != input.shape:
             raise AssertionError(f"ground truth has differing shape ({target.shape}) from input ({input.shape})")
 
         p0 = input
