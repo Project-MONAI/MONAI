@@ -8,9 +8,7 @@ from monai.networks.blocks import Convolution
 from monai.networks.layers import same_padding
 from monai.networks.layers.factories import batch_factory, maxpooling_factory
 
-initializer_dict = {
-    "zeros": nn.init.zeros_,
-}
+initializer_dict = {"zeros": nn.init.zeros_, "kaiming_normal": nn.init.kaiming_normal_}
 
 
 def get_conv_block(
@@ -98,7 +96,8 @@ class ResidualBlock(nn.Module):
         self.relu = nn.ReLU()
 
     def forward(self, x) -> torch.Tensor:
-        return self.relu(self.norm(self.conv(self.conv_block(x))) + x)
+        x: torch.Tensor = self.relu(self.norm(self.conv(self.conv_block(x))) + x)
+        return x
 
 
 class LocalNetResidualBlock(nn.Module):
@@ -122,7 +121,8 @@ class LocalNetResidualBlock(nn.Module):
         self.relu = nn.ReLU()
 
     def forward(self, x, mid) -> torch.Tensor:
-        return self.relu(self.norm(self.conv_layer(x)) + mid)
+        x = self.relu(self.norm(self.conv_layer(x)) + mid)
+        return x
 
 
 class LocalNetDownSampleBlock(nn.Module):
@@ -241,7 +241,7 @@ class LocalNetUpSampleBlock(nn.Module):
         # [(batch, out_channels, ...), (batch, out_channels, ...)]
         x = x.split(split_size=int(self.out_channels), dim=1)
         # (batch, out_channels, ...)
-        x = torch.sum(torch.stack(x, dim=-1), dim=-1)
+        x: torch.Tensor = torch.sum(torch.stack(x, dim=-1), dim=-1)
         return x
 
     def forward(self, x, mid) -> torch.Tensor:
@@ -265,7 +265,8 @@ class LocalNetUpSampleBlock(nn.Module):
         h0 = self.deconv_block(x) + self.addictive_upsampling(x, mid)
         r1 = h0 + mid
         r2 = self.conv_block(h0)
-        return self.residual_block(r2, r1)
+        x = self.residual_block(r2, r1)
+        return x
 
 
 class LocalNetFeatureExtractorBlock(nn.Module):
@@ -286,7 +287,7 @@ class LocalNetFeatureExtractorBlock(nn.Module):
         in_channels: int,
         out_channels: int,
         act: Optional[Union[Tuple, str]] = "RELU",
-        kernel_initializer: Optional[Union[Tuple, str]] = None,
+        kernel_initializer: str = "kaiming_normal",
     ) -> None:
         """
         Args:
@@ -300,8 +301,7 @@ class LocalNetFeatureExtractorBlock(nn.Module):
         self.conv_block = get_conv_block(
             spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels, act=act, norm=None
         )
-        if kernel_initializer:
-            initializer_dict[kernel_initializer](self.conv_block.conv.weight)
+        initializer_dict[kernel_initializer](self.conv_block.conv.weight)
 
     def forward(self, x) -> torch.Tensor:
         """

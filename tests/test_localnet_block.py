@@ -22,9 +22,9 @@ extract_param_option = {
     "in_channels": [2],
     "out_channels": [3],
     "act": ["sigmoid", None],
-    "kernel_initializer": ["zeros", None],
+    "kernel_initializer": ["zeros", "kaiming_normal"],
 }
-TEST_CASE_EXTRACT = [dict(zip(extract_param_option, v)) for v in product(*extract_param_option.values())]
+TEST_CASE_EXTRACT = [dict(zip(extract_param_option.keys(), v)) for v in product(*extract_param_option.values())]
 TEST_CASE_EXTRACT = [[i] for i in TEST_CASE_EXTRACT]
 
 in_size = 4

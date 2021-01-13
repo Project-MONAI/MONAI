@@ -17,10 +17,10 @@ param_variations_2d = {
     "out_channels": [2],
     "num_channel_initial": [16],
     "extract_levels": [[0, 1, 2]],
-    "out_kernel_initializer": ["zeros", None],
+    "out_kernel_initializer": ["zeros", "kaiming_normal"],
     "out_activation": ["sigmoid", None],
 }
-TEST_CASE_LOCALNET_2D = [dict(zip(param_variations_2d, v)) for v in product(*param_variations_2d.values())]
+TEST_CASE_LOCALNET_2D = [dict(zip(param_variations_2d.keys(), v)) for v in product(*param_variations_2d.values())]
 TEST_CASE_LOCALNET_2D = [
     [input_param, (1, input_param["in_channels"], 16, 16), (1, input_param["out_channels"], 16, 16)]
     for input_param in TEST_CASE_LOCALNET_2D
@@ -33,10 +33,10 @@ param_variations_3d = {
     "out_channels": [1, 3],
     "num_channel_initial": [16, 32],
     "extract_levels": [[0, 1, 2], [0, 1, 2, 3], [0, 1, 2, 3, 4]],
-    "out_kernel_initializer": ["zeros", None],
+    "out_kernel_initializer": ["zeros", "kaiming_normal"],
     "out_activation": ["sigmoid", None],
 }
-TEST_CASE_LOCALNET_3D = [dict(zip(param_variations_3d, v)) for v in product(*param_variations_3d.values())]
+TEST_CASE_LOCALNET_3D = [dict(zip(param_variations_3d.keys(), v)) for v in product(*param_variations_3d.values())]
 TEST_CASE_LOCALNET_3D = [
     [input_param, (1, input_param["in_channels"], 16, 16, 16), (1, input_param["out_channels"], 16, 16, 16)]
     for input_param in TEST_CASE_LOCALNET_3D
