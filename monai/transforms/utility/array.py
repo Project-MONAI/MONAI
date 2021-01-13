@@ -22,7 +22,7 @@ import torch
 
 from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points, map_binary_to_indices
-from monai.utils import ensure_tuple, optional_import
+from monai.utils import ensure_tuple, optional_import, min_version
 
 __all__ = [
     "Identity",
@@ -635,7 +635,7 @@ class TorchVision:
 
         """
         super().__init__()
-        transform, _ = optional_import("torchvision.transforms", name=name)
+        transform, _ = optional_import("torchvision.transforms", "0.8.0", min_version, name=name)
         self.trans = transform(*args, **kwargs)
 
     def __call__(self, img: torch.Tensor):
