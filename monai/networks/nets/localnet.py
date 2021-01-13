@@ -5,14 +5,23 @@ from torch import nn
 from torch.nn import functional as F
 
 from monai.networks.blocks.localnet_block import (
-    ExtractBlock,
     LocalNetDownSampleBlock,
+    LocalNetFeatureExtractorBlock,
     LocalNetUpSampleBlock,
     get_conv_block,
 )
 
 
 class LocalNet(nn.Module):
+    """
+    Reimplementation of LocalNet, based on:
+    `Weakly-supervised convolutional neural networks for multimodal image registration <https://doi.org/10.1016/j.media.2018.07.002>`_.
+    `Label-driven weakly-supervised learning for multimodal deformable image registration <https://arxiv.org/abs/1711.01666>`_.
+
+    Adapted from:
+        DeepReg (https://github.com/DeepRegNet/DeepReg)
+    """
+
     def __init__(
         self,
         spatial_dims: int,
@@ -25,6 +34,16 @@ class LocalNet(nn.Module):
         control_points: (tuple, None) = None,
         **kwargs,
     ):
+        """
+        Args:
+            spatial_dims: number of spatial dimensions.
+            in_channels: number of input channels.
+            out_channels: number of output channels.
+            num_channel_initial: number of initial channels,
+            extract_levels: number of extraction levels,
+            out_kernel_initializer: initializer to use for kernels,
+            out_activation: activation to use at end layer,
+        """
         super(LocalNet, self).__init__()
         self.extract_levels = extract_levels
         self.extract_max_level = max(self.extract_levels)  # E
@@ -63,7 +82,7 @@ class LocalNet(nn.Module):
         self.extract_layers = nn.ModuleList(
             [
                 # if kernels are not initialized by zeros, with init NN, extract may be too large
-                ExtractBlock(
+                LocalNetFeatureExtractorBlock(
                     spatial_dims=spatial_dims,
                     in_channels=num_channels[level],
                     out_channels=out_channels,

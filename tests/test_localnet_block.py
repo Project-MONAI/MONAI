@@ -5,7 +5,11 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.blocks.localnet_block import ExtractBlock, LocalNetDownSampleBlock, LocalNetUpSampleBlock
+from monai.networks.blocks.localnet_block import (
+    LocalNetDownSampleBlock,
+    LocalNetFeatureExtractorBlock,
+    LocalNetUpSampleBlock,
+)
 
 TEST_CASE_DOWN_SAMPLE = [
     [{"spatial_dims": spatial_dims, "in_channels": 2, "out_channels": 4, "kernel_size": 3}] for spatial_dims in [2, 3]
@@ -81,7 +85,7 @@ class TestLocalNetUpSampleBlock(unittest.TestCase):
 class TestExtractBlock(unittest.TestCase):
     @parameterized.expand(TEST_CASE_EXTRACT)
     def test_shape(self, input_param):
-        net = ExtractBlock(**input_param)
+        net = LocalNetFeatureExtractorBlock(**input_param)
         input_shape = (1, input_param["in_channels"], *([in_size] * input_param["spatial_dims"]))
         expected_shape = (1, input_param["out_channels"], *([in_size] * input_param["spatial_dims"]))
         with eval_mode(net):

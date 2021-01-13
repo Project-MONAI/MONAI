@@ -126,6 +126,15 @@ class LocalNetResidualBlock(nn.Module):
 
 
 class LocalNetDownSampleBlock(nn.Module):
+    """
+    A down-sample module that can be used for LocalNet, based on:
+    `Weakly-supervised convolutional neural networks for multimodal image registration <https://doi.org/10.1016/j.media.2018.07.002>`_.
+    `Label-driven weakly-supervised learning for multimodal deformable image registration <https://arxiv.org/abs/1711.01666>`_.
+
+    Adapted from:
+        DeepReg (https://github.com/DeepRegNet/DeepReg)
+    """
+
     def __init__(
         self,
         spatial_dims: int,
@@ -133,6 +142,15 @@ class LocalNetDownSampleBlock(nn.Module):
         out_channels: int,
         kernel_size: Union[Sequence[int], int],
     ):
+        """
+        Args:
+            spatial_dims: number of spatial dimensions.
+            in_channels: number of input channels.
+            out_channels: number of output channels.
+            kernel_size: convolution kernel size.
+        Raises:
+            NotImplementedError: when ``kernel_size`` is even
+        """
         super(LocalNetDownSampleBlock, self).__init__()
         self.conv_block = get_conv_block(
             spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size
@@ -144,7 +162,20 @@ class LocalNetDownSampleBlock(nn.Module):
             kernel_size=2,
         )
 
-    def forward(self, x):
+    def forward(self, x) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Halves the spatial dimensions.
+        A tuple of (x, mid) is returned:
+
+            -  x is the downsample result, in shape (batch, ``out_channels``, insize_1 / 2, insize_2 / 2, [insize_3 / 2]),
+            -  mid is the mid-level feature, in shape (batch, ``out_channels``, insize_1, insize_2, [insize_3])
+
+        Args:
+            x: Tensor in shape (batch, ``in_channels``, insize_1, insize_2, [insize_3])
+
+        Raises:
+            ValueError: when input spatial dimensions are not even.
+        """
         for i in x.shape[2:]:
             if i % 2 != 0:
                 raise ValueError("expecting x spatial dimensions be even, " f"got x of shape {x.shape}")
@@ -155,12 +186,29 @@ class LocalNetDownSampleBlock(nn.Module):
 
 
 class LocalNetUpSampleBlock(nn.Module):
+    """
+    A up-sample module that can be used for LocalNet, based on:
+    `Weakly-supervised convolutional neural networks for multimodal image registration <https://doi.org/10.1016/j.media.2018.07.002>`_.
+    `Label-driven weakly-supervised learning for multimodal deformable image registration <https://arxiv.org/abs/1711.01666>`_.
+
+    Adapted from:
+        DeepReg (https://github.com/DeepRegNet/DeepReg)
+    """
+
     def __init__(
         self,
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
     ):
+        """
+        Args:
+            spatial_dims: number of spatial dimensions.
+            in_channels: number of input channels.
+            out_channels: number of output channels.
+        Raises:
+            ValueError: when ``in_channels != 2 * out_channels``
+        """
         super(LocalNetUpSampleBlock, self).__init__()
         self.deconv_block = get_deconv_block(
             spatial_dims=spatial_dims,
@@ -193,6 +241,16 @@ class LocalNetUpSampleBlock(nn.Module):
         return x
 
     def forward(self, x, mid):
+        """
+        Halves the channel and doubles the spatial dimensions.
+
+        Args:
+            x: feature to be up-sampled, in shape (batch, ``in_channels``, insize_1, insize_2, [insize_3])
+            mid: mid-level feature saved during down-sampling, in shape (batch, ``out_channels``, midsize_1, midsize_2, [midnsize_3])
+
+        Raises:
+            ValueError: when ``midsize != insize * 2``
+        """
         for i, j in zip(x.shape[2:], mid.shape[2:]):
             if j != 2 * i:
                 raise ValueError(
@@ -205,7 +263,16 @@ class LocalNetUpSampleBlock(nn.Module):
         return self.residual_block(r2, r1)
 
 
-class ExtractBlock(nn.Module):
+class LocalNetFeatureExtractorBlock(nn.Module):
+    """
+    A feature-extraction module that can be used for LocalNet, based on:
+    `Weakly-supervised convolutional neural networks for multimodal image registration <https://doi.org/10.1016/j.media.2018.07.002>`_.
+    `Label-driven weakly-supervised learning for multimodal deformable image registration <https://arxiv.org/abs/1711.01666>`_.
+
+    Adapted from:
+        DeepReg (https://github.com/DeepRegNet/DeepReg)
+    """
+
     def __init__(
         self,
         spatial_dims: int,
@@ -214,7 +281,15 @@ class ExtractBlock(nn.Module):
         act: Optional[Union[Tuple, str]] = "RELU",
         kernel_initializer: Optional[Union[Tuple, str]] = None,
     ):
-        super(ExtractBlock, self).__init__()
+        """
+        Args:
+        spatial_dims: number of spatial dimensions.
+        in_channels: number of input channels.
+        out_channels: number of output channels.
+        act: activation type and arguments. Defaults to ReLU.
+        kernel_initializer: kernel initializer. Defaults to None.
+        """
+        super(LocalNetFeatureExtractorBlock, self).__init__()
         self.conv_block = get_conv_block(
             spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels, act=act, norm=None
         )
@@ -222,5 +297,9 @@ class ExtractBlock(nn.Module):
             initializer_dict[kernel_initializer](self.conv_block.conv.weight)
 
     def forward(self, x):
+        """
+        Args:
+            x: Tensor in shape (batch, ``in_channels``, insize_1, insize_2, [insize_3])
+        """
         x = self.conv_block(x)
         return x
