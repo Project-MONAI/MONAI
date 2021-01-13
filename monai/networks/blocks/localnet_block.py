@@ -20,7 +20,7 @@ def get_conv_block(
     kernel_size: Union[Sequence[int], int] = 3,
     act: Optional[Union[Tuple, str]] = "RELU",
     norm: Optional[Union[Tuple, str]] = "BATCH",
-):
+) -> nn.Module:
     padding = same_padding(kernel_size)
     return Convolution(
         spatial_dims,
@@ -40,7 +40,7 @@ def get_conv_layer(
     in_channels: int,
     out_channels: int,
     kernel_size: Union[Sequence[int], int] = 3,
-):
+) -> nn.Module:
     padding = same_padding(kernel_size)
     return Convolution(
         spatial_dims,
@@ -57,7 +57,7 @@ def get_deconv_block(
     spatial_dims: int,
     in_channels: int,
     out_channels: int,
-):
+) -> nn.Module:
     return Convolution(
         dimensions=spatial_dims,
         in_channels=in_channels,
@@ -79,7 +79,7 @@ class ResidualBlock(nn.Module):
         in_channels: int,
         out_channels: int,
         kernel_size: Union[Sequence[int], int],
-    ):
+    ) -> None:
         super(ResidualBlock, self).__init__()
         if in_channels != out_channels:
             raise ValueError(
@@ -97,7 +97,7 @@ class ResidualBlock(nn.Module):
         self.norm = batch_factory(spatial_dims)(out_channels)
         self.relu = nn.ReLU()
 
-    def forward(self, x):
+    def forward(self, x) -> torch.Tensor:
         return self.relu(self.norm(self.conv(self.conv_block(x))) + x)
 
 
@@ -107,7 +107,7 @@ class LocalNetResidualBlock(nn.Module):
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
-    ):
+    ) -> None:
         super(LocalNetResidualBlock, self).__init__()
         if in_channels != out_channels:
             raise ValueError(
@@ -121,7 +121,7 @@ class LocalNetResidualBlock(nn.Module):
         self.norm = batch_factory(spatial_dims)(out_channels)
         self.relu = nn.ReLU()
 
-    def forward(self, x, mid):
+    def forward(self, x, mid) -> torch.Tensor:
         return self.relu(self.norm(self.conv_layer(x)) + mid)
 
 
@@ -141,7 +141,7 @@ class LocalNetDownSampleBlock(nn.Module):
         in_channels: int,
         out_channels: int,
         kernel_size: Union[Sequence[int], int],
-    ):
+    ) -> None:
         """
         Args:
             spatial_dims: number of spatial dimensions.
@@ -200,7 +200,7 @@ class LocalNetUpSampleBlock(nn.Module):
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
-    ):
+    ) -> None:
         """
         Args:
             spatial_dims: number of spatial dimensions.
@@ -232,7 +232,7 @@ class LocalNetUpSampleBlock(nn.Module):
             )
         self.out_channels = out_channels
 
-    def addictive_upsampling(self, x, mid):
+    def addictive_upsampling(self, x, mid) -> torch.Tensor:
         x = F.interpolate(x, mid.shape[2:])
         # [(batch, out_channels, ...), (batch, out_channels, ...)]
         x = x.split(split_size=int(self.out_channels), dim=1)
@@ -240,7 +240,7 @@ class LocalNetUpSampleBlock(nn.Module):
         x = torch.sum(torch.stack(x, dim=-1), dim=-1)
         return x
 
-    def forward(self, x, mid):
+    def forward(self, x, mid) -> torch.Tensor:
         """
         Halves the channel and doubles the spatial dimensions.
 
@@ -280,7 +280,7 @@ class LocalNetFeatureExtractorBlock(nn.Module):
         out_channels: int,
         act: Optional[Union[Tuple, str]] = "RELU",
         kernel_initializer: Optional[Union[Tuple, str]] = None,
-    ):
+    ) -> None:
         """
         Args:
         spatial_dims: number of spatial dimensions.
@@ -296,7 +296,7 @@ class LocalNetFeatureExtractorBlock(nn.Module):
         if kernel_initializer:
             initializer_dict[kernel_initializer](self.conv_block.conv.weight)
 
-    def forward(self, x):
+    def forward(self, x) -> torch.Tensor:
         """
         Args:
             x: Tensor in shape (batch, ``in_channels``, insize_1, insize_2, [insize_3])

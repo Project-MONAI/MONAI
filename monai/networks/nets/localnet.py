@@ -31,9 +31,7 @@ class LocalNet(nn.Module):
         extract_levels: List[int],
         out_kernel_initializer: str,
         out_activation: Optional[Union[Tuple, str]],
-        control_points: (tuple, None) = None,
-        **kwargs,
-    ):
+    ) -> None:
         """
         Args:
             spatial_dims: number of spatial dimensions.
@@ -93,7 +91,7 @@ class LocalNet(nn.Module):
             ]
         )
 
-    def forward(self, x):
+    def forward(self, x) -> torch.Tensor:
         image_size = x.shape[2:]
         for size in image_size:
             if size % (2 ** self.extract_max_level) != 0:
@@ -127,18 +125,3 @@ class LocalNet(nn.Module):
             dim=-1,
         )
         return output
-
-
-if __name__ == "__main__":
-    input = torch.rand((2, 2, 32, 32, 32))
-    model = LocalNet(
-        spatial_dims=3,
-        in_channels=2,
-        out_channels=3,
-        num_channel_initial=32,
-        extract_levels=[0, 1, 2, 3],
-        out_kernel_initializer="zeros",
-        out_activation=None,
-    )
-    out = model(input)
-    print(out.shape)
