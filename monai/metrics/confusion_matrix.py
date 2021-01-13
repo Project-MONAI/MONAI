@@ -87,7 +87,7 @@ class ConfusionMatrixMetric:
         dims = y_pred.ndimension()
         if dims < 2:
             raise ValueError("y_pred should have at least two dimensions.")
-        elif dims == 2 or (dims == 3 and y_pred.shape[-1] == 1):
+        if dims == 2 or (dims == 3 and y_pred.shape[-1] == 1):
             if self.compute_sample:
                 warnings.warn("As for classification task, compute_sample should be False.")
                 self.compute_sample = False

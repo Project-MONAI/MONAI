@@ -22,5 +22,5 @@ from .dice import (
     generalized_wasserstein_dice,
 )
 from .focal_loss import FocalLoss
-from .image_dissimilarity import LocalNormalizedCrossCorrelationLoss
+from .image_dissimilarity import GlobalMutualInformationLoss, LocalNormalizedCrossCorrelationLoss
 from .tversky import TverskyLoss

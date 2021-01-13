@@ -20,27 +20,27 @@ from monai.losses.deform import BendingEnergyLoss
 TEST_CASES = [
     [
         {},
-        {"input": torch.ones((1, 3, 5, 5, 5))},
+        {"pred": torch.ones((1, 3, 5, 5, 5))},
         0.0,
     ],
     [
         {},
-        {"input": torch.arange(0, 5)[None, None, None, None, :].expand(1, 3, 5, 5, 5)},
+        {"pred": torch.arange(0, 5)[None, None, None, None, :].expand(1, 3, 5, 5, 5)},
         0.0,
     ],
     [
         {},
-        {"input": torch.arange(0, 5)[None, None, None, None, :].expand(1, 3, 5, 5, 5) ** 2},
+        {"pred": torch.arange(0, 5)[None, None, None, None, :].expand(1, 3, 5, 5, 5) ** 2},
         4.0,
     ],
     [
         {},
-        {"input": torch.arange(0, 5)[None, None, None, :].expand(1, 3, 5, 5) ** 2},
+        {"pred": torch.arange(0, 5)[None, None, None, :].expand(1, 3, 5, 5) ** 2},
         4.0,
     ],
     [
         {},
-        {"input": torch.arange(0, 5)[None, None, :].expand(1, 3, 5) ** 2},
+        {"pred": torch.arange(0, 5)[None, None, :].expand(1, 3, 5) ** 2},
         4.0,
     ],
 ]
@@ -55,24 +55,24 @@ class TestBendingEnergy(unittest.TestCase):
     def test_ill_shape(self):
         loss = BendingEnergyLoss()
         # not in 3-d, 4-d, 5-d
-        with self.assertRaisesRegex(AssertionError, ""):
+        with self.assertRaisesRegex(ValueError, ""):
             loss.forward(torch.ones((1, 3)))
-        with self.assertRaisesRegex(AssertionError, ""):
+        with self.assertRaisesRegex(ValueError, ""):
             loss.forward(torch.ones((1, 3, 5, 5, 5, 5)))
         # spatial_dim < 5
-        with self.assertRaisesRegex(AssertionError, ""):
+        with self.assertRaisesRegex(ValueError, ""):
             loss.forward(torch.ones((1, 3, 4, 5, 5)))
-        with self.assertRaisesRegex(AssertionError, ""):
+        with self.assertRaisesRegex(ValueError, ""):
             loss.forward(torch.ones((1, 3, 5, 4, 5)))
-        with self.assertRaisesRegex(AssertionError, ""):
+        with self.assertRaisesRegex(ValueError, ""):
             loss.forward(torch.ones((1, 3, 5, 5, 4)))
 
     def test_ill_opts(self):
-        input = torch.rand(1, 3, 5, 5, 5)
+        pred = torch.rand(1, 3, 5, 5, 5)
         with self.assertRaisesRegex(ValueError, ""):
-            BendingEnergyLoss(reduction="unknown")(input)
+            BendingEnergyLoss(reduction="unknown")(pred)
         with self.assertRaisesRegex(ValueError, ""):
-            BendingEnergyLoss(reduction=None)(input)
+            BendingEnergyLoss(reduction=None)(pred)
 
 
 if __name__ == "__main__":
