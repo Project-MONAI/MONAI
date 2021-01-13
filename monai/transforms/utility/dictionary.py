@@ -261,7 +261,8 @@ class SplitChanneld(MapTransform):
         for key in self.keys:
             rets = self.splitter(d[key])
             postfixes: Sequence = list(range(len(rets))) if self.output_postfixes is None else self.output_postfixes
-            assert len(postfixes) == len(rets), "count of split results must match output_postfixes."
+            if len(postfixes) != len(rets):
+                raise AssertionError("count of split results must match output_postfixes.")
             for i, r in enumerate(rets):
                 split_key = f"{key}_{postfixes[i]}"
                 if split_key in d:

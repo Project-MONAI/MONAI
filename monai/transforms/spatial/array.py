@@ -264,7 +264,8 @@ class Orientation(Transform):
         if self.as_closest_canonical:
             spatial_ornt = src
         else:
-            assert self.axcodes is not None
+            if self.axcodes is None:
+                raise AssertionError
             dst = nib.orientations.axcodes2ornt(self.axcodes[:sr], labels=self.labels)
             if len(dst) < sr:
                 raise ValueError(
@@ -807,7 +808,8 @@ class RandZoom(Randomizable, Transform):
     ) -> None:
         self.min_zoom = ensure_tuple(min_zoom)
         self.max_zoom = ensure_tuple(max_zoom)
-        assert len(self.min_zoom) == len(self.max_zoom), "min_zoom and max_zoom must have same length."
+        if len(self.min_zoom) != len(self.max_zoom):
+            raise AssertionError("min_zoom and max_zoom must have same length.")
         self.prob = prob
         self.mode: InterpolateMode = InterpolateMode(mode)
         self.padding_mode: NumpyPadMode = NumpyPadMode(padding_mode)
@@ -1129,7 +1131,8 @@ class Resample(Transform):
 
         if not torch.is_tensor(img):
             img = torch.as_tensor(np.ascontiguousarray(img))
-        assert grid is not None, "Error, grid argument must be supplied as an ndarray or tensor "
+        if grid is None:
+            raise AssertionError("Error, grid argument must be supplied as an ndarray or tensor ")
         grid = torch.tensor(grid) if not torch.is_tensor(grid) else grid.detach().clone()
         if self.device:
             img = img.to(self.device)
@@ -1624,7 +1627,8 @@ class Rand3DElastic(Randomizable, Transform):
         self.randomize(grid_size=sp_size)
         grid = create_grid(spatial_size=sp_size)
         if self.do_transform:
-            assert self.rand_offset is not None
+            if self.rand_offset is None:
+                raise AssertionError
             grid = torch.as_tensor(np.ascontiguousarray(grid), device=self.device)
             gaussian = GaussianFilter(3, self.sigma, 3.0).to(device=self.device)
             offset = torch.as_tensor(self.rand_offset, device=self.device).unsqueeze(0)

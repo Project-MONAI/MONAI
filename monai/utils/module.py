@@ -188,7 +188,8 @@ def optional_import(
         the_module = import_module(module)
         if not allow_namespace_pkg:
             is_namespace = getattr(the_module, "__file__", None) is None and hasattr(the_module, "__path__")
-            assert not is_namespace
+            if is_namespace:
+                raise AssertionError
         if name:  # user specified to load class/function/... from the module
             the_module = getattr(the_module, name)
     except Exception as import_exception:  # any exceptions during import

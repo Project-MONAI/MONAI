@@ -66,7 +66,8 @@ class SegResNet(nn.Module):
     ):
         super().__init__()
 
-        assert spatial_dims == 2 or spatial_dims == 3, "spatial_dims can only be 2 or 3."
+        if not (spatial_dims == 2 or spatial_dims == 3):
+            raise AssertionError("spatial_dims can only be 2 or 3.")
 
         self.spatial_dims = spatial_dims
         self.init_filters = init_filters

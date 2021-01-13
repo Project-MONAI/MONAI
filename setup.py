@@ -38,7 +38,8 @@ try:
     BUILD_CUDA = (torch.cuda.is_available() and (CUDA_HOME is not None)) or FORCE_CUDA
 
     _pt_version = pkg_resources.parse_version(torch.__version__).release  # type: ignore[attr-defined]
-    assert _pt_version is not None and len(_pt_version) >= 3, "unknown torch version"
+    if not (_pt_version is not None and len(_pt_version) >= 3):
+        raise AssertionError("unknown torch version")
     TORCH_VERSION = int(_pt_version[0]) * 10000 + int(_pt_version[1]) * 100 + int(_pt_version[2])
 except (ImportError, TypeError, AssertionError, AttributeError) as e:
     TORCH_VERSION = 0

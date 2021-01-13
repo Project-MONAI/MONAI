@@ -82,7 +82,8 @@ def sliding_window_inference(
 
     """
     num_spatial_dims = len(inputs.shape) - 2
-    assert 0 <= overlap < 1, "overlap must be >= 0 and < 1."
+    if 0 > overlap:
+        raise AssertionError("overlap must be >= 0 and < 1.")
 
     # determine image spatial size and batch size
     # Note: all input images must have the same image size and batch size

@@ -45,7 +45,8 @@ def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.f
         For every value v = labels[b,1,h,w], the value in the result at [b,v,h,w] will be 1 and all others 0.
         Note that this will include the background label, thus a binary mask should be treated as having 2 classes.
     """
-    assert labels.dim() > 0, "labels should have dim of 1 or more."
+    if labels.dim() <= 0:
+        raise AssertionError("labels should have dim of 1 or more.")
 
     # if `dim` is bigger, add singleton dim at the end
     if labels.ndim < dim + 1:
@@ -54,7 +55,8 @@ def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.f
 
     sh = list(labels.shape)
 
-    assert sh[dim] == 1, "labels should have a channel with length equals to one."
+    if sh[dim] != 1:
+        raise AssertionError("labels should have a channel with length equals to one.")
     sh[dim] = num_classes
 
     o = torch.zeros(size=sh, dtype=dtype, device=labels.device)

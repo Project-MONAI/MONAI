@@ -163,7 +163,8 @@ class AsDiscrete(Transform):
 
         if to_onehot or self.to_onehot:
             _nclasses = self.n_classes if n_classes is None else n_classes
-            assert isinstance(_nclasses, int), "One of self.n_classes or n_classes must be an integer"
+            if not isinstance(_nclasses, int):
+                raise AssertionError("One of self.n_classes or n_classes must be an integer")
             img = one_hot(img, _nclasses)
 
         if threshold_values or self.threshold_values:

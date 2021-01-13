@@ -73,7 +73,8 @@ class RandGaussianNoise(Randomizable, Transform):
         Apply the transform to `img`.
         """
         self.randomize(img.shape)
-        assert self._noise is not None
+        if self._noise is None:
+            raise AssertionError
         if not self._do_transform:
             return img
         dtype = dtype_torch_to_numpy(img.dtype) if isinstance(img, torch.Tensor) else img.dtype
@@ -113,7 +114,8 @@ class RandShiftIntensity(Randomizable, Transform):
         if isinstance(offsets, (int, float)):
             self.offsets = (min(-offsets, offsets), max(-offsets, offsets))
         else:
-            assert len(offsets) == 2, "offsets should be a number or pair of numbers."
+            if len(offsets) != 2:
+                raise AssertionError("offsets should be a number or pair of numbers.")
             self.offsets = (min(offsets), max(offsets))
 
         self.prob = prob
@@ -185,7 +187,8 @@ class RandScaleIntensity(Randomizable, Transform):
         if isinstance(factors, (int, float)):
             self.factors = (min(-factors, factors), max(-factors, factors))
         else:
-            assert len(factors) == 2, "factors should be a number or pair of numbers."
+            if len(factors) != 2:
+                raise AssertionError("factors should be a number or pair of numbers.")
             self.factors = (min(factors), max(factors))
 
         self.prob = prob
@@ -290,7 +293,8 @@ class ThresholdIntensity(Transform):
     """
 
     def __init__(self, threshold: float, above: bool = True, cval: float = 0.0) -> None:
-        assert isinstance(threshold, (int, float)), "threshold must be a float or int number."
+        if not isinstance(threshold, (int, float)):
+            raise AssertionError("threshold must be a float or int number.")
         self.threshold = threshold
         self.above = above
         self.cval = cval
@@ -349,7 +353,8 @@ class AdjustContrast(Transform):
     """
 
     def __init__(self, gamma: float) -> None:
-        assert isinstance(gamma, (int, float)), "gamma must be a float or int number."
+        if not isinstance(gamma, (int, float)):
+            raise AssertionError("gamma must be a float or int number.")
         self.gamma = gamma
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
@@ -378,10 +383,12 @@ class RandAdjustContrast(Randomizable, Transform):
         self.prob = prob
 
         if isinstance(gamma, (int, float)):
-            assert gamma > 0.5, "if gamma is single number, must greater than 0.5 and value is picked from (0.5, gamma)"
+            if gamma <= 0.5:
+                raise AssertionError("if gamma is single number, must greater than 0.5 and value is picked from (0.5, gamma)")
             self.gamma = (0.5, gamma)
         else:
-            assert len(gamma) == 2, "gamma should be a number or pair of numbers."
+            if len(gamma) != 2:
+                raise AssertionError("gamma should be a number or pair of numbers.")
             self.gamma = (min(gamma), max(gamma))
 
         self._do_transform = False
@@ -396,7 +403,8 @@ class RandAdjustContrast(Randomizable, Transform):
         Apply the transform to `img`.
         """
         self.randomize()
-        assert self.gamma_value is not None
+        if self.gamma_value is None:
+            raise AssertionError
         if not self._do_transform:
             return img
         adjuster = AdjustContrast(self.gamma_value)
@@ -461,8 +469,10 @@ class ScaleIntensityRangePercentiles(Transform):
     def __init__(
         self, lower: float, upper: float, b_min: float, b_max: float, clip: bool = False, relative: bool = False
     ) -> None:
-        assert 0.0 <= lower <= 100.0, "Percentiles must be in the range [0, 100]"
-        assert 0.0 <= upper <= 100.0, "Percentiles must be in the range [0, 100]"
+        if 0.0 > lower:
+            raise AssertionError("Percentiles must be in the range [0, 100]")
+        if 0.0 > upper:
+            raise AssertionError("Percentiles must be in the range [0, 100]")
         self.lower = lower
         self.upper = upper
         self.b_min = b_min
@@ -768,11 +778,14 @@ class RandHistogramShift(Randomizable, Transform):
     def __init__(self, num_control_points: Union[Tuple[int, int], int] = 10, prob: float = 0.1) -> None:
 
         if isinstance(num_control_points, int):
-            assert num_control_points > 2, "num_control_points should be greater than or equal to 3"
+            if num_control_points <= 2:
+                raise AssertionError("num_control_points should be greater than or equal to 3")
             self.num_control_points = (num_control_points, num_control_points)
         else:
-            assert len(num_control_points) == 2, "num_control points should be a number or a pair of numbers"
-            assert min(num_control_points) > 2, "num_control_points should be greater than or equal to 3"
+            if len(num_control_points) != 2:
+                raise AssertionError("num_control points should be a number or a pair of numbers")
+            if min(num_control_points) <= 2:
+                raise AssertionError("num_control_points should be greater than or equal to 3")
             self.num_control_points = (min(num_control_points), max(num_control_points))
         self.prob = prob
         self._do_transform = False
