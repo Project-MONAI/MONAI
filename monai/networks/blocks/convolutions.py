@@ -94,10 +94,11 @@ class Convolution(nn.Sequential):
             padding = same_padding(kernel_size, dilation)
         conv_type = Conv[Conv.CONVTRANS if is_transposed else Conv.CONV, dimensions]
 
+        conv: nn.Module
         if is_transposed:
             if output_padding is None:
                 output_padding = stride_minus_kernel_padding(1, strides)
-            conv: nn.Module = conv_type(
+            conv = conv_type(
                 in_channels,
                 out_channels,
                 kernel_size=kernel_size,
@@ -109,7 +110,7 @@ class Convolution(nn.Sequential):
                 dilation=dilation,
             )
         else:
-            conv: nn.Module = conv_type(
+            conv = conv_type(
                 in_channels,
                 out_channels,
                 kernel_size=kernel_size,

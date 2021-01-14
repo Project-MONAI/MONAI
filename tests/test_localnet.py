@@ -45,20 +45,20 @@ for in_channels in [2, 3]:
                 for out_kernel_initializer in ["zeros", "kaiming_normal"]:
                     for out_activation in ["sigmoid", None]:
                         TEST_CASE_LOCALNET_3D.append(
-                            {
-                                "spatial_dims": 3,
-                                "in_channels": in_channels,
-                                "out_channels": out_channels,
-                                "num_channel_initial": num_channel_initial,
-                                "extract_levels": extract_levels,
-                                "out_kernel_initializer": out_kernel_initializer,
-                                "out_activation": out_activation,
-                            }
+                            [
+                                {
+                                    "spatial_dims": 3,
+                                    "in_channels": in_channels,
+                                    "out_channels": out_channels,
+                                    "num_channel_initial": num_channel_initial,
+                                    "extract_levels": extract_levels,
+                                    "out_kernel_initializer": out_kernel_initializer,
+                                    "out_activation": out_activation,
+                                },
+                                (1, in_channels, 16, 16, 16),
+                                (1, out_channels, 16, 16, 16)
+                            ]
                         )
-TEST_CASE_LOCALNET_3D = [
-    [input_param, (1, input_param["in_channels"], 16, 16, 16), (1, input_param["out_channels"], 16, 16, 16)]
-    for input_param in TEST_CASE_LOCALNET_3D
-]
 
 
 class TestDynUNet(unittest.TestCase):
