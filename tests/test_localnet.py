@@ -16,7 +16,6 @@ param_variations_2d = {
     "out_channels": 2,
     "num_channel_initial": 16,
     "extract_levels": [0, 1, 2],
-    "out_kernel_initializer": ["zeros", "kaiming_normal"],
     "out_activation": ["sigmoid", None],
 }
 
@@ -28,13 +27,12 @@ TEST_CASE_LOCALNET_2D = [
             "out_channels": 2,
             "num_channel_initial": 16,
             "extract_levels": [0, 1, 2],
-            "out_kernel_initializer": init,
             "out_activation": act,
         },
         (1, 2, 16, 16),
         (1, 2, 16, 16),
     ]
-    for act, init in zip(["sigmoid", None], ["zeros", "kaiming_normal"])
+    for act in ["sigmoid", None]
 ]
 
 TEST_CASE_LOCALNET_3D = []
@@ -42,23 +40,21 @@ for in_channels in [2, 3]:
     for out_channels in [1, 3]:
         for num_channel_initial in [4, 16, 32]:
             for extract_levels in [[0, 1, 2], [0, 1, 2, 3], [0, 1, 2, 3, 4]]:
-                for out_kernel_initializer in ["zeros", "kaiming_normal"]:
-                    for out_activation in ["sigmoid", None]:
-                        TEST_CASE_LOCALNET_3D.append(
-                            [
-                                {
-                                    "spatial_dims": 3,
-                                    "in_channels": in_channels,
-                                    "out_channels": out_channels,
-                                    "num_channel_initial": num_channel_initial,
-                                    "extract_levels": extract_levels,
-                                    "out_kernel_initializer": out_kernel_initializer,
-                                    "out_activation": out_activation,
-                                },
-                                (1, in_channels, 16, 16, 16),
-                                (1, out_channels, 16, 16, 16),
-                            ]
-                        )
+                for out_activation in ["sigmoid", None]:
+                    TEST_CASE_LOCALNET_3D.append(
+                        [
+                            {
+                                "spatial_dims": 3,
+                                "in_channels": in_channels,
+                                "out_channels": out_channels,
+                                "num_channel_initial": num_channel_initial,
+                                "extract_levels": extract_levels,
+                                "out_activation": out_activation,
+                            },
+                            (1, in_channels, 16, 16, 16),
+                            (1, out_channels, 16, 16, 16),
+                        ]
+                    )
 
 
 class TestDynUNet(unittest.TestCase):

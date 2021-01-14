@@ -8,8 +8,6 @@ from monai.networks.blocks import Convolution
 from monai.networks.layers import same_padding
 from monai.networks.layers.factories import batch_factory, maxpooling_factory
 
-initializer_dict = {"zeros": nn.init.zeros_, "kaiming_normal": nn.init.kaiming_normal_}
-
 
 def get_conv_block(
     spatial_dims: int,
@@ -287,7 +285,6 @@ class LocalNetFeatureExtractorBlock(nn.Module):
         in_channels: int,
         out_channels: int,
         act: Optional[Union[Tuple, str]] = "RELU",
-        kernel_initializer: str = "kaiming_normal",
     ) -> None:
         """
         Args:
@@ -301,15 +298,6 @@ class LocalNetFeatureExtractorBlock(nn.Module):
         self.conv_block = get_conv_block(
             spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels, act=act, norm=None
         )
-
-        if kernel_initializer == "zeros":
-            nn.init.zeros_(self.conv_block.conv.weight)
-        elif kernel_initializer == "kaiming_normal":
-            nn.init.kaiming_normal_(self.conv_block.conv.weight)
-        else:
-            raise ValueError(
-                f"unsupported kernel_initializer: {kernel_initializer}, currently supporting [zero, kaiming_normal]"
-            )
 
     def forward(self, x) -> torch.Tensor:
         """

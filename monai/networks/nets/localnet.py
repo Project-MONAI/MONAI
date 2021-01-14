@@ -31,7 +31,6 @@ class LocalNet(nn.Module):
         out_channels: int,
         num_channel_initial: int,
         extract_levels: List[int],
-        out_kernel_initializer: str,
         out_activation: Optional[Union[Tuple, str]],
     ) -> None:
         """
@@ -41,7 +40,6 @@ class LocalNet(nn.Module):
             out_channels: number of output channels.
             num_channel_initial: number of initial channels,
             extract_levels: number of extraction levels,
-            out_kernel_initializer: initializer to use for kernels,
             out_activation: activation to use at end layer,
         """
         super(LocalNet, self).__init__()
@@ -86,7 +84,6 @@ class LocalNet(nn.Module):
                     spatial_dims=spatial_dims,
                     in_channels=num_channels[level],
                     out_channels=out_channels,
-                    kernel_initializer=out_kernel_initializer,
                     act=out_activation,
                 )
                 for level in self.extract_levels

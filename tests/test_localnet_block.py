@@ -23,10 +23,9 @@ TEST_CASE_EXTRACT = [
             "in_channels": 2,
             "out_channels": 3,
             "act": act,
-            "kernel_initializer": kernel_initializer,
         }
     ]
-    for spatial_dims, act, kernel_initializer in zip([2, 3], ["sigmoid", None], ["zeros", "kaiming_normal"])
+    for spatial_dims, act in zip([2, 3], ["sigmoid", None])
 ]
 
 in_size = 4
@@ -93,11 +92,6 @@ class TestExtractBlock(unittest.TestCase):
         with eval_mode(net):
             result = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
-
-    def test_ill_arg(self):
-        # channel unmatch
-        with self.assertRaises(ValueError):
-            LocalNetFeatureExtractorBlock(spatial_dims=2, in_channels=2, out_channels=2, kernel_initializer="none")
 
 
 if __name__ == "__main__":
