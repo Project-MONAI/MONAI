@@ -56,7 +56,7 @@ for in_channels in [2, 3]:
                                     "out_activation": out_activation,
                                 },
                                 (1, in_channels, 16, 16, 16),
-                                (1, out_channels, 16, 16, 16)
+                                (1, out_channels, 16, 16, 16),
                             ]
                         )
 
