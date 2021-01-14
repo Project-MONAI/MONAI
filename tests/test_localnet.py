@@ -12,20 +12,30 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 param_variations_2d = {
-    "spatial_dims": [2],
-    "in_channels": [2],
-    "out_channels": [2],
-    "num_channel_initial": [16],
-    "extract_levels": [[0, 1, 2]],
+    "spatial_dims": 2,
+    "in_channels": 2,
+    "out_channels": 2,
+    "num_channel_initial": 16,
+    "extract_levels": [0, 1, 2],
     "out_kernel_initializer": ["zeros", "kaiming_normal"],
     "out_activation": ["sigmoid", None],
 }
+
 TEST_CASE_LOCALNET_2D = [
-    dict(zip(list(param_variations_2d.keys()), v)) for v in product(*list(param_variations_2d.values()))
-]
-TEST_CASE_LOCALNET_2D = [
-    [input_param, (1, input_param["in_channels"], 16, 16), (1, input_param["out_channels"], 16, 16)]
-    for input_param in TEST_CASE_LOCALNET_2D
+    [
+        {
+            "spatial_dims": 2,
+            "in_channels": 2,
+            "out_channels": 2,
+            "num_channel_initial": 16,
+            "extract_levels": [0, 1, 2],
+            "out_kernel_initializer": init,
+            "out_activation": act,
+        },
+        (1, 2, 16, 16),
+        (1, 2, 16, 16),
+    ]
+    for act, init in zip(["sigmoid", None], ["zeros", "kaiming_normal"])
 ]
 
 
@@ -39,7 +49,8 @@ param_variations_3d = {
     "out_activation": ["sigmoid", None],
 }
 TEST_CASE_LOCALNET_3D = [
-    dict(zip(list(param_variations_3d.keys()), v)) for v in product(*list(param_variations_3d.values()))
+    {k: v for k, v in zip(param_variations_3d.keys(), per)}
+    for per in product(*[iter(v) for v in param_variations_3d.values()])
 ]
 TEST_CASE_LOCALNET_3D = [
     [input_param, (1, input_param["in_channels"], 16, 16, 16), (1, input_param["out_channels"], 16, 16, 16)]

@@ -301,8 +301,15 @@ class LocalNetFeatureExtractorBlock(nn.Module):
         self.conv_block = get_conv_block(
             spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels, act=act, norm=None
         )
-        initialize = initializer_dict[kernel_initializer]
-        initialize(self.conv_block.weight)
+
+        if kernel_initializer == "zeros":
+            nn.init.zeros_(self.conv_block.conv.weight)
+        elif kernel_initializer == "kaiming_normal":
+            nn.init.kaiming_normal_(self.conv_block.conv.weight)
+        else:
+            raise ValueError(
+                f"unsupported kernel_initializer: {kernel_initializer}, currently supporting [zero, kaiming_normal]"
+            )
 
     def forward(self, x) -> torch.Tensor:
         """

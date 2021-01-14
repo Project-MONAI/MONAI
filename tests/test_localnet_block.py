@@ -1,5 +1,6 @@
 import unittest
 from itertools import product
+from typing import Iterable
 
 import torch
 from parameterized import parameterized
@@ -17,17 +18,18 @@ TEST_CASE_DOWN_SAMPLE = [
 
 TEST_CASE_UP_SAMPLE = [[{"spatial_dims": spatial_dims, "in_channels": 4, "out_channels": 2}] for spatial_dims in [2, 3]]
 
-extract_param_option = {
-    "spatial_dims": [2, 3],
-    "in_channels": [2],
-    "out_channels": [3],
-    "act": ["sigmoid", None],
-    "kernel_initializer": ["zeros", "kaiming_normal"],
-}
 TEST_CASE_EXTRACT = [
-    dict(zip(list(extract_param_option.keys()), v)) for v in product(*list(extract_param_option.values()))
+    [
+        {
+            "spatial_dims": spatial_dims,
+            "in_channels": 2,
+            "out_channels": 3,
+            "act": act,
+            "kernel_initializer": kernel_initializer,
+        }
+    ]
+    for spatial_dims, act, kernel_initializer in zip([2, 3], ["sigmoid", None], ["zeros", "kaiming_normal"])
 ]
-TEST_CASE_EXTRACT = [[i] for i in TEST_CASE_EXTRACT]
 
 in_size = 4
 
