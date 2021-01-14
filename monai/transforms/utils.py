@@ -344,7 +344,7 @@ def generate_pos_neg_label_crop_centers(
         return center_ori
 
     centers = []
-
+    fg_indices, bg_indices = np.asarray(fg_indices), np.asarray(bg_indices)
     if fg_indices.size == 0 and bg_indices.size == 0:
         raise ValueError("No sampling location available.")
 
