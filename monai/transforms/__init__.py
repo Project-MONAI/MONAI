@@ -137,22 +137,8 @@ from .intensity.dictionary import (
     ThresholdIntensityD,
     ThresholdIntensityDict,
 )
-from .io.array import LoadImage, LoadNifti, LoadNumpy, LoadPNG
-from .io.dictionary import (
-    LoadDatad,
-    LoadImaged,
-    LoadImageD,
-    LoadImageDict,
-    LoadNiftid,
-    LoadNiftiD,
-    LoadNiftiDict,
-    LoadNumpyd,
-    LoadNumpyD,
-    LoadNumpyDict,
-    LoadPNGd,
-    LoadPNGD,
-    LoadPNGDict,
-)
+from .io.array import LoadImage
+from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict
 from .post.array import (
     Activations,
     AsDiscrete,
