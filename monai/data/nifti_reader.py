@@ -14,7 +14,7 @@ from typing import Any, Callable, Optional, Sequence
 import numpy as np
 from torch.utils.data import Dataset
 
-from monai.transforms import LoadNifti, Randomizable, apply_transform
+from monai.transforms import LoadImage, Randomizable, apply_transform
 from monai.utils import MAX_SEED, get_seed
 
 
@@ -81,8 +81,8 @@ class NiftiDataset(Dataset, Randomizable):
     def __getitem__(self, index: int):
         self.randomize()
         meta_data = None
-        img_loader = LoadNifti(
-            as_closest_canonical=self.as_closest_canonical, image_only=self.image_only, dtype=self.dtype
+        img_loader = LoadImage(
+            image_only=self.image_only, dtype=self.dtype, as_closest_canonical=self.as_closest_canonical
         )
         if self.image_only:
             img = img_loader(self.image_files[index])
@@ -90,7 +90,7 @@ class NiftiDataset(Dataset, Randomizable):
             img, meta_data = img_loader(self.image_files[index])
         seg = None
         if self.seg_files is not None:
-            seg_loader = LoadNifti(image_only=True)
+            seg_loader = LoadImage(image_only=True)
             seg = seg_loader(self.seg_files[index])
         label = None
         if self.labels is not None:
