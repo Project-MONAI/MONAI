@@ -14,6 +14,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 from typing import Dict, List, Optional, Sequence, Union
+
 import numpy as np
 
 from monai.data.image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader
