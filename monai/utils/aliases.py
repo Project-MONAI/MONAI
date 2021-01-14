@@ -21,7 +21,7 @@ import threading
 alias_lock = threading.RLock()
 GlobalAliases = {}
 
-all = ["alias", "resolve_name"]
+__all__ = ["alias", "resolve_name"]
 
 
 def alias(*names):

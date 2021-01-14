@@ -124,7 +124,7 @@ class TestLoadImage(unittest.TestCase):
                     [0.0, 0.0, 0.0, 1.0],
                 ]
             ),
-        ),
+        )
         self.assertTupleEqual(result.shape, expected_shape)
         self.assertTupleEqual(tuple(header["spatial_shape"]), expected_shape)
 

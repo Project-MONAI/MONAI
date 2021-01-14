@@ -19,7 +19,7 @@ from typing import Any, Callable, Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
 
-all = [
+__all__ = [
     "zip_with",
     "star_zip_with",
     "first",

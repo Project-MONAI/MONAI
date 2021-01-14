@@ -77,13 +77,13 @@ class TestComputeOcclusionSensitivity(unittest.TestCase):
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1])
     def test_shape(self, init_data, call_data, map_expected_shape, most_prob_expected_shape):
         occ_sens = OcclusionSensitivity(**init_data)
-        map, most_prob = occ_sens(**call_data)
-        self.assertTupleEqual(map.shape, map_expected_shape)
+        m, most_prob = occ_sens(**call_data)
+        self.assertTupleEqual(m.shape, map_expected_shape)
         self.assertTupleEqual(most_prob.shape, most_prob_expected_shape)
         # most probable class should be of type int, and should have min>=0, max<num_classes
         self.assertEqual(most_prob.dtype, torch.int64)
         self.assertGreaterEqual(most_prob.min(), 0)
-        self.assertLess(most_prob.max(), map.shape[-1])
+        self.assertLess(most_prob.max(), m.shape[-1])
 
     @parameterized.expand([TEST_CASE_FAIL_0, TEST_CASE_FAIL_1])
     def test_fail(self, init_data, call_data):

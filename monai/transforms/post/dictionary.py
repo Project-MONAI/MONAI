@@ -40,6 +40,18 @@ __all__ = [
     "Ensembled",
     "MeanEnsembled",
     "VoteEnsembled",
+    "ActivationsD",
+    "ActivationsDict",
+    "AsDiscreteD",
+    "AsDiscreteDict",
+    "KeepLargestConnectedComponentD",
+    "KeepLargestConnectedComponentDict",
+    "LabelToContourD",
+    "LabelToContourDict",
+    "MeanEnsembleD",
+    "MeanEnsembleDict",
+    "VoteEnsembleD",
+    "VoteEnsembleDict",
 ]
 
 

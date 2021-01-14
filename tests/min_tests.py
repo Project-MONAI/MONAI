@@ -136,4 +136,4 @@ if __name__ == "__main__":
     # testing all modules
     test_runner = unittest.TextTestRunner(stream=sys.stdout, verbosity=2)
     result = test_runner.run(run_testsuit())
-    exit(int(not result.wasSuccessful()))
+    sys.exit(int(not result.wasSuccessful()))

@@ -504,6 +504,18 @@ Utility
     :members:
     :special-members: __call__
 
+`ConvertToMultiChannelBasedOnBratsClasses`
+""""""""""""""""""""""""""""""""""""""""""
+.. autoclass:: ConvertToMultiChannelBasedOnBratsClasses
+    :members:
+    :special-members: __call__
+
+`AddExtremePointsChannel`
+"""""""""""""""""""""""""
+.. autoclass:: AddExtremePointsChannel
+    :members:
+    :special-members: __call__
+
 `TorchVision`
 """""""""""""
 .. autoclass:: TorchVision
@@ -972,6 +984,18 @@ Utility (Dict)
 `FgBgToIndicesd`
 """"""""""""""""
 .. autoclass:: FgBgToIndicesd
+    :members:
+    :special-members: __call__
+
+`ConvertToMultiChannelBasedOnBratsClassesd`
+"""""""""""""""""""""""""""""""""""""""""""
+.. autoclass:: ConvertToMultiChannelBasedOnBratsClassesd
+    :members:
+    :special-members: __call__
+
+`AddExtremePointsChanneld`
+""""""""""""""""""""""""""
+.. autoclass:: AddExtremePointsChanneld
     :members:
     :special-members: __call__
 

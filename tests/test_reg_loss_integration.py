@@ -89,7 +89,7 @@ class TestRegLossIntegration(unittest.TestCase):
         optimizer = optim.Adam(net.parameters(), lr=learning_rate)
 
         # train the network
-        for iter in range(max_iter):
+        for it in range(max_iter):
             # set the gradient to zero
             optimizer.zero_grad()
 
@@ -98,7 +98,7 @@ class TestRegLossIntegration(unittest.TestCase):
             loss_input = {"pred": output, "target": target}
 
             loss_val = loss(**{k: loss_input[k] for k in forward_args})
-            if iter == 0:
+            if it == 0:
                 init_loss = loss_val
 
             # backward pass

@@ -301,13 +301,13 @@ def train_mode(*nets: nn.Module):
     """
 
     # Get original state of network(s)
-    eval = [n for n in nets if not n.training]
+    eval_list = [n for n in nets if not n.training]
 
     try:
         # set to train mode
         with torch.set_grad_enabled(True):
             yield [n.train() for n in nets]
     finally:
-        # Return required networks to eval
-        for n in eval:
+        # Return required networks to eval_list
+        for n in eval_list:
             n.eval()
