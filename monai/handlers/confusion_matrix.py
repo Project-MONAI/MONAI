@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -122,6 +122,5 @@ class ConfusionMatrix(Metric):  # type: ignore[valid-type, misc] # due to option
                     "ConfusionMatrix metric must have at least one example before it can be computed."
                 )
             return self._sum / self._num_examples
-        else:
-            confusion_matrix = torch.tensor([self._total_tp, self._total_fp, self._total_tn, self._total_fn])
-            return compute_confusion_matrix_metric(self.metric_name, confusion_matrix)
+        confusion_matrix = torch.tensor([self._total_tp, self._total_fp, self._total_tn, self._total_fn])
+        return compute_confusion_matrix_metric(self.metric_name, confusion_matrix)

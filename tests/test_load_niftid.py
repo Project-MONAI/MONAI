@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -28,7 +28,7 @@ class TestLoadNiftid(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
     def test_shape(self, input_param, expected_shape):
         test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]), np.eye(4))
-        test_data = dict()
+        test_data = {}
         with tempfile.TemporaryDirectory() as tempdir:
             for key in KEYS:
                 nib.save(test_image, os.path.join(tempdir, key + ".nii.gz"))

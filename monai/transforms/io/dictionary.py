@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,6 +23,22 @@ from monai.config import KeysCollection
 from monai.data.image_reader import ImageReader
 from monai.transforms.compose import MapTransform
 from monai.transforms.io.array import LoadImage, LoadNifti, LoadNumpy, LoadPNG
+
+__all__ = [
+    "LoadImaged",
+    "LoadDatad",
+    "LoadNiftid",
+    "LoadPNGd",
+    "LoadNumpyd",
+    "LoadImageD",
+    "LoadImageDict",
+    "LoadNiftiD",
+    "LoadNiftiDict",
+    "LoadPNGD",
+    "LoadPNGDict",
+    "LoadNumpyD",
+    "LoadNumpyDict",
+]
 
 
 class LoadImaged(MapTransform):

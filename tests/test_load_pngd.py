@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -29,7 +29,7 @@ class TestLoadPNGd(unittest.TestCase):
     def test_shape(self, input_param, expected_shape):
         test_image = np.random.randint(0, 256, size=[128, 128, 3])
         with tempfile.TemporaryDirectory() as tempdir:
-            test_data = dict()
+            test_data = {}
             for key in KEYS:
                 Image.fromarray(test_image.astype("uint8")).save(os.path.join(tempdir, key + ".png"))
                 test_data.update({key: os.path.join(tempdir, key + ".png")})

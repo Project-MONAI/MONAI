@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,9 +12,10 @@
 
 from typing import List, Optional, Sequence, Union
 
+import torch
 import torch.nn as nn
 
-from monai.networks.blocks.dynunet_block import *
+from monai.networks.blocks.dynunet_block import UnetBasicBlock, UnetOutBlock, UnetResBlock, UnetUpBlock
 
 __all__ = ["DynUNet", "DynUnet", "Dynunet"]
 
@@ -79,10 +80,6 @@ class DynUNet(nn.Module):
         upsample_kernel_size: convolution kernel size for transposed convolution layers.
         norm_name: [``"batch"``, ``"instance"``, ``"group"``]
             feature normalization type and arguments.
-        deep_supervision: whether to add deep supervision head before output. Defaults to ``True``.
-            If added, in training mode, the network will output not only the last feature maps
-            (after being converted via output block), but also the previous feature maps that come
-            from the intermediate up sample layers.
         deep_supr_num: number of feature maps that will output during deep supervision head. The
             value should be less than the number of up sample layers. Defaults to 1.
         res_block: whether to use residual connection based convolution blocks during the network.
@@ -98,7 +95,6 @@ class DynUNet(nn.Module):
         strides: Sequence[Union[Sequence[int], int]],
         upsample_kernel_size: Sequence[Union[Sequence[int], int]],
         norm_name: str = "instance",
-        deep_supervision: bool = True,
         deep_supr_num: int = 1,
         res_block: bool = False,
     ):
@@ -110,7 +106,6 @@ class DynUNet(nn.Module):
         self.strides = strides
         self.upsample_kernel_size = upsample_kernel_size
         self.norm_name = norm_name
-        self.deep_supervision = deep_supervision
         self.conv_block = UnetResBlock if res_block else UnetBasicBlock
         self.filters = [min(2 ** (5 + i), 320 if spatial_dims == 3 else 512) for i in range(len(strides))]
         self.input_block = self.get_input_block()
@@ -141,10 +136,8 @@ class DynUNet(nn.Module):
 
             if len(downsamples) == 0:  # bottom of the network, pass the bottleneck block
                 return bottleneck
-            elif index == 0:  # don't associate a supervision head with self.input_block
+            if index == 0:  # don't associate a supervision head with self.input_block
                 current_head, rest_heads = nn.Identity(), superheads
-            elif not self.deep_supervision:  # bypass supervision heads by passing nn.Identity in place of a real one
-                current_head, rest_heads = nn.Identity(), superheads[1:]
             else:
                 current_head, rest_heads = superheads[0], superheads[1:]
 
@@ -183,12 +176,14 @@ class DynUNet(nn.Module):
 
     def forward(self, x):
         out = self.skip_layers(x)
-        out = self.output_block(out)
+        return self.output_block(out)
 
-        if self.training and self.deep_supervision:
-            return [out] + self.heads[1 : self.deep_supr_num + 1]
+    def get_feature_maps(self):
+        """
+        Return the feature maps.
 
-        return [out]
+        """
+        return self.heads[1 : self.deep_supr_num + 1]
 
     def get_input_block(self):
         return self.conv_block(

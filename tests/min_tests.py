@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -101,7 +101,9 @@ def run_testsuit():
         "test_zoom",
         "test_zoom_affine",
         "test_zoomd",
-        "test_compute_occlusion_sensitivity",
+        "test_occlusion_sensitivity",
+        "test_torchvision",
+        "test_torchvisiond",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
@@ -134,4 +136,4 @@ if __name__ == "__main__":
     # testing all modules
     test_runner = unittest.TextTestRunner(stream=sys.stdout, verbosity=2)
     result = test_runner.run(run_testsuit())
-    exit(int(not result.wasSuccessful()))
+    sys.exit(int(not result.wasSuccessful()))

@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -28,6 +28,8 @@ from monai.utils import ensure_tuple, optional_import
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
+
+__all__ = ["LoadImage", "LoadNifti", "LoadPNG", "LoadNumpy"]
 
 
 class LoadImage(Transform):
@@ -169,8 +171,8 @@ class LoadNifti(Transform):
             filename: path file or file-like object or a list of files.
         """
         filename = ensure_tuple(filename)
-        img_array = list()
-        compatible_meta: Dict = dict()
+        img_array = []
+        compatible_meta: Dict = {}
         for name in filename:
             img = nib.load(name)
             img = correct_nifti_header_if_necessary(img)
@@ -238,7 +240,7 @@ class LoadPNG(Transform):
             filename: path file or file-like object or a list of files.
         """
         filename = ensure_tuple(filename)
-        img_array = list()
+        img_array = []
         compatible_meta = None
         for name in filename:
             img = Image.open(name)
@@ -250,7 +252,7 @@ class LoadPNG(Transform):
             if self.image_only:
                 continue
 
-            meta = dict()
+            meta = {}
             meta["filename_or_obj"] = name
             meta["spatial_shape"] = data.shape[:2]
             meta["format"] = img.format
@@ -312,13 +314,13 @@ class LoadNumpy(Transform):
                 if name.endswith(".npz"):
                     raise ValueError("Cannot load a sequence of npz files.")
         filename = ensure_tuple(filename)
-        data_array: List = list()
+        data_array: List = []
         compatible_meta = None
 
         def _save_data_meta(data_array, name, data, compatible_meta):
             data_array.append(data if self.dtype is None else data.astype(self.dtype))
             if not self.data_only:
-                meta = dict()
+                meta = {}
                 meta["filename_or_obj"] = name
                 meta["spatial_shape"] = data.shape
                 if not compatible_meta:
