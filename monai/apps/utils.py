@@ -10,15 +10,13 @@
 # limitations under the License.
 
 import hashlib
-import logging
 import os
-import shutil
 import tarfile
 import warnings
 import zipfile
 from typing import TYPE_CHECKING, Optional
 from urllib.error import ContentTooShortError, HTTPError, URLError
-from urllib.request import Request, urlopen, urlretrieve
+from urllib.request import urlretrieve
 
 from monai.utils import min_version, optional_import
 
