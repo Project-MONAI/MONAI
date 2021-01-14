@@ -89,7 +89,7 @@ class PersistentDataset(Dataset):
 
     .. code-block:: python
 
-        [ LoadNiftid(keys=['image', 'label']),
+        [ LoadImaged(keys=['image', 'label']),
           Orientationd(keys=['image', 'label'], axcodes='RAS'),
           ScaleIntensityRanged(keys=['image'], a_min=-57, a_max=164, b_min=0.0, b_max=1.0, clip=True),
           RandCropByPosNegLabeld(keys=['image', 'label'], label_key='label', spatial_size=(96, 96, 96),
@@ -97,7 +97,7 @@ class PersistentDataset(Dataset):
           ToTensord(keys=['image', 'label'])]
 
     Upon first use a filename based dataset will be processed by the transform for the
-    [LoadNiftid, Orientationd, ScaleIntensityRanged] and the resulting tensor written to
+    [LoadImaged, Orientationd, ScaleIntensityRanged] and the resulting tensor written to
     the `cache_dir` before applying the remaining random dependant transforms
     [RandCropByPosNegLabeld, ToTensord] elements for use in the analysis.
 
@@ -446,7 +446,7 @@ class CacheDataset(Dataset):
     For example, if the transform is a `Compose` of::
 
         transforms = Compose([
-            LoadNiftid(),
+            LoadImaged(),
             AddChanneld(),
             Spacingd(),
             Orientationd(),
@@ -457,7 +457,7 @@ class CacheDataset(Dataset):
 
     when `transforms` is used in a multi-epoch training pipeline, before the first training epoch,
     this dataset will cache the results up to ``ScaleIntensityRanged``, as
-    all non-random transforms `LoadNiftid`, `AddChanneld`, `Spacingd`, `Orientationd`, `ScaleIntensityRanged`
+    all non-random transforms `LoadImaged`, `AddChanneld`, `Spacingd`, `Orientationd`, `ScaleIntensityRanged`
     can be cached. During training, the dataset will load the cached results and run
     ``RandCropByPosNegLabeld`` and ``ToTensord``, as ``RandCropByPosNegLabeld`` is a randomized transform
     and the outcome not cached.
@@ -825,7 +825,7 @@ class ArrayDataset(Randomizable, _TorchDataset):
 
         img_transform = Compose(
             [
-                LoadNifti(image_only=True),
+                LoadImage(image_only=True),
                 AddChannel(),
                 RandAdjustContrast()
             ]
@@ -834,7 +834,7 @@ class ArrayDataset(Randomizable, _TorchDataset):
 
     If training based on images and the metadata, the array transforms can not be composed
     because several transforms receives multiple parameters or return multiple values. Then Users need
-    to define their own callable method to parse metadata from `LoadNifti` or set `affine` matrix
+    to define their own callable method to parse metadata from `LoadImage` or set `affine` matrix
     to `Spacing` transform::
 
         class TestCompose(Compose):
@@ -845,7 +845,7 @@ class ArrayDataset(Randomizable, _TorchDataset):
                 return self.transforms[3](img), metadata
         img_transform = TestCompose(
             [
-                LoadNifti(image_only=False),
+                LoadImage(image_only=False),
                 AddChannel(),
                 Spacing(pixdim=(1.5, 1.5, 3.0)),
                 RandAdjustContrast()
