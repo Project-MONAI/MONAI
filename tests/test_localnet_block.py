@@ -1,6 +1,4 @@
 import unittest
-from itertools import product
-from typing import Iterable
 
 import torch
 from parameterized import parameterized
