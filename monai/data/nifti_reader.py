@@ -82,7 +82,10 @@ class NiftiDataset(Dataset, Randomizable):
         self.randomize()
         meta_data = None
         img_loader = LoadImage(
-            image_only=self.image_only, dtype=self.dtype, as_closest_canonical=self.as_closest_canonical
+            reader="NibabelReader",
+            image_only=self.image_only,
+            dtype=self.dtype,
+            as_closest_canonical=self.as_closest_canonical,
         )
         if self.image_only:
             img = img_loader(self.image_files[index])

@@ -27,11 +27,16 @@ TEST_AFFINE = np.array(
 )
 
 TEST_CASES = [
-    [TEST_IMAGE, TEST_AFFINE, dict(image_only=False, as_closest_canonical=True), np.arange(24).reshape((2, 4, 3))],
     [
         TEST_IMAGE,
         TEST_AFFINE,
-        dict(image_only=False, as_closest_canonical=True),
+        dict(reader="NibabelReader", image_only=False, as_closest_canonical=True),
+        np.arange(24).reshape((2, 4, 3)),
+    ],
+    [
+        TEST_IMAGE,
+        TEST_AFFINE,
+        dict(reader="NibabelReader", image_only=True, as_closest_canonical=True),
         np.array(
             [
                 [[12.0, 15.0, 18.0, 21.0], [13.0, 16.0, 19.0, 22.0], [14.0, 17.0, 20.0, 23.0]],
@@ -39,9 +44,24 @@ TEST_CASES = [
             ]
         ),
     ],
-    [TEST_IMAGE, TEST_AFFINE, dict(image_only=True, as_closest_canonical=False), np.arange(24).reshape((2, 4, 3))],
-    [TEST_IMAGE, TEST_AFFINE, dict(image_only=False, as_closest_canonical=False), np.arange(24).reshape((2, 4, 3))],
-    [TEST_IMAGE, None, dict(image_only=False, as_closest_canonical=False), np.arange(24).reshape((2, 4, 3))],
+    [
+        TEST_IMAGE,
+        TEST_AFFINE,
+        dict(reader="NibabelReader", image_only=True, as_closest_canonical=False),
+        np.arange(24).reshape((2, 4, 3)),
+    ],
+    [
+        TEST_IMAGE,
+        TEST_AFFINE,
+        dict(reader="NibabelReader", image_only=False, as_closest_canonical=False),
+        np.arange(24).reshape((2, 4, 3)),
+    ],
+    [
+        TEST_IMAGE,
+        None,
+        dict(reader="NibabelReader", image_only=False, as_closest_canonical=False),
+        np.arange(24).reshape((2, 4, 3)),
+    ],
 ]
 
 
@@ -74,13 +94,12 @@ class TestNiftiLoadRead(unittest.TestCase):
 
         if affine is not None:
             np.testing.assert_allclose(saved_affine, affine)
-        print("!!!!!!!!!!", saved_data.shape, expected.shape)
         np.testing.assert_allclose(saved_data, expected)
 
     def test_consistency(self):
         np.set_printoptions(suppress=True, precision=3)
         test_image = make_nifti_image(np.arange(64).reshape(1, 8, 8), np.diag([1.5, 1.5, 1.5, 1]))
-        data, header = LoadImage(as_closest_canonical=False)(test_image)
+        data, header = LoadImage(reader="NibabelReader", as_closest_canonical=False)(test_image)
         data, original_affine, new_affine = Spacing([0.8, 0.8, 0.8])(data[None], header["affine"], mode="nearest")
         data, _, new_affine = Orientation("ILP")(data, new_affine)
         if os.path.exists(test_image):
