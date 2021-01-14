@@ -94,6 +94,11 @@ class TestExtractBlock(unittest.TestCase):
             result = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
 
+    def test_ill_arg(self):
+        # channel unmatch
+        with self.assertRaises(ValueError):
+            LocalNetFeatureExtractorBlock(spatial_dims=2, in_channels=2, out_channels=2, kernel_initializer="none")
+
 
 if __name__ == "__main__":
     unittest.main()
