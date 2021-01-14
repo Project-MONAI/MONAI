@@ -13,7 +13,7 @@ A collection of "vanilla" transforms for IO functions
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Dict, List, Optional, Sequence, Union
+from typing import List, Optional, Sequence, Union
 
 import numpy as np
 

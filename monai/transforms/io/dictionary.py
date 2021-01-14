@@ -15,7 +15,7 @@ defined in :py:class:`monai.transforms.io.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Callable, Optional, Union
+from typing import Optional, Union
 
 import numpy as np
 
