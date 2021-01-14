@@ -1,5 +1,4 @@
 import unittest
-from itertools import product
 
 import torch
 from parameterized import parameterized
