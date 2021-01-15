@@ -11,7 +11,7 @@
 
 from .convutils import calculate_out_shape, gaussian_1d, polyval, same_padding, stride_minus_kernel_padding
 from .factories import Act, Conv, Dropout, LayerFactory, Norm, Pad, Pool, split_args
-from .filtering import BilateralFilter
+from .filtering import BilateralFilter, PHLFilter
 from .simplelayers import (
     LLTM,
     ChannelPad,
