@@ -127,7 +127,7 @@ torch::Tensor BilateralFilterPHLCuda(torch::Tensor inputTensor, float spatialSig
   torch::Tensor outputTensor = torch::zeros_like(inputTensor);
 
 #define CASE(c, d)                                                                       \
-  AT_DISPATCH_FLOATING_TYPES(inputTensor.type(), "BilateralFilterCudaPHL", ([&] {        \
+  AT_DISPATCH_FLOATING_TYPES(inputTensor.scalar_type(), "BilateralFilterCudaPHL", ([&] {        \
                                BilateralFilterPHLCuda<scalar_t, c, d>(                   \
                                    inputTensor, outputTensor, spatialSigma, colorSigma); \
                              }));

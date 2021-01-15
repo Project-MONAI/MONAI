@@ -46,7 +46,7 @@ SOFTWARE.
 #include <torch/extension.h>
 #include <THC/THCAtomics.cuh>
 
-#include "hash_table.cu"
+#include "hash_table.cuh"
 #include "utils/meta_macros.h"
 
 template <typename scalar_t>

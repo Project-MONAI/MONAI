@@ -220,7 +220,7 @@ void BilateralFilterCuda(torch::Tensor inputTensor, torch::Tensor outputTensor, 
   #define BLOCK_SIZE 32
 
   AT_DISPATCH_FLOATING_TYPES_AND_HALF(
-      inputTensor.type(), "BilateralFilterCudaKernel", ([&] {
+      inputTensor.scalar_type(), "BilateralFilterCudaKernel", ([&] {
         // Dispatch kernel. (Partial template function specialisation not supported at present so using this switch
         // instead)
         switch (D) {
