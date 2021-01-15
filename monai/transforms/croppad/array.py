@@ -312,7 +312,8 @@ class RandSpatialCrop(Randomizable, Transform):
         slicing doesn't apply to the channel dim.
         """
         self.randomize(img.shape[1:])
-        assert self._size is not None
+        if self._size is None:
+            raise AssertionError
         if self.random_center:
             return img[self._slices]
         cropper = CenterSpatialCrop(self._size)

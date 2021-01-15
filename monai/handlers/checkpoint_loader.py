@@ -54,9 +54,11 @@ class CheckpointLoader:
         name: Optional[str] = None,
         map_location: Optional[Dict] = None,
     ) -> None:
-        assert load_path is not None, "must provide clear path to load checkpoint."
+        if load_path is None:
+            raise AssertionError("must provide clear path to load checkpoint.")
         self.load_path = load_path
-        assert load_dict is not None and len(load_dict) > 0, "must provide target objects to load."
+        if not (load_dict is not None and len(load_dict) > 0):
+            raise AssertionError("must provide target objects to load.")
         self.logger = logging.getLogger(name)
         self.load_dict = load_dict
         self._name = name

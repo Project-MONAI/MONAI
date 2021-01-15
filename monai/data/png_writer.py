@@ -47,7 +47,8 @@ def write_png(
         ValueError: When ``scale`` is not one of [255, 65535].
 
     """
-    assert isinstance(data, np.ndarray), "input data must be numpy array."
+    if not isinstance(data, np.ndarray):
+        raise AssertionError("input data must be numpy array.")
     if len(data.shape) == 3 and data.shape[2] == 1:  # PIL Image can't save image with 1 channel
         data = data.squeeze(2)
     if output_spatial_shape is not None:

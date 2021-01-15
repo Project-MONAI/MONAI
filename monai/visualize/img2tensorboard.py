@@ -40,7 +40,8 @@ def _image3_animated_gif(tag: str, image: Union[np.ndarray, torch.Tensor], scale
         scale_factor: amount to multiply values by. if the image data is between 0 and 1, using 255 for this value will
             scale it to displayable range
     """
-    assert len(image.shape) == 3, "3D image tensors expected to be in `HWD` format, len(image.shape) != 3"
+    if len(image.shape) != 3:
+        raise AssertionError("3D image tensors expected to be in `HWD` format, len(image.shape) != 3")
 
     ims = [(np.asarray((image[:, :, i])) * scale_factor).astype(np.uint8) for i in range(image.shape[2])]
     ims = [GifImage.fromarray(im) for im in ims]
