@@ -1012,7 +1012,8 @@ class RandZoomd(Randomizable, MapTransform):
         super().__init__(keys)
         self.min_zoom = ensure_tuple(min_zoom)
         self.max_zoom = ensure_tuple(max_zoom)
-        assert len(self.min_zoom) == len(self.max_zoom), "min_zoom and max_zoom must have same length."
+        if len(self.min_zoom) != len(self.max_zoom):
+            raise AssertionError("min_zoom and max_zoom must have same length.")
         self.prob = prob
 
         self.mode = ensure_tuple_rep(mode, len(self.keys))

@@ -90,8 +90,10 @@ class ResBlock(nn.Module):
 
         super().__init__()
 
-        assert kernel_size % 2 == 1, "kernel_size should be an odd number."
-        assert in_channels % num_groups == 0, "in_channels should be divisible by num_groups."
+        if kernel_size % 2 != 1:
+            raise AssertionError("kernel_size should be an odd number.")
+        if in_channels % num_groups != 0:
+            raise AssertionError("in_channels should be divisible by num_groups.")
 
         self.norm1 = get_norm_layer(spatial_dims, in_channels, norm_name, num_groups=num_groups)
         self.norm2 = get_norm_layer(spatial_dims, in_channels, norm_name, num_groups=num_groups)

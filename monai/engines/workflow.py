@@ -124,7 +124,8 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
 
             @self.on(Events.ITERATION_COMPLETED)
             def run_post_transform(engine: Engine) -> None:
-                assert post_transform is not None
+                if post_transform is None:
+                    raise AssertionError
                 engine.state.output = apply_transform(post_transform, engine.state.output)
 
         if key_metric is not None:

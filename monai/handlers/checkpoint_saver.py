@@ -88,9 +88,11 @@ class CheckpointSaver:
         save_interval: int = 0,
         n_saved: Optional[int] = None,
     ) -> None:
-        assert save_dir is not None, "must provide directory to save the checkpoints."
+        if save_dir is None:
+            raise AssertionError("must provide directory to save the checkpoints.")
         self.save_dir = save_dir
-        assert save_dict is not None and len(save_dict) > 0, "must provide source objects to save."
+        if not (save_dict is not None and len(save_dict) > 0):
+            raise AssertionError("must provide source objects to save.")
         self.save_dict = save_dict
         self.logger = logging.getLogger(name)
         self.epoch_level = epoch_level
@@ -202,12 +204,15 @@ class CheckpointSaver:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        assert callable(self._final_checkpoint), "Error: _final_checkpoint function not specified."
+        if not callable(self._final_checkpoint):
+            raise AssertionError("Error: _final_checkpoint function not specified.")
         # delete previous saved final checkpoint if existing
         self._delete_previous_final_ckpt()
         self._final_checkpoint(engine)
-        assert self.logger is not None
-        assert hasattr(self.logger, "info"), "Error, provided logger has not info attribute."
+        if self.logger is None:
+            raise AssertionError
+        if not hasattr(self.logger, "info"):
+            raise AssertionError("Error, provided logger has not info attribute.")
         self.logger.info(f"Train completed, saved final checkpoint: {self._final_checkpoint.last_checkpoint}")
 
     def exception_raised(self, engine: Engine, e: Exception) -> None:
@@ -219,12 +224,15 @@ class CheckpointSaver:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
             e: the exception caught in Ignite during engine.run().
         """
-        assert callable(self._final_checkpoint), "Error: _final_checkpoint function not specified."
+        if not callable(self._final_checkpoint):
+            raise AssertionError("Error: _final_checkpoint function not specified.")
         # delete previous saved final checkpoint if existing
         self._delete_previous_final_ckpt()
         self._final_checkpoint(engine)
-        assert self.logger is not None
-        assert hasattr(self.logger, "info"), "Error, provided logger has not info attribute."
+        if self.logger is None:
+            raise AssertionError
+        if not hasattr(self.logger, "info"):
+            raise AssertionError("Error, provided logger has not info attribute.")
         self.logger.info(f"Exception_raised, saved exception checkpoint: {self._final_checkpoint.last_checkpoint}")
         raise e
 
@@ -234,7 +242,8 @@ class CheckpointSaver:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        assert callable(self._key_metric_checkpoint), "Error: _key_metric_checkpoint function not specified."
+        if not callable(self._key_metric_checkpoint):
+            raise AssertionError("Error: _key_metric_checkpoint function not specified.")
         self._key_metric_checkpoint(engine)
 
     def interval_completed(self, engine: Engine) -> None:
@@ -244,10 +253,13 @@ class CheckpointSaver:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        assert callable(self._interval_checkpoint), "Error: _interval_checkpoint function not specified."
+        if not callable(self._interval_checkpoint):
+            raise AssertionError("Error: _interval_checkpoint function not specified.")
         self._interval_checkpoint(engine)
-        assert self.logger is not None
-        assert hasattr(self.logger, "info"), "Error, provided logger has not info attribute."
+        if self.logger is None:
+            raise AssertionError
+        if not hasattr(self.logger, "info"):
+            raise AssertionError("Error, provided logger has not info attribute.")
         if self.epoch_level:
             self.logger.info(f"Saved checkpoint at epoch: {engine.state.epoch}")
         else:

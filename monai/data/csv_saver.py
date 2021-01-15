@@ -37,7 +37,8 @@ class CSVSaver:
         """
         self.output_dir = output_dir
         self._cache_dict: OrderedDict = OrderedDict()
-        assert isinstance(filename, str) and filename[-4:] == ".csv", "filename must be a string with CSV format."
+        if not (isinstance(filename, str) and filename[-4:] == ".csv"):
+            raise AssertionError("filename must be a string with CSV format.")
         self._filepath = os.path.join(output_dir, filename)
         self.overwrite = overwrite
         self._data_index = 0
@@ -76,7 +77,8 @@ class CSVSaver:
         self._data_index += 1
         if torch.is_tensor(data):
             data = data.detach().cpu().numpy()
-        assert isinstance(data, np.ndarray)
+        if not isinstance(data, np.ndarray):
+            raise AssertionError
         self._cache_dict[save_key] = data.astype(np.float32)
 
     def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:

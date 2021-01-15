@@ -83,7 +83,8 @@ class AsChannelFirst(Transform):
     """
 
     def __init__(self, channel_dim: int = -1) -> None:
-        assert isinstance(channel_dim, int) and channel_dim >= -1, "invalid channel dimension."
+        if not (isinstance(channel_dim, int) and channel_dim >= -1):
+            raise AssertionError("invalid channel dimension.")
         self.channel_dim = channel_dim
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
@@ -109,7 +110,8 @@ class AsChannelLast(Transform):
     """
 
     def __init__(self, channel_dim: int = 0) -> None:
-        assert isinstance(channel_dim, int) and channel_dim >= -1, "invalid channel dimension."
+        if not (isinstance(channel_dim, int) and channel_dim >= -1):
+            raise AssertionError("invalid channel dimension.")
         self.channel_dim = channel_dim
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
@@ -151,7 +153,8 @@ class RepeatChannel(Transform):
     """
 
     def __init__(self, repeats: int) -> None:
-        assert repeats > 0, "repeats count must be greater than 0."
+        if repeats <= 0:
+            raise AssertionError("repeats count must be greater than 0.")
         self.repeats = repeats
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
@@ -335,7 +338,8 @@ class DataStats(Transform):
             TypeError: When ``additional_info`` is not an ``Optional[Callable]``.
 
         """
-        assert isinstance(prefix, str), "prefix must be a string."
+        if not isinstance(prefix, str):
+            raise AssertionError("prefix must be a string.")
         self.prefix = prefix
         self.data_shape = data_shape
         self.value_range = value_range

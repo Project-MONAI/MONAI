@@ -135,9 +135,8 @@ class DiceLoss(_Loss):
                 target = target[:, 1:]
                 input = input[:, 1:]
 
-        assert (
-            target.shape == input.shape
-        ), f"ground truth has differing shape ({target.shape}) from input ({input.shape})"
+        if target.shape != input.shape:
+            raise AssertionError(f"ground truth has differing shape ({target.shape}) from input ({input.shape})")
 
         # reducing only spatial dimensions (not batch nor channels)
         reduce_axis = list(range(2, len(input.shape)))
@@ -192,16 +191,16 @@ class MaskedDiceLoss(DiceLoss):
         """
         if mask is not None:
             # checking if mask is of proper shape
-            assert input.dim() == mask.dim(), f"dim of input ({input.shape}) is different from mask ({mask.shape})"
-            assert (
-                input.shape[0] == mask.shape[0] or mask.shape[0] == 1
-            ), f" batch size of mask ({mask.shape}) must be 1 or equal to input ({input.shape})"
+            if input.dim() != mask.dim():
+                raise AssertionError(f"dim of input ({input.shape}) is different from mask ({mask.shape})")
+            if not (input.shape[0] == mask.shape[0] or mask.shape[0] == 1):
+                raise AssertionError(f" batch size of mask ({mask.shape}) must be 1 or equal to input ({input.shape})")
 
             if target.dim() > 1:
-                assert mask.shape[1] == 1, f"mask ({mask.shape}) must have only 1 channel"
-                assert (
-                    input.shape[2:] == mask.shape[2:]
-                ), f"spatial size of input ({input.shape}) is different from mask ({mask.shape})"
+                if mask.shape[1] != 1:
+                    raise AssertionError(f"mask ({mask.shape}) must have only 1 channel")
+                if input.shape[2:] != mask.shape[2:]:
+                    raise AssertionError(f"spatial size of input ({input.shape}) is different from mask ({mask.shape})")
 
             input = input * mask
             target = target * mask
@@ -322,9 +321,8 @@ class GeneralizedDiceLoss(_Loss):
                 target = target[:, 1:]
                 input = input[:, 1:]
 
-        assert (
-            target.shape == input.shape
-        ), f"ground truth has differing shape ({target.shape}) from input ({input.shape})"
+        if target.shape != input.shape:
+            raise AssertionError(f"ground truth has differing shape ({target.shape}) from input ({input.shape})")
 
         # reducing only spatial dimensions (not batch nor channels)
         reduce_axis = list(range(2, len(input.shape)))
