@@ -22,7 +22,7 @@ class TestRotate90d(NumpyImageTestCase2D):
         key = "test"
         rotate = Rotate90d(keys=key)
         rotated = rotate({key: self.imt[0]})
-        expected = list()
+        expected = []
         for channel in self.imt[0]:
             expected.append(np.rot90(channel, 1, (0, 1)))
         expected = np.stack(expected)
@@ -32,7 +32,7 @@ class TestRotate90d(NumpyImageTestCase2D):
         key = None
         rotate = Rotate90d(keys=key, k=2)
         rotated = rotate({key: self.imt[0]})
-        expected = list()
+        expected = []
         for channel in self.imt[0]:
             expected.append(np.rot90(channel, 2, (0, 1)))
         expected = np.stack(expected)
@@ -42,7 +42,7 @@ class TestRotate90d(NumpyImageTestCase2D):
         key = "test"
         rotate = Rotate90d(keys=key, spatial_axes=(0, 1))
         rotated = rotate({key: self.imt[0]})
-        expected = list()
+        expected = []
         for channel in self.imt[0]:
             expected.append(np.rot90(channel, 1, (0, 1)))
         expected = np.stack(expected)
@@ -52,7 +52,7 @@ class TestRotate90d(NumpyImageTestCase2D):
         key = "test"
         rotate = Rotate90d(keys=key, k=2, spatial_axes=(0, 1))
         rotated = rotate({key: self.imt[0]})
-        expected = list()
+        expected = []
         for channel in self.imt[0]:
             expected.append(np.rot90(channel, 2, (0, 1)))
         expected = np.stack(expected)

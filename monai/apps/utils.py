@@ -10,15 +10,13 @@
 # limitations under the License.
 
 import hashlib
-import logging
 import os
-import shutil
 import tarfile
 import warnings
 import zipfile
 from typing import TYPE_CHECKING, Optional
 from urllib.error import ContentTooShortError, HTTPError, URLError
-from urllib.request import Request, urlopen, urlretrieve
+from urllib.request import urlretrieve
 
 from monai.utils import min_version, optional_import
 
@@ -112,50 +110,10 @@ def download_url(url: str, filepath: str, hash_val: Optional[str] = None, hash_t
             raise RuntimeError(
                 f"Download of file from {url} to {filepath} failed due to network issue or denied permission."
             )
-    elif url.startswith("https://msd-for-monai.s3-us-west-2.amazonaws.com"):
-        block_size = 1024 * 1024
-        tmp_file_path = filepath + ".part"
-        first_byte = os.path.getsize(tmp_file_path) if os.path.exists(tmp_file_path) else 0
-        file_size = -1
-
-        try:
-            file_size = int(urlopen(url).info().get("Content-Length", -1))
-            if has_tqdm:
-                pbar = tqdm(
-                    unit="B",
-                    unit_scale=True,
-                    unit_divisor=1024,
-                    miniters=1,
-                    desc=filepath.split(os.sep)[-1],
-                    total=file_size,
-                )
-            else:
-                warnings.warn("tqdm is not installed, will not show the downloading progress bar.")
-
-            while first_byte < file_size:
-                last_byte = first_byte + block_size if first_byte + block_size < file_size else file_size - 1
-
-                req = Request(url)
-                req.headers["Range"] = "bytes=%s-%s" % (first_byte, last_byte)
-                data_chunk = urlopen(req, timeout=10).read()
-                with open(tmp_file_path, "ab") as f:
-                    f.write(data_chunk)
-                if has_tqdm:
-                    pbar.update(len(data_chunk))
-                first_byte = last_byte + 1
-            if has_tqdm:
-                pbar.close()
-        except IOError as e:
-            logging.debug("IO Error - %s" % e)
-        finally:
-            if file_size == os.path.getsize(tmp_file_path):
-                if hash_val and not check_hash(tmp_file_path, hash_val, hash_type):
-                    raise Exception(f"Error validating the file against its {hash_type} hash")
-                shutil.move(tmp_file_path, filepath)
-            elif file_size == -1:
-                raise Exception("Error getting Content-Length from server: %s" % url)
     else:
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        path = os.path.dirname(filepath)
+        if path:
+            os.makedirs(path, exist_ok=True)
         try:
             if has_tqdm:
 

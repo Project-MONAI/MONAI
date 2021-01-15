@@ -22,7 +22,7 @@ import torch
 
 from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points, map_binary_to_indices
-from monai.utils import ensure_tuple
+from monai.utils import ensure_tuple, min_version, optional_import
 
 __all__ = [
     "Identity",
@@ -41,7 +41,9 @@ __all__ = [
     "Lambda",
     "LabelToMask",
     "FgBgToIndices",
+    "ConvertToMultiChannelBasedOnBratsClasses",
     "AddExtremePointsChannel",
+    "TorchVision",
 ]
 
 # Generic type which can represent either a numpy.ndarray or a torch.Tensor
@@ -189,7 +191,7 @@ class SplitChannel(Transform):
         if n_classes <= 1:
             raise RuntimeError("input image does not contain multiple channels.")
 
-        outputs = list()
+        outputs = []
         slices = [slice(None)] * len(img.shape)
         for i in range(n_classes):
             slices[channel_dim] = slice(i, i + 1)
@@ -226,10 +228,9 @@ class CastToType(Transform):
         """
         if isinstance(img, np.ndarray):
             return img.astype(self.dtype if dtype is None else dtype)
-        elif torch.is_tensor(img):
+        if torch.is_tensor(img):
             return torch.as_tensor(img, dtype=self.dtype if dtype is None else dtype)
-        else:
-            raise TypeError(f"img must be one of (numpy.ndarray, torch.Tensor) but is {type(img).__name__}.")
+        raise TypeError(f"img must be one of (numpy.ndarray, torch.Tensor) but is {type(img).__name__}.")
 
 
 class ToTensor(Transform):
@@ -460,8 +461,7 @@ class Lambda(Transform):
             return func(img)
         if self.func is not None:
             return self.func(img)
-        else:
-            raise ValueError("Incompatible values: func=None and self.func=None.")
+        raise ValueError("Incompatible values: func=None and self.func=None.")
 
 
 class LabelToMask(Transform):
@@ -557,6 +557,27 @@ class FgBgToIndices(Transform):
         return fg_indices, bg_indices
 
 
+class ConvertToMultiChannelBasedOnBratsClasses(Transform):
+    """
+    Convert labels to multi channels based on brats18 classes:
+    label 1 is the necrotic and non-enhancing tumor core
+    label 2 is the the peritumoral edema
+    label 4 is the GD-enhancing tumor
+    The possible classes are TC (Tumor core), WT (Whole tumor)
+    and ET (Enhancing tumor).
+    """
+
+    def __call__(self, img: np.ndarray) -> np.ndarray:
+        result = []
+        # merge labels 1 (tumor non-enh) and 4 (tumor enh) to TC
+        result.append(np.logical_or(img == 1, img == 4))
+        # merge labels 1 (tumor non-enh) and 4 (tumor enh) and 2 (large edema) to WT
+        result.append(np.logical_or(np.logical_or(img == 1, img == 4), img == 2))
+        # label 4 is ET
+        result.append(img == 4)
+        return np.stack(result, axis=0).astype(np.float32)
+
+
 class AddExtremePointsChannel(Transform, Randomizable):
     """
     Add extreme points of label to the image as a new channel. This transform generates extreme
@@ -617,3 +638,32 @@ class AddExtremePointsChannel(Transform, Randomizable):
         )
 
         return np.concatenate([img, points_image], axis=0)
+
+
+class TorchVision:
+    """
+    This is a wrapper transform for PyTorch TorchVision transform based on the specified transform name and args.
+    As most of the TorchVision transforms only work for PIL image and PyTorch Tensor, this transform expects input
+    data to be PyTorch Tensor, users can easily call `ToTensor` transform to convert a Numpy array to Tensor.
+
+    """
+
+    def __init__(self, name: str, *args, **kwargs) -> None:
+        """
+        Args:
+            name: The transform name in TorchVision package.
+            args: parameters for the TorchVision transform.
+            kwargs: parameters for the TorchVision transform.
+
+        """
+        super().__init__()
+        transform, _ = optional_import("torchvision.transforms", "0.8.0", min_version, name=name)
+        self.trans = transform(*args, **kwargs)
+
+    def __call__(self, img: torch.Tensor):
+        """
+        Args:
+            img: PyTorch Tensor data for the TorchVision transform.
+
+        """
+        return self.trans(img)

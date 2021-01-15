@@ -20,7 +20,7 @@ from tests.utils import NumpyImageTestCase2D
 class TestScaleIntensityRangePercentilesd(NumpyImageTestCase2D):
     def test_scaling(self):
         img = self.imt
-        data = dict()
+        data = {}
         data["img"] = img
         lower = 10
         upper = 99
@@ -38,7 +38,7 @@ class TestScaleIntensityRangePercentilesd(NumpyImageTestCase2D):
 
     def test_relative_scaling(self):
         img = self.imt
-        data = dict()
+        data = {}
         data["img"] = img
         lower = 10
         upper = 99

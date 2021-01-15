@@ -37,7 +37,7 @@ class TestResized(NumpyImageTestCase2D):
             _order = 1
         if spatial_size == (32, -1):
             spatial_size = (32, 64)
-        expected = list()
+        expected = []
         for channel in self.imt[0]:
             expected.append(
                 skimage.transform.resize(

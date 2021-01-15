@@ -80,8 +80,8 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
     # start training validation
     best_metric = -1
     best_metric_epoch = -1
-    epoch_loss_values = list()
-    metric_values = list()
+    epoch_loss_values = []
+    metric_values = []
     model_filename = os.path.join(root_dir, "best_metric_model.pth")
     for epoch in range(epoch_num):
         print("-" * 10)
@@ -137,8 +137,8 @@ def run_inference_test(root_dir, test_x, test_y, device="cuda:0", num_workers=10
 
     model_filename = os.path.join(root_dir, "best_metric_model.pth")
     model.load_state_dict(torch.load(model_filename))
-    y_true = list()
-    y_pred = list()
+    y_true = []
+    y_pred = []
     with eval_mode(model):
         for test_data in val_loader:
             test_images, test_labels = test_data[0].to(device), test_data[1].to(device)

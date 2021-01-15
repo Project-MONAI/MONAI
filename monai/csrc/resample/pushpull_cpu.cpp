@@ -97,19 +97,25 @@ MONAI_NAMESPACE_DEVICE { // cpu
         bool do_sgrad)
         : dim(dim),
           bound0(bound.size() > 0 ? bound[0] : BoundType::Replicate),
-          bound1(bound.size() > 1 ? bound[1] : bound.size() > 0 ? bound[0] : BoundType::Replicate),
+          bound1(
+              bound.size() > 1       ? bound[1]
+                  : bound.size() > 0 ? bound[0]
+                                     : BoundType::Replicate),
           bound2(
-              bound.size() > 2 ? bound[2]
-                               : bound.size() > 1 ? bound[1] : bound.size() > 0 ? bound[0] : BoundType::Replicate),
+              bound.size() > 2       ? bound[2]
+                  : bound.size() > 1 ? bound[1]
+                  : bound.size() > 0 ? bound[0]
+                                     : BoundType::Replicate),
           interpolation0(interpolation.size() > 0 ? interpolation[0] : InterpolationType::Linear),
           interpolation1(
-              interpolation.size() > 1 ? interpolation[1]
-                                       : interpolation.size() > 0 ? interpolation[0] : InterpolationType::Linear),
+              interpolation.size() > 1       ? interpolation[1]
+                  : interpolation.size() > 0 ? interpolation[0]
+                                             : InterpolationType::Linear),
           interpolation2(
-              interpolation.size() > 2
-                  ? interpolation[2]
+              interpolation.size() > 2       ? interpolation[2]
                   : interpolation.size() > 1 ? interpolation[1]
-                                             : interpolation.size() > 0 ? interpolation[0] : InterpolationType::Linear),
+                  : interpolation.size() > 0 ? interpolation[0]
+                                             : InterpolationType::Linear),
           extrapolate(extrapolate),
           do_pull(do_pull),
           do_push(do_push),
@@ -136,13 +142,14 @@ MONAI_NAMESPACE_DEVICE { // cpu
           bound2(bound),
           interpolation0(interpolation.size() > 0 ? interpolation[0] : InterpolationType::Linear),
           interpolation1(
-              interpolation.size() > 1 ? interpolation[1]
-                                       : interpolation.size() > 0 ? interpolation[0] : InterpolationType::Linear),
+              interpolation.size() > 1       ? interpolation[1]
+                  : interpolation.size() > 0 ? interpolation[0]
+                                             : InterpolationType::Linear),
           interpolation2(
-              interpolation.size() > 2
-                  ? interpolation[2]
+              interpolation.size() > 2       ? interpolation[2]
                   : interpolation.size() > 1 ? interpolation[1]
-                                             : interpolation.size() > 0 ? interpolation[0] : InterpolationType::Linear),
+                  : interpolation.size() > 0 ? interpolation[0]
+                                             : InterpolationType::Linear),
           extrapolate(extrapolate),
           do_pull(do_pull),
           do_push(do_push),
@@ -165,10 +172,15 @@ MONAI_NAMESPACE_DEVICE { // cpu
         bool do_sgrad)
         : dim(dim),
           bound0(bound.size() > 0 ? bound[0] : BoundType::Replicate),
-          bound1(bound.size() > 1 ? bound[1] : bound.size() > 0 ? bound[0] : BoundType::Replicate),
+          bound1(
+              bound.size() > 1       ? bound[1]
+                  : bound.size() > 0 ? bound[0]
+                                     : BoundType::Replicate),
           bound2(
-              bound.size() > 2 ? bound[2]
-                               : bound.size() > 1 ? bound[1] : bound.size() > 0 ? bound[0] : BoundType::Replicate),
+              bound.size() > 2       ? bound[2]
+                  : bound.size() > 1 ? bound[1]
+                  : bound.size() > 0 ? bound[0]
+                                     : BoundType::Replicate),
           interpolation0(interpolation),
           interpolation1(interpolation),
           interpolation2(interpolation),

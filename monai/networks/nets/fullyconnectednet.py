@@ -25,8 +25,7 @@ def _get_adn_layer(
 ) -> ADN:
     if ordering:
         return ADN(act=act, dropout=dropout, dropout_dim=1, ordering=ordering)
-    else:
-        return ADN(act=act, dropout=dropout, dropout_dim=1)
+    return ADN(act=act, dropout=dropout, dropout_dim=1)
 
 
 class FullyConnectedNet(nn.Sequential):

@@ -17,7 +17,7 @@ from monai.transforms import MapTransform
 
 TEST_CASES = [["item", ("item",)], [None, (None,)], [["item1", "item2"], ("item1", "item2")]]
 
-TEST_ILL_CASES = [[ValueError, list()], [ValueError, tuple()], [TypeError, [list()]]]
+TEST_ILL_CASES = [[ValueError, []], [ValueError, ()], [TypeError, [[]]]]
 
 
 class MapTest(MapTransform):

@@ -34,7 +34,7 @@ class TestRandZoom(NumpyImageTestCase2D):
         )
         random_zoom.set_random_state(1234)
         zoomed = random_zoom(self.imt[0])
-        expected = list()
+        expected = []
         for channel in self.imt[0]:
             expected.append(zoom_scipy(channel, zoom=random_zoom._zoom, mode="nearest", order=0, prefilter=False))
         expected = np.stack(expected).astype(np.float32)

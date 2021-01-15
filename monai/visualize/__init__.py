@@ -9,8 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .visualizer import default_normalizer, default_upsampler  # isort:skip
-from .class_activation_maps import CAM, GradCAM, GradCAMpp, ModelWithHooks
+from .class_activation_maps import CAM, GradCAM, GradCAMpp, ModelWithHooks, default_normalizer
 from .img2tensorboard import (
     add_animated_gif,
     add_animated_gif_no_channels,
@@ -18,3 +17,4 @@ from .img2tensorboard import (
     plot_2d_or_3d_image,
 )
 from .occlusion_sensitivity import OcclusionSensitivity
+from .visualizer import default_upsampler

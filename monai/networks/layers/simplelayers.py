@@ -320,8 +320,7 @@ class HilbertTransform(nn.Module):
         x = torch.as_tensor(x, device=x.device if torch.is_tensor(x) else None)
         if torch.is_complex(x):
             raise ValueError("x must be real.")
-        else:
-            x = x.to(dtype=torch.float)
+        x = x.to(dtype=torch.float)
 
         if (self.axis < 0) or (self.axis > len(x.shape) - 1):
             raise ValueError("Invalid axis for shape of x.")

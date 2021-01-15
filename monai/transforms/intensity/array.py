@@ -164,10 +164,9 @@ class ScaleIntensity(Transform):
         """
         if self.minv is not None and self.maxv is not None:
             return rescale_array(img, self.minv, self.maxv, img.dtype)
-        elif self.factor is not None:
+        if self.factor is not None:
             return (img * (1 + self.factor)).astype(img.dtype)
-        else:
-            raise ValueError("Incompatible values: minv=None or maxv=None and factor=None.")
+        raise ValueError("Incompatible values: minv=None or maxv=None and factor=None.")
 
 
 class RandScaleIntensity(Randomizable, Transform):

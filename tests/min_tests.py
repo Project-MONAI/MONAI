@@ -67,10 +67,6 @@ def run_testsuit():
         "test_lmdbdataset",
         "test_load_image",
         "test_load_imaged",
-        "test_load_nifti",
-        "test_load_niftid",
-        "test_load_png",
-        "test_load_pngd",
         "test_load_spacing_orientation",
         "test_mednistdataset",
         "test_nifti_dataset",
@@ -102,6 +98,8 @@ def run_testsuit():
         "test_zoom_affine",
         "test_zoomd",
         "test_occlusion_sensitivity",
+        "test_torchvision",
+        "test_torchvisiond",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
@@ -134,4 +132,4 @@ if __name__ == "__main__":
     # testing all modules
     test_runner = unittest.TextTestRunner(stream=sys.stdout, verbosity=2)
     result = test_runner.run(run_testsuit())
-    exit(int(not result.wasSuccessful()))
+    sys.exit(int(not result.wasSuccessful()))

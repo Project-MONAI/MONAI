@@ -228,13 +228,12 @@ def get_acti_layer(act: Union[Tuple[str, Dict], str]):
 def get_norm_layer(spatial_dims: int, out_channels: int, norm_name: str, num_groups: int = 16):
     if norm_name not in ["batch", "instance", "group"]:
         raise ValueError(f"Unsupported normalization mode: {norm_name}")
+    if norm_name == "group":
+        assert out_channels % num_groups == 0, "out_channels should be divisible by num_groups."
+        norm = Norm[norm_name](num_groups=num_groups, num_channels=out_channels, affine=True)
     else:
-        if norm_name == "group":
-            assert out_channels % num_groups == 0, "out_channels should be divisible by num_groups."
-            norm = Norm[norm_name](num_groups=num_groups, num_channels=out_channels, affine=True)
-        else:
-            norm = Norm[norm_name, spatial_dims](out_channels, affine=True)
-        return norm
+        norm = Norm[norm_name, spatial_dims](out_channels, affine=True)
+    return norm
 
 
 def get_conv_layer(

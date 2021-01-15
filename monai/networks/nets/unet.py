@@ -126,17 +126,16 @@ class UNet(nn.Module):
                 norm=self.norm,
                 dropout=self.dropout,
             )
-        else:
-            return Convolution(
-                self.dimensions,
-                in_channels,
-                out_channels,
-                strides=strides,
-                kernel_size=self.kernel_size,
-                act=self.act,
-                norm=self.norm,
-                dropout=self.dropout,
-            )
+        return Convolution(
+            self.dimensions,
+            in_channels,
+            out_channels,
+            strides=strides,
+            kernel_size=self.kernel_size,
+            act=self.act,
+            norm=self.norm,
+            dropout=self.dropout,
+        )
 
     def _get_bottom_layer(self, in_channels: int, out_channels: int) -> nn.Module:
         """

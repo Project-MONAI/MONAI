@@ -24,6 +24,19 @@ class Inferer(ABC):
     """
     A base class for model inference.
     Extend this class to support operations during inference, e.g. a sliding window method.
+
+    Example code::
+
+        device = torch.device("cuda:0")
+        data = ToTensor()(LoadImage()(filename=img_path)).to(device)
+        model = UNet(...).to(device)
+        inferer = SlidingWindowInferer(...)
+
+        model.eval()
+        with torch.no_grad():
+            pred = inferer(inputs=data, network=model)
+        ...
+
     """
 
     @abstractmethod
@@ -53,6 +66,7 @@ class Inferer(ABC):
 class SimpleInferer(Inferer):
     """
     SimpleInferer is the normal inference method that run model forward() directly.
+    Usage example can be found in the :py:class:`monai.inferers.Inferer` base class.
 
     """
 
@@ -83,6 +97,7 @@ class SlidingWindowInferer(Inferer):
     """
     Sliding window method for model inference,
     with `sw_batch_size` windows for every model.forward().
+    Usage example can be found in the :py:class:`monai.inferers.Inferer` base class.
 
     Args:
         roi_size: the window size to execute SlidingWindow evaluation.

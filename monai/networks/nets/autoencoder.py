@@ -50,7 +50,7 @@ class AutoEncoder(nn.Module):
         self.norm = norm
         self.dropout = dropout
         self.num_inter_units = num_inter_units
-        self.inter_channels = inter_channels if inter_channels is not None else list()
+        self.inter_channels = inter_channels if inter_channels is not None else []
         self.inter_dilations = list(inter_dilations or [1] * len(self.inter_channels))
 
         # The number of channels and strides should match
@@ -148,18 +148,17 @@ class AutoEncoder(nn.Module):
                 dropout=self.dropout,
                 last_conv_only=is_last,
             )
-        else:
-            return Convolution(
-                dimensions=self.dimensions,
-                in_channels=in_channels,
-                out_channels=out_channels,
-                strides=strides,
-                kernel_size=self.kernel_size,
-                act=self.act,
-                norm=self.norm,
-                dropout=self.dropout,
-                conv_only=is_last,
-            )
+        return Convolution(
+            dimensions=self.dimensions,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            strides=strides,
+            kernel_size=self.kernel_size,
+            act=self.act,
+            norm=self.norm,
+            dropout=self.dropout,
+            conv_only=is_last,
+        )
 
     def _get_decode_layer(self, in_channels: int, out_channels: int, strides: int, is_last: bool) -> nn.Sequential:
 

@@ -166,7 +166,6 @@ def compute_percent_hausdorff_distance(
     if not percentile:
         return surface_distance.max()
 
-    elif 0 <= percentile <= 100:
+    if 0 <= percentile <= 100:
         return np.percentile(surface_distance, percentile)
-    else:
-        raise ValueError(f"percentile should be a value between 0 and 100, get {percentile}.")
+    raise ValueError(f"percentile should be a value between 0 and 100, get {percentile}.")

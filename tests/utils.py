@@ -121,7 +121,7 @@ class SkipIfBeforePyTorchVersion(object):
 
 class SkipIfAtLeastPyTorchVersion(object):
     """Decorator to be used if test should be skipped
-    with PyTorch versions older than that given."""
+    with PyTorch versions newer than that given."""
 
     def __init__(self, pytorch_version_tuple):
         self.max_version = pytorch_version_tuple
@@ -407,8 +407,7 @@ class TimedCall:
             if isinstance(res, Exception):  # other errors from obj
                 if hasattr(res, "traceback"):
                     raise RuntimeError(res.traceback) from res
-                else:
-                    raise res
+                raise res
             if timeout_error:  # no force_quit finished
                 raise timeout_error
             return res

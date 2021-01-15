@@ -74,13 +74,12 @@ class SpatialPad(Transform):
     def _determine_data_pad_width(self, data_shape: Sequence[int]) -> List[Tuple[int, int]]:
         self.spatial_size = fall_back_tuple(self.spatial_size, data_shape)
         if self.method == Method.SYMMETRIC:
-            pad_width = list()
+            pad_width = []
             for i in range(len(self.spatial_size)):
                 width = max(self.spatial_size[i] - data_shape[i], 0)
                 pad_width.append((width // 2, width - (width // 2)))
             return pad_width
-        else:
-            return [(0, max(self.spatial_size[i] - data_shape[i], 0)) for i in range(len(self.spatial_size))]
+        return [(0, max(self.spatial_size[i] - data_shape[i], 0)) for i in range(len(self.spatial_size))]
 
     def __call__(self, img: np.ndarray, mode: Optional[Union[NumpyPadMode, str]] = None) -> np.ndarray:
         """
@@ -97,9 +96,8 @@ class SpatialPad(Transform):
         if not np.asarray(all_pad_width).any():
             # all zeros, skip padding
             return img
-        else:
-            img = np.pad(img, all_pad_width, mode=self.mode.value if mode is None else NumpyPadMode(mode).value)
-            return img
+        img = np.pad(img, all_pad_width, mode=self.mode.value if mode is None else NumpyPadMode(mode).value)
+        return img
 
 
 class BorderPad(Transform):
@@ -317,9 +315,8 @@ class RandSpatialCrop(Randomizable, Transform):
         assert self._size is not None
         if self.random_center:
             return img[self._slices]
-        else:
-            cropper = CenterSpatialCrop(self._size)
-            return cropper(img)
+        cropper = CenterSpatialCrop(self._size)
+        return cropper(img)
 
 
 class RandSpatialCropSamples(Randomizable, Transform):
@@ -601,7 +598,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
             else:
                 fg_indices, bg_indices = map_binary_to_indices(label, image, self.image_threshold)
         self.randomize(label, fg_indices, bg_indices, image)
-        results: List[np.ndarray] = list()
+        results: List[np.ndarray] = []
         if self.centers is not None:
             for center in self.centers:
                 cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)
@@ -680,7 +677,7 @@ class BoundingRect(Transform):
         """
         See also: :py:class:`monai.transforms.utils.generate_spatial_bounding_box`.
         """
-        bbox = list()
+        bbox = []
 
         for channel in range(img.shape[0]):
             start_, end_ = generate_spatial_bounding_box(img, select_fn=self.select_fn, channel_indices=channel)

@@ -23,7 +23,7 @@ TEST_CASE_1 = [{"keys": [str(i) for i in range(30)]}, 30]
 class TestSelectItemsd(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
     def test_memory(self, input_param, expected_key_size):
-        input_data = dict()
+        input_data = {}
         for i in range(50):
             input_data[str(i)] = [time.time()] * 100000
         result = SelectItemsd(**input_param)(input_data)

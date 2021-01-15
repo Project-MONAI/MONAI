@@ -19,7 +19,7 @@ from typing import Any, Callable, Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
 
-all = [
+__all__ = [
     "zip_with",
     "star_zip_with",
     "first",
@@ -120,7 +120,7 @@ def ensure_tuple_rep(tup: Any, dim: int) -> Tuple[Any, ...]:
     """
     if not issequenceiterable(tup):
         return (tup,) * dim
-    elif len(tup) == dim:
+    if len(tup) == dim:
         return tuple(tup)
 
     raise ValueError(f"Sequence must have length {dim}, got {len(tup)}.")
@@ -265,7 +265,7 @@ def list_to_dict(items):
             value = items[1].strip(" \n\r\t'")
         return key, value
 
-    d = dict()
+    d = {}
     if items:
         for item in items:
             key, value = _parse_var(item)

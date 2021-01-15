@@ -21,7 +21,7 @@ import threading
 alias_lock = threading.RLock()
 GlobalAliases = {}
 
-all = ["alias", "resolve_name"]
+__all__ = ["alias", "resolve_name"]
 
 
 def alias(*names):
@@ -91,8 +91,7 @@ def resolve_name(name):
                     modnames = [m.__name__ for m in foundmods]
                     msg = f"Multiple modules ({modnames!r}) with declaration name {name!r} found, resolution is ambiguous."
                     raise ValueError(msg)
-                else:
-                    mods = list(foundmods)
+                mods = list(foundmods)
 
             obj = getattr(mods[0], name)
 

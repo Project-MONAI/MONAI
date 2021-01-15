@@ -11,7 +11,7 @@
 
 from enum import Enum
 
-all = [
+__all__ = [
     "NumpyPadMode",
     "GridSampleMode",
     "InterpolateMode",

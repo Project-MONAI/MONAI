@@ -178,14 +178,13 @@ def split_args(args):
 
     if isinstance(args, str):
         return args, {}
-    else:
-        name_obj, name_args = args
+    name_obj, name_args = args
 
-        if not isinstance(name_obj, (str, Callable)) or not isinstance(name_args, dict):
-            msg = "Layer specifiers must be single strings or pairs of the form (name/object-types, argument dict)"
-            raise TypeError(msg)
+    if not isinstance(name_obj, (str, Callable)) or not isinstance(name_args, dict):
+        msg = "Layer specifiers must be single strings or pairs of the form (name/object-types, argument dict)"
+        raise TypeError(msg)
 
-        return name_obj, name_args
+    return name_obj, name_args
 
 
 # Define factories for these layer types

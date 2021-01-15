@@ -79,7 +79,7 @@ TEST_CASE_5 = [
         "data_shape": True,
         "value_range": True,
         "data_value": True,
-        "additional_info": lambda x: np.mean(x),
+        "additional_info": np.mean,
     },
     {"img": np.array([[0, 1], [1, 2]])},
     "test data statistics:\nShape: (2, 2)\nValue range: (0, 2)\nValue: [[0 1]\n [1 2]]\nAdditional info: 1.0",
@@ -108,7 +108,7 @@ TEST_CASE_7 = [
         "data_shape": True,
         "value_range": (True, False),
         "data_value": (False, True),
-        "additional_info": (lambda x: np.mean(x), None),
+        "additional_info": (np.mean, None),
     },
     {"img": np.array([[0, 1], [1, 2]]), "affine": np.eye(2, 2)},
     "affine statistics:\nShape: (2, 2)\nValue: [[1. 0.]\n [0. 1.]]",
@@ -138,7 +138,7 @@ class TestDataStatsd(unittest.TestCase):
                 "data_shape": True,
                 "value_range": True,
                 "data_value": True,
-                "additional_info": lambda x: np.mean(x),
+                "additional_info": np.mean,
                 "logger_handler": handler,
             }
             transform = DataStatsd(**input_param)

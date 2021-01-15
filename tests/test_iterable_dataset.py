@@ -32,7 +32,7 @@ class TestIterableDataset(unittest.TestCase):
     def test_shape(self):
         expected_shape = (128, 128, 128)
         test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]), np.eye(4))
-        test_data = list()
+        test_data = []
         with tempfile.TemporaryDirectory() as tempdir:
             for i in range(6):
                 nib.save(test_image, os.path.join(tempdir, f"test_image{str(i)}.nii.gz"))

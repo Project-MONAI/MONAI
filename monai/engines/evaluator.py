@@ -185,8 +185,8 @@ class SupervisedEvaluator(Evaluator):
         batch = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)
         if len(batch) == 2:
             inputs, targets = batch
-            args: Tuple = tuple()
-            kwargs: Dict = dict()
+            args: Tuple = ()
+            kwargs: Dict = {}
         else:
             inputs, targets, args, kwargs = batch
 
@@ -290,8 +290,8 @@ class EnsembleEvaluator(Evaluator):
         batch = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)
         if len(batch) == 2:
             inputs, targets = batch
-            args: Tuple = tuple()
-            kwargs: Dict = dict()
+            args: Tuple = ()
+            kwargs: Dict = {}
         else:
             inputs, targets, args, kwargs = batch
 

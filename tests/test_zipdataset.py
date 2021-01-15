@@ -28,8 +28,7 @@ class Dataset_(torch.utils.data.Dataset):
     def __getitem__(self, index):
         if self.index_only:
             return index
-        else:
-            return 1, 2, index
+        return 1, 2, index
 
 
 TEST_CASE_1 = [[Dataset_(5), Dataset_(5), Dataset_(5)], None, (0, 0, 0), 5]

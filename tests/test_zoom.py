@@ -31,7 +31,7 @@ class TestZoom(NumpyImageTestCase2D):
         _order = 0
         if mode.endswith("linear"):
             _order = 1
-        expected = list()
+        expected = []
         for channel in self.imt[0]:
             expected.append(zoom_scipy(channel, zoom=zoom, mode="nearest", order=_order, prefilter=False))
         expected = np.stack(expected).astype(np.float32)
