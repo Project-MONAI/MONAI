@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -31,6 +31,7 @@ __all__ = [
     "icnr_init",
     "pixelshuffle",
     "eval_mode",
+    "train_mode",
 ]
 
 
@@ -276,3 +277,37 @@ def eval_mode(*nets: nn.Module):
         # Return required networks to training
         for n in training:
             n.train()
+
+
+@contextmanager
+def train_mode(*nets: nn.Module):
+    """
+    Set network(s) to train mode and then return to original state at the end.
+
+    Args:
+        nets: Input network(s)
+
+    Examples
+
+    .. code-block:: python
+
+        t=torch.rand(1,1,16,16)
+        p=torch.nn.Conv2d(1,1,3)
+        p.eval()
+        print(p.training)  # False
+        with train_mode(p):
+            print(p.training)  # True
+            print(p(t).sum().backward())  # No exception
+    """
+
+    # Get original state of network(s)
+    eval_list = [n for n in nets if not n.training]
+
+    try:
+        # set to train mode
+        with torch.set_grad_enabled(True):
+            yield [n.train() for n in nets]
+    finally:
+        # Return required networks to eval_list
+        for n in eval_list:
+            n.eval()

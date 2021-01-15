@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -112,8 +112,8 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0):
     # start a typical PyTorch training
     val_interval = 2
     best_metric, best_metric_epoch = -1, -1
-    epoch_loss_values = list()
-    metric_values = list()
+    epoch_loss_values = []
+    metric_values = []
     writer = SummaryWriter(log_dir=os.path.join(root_dir, "runs"))
     model_filename = os.path.join(root_dir, "best_metric_model.pth")
     for epoch in range(6):

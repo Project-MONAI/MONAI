@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,7 +14,7 @@ from typing import Sequence, Union
 
 import torch
 
-from monai.metrics.utils import *
+from monai.metrics.utils import do_metric_reduction, ignore_background
 from monai.utils import MetricReduction
 
 
@@ -87,7 +87,7 @@ class ConfusionMatrixMetric:
         dims = y_pred.ndimension()
         if dims < 2:
             raise ValueError("y_pred should have at least two dimensions.")
-        elif dims == 2 or (dims == 3 and y_pred.shape[-1] == 1):
+        if dims == 2 or (dims == 3 and y_pred.shape[-1] == 1):
             if self.compute_sample:
                 warnings.warn("As for classification task, compute_sample should be False.")
                 self.compute_sample = False
@@ -103,16 +103,15 @@ class ConfusionMatrixMetric:
                 confusion_matrix = compute_confusion_matrix_metric(self.metric_name, confusion_matrix)
                 f, not_nans = do_metric_reduction(confusion_matrix, self.reduction)
                 return f, not_nans
-            else:
-                if len(self.metric_name) < 1:
-                    raise ValueError("the sequence should at least has on metric name.")
-                results = []
-                for metric_name in self.metric_name:
-                    sub_confusion_matrix = compute_confusion_matrix_metric(metric_name, confusion_matrix)
-                    f, not_nans = do_metric_reduction(sub_confusion_matrix, self.reduction)
-                    results.append(f)
-                    results.append(not_nans)
-                return results
+            if len(self.metric_name) < 1:
+                raise ValueError("the sequence should at least has on metric name.")
+            results = []
+            for metric_name in self.metric_name:
+                sub_confusion_matrix = compute_confusion_matrix_metric(metric_name, confusion_matrix)
+                f, not_nans = do_metric_reduction(sub_confusion_matrix, self.reduction)
+                results.append(f)
+                results.append(not_nans)
+            return results
         else:
             return confusion_matrix
 
@@ -264,8 +263,7 @@ def compute_confusion_matrix_metric(metric_name: str, confusion_matrix: torch.Te
 
     if isinstance(denominator, torch.Tensor):
         return torch.where(denominator != 0, numerator / denominator, nan_tensor)
-    else:
-        return numerator / denominator
+    return numerator / denominator
 
 
 def check_confusion_matrix_metric_name(metric_name: str):
@@ -284,37 +282,36 @@ def check_confusion_matrix_metric_name(metric_name: str):
     metric_name = metric_name.lower()
     if metric_name in ["sensitivity", "recall", "hit_rate", "true_positive_rate", "tpr"]:
         return "tpr"
-    elif metric_name in ["specificity", "selectivity", "true_negative_rate", "tnr"]:
+    if metric_name in ["specificity", "selectivity", "true_negative_rate", "tnr"]:
         return "tnr"
-    elif metric_name in ["precision", "positive_predictive_value", "ppv"]:
+    if metric_name in ["precision", "positive_predictive_value", "ppv"]:
         return "ppv"
-    elif metric_name in ["negative_predictive_value", "npv"]:
+    if metric_name in ["negative_predictive_value", "npv"]:
         return "npv"
-    elif metric_name in ["miss_rate", "false_negative_rate", "fnr"]:
+    if metric_name in ["miss_rate", "false_negative_rate", "fnr"]:
         return "fnr"
-    elif metric_name in ["fall_out", "false_positive_rate", "fpr"]:
+    if metric_name in ["fall_out", "false_positive_rate", "fpr"]:
         return "fpr"
-    elif metric_name in ["false_discovery_rate", "fdr"]:
+    if metric_name in ["false_discovery_rate", "fdr"]:
         return "fdr"
-    elif metric_name in ["false_omission_rate", "for"]:
+    if metric_name in ["false_omission_rate", "for"]:
         return "for"
-    elif metric_name in ["prevalence_threshold", "pt"]:
+    if metric_name in ["prevalence_threshold", "pt"]:
         return "pt"
-    elif metric_name in ["threat_score", "critical_success_index", "ts", "csi"]:
+    if metric_name in ["threat_score", "critical_success_index", "ts", "csi"]:
         return "ts"
-    elif metric_name in ["accuracy", "acc"]:
+    if metric_name in ["accuracy", "acc"]:
         return "acc"
-    elif metric_name in ["balanced_accuracy", "ba"]:
+    if metric_name in ["balanced_accuracy", "ba"]:
         return "ba"
-    elif metric_name in ["f1_score", "f1"]:
+    if metric_name in ["f1_score", "f1"]:
         return "f1"
-    elif metric_name in ["matthews_correlation_coefficient", "mcc"]:
+    if metric_name in ["matthews_correlation_coefficient", "mcc"]:
         return "mcc"
-    elif metric_name in ["fowlkes_mallows_index", "fm"]:
+    if metric_name in ["fowlkes_mallows_index", "fm"]:
         return "fm"
-    elif metric_name in ["informedness", "bookmaker_informedness", "bm"]:
+    if metric_name in ["informedness", "bookmaker_informedness", "bm"]:
         return "bm"
-    elif metric_name in ["markedness", "deltap", "mk"]:
+    if metric_name in ["markedness", "deltap", "mk"]:
         return "mk"
-    else:
-        raise NotImplementedError("the metric is not implemented.")
+    raise NotImplementedError("the metric is not implemented.")
