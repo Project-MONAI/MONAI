@@ -6,7 +6,7 @@ from torch.nn import functional as F
 
 from monai.networks.blocks import Convolution
 from monai.networks.layers import same_padding
-from monai.networks.layers.factories import batch_factory, maxpooling_factory
+from monai.networks.layers.factories import Norm, Pool
 
 
 def get_conv_block(
@@ -90,7 +90,7 @@ class ResidualBlock(nn.Module):
         self.conv = get_conv_layer(
             spatial_dims=spatial_dims, in_channels=out_channels, out_channels=out_channels, kernel_size=kernel_size
         )
-        self.norm = batch_factory(spatial_dims)(out_channels)
+        self.norm = Norm[Norm.BATCH, spatial_dims](out_channels)
         self.relu = nn.ReLU()
 
     def forward(self, x) -> torch.Tensor:
@@ -115,7 +115,7 @@ class LocalNetResidualBlock(nn.Module):
             in_channels=in_channels,
             out_channels=out_channels,
         )
-        self.norm = batch_factory(spatial_dims)(out_channels)
+        self.norm = Norm[Norm.BATCH, spatial_dims](out_channels)
         self.relu = nn.ReLU()
 
     def forward(self, x, mid) -> torch.Tensor:
@@ -158,7 +158,7 @@ class LocalNetDownSampleBlock(nn.Module):
         self.residual_block = ResidualBlock(
             spatial_dims=spatial_dims, in_channels=out_channels, out_channels=out_channels, kernel_size=kernel_size
         )
-        self.max_pool = maxpooling_factory(spatial_dims)(
+        self.max_pool = Pool[Pool.MAX, spatial_dims](
             kernel_size=2,
         )
 
