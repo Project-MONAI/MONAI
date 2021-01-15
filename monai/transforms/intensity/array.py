@@ -20,7 +20,7 @@ from warnings import warn
 import numpy as np
 import torch
 
-from monai.networks.layers import GaussianFilter, HilbertTransform
+from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
 from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.utils import rescale_array
 from monai.utils import PT_BEFORE_1_7, InvalidPyTorchVersionError, dtype_torch_to_numpy, ensure_tuple_size
@@ -39,6 +39,7 @@ __all__ = [
     "ScaleIntensityRangePercentiles",
     "MaskIntensity",
     "DetectEnvelope",
+    "SavitzkyGolaySmooth",
     "GaussianSmooth",
     "RandGaussianSmooth",
     "GaussianSharpen",
@@ -542,6 +543,44 @@ class MaskIntensity(Transform):
             )
 
         return img * mask_data_
+
+
+class SavitzkyGolaySmooth(Transform):
+    """
+    Smooth the input data along the given axis using a Savitzky-Golay filter.
+
+    Args:
+        window_length: Length of the filter window, must be a positive odd integer.
+        order: Order of the polynomial to fit to each window, must be less than ``window_length``.
+        axis: Optional axis along which to apply the filter kernel. Default 1 (first spatial dimension).
+        mode: Optional padding mode, passed to convolution class. ``'zeros'``, ``'reflect'``, ``'replicate'``
+            or ``'circular'``. Default: ``'zeros'``. See ``torch.nn.Conv1d()`` for more information.
+    """
+
+    def __init__(self, window_length: int, order: int, axis: int = 1, mode: str = "zeros"):
+
+        if axis < 0:
+            raise ValueError("axis must be zero or positive.")
+
+        self.window_length = window_length
+        self.order = order
+        self.axis = axis
+        self.mode = mode
+
+    def __call__(self, img: np.ndarray) -> np.ndarray:
+        """
+        Args:
+            img: numpy.ndarray containing input data. Must be real and in shape [channels, spatial1, spatial2, ...].
+
+        Returns:
+            np.ndarray containing smoothed result.
+
+        """
+        # add one to transform axis because a batch axis will be added at dimension 0
+        savgol_filter = SavitzkyGolayFilter(self.window_length, self.order, self.axis + 1, self.mode)
+        # convert to Tensor and add Batch axis expected by HilbertTransform
+        input_data = torch.as_tensor(np.ascontiguousarray(img)).unsqueeze(0)
+        return savgol_filter(input_data).squeeze(0).numpy()
 
 
 class DetectEnvelope(Transform):

@@ -186,6 +186,12 @@ Intensity
     :members:
     :special-members: __call__
 
+`SavitzkyGolaySmooth`
+"""""""""""""""""""""
+.. autoclass:: SavitzkyGolaySmooth
+    :members:
+    :special-members: __call__
+
 `GaussianSmooth`
 """"""""""""""""
 .. autoclass:: GaussianSmooth
