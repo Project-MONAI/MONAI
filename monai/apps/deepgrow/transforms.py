@@ -13,15 +13,16 @@ A collection of "vanilla" transforms for spatial operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 import json
-from typing import Optional, Union
+from typing import Optional, Sequence, Union
 
 import numpy as np
 
 from monai.config import KeysCollection
-from monai.transforms import InterpolateMode, InterpolateModeSequence, Resize, SpatialCrop
+from monai.transforms import Resize, SpatialCrop
 from monai.transforms.compose import MapTransform, Randomizable, Transform
+from monai.transforms.spatial.dictionary import InterpolateModeSequence
 from monai.transforms.utils import generate_spatial_bounding_box
-from monai.utils import Sequence, ensure_tuple_rep, min_version, optional_import
+from monai.utils import InterpolateMode, ensure_tuple_rep, min_version, optional_import
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_cdt")
@@ -295,7 +296,7 @@ class SpatialCropForegroundd(MapTransform):
         super().__init__(keys)
 
         self.source_key = source_key
-        self.spatial_size = spatial_size
+        self.spatial_size = list(spatial_size)
         self.select_fn = select_fn
         self.channel_indices = channel_indices
         self.margin = margin
@@ -350,7 +351,7 @@ class SpatialCropGuidanced(MapTransform):
         super().__init__(keys)
 
         self.guidance = guidance
-        self.spatial_size = spatial_size
+        self.spatial_size = list(spatial_size)
         self.spatial_size_key = spatial_size_key
         self.margin = margin
         self.meta_key_postfix = meta_key_postfix

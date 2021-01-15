@@ -18,7 +18,8 @@ from typing import Callable, Dict, List, Sequence, Union
 import numpy as np
 
 from monai.apps.datasets import DecathlonDataset
-from monai.transforms import AsChannelFirstd, Compose, GridSampleMode, LoadNiftid, Orientationd, Spacingd
+from monai.transforms import AsChannelFirstd, Compose, LoadImaged, Orientationd, Spacingd
+from monai.utils import GridSampleMode
 
 
 # TODO:: Test basic functionality
@@ -80,7 +81,7 @@ class DeepgrowDataset(DecathlonDataset):
 def _get_transforms(keys, pixdim):
     mode = [GridSampleMode.BILINEAR, GridSampleMode.NEAREST] if len(keys) == 2 else [GridSampleMode.BILINEAR]
     transforms = [
-        LoadNiftid(keys=keys),
+        LoadImaged(keys=keys),
         AsChannelFirstd(keys=keys),
         Spacingd(keys=keys, pixdim=pixdim, mode=mode),
         Orientationd(keys=keys, axcodes="RAS"),
