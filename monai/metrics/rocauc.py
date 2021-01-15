@@ -20,12 +20,10 @@ from monai.utils import Average
 
 
 def _calculate(y: torch.Tensor, y_pred: torch.Tensor) -> float:
-    assert y.ndimension() == y_pred.ndimension() == 1 and len(y) == len(
-        y_pred
-    ), "y and y_pred must be 1 dimension data with same length."
-    assert y.unique().equal(
-        torch.tensor([0, 1], dtype=y.dtype, device=y.device)
-    ), "y values must be 0 or 1, can not be all 0 or all 1."
+    if not (y.ndimension() == y_pred.ndimension() == 1 and len(y) == len(y_pred)):
+        raise AssertionError("y and y_pred must be 1 dimension data with same length.")
+    if not y.unique().equal(torch.tensor([0, 1], dtype=y.dtype, device=y.device)):
+        raise AssertionError("y values must be 0 or 1, can not be all 0 or all 1.")
     n = len(y)
     indices = y_pred.argsort()
     y = y[indices].cpu().numpy()
@@ -126,7 +124,8 @@ def compute_roc_auc(
             raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
         y_pred = other_act(y_pred)
 
-    assert y.shape == y_pred.shape, "data shapes of y_pred and y do not match."
+    if y.shape != y_pred.shape:
+        raise AssertionError("data shapes of y_pred and y do not match.")
 
     average = Average(average)
     if average == Average.MICRO:

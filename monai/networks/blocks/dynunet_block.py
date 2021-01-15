@@ -229,7 +229,8 @@ def get_norm_layer(spatial_dims: int, out_channels: int, norm_name: str, num_gro
     if norm_name not in ["batch", "instance", "group"]:
         raise ValueError(f"Unsupported normalization mode: {norm_name}")
     if norm_name == "group":
-        assert out_channels % num_groups == 0, "out_channels should be divisible by num_groups."
+        if out_channels % num_groups != 0:
+            raise AssertionError("out_channels should be divisible by num_groups.")
         norm = Norm[norm_name](num_groups=num_groups, num_channels=out_channels, affine=True)
     else:
         norm = Norm[norm_name, spatial_dims](out_channels, affine=True)
@@ -276,8 +277,8 @@ def get_padding(
     kernel_size_np = np.atleast_1d(kernel_size)
     stride_np = np.atleast_1d(stride)
     padding_np = (kernel_size_np - stride_np + 1) / 2
-    error_msg = "padding value should not be negative, please change the kernel size and/or stride."
-    assert np.min(padding_np) >= 0, error_msg
+    if np.min(padding_np) < 0:
+        raise AssertionError("padding value should not be negative, please change the kernel size and/or stride.")
     padding = tuple(int(p) for p in padding_np)
 
     return padding if len(padding) > 1 else padding[0]
@@ -293,8 +294,8 @@ def get_output_padding(
     padding_np = np.atleast_1d(padding)
 
     out_padding_np = 2 * padding_np + stride_np - kernel_size_np
-    error_msg = "out_padding value should not be negative, please change the kernel size and/or stride."
-    assert np.min(out_padding_np) >= 0, error_msg
+    if np.min(out_padding_np) < 0:
+        raise AssertionError("out_padding value should not be negative, please change the kernel size and/or stride.")
     out_padding = tuple(int(p) for p in out_padding_np)
 
     return out_padding if len(out_padding) > 1 else out_padding[0]

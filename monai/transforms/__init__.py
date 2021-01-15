@@ -78,6 +78,7 @@ from .intensity.array import (
     RandHistogramShift,
     RandScaleIntensity,
     RandShiftIntensity,
+    SavitzkyGolaySmooth,
     ScaleIntensity,
     ScaleIntensityRange,
     ScaleIntensityRangePercentiles,

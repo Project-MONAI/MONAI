@@ -131,8 +131,10 @@ class DynUNet(nn.Module):
             shouldn't be associated with a supervision head.
             """
 
-            assert len(downsamples) == len(upsamples), f"{len(downsamples)} != {len(upsamples)}"
-            assert (len(downsamples) - len(superheads)) in (1, 0), f"{len(downsamples)}-(0,1) != {len(superheads)}"
+            if len(downsamples) != len(upsamples):
+                raise AssertionError(f"{len(downsamples)} != {len(upsamples)}")
+            if (len(downsamples) - len(superheads)) not in (1, 0):
+                raise AssertionError(f"{len(downsamples)}-(0,1) != {len(superheads)}")
 
             if len(downsamples) == 0:  # bottom of the network, pass the bottleneck block
                 return bottleneck
@@ -157,22 +159,25 @@ class DynUNet(nn.Module):
     def check_kernel_stride(self):
         kernels, strides = self.kernel_size, self.strides
         error_msg = "length of kernel_size and strides should be the same, and no less than 3."
-        assert len(kernels) == len(strides) and len(kernels) >= 3, error_msg
+        if not (len(kernels) == len(strides) and len(kernels) >= 3):
+            raise AssertionError(error_msg)
 
         for idx in range(len(kernels)):
             kernel, stride = kernels[idx], strides[idx]
             if not isinstance(kernel, int):
                 error_msg = "length of kernel_size in block {} should be the same as spatial_dims.".format(idx)
-                assert len(kernel) == self.spatial_dims, error_msg
+                if len(kernel) != self.spatial_dims:
+                    raise AssertionError(error_msg)
             if not isinstance(stride, int):
                 error_msg = "length of stride in block {} should be the same as spatial_dims.".format(idx)
-                assert len(stride) == self.spatial_dims, error_msg
+                if len(stride) != self.spatial_dims:
+                    raise AssertionError(error_msg)
 
     def check_deep_supr_num(self):
         deep_supr_num, strides = self.deep_supr_num, self.strides
         num_up_layers = len(strides) - 1
-        error_msg = "deep_supr_num should be less than the number of up sample layers."
-        assert 1 <= deep_supr_num < num_up_layers, error_msg
+        if deep_supr_num < 1 or deep_supr_num >= num_up_layers:
+            raise AssertionError("deep_supr_num should be less than the number of up sample layers.")
 
     def forward(self, x):
         out = self.skip_layers(x)

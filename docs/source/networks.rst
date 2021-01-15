@@ -206,6 +206,10 @@ Layers
 `PHLFilter`
 ~~~~~~~~~~~~~~~~~
 .. autoclass:: PHLFilter
+
+`SavitzkyGolayFilter`
+~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: SavitzkyGolayFilter
     :members:
 
 `HilbertTransform`

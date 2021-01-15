@@ -68,7 +68,8 @@ def create_test_image_2d(
     noisyimage = rescale_array(np.maximum(image, norm))
 
     if channel_dim is not None:
-        assert isinstance(channel_dim, int) and channel_dim in (-1, 0, 2), "invalid channel dim."
+        if not (isinstance(channel_dim, int) and channel_dim in (-1, 0, 2)):
+            raise AssertionError("invalid channel dim.")
         if channel_dim == 0:
             noisyimage = noisyimage[None]
             labels = labels[None]
@@ -131,7 +132,8 @@ def create_test_image_3d(
     noisyimage = rescale_array(np.maximum(image, norm))
 
     if channel_dim is not None:
-        assert isinstance(channel_dim, int) and channel_dim in (-1, 0, 3), "invalid channel dim."
+        if not (isinstance(channel_dim, int) and channel_dim in (-1, 0, 3)):
+            raise AssertionError("invalid channel dim.")
         noisyimage, labels = (
             (noisyimage[None], labels[None]) if channel_dim == 0 else (noisyimage[..., None], labels[..., None])
         )

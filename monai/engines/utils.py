@@ -89,7 +89,8 @@ def default_prepare_batch(
         image, label(optional).
 
     """
-    assert isinstance(batchdata, dict), "default prepare_batch expects dictionary input data."
+    if not isinstance(batchdata, dict):
+        raise AssertionError("default prepare_batch expects dictionary input data.")
     if CommonKeys.LABEL in batchdata:
         return (
             batchdata[CommonKeys.IMAGE].to(device=device, non_blocking=non_blocking),
