@@ -189,6 +189,11 @@ Layers
 .. autoclass:: BilateralFilter
     :members:
 
+`PHLFilter`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: PHLFilter
+    :members:
+
 `HilbertTransform`
 ~~~~~~~~~~~~~~~~~~
 .. autoclass:: HilbertTransform
