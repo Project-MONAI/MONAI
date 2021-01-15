@@ -6,14 +6,10 @@ from torch.optim.lr_scheduler import _LRScheduler
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from functools import partial
+from monai.utils import optional_import
+from monai.networks.utils import eval_mode
 
-
-try:
-    from tqdm import trange
-
-    trange = partial(trange, desc="Computing optimal learning rate")
-except (ImportError, AttributeError):
-    trange = range
+tqdm, has_tqdm = optional_import("tqdm")
 
 __all__ = ["LRFinder"]
 
@@ -104,7 +100,7 @@ class ValDataLoaderIter(DataLoaderIter):
 
 
 class LRFinder(object):
-    """Learning rate range test.
+    """Learning rate range test, modified from https://github.com/davidtvs/pytorch-lr-finder.
 
     The learning rate range test increases the learning rate in a pre-training run
     between two boundaries in a linear or exponential manner. It provides valuable
@@ -147,6 +143,7 @@ class LRFinder(object):
         memory_cache=True,
         cache_dir=None,
         amp: bool = False,
+        verbose: bool = True,
     ):
         # Check if the optimizer is already attached to a scheduler
         self.optimizer = optimizer
@@ -159,6 +156,7 @@ class LRFinder(object):
         self.memory_cache = memory_cache
         self.cache_dir = cache_dir
         self.amp = amp
+        self.verbose = verbose
 
         # Save the original state of the model and optimizer so they can be restored if
         # needed
@@ -168,10 +166,7 @@ class LRFinder(object):
         self.state_cacher.store("optimizer", self.optimizer.state_dict())
 
         # If device is None, use the same as the model
-        if device:
-            self.device = device
-        else:
-            self.device = self.model_device
+        self.device = device if device else self.model_device
 
     def reset(self):
         """Restores the model and optimizer to their initial states."""
@@ -313,7 +308,15 @@ class LRFinder(object):
                     "or child of `ValDataLoaderIter`.".format(type(val_loader))
                 )
 
+        if self.verbose and has_tqdm:
+            trange = partial(tqdm.trange, desc="Computing optimal learning rate")
+        else:
+            trange = range
+
         for iteration in trange(num_iter):
+            if self.verbose and not has_tqdm:
+                print(f"Computing optimal learning rate, iteration {iteration + 1}/{num_iter}")
+
             # Train on batch and retrieve loss
             loss = self._train_batch(
                 train_iter,
@@ -394,10 +397,7 @@ class LRFinder(object):
             else:
                 loss.backward()
 
-            if total_loss is None:
-                total_loss = loss
-            else:
-                total_loss += loss
+            total_loss = total_loss + loss if total_loss else loss
 
         self.optimizer.step()
 
@@ -423,8 +423,7 @@ class LRFinder(object):
     def _validate(self, val_iter, non_blocking_transfer=True):
         # Set model to evaluation mode and disable gradient computation
         running_loss = 0
-        self.model.eval()
-        with torch.no_grad():
+        with eval_mode(self.model):
             for inputs, labels in val_iter:
                 # Move data to the correct device
                 inputs, labels = self._move_to_device(
@@ -438,14 +437,52 @@ class LRFinder(object):
 
         return running_loss / len(val_iter.dataset)
 
+    def get_steepest_gradient(
+        self,
+        skip_start=10,
+        skip_end=5,
+    ):
+        """Get steepest gradient.
+
+            Arguments:
+                skip_start (int, optional): number of batches to trim from the start.
+                    Default: 10.
+                skip_end (int, optional): number of batches to trim from the start.
+                    Default: 5.
+
+            Returns:
+                Learning rate which has steepest gradient and its corresponding loss
+        """
+        if skip_start < 0:
+            raise ValueError("skip_start cannot be negative")
+        if skip_end < 0:
+            raise ValueError("skip_end cannot be negative")
+
+        # Get the data to plot from the history dictionary. Also, handle skip_end=0
+        # properly so the behaviour is the expected
+        lrs = self.history["lr"]
+        losses = self.history["loss"]
+        if skip_end == 0:
+            lrs = lrs[skip_start:]
+            losses = losses[skip_start:]
+        else:
+            lrs = lrs[skip_start:-skip_end]
+            losses = losses[skip_start:-skip_end]
+
+        try:
+            min_grad_idx = np.gradient(np.array(losses)).argmin()
+            return lrs[min_grad_idx], losses[min_grad_idx]
+        except ValueError:
+            print("Failed to compute the gradients, there might not be enough points.")
+            return None, None
+
     def plot(
         self,
         skip_start=10,
         skip_end=5,
         log_lr=True,
-        show_lr=None,
         ax=None,
-        suggest_lr=True,
+        steepest_lr=True,
     ):
         """Plots the learning rate range test.
 
@@ -456,15 +493,12 @@ class LRFinder(object):
                 Default: 5.
             log_lr (bool, optional): True to plot the learning rate in a logarithmic
                 scale; otherwise, plotted in a linear scale. Default: True.
-            show_lr (float, optional): if set, adds a vertical line to visualize the
-                specified learning rate. Default: None.
             ax (matplotlib.axes.Axes, optional): the plot is created in the specified
                 matplotlib axes object and the figure is not be shown. If `None`, then
                 the figure and axes object are created in this method and the figure is
                 shown . Default: None.
-            suggest_lr (bool, optional): suggest a learning rate by
-                - 'steepest': the point with steepest gradient (minimal gradient)
-                you can use that point as a first guess for an LR. Default: True.
+            steepest_lr (bool, optional): plot the learning rate which had the steepest
+                gradient. Default: True.
 
         Returns:
             The matplotlib.axes.Axes object that contains the plot,
@@ -475,8 +509,6 @@ class LRFinder(object):
             raise ValueError("skip_start cannot be negative")
         if skip_end < 0:
             raise ValueError("skip_end cannot be negative")
-        if show_lr is not None and not isinstance(show_lr, float):
-            raise ValueError("show_lr must be float")
 
         # Get the data to plot from the history dictionary. Also, handle skip_end=0
         # properly so the behaviour is the expected
@@ -497,22 +529,14 @@ class LRFinder(object):
         # Plot loss as a function of the learning rate
         ax.plot(lrs, losses)
 
-        # Plot the suggested LR
-        if suggest_lr:
-            # 'steepest': the point with steepest gradient (minimal gradient)
-            print("LR suggestion: steepest gradient")
-            min_grad_idx = None
-            try:
-                min_grad_idx = (np.gradient(np.array(losses))).argmin()
-            except ValueError:
-                print(
-                    "Failed to compute the gradients, there might not be enough points."
-                )
-            if min_grad_idx is not None:
-                print("Suggested LR: {:.2E}".format(lrs[min_grad_idx]))
+        # Plot the LR with steepest gradient
+        if steepest_lr:
+            lr_at_steepest_grad, loss_at_steepest_grad = \
+                self.get_steepest_gradient(skip_start, skip_end)
+            if lr_at_steepest_grad is not None:
                 ax.scatter(
-                    lrs[min_grad_idx],
-                    losses[min_grad_idx],
+                    lr_at_steepest_grad,
+                    loss_at_steepest_grad,
                     s=75,
                     marker="o",
                     color="red",
@@ -526,17 +550,11 @@ class LRFinder(object):
         ax.set_xlabel("Learning rate")
         ax.set_ylabel("Loss")
 
-        if show_lr is not None:
-            ax.axvline(x=show_lr, color="red")
-
         # Show only if the figure was created internally
         if fig is not None:
             plt.show()
 
-        if suggest_lr and min_grad_idx is not None:
-            return ax, lrs[min_grad_idx]
-        else:
-            return ax
+        return ax
 
 
 class LinearLR(_LRScheduler):

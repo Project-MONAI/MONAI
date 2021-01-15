@@ -47,7 +47,6 @@ class MedNISTDataset(Dataset):
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-@skip_if_quick
 class TestLRFinder(unittest.TestCase):
 
     def setUp(self):
@@ -73,7 +72,7 @@ class TestLRFinder(unittest.TestCase):
             self.image_files.extend(image_files_list_list[i])
             self.image_classes.extend([i] * len(image_files_list_list[i]))
 
-        num_to_keep = 100
+        num_to_keep = 20
         c = list(zip(self.image_files, self.image_classes))
         random.shuffle(c)
         self.image_files, self.image_classes = zip(*c[:num_to_keep])
@@ -102,9 +101,9 @@ class TestLRFinder(unittest.TestCase):
         train_ds = MedNISTDataset(self.image_files, self.image_classes, self.train_transforms)
         train_loader = DataLoader(train_ds, batch_size=300, shuffle=True, num_workers=10)
 
-        print("start")
         lr_finder = LRFinder(model, optimizer, loss_function, device=device)
         lr_finder.range_test(train_loader, end_lr=100, num_iter=100)
+        print(lr_finder.get_steepest_gradient()[0])
         lr_finder.plot() # to inspect the loss-learning rate graph
         lr_finder.reset() # to reset the model and optimizer to their initial state
 
