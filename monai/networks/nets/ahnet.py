@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -372,8 +372,10 @@ class AHNet(nn.Module):
         self.spatial_dims = spatial_dims
         self.psp_block_num = psp_block_num
 
-        assert spatial_dims in [2, 3], "spatial_dims can only be 2 or 3."
-        assert psp_block_num in [0, 1, 2, 3, 4], "psp_block_num should be an integer that belongs to [0, 4]."
+        if spatial_dims not in [2, 3]:
+            raise AssertionError("spatial_dims can only be 2 or 3.")
+        if psp_block_num not in [0, 1, 2, 3, 4]:
+            raise AssertionError("psp_block_num should be an integer that belongs to [0, 4].")
 
         self.conv1 = conv_type(
             in_channels,
