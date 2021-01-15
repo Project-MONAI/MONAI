@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -154,7 +154,7 @@ class ITKReader(ImageReader):
                 https://github.com/InsightSoftwareConsortium/ITK/blob/master/Wrapping/Generators/Python/itkExtras.py
 
         """
-        img_: List[Image] = list()
+        img_: List[Image] = []
 
         filenames: Sequence[str] = ensure_tuple(data)
         kwargs_ = self.kwargs.copy()
@@ -191,7 +191,7 @@ class ITKReader(ImageReader):
             img: a ITK image object loaded from a image file or a list of ITK image objects.
 
         """
-        img_array: List[np.ndarray] = list()
+        img_array: List[np.ndarray] = []
         compatible_meta: Dict = {}
 
         for i in ensure_tuple(img):
@@ -325,7 +325,7 @@ class NibabelReader(ImageReader):
                 https://github.com/nipy/nibabel/blob/master/nibabel/loadsave.py
 
         """
-        img_: List[Nifti1Image] = list()
+        img_: List[Nifti1Image] = []
 
         filenames: Sequence[str] = ensure_tuple(data)
         kwargs_ = self.kwargs.copy()
@@ -348,7 +348,7 @@ class NibabelReader(ImageReader):
             img: a Nibabel image object loaded from a image file or a list of Nibabel image objects.
 
         """
-        img_array: List[np.ndarray] = list()
+        img_array: List[np.ndarray] = []
         compatible_meta: Dict = {}
 
         for i in ensure_tuple(img):
@@ -456,7 +456,7 @@ class NumpyReader(ImageReader):
                 https://numpy.org/doc/stable/reference/generated/numpy.load.html
 
         """
-        img_: List[Nifti1Image] = list()
+        img_: List[Nifti1Image] = []
 
         filenames: Sequence[str] = ensure_tuple(data)
         kwargs_ = self.kwargs.copy()
@@ -485,13 +485,13 @@ class NumpyReader(ImageReader):
             img: a Numpy array loaded from a file or a list of Numpy arrays.
 
         """
-        img_array: List[np.ndarray] = list()
+        img_array: List[np.ndarray] = []
         compatible_meta: Dict = {}
         if isinstance(img, np.ndarray):
             img = (img,)
 
         for i in ensure_tuple(img):
-            header = dict()
+            header = {}
             if isinstance(i, np.ndarray):
                 header["spatial_shape"] = i.shape
             img_array.append(i)
@@ -540,7 +540,7 @@ class PILReader(ImageReader):
                 https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.open
 
         """
-        img_: List[PILImage.Image] = list()
+        img_: List[PILImage.Image] = []
 
         filenames: Sequence[str] = ensure_tuple(data)
         kwargs_ = self.kwargs.copy()
@@ -565,7 +565,7 @@ class PILReader(ImageReader):
             img: a PIL Image object loaded from a file or a list of PIL Image objects.
 
         """
-        img_array: List[np.ndarray] = list()
+        img_array: List[np.ndarray] = []
         compatible_meta: Dict = {}
 
         for i in ensure_tuple(img):

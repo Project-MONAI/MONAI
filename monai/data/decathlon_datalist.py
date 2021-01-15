@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -39,13 +39,12 @@ def _compute_path(base_dir, element):
     """
     if isinstance(element, str):
         return os.path.normpath(os.path.join(base_dir, element))
-    elif isinstance(element, list):
+    if isinstance(element, list):
         for e in element:
             if not isinstance(e, str):
                 raise TypeError(f"Every file path in element must be a str but got {type(element).__name__}.")
         return [os.path.normpath(os.path.join(base_dir, e)) for e in element]
-    else:
-        raise TypeError(f"element must be one of (str, list) but is {type(element).__name__}.")
+    raise TypeError(f"element must be one of (str, list) but is {type(element).__name__}.")
 
 
 def _append_paths(base_dir: str, is_segmentation: bool, items: List[Dict]) -> List[Dict]:
@@ -136,7 +135,7 @@ def load_decathlon_properties(
     with open(data_property_file_path) as json_file:
         json_data = json.load(json_file)
 
-    properties = dict()
+    properties = {}
     for key in ensure_tuple(property_keys):
         if key not in json_data:
             raise KeyError(f"key {key} is not in the data property file.")

@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,9 +12,10 @@
 
 from typing import List, Optional, Sequence, Union
 
+import torch
 import torch.nn as nn
 
-from monai.networks.blocks.dynunet_block import *
+from monai.networks.blocks.dynunet_block import UnetBasicBlock, UnetOutBlock, UnetResBlock, UnetUpBlock
 
 __all__ = ["DynUNet", "DynUnet", "Dynunet"]
 
@@ -135,7 +136,7 @@ class DynUNet(nn.Module):
 
             if len(downsamples) == 0:  # bottom of the network, pass the bottleneck block
                 return bottleneck
-            elif index == 0:  # don't associate a supervision head with self.input_block
+            if index == 0:  # don't associate a supervision head with self.input_block
                 current_head, rest_heads = nn.Identity(), superheads
             else:
                 current_head, rest_heads = superheads[0], superheads[1:]

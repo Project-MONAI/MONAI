@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -220,7 +220,7 @@ class TestConfusionMatrix(unittest.TestCase):
     @parameterized.expand(TEST_CASES_COMPUTE_SAMPLE)
     def test_compute_sample(self, input_data, expected_value):
         params = input_data.copy()
-        vals = dict()
+        vals = {}
         vals["y_pred"] = params.pop("y_pred")
         vals["y"] = params.pop("y")
         metric = ConfusionMatrixMetric(**params)
@@ -230,7 +230,7 @@ class TestConfusionMatrix(unittest.TestCase):
     @parameterized.expand(TEST_CASES_COMPUTE_SAMPLE_MULTI_METRICS)
     def test_compute_sample_multiple_metrics(self, input_data, expected_values):
         params = input_data.copy()
-        vals = dict()
+        vals = {}
         vals["y_pred"] = params.pop("y_pred")
         vals["y"] = params.pop("y")
         metric = ConfusionMatrixMetric(**params)
@@ -243,7 +243,7 @@ class TestConfusionMatrix(unittest.TestCase):
     @parameterized.expand(TEST_CASES_COMPUTE_SAMPLE_NAN)
     def test_compute_sample_with_nan(self, input_data, expected_value, expected_not_nans):
         params = input_data.copy()
-        vals = dict()
+        vals = {}
         vals["y_pred"] = params.pop("y_pred")
         vals["y"] = params.pop("y")
         metric = ConfusionMatrixMetric(**params)
@@ -254,7 +254,7 @@ class TestConfusionMatrix(unittest.TestCase):
     @parameterized.expand([TEST_CASES_CLF])
     def test_clf_with_nan(self, input_data, expected_value):
         params = input_data.copy()
-        vals = dict()
+        vals = {}
         vals["y_pred"] = params.pop("y_pred")
         vals["y"] = params.pop("y")
         metric = ConfusionMatrixMetric(**params)

@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -85,8 +85,7 @@ def get_full_type_name(typeobj):
     module = typeobj.__module__
     if module is None or module == str.__class__.__module__:
         return typeobj.__name__  # Avoid reporting __builtin__
-    else:
-        return module + "." + typeobj.__name__
+    return module + "." + typeobj.__name__
 
 
 def min_version(the_module, min_version_str: str = "") -> bool:
