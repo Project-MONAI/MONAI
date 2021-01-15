@@ -36,6 +36,8 @@ __global__ void BilateralFilterCudaKernel1D(scalar_t* input, scalar_t* output) {
   int homeOffset = blockIdx.x * blockDim.x + threadIdx.x;
   int batchOffset = blockIdx.y * cBatchStride;
 
+  if (homeOffset >= cColorStride) return;
+
   scalar_t weightSum = 0;
 
   for (int kernelOffset = 0; kernelOffset < cKernelSize; kernelOffset++) {
@@ -78,6 +80,8 @@ __global__ void BilateralFilterCudaKernel2D(scalar_t* input, scalar_t* output) {
 
   int homeOffset = blockIdx.x * blockDim.x + threadIdx.x;
   int batchOffset = blockIdx.y * cBatchStride;
+  
+  if (homeOffset >= cColorStride) return;
 
   int homeX = homeOffset / cStrides[0];
   int homeY = (homeOffset - homeX * cStrides[0]) / cStrides[1];
@@ -131,6 +135,8 @@ __global__ void BilateralFilterCudaKernel3D(scalar_t* input, scalar_t* output) {
 
   int homeOffset = blockIdx.x * blockDim.x + threadIdx.x;
   int batchOffset = blockIdx.y * cBatchStride;
+
+  if (homeOffset >= cColorStride) return;
 
   int homeX = homeOffset / cStrides[0];
   int homeY = (homeOffset - homeX * cStrides[0]) / cStrides[1];
@@ -211,21 +217,23 @@ void BilateralFilterCuda(torch::Tensor inputTensor, torch::Tensor outputTensor, 
   cudaMemcpyToSymbol(cKernel, kernel, sizeof(float) * kernelSize);
   cudaMemcpyToSymbol(cColorExponentFactor, &colorExponentFactor, sizeof(float));
 
+  #define BLOCK_SIZE 32
+
   AT_DISPATCH_FLOATING_TYPES_AND_HALF(
       inputTensor.type(), "BilateralFilterCudaKernel", ([&] {
         // Dispatch kernel. (Partial template function specialisation not supported at present so using this switch
         // instead)
         switch (D) {
           case (1):
-            BilateralFilterCudaKernel1D<scalar_t, C><<<dim3(desc.channelStride, desc.batchCount), dim3(1, 1)>>>(
+            BilateralFilterCudaKernel1D<scalar_t, C><<<dim3(int(desc.channelStride / BLOCK_SIZE), desc.batchCount), dim3(BLOCK_SIZE, 1)>>>(
                 inputTensor.data_ptr<scalar_t>(), outputTensor.data_ptr<scalar_t>());
             break;
           case (2):
-            BilateralFilterCudaKernel2D<scalar_t, C><<<dim3(desc.channelStride, desc.batchCount), dim3(1, 1)>>>(
+            BilateralFilterCudaKernel2D<scalar_t, C><<<dim3(int(desc.channelStride / BLOCK_SIZE), desc.batchCount), dim3(BLOCK_SIZE, 1)>>>(
                 inputTensor.data_ptr<scalar_t>(), outputTensor.data_ptr<scalar_t>());
             break;
           case (3):
-            BilateralFilterCudaKernel3D<scalar_t, C><<<dim3(desc.channelStride, desc.batchCount), dim3(1, 1)>>>(
+            BilateralFilterCudaKernel3D<scalar_t, C><<<dim3(int(desc.channelStride / BLOCK_SIZE), desc.batchCount), dim3(BLOCK_SIZE, 1)>>>(
                 inputTensor.data_ptr<scalar_t>(), outputTensor.data_ptr<scalar_t>());
             break;
         }

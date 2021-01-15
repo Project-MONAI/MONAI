@@ -101,9 +101,11 @@ void BilateralFilterPHLCuda(
   cudaMemcpyToSymbol(cInvSpatialSigma, &invSpatialSigma, sizeof(float));
   cudaMemcpyToSymbol(cInvColorSigma, &invColorSigma, sizeof(float));
 
+  #define BLOCK_SIZE 32
+
   // Creating features
   FeatureCreation<scalar_t, C, D>
-      <<<dim3(int(desc.channelStride/32) + 1, desc.batchCount), dim3(32, 1)>>>(inputTensorData, data, features);
+      <<<dim3(int(desc.channelStride/BLOCK_SIZE) + 1, desc.batchCount), dim3(BLOCK_SIZE, 1)>>>(inputTensorData, data, features);
 
   // Filtering data with respect to the features for each sample in batch
   for (int batchIndex = 0; batchIndex < desc.batchCount; batchIndex++) {
@@ -114,7 +116,7 @@ void BilateralFilterPHLCuda(
   }
 
   // Writing output
-  WriteOutput<scalar_t, C><<<dim3(int(desc.channelStride/32) + 1, desc.batchCount), dim3(32, 1)>>>(data, outputTensorData);
+  WriteOutput<scalar_t, C><<<dim3(int(desc.channelStride/BLOCK_SIZE) + 1, desc.batchCount), dim3(BLOCK_SIZE, 1)>>>(data, outputTensorData);
 
   cudaFree(data);
   cudaFree(features);
