@@ -212,7 +212,7 @@ class VNet(nn.Module):
     ):
         super().__init__()
 
-        if not (spatial_dims == 2 or spatial_dims == 3):
+        if spatial_dims not in (2, 3):
             raise AssertionError("spatial_dims can only be 2 or 3.")
 
         self.in_tr = InputTransition(spatial_dims, in_channels, 16, act)

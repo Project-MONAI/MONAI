@@ -176,9 +176,8 @@ class DynUNet(nn.Module):
     def check_deep_supr_num(self):
         deep_supr_num, strides = self.deep_supr_num, self.strides
         num_up_layers = len(strides) - 1
-        error_msg = "deep_supr_num should be less than the number of up sample layers."
-        if 1 > deep_supr_num:
-            raise AssertionError(error_msg)
+        if deep_supr_num < 1 or deep_supr_num >= num_up_layers:
+            raise AssertionError("deep_supr_num should be less than the number of up sample layers.")
 
     def forward(self, x):
         out = self.skip_layers(x)

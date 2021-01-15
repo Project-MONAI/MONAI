@@ -60,7 +60,7 @@ def resolve_name(name):
     with alias_lock:
         obj = GlobalAliases.get(name, None)
 
-    if not (name not in GlobalAliases or obj is not None):
+    if name in GlobalAliases and obj is None:
         raise AssertionError
 
     # attempt to resolve a qualified name

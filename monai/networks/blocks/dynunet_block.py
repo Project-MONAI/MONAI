@@ -277,9 +277,8 @@ def get_padding(
     kernel_size_np = np.atleast_1d(kernel_size)
     stride_np = np.atleast_1d(stride)
     padding_np = (kernel_size_np - stride_np + 1) / 2
-    error_msg = "padding value should not be negative, please change the kernel size and/or stride."
     if np.min(padding_np) < 0:
-        raise AssertionError(error_msg)
+        raise AssertionError("padding value should not be negative, please change the kernel size and/or stride.")
     padding = tuple(int(p) for p in padding_np)
 
     return padding if len(padding) > 1 else padding[0]
@@ -295,9 +294,8 @@ def get_output_padding(
     padding_np = np.atleast_1d(padding)
 
     out_padding_np = 2 * padding_np + stride_np - kernel_size_np
-    error_msg = "out_padding value should not be negative, please change the kernel size and/or stride."
     if np.min(out_padding_np) < 0:
-        raise AssertionError(error_msg)
+        raise AssertionError("out_padding value should not be negative, please change the kernel size and/or stride.")
     out_padding = tuple(int(p) for p in out_padding_np)
 
     return out_padding if len(out_padding) > 1 else out_padding[0]

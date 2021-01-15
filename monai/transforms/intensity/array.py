@@ -471,9 +471,9 @@ class ScaleIntensityRangePercentiles(Transform):
     def __init__(
         self, lower: float, upper: float, b_min: float, b_max: float, clip: bool = False, relative: bool = False
     ) -> None:
-        if 0.0 > lower:
+        if lower < 0.0 or lower > 100.0:
             raise AssertionError("Percentiles must be in the range [0, 100]")
-        if 0.0 > upper:
+        if upper < 0.0 or upper > 100.0:
             raise AssertionError("Percentiles must be in the range [0, 100]")
         self.lower = lower
         self.upper = upper
