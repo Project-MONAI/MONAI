@@ -285,6 +285,7 @@ class LocalNetFeatureExtractorBlock(nn.Module):
         in_channels: int,
         out_channels: int,
         act: Optional[Union[Tuple, str]] = "RELU",
+        initializer: str = "kaiming_uniform",
     ) -> None:
         """
         Args:
@@ -298,6 +299,14 @@ class LocalNetFeatureExtractorBlock(nn.Module):
         self.conv_block = get_conv_block(
             spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels, act=act, norm=None
         )
+        if initializer == "kaiming_uniform":
+            nn.init.kaiming_normal_(self.conv_block.conv.weight)
+        elif initializer == "zeros":
+            nn.init.zeros_(self.conv_block.conv.weight)
+        else:
+            raise ValueError(
+                f"initializer {initializer} is not supported, " "currently supporting kaiming_uniform and zeros"
+            )
 
     def forward(self, x) -> torch.Tensor:
         """
