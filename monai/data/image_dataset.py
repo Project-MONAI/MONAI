@@ -76,7 +76,7 @@ class ImageDataset(Dataset, Randomizable):
         self.transform = transform
         self.seg_transform = seg_transform
         self.image_only = image_only
-        self.loader = LoadImage(reader=reader, image_only=image_only, dtype=dtype, *args, **kwargs)
+        self.loader = LoadImage(reader, image_only, dtype, *args, **kwargs)
         self.set_random_state(seed=get_seed())
         self._seed = 0  # transform synchronization seed
 
