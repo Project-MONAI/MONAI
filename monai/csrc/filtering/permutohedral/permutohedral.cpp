@@ -14,8 +14,22 @@ torch::Tensor PermutohedralFilter(torch::Tensor input, torch::Tensor features) {
     int channelCount = input.size(1);
     int featureCount = features.size(1);
 
+    // movedim not support in torch < 1.7
+    #if MONAI_TORCH_VERSION >= 10700
     torch::Tensor data = input.clone().movedim(1, -1).contiguous();
     features = features.movedim(1, -1).contiguous();
+    #else
+    torch::Tensor data = input.clone();
+    features = features;
+
+    for (int i=1; i < input.dim()-1; i++){
+        data = data.transpose(i, i+1);
+        features = features.transpose(i, i+1);
+    }
+
+    data = data.contiguous();
+    features = features.contiguous();
+    #endif
 
     #ifdef WITH_CUDA
     if (torch::cuda::is_available() && data.is_cuda()) {
@@ -42,7 +56,14 @@ torch::Tensor PermutohedralFilter(torch::Tensor input, torch::Tensor features) {
     }
     #endif
 
+    // movedim not support in torch < 1.7
+    #if MONAI_TORCH_VERSION >= 10700
     data = data.movedim(-1, 1);
+    #else
+    for (int i=input.dim()-1; i > 1; i--){
+        data = data.transpose(i-1, i);
+    }
+    #endif
 
     return data;
 }
