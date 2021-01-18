@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,6 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
+from monai.networks import eval_mode
 from monai.networks.nets import (
     se_resnet50,
     se_resnet101,
@@ -42,9 +43,8 @@ class TestSENET(unittest.TestCase):
     def test_senet_shape(self, net, net_args):
         input_data = torch.randn(2, 2, 64, 64, 64).to(device)
         expected_shape = (2, 2)
-        net = net(**net_args)
-        net = net.to(device).eval()
-        with torch.no_grad():
+        net = net(**net_args).to(device)
+        with eval_mode(net):
             result = net(input_data)
             self.assertEqual(result.shape, expected_shape)
 
@@ -65,8 +65,8 @@ class TestPretrainedSENET(unittest.TestCase):
         net = test_pretrained_networks(model, input_param, device)
         input_data = torch.randn(3, 3, 64, 64).to(device)
         expected_shape = (3, 2)
-        net = net.to(device).eval()
-        with torch.no_grad():
+        net = net.to(device)
+        with eval_mode(net):
             result = net(input_data)
             self.assertEqual(result.shape, expected_shape)
 

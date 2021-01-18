@@ -119,6 +119,20 @@ Blocks
 .. autoclass:: Subpixelupsample
 .. autoclass:: SubpixelUpSample
 
+`LocalNet DownSample Block`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: LocalNetDownSampleBlock
+    :members:
+
+`LocalNet UpSample Block`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: LocalNetUpSampleBlock
+    :members:
+
+`LocalNet Feature Extractor Block`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: LocalNetFeatureExtractorBlock
+    :members:
 
 
 Layers
@@ -182,6 +196,16 @@ Layers
 `GaussianFilter`
 ~~~~~~~~~~~~~~~~
 .. autoclass:: GaussianFilter
+    :members:
+    
+`BilateralFilter`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: BilateralFilter
+    :members:
+
+`SavitzkyGolayFilter`
+~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: SavitzkyGolayFilter
     :members:
 
 `HilbertTransform`
@@ -291,6 +315,11 @@ Nets
 `VNet`
 ~~~~~~
 .. autoclass:: VNet
+  :members:
+
+`LocalNet`
+~~~~~~~~~~~
+.. autoclass:: LocalNet
   :members:
 
 `AutoEncoder`

@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -124,7 +124,8 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
 
             @self.on(Events.ITERATION_COMPLETED)
             def run_post_transform(engine: Engine) -> None:
-                assert post_transform is not None
+                if post_transform is None:
+                    raise AssertionError
                 engine.state.output = apply_transform(post_transform, engine.state.output)
 
         if key_metric is not None:
