@@ -203,6 +203,10 @@ Layers
 .. autoclass:: BilateralFilter
     :members:
 
+`PHLFilter`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: PHLFilter
+
 `SavitzkyGolayFilter`
 ~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: SavitzkyGolayFilter

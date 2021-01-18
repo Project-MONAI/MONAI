@@ -62,13 +62,12 @@ void BilateralFilterPHLCpu(
     }
 
     // Filtering data with respect to the features.
-    scalar_t* output =
-        PermutohedralCPU<scalar_t>(data, features, desc.channelCount, featureChannels, desc.channelStride);
+    PermutohedralCPU<scalar_t>(data, features, desc.channelCount, featureChannels, desc.channelStride);
 
     // Writing output tensor.
     for (int i = 0; i < desc.channelStride; i++) {
       for (int c = 0; c < desc.channelCount; c++) {
-        outputTensorData[batchOffset + i + c * desc.channelStride] = output[i * desc.channelCount + c];
+        outputTensorData[batchOffset + i + c * desc.channelStride] = data[i * desc.channelCount + c];
       }
     }
   }
@@ -81,7 +80,7 @@ void BilateralFilterPHLCpu(
 torch::Tensor BilateralFilterPHLCpu(torch::Tensor inputTensor, float spatialSigma, float colorSigma) {
   torch::Tensor outputTensor = torch::zeros_like(inputTensor);
 
-  AT_DISPATCH_FLOATING_TYPES(inputTensor.type(), "BilateralFilterPhlCpu", ([&] {
+  AT_DISPATCH_FLOATING_TYPES(inputTensor.scalar_type(), "BilateralFilterPhlCpu", ([&] {
                                BilateralFilterPHLCpu<scalar_t>(inputTensor, outputTensor, spatialSigma, colorSigma);
                              }));
 
