@@ -27,6 +27,7 @@ class ImageDataset(Dataset, Randomizable):
     and segs and return both the images and metadata, and no need to specify transform to load images from files.
 
     """
+
     def __init__(
         self,
         image_files: Sequence[str],
