@@ -46,20 +46,20 @@ class Warp(nn.Module):
         return grid
 
     @staticmethod
-    def normalize_grid(image: torch.Tensor, grid: torch.Tensor) -> torch.Tensor:
+    def normalize_grid(grid: torch.Tensor) -> torch.Tensor:
         # (batch, ..., self.spatial_dims)
-        for i, (img_dim, ddf_dim) in enumerate(zip(image.shape[2:], grid.shape[1:-1])):
-            grid[..., i] = (1 - ddf_dim + grid[..., i] * 2) / (img_dim - 1)
+        for i, dim in enumerate(grid.shape[1:-1]):
+            grid[..., i] = grid[..., i] * 2 / (dim - 1) - 1
         return grid
 
     def forward(self, image: torch.Tensor, ddf: torch.Tensor) -> torch.Tensor:
         """
         Args:
             image: Tensor in shape (batch, num_channels, H, W[, D])
-            ddf: Tensor in shape (batch, num_channels, H, W[, D])
+            ddf: Tensor in the same spatial size as image, in shape (batch, spatial_dims, H, W[, D])
 
         Returns:
-            warped_image in the same shape as ddf (batch, num_channels, H, W[, D])
+            warped_image in the same shape as image (batch, num_channels, H, W[, D])
         """
         if len(image.shape) != 2 + self.spatial_dims:
             raise ValueError(f"expecting {self.spatial_dims + 2}-d input, " f"got input in shape {image.shape}")
@@ -67,6 +67,11 @@ class Warp(nn.Module):
             raise ValueError(
                 f"expecting {self.spatial_dims + 2}-d ddf with {self.spatial_dims} channels, "
                 f"got ddf in shape {ddf.shape}"
+            )
+        if image.shape[0] != ddf.shape[0] or image.shape[2:] != ddf.shape[2:]:
+            raise ValueError(
+                "expecting image and ddf of same batch size and spatial size, "
+                f"got image of shape {image.shape}, ddf of shape {ddf.shape}"
             )
 
         grid = self.get_reference_grid(ddf) + ddf
@@ -89,7 +94,7 @@ class Warp(nn.Module):
                 interpolation=1 if _interp_mode == "bilinear" else _interp_mode,
             )
         else:
-            grid = self.normalize_grid(image, grid)
+            grid = self.normalize_grid(grid)
             index_ordering: List[int] = list(range(self.spatial_dims - 1, -1, -1))
             grid = grid[..., index_ordering]  # z, y, x -> x, y, z
             warped_image = F.grid_sample(

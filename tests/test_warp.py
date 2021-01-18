@@ -6,7 +6,7 @@ from parameterized import parameterized
 
 from monai.networks.blocks.warp import Warp
 
-TEST_CASES = [
+TEST_CASE = [
     [
         {"spatial_dims": 2, "mode": "bilinear", "padding_mode": "zeros"},
         {"image": torch.arange(4).reshape((1, 1, 2, 2)).to(dtype=torch.float), "ddf": torch.zeros(1, 2, 2, 2)},
@@ -35,31 +35,34 @@ TEST_CASES = [
     ],
     [
         {"spatial_dims": 3, "mode": "bilinear", "padding_mode": "zeros"},
-        {"image": torch.arange(8).reshape((1, 1, 2, 2, 2)).to(dtype=torch.float), "ddf": torch.zeros(1, 3, 4, 4, 4)},
-        torch.tensor(
-            [
-                [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]],
-                [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 2.0, 3.0, 0.0], [0.0, 0.0, 0.0, 0.0]],
-                [[0.0, 0.0, 0.0, 0.0], [0.0, 4.0, 5.0, 0.0], [0.0, 6.0, 7.0, 0.0], [0.0, 0.0, 0.0, 0.0]],
-                [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]],
-            ]
-        )
-        .unsqueeze(0)
-        .unsqueeze(0),
+        {"image": torch.arange(8).reshape((1, 1, 2, 2, 2)).to(dtype=torch.float), "ddf": torch.zeros(1, 3, 2, 2, 2)},
+        torch.arange(8).reshape((1, 1, 2, 2, 2)).to(dtype=torch.float),
+    ],
+]
+
+TEST_CASES = [
+    [
+        {"spatial_dims": 2, "mode": "bilinear", "padding_mode": "zeros"},
+        {"image": torch.arange(4).reshape((1, 1, 2, 2)).to(dtype=torch.float), "ddf": torch.zeros(1, 2, 2, 2)},
+        torch.arange(4).reshape((1, 1, 2, 2)),
     ],
     [
-        {"spatial_dims": 3, "mode": "bilinear", "padding_mode": "border"},
-        {"image": torch.arange(8).reshape((1, 1, 2, 2, 2)).to(dtype=torch.float), "ddf": torch.zeros(1, 3, 4, 4, 4)},
-        torch.tensor(
-            [
-                [[0.0, 0.0, 1.0, 1.0], [0.0, 0.0, 1.0, 1.0], [2.0, 2.0, 3.0, 3.0], [2.0, 2.0, 3.0, 3.0]],
-                [[0.0, 0.0, 1.0, 1.0], [0.0, 0.0, 1.0, 1.0], [2.0, 2.0, 3.0, 3.0], [2.0, 2.0, 3.0, 3.0]],
-                [[4.0, 4.0, 5.0, 5.0], [4.0, 4.0, 5.0, 5.0], [6.0, 6.0, 7.0, 7.0], [6.0, 6.0, 7.0, 7.0]],
-                [[4.0, 4.0, 5.0, 5.0], [4.0, 4.0, 5.0, 5.0], [6.0, 6.0, 7.0, 7.0], [6.0, 6.0, 7.0, 7.0]],
-            ]
-        )
-        .unsqueeze(0)
-        .unsqueeze(0),
+        {"spatial_dims": 2, "mode": "bilinear", "padding_mode": "zeros"},
+        {"image": torch.arange(4).reshape((1, 1, 2, 2)).to(dtype=torch.float), "ddf": torch.ones(1, 2, 2, 2)},
+        torch.tensor([[[[3, 0], [0, 0]]]]),
+    ],
+    [
+        {"spatial_dims": 3, "mode": "nearest", "padding_mode": "border"},
+        {
+            "image": torch.arange(8).reshape((1, 1, 2, 2, 2)).to(dtype=torch.float),
+            "ddf": torch.ones(1, 3, 2, 2, 2) * -1,
+        },
+        torch.tensor([[[[[0, 0], [0, 0]], [[0, 0], [0, 0]]]]]),
+    ],
+    [
+        {"spatial_dims": 3, "mode": "nearest", "padding_mode": "reflection"},
+        {"image": torch.arange(8).reshape((1, 1, 2, 2, 2)).to(dtype=torch.float), "ddf": torch.ones(1, 3, 2, 2, 2)},
+        torch.tensor([[[[[7, 6], [5, 4]], [[3, 2], [1, 0]]]]]),
     ],
 ]
 
@@ -81,6 +84,8 @@ class TestWarp(unittest.TestCase):
             warp_layer(
                 image=torch.arange(4).reshape((1, 1, 2, 2)).to(dtype=torch.float), ddf=torch.zeros(1, 2, 1, 2, 2)
             )
+        with self.assertRaisesRegex(ValueError, ""):
+            warp_layer(image=torch.arange(4).reshape((1, 1, 2, 2)).to(dtype=torch.float), ddf=torch.zeros(1, 2, 3, 3))
 
     def test_ill_opts(self):
         with self.assertRaisesRegex(ValueError, ""):
