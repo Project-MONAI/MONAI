@@ -2,7 +2,6 @@
 #include "utils/meta_macros.h"
 
 #include "permutohedral.h"
-#include <iostream>
 
 torch::Tensor PermutohedralFilter(torch::Tensor input, torch::Tensor features) {
 
