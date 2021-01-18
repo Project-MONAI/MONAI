@@ -494,19 +494,9 @@ class PermutohedralLattice {
 };
 
 template <typename scalar_t>
-void PermutohedralCPU(
-    scalar_t* data,
-    scalar_t* features,
-    int dataChannels,
-    int featureChannels,
-    int elementCount) {
+void PermutohedralCPU(scalar_t* data, scalar_t* features, int dataChannels, int featureChannels, int elementCount) {
   PermutohedralLattice<scalar_t>::filter(data, features, dataChannels, featureChannels, elementCount);
 }
 
 template void PermutohedralCPU(float* data, float* features, int dataChannels, int featureChannels, int elementCount);
-template void PermutohedralCPU(
-    double* data,
-    double* features,
-    int dataChannels,
-    int featureChannels,
-    int elementCount);
+template void PermutohedralCPU(double* data, double* features, int dataChannels, int featureChannels, int elementCount);
