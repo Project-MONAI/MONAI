@@ -134,6 +134,10 @@ Blocks
 .. autoclass:: LocalNetFeatureExtractorBlock
     :members:
 
+`Warp`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: Warp
+    :members:
 
 Layers
 ------

@@ -10,6 +10,10 @@ from monai.utils import GridSampleMode, GridSamplePadMode
 
 
 class Warp(nn.Module):
+    """
+    Warp an image with given DDF.
+    """
+
     def __init__(
         self,
         spatial_dims: int,
@@ -17,10 +21,8 @@ class Warp(nn.Module):
         padding_mode: Optional[Union[GridSamplePadMode, str]] = GridSamplePadMode.ZEROS,
     ):
         """
-        warp an image with given DDF.
-        supports spatially 2D or 3D (num_channels, H, W[, D]).
         Args:
-            spatial_dims: number of spatial dimensions
+            spatial_dims: {2, 3}. number of spatial dimensions
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
@@ -57,7 +59,7 @@ class Warp(nn.Module):
             ddf: Tensor in shape (batch, num_channels, H, W[, D])
 
         Returns:
-            warped_image: Tensor in the same shape as ddf (batch, num_channels, H, W[, D])
+            warped_image in the same shape as ddf (batch, num_channels, H, W[, D])
         """
         if len(image.shape) != 2 + self.spatial_dims:
             raise ValueError(f"expecting {self.spatial_dims + 2}-d input, " f"got input in shape {image.shape}")
