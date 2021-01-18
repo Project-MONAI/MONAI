@@ -18,9 +18,9 @@ from monai.transforms import LoadImage, Randomizable, apply_transform
 from monai.utils import MAX_SEED, get_seed
 
 
-class NiftiDataset(Dataset, Randomizable):
+class ImageDataset(Dataset, Randomizable):
     """
-    Loads image/segmentation pairs of Nifti files from the given filename lists. Transformations can be specified
+    Loads image/segmentation pairs of files from the given filename lists. Transformations can be specified
     for the image and segmentation arrays separately.
     """
 
