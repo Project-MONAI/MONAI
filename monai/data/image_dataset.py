@@ -53,15 +53,14 @@ class ImageDataset(Dataset, Randomizable):
             seg_transform: transform to apply to segmentation arrays
             image_only: if True return only the image volume, otherwise, return image volume and the metadata
             dtype: if not None convert the loaded image to this data type
-            reader: register reader to load image file and meta data, if None, still can register readers
-                at runtime or use the default readers. If a string of reader name provided, will construct
-                a reader object with the `*args` and `**kwargs` parameters, supported reader name: "NibabelReader",
-                "PILReader", "ITKReader", "NumpyReader"
-            args: additional parameters for reader if providing a reader name.
-            kwargs: additional parameters for reader if providing a reader name.
+            reader: register reader to load image file and meta data, if None, will use the default readers.
+                If a string of reader name provided, will construct a reader object with the `*args` and `**kwargs`
+                parameters, supported reader name: "NibabelReader", "PILReader", "ITKReader", "NumpyReader"
+            args: additional parameters for reader if providing a reader name
+            kwargs: additional parameters for reader if providing a reader name
 
         Raises:
-            ValueError: When ``seg_files`` length differs from ``image_files``.
+            ValueError: When ``seg_files`` length differs from ``image_files``
 
         """
 

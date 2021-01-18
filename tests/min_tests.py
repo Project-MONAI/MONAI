@@ -69,7 +69,7 @@ def run_testsuit():
         "test_load_imaged",
         "test_load_spacing_orientation",
         "test_mednistdataset",
-        "test_nifti_dataset",
+        "test_image_dataset",
         "test_nifti_header_revise",
         "test_nifti_rw",
         "test_nifti_saver",
