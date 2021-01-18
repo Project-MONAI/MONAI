@@ -10,16 +10,17 @@
 # limitations under the License.
 
 import os
-import unittest
-import torch
 import random
+import unittest
 
+import torch
 from torch.utils.data import DataLoader
-from monai.optimizers import LearningRateFinder
-from monai.networks.nets import DenseNet
+
 from monai.apps import MedNISTDataset
-from monai.utils import set_determinism
+from monai.networks.nets import DenseNet
+from monai.optimizers import LearningRateFinder
 from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
+from monai.utils import set_determinism
 
 TEST_DATA_URL = "https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz?dl=1"
 MD5_VALUE = "0bc7306e7427e00ad1c5526a6677552d"
@@ -31,8 +32,8 @@ set_determinism(seed=RAND_SEED)
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-class TestLRFinder(unittest.TestCase):
 
+class TestLRFinder(unittest.TestCase):
     def setUp(self):
 
         self.root_dir = os.environ.get("MONAI_DATA_DIRECTORY")
@@ -50,11 +51,20 @@ class TestLRFinder(unittest.TestCase):
 
     def test_lr_finder(self):
         # 0.001 gives 54 examples
-        train_ds = MedNISTDataset(root_dir=self.root_dir, transform=self.transforms, section="validation", val_frac=0.001, download=True, num_workers=10)
+        train_ds = MedNISTDataset(
+            root_dir=self.root_dir,
+            transform=self.transforms,
+            section="validation",
+            val_frac=0.001,
+            download=True,
+            num_workers=10,
+        )
         train_loader = DataLoader(train_ds, batch_size=300, shuffle=True, num_workers=10)
-        num_classes = len(set([i['label'] for i in train_ds]))
+        num_classes = len({i["label"] for i in train_ds})
 
-        model = DenseNet(spatial_dims=2, in_channels=1, out_channels=num_classes, init_features=2, growth_rate=2, block_config=(2,))
+        model = DenseNet(
+            spatial_dims=2, in_channels=1, out_channels=num_classes, init_features=2, growth_rate=2, block_config=(2,)
+        )
         loss_function = torch.nn.CrossEntropyLoss()
         learning_rate = 1e-5
         optimizer = torch.optim.Adam(model.parameters(), learning_rate)
@@ -62,12 +72,9 @@ class TestLRFinder(unittest.TestCase):
         lr_finder = LearningRateFinder(model, optimizer, loss_function, device=device)
         lr_finder.range_test(train_loader, end_lr=10, num_iter=5)
         print(lr_finder.get_steepest_gradient(0, 0)[0])
-        lr_finder.plot(0, 0) # to inspect the loss-learning rate graph
-        lr_finder.reset() # to reset the model and optimizer to their initial state
+        lr_finder.plot(0, 0)  # to inspect the loss-learning rate graph
+        lr_finder.reset()  # to reset the model and optimizer to their initial state
 
 
 if __name__ == "__main__":
-    # unittest.main()
-    a = TestLRFinder()
-    a.setUp()
-    a.test_lr_finder()
+    unittest.main()

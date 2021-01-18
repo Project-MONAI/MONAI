@@ -1,20 +1,28 @@
 import copy
 import os
-from numpy.core.arrayprint import _none_or_positive_arg
+from functools import partial
+from typing import Any, Callable, Dict, Optional, Tuple, Type, Union
+
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
-from typing import Any, Tuple, Optional, Union, Callable
+from numpy.core.arrayprint import _none_or_positive_arg
+from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader
-from functools import partial
-from monai.utils import optional_import
+
 from monai.networks.utils import eval_mode
 
+try:
+    import tqdm
 
-tqdm, has_tqdm = optional_import("tqdm")
+    has_tqdm = True
+except ImportError:
+    has_tqdm = False
 try:
     import matplotlib.pyplot as plt
+    from matplotlib.axes import Axes
+
     has_matplotlib = True
 except ImportError:
     has_matplotlib = False
@@ -24,13 +32,9 @@ __all__ = ["LearningRateFinder"]
 
 class DataLoaderIter(object):
     def __init__(self, data_loader: DataLoader, image_extractor: Callable, label_extractor: Callable) -> None:
-        # If already correct type, nothing to do
-        if isinstance(data_loader, DataLoaderIter):
-            return self
         if not isinstance(data_loader, DataLoader):
             raise ValueError(
-                f"Loader has unsupported type: {type(data_loader)}."
-                "Expected type was `torch.utils.data.DataLoader`"
+                f"Loader has unsupported type: {type(data_loader)}. Expected type was `torch.utils.data.DataLoader`"
             )
         self.data_loader = data_loader
         self._iterator = iter(data_loader)
@@ -55,7 +59,9 @@ class DataLoaderIter(object):
 
 
 class TrainDataLoaderIter(DataLoaderIter):
-    def __init__(self, data_loader:DataLoader, image_extractor: Callable, label_extractor: Callable, auto_reset: bool=True) -> None:
+    def __init__(
+        self, data_loader: DataLoader, image_extractor: Callable, label_extractor: Callable, auto_reset: bool = True
+    ) -> None:
         super().__init__(data_loader, image_extractor, label_extractor)
         self.auto_reset = auto_reset
 
@@ -94,7 +100,7 @@ class ValDataLoaderIter(DataLoaderIter):
         ```
     """
 
-    def __init__(self, data_loader:DataLoader, image_extractor: Callable, label_extractor: Callable) -> None:
+    def __init__(self, data_loader: DataLoader, image_extractor: Callable, label_extractor: Callable) -> None:
         super().__init__(data_loader, image_extractor, label_extractor)
         self.run_limit = len(self.data_loader)
         self.run_counter = 0
@@ -108,6 +114,19 @@ class ValDataLoaderIter(DataLoaderIter):
     def __next__(self):
         self.run_counter += 1
         return super(ValDataLoaderIter, self).__next__()
+
+
+def default_image_extractor(x: Any) -> torch.Tensor:
+    """Default callable for getting image from batch data."""
+    out: torch.Tensor = x["image"] if isinstance(x, dict) else x[0]
+    return out
+
+
+def default_label_extractor(x: Any) -> torch.Tensor:
+    """Default callable for getting label from batch data."""
+    out: torch.Tensor = x["label"] if isinstance(x, dict) else x[1]
+    return out
+
 
 class LearningRateFinder(object):
     """Learning rate range test.
@@ -151,11 +170,11 @@ class LearningRateFinder(object):
     def __init__(
         self,
         model: nn.Module,
-        optimizer: torch.optim.Optimizer,
+        optimizer: Optimizer,
         criterion: torch.nn.Module,
         device: Optional[Union[str, torch.device]] = None,
-        memory_cache:bool=True,
-        cache_dir:Optional[str]=None,
+        memory_cache: bool = True,
+        cache_dir: Optional[str] = None,
         amp: bool = False,
         verbose: bool = True,
     ) -> None:
@@ -186,8 +205,7 @@ class LearningRateFinder(object):
 
         self.model = model
         self.criterion = criterion
-        self.history = {"lr": [], "loss": []}
-        self.best_loss = None
+        self.history: Dict[str, list] = {"lr": [], "loss": []}
         self.memory_cache = memory_cache
         self.cache_dir = cache_dir
         self.amp = amp
@@ -210,28 +228,20 @@ class LearningRateFinder(object):
         self.optimizer.load_state_dict(self.state_cacher.retrieve("optimizer"))
         self.model.to(self.model_device)
 
-    def default_image_extractor(x: Any) -> torch.Tensor:
-        """Default callable for getting image from batch data."""
-        return x["image"] if isinstance(x, dict) else x[0]
-
-    def default_label_extractor(x: Any) -> torch.Tensor:
-        """Default callable for getting label from batch data."""
-        return x["label"] if isinstance(x, dict) else x[1]
-
     def range_test(
         self,
-        train_loader: Union[DataLoader,TrainDataLoaderIter],
-        val_loader: Optional[Union[DataLoader, ValDataLoaderIter]]=None,
+        train_loader: DataLoader,
+        val_loader: Optional[DataLoader] = None,
         image_extractor: Callable = default_image_extractor,
         label_extractor: Callable = default_label_extractor,
-        start_lr:Optional[float]=None,
-        end_lr:int=10,
-        num_iter:int=100,
-        step_mode:str="exp",
-        smooth_f:float=0.05,
-        diverge_th:int=5,
-        accumulation_steps:int=1,
-        non_blocking_transfer:bool=True,
+        start_lr: Optional[float] = None,
+        end_lr: int = 10,
+        num_iter: int = 100,
+        step_mode: str = "exp",
+        smooth_f: float = 0.05,
+        diverge_th: int = 5,
+        accumulation_steps: int = 1,
+        non_blocking_transfer: bool = True,
         auto_reset: bool = True,
     ) -> None:
         """Performs the learning rate range test.
@@ -265,7 +275,7 @@ class LearningRateFinder(object):
 
         # Reset test results
         self.history = {"lr": [], "loss": []}
-        self.best_loss = None
+        best_loss = -float("inf")
 
         # Move the model to the proper device
         self.model.to(self.device)
@@ -282,6 +292,7 @@ class LearningRateFinder(object):
             raise ValueError("`num_iter` must be larger than 1")
 
         # Initialize the proper learning rate policy
+        lr_schedule: Union[ExponentialLR, LinearLR]
         if step_mode.lower() == "exp":
             lr_schedule = ExponentialLR(self.optimizer, end_lr, num_iter)
         elif step_mode.lower() == "linear":
@@ -297,6 +308,7 @@ class LearningRateFinder(object):
         if val_loader:
             val_iter = ValDataLoaderIter(val_loader, image_extractor, label_extractor)
 
+        trange: Union[partial[tqdm.trange], Type[range]]
         if self.verbose and has_tqdm:
             trange = partial(tqdm.trange, desc="Computing optimal learning rate")
             tprint = tqdm.tqdm.write
@@ -315,9 +327,7 @@ class LearningRateFinder(object):
                 non_blocking_transfer=non_blocking_transfer,
             )
             if val_loader:
-                loss = self._validate(
-                    val_iter, non_blocking_transfer=non_blocking_transfer
-                )
+                loss = self._validate(val_iter, non_blocking_transfer=non_blocking_transfer)
 
             # Update the learning rate
             self.history["lr"].append(lr_schedule.get_lr()[0])
@@ -325,16 +335,16 @@ class LearningRateFinder(object):
 
             # Track the best loss and smooth it if smooth_f is specified
             if iteration == 0:
-                self.best_loss = loss
+                best_loss = loss
             else:
                 if smooth_f > 0:
                     loss = smooth_f * loss + (1 - smooth_f) * self.history["loss"][-1]
-                if loss < self.best_loss:
-                    self.best_loss = loss
+                if loss < best_loss:
+                    best_loss = loss
 
             # Check if the loss has diverged; if it has, stop the test
             self.history["loss"].append(loss)
-            if loss > diverge_th * self.best_loss:
+            if loss > diverge_th * best_loss:
                 if self.verbose:
                     tprint("Stopping early, the loss has diverged")
                 break
@@ -350,8 +360,7 @@ class LearningRateFinder(object):
             new_lrs = [new_lrs] * len(self.optimizer.param_groups)
         if len(new_lrs) != len(self.optimizer.param_groups):
             raise ValueError(
-                "Length of `new_lrs` is not equal to the number of parameter groups "
-                + "in the given optimizer"
+                "Length of `new_lrs` is not equal to the number of parameter groups " + "in the given optimizer"
             )
 
         for param_group, new_lr in zip(self.optimizer.param_groups, new_lrs):
@@ -363,16 +372,14 @@ class LearningRateFinder(object):
             if "initial_lr" in param_group:
                 raise RuntimeError("Optimizer already has a scheduler attached to it")
 
-    def _train_batch(self, train_iter, accumulation_steps:int, non_blocking_transfer:bool=True) -> float:
+    def _train_batch(self, train_iter, accumulation_steps: int, non_blocking_transfer: bool = True) -> float:
         self.model.train()
-        total_loss = None  # for late initialization
+        total_loss = 0
 
         self.optimizer.zero_grad()
         for i in range(accumulation_steps):
             inputs, labels = next(train_iter)
-            inputs, labels = self._move_to_device(
-                inputs, labels, non_blocking=non_blocking_transfer
-            )
+            inputs, labels = self._move_to_device(inputs, labels, non_blocking=non_blocking_transfer)
 
             # Forward pass
             outputs = self.model(inputs)
@@ -387,20 +394,20 @@ class LearningRateFinder(object):
                 # https://nvidia.github.io/apex/advanced.html#gradient-accumulation-across-iterations
                 delay_unscale = ((i + 1) % accumulation_steps) != 0
 
-                with torch.cuda.amp.scale_loss(
-                    loss, self.optimizer, delay_unscale=delay_unscale
-                ) as scaled_loss:
+                with torch.cuda.amp.scale_loss(loss, self.optimizer, delay_unscale=delay_unscale) as scaled_loss:  # type: ignore
                     scaled_loss.backward()
             else:
                 loss.backward()
 
-            total_loss = total_loss + loss if total_loss else loss
+            total_loss += loss.item()
 
         self.optimizer.step()
 
-        return total_loss.item()
+        return total_loss
 
-    def _move_to_device(self, inputs: torch.Tensor, labels: torch.Tensor, non_blocking:bool=True) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _move_to_device(
+        self, inputs: torch.Tensor, labels: torch.Tensor, non_blocking: bool = True
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         def move(obj, device, non_blocking=True):
             if hasattr(obj, "to"):
                 return obj.to(device, non_blocking=non_blocking)
@@ -417,15 +424,13 @@ class LearningRateFinder(object):
         labels = move(labels, self.device, non_blocking=non_blocking)
         return inputs, labels
 
-    def _validate(self, val_iter: ValDataLoaderIter, non_blocking_transfer:bool=True)->float:
+    def _validate(self, val_iter: ValDataLoaderIter, non_blocking_transfer: bool = True) -> float:
         # Set model to evaluation mode and disable gradient computation
         running_loss = 0
         with eval_mode(self.model):
             for inputs, labels in val_iter:
                 # Move data to the correct device
-                inputs, labels = self._move_to_device(
-                    inputs, labels, non_blocking=non_blocking_transfer
-                )
+                inputs, labels = self._move_to_device(inputs, labels, non_blocking=non_blocking_transfer)
 
                 # Forward pass and loss computation
                 outputs = self.model(inputs)
@@ -436,9 +441,9 @@ class LearningRateFinder(object):
 
     def get_steepest_gradient(
         self,
-        skip_start:int=10,
-        skip_end:int=5,
-    ) -> Tuple[float,float]:
+        skip_start: int = 10,
+        skip_end: int = 5,
+    ) -> Union[Tuple[float, float], Tuple[None, None]]:
         """Get learning rate which has steepest gradient and its corresponding loss
 
         Args:
@@ -473,12 +478,12 @@ class LearningRateFinder(object):
 
     def plot(
         self,
-        skip_start:int=10,
-        skip_end:int=5,
-        log_lr:bool=True,
-        ax:Optional[Any]=None,
-        steepest_lr:bool=True,
-    ):
+        skip_start: int = 10,
+        skip_end: int = 5,
+        log_lr: bool = True,
+        ax: Optional[Axes] = None,
+        steepest_lr: bool = True,
+    ) -> Axes:
         """Plots the learning rate range test.
 
         Args:
@@ -523,8 +528,7 @@ class LearningRateFinder(object):
 
         # Plot the LR with steepest gradient
         if steepest_lr:
-            lr_at_steepest_grad, loss_at_steepest_grad = \
-                self.get_steepest_gradient(skip_start, skip_end)
+            lr_at_steepest_grad, loss_at_steepest_grad = self.get_steepest_gradient(skip_start, skip_end)
             if lr_at_steepest_grad is not None:
                 ax.scatter(
                     lr_at_steepest_grad,
@@ -548,8 +552,9 @@ class LearningRateFinder(object):
 
         return ax
 
+
 class _LRSchedulerMONAI(_LRScheduler):
-    def __init__(self, optimizer: torch.optim.Optimizer, end_lr:float, num_iter:int, last_epoch:int=-1) -> None:
+    def __init__(self, optimizer: Optimizer, end_lr: float, num_iter: int, last_epoch: int = -1) -> None:
         """
         Args:
             optimizer: wrapped optimizer.
@@ -568,6 +573,7 @@ class LinearLR(_LRSchedulerMONAI):
     """Linearly increases the learning rate between two boundaries over a number of
     iterations.
     """
+
     def get_lr(self):
         r = self.last_epoch / (self.num_iter - 1)
         return [base_lr + r * (self.end_lr - base_lr) for base_lr in self.base_lrs]
@@ -577,13 +583,14 @@ class ExponentialLR(_LRSchedulerMONAI):
     """Exponentially increases the learning rate between two boundaries over a number of
     iterations.
     """
+
     def get_lr(self):
         r = self.last_epoch / (self.num_iter - 1)
         return [base_lr * (self.end_lr / base_lr) ** r for base_lr in self.base_lrs]
 
 
 class StateCacher(object):
-    def __init__(self, in_memory:bool, cache_dir:Optional[str]=None) -> None:
+    def __init__(self, in_memory: bool, cache_dir: Optional[str] = None) -> None:
         self.in_memory = in_memory
         self.cache_dir = cache_dir
 
@@ -595,7 +602,7 @@ class StateCacher(object):
             if not os.path.isdir(self.cache_dir):
                 raise ValueError("Given `cache_dir` is not a valid directory.")
 
-        self.cached = {}
+        self.cached: Dict[str, str] = {}
 
     def store(self, key, state_dict):
         if self.in_memory:
@@ -612,11 +619,9 @@ class StateCacher(object):
         if self.in_memory:
             return self.cached.get(key)
         else:
-            fn = self.cached.get(key)
-            if not os.path.exists(fn):
-                raise RuntimeError(
-                    f"Failed to load state in {fn}. File doesn't exist anymore."
-                )
+            fn = self.cached.get(key)  # pytype: disable=attribute-error
+            if not os.path.exists(fn):  # pytype: disable=wrong-arg-types
+                raise RuntimeError(f"Failed to load state in {fn}. File doesn't exist anymore.")
             state_dict = torch.load(fn, map_location=lambda storage, location: storage)
             return state_dict
 
