@@ -9,6 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .lr_finder import LRFinder
+from .lr_finder import LearningRateFinder
 from .novograd import Novograd
 from .utils import generate_param_groups

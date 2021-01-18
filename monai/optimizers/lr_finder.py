@@ -1,39 +1,50 @@
 import copy
 import os
+from numpy.core.arrayprint import _none_or_positive_arg
 import torch
+import torch.nn as nn
 import numpy as np
+from typing import Any, Tuple, Optional, Union, Callable
 from torch.optim.lr_scheduler import _LRScheduler
-import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from functools import partial
 from monai.utils import optional_import
 from monai.networks.utils import eval_mode
 
-tqdm, has_tqdm = optional_import("tqdm")
 
-__all__ = ["LRFinder"]
+tqdm, has_tqdm = optional_import("tqdm")
+try:
+    import matplotlib.pyplot as plt
+    has_matplotlib = True
+except ImportError:
+    has_matplotlib = False
+
+__all__ = ["LearningRateFinder"]
 
 
 class DataLoaderIter(object):
-    def __init__(self, data_loader):
+    def __init__(self, data_loader: DataLoader, image_extractor: Callable, label_extractor: Callable) -> None:
+        # If already correct type, nothing to do
+        if isinstance(data_loader, DataLoaderIter):
+            return self
+        if not isinstance(data_loader, DataLoader):
+            raise ValueError(
+                f"Loader has unsupported type: {type(data_loader)}."
+                "Expected type was `torch.utils.data.DataLoader`"
+            )
         self.data_loader = data_loader
         self._iterator = iter(data_loader)
+        self.image_extractor = image_extractor
+        self.label_extractor = label_extractor
 
     @property
     def dataset(self):
         return self.data_loader.dataset
 
     def inputs_labels_from_batch(self, batch_data):
-        if not isinstance(batch_data, list) and not isinstance(batch_data, tuple):
-            raise ValueError(
-                "Your batch type is not supported: {}. Please inherit from "
-                "`TrainDataLoaderIter` or `ValDataLoaderIter` and override the "
-                "`inputs_labels_from_batch` method.".format(type(batch_data))
-            )
-
-        inputs, labels, *_ = batch_data
-
-        return inputs, labels
+        images = self.image_extractor(batch_data)
+        labels = self.label_extractor(batch_data)
+        return images, labels
 
     def __iter__(self):
         return self
@@ -44,8 +55,8 @@ class DataLoaderIter(object):
 
 
 class TrainDataLoaderIter(DataLoaderIter):
-    def __init__(self, data_loader, auto_reset=True):
-        super().__init__(data_loader)
+    def __init__(self, data_loader:DataLoader, image_extractor: Callable, label_extractor: Callable, auto_reset: bool=True) -> None:
+        super().__init__(data_loader, image_extractor, label_extractor)
         self.auto_reset = auto_reset
 
     def __next__(self):
@@ -83,8 +94,8 @@ class ValDataLoaderIter(DataLoaderIter):
         ```
     """
 
-    def __init__(self, data_loader):
-        super().__init__(data_loader)
+    def __init__(self, data_loader:DataLoader, image_extractor: Callable, label_extractor: Callable) -> None:
+        super().__init__(data_loader, image_extractor, label_extractor)
         self.run_limit = len(self.data_loader)
         self.run_counter = 0
 
@@ -98,53 +109,77 @@ class ValDataLoaderIter(DataLoaderIter):
         self.run_counter += 1
         return super(ValDataLoaderIter, self).__next__()
 
-
-class LRFinder(object):
-    """Learning rate range test, modified from https://github.com/davidtvs/pytorch-lr-finder.
+class LearningRateFinder(object):
+    """Learning rate range test.
 
     The learning rate range test increases the learning rate in a pre-training run
     between two boundaries in a linear or exponential manner. It provides valuable
     information on how well the network can be trained over a range of learning rates
     and what is the optimal learning rate.
 
-    Arguments:
-        model (torch.nn.Module): wrapped model.
-        optimizer (torch.optim.Optimizer): wrapped optimizer where the defined learning
-            is assumed to be the lower boundary of the range test.
-        criterion (torch.nn.Module): wrapped loss function.
-        device (str or torch.device, optional): a string ("cpu" or "cuda") with an
-            optional ordinal for the device type (e.g. "cuda:X", where is the ordinal).
-            Alternatively, can be an object representing the device on which the
-            computation will take place. Default: None, uses the same device as `model`.
-        memory_cache (boolean, optional): if this flag is set to True, `state_dict` of
-            model and optimizer will be cached in memory. Otherwise, they will be saved
-            to files under the `cache_dir`.
-        cache_dir (string, optional): path for storing temporary files. If no path is
-            specified, system-wide temporary directory is used. Notice that this
-            parameter will be ignored if `memory_cache` is True.
-
-    Example:
-        >>> lr_finder = LRFinder(net, optimizer, criterion, device="cuda")
-        >>> lr_finder.range_test(dataloader, end_lr=100, num_iter=100)
+    Example (fastai approach):
+        >>> lr_finder = LearningRateFinder(net, optimizer, criterion)
+        >>> lr_finder.range_test(data_loader, end_lr=100, num_iter=100)
+        >>> lr_finder.get_steepest_gradient()
         >>> lr_finder.plot() # to inspect the loss-learning rate graph
-        >>> lr_finder.reset() # to reset the model and optimizer to their initial state
 
-    Reference:
+    Example (Leslie Smith's approach):
+        >>> lr_finder = LearningRateFinder(net, optimizer, criterion)
+        >>> lr_finder.range_test(train_loader, val_loader=val_loader, end_lr=1, num_iter=100, step_mode="linear")
+
+    Gradient accumulation is supported; example:
+        >>> train_data = ...    # prepared dataset
+        >>> desired_bs, real_bs = 32, 4         # batch size
+        >>> accumulation_steps = desired_bs // real_bs     # required steps for accumulation
+        >>> data_loader = torch.utils.data.DataLoader(train_data, batch_size=real_bs, shuffle=True)
+        >>> acc_lr_finder = LearningRateFinder(net, optimizer, criterion)
+        >>> acc_lr_finder.range_test(data_loader, end_lr=10, num_iter=100, accumulation_steps=accumulation_steps)
+
+    By default, image will be extracted from data loader with x["image"] and x[0], depending on whether
+    batch data is a dictionary or not (and similar behaviour for extracting the label). If your data loader
+    returns something other than this, pass a callable function to extract it, e.g.:
+        >>> image_extractor = lambda x: x["input"]
+        >>> label_extractor = lambda x: x[100]
+        >>> lr_finder = LearningRateFinder(net, optimizer, criterion)
+        >>> lr_finder.range_test(train_loader, val_loader, image_extractor, label_extractor)
+
+    References:
+    Modified from: https://github.com/davidtvs/pytorch-lr-finder.
     Cyclical Learning Rates for Training Neural Networks: https://arxiv.org/abs/1506.01186
-    fastai/lr_find: https://github.com/fastai/fastai
     """
 
     def __init__(
         self,
-        model,
-        optimizer,
-        criterion,
-        device=None,
-        memory_cache=True,
-        cache_dir=None,
+        model: nn.Module,
+        optimizer: torch.optim.Optimizer,
+        criterion: torch.nn.Module,
+        device: Optional[Union[str, torch.device]] = None,
+        memory_cache:bool=True,
+        cache_dir:Optional[str]=None,
         amp: bool = False,
         verbose: bool = True,
-    ):
+    ) -> None:
+        """Constructor.
+
+        Args:
+            model: wrapped model.
+            optimizer: wrapped optimizer.
+            criterion: wrapped loss function.
+            device: device on which to test. run a string ("cpu" or "cuda") with an
+                optional ordinal for the device type (e.g. "cuda:X", where is the ordinal).
+                Alternatively, can be an object representing the device on which the
+                computation will take place. Default: None, uses the same device as `model`.
+            memory_cache: if this flag is set to True, `state_dict` of
+                model and optimizer will be cached in memory. Otherwise, they will be saved
+                to files under the `cache_dir`.
+            cache_dir: path for storing temporary files. If no path is
+                specified, system-wide temporary directory is used. Notice that this
+                parameter will be ignored if `memory_cache` is True.
+            amp: use Automatic Mixed Precision
+            verbose: verbose output
+        Returns:
+            None
+        """
         # Check if the optimizer is already attached to a scheduler
         self.optimizer = optimizer
         self._check_for_scheduler()
@@ -168,95 +203,64 @@ class LRFinder(object):
         # If device is None, use the same as the model
         self.device = device if device else self.model_device
 
-    def reset(self):
+    def reset(self) -> None:
         """Restores the model and optimizer to their initial states."""
 
         self.model.load_state_dict(self.state_cacher.retrieve("model"))
         self.optimizer.load_state_dict(self.state_cacher.retrieve("optimizer"))
         self.model.to(self.model_device)
 
+    def default_image_extractor(x: Any) -> torch.Tensor:
+        """Default callable for getting image from batch data."""
+        return x["image"] if isinstance(x, dict) else x[0]
+
+    def default_label_extractor(x: Any) -> torch.Tensor:
+        """Default callable for getting label from batch data."""
+        return x["label"] if isinstance(x, dict) else x[1]
+
     def range_test(
         self,
-        train_loader,
-        val_loader=None,
-        start_lr=None,
-        end_lr=10,
-        num_iter=100,
-        step_mode="exp",
-        smooth_f=0.05,
-        diverge_th=5,
-        accumulation_steps=1,
-        non_blocking_transfer=True,
-    ):
+        train_loader: Union[DataLoader,TrainDataLoaderIter],
+        val_loader: Optional[Union[DataLoader, ValDataLoaderIter]]=None,
+        image_extractor: Callable = default_image_extractor,
+        label_extractor: Callable = default_label_extractor,
+        start_lr:Optional[float]=None,
+        end_lr:int=10,
+        num_iter:int=100,
+        step_mode:str="exp",
+        smooth_f:float=0.05,
+        diverge_th:int=5,
+        accumulation_steps:int=1,
+        non_blocking_transfer:bool=True,
+        auto_reset: bool = True,
+    ) -> None:
         """Performs the learning rate range test.
 
-        Arguments:
-            train_loader (`torch.utils.data.DataLoader`
-                or child of `TrainDataLoaderIter`, optional):
-                the training set data loader.
-                If your dataset (data loader) returns a tuple (inputs, labels,*) then
-                Pytorch data loader object can be provided. However, if a dataset
-                returns different outputs e.g. dicts, then you should inherit
-                from `TrainDataLoaderIter` class and redefine `inputs_labels_from_batch`
-                method so that it outputs (inputs, labels).
-            val_loader (`torch.utils.data.DataLoader`
-                or child of `ValDataLoaderIter`, optional): if `None` the range test
-                will only use the training loss. When given a data loader, the model is
-                evaluated after each iteration on that dataset and the evaluation loss
-                is used. Note that in this mode the test takes significantly longer but
-                generally produces more precise results.
-                Similarly to `train_loader`, if your dataset outputs are not standard
-                you should inherit from `ValDataLoaderIter` class and
-                redefine method `inputs_labels_from_batch` so that
-                it outputs (inputs, labels). Default: None.
-            start_lr (float, optional): the starting learning rate for the range test.
-                Default: None (uses the learning rate from the optimizer).
-            end_lr (float, optional): the maximum learning rate to test. Default: 10.
-            num_iter (int, optional): the number of iterations over which the test
-                occurs. Default: 100.
-            step_mode (str, optional): one of the available learning rate policies,
-                linear or exponential ("linear", "exp"). Default: "exp".
-            smooth_f (float, optional): the loss smoothing factor within the [0, 1[
-                interval. Disabled if set to 0, otherwise the loss is smoothed using
-                exponential smoothing. Default: 0.05.
-            diverge_th (int, optional): the test is stopped when the loss surpasses the
-                threshold:  diverge_th * best_loss. Default: 5.
-            accumulation_steps (int, optional): steps for gradient accumulation. If it
-                is 1, gradients are not accumulated. Default: 1.
-            non_blocking_transfer (bool, optional): when non_blocking_transfer is set,
-                tries to convert/move data to the device asynchronously if possible,
-                e.g., moving CPU Tensors with pinned memory to CUDA devices. Default: True.
-
-        Example (fastai approach):
-            >>> lr_finder = LRFinder(net, optimizer, criterion, device="cuda")
-            >>> lr_finder.range_test(dataloader, end_lr=100, num_iter=100)
-
-        Example (Leslie Smith's approach):
-            >>> lr_finder = LRFinder(net, optimizer, criterion, device="cuda")
-            >>> lr_finder.range_test(trainloader, val_loader=val_loader, end_lr=1, num_iter=100, step_mode="linear")
-
-        Gradient accumulation is supported; example:
-            >>> train_data = ...    # prepared dataset
-            >>> desired_bs, real_bs = 32, 4         # batch size
-            >>> accumulation_steps = desired_bs // real_bs     # required steps for accumulation
-            >>> dataloader = torch.utils.data.DataLoader(train_data, batch_size=real_bs, shuffle=True)
-            >>> acc_lr_finder = LRFinder(net, optimizer, criterion, device="cuda")
-            >>> acc_lr_finder.range_test(dataloader, end_lr=10, num_iter=100, accumulation_steps=accumulation_steps)
-
-        If your DataLoader returns e.g. dict, or other non standard output, intehit from TrainDataLoaderIter,
-        redefine method `inputs_labels_from_batch` so that it outputs (inputs, lables) data:
-            >>> import torch_lr_finder
-            >>> class TrainIter(torch_lr_finder.TrainDataLoaderIter):
-            >>>     def inputs_labels_from_batch(self, batch_data):
-            >>>         return (batch_data['user_features'], batch_data['user_history']), batch_data['y_labels']
-            >>> train_data_iter = TrainIter(train_dl)
-            >>> finder = torch_lr_finder.LRFinder(model, optimizer, partial(model._train_loss, need_one_hot=False))
-            >>> finder.range_test(train_data_iter, end_lr=10, num_iter=300, diverge_th=10)
-
-        Reference:
-        [Training Neural Nets on Larger Batches: Practical Tips for 1-GPU, Multi-GPU & Distributed setups](
-        https://medium.com/huggingface/ec88c3e51255)
-        [thomwolf/gradient_accumulation](https://gist.github.com/thomwolf/ac7a7da6b1888c2eeac8ac8b9b05d3d3)
+        Args:
+            train_loader: training set data loader.
+            val_loader: validation data loader (if desired).
+            image_extractor: callable function to get the image from a batch of data.
+                Default: `x["image"] if isinstance(x, dict) else x[0]`.
+            label_extractor: callable function to get the label from a batch of data.
+                Default: `x["label"] if isinstance(x, dict) else x[1]`.
+            start_lr : the starting learning rate for the range test.
+                The default is the optimizer's learning rate.
+            end_lr: the maximum learning rate to test. The test may stop earlier than
+                this if the result starts diverging.
+            num_iter: the max number of iterations for test.
+            step_mode: schedule for increasing learning rate: (`linear` or `exp`).
+            smooth_f: the loss smoothing factor within the `[0, 1[` interval. Disabled
+                if set to `0`, otherwise loss is smoothed using exponential smoothing.
+            diverge_th: test is stopped when loss surpasses threshold:
+                `diverge_th * best_loss`.
+            accumulation_steps: steps for gradient accumulation. If set to `1`,
+                gradients are not accumulated.
+            non_blocking_transfer: when `True`, moves data to device asynchronously if
+                possible, e.g., moving CPU Tensors with pinned memory to CUDA devices.
+            auto_reset: if `True`, returns model and optimizer to original states at end
+                of test.
+        Returns:
+            None
         """
 
         # Reset test results
@@ -273,45 +277,32 @@ class LRFinder(object):
         if start_lr:
             self._set_learning_rate(start_lr)
 
+        # Check number of iterations
+        if num_iter <= 1:
+            raise ValueError("`num_iter` must be larger than 1")
+
         # Initialize the proper learning rate policy
         if step_mode.lower() == "exp":
             lr_schedule = ExponentialLR(self.optimizer, end_lr, num_iter)
         elif step_mode.lower() == "linear":
             lr_schedule = LinearLR(self.optimizer, end_lr, num_iter)
         else:
-            raise ValueError("expected one of (exp, linear), got {}".format(step_mode))
+            raise ValueError(f"expected one of (exp, linear), got {step_mode}")
 
         if smooth_f < 0 or smooth_f >= 1:
             raise ValueError("smooth_f is outside the range [0, 1[")
 
         # Create an iterator to get data batch by batch
-        if isinstance(train_loader, DataLoader):
-            train_iter = TrainDataLoaderIter(train_loader)
-        elif isinstance(train_loader, TrainDataLoaderIter):
-            train_iter = train_loader
-        else:
-            raise ValueError(
-                "`train_loader` has unsupported type: {}."
-                "Expected types are `torch.utils.data.DataLoader`"
-                "or child of `TrainDataLoaderIter`.".format(type(train_loader))
-            )
-
+        train_iter = TrainDataLoaderIter(train_loader, image_extractor, label_extractor)
         if val_loader:
-            if isinstance(val_loader, DataLoader):
-                val_iter = ValDataLoaderIter(val_loader)
-            elif isinstance(val_loader, ValDataLoaderIter):
-                val_iter = val_loader
-            else:
-                raise ValueError(
-                    "`val_loader` has unsupported type: {}."
-                    "Expected types are `torch.utils.data.DataLoader`"
-                    "or child of `ValDataLoaderIter`.".format(type(val_loader))
-                )
+            val_iter = ValDataLoaderIter(val_loader, image_extractor, label_extractor)
 
         if self.verbose and has_tqdm:
             trange = partial(tqdm.trange, desc="Computing optimal learning rate")
+            tprint = tqdm.tqdm.write
         else:
             trange = range
+            tprint = print
 
         for iteration in trange(num_iter):
             if self.verbose and not has_tqdm:
@@ -344,12 +335,17 @@ class LRFinder(object):
             # Check if the loss has diverged; if it has, stop the test
             self.history["loss"].append(loss)
             if loss > diverge_th * self.best_loss:
-                print("Stopping early, the loss has diverged")
+                if self.verbose:
+                    tprint("Stopping early, the loss has diverged")
                 break
 
-        print("Learning rate search finished. See the graph with {finder_name}.plot()")
+        if auto_reset:
+            if self.verbose:
+                print("Resetting model and optimizer")
+            self.reset()
 
-    def _set_learning_rate(self, new_lrs):
+    def _set_learning_rate(self, new_lrs: Union[float, list]) -> None:
+        """Set learning rate(s) for optimizer."""
         if not isinstance(new_lrs, list):
             new_lrs = [new_lrs] * len(self.optimizer.param_groups)
         if len(new_lrs) != len(self.optimizer.param_groups):
@@ -361,12 +357,13 @@ class LRFinder(object):
         for param_group, new_lr in zip(self.optimizer.param_groups, new_lrs):
             param_group["lr"] = new_lr
 
-    def _check_for_scheduler(self):
+    def _check_for_scheduler(self) -> _none_or_positive_arg:
+        """Check optimizer doesn't already have scheduler."""
         for param_group in self.optimizer.param_groups:
             if "initial_lr" in param_group:
                 raise RuntimeError("Optimizer already has a scheduler attached to it")
 
-    def _train_batch(self, train_iter, accumulation_steps, non_blocking_transfer=True):
+    def _train_batch(self, train_iter, accumulation_steps:int, non_blocking_transfer:bool=True) -> float:
         self.model.train()
         total_loss = None  # for late initialization
 
@@ -403,7 +400,7 @@ class LRFinder(object):
 
         return total_loss.item()
 
-    def _move_to_device(self, inputs, labels, non_blocking=True):
+    def _move_to_device(self, inputs: torch.Tensor, labels: torch.Tensor, non_blocking:bool=True) -> Tuple[torch.Tensor, torch.Tensor]:
         def move(obj, device, non_blocking=True):
             if hasattr(obj, "to"):
                 return obj.to(device, non_blocking=non_blocking)
@@ -420,7 +417,7 @@ class LRFinder(object):
         labels = move(labels, self.device, non_blocking=non_blocking)
         return inputs, labels
 
-    def _validate(self, val_iter, non_blocking_transfer=True):
+    def _validate(self, val_iter: ValDataLoaderIter, non_blocking_transfer:bool=True)->float:
         # Set model to evaluation mode and disable gradient computation
         running_loss = 0
         with eval_mode(self.model):
@@ -439,19 +436,17 @@ class LRFinder(object):
 
     def get_steepest_gradient(
         self,
-        skip_start=10,
-        skip_end=5,
-    ):
-        """Get steepest gradient.
+        skip_start:int=10,
+        skip_end:int=5,
+    ) -> Tuple[float,float]:
+        """Get learning rate which has steepest gradient and its corresponding loss
 
-            Arguments:
-                skip_start (int, optional): number of batches to trim from the start.
-                    Default: 10.
-                skip_end (int, optional): number of batches to trim from the start.
-                    Default: 5.
+        Args:
+            skip_start: number of batches to trim from the start.
+            skip_end: number of batches to trim from the end.
 
-            Returns:
-                Learning rate which has steepest gradient and its corresponding loss
+        Returns:
+            Learning rate which has steepest gradient and its corresponding loss
         """
         if skip_start < 0:
             raise ValueError("skip_start cannot be negative")
@@ -478,32 +473,29 @@ class LRFinder(object):
 
     def plot(
         self,
-        skip_start=10,
-        skip_end=5,
-        log_lr=True,
-        ax=None,
-        steepest_lr=True,
+        skip_start:int=10,
+        skip_end:int=5,
+        log_lr:bool=True,
+        ax:Optional[Any]=None,
+        steepest_lr:bool=True,
     ):
         """Plots the learning rate range test.
 
-        Arguments:
-            skip_start (int, optional): number of batches to trim from the start.
-                Default: 10.
-            skip_end (int, optional): number of batches to trim from the start.
-                Default: 5.
-            log_lr (bool, optional): True to plot the learning rate in a logarithmic
-                scale; otherwise, plotted in a linear scale. Default: True.
-            ax (matplotlib.axes.Axes, optional): the plot is created in the specified
-                matplotlib axes object and the figure is not be shown. If `None`, then
-                the figure and axes object are created in this method and the figure is
-                shown . Default: None.
-            steepest_lr (bool, optional): plot the learning rate which had the steepest
-                gradient. Default: True.
+        Args:
+            skip_start: number of batches to trim from the start.
+            skip_end: number of batches to trim from the start.
+            log_lr: True to plot the learning rate in a logarithmic
+                scale; otherwise, plotted in a linear scale.
+            ax: the plot is created in the specified matplotlib axes object and the
+                figure is not be shown. If `None`, then the figure and axes object are
+                created in this method and the figure is shown.
+            steepest_lr: plot the learning rate which had the steepest gradient.
 
         Returns:
-            The matplotlib.axes.Axes object that contains the plot,
-            and the suggested learning rate (if set suggest_lr=True).
+            The matplotlib.axes.Axes object that contains the plot
         """
+        if not has_matplotlib:
+            raise RuntimeError("Matplotlib is missing, can't plot result")
 
         if skip_start < 0:
             raise ValueError("skip_start cannot be negative")
@@ -556,59 +548,42 @@ class LRFinder(object):
 
         return ax
 
+class _LRSchedulerMONAI(_LRScheduler):
+    def __init__(self, optimizer: torch.optim.Optimizer, end_lr:float, num_iter:int, last_epoch:int=-1) -> None:
+        """
+        Args:
+            optimizer: wrapped optimizer.
+            end_lr: the final learning rate.
+            num_iter: the number of iterations over which the test occurs.
+            last_epoch: the index of last epoch.
+        Returns:
+            None
+        """
+        self.end_lr = end_lr
+        self.num_iter = num_iter
+        super(_LRSchedulerMONAI, self).__init__(optimizer, last_epoch)
 
-class LinearLR(_LRScheduler):
+
+class LinearLR(_LRSchedulerMONAI):
     """Linearly increases the learning rate between two boundaries over a number of
     iterations.
-
-    Arguments:
-        optimizer (torch.optim.Optimizer): wrapped optimizer.
-        end_lr (float): the final learning rate.
-        num_iter (int): the number of iterations over which the test occurs.
-        last_epoch (int, optional): the index of last epoch. Default: -1.
     """
-
-    def __init__(self, optimizer, end_lr, num_iter, last_epoch=-1):
-        self.end_lr = end_lr
-
-        if num_iter <= 1:
-            raise ValueError("`num_iter` must be larger than 1")
-        self.num_iter = num_iter
-
-        super(LinearLR, self).__init__(optimizer, last_epoch)
-
     def get_lr(self):
         r = self.last_epoch / (self.num_iter - 1)
         return [base_lr + r * (self.end_lr - base_lr) for base_lr in self.base_lrs]
 
 
-class ExponentialLR(_LRScheduler):
+class ExponentialLR(_LRSchedulerMONAI):
     """Exponentially increases the learning rate between two boundaries over a number of
     iterations.
-
-    Arguments:
-        optimizer (torch.optim.Optimizer): wrapped optimizer.
-        end_lr (float): the final learning rate.
-        num_iter (int): the number of iterations over which the test occurs.
-        last_epoch (int, optional): the index of last epoch. Default: -1.
     """
-
-    def __init__(self, optimizer, end_lr, num_iter, last_epoch=-1):
-        self.end_lr = end_lr
-
-        if num_iter <= 1:
-            raise ValueError("`num_iter` must be larger than 1")
-        self.num_iter = num_iter
-
-        super(ExponentialLR, self).__init__(optimizer, last_epoch)
-
     def get_lr(self):
         r = self.last_epoch / (self.num_iter - 1)
         return [base_lr * (self.end_lr / base_lr) ** r for base_lr in self.base_lrs]
 
 
 class StateCacher(object):
-    def __init__(self, in_memory, cache_dir=None):
+    def __init__(self, in_memory:bool, cache_dir:Optional[str]=None) -> None:
         self.in_memory = in_memory
         self.cache_dir = cache_dir
 
@@ -626,13 +601,13 @@ class StateCacher(object):
         if self.in_memory:
             self.cached.update({key: copy.deepcopy(state_dict)})
         else:
-            fn = os.path.join(self.cache_dir, "state_{}_{}.pt".format(key, id(self)))
+            fn = os.path.join(self.cache_dir, f"state_{key}_{id(self)}.pt")
             self.cached.update({key: fn})
             torch.save(state_dict, fn)
 
     def retrieve(self, key):
         if key not in self.cached:
-            raise KeyError("Target {} was not cached.".format(key))
+            raise KeyError(f"Target {key} was not cached.")
 
         if self.in_memory:
             return self.cached.get(key)
@@ -640,18 +615,15 @@ class StateCacher(object):
             fn = self.cached.get(key)
             if not os.path.exists(fn):
                 raise RuntimeError(
-                    "Failed to load state in {}. File doesn't exist anymore.".format(fn)
+                    f"Failed to load state in {fn}. File doesn't exist anymore."
                 )
             state_dict = torch.load(fn, map_location=lambda storage, location: storage)
             return state_dict
 
     def __del__(self):
-        """Check whether there are unused cached files existing in `cache_dir` before
-        this instance being destroyed."""
-
+        """If necessary, delete any cached files existing in `cache_dir`."""
         if self.in_memory:
             return
-
         for k in self.cached:
             if os.path.exists(self.cached[k]):
                 os.remove(self.cached[k])
