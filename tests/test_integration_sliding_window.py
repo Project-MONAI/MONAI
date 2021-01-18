@@ -19,7 +19,7 @@ import torch
 from ignite.engine import Engine
 from torch.utils.data import DataLoader
 
-from monai.data import NiftiDataset, create_test_image_3d
+from monai.data import ImageDataset, create_test_image_3d
 from monai.handlers import SegmentationSaver
 from monai.inferers import sliding_window_inference
 from monai.networks import eval_mode, predict_segmentation
@@ -30,7 +30,7 @@ from tests.utils import DistTestCase, TimedCall, make_nifti_image, skip_if_quick
 
 
 def run_test(batch_size, img_name, seg_name, output_dir, device="cuda:0"):
-    ds = NiftiDataset([img_name], [seg_name], transform=AddChannel(), seg_transform=AddChannel(), image_only=False)
+    ds = ImageDataset([img_name], [seg_name], transform=AddChannel(), seg_transform=AddChannel(), image_only=False)
     loader = DataLoader(ds, batch_size=1, pin_memory=torch.cuda.is_available())
 
     net = UNet(

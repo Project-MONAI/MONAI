@@ -90,9 +90,14 @@ static scalar_t* createHashTable(int capacity) {
 template <typename scalar_t>
 static void destroyHashTable() {
 #ifndef LINEAR_D_MEMORY
-  cudaFree(table_keys);
+  signed short* keys;
+  cudaMemcpyFromSymbol(&keys, table_keys, sizeof(unsigned int*));
+  cudaFree(keys);
 #endif
-  cudaFree(table_entries);
+
+  int* entries;
+  cudaMemcpyFromSymbol(&entries, table_entries, sizeof(int*));
+  cudaFree(entries);
 }
 
 template <int kd>

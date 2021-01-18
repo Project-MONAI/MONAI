@@ -21,6 +21,7 @@ limitations under the License.
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   // filtering
   m.def("bilateral_filter", &BilateralFilter, "Bilateral Filter");
+  m.def("phl_filter", &PermutohedralFilter, "Permutohedral Filter");
 
   // lltm
   m.def("lltm_forward", &lltm_forward, "LLTM forward");
