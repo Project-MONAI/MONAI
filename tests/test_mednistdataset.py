@@ -52,6 +52,7 @@ class TestMedNISTDataset(unittest.TestCase):
 
         # testing from
         data = MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=False)
+        data.get_num_classes()
         _test_dataset(data)
         data = MedNISTDataset(root_dir=testing_dir, section="test", download=False)
         self.assertTupleEqual(data[0]["image"].shape, (64, 64))

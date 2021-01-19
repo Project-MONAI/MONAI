@@ -158,7 +158,7 @@ torch::Tensor BilateralFilterCpu(torch::Tensor inputTensor, float spatialSigma, 
   // Preparing output tensor.
   torch::Tensor outputTensor = torch::zeros_like(inputTensor);
 
-  AT_DISPATCH_FLOATING_TYPES_AND_HALF(inputTensor.type(), "BilateralFilterCpu", ([&] {
+  AT_DISPATCH_FLOATING_TYPES_AND_HALF(inputTensor.scalar_type(), "BilateralFilterCpu", ([&] {
                                         BilateralFilterCpu<scalar_t>(
                                             inputTensor, outputTensor, spatialSigma, colorSigma);
                                       }));

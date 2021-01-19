@@ -134,6 +134,10 @@ Blocks
 .. autoclass:: LocalNetFeatureExtractorBlock
     :members:
 
+`Warp`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: Warp
+    :members:
 
 Layers
 ------
@@ -202,6 +206,10 @@ Layers
 ~~~~~~~~~~~~~~~~~
 .. autoclass:: BilateralFilter
     :members:
+
+`PHLFilter`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: PHLFilter
 
 `SavitzkyGolayFilter`
 ~~~~~~~~~~~~~~~~~~~~~
