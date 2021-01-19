@@ -10,15 +10,6 @@ from tests.utils import test_script_save
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-param_variations_2d = {
-    "spatial_dims": 2,
-    "in_channels": 2,
-    "out_channels": 2,
-    "num_channel_initial": 16,
-    "extract_levels": [0, 1, 2],
-    "out_activation": ["sigmoid", None],
-}
-
 TEST_CASE_LOCALNET_2D = [
     [
         {
@@ -41,23 +32,25 @@ for in_channels in [2, 3]:
         for num_channel_initial in [4, 16, 32]:
             for extract_levels in [[0, 1, 2], [0, 1, 2, 3], [0, 1, 2, 3, 4]]:
                 for out_activation in ["sigmoid", None]:
-                    TEST_CASE_LOCALNET_3D.append(
-                        [
-                            {
-                                "spatial_dims": 3,
-                                "in_channels": in_channels,
-                                "out_channels": out_channels,
-                                "num_channel_initial": num_channel_initial,
-                                "extract_levels": extract_levels,
-                                "out_activation": out_activation,
-                            },
-                            (1, in_channels, 16, 16, 16),
-                            (1, out_channels, 16, 16, 16),
-                        ]
-                    )
+                    for out_initializer in ["kaiming_uniform", "zeros"]:
+                        TEST_CASE_LOCALNET_3D.append(
+                            [
+                                {
+                                    "spatial_dims": 3,
+                                    "in_channels": in_channels,
+                                    "out_channels": out_channels,
+                                    "num_channel_initial": num_channel_initial,
+                                    "extract_levels": extract_levels,
+                                    "out_activation": out_activation,
+                                    "out_initializer": out_initializer,
+                                },
+                                (1, in_channels, 16, 16, 16),
+                                (1, out_channels, 16, 16, 16),
+                            ]
+                        )
 
 
-class TestDynUNet(unittest.TestCase):
+class TestLocalNet(unittest.TestCase):
     @parameterized.expand(TEST_CASE_LOCALNET_2D + TEST_CASE_LOCALNET_3D)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = LocalNet(**input_param).to(device)
