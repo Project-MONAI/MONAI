@@ -442,7 +442,7 @@ class LearningRateFinder(object):
         self,
         skip_start: int = 0,
         skip_end: int = 0,
-    ) -> Tuple[list,list]:
+    ) -> Tuple[list, list]:
         """Get learning rates and their corresponding losses
 
         Args:
