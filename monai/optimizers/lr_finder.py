@@ -21,11 +21,8 @@ except ImportError:
     has_tqdm = False
 try:
     import matplotlib.pyplot as plt
-    from matplotlib.axes import Axes
-
     has_matplotlib = True
 except ImportError:
-    Axes = None
     has_matplotlib = False
 
 __all__ = ["LearningRateFinder"]
@@ -482,9 +479,9 @@ class LearningRateFinder(object):
         skip_start: int = 10,
         skip_end: int = 5,
         log_lr: bool = True,
-        ax: Optional[Axes] = None,
+        ax = None,
         steepest_lr: bool = True,
-    ) -> Axes:
+    ):
         """Plots the learning rate range test.
 
         Args:
