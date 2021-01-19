@@ -438,10 +438,34 @@ class LearningRateFinder(object):
 
         return running_loss / len(val_iter.dataset)
 
+    def get_lrs_and_losses(
+        self,
+        skip_start: int = 0,
+        skip_end: int = 0,
+    ) -> Tuple[list,list]:
+        """Get learning rates and their corresponding losses
+
+        Args:
+            skip_start: number of batches to trim from the start.
+            skip_end: number of batches to trim from the end.
+        """
+        if skip_start < 0:
+            raise ValueError("skip_start cannot be negative")
+        if skip_end < 0:
+            raise ValueError("skip_end cannot be negative")
+
+        lrs = self.history["lr"]
+        losses = self.history["loss"]
+        end_idx = len(lrs) - skip_end - 1
+        lrs = lrs[skip_start:end_idx]
+        losses = losses[skip_start:end_idx]
+
+        return lrs, losses
+
     def get_steepest_gradient(
         self,
-        skip_start: int = 10,
-        skip_end: int = 5,
+        skip_start: int = 0,
+        skip_end: int = 0,
     ) -> Union[Tuple[float, float], Tuple[None, None]]:
         """Get learning rate which has steepest gradient and its corresponding loss
 
@@ -452,21 +476,7 @@ class LearningRateFinder(object):
         Returns:
             Learning rate which has steepest gradient and its corresponding loss
         """
-        if skip_start < 0:
-            raise ValueError("skip_start cannot be negative")
-        if skip_end < 0:
-            raise ValueError("skip_end cannot be negative")
-
-        # Get the data to plot from the history dictionary. Also, handle skip_end=0
-        # properly so the behaviour is the expected
-        lrs = self.history["lr"]
-        losses = self.history["loss"]
-        if skip_end == 0:
-            lrs = lrs[skip_start:]
-            losses = losses[skip_start:]
-        else:
-            lrs = lrs[skip_start:-skip_end]
-            losses = losses[skip_start:-skip_end]
+        lrs, losses = self.get_lrs_and_losses(skip_start, skip_end)
 
         try:
             min_grad_idx = np.gradient(np.array(losses)).argmin()
@@ -477,8 +487,8 @@ class LearningRateFinder(object):
 
     def plot(
         self,
-        skip_start: int = 10,
-        skip_end: int = 5,
+        skip_start: int = 0,
+        skip_end: int = 0,
         log_lr: bool = True,
         ax=None,
         steepest_lr: bool = True,
@@ -501,21 +511,7 @@ class LearningRateFinder(object):
         if not has_matplotlib:
             raise RuntimeError("Matplotlib is missing, can't plot result")
 
-        if skip_start < 0:
-            raise ValueError("skip_start cannot be negative")
-        if skip_end < 0:
-            raise ValueError("skip_end cannot be negative")
-
-        # Get the data to plot from the history dictionary. Also, handle skip_end=0
-        # properly so the behaviour is the expected
-        lrs = self.history["lr"]
-        losses = self.history["loss"]
-        if skip_end == 0:
-            lrs = lrs[skip_start:]
-            losses = losses[skip_start:]
-        else:
-            lrs = lrs[skip_start:-skip_end]
-            losses = losses[skip_start:-skip_end]
+        lrs, losses = self.get_lrs_and_losses(skip_start, skip_end)
 
         # Create the figure and axes object if axes was not already given
         fig = None

@@ -20,11 +20,9 @@ from monai.apps import MedNISTDataset
 from monai.networks.nets import DenseNet
 from monai.optimizers import LearningRateFinder
 from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
-from monai.utils import set_determinism
+from monai.utils import optional_import, set_determinism
 
-TEST_DATA_URL = "https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz?dl=1"
-MD5_VALUE = "0bc7306e7427e00ad1c5526a6677552d"
-TASK = "integration_classification_2d"
+PILImage, has_pil = optional_import("PIL.Image")
 
 RAND_SEED = 42
 random.seed(RAND_SEED)
@@ -33,6 +31,7 @@ set_determinism(seed=RAND_SEED)
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
+@unittest.skipUnless(has_pil, "requires PIL")
 class TestLRFinder(unittest.TestCase):
     def setUp(self):
 
