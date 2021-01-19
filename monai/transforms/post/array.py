@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -24,6 +24,15 @@ from monai.networks import one_hot
 from monai.transforms.compose import Transform
 from monai.transforms.utils import get_largest_connected_component_mask
 from monai.utils import ensure_tuple
+
+__all__ = [
+    "Activations",
+    "AsDiscrete",
+    "KeepLargestConnectedComponent",
+    "LabelToContour",
+    "MeanEnsemble",
+    "VoteEnsemble",
+]
 
 
 class Activations(Transform):
@@ -154,7 +163,8 @@ class AsDiscrete(Transform):
 
         if to_onehot or self.to_onehot:
             _nclasses = self.n_classes if n_classes is None else n_classes
-            assert isinstance(_nclasses, int), "One of self.n_classes or n_classes must be an integer"
+            if not isinstance(_nclasses, int):
+                raise AssertionError("One of self.n_classes or n_classes must be an integer")
             img = one_hot(img, _nclasses)
 
         if threshold_values or self.threshold_values:
@@ -405,6 +415,5 @@ class VoteEnsemble(Transform):
         if self.num_classes is not None:
             # if not One-Hot, use "argmax" to vote the most common class
             return torch.argmax(img_, dim=1, keepdim=has_ch_dim)
-        else:
-            # for One-Hot data, round the float number to 0 or 1
-            return torch.round(img_)
+        # for One-Hot data, round the float number to 0 or 1
+        return torch.round(img_)

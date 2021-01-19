@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -78,7 +78,7 @@ TEST_CASE_5 = [
         "data_shape": True,
         "value_range": True,
         "data_value": True,
-        "additional_info": lambda x: np.mean(x),
+        "additional_info": np.mean,
         "logger_handler": None,
     },
     np.array([[0, 1], [1, 2]]),
@@ -124,7 +124,7 @@ class TestDataStats(unittest.TestCase):
                 "data_shape": True,
                 "value_range": True,
                 "data_value": True,
-                "additional_info": lambda x: np.mean(x),
+                "additional_info": np.mean,
                 "logger_handler": handler,
             }
             transform = DataStats(**input_param)
