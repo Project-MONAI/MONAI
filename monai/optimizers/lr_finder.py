@@ -1,7 +1,7 @@
 import copy
 import os
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Type, Union
+from typing import Any, Callable, Dict, Optional, Tuple, Type, Union
 
 import numpy as np
 import torch
