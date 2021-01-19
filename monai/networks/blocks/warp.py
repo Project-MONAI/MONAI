@@ -85,15 +85,7 @@ class Warp(nn.Module):
         grid = self.get_reference_grid(ddf) + ddf
         grid = grid.permute([0] + list(range(2, 2 + self.spatial_dims)) + [1])  # (batch, ..., self.spatial_dims)
 
-        if self.mode <= 1:
-            grid = self.normalize_grid(grid)
-            index_ordering: List[int] = list(range(self.spatial_dims - 1, -1, -1))
-            grid = grid[..., index_ordering]  # z, y, x -> x, y, z
-            _interp_mode = "bilinear" if self.mode == 1 else "nearest"
-            warped_image = F.grid_sample(
-                image, grid, mode=_interp_mode, padding_mode=self.padding_mode.value, align_corners=True
-            )
-        else:
+        if self.mode > 1:
             if not USE_COMPILED:
                 raise ValueError(f"cannot perform {self.mode}-order interpolation without C compile.")
             _padding_mode = self.padding_mode.value
@@ -109,6 +101,14 @@ class Warp(nn.Module):
                 bound=bound,
                 extrapolate=True,
                 interpolation=self.mode,
+            )
+        else:
+            grid = self.normalize_grid(grid)
+            index_ordering: List[int] = list(range(self.spatial_dims - 1, -1, -1))
+            grid = grid[..., index_ordering]  # z, y, x -> x, y, z
+            _interp_mode = "bilinear" if self.mode == 1 else "nearest"
+            warped_image = F.grid_sample(
+                image, grid, mode=_interp_mode, padding_mode=self.padding_mode.value, align_corners=True
             )
 
         return warped_image
