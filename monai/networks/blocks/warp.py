@@ -6,7 +6,7 @@ from torch.nn import functional as F
 
 from monai.config import USE_COMPILED
 from monai.networks.layers import grid_pull
-from monai.utils import GridSampleMode, GridSamplePadMode
+from monai.utils import GridSamplePadMode
 
 
 class Warp(nn.Module):
