@@ -1428,7 +1428,6 @@ MONAI_NAMESPACE_DEVICE { // cuda
     scalar_t w10 = dx1 * dy0;
     scalar_t w01 = dx0 * dy1;
     scalar_t w11 = dx1 * dy1;
-    ;
 
     // Sign (/!\ compute sign before warping indices)
     int8_t sx1 = bound::sign(bound0, ix0 + 1, src_X);

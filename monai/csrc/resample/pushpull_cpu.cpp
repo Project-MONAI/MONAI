@@ -18,7 +18,7 @@ limitations under the License.
 // It handles boundary conditions and interpolation orders defined in
 // `utils/resample_utils.h` and `utils/resample_utils.h`.
 // These parameters can be specified per dimension.
-// Isotorpic 0-th and 1-st order interpolation have their own (faster)
+// Isotropic 0-th and 1-st order interpolation have their own (faster)
 // implementations. Sliding boundary conditions are also implemented
 // separately.
 
@@ -1461,7 +1461,6 @@ MONAI_NAMESPACE_DEVICE { // cpu
     scalar_t w10 = dx1 * dy0;
     scalar_t w01 = dx0 * dy1;
     scalar_t w11 = dx1 * dy1;
-    ;
 
     // Sign (/!\ compute sign before warping indices)
     int8_t sx1 = bound::sign(bound0, ix0 + 1, src_X);
