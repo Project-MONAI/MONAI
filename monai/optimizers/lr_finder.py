@@ -1,7 +1,7 @@
 import copy
 import os
 from functools import partial
-from typing import Any, Callable, Dict, Optional, Tuple, Type, Union
+from typing import Any, Callable, Dict, Optional, Tuple, Type, TYPE_CHECKING, Union
 
 import numpy as np
 import torch
@@ -13,19 +13,22 @@ from torch.utils.data import DataLoader
 
 from monai.networks.utils import eval_mode
 
-try:
+if TYPE_CHECKING:
+    try:
+        import tqdm
+        has_tqdm = True
+    except ImportError:
+        has_tqdm = False
+    try:
+        import matplotlib.pyplot as plt
+        from matplotlib.axes import Axes
+        has_matplotlib = True
+    except ImportError:
+        has_matplotlib = False
+else:
     import tqdm
-
-    has_tqdm = True
-except ImportError:
-    has_tqdm = False
-try:
     import matplotlib.pyplot as plt
     from matplotlib.axes import Axes
-
-    has_matplotlib = True
-except ImportError:
-    has_matplotlib = False
 
 __all__ = ["LearningRateFinder"]
 
