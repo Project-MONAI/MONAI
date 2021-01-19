@@ -13,7 +13,7 @@ import csv
 import os
 from collections import OrderedDict
 from typing import Dict, Optional, Union
-
+import fcntl
 import numpy as np
 import torch
 
@@ -50,6 +50,7 @@ class CSVSaver:
         """
         if not self.overwrite and os.path.exists(self._filepath):
             with open(self._filepath, "r") as f:
+                fcntl.flock(f.fileno(), fcntl.LOCK_EX)
                 reader = csv.reader(f)
                 for row in reader:
                     self._cache_dict[row[0]] = np.array(row[1:]).astype(np.float32)
@@ -57,6 +58,7 @@ class CSVSaver:
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
         with open(self._filepath, "w") as f:
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
             for k, v in self._cache_dict.items():
                 f.write(k)
                 for result in v.flatten():
