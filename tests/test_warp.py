@@ -4,9 +4,10 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai.config import USE_COMPILED
 from monai.networks.blocks.warp import Warp
 
-TEST_CASES = [
+LOW_POWER_TEST_CASES = [
     [
         {"spatial_dims": 2, "mode": 0, "padding_mode": "zeros"},
         {"image": torch.arange(4).reshape((1, 1, 2, 2)).to(dtype=torch.float), "ddf": torch.zeros(1, 2, 2, 2)},
@@ -17,6 +18,9 @@ TEST_CASES = [
         {"image": torch.arange(4).reshape((1, 1, 2, 2)).to(dtype=torch.float), "ddf": torch.ones(1, 2, 2, 2)},
         torch.tensor([[[[3, 0], [0, 0]]]]),
     ],
+]
+
+HIGH_POWER_TEST_CASES = [
     [
         {"spatial_dims": 3, "mode": 2, "padding_mode": "border"},
         {
@@ -31,6 +35,10 @@ TEST_CASES = [
         torch.tensor([[[[[7, 6], [5, 4]], [[3, 2], [1, 0]]]]]),
     ],
 ]
+
+TEST_CASES = LOW_POWER_TEST_CASES
+if USE_COMPILED:
+    TEST_CASES += HIGH_POWER_TEST_CASES
 
 
 class TestWarp(unittest.TestCase):
