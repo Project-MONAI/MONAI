@@ -25,6 +25,7 @@ try:
 
     has_matplotlib = True
 except ImportError:
+    Axes = None
     has_matplotlib = False
 
 __all__ = ["LearningRateFinder"]
