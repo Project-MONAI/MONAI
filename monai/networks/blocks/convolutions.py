@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -94,6 +94,7 @@ class Convolution(nn.Sequential):
             padding = same_padding(kernel_size, dilation)
         conv_type = Conv[Conv.CONVTRANS if is_transposed else Conv.CONV, dimensions]
 
+        conv: nn.Module
         if is_transposed:
             if output_padding is None:
                 output_padding = stride_minus_kernel_padding(1, strides)

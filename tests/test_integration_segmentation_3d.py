@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -24,6 +24,7 @@ import monai
 from monai.data import NiftiSaver, create_test_image_3d
 from monai.inferers import sliding_window_inference
 from monai.metrics import DiceMetric
+from monai.networks import eval_mode
 from monai.networks.nets import UNet
 from monai.transforms import (
     Activations,
@@ -111,8 +112,8 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0):
     # start a typical PyTorch training
     val_interval = 2
     best_metric, best_metric_epoch = -1, -1
-    epoch_loss_values = list()
-    metric_values = list()
+    epoch_loss_values = []
+    metric_values = []
     writer = SummaryWriter(log_dir=os.path.join(root_dir, "runs"))
     model_filename = os.path.join(root_dir, "best_metric_model.pth")
     for epoch in range(6):
@@ -138,8 +139,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0):
         print(f"epoch {epoch +1} average loss:{epoch_loss:0.4f}")
 
         if (epoch + 1) % val_interval == 0:
-            model.eval()
-            with torch.no_grad():
+            with eval_mode(model):
                 metric_sum = 0.0
                 metric_count = 0
                 val_images = None
@@ -207,8 +207,7 @@ def run_inference_test(root_dir, device="cuda:0"):
 
     model_filename = os.path.join(root_dir, "best_metric_model.pth")
     model.load_state_dict(torch.load(model_filename))
-    model.eval()
-    with torch.no_grad():
+    with eval_mode(model):
         metric_sum = 0.0
         metric_count = 0
         # resampling with align_corners=True or dtype=float64 will generate

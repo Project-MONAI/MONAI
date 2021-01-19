@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -32,7 +32,7 @@ class TestFlip(NumpyImageTestCase2D):
     @parameterized.expand(VALID_CASES)
     def test_correct_results(self, _, spatial_axis):
         flip = Flip(spatial_axis=spatial_axis)
-        expected = list()
+        expected = []
         for channel in self.imt[0]:
             expected.append(np.flip(channel, spatial_axis))
         expected = np.stack(expected)

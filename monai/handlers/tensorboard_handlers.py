@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -174,7 +174,7 @@ class TensorBoardStatsHandler(object):
 
 class TensorBoardImageHandler(object):
     """
-    TensorBoardImageHandler is an Ignite Event handler that can visualise images, labels and outputs as 2D/3D images.
+    TensorBoardImageHandler is an Ignite Event handler that can visualize images, labels and outputs as 2D/3D images.
     2D output (shape in Batch, channel, H, W) will be shown as simple image using the first element in the batch,
     for 3D to ND output (shape in Batch, channel, H, W, D) input, each of ``self.max_channels`` number of images'
     last three dimensions will be shown as animated GIF along the last axis (typically Depth).

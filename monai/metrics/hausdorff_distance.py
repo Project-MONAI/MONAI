@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,7 +15,7 @@ from typing import Optional, Union
 import numpy as np
 import torch
 
-from monai.metrics.utils import *
+from monai.metrics.utils import do_metric_reduction, get_mask_edges, get_surface_distance, ignore_background
 from monai.utils import MetricReduction
 
 __all__ = ["HausdorffDistanceMetric", "compute_hausdorff_distance", "compute_percent_hausdorff_distance"]
@@ -166,7 +166,6 @@ def compute_percent_hausdorff_distance(
     if not percentile:
         return surface_distance.max()
 
-    elif 0 <= percentile <= 100:
+    if 0 <= percentile <= 100:
         return np.percentile(surface_distance, percentile)
-    else:
-        raise ValueError(f"percentile should be a value between 0 and 100, get {percentile}.")
+    raise ValueError(f"percentile should be a value between 0 and 100, get {percentile}.")

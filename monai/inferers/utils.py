@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -82,7 +82,8 @@ def sliding_window_inference(
 
     """
     num_spatial_dims = len(inputs.shape) - 2
-    assert 0 <= overlap < 1, "overlap must be >= 0 and < 1."
+    if overlap < 0 or overlap >= 1:
+        raise AssertionError("overlap must be >= 0 and < 1.")
 
     # determine image spatial size and batch size
     # Note: all input images must have the same image size and batch size
