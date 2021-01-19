@@ -10,10 +10,11 @@
 # limitations under the License.
 
 import csv
+import fcntl
 import os
 from collections import OrderedDict
 from typing import Dict, Optional, Union
-import fcntl
+
 import numpy as np
 import torch
 
