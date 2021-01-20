@@ -32,6 +32,7 @@ set_determinism(seed=RAND_SEED)
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
+@unittest.skipUnless(sys.platform == "linux")
 @unittest.skipUnless(has_pil, "requires PIL")
 class TestLRFinder(unittest.TestCase):
     def setUp(self):
@@ -72,8 +73,7 @@ class TestLRFinder(unittest.TestCase):
         lr_finder = LearningRateFinder(model, optimizer, loss_function, device=device)
         lr_finder.range_test(train_loader, val_loader=train_loader, end_lr=10, num_iter=5)
         print(lr_finder.get_steepest_gradient(0, 0)[0])
-        if sys.platform == "linux":
-            lr_finder.plot(0, 0)  # to inspect the loss-learning rate graph
+        lr_finder.plot(0, 0)  # to inspect the loss-learning rate graph
         lr_finder.reset()  # to reset the model and optimizer to their initial state
 
 
