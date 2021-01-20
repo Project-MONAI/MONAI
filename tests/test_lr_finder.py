@@ -11,6 +11,7 @@
 
 import os
 import random
+import sys
 import unittest
 
 import torch
@@ -59,7 +60,7 @@ class TestLRFinder(unittest.TestCase):
             num_workers=10,
         )
         train_loader = DataLoader(train_ds, batch_size=300, shuffle=True, num_workers=10)
-        num_classes = len({i["label"] for i in train_ds})
+        num_classes = train_ds.get_num_classes()
 
         model = DenseNet(
             spatial_dims=2, in_channels=1, out_channels=num_classes, init_features=2, growth_rate=2, block_config=(2,)
@@ -69,9 +70,10 @@ class TestLRFinder(unittest.TestCase):
         optimizer = torch.optim.Adam(model.parameters(), learning_rate)
 
         lr_finder = LearningRateFinder(model, optimizer, loss_function, device=device)
-        lr_finder.range_test(train_loader, end_lr=10, num_iter=5)
+        lr_finder.range_test(train_loader, val_loader=train_loader, end_lr=10, num_iter=5)
         print(lr_finder.get_steepest_gradient(0, 0)[0])
-        lr_finder.plot(0, 0)  # to inspect the loss-learning rate graph
+        if sys.platform == "linux":
+            lr_finder.plot(0, 0)  # to inspect the loss-learning rate graph
         lr_finder.reset()  # to reset the model and optimizer to their initial state
 
 
