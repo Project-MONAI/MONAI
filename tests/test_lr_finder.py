@@ -32,7 +32,7 @@ set_determinism(seed=RAND_SEED)
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-@unittest.skipUnless(sys.platform == "linux")
+@unittest.skipUnless(sys.platform == "linux", "requires linux")
 @unittest.skipUnless(has_pil, "requires PIL")
 class TestLRFinder(unittest.TestCase):
     def setUp(self):
