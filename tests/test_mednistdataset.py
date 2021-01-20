@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -52,6 +52,7 @@ class TestMedNISTDataset(unittest.TestCase):
 
         # testing from
         data = MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=False)
+        data.get_num_classes()
         _test_dataset(data)
         data = MedNISTDataset(root_dir=testing_dir, section="test", download=False)
         self.assertTupleEqual(data[0]["image"].shape, (64, 64))

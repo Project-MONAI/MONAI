@@ -39,7 +39,7 @@ There is a rich set of transforms in six categories: Crop & Pad, Intensity, IO, 
 ### 2. Medical specific transforms
 MONAI aims at providing a comprehensive medical image specific
 transformations. These currently include, for example:
-- `LoadNifti`:  Load Nifti format file from provided path
+- `LoadImage`:  Load medical specific formats file from provided path
 - `Spacing`:  Resample input image into the specified `pixdim`
 - `Orientation`: Change the image's orientation into the specified `axcodes`
 - `RandGaussianNoise`: Perturb image intensities by adding statistical noises

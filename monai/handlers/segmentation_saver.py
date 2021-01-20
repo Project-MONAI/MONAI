@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -38,7 +38,8 @@ class SegmentationSaver:
         mode: Union[GridSampleMode, InterpolateMode, str] = "nearest",
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         scale: Optional[int] = None,
-        dtype: Optional[np.dtype] = None,
+        dtype: Optional[np.dtype] = np.float64,
+        output_dtype: Optional[np.dtype] = np.float32,
         batch_transform: Callable = lambda x: x,
         output_transform: Callable = lambda x: x,
         name: Optional[str] = None,
@@ -69,8 +70,10 @@ class SegmentationSaver:
             scale: {``255``, ``65535``} postprocess data by clipping to [0, 1] and scaling
                 [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
                 It's used for PNG format only.
-            dtype: convert the image data to save to this data type.
-                If None, keep the original type of data. It's used for Nifti format only.
+            dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+                If None, use the data type of input data. To be compatible with other modules,
+                the output data type is always ``np.float32``, it's used for Nifti format only.
+            output_dtype: data type for saving data. Defaults to ``np.float32``, it's used for Nifti format only.
             batch_transform: a callable that is used to transform the
                 ignite.engine.batch into expected format to extract the meta_data dictionary.
             output_transform: a callable that is used to transform the
@@ -90,6 +93,7 @@ class SegmentationSaver:
                 mode=GridSampleMode(mode),
                 padding_mode=padding_mode,
                 dtype=dtype,
+                output_dtype=output_dtype,
             )
         elif output_ext == ".png":
             self.saver = PNGSaver(

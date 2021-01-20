@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -22,14 +22,38 @@ from .dataset import (
     ZipDataset,
 )
 from .decathlon_datalist import load_decathlon_datalist, load_decathlon_properties
-from .grid_dataset import *
-from .image_reader import *
+from .grid_dataset import GridPatchDataset, PatchDataset
+from .image_dataset import ImageDataset
+from .image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader
 from .iterable_dataset import IterableDataset
-from .nifti_reader import NiftiDataset
 from .nifti_saver import NiftiSaver
 from .nifti_writer import write_nifti
 from .png_saver import PNGSaver
 from .png_writer import write_png
-from .synthetic import *
+from .synthetic import create_test_image_2d, create_test_image_3d
 from .thread_buffer import ThreadBuffer
-from .utils import *
+from .utils import (
+    DistributedSampler,
+    compute_importance_map,
+    compute_shape_offset,
+    correct_nifti_header_if_necessary,
+    create_file_basename,
+    dense_patch_slices,
+    get_random_patch,
+    get_valid_patch_size,
+    is_supported_format,
+    iter_patch,
+    iter_patch_slices,
+    json_hashing,
+    list_data_collate,
+    partition_dataset,
+    partition_dataset_classes,
+    pickle_hashing,
+    rectify_header_sform_qform,
+    select_cross_validation_folds,
+    set_rnd,
+    sorted_dict,
+    to_affine_nd,
+    worker_init_fn,
+    zoom_affine,
+)

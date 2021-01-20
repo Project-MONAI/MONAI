@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -126,6 +126,8 @@ from typing import Callable
 
 from monai.utils import export as _monai_export
 
+__all__ = ["adaptor", "apply_alias", "to_kwargs", "FunctionSignature"]
+
 
 @_monai_export("monai.transforms")
 def adaptor(function, outputs, inputs=None):
@@ -194,7 +196,7 @@ def adaptor(function, outputs, inputs=None):
             if len(ret) != len(outputs):
                 raise ValueError("'outputs' must have the same length as the number of elements that were returned")
 
-            ret = {k: v for k, v in zip(op, ret)}
+            ret = dict(zip(op, ret))
         else:
             must_be_types("outputs", op, (str, list, tuple))
             if isinstance(op, (list, tuple)):

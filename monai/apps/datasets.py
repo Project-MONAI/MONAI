@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -37,9 +37,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
     Args:
         root_dir: target directory to download and load MedNIST dataset.
         section: expected data section, can be: `training`, `validation` or `test`.
-        transform: transforms to execute operations on input data. the default transform is `LoadPNGd`,
-            which can load data into numpy array with [H, W] shape. for further usage, use `AddChanneld`
-            to convert the shape to [C, H, W, D].
+        transform: transforms to execute operations on input data.
         download: whether to download and extract the MedNIST from resource link, default is False.
             if expected file already exists, skip downloading even set it to True.
             user can manually copy `MedNIST.tar.gz` file or `MedNIST` folder to root directory.
@@ -85,6 +83,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
         self.set_random_state(seed=seed)
         tarfile_name = os.path.join(root_dir, self.compressed_file_name)
         dataset_dir = os.path.join(root_dir, self.dataset_folder_name)
+        self.num_class = 0
         if download:
             download_and_extract(self.resource, tarfile_name, root_dir, self.md5)
 
@@ -100,6 +99,10 @@ class MedNISTDataset(Randomizable, CacheDataset):
     def randomize(self, data: Optional[Any] = None) -> None:
         self.rann = self.R.random()
 
+    def get_num_classes(self) -> int:
+        """Get number of classes."""
+        return self.num_class
+
     def _generate_data_list(self, dataset_dir: str) -> List[Dict]:
         """
         Raises:
@@ -107,20 +110,22 @@ class MedNISTDataset(Randomizable, CacheDataset):
 
         """
         class_names = sorted((x for x in os.listdir(dataset_dir) if os.path.isdir(os.path.join(dataset_dir, x))))
-        num_class = len(class_names)
+        self.num_class = len(class_names)
         image_files = [
             [
                 os.path.join(dataset_dir, class_names[i], x)
                 for x in os.listdir(os.path.join(dataset_dir, class_names[i]))
             ]
-            for i in range(num_class)
+            for i in range(self.num_class)
         ]
-        num_each = [len(image_files[i]) for i in range(num_class)]
+        num_each = [len(image_files[i]) for i in range(self.num_class)]
         image_files_list = []
         image_class = []
-        for i in range(num_class):
+        class_name = []
+        for i in range(self.num_class):
             image_files_list.extend(image_files[i])
             image_class.extend([i] * num_each[i])
+            class_name.extend([class_names[i]] * num_each[i])
         num_total = len(image_class)
 
         data = []
@@ -140,7 +145,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
                 raise ValueError(
                     f'Unsupported section: {self.section}, available options are ["training", "validation", "test"].'
                 )
-            data.append({"image": image_files_list[i], "label": image_class[i]})
+            data.append({"image": image_files_list[i], "label": image_class[i], "class_name": class_name[i]})
         return data
 
 
@@ -158,8 +163,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
             "Task03_Liver", "Task04_Hippocampus", "Task05_Prostate", "Task06_Lung", "Task07_Pancreas",
             "Task08_HepaticVessel", "Task09_Spleen", "Task10_Colon").
         section: expected data section, can be: `training`, `validation` or `test`.
-        transform: transforms to execute operations on input data. the default transform is `LoadNiftid`,
-            which can load Nifti format data into numpy array with [H, W, D] or [H, W, D, C] shape.
+        transform: transforms to execute operations on input data.
             for further usage, use `AddChanneld` or `AsChannelFirstd` to convert the shape to [C, H, W, D].
         download: whether to download and extract the Decathlon from resource link, default is False.
             if expected file already exists, skip downloading even set it to True.
@@ -185,7 +189,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
 
         transform = Compose(
             [
-                LoadNiftid(keys=["image", "label"]),
+                LoadImaged(keys=["image", "label"]),
                 AddChanneld(keys=["image", "label"]),
                 ScaleIntensityd(keys="image"),
                 ToTensord(keys=["image", "label"]),
@@ -291,10 +295,9 @@ class DecathlonDataset(Randomizable, CacheDataset):
         """
         if keys is None:
             return self._properties
-        elif self._properties is not None:
+        if self._properties is not None:
             return {key: self._properties[key] for key in ensure_tuple(keys)}
-        else:
-            return {}
+        return {}
 
     def _generate_data_list(self, dataset_dir: str) -> List[Dict]:
         section = "training" if self.section in ["training", "validation"] else "test"
