@@ -1,4 +1,4 @@
-from typing import Optional, Sequence, Tuple, Union
+from typing import Optional, Sequence, Tuple, Type, Union
 
 import torch
 from torch import nn
@@ -6,7 +6,7 @@ from torch.nn import functional as F
 
 from monai.networks.blocks import Convolution
 from monai.networks.layers import same_padding
-from monai.networks.layers.factories import Norm, Pool
+from monai.networks.layers.factories import Conv, Norm, Pool
 
 
 def get_conv_block(
@@ -285,6 +285,7 @@ class LocalNetFeatureExtractorBlock(nn.Module):
         in_channels: int,
         out_channels: int,
         act: Optional[Union[Tuple, str]] = "RELU",
+        initializer: str = "kaiming_uniform",
     ) -> None:
         """
         Args:
@@ -298,6 +299,17 @@ class LocalNetFeatureExtractorBlock(nn.Module):
         self.conv_block = get_conv_block(
             spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels, act=act, norm=None
         )
+        conv_type: Type[Union[nn.Conv1d, nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
+        for m in self.conv_block.modules():
+            if isinstance(m, conv_type):
+                if initializer == "kaiming_uniform":
+                    nn.init.kaiming_normal_(torch.as_tensor(m.weight))
+                elif initializer == "zeros":
+                    nn.init.zeros_(torch.as_tensor(m.weight))
+                else:
+                    raise ValueError(
+                        f"initializer {initializer} is not supported, " "currently supporting kaiming_uniform and zeros"
+                    )
 
     def forward(self, x) -> torch.Tensor:
         """
