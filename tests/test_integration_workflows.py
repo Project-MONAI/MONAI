@@ -25,7 +25,7 @@ from ignite.metrics import Accuracy
 
 import monai
 from monai.data import create_test_image_3d
-from monai.engines import SupervisedEvaluator, SupervisedTrainer, IterationEvents
+from monai.engines import IterationEvents, SupervisedEvaluator, SupervisedTrainer
 from monai.handlers import (
     CheckpointLoader,
     CheckpointSaver,
