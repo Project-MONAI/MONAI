@@ -10,6 +10,7 @@
 # limitations under the License.
 
 from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
+
 import torch
 
 from monai.utils import exact_version, optional_import
@@ -42,7 +43,7 @@ class IterationEvents(EventEnum):
 
     PREDICT_COMPLETED = "predict_completed"
     LOSS_COMPLETED = "loss_completed"
-    BACKWARD_COMPLETED = 'backward_completed'
+    BACKWARD_COMPLETED = "backward_completed"
 
 
 class CommonKeys:

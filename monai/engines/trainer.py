@@ -16,7 +16,7 @@ from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 
 from monai.engines.utils import CommonKeys as Keys
-from monai.engines.utils import IterationEvents, GanKeys, default_make_latent, default_prepare_batch
+from monai.engines.utils import GanKeys, IterationEvents, default_make_latent, default_prepare_batch
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import Transform
