@@ -16,6 +16,12 @@ import torch
 __all__ = ["CommonKeys", "GanKeys", "get_devices_spec", "default_prepare_batch", "default_make_latent"]
 
 
+class IterationEvents:
+    """
+    Addtional Events engine can register and trigger in the iteration process.
+    """
+
+
 class CommonKeys:
     """
     A set of common keys for dictionary based supervised training process.
