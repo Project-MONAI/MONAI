@@ -9,17 +9,40 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, List, Optional, Sequence, Tuple, Union
-
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
 import torch
 
-__all__ = ["CommonKeys", "GanKeys", "get_devices_spec", "default_prepare_batch", "default_make_latent"]
+from monai.utils import exact_version, optional_import
+
+if TYPE_CHECKING:
+    from ignite.engine import EventEnum
+else:
+    EventEnum, _ = optional_import("ignite.engine", "0.4.2", exact_version, "EventEnum")
+
+__all__ = [
+    "IterationEvents",
+    "CommonKeys",
+    "GanKeys",
+    "get_devices_spec",
+    "default_prepare_batch",
+    "default_make_latent",
+]
 
 
-class IterationEvents:
+class IterationEvents(EventEnum):
     """
     Addtional Events engine can register and trigger in the iteration process.
+    Refer to the example in ignite: https://github.com/pytorch/ignite/blob/master/ignite/engine/events.py#L146
+    These Events can be triggered during training iteration:
+    `PREDICT_COMPLETED` is the Event when `network(image, label)` completed.
+    `LOSS_COMPLETED` is the Event when `loss(pred, label)` completed.
+    `BACKWARD_COMPLETED` is the Event when `loss.backward()` completed.
+
     """
+
+    PREDICT_COMPLETED = "predict_completed"
+    LOSS_COMPLETED = "loss_completed"
+    BACKWARD_COMPLETED = 'backward_completed'
 
 
 class CommonKeys:
@@ -42,6 +65,7 @@ class CommonKeys:
 class GanKeys:
     """
     A set of common keys for generative adversarial networks.
+
     """
 
     REALS = "reals"

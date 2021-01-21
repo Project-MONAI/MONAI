@@ -16,7 +16,7 @@ from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 
 from monai.engines.utils import CommonKeys as Keys
-from monai.engines.utils import GanKeys, default_make_latent, default_prepare_batch
+from monai.engines.utils import IterationEvents, GanKeys, default_make_latent, default_prepare_batch
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import Transform
@@ -121,6 +121,10 @@ class SupervisedTrainer(Trainer):
         self.loss_function = loss_function
         self.inferer = SimpleInferer() if inferer is None else inferer
 
+    def _register_additional_events(self):
+        super()._register_additional_events()
+        self.register_events(*IterationEvents)
+
     def _iteration(self, engine: Engine, batchdata: Dict[str, torch.Tensor]):
         """
         Callback function for the Supervised Training processing logic of 1 iteration in Ignite Engine.
@@ -153,14 +157,20 @@ class SupervisedTrainer(Trainer):
         if self.amp and self.scaler is not None:
             with torch.cuda.amp.autocast():
                 predictions = self.inferer(inputs, self.network, *args, **kwargs)
+                engine.fire_event(IterationEvents.PREDICT_COMPLETED)
                 loss = self.loss_function(predictions, targets).mean()
+                engine.fire_event(IterationEvents.LOSS_COMPLETED)
             self.scaler.scale(loss).backward()
+            engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
             self.scaler.step(self.optimizer)
             self.scaler.update()
         else:
             predictions = self.inferer(inputs, self.network, *args, **kwargs)
+            engine.fire_event(IterationEvents.PREDICT_COMPLETED)
             loss = self.loss_function(predictions, targets).mean()
+            engine.fire_event(IterationEvents.LOSS_COMPLETED)
             loss.backward()
+            engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
             self.optimizer.step()
 
         return {Keys.IMAGE: inputs, Keys.LABEL: targets, Keys.PRED: predictions, Keys.LOSS: loss.item()}
