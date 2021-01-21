@@ -17,15 +17,8 @@ TEST_CASE_DOWN_SAMPLE = [
 TEST_CASE_UP_SAMPLE = [[{"spatial_dims": spatial_dims, "in_channels": 4, "out_channels": 2}] for spatial_dims in [2, 3]]
 
 TEST_CASE_EXTRACT = [
-    [
-        {
-            "spatial_dims": spatial_dims,
-            "in_channels": 2,
-            "out_channels": 3,
-            "act": act,
-        }
-    ]
-    for spatial_dims, act in zip([2, 3], ["sigmoid", None])
+    [{"spatial_dims": spatial_dims, "in_channels": 2, "out_channels": 3, "act": act, "initializer": initializer}]
+    for spatial_dims, act, initializer in zip([2, 3], ["sigmoid", None], ["kaiming_uniform", "zeros"])
 ]
 
 in_size = 4
@@ -92,6 +85,10 @@ class TestExtractBlock(unittest.TestCase):
         with eval_mode(net):
             result = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
+
+    def test_ill_arg(self):
+        with self.assertRaises(ValueError):
+            LocalNetFeatureExtractorBlock(spatial_dims=2, in_channels=2, out_channels=2, initializer="none")
 
 
 if __name__ == "__main__":
