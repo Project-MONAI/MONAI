@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,6 +21,7 @@ from torch.utils.data import DataLoader
 import monai
 from monai.apps import download_and_extract
 from monai.metrics import compute_roc_auc
+from monai.networks import eval_mode
 from monai.networks.nets import densenet121
 from monai.transforms import AddChannel, Compose, LoadImage, RandFlip, RandRotate, RandZoom, ScaleIntensity, ToTensor
 from monai.utils import set_determinism
@@ -79,8 +80,8 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
     # start training validation
     best_metric = -1
     best_metric_epoch = -1
-    epoch_loss_values = list()
-    metric_values = list()
+    epoch_loss_values = []
+    metric_values = []
     model_filename = os.path.join(root_dir, "best_metric_model.pth")
     for epoch in range(epoch_num):
         print("-" * 10)
@@ -102,8 +103,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
         print(f"epoch {epoch + 1} average loss:{epoch_loss:0.4f}")
 
         if (epoch + 1) % val_interval == 0:
-            model.eval()
-            with torch.no_grad():
+            with eval_mode(model):
                 y_pred = torch.tensor([], dtype=torch.float32, device=device)
                 y = torch.tensor([], dtype=torch.long, device=device)
                 for val_data in val_loader:
@@ -137,10 +137,9 @@ def run_inference_test(root_dir, test_x, test_y, device="cuda:0", num_workers=10
 
     model_filename = os.path.join(root_dir, "best_metric_model.pth")
     model.load_state_dict(torch.load(model_filename))
-    model.eval()
-    y_true = list()
-    y_pred = list()
-    with torch.no_grad():
+    y_true = []
+    y_pred = []
+    with eval_mode(model):
         for test_data in val_loader:
             test_images, test_labels = test_data[0].to(device), test_data[1].to(device)
             pred = model(test_images).argmax(dim=1)

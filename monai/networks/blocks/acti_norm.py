@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -80,7 +80,7 @@ class ADN(nn.Sequential):
         super().__init__()
 
         op_dict = {"A": None, "D": None, "N": None}
-        # define the normalisation type and the arguments to the constructor
+        # define the normalization type and the arguments to the constructor
         if norm is not None:
             if norm_dim is None and dropout_dim is None:
                 raise ValueError("norm_dim or dropout_dim needs to be specified.")

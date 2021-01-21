@@ -1,5 +1,5 @@
 /*
-Copyright 2020 MONAI Consortium
+Copyright 2020 - 2021 MONAI Consortium
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -12,11 +12,17 @@ limitations under the License.
 */
 
 #include <torch/extension.h>
+
+#include "filtering/filtering.h"
 #include "lltm/lltm.h"
 #include "resample/pushpull.h"
 #include "utils/resample_utils.h"
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+  // filtering
+  m.def("bilateral_filter", &BilateralFilter, "Bilateral Filter");
+  m.def("phl_filter", &PermutohedralFilter, "Permutohedral Filter");
+
   // lltm
   m.def("lltm_forward", &lltm_forward, "LLTM forward");
   m.def("lltm_backward", &lltm_backward, "LLTM backward");

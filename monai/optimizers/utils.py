@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -75,8 +75,8 @@ def generate_param_groups(
 
         return _filter
 
-    params = list()
-    _layers = list()
+    params = []
+    _layers = []
     for func, ty, lr in zip(layer_matches, match_types, lr_values):
         if ty.lower() == "select":
             layer_params = _get_select(func)

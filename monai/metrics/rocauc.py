@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,12 +20,10 @@ from monai.utils import Average
 
 
 def _calculate(y: torch.Tensor, y_pred: torch.Tensor) -> float:
-    assert y.ndimension() == y_pred.ndimension() == 1 and len(y) == len(
-        y_pred
-    ), "y and y_pred must be 1 dimension data with same length."
-    assert y.unique().equal(
-        torch.tensor([0, 1], dtype=y.dtype, device=y.device)
-    ), "y values must be 0 or 1, can not be all 0 or all 1."
+    if not (y.ndimension() == y_pred.ndimension() == 1 and len(y) == len(y_pred)):
+        raise AssertionError("y and y_pred must be 1 dimension data with same length.")
+    if not y.unique().equal(torch.tensor([0, 1], dtype=y.dtype, device=y.device)):
+        raise AssertionError("y values must be 0 or 1, can not be all 0 or all 1.")
     n = len(y)
     indices = y_pred.argsort()
     y = y[indices].cpu().numpy()
@@ -114,33 +112,31 @@ def compute_roc_auc(
         if softmax:
             warnings.warn("y_pred has only one channel, softmax=True ignored.")
         return _calculate(y, y_pred)
-    else:
-        n_classes = y_pred.shape[1]
-        if to_onehot_y:
-            y = one_hot(y, n_classes)
-        if softmax and other_act is not None:
-            raise ValueError("Incompatible values: softmax=True and other_act is not None.")
-        if softmax:
-            y_pred = y_pred.float().softmax(dim=1)
-        if other_act is not None:
-            if not callable(other_act):
-                raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
-            y_pred = other_act(y_pred)
+    n_classes = y_pred.shape[1]
+    if to_onehot_y:
+        y = one_hot(y, n_classes)
+    if softmax and other_act is not None:
+        raise ValueError("Incompatible values: softmax=True and other_act is not None.")
+    if softmax:
+        y_pred = y_pred.float().softmax(dim=1)
+    if other_act is not None:
+        if not callable(other_act):
+            raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
+        y_pred = other_act(y_pred)
 
-        assert y.shape == y_pred.shape, "data shapes of y_pred and y do not match."
+    if y.shape != y_pred.shape:
+        raise AssertionError("data shapes of y_pred and y do not match.")
 
-        average = Average(average)
-        if average == Average.MICRO:
-            return _calculate(y.flatten(), y_pred.flatten())
-        y, y_pred = y.transpose(0, 1), y_pred.transpose(0, 1)
-        auc_values = [_calculate(y_, y_pred_) for y_, y_pred_ in zip(y, y_pred)]
-        if average == Average.NONE:
-            return auc_values
-        if average == Average.MACRO:
-            return np.mean(auc_values)
-        if average == Average.WEIGHTED:
-            weights = [sum(y_) for y_ in y]
-            return np.average(auc_values, weights=weights)
-        raise ValueError(
-            f'Unsupported average: {average}, available options are ["macro", "weighted", "micro", "none"].'
-        )
+    average = Average(average)
+    if average == Average.MICRO:
+        return _calculate(y.flatten(), y_pred.flatten())
+    y, y_pred = y.transpose(0, 1), y_pred.transpose(0, 1)
+    auc_values = [_calculate(y_, y_pred_) for y_, y_pred_ in zip(y, y_pred)]
+    if average == Average.NONE:
+        return auc_values
+    if average == Average.MACRO:
+        return np.mean(auc_values)
+    if average == Average.WEIGHTED:
+        weights = [sum(y_) for y_ in y]
+        return np.average(auc_values, weights=weights)
+    raise ValueError(f'Unsupported average: {average}, available options are ["macro", "weighted", "micro", "none"].')

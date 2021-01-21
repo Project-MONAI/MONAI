@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,6 +14,7 @@ from typing import Callable, Optional, Union
 
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.modules.loss import _Loss
 
@@ -134,9 +135,8 @@ class DiceLoss(_Loss):
                 target = target[:, 1:]
                 input = input[:, 1:]
 
-        assert (
-            target.shape == input.shape
-        ), f"ground truth has differing shape ({target.shape}) from input ({input.shape})"
+        if target.shape != input.shape:
+            raise AssertionError(f"ground truth has differing shape ({target.shape}) from input ({input.shape})")
 
         # reducing only spatial dimensions (not batch nor channels)
         reduce_axis = list(range(2, len(input.shape)))
@@ -191,16 +191,16 @@ class MaskedDiceLoss(DiceLoss):
         """
         if mask is not None:
             # checking if mask is of proper shape
-            assert input.dim() == mask.dim(), f"dim of input ({input.shape}) is different from mask ({mask.shape})"
-            assert (
-                input.shape[0] == mask.shape[0] or mask.shape[0] == 1
-            ), f" batch size of mask ({mask.shape}) must be 1 or equal to input ({input.shape})"
+            if input.dim() != mask.dim():
+                raise AssertionError(f"dim of input ({input.shape}) is different from mask ({mask.shape})")
+            if not (input.shape[0] == mask.shape[0] or mask.shape[0] == 1):
+                raise AssertionError(f" batch size of mask ({mask.shape}) must be 1 or equal to input ({input.shape})")
 
             if target.dim() > 1:
-                assert mask.shape[1] == 1, f"mask ({mask.shape}) must have only 1 channel"
-                assert (
-                    input.shape[2:] == mask.shape[2:]
-                ), f"spatial size of input ({input.shape}) is different from mask ({mask.shape})"
+                if mask.shape[1] != 1:
+                    raise AssertionError(f"mask ({mask.shape}) must have only 1 channel")
+                if input.shape[2:] != mask.shape[2:]:
+                    raise AssertionError(f"spatial size of input ({input.shape}) is different from mask ({mask.shape})")
 
             input = input * mask
             target = target * mask
@@ -321,9 +321,8 @@ class GeneralizedDiceLoss(_Loss):
                 target = target[:, 1:]
                 input = input[:, 1:]
 
-        assert (
-            target.shape == input.shape
-        ), f"ground truth has differing shape ({target.shape}) from input ({input.shape})"
+        if target.shape != input.shape:
+            raise AssertionError(f"ground truth has differing shape ({target.shape}) from input ({input.shape})")
 
         # reducing only spatial dimensions (not batch nor channels)
         reduce_axis = list(range(2, len(input.shape)))
@@ -594,6 +593,113 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         return alpha
 
 
+class DiceCELoss:
+    """
+    Compute both Dice loss and Cross Entropy Loss, and return the sum of these two losses.
+    Input logits `input` (BNHW[D] where N is number of classes) is compared with ground truth `target` (BNHW[D]).
+    Axis N of `input` is expected to have logit predictions for each class rather than being image channels,
+    while the same axis of `target` can be 1 or N (one-hot format). The `smooth_nr` and `smooth_dr` parameters are
+    values added for dice loss part to the intersection and union components of the inter-over-union calculation
+    to smooth results respectively, these values should be small. The `include_background` class attribute can be
+    set to False for an instance of the loss to exclude the first category (channel index 0) which is by convention
+    assumed to be background. If the non-background segmentations are small compared to the total image size they can get
+    overwhelmed by the signal from the background so excluding it in such cases helps convergence.
+    """
+
+    def __init__(
+        self,
+        include_background: bool = True,
+        to_onehot_y: bool = False,
+        sigmoid: bool = False,
+        softmax: bool = False,
+        other_act: Optional[Callable] = None,
+        squared_pred: bool = False,
+        jaccard: bool = False,
+        reduction: str = "mean",
+        smooth_nr: float = 1e-5,
+        smooth_dr: float = 1e-5,
+        batch: bool = False,
+        ce_weight: Optional[torch.Tensor] = None,
+    ) -> None:
+        """
+        Args:
+            ``ce_weight`` is only used for cross entropy loss, ``reduction`` is used for both losses and other
+            parameters are only used for dice loss.
+
+            include_background: if False channel index 0 (background category) is excluded from the calculation.
+            to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
+            sigmoid: if True, apply a sigmoid function to the prediction.
+            softmax: if True, apply a softmax function to the prediction.
+            other_act: if don't want to use `sigmoid` or `softmax`, use other callable function to execute
+                other activation layers, Defaults to ``None``. for example:
+                `other_act = torch.tanh`.
+            squared_pred: use squared versions of targets and predictions in the denominator or not.
+            jaccard: compute Jaccard Index (soft IoU) instead of dice or not.
+            reduction: {``"mean"``, ``"sum"``}
+                Specifies the reduction to apply to the output. Defaults to ``"mean"``. The dice loss should
+                as least reduce the spatial dimensions, which is different from cross entropy loss, thus here
+                the ``none`` option cannot be used.
+
+                - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
+                - ``"sum"``: the output will be summed.
+
+            smooth_nr: a small constant added to the numerator to avoid zero.
+            smooth_dr: a small constant added to the denominator to avoid nan.
+            batch: whether to sum the intersection and union areas over the batch dimension before the dividing.
+                Defaults to False, a Dice loss value is computed independently from each item in the batch
+                before any `reduction`.
+            ce_weight: a rescaling weight given to each class for cross entropy loss.
+                See ``torch.nn.CrossEntropyLoss()`` for more information.
+
+        """
+        super().__init__()
+        self.dice = DiceLoss(
+            include_background=include_background,
+            to_onehot_y=to_onehot_y,
+            sigmoid=sigmoid,
+            softmax=softmax,
+            other_act=other_act,
+            squared_pred=squared_pred,
+            jaccard=jaccard,
+            reduction=reduction,
+            smooth_nr=smooth_nr,
+            smooth_dr=smooth_dr,
+            batch=batch,
+        )
+        self.cross_entropy = nn.CrossEntropyLoss(
+            weight=ce_weight,
+            reduction=reduction,
+        )
+
+    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            input: the shape should be BNH[WD].
+            target: the shape should be BNH[WD] or B1H[WD].
+
+        Raises:
+            ValueError: When number of dimensions for input and target are different.
+            ValueError: When number of channels for target is nither 1 or the same as input.
+
+        """
+        if len(input.shape) != len(target.shape):
+            raise ValueError("the number of dimensions for input and target should be the same.")
+
+        dice_loss = self.dice(input, target)
+
+        n_pred_ch, n_target_ch = input.shape[1], target.shape[1]
+        if n_pred_ch == n_target_ch:
+            # target is in the one-hot format, convert to BH[WD] format to calculate ce loss
+            target = torch.argmax(target, dim=1)
+        else:
+            target = torch.squeeze(target, dim=1)
+        target = target.long()
+        ce_loss = self.cross_entropy(input, target)
+        total_loss: torch.Tensor = dice_loss + ce_loss
+        return total_loss
+
+
 dice = Dice = DiceLoss
+dice_ce = DiceCELoss
 generalized_dice = GeneralizedDiceLoss
 generalized_wasserstein_dice = GeneralizedWassersteinDiceLoss

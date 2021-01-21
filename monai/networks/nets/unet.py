@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,6 +18,8 @@ from monai.networks.blocks.convolutions import Convolution, ResidualUnit
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.simplelayers import SkipConnection
 from monai.utils import alias, export
+
+__all__ = ["UNet", "Unet", "unet"]
 
 
 @export("monai.networks.nets")
@@ -124,17 +126,16 @@ class UNet(nn.Module):
                 norm=self.norm,
                 dropout=self.dropout,
             )
-        else:
-            return Convolution(
-                self.dimensions,
-                in_channels,
-                out_channels,
-                strides=strides,
-                kernel_size=self.kernel_size,
-                act=self.act,
-                norm=self.norm,
-                dropout=self.dropout,
-            )
+        return Convolution(
+            self.dimensions,
+            in_channels,
+            out_channels,
+            strides=strides,
+            kernel_size=self.kernel_size,
+            act=self.act,
+            norm=self.norm,
+            dropout=self.dropout,
+        )
 
     def _get_bottom_layer(self, in_channels: int, out_channels: int) -> nn.Module:
         """

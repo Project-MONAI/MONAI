@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -28,6 +28,7 @@ import numpy as np
 import torch
 import torch.distributed as dist
 
+from monai.config.deviceconfig import USE_COMPILED
 from monai.data import create_test_image_2d, create_test_image_3d
 from monai.utils import ensure_tuple, optional_import, set_determinism
 from monai.utils.module import get_torch_version_tuple
@@ -80,6 +81,13 @@ class SkipIfModule(object):
         return unittest.skipIf(self.module_avail, f"Skipping because optional module present: {self.module_name}")(obj)
 
 
+def skip_if_no_cpp_extention(obj):
+    """
+    Skip the unit tests if the cpp extention isnt available
+    """
+    return unittest.skipIf(not USE_COMPILED, "Skipping cpp extention tests")(obj)
+
+
 def skip_if_no_cuda(obj):
     """
     Skip the unit tests if torch.cuda.is_available is False
@@ -113,7 +121,7 @@ class SkipIfBeforePyTorchVersion(object):
 
 class SkipIfAtLeastPyTorchVersion(object):
     """Decorator to be used if test should be skipped
-    with PyTorch versions older than that given."""
+    with PyTorch versions newer than that given."""
 
     def __init__(self, pytorch_version_tuple):
         self.max_version = pytorch_version_tuple
@@ -399,8 +407,7 @@ class TimedCall:
             if isinstance(res, Exception):  # other errors from obj
                 if hasattr(res, "traceback"):
                     raise RuntimeError(res.traceback) from res
-                else:
-                    raise res
+                raise res
             if timeout_error:  # no force_quit finished
                 raise timeout_error
             return res
