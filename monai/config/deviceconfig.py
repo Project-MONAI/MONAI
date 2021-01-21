@@ -196,10 +196,12 @@ def get_gpu_info() -> OrderedDict:
     _dict_append(output, "Num GPUs", lambda: num_gpus)
 
     _dict_append(output, "Has CUDA", lambda: bool(torch.cuda.is_available()))
+
     if output["Has CUDA"]:
         _dict_append(output, "CUDA version", lambda: torch.version.cuda)
     cudnn_ver = torch.backends.cudnn.version()
     _dict_append(output, "cuDNN enabled", lambda: bool(cudnn_ver))
+
     if cudnn_ver:
         _dict_append(output, "cuDNN version", lambda: cudnn_ver)
 
@@ -207,17 +209,21 @@ def get_gpu_info() -> OrderedDict:
         _dict_append(output, "Current device", torch.cuda.current_device)
         if hasattr(torch.cuda, "get_arch_list"):  # get_arch_list is new in torch 1.7.1
             _dict_append(output, "Library compiled for CUDA architectures", torch.cuda.get_arch_list)
+
     for gpu in range(num_gpus):
-        _dict_append(output, "Info for GPU", gpu)
         gpu_info = torch.cuda.get_device_properties(gpu)
-        _dict_append(output, "\tName", lambda: gpu_info.name)
-        _dict_append(output, "\tIs integrated", lambda: bool(gpu_info.is_integrated))
-        _dict_append(output, "\tIs multi GPU board", lambda: bool(gpu_info.is_multi_gpu_board))
-        _dict_append(output, "\tMulti processor count", lambda: gpu_info.multi_processor_count)
-        _dict_append(output, "\tTotal memory (GB)", lambda: round(gpu_info.total_memory / 1024 ** 3, 1))
-        _dict_append(output, "\tCached memory (GB)", lambda: round(torch.cuda.memory_reserved(gpu) / 1024 ** 3, 1))
-        _dict_append(output, "\tAllocated memory (GB)", lambda: round(torch.cuda.memory_allocated(gpu) / 1024 ** 3, 1))
-        _dict_append(output, "\tCUDA capability (maj.min)", lambda: f"{gpu_info.major}.{gpu_info.minor}")
+        _dict_append(output, f"GPU {gpu} Name", lambda: gpu_info.name)
+        _dict_append(output, f"GPU {gpu} Is integrated", lambda: bool(gpu_info.is_integrated))
+        _dict_append(output, f"GPU {gpu} Is multi GPU board", lambda: bool(gpu_info.is_multi_gpu_board))
+        _dict_append(output, f"GPU {gpu} Multi processor count", lambda: gpu_info.multi_processor_count)
+        _dict_append(output, f"GPU {gpu} Total memory (GB)", lambda: round(gpu_info.total_memory / 1024 ** 3, 1))
+        _dict_append(
+            output, f"GPU {gpu} Cached memory (GB)", lambda: round(torch.cuda.memory_reserved(gpu) / 1024 ** 3, 1)
+        )
+        _dict_append(
+            output, f"GPU {gpu} Allocated memory (GB)", lambda: round(torch.cuda.memory_allocated(gpu) / 1024 ** 3, 1)
+        )
+        _dict_append(output, f"GPU {gpu} CUDA capability (maj.min)", lambda: f"{gpu_info.major}.{gpu_info.minor}")
 
     return output
 
