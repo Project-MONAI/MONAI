@@ -141,6 +141,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         Register the post transforms to the engine, will execute them as a chain when iteration completed.
 
         """
+
         @self.on(Events.ITERATION_COMPLETED)
         def run_post_transform(engine: Engine) -> None:
             if posttrans is None:
@@ -158,9 +159,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         metrics = k_metric
         if add_metrics is not None and len(add_metrics) > 0:
             if not isinstance(add_metrics, dict):
-                raise TypeError(
-                    f"additional metrics must be None or a dict but is {type(add_metrics).__name__}."
-                )
+                raise TypeError(f"additional metrics must be None or a dict but is {type(add_metrics).__name__}.")
             metrics.update(add_metrics)
         for name, metric in metrics.items():
             metric.attach(self, name)
@@ -182,8 +181,6 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         handlers_ = ensure_tuple(handlers)
         for handler in handlers_:
             handler.attach(self)
-
-
 
     def run(self) -> None:
         """
