@@ -371,6 +371,7 @@ class AHNet(nn.Module):
         self.pool_type = pool_type
         self.spatial_dims = spatial_dims
         self.psp_block_num = psp_block_num
+        self.psp = None
 
         if spatial_dims not in [2, 3]:
             raise AssertionError("spatial_dims can only be 2 or 3.")
@@ -510,7 +511,7 @@ class AHNet(nn.Module):
 
         sum4 = self.up3(d3) + conv_x
         d4 = self.dense4(sum4)
-        if self.psp_block_num > 0:
+        if self.psp_block_num > 0 and self.psp is not None:
             psp = self.psp(d4)
             x = torch.cat((psp, d4), dim=1)
         else:
