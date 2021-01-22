@@ -130,9 +130,17 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             self._register_handlers(handlers)
 
     def _register_additional_events(self):
+        """
+        Register more ignite Events to the engine.
+
+        """
         pass
 
     def _register_post_transforms(self, posttrans):
+        """
+        Register the post transforms to the engine, will execute them as a chain when iteration completed.
+
+        """
         @self.on(Events.ITERATION_COMPLETED)
         def run_post_transform(engine: Engine) -> None:
             if posttrans is None:
@@ -140,23 +148,22 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             engine.state.output = apply_transform(posttrans, engine.state.output)
 
     def _register_metrics(self, k_metric, add_metrics):
+        """
+        Register the key metric and additional metrics to the engine, supports ignite Metrics.
+
+        """
         if not isinstance(k_metric, dict):
-            raise TypeError(f"key_metric must be None or a dict but is {type(key_metric).__name__}.")
+            raise TypeError(f"key_metric must be None or a dict but is {type(k_metric).__name__}.")
         self.state.key_metric_name = list(k_metric.keys())[0]
         metrics = k_metric
         if add_metrics is not None and len(add_metrics) > 0:
             if not isinstance(add_metrics, dict):
                 raise TypeError(
-                    f"additional_metrics must be None or a dict but is {type(additional_metrics).__name__}."
+                    f"additional metrics must be None or a dict but is {type(add_metrics).__name__}."
                 )
             metrics.update(add_metrics)
         for name, metric in metrics.items():
             metric.attach(self, name)
-
-    def _register_handlers(self, handlers):
-        handlers_ = ensure_tuple(handlers)
-        for handler in handlers_:
-            handler.attach(self)
 
         @self.on(Events.EPOCH_COMPLETED)
         def _compare_metrics(engine: Engine) -> None:
@@ -166,6 +173,17 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
                     self.logger.info(f"Got new best metric of {engine.state.key_metric_name}: {current_val_metric}")
                     engine.state.best_metric = current_val_metric
                     engine.state.best_metric_epoch = engine.state.epoch
+
+    def _register_handlers(self, handlers):
+        """
+        Register the handlers to the engine, supports ignite Handlers with `attach` API.
+
+        """
+        handlers_ = ensure_tuple(handlers)
+        for handler in handlers_:
+            handler.attach(self)
+
+
 
     def run(self) -> None:
         """

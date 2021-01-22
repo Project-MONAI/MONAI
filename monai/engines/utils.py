@@ -35,15 +35,16 @@ class IterationEvents(EventEnum):
     Addtional Events engine can register and trigger in the iteration process.
     Refer to the example in ignite: https://github.com/pytorch/ignite/blob/master/ignite/engine/events.py#L146
     These Events can be triggered during training iteration:
-    `PREDICT_COMPLETED` is the Event when `network(image, label)` completed.
+    `FORWARD_COMPLETED` is the Event when `network(image, label)` completed.
     `LOSS_COMPLETED` is the Event when `loss(pred, label)` completed.
     `BACKWARD_COMPLETED` is the Event when `loss.backward()` completed.
 
     """
 
-    PREDICT_COMPLETED = "predict_completed"
+    FORWARD_COMPLETED = "forward_completed"
     LOSS_COMPLETED = "loss_completed"
     BACKWARD_COMPLETED = "backward_completed"
+    OPTIMIZER_COMPLETED = "optimizer_completed"
 
 
 class CommonKeys:

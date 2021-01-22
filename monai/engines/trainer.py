@@ -151,29 +151,32 @@ class SupervisedTrainer(Trainer):
             kwargs: Dict = {}
         else:
             inputs, targets, args, kwargs = batch
+        # put iteration outputs into engine.state
+        engine.state.output = output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
+
+        def _compute_pred_loss():
+            output[Keys.PRED] = self.inferer(inputs, self.network, *args, **kwargs)
+            engine.fire_event(IterationEvents.FORWARD_COMPLETED)
+            output[Keys.LOSS] = self.loss_function(output[Keys.PRED], targets).mean()
+            engine.fire_event(IterationEvents.LOSS_COMPLETED)
 
         self.network.train()
         self.optimizer.zero_grad()
         if self.amp and self.scaler is not None:
             with torch.cuda.amp.autocast():
-                predictions = self.inferer(inputs, self.network, *args, **kwargs)
-                engine.fire_event(IterationEvents.PREDICT_COMPLETED)
-                loss = self.loss_function(predictions, targets).mean()
-                engine.fire_event(IterationEvents.LOSS_COMPLETED)
-            self.scaler.scale(loss).backward()
+                _compute_pred_loss()
+            self.scaler.scale(output[Keys.LOSS]).backward()
             engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
             self.scaler.step(self.optimizer)
             self.scaler.update()
         else:
-            predictions = self.inferer(inputs, self.network, *args, **kwargs)
-            engine.fire_event(IterationEvents.PREDICT_COMPLETED)
-            loss = self.loss_function(predictions, targets).mean()
-            engine.fire_event(IterationEvents.LOSS_COMPLETED)
-            loss.backward()
+            _compute_pred_loss()
+            output[Keys.LOSS].backward()
             engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
             self.optimizer.step()
+        engine.fire_event(IterationEvents.OPTIMIZER_COMPLETED)
 
-        return {Keys.IMAGE: inputs, Keys.LABEL: targets, Keys.PRED: predictions, Keys.LOSS: loss.item()}
+        return output
 
 
 class GanTrainer(Trainer):
