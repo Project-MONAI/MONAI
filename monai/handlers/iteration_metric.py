@@ -75,9 +75,14 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
             NotComputableError: When ``compute`` is called before an ``update`` occurs.
 
         """
-        _scores = torch.cat(self._scores, dim=0)
-
         ws = idist.get_world_size()
+        if ws > 1 and not self._is_reduced:
+            # make sure the _scores is evenly-divisible on multi-GPUs
+            length = len(self._scores)
+            for _ in range(length, max(idist.all_gather(length)).item()):
+                self._scores.append(self._scores[0].new_full(self._scores[0].shape, float("NaN")))
+
+        _scores = torch.cat(self._scores, dim=0)
 
         if ws > 1 and not self._is_reduced:
             # all gather across all processes
