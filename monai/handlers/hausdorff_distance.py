@@ -13,9 +13,9 @@ from typing import Callable, Optional
 
 import torch
 
+from monai.handlers.iteration_metric import IterationMetric
 from monai.metrics import HausdorffDistanceMetric
 from monai.utils import MetricReduction
-from monai.handlers.iteration_metric import IterationMetric
 
 
 class HausdorffDistance(IterationMetric):

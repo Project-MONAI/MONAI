@@ -13,9 +13,9 @@ from typing import Callable, Optional
 
 import torch
 
+from monai.handlers.iteration_metric import IterationMetric
 from monai.metrics import ConfusionMatrixMetric, compute_confusion_matrix_metric
 from monai.metrics.utils import MetricReduction, do_metric_reduction
-from monai.handlers.iteration_metric import IterationMetric
 
 
 class ConfusionMatrix(IterationMetric):

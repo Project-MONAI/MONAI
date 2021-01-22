@@ -13,8 +13,8 @@ from typing import Callable, Optional, Sequence
 
 import torch
 
-from monai.utils import MetricReduction, exact_version, optional_import
 from monai.metrics import do_metric_reduction
+from monai.utils import MetricReduction, exact_version, optional_import
 
 NotComputableError, _ = optional_import("ignite.exceptions", "0.4.2", exact_version, "NotComputableError")
 idist, _ = optional_import("ignite", "0.4.2", exact_version, "distributed")
