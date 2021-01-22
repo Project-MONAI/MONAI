@@ -2,6 +2,7 @@ import copy
 import os
 from functools import partial
 from typing import Any, Callable, Dict, Optional, Tuple, Type, Union
+import warnings
 
 import numpy as np
 import torch
@@ -12,20 +13,10 @@ from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader
 
 from monai.networks.utils import eval_mode
-from monai.utils import copy_to_device
+from monai.utils import copy_to_device, optional_import
 
-try:
-    import tqdm
-
-    has_tqdm = True
-except ImportError:
-    has_tqdm = False
-try:
-    import matplotlib.pyplot as plt
-
-    has_matplotlib = True
-except ImportError:
-    has_matplotlib = False
+plt, has_matplotlib = optional_import("matplotlib.pyplot")
+tqdm, has_tqdm = optional_import("tqdm")
 
 __all__ = ["LearningRateFinder"]
 
@@ -490,10 +481,12 @@ class LearningRateFinder(object):
             steepest_lr: plot the learning rate which had the steepest gradient.
 
         Returns:
-            The matplotlib.axes.Axes object that contains the plot
+            The `matplotlib.axes.Axes` object that contains the plot. Returns `None` if
+            `matplotlib` is not installed.
         """
         if not has_matplotlib:
-            raise RuntimeError("Matplotlib is missing, can't plot result")
+            warnings.warn("Matplotlib is missing, can't plot result")
+            return None
 
         lrs, losses = self.get_lrs_and_losses(skip_start, skip_end)
 
@@ -597,12 +590,12 @@ class StateCacher(object):
 
         if self.in_memory:
             return self.cached.get(key)
-        else:
-            fn = self.cached.get(key)  # pytype: disable=attribute-error
-            if not os.path.exists(fn):  # pytype: disable=wrong-arg-types
-                raise RuntimeError(f"Failed to load state in {fn}. File doesn't exist anymore.")
-            state_dict = torch.load(fn, map_location=lambda storage, location: storage)
-            return state_dict
+
+        fn = self.cached.get(key)  # pytype: disable=attribute-error
+        if not os.path.exists(fn):  # pytype: disable=wrong-arg-types
+            raise RuntimeError(f"Failed to load state in {fn}. File doesn't exist anymore.")
+        state_dict = torch.load(fn, map_location=lambda storage, location: storage)
+        return state_dict
 
     def __del__(self):
         """If necessary, delete any cached files existing in `cache_dir`."""
