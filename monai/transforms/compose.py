@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -55,7 +55,7 @@ class Transform(ABC):
         - ``data`` is a Numpy ndarray, PyTorch Tensor or string
         - the data shape can be:
 
-          #. string data without shape, `LoadNifti` and `LoadPNG` transforms expect file paths
+          #. string data without shape, `LoadImage` transform expects file paths
           #. most of the pre-processing transforms expect: ``(num_channels, spatial_dim_1[, spatial_dim_2, ...])``,
              except that `AddChannel` expects (spatial_dim_1[, spatial_dim_2, ...]) and
              `AsChannelFirst` expects (spatial_dim_1[, spatial_dim_2, ...], num_channels)
@@ -194,7 +194,7 @@ class Compose(Randomizable, Transform):
         set of functions must be called as if it were a sequence.
 
         Example: images and labels
-        Images typically require some kind of normalisation that labels do not.
+        Images typically require some kind of normalization that labels do not.
         Both are then typically augmented through the use of random rotations,
         flips, and deformations.
         Compose can be used with a series of transforms that take a dictionary
@@ -282,7 +282,7 @@ class MapTransform(Transform):
         - ``data[key]`` is a Numpy ndarray, PyTorch Tensor or string, where ``key`` is an element
           of ``self.keys``, the data shape can be:
 
-          #. string data without shape, `LoadNiftid` and `LoadPNGd` transforms expect file paths
+          #. string data without shape, `LoadImaged` transform expects file paths
           #. most of the pre-processing transforms expect: ``(num_channels, spatial_dim_1[, spatial_dim_2, ...])``,
              except that `AddChanneld` expects (spatial_dim_1[, spatial_dim_2, ...]) and
              `AsChannelFirstd` expects (spatial_dim_1[, spatial_dim_2, ...], num_channels)

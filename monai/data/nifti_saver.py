@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -37,6 +37,7 @@ class NiftiSaver:
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
         dtype: Optional[np.dtype] = np.float64,
+        output_dtype: Optional[np.dtype] = np.float32,
     ) -> None:
         """
         Args:
@@ -57,6 +58,7 @@ class NiftiSaver:
             dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
+            output_dtype: data type for saving data. Defaults to ``np.float32``.
         """
         self.output_dir = output_dir
         self.output_postfix = output_postfix
@@ -66,6 +68,7 @@ class NiftiSaver:
         self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.align_corners = align_corners
         self.dtype = dtype
+        self.output_dtype = output_dtype
         self._data_index = 0
 
     def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
@@ -118,6 +121,7 @@ class NiftiSaver:
             padding_mode=self.padding_mode,
             align_corners=self.align_corners,
             dtype=self.dtype,
+            output_dtype=self.output_dtype,
         )
 
     def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:

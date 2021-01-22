@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -38,7 +38,8 @@ try:
     BUILD_CUDA = (torch.cuda.is_available() and (CUDA_HOME is not None)) or FORCE_CUDA
 
     _pt_version = pkg_resources.parse_version(torch.__version__).release  # type: ignore[attr-defined]
-    assert _pt_version is not None and len(_pt_version) >= 3, "unknown torch version"
+    if _pt_version is None or len(_pt_version) < 3:
+        raise AssertionError("unknown torch version")
     TORCH_VERSION = int(_pt_version[0]) * 10000 + int(_pt_version[1]) * 100 + int(_pt_version[2])
 except (ImportError, TypeError, AssertionError, AttributeError) as e:
     TORCH_VERSION = 0
@@ -62,9 +63,9 @@ def torch_parallel_backend():
         backend = match.group("backend")
         if backend == "OpenMP":
             return "AT_PARALLEL_OPENMP"
-        elif backend == "native thread pool":
+        if backend == "native thread pool":
             return "AT_PARALLEL_NATIVE"
-        elif backend == "native thread pool and TBB":
+        if backend == "native thread pool and TBB":
             return "AT_PARALLEL_NATIVE_TBB"
     except (NameError, AttributeError):  # no torch or no binaries
         warnings.warn("Could not determine torch parallel_info.")

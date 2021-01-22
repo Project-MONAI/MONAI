@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -38,6 +38,46 @@ from monai.transforms.utils import (
     weighted_patch_samples,
 )
 from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
+
+__all__ = [
+    "NumpyPadModeSequence",
+    "SpatialPadd",
+    "BorderPadd",
+    "DivisiblePadd",
+    "SpatialCropd",
+    "CenterSpatialCropd",
+    "RandSpatialCropd",
+    "RandSpatialCropSamplesd",
+    "CropForegroundd",
+    "RandWeightedCropd",
+    "RandCropByPosNegLabeld",
+    "ResizeWithPadOrCropd",
+    "BoundingRectd",
+    "SpatialPadD",
+    "SpatialPadDict",
+    "BorderPadD",
+    "BorderPadDict",
+    "DivisiblePadD",
+    "DivisiblePadDict",
+    "SpatialCropD",
+    "SpatialCropDict",
+    "CenterSpatialCropD",
+    "CenterSpatialCropDict",
+    "RandSpatialCropD",
+    "RandSpatialCropDict",
+    "RandSpatialCropSamplesD",
+    "RandSpatialCropSamplesDict",
+    "CropForegroundD",
+    "CropForegroundDict",
+    "RandWeightedCropD",
+    "RandWeightedCropDict",
+    "RandCropByPosNegLabelD",
+    "RandCropByPosNegLabelDict",
+    "ResizeWithPadOrCropD",
+    "ResizeWithPadOrCropDict",
+    "BoundingRectD",
+    "BoundingRectDict",
+]
 
 NumpyPadModeSequence = Union[Sequence[Union[NumpyPadMode, str]], NumpyPadMode, str]
 
@@ -261,7 +301,8 @@ class RandSpatialCropd(Randomizable, MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         self.randomize(d[self.keys[0]].shape[1:])  # image shape from the first data key
-        assert self._size is not None
+        if self._size is None:
+            raise AssertionError
         for key in self.keys:
             if self.random_center:
                 d[key] = d[key][self._slices]
@@ -422,7 +463,7 @@ class RandWeightedCropd(Randomizable, MapTransform):
         self.randomize(d[self.w_key])
         _spatial_size = fall_back_tuple(self.spatial_size, d[self.w_key].shape[1:])
 
-        results: List[Dict[Hashable, np.ndarray]] = [dict() for _ in range(self.num_samples)]
+        results: List[Dict[Hashable, np.ndarray]] = [{} for _ in range(self.num_samples)]
         for key in data.keys():
             if key in self.keys:
                 img = d[key]
@@ -533,9 +574,11 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         bg_indices = d.get(self.bg_indices_key, None) if self.bg_indices_key is not None else None
 
         self.randomize(label, fg_indices, bg_indices, image)
-        assert isinstance(self.spatial_size, tuple)
-        assert self.centers is not None
-        results: List[Dict[Hashable, np.ndarray]] = [dict() for _ in range(self.num_samples)]
+        if not isinstance(self.spatial_size, tuple):
+            raise AssertionError
+        if self.centers is None:
+            raise AssertionError
+        results: List[Dict[Hashable, np.ndarray]] = [{} for _ in range(self.num_samples)]
         for key in data.keys():
             if key in self.keys:
                 img = d[key]
