@@ -13,7 +13,7 @@ from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
 from monai.networks.utils import eval_mode
-from monai.utils import copy_to_device, optional_import
+from monai.utils import copy_to_device, optional_import, StateCacher
 from monai.optimizers.lr_scheduler import ExponentialLR, LinearLR
 
 plt, has_matplotlib = optional_import("matplotlib.pyplot")
@@ -524,46 +524,3 @@ class LearningRateFinder(object):
             plt.show()
 
         return ax
-
-
-class StateCacher(object):
-    def __init__(self, in_memory: bool, cache_dir: Optional[str] = None) -> None:
-        self.in_memory = in_memory
-        self.cache_dir = cache_dir
-
-        if self.cache_dir is None:
-            self.cache_dir = tempfile.gettempdir()
-        else:
-            if not os.path.isdir(self.cache_dir):
-                raise ValueError("Given `cache_dir` is not a valid directory.")
-
-        self.cached: Dict[str, str] = {}
-
-    def store(self, key, state_dict):
-        if self.in_memory:
-            self.cached.update({key: copy.deepcopy(state_dict)})
-        else:
-            fn = os.path.join(self.cache_dir, f"state_{key}_{id(self)}.pt")
-            self.cached.update({key: fn})
-            torch.save(state_dict, fn)
-
-    def retrieve(self, key):
-        if key not in self.cached:
-            raise KeyError(f"Target {key} was not cached.")
-
-        if self.in_memory:
-            return self.cached.get(key)
-
-        fn = self.cached.get(key)  # pytype: disable=attribute-error
-        if not os.path.exists(fn):  # pytype: disable=wrong-arg-types
-            raise RuntimeError(f"Failed to load state in {fn}. File doesn't exist anymore.")
-        state_dict = torch.load(fn, map_location=lambda storage, location: storage)
-        return state_dict
-
-    def __del__(self):
-        """If necessary, delete any cached files existing in `cache_dir`."""
-        if self.in_memory:
-            return
-        for k in self.cached:
-            if os.path.exists(self.cached[k]):
-                os.remove(self.cached[k])
