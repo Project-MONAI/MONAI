@@ -6,6 +6,8 @@ __all__ = ["LinearLR", "ExponentialLR"]
 
 
 class _LRSchedulerMONAI(_LRScheduler):
+    """Base class for increasing the learning rate between two boundaries over a number
+    of iterations"""
     def __init__(self, optimizer: Optimizer, end_lr: float, num_iter: int, last_epoch: int = -1) -> None:
         """
         Args:
