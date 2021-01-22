@@ -1,6 +1,7 @@
 import copy
 import os
 from functools import partial
+import tempfile
 from typing import Any, Callable, Dict, Optional, Tuple, Type, Union
 import warnings
 
@@ -531,8 +532,6 @@ class StateCacher(object):
         self.cache_dir = cache_dir
 
         if self.cache_dir is None:
-            import tempfile
-
             self.cache_dir = tempfile.gettempdir()
         else:
             if not os.path.isdir(self.cache_dir):
