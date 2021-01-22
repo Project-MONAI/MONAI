@@ -32,6 +32,7 @@ from .enums import (
 )
 from .misc import (
     MAX_SEED,
+    copy_to_device,
     dtype_numpy_to_torch,
     dtype_torch_to_numpy,
     ensure_tuple,

@@ -12,6 +12,7 @@ from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader
 
 from monai.networks.utils import eval_mode
+from monai.utils import copy_to_device
 
 try:
     import tqdm
@@ -378,7 +379,7 @@ class LearningRateFinder(object):
         self.optimizer.zero_grad()
         for i in range(accumulation_steps):
             inputs, labels = next(train_iter)
-            inputs, labels = self._move_to_device(inputs, labels, non_blocking=non_blocking_transfer)
+            inputs, labels = copy_to_device([inputs, labels], device=self.device, non_blocking=non_blocking_transfer)
 
             # Forward pass
             outputs = self.model(inputs)
@@ -404,32 +405,15 @@ class LearningRateFinder(object):
 
         return total_loss
 
-    def _move_to_device(
-        self, inputs: torch.Tensor, labels: torch.Tensor, non_blocking: bool = True
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        def move(obj, device, non_blocking=True):
-            if hasattr(obj, "to"):
-                return obj.to(device, non_blocking=non_blocking)
-            elif isinstance(obj, tuple):
-                return tuple(move(o, device, non_blocking) for o in obj)
-            elif isinstance(obj, list):
-                return [move(o, device, non_blocking) for o in obj]
-            elif isinstance(obj, dict):
-                return {k: move(o, device, non_blocking) for k, o in obj.items()}
-            else:
-                return obj
-
-        inputs = move(inputs, self.device, non_blocking=non_blocking)
-        labels = move(labels, self.device, non_blocking=non_blocking)
-        return inputs, labels
-
     def _validate(self, val_iter: ValDataLoaderIter, non_blocking_transfer: bool = True) -> float:
         # Set model to evaluation mode and disable gradient computation
         running_loss = 0
         with eval_mode(self.model):
             for inputs, labels in val_iter:
-                # Move data to the correct device
-                inputs, labels = self._move_to_device(inputs, labels, non_blocking=non_blocking_transfer)
+                # Copy data to the correct device
+                inputs, labels = copy_to_device(
+                    [inputs, labels], device=self.device, non_blocking=non_blocking_transfer
+                )
 
                 # Forward pass and loss computation
                 outputs = self.model(inputs)
