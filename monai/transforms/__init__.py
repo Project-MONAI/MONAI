@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from .adaptors import FunctionSignature, adaptor, apply_alias, to_kwargs
-from .compose import Compose, MapTransform, Randomizable, Transform
+from .compose import Compose, MapTransform, Randomizable
 from .croppad.array import (
     BorderPad,
     BoundingRect,
@@ -234,6 +234,7 @@ from .spatial.dictionary import (
     ZoomD,
     ZoomDict,
 )
+from .transform import Transform
 from .utility.array import (
     AddChannel,
     AddExtremePointsChannel,

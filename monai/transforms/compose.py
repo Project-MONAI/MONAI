@@ -19,58 +19,11 @@ from typing import Any, Callable, Hashable, Optional, Sequence, Tuple, Union
 import numpy as np
 
 from monai.config import KeysCollection
+from monai.transforms.transform import Transform
 from monai.transforms.utils import apply_transform
 from monai.utils import MAX_SEED, ensure_tuple, get_seed
 
-__all__ = ["Transform", "Randomizable", "Compose", "MapTransform"]
-
-
-class Transform(ABC):
-    """
-    An abstract class of a ``Transform``.
-    A transform is callable that processes ``data``.
-
-    It could be stateful and may modify ``data`` in place,
-    the implementation should be aware of:
-
-        #. thread safety when mutating its own states.
-           When used from a multi-process context, transform's instance variables are read-only.
-        #. ``data`` content unused by this transform may still be used in the
-           subsequent transforms in a composed transform.
-        #. storing too much information in ``data`` may not scale.
-
-    See Also
-
-        :py:class:`monai.transforms.Compose`
-    """
-
-    @abstractmethod
-    def __call__(self, data: Any):
-        """
-        ``data`` is an element which often comes from an iteration over an
-        iterable, such as :py:class:`torch.utils.data.Dataset`. This method should
-        return an updated version of ``data``.
-        To simplify the input validations, most of the transforms assume that
-
-        - ``data`` is a Numpy ndarray, PyTorch Tensor or string
-        - the data shape can be:
-
-          #. string data without shape, `LoadImage` transform expects file paths
-          #. most of the pre-processing transforms expect: ``(num_channels, spatial_dim_1[, spatial_dim_2, ...])``,
-             except that `AddChannel` expects (spatial_dim_1[, spatial_dim_2, ...]) and
-             `AsChannelFirst` expects (spatial_dim_1[, spatial_dim_2, ...], num_channels)
-          #. most of the post-processing transforms expect
-             ``(batch_size, num_channels, spatial_dim_1[, spatial_dim_2, ...])``
-
-        - the channel dimension is not omitted even if number of channels is one
-
-        This method can optionally take additional arguments to help execute transformation operation.
-
-        Raises:
-            NotImplementedError: When the subclass does not override this method.
-
-        """
-        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+__all__ = ["Randomizable", "Compose", "MapTransform"]
 
 
 class Randomizable(ABC):
