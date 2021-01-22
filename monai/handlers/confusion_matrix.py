@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 import torch
 
@@ -57,6 +57,6 @@ class ConfusionMatrix(IterationMetric):
         self.metric_name = metric_name
         super().__init__(metric_fn=metric_fn, output_transform=output_transform, device=device)
 
-    def _reduce(self, scores) -> torch.Tensor:
+    def _reduce(self, scores) -> Any:
         confusion_matrix, _ = do_metric_reduction(scores, MetricReduction.MEAN)
         return compute_confusion_matrix_metric(self.metric_name, confusion_matrix)

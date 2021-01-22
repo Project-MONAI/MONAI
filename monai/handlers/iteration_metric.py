@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Sequence
+from typing import Any, Callable, List, Optional, Sequence
 
 import torch
 
@@ -42,9 +42,10 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
         output_transform: Callable = lambda x: x,
         device: Optional[torch.device] = None,
     ) -> None:
-        super().__init__(output_transform, device=device)
+        self._is_reduced: bool = False
         self.metric_fn = metric_fn
-        self._scores = []
+        self._scores: List = []
+        super().__init__(output_transform, device=device)
 
     @reinit__is_reduced
     def reset(self) -> None:
@@ -68,7 +69,7 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
             score = score[0]
         self._scores.append(score)
 
-    def compute(self) -> None:
+    def compute(self) -> float:
         """
         Raises:
             NotComputableError: When ``compute`` is called before an ``update`` occurs.
@@ -83,7 +84,7 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
             _scores = idist.all_gather(_scores)
         self._is_reduced = True
 
-        result = 0.0
+        result: float = 0.0
         if idist.get_rank() == 0:
             # run compute_fn on zero rank only
             result = self._reduce(_scores)
@@ -94,5 +95,5 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
 
         return result
 
-    def _reduce(self, scores) -> torch.Tensor:
+    def _reduce(self, scores) -> Any:
         return do_metric_reduction(scores, MetricReduction.MEAN)[0].item()
