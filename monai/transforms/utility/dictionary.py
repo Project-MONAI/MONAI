@@ -29,7 +29,7 @@ from monai.transforms.utility.array import (
     AsChannelFirst,
     AsChannelLast,
     CastToType,
-    ConvertToMultiChannelBasedOnBratsClasses,
+    ConvertToMultiChannelBasedOnBratsClasses, CopyToDevice,
     DataStats,
     FgBgToIndices,
     Identity,
@@ -109,6 +109,9 @@ __all__ = [
     "TorchVisiond",
     "TorchVisionD",
     "TorchVisionDict",
+    "CopyToDeviceD",
+    "CopyToDeviceDict",
+    "CopyToDeviced",
 ]
 
 
@@ -801,6 +804,26 @@ class TorchVisiond(MapTransform):
         return d
 
 
+class CopyToDeviced(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.CopyToDevice`.
+    """
+
+    def __init__(self,
+        keys: KeysCollection,
+        device: Optional[Union[str, torch.device]],
+        non_blocking: bool = True,
+        verbose: bool = False,
+    ) -> None:
+        super().__init__(keys)
+        self.converter = CopyToDevice(device, non_blocking, verbose)
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.converter(d[key])
+        return d
+
 IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
@@ -823,3 +846,4 @@ ConvertToMultiChannelBasedOnBratsClassesD = (
 ) = ConvertToMultiChannelBasedOnBratsClassesd
 AddExtremePointsChannelD = AddExtremePointsChannelDict = AddExtremePointsChanneld
 TorchVisionD = TorchVisionDict = TorchVisiond
+CopyToDeviceD = CopyToDeviceDict = CopyToDeviced

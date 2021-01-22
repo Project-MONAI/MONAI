@@ -254,6 +254,7 @@ from .utility.array import (
     TorchVision,
     ToTensor,
     Transpose,
+    CopyToDevice,
 )
 from .utility.dictionary import (
     AddChanneld,
@@ -316,6 +317,9 @@ from .utility.dictionary import (
     ToTensord,
     ToTensorD,
     ToTensorDict,
+    CopyToDeviced,
+    CopyToDeviceD,
+    CopyToDeviceDict,
 )
 from .utils import (
     apply_transform,

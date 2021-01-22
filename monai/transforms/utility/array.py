@@ -22,7 +22,7 @@ import torch
 
 from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points, map_binary_to_indices
-from monai.utils import ensure_tuple, min_version, optional_import
+from monai.utils import ensure_tuple, min_version, optional_import, copy_to_device
 
 __all__ = [
     "Identity",
@@ -44,6 +44,7 @@ __all__ = [
     "ConvertToMultiChannelBasedOnBratsClasses",
     "AddExtremePointsChannel",
     "TorchVision",
+    "CopyToDevice",
 ]
 
 # Generic type which can represent either a numpy.ndarray or a torch.Tensor
@@ -671,3 +672,28 @@ class TorchVision:
 
         """
         return self.trans(img)
+
+
+class CopyToDevice(Transform):
+    """
+    Copy to ``device`` where possible.
+    """
+    def __init__(
+        self,
+        device: Optional[Union[str, torch.device]],
+        non_blocking: bool = True,
+        verbose: bool = False,
+    ) -> None:
+        self.device = device
+        self.non_blocking = non_blocking
+        self.verbose = verbose
+
+    def __call__(
+        self,
+        img: Union[torch.Tensor, np.ndarray],
+    ) -> np.ndarray:
+        """
+        Args:
+            img: the image to be moved to ``device``.
+        """
+        return copy_to_device(img, self.device, self.non_blocking, self.verbose)
