@@ -14,7 +14,7 @@ class StateCacher(object):
     Objects can either be stored in memory or on disk. If stored on disk, they can be
     stored in a given directory, or alternatively a temporary location will be used.
 
-    If necessary, restored objects will be returned to their original device.
+    If necessary/possible, restored objects will be returned to their original device.
 
     Example:
 
