@@ -81,7 +81,7 @@ class TestHandlerConfusionMatrix(unittest.TestCase):
         y = data_2["y"]
         metric.update([y_pred, y])
 
-        avg_metric = metric.compute().item()
+        avg_metric = metric.compute()
         self.assertAlmostEqual(avg_metric, expected_avg, places=4)
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])

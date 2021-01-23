@@ -99,7 +99,7 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
             # broadcast result to all processes
             result = idist.broadcast(result, src=0)
 
-        return result
+        return result.item() if torch.is_tensor(result) else result
 
     def _reduce(self, scores) -> Any:
-        return do_metric_reduction(scores, MetricReduction.MEAN)[0].item()
+        return do_metric_reduction(scores, MetricReduction.MEAN)[0]
