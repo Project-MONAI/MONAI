@@ -69,7 +69,7 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
             score = score[0]
         self._scores.append(score)
 
-    def compute(self) -> float:
+    def compute(self) -> Any:
         """
         Raises:
             NotComputableError: When ``compute`` is called before an ``update`` occurs.
@@ -90,7 +90,7 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
             _scores = idist.all_gather(_scores)
         self._is_reduced = True
 
-        result: float = 0.0
+        result: torch.Tensor = torch.zeros(1)
         if idist.get_rank() == 0:
             # run compute_fn on zero rank only
             result = self._reduce(_scores)
