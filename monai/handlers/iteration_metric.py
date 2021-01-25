@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence, Union
 
 import torch
 
@@ -20,6 +20,14 @@ NotComputableError, _ = optional_import("ignite.exceptions", "0.4.2", exact_vers
 idist, _ = optional_import("ignite", "0.4.2", exact_version, "distributed")
 Metric, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "Metric")
 reinit__is_reduced, _ = optional_import("ignite.metrics.metric", "0.4.2", exact_version, "reinit__is_reduced")
+if TYPE_CHECKING:
+    from ignite.engine import Engine
+    from ignite.metrics import MetricUsage
+    from ignite.metrics import EpochWise
+else:
+    Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
+    MetricUsage, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "MetricUsage")
+    EpochWise, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "EpochWise")
 
 
 class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to optional_import
@@ -35,7 +43,6 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
         device: device specification in case of distributed computation usage.
 
     """
-
     def __init__(
         self,
         metric_fn: Callable,
@@ -103,3 +110,18 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
 
     def _reduce(self, scores) -> Any:
         return do_metric_reduction(scores, MetricReduction.MEAN)[0]
+
+    def attach(self, engine: Engine, name: str, usage: Union[str, MetricUsage] = EpochWise()) -> None:
+        """
+        Attaches current metric to provided engine. On the end of engine's run,
+        `engine.state.metrics` dictionary will contain computed metric's value under provided name.
+
+        Args:
+            engine: the engine to which the metric must be attached.
+            name: the name of the metric to attach
+            usage: the usage of the metric.
+
+        """
+        # FIXME: record engine for communication, ignite will support it in the future version soon
+        self.engine = engine
+        super().attach(engine=engine, name=name, usage=usage)
