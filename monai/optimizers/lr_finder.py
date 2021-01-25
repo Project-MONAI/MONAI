@@ -1,9 +1,6 @@
-import copy
-import os
-from functools import partial
-import tempfile
-from typing import Any, Callable, Dict, Optional, Tuple, Type, Union
 import warnings
+from functools import partial
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Type, Union
 
 import numpy as np
 import torch
@@ -13,11 +10,19 @@ from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
 from monai.networks.utils import eval_mode
-from monai.utils import copy_to_device, optional_import, StateCacher
 from monai.optimizers.lr_scheduler import ExponentialLR, LinearLR
+from monai.utils import StateCacher, copy_to_device, optional_import
 
-plt, has_matplotlib = optional_import("matplotlib.pyplot")
-tqdm, has_tqdm = optional_import("tqdm")
+if TYPE_CHECKING:
+    import matplotlib.pyplot as plt
+
+    has_matplotlib = True
+    import tqdm
+
+    has_tqdm = True
+else:
+    plt, has_matplotlib = optional_import("matplotlib.pyplot")
+    tqdm, has_tqdm = optional_import("tqdm")
 
 __all__ = ["LearningRateFinder"]
 

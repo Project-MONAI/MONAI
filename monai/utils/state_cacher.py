@@ -1,8 +1,8 @@
 import copy
 import os
-
 import tempfile
 from typing import Dict, Optional
+
 import torch
 
 __all__ = ["StateCacher"]
@@ -22,6 +22,7 @@ class StateCacher(object):
     >>> state_cacher.store("model", model.state_dict())
     >>> model.load_state_dict(state_cacher.retrieve("model"))
     """
+
     def __init__(
         self,
         in_memory: bool,

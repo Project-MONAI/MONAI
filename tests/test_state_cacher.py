@@ -9,12 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from os.path import join, exists
-from parameterized import parameterized
-from tempfile import gettempdir
 import unittest
+from os.path import exists, join
+from tempfile import gettempdir
 
 import torch
+from parameterized import parameterized
 
 from monai.utils import StateCacher
 
@@ -34,6 +34,7 @@ TEST_CASE_2 = [
 ]
 
 TEST_CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2]
+
 
 class TestStateCacher(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
@@ -59,9 +60,8 @@ class TestStateCacher(unittest.TestCase):
         # If using a cache dir, check file has been deleted et end
         if "cache_dir" in params:
             i = id(state_cacher)
-            del(state_cacher)
+            del state_cacher
             self.assertFalse(exists(join(params["cache_dir"], f"state_{key}_{i}.pt")))
-
 
 
 if __name__ == "__main__":
