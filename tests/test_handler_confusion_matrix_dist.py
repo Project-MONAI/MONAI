@@ -22,16 +22,12 @@ from tests.utils import DistCall, DistTestCase
 
 class DistributedConfusionMatrix(DistTestCase):
     @DistCall(nnodes=1, nproc_per_node=2)
-    def test_compute_sample(self):
-        self._compute(True)
-
-    @DistCall(nnodes=1, nproc_per_node=2)
     def test_compute(self):
-        self._compute(False)
+        self._compute()
 
-    def _compute(self, compute_sample=True):
+    def _compute(self):
         device = f"cuda:{dist.get_rank()}" if torch.cuda.is_available() else "cpu"
-        metric = ConfusionMatrix(include_background=True, metric_name="tpr", compute_sample=compute_sample)
+        metric = ConfusionMatrix(include_background=True, metric_name="tpr")
 
         if dist.get_rank() == 0:
             y_pred = torch.tensor(
@@ -62,11 +58,7 @@ class DistributedConfusionMatrix(DistTestCase):
             metric.update([y_pred, y])
 
         avg_metric = metric.compute()
-        if compute_sample is False:
-            avg_metric = avg_metric.item()
-            np.testing.assert_allclose(avg_metric, 0.7, rtol=1e-04, atol=1e-04)
-        else:
-            np.testing.assert_allclose(avg_metric, 0.8333, rtol=1e-04, atol=1e-04)
+        np.testing.assert_allclose(avg_metric, 0.7, rtol=1e-04, atol=1e-04)
 
 
 if __name__ == "__main__":
