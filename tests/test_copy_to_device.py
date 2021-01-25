@@ -10,13 +10,13 @@
 # limitations under the License.
 
 import unittest
+from unittest.case import skipUnless
 
 import numpy as np
 import torch
 from parameterized import parameterized
 
 from monai.utils import copy_to_device
-from tests.utils import skip_if_no_cuda
 
 TEST_CASE_TENSOR = [
     torch.Tensor([1.0]).to("cuda:0"),
@@ -50,7 +50,7 @@ TEST_CASE_DICT = [
 TEST_CASES = [TEST_CASE_TENSOR, TEST_CASE_LIST, TEST_CASE_TUPLE, TEST_CASE_MIXED_LIST, TEST_CASE_DICT]
 
 
-@skip_if_no_cuda
+@skipUnless(torch.cuda.is_available(), "torch required to be built with CUDA.")
 class TestCopyToDevice(unittest.TestCase):
     def _check_on_device(self, obj, device):
         if hasattr(obj, "device"):
