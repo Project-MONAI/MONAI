@@ -12,7 +12,7 @@
 import unittest
 
 import torch
-from ignite.engine import Engine, Events
+from ignite.engine import Engine
 from parameterized import parameterized
 
 from monai.handlers import MeanDice

@@ -12,7 +12,6 @@
 from typing import TYPE_CHECKING, Any, Callable
 
 import torch
-import torch.distributed as dist
 
 from monai.utils import exact_version, optional_import
 
