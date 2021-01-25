@@ -12,6 +12,7 @@
 from typing import TYPE_CHECKING, Sequence, Optional, Callable, Union
 import os
 import torch
+import numpy as np
 
 from monai.utils import exact_version, optional_import, ensure_tuple
 from monai.utils.module import get_torch_version_tuple
@@ -98,7 +99,7 @@ class MetricsSaver:
                 with open(os.path.join(self.save_dir, "metrics.csv"), "w") as f:
                     for k, v in engine.state.metrics.items():
                         if k in self.metrics or "*" in self.metrics:
-                            f.write(k + "\t" + str(v) + "\n")
+                            f.write(f"f{k}\t{str(v)}\n")
 
         if self.metric_details is not None and hasattr(engine.state, "metric_details") \
                 and len(engine.state.metric_details) > 0:
@@ -116,14 +117,18 @@ class MetricsSaver:
                 _filenames = _filenames.split("\t")
                 for k, v in engine.state.metric_details.items():
                     if k in self.metric_details or "*" in self.metric_details:
-                        nans = torch.isnan(v)
-                        not_nans = (~nans).float()
-                        average = list()
+                        v = v.cpu().numpy()
+                        v = np.concatenate([v, np.nanmean(v, axis=1, keepdims=True)], axis=1)
                         with open(os.path.join(self.save_dir, k + "_raw.csv"), "w") as f:
-                            classes = "\t".join(["class" + str(i) for i in range(v.shape[1])])
-                            f.write("filename\t" + classes + "\taverage\n")
+                            labels = "\t".join(["class" + str(i) for i in range(v.shape[1] - 1)]) + "\taverage"
+                            f.write(f"filename\t{labels}\n")
                             for i, image in enumerate(v):
-                                ave = image.nansum() / not_nans[i].sum()
-                                average.append(ave)
                                 classes = "\t".join([str(i.item()) for i in image])
-                                f.write(_filenames[i] + "\t" + classes + "\t" + str(ave.item()) + "\n")
+                                f.write(f"{_filenames[i]}\t{classes}\n")
+
+                        if self.compute_summary:
+                            labels = labels.split("\t")
+                            with open(os.path.join(self.save_dir, k + "_summary.csv"), "w") as f:
+                                f.write("class\tmean\tmedian\tmax\tmin\t90percent\tstd\n")
+                                for i, d in enumerate(v.transpose()):
+                                    f.write(f"{labels[i]}\t{np.nanmean(d):.4f}\t{np.nanmedian(d):.4f}\t{np.nanmax(d):.4f}\t{np.nanmin(d):.4f}\t{np.nanpercentile(d, 10):.4f}\t{np.nanstd(d):.4f}\n")     
