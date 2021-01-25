@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - master
-      - 1501-ci-cd
   pull_request:
 
 jobs:
