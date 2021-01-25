@@ -13,21 +13,19 @@ import unittest
 
 import numpy as np
 from parameterized import parameterized
-from tests.utils import skip_if_no_cuda
 
 from monai.data import Dataset
 from monai.transforms import Compose, CopyToDeviced, ToTensord
+from tests.utils import skip_if_no_cuda
 
-DEVICE="cuda:0"
+DEVICE = "cuda:0"
 
 TEST_CASE_0 = [
-    Compose([
-        ToTensord(keys=["image", "label", "other"]),
-        CopyToDeviced(keys=["image", "label"], device=DEVICE)
-    ]),
+    Compose([ToTensord(keys=["image", "label", "other"]), CopyToDeviced(keys=["image", "label"], device=DEVICE)]),
     DEVICE,
     "cpu",
 ]
+
 
 @skip_if_no_cuda
 class TestDictCopyToDevice(unittest.TestCase):
@@ -35,11 +33,14 @@ class TestDictCopyToDevice(unittest.TestCase):
     def test_dict_copy_to_device(self, transform, modified_device, unmodified_device):
 
         numel = 2
-        test_data = [{
-            "image": np.zeros((3,3,3)),
-            "label": np.zeros((3,3,3)),
-            "other": np.zeros((3,3,3)),
-        } for _ in range(numel)]
+        test_data = [
+            {
+                "image": np.zeros((3, 3, 3)),
+                "label": np.zeros((3, 3, 3)),
+                "other": np.zeros((3, 3, 3)),
+            }
+            for _ in range(numel)
+        ]
 
         dataset = Dataset(data=test_data, transform=transform)
         self.assertEqual(len(dataset), 2)
@@ -47,7 +48,6 @@ class TestDictCopyToDevice(unittest.TestCase):
             self.assertTrue(str(data["image"].device) == modified_device)
             self.assertTrue(str(data["label"].device) == modified_device)
             self.assertTrue(str(data["other"].device) == unmodified_device)
-
 
 
 if __name__ == "__main__":

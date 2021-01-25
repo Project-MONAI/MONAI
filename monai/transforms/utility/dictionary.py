@@ -29,7 +29,8 @@ from monai.transforms.utility.array import (
     AsChannelFirst,
     AsChannelLast,
     CastToType,
-    ConvertToMultiChannelBasedOnBratsClasses, CopyToDevice,
+    ConvertToMultiChannelBasedOnBratsClasses,
+    CopyToDevice,
     DataStats,
     FgBgToIndices,
     Identity,
@@ -809,7 +810,8 @@ class CopyToDeviced(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.CopyToDevice`.
     """
 
-    def __init__(self,
+    def __init__(
+        self,
         keys: KeysCollection,
         device: Optional[Union[str, torch.device]],
         non_blocking: bool = True,
@@ -823,6 +825,7 @@ class CopyToDeviced(MapTransform):
         for key in self.keys:
             d[key] = self.converter(d[key])
         return d
+
 
 IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd

@@ -13,12 +13,12 @@ import unittest
 
 import numpy as np
 from parameterized import parameterized
-from tests.utils import skip_if_no_cuda
 
 from monai.data import ArrayDataset
 from monai.transforms import Compose, CopyToDevice, ToTensor
+from tests.utils import skip_if_no_cuda
 
-DEVICE="cuda:0"
+DEVICE = "cuda:0"
 
 TEST_CASE_0 = [
     Compose([ToTensor(), CopyToDevice(device=DEVICE)]),
@@ -27,13 +27,14 @@ TEST_CASE_0 = [
     "cpu",
 ]
 
+
 @skip_if_no_cuda
 class TestArrayCopyToDevice(unittest.TestCase):
     @parameterized.expand([TEST_CASE_0])
     def test_array_copy_to_device(self, img_transform, label_transform, img_device, label_device):
         numel = 2
-        test_imgs = [np.zeros((3,3,3)) for _ in range(numel)]
-        test_segs = [np.zeros((3,3,3)) for _ in range(numel)]
+        test_imgs = [np.zeros((3, 3, 3)) for _ in range(numel)]
+        test_segs = [np.zeros((3, 3, 3)) for _ in range(numel)]
 
         test_labels = [1, 1]
         dataset = ArrayDataset(test_imgs, img_transform, test_segs, label_transform, test_labels, None)
@@ -42,7 +43,6 @@ class TestArrayCopyToDevice(unittest.TestCase):
             im, seg = data[0], data[1]
             self.assertTrue(str(im.device) == img_device)
             self.assertTrue(str(seg.device) == label_device)
-
 
 
 if __name__ == "__main__":

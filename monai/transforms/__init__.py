@@ -241,6 +241,7 @@ from .utility.array import (
     AsChannelLast,
     CastToType,
     ConvertToMultiChannelBasedOnBratsClasses,
+    CopyToDevice,
     DataStats,
     FgBgToIndices,
     Identity,
@@ -254,7 +255,6 @@ from .utility.array import (
     TorchVision,
     ToTensor,
     Transpose,
-    CopyToDevice,
 )
 from .utility.dictionary import (
     AddChanneld,
@@ -281,6 +281,9 @@ from .utility.dictionary import (
     CopyItemsd,
     CopyItemsD,
     CopyItemsDict,
+    CopyToDeviced,
+    CopyToDeviceD,
+    CopyToDeviceDict,
     DataStatsd,
     DataStatsD,
     DataStatsDict,
@@ -317,9 +320,6 @@ from .utility.dictionary import (
     ToTensord,
     ToTensorD,
     ToTensorDict,
-    CopyToDeviced,
-    CopyToDeviceD,
-    CopyToDeviceDict,
 )
 from .utils import (
     apply_transform,
