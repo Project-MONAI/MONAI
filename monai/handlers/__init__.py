@@ -18,6 +18,7 @@ from .iteration_metric import IterationMetric
 from .lr_schedule_handler import LrScheduleHandler
 from .mean_dice import MeanDice
 from .metric_logger import MetricLogger
+from .metrics_saver import MetricsSaver
 from .roc_auc import ROCAUC
 from .segmentation_saver import SegmentationSaver
 from .smartcache_handler import SmartCacheHandler
