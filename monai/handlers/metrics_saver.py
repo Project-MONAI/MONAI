@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import os
-from typing import TYPE_CHECKING, Callable, Optional, Sequence, List, Union
+from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Union
 
 import numpy as np
 
