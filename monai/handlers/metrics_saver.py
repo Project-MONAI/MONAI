@@ -35,7 +35,7 @@ class MetricsSaver:
             list of strings - specify the expected metrics to save.
         metric_details: expected metric details to save into files, for example: mean dice
             of every channel of every image in the validation dataset.
-            the data in `engine.state.details` must contain 2 dims: (batch, channel).
+            the data in `engine.state.details` must contain 2 dims: (batch, classes).
             it can be: None, "*" or list of strings.
             None - don't save any metrics into files.
             "*" - save all the existing metrics in `engine.state.metric_details` dict into separate files.
@@ -94,6 +94,7 @@ class MetricsSaver:
 
         if self.metrics is not None and len(engine.state.metrics) > 0:
             if idist.get_rank() == self.save_rank:
+                # only save metrics to file in specified rank
                 with open(os.path.join(self.save_dir, "metrics.csv"), "w") as f:
                     for k, v in engine.state.metrics.items():
                         if k in self.metrics or "*" in self.metrics:
@@ -115,9 +116,14 @@ class MetricsSaver:
                 _filenames = _filenames.split("\t")
                 for k, v in engine.state.metric_details.items():
                     if k in self.metric_details or "*" in self.metric_details:
-                        with open(os.path.join(self.save_dir, k + ".csv"), "w") as f:
-                            channels = "\t".join(["channel" + str(i) for i in range(v.shape[1])])
-                            f.write("filename" + "\t" + channels + "\n")
+                        nans = torch.isnan(v)
+                        not_nans = (~nans).float()
+                        average = list()
+                        with open(os.path.join(self.save_dir, k + "_raw.csv"), "w") as f:
+                            classes = "\t".join(["class" + str(i) for i in range(v.shape[1])])
+                            f.write("filename\t" + classes + "\taverage\n")
                             for i, image in enumerate(v):
-                                channels = "\t".join([str(i.item()) for i in image])
-                                f.write(_filenames[i] + "\t" + channels + "\n")
+                                ave = image.nansum() / not_nans[i].sum()
+                                average.append(ave)
+                                classes = "\t".join([str(i.item()) for i in image])
+                                f.write(_filenames[i] + "\t" + classes + "\t" + str(ave.item()) + "\n")
