@@ -18,8 +18,10 @@ from parameterized import parameterized
 from monai.utils import copy_to_device
 from tests.utils import skip_if_no_cuda
 
+DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu:0"
+
 TEST_CASE_TENSOR = [
-    torch.Tensor([1.0]).to("cuda:0"),
+    torch.Tensor([1.0]).to(DEVICE),
     "cuda:0",
     "cpu",
 ]
