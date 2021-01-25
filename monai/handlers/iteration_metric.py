@@ -15,6 +15,7 @@ import torch
 
 from monai.metrics import do_metric_reduction
 from monai.utils import MetricReduction, exact_version, optional_import
+from monai.handlers.utils import evenly_divisible_all_gather
 
 NotComputableError, _ = optional_import("ignite.exceptions", "0.4.2", exact_version, "NotComputableError")
 idist, _ = optional_import("ignite", "0.4.2", exact_version, "distributed")
@@ -90,15 +91,8 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
 
         ws = idist.get_world_size()
         if ws > 1 and not self._is_reduced:
-            # make sure the _scores is evenly-divisible on multi-GPUs
-            length = _scores.shape[0]
-            max_len = max(idist.all_gather(length)).item()
-            if length < max_len:
-                size = [max_len - length] + list(_scores.shape[1:])
-                _scores = torch.cat([_scores, _scores.new_full(size, float("NaN"))], dim=0)
-
             # all gather across all processes
-            _scores = idist.all_gather(_scores)
+            _scores = evenly_divisible_all_gather(data=_scores, pad_dim=0)
         self._is_reduced = True
 
         # save score of every image into engine.state for other components
@@ -134,5 +128,5 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
         # FIXME: record engine for communication, ignite will support it in the future version soon
         self.engine = engine
         self.name = name
-        if self.save_details and getattr(engine.state, "metric_details", None) is None:
+        if self.save_details and not hasattr(engine.state, "metric_details"):
             setattr(engine.state, "metric_details", dict())

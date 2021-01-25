@@ -24,5 +24,5 @@ from .smartcache_handler import SmartCacheHandler
 from .stats_handler import StatsHandler
 from .surface_distance import SurfaceDistance
 from .tensorboard_handlers import TensorBoardImageHandler, TensorBoardStatsHandler
-from .utils import all_gather, stopping_fn_from_loss, stopping_fn_from_metric
+from .utils import evenly_divisible_all_gather, stopping_fn_from_loss, stopping_fn_from_metric
 from .validation_handler import ValidationHandler
