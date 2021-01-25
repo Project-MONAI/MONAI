@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - 1501-ci-cd
   pull_request:
 
 jobs:
@@ -184,6 +185,10 @@ jobs:
       options: --gpus all
     runs-on: [self-hosted, linux, x64, common]
     steps:
+    - name: Cancel Previous Self-hosted Runs
+      uses: styfle/cancel-workflow-action@0.7.0
+      with:
+        access_token: ${{ github.token }}
     - uses: actions/checkout@v2
     - name: apt install
       run: |
