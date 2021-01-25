@@ -9,13 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Sequence, Optional, Callable, Union
 import os
-import torch
-import numpy as np
+from typing import TYPE_CHECKING, Callable, Optional, Sequence, Union
 
-from monai.utils import exact_version, optional_import, ensure_tuple
+import numpy as np
+import torch
+
+from monai.utils import ensure_tuple, exact_version, optional_import
 from monai.utils.module import get_torch_version_tuple
+
 Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
 idist, _ = optional_import("ignite", "0.4.2", exact_version, "distributed")
 if TYPE_CHECKING:
@@ -101,8 +103,11 @@ class MetricsSaver:
                         if k in self.metrics or "*" in self.metrics:
                             f.write(f"f{k}\t{str(v)}\n")
 
-        if self.metric_details is not None and hasattr(engine.state, "metric_details") \
-                and len(engine.state.metric_details) > 0:
+        if (
+            self.metric_details is not None
+            and hasattr(engine.state, "metric_details")
+            and len(engine.state.metric_details) > 0
+        ):
             _filenames = "\t".join(self._filenames)
 
             if ws > 1:
@@ -131,4 +136,6 @@ class MetricsSaver:
                             with open(os.path.join(self.save_dir, k + "_summary.csv"), "w") as f:
                                 f.write("class\tmean\tmedian\tmax\tmin\t90percent\tstd\n")
                                 for i, d in enumerate(v.transpose()):
-                                    f.write(f"{labels[i]}\t{np.nanmean(d):.4f}\t{np.nanmedian(d):.4f}\t{np.nanmax(d):.4f}\t{np.nanmin(d):.4f}\t{np.nanpercentile(d, 10):.4f}\t{np.nanstd(d):.4f}\n")     
+                                    f.write(
+                                        f"{labels[i]}\t{np.nanmean(d):.4f}\t{np.nanmedian(d):.4f}\t{np.nanmax(d):.4f}\t{np.nanmin(d):.4f}\t{np.nanpercentile(d, 10):.4f}\t{np.nanstd(d):.4f}\n"
+                                    )

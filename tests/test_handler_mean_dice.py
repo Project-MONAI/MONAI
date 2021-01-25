@@ -12,8 +12,9 @@
 import unittest
 
 import torch
-from parameterized import parameterized
 from ignite.engine import Engine, Events
+from parameterized import parameterized
+
 from monai.handlers import MeanDice
 
 TEST_CASE_1 = [{"include_background": True, "save_details": True}, 0.75]
@@ -27,6 +28,7 @@ class TestHandlerMeanDice(unittest.TestCase):
     def test_compute(self, input_params, expected_avg):
         dice_metric = MeanDice(**input_params)
         # set up engine
+
         def _val_func(engine, batch):
             pass
 

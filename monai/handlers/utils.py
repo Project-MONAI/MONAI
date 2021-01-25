@@ -15,6 +15,7 @@ import torch
 import torch.distributed as dist
 
 from monai.utils import exact_version, optional_import
+
 idist, _ = optional_import("ignite", "0.4.2", exact_version, "distributed")
 if TYPE_CHECKING:
     from ignite.engine import Engine
@@ -67,4 +68,4 @@ def evenly_divisible_all_gather(data: torch.Tensor, pad_dim: int = 0):
     # all gather across all processes
     data = idist.all_gather(data)
     # delete the padding NaN items
-    return torch.cat([data[i * max_len: i * max_len + l, ...] for i, l in enumerate(all_lens)], dim=0)
+    return torch.cat([data[i * max_len : i * max_len + l, ...] for i, l in enumerate(all_lens)], dim=0)

@@ -13,9 +13,9 @@ from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence, Union
 
 import torch
 
+from monai.handlers.utils import evenly_divisible_all_gather
 from monai.metrics import do_metric_reduction
 from monai.utils import MetricReduction, exact_version, optional_import
-from monai.handlers.utils import evenly_divisible_all_gather
 
 NotComputableError, _ = optional_import("ignite.exceptions", "0.4.2", exact_version, "NotComputableError")
 idist, _ = optional_import("ignite", "0.4.2", exact_version, "distributed")
@@ -23,8 +23,7 @@ Metric, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "Metric")
 reinit__is_reduced, _ = optional_import("ignite.metrics.metric", "0.4.2", exact_version, "reinit__is_reduced")
 if TYPE_CHECKING:
     from ignite.engine import Engine
-    from ignite.metrics import MetricUsage
-    from ignite.metrics import EpochWise
+    from ignite.metrics import EpochWise, MetricUsage
 else:
     Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
     MetricUsage, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "MetricUsage")
@@ -46,6 +45,7 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
             if True, will save to `engine.state.metric_details` dict with the metric name as key.
 
     """
+
     def __init__(
         self,
         metric_fn: Callable,
