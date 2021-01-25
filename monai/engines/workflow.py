@@ -110,6 +110,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             output=None,
             batch=None,
             metrics={},
+            metric_details={},
             dataloader=None,
             device=device,
             key_metric_name=None,  # we can set many metrics, only use key_metric to compare and save the best model

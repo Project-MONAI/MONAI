@@ -41,6 +41,8 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
             expect to return a Tensor with shape (batch, channel, ...) or tuple (Tensor, not_nans).
         output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
         device: device specification in case of distributed computation usage.
+        save_details: whether to save metric computation details per image, for example: mean_dice of every image.
+            if True, will save to `engine.state.metric_details` dict with the metric name as key.
 
     """
     def __init__(
@@ -48,9 +50,11 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
         metric_fn: Callable,
         output_transform: Callable = lambda x: x,
         device: Optional[torch.device] = None,
+        save_details: bool = False,
     ) -> None:
         self._is_reduced: bool = False
         self.metric_fn = metric_fn
+        self.save_details = save_details
         self._scores: List = []
         super().__init__(output_transform, device=device)
 
@@ -97,6 +101,10 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
             _scores = idist.all_gather(_scores)
         self._is_reduced = True
 
+        # save score of every image into engine.state for other components
+        if self.save_details:
+            self.engine.state.metric_details[self.name] = _scores
+
         result: torch.Tensor = torch.zeros(1)
         if idist.get_rank() == 0:
             # run compute_fn on zero rank only
@@ -122,6 +130,9 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
             usage: the usage of the metric.
 
         """
+        super().attach(engine=engine, name=name, usage=usage)
         # FIXME: record engine for communication, ignite will support it in the future version soon
         self.engine = engine
-        super().attach(engine=engine, name=name, usage=usage)
+        self.name = name
+        if self.save_details and getattr(engine.state, "metric_details", None) is None:
+            setattr(engine.state, "metric_details", dict())

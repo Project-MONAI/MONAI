@@ -32,12 +32,12 @@ class MetricsSaver:
         self,
         save_dir: str,
         metrics: Union[Optional, str, Sequence[str]] = None,
-        metrics_details: Union[Optional, str, Sequence[str]] = None,
+        metric_details: Union[Optional, str, Sequence[str]] = None,
         batch_transform: Callable = lambda x: x,
     ) -> None:
         self.save_dir = save_dir
         self.metrics = metrics
-        self.metrics_details = metrics_details
+        self.metric_details = metric_details
         self.batch_transform = batch_transform
 
     def attach(self, engine: Engine) -> None:
