@@ -125,6 +125,68 @@ def default_label_extractor(x: Any) -> torch.Tensor:
     return out
 
 
+def default_train_valid_loss_iter(
+    train_iter,
+    val_iter,
+    model,
+    optimizer,
+    criterion,
+    accumulation_steps,
+    device,
+    non_blocking_transfer,
+    amp,
+) -> float:
+
+    model.train()
+    total_loss = 0
+
+    optimizer.zero_grad()
+    for i in range(accumulation_steps):
+        inputs, labels = next(train_iter)
+        inputs, labels = copy_to_device([inputs, labels], device=device, non_blocking=non_blocking_transfer)
+
+        # Forward pass
+        outputs = model(inputs)
+        loss = criterion(outputs, labels)
+
+        # Loss should be averaged in each step
+        loss /= accumulation_steps
+
+        # Backward pass
+        if amp and hasattr(optimizer, "_amp_stash"):
+            # For minor performance optimization, see also:
+            # https://nvidia.github.io/apex/advanced.html#gradient-accumulation-across-iterations
+            delay_unscale = ((i + 1) % accumulation_steps) != 0
+
+            with torch.cuda.amp.scale_loss(loss, optimizer, delay_unscale=delay_unscale) as scaled_loss:  # type: ignore
+                scaled_loss.backward()
+        else:
+            loss.backward()
+
+        total_loss += loss.item()
+
+    optimizer.step()
+
+    if not val_iter:
+        return total_loss
+
+    # Set model to evaluation mode and disable gradient computation
+    running_loss = 0
+    with eval_mode(model):
+        for inputs, labels in val_iter:
+            # Copy data to the correct device
+            inputs, labels = copy_to_device(
+                [inputs, labels], device=device, non_blocking=non_blocking_transfer
+            )
+
+            # Forward pass and loss computation
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            running_loss += loss.item() * len(labels)
+
+    return running_loss / len(val_iter.dataset)
+
+
 class LearningRateFinder:
     """Learning rate range test.
 
@@ -229,6 +291,7 @@ class LearningRateFinder:
         self,
         train_loader: DataLoader,
         val_loader: Optional[DataLoader] = None,
+        train_valid_loss_iter = default_train_valid_loss_iter,
         image_extractor: Callable = default_image_extractor,
         label_extractor: Callable = default_label_extractor,
         start_lr: Optional[float] = None,
@@ -302,8 +365,24 @@ class LearningRateFinder:
 
         # Create an iterator to get data batch by batch
         train_iter = TrainDataLoaderIter(train_loader, image_extractor, label_extractor)
+        val_iter: Optional[ValDataLoaderIter]
         if val_loader:
             val_iter = ValDataLoaderIter(val_loader, image_extractor, label_extractor)
+        else:
+            val_iter = None
+
+        # If using the default train/valid/loss loop, then need to fix a few params
+        if train_valid_loss_iter == default_train_valid_loss_iter:
+            train_valid_loss_iter = partial(
+                default_train_valid_loss_iter,
+                model = self.model,
+                optimizer = self.optimizer,
+                criterion = self.criterion,
+                accumulation_steps = accumulation_steps,
+                device = self.device,
+                non_blocking_transfer = non_blocking_transfer,
+                amp = self.amp,
+            )
 
         trange: Union[partial[tqdm.trange], Type[range]]
         if self.verbose and has_tqdm:
@@ -317,14 +396,7 @@ class LearningRateFinder:
             if self.verbose and not has_tqdm:
                 print(f"Computing optimal learning rate, iteration {iteration + 1}/{num_iter}")
 
-            # Train on batch and retrieve loss
-            loss = self._train_batch(
-                train_iter,
-                accumulation_steps,
-                non_blocking_transfer=non_blocking_transfer,
-            )
-            if val_loader:
-                loss = self._validate(val_iter, non_blocking_transfer=non_blocking_transfer)
+            loss = train_valid_loss_iter(train_iter, val_iter)
 
             # Update the learning rate
             self.history["lr"].append(lr_schedule.get_lr()[0])
@@ -368,56 +440,6 @@ class LearningRateFinder:
         for param_group in self.optimizer.param_groups:
             if "initial_lr" in param_group:
                 raise RuntimeError("Optimizer already has a scheduler attached to it")
-
-    def _train_batch(self, train_iter, accumulation_steps: int, non_blocking_transfer: bool = True) -> float:
-        self.model.train()
-        total_loss = 0
-
-        self.optimizer.zero_grad()
-        for i in range(accumulation_steps):
-            inputs, labels = next(train_iter)
-            inputs, labels = copy_to_device([inputs, labels], device=self.device, non_blocking=non_blocking_transfer)
-
-            # Forward pass
-            outputs = self.model(inputs)
-            loss = self.criterion(outputs, labels)
-
-            # Loss should be averaged in each step
-            loss /= accumulation_steps
-
-            # Backward pass
-            if self.amp and hasattr(self.optimizer, "_amp_stash"):
-                # For minor performance optimization, see also:
-                # https://nvidia.github.io/apex/advanced.html#gradient-accumulation-across-iterations
-                delay_unscale = ((i + 1) % accumulation_steps) != 0
-
-                with torch.cuda.amp.scale_loss(loss, self.optimizer, delay_unscale=delay_unscale) as scaled_loss:  # type: ignore
-                    scaled_loss.backward()
-            else:
-                loss.backward()
-
-            total_loss += loss.item()
-
-        self.optimizer.step()
-
-        return total_loss
-
-    def _validate(self, val_iter: ValDataLoaderIter, non_blocking_transfer: bool = True) -> float:
-        # Set model to evaluation mode and disable gradient computation
-        running_loss = 0
-        with eval_mode(self.model):
-            for inputs, labels in val_iter:
-                # Copy data to the correct device
-                inputs, labels = copy_to_device(
-                    [inputs, labels], device=self.device, non_blocking=non_blocking_transfer
-                )
-
-                # Forward pass and loss computation
-                outputs = self.model(inputs)
-                loss = self.criterion(outputs, labels)
-                running_loss += loss.item() * len(labels)
-
-        return running_loss / len(val_iter.dataset)
 
     def get_lrs_and_losses(
         self,

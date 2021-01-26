@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from functools import partial
 import os
 import random
 import sys
@@ -19,9 +20,10 @@ from torch.utils.data import DataLoader
 
 from monai.apps import MedNISTDataset
 from monai.networks.nets import DenseNet
+from monai.networks.utils import eval_mode
 from monai.optimizers import LearningRateFinder
 from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
-from monai.utils import optional_import, set_determinism
+from monai.utils import copy_to_device, optional_import, set_determinism
 
 PILImage, has_pil = optional_import("PIL.Image")
 
@@ -30,6 +32,66 @@ random.seed(RAND_SEED)
 set_determinism(seed=RAND_SEED)
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
+
+def train_valid_loss(
+    train_iter,
+    val_iter,
+    model,
+    optimizer,
+    criterion,
+    accumulation_steps,
+    device,
+    non_blocking_transfer,
+    amp,
+):
+    model.train()
+    total_loss = 0
+
+    optimizer.zero_grad()
+    for i in range(accumulation_steps):
+        inputs, labels = next(train_iter)
+        inputs, labels = copy_to_device([inputs, labels], device=device, non_blocking=non_blocking_transfer)
+
+        # Forward pass
+        outputs = model(inputs)
+        loss = criterion(outputs, labels)
+
+        # Loss should be averaged in each step
+        loss /= accumulation_steps
+
+        # Backward pass
+        if amp and hasattr(optimizer, "_amp_stash"):
+            # For minor performance optimization, see also:
+            # https://nvidia.github.io/apex/advanced.html#gradient-accumulation-across-iterations
+            delay_unscale = ((i + 1) % accumulation_steps) != 0
+
+            with torch.cuda.amp.scale_loss(loss, optimizer, delay_unscale=delay_unscale) as scaled_loss:  # type: ignore
+                scaled_loss.backward()
+        else:
+            loss.backward()
+
+        total_loss += loss.item()
+
+    optimizer.step()
+
+    if not val_iter:
+        return total_loss
+
+    # Set model to evaluation mode and disable gradient computation
+    running_loss = 0
+    with eval_mode(model):
+        for inputs, labels in val_iter:
+            # Copy data to the correct device
+            inputs, labels = copy_to_device(
+                [inputs, labels], device=device, non_blocking=non_blocking_transfer
+            )
+
+            # Forward pass and loss computation
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            running_loss += loss.item() * len(labels)
+
+    return running_loss / len(val_iter.dataset)
 
 
 @unittest.skipUnless(sys.platform == "linux", "requires linux")
@@ -70,12 +132,26 @@ class TestLRFinder(unittest.TestCase):
         learning_rate = 1e-5
         optimizer = torch.optim.Adam(model.parameters(), learning_rate)
 
+        train_valid_loss_iter = partial(
+            train_valid_loss,
+            model = model,
+            optimizer = optimizer,
+            criterion = loss_function,
+            accumulation_steps = 1,
+            device = device,
+            non_blocking_transfer = True,
+            amp = False,
+        )
+
         lr_finder = LearningRateFinder(model, optimizer, loss_function, device=device)
-        lr_finder.range_test(train_loader, val_loader=train_loader, end_lr=10, num_iter=5)
+        lr_finder.range_test(train_loader, val_loader=train_loader, train_valid_loss_iter=train_valid_loss_iter, end_lr=10, num_iter=5)
         print(lr_finder.get_steepest_gradient(0, 0)[0])
         lr_finder.plot(0, 0)  # to inspect the loss-learning rate graph
         lr_finder.reset()  # to reset the model and optimizer to their initial state
 
 
 if __name__ == "__main__":
-    unittest.main()
+    # unittest.main()
+    a = TestLRFinder()
+    a.setUp()
+    a.test_lr_finder()
