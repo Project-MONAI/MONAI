@@ -46,7 +46,7 @@ def stopping_fn_from_loss() -> Callable[[Engine], Any]:
     return stopping_fn
 
 
-def evenly_divisible_all_gather(data: torch.Tensor):
+def evenly_divisible_all_gather(data: torch.Tensor) -> torch.Tensor:
     """
     Utility function for distributed data parallel to pad at first dim to make it evenly divisible and all_gather.
 

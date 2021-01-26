@@ -88,7 +88,7 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
         ws = idist.get_world_size()
         if ws > 1 and not self._is_reduced:
             # all gather across all processes
-            _scores = evenly_divisible_all_gather(data=_scores, pad_dim=0)
+            _scores = evenly_divisible_all_gather(data=_scores)
         self._is_reduced = True
 
         # save score of every image into engine.state for other components
