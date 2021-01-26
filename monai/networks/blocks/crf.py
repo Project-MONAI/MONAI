@@ -137,5 +137,5 @@ def _potts_model_weights(class_count):
 
 def _expand_matrix_to_kernel(matrix, spatial_dim, kernel_range):
     reshape_arg = (matrix.size(0), matrix.size(1)) + spatial_dim * (1,)
-    expand_arg = (-1, -1) + spatial_dim * (1 + 2 * kernel_size,)
+    expand_arg = (-1, -1) + spatial_dim * (1 + 2 * kernel_range,)
     return matrix.reshape(reshape_arg).expand(expand_arg)
