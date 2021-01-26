@@ -8,7 +8,7 @@ import torch
 __all__ = ["StateCacher"]
 
 
-class StateCacher(object):
+class StateCacher:
     """Class to cache and retrieve the state of an object.
 
     Objects can either be stored in memory or on disk. If stored on disk, they can be

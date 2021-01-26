@@ -27,7 +27,7 @@ else:
 __all__ = ["LearningRateFinder"]
 
 
-class DataLoaderIter(object):
+class DataLoaderIter:
     def __init__(self, data_loader: DataLoader, image_extractor: Callable, label_extractor: Callable) -> None:
         if not isinstance(data_loader, DataLoader):
             raise ValueError(
@@ -125,7 +125,7 @@ def default_label_extractor(x: Any) -> torch.Tensor:
     return out
 
 
-class LearningRateFinder(object):
+class LearningRateFinder:
     """Learning rate range test.
 
     The learning rate range test increases the learning rate in a pre-training run
