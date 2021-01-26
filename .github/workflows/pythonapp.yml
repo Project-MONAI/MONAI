@@ -15,10 +15,6 @@ jobs:
   flake8-py3:
     runs-on: ubuntu-latest
     steps:
-    - name: Cancel Previous Jobs
-      uses: styfle/cancel-workflow-action@0.7.0
-      with:
-        access_token: ${{ github.token }}
     - uses: actions/checkout@v2
     - name: Set up Python 3.8
       uses: actions/setup-python@v2
@@ -188,10 +184,6 @@ jobs:
       options: --gpus all
     runs-on: [self-hosted, linux, x64, common]
     steps:
-    - name: Cancel Previous Self-hosted Runs
-      uses: styfle/cancel-workflow-action@0.7.0
-      with:
-        access_token: ${{ github.token }}
     - uses: actions/checkout@v2
     - name: apt install
       run: |
