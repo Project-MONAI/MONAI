@@ -19,11 +19,11 @@ from monai.metrics import compute_fp_tp_probs, compute_froc_score
 
 TEST_CASE_1 = [
     {
-        "Probs": torch.tensor([1, 0.6, 0.8]),
-        "Ycorr": torch.tensor([0, 2, 3]),
-        "Xcorr": torch.tensor([3, 0, 1]),
+        "probs": torch.tensor([1, 0.6, 0.8]),
+        "ycorr": torch.tensor([0, 2, 3]),
+        "xcorr": torch.tensor([3, 0, 1]),
         "evaluation_mask": np.array([[0, 0, 1, 1], [2, 2, 0, 0], [0, 3, 3, 0], [0, 3, 3, 3]]),
-        "Isolated_Tumor_Cells": [2],
+        "isolated_tumor_cells": [2],
         "image_level": 0,
     },
     np.array([0.6]),
@@ -33,9 +33,9 @@ TEST_CASE_1 = [
 
 TEST_CASE_2 = [
     {
-        "Probs": torch.tensor([1, 0.6, 0.8]),
-        "Ycorr": torch.tensor([0, 2, 3]),
-        "Xcorr": torch.tensor([3, 0, 1]),
+        "probs": torch.tensor([1, 0.6, 0.8]),
+        "ycorr": torch.tensor([0, 2, 3]),
+        "xcorr": torch.tensor([3, 0, 1]),
         "evaluation_mask": np.array([[0, 0, 1, 1], [2, 2, 0, 0], [0, 3, 3, 0], [0, 3, 3, 3]]),
         "image_level": 0,
     },
@@ -46,9 +46,9 @@ TEST_CASE_2 = [
 
 TEST_CASE_3 = [
     {
-        "Probs": torch.tensor([1, 0.6, 0.8]),
-        "Ycorr": torch.tensor([0, 4, 6]),
-        "Xcorr": torch.tensor([6, 0, 2]),
+        "probs": torch.tensor([1, 0.6, 0.8]),
+        "ycorr": torch.tensor([0, 4, 6]),
+        "xcorr": torch.tensor([6, 0, 2]),
         "evaluation_mask": np.array([[0, 0, 1, 1], [2, 2, 0, 0], [0, 3, 3, 0], [0, 3, 3, 3]]),
         "image_level": 1,
     },
@@ -59,8 +59,8 @@ TEST_CASE_3 = [
 
 TEST_CASE_4 = [
     {
-        "FP_probs": np.array([0.8, 0.6]),
-        "TP_probs": np.array([1, 1, 0, 0, 0.8, 0.8, 0]),
+        "fp_probs": np.array([0.8, 0.6]),
+        "tp_probs": np.array([1, 1, 0, 0, 0.8, 0.8, 0]),
         "num_of_tumors": 4,
         "num_of_samples": 2,
     },
@@ -69,8 +69,8 @@ TEST_CASE_4 = [
 
 TEST_CASE_5 = [
     {
-        "FP_probs": torch.tensor([0.8, 0.6]),
-        "TP_probs": torch.tensor([1, 1, 0, 0, 0.8, 0.8, 0]),
+        "fp_probs": torch.tensor([0.8, 0.6]),
+        "tp_probs": torch.tensor([1, 1, 0, 0, 0.8, 0.8, 0]),
         "num_of_tumors": 4,
         "num_of_samples": 2,
         "eval_thresholds": [0.25],
