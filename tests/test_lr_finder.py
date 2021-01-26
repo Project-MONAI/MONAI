@@ -25,6 +25,8 @@ from monai.optimizers import LearningRateFinder
 from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
 from monai.utils import copy_to_device, optional_import, set_determinism
 
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Type, Union
+
 PILImage, has_pil = optional_import("PIL.Image")
 
 RAND_SEED = 42
@@ -32,6 +34,105 @@ random.seed(RAND_SEED)
 set_determinism(seed=RAND_SEED)
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
+
+
+class DataLoaderIter:
+    def __init__(self, data_loader: DataLoader, image_extractor: Callable, label_extractor: Callable) -> None:
+        if not isinstance(data_loader, DataLoader):
+            raise ValueError(
+                f"Loader has unsupported type: {type(data_loader)}. Expected type was `torch.utils.data.DataLoader`"
+            )
+        self.data_loader = data_loader
+        self._iterator = iter(data_loader)
+        self.image_extractor = image_extractor
+        self.label_extractor = label_extractor
+
+    @property
+    def dataset(self):
+        return self.data_loader.dataset
+
+    def inputs_labels_from_batch(self, batch_data):
+        images = self.image_extractor(batch_data)
+        labels = self.label_extractor(batch_data)
+        return images, labels
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        batch = next(self._iterator)
+        return self.inputs_labels_from_batch(batch)
+
+
+class TrainDataLoaderIter(DataLoaderIter):
+    def __init__(
+        self, data_loader: DataLoader, image_extractor: Callable, label_extractor: Callable, auto_reset: bool = True
+    ) -> None:
+        super().__init__(data_loader, image_extractor, label_extractor)
+        self.auto_reset = auto_reset
+
+    def __next__(self):
+        try:
+            batch = next(self._iterator)
+            inputs, labels = self.inputs_labels_from_batch(batch)
+        except StopIteration:
+            if not self.auto_reset:
+                raise
+            self._iterator = iter(self.data_loader)
+            batch = next(self._iterator)
+            inputs, labels = self.inputs_labels_from_batch(batch)
+
+        return inputs, labels
+
+
+class ValDataLoaderIter(DataLoaderIter):
+    """This iterator will reset itself **only** when it is acquired by
+    the syntax of normal `iterator`. That is, this iterator just works
+    like a `torch.data.DataLoader`. If you want to restart it, you
+    should use it like:
+
+        ```
+        loader_iter = ValDataLoaderIter(data_loader)
+        for batch in loader_iter:
+            ...
+
+        # `loader_iter` should run out of values now, you can restart it by:
+        # 1. the way we use a `torch.data.DataLoader`
+        for batch in loader_iter:        # __iter__ is called implicitly
+            ...
+
+        # 2. passing it into `iter()` manually
+        loader_iter = iter(loader_iter)  # __iter__ is called by `iter()`
+        ```
+    """
+
+    def __init__(self, data_loader: DataLoader, image_extractor: Callable, label_extractor: Callable) -> None:
+        super().__init__(data_loader, image_extractor, label_extractor)
+        self.run_limit = len(self.data_loader)
+        self.run_counter = 0
+
+    def __iter__(self):
+        if self.run_counter >= self.run_limit:
+            self._iterator = iter(self.data_loader)
+            self.run_counter = 0
+        return self
+
+    def __next__(self):
+        self.run_counter += 1
+        return super(ValDataLoaderIter, self).__next__()
+
+
+def default_image_extractor(x: Any) -> torch.Tensor:
+    """Default callable for getting image from batch data."""
+    out: torch.Tensor = x["image"] if isinstance(x, dict) else x[0]
+    return out
+
+
+def default_label_extractor(x: Any) -> torch.Tensor:
+    """Default callable for getting label from batch data."""
+    out: torch.Tensor = x["label"] if isinstance(x, dict) else x[1]
+    return out
+
 
 def train_valid_loss(
     train_iter,
@@ -132,8 +233,13 @@ class TestLRFinder(unittest.TestCase):
         learning_rate = 1e-5
         optimizer = torch.optim.Adam(model.parameters(), learning_rate)
 
+        train_iter = TrainDataLoaderIter(train_loader, default_image_extractor, default_label_extractor)
+        val_iter = ValDataLoaderIter(train_loader, default_image_extractor, default_label_extractor)
+
         train_valid_loss_iter = partial(
             train_valid_loss,
+            train_iter,
+            val_iter,
             model = model,
             optimizer = optimizer,
             criterion = loss_function,
@@ -143,8 +249,8 @@ class TestLRFinder(unittest.TestCase):
             amp = False,
         )
 
-        lr_finder = LearningRateFinder(model, optimizer, loss_function, device=device)
-        lr_finder.range_test(train_loader, val_loader=train_loader, train_valid_loss_iter=train_valid_loss_iter, end_lr=10, num_iter=5)
+        lr_finder = LearningRateFinder(model, optimizer, device=device)
+        lr_finder.range_test(train_valid_loss_iter=train_valid_loss_iter, end_lr=10, num_iter=5)
         print(lr_finder.get_steepest_gradient(0, 0)[0])
         lr_finder.plot(0, 0)  # to inspect the loss-learning rate graph
         lr_finder.reset()  # to reset the model and optimizer to their initial state
