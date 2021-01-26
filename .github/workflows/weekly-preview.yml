@@ -6,6 +6,7 @@ on:
 
 jobs:
   packaging:
+    if: github.repository == 'Project-MONAI/MONAI'
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
