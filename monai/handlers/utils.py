@@ -46,19 +46,18 @@ def stopping_fn_from_loss() -> Callable[[Engine], Any]:
     return stopping_fn
 
 
-def evenly_divisible_all_gather(data: torch.Tensor, pad_dim: int = 0):
+def evenly_divisible_all_gather(data: torch.Tensor):
     """
-    Utility function for distributed data parallel to pad tensor to make it evenly divisible for all_gather.
+    Utility function for distributed data parallel to pad at first dim to make it evenly divisible and all_gather.
 
     Args:
         data: source tensor to pad and execute all_gather in distributed data parallel.
-        pad_dim: which dimension to pad NaN data to make it evenly divisible, default to dim 0.
 
     """
     if idist.get_world_size() <= 1:
         return data
     # make sure the data is evenly-divisible on multi-GPUs
-    length = data.shape[pad_dim]
+    length = data.shape[0]
     all_lens = idist.all_gather(length)
     max_len = max(all_lens).item()
     if length < max_len:
