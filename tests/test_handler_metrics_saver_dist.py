@@ -48,7 +48,7 @@ class DistributedMetricsSaver(DistTestCase):
                 data = [{"image_meta_dict": {"filename_or_obj": ["filepath1"]}}]
 
                 @engine.on(Events.EPOCH_COMPLETED)
-                def _save_metrics(engine):
+                def _save_metrics0(engine):
                     engine.state.metrics = {"metric1": 1, "metric2": 2}
                     engine.state.metric_details = {
                         "metric3": torch.tensor([[1, 2]]),
@@ -63,7 +63,7 @@ class DistributedMetricsSaver(DistTestCase):
                 ]
 
                 @engine.on(Events.EPOCH_COMPLETED)
-                def _save_metrics(engine):
+                def _save_metrics1(engine):
                     engine.state.metrics = {"metric1": 1, "metric2": 2}
                     engine.state.metric_details = {
                         "metric3": torch.tensor([[2, 3], [3, 4]]),
