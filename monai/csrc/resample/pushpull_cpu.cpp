@@ -37,6 +37,7 @@ limitations under the License.
 // . input bound/inter are always vectors -> clean unused constructors
 
 #include <ATen/ATen.h>
+#include <limits>
 #include <tuple>
 #include "bounds_common.h"
 #include "interpolation_common.h"
@@ -44,7 +45,7 @@ limitations under the License.
 //#include <cstdio>
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// CPU/GPU -specific parameters
+// CPU-specific parameters
 #include <ATen/Parallel.h>
 namespace {
 // This parameter specifies the minimum number of voxels that should be

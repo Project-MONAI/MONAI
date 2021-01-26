@@ -37,6 +37,7 @@ limitations under the License.
 // . input bound/inter are always vectors -> clean unused constructors
 
 #include <ATen/ATen.h>
+#include <limits>
 #include <tuple>
 #include "bounds_common.h"
 #include "interpolation_common.h"
