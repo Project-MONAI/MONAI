@@ -13,7 +13,7 @@ ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:20.10-py3
 
 FROM ${PYTORCH_IMAGE}
 
-LABEL maintainer="monai.miccai2019@gmail.com"
+LABEL maintainer="monai.contact@gmail.com"
 
 WORKDIR /opt/monai
 
