@@ -26,7 +26,7 @@ jobs:
         echo "__commit_id__ = \"$HEAD_COMMIT_ID\"" >> monai/__init__.py
         git diff setup.cfg monai/__init__.py
         git config user.name "CI Builder"
-        git config user.email "monai.miccai2019@gmail.com"
+        git config user.email "monai.contact@gmail.com"
         git add setup.cfg monai/__init__.py
         git commit -m "Weekly build at $HEAD_COMMIT_ID"
         export YEAR_WEEK=$(date +'%y%U')
