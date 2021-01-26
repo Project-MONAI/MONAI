@@ -29,7 +29,6 @@ class DistributedMetricsSaver(DistTestCase):
         self._run()
 
     def _run(self):
-        device = f"cuda:{dist.get_rank()}" if torch.cuda.is_available() else "cpu"
         with tempfile.TemporaryDirectory() as tempdir:
             metrics_saver = MetricsSaver(
                 save_dir=tempdir,
