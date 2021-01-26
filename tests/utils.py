@@ -85,14 +85,14 @@ def skip_if_no_cpp_extention(obj):
     """
     Skip the unit tests if the cpp extention isnt available
     """
-    return unittest.skipIf(not USE_COMPILED, "Skipping cpp extention tests")(obj)
+    return unittest.skipUnless(USE_COMPILED, "Skipping cpp extention tests")(obj)
 
 
 def skip_if_no_cuda(obj):
     """
     Skip the unit tests if torch.cuda.is_available is False
     """
-    return unittest.skipIf(not torch.cuda.is_available(), "Skipping CUDA-based tests")(obj)
+    return unittest.skipUnless(torch.cuda.is_available(), "Skipping CUDA-based tests")(obj)
 
 
 def skip_if_windows(obj):
