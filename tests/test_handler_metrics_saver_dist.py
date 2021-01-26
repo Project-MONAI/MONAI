@@ -10,10 +10,11 @@
 # limitations under the License.
 
 
-import unittest
-import os
 import csv
+import os
 import tempfile
+import unittest
+
 import torch
 import torch.distributed as dist
 from ignite.engine import Engine, Events
@@ -50,7 +51,8 @@ class DistributedMetricsSaver(DistTestCase):
                 def _save_metrics(engine):
                     engine.state.metrics = {"metric1": 1, "metric2": 2}
                     engine.state.metric_details = {
-                        "metric3": torch.tensor([[1, 2]]), "metric4": torch.tensor([[5, 6]]),
+                        "metric3": torch.tensor([[1, 2]]),
+                        "metric4": torch.tensor([[5, 6]]),
                     }
 
             if dist.get_rank() == 1:

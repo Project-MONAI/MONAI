@@ -9,10 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
-import os
 import csv
+import os
 import tempfile
+import unittest
+
 import torch
 from ignite.engine import Engine, Events
 
