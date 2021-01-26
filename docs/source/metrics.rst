@@ -8,7 +8,7 @@ Metrics
 
 `FROC`
 ------
-.. autofunction:: compute_FROC_Score
+.. autofunction:: compute_froc_score
 
 `Mean Dice`
 -----------

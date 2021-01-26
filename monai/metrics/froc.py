@@ -100,10 +100,6 @@ def compute_froc_score(
         eval_thresholds: the false positive rates for calculating the average sensitivity. Defaults
             to (0.25, 0.5, 1, 2, 4, 8) which is the same as the CAMELYON 16 Challenge.
 
-    Returns:
-        total_fps: a list that contains the average number of false positives
-            per image for different thresholds.
-        total_sensitivity: a list that contains the overall sensitivity for different thresholds.
     """
     assert type(fp_probs) == type(tp_probs), "fp and tp probs should have same type."
     if torch.is_tensor(fp_probs):
