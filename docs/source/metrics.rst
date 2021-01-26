@@ -6,6 +6,10 @@ Metrics
 =======
 .. currentmodule:: monai.metrics
 
+`FROC`
+------
+.. autofunction:: compute_FROC_Score
+
 `Mean Dice`
 -----------
 .. autofunction:: compute_meandice
