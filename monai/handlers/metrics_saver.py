@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import os
-from collections import OrderedDict
 from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Union
 
 import numpy as np
@@ -18,6 +17,7 @@ import torch
 
 from monai.utils import ensure_tuple, exact_version, optional_import
 from monai.utils.module import get_torch_version_tuple
+from monai.handlers.utils import write_per_image_metric, write_metric_summary
 
 Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
 idist, _ = optional_import("ignite", "0.4.2", exact_version, "distributed")
@@ -146,31 +146,21 @@ class MetricsSaver:
                             v = v.reshape((-1, 1))
 
                         # add the average value to v
+                        class_labels = ["class" + str(i) for i in range(v.shape[1])] + ["mean"]
                         v = np.concatenate([v, np.nanmean(v, axis=1, keepdims=True)], axis=1)
-                        with open(os.path.join(self.save_dir, k + "_raw.csv"), "w") as f:
-                            class_labels = self.deli.join(["class" + str(i) for i in range(v.shape[1] - 1)])
-                            row_labels = class_labels + f"{self.deli}average"
-                            f.write(f"filename{self.deli}{row_labels}\n")
-                            for i, image in enumerate(v):
-                                classes = self.deli.join([str(d) for d in image])
-                                f.write(f"{_files[i]}{self.deli}{classes}\n")
+                        write_per_image_metric(
+                            class_labels=class_labels,
+                            images=_files,
+                            metric=v,
+                            filepath=os.path.join(self.save_dir, k + "_raw.csv"),
+                            deli=self.deli,
+                        )
 
                         if self.summary_ops is not None:
-                            supported_ops = OrderedDict(
-                                {
-                                    "mean": np.nanmean,
-                                    "median": np.nanmedian,
-                                    "max": np.nanmax,
-                                    "min": np.nanmin,
-                                    "90percent": lambda x: np.nanpercentile(x, 10),
-                                    "std": np.nanstd,
-                                }
+                            write_metric_summary(
+                                class_labels=class_labels,
+                                metric=v,
+                                filepath=os.path.join(self.save_dir, k + "_summary.csv"),
+                                summary_ops=self.summary_ops,
+                                deli=self.deli,
                             )
-                            ops = supported_ops.keys() if "*" in self.summary_ops else self.summary_ops
-
-                            col_labels = row_labels.split(self.deli)
-                            with open(os.path.join(self.save_dir, k + "_summary.csv"), "w") as f:
-                                f.write(f"class{self.deli}{self.deli.join(ops)}\n")
-                                for i, d in enumerate(v.transpose()):
-                                    ops_labels = self.deli.join([f"{supported_ops[k](d):.4f}" for k in ops])
-                                    f.write(f"{col_labels[i]}{self.deli}{ops_labels}\n")

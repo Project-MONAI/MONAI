@@ -75,7 +75,7 @@ class TestHandlerMetricsSaver(unittest.TestCase):
                     elif i == 2:
                         self.assertEqual(row, ["class1\t2.5000\t2.5000\t3.0000\t2.1000"])
                     elif i == 3:
-                        self.assertEqual(row, ["average\t2.0000\t2.0000\t2.5000\t1.6000"])
+                        self.assertEqual(row, ["mean\t2.0000\t2.0000\t2.5000\t1.6000"])
             self.assertTrue(os.path.exists(os.path.join(tempdir, "metric4_raw.csv")))
             self.assertTrue(os.path.exists(os.path.join(tempdir, "metric4_summary.csv")))
 
