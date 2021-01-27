@@ -25,7 +25,7 @@ from ignite.metrics import Accuracy
 
 import monai
 from monai.data import create_test_image_3d
-from monai.engines import SupervisedEvaluator, SupervisedTrainer
+from monai.engines import IterationEvents, SupervisedEvaluator, SupervisedTrainer
 from monai.handlers import (
     CheckpointLoader,
     CheckpointSaver,
@@ -113,6 +113,14 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
         ]
     )
+
+    class _TestEvalIterEvents:
+        def attach(self, engine):
+            engine.add_event_handler(IterationEvents.FORWARD_COMPLETED, self._forward_completed)
+
+        def _forward_completed(self, engine):
+            pass
+
     val_handlers = [
         StatsHandler(output_transform=lambda x: None),
         TensorBoardStatsHandler(log_dir=root_dir, output_transform=lambda x: None),
@@ -120,6 +128,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
             log_dir=root_dir, batch_transform=lambda x: (x["image"], x["label"]), output_transform=lambda x: x["pred"]
         ),
         CheckpointSaver(save_dir=root_dir, save_dict={"net": net}, save_key_metric=True),
+        _TestEvalIterEvents(),
     ]
 
     evaluator = SupervisedEvaluator(
@@ -143,12 +152,33 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
         ]
     )
+
+    class _TestTrainIterEvents:
+        def attach(self, engine):
+            engine.add_event_handler(IterationEvents.FORWARD_COMPLETED, self._forward_completed)
+            engine.add_event_handler(IterationEvents.LOSS_COMPLETED, self._loss_completed)
+            engine.add_event_handler(IterationEvents.BACKWARD_COMPLETED, self._backward_completed)
+            engine.add_event_handler(IterationEvents.OPTIMIZER_COMPLETED, self._optimizer_completed)
+
+        def _forward_completed(self, engine):
+            pass
+
+        def _loss_completed(self, engine):
+            pass
+
+        def _backward_completed(self, engine):
+            pass
+
+        def _optimizer_completed(self, engine):
+            pass
+
     train_handlers = [
         LrScheduleHandler(lr_scheduler=lr_scheduler, print_lr=True),
         ValidationHandler(validator=evaluator, interval=2, epoch_level=True),
         StatsHandler(tag_name="train_loss", output_transform=lambda x: x["loss"]),
         TensorBoardStatsHandler(log_dir=root_dir, tag_name="train_loss", output_transform=lambda x: x["loss"]),
         CheckpointSaver(save_dir=root_dir, save_dict={"net": net, "opt": opt}, save_interval=2, epoch_level=True),
+        _TestTrainIterEvents(),
     ]
 
     trainer = SupervisedTrainer(
