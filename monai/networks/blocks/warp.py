@@ -48,7 +48,7 @@ class Warp(nn.Module):
     @staticmethod
     def get_reference_grid(ddf: torch.Tensor) -> torch.Tensor:
         mesh_points = [torch.arange(0, dim) for dim in ddf.shape[2:]]
-        grid = torch.stack(torch.meshgrid(*mesh_points[::-1]), dim=0)  # (spatial_dims, ...)
+        grid = torch.stack(torch.meshgrid(*mesh_points), dim=0)  # (spatial_dims, ...)
         grid = torch.stack([grid] * ddf.shape[0], dim=0)  # (batch, spatial_dims, ...)
         grid = grid.to(ddf)
         return grid
@@ -86,22 +86,23 @@ class Warp(nn.Module):
         grid = grid.permute([0] + list(range(2, 2 + self.spatial_dims)) + [1])  # (batch, ..., self.spatial_dims)
 
         if self.mode > 1:
-            if not USE_COMPILED:
-                raise ValueError(f"cannot perform {self.mode}-order interpolation without C compile.")
-            _padding_mode = self.padding_mode.value
-            if _padding_mode == "zeros":
-                bound = 7
-            elif _padding_mode == "border":
-                bound = 0
-            else:
-                bound = 1
-            warped_image: torch.Tensor = grid_pull(
-                image,
-                grid,
-                bound=bound,
-                extrapolate=True,
-                interpolation=self.mode,
-            )
+            raise ValueError(f"{self.mode}-order interpolation not yet implemented.")
+            # if not USE_COMPILED:
+            #     raise ValueError(f"cannot perform {self.mode}-order interpolation without C compile.")
+            # _padding_mode = self.padding_mode.value
+            # if _padding_mode == "zeros":
+            #     bound = 7
+            # elif _padding_mode == "border":
+            #     bound = 0
+            # else:
+            #     bound = 1
+            # warped_image: torch.Tensor = grid_pull(
+            #     image,
+            #     grid,
+            #     bound=bound,
+            #     extrapolate=True,
+            #     interpolation=self.mode,
+            # )
         else:
             grid = self.normalize_grid(grid)
             index_ordering: List[int] = list(range(self.spatial_dims - 1, -1, -1))
