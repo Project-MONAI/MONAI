@@ -71,10 +71,9 @@ class TestHandlerSurfaceDistance(unittest.TestCase):
         y_pred, y = TEST_SAMPLE_3
         sur_metric.update([y_pred, y])
         self.assertAlmostEqual(sur_metric.compute(), float("inf"))
-        self.assertAlmostEqual(sur_metric._num_examples, 3)
         y_pred, y = TEST_SAMPLE_4
         sur_metric.update([y_pred, y])
-        self.assertAlmostEqual(sur_metric._num_examples, 3)
+        self.assertAlmostEqual(sur_metric.compute(), float("inf"))
 
     def test_shape_mismatch(self):
         sur_metric = SurfaceDistance(include_background=True)
