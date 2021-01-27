@@ -4,7 +4,6 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.config import USE_COMPILED
 from monai.networks.blocks.warp import Warp
 
 LOW_POWER_TEST_CASES = [
