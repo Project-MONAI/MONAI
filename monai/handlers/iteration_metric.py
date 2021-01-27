@@ -53,8 +53,8 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
         self.metric_fn = metric_fn
         self.save_details = save_details
         self._scores: List = []
-        self._engine = None
-        self._name = None
+        self._engine: Optional[Engine] = None
+        self._name: Optional[str] = None
         super().__init__(output_transform, device=device)
 
     @reinit__is_reduced

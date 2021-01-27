@@ -14,7 +14,7 @@ import unittest
 import torch
 import torch.distributed as dist
 
-from monai.handlers import evenly_divisible_all_gather
+from monai.handlers.utils import evenly_divisible_all_gather
 from tests.utils import DistCall, DistTestCase
 
 
