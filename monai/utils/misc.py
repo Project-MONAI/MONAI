@@ -10,11 +10,14 @@
 # limitations under the License.
 
 import collections.abc
+import inspect
 import itertools
 import random
+import types
+import warnings
 from ast import literal_eval
 from distutils.util import strtobool
-from typing import Any, Callable, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 import torch
@@ -37,6 +40,7 @@ __all__ = [
     "dtype_torch_to_numpy",
     "dtype_numpy_to_torch",
     "MAX_SEED",
+    "copy_to_device",
 ]
 
 _seed = None
@@ -306,3 +310,40 @@ def dtype_torch_to_numpy(dtype):
 def dtype_numpy_to_torch(dtype):
     """Convert a numpy dtype to its torch equivalent."""
     return _np_to_torch_dtype[dtype]
+
+
+def copy_to_device(
+    obj: Any,
+    device: Optional[Union[str, torch.device]],
+    non_blocking: bool = True,
+    verbose: bool = False,
+) -> Any:
+    """
+    Copy object or tuple/list/dictionary of objects to ``device``.
+
+    Args:
+        obj: object or tuple/list/dictionary of objects to move to ``device``.
+        device: move ``obj`` to this device. Can be a string (e.g., ``cpu``, ``cuda``,
+            ``cuda:0``, etc.) or of type ``torch.device``.
+        non_blocking_transfer: when `True`, moves data to device asynchronously if
+            possible, e.g., moving CPU Tensors with pinned memory to CUDA devices.
+        verbose: when `True`, will print a warning for any elements of incompatible type
+            not copied to ``device``.
+    Returns:
+        Same as input, copied to ``device`` where possible. Original input will be
+            unchanged.
+    """
+
+    if hasattr(obj, "to"):
+        return obj.to(device, non_blocking=non_blocking)
+    elif isinstance(obj, tuple):
+        return tuple(copy_to_device(o, device, non_blocking) for o in obj)
+    elif isinstance(obj, list):
+        return [copy_to_device(o, device, non_blocking) for o in obj]
+    elif isinstance(obj, dict):
+        return {k: copy_to_device(o, device, non_blocking) for k, o in obj.items()}
+    elif verbose:
+        fn_name = cast(types.FrameType, inspect.currentframe()).f_code.co_name
+        warnings.warn(f"{fn_name} called with incompatible type: " + f"{type(obj)}. Data will be returned unchanged.")
+
+    return obj
