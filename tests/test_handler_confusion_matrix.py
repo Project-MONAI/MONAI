@@ -13,8 +13,9 @@ import unittest
 from typing import Any, Dict
 
 import torch
-from parameterized import parameterized
 from ignite.engine import Engine
+from parameterized import parameterized
+
 from monai.handlers import ConfusionMatrix
 
 TEST_CASE_1 = [{"include_background": True, "save_details": False, "metric_name": "f1"}, 0.75]
