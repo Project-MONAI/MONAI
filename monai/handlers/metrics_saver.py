@@ -15,9 +15,9 @@ from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Union
 import numpy as np
 import torch
 
+from monai.handlers.utils import write_metric_summary, write_per_image_metric
 from monai.utils import ensure_tuple, exact_version, optional_import
 from monai.utils.module import get_torch_version_tuple
-from monai.handlers.utils import write_per_image_metric, write_metric_summary
 
 Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
 idist, _ = optional_import("ignite", "0.4.2", exact_version, "distributed")

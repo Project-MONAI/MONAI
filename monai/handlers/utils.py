@@ -9,12 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Any, Callable, Sequence, Union
 from collections import OrderedDict
+from typing import TYPE_CHECKING, Any, Callable, Sequence, Union
+
 import numpy as np
 import torch
 
-from monai.utils import exact_version, optional_import, ensure_tuple
+from monai.utils import ensure_tuple, exact_version, optional_import
 
 idist, _ = optional_import("ignite", "0.4.2", exact_version, "distributed")
 if TYPE_CHECKING:
