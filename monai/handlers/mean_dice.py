@@ -28,7 +28,7 @@ class MeanDice(IterationMetric):
         include_background: bool = True,
         output_transform: Callable = lambda x: x,
         device: Optional[torch.device] = None,
-        save_details: bool = False,
+        save_details: bool = True,
     ) -> None:
         """
 
@@ -38,7 +38,7 @@ class MeanDice(IterationMetric):
             output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
             device: device specification in case of distributed computation usage.
             save_details: whether to save metric computation details per image, for example: mean dice of every image.
-                if True, will save to `engine.state.metric_details` dict with the metric name as key.
+                default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
         See also:
             :py:meth:`monai.metrics.meandice.compute_meandice`

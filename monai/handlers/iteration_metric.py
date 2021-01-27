@@ -38,7 +38,7 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
         output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
         device: device specification in case of distributed computation usage.
         save_details: whether to save metric computation details per image, for example: mean_dice of every image.
-            if True, will save to `engine.state.metric_details` dict with the metric name as key.
+            default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
     """
 
@@ -47,12 +47,14 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
         metric_fn: Callable,
         output_transform: Callable = lambda x: x,
         device: Optional[torch.device] = None,
-        save_details: bool = False,
+        save_details: bool = True,
     ) -> None:
         self._is_reduced: bool = False
         self.metric_fn = metric_fn
         self.save_details = save_details
         self._scores: List = []
+        self._engine = None
+        self._name = None
         super().__init__(output_transform, device=device)
 
     @reinit__is_reduced
@@ -93,7 +95,9 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
 
         # save score of every image into engine.state for other components
         if self.save_details:
-            self.engine.state.metric_details[self.name] = _scores
+            if self._engine is None or self._name is None:
+                raise RuntimeError("plesae call the attach() function to connect expected engine first.")
+            self._engine.state.metric_details[self.name] = _scores
 
         result: torch.Tensor = torch.zeros(1)
         if idist.get_rank() == 0:
@@ -121,7 +125,7 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
         """
         super().attach(engine=engine, name=name)
         # FIXME: record engine for communication, ignite will support it in the future version soon
-        self.engine = engine
-        self.name = name
+        self._engine = engine
+        self._name = name
         if self.save_details and not hasattr(engine.state, "metric_details"):
-            engine.state.metric_details = dict()
+            engine.state.metric_details = {}

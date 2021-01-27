@@ -17,7 +17,7 @@ from parameterized import parameterized
 
 from monai.handlers import MeanDice
 
-TEST_CASE_1 = [{"include_background": True, "save_details": True}, 0.75]
+TEST_CASE_1 = [{"include_background": True}, 0.75]
 TEST_CASE_2 = [{"include_background": False}, 0.66666]
 
 
@@ -44,8 +44,7 @@ class TestHandlerMeanDice(unittest.TestCase):
 
         avg_dice = dice_metric.compute()
         self.assertAlmostEqual(avg_dice, expected_avg, places=4)
-        if getattr(engine.state, "metric_details", None) is not None:
-            self.assertTupleEqual(tuple(engine.state.metric_details["mean_dice"].shape), (4, 2))
+        self.assertTupleEqual(tuple(engine.state.metric_details["mean_dice"].shape), (4, 2))
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape_mismatch(self, input_params, _expected):
