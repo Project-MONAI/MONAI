@@ -54,15 +54,19 @@ def evenly_divisible_all_gather(data: torch.Tensor) -> torch.Tensor:
         data: source tensor to pad and execute all_gather in distributed data parallel.
 
     """
+    if not torch.is_tensor(data):
+        raise ValueError("input data must be PyTorch Tensor.")
+
     if idist.get_world_size() <= 1:
         return data
+
     # make sure the data is evenly-divisible on multi-GPUs
     length = data.shape[0]
     all_lens = idist.all_gather(length)
     max_len = max(all_lens).item()
     if length < max_len:
         size = [max_len - length] + list(data.shape[1:])
-        data = torch.cat([data, data.new_full(size, float("NaN"))], dim=0)
+        data = torch.cat([data, data.new_full(size, 0)], dim=0)
     # all gather across all processes
     data = idist.all_gather(data)
     # delete the padding NaN items
