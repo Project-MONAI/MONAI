@@ -10,8 +10,9 @@
 # limitations under the License.
 
 import os
-from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Union
 from collections import OrderedDict
+from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Union
+
 import numpy as np
 import torch
 
@@ -155,14 +156,16 @@ class MetricsSaver:
                                 f.write(f"{_files[i]}{self.deli}{classes}\n")
 
                         if self.summary_ops is not None:
-                            supported_ops = OrderedDict({
-                                "mean": np.nanmean,
-                                "median": np.nanmedian,
-                                "max": np.nanmax,
-                                "min": np.nanmin,
-                                "90percent": lambda x: np.nanpercentile(x, 10),
-                                "std": np.nanstd,
-                            })
+                            supported_ops = OrderedDict(
+                                {
+                                    "mean": np.nanmean,
+                                    "median": np.nanmedian,
+                                    "max": np.nanmax,
+                                    "min": np.nanmin,
+                                    "90percent": lambda x: np.nanpercentile(x, 10),
+                                    "std": np.nanstd,
+                                }
+                            )
                             ops = supported_ops.keys() if "*" in self.summary_ops else self.summary_ops
 
                             col_labels = row_labels.split(self.deli)
