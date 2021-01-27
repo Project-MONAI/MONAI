@@ -4,8 +4,6 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from monai.config import USE_COMPILED
-from monai.networks.layers import grid_pull
 from monai.utils import GridSamplePadMode
 
 
