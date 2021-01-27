@@ -14,11 +14,11 @@ from typing import Any, Dict
 
 import torch
 from parameterized import parameterized
-
+from ignite.engine import Engine
 from monai.handlers import ConfusionMatrix
 
-TEST_CASE_1 = [{"include_background": True, "metric_name": "f1"}, 0.75]
-TEST_CASE_2 = [{"include_background": False, "metric_name": "ppv"}, 1.0]
+TEST_CASE_1 = [{"include_background": True, "save_details": False, "metric_name": "f1"}, 0.75]
+TEST_CASE_2 = [{"include_background": False, "save_details": False, "metric_name": "ppv"}, 1.0]
 
 TEST_CASE_SEG_1 = [{"include_background": True, "metric_name": "tpr"}, 0.7]
 
@@ -72,6 +72,12 @@ class TestHandlerConfusionMatrix(unittest.TestCase):
     @parameterized.expand([TEST_CASE_SEG_1])
     def test_compute_seg(self, input_params, expected_avg):
         metric = ConfusionMatrix(**input_params)
+
+        def _val_func(engine, batch):
+            pass
+
+        engine = Engine(_val_func)
+        metric.attach(engine, "confusion_matrix")
 
         y_pred = data_1["y_pred"]
         y = data_1["y"]

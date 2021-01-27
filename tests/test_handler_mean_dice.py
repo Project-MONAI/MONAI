@@ -17,15 +17,15 @@ from parameterized import parameterized
 
 from monai.handlers import MeanDice
 
-TEST_CASE_1 = [{"include_background": True}, 0.75]
-TEST_CASE_2 = [{"include_background": False}, 0.66666]
+TEST_CASE_1 = [{"include_background": True}, 0.75, (4, 2)]
+TEST_CASE_2 = [{"include_background": False}, 0.66666, (4, 1)]
 
 
 class TestHandlerMeanDice(unittest.TestCase):
     # TODO test multi node averaged dice
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
-    def test_compute(self, input_params, expected_avg):
+    def test_compute(self, input_params, expected_avg, details_shape):
         dice_metric = MeanDice(**input_params)
         # set up engine
 
@@ -33,7 +33,8 @@ class TestHandlerMeanDice(unittest.TestCase):
             pass
 
         engine = Engine(_val_func)
-        dice_metric.attach(engine, "mean_dice")
+        dice_metric.attach(engine=engine, name="mean_dice")
+
         y_pred = torch.Tensor([[[0], [1]], [[1], [0]]])
         y = torch.Tensor([[[0], [1]], [[0], [1]]])
         dice_metric.update([y_pred, y])
@@ -44,10 +45,10 @@ class TestHandlerMeanDice(unittest.TestCase):
 
         avg_dice = dice_metric.compute()
         self.assertAlmostEqual(avg_dice, expected_avg, places=4)
-        self.assertTupleEqual(tuple(engine.state.metric_details["mean_dice"].shape), (4, 2))
+        self.assertTupleEqual(tuple(engine.state.metric_details["mean_dice"].shape), details_shape)
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
-    def test_shape_mismatch(self, input_params, _expected):
+    def test_shape_mismatch(self, input_params, _expected_avg, _details_shape):
         dice_metric = MeanDice(**input_params)
         with self.assertRaises((AssertionError, ValueError)):
             y_pred = torch.Tensor([[0, 1], [1, 0]])
