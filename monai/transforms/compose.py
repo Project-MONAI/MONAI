@@ -13,7 +13,7 @@ A collection of generic interfaces for MONAI transforms.
 """
 
 import warnings
-from typing import Any, Callable, Optional, Sequence, Union, Hashable, Mapping
+from typing import Any, Callable, Mapping, Optional, Sequence, Union
 
 import numpy as np
 
@@ -119,12 +119,13 @@ class Compose(Randomizable, Transform):
     def inverse(self, data):
         if not isinstance(data, Mapping):
             raise RuntimeError("Inverse method only available for dictionary transforms")
+        d = dict(data)
         # loop over data elements
-        for k in data:
+        for k in d:
             transform_key = k + "_transforms"
             if transform_key not in data:
                 continue
             for t in reversed(data[transform_key]):
                 transform = t["obj"]
-                data = transform.inverse(data)
-        return data
+                d = transform.inverse(d)
+        return d

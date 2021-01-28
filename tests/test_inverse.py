@@ -12,49 +12,56 @@
 import unittest
 
 import numpy as np
-# from parameterized import parameterized
+from parameterized import parameterized
 
-from monai.transforms import Compose, SpatialPadd, SpatialPad
+from monai.transforms import Compose, SpatialPad, SpatialPadd
 
 TEST_0 = [
-    {"image": np.arange(0,10).reshape(1, 10)},
+    {"image": np.arange(0, 10).reshape(1, 10)},
     [
         SpatialPadd(keys="image", spatial_size=[15]),
         SpatialPadd(keys="image", spatial_size=[21]),
         SpatialPadd(keys="image", spatial_size=[24]),
-    ]
+    ],
 ]
 
 TEST_1 = [
-    {"image": np.arange(0,10*9).reshape(1, 10, 9)},
+    {"image": np.arange(0, 10 * 9).reshape(1, 10, 9)},
     [
         SpatialPadd(keys="image", spatial_size=[11, 12]),
         SpatialPadd(keys="image", spatial_size=[12, 21]),
         SpatialPadd(keys="image", spatial_size=[14, 25]),
-    ]
+    ],
 ]
 
 TEST_2 = [
-    {"image": np.arange(0,10).reshape(1, 10)},
+    {"image": np.arange(0, 10).reshape(1, 10)},
     [
-        Compose([
-            SpatialPadd(keys="image", spatial_size=[15]),
-            SpatialPadd(keys="image", spatial_size=[21]),
-            SpatialPadd(keys="image", spatial_size=[24]),
-        ])
-    ]
+        Compose(
+            [
+                SpatialPadd(keys="image", spatial_size=[15]),
+                SpatialPadd(keys="image", spatial_size=[21]),
+                SpatialPadd(keys="image", spatial_size=[24]),
+            ]
+        )
+    ],
 ]
 
-TEST_FAIL = [
-    np.arange(0,10).reshape(1, 10),
-    Compose([
-        SpatialPad(spatial_size=[15]),
-    ])
+TEST_FAIL_0 = [
+    np.arange(0, 10).reshape(1, 10),
+    Compose(
+        [
+            SpatialPad(spatial_size=[15]),
+        ]
+    ),
 ]
 
 TESTS = [TEST_0, TEST_1, TEST_2]
+TEST_FAILS = [TEST_FAIL_0]
+
 
 class TestInverse(unittest.TestCase):
+    @parameterized.expand(TESTS)
     def test_inverse(self, data, transforms):
         d = data.copy()
 
@@ -73,16 +80,12 @@ class TestInverse(unittest.TestCase):
 
         self.assertTrue(np.all(d["image"] == data["image"]))
 
+    @parameterized.expand(TEST_FAILS)
     def test_fail(self, data, transform):
         d = transform(data)
         with self.assertRaises(RuntimeError):
             d = transform.inverse(d)
 
 
-
 if __name__ == "__main__":
-    # unittest.main()
-    a = TestInverse()
-    a.test_fail(TEST_FAIL[0], TEST_FAIL[1])
-    for t in TESTS:
-        a.test_inverse(t[0], t[1])
+    unittest.main()

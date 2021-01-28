@@ -15,10 +15,10 @@ defined in :py:class:`monai.transforms.croppad.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
+from math import floor
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
-from math import floor
 
 from monai.config import IndexSelection, KeysCollection
 from monai.data.utils import get_random_patch, get_valid_patch_size
@@ -118,21 +118,20 @@ class SpatialPadd(SpatialMapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key, m in zip(self.keys, self.mode):
-            d = self.append_applied_transforms(d, key, {"obj":self, "orig_size": d[key].shape})
+            d = self.append_applied_transforms(d, key, {"obj": self, "orig_size": d[key].shape})
             d[key] = self.padder(d[key], mode=m)
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        for key, m in zip(self.keys, self.mode):
+        for key in self.keys:
             transform = self.get_most_recent_transform(d, key)
             if transform["obj"] != self:
-                raise RuntimeError(
-                    "Should inverse most recently applied inverse-able transform first")
+                raise RuntimeError("Should inverse most recently applied inverse-able transform first")
             # Create inverse transform
             roi_size = transform["orig_size"][1:]
             im_shape = d[key].shape[1:] if self.padder.method == Method.SYMMETRIC else transform["orig_size"][1:]
-            roi_center = [floor(i/2) if r % 2 == 0 else (i-1)/2 for r, i in zip(roi_size, im_shape)]
+            roi_center = [floor(i / 2) if r % 2 == 0 else (i - 1) / 2 for r, i in zip(roi_size, im_shape)]
 
             inverse_transform = SpatialCrop(roi_center, roi_size)
             # Apply inverse transform
