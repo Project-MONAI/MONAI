@@ -22,6 +22,12 @@ CSV saver
     :members:
 
 
+Iteration Metric
+----------------
+.. autoclass:: IterationMetric
+    :members:
+
+
 Mean Dice metrics handler
 -------------------------
 .. autoclass:: MeanDice
