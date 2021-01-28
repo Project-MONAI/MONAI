@@ -31,7 +31,7 @@ from monai.transforms.croppad.array import (
     SpatialCrop,
     SpatialPad,
 )
-from monai.transforms.transform import MapTransform, Randomizable, SpatialMapTransform
+from monai.transforms.transform import InvertibleTransform, MapTransform, Randomizable
 from monai.transforms.utils import (
     generate_pos_neg_label_crop_centers,
     generate_spatial_bounding_box,
@@ -83,7 +83,7 @@ __all__ = [
 NumpyPadModeSequence = Union[Sequence[Union[NumpyPadMode, str]], NumpyPadMode, str]
 
 
-class SpatialPadd(SpatialMapTransform):
+class SpatialPadd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SpatialPad`.
     Performs padding to the data, symmetric for all sides or all on one side for each dimension.
@@ -118,19 +118,29 @@ class SpatialPadd(SpatialMapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key, m in zip(self.keys, self.mode):
-            d = self.append_applied_transforms(d, key, {"obj": self, "orig_size": d[key].shape})
+            orig_size = d[key].shape
             d[key] = self.padder(d[key], mode=m)
+            self.append_applied_transforms(d, key, {"orig_size": orig_size})
         return d
+
+    def get_input_args(self):
+        return {
+            "keys": self.keys,
+            "method": self.padder.method,
+            "mode": self.mode,
+            "spatial_size": self.padder.spatial_size,
+        }
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
             transform = self.get_most_recent_transform(d, key)
-            if transform["obj"] != self:
-                raise RuntimeError("Should inverse most recently applied inverse-able transform first")
+            if transform["class"] != type(self) or transform["init_args"] != self.get_input_args():
+                raise RuntimeError("Should inverse most recently applied invertible transform first")
             # Create inverse transform
-            roi_size = transform["orig_size"][1:]
-            im_shape = d[key].shape[1:] if self.padder.method == Method.SYMMETRIC else transform["orig_size"][1:]
+            extra_info = transform["extra_info"]
+            roi_size = extra_info["orig_size"][1:]
+            im_shape = d[key].shape[1:] if self.padder.method == Method.SYMMETRIC else extra_info["orig_size"][1:]
             roi_center = [floor(i / 2) if r % 2 == 0 else (i - 1) / 2 for r, i in zip(roi_size, im_shape)]
 
             inverse_transform = SpatialCrop(roi_center, roi_size)

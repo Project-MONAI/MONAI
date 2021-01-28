@@ -17,14 +17,14 @@ from typing import Any, Callable, Mapping, Optional, Sequence, Union
 
 import numpy as np
 
-from monai.transforms.transform import Randomizable, Transform
+from monai.transforms.transform import InvertibleTransform, Randomizable, Transform
 from monai.transforms.utils import apply_transform
 from monai.utils import MAX_SEED, ensure_tuple, get_seed
 
 __all__ = ["Compose"]
 
 
-class Compose(Randomizable, Transform):
+class Compose(Randomizable, Transform, InvertibleTransform):
     """
     ``Compose`` provides the ability to chain a series of calls together in a
     sequence. Each transform in the sequence must take a single argument and
@@ -126,6 +126,6 @@ class Compose(Randomizable, Transform):
             if transform_key not in data:
                 continue
             for t in reversed(data[transform_key]):
-                transform = t["obj"]
+                transform = t["class"](**t["init_args"])
                 d = transform.inverse(d)
         return d

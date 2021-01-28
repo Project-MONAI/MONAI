@@ -20,7 +20,7 @@ import numpy as np
 from monai.config import KeysCollection
 from monai.utils import MAX_SEED, ensure_tuple
 
-__all__ = ["Randomizable", "Transform", "MapTransform", "SpatialMapTransform"]
+__all__ = ["Randomizable", "Transform", "MapTransform", "InvertibleTransform"]
 
 
 class Randomizable(ABC):
@@ -206,24 +206,26 @@ class MapTransform(Transform):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
-class SpatialMapTransform(MapTransform):
-    """Sub-class of ``MapTransform`` for deterministic, spatial transforms.
+class InvertibleTransform(ABC):
+    """Classes for invertible transforms.
 
-    This class exists so that an ``invert`` method can be implemented. This allows
-    images to be cropped, rotated, padded, etc., and then for segmentations to be
-    returned to their original size before saving to file for comparison in an external
-    viewer.
+    This class exists so that an ``invert`` method can be implemented. This allows, for
+    example, images to be cropped, rotated, padded, etc., during training and inference,
+    and after be returned to their original size before saving to file for comparison in
+    an external viewer.
+
+    When the `__call__` method is called, a serialization of the class is stored. When
+    the `inverse` method is called, the serialization is then removed. We use last in,
+    first out for the inverted transforms.
     """
 
-    @staticmethod
-    def append_applied_transforms(data, key, args):
+    def append_applied_transforms(self, data, key, extra_args):
         """Append to list of applied transforms for that key."""
         key += "_transforms"
         # If this is the first, create list
         if key not in data:
             data[key] = []
-        data[key].append(args)
-        return data
+        data[key].append({"class": type(self), "init_args": self.get_input_args(), "extra_info": extra_args})
 
     @staticmethod
     def get_most_recent_transform(data, key):
@@ -234,6 +236,10 @@ class SpatialMapTransform(MapTransform):
     def remove_most_recent_transform(data, key):
         """Get all applied transforms."""
         data[key + "_transforms"].pop()
+
+    def get_input_args(self):
+        """Return dictionary of input arguments."""
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     def inverse(self, data: Any):
         """

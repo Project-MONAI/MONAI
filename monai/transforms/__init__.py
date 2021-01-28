@@ -234,7 +234,7 @@ from .spatial.dictionary import (
     ZoomD,
     ZoomDict,
 )
-from .transform import MapTransform, Randomizable, SpatialMapTransform, Transform
+from .transform import InvertibleTransform, MapTransform, Randomizable, Transform
 from .utility.array import (
     AddChannel,
     AddExtremePointsChannel,
