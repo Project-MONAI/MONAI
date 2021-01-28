@@ -35,7 +35,7 @@ from monai.transforms.spatial.array import (
     Spacing,
     Zoom,
 )
-from monai.transforms.transform import MapTransform, Randomizable
+from monai.transforms.transform import InvertibleTransform, MapTransform, Randomizable
 from monai.transforms.utils import create_grid
 from monai.utils import (
     GridSampleMode,
@@ -761,7 +761,7 @@ class RandFlipd(Randomizable, MapTransform):
         return d
 
 
-class Rotated(MapTransform):
+class Rotated(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Rotate`.
 
@@ -816,6 +816,41 @@ class Rotated(MapTransform):
                 align_corners=self.align_corners[idx],
                 dtype=self.dtype[idx],
             )
+            self.append_applied_transforms(d, key)
+        return d
+
+    def get_input_args(self) -> dict:
+        return {
+            "keys": self.keys,
+            "angle": self.rotator.angle,
+            "keep_size": self.rotator.keep_size,
+            "mode": self.mode,
+            "padding_mode": self.padding_mode,
+            "align_corners": self.align_corners,
+            "dtype": self.dtype,
+        }
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = dict(data)
+        for idx, key in enumerate(self.keys):
+            transform = self.get_most_recent_transform(d, key)
+            if transform["class"] != type(self) or transform["init_args"] != self.get_input_args():
+                raise RuntimeError("Should inverse most recently applied invertible transform first")
+            # Create inverse transform
+            in_angle = transform["init_args"]["angle"]
+            angle = [-a for a in in_angle] if isinstance(in_angle, Sequence) else -in_angle
+            inverse_rotator = Rotate(angle=angle, keep_size=transform["init_args"]["keep_size"])
+            # Apply inverse transform
+            d[key] = inverse_rotator(
+                d[key],
+                mode=self.mode[idx],
+                padding_mode=self.padding_mode[idx],
+                align_corners=self.align_corners[idx],
+                dtype=self.dtype[idx],
+            )
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
+
         return d
 
 

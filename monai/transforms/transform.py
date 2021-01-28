@@ -219,29 +219,29 @@ class InvertibleTransform(ABC):
     first out for the inverted transforms.
     """
 
-    def append_applied_transforms(self, data, key, extra_args):
+    def append_applied_transforms(self, data:dict, key:Hashable, extra_args: Optional[dict]=None) -> None:
         """Append to list of applied transforms for that key."""
-        key += "_transforms"
+        key = str(key) + "_transforms"
         # If this is the first, create list
         if key not in data:
             data[key] = []
         data[key].append({"class": type(self), "init_args": self.get_input_args(), "extra_info": extra_args})
 
     @staticmethod
-    def get_most_recent_transform(data, key):
+    def get_most_recent_transform(data:dict, key:Hashable) -> dict:
         """Get all applied transforms."""
-        return data[key + "_transforms"][-1]
+        return dict(data[str(key) + "_transforms"][-1])
 
     @staticmethod
-    def remove_most_recent_transform(data, key):
+    def remove_most_recent_transform(data:dict, key:Hashable) -> None:
         """Get all applied transforms."""
-        data[key + "_transforms"].pop()
+        data[str(key) + "_transforms"].pop()
 
-    def get_input_args(self):
+    def get_input_args(self) -> dict:
         """Return dictionary of input arguments."""
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def inverse(self, data: Any):
+    def inverse(self, data:dict):
         """
         Inverse of ``__call__``.
 
