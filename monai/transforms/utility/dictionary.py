@@ -599,18 +599,27 @@ class Lambdad(MapTransform):
             See also: :py:class:`monai.transforms.compose.MapTransform`
         func: Lambda/function to be applied. It also can be a sequence of Callable,
             each element corresponds to a key in ``keys``.
+        overwrite: whether to overwrite the original data in the input dictionary with lamdbda function output.
+            default to True. it also can be a sequence of bool, each element corresponds to a key in ``keys``.
     """
 
-    def __init__(self, keys: KeysCollection, func: Union[Sequence[Callable], Callable]) -> None:
+    def __init__(
+        self,
+        keys: KeysCollection,
+        func: Union[Sequence[Callable], Callable],
+        overwrite: Union[Sequence[bool], bool] = True,
+    ) -> None:
         super().__init__(keys)
         self.func = ensure_tuple_rep(func, len(self.keys))
-        self.lambd = Lambda()
+        self.overwrite = ensure_tuple_rep(overwrite, len(self.keys))
+        self._lambd = Lambda()
 
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            d[key] = self.lambd(d[key], func=self.func[idx])
-
+            ret = self._lambd(d[key], func=self.func[idx])
+            if self.overwrite[idx]:
+                d[key] = ret
         return d
 
 
