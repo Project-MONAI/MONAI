@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,19 +9,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable, Optional, Sequence
+from typing import Any, Callable, Optional, Sequence, Union
 
 import numpy as np
 from torch.utils.data import Dataset
 
-from monai.transforms import LoadNifti, Randomizable, apply_transform
+from monai.data.image_reader import ImageReader
+from monai.transforms import LoadImage, Randomizable, apply_transform
 from monai.utils import MAX_SEED, get_seed
 
 
-class NiftiDataset(Dataset, Randomizable):
+class ImageDataset(Dataset, Randomizable):
     """
-    Loads image/segmentation pairs of Nifti files from the given filename lists. Transformations can be specified
+    Loads image/segmentation pairs of files from the given filename lists. Transformations can be specified
     for the image and segmentation arrays separately.
+    The difference between this dataset and `ArrayDataset` is that this dataset can apply transform chain to images
+    and segs and return both the images and metadata, and no need to specify transform to load images from files.
+
     """
 
     def __init__(
@@ -29,11 +33,13 @@ class NiftiDataset(Dataset, Randomizable):
         image_files: Sequence[str],
         seg_files: Optional[Sequence[str]] = None,
         labels: Optional[Sequence[float]] = None,
-        as_closest_canonical: bool = False,
         transform: Optional[Callable] = None,
         seg_transform: Optional[Callable] = None,
         image_only: bool = True,
         dtype: Optional[np.dtype] = np.float32,
+        reader: Optional[Union[ImageReader, str]] = None,
+        *args,
+        **kwargs,
     ) -> None:
         """
         Initializes the dataset with the image and segmentation filename lists. The transform `transform` is applied
@@ -43,14 +49,18 @@ class NiftiDataset(Dataset, Randomizable):
             image_files: list of image filenames
             seg_files: if in segmentation task, list of segmentation filenames
             labels: if in classification task, list of classification labels
-            as_closest_canonical: if True, load the image as closest to canonical orientation
             transform: transform to apply to image arrays
             seg_transform: transform to apply to segmentation arrays
-            image_only: if True return only the image volume, other return image volume and header dict
+            image_only: if True return only the image volume, otherwise, return image volume and the metadata
             dtype: if not None convert the loaded image to this data type
+            reader: register reader to load image file and meta data, if None, will use the default readers.
+                If a string of reader name provided, will construct a reader object with the `*args` and `**kwargs`
+                parameters, supported reader name: "NibabelReader", "PILReader", "ITKReader", "NumpyReader"
+            args: additional parameters for reader if providing a reader name
+            kwargs: additional parameters for reader if providing a reader name
 
         Raises:
-            ValueError: When ``seg_files`` length differs from ``image_files``.
+            ValueError: When ``seg_files`` length differs from ``image_files``
 
         """
 
@@ -63,13 +73,11 @@ class NiftiDataset(Dataset, Randomizable):
         self.image_files = image_files
         self.seg_files = seg_files
         self.labels = labels
-        self.as_closest_canonical = as_closest_canonical
         self.transform = transform
         self.seg_transform = seg_transform
         self.image_only = image_only
-        self.dtype = dtype
+        self.loader = LoadImage(reader, image_only, dtype, *args, **kwargs)
         self.set_random_state(seed=get_seed())
-
         self._seed = 0  # transform synchronization seed
 
     def __len__(self) -> int:
@@ -81,18 +89,18 @@ class NiftiDataset(Dataset, Randomizable):
     def __getitem__(self, index: int):
         self.randomize()
         meta_data = None
-        img_loader = LoadNifti(
-            as_closest_canonical=self.as_closest_canonical, image_only=self.image_only, dtype=self.dtype
-        )
-        if self.image_only:
-            img = img_loader(self.image_files[index])
-        else:
-            img, meta_data = img_loader(self.image_files[index])
         seg = None
-        if self.seg_files is not None:
-            seg_loader = LoadNifti(image_only=True)
-            seg = seg_loader(self.seg_files[index])
         label = None
+
+        if self.image_only:
+            img = self.loader(self.image_files[index])
+            if self.seg_files is not None:
+                seg = self.loader(self.seg_files[index])
+        else:
+            img, meta_data = self.loader(self.image_files[index])
+            if self.seg_files is not None:
+                seg, _ = self.loader(self.seg_files[index])
+
         if self.labels is not None:
             label = self.labels[index]
 

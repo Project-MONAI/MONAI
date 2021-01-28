@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -53,7 +53,7 @@ def do_metric_reduction(
         f: a tensor that contains the calculated metric scores per batch and
             per class. The first two dims should be batch and class.
         reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
-        ``"mean_channel"``, ``"sum_channel"``}
+            ``"mean_channel"``, ``"sum_channel"``}, if "none", return the input f tensor and not_nans.
         Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
 
     Raises:
@@ -65,11 +65,13 @@ def do_metric_reduction(
     # we need to account for it
     nans = torch.isnan(f)
     not_nans = (~nans).float()
-    f[nans] = 0
 
     t_zero = torch.zeros(1, device=f.device, dtype=f.dtype)
     reduction = MetricReduction(reduction)
+    if reduction == MetricReduction.NONE:
+        return f, not_nans
 
+    f[nans] = 0
     if reduction == MetricReduction.MEAN:
         # 2 steps, first, mean by channel (accounting for nans), then by batch
         not_nans = not_nans.sum(dim=1)

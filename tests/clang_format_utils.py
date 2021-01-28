@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -34,8 +34,8 @@ PLATFORM_TO_CF_URL = {
 # This dictionary maps each platform to a relative path to a file containing its reference hash.
 # github/pytorch/pytorch/tree/63d62d3e44a0a4ec09d94f30381d49b78cc5b095/tools/clang_format_hash
 PLATFORM_TO_HASH = {
-    "Darwin": "020c7f38f14665c2ed82f3e8976c9074c2cfac0a",
-    "Linux": "d1365110da598d148d8143a7f2ccfd8bac7df499",
+    "Darwin": "b24cc8972344c4e01afbbae78d6a414f7638ff6f",
+    "Linux": "9073602de1c4e1748f2feea5a0782417b20e3043",
 }
 
 # Directory and file paths for the clang-format binary.

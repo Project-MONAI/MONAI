@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,9 +9,42 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
+
+from monai.utils import exact_version, optional_import
+
+if TYPE_CHECKING:
+    from ignite.engine import EventEnum
+else:
+    EventEnum, _ = optional_import("ignite.engine", "0.4.2", exact_version, "EventEnum")
+
+__all__ = [
+    "IterationEvents",
+    "CommonKeys",
+    "GanKeys",
+    "get_devices_spec",
+    "default_prepare_batch",
+    "default_make_latent",
+]
+
+
+class IterationEvents(EventEnum):
+    """
+    Addtional Events engine can register and trigger in the iteration process.
+    Refer to the example in ignite: https://github.com/pytorch/ignite/blob/master/ignite/engine/events.py#L146
+    These Events can be triggered during training iteration:
+    `FORWARD_COMPLETED` is the Event when `network(image, label)` completed.
+    `LOSS_COMPLETED` is the Event when `loss(pred, label)` completed.
+    `BACKWARD_COMPLETED` is the Event when `loss.backward()` completed.
+
+    """
+
+    FORWARD_COMPLETED = "forward_completed"
+    LOSS_COMPLETED = "loss_completed"
+    BACKWARD_COMPLETED = "backward_completed"
+    OPTIMIZER_COMPLETED = "optimizer_completed"
 
 
 class CommonKeys:
@@ -34,6 +67,7 @@ class CommonKeys:
 class GanKeys:
     """
     A set of common keys for generative adversarial networks.
+
     """
 
     REALS = "reals"
@@ -87,16 +121,16 @@ def default_prepare_batch(
         image, label(optional).
 
     """
-    assert isinstance(batchdata, dict), "default prepare_batch expects dictionary input data."
+    if not isinstance(batchdata, dict):
+        raise AssertionError("default prepare_batch expects dictionary input data.")
     if CommonKeys.LABEL in batchdata:
         return (
             batchdata[CommonKeys.IMAGE].to(device=device, non_blocking=non_blocking),
             batchdata[CommonKeys.LABEL].to(device=device, non_blocking=non_blocking),
         )
-    elif GanKeys.REALS in batchdata:
+    if GanKeys.REALS in batchdata:
         return batchdata[GanKeys.REALS].to(device=device, non_blocking=non_blocking)
-    else:
-        return batchdata[CommonKeys.IMAGE].to(device=device, non_blocking=non_blocking), None
+    return batchdata[CommonKeys.IMAGE].to(device=device, non_blocking=non_blocking), None
 
 
 def default_make_latent(
