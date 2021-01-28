@@ -9,16 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from monai.transforms.transform import InvertibleTransform
 import unittest
 
+import matplotlib.pyplot as plt
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms import Compose, SpatialPad, SpatialPadd, Rotated, AddChanneld
 from monai.data import create_test_image_2d
+from monai.transforms import AddChanneld, Compose, Rotated, SpatialPad, SpatialPadd
+from monai.transforms.transform import InvertibleTransform
 from monai.utils import Method
-import matplotlib.pyplot as plt
 
 TEST_0 = [
     {"image": np.arange(0, 10).reshape(1, 10)},
@@ -65,7 +65,7 @@ TEST_ROTATE = [
     [
         AddChanneld("image"),
         Rotated("image", -np.pi / 6, True, "bilinear", "border", False),
-    ]
+    ],
 ]
 
 TESTS_LOSSLESS = [TEST_0, TEST_1, TEST_2]
@@ -122,11 +122,11 @@ class TestInverse(unittest.TestCase):
         pre = forwards[0]["image"]
         post = backwards[-1]["image"][0]
         diff = post - pre
-        for i, (im, title) in enumerate(zip([pre, post, diff],["pre", "post", "diff"])):
+        for i, (im, title) in enumerate(zip([pre, post, diff], ["pre", "post", "diff"])):
             ax = axes[i]
             _ = ax.imshow(im)
             ax.set_title(title, fontsize=25)
-            ax.axis('off')
+            ax.axis("off")
         fig.show()
         pass
 
