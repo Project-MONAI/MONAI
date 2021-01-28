@@ -58,6 +58,7 @@ class MetricsSaver:
             default to None.
         save_rank: only the handler on specified rank will save to files in multi-gpus validation, default to 0.
         delimiter: the delimiter charactor in CSV file, default to "\t".
+        output_type: expected output file type, supported types: ["csv"], default to "csv".
 
     """
 
@@ -70,6 +71,7 @@ class MetricsSaver:
         summary_ops: Optional[Union[str, Sequence[str]]] = None,
         save_rank: int = 0,
         delimiter: str = "\t",
+        output_type: str = "csv",
     ) -> None:
         self.save_dir = save_dir
         self.metrics = ensure_tuple(metrics) if metrics is not None else None
@@ -78,6 +80,7 @@ class MetricsSaver:
         self.summary_ops = ensure_tuple(summary_ops) if summary_ops is not None else None
         self.save_rank = save_rank
         self.deli = delimiter
+        self.output_type = output_type
         self._filenames: List[str] = []
 
     def attach(self, engine: Engine) -> None:
@@ -154,6 +157,7 @@ class MetricsSaver:
                             metric=v,
                             filepath=os.path.join(self.save_dir, k + "_raw.csv"),
                             deli=self.deli,
+                            output_type=self.output_type,
                         )
 
                         if self.summary_ops is not None:
@@ -163,4 +167,5 @@ class MetricsSaver:
                                 filepath=os.path.join(self.save_dir, k + "_summary.csv"),
                                 summary_ops=self.summary_ops,
                                 deli=self.deli,
+                                output_type=self.output_type,
                             )

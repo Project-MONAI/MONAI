@@ -87,6 +87,7 @@ def write_per_image_metric(
     metric: np.ndarray,
     filepath: str,
     deli: str = "\t",
+    output_type: str = "csv",
 ):
     """
     Utility function to write the raw metric data of every image into a file, every line is for 1 image.
@@ -98,19 +99,20 @@ def write_per_image_metric(
         metric: raw metric data for all images, it must have at least 2 dims(batch, classes).
         filepath: target file path to save the result, for example: "/workspace/data/mean_dice_raw.csv".
         deli: the delimiter charactor in the file, default to "\t".
+        output_type: expected output file type, supported types: ["csv"], default to "csv".
 
     """
 
     if metric.ndim < 2:
         raise ValueError("metric must have at least 2 dims(batch, classes).")
 
-    if not (isinstance(filepath, str) and filepath[-4:] == ".csv"):
-        raise AssertionError("filepath must be a string with CSV format.")
-
-    with open(filepath, "w") as f:
-        f.write(f"filename{deli}{deli.join(class_labels)}\n")
-        for i, image in enumerate(metric):
-            f.write(f"{images[i]}{deli}{deli.join([str(c) for c in image])}\n")
+    if output_type.lower() == "csv":
+        with open(filepath, "w") as f:
+            f.write(f"filename{deli}{deli.join(class_labels)}\n")
+            for i, image in enumerate(metric):
+                f.write(f"{images[i]}{deli}{deli.join([str(c) for c in image])}\n")
+    else:
+        raise ValueError(f"unsupported output type: {output_type}.")
 
 
 def write_metric_summary(
@@ -119,6 +121,7 @@ def write_metric_summary(
     filepath: str,
     summary_ops: Union[str, Sequence[str]],
     deli: str = "\t",
+    output_type: str = "csv",
 ):
     """
     Utility function to compute summary report of metric data on all the images, every line is for 1 class.
@@ -133,14 +136,12 @@ def write_metric_summary(
             list of strings - generate summary report with specified operations, they should be within this list:
             [`mean`, `median`, `max`, `min`, `90percent`, `std`].
         deli: the delimiter charactor in the file, default to "\t".
+        output_type: expected output file type, supported types: ["csv"], default to "csv".
 
     """
 
     if metric.ndim < 2:
         raise ValueError("metric must have at least 2 dims(batch, classes).")
-
-    if not (isinstance(filepath, str) and filepath[-4:] == ".csv"):
-        raise AssertionError("filepath must be a string with CSV format.")
 
     supported_ops = OrderedDict(
         {
@@ -156,7 +157,10 @@ def write_metric_summary(
     if "*" in ops:
         ops = tuple(supported_ops.keys())
 
-    with open(filepath, "w") as f:
-        f.write(f"class{deli}{deli.join(ops)}\n")
-        for i, c in enumerate(metric.transpose()):
-            f.write(f"{class_labels[i]}{deli}{deli.join([f'{supported_ops[k](c):.4f}' for k in ops])}\n")
+    if output_type.lower() == "csv":
+        with open(filepath, "w") as f:
+            f.write(f"class{deli}{deli.join(ops)}\n")
+            for i, c in enumerate(metric.transpose()):
+                f.write(f"{class_labels[i]}{deli}{deli.join([f'{supported_ops[k](c):.4f}' for k in ops])}\n")
+    else:
+        raise ValueError(f"unsupported output type: {output_type}.")
