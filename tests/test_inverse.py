@@ -15,12 +15,13 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import Compose, SpatialPad, SpatialPadd
+from monai.utils import Method
 
 TEST_0 = [
     {"image": np.arange(0, 10).reshape(1, 10)},
     [
         SpatialPadd(keys="image", spatial_size=[15]),
-        SpatialPadd(keys="image", spatial_size=[21]),
+        SpatialPadd(keys="image", spatial_size=[21], method=Method.END),
         SpatialPadd(keys="image", spatial_size=[24]),
     ],
 ]
@@ -30,7 +31,7 @@ TEST_1 = [
     [
         SpatialPadd(keys="image", spatial_size=[11, 12]),
         SpatialPadd(keys="image", spatial_size=[12, 21]),
-        SpatialPadd(keys="image", spatial_size=[14, 25]),
+        SpatialPadd(keys="image", spatial_size=[14, 25], method=Method.END),
     ],
 ]
 
@@ -63,22 +64,25 @@ TEST_FAILS = [TEST_FAIL_0]
 class TestInverse(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_inverse(self, data, transforms):
-        d = data.copy()
+        forwards = [data.copy()]
 
         # Apply forwards
         for t in transforms:
-            d = t(d)
+            forwards.append(t(forwards[-1]))
 
         # Check that error is thrown when inverse are used out of order.
         t = transforms[0] if len(transforms) > 1 else SpatialPadd("image", [10, 5])
         with self.assertRaises(RuntimeError):
-            t.inverse(d)
+            t.inverse(forwards[-1])
 
         # Apply inverses
-        for t in reversed(transforms):
-            d = t.inverse(d)
+        backwards = [forwards[-1].copy()]
+        for i, t in enumerate(reversed(transforms)):
+            backwards.append(t.inverse(backwards[-1]))
+            self.assertTrue(np.all(backwards[-1]["image"] == forwards[len(forwards) - i - 2]["image"]))
 
-        self.assertTrue(np.all(d["image"] == data["image"]))
+        # Check we got back to beginning
+        self.assertTrue(np.all(backwards[-1]["image"] == forwards[0]["image"]))
 
     @parameterized.expand(TEST_FAILS)
     def test_fail(self, data, transform):
