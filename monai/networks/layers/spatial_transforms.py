@@ -544,8 +544,3 @@ class AffineTransform(nn.Module):
             align_corners=self.align_corners,
         )
         return dst
-
-    def forward(
-        self, src: torch.Tensor, theta: torch.Tensor, spatial_size: Optional[Union[Sequence[int], int]] = None
-    ) -> torch.Tensor:
-        pass

@@ -18,10 +18,10 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
+from math import floor
 
 from monai.config import IndexSelection, KeysCollection
 from monai.data.utils import get_random_patch, get_valid_patch_size
-from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.croppad.array import (
     BorderPad,
     BoundingRect,
@@ -31,6 +31,7 @@ from monai.transforms.croppad.array import (
     SpatialCrop,
     SpatialPad,
 )
+from monai.transforms.transform import MapTransform, Randomizable, SpatialMapTransform
 from monai.transforms.utils import (
     generate_pos_neg_label_crop_centers,
     generate_spatial_bounding_box,
@@ -82,7 +83,7 @@ __all__ = [
 NumpyPadModeSequence = Union[Sequence[Union[NumpyPadMode, str]], NumpyPadMode, str]
 
 
-class SpatialPadd(MapTransform):
+class SpatialPadd(SpatialMapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SpatialPad`.
     Performs padding to the data, symmetric for all sides or all on one side for each dimension.
@@ -106,7 +107,7 @@ class SpatialPadd(MapTransform):
             mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
                 ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
-                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
 
         """
@@ -117,7 +118,28 @@ class SpatialPadd(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key, m in zip(self.keys, self.mode):
+            d = self.append_applied_transforms(d, key, {"obj":self, "orig_size": d[key].shape})
             d[key] = self.padder(d[key], mode=m)
+        return d
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = dict(data)
+        for key, m in zip(self.keys, self.mode):
+            transform = self.get_most_recent_transform(d, key)
+            if transform["obj"] != self:
+                raise RuntimeError(
+                    "Should inverse most recently applied inverse-able transform first")
+            # Create inverse transform
+            roi_size = transform["orig_size"][1:]
+            im_shape = d[key].shape[1:] if self.padder.method == Method.SYMMETRIC else transform["orig_size"][1:]
+            roi_center = [floor(i/2) if r % 2 == 0 else (i-1)/2 for r, i in zip(roi_size, im_shape)]
+
+            inverse_transform = SpatialCrop(roi_center, roi_size)
+            # Apply inverse transform
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
+
         return d
 
 

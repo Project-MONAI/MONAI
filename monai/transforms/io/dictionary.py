@@ -21,8 +21,8 @@ import numpy as np
 
 from monai.config import KeysCollection
 from monai.data.image_reader import ImageReader
-from monai.transforms.compose import MapTransform
 from monai.transforms.io.array import LoadImage
+from monai.transforms.transform import MapTransform
 
 __all__ = [
     "LoadImaged",

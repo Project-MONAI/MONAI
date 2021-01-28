@@ -22,7 +22,6 @@ import torch
 
 from monai.config import KeysCollection
 from monai.networks.layers.simplelayers import GaussianFilter
-from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.croppad.array import CenterSpatialCrop
 from monai.transforms.spatial.array import (
     Flip,
@@ -36,6 +35,7 @@ from monai.transforms.spatial.array import (
     Spacing,
     Zoom,
 )
+from monai.transforms.transform import MapTransform, Randomizable
 from monai.transforms.utils import create_grid
 from monai.utils import (
     GridSampleMode,
