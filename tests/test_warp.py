@@ -6,53 +6,22 @@ from parameterized import parameterized
 
 from monai.networks.blocks.warp import Warp
 
-TEST_CASE = [
+LOW_POWER_TEST_CASES = [
     [
-        {"spatial_dims": 2, "mode": "bilinear", "padding_mode": "zeros"},
+        {"spatial_dims": 2, "mode": 0, "padding_mode": "zeros"},
         {"image": torch.arange(4).reshape((1, 1, 2, 2)).to(dtype=torch.float), "ddf": torch.zeros(1, 2, 2, 2)},
         torch.arange(4).reshape((1, 1, 2, 2)),
     ],
     [
-        {"spatial_dims": 2, "mode": "nearest", "padding_mode": "zeros"},
-        {"image": torch.arange(4).reshape((1, 1, 2, 2)).to(dtype=torch.float), "ddf": torch.zeros(1, 2, 4, 4)},
-        torch.tensor([[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 2.0, 3.0, 0.0], [0.0, 0.0, 0.0, 0.0]])
-        .unsqueeze(0)
-        .unsqueeze(0),
-    ],
-    [
-        {"spatial_dims": 2, "mode": "bilinear", "padding_mode": "border"},
-        {"image": torch.arange(4).reshape((1, 1, 2, 2)).to(dtype=torch.float), "ddf": torch.zeros(1, 2, 4, 4)},
-        torch.tensor([[0.0, 0.0, 1.0, 1.0], [0.0, 0.0, 1.0, 1.0], [2.0, 2.0, 3, 3.0], [2.0, 2.0, 3.0, 3.0]])
-        .unsqueeze(0)
-        .unsqueeze(0),
-    ],
-    [
-        {"spatial_dims": 2, "mode": "nearest", "padding_mode": "reflection"},
-        {"image": torch.arange(4).reshape((1, 1, 2, 2)).to(dtype=torch.float), "ddf": torch.zeros(1, 2, 4, 4)},
-        torch.tensor([[3.0, 2.0, 3.0, 2.0], [1.0, 0.0, 1.0, 0.0], [3.0, 2.0, 3.0, 2.0], [1.0, 0.0, 1.0, 0.0]])
-        .unsqueeze(0)
-        .unsqueeze(0),
-    ],
-    [
-        {"spatial_dims": 3, "mode": "bilinear", "padding_mode": "zeros"},
-        {"image": torch.arange(8).reshape((1, 1, 2, 2, 2)).to(dtype=torch.float), "ddf": torch.zeros(1, 3, 2, 2, 2)},
-        torch.arange(8).reshape((1, 1, 2, 2, 2)).to(dtype=torch.float),
-    ],
-]
-
-TEST_CASES = [
-    [
-        {"spatial_dims": 2, "mode": "bilinear", "padding_mode": "zeros"},
-        {"image": torch.arange(4).reshape((1, 1, 2, 2)).to(dtype=torch.float), "ddf": torch.zeros(1, 2, 2, 2)},
-        torch.arange(4).reshape((1, 1, 2, 2)),
-    ],
-    [
-        {"spatial_dims": 2, "mode": "bilinear", "padding_mode": "zeros"},
+        {"spatial_dims": 2, "mode": 1, "padding_mode": "zeros"},
         {"image": torch.arange(4).reshape((1, 1, 2, 2)).to(dtype=torch.float), "ddf": torch.ones(1, 2, 2, 2)},
         torch.tensor([[[[3, 0], [0, 0]]]]),
     ],
+]
+
+HIGH_POWER_TEST_CASES = [
     [
-        {"spatial_dims": 3, "mode": "nearest", "padding_mode": "border"},
+        {"spatial_dims": 3, "mode": 2, "padding_mode": "border"},
         {
             "image": torch.arange(8).reshape((1, 1, 2, 2, 2)).to(dtype=torch.float),
             "ddf": torch.ones(1, 3, 2, 2, 2) * -1,
@@ -60,11 +29,15 @@ TEST_CASES = [
         torch.tensor([[[[[0, 0], [0, 0]], [[0, 0], [0, 0]]]]]),
     ],
     [
-        {"spatial_dims": 3, "mode": "nearest", "padding_mode": "reflection"},
+        {"spatial_dims": 3, "mode": 3, "padding_mode": "reflection"},
         {"image": torch.arange(8).reshape((1, 1, 2, 2, 2)).to(dtype=torch.float), "ddf": torch.ones(1, 3, 2, 2, 2)},
         torch.tensor([[[[[7, 6], [5, 4]], [[3, 2], [1, 0]]]]]),
     ],
 ]
+
+TEST_CASES = LOW_POWER_TEST_CASES
+# if USE_COMPILED:
+#     TEST_CASES += HIGH_POWER_TEST_CASES
 
 
 class TestWarp(unittest.TestCase):

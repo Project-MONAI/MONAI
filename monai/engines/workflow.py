@@ -119,44 +119,68 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         self.data_loader = data_loader
         self.non_blocking = non_blocking
         self.prepare_batch = prepare_batch
-
-        if post_transform is not None:
-
-            @self.on(Events.ITERATION_COMPLETED)
-            def run_post_transform(engine: Engine) -> None:
-                if post_transform is None:
-                    raise AssertionError
-                engine.state.output = apply_transform(post_transform, engine.state.output)
-
-        if key_metric is not None:
-
-            if not isinstance(key_metric, dict):
-                raise TypeError(f"key_metric must be None or a dict but is {type(key_metric).__name__}.")
-            self.state.key_metric_name = list(key_metric.keys())[0]
-            metrics = key_metric
-            if additional_metrics is not None and len(additional_metrics) > 0:
-                if not isinstance(additional_metrics, dict):
-                    raise TypeError(
-                        f"additional_metrics must be None or a dict but is {type(additional_metrics).__name__}."
-                    )
-                metrics.update(additional_metrics)
-            for name, metric in metrics.items():
-                metric.attach(self, name)
-
-            @self.on(Events.EPOCH_COMPLETED)
-            def _compare_metrics(engine: Engine) -> None:
-                if engine.state.key_metric_name is not None:
-                    current_val_metric = engine.state.metrics[engine.state.key_metric_name]
-                    if current_val_metric > engine.state.best_metric:
-                        self.logger.info(f"Got new best metric of {engine.state.key_metric_name}: {current_val_metric}")
-                        engine.state.best_metric = current_val_metric
-                        engine.state.best_metric_epoch = engine.state.epoch
-
-        if handlers is not None:
-            handlers_ = ensure_tuple(handlers)
-            for handler in handlers_:
-                handler.attach(self)
         self.amp = amp
+
+        self._register_additional_events()
+        if post_transform is not None:
+            self._register_post_transforms(post_transform)
+        if key_metric is not None:
+            self._register_metrics(key_metric, additional_metrics)
+        if handlers is not None:
+            self._register_handlers(handlers)
+
+    def _register_additional_events(self):
+        """
+        Register more ignite Events to the engine.
+
+        """
+        pass
+
+    def _register_post_transforms(self, posttrans):
+        """
+        Register the post transforms to the engine, will execute them as a chain when iteration completed.
+
+        """
+
+        @self.on(Events.ITERATION_COMPLETED)
+        def run_post_transform(engine: Engine) -> None:
+            if posttrans is None:
+                raise AssertionError
+            engine.state.output = apply_transform(posttrans, engine.state.output)
+
+    def _register_metrics(self, k_metric, add_metrics):
+        """
+        Register the key metric and additional metrics to the engine, supports ignite Metrics.
+
+        """
+        if not isinstance(k_metric, dict):
+            raise TypeError(f"key_metric must be None or a dict but is {type(k_metric).__name__}.")
+        self.state.key_metric_name = list(k_metric.keys())[0]
+        metrics = k_metric
+        if add_metrics is not None and len(add_metrics) > 0:
+            if not isinstance(add_metrics, dict):
+                raise TypeError(f"additional metrics must be None or a dict but is {type(add_metrics).__name__}.")
+            metrics.update(add_metrics)
+        for name, metric in metrics.items():
+            metric.attach(self, name)
+
+        @self.on(Events.EPOCH_COMPLETED)
+        def _compare_metrics(engine: Engine) -> None:
+            if engine.state.key_metric_name is not None:
+                current_val_metric = engine.state.metrics[engine.state.key_metric_name]
+                if current_val_metric > engine.state.best_metric:
+                    self.logger.info(f"Got new best metric of {engine.state.key_metric_name}: {current_val_metric}")
+                    engine.state.best_metric = current_val_metric
+                    engine.state.best_metric_epoch = engine.state.epoch
+
+    def _register_handlers(self, handlers):
+        """
+        Register the handlers to the engine, supports ignite Handlers with `attach` API.
+
+        """
+        handlers_ = ensure_tuple(handlers)
+        for handler in handlers_:
+            handler.attach(self)
 
     def run(self) -> None:
         """
