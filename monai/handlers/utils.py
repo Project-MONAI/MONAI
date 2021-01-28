@@ -104,6 +104,9 @@ def write_per_image_metric(
     if metric.ndim < 2:
         raise ValueError("metric must have at least 2 dims(batch, classes).")
 
+    if not (isinstance(filepath, str) and filepath[-4:] == ".csv"):
+        raise AssertionError("filepath must be a string with CSV format.")
+
     with open(filepath, "w") as f:
         f.write(f"filename{deli}{deli.join(class_labels)}\n")
         for i, image in enumerate(metric):
@@ -135,6 +138,9 @@ def write_metric_summary(
 
     if metric.ndim < 2:
         raise ValueError("metric must have at least 2 dims(batch, classes).")
+
+    if not (isinstance(filepath, str) and filepath[-4:] == ".csv"):
+        raise AssertionError("filepath must be a string with CSV format.")
 
     supported_ops = OrderedDict(
         {
