@@ -15,6 +15,7 @@ import unittest
 import numpy as np
 import torch
 import torch.distributed as dist
+from ignite.engine import Engine
 
 from monai.handlers import ConfusionMatrix
 from tests.utils import DistCall, DistTestCase
@@ -29,6 +30,11 @@ class DistributedConfusionMatrix(DistTestCase):
         device = f"cuda:{dist.get_rank()}" if torch.cuda.is_available() else "cpu"
         metric = ConfusionMatrix(include_background=True, metric_name="tpr")
 
+        def _val_func(engine, batch):
+            pass
+
+        engine = Engine(_val_func)
+        metric.attach(engine, "confusion_matrix")
         if dist.get_rank() == 0:
             y_pred = torch.tensor(
                 [

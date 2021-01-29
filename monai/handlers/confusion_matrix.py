@@ -29,6 +29,7 @@ class ConfusionMatrix(IterationMetric):
         metric_name: str = "hit_rate",
         output_transform: Callable = lambda x: x,
         device: Optional[torch.device] = None,
+        save_details: bool = True,
     ) -> None:
         """
 
@@ -44,6 +45,8 @@ class ConfusionMatrix(IterationMetric):
                 and you can also input those names instead.
             output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
             device: device specification in case of distributed computation usage.
+            save_details: whether to save metric computation details per image, for example: TP/TN/FP/FN of every image.
+                default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
         See also:
             :py:meth:`monai.metrics.confusion_matrix`
@@ -55,7 +58,12 @@ class ConfusionMatrix(IterationMetric):
             reduction=MetricReduction.NONE,
         )
         self.metric_name = metric_name
-        super().__init__(metric_fn=metric_fn, output_transform=output_transform, device=device)
+        super().__init__(
+            metric_fn=metric_fn,
+            output_transform=output_transform,
+            device=device,
+            save_details=save_details,
+        )
 
     def _reduce(self, scores) -> Any:
         confusion_matrix, _ = do_metric_reduction(scores, MetricReduction.MEAN)
