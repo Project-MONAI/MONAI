@@ -478,17 +478,26 @@ class MaskIntensityd(MapTransform):
             of input image. if multiple channels, the channel number must
             match input data. mask_data will be converted to `bool` values
             by `mask_data > 0` before applying transform to input image.
+            if None, will extract the mask data from input data based on `mask_key`.
+        mask_key: the key to extract mask data from input dictionary, only works
+            when `mask_data` is None.
 
     """
 
-    def __init__(self, keys: KeysCollection, mask_data: np.ndarray) -> None:
+    def __init__(
+        self,
+        keys: KeysCollection,
+        mask_data: Optional[np.ndarray] = None,
+        mask_key: Optional[str] = None,
+    ) -> None:
         super().__init__(keys)
         self.converter = MaskIntensity(mask_data)
+        self.mask_key = mask_key if mask_data is None else None
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
-            d[key] = self.converter(d[key])
+            d[key] = self.converter(d[key], d[self.mask_key]) if self.mask_key is not None else self.converter(d[key])
         return d
 
 
