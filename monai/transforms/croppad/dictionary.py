@@ -15,9 +15,10 @@ defined in :py:class:`monai.transforms.croppad.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
+from copy import deepcopy
 from math import floor
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
-from copy import deepcopy
+
 import numpy as np
 
 from monai.config import IndexSelection, KeysCollection

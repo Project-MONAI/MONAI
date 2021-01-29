@@ -225,7 +225,9 @@ class InvertibleTransform(ABC):
         # If this is the first, create list
         if key_transform not in data:
             data[key_transform] = []
-        data[key_transform].append({"class": type(self), "init_args": self.get_input_args(key), "extra_info": extra_args})
+        data[key_transform].append(
+            {"class": type(self), "init_args": self.get_input_args(key), "extra_info": extra_args}
+        )
         # If class is randomizable, store whether the transform was actually performed (based on `prob`)
         if isinstance(self, Randomizable):
             data[key_transform][-1]["do_transform"] = self._do_transform

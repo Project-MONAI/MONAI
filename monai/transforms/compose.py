@@ -13,10 +13,11 @@ A collection of generic interfaces for MONAI transforms.
 """
 
 import warnings
+from copy import deepcopy
 from typing import Any, Callable, Mapping, Optional, Sequence, Union
 
 import numpy as np
-from copy import deepcopy
+
 from monai.transforms.transform import InvertibleTransform, Randomizable, Transform
 from monai.transforms.utils import apply_transform
 from monai.utils import MAX_SEED, ensure_tuple, get_seed

@@ -15,11 +15,12 @@ defined in :py:class:`monai.transforms.spatial.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
+from copy import deepcopy
 from typing import Any, Dict, Hashable, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
-from copy import deepcopy
+
 from monai.config import KeysCollection
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.croppad.array import CenterSpatialCrop
@@ -941,7 +942,7 @@ class RandRotated(Randomizable, MapTransform, InvertibleTransform):
             for key in self.keys:
                 self.append_applied_transforms(d, key)
             return d
-        angle=self.x if d[self.keys[0]].ndim == 3 else (self.x, self.y, self.z),
+        angle = (self.x if d[self.keys[0]].ndim == 3 else (self.x, self.y, self.z),)
         rotator = Rotate(
             angle=angle,
             keep_size=self.keep_size,

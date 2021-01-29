@@ -15,9 +15,10 @@ import unittest
 from typing import TYPE_CHECKING
 
 import numpy as np
+
+from monai.data import create_test_image_2d  # , create_test_image_3d
 from monai.data import CacheDataset
-from monai.data import create_test_image_2d  #, create_test_image_3d
-from monai.transforms import AddChanneld, Compose, Rotated, RandRotated, SpatialPad, SpatialPadd
+from monai.transforms import AddChanneld, Compose, RandRotated, Rotated, SpatialPad, SpatialPadd
 from monai.transforms.transform import InvertibleTransform
 from monai.utils import Method, optional_import
 
@@ -33,74 +34,84 @@ else:
     plt, has_matplotlib = optional_import("matplotlib.pyplot")
 
 TEST_SPATIALS = []
-TEST_SPATIALS.append([
-    "Spatial 1d",
-    {"image": np.arange(0, 10).reshape(1, 10)},
+TEST_SPATIALS.append(
     [
-        SpatialPadd("image", spatial_size=[15]),
-        SpatialPadd("image", spatial_size=[21], method=Method.END),
-        SpatialPadd("image", spatial_size=[24]),
-    ],
-    True,
-])
+        "Spatial 1d",
+        {"image": np.arange(0, 10).reshape(1, 10)},
+        [
+            SpatialPadd("image", spatial_size=[15]),
+            SpatialPadd("image", spatial_size=[21], method=Method.END),
+            SpatialPadd("image", spatial_size=[24]),
+        ],
+        True,
+    ]
+)
 
-TEST_SPATIALS.append([
-    "Spatial 2d",
-    {"image": np.arange(0, 10 * 9).reshape(1, 10, 9)},
+TEST_SPATIALS.append(
     [
-        SpatialPadd("image", spatial_size=[11, 12]),
-        SpatialPadd("image", spatial_size=[12, 21]),
-        SpatialPadd("image", spatial_size=[14, 25], method=Method.END),
-    ],
-    True,
-])
+        "Spatial 2d",
+        {"image": np.arange(0, 10 * 9).reshape(1, 10, 9)},
+        [
+            SpatialPadd("image", spatial_size=[11, 12]),
+            SpatialPadd("image", spatial_size=[12, 21]),
+            SpatialPadd("image", spatial_size=[14, 25], method=Method.END),
+        ],
+        True,
+    ]
+)
 
-TEST_SPATIALS.append([
-    "Spatial 3d",
-    {"image": np.arange(0, 10 * 9 * 8).reshape(1, 10, 9, 8)},
+TEST_SPATIALS.append(
     [
-        SpatialPadd("image", spatial_size=[55, 50, 45]),
-    ],
-    True
-])
+        "Spatial 3d",
+        {"image": np.arange(0, 10 * 9 * 8).reshape(1, 10, 9, 8)},
+        [
+            SpatialPadd("image", spatial_size=[55, 50, 45]),
+        ],
+        True,
+    ]
+)
 
 TEST_COMPOSES = []
-TEST_COMPOSES.append([
-    "Compose 2d",
-    {
-        "image": np.arange(0, 10 * 9).reshape(1, 10, 9),
-        "label": np.arange(0, 10 * 9).reshape(1, 10, 9),
-        "other": np.arange(0, 10 * 9).reshape(1, 10, 9),
-    },
+TEST_COMPOSES.append(
     [
-        Compose(
-            [
-                SpatialPadd(["image", "label"], spatial_size=[15, 12]),
-                SpatialPadd(["label"], spatial_size=[21, 32]),
-                SpatialPadd(["image"], spatial_size=[55, 50]),
-            ]
-        )
-    ],
-    True,
-])
-TEST_COMPOSES.append([
-    "Compose 3d",
-    {
-        "image": np.arange(0, 10 * 9 * 8).reshape(1, 10, 9, 8),
-        "label": np.arange(0, 10 * 9 * 8).reshape(1, 10, 9, 8),
-        "other": np.arange(0, 10 * 9 * 8).reshape(1, 10, 9, 8),
-    },
+        "Compose 2d",
+        {
+            "image": np.arange(0, 10 * 9).reshape(1, 10, 9),
+            "label": np.arange(0, 10 * 9).reshape(1, 10, 9),
+            "other": np.arange(0, 10 * 9).reshape(1, 10, 9),
+        },
+        [
+            Compose(
+                [
+                    SpatialPadd(["image", "label"], spatial_size=[15, 12]),
+                    SpatialPadd(["label"], spatial_size=[21, 32]),
+                    SpatialPadd(["image"], spatial_size=[55, 50]),
+                ]
+            )
+        ],
+        True,
+    ]
+)
+TEST_COMPOSES.append(
     [
-        Compose(
-            [
-                SpatialPadd(["image", "label"], spatial_size=[15, 12, 4]),
-                SpatialPadd(["label"], spatial_size=[21, 32, 1]),
-                SpatialPadd(["image"], spatial_size=[55, 50, 45]),
-            ]
-        )
-    ],
-    True,
-])
+        "Compose 3d",
+        {
+            "image": np.arange(0, 10 * 9 * 8).reshape(1, 10, 9, 8),
+            "label": np.arange(0, 10 * 9 * 8).reshape(1, 10, 9, 8),
+            "other": np.arange(0, 10 * 9 * 8).reshape(1, 10, 9, 8),
+        },
+        [
+            Compose(
+                [
+                    SpatialPadd(["image", "label"], spatial_size=[15, 12, 4]),
+                    SpatialPadd(["label"], spatial_size=[21, 32, 1]),
+                    SpatialPadd(["image"], spatial_size=[55, 50, 45]),
+                ]
+            )
+        ],
+        True,
+    ]
+)
 
 TEST_FAIL_0 = [
     np.arange(0, 10).reshape(1, 10),
@@ -114,7 +125,7 @@ TEST_FAIL_0 = [
 
 # TODO: add 3D
 TEST_ROTATES = []
-for create_im in [create_test_image_2d]:  #, partial(create_test_image_3d, 100)]:
+for create_im in [create_test_image_2d]:  # , partial(create_test_image_3d, 100)]:
     for keep_size in [True, False]:
         for align_corners in [False, True]:
             im, _ = create_im(100, 100)
@@ -167,8 +178,8 @@ def plot_im(orig, fwd_bck, fwd):
         fig.colorbar(im_show, ax=ax)
     plt.show()
 
-class TestInverse(unittest.TestCase):
 
+class TestInverse(unittest.TestCase):
     def check_inverse(self, keys, orig_d, fwd_bck_d, unmodified_d, lossless):
         for key in keys:
             orig = orig_d[key]
@@ -205,10 +216,7 @@ class TestInverse(unittest.TestCase):
         for i, t in enumerate(reversed(transforms)):
             if isinstance(t, InvertibleTransform):
                 fwd_bck = t.inverse(fwd_bck)
-                self.check_inverse(
-                    data.keys(), forwards[- i - 2], fwd_bck,
-                    forwards[-1], lossless
-                )
+                self.check_inverse(data.keys(), forwards[-i - 2], fwd_bck, forwards[-1], lossless)
 
     # @parameterized.expand(TESTS_FAIL)
     def test_fail(self, data, transform, _):
@@ -229,10 +237,7 @@ class TestInverse(unittest.TestCase):
         for _ in range(num_epochs):
             for data_fwd in dataset:
                 data_fwd_bck = transform.inverse(data_fwd)
-                self.check_inverse(
-                    data.keys(), data, data_fwd_bck,
-                    data_fwd, lossless
-                )
+                self.check_inverse(data.keys(), data, data_fwd_bck, data_fwd, lossless)
 
 
 if __name__ == "__main__":
