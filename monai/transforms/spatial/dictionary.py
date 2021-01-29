@@ -19,7 +19,7 @@ from typing import Any, Dict, Hashable, Mapping, Optional, Sequence, Tuple, Unio
 
 import numpy as np
 import torch
-
+from copy import deepcopy
 from monai.config import KeysCollection
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.croppad.array import CenterSpatialCrop
@@ -831,9 +831,9 @@ class Rotated(MapTransform, InvertibleTransform):
         }
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
-        d = dict(data)
+        d = deepcopy(dict(data))
         for idx, key in enumerate(self.keys):
-            if d[key][1:].ndim != 2:
+            if d[key][0].ndim != 2:
                 raise NotImplementedError("inverse rotation only currently implemented for 2D")
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
@@ -972,9 +972,9 @@ class RandRotated(Randomizable, MapTransform, InvertibleTransform):
         }
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
-        d = dict(data)
+        d = deepcopy(dict(data))
         for idx, key in enumerate(self.keys):
-            if d[key][1:].ndim != 2:
+            if d[key][0].ndim != 2:
                 raise NotImplementedError("inverse rotation only currently implemented for 2D")
             transform = self.get_most_recent_transform(d, key)
             # Check if random transform was actually performed (based on `prob`)

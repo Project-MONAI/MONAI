@@ -17,7 +17,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 from math import floor
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
-
+from copy import deepcopy
 import numpy as np
 
 from monai.config import IndexSelection, KeysCollection
@@ -132,7 +132,7 @@ class SpatialPadd(MapTransform, InvertibleTransform):
         }
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
-        d = dict(data)
+        d = deepcopy(dict(data))
         for key in self.keys:
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform

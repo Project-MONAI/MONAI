@@ -144,17 +144,12 @@ for create_im in [create_test_image_2d]:  #, partial(create_test_image_3d, 100)]
         TEST_ROTATES.append(TEST_ROTATE)
 
 TESTS = [*TEST_SPATIALS, *TEST_COMPOSES, *TEST_ROTATES]
+TESTS_DATALOADER = [*TEST_COMPOSES, *TEST_SPATIALS]
 TESTS_FAIL = [TEST_FAIL_0]
 
 
-def get_fractional_diff_im(array_true, array):
-    diff = array_true - array
-    avg = (array_true + array) / 2
-    return diff / (avg + 1e-10)
-
-
 def plot_im(orig, fwd_bck, fwd):
-    diff_orig_fwd_bck = 100 * get_fractional_diff_im(orig, fwd_bck)
+    diff_orig_fwd_bck = orig - fwd_bck
     fig, axes = plt.subplots(
         1, 4, gridspec_kw={"width_ratios": [orig.shape[1], fwd_bck.shape[1], diff_orig_fwd_bck.shape[1], fwd.shape[1]]}
     )
@@ -183,9 +178,9 @@ class TestInverse(unittest.TestCase):
                 if lossless:
                     self.assertTrue(np.all(orig == fwd_bck))
                 else:
-                    fractional_diff_im = get_fractional_diff_im(orig, fwd_bck)
-                    mean_percent_diff = 100 * np.mean(np.abs(fractional_diff_im))
-                    self.assertLess(mean_percent_diff, 10)
+                    mean_diff = np.mean(np.abs(orig - fwd_bck))
+                    print(f"Mean diff = {mean_diff}")
+                    self.assertLess(mean_diff, 1.5e-2)
             except AssertionError:
                 if has_matplotlib:
                     plot_im(orig, fwd_bck, unmodified)
@@ -230,12 +225,14 @@ class TestInverse(unittest.TestCase):
 
         dataset = CacheDataset(data=test_data, transform=transform)
         self.assertEqual(len(dataset), 2)
-        for data_fwd in dataset:
-            data_fwd_bck = transform.inverse(data_fwd)
-            self.check_inverse(
-                data.keys(), data, data_fwd_bck,
-                data_fwd, lossless
-            )
+        num_epochs = 2
+        for _ in range(num_epochs):
+            for data_fwd in dataset:
+                data_fwd_bck = transform.inverse(data_fwd)
+                self.check_inverse(
+                    data.keys(), data, data_fwd_bck,
+                    data_fwd, lossless
+                )
 
 
 if __name__ == "__main__":
@@ -243,7 +240,7 @@ if __name__ == "__main__":
     test = TestInverse()
     for t in TESTS:
         test.test_inverse(*t)
-    for t in TEST_COMPOSES:
+    for t in TESTS_DATALOADER:
         test.test_w_data_loader(*t)
     for t in TESTS_FAIL:
         test.test_fail(*t)
