@@ -236,11 +236,32 @@ class InvertibleTransform(ABC):
         if isinstance(self, Randomizable):
             data[key_transform][-1]["do_transform"] = self._do_transform
 
+    def check_transforms_match(self, transform: dict, key: Hashable) -> None:
+        explanation = "Should inverse most recently applied invertible transform first"
+        # Check transorms are of same type.
+        if transform["class"] != type(self):
+            raise RuntimeError(explanation)
+
+        def check_dictionaries_match(dict1, dict2):
+            if dict1.keys() != dict2.keys():
+                raise RuntimeError(explanation)
+            for k in dict1.keys():
+                if dict1[k] != dict2[k]:
+                    raise RuntimeError(explanation)
+
+        t1 = transform["init_args"]
+        t2 = self.get_input_args(key)
+
+        if t1.keys() != t2.keys():
+            raise RuntimeError(explanation)
+        for k in t1.keys():
+            if np.any(t1[k] != t2[k]):
+                raise RuntimeError(explanation)
+
     def get_most_recent_transform(self, data: dict, key: Hashable) -> dict:
         """Get most recent transform."""
         transform = dict(data[str(key) + "_transforms"][-1])
-        if transform["class"] != type(self) or transform["init_args"] != self.get_input_args(key):
-            raise RuntimeError("Should inverse most recently applied invertible transform first")
+        self.check_transforms_match(transform, key)
         return transform
 
     @staticmethod

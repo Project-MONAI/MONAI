@@ -232,7 +232,7 @@ class DivisiblePadd(MapTransform):
         return d
 
 
-class SpatialCropd(MapTransform):
+class SpatialCropd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SpatialCrop`.
     Either a spatial center and size must be provided, or alternatively if center and size
@@ -262,7 +262,35 @@ class SpatialCropd(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
+            self.append_applied_transforms(d, key, {"orig_size": d[key].shape})
             d[key] = self.cropper(d[key])
+        return d
+
+    def get_input_args(self, key):
+        return {
+            "keys": key,
+            "roi_start": self.cropper.roi_start,
+            "roi_end": self.cropper.roi_end,
+        }
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+
+        for key in self.keys:
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            extra_info = transform["extra_info"]
+            orig_size = extra_info["orig_size"][1:]
+            raise NotImplementedError("TODO")
+            # im_shape = d[key].shape[1:] if self.padder.method == Method.SYMMETRIC else extra_info["orig_size"][1:]
+            # roi_center = [floor(i / 2) if r % 2 == 0 else (i - 1) / 2 for r, i in zip(roi_size, im_shape)]
+
+            # inverse_transform = SpatialCrop(roi_center, roi_size)
+            # # Apply inverse transform
+            # d[key] = inverse_transform(d[key])
+            # # Remove the applied transform
+            # self.remove_most_recent_transform(d, key)
+
         return d
 
 
