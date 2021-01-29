@@ -15,7 +15,6 @@ import tempfile
 import unittest
 
 import torch
-from ignite.engine import Engine, Events
 
 from monai.handlers import write_metrics_reports
 
