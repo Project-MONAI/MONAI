@@ -15,7 +15,7 @@ import unittest
 from typing import TYPE_CHECKING
 
 import numpy as np
-
+from monai.data import Dataset
 from monai.data import create_test_image_2d, create_test_image_3d
 from monai.transforms import AddChanneld, Compose, Rotated, RandRotated, SpatialPad, SpatialPadd
 from monai.transforms.transform import InvertibleTransform
@@ -40,6 +40,7 @@ TEST_SPATIALS.append([
         SpatialPadd("image", spatial_size=[21], method=Method.END),
         SpatialPadd("image", spatial_size=[24]),
     ],
+    True,
 ])
 
 TEST_SPATIALS.append([
@@ -50,6 +51,7 @@ TEST_SPATIALS.append([
         SpatialPadd("image", spatial_size=[12, 21]),
         SpatialPadd("image", spatial_size=[14, 25], method=Method.END),
     ],
+    True,
 ])
 
 TEST_SPATIALS.append([
@@ -58,21 +60,46 @@ TEST_SPATIALS.append([
     [
         SpatialPadd("image", spatial_size=[55, 50, 45]),
     ],
+    True
 ])
 
-TEST_COMPOSE = [
-    "Compose",
-    {"image": np.arange(0, 10 * 9 * 8).reshape(1, 10, 9, 8)},
+TEST_COMPOSES = []
+TEST_COMPOSES.append([
+    "Compose 2d",
+    {
+        "image": np.arange(0, 10 * 9).reshape(1, 10, 9),
+        "label": np.arange(0, 10 * 9).reshape(1, 10, 9),
+        "other": np.arange(0, 10 * 9).reshape(1, 10, 9),
+    },
     [
         Compose(
             [
-                SpatialPadd("image", spatial_size=[15, 12, 4]),
-                SpatialPadd("image", spatial_size=[21, 32, 1]),
-                SpatialPadd("image", spatial_size=[55, 50, 45]),
+                SpatialPadd(["image", "label"], spatial_size=[15, 12]),
+                SpatialPadd(["label"], spatial_size=[21, 32]),
+                SpatialPadd(["image"], spatial_size=[55, 50]),
             ]
         )
     ],
-]
+    True,
+])
+TEST_COMPOSES.append([
+    "Compose 3d",
+    {
+        "image": np.arange(0, 10 * 9 * 8).reshape(1, 10, 9, 8),
+        "label": np.arange(0, 10 * 9 * 8).reshape(1, 10, 9, 8),
+        "other": np.arange(0, 10 * 9 * 8).reshape(1, 10, 9, 8),
+    },
+    [
+        Compose(
+            [
+                SpatialPadd(["image", "label"], spatial_size=[15, 12, 4]),
+                SpatialPadd(["label"], spatial_size=[21, 32, 1]),
+                SpatialPadd(["image"], spatial_size=[55, 50, 45]),
+            ]
+        )
+    ],
+    True,
+])
 
 TEST_FAIL_0 = [
     np.arange(0, 10).reshape(1, 10),
@@ -81,6 +108,7 @@ TEST_FAIL_0 = [
             SpatialPad(spatial_size=[15]),
         ]
     ),
+    True,
 ]
 
 # TODO: add 3D
@@ -97,6 +125,7 @@ for create_im in [create_test_image_2d]:  #, partial(create_test_image_3d, 100)]
                     AddChanneld("image"),
                     Rotated("image", angle, keep_size, "bilinear", "border", align_corners),
                 ],
+                False,
             ]
             TEST_ROTATES.append(TEST_ROTATE)
     for prob in [0, 1]:
@@ -109,24 +138,22 @@ for create_im in [create_test_image_2d]:  #, partial(create_test_image_3d, 100)]
                 AddChanneld("image"),
                 RandRotated("image", *angles, prob, True, "bilinear", "border", False),
             ],
+            False,
         ]
         TEST_ROTATES.append(TEST_ROTATE)
 
-TESTS_LOSSLESS = [*TEST_SPATIALS, TEST_COMPOSE]
-TESTS_LOSSY = [*TEST_ROTATES]
+TESTS = [*TEST_SPATIALS, *TEST_COMPOSES, *TEST_ROTATES]
 TESTS_FAIL = [TEST_FAIL_0]
 
 
-def get_percent_diff_im(array_true, array):
-    return 100 * (array_true - array) / (array_true + 1e-5)
-
-
-def get_mean_percent_diff(array_true, array):
-    return abs(np.mean(get_percent_diff_im(array_true, array)))
+def get_fractional_diff_im(array_true, array):
+    diff = array_true - array
+    avg = (array_true + array) / 2
+    return diff / (avg + 1e-10)
 
 
 def plot_im(orig, fwd_bck, fwd):
-    diff_orig_fwd_bck = get_percent_diff_im(orig, fwd_bck)
+    diff_orig_fwd_bck = 100 * get_fractional_diff_im(orig, fwd_bck)
     fig, axes = plt.subplots(
         1, 4, gridspec_kw={"width_ratios": [orig.shape[1], fwd_bck.shape[1], diff_orig_fwd_bck.shape[1], fwd.shape[1]]}
     )
@@ -138,38 +165,34 @@ def plot_im(orig, fwd_bck, fwd):
         im = np.squeeze(im)
         while im.ndim > 2:
             im = im[..., im.shape[-1] // 2]
-        im_show = ax.imshow(np.squeeze(im), vmin=0, vmax=vmax)
+        im_show = ax.imshow(np.squeeze(im), vmax=vmax)
         ax.set_title(title, fontsize=25)
         ax.axis("off")
         fig.colorbar(im_show, ax=ax)
     plt.show()
 
-
 class TestInverse(unittest.TestCase):
-    # @parameterized.expand(TESTS_LOSSLESS)
-    def test_inverse_lossless(self, desc, data, transforms):
-        print(f"testing: {desc}...")
-        forwards = [data.copy()]
 
-        # Apply forwards
-        for t in transforms:
-            forwards.append(t(forwards[-1]))
+    def check_inverse(self, keys, orig_d, fwd_bck_d, unmodified_d, lossless):
+        for key in keys:
+            orig = orig_d[key]
+            fwd_bck = fwd_bck_d[key]
+            unmodified = unmodified_d[key]
+            try:
+                if lossless:
+                    self.assertTrue(np.all(orig == fwd_bck))
+                else:
+                    fractional_diff_im = get_fractional_diff_im(orig, fwd_bck)
+                    mean_percent_diff = 100 * np.mean(np.abs(fractional_diff_im))
+                    self.assertLess(mean_percent_diff, 10)
+            except AssertionError:
+                if has_matplotlib:
+                    plot_im(orig, fwd_bck, unmodified)
+                    raise
 
-        # Check that error is thrown when inverse are used out of order.
-        t = transforms[0] if len(transforms) > 1 else SpatialPadd("image", [10, 5])
-        with self.assertRaises(RuntimeError):
-            t.inverse(forwards[-1])
-
-        # Apply inverses
-        backwards = [forwards[-1].copy()]
-        for i, t in enumerate(reversed(transforms)):
-            if isinstance(t, InvertibleTransform):
-                backwards.append(t.inverse(backwards[-1]))
-                self.assertTrue(np.all(backwards[-1]["image"] == forwards[len(forwards) - i - 2]["image"]))
-
-    # @parameterized.expand(TESTS_LOSSY)
-    def test_inverse_lossy(self, desc, data, transforms):
-        print("testing: " + desc)
+    # @parameterized.expand(TESTS)
+    def test_inverse(self, desc, data, transforms, lossless):
+        print(f"testing: {desc} (lossless: {lossless})...")
         forwards = [data.copy()]
 
         # Apply forwards
@@ -182,31 +205,44 @@ class TestInverse(unittest.TestCase):
             t.inverse(forwards[-1])
 
         # Apply inverses
-        backwards = [forwards[-1].copy()]
+        fwd_bck = forwards[-1].copy()
         for i, t in enumerate(reversed(transforms)):
             if isinstance(t, InvertibleTransform):
-                backwards.append(t.inverse(backwards[-1]))
-                mean_percent_diff = get_mean_percent_diff(backwards[-1]["image"], forwards[-i - 2]["image"])
-                try:
-                    self.assertLess(mean_percent_diff, 10)
-                except AssertionError:
-                    if has_matplotlib:
-                        plot_im(forwards[1]["image"], backwards[-1]["image"], forwards[-1]["image"])
-                        raise
+                fwd_bck = t.inverse(fwd_bck)
+                self.check_inverse(
+                    data.keys(), forwards[- i - 2], fwd_bck,
+                    forwards[-1], lossless
+                )
 
     # @parameterized.expand(TESTS_FAIL)
-    def test_fail(self, data, transform):
+    def test_fail(self, data, transform, _):
         d = transform(data)
         with self.assertRaises(RuntimeError):
             d = transform.inverse(d)
+
+    # @parameterized.expand(TEST_COMPOSES)
+    def test_w_data_loader(self, desc, data, transforms, lossless):
+        print(f"testing: {desc}...")
+        transform = transforms[0]
+        numel = 2
+        test_data = [data for _ in range(numel)]
+
+        dataset = Dataset(data=test_data, transform=transform)
+        self.assertEqual(len(dataset), 2)
+        for data_fwd in dataset:
+            data_fwd_bck = transform.inverse(data_fwd)
+            self.check_inverse(
+                data.keys(), data, data_fwd_bck,
+                data_fwd, lossless
+            )
 
 
 if __name__ == "__main__":
     # unittest.main()
     test = TestInverse()
-    for t in TESTS_LOSSLESS:
-        test.test_inverse_lossless(*t)
-    for t in TESTS_LOSSY:
-        test.test_inverse_lossy(*t)
+    for t in TESTS:
+        test.test_inverse(*t)
+    for t in TEST_COMPOSES:
+        test.test_w_data_loader(*t)
     for t in TESTS_FAIL:
         test.test_fail(*t)

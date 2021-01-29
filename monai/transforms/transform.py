@@ -221,27 +221,29 @@ class InvertibleTransform(ABC):
 
     def append_applied_transforms(self, data: dict, key: Hashable, extra_args: Optional[dict] = None) -> None:
         """Append to list of applied transforms for that key."""
-        key = str(key) + "_transforms"
+        key_transform = str(key) + "_transforms"
         # If this is the first, create list
-        if key not in data:
-            data[key] = []
-        data[key].append({"class": type(self), "init_args": self.get_input_args(), "extra_info": extra_args})
+        if key_transform not in data:
+            data[key_transform] = []
+        data[key_transform].append({"class": type(self), "init_args": self.get_input_args(key), "extra_info": extra_args})
         # If class is randomizable, store whether the transform was actually performed (based on `prob`)
         if isinstance(self, Randomizable):
-            data[key][-1]["do_transform"] = self._do_transform
+            data[key_transform][-1]["do_transform"] = self._do_transform
 
-    @staticmethod
-    def get_most_recent_transform(data: dict, key: Hashable) -> dict:
-        """Get all applied transforms."""
-        return dict(data[str(key) + "_transforms"][-1])
+    def get_most_recent_transform(self, data: dict, key: Hashable) -> dict:
+        """Get most recent transform."""
+        transform = dict(data[str(key) + "_transforms"][-1])
+        if transform["class"] != type(self) or transform["init_args"] != self.get_input_args(key):
+            raise RuntimeError("Should inverse most recently applied invertible transform first")
+        return transform
 
     @staticmethod
     def remove_most_recent_transform(data: dict, key: Hashable) -> None:
-        """Get all applied transforms."""
+        """Remove most recent transform."""
         data[str(key) + "_transforms"].pop()
 
-    def get_input_args(self) -> dict:
-        """Return dictionary of input arguments."""
+    def get_input_args(self, key) -> dict:
+        """Get input arguments for a single key."""
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     def inverse(self, data: dict):

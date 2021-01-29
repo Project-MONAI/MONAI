@@ -819,9 +819,9 @@ class Rotated(MapTransform, InvertibleTransform):
             )
         return d
 
-    def get_input_args(self) -> dict:
+    def get_input_args(self, key) -> dict:
         return {
-            "keys": self.keys,
+            "keys": key,
             "angle": self.rotator.angle,
             "keep_size": self.rotator.keep_size,
             "mode": self.mode,
@@ -834,8 +834,6 @@ class Rotated(MapTransform, InvertibleTransform):
         d = dict(data)
         for idx, key in enumerate(self.keys):
             transform = self.get_most_recent_transform(d, key)
-            if transform["class"] != type(self) or transform["init_args"] != self.get_input_args():
-                raise RuntimeError("Should inverse most recently applied invertible transform first")
             # Create inverse transform
             in_angle = transform["init_args"]["angle"]
             angle = [-a for a in in_angle] if isinstance(in_angle, Sequence) else -in_angle
@@ -957,9 +955,9 @@ class RandRotated(Randomizable, MapTransform, InvertibleTransform):
             )
         return d
 
-    def get_input_args(self) -> dict:
+    def get_input_args(self, key) -> dict:
         return {
-            "keys": self.keys,
+            "keys": key,
             "range_x": self.range_x,
             "range_y": self.range_y,
             "range_z": self.range_z,
@@ -975,8 +973,6 @@ class RandRotated(Randomizable, MapTransform, InvertibleTransform):
         d = dict(data)
         for idx, key in enumerate(self.keys):
             transform = self.get_most_recent_transform(d, key)
-            if transform["class"] != type(self) or transform["init_args"] != self.get_input_args():
-                raise RuntimeError("Should inverse most recently applied invertible transform first")
             # Check if random transform was actually performed (based on `prob`)
             if transform["do_transform"]:
                 # Create inverse transform

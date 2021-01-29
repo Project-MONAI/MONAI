@@ -123,11 +123,11 @@ class SpatialPadd(MapTransform, InvertibleTransform):
             self.append_applied_transforms(d, key, {"orig_size": orig_size})
         return d
 
-    def get_input_args(self):
+    def get_input_args(self, key):
         return {
-            "keys": self.keys,
+            "keys": key,
             "method": self.padder.method,
-            "mode": self.mode,
+            "mode": self.mode[0],
             "spatial_size": self.padder.spatial_size,
         }
 
@@ -135,8 +135,6 @@ class SpatialPadd(MapTransform, InvertibleTransform):
         d = dict(data)
         for key in self.keys:
             transform = self.get_most_recent_transform(d, key)
-            if transform["class"] != type(self) or transform["init_args"] != self.get_input_args():
-                raise RuntimeError("Should inverse most recently applied invertible transform first")
             # Create inverse transform
             extra_info = transform["extra_info"]
             roi_size = extra_info["orig_size"][1:]
