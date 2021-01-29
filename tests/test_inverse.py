@@ -43,7 +43,7 @@ TEST_SPATIALS.append(
             SpatialPadd("image", spatial_size=[21], method=Method.END),
             SpatialPadd("image", spatial_size=[24]),
         ],
-        True,
+        0.0,
     ]
 )
 
@@ -56,7 +56,7 @@ TEST_SPATIALS.append(
             SpatialPadd("image", spatial_size=[12, 21]),
             SpatialPadd("image", spatial_size=[14, 25], method=Method.END),
         ],
-        True,
+        0.0,
     ]
 )
 
@@ -67,7 +67,7 @@ TEST_SPATIALS.append(
         [
             SpatialPadd("image", spatial_size=[55, 50, 45]),
         ],
-        True,
+        0.0,
     ]
 )
 
@@ -89,7 +89,7 @@ TEST_COMPOSES.append(
                 ]
             )
         ],
-        True,
+        0.0,
     ]
 )
 TEST_COMPOSES.append(
@@ -109,7 +109,7 @@ TEST_COMPOSES.append(
                 ]
             )
         ],
-        True,
+        0.0,
     ]
 )
 
@@ -120,7 +120,7 @@ TEST_FAIL_0 = [
             SpatialPad(spatial_size=[15]),
         ]
     ),
-    True,
+    0.0,
 ]
 
 # TODO: add 3D
@@ -137,7 +137,7 @@ for create_im in [create_test_image_2d]:  # , partial(create_test_image_3d, 100)
                     AddChanneld("image"),
                     Rotated("image", angle, keep_size, "bilinear", "border", align_corners),
                 ],
-                False,
+                5e-2,
             ]
             TEST_ROTATES.append(TEST_ROTATE)
     for prob in [0, 1]:
@@ -150,7 +150,7 @@ for create_im in [create_test_image_2d]:  # , partial(create_test_image_3d, 100)
                 AddChanneld("image"),
                 RandRotated("image", x, y, z, prob, True, "bilinear", "border", False),
             ],
-            False,
+            5e-2,
         ]
         TEST_ROTATES.append(TEST_ROTATE)
 
@@ -180,26 +180,24 @@ def plot_im(orig, fwd_bck, fwd):
 
 
 class TestInverse(unittest.TestCase):
-    def check_inverse(self, keys, orig_d, fwd_bck_d, unmodified_d, lossless):
+    def check_inverse(self, keys, orig_d, fwd_bck_d, unmodified_d, acceptable_diff):
         for key in keys:
             orig = orig_d[key]
             fwd_bck = fwd_bck_d[key]
             unmodified = unmodified_d[key]
             try:
-                if lossless:
-                    self.assertTrue(np.all(orig == fwd_bck))
-                else:
-                    mean_diff = np.mean(np.abs(orig - fwd_bck))
+                mean_diff = np.mean(np.abs(orig - fwd_bck))
+                if acceptable_diff > 0:
                     print(f"Mean diff = {mean_diff}")
-                    self.assertLess(mean_diff, 3e-2)
+                self.assertLessEqual(mean_diff, acceptable_diff)
             except AssertionError:
                 if has_matplotlib:
                     plot_im(orig, fwd_bck, unmodified)
                     raise
 
     # @parameterized.expand(TESTS)
-    def test_inverse(self, desc, data, transforms, lossless):
-        print(f"testing: {desc} (lossless: {lossless})...")
+    def test_inverse(self, desc, data, transforms, acceptable_diff):
+        print(f"testing: {desc} (acceptable diff: {acceptable_diff})")
         forwards = [data.copy()]
 
         # Apply forwards
@@ -216,7 +214,7 @@ class TestInverse(unittest.TestCase):
         for i, t in enumerate(reversed(transforms)):
             if isinstance(t, InvertibleTransform):
                 fwd_bck = t.inverse(fwd_bck)
-                self.check_inverse(data.keys(), forwards[-i - 2], fwd_bck, forwards[-1], lossless)
+                self.check_inverse(data.keys(), forwards[-i - 2], fwd_bck, forwards[-1], acceptable_diff)
 
     # @parameterized.expand(TESTS_FAIL)
     def test_fail(self, data, transform, _):
@@ -225,7 +223,7 @@ class TestInverse(unittest.TestCase):
             d = transform.inverse(d)
 
     # @parameterized.expand(TEST_COMPOSES)
-    def test_w_data_loader(self, desc, data, transforms, lossless):
+    def test_w_data_loader(self, desc, data, transforms, acceptable_diff):
         print(f"testing: {desc}...")
         transform = transforms[0]
         numel = 2
@@ -237,7 +235,7 @@ class TestInverse(unittest.TestCase):
         for _ in range(num_epochs):
             for data_fwd in dataset:
                 data_fwd_bck = transform.inverse(data_fwd)
-                self.check_inverse(data.keys(), data, data_fwd_bck, data_fwd, lossless)
+                self.check_inverse(data.keys(), data, data_fwd_bck, data_fwd, acceptable_diff)
 
 
 if __name__ == "__main__":
