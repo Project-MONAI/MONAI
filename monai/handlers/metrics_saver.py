@@ -9,13 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Union
 
-import numpy as np
-import torch
-
-from monai.handlers.utils import write_metric_summary, write_per_image_metric
+from monai.handlers.utils import write_metrics_reports
 from monai.utils import ensure_tuple, exact_version, optional_import
 from monai.utils.module import get_torch_version_tuple
 
@@ -105,67 +101,39 @@ class MetricsSaver:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        if not os.path.exists(self.save_dir):
-            os.makedirs(self.save_dir)
-
         ws = idist.get_world_size()
         if self.save_rank >= ws:
-            raise ValueError("target rank is greater than the distributed group size.s")
+            raise ValueError("target rank is greater than the distributed group size.")
 
-        if self.metrics is not None and len(engine.state.metrics) > 0:
-            if idist.get_rank() == self.save_rank:
-                # only save metrics to file in specified rank
-                with open(os.path.join(self.save_dir, "metrics.csv"), "w") as f:
-                    for k, v in engine.state.metrics.items():
-                        if k in self.metrics or "*" in self.metrics:
-                            f.write(f"{k}{self.deli}{str(v)}\n")
+        _filenames = self._filenames
+        if ws > 1:
+            _filenames = self.deli.join(_filenames)
+            if get_torch_version_tuple() > (1, 6, 0):
+                # all gather across all processes
+                _filenames = self.deli.join(idist.all_gather(_filenames))
+            else:
+                raise RuntimeError(
+                    "MetricsSaver can not save metric details in distributed mode with PyTorch < 1.7.0."
+                )
+            _filenames = _filenames.split(self.deli)
 
-        if (
-            self.metric_details is not None
-            and hasattr(engine.state, "metric_details")
-            and len(engine.state.metric_details) > 0
-        ):
-            _filenames = self.deli.join(self._filenames)
-
-            if ws > 1:
-                if get_torch_version_tuple() > (1, 6, 0):
-                    # all gather across all processes
-                    _filenames = self.deli.join(idist.all_gather(_filenames))
-                else:
-                    raise RuntimeError(
-                        "MetricsSaver can not save metric details in distributed mode with PyTorch < 1.7.0."
-                    )
-            if idist.get_rank() == self.save_rank:
-                _files = _filenames.split(self.deli)
+        # only save metrics to file in specified rank
+        if idist.get_rank() == self.save_rank:
+            _metrics = {}
+            if self.metrics is not None and len(engine.state.metrics) > 0:
+                _metrics = {k: v for k, v in engine.state.metrics.items() if k in self.metrics or "*" in self.metrics}
+            _metric_details = {}
+            if self.metric_details is not None and len(engine.state.metric_details) > 0:
                 for k, v in engine.state.metric_details.items():
                     if k in self.metric_details or "*" in self.metric_details:
-                        if torch.is_tensor(v):
-                            v = v.cpu().numpy()
-                        if v.ndim == 0:
-                            # reshape to [1, 1] if no batch and class dims
-                            v = v.reshape((1, 1))
-                        elif v.ndim == 1:
-                            # reshape to [N, 1] if no class dim
-                            v = v.reshape((-1, 1))
+                        _metric_details[k] = v
 
-                        # add the average value to v
-                        class_labels = ["class" + str(i) for i in range(v.shape[1])] + ["mean"]
-                        v = np.concatenate([v, np.nanmean(v, axis=1, keepdims=True)], axis=1)
-                        write_per_image_metric(
-                            class_labels=class_labels,
-                            images=_files,
-                            metric=v,
-                            filepath=os.path.join(self.save_dir, k + "_raw.csv"),
-                            deli=self.deli,
-                            output_type=self.output_type,
-                        )
-
-                        if self.summary_ops is not None:
-                            write_metric_summary(
-                                class_labels=class_labels,
-                                metric=v,
-                                filepath=os.path.join(self.save_dir, k + "_summary.csv"),
-                                summary_ops=self.summary_ops,
-                                deli=self.deli,
-                                output_type=self.output_type,
-                            )
+            write_metrics_reports(
+                save_dir=self.save_dir,
+                images=_filenames,
+                metrics=_metrics,
+                metric_details=_metric_details,
+                summary_ops=self.summary_ops,
+                deli=self.deli,
+                output_type=self.output_type,
+            )
