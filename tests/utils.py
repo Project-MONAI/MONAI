@@ -57,7 +57,7 @@ def skip_if_quick(obj):
     return unittest.skipIf(is_quick, "Skipping slow tests")(obj)
 
 
-class SkipIfNoModule(object):
+class SkipIfNoModule:
     """Decorator to be used if test should be skipped
     when optional module is not present."""
 
@@ -69,7 +69,7 @@ class SkipIfNoModule(object):
         return unittest.skipIf(self.module_missing, f"optional module not present: {self.module_name}")(obj)
 
 
-class SkipIfModule(object):
+class SkipIfModule:
     """Decorator to be used if test should be skipped
     when optional module is present."""
 
@@ -102,7 +102,7 @@ def skip_if_windows(obj):
     return unittest.skipIf(sys.platform == "win32", "Skipping tests on Windows")(obj)
 
 
-class SkipIfBeforePyTorchVersion(object):
+class SkipIfBeforePyTorchVersion:
     """Decorator to be used if test should be skipped
     with PyTorch versions older than that given."""
 
@@ -119,7 +119,7 @@ class SkipIfBeforePyTorchVersion(object):
         )(obj)
 
 
-class SkipIfAtLeastPyTorchVersion(object):
+class SkipIfAtLeastPyTorchVersion:
     """Decorator to be used if test should be skipped
     with PyTorch versions newer than that given."""
 

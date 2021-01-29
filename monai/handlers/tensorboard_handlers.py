@@ -29,7 +29,7 @@ else:
 DEFAULT_TAG = "Loss"
 
 
-class TensorBoardStatsHandler(object):
+class TensorBoardStatsHandler:
     """
     TensorBoardStatsHandler defines a set of Ignite Event-handlers for all the TensorBoard logics.
     It's can be used for any Ignite Engine(trainer, validator and evaluator).
@@ -172,7 +172,7 @@ class TensorBoardStatsHandler(object):
         writer.flush()
 
 
-class TensorBoardImageHandler(object):
+class TensorBoardImageHandler:
     """
     TensorBoardImageHandler is an Ignite Event handler that can visualize images, labels and outputs as 2D/3D images.
     2D output (shape in Batch, channel, H, W) will be shown as simple image using the first element in the batch,
