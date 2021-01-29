@@ -833,6 +833,8 @@ class Rotated(MapTransform, InvertibleTransform):
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for idx, key in enumerate(self.keys):
+            if d[key][1:].ndim != 2:
+                raise NotImplementedError("inverse rotation only currently implemented for 2D")
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
             in_angle = transform["init_args"]["angle"]
@@ -972,6 +974,8 @@ class RandRotated(Randomizable, MapTransform, InvertibleTransform):
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for idx, key in enumerate(self.keys):
+            if d[key][1:].ndim != 2:
+                raise NotImplementedError("inverse rotation only currently implemented for 2D")
             transform = self.get_most_recent_transform(d, key)
             # Check if random transform was actually performed (based on `prob`)
             if transform["do_transform"]:

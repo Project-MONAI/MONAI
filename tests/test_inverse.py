@@ -9,18 +9,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from functools import partial
+
 import random
 import unittest
 from typing import TYPE_CHECKING
 
 import numpy as np
-from monai.data import Dataset
-from monai.data import create_test_image_2d, create_test_image_3d
+from monai.data import CacheDataset
+from monai.data import create_test_image_2d  #, create_test_image_3d
 from monai.transforms import AddChanneld, Compose, Rotated, RandRotated, SpatialPad, SpatialPadd
 from monai.transforms.transform import InvertibleTransform
 from monai.utils import Method, optional_import
 
+# from functools import partial
 # from parameterized import parameterized
 
 
@@ -227,7 +228,7 @@ class TestInverse(unittest.TestCase):
         numel = 2
         test_data = [data for _ in range(numel)]
 
-        dataset = Dataset(data=test_data, transform=transform)
+        dataset = CacheDataset(data=test_data, transform=transform)
         self.assertEqual(len(dataset), 2)
         for data_fwd in dataset:
             data_fwd_bck = transform.inverse(data_fwd)
