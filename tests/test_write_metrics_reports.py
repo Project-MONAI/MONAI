@@ -16,7 +16,7 @@ import unittest
 
 import torch
 
-from monai.handlers import write_metrics_reports
+from monai.handlers.utils import write_metrics_reports
 
 
 class TestWriteMetricsReports(unittest.TestCase):
