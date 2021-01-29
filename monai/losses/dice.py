@@ -593,7 +593,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         return alpha
 
 
-class DiceCELoss:
+class DiceCELoss(_Loss):
     """
     Compute both Dice loss and Cross Entropy Loss, and return the sum of these two losses.
     Input logits `input` (BNHW[D] where N is number of classes) is compared with ground truth `target` (BNHW[D]).
