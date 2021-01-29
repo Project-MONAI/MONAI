@@ -9,13 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from functools import partial
 import random
 import unittest
 from typing import TYPE_CHECKING
 
 import numpy as np
 
-from monai.data import create_test_image_2d
+from monai.data import create_test_image_2d, create_test_image_3d
 from monai.transforms import AddChanneld, Compose, Rotated, RandRotated, SpatialPad, SpatialPadd
 from monai.transforms.transform import InvertibleTransform
 from monai.utils import Method, optional_import
@@ -30,32 +31,44 @@ if TYPE_CHECKING:
 else:
     plt, has_matplotlib = optional_import("matplotlib.pyplot")
 
-TEST_0 = [
+TEST_SPATIALS = []
+TEST_SPATIALS.append([
+    "Spatial 1d",
     {"image": np.arange(0, 10).reshape(1, 10)},
     [
         SpatialPadd("image", spatial_size=[15]),
         SpatialPadd("image", spatial_size=[21], method=Method.END),
         SpatialPadd("image", spatial_size=[24]),
     ],
-]
+])
 
-TEST_1 = [
+TEST_SPATIALS.append([
+    "Spatial 2d",
     {"image": np.arange(0, 10 * 9).reshape(1, 10, 9)},
     [
         SpatialPadd("image", spatial_size=[11, 12]),
         SpatialPadd("image", spatial_size=[12, 21]),
         SpatialPadd("image", spatial_size=[14, 25], method=Method.END),
     ],
-]
+])
 
-TEST_2 = [
-    {"image": np.arange(0, 10).reshape(1, 10)},
+TEST_SPATIALS.append([
+    "Spatial 3d",
+    {"image": np.arange(0, 10 * 9 * 8).reshape(1, 10, 9, 8)},
+    [
+        SpatialPadd("image", spatial_size=[55, 50, 45]),
+    ],
+])
+
+TEST_COMPOSE = [
+    "Compose",
+    {"image": np.arange(0, 10 * 9 * 8).reshape(1, 10, 9, 8)},
     [
         Compose(
             [
-                SpatialPadd("image", spatial_size=[15]),
-                SpatialPadd("image", spatial_size=[21]),
-                SpatialPadd("image", spatial_size=[24]),
+                SpatialPadd("image", spatial_size=[15, 12, 4]),
+                SpatialPadd("image", spatial_size=[21, 32, 1]),
+                SpatialPadd("image", spatial_size=[55, 50, 45]),
             ]
         )
     ],
@@ -70,33 +83,36 @@ TEST_FAIL_0 = [
     ),
 ]
 
+# TODO: add 3D
 TEST_ROTATES = []
-for k in [True, False]:
-    for a in [False, True]:
+for create_im in [create_test_image_2d]:  #, partial(create_test_image_3d, 100)]:
+    for keep_size in [True, False]:
+        for align_corners in [False, True]:
+            im, _ = create_im(100, 100)
+            angle = random.uniform(np.pi / 6, np.pi)
+            TEST_ROTATE = [
+                f"Rotate{im.ndim}d, keep_size={keep_size}, align_corners={align_corners}",
+                {"image": im},
+                [
+                    AddChanneld("image"),
+                    Rotated("image", angle, keep_size, "bilinear", "border", align_corners),
+                ],
+            ]
+            TEST_ROTATES.append(TEST_ROTATE)
+    for prob in [0, 1]:
+        im, _ = create_im(100, 100)
+        angles = [random.uniform(np.pi / 6, np.pi) for _ in range(3)]
         TEST_ROTATE = [
-            {"image": create_test_image_2d(100, 100)[0]},
+            f"RandRotate{im.ndim}d, prob={prob}",
+            {"image": im},
             [
                 AddChanneld("image"),
-                Rotated("image", random.uniform(np.pi / 6, np.pi), k, "bilinear", "border", a),
+                RandRotated("image", *angles, prob, True, "bilinear", "border", False),
             ],
         ]
         TEST_ROTATES.append(TEST_ROTATE)
-for p in [0, 1]:
-    TEST_ROTATE = [
-        {"image": create_test_image_2d(100, 100)[0]},
-        [
-            AddChanneld("image"),
-            RandRotated(
-                "image",
-                random.uniform(np.pi / 6, np.pi),
-                random.uniform(np.pi / 6, np.pi),
-                random.uniform(np.pi / 6, np.pi),
-                p, True, "bilinear", "border", False),
-        ],
-    ]
-    TEST_ROTATES.append(TEST_ROTATE)
 
-TESTS_LOSSLESS = [TEST_0, TEST_1, TEST_2]
+TESTS_LOSSLESS = [*TEST_SPATIALS, TEST_COMPOSE]
 TESTS_LOSSY = [*TEST_ROTATES]
 TESTS_FAIL = [TEST_FAIL_0]
 
@@ -119,6 +135,9 @@ def plot_im(orig, fwd_bck, fwd):
     ):
         ax = axes[i]
         vmax = max(np.max(i) for i in [orig, fwd_bck, fwd]) if i != 2 else None
+        im = np.squeeze(im)
+        while im.ndim > 2:
+            im = im[..., im.shape[-1] // 2]
         im_show = ax.imshow(np.squeeze(im), vmin=0, vmax=vmax)
         ax.set_title(title, fontsize=25)
         ax.axis("off")
@@ -128,7 +147,8 @@ def plot_im(orig, fwd_bck, fwd):
 
 class TestInverse(unittest.TestCase):
     # @parameterized.expand(TESTS_LOSSLESS)
-    def test_inverse_lossless(self, data, transforms):
+    def test_inverse_lossless(self, desc, data, transforms):
+        print(f"testing: {desc}...")
         forwards = [data.copy()]
 
         # Apply forwards
@@ -148,7 +168,8 @@ class TestInverse(unittest.TestCase):
                 self.assertTrue(np.all(backwards[-1]["image"] == forwards[len(forwards) - i - 2]["image"]))
 
     # @parameterized.expand(TESTS_LOSSY)
-    def test_inverse_lossy(self, data, transforms, visualise=False):
+    def test_inverse_lossy(self, desc, data, transforms):
+        print("testing: " + desc)
         forwards = [data.copy()]
 
         # Apply forwards
@@ -166,10 +187,12 @@ class TestInverse(unittest.TestCase):
             if isinstance(t, InvertibleTransform):
                 backwards.append(t.inverse(backwards[-1]))
                 mean_percent_diff = get_mean_percent_diff(backwards[-1]["image"], forwards[-i - 2]["image"])
-                self.assertLess(mean_percent_diff, 10)
-
-        if has_matplotlib and visualise:
-            plot_im(forwards[1]["image"], backwards[-1]["image"], forwards[-1]["image"])
+                try:
+                    self.assertLess(mean_percent_diff, 10)
+                except AssertionError:
+                    if has_matplotlib:
+                        plot_im(forwards[1]["image"], backwards[-1]["image"], forwards[-1]["image"])
+                        raise
 
     # @parameterized.expand(TESTS_FAIL)
     def test_fail(self, data, transform):

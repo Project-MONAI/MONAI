@@ -378,17 +378,10 @@ def apply_transform(transform: Callable, data, map_items: bool = True):
         data: an object to be transformed.
         map_items: whether to apply transform to each item in `data`,
             if `data` is a list or tuple. Defaults to True.
-
-    Raises:
-        Exception: When ``transform`` raises an exception.
-
     """
-    try:
-        if isinstance(data, (list, tuple)) and map_items:
-            return [transform(item) for item in data]
-        return transform(data)
-    except Exception as e:
-        raise RuntimeError(f"applying transform {transform}") from e
+    if isinstance(data, (list, tuple)) and map_items:
+        return [transform(item) for item in data]
+    return transform(data)
 
 
 def create_grid(
