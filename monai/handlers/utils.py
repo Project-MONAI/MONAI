@@ -9,9 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from collections import OrderedDict
-from typing import TYPE_CHECKING, Any, Callable, Sequence, Union, Optional, Dict
 import os
+from collections import OrderedDict
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Union
+
 import numpy as np
 import torch
 
@@ -123,7 +124,7 @@ def write_metrics_reports(
         with open(os.path.join(save_dir, "metrics.csv"), "w") as f:
             for k, v in metrics.items():
                 f.write(f"{k}{deli}{str(v)}\n")
-    
+
     if metric_details is not None and len(metric_details) > 0:
         for k, v in metric_details.items():
             if torch.is_tensor(v):
@@ -143,7 +144,7 @@ def write_metrics_reports(
                 f.write(f"filename{deli}{deli.join(class_labels)}\n")
                 for i, b in enumerate(v):
                     f.write(f"{images[i] if images is not None else str(i)}{deli}{deli.join([str(c) for c in b])}\n")
-            
+
             if summary_ops is not None:
                 supported_ops = OrderedDict(
                     {

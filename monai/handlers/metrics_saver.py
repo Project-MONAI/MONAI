@@ -112,9 +112,7 @@ class MetricsSaver:
                 # all gather across all processes
                 _filenames = self.deli.join(idist.all_gather(_filenames))
             else:
-                raise RuntimeError(
-                    "MetricsSaver can not save metric details in distributed mode with PyTorch < 1.7.0."
-                )
+                raise RuntimeError("MetricsSaver can not save metric details in distributed mode with PyTorch < 1.7.0.")
             _filenames = _filenames.split(self.deli)
 
         # only save metrics to file in specified rank
