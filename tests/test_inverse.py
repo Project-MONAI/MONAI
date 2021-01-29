@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from monai.data import create_test_image_2d
-from monai.transforms import AddChanneld, Compose, Rotated, SpatialPad, SpatialPadd
+from monai.transforms import AddChanneld, Compose, Rotated, RandRotated, SpatialPad, SpatialPadd
 from monai.transforms.transform import InvertibleTransform
 from monai.utils import Method, optional_import
 
@@ -71,16 +71,30 @@ TEST_FAIL_0 = [
 ]
 
 TEST_ROTATES = []
-for k in [True, False]:
-    for a in [False, True]:
-        TEST_ROTATE = [
-            {"image": create_test_image_2d(100, 100)[0]},
-            [
-                AddChanneld("image"),
-                Rotated("image", random.uniform(np.pi / 6, np.pi), k, "bilinear", "border", a),
-            ],
-        ]
-        TEST_ROTATES.append(TEST_ROTATE)
+# for k in [True, False]:
+#     for a in [False, True]:
+#         TEST_ROTATE = [
+#             {"image": create_test_image_2d(100, 100)[0]},
+#             [
+#                 AddChanneld("image"),
+#                 Rotated("image", random.uniform(np.pi / 6, np.pi), k, "bilinear", "border", a),
+#             ],
+#         ]
+#         TEST_ROTATES.append(TEST_ROTATE)
+for p in [0, 1]:
+    TEST_ROTATE = [
+        {"image": create_test_image_2d(100, 100)[0]},
+        [
+            AddChanneld("image"),
+            RandRotated(
+                "image",
+                random.uniform(np.pi / 6, np.pi),
+                random.uniform(np.pi / 6, np.pi),
+                random.uniform(np.pi / 6, np.pi),
+                p, True, "bilinear", "border", False),
+        ],
+    ]
+    TEST_ROTATES.append(TEST_ROTATE)
 
 TESTS_LOSSLESS = [TEST_0, TEST_1, TEST_2]
 TESTS_LOSSY = [*TEST_ROTATES]
@@ -172,9 +186,9 @@ class TestInverse(unittest.TestCase):
 if __name__ == "__main__":
     # unittest.main()
     test = TestInverse()
+    # for t in TESTS_LOSSLESS:
+    #     test.test_inverse_lossless(*t)
     for t in TESTS_LOSSY:
-        test.test_inverse_lossy(*t)
-    for t in TESTS_LOSSLESS:
-        test.test_inverse_lossless(*t)
-    for t in TESTS_FAIL:
-        test.test_fail(*t)
+        test.test_inverse_lossy(*t, True)
+    # for t in TESTS_FAIL:
+    #     test.test_fail(*t)

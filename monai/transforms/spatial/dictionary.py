@@ -858,7 +858,7 @@ class Rotated(MapTransform, InvertibleTransform):
         return d
 
 
-class RandRotated(Randomizable, MapTransform):
+class RandRotated(Randomizable, MapTransform, InvertibleTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandRotate`
     Randomly rotates the input arrays.
@@ -938,12 +938,16 @@ class RandRotated(Randomizable, MapTransform):
         self.randomize()
         d = dict(data)
         if not self._do_transform:
+            for key in self.keys:
+                self.append_applied_transforms(d, key, {"do_transform": False})
             return d
+        angle=self.x if d[self.keys[0]].ndim == 3 else (self.x, self.y, self.z),
         rotator = Rotate(
-            angle=self.x if d[self.keys[0]].ndim == 3 else (self.x, self.y, self.z),
+            angle=angle,
             keep_size=self.keep_size,
         )
         for idx, key in enumerate(self.keys):
+            self.append_applied_transforms(d, key, {"angle": angle, "orig_size": d[key].shape[1:]})
             d[key] = rotator(
                 d[key],
                 mode=self.mode[idx],
@@ -951,6 +955,50 @@ class RandRotated(Randomizable, MapTransform):
                 align_corners=self.align_corners[idx],
                 dtype=self.dtype[idx],
             )
+        return d
+
+    def get_input_args(self) -> dict:
+        return {
+            "keys": self.keys,
+            "range_x": self.range_x,
+            "range_y": self.range_y,
+            "range_z": self.range_z,
+            "prob": self.prob,
+            "keep_size": self.keep_size,
+            "mode": self.mode,
+            "padding_mode": self.padding_mode,
+            "align_corners": self.align_corners,
+            "dtype": self.dtype,
+        }
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = dict(data)
+        for idx, key in enumerate(self.keys):
+            transform = self.get_most_recent_transform(d, key)
+            if transform["class"] != type(self) or transform["init_args"] != self.get_input_args():
+                raise RuntimeError("Should inverse most recently applied invertible transform first")
+            # If the transform wasn't applied (because of `prob`), nothing to do
+            if "do_transform" in transform["extra_info"]:
+                return d
+            # Create inverse transform
+            in_angle = transform["extra_info"]["angle"]
+            angle = [-a for a in in_angle] if isinstance(in_angle, Sequence) else -in_angle
+            inverse_rotator = Rotate(angle=angle, keep_size=transform["init_args"]["keep_size"])
+            # Apply inverse transform
+            d[key] = inverse_rotator(
+                d[key],
+                mode=self.mode[idx],
+                padding_mode=self.padding_mode[idx],
+                align_corners=self.align_corners[idx],
+                dtype=self.dtype[idx],
+            )
+            # If the keep_size==False, need to crop image
+            if not transform["init_args"]["keep_size"]:
+                d[key] = CenterSpatialCrop(transform["extra_info"]["orig_size"])(d[key])
+
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
+
         return d
 
 
