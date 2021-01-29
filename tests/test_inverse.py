@@ -142,13 +142,13 @@ for create_im in [create_test_image_2d]:  # , partial(create_test_image_3d, 100)
             TEST_ROTATES.append(TEST_ROTATE)
     for prob in [0, 1]:
         im, _ = create_im(100, 100)
-        angles = [random.uniform(np.pi / 6, np.pi) for _ in range(3)]
+        x, y, z = (random.uniform(np.pi / 6, np.pi) for _ in range(3))
         TEST_ROTATE = [
             f"RandRotate{im.ndim}d, prob={prob}",
             {"image": im},
             [
                 AddChanneld("image"),
-                RandRotated("image", *angles, prob, True, "bilinear", "border", False),
+                RandRotated("image", x, y, z, prob, True, "bilinear", "border", False),
             ],
             False,
         ]
@@ -191,7 +191,7 @@ class TestInverse(unittest.TestCase):
                 else:
                     mean_diff = np.mean(np.abs(orig - fwd_bck))
                     print(f"Mean diff = {mean_diff}")
-                    self.assertLess(mean_diff, 1.5e-2)
+                    self.assertLess(mean_diff, 3e-2)
             except AssertionError:
                 if has_matplotlib:
                     plot_im(orig, fwd_bck, unmodified)

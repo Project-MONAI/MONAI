@@ -300,13 +300,12 @@ class RandRotate90d(Randomizable, MapTransform):
             spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
                 Default: (0, 1), this is the first two axis in spatial dimensions.
         """
-        super().__init__(keys)
+        MapTransform.__init__(self, keys)
+        Randomizable.__init__(self, min(max(prob, 0.0), 1.0))
 
-        self.prob = min(max(prob, 0.0), 1.0)
         self.max_k = max_k
         self.spatial_axes = spatial_axes
 
-        self._do_transform = False
         self._rand_k = 0
 
     def randomize(self, data: Optional[Any] = None) -> None:
@@ -457,7 +456,7 @@ class RandAffined(Randomizable, MapTransform):
         self.randomize()
 
         sp_size = fall_back_tuple(self.rand_affine.spatial_size, data[self.keys[0]].shape[1:])
-        if self.rand_affine.do_transform:
+        if self.rand_affine._do_transform:
             grid = self.rand_affine.rand_affine_grid(spatial_size=sp_size)
         else:
             grid = create_grid(spatial_size=sp_size)
@@ -564,7 +563,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
         sp_size = fall_back_tuple(self.rand_2d_elastic.spatial_size, data[self.keys[0]].shape[1:])
         self.randomize(spatial_size=sp_size)
 
-        if self.rand_2d_elastic.do_transform:
+        if self.rand_2d_elastic._do_transform:
             grid = self.rand_2d_elastic.deform_grid(spatial_size=sp_size)
             grid = self.rand_2d_elastic.rand_affine_grid(grid=grid)
             grid = torch.nn.functional.interpolate(  # type: ignore
@@ -685,7 +684,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
 
         self.randomize(grid_size=sp_size)
         grid = create_grid(spatial_size=sp_size)
-        if self.rand_3d_elastic.do_transform:
+        if self.rand_3d_elastic._do_transform:
             device = self.rand_3d_elastic.device
             grid = torch.tensor(grid).to(device)
             gaussian = GaussianFilter(spatial_dims=3, sigma=self.rand_3d_elastic.sigma, truncated=3.0).to(device)
@@ -742,11 +741,10 @@ class RandFlipd(Randomizable, MapTransform):
         prob: float = 0.1,
         spatial_axis: Optional[Union[Sequence[int], int]] = None,
     ) -> None:
-        super().__init__(keys)
+        MapTransform.__init__(self, keys)
+        Randomizable.__init__(self, prob)
         self.spatial_axis = spatial_axis
-        self.prob = prob
 
-        self._do_transform = False
         self.flipper = Flip(spatial_axis=spatial_axis)
 
     def randomize(self, data: Optional[Any] = None) -> None:
@@ -906,7 +904,8 @@ class RandRotated(Randomizable, MapTransform, InvertibleTransform):
         align_corners: Union[Sequence[bool], bool] = False,
         dtype: Union[Sequence[Optional[np.dtype]], Optional[np.dtype]] = np.float64,
     ) -> None:
-        super().__init__(keys)
+        MapTransform.__init__(self, keys)
+        Randomizable.__init__(self, prob)
         self.range_x = ensure_tuple(range_x)
         if len(self.range_x) == 1:
             self.range_x = tuple(sorted([-self.range_x[0], self.range_x[0]]))
@@ -917,14 +916,12 @@ class RandRotated(Randomizable, MapTransform, InvertibleTransform):
         if len(self.range_z) == 1:
             self.range_z = tuple(sorted([-self.range_z[0], self.range_z[0]]))
 
-        self.prob = prob
         self.keep_size = keep_size
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
 
-        self._do_transform = False
         self.x = 0.0
         self.y = 0.0
         self.z = 0.0
@@ -942,7 +939,7 @@ class RandRotated(Randomizable, MapTransform, InvertibleTransform):
             for key in self.keys:
                 self.append_applied_transforms(d, key)
             return d
-        angle = (self.x if d[self.keys[0]].ndim == 3 else (self.x, self.y, self.z),)
+        angle: Sequence = (self.x if d[self.keys[0]].ndim == 3 else (self.x, self.y, self.z),)
         rotator = Rotate(
             angle=angle,
             keep_size=self.keep_size,
@@ -1096,19 +1093,18 @@ class RandZoomd(Randomizable, MapTransform):
         align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
         keep_size: bool = True,
     ) -> None:
-        super().__init__(keys)
+        MapTransform.__init__(self, keys)
+        Randomizable.__init__(self, prob)
         self.min_zoom = ensure_tuple(min_zoom)
         self.max_zoom = ensure_tuple(max_zoom)
         if len(self.min_zoom) != len(self.max_zoom):
             raise AssertionError("min_zoom and max_zoom must have same length.")
-        self.prob = prob
 
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.keep_size = keep_size
 
-        self._do_transform = False
         self._zoom: Sequence[float] = [1.0]
 
     def randomize(self, data: Optional[Any] = None) -> None:

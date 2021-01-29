@@ -609,11 +609,10 @@ class RandRotate90(Randomizable, Transform):
             spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
                 Default: (0, 1), this is the first two axis in spatial dimensions.
         """
-        self.prob = min(max(prob, 0.0), 1.0)
+        Randomizable.__init__(self, min(max(prob, 0.0), 1.0))
         self.max_k = max_k
         self.spatial_axes = spatial_axes
 
-        self._do_transform = False
         self._rand_k = 0
 
     def randomize(self, data: Optional[Any] = None) -> None:
@@ -672,6 +671,7 @@ class RandRotate(Randomizable, Transform):
         align_corners: bool = False,
         dtype: Optional[np.dtype] = np.float64,
     ) -> None:
+        Randomizable.__init__(self, prob)
         self.range_x = ensure_tuple(range_x)
         if len(self.range_x) == 1:
             self.range_x = tuple(sorted([-self.range_x[0], self.range_x[0]]))
@@ -682,14 +682,12 @@ class RandRotate(Randomizable, Transform):
         if len(self.range_z) == 1:
             self.range_z = tuple(sorted([-self.range_z[0], self.range_z[0]]))
 
-        self.prob = prob
         self.keep_size = keep_size
         self.mode: GridSampleMode = GridSampleMode(mode)
         self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.align_corners = align_corners
         self.dtype = dtype
 
-        self._do_transform = False
         self.x = 0.0
         self.y = 0.0
         self.z = 0.0
@@ -749,9 +747,8 @@ class RandFlip(Randomizable, Transform):
     """
 
     def __init__(self, prob: float = 0.1, spatial_axis: Optional[Union[Sequence[int], int]] = None) -> None:
-        self.prob = prob
+        Randomizable.__init__(self, min(max(prob, 0.0), 1.0))
         self.flipper = Flip(spatial_axis=spatial_axis)
-        self._do_transform = False
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self._do_transform = self.R.random_sample() < self.prob
@@ -806,17 +803,16 @@ class RandZoom(Randomizable, Transform):
         align_corners: Optional[bool] = None,
         keep_size: bool = True,
     ) -> None:
+        Randomizable.__init__(self, prob)
         self.min_zoom = ensure_tuple(min_zoom)
         self.max_zoom = ensure_tuple(max_zoom)
         if len(self.min_zoom) != len(self.max_zoom):
             raise AssertionError("min_zoom and max_zoom must have same length.")
-        self.prob = prob
         self.mode: InterpolateMode = InterpolateMode(mode)
         self.padding_mode: NumpyPadMode = NumpyPadMode(padding_mode)
         self.align_corners = align_corners
         self.keep_size = keep_size
 
-        self._do_transform = False
         self._zoom: Sequence[float] = [1.0]
 
     def randomize(self, data: Optional[Any] = None) -> None:
@@ -1319,6 +1315,7 @@ class RandAffine(Randomizable, Transform):
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
+        Randomizable.__init__(self, prob)
 
         self.rand_affine_grid = RandAffineGrid(
             rotate_range=rotate_range,
@@ -1334,9 +1331,6 @@ class RandAffine(Randomizable, Transform):
         self.mode: GridSampleMode = GridSampleMode(mode)
         self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
 
-        self.do_transform = False
-        self.prob = prob
-
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
     ) -> "RandAffine":
@@ -1345,7 +1339,7 @@ class RandAffine(Randomizable, Transform):
         return self
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        self.do_transform = self.R.rand() < self.prob
+        self._do_transform = self.R.rand() < self.prob
         self.rand_affine_grid.randomize()
 
     def __call__(
@@ -1373,7 +1367,7 @@ class RandAffine(Randomizable, Transform):
         self.randomize()
 
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
-        if self.do_transform:
+        if self._do_transform:
             grid = self.rand_affine_grid(spatial_size=sp_size)
         else:
             grid = create_grid(spatial_size=sp_size)
@@ -1440,6 +1434,7 @@ class Rand2DElastic(Randomizable, Transform):
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
+        Randomizable.__init__(self, prob)
         self.deform_grid = RandDeformGrid(
             spacing=spacing, magnitude_range=magnitude_range, as_tensor_output=True, device=device
         )
@@ -1456,8 +1451,6 @@ class Rand2DElastic(Randomizable, Transform):
         self.spatial_size = spatial_size
         self.mode: GridSampleMode = GridSampleMode(mode)
         self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
-        self.prob = prob
-        self.do_transform = False
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
@@ -1468,7 +1461,7 @@ class Rand2DElastic(Randomizable, Transform):
         return self
 
     def randomize(self, spatial_size: Sequence[int]) -> None:
-        self.do_transform = self.R.rand() < self.prob
+        self._do_transform = self.R.rand() < self.prob
         self.deform_grid.randomize(spatial_size)
         self.rand_affine_grid.randomize()
 
@@ -1494,7 +1487,7 @@ class Rand2DElastic(Randomizable, Transform):
         """
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
         self.randomize(spatial_size=sp_size)
-        if self.do_transform:
+        if self._do_transform:
             grid = self.deform_grid(spatial_size=sp_size)
             grid = self.rand_affine_grid(grid=grid)
             grid = torch.nn.functional.interpolate(  # type: ignore
@@ -1572,6 +1565,7 @@ class Rand3DElastic(Randomizable, Transform):
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
+        Randomizable.__init__(self, prob)
         self.rand_affine_grid = RandAffineGrid(rotate_range, shear_range, translate_range, scale_range, True, device)
         self.resampler = Resample(as_tensor_output=as_tensor_output, device=device)
 
@@ -1582,8 +1576,6 @@ class Rand3DElastic(Randomizable, Transform):
         self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.device = device
 
-        self.prob = prob
-        self.do_transform = False
         self.rand_offset = None
         self.magnitude = 1.0
         self.sigma = 1.0
@@ -1596,8 +1588,8 @@ class Rand3DElastic(Randomizable, Transform):
         return self
 
     def randomize(self, grid_size: Sequence[int]) -> None:
-        self.do_transform = self.R.rand() < self.prob
-        if self.do_transform:
+        self._do_transform = self.R.rand() < self.prob
+        if self._do_transform:
             self.rand_offset = self.R.uniform(-1.0, 1.0, [3] + list(grid_size)).astype(np.float32)
         self.magnitude = self.R.uniform(self.magnitude_range[0], self.magnitude_range[1])
         self.sigma = self.R.uniform(self.sigma_range[0], self.sigma_range[1])
@@ -1626,7 +1618,7 @@ class Rand3DElastic(Randomizable, Transform):
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
         self.randomize(grid_size=sp_size)
         grid = create_grid(spatial_size=sp_size)
-        if self.do_transform:
+        if self._do_transform:
             if self.rand_offset is None:
                 raise AssertionError
             grid = torch.as_tensor(np.ascontiguousarray(grid), device=self.device)
