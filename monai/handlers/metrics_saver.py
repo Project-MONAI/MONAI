@@ -105,15 +105,15 @@ class MetricsSaver:
         if self.save_rank >= ws:
             raise ValueError("target rank is greater than the distributed group size.")
 
-        _filenames = self._filenames
+        _images = self._filenames
         if ws > 1:
-            _filenames = self.deli.join(_filenames)
+            _filenames = self.deli.join(_images)
             if get_torch_version_tuple() > (1, 6, 0):
                 # all gather across all processes
                 _filenames = self.deli.join(idist.all_gather(_filenames))
             else:
                 raise RuntimeError("MetricsSaver can not save metric details in distributed mode with PyTorch < 1.7.0.")
-            _filenames = _filenames.split(self.deli)
+            _images = _filenames.split(self.deli)
 
         # only save metrics to file in specified rank
         if idist.get_rank() == self.save_rank:
@@ -128,7 +128,7 @@ class MetricsSaver:
 
             write_metrics_reports(
                 save_dir=self.save_dir,
-                images=_filenames,
+                images=_images,
                 metrics=_metrics,
                 metric_details=_metric_details,
                 summary_ops=self.summary_ops,
