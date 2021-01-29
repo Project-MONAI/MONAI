@@ -13,7 +13,6 @@ import random
 import unittest
 from typing import TYPE_CHECKING
 
-import matplotlib.pyplot as plt
 import numpy as np
 
 from monai.data import create_test_image_2d
@@ -172,10 +171,10 @@ class TestInverse(unittest.TestCase):
 
 if __name__ == "__main__":
     # unittest.main()
-    a = TestInverse()
+    test = TestInverse()
     for t in TESTS_LOSSY:
-        a.test_inverse_lossy(*t)
+        test.test_inverse_lossy(*t)
     for t in TESTS_LOSSLESS:
-        a.test_inverse_lossless(*t)
+        test.test_inverse_lossless(*t)
     for t in TESTS_FAIL:
-        a.test_fail(*t)
+        test.test_fail(*t)
