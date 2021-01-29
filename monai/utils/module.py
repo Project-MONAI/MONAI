@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -73,7 +73,7 @@ def load_submodules(basemod, load_all: bool = True, exclude_pattern: str = "(.*[
         if (is_pkg or load_all) and name not in sys.modules and match(exclude_pattern, name) is None:
             try:
                 mod = import_module(name)
-                importer.find_module(name).load_module(name)
+                importer.find_module(name).load_module(name)  # type: ignore
                 submodules.append(mod)
             except OptionalImportError:
                 pass  # could not import the optional deps., they are ignored
@@ -85,8 +85,7 @@ def get_full_type_name(typeobj):
     module = typeobj.__module__
     if module is None or module == str.__class__.__module__:
         return typeobj.__name__  # Avoid reporting __builtin__
-    else:
-        return module + "." + typeobj.__name__
+    return module + "." + typeobj.__name__
 
 
 def min_version(the_module, min_version_str: str = "") -> bool:
@@ -189,7 +188,8 @@ def optional_import(
         the_module = import_module(module)
         if not allow_namespace_pkg:
             is_namespace = getattr(the_module, "__file__", None) is None and hasattr(the_module, "__path__")
-            assert not is_namespace
+            if is_namespace:
+                raise AssertionError
         if name:  # user specified to load class/function/... from the module
             the_module = getattr(the_module, name)
     except Exception as import_exception:  # any exceptions during import

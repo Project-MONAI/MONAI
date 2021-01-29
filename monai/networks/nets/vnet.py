@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -212,7 +212,8 @@ class VNet(nn.Module):
     ):
         super().__init__()
 
-        assert spatial_dims == 2 or spatial_dims == 3, "spatial_dims can only be 2 or 3."
+        if spatial_dims not in (2, 3):
+            raise AssertionError("spatial_dims can only be 2 or 3.")
 
         self.in_tr = InputTransition(spatial_dims, in_channels, 16, act)
         self.down_tr32 = DownTransition(spatial_dims, 16, 1, act)

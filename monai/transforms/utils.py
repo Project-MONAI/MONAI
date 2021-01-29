@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -22,6 +22,33 @@ from monai.networks.layers import GaussianFilter
 from monai.utils import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple, min_version, optional_import
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
+
+__all__ = [
+    "rand_choice",
+    "img_bounds",
+    "in_bounds",
+    "is_empty",
+    "zero_margins",
+    "rescale_array",
+    "rescale_instance_array",
+    "rescale_array_int_max",
+    "copypaste_arrays",
+    "resize_center",
+    "map_binary_to_indices",
+    "weighted_patch_samples",
+    "generate_pos_neg_label_crop_centers",
+    "apply_transform",
+    "create_grid",
+    "create_control_grid",
+    "create_rotate",
+    "create_shear",
+    "create_scale",
+    "create_translate",
+    "generate_spatial_bounding_box",
+    "get_largest_connected_component_mask",
+    "get_extreme_points",
+    "extreme_points_to_image",
+]
 
 
 def rand_choice(prob: float = 0.5) -> bool:
@@ -317,15 +344,16 @@ def generate_pos_neg_label_crop_centers(
         return center_ori
 
     centers = []
+    fg_indices, bg_indices = np.asarray(fg_indices), np.asarray(bg_indices)
+    if fg_indices.size == 0 and bg_indices.size == 0:
+        raise ValueError("No sampling location available.")
 
-    if not len(fg_indices) or not len(bg_indices):
-        if not len(fg_indices) and not len(bg_indices):
-            raise ValueError("No sampling location available.")
+    if fg_indices.size == 0 or bg_indices.size == 0:
         warnings.warn(
             f"N foreground {len(fg_indices)}, N  background {len(bg_indices)},"
             "unable to generate class balanced samples."
         )
-        pos_ratio = 0 if not len(fg_indices) else 1
+        pos_ratio = 0 if fg_indices.size == 0 else 1
 
     for _ in range(num_samples):
         indices_to_use = fg_indices if rand_state.rand() < pos_ratio else bg_indices
@@ -424,7 +452,7 @@ def create_rotate(spatial_dims: int, radians: Union[Sequence[float], float]) -> 
             return np.array([[cos_, -sin_, 0.0], [sin_, cos_, 0.0], [0.0, 0.0, 1.0]])
         raise ValueError("radians must be non empty.")
 
-    elif spatial_dims == 3:
+    if spatial_dims == 3:
         affine = None
         if len(radians) >= 1:
             sin_, cos_ = np.sin(radians[0]), np.cos(radians[0])
@@ -463,7 +491,7 @@ def create_shear(spatial_dims: int, coefs: Union[Sequence[float], float]) -> np.
     if spatial_dims == 2:
         coefs = ensure_tuple_size(coefs, dim=2, pad_val=0.0)
         return np.array([[1, coefs[0], 0.0], [coefs[1], 1.0, 0.0], [0.0, 0.0, 1.0]])
-    elif spatial_dims == 3:
+    if spatial_dims == 3:
         coefs = ensure_tuple_size(coefs, dim=6, pad_val=0.0)
         return np.array(
             [

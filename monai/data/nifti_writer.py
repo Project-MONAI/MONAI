@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -89,7 +89,8 @@ def write_nifti(
             the output data type is always ``np.float32``.
         output_dtype: data type for saving data. Defaults to ``np.float32``.
     """
-    assert isinstance(data, np.ndarray), "input data must be numpy array."
+    if not isinstance(data, np.ndarray):
+        raise AssertionError("input data must be numpy array.")
     dtype = dtype or data.dtype
     sr = min(data.ndim, 3)
     if affine is None:

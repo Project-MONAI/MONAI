@@ -186,6 +186,12 @@ Intensity
     :members:
     :special-members: __call__
 
+`SavitzkyGolaySmooth`
+"""""""""""""""""""""
+.. autoclass:: SavitzkyGolaySmooth
+    :members:
+    :special-members: __call__
+
 `GaussianSmooth`
 """"""""""""""""
 .. autoclass:: GaussianSmooth
@@ -228,24 +234,6 @@ IO
 `LoadImage`
 """""""""""
 .. autoclass:: LoadImage
-    :members:
-    :special-members: __call__
-
-`LoadNifti`
-"""""""""""
-.. autoclass:: LoadNifti
-    :members:
-    :special-members: __call__
-
-`LoadPNG`
-"""""""""
-.. autoclass:: LoadPNG
-    :members:
-    :special-members: __call__
-
-`LoadNumpy`
-"""""""""""
-.. autoclass:: LoadNumpy
     :members:
     :special-members: __call__
 
@@ -504,6 +492,24 @@ Utility
     :members:
     :special-members: __call__
 
+`ConvertToMultiChannelBasedOnBratsClasses`
+""""""""""""""""""""""""""""""""""""""""""
+.. autoclass:: ConvertToMultiChannelBasedOnBratsClasses
+    :members:
+    :special-members: __call__
+
+`AddExtremePointsChannel`
+"""""""""""""""""""""""""
+.. autoclass:: AddExtremePointsChannel
+    :members:
+    :special-members: __call__
+
+`TorchVision`
+"""""""""""""
+.. autoclass:: TorchVision
+    :members:
+    :special-members: __call__
+
 Dictionary Transforms
 ---------------------
 
@@ -690,33 +696,9 @@ Instensity (Dict)
 IO (Dict)
 ^^^^^^^^^
 
-`LoadDatad`
-"""""""""""
-.. autoclass:: LoadDatad
-    :members:
-    :special-members: __call__
-
 `LoadImaged`
 """"""""""""
 .. autoclass:: LoadImaged
-    :members:
-    :special-members: __call__
-
-`LoadNiftid`
-""""""""""""
-.. autoclass:: LoadNiftid
-    :members:
-    :special-members: __call__
-
-`LoadPNGd`
-""""""""""
-.. autoclass:: LoadPNGd
-    :members:
-    :special-members: __call__
-
-`LoadNumpyd`
-""""""""""""
-.. autoclass:: LoadNumpyd
     :members:
     :special-members: __call__
 
@@ -966,6 +948,24 @@ Utility (Dict)
 `FgBgToIndicesd`
 """"""""""""""""
 .. autoclass:: FgBgToIndicesd
+    :members:
+    :special-members: __call__
+
+`ConvertToMultiChannelBasedOnBratsClassesd`
+"""""""""""""""""""""""""""""""""""""""""""
+.. autoclass:: ConvertToMultiChannelBasedOnBratsClassesd
+    :members:
+    :special-members: __call__
+
+`AddExtremePointsChanneld`
+""""""""""""""""""""""""""
+.. autoclass:: AddExtremePointsChanneld
+    :members:
+    :special-members: __call__
+
+`TorchVisiond`
+""""""""""""""
+.. autoclass:: TorchVisiond
     :members:
     :special-members: __call__
 

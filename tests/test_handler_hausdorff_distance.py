@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -71,10 +71,9 @@ class TestHandlerHausdorffDistance(unittest.TestCase):
         y_pred, y = TEST_SAMPLE_3
         hd_metric.update([y_pred, y])
         self.assertEqual(hd_metric.compute(), float("inf"))
-        self.assertEqual(hd_metric._num_examples, 3)
         y_pred, y = TEST_SAMPLE_4
         hd_metric.update([y_pred, y])
-        self.assertEqual(hd_metric._num_examples, 3)
+        self.assertEqual(hd_metric.compute(), float("inf"))
 
     def test_shape_mismatch(self):
         hd_metric = HausdorffDistance(include_background=True)
