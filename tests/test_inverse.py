@@ -71,16 +71,16 @@ TEST_FAIL_0 = [
 ]
 
 TEST_ROTATES = []
-# for k in [True, False]:
-#     for a in [False, True]:
-#         TEST_ROTATE = [
-#             {"image": create_test_image_2d(100, 100)[0]},
-#             [
-#                 AddChanneld("image"),
-#                 Rotated("image", random.uniform(np.pi / 6, np.pi), k, "bilinear", "border", a),
-#             ],
-#         ]
-#         TEST_ROTATES.append(TEST_ROTATE)
+for k in [True, False]:
+    for a in [False, True]:
+        TEST_ROTATE = [
+            {"image": create_test_image_2d(100, 100)[0]},
+            [
+                AddChanneld("image"),
+                Rotated("image", random.uniform(np.pi / 6, np.pi), k, "bilinear", "border", a),
+            ],
+        ]
+        TEST_ROTATES.append(TEST_ROTATE)
 for p in [0, 1]:
     TEST_ROTATE = [
         {"image": create_test_image_2d(100, 100)[0]},
@@ -171,11 +171,6 @@ class TestInverse(unittest.TestCase):
         if has_matplotlib and visualise:
             plot_im(forwards[1]["image"], backwards[-1]["image"], forwards[-1]["image"])
 
-        # Check that if the inverse hadn't been called, mean_percent_diff would have been greater
-        if forwards[1]["image"].shape == forwards[-1]["image"].shape:
-            mean_percent_diff = get_mean_percent_diff(forwards[1]["image"], forwards[-1]["image"])
-            self.assertGreater(mean_percent_diff, 50)
-
     # @parameterized.expand(TESTS_FAIL)
     def test_fail(self, data, transform):
         d = transform(data)
@@ -186,9 +181,9 @@ class TestInverse(unittest.TestCase):
 if __name__ == "__main__":
     # unittest.main()
     test = TestInverse()
-    # for t in TESTS_LOSSLESS:
-    #     test.test_inverse_lossless(*t)
+    for t in TESTS_LOSSLESS:
+        test.test_inverse_lossless(*t)
     for t in TESTS_LOSSY:
-        test.test_inverse_lossy(*t, True)
-    # for t in TESTS_FAIL:
-    #     test.test_fail(*t)
+        test.test_inverse_lossy(*t)
+    for t in TESTS_FAIL:
+        test.test_fail(*t)

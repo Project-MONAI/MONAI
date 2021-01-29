@@ -939,7 +939,7 @@ class RandRotated(Randomizable, MapTransform, InvertibleTransform):
         d = dict(data)
         if not self._do_transform:
             for key in self.keys:
-                self.append_applied_transforms(d, key, {"do_transform": False})
+                self.append_applied_transforms(d, key)
             return d
         angle=self.x if d[self.keys[0]].ndim == 3 else (self.x, self.y, self.z),
         rotator = Rotate(
@@ -977,24 +977,23 @@ class RandRotated(Randomizable, MapTransform, InvertibleTransform):
             transform = self.get_most_recent_transform(d, key)
             if transform["class"] != type(self) or transform["init_args"] != self.get_input_args():
                 raise RuntimeError("Should inverse most recently applied invertible transform first")
-            # If the transform wasn't applied (because of `prob`), nothing to do
-            if "do_transform" in transform["extra_info"]:
-                return d
-            # Create inverse transform
-            in_angle = transform["extra_info"]["angle"]
-            angle = [-a for a in in_angle] if isinstance(in_angle, Sequence) else -in_angle
-            inverse_rotator = Rotate(angle=angle, keep_size=transform["init_args"]["keep_size"])
-            # Apply inverse transform
-            d[key] = inverse_rotator(
-                d[key],
-                mode=self.mode[idx],
-                padding_mode=self.padding_mode[idx],
-                align_corners=self.align_corners[idx],
-                dtype=self.dtype[idx],
-            )
-            # If the keep_size==False, need to crop image
-            if not transform["init_args"]["keep_size"]:
-                d[key] = CenterSpatialCrop(transform["extra_info"]["orig_size"])(d[key])
+            # Check if random transform was actually performed (based on `prob`)
+            if transform["do_transform"]:
+                # Create inverse transform
+                in_angle = transform["extra_info"]["angle"]
+                angle = [-a for a in in_angle] if isinstance(in_angle, Sequence) else -in_angle
+                inverse_rotator = Rotate(angle=angle, keep_size=transform["init_args"]["keep_size"])
+                # Apply inverse transform
+                d[key] = inverse_rotator(
+                    d[key],
+                    mode=self.mode[idx],
+                    padding_mode=self.padding_mode[idx],
+                    align_corners=self.align_corners[idx],
+                    dtype=self.dtype[idx],
+                )
+                # If the keep_size==False, need to crop image
+                if not transform["init_args"]["keep_size"]:
+                    d[key] = CenterSpatialCrop(transform["extra_info"]["orig_size"])(d[key])
 
             # Remove the applied transform
             self.remove_most_recent_transform(d, key)

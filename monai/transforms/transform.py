@@ -226,6 +226,9 @@ class InvertibleTransform(ABC):
         if key not in data:
             data[key] = []
         data[key].append({"class": type(self), "init_args": self.get_input_args(), "extra_info": extra_args})
+        # If class is randomizable, store whether the transform was actually performed (based on `prob`)
+        if isinstance(self, Randomizable):
+            data[key][-1]["do_transform"] = self._do_transform
 
     @staticmethod
     def get_most_recent_transform(data: dict, key: Hashable) -> dict:
