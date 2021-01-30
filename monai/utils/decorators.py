@@ -27,7 +27,7 @@ class RestartGenerator:
         return self.create_gen()
 
 
-class MethodReplacer(object):
+class MethodReplacer:
     """
     Base class for method decorators which can be used to replace methods pass to replace_method() with wrapped versions.
     """
