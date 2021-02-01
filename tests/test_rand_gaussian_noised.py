@@ -17,8 +17,8 @@ from parameterized import parameterized
 from monai.transforms import RandGaussianNoised
 from tests.utils import NumpyImageTestCase2D, TorchImageTestCase2D
 
-TEST_CASE_0 = ["test_zero_mean", ["img", "im2"], 0, 0.1]
-TEST_CASE_1 = ["test_non_zero_mean", ["img"], 1, 0.5]
+TEST_CASE_0 = ["test_zero_mean", ["img1", "img2"], 0, 0.1]
+TEST_CASE_1 = ["test_non_zero_mean", ["img1", "img2"], 1, 0.5]
 TEST_CASES = [TEST_CASE_0, TEST_CASE_1]
 
 seed = 0
