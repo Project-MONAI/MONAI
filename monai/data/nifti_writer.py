@@ -17,6 +17,7 @@ import torch
 from monai.data.utils import compute_shape_offset, to_affine_nd
 from monai.networks.layers import AffineTransform
 from monai.utils import GridSampleMode, GridSamplePadMode, optional_import
+from monai.config import DtypeLike
 
 nib, _ = optional_import("nibabel")
 
@@ -31,8 +32,8 @@ def write_nifti(
     mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
     padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
     align_corners: bool = False,
-    dtype: Optional[np.dtype] = np.float64,
-    output_dtype: Optional[np.dtype] = np.float32,
+    dtype: DtypeLike = np.float64,
+    output_dtype: DtypeLike = np.float32,
 ) -> None:
     """
     Write numpy data into NIfTI files to disk.  This function converts data

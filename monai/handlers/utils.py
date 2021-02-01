@@ -162,5 +162,5 @@ def write_metrics_reports(
 
                 with open(os.path.join(save_dir, f"{k}_summary.csv"), "w") as f:
                     f.write(f"class{deli}{deli.join(ops)}\n")
-                    for i, c in enumerate(v.transpose()):
+                    for i, c in enumerate(np.transpose(v)):
                         f.write(f"{class_labels[i]}{deli}{deli.join([f'{supported_ops[k](c):.4f}' for k in ops])}\n")

@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence,
 import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
-from monai.config import KeysCollection
+from monai.config import KeysCollection, DtypeLike
 from monai.data.utils import correct_nifti_header_if_necessary
 from monai.utils import ensure_tuple, optional_import
 
@@ -295,7 +295,7 @@ class NibabelReader(ImageReader):
 
     """
 
-    def __init__(self, as_closest_canonical: bool = False, dtype: Optional[np.dtype] = np.float32, **kwargs):
+    def __init__(self, as_closest_canonical: bool = False, dtype: DtypeLike = np.float32, **kwargs):
         super().__init__()
         self.as_closest_canonical = as_closest_canonical
         self.dtype = dtype

@@ -20,6 +20,7 @@ from warnings import warn
 import numpy as np
 import torch
 
+from monai.config import DtypeLike
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
 from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.utils import rescale_array
@@ -233,7 +234,7 @@ class NormalizeIntensity(Transform):
         divisor: Optional[Sequence] = None,
         nonzero: bool = False,
         channel_wise: bool = False,
-        dtype: np.dtype = np.float32,
+        dtype: DtypeLike= np.float32,
     ) -> None:
         self.subtrahend = subtrahend
         self.divisor = divisor

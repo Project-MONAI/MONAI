@@ -19,7 +19,7 @@ from typing import Any, List, Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
 
-from monai.config import USE_COMPILED
+from monai.config import USE_COMPILED, DtypeLike
 from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.transforms.compose import Randomizable, Transform
@@ -81,7 +81,7 @@ class Spacing(Transform):
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
-        dtype: Optional[np.dtype] = np.float64,
+        dtype: DtypeLike = np.float64,
     ) -> None:
         """
         Args:
@@ -123,7 +123,7 @@ class Spacing(Transform):
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
-        dtype: Optional[np.dtype] = None,
+        dtype: DtypeLike = None,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Args:
@@ -404,7 +404,7 @@ class Rotate(Transform):
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
-        dtype: Optional[np.dtype] = np.float64,
+        dtype: DtypeLike = np.float64,
     ) -> None:
         self.angle = angle
         self.keep_size = keep_size
@@ -419,7 +419,7 @@ class Rotate(Transform):
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
-        dtype: Optional[np.dtype] = None,
+        dtype: DtypeLike = None,
     ) -> np.ndarray:
         """
         Args:
@@ -670,7 +670,7 @@ class RandRotate(Randomizable, Transform):
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
-        dtype: Optional[np.dtype] = np.float64,
+        dtype: DtypeLike = np.float64,
     ) -> None:
         self.range_x = ensure_tuple(range_x)
         if len(self.range_x) == 1:
@@ -706,7 +706,7 @@ class RandRotate(Randomizable, Transform):
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
-        dtype: Optional[np.dtype] = None,
+        dtype: DtypeLike = None,
     ) -> np.ndarray:
         """
         Args:

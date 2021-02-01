@@ -18,4 +18,4 @@ from .deviceconfig import (
     print_gpu_info,
     print_system_info,
 )
-from .type_definitions import IndexSelection, KeysCollection
+from .type_definitions import IndexSelection, KeysCollection, DtypeLike

@@ -22,7 +22,7 @@ from typing import Callable, Dict, Hashable, List, Mapping, Optional, Sequence, 
 import numpy as np
 import torch
 
-from monai.config import KeysCollection
+from monai.config import KeysCollection, DtypeLike
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.utility.array import (
     AddChannel,
@@ -279,14 +279,14 @@ class CastToTyped(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        dtype: Union[Sequence[Union[np.dtype, torch.dtype]], np.dtype, torch.dtype] = np.float32,
+        dtype: Union[Sequence[Union[DtypeLike, torch.dtype]], DtypeLike, torch.dtype] = np.float32,
     ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             dtype: convert image to this data type, default is `np.float32`.
-                it also can be a sequence of np.dtype or torch.dtype,
+                it also can be a sequence of dtypes or torch.dtype,
                 each element corresponds to a key in ``keys``.
 
         """

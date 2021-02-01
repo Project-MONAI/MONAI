@@ -14,6 +14,7 @@ from typing import Dict, Optional, Union
 import numpy as np
 import torch
 
+from monai.config import DtypeLike
 from monai.data.nifti_writer import write_nifti
 from monai.data.utils import create_file_basename
 from monai.utils import GridSampleMode, GridSamplePadMode
@@ -36,8 +37,8 @@ class NiftiSaver:
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
-        dtype: Optional[np.dtype] = np.float64,
-        output_dtype: Optional[np.dtype] = np.float32,
+        dtype: DtypeLike = np.float64,
+        output_dtype: DtypeLike = np.float32,
     ) -> None:
         """
         Args:

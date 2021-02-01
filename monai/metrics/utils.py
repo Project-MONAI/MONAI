@@ -26,8 +26,8 @@ __all__ = ["ignore_background", "do_metric_reduction", "get_mask_edges", "get_su
 
 
 def ignore_background(
-    y_pred: torch.Tensor,
-    y: torch.Tensor,
+    y_pred: Union[np.ndarray, torch.Tensor],
+    y: Union[np.ndarray, torch.Tensor],
 ):
     """
     This function is used to remove background (the first channel) for `y_pred` and `y`.

@@ -20,7 +20,7 @@ from typing import Any, Dict, Hashable, Mapping, Optional, Sequence, Tuple, Unio
 import numpy as np
 import torch
 
-from monai.config import KeysCollection
+from monai.config import KeysCollection, DtypeLike
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.croppad.array import CenterSpatialCrop
@@ -120,7 +120,7 @@ class Spacingd(MapTransform):
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
         align_corners: Union[Sequence[bool], bool] = False,
-        dtype: Optional[Union[Sequence[np.dtype], np.dtype]] = np.float64,
+        dtype: Optional[Union[Sequence[DtypeLike], DtypeLike]] = np.float64,
         meta_key_postfix: str = "meta_dict",
     ) -> None:
         """
@@ -152,7 +152,7 @@ class Spacingd(MapTransform):
             dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
-                It also can be a sequence of np.dtype, each element corresponds to a key in ``keys``.
+                It also can be a sequence of dtypes, each element corresponds to a key in ``keys``.
             meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
                 default is `meta_dict`, the meta data is a dictionary object.
                 For example, to handle key `image`,  read/write affine matrices from the
@@ -796,7 +796,7 @@ class Rotated(MapTransform):
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
         align_corners: Union[Sequence[bool], bool] = False,
-        dtype: Union[Sequence[Optional[np.dtype]], Optional[np.dtype]] = np.float64,
+        dtype: Union[Sequence[DtypeLike], DtypeLike] = np.float64,
     ) -> None:
         super().__init__(keys)
         self.rotator = Rotate(angle=angle, keep_size=keep_size)
@@ -864,7 +864,7 @@ class RandRotated(Randomizable, MapTransform):
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
         align_corners: Union[Sequence[bool], bool] = False,
-        dtype: Union[Sequence[Optional[np.dtype]], Optional[np.dtype]] = np.float64,
+        dtype: Union[Sequence[DtypeLike], DtypeLike] = np.float64,
     ) -> None:
         super().__init__(keys)
         self.range_x = ensure_tuple(range_x)

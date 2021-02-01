@@ -9,9 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import numpy as np
 from typing import Collection, Hashable, Iterable, Union
 
-__all__ = ["KeysCollection", "IndexSelection"]
+__all__ = ["KeysCollection", "IndexSelection", "DtypeLike"]
 
 """Commonly used concepts
 This module provides naming and type specifications for commonly used concepts
@@ -50,4 +51,13 @@ The IndexSelection type is used to for defining variables
 that store a subset of indices to select items from a List or Array like objects.
 The indices must be integers, and if a container of indices is specified, the
 container must be iterable.
+"""
+
+DtypeLike = Union[
+    np.dtype,
+    type,
+    None,
+]
+"""Type of datatypes
+adapted from https://github.com/numpy/numpy/blob/master/numpy/typing/_dtype_like.py
 """

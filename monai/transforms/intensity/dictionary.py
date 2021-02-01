@@ -21,7 +21,7 @@ from typing import Any, Dict, Hashable, Mapping, Optional, Sequence, Tuple, Unio
 import numpy as np
 import torch
 
-from monai.config import KeysCollection
+from monai.config import KeysCollection, DtypeLike
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.intensity.array import (
     AdjustContrast,
@@ -294,7 +294,7 @@ class NormalizeIntensityd(MapTransform):
         divisor: Optional[np.ndarray] = None,
         nonzero: bool = False,
         channel_wise: bool = False,
-        dtype: np.dtype = np.float32,
+        dtype: DtypeLike = np.float32,
     ) -> None:
         super().__init__(keys)
         self.normalizer = NormalizeIntensity(subtrahend, divisor, nonzero, channel_wise, dtype)

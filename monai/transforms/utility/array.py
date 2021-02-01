@@ -20,6 +20,7 @@ from typing import Callable, List, Optional, Sequence, Tuple, TypeVar, Union
 import numpy as np
 import torch
 
+from monai.config import DtypeLike
 from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points, map_binary_to_indices
 from monai.utils import ensure_tuple, min_version, optional_import
@@ -209,7 +210,7 @@ class CastToType(Transform):
     specified PyTorch data type.
     """
 
-    def __init__(self, dtype: Union[np.dtype, torch.dtype] = np.float32) -> None:
+    def __init__(self, dtype= np.float32) -> None:
         """
         Args:
             dtype: convert image to this data type, default is `np.float32`.
@@ -217,7 +218,7 @@ class CastToType(Transform):
         self.dtype = dtype
 
     def __call__(
-        self, img: Union[np.ndarray, torch.Tensor], dtype: Optional[Union[np.dtype, torch.dtype]] = None
+        self, img: Union[np.ndarray, torch.Tensor], dtype: Optional[Union[DtypeLike, torch.dtype]] = None
     ) -> Union[np.ndarray, torch.Tensor]:
         """
         Apply the transform to `img`, assuming `img` is a numpy array or PyTorch Tensor.

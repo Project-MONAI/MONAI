@@ -17,7 +17,7 @@ from typing import Callable, List, Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
 
-from monai.config import IndexSelection
+from monai.config import IndexSelection, DtypeLike
 from monai.networks.layers import GaussianFilter
 from monai.utils import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple, min_version, optional_import
 
@@ -92,7 +92,7 @@ def zero_margins(img: np.ndarray, margin: int) -> bool:
 
 
 def rescale_array(
-    arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0, dtype: Optional[np.dtype] = np.float32
+    arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0, dtype: DtypeLike = np.float32
 ) -> np.ndarray:
     """
     Rescale the values of numpy array `arr` to be from `minv` to `maxv`.
@@ -111,7 +111,7 @@ def rescale_array(
 
 
 def rescale_instance_array(
-    arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0, dtype: np.dtype = np.float32
+    arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0, dtype: DtypeLike = np.float32
 ) -> np.ndarray:
     """
     Rescale each array slice along the first dimension of `arr` independently.
@@ -123,7 +123,7 @@ def rescale_instance_array(
     return out
 
 
-def rescale_array_int_max(arr: np.ndarray, dtype: np.dtype = np.uint16) -> np.ndarray:
+def rescale_array_int_max(arr: np.ndarray, dtype: DtypeLike = np.uint16) -> np.ndarray:
     """
     Rescale the array `arr` to be between the minimum and maximum values of the type `dtype`.
     """
@@ -395,7 +395,7 @@ def create_grid(
     spatial_size: Sequence[int],
     spacing: Optional[Sequence[float]] = None,
     homogeneous: bool = True,
-    dtype: np.dtype = float,
+    dtype: DtypeLike = float,
 ) -> np.ndarray:
     """
     compute a `spatial_size` mesh.
@@ -415,7 +415,7 @@ def create_grid(
 
 
 def create_control_grid(
-    spatial_shape: Sequence[int], spacing: Sequence[float], homogeneous: bool = True, dtype: np.dtype = float
+    spatial_shape: Sequence[int], spacing: Sequence[float], homogeneous: bool = True, dtype: DtypeLike = float
 ) -> np.ndarray:
     """
     control grid with two additional point in each direction
