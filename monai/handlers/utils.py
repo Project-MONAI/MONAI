@@ -11,12 +11,12 @@
 
 import os
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Union, List
 
 import numpy as np
 import torch
 
-from monai.utils import ensure_tuple, exact_version, optional_import
+from monai.utils import ensure_tuple, exact_version, optional_import, get_torch_version_tuple
 
 idist, _ = optional_import("ignite", "0.4.2", exact_version, "distributed")
 if TYPE_CHECKING:
@@ -28,6 +28,7 @@ __all__ = [
     "stopping_fn_from_metric",
     "stopping_fn_from_loss",
     "evenly_divisible_all_gather",
+    "string_list_all_gather",
     "write_metrics_reports",
 ]
 
@@ -79,6 +80,29 @@ def evenly_divisible_all_gather(data: torch.Tensor) -> torch.Tensor:
     data = idist.all_gather(data)
     # delete the padding NaN items
     return torch.cat([data[i * max_len : i * max_len + l, ...] for i, l in enumerate(all_lens)], dim=0)
+
+
+def string_list_all_gather(strings: List[str], delimiter: str = "\t") -> List[str]:
+    """
+    Utility function for distributed data parallel to all gather a list of strings.
+
+    Args:
+        strings: a list of strings to all gather.
+        delimiter: use the delimiter to join the string list to be a long string,
+            then all gather across ranks and split to a list. default to "\t".
+
+    """
+    if idist.get_world_size() <= 1:
+        return strings
+    
+    _joined = delimiter.join(strings)
+    if get_torch_version_tuple() > (1, 6, 0):
+        # all gather across all ranks
+        _joined = delimiter.join(idist.all_gather(_joined))
+    else:
+        raise RuntimeError("MetricsSaver can not save metric details in distributed mode with PyTorch < 1.7.0.")
+
+    return _joined.split(delimiter)
 
 
 def write_metrics_reports(

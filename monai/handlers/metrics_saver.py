@@ -11,9 +11,8 @@
 
 from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Union
 
-from monai.handlers.utils import write_metrics_reports
+from monai.handlers.utils import write_metrics_reports, string_list_all_gather
 from monai.utils import ensure_tuple, exact_version, optional_import
-from monai.utils.module import get_torch_version_tuple
 
 Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
 idist, _ = optional_import("ignite", "0.4.2", exact_version, "distributed")
@@ -105,15 +104,8 @@ class MetricsSaver:
         if self.save_rank >= ws:
             raise ValueError("target rank is greater than the distributed group size.")
 
-        _images = self._filenames
-        if ws > 1:
-            _filenames = self.deli.join(_images)
-            if get_torch_version_tuple() > (1, 6, 0):
-                # all gather across all processes
-                _filenames = self.deli.join(idist.all_gather(_filenames))
-            else:
-                raise RuntimeError("MetricsSaver can not save metric details in distributed mode with PyTorch < 1.7.0.")
-            _images = _filenames.split(self.deli)
+        # all gather file names across ranks
+        _images = string_list_all_gather(strings=self._filenames) if ws > 1 else self._filenames
 
         # only save metrics to file in specified rank
         if idist.get_rank() == self.save_rank:
