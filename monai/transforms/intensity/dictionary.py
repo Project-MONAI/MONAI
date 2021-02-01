@@ -113,24 +113,25 @@ class RandGaussianNoised(Randomizable, MapTransform):
         self.mean = ensure_tuple_size(mean, len(self.keys))
         self.std = std
         self._do_transform = False
-        self._noise: Optional[np.ndarray] = None
+        self._noise: Sequence[np.ndarray] = []
 
     def randomize(self, im_shape: Sequence[int]) -> None:
         self._do_transform = self.R.random() < self.prob
-        self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
+        for m in self.mean:
+            self._noise.append(self.R.normal(m, self.R.uniform(0, self.std), size=im_shape))
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
 
         image_shape = d[self.keys[0]].shape  # image shape from the first data key
         self.randomize(image_shape)
-        if self._noise is None:
+        if not self._noise:
             raise AssertionError
         if not self._do_transform:
             return d
-        for key in self.keys:
+        for i, key in enumerate(self.keys):
             dtype = dtype_torch_to_numpy(d[key].dtype) if isinstance(d[key], torch.Tensor) else d[key].dtype
-            d[key] = d[key] + self._noise.astype(dtype)
+            d[key] = d[key] + self._noise[i].astype(dtype)
         return d
 
 
