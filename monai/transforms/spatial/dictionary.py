@@ -808,7 +808,7 @@ class Rotated(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            self.append_applied_transforms(d, key, idx, {"orig_size": d[key].shape[1:]})
+            self.append_applied_transforms(d, key, idx)
             d[key] = self.rotator(
                 d[key],
                 mode=self.mode[idx],
@@ -849,7 +849,7 @@ class Rotated(MapTransform, InvertibleTransform):
             )
             # If the keep_size==False, need to crop image
             if not transform["init_args"]["keep_size"]:
-                d[key] = CenterSpatialCrop(transform["extra_info"]["orig_size"])(d[key])
+                d[key] = CenterSpatialCrop(transform["orig_size"])(d[key])
 
             # Remove the applied transform
             self.remove_most_recent_transform(d, key)
@@ -945,7 +945,7 @@ class RandRotated(Randomizable, MapTransform, InvertibleTransform):
             keep_size=self.keep_size,
         )
         for idx, key in enumerate(self.keys):
-            self.append_applied_transforms(d, key, idx, {"angle": angle, "orig_size": d[key].shape[1:]})
+            self.append_applied_transforms(d, key, idx, {"angle": angle})
             d[key] = rotator(
                 d[key],
                 mode=self.mode[idx],
@@ -991,7 +991,7 @@ class RandRotated(Randomizable, MapTransform, InvertibleTransform):
                 )
                 # If the keep_size==False, need to crop image
                 if not transform["init_args"]["keep_size"]:
-                    d[key] = CenterSpatialCrop(transform["extra_info"]["orig_size"])(d[key])
+                    d[key] = CenterSpatialCrop(transform["orig_size"])(d[key])
 
             # Remove the applied transform
             self.remove_most_recent_transform(d, key)

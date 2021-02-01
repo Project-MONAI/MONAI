@@ -262,7 +262,7 @@ class SpatialCropd(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
-            self.append_applied_transforms(d, key, extra_args={"orig_size": d[key].shape})
+            self.append_applied_transforms(d, key)
             d[key] = self.cropper(d[key])
         return d
 
@@ -279,7 +279,7 @@ class SpatialCropd(MapTransform, InvertibleTransform):
         for key in self.keys:
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            orig_size = transform["extra_info"]["orig_size"][1:]
+            orig_size = transform["orig_size"]
             pad_to_start = transform["init_args"]["roi_start"]
             pad_to_end = orig_size - transform["init_args"]["roi_end"]
             # interweave mins and maxes
@@ -317,7 +317,7 @@ class CenterSpatialCropd(MapTransform):
         return d
 
 
-class RandSpatialCropd(Randomizable, MapTransform):
+class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandSpatialCrop`.
     Crop image with random size or specific size ROI. It can crop at a random position as
@@ -342,7 +342,9 @@ class RandSpatialCropd(Randomizable, MapTransform):
         random_center: bool = True,
         random_size: bool = True,
     ) -> None:
-        super().__init__(keys)
+        Randomizable.__init__(self, prob=1.0)
+        MapTransform.__init__(self, keys)
+        self._do_transform = True
         self.roi_size = roi_size
         self.random_center = random_center
         self.random_size = random_size
@@ -356,18 +358,62 @@ class RandSpatialCropd(Randomizable, MapTransform):
         if self.random_center:
             valid_size = get_valid_patch_size(img_size, self._size)
             self._slices = (slice(None),) + get_random_patch(img_size, valid_size, self.R)
+            pass
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         self.randomize(d[self.keys[0]].shape[1:])  # image shape from the first data key
         if self._size is None:
             raise AssertionError
-        for key in self.keys:
+        for idx, key in enumerate(self.keys):
+            self.append_applied_transforms(d, key, idx, {"slices": self._slices})
             if self.random_center:
                 d[key] = d[key][self._slices]
             else:
                 cropper = CenterSpatialCrop(self._size)
                 d[key] = cropper(d[key])
+        return d
+
+    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
+        return {
+            "keys": key,
+            "roi_size": self.roi_size,
+            "random_center": self.random_center,
+            "random_size": self.random_size,
+        }
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+
+        for key in self.keys:
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            orig_size = transform["orig_size"]
+            random_center = transform["init_args"]["random_center"]
+            pad_to_start = np.empty((len(orig_size)), dtype=np.int32)
+            pad_to_end = np.empty((len(orig_size)), dtype=np.int32)
+            if random_center:
+                for i, _slice in enumerate(transform["extra_info"]["slices"][1:]):
+                    pad_to_start[i] = _slice.start
+                    pad_to_end[i] = orig_size[i] - _slice.stop
+            else:
+                current_size = d[key].shape[1:]
+                for i, (o_s, c_s) in enumerate(zip(orig_size, current_size)):
+                    pad_to_start[i] = pad_to_end[i] = (o_s - c_s) / 2
+                    if o_s % 2 == 0 and c_s % 2 == 1:
+                        pad_to_start[i] += 1
+                    elif o_s % 2 == 1 and c_s % 2 == 0:
+                        pad_to_end[i] += 1
+            # interweave mins and maxes
+            pad = np.empty((2 * len(orig_size)), dtype=np.int32)
+            pad[0::2] = pad_to_start
+            pad[1::2] = pad_to_end
+            inverse_transform = BorderPad(pad.tolist())
+            # Apply inverse transform
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
+
         return d
 
 

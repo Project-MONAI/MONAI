@@ -230,7 +230,8 @@ class InvertibleTransform(ABC):
         if key_transform not in data:
             data[key_transform] = []
         data[key_transform].append(
-            {"class": type(self), "init_args": self.get_input_args(key, idx), "extra_info": extra_args}
+            {"class": type(self), "init_args": self.get_input_args(key, idx),
+            "orig_size": data[key].shape[1:], "extra_info": extra_args}
         )
         # If class is randomizable, store whether the transform was actually performed (based on `prob`)
         if isinstance(self, Randomizable):
@@ -241,13 +242,6 @@ class InvertibleTransform(ABC):
         # Check transorms are of same type.
         if transform["class"] != type(self):
             raise RuntimeError(explanation)
-
-        def check_dictionaries_match(dict1, dict2):
-            if dict1.keys() != dict2.keys():
-                raise RuntimeError(explanation)
-            for k in dict1.keys():
-                if dict1[k] != dict2[k]:
-                    raise RuntimeError(explanation)
 
         t1 = transform["init_args"]
         t2 = self.get_input_args(key)

@@ -19,7 +19,17 @@ import numpy as np
 from typing import List, Tuple
 from monai.data import create_test_image_2d, create_test_image_3d
 from monai.data import CacheDataset
-from monai.transforms import InvertibleTransform, AddChannel, Compose, RandRotated, Rotated, SpatialPad, SpatialPadd, SpatialCropd
+from monai.transforms import (
+    InvertibleTransform,
+    AddChannel,
+    Compose,
+    RandRotated,
+    RandSpatialCropd,
+    Rotated,
+    SpatialPad,
+    SpatialPadd,
+    SpatialCropd
+)
 from monai.utils import Method, optional_import
 
 # from parameterized import parameterized
@@ -33,10 +43,11 @@ else:
     plt, has_matplotlib = optional_import("matplotlib.pyplot")
 
 
-
+IM_1D = AddChannel()(np.arange(0, 11))
 IM_2D = AddChannel()(create_test_image_2d(100, 101)[0])
 IM_3D = AddChannel()(create_test_image_3d(100, 101, 107)[0])
 
+DATA_1D = {"image": IM_1D, "label": IM_1D, "other": IM_1D}
 DATA_2D = {"image": IM_2D, "label": IM_2D, "other": IM_2D}
 DATA_3D = {"image": IM_3D, "label": IM_3D, "other": IM_3D}
 KEYS = ["image", "label"]
@@ -69,36 +80,50 @@ TESTS.append((
     "Spatial crop 2d",
     DATA_2D,
     2e-2,
-    SpatialCropd("image", [49, 51], [90, 89]),
+    SpatialCropd(KEYS, [49, 51], [90, 89]),
 ))
 
 TESTS.append((
     "Spatial crop 3d",
     DATA_3D,
     2e-2,
-    SpatialCropd("image", [49, 51, 44], [90, 89, 93]),
+    SpatialCropd(KEYS, [49, 51, 44], [90, 89, 93]),
 ))
 
-# # # TODO: add 3D
-# for data in [DATA_2D]:  # , DATA_3D]:
-#     ndim = data['image'].ndim
-#     for keep_size in [True, False]:
-#         for align_corners in [False, True]:
-#             angle = random.uniform(np.pi / 6, np.pi)
-#             TESTS.append((
-#                 f"Rotate{ndim}d, keep_size={keep_size}, align_corners={align_corners}",
-#                 data,
-#                 5e-2,
-#                 Rotated(KEYS, angle, keep_size, "bilinear", "border", align_corners),
-#             ))
+TESTS.append((
+    "Rand spatial crop 2d",
+    DATA_2D,
+    2e-2,
+    RandSpatialCropd(KEYS, [96, 93], True, False)
+))
 
-#     x, y, z = (random.uniform(np.pi / 6, np.pi) for _ in range(3))
-#     TESTS.append((
-#         f"RandRotate{ndim}d",
-#         data,
-#         5e-2,
-#         RandRotated(KEYS, x, y, z, 1),
-#     ))
+TESTS.append((
+    "Rand spatial crop 3d",
+    DATA_3D,
+    2e-2,
+    RandSpatialCropd(KEYS, [96, 93, 92], False, True)
+))
+
+# TODO: add 3D
+for data in [DATA_2D]:  # , DATA_3D]:
+    ndim = data['image'].ndim
+    for keep_size in [True, False]:
+        for align_corners in [False, True]:
+            angle = random.uniform(np.pi / 6, np.pi)
+            TESTS.append((
+                f"Rotate{ndim}d, keep_size={keep_size}, align_corners={align_corners}",
+                data,
+                5e-2,
+                Rotated(KEYS, angle, keep_size, "bilinear", "border", align_corners),
+            ))
+
+    x, y, z = (random.uniform(np.pi / 6, np.pi) for _ in range(3))
+    TESTS.append((
+        f"RandRotate{ndim}d",
+        data,
+        5e-2,
+        RandRotated(KEYS, x, y, z, 1),
+    ))
 
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
 
