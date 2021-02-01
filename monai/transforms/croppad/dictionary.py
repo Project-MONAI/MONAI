@@ -124,7 +124,7 @@ class SpatialPadd(MapTransform, InvertibleTransform):
             self.append_applied_transforms(d, key, idx, {"orig_size": orig_size})
         return d
 
-    def get_input_args(self, key, idx = 0):
+    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
         return {
             "keys": key,
             "method": self.padder.method,
@@ -266,7 +266,7 @@ class SpatialCropd(MapTransform, InvertibleTransform):
             d[key] = self.cropper(d[key])
         return d
 
-    def get_input_args(self, key, _):
+    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
         return {
             "keys": key,
             "roi_start": self.cropper.roi_start,
@@ -279,17 +279,18 @@ class SpatialCropd(MapTransform, InvertibleTransform):
         for key in self.keys:
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            extra_info = transform["extra_info"]
-            orig_size = extra_info["orig_size"][1:]
-            raise NotImplementedError("TODO")
-            # im_shape = d[key].shape[1:] if self.padder.method == Method.SYMMETRIC else extra_info["orig_size"][1:]
-            # roi_center = [floor(i / 2) if r % 2 == 0 else (i - 1) / 2 for r, i in zip(roi_size, im_shape)]
-
-            # inverse_transform = SpatialCrop(roi_center, roi_size)
-            # # Apply inverse transform
-            # d[key] = inverse_transform(d[key])
-            # # Remove the applied transform
-            # self.remove_most_recent_transform(d, key)
+            orig_size = transform["extra_info"]["orig_size"][1:]
+            pad_to_start = transform["init_args"]["roi_start"]
+            pad_to_end = orig_size - transform["init_args"]["roi_end"]
+            # interweave mins and maxes
+            pad = np.empty((2 * len(orig_size)), dtype=np.int32)
+            pad[0::2] = pad_to_start
+            pad[1::2] = pad_to_end
+            inverse_transform = BorderPad(pad.tolist())
+            # Apply inverse transform
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
 
         return d
 

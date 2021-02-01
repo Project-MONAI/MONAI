@@ -818,7 +818,7 @@ class Rotated(MapTransform, InvertibleTransform):
             )
         return d
 
-    def get_input_args(self, key, idx = 0) -> dict:
+    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
         return {
             "keys": key,
             "angle": self.rotator.angle,
@@ -955,7 +955,7 @@ class RandRotated(Randomizable, MapTransform, InvertibleTransform):
             )
         return d
 
-    def get_input_args(self, key, idx = 0) -> dict:
+    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
         return {
             "keys": key,
             "range_x": self.range_x,
