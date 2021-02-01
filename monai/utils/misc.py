@@ -76,7 +76,7 @@ def issequenceiterable(obj: Any) -> bool:
     """
     Determine if the object is an iterable sequence and is not a string.
     """
-    if torch.is_tensor(obj):
+    if isinstance(obj, torch.Tensor):
         return int(obj.dim()) > 0  # a 0-d tensor is not iterable
     return isinstance(obj, collections.abc.Iterable) and not isinstance(obj, str)
 
@@ -175,13 +175,13 @@ def fall_back_tuple(user_provided: Any, default: Sequence, func: Callable = lamb
 
 
 def is_scalar_tensor(val: Any) -> bool:
-    if torch.is_tensor(val) and val.ndim == 0:
+    if isinstance(val, torch.Tensor) and val.ndim == 0:
         return True
     return False
 
 
 def is_scalar(val: Any) -> bool:
-    if torch.is_tensor(val) and val.ndim == 0:
+    if isinstance(val, torch.Tensor) and val.ndim == 0:
         return True
     return bool(np.isscalar(val))
 

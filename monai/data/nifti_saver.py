@@ -100,7 +100,7 @@ class NiftiSaver:
         affine = meta_data.get("affine", None) if meta_data else None
         spatial_shape = meta_data.get("spatial_shape", None) if meta_data else None
 
-        if torch.is_tensor(data):
+        if isinstance(data, torch.Tensor):
             data = data.detach().cpu().numpy()
 
         filename = create_file_basename(self.output_postfix, filename, self.output_dir)

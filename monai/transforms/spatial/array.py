@@ -937,7 +937,7 @@ class AffineGrid(Transform):
             affine = affine @ create_scale(spatial_dims, self.scale_params)
         affine = torch.as_tensor(np.ascontiguousarray(affine), device=self.device)
 
-        grid = torch.tensor(grid) if not torch.is_tensor(grid) else grid.detach().clone()
+        grid = torch.tensor(grid) if not isinstance(grid, torch.Tensor) else grid.detach().clone()
         if self.device:
             grid = grid.to(self.device)
         grid = (affine.float() @ grid.reshape((grid.shape[0], -1)).float()).reshape([-1] + list(grid.shape[1:]))
@@ -1129,11 +1129,11 @@ class Resample(Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
 
-        if not torch.is_tensor(img):
+        if not isinstance(img, torch.Tensor):
             img = torch.as_tensor(np.ascontiguousarray(img))
         if grid is None:
             raise AssertionError("Error, grid argument must be supplied as an ndarray or tensor ")
-        grid = torch.tensor(grid) if not torch.is_tensor(grid) else grid.detach().clone()
+        grid = torch.tensor(grid) if not isinstance(grid, torch.Tensor) else grid.detach().clone()
         if self.device:
             img = img.to(self.device)
             grid = grid.to(self.device)

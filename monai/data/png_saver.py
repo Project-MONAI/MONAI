@@ -86,7 +86,7 @@ class PNGSaver:
         self._data_index += 1
         spatial_shape = meta_data.get("spatial_shape", None) if meta_data and self.resample else None
 
-        if torch.is_tensor(data):
+        if isinstance(data, torch.Tensor):
             data = data.detach().cpu().numpy()
 
         filename = create_file_basename(self.output_postfix, filename, self.output_dir)

@@ -231,7 +231,7 @@ class CastToType(Transform):
         """
         if isinstance(img, np.ndarray):
             return img.astype(self.dtype if dtype is None else dtype)
-        if torch.is_tensor(img):
+        if isinstance(img, torch.Tensor):
             return torch.as_tensor(img, dtype=self.dtype if dtype is None else dtype)
         raise TypeError(f"img must be one of (numpy.ndarray, torch.Tensor) but is {type(img).__name__}.")
 
@@ -245,7 +245,7 @@ class ToTensor(Transform):
         """
         Apply the transform to `img` and make it contiguous.
         """
-        if torch.is_tensor(img):
+        if isinstance(img, torch.Tensor):
             return img.contiguous()
         return torch.as_tensor(np.ascontiguousarray(img))
 
@@ -259,7 +259,7 @@ class ToNumpy(Transform):
         """
         Apply the transform to `img` and make it contiguous.
         """
-        if torch.is_tensor(img):
+        if isinstance(img, torch.Tensor):
             img = img.detach().cpu().numpy()  # type: ignore
         return np.ascontiguousarray(img)
 
@@ -372,7 +372,7 @@ class DataStats(Transform):
         if self.value_range if value_range is None else value_range:
             if isinstance(img, np.ndarray):
                 lines.append(f"Value range: ({np.min(img)}, {np.max(img)})")
-            elif torch.is_tensor(img):
+            elif isinstance(img, torch.Tensor):
                 lines.append(f"Value range: ({torch.min(img)}, {torch.max(img)})")
             else:
                 lines.append(f"Value range: (not a PyTorch or Numpy array, type: {type(img)})")

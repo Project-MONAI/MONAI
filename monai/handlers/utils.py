@@ -62,7 +62,7 @@ def evenly_divisible_all_gather(data: torch.Tensor) -> torch.Tensor:
         data: source tensor to pad and execute all_gather in distributed data parallel.
 
     """
-    if not torch.is_tensor(data):
+    if not isinstance(data, torch.Tensor):
         raise ValueError("input data must be PyTorch Tensor.")
 
     if idist.get_world_size() <= 1:
@@ -127,7 +127,7 @@ def write_metrics_reports(
 
     if metric_details is not None and len(metric_details) > 0:
         for k, v in metric_details.items():
-            if torch.is_tensor(v):
+            if isinstance(v, torch.Tensor):
                 v = v.cpu().numpy()
             if v.ndim == 0:
                 # reshape to [1, 1] if no batch and class dims

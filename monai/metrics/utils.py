@@ -138,9 +138,9 @@ def get_mask_edges(
     """
 
     # Get both labelfields as np arrays
-    if torch.is_tensor(seg_pred):
+    if isinstance(seg_pred, torch.Tensor):
         seg_pred = seg_pred.detach().cpu().numpy()
-    if torch.is_tensor(seg_gt):
+    if isinstance(seg_gt, torch.Tensor):
         seg_gt = seg_gt.detach().cpu().numpy()
 
     if seg_pred.shape != seg_gt.shape:
