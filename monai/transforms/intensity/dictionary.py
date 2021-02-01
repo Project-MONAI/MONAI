@@ -16,7 +16,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
 from collections.abc import Iterable
-from typing import Any, Dict, Hashable, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -113,7 +113,7 @@ class RandGaussianNoised(Randomizable, MapTransform):
         self.mean = ensure_tuple_size(mean, len(self.keys))
         self.std = std
         self._do_transform = False
-        self._noise: Sequence[np.ndarray] = []
+        self._noise: List[np.ndarray] = []
 
     def randomize(self, im_shape: Sequence[int]) -> None:
         self._do_transform = self.R.random() < self.prob
