@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,10 +19,10 @@ import torch
 from ignite.engine import Engine
 from torch.utils.data import DataLoader
 
-from monai.data import NiftiDataset, create_test_image_3d
+from monai.data import ImageDataset, create_test_image_3d
 from monai.handlers import SegmentationSaver
 from monai.inferers import sliding_window_inference
-from monai.networks import predict_segmentation
+from monai.networks import eval_mode, predict_segmentation
 from monai.networks.nets import UNet
 from monai.transforms import AddChannel
 from monai.utils import set_determinism
@@ -30,7 +30,7 @@ from tests.utils import DistTestCase, TimedCall, make_nifti_image, skip_if_quick
 
 
 def run_test(batch_size, img_name, seg_name, output_dir, device="cuda:0"):
-    ds = NiftiDataset([img_name], [seg_name], transform=AddChannel(), seg_transform=AddChannel(), image_only=False)
+    ds = ImageDataset([img_name], [seg_name], transform=AddChannel(), seg_transform=AddChannel(), image_only=False)
     loader = DataLoader(ds, batch_size=1, pin_memory=torch.cuda.is_available())
 
     net = UNet(
@@ -40,9 +40,8 @@ def run_test(batch_size, img_name, seg_name, output_dir, device="cuda:0"):
     sw_batch_size = batch_size
 
     def _sliding_window_processor(_engine, batch):
-        net.eval()
         img, seg, meta_data = batch
-        with torch.no_grad():
+        with eval_mode(net):
             seg_probs = sliding_window_inference(img.to(device), roi_size, sw_batch_size, net, device=device)
             return predict_segmentation(seg_probs)
 

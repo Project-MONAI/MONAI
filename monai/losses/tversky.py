@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -130,9 +130,8 @@ class TverskyLoss(_Loss):
                 target = target[:, 1:]
                 input = input[:, 1:]
 
-        assert (
-            target.shape == input.shape
-        ), f"ground truth has differing shape ({target.shape}) from input ({input.shape})"
+        if target.shape != input.shape:
+            raise AssertionError(f"ground truth has differing shape ({target.shape}) from input ({input.shape})")
 
         p0 = input
         p1 = 1 - p0

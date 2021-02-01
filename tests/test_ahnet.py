@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,6 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
+from monai.networks import eval_mode
 from monai.networks.blocks import FCN, MCFCN
 from monai.networks.nets import AHNet
 from tests.utils import skip_if_quick, test_pretrained_networks, test_script_save
@@ -127,8 +128,7 @@ class TestFCN(unittest.TestCase):
     @skip_if_quick
     def test_fcn_shape(self, input_param, input_shape, expected_shape):
         net = FCN(**input_param).to(device)
-        net.eval()
-        with torch.no_grad():
+        with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
@@ -138,8 +138,7 @@ class TestFCNWithPretrain(unittest.TestCase):
     @skip_if_quick
     def test_fcn_shape(self, input_param, input_shape, expected_shape):
         net = test_pretrained_networks(FCN, input_param, device)
-        net.eval()
-        with torch.no_grad():
+        with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
@@ -148,8 +147,7 @@ class TestMCFCN(unittest.TestCase):
     @parameterized.expand([TEST_CASE_MCFCN_1, TEST_CASE_MCFCN_2, TEST_CASE_MCFCN_3])
     def test_mcfcn_shape(self, input_param, input_shape, expected_shape):
         net = MCFCN(**input_param).to(device)
-        net.eval()
-        with torch.no_grad():
+        with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
@@ -158,8 +156,7 @@ class TestMCFCNWithPretrain(unittest.TestCase):
     @parameterized.expand([TEST_CASE_MCFCN_WITH_PRETRAIN_1, TEST_CASE_MCFCN_WITH_PRETRAIN_2])
     def test_mcfcn_shape(self, input_param, input_shape, expected_shape):
         net = test_pretrained_networks(MCFCN, input_param, device)
-        net.eval()
-        with torch.no_grad():
+        with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
@@ -174,8 +171,7 @@ class TestAHNET(unittest.TestCase):
     )
     def test_ahnet_shape_2d(self, input_param, input_shape, expected_shape):
         net = AHNet(**input_param).to(device)
-        net.eval()
-        with torch.no_grad():
+        with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
@@ -189,15 +185,19 @@ class TestAHNET(unittest.TestCase):
     @skip_if_quick
     def test_ahnet_shape_3d(self, input_param, input_shape, expected_shape):
         net = AHNet(**input_param).to(device)
-        net.eval()
-        with torch.no_grad():
+        with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
     @skip_if_quick
     def test_script(self):
+        # test 2D network
         net = AHNet(spatial_dims=2, out_channels=2)
         test_data = torch.randn(1, 1, 128, 64)
+        test_script_save(net, test_data)
+        # test 3D network
+        net = AHNet(spatial_dims=3, out_channels=2, psp_block_num=0, upsample_mode="nearest")
+        test_data = torch.randn(1, 1, 32, 32, 64)
         test_script_save(net, test_data)
 
 
@@ -213,8 +213,7 @@ class TestAHNETWithPretrain(unittest.TestCase):
         net = AHNet(**input_param).to(device)
         net2d = FCN(**fcn_input_param).to(device)
         net.copy_from(net2d)
-        net.eval()
-        with torch.no_grad():
+        with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
@@ -230,7 +229,7 @@ class TestAHNETWithPretrain(unittest.TestCase):
             progress=True,
         ).to(device)
         input_data = torch.randn(2, 2, 32, 32, 64).to(device)
-        with torch.no_grad():
+        with eval_mode(net):
             result = net.forward(input_data)
             self.assertEqual(result.shape, (2, 3, 32, 32, 64))
 

@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -184,7 +184,7 @@ class TestComputeMeanDice(unittest.TestCase):
     def test_value_class(self, input_data, expected_value):
 
         # same test as for compute_meandice
-        vals = dict()
+        vals = {}
         vals["y_pred"] = input_data.pop("y_pred")
         vals["y"] = input_data.pop("y")
         dice_metric = DiceMetric(**input_data, reduction="none")

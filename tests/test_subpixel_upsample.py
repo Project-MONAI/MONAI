@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,6 +15,7 @@ import torch
 import torch.nn as nn
 from parameterized import parameterized
 
+from monai.networks import eval_mode
 from monai.networks.blocks import SubpixelUpsample
 from monai.networks.layers.factories import Conv
 
@@ -75,8 +76,7 @@ class TestSUBPIXEL(unittest.TestCase):
     @parameterized.expand(TEST_CASE_SUBPIXEL)
     def test_subpixel_shape(self, input_param, input_shape, expected_shape):
         net = SubpixelUpsample(**input_param)
-        net.eval()
-        with torch.no_grad():
+        with eval_mode(net):
             result = net.forward(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
 

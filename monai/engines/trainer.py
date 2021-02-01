@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,7 +16,7 @@ from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 
 from monai.engines.utils import CommonKeys as Keys
-from monai.engines.utils import GanKeys, default_make_latent, default_prepare_batch
+from monai.engines.utils import GanKeys, IterationEvents, default_make_latent, default_prepare_batch
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import Transform
@@ -121,6 +121,10 @@ class SupervisedTrainer(Trainer):
         self.loss_function = loss_function
         self.inferer = SimpleInferer() if inferer is None else inferer
 
+    def _register_additional_events(self):
+        super()._register_additional_events()
+        self.register_events(*IterationEvents)
+
     def _iteration(self, engine: Engine, batchdata: Dict[str, torch.Tensor]):
         """
         Callback function for the Supervised Training processing logic of 1 iteration in Ignite Engine.
@@ -143,27 +147,36 @@ class SupervisedTrainer(Trainer):
         batch = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)
         if len(batch) == 2:
             inputs, targets = batch
-            args: Tuple = tuple()
-            kwargs: Dict = dict()
+            args: Tuple = ()
+            kwargs: Dict = {}
         else:
             inputs, targets, args, kwargs = batch
+        # put iteration outputs into engine.state
+        engine.state.output = output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
+
+        def _compute_pred_loss():
+            output[Keys.PRED] = self.inferer(inputs, self.network, *args, **kwargs)
+            engine.fire_event(IterationEvents.FORWARD_COMPLETED)
+            output[Keys.LOSS] = self.loss_function(output[Keys.PRED], targets).mean()
+            engine.fire_event(IterationEvents.LOSS_COMPLETED)
 
         self.network.train()
         self.optimizer.zero_grad()
         if self.amp and self.scaler is not None:
             with torch.cuda.amp.autocast():
-                predictions = self.inferer(inputs, self.network, *args, **kwargs)
-                loss = self.loss_function(predictions, targets).mean()
-            self.scaler.scale(loss).backward()
+                _compute_pred_loss()
+            self.scaler.scale(output[Keys.LOSS]).backward()
+            engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
             self.scaler.step(self.optimizer)
             self.scaler.update()
         else:
-            predictions = self.inferer(inputs, self.network, *args, **kwargs)
-            loss = self.loss_function(predictions, targets).mean()
-            loss.backward()
+            _compute_pred_loss()
+            output[Keys.LOSS].backward()
+            engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
             self.optimizer.step()
+        engine.fire_event(IterationEvents.OPTIMIZER_COMPLETED)
 
-        return {Keys.IMAGE: inputs, Keys.LABEL: targets, Keys.PRED: predictions, Keys.LOSS: loss.item()}
+        return output
 
 
 class GanTrainer(Trainer):
@@ -282,7 +295,7 @@ class GanTrainer(Trainer):
         if batchdata is None:
             raise ValueError("must provide batch data for current iteration.")
 
-        d_input = self.prepare_batch(batchdata, engine.state.device)
+        d_input = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)
         batch_size = self.data_loader.batch_size
         g_input = self.g_prepare_batch(batch_size, self.latent_shape, engine.state.device, engine.non_blocking)
         g_output = self.g_inferer(g_input, self.g_network)

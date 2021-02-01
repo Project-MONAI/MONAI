@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -15,9 +15,10 @@ import torch
 from torch.utils.data import DataLoader
 
 from monai.engines.utils import CommonKeys as Keys
-from monai.engines.utils import default_prepare_batch
+from monai.engines.utils import IterationEvents, default_prepare_batch
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
+from monai.networks.utils import eval_mode
 from monai.transforms import Transform
 from monai.utils import ensure_tuple, exact_version, optional_import
 
@@ -163,6 +164,10 @@ class SupervisedEvaluator(Evaluator):
         self.network = network
         self.inferer = SimpleInferer() if inferer is None else inferer
 
+    def _register_additional_events(self):
+        super()._register_additional_events()
+        self.register_events(*IterationEvents)
+
     def _iteration(self, engine: Engine, batchdata: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """
         callback function for the Supervised Evaluation processing logic of 1 iteration in Ignite Engine.
@@ -184,21 +189,23 @@ class SupervisedEvaluator(Evaluator):
         batch = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)
         if len(batch) == 2:
             inputs, targets = batch
-            args: Tuple = tuple()
-            kwargs: Dict = dict()
+            args: Tuple = ()
+            kwargs: Dict = {}
         else:
             inputs, targets, args, kwargs = batch
 
+        # put iteration outputs into engine.state
+        engine.state.output = output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
         # execute forward computation
-        self.network.eval()
-        with torch.no_grad():
+        with eval_mode(self.network):
             if self.amp:
                 with torch.cuda.amp.autocast():
-                    predictions = self.inferer(inputs, self.network, *args, **kwargs)
+                    output[Keys.PRED] = self.inferer(inputs, self.network, *args, **kwargs)
             else:
-                predictions = self.inferer(inputs, self.network, *args, **kwargs)
+                output[Keys.PRED] = self.inferer(inputs, self.network, *args, **kwargs)
+        engine.fire_event(IterationEvents.FORWARD_COMPLETED)
 
-        return {Keys.IMAGE: inputs, Keys.LABEL: targets, Keys.PRED: predictions}
+        return output
 
 
 class EnsembleEvaluator(Evaluator):
@@ -266,6 +273,10 @@ class EnsembleEvaluator(Evaluator):
         self.pred_keys = ensure_tuple(pred_keys)
         self.inferer = SimpleInferer() if inferer is None else inferer
 
+    def _register_additional_events(self):
+        super()._register_additional_events()
+        self.register_events(*IterationEvents)
+
     def _iteration(self, engine: Engine, batchdata: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """
         callback function for the Supervised Evaluation processing logic of 1 iteration in Ignite Engine.
@@ -290,20 +301,20 @@ class EnsembleEvaluator(Evaluator):
         batch = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)
         if len(batch) == 2:
             inputs, targets = batch
-            args: Tuple = tuple()
-            kwargs: Dict = dict()
+            args: Tuple = ()
+            kwargs: Dict = {}
         else:
             inputs, targets, args, kwargs = batch
 
-        # execute forward computation
-        predictions = {Keys.IMAGE: inputs, Keys.LABEL: targets}
+        # put iteration outputs into engine.state
+        engine.state.output = output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
         for idx, network in enumerate(self.networks):
-            network.eval()
-            with torch.no_grad():
+            with eval_mode(network):
                 if self.amp:
                     with torch.cuda.amp.autocast():
-                        predictions.update({self.pred_keys[idx]: self.inferer(inputs, network, *args, **kwargs)})
+                        output.update({self.pred_keys[idx]: self.inferer(inputs, network, *args, **kwargs)})
                 else:
-                    predictions.update({self.pred_keys[idx]: self.inferer(inputs, network, *args, **kwargs)})
+                    output.update({self.pred_keys[idx]: self.inferer(inputs, network, *args, **kwargs)})
+        engine.fire_event(IterationEvents.FORWARD_COMPLETED)
 
-        return predictions
+        return output
