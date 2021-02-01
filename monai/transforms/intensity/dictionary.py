@@ -110,7 +110,7 @@ class RandGaussianNoised(Randomizable, MapTransform):
     ) -> None:
         super().__init__(keys)
         self.prob = prob
-        self.mean = ensure_tuple_size(mean, len(self.keys))
+        self.mean = ensure_tuple_size(mean, len(self.keys), mean)
         self.std = std
         self._do_transform = False
         self._noise: List[np.ndarray] = []
@@ -130,9 +130,9 @@ class RandGaussianNoised(Randomizable, MapTransform):
             raise AssertionError
         if not self._do_transform:
             return d
-        for i, key in enumerate(self.keys):
+        for noise, key in zip(self._noise, self.keys):
             dtype = dtype_torch_to_numpy(d[key].dtype) if isinstance(d[key], torch.Tensor) else d[key].dtype
-            d[key] = d[key] + self._noise[i].astype(dtype)
+            d[key] = d[key] + noise.astype(dtype)
         return d
 
 
