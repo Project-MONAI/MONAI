@@ -118,17 +118,17 @@ class SpatialPadd(MapTransform, InvertibleTransform):
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        for key, m in zip(self.keys, self.mode):
+        for idx, (key, m) in enumerate(zip(self.keys, self.mode)):
             orig_size = d[key].shape
             d[key] = self.padder(d[key], mode=m)
-            self.append_applied_transforms(d, key, {"orig_size": orig_size})
+            self.append_applied_transforms(d, key, idx, {"orig_size": orig_size})
         return d
 
-    def get_input_args(self, key):
+    def get_input_args(self, key, idx = 0):
         return {
             "keys": key,
             "method": self.padder.method,
-            "mode": self.mode[0],
+            "mode": self.mode[idx],
             "spatial_size": self.padder.spatial_size,
         }
 
@@ -262,11 +262,11 @@ class SpatialCropd(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
-            self.append_applied_transforms(d, key, {"orig_size": d[key].shape})
+            self.append_applied_transforms(d, key, extra_args={"orig_size": d[key].shape})
             d[key] = self.cropper(d[key])
         return d
 
-    def get_input_args(self, key):
+    def get_input_args(self, key, _):
         return {
             "keys": key,
             "roi_start": self.cropper.roi_start,

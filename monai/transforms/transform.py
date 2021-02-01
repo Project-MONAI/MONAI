@@ -223,14 +223,14 @@ class InvertibleTransform(ABC):
     first out for the inverted transforms.
     """
 
-    def append_applied_transforms(self, data: dict, key: Hashable, extra_args: Optional[dict] = None) -> None:
+    def append_applied_transforms(self, data: dict, key: Hashable, idx: int = 0, extra_args: Optional[dict] = None) -> None:
         """Append to list of applied transforms for that key."""
         key_transform = str(key) + "_transforms"
         # If this is the first, create list
         if key_transform not in data:
             data[key_transform] = []
         data[key_transform].append(
-            {"class": type(self), "init_args": self.get_input_args(key), "extra_info": extra_args}
+            {"class": type(self), "init_args": self.get_input_args(key, idx), "extra_info": extra_args}
         )
         # If class is randomizable, store whether the transform was actually performed (based on `prob`)
         if isinstance(self, Randomizable):
@@ -269,7 +269,7 @@ class InvertibleTransform(ABC):
         """Remove most recent transform."""
         data[str(key) + "_transforms"].pop()
 
-    def get_input_args(self, key) -> dict:
+    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
         """Get input arguments for a single key."""
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 

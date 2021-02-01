@@ -808,7 +808,7 @@ class Rotated(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            self.append_applied_transforms(d, key, {"orig_size": d[key].shape[1:]})
+            self.append_applied_transforms(d, key, idx, {"orig_size": d[key].shape[1:]})
             d[key] = self.rotator(
                 d[key],
                 mode=self.mode[idx],
@@ -818,15 +818,15 @@ class Rotated(MapTransform, InvertibleTransform):
             )
         return d
 
-    def get_input_args(self, key) -> dict:
+    def get_input_args(self, key, idx = 0) -> dict:
         return {
             "keys": key,
             "angle": self.rotator.angle,
             "keep_size": self.rotator.keep_size,
-            "mode": self.mode,
-            "padding_mode": self.padding_mode,
-            "align_corners": self.align_corners,
-            "dtype": self.dtype,
+            "mode": self.mode[idx],
+            "padding_mode": self.padding_mode[idx],
+            "align_corners": self.align_corners[idx],
+            "dtype": self.dtype[idx],
         }
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
@@ -945,7 +945,7 @@ class RandRotated(Randomizable, MapTransform, InvertibleTransform):
             keep_size=self.keep_size,
         )
         for idx, key in enumerate(self.keys):
-            self.append_applied_transforms(d, key, {"angle": angle, "orig_size": d[key].shape[1:]})
+            self.append_applied_transforms(d, key, idx, {"angle": angle, "orig_size": d[key].shape[1:]})
             d[key] = rotator(
                 d[key],
                 mode=self.mode[idx],
@@ -955,7 +955,7 @@ class RandRotated(Randomizable, MapTransform, InvertibleTransform):
             )
         return d
 
-    def get_input_args(self, key) -> dict:
+    def get_input_args(self, key, idx = 0) -> dict:
         return {
             "keys": key,
             "range_x": self.range_x,
@@ -963,10 +963,10 @@ class RandRotated(Randomizable, MapTransform, InvertibleTransform):
             "range_z": self.range_z,
             "prob": self.prob,
             "keep_size": self.keep_size,
-            "mode": self.mode,
-            "padding_mode": self.padding_mode,
-            "align_corners": self.align_corners,
-            "dtype": self.dtype,
+            "mode": self.mode[idx],
+            "padding_mode": self.padding_mode[idx],
+            "align_corners": self.align_corners[idx],
+            "dtype": self.dtype[idx],
         }
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
