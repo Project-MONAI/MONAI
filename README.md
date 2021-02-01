@@ -29,23 +29,14 @@ Its ambitions are:
 
 
 ## Installation
-To install [the current release](https://pypi.org/project/monai/):
+
+To install [the current release](https://pypi.org/project/monai/), you can simply run:
+
 ```bash
 pip install monai
 ```
 
-To install from the source code repository:
-```bash
-pip install git+https://github.com/Project-MONAI/MONAI#egg=MONAI
-```
-
-Alternatively, pre-built Docker image is available via [DockerHub](https://hub.docker.com/r/projectmonai/monai):
-  ```bash
-  # with docker v19.03+
-  docker run --gpus all --rm -ti --ipc=host projectmonai/monai:latest
-  ```
-
-For more details, please refer to [the installation guide](https://docs.monai.io/en/latest/installation.html).
+For other installation methods (using the master branch, using Docker, etc.), please refer to [the installation guide](https://docs.monai.io/en/latest/installation.html).
 
 ## Getting Started
 

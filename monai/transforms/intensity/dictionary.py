@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -37,6 +37,60 @@ from monai.transforms.intensity.array import (
 )
 from monai.utils import dtype_torch_to_numpy, ensure_tuple_size
 
+__all__ = [
+    "RandGaussianNoised",
+    "ShiftIntensityd",
+    "RandShiftIntensityd",
+    "ScaleIntensityd",
+    "RandScaleIntensityd",
+    "NormalizeIntensityd",
+    "ThresholdIntensityd",
+    "ScaleIntensityRanged",
+    "AdjustContrastd",
+    "RandAdjustContrastd",
+    "ScaleIntensityRangePercentilesd",
+    "MaskIntensityd",
+    "GaussianSmoothd",
+    "RandGaussianSmoothd",
+    "GaussianSharpend",
+    "RandGaussianSharpend",
+    "RandHistogramShiftd",
+    "RandGaussianNoiseD",
+    "RandGaussianNoiseDict",
+    "ShiftIntensityD",
+    "ShiftIntensityDict",
+    "RandShiftIntensityD",
+    "RandShiftIntensityDict",
+    "ScaleIntensityD",
+    "ScaleIntensityDict",
+    "RandScaleIntensityD",
+    "RandScaleIntensityDict",
+    "NormalizeIntensityD",
+    "NormalizeIntensityDict",
+    "ThresholdIntensityD",
+    "ThresholdIntensityDict",
+    "ScaleIntensityRangeD",
+    "ScaleIntensityRangeDict",
+    "AdjustContrastD",
+    "AdjustContrastDict",
+    "RandAdjustContrastD",
+    "RandAdjustContrastDict",
+    "ScaleIntensityRangePercentilesD",
+    "ScaleIntensityRangePercentilesDict",
+    "MaskIntensityD",
+    "MaskIntensityDict",
+    "GaussianSmoothD",
+    "GaussianSmoothDict",
+    "RandGaussianSmoothD",
+    "RandGaussianSmoothDict",
+    "GaussianSharpenD",
+    "GaussianSharpenDict",
+    "RandGaussianSharpenD",
+    "RandGaussianSharpenDict",
+    "RandHistogramShiftD",
+    "RandHistogramShiftDict",
+]
+
 
 class RandGaussianNoised(Randomizable, MapTransform):
     """
@@ -70,7 +124,8 @@ class RandGaussianNoised(Randomizable, MapTransform):
 
         image_shape = d[self.keys[0]].shape  # image shape from the first data key
         self.randomize(image_shape)
-        assert self._noise is not None
+        if self._noise is None:
+            raise AssertionError
         if not self._do_transform:
             return d
         for key in self.keys:
@@ -121,7 +176,8 @@ class RandShiftIntensityd(Randomizable, MapTransform):
         if isinstance(offsets, (int, float)):
             self.offsets = (min(-offsets, offsets), max(-offsets, offsets))
         else:
-            assert len(offsets) == 2, "offsets should be a number or pair of numbers."
+            if len(offsets) != 2:
+                raise AssertionError("offsets should be a number or pair of numbers.")
             self.offsets = (min(offsets), max(offsets))
 
         self.prob = prob
@@ -192,7 +248,8 @@ class RandScaleIntensityd(Randomizable, MapTransform):
         if isinstance(factors, (int, float)):
             self.factors = (min(-factors, factors), max(-factors, factors))
         else:
-            assert len(factors) == 2, "factors should be a number or pair of numbers."
+            if len(factors) != 2:
+                raise AssertionError("factors should be a number or pair of numbers.")
             self.factors = (min(factors), max(factors))
 
         self.prob = prob
@@ -345,10 +402,14 @@ class RandAdjustContrastd(Randomizable, MapTransform):
         self.prob: float = prob
 
         if isinstance(gamma, (int, float)):
-            assert gamma > 0.5, "if gamma is single number, must greater than 0.5 and value is picked from (0.5, gamma)"
+            if gamma <= 0.5:
+                raise AssertionError(
+                    "if gamma is single number, must greater than 0.5 and value is picked from (0.5, gamma)"
+                )
             self.gamma = (0.5, gamma)
         else:
-            assert len(gamma) == 2, "gamma should be a number or pair of numbers."
+            if len(gamma) != 2:
+                raise AssertionError("gamma should be a number or pair of numbers.")
             self.gamma = (min(gamma), max(gamma))
 
         self._do_transform = False
@@ -361,7 +422,8 @@ class RandAdjustContrastd(Randomizable, MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         self.randomize()
-        assert self.gamma_value is not None
+        if self.gamma_value is None:
+            raise AssertionError
         if not self._do_transform:
             return d
         adjuster = AdjustContrast(self.gamma_value)
@@ -416,17 +478,26 @@ class MaskIntensityd(MapTransform):
             of input image. if multiple channels, the channel number must
             match input data. mask_data will be converted to `bool` values
             by `mask_data > 0` before applying transform to input image.
+            if None, will extract the mask data from input data based on `mask_key`.
+        mask_key: the key to extract mask data from input dictionary, only works
+            when `mask_data` is None.
 
     """
 
-    def __init__(self, keys: KeysCollection, mask_data: np.ndarray) -> None:
+    def __init__(
+        self,
+        keys: KeysCollection,
+        mask_data: Optional[np.ndarray] = None,
+        mask_key: Optional[str] = None,
+    ) -> None:
         super().__init__(keys)
         self.converter = MaskIntensity(mask_data)
+        self.mask_key = mask_key if mask_data is None else None
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
-            d[key] = self.converter(d[key])
+            d[key] = self.converter(d[key], d[self.mask_key]) if self.mask_key is not None else self.converter(d[key])
         return d
 
 
@@ -635,11 +706,14 @@ class RandHistogramShiftd(Randomizable, MapTransform):
     ) -> None:
         super().__init__(keys)
         if isinstance(num_control_points, int):
-            assert num_control_points > 2, "num_control_points should be greater than or equal to 3"
+            if num_control_points <= 2:
+                raise AssertionError("num_control_points should be greater than or equal to 3")
             self.num_control_points = (num_control_points, num_control_points)
         else:
-            assert len(num_control_points) == 2, "num_control points should be a number or a pair of numbers"
-            assert min(num_control_points) > 2, "num_control_points should be greater than or equal to 3"
+            if len(num_control_points) != 2:
+                raise AssertionError("num_control points should be a number or a pair of numbers")
+            if min(num_control_points) <= 2:
+                raise AssertionError("num_control_points should be greater than or equal to 3")
             self.num_control_points = (min(num_control_points), max(num_control_points))
         self.prob = prob
         self._do_transform = False

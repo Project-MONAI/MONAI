@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -23,13 +23,13 @@ import numpy as np
 import torch
 
 from monai.config import KeysCollection
-from monai.transforms import extreme_points_to_image, get_extreme_points
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.utility.array import (
     AddChannel,
     AsChannelFirst,
     AsChannelLast,
     CastToType,
+    ConvertToMultiChannelBasedOnBratsClasses,
     DataStats,
     FgBgToIndices,
     Identity,
@@ -40,9 +40,76 @@ from monai.transforms.utility.array import (
     SplitChannel,
     SqueezeDim,
     ToNumpy,
+    TorchVision,
     ToTensor,
 )
+from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.utils import ensure_tuple, ensure_tuple_rep
+
+__all__ = [
+    "Identityd",
+    "AsChannelFirstd",
+    "AsChannelLastd",
+    "AddChanneld",
+    "RepeatChanneld",
+    "SplitChanneld",
+    "CastToTyped",
+    "ToTensord",
+    "ToNumpyd",
+    "DeleteItemsd",
+    "SelectItemsd",
+    "SqueezeDimd",
+    "DataStatsd",
+    "SimulateDelayd",
+    "CopyItemsd",
+    "ConcatItemsd",
+    "Lambdad",
+    "LabelToMaskd",
+    "FgBgToIndicesd",
+    "ConvertToMultiChannelBasedOnBratsClassesd",
+    "AddExtremePointsChanneld",
+    "IdentityD",
+    "IdentityDict",
+    "AsChannelFirstD",
+    "AsChannelFirstDict",
+    "AsChannelLastD",
+    "AsChannelLastDict",
+    "AddChannelD",
+    "AddChannelDict",
+    "RepeatChannelD",
+    "RepeatChannelDict",
+    "SplitChannelD",
+    "SplitChannelDict",
+    "CastToTypeD",
+    "CastToTypeDict",
+    "ToTensorD",
+    "ToTensorDict",
+    "DeleteItemsD",
+    "DeleteItemsDict",
+    "SqueezeDimD",
+    "SqueezeDimDict",
+    "DataStatsD",
+    "DataStatsDict",
+    "SimulateDelayD",
+    "SimulateDelayDict",
+    "CopyItemsD",
+    "CopyItemsDict",
+    "ConcatItemsD",
+    "ConcatItemsDict",
+    "LambdaD",
+    "LambdaDict",
+    "LabelToMaskD",
+    "LabelToMaskDict",
+    "FgBgToIndicesD",
+    "FgBgToIndicesDict",
+    "ConvertToMultiChannelBasedOnBratsClassesD",
+    "ConvertToMultiChannelBasedOnBratsClassesDict",
+    "AddExtremePointsChannelD",
+    "AddExtremePointsChannelDict",
+    "TorchVisiond",
+    "TorchVisionD",
+    "TorchVisionDict",
+]
 
 
 class Identityd(MapTransform):
@@ -194,7 +261,8 @@ class SplitChanneld(MapTransform):
         for key in self.keys:
             rets = self.splitter(d[key])
             postfixes: Sequence = list(range(len(rets))) if self.output_postfixes is None else self.output_postfixes
-            assert len(postfixes) == len(rets), "count of split results must match output_postfixes."
+            if len(postfixes) != len(rets):
+                raise AssertionError("count of split results must match output_postfixes.")
             for i, r in enumerate(rets):
                 split_key = f"{key}_{postfixes[i]}"
                 if split_key in d:
@@ -284,14 +352,6 @@ class DeleteItemsd(MapTransform):
     It will remove the key-values and copy the others to construct a new dictionary.
     """
 
-    def __init__(self, keys: KeysCollection) -> None:
-        """
-        Args:
-            keys: keys of the corresponding items to be transformed.
-                See also: :py:class:`monai.transforms.compose.MapTransform`
-        """
-        super().__init__(keys)
-
     def __call__(self, data):
         return {key: val for key, val in data.items() if key not in self.keys}
 
@@ -301,14 +361,6 @@ class SelectItemsd(MapTransform):
     Select only specified items from data dictionary to release memory.
     It will copy the selected key-values and construct and new dictionary.
     """
-
-    def __init__(self, keys):
-        """
-        Args:
-            keys: keys of the corresponding items to be transformed.
-                See also: :py:class:`monai.transforms.compose.MapTransform`
-        """
-        super().__init__(keys)
 
     def __call__(self, data):
         result = {key: val for key, val in data.items() if key in self.keys}
@@ -511,7 +563,7 @@ class ConcatItemsd(MapTransform):
 
         """
         d = dict(data)
-        output = list()
+        output = []
         data_type = None
         for key in self.keys:
             if data_type is None:
@@ -547,18 +599,27 @@ class Lambdad(MapTransform):
             See also: :py:class:`monai.transforms.compose.MapTransform`
         func: Lambda/function to be applied. It also can be a sequence of Callable,
             each element corresponds to a key in ``keys``.
+        overwrite: whether to overwrite the original data in the input dictionary with lamdbda function output.
+            default to True. it also can be a sequence of bool, each element corresponds to a key in ``keys``.
     """
 
-    def __init__(self, keys: KeysCollection, func: Union[Sequence[Callable], Callable]) -> None:
+    def __init__(
+        self,
+        keys: KeysCollection,
+        func: Union[Sequence[Callable], Callable],
+        overwrite: Union[Sequence[bool], bool] = True,
+    ) -> None:
         super().__init__(keys)
         self.func = ensure_tuple_rep(func, len(self.keys))
-        self.lambd = Lambda()
+        self.overwrite = ensure_tuple_rep(overwrite, len(self.keys))
+        self._lambd = Lambda()
 
     def __call__(self, data):
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            d[key] = self.lambd(d[key], func=self.func[idx])
-
+            ret = self._lambd(d[key], func=self.func[idx])
+            if self.overwrite[idx]:
+                d[key] = ret
         return d
 
 
@@ -639,6 +700,7 @@ class FgBgToIndicesd(MapTransform):
 
 class ConvertToMultiChannelBasedOnBratsClassesd(MapTransform):
     """
+    Dictionary-based wrapper of :py:class:`monai.transforms.ConvertToMultiChannelBasedOnBratsClasses`.
     Convert labels to multi channels based on brats18 classes:
     label 1 is the necrotic and non-enhancing tumor core
     label 2 is the the peritumoral edema
@@ -647,17 +709,14 @@ class ConvertToMultiChannelBasedOnBratsClassesd(MapTransform):
     and ET (Enhancing tumor).
     """
 
+    def __init__(self, keys: KeysCollection):
+        super().__init__(keys)
+        self.converter = ConvertToMultiChannelBasedOnBratsClasses()
+
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
-            result = list()
-            # merge labels 1 (tumor non-enh) and 4 (tumor enh) to TC
-            result.append(np.logical_or(d[key] == 1, d[key] == 4))
-            # merge labels 1 (tumor non-enh) and 4 (tumor enh) and 2 (large edema) to WT
-            result.append(np.logical_or(np.logical_or(d[key] == 1, d[key] == 4), d[key] == 2))
-            # label 4 is ET
-            result.append(d[key] == 4)
-            d[key] = np.stack(result, axis=0).astype(np.float32)
+            d[key] = self.converter(d[key])
         return d
 
 
@@ -724,6 +783,33 @@ class AddExtremePointsChanneld(Randomizable, MapTransform):
         return d
 
 
+class TorchVisiond(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.TorchVision`.
+    As most of the TorchVision transforms only work for PIL image and PyTorch Tensor, this transform expects input
+    data to be dict of PyTorch Tensors, users can easily call `ToTensord` transform to convert Numpy to Tensor.
+    """
+
+    def __init__(self, keys: KeysCollection, name: str, *args, **kwargs) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            name: The transform name in TorchVision package.
+            args: parameters for the TorchVision transform.
+            kwargs: parameters for the TorchVision transform.
+
+        """
+        super().__init__(keys)
+        self.trans = TorchVision(name, *args, **kwargs)
+
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.trans(d[key])
+        return d
+
+
 IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
@@ -745,3 +831,4 @@ ConvertToMultiChannelBasedOnBratsClassesD = (
     ConvertToMultiChannelBasedOnBratsClassesDict
 ) = ConvertToMultiChannelBasedOnBratsClassesd
 AddExtremePointsChannelD = AddExtremePointsChannelDict = AddExtremePointsChanneld
+TorchVisionD = TorchVisionDict = TorchVisiond

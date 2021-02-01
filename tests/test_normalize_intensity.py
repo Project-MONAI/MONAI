@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -61,7 +61,7 @@ class TestNormalizeIntensity(NumpyImageTestCase2D):
         normalized = normalizer(self.imt)
         self.assertTrue(normalized.dtype == np.float32)
         expected = (self.imt - np.mean(self.imt)) / np.std(self.imt)
-        np.testing.assert_allclose(normalized, expected, rtol=1e-6)
+        np.testing.assert_allclose(normalized, expected, rtol=1e-5)
 
     @parameterized.expand(TEST_CASES)
     def test_nonzero(self, input_param, input_data, expected_data):

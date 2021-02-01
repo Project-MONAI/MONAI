@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -27,7 +27,7 @@ DEFAULT_KEY_VAL_FORMAT = "{}: {:.4f} "
 DEFAULT_TAG = "Loss"
 
 
-class StatsHandler(object):
+class StatsHandler:
     """
     StatsHandler defines a set of Ignite Event-handlers for all the log printing logics.
     It's can be used for any Ignite Engine(trainer, validator and evaluator).

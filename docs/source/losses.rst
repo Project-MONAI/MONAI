@@ -43,6 +43,11 @@ Segmentation Losses
 .. autoclass:: generalized_wasserstein_dice
     :members:
 
+`DiceCELoss`
+~~~~~~~~~~~~
+.. autoclass:: DiceCELoss
+    :members:
+
 `FocalLoss`
 ~~~~~~~~~~~
 .. autoclass:: FocalLoss
@@ -51,4 +56,22 @@ Segmentation Losses
 `TverskyLoss`
 ~~~~~~~~~~~~~
 .. autoclass:: TverskyLoss
+    :members:
+
+Registration Losses
+-------------------
+
+`BendingEnergyLoss`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: BendingEnergyLoss
+    :members:
+
+`LocalNormalizedCrossCorrelationLoss`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: LocalNormalizedCrossCorrelationLoss
+    :members:
+
+`GlobalMutualInformationLoss`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: GlobalMutualInformationLoss
     :members:

@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,6 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
+from monai.networks import eval_mode
 from monai.networks.blocks import UpSample
 from monai.utils import UpsampleMode
 
@@ -85,8 +86,7 @@ class TestUpsample(unittest.TestCase):
     @parameterized.expand(TEST_CASES + TEST_CASES_EQ)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = UpSample(**input_param)
-        net.eval()
-        with torch.no_grad():
+        with eval_mode(net):
             result = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
 

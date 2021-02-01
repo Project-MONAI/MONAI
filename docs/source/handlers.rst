@@ -16,9 +16,22 @@ Model checkpoint saver
 .. autoclass:: CheckpointSaver
   :members:
 
+
+Metrics saver
+-------------
+.. autoclass:: MetricsSaver
+    :members:
+
+
 CSV saver
 ---------
 .. autoclass:: ClassificationSaver
+    :members:
+
+
+Iteration Metric
+----------------
+.. autoclass:: IterationMetric
     :members:
 
 
