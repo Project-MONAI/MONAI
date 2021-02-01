@@ -9,17 +9,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence
 
 import torch
 
+from monai.handlers.utils import evenly_divisible_all_gather
 from monai.metrics import do_metric_reduction
 from monai.utils import MetricReduction, exact_version, optional_import
 
-NotComputableError, _ = optional_import("ignite.exceptions", "0.4.2", exact_version, "NotComputableError")
 idist, _ = optional_import("ignite", "0.4.2", exact_version, "distributed")
 Metric, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "Metric")
 reinit__is_reduced, _ = optional_import("ignite.metrics.metric", "0.4.2", exact_version, "reinit__is_reduced")
+if TYPE_CHECKING:
+    from ignite.engine import Engine
+else:
+    Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
 
 
 class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to optional_import
@@ -33,6 +37,8 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
             expect to return a Tensor with shape (batch, channel, ...) or tuple (Tensor, not_nans).
         output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
         device: device specification in case of distributed computation usage.
+        save_details: whether to save metric computation details per image, for example: mean_dice of every image.
+            default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
     """
 
@@ -41,10 +47,14 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
         metric_fn: Callable,
         output_transform: Callable = lambda x: x,
         device: Optional[torch.device] = None,
+        save_details: bool = True,
     ) -> None:
         self._is_reduced: bool = False
         self.metric_fn = metric_fn
+        self.save_details = save_details
         self._scores: List = []
+        self._engine: Optional[Engine] = None
+        self._name: Optional[str] = None
         super().__init__(output_transform, device=device)
 
     @reinit__is_reduced
@@ -79,16 +89,15 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
 
         ws = idist.get_world_size()
         if ws > 1 and not self._is_reduced:
-            # make sure the _scores is evenly-divisible on multi-GPUs
-            length = _scores.shape[0]
-            max_len = max(idist.all_gather(length)).item()
-            if length < max_len:
-                size = [max_len - length] + list(_scores.shape[1:])
-                _scores = torch.cat([_scores, _scores.new_full(size, float("NaN"))], dim=0)
-
             # all gather across all processes
-            _scores = idist.all_gather(_scores)
+            _scores = evenly_divisible_all_gather(data=_scores)
         self._is_reduced = True
+
+        # save score of every image into engine.state for other components
+        if self.save_details:
+            if self._engine is None or self._name is None:
+                raise RuntimeError("plesae call the attach() function to connect expected engine first.")
+            self._engine.state.metric_details[self._name] = _scores
 
         result: torch.Tensor = torch.zeros(1)
         if idist.get_rank() == 0:
@@ -103,3 +112,20 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
 
     def _reduce(self, scores) -> Any:
         return do_metric_reduction(scores, MetricReduction.MEAN)[0]
+
+    def attach(self, engine: Engine, name: str) -> None:
+        """
+        Attaches current metric to provided engine. On the end of engine's run,
+        `engine.state.metrics` dictionary will contain computed metric's value under provided name.
+
+        Args:
+            engine: the engine to which the metric must be attached.
+            name: the name of the metric to attach.
+
+        """
+        super().attach(engine=engine, name=name)
+        # FIXME: record engine for communication, ignite will support it in the future version soon
+        self._engine = engine
+        self._name = name
+        if self.save_details and not hasattr(engine.state, "metric_details"):
+            engine.state.metric_details = {}

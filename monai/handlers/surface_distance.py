@@ -30,6 +30,7 @@ class SurfaceDistance(IterationMetric):
         distance_metric: str = "euclidean",
         output_transform: Callable = lambda x: x,
         device: Optional[torch.device] = None,
+        save_details: bool = True,
     ) -> None:
         """
 
@@ -42,6 +43,8 @@ class SurfaceDistance(IterationMetric):
                 the metric used to compute surface distance. Defaults to ``"euclidean"``.
             output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
             device: device specification in case of distributed computation usage.
+            save_details: whether to save metric computation details per image, for example: surface dice
+                of every image. default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
         """
         metric_fn = SurfaceDistanceMetric(
@@ -50,4 +53,9 @@ class SurfaceDistance(IterationMetric):
             distance_metric=distance_metric,
             reduction=MetricReduction.NONE,
         )
-        super().__init__(metric_fn=metric_fn, output_transform=output_transform, device=device)
+        super().__init__(
+            metric_fn=metric_fn,
+            output_transform=output_transform,
+            device=device,
+            save_details=save_details,
+        )

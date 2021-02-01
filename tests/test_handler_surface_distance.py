@@ -14,6 +14,7 @@ from typing import Tuple
 
 import numpy as np
 import torch
+from ignite.engine import Engine
 
 from monai.handlers import SurfaceDistance
 
@@ -62,6 +63,13 @@ class TestHandlerSurfaceDistance(unittest.TestCase):
 
     def test_compute(self):
         sur_metric = SurfaceDistance(include_background=True)
+
+        def _val_func(engine, batch):
+            pass
+
+        engine = Engine(_val_func)
+        sur_metric.attach(engine, "surface_distance")
+
         y_pred, y = TEST_SAMPLE_1
         sur_metric.update([y_pred, y])
         self.assertAlmostEqual(sur_metric.compute(), 4.17133, places=4)
