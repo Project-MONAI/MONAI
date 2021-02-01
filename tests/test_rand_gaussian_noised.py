@@ -23,6 +23,7 @@ TEST_CASES = [TEST_CASE_0, TEST_CASE_1]
 
 seed = 0
 
+
 def test_numpy_or_torch(keys, mean, std, imt):
     gaussian_fn = RandGaussianNoised(keys=keys, prob=1.0, mean=mean, std=std)
     gaussian_fn.set_random_state(seed)
@@ -32,6 +33,7 @@ def test_numpy_or_torch(keys, mean, std, imt):
     for k in keys:
         expected = imt + np.random.normal(mean, np.random.uniform(0, std), size=imt.shape)
         np.testing.assert_allclose(expected, noised[k], atol=1e-5, rtol=1e-5)
+
 
 # Test with numpy
 class TestRandGaussianNoisedNumpy(NumpyImageTestCase2D):

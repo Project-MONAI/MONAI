@@ -117,6 +117,7 @@ class RandGaussianNoised(Randomizable, MapTransform):
 
     def randomize(self, im_shape: Sequence[int]) -> None:
         self._do_transform = self.R.random() < self.prob
+        self._noise.clear()
         for m in self.mean:
             self._noise.append(self.R.normal(m, self.R.uniform(0, self.std), size=im_shape))
 
@@ -125,7 +126,7 @@ class RandGaussianNoised(Randomizable, MapTransform):
 
         image_shape = d[self.keys[0]].shape  # image shape from the first data key
         self.randomize(image_shape)
-        if not self._noise:
+        if len(self._noise) != len(self.keys):
             raise AssertionError
         if not self._do_transform:
             return d
