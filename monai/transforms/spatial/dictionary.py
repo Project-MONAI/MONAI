@@ -20,7 +20,7 @@ from typing import Any, Dict, Hashable, Mapping, Optional, Sequence, Tuple, Unio
 import numpy as np
 import torch
 
-from monai.config import KeysCollection, DtypeLike
+from monai.config import DtypeLike, KeysCollection
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.croppad.array import CenterSpatialCrop
@@ -175,13 +175,13 @@ class Spacingd(MapTransform):
     def __call__(
         self, data: Mapping[Union[Hashable, str], Dict[str, np.ndarray]]
     ) -> Dict[Union[Hashable, str], Union[np.ndarray, Dict[str, np.ndarray]]]:
-        d = dict(data)
+        d: Dict = dict(data)
         for idx, key in enumerate(self.keys):
             meta_data = d[f"{key}_{self.meta_key_postfix}"]
             # resample array of each corresponding key
             # using affine fetched from d[affine_key]
             d[key], _, new_affine = self.spacing_transform(
-                data_array=d[key],
+                data_array=np.asarray(d[key]),
                 affine=meta_data["affine"],
                 mode=self.mode[idx],
                 padding_mode=self.padding_mode[idx],
@@ -244,7 +244,7 @@ class Orientationd(MapTransform):
     def __call__(
         self, data: Mapping[Union[Hashable, str], Dict[str, np.ndarray]]
     ) -> Dict[Union[Hashable, str], Union[np.ndarray, Dict[str, np.ndarray]]]:
-        d = dict(data)
+        d: Dict = dict(data)
         for key in self.keys:
             meta_data = d[f"{key}_{self.meta_key_postfix}"]
             d[key], _, new_affine = self.ornt_transform(d[key], affine=meta_data["affine"])

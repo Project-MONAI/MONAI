@@ -130,7 +130,9 @@ def ensure_tuple_rep(tup: Any, dim: int) -> Tuple[Any, ...]:
     raise ValueError(f"Sequence must have length {dim}, got {len(tup)}.")
 
 
-def fall_back_tuple(user_provided: Any, default: Sequence, func: Callable = lambda x: x and x > 0) -> Tuple[Any, ...]:
+def fall_back_tuple(
+    user_provided: Any, default: Union[Sequence, np.ndarray], func: Callable = lambda x: x and x > 0
+) -> Tuple[Any, ...]:
     """
     Refine `user_provided` according to the `default`, and returns as a validated tuple.
 

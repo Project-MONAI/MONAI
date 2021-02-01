@@ -57,7 +57,7 @@ def stride_minus_kernel_padding(
 
 
 def calculate_out_shape(
-    in_shape: Union[Sequence[int], int],
+    in_shape: Union[Sequence[int], int, np.ndarray],
     kernel_size: Union[Sequence[int], int],
     stride: Union[Sequence[int], int],
     padding: Union[Sequence[int], int],

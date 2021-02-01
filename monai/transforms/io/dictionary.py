@@ -19,7 +19,7 @@ from typing import Optional, Union
 
 import numpy as np
 
-from monai.config import KeysCollection, DtypeLike
+from monai.config import DtypeLike, KeysCollection
 from monai.data.image_reader import ImageReader
 from monai.transforms.compose import MapTransform
 from monai.transforms.io.array import LoadImage

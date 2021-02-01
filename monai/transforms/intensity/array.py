@@ -98,7 +98,7 @@ class ShiftIntensity(Transform):
         """
         Apply the transform to `img`.
         """
-        return (img + self.offset).astype(img.dtype)
+        return np.asarray((img + self.offset), dtype=img.dtype)
 
 
 class RandShiftIntensity(Randomizable, Transform):
@@ -166,9 +166,9 @@ class ScaleIntensity(Transform):
 
         """
         if self.minv is not None and self.maxv is not None:
-            return rescale_array(img, self.minv, self.maxv, img.dtype)
+            return np.asarray(rescale_array(img, self.minv, self.maxv, img.dtype))
         if self.factor is not None:
-            return (img * (1 + self.factor)).astype(img.dtype)
+            return np.asarray(img * (1 + self.factor), dtype=img.dtype)
         raise ValueError("Incompatible values: minv=None or maxv=None and factor=None.")
 
 
@@ -230,11 +230,11 @@ class NormalizeIntensity(Transform):
 
     def __init__(
         self,
-        subtrahend: Optional[Sequence] = None,
-        divisor: Optional[Sequence] = None,
+        subtrahend: Union[Sequence, np.ndarray, None] = None,
+        divisor: Union[Sequence, np.ndarray, None] = None,
         nonzero: bool = False,
         channel_wise: bool = False,
-        dtype: DtypeLike= np.float32,
+        dtype: DtypeLike = np.float32,
     ) -> None:
         self.subtrahend = subtrahend
         self.divisor = divisor
@@ -305,7 +305,9 @@ class ThresholdIntensity(Transform):
         """
         Apply the transform to `img`.
         """
-        return np.where(img > self.threshold if self.above else img < self.threshold, img, self.cval).astype(img.dtype)
+        return np.asarray(
+            np.where(img > self.threshold if self.above else img < self.threshold, img, self.cval), dtype=img.dtype
+        )
 
 
 class ScaleIntensityRange(Transform):
@@ -328,7 +330,7 @@ class ScaleIntensityRange(Transform):
         self.b_max = b_max
         self.clip = clip
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: np.ndarray):
         """
         Apply the transform to `img`.
         """
@@ -339,8 +341,7 @@ class ScaleIntensityRange(Transform):
         img = (img - self.a_min) / (self.a_max - self.a_min)
         img = img * (self.b_max - self.b_min) + self.b_min
         if self.clip:
-            img = np.clip(img, self.b_min, self.b_max)
-
+            img = np.asarray(np.clip(img, self.b_min, self.b_max))
         return img
 
 
@@ -359,7 +360,7 @@ class AdjustContrast(Transform):
             raise AssertionError("gamma must be a float or int number.")
         self.gamma = gamma
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: np.ndarray):
         """
         Apply the transform to `img`.
         """
@@ -484,7 +485,7 @@ class ScaleIntensityRangePercentiles(Transform):
         self.clip = clip
         self.relative = relative
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: np.ndarray):
         """
         Apply the transform to `img`.
         """
@@ -501,7 +502,7 @@ class ScaleIntensityRangePercentiles(Transform):
         img = scalar(img)
 
         if self.clip:
-            img = np.clip(img, self.b_min, self.b_max)
+            img = np.asarray(np.clip(img, self.b_min, self.b_max))
 
         return img
 
@@ -521,7 +522,7 @@ class MaskIntensity(Transform):
 
     """
 
-    def __init__(self, mask_data: np.ndarray) -> None:
+    def __init__(self, mask_data: Optional[np.ndarray]) -> None:
         self.mask_data = mask_data
 
     def __call__(self, img: np.ndarray, mask_data: Optional[np.ndarray] = None) -> np.ndarray:
@@ -536,14 +537,21 @@ class MaskIntensity(Transform):
             ValueError: When ``mask_data`` and ``img`` channels differ and ``mask_data`` is not single channel.
 
         """
-        mask_data_ = self.mask_data > 0 if mask_data is None else mask_data > 0
+        if self.mask_data is None and mask_data is None:
+            raise ValueError("Unknown mask_data.")
+        mask_data_ = np.array([[1]])
+        if self.mask_data is not None and mask_data is None:
+            mask_data_ = self.mask_data > 0
+        if mask_data is not None:
+            mask_data_ = mask_data > 0
+        mask_data_ = np.asarray(mask_data_)
         if mask_data_.shape[0] != 1 and mask_data_.shape[0] != img.shape[0]:
             raise ValueError(
                 "When mask_data is not single channel, mask_data channels must match img, "
                 f"got img={img.shape[0]} mask_data={mask_data_.shape[0]}."
             )
 
-        return img * mask_data_
+        return np.asarray(img * mask_data_)
 
 
 class SavitzkyGolaySmooth(Transform):
@@ -568,7 +576,7 @@ class SavitzkyGolaySmooth(Transform):
         self.axis = axis
         self.mode = mode
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: np.ndarray):
         """
         Args:
             img: numpy.ndarray containing input data. Must be real and in shape [channels, spatial1, spatial2, ...].
@@ -607,7 +615,7 @@ class DetectEnvelope(Transform):
         self.axis = axis
         self.n = n
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: np.ndarray):
         """
 
         Args:
@@ -642,7 +650,7 @@ class GaussianSmooth(Transform):
         self.sigma = sigma
         self.approx = approx
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: np.ndarray):
         gaussian_filter = GaussianFilter(img.ndim - 1, self.sigma, approx=self.approx)
         input_data = torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0)
         return gaussian_filter(input_data).squeeze(0).detach().numpy()
@@ -683,7 +691,7 @@ class RandGaussianSmooth(Randomizable, Transform):
         self.y = self.R.uniform(low=self.sigma_y[0], high=self.sigma_y[1])
         self.z = self.R.uniform(low=self.sigma_z[0], high=self.sigma_z[1])
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: np.ndarray):
         self.randomize()
         if not self._do_transform:
             return img
@@ -730,7 +738,7 @@ class GaussianSharpen(Transform):
         self.alpha = alpha
         self.approx = approx
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: np.ndarray):
         gaussian_filter1 = GaussianFilter(img.ndim - 1, self.sigma1, approx=self.approx)
         gaussian_filter2 = GaussianFilter(img.ndim - 1, self.sigma2, approx=self.approx)
         input_data = torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0)
@@ -797,7 +805,7 @@ class RandGaussianSharpen(Randomizable, Transform):
         self.z2 = self.R.uniform(low=sigma2_z[0], high=sigma2_z[1])
         self.a = self.R.uniform(low=self.alpha[0], high=self.alpha[1])
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: np.ndarray):
         self.randomize()
         if not self._do_transform:
             return img
@@ -849,4 +857,6 @@ class RandHistogramShift(Randomizable, Transform):
         img_min, img_max = img.min(), img.max()
         reference_control_points_scaled = self.reference_control_points * (img_max - img_min) + img_min
         floating_control_points_scaled = self.floating_control_points * (img_max - img_min) + img_min
-        return np.interp(img, reference_control_points_scaled, floating_control_points_scaled).astype(img.dtype)
+        return np.asarray(
+            np.interp(img, reference_control_points_scaled, floating_control_points_scaled), dtype=img.dtype
+        )

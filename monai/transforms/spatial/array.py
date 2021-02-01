@@ -192,7 +192,7 @@ class Spacing(Transform):
             torch.as_tensor(np.ascontiguousarray(transform).astype(_dtype)),
             spatial_size=output_shape,
         )
-        output_data = output_data.squeeze(0).detach().cpu().numpy().astype(np.float32)
+        output_data = np.asarray(output_data.squeeze(0).detach().cpu().numpy(), dtype=np.float32)  # type: ignore
         new_affine = to_affine_nd(affine, new_affine)
         return output_data, affine, new_affine
 
@@ -372,7 +372,7 @@ class Resize(Transform):
             align_corners=self.align_corners if align_corners is None else align_corners,
         )
         resized = resized.squeeze(0).detach().cpu().numpy()
-        return resized
+        return np.asarray(resized)
 
 
 class Rotate(Transform):
@@ -457,7 +457,7 @@ class Rotate(Transform):
                 (len(im_shape), -1)
             )
             corners = transform[:-1, :-1] @ corners
-            output_shape = (corners.ptp(axis=1) + 0.5).astype(int)
+            output_shape = np.asarray(corners.ptp(axis=1) + 0.5, dtype=int)
         shift_1 = create_translate(input_ndim, -(output_shape - 1) / 2)
         transform = shift @ transform @ shift_1
 
@@ -473,8 +473,7 @@ class Rotate(Transform):
             torch.as_tensor(np.ascontiguousarray(transform).astype(_dtype)),
             spatial_size=output_shape,
         )
-        output = output.squeeze(0).detach().cpu().numpy().astype(np.float32)
-        return output
+        return np.asarray(output.squeeze(0).detach().cpu().numpy(), dtype=np.float32)
 
 
 class Zoom(Transform):
@@ -522,7 +521,7 @@ class Zoom(Transform):
         mode: Optional[Union[InterpolateMode, str]] = None,
         padding_mode: Optional[Union[NumpyPadMode, str]] = None,
         align_corners: Optional[bool] = None,
-    ) -> np.ndarray:
+    ):
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]).
@@ -856,12 +855,15 @@ class RandZoom(Randomizable, Transform):
             # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
             self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 2) + ensure_tuple(self._zoom[-1])
         zoomer = Zoom(self._zoom, keep_size=self.keep_size)
-        return zoomer(
-            img,
-            mode=mode or self.mode,
-            padding_mode=padding_mode or self.padding_mode,
-            align_corners=self.align_corners if align_corners is None else align_corners,
-        ).astype(_dtype)
+        return np.asarray(
+            zoomer(
+                img,
+                mode=mode or self.mode,
+                padding_mode=padding_mode or self.padding_mode,
+                align_corners=self.align_corners if align_corners is None else align_corners,
+            ),
+            dtype=_dtype,
+        )
 
 
 class AffineGrid(Transform):
@@ -941,9 +943,11 @@ class AffineGrid(Transform):
         if self.device:
             grid = grid.to(self.device)
         grid = (affine.float() @ grid.reshape((grid.shape[0], -1)).float()).reshape([-1] + list(grid.shape[1:]))
+        if grid is None or not isinstance(grid, torch.Tensor):
+            raise ValueError("Unknown grid.")
         if self.as_tensor_output:
             return grid
-        return grid.cpu().numpy()
+        return np.asarray(grid.cpu().numpy())
 
 
 class RandAffineGrid(Randomizable, Transform):
@@ -1069,7 +1073,7 @@ class RandDeformGrid(Randomizable, Transform):
         self.random_offset = self.R.normal(size=([len(grid_size)] + list(grid_size))).astype(np.float32)
         self.rand_mag = self.R.uniform(self.magnitude[0], self.magnitude[1])
 
-    def __call__(self, spatial_size: Sequence[int]) -> Union[np.ndarray, torch.Tensor]:
+    def __call__(self, spatial_size: Sequence[int]):
         """
         Args:
             spatial_size: spatial size of the grid.
@@ -1173,8 +1177,8 @@ class Resample(Transform):
                 align_corners=True,
             )[0]
         if self.as_tensor_output:
-            return out
-        return out.cpu().numpy()
+            return torch.as_tensor(out)
+        return np.asarray(out.cpu().numpy())
 
 
 class Affine(Transform):
@@ -1499,12 +1503,12 @@ class Rand2DElastic(Randomizable, Transform):
             grid = self.rand_affine_grid(grid=grid)
             grid = torch.nn.functional.interpolate(  # type: ignore
                 recompute_scale_factor=True,
-                input=grid.unsqueeze(0),
+                input=torch.as_tensor(grid).unsqueeze(0),
                 scale_factor=list(ensure_tuple(self.deform_grid.spacing)),
                 mode=InterpolateMode.BICUBIC.value,
                 align_corners=False,
             )
-            grid = CenterSpatialCrop(roi_size=sp_size)(grid[0])
+            grid = CenterSpatialCrop(roi_size=sp_size)(np.asarray(grid[0]))
         else:
             grid = create_grid(spatial_size=sp_size)
         return self.resampler(img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode)

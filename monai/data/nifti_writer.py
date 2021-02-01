@@ -14,10 +14,10 @@ from typing import Optional, Sequence, Union
 import numpy as np
 import torch
 
+from monai.config import DtypeLike
 from monai.data.utils import compute_shape_offset, to_affine_nd
 from monai.networks.layers import AffineTransform
 from monai.utils import GridSampleMode, GridSamplePadMode, optional_import
-from monai.config import DtypeLike
 
 nib, _ = optional_import("nibabel")
 
@@ -28,7 +28,7 @@ def write_nifti(
     affine: Optional[np.ndarray] = None,
     target_affine: Optional[np.ndarray] = None,
     resample: bool = True,
-    output_spatial_shape: Optional[Sequence[int]] = None,
+    output_spatial_shape: Union[Sequence[int], np.ndarray, None] = None,
     mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
     padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
     align_corners: bool = False,
@@ -127,7 +127,7 @@ def write_nifti(
     transform = np.linalg.inv(_affine) @ target_affine
     if output_spatial_shape is None:
         output_spatial_shape, _ = compute_shape_offset(data.shape, _affine, target_affine)
-    output_spatial_shape_ = list(output_spatial_shape)
+    output_spatial_shape_ = list(output_spatial_shape) if output_spatial_shape is not None else []
     if data.ndim > 3:  # multi channel, resampling each channel
         while len(output_spatial_shape_) < 3:
             output_spatial_shape_ = output_spatial_shape_ + [1]

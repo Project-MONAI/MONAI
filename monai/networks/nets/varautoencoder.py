@@ -68,7 +68,7 @@ class VarAutoEncoder(AutoEncoder):
         padding = same_padding(self.kernel_size)
 
         for s in strides:
-            self.final_size = calculate_out_shape(self.final_size, self.kernel_size, s, padding)
+            self.final_size = np.asarray(calculate_out_shape(self.final_size, self.kernel_size, s, padding), dtype=int)
 
         linear_size = int(np.product(self.final_size)) * self.encoded_channels
         self.mu = nn.Linear(linear_size, self.latent_size)

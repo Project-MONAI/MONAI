@@ -137,7 +137,7 @@ def compute_average_surface_distance(
         if surface_distance.shape == (0,):
             avg_surface_distance = np.nan
         else:
-            avg_surface_distance = surface_distance.mean()
+            avg_surface_distance = surface_distance.mean()  # type: ignore
         if not symmetric:
             asd[b, c] = avg_surface_distance
         else:
@@ -145,7 +145,7 @@ def compute_average_surface_distance(
             if surface_distance_2.shape == (0,):
                 avg_surface_distance_2 = np.nan
             else:
-                avg_surface_distance_2 = surface_distance_2.mean()
+                avg_surface_distance_2 = surface_distance_2.mean()  # type: ignore
             asd[b, c] = np.mean((avg_surface_distance, avg_surface_distance_2))
 
     return torch.from_numpy(asd)

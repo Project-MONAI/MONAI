@@ -22,7 +22,7 @@ from typing import Callable, Dict, Hashable, List, Mapping, Optional, Sequence, 
 import numpy as np
 import torch
 
-from monai.config import KeysCollection, DtypeLike
+from monai.config import DtypeLike, KeysCollection, NdarrayTensor
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.utility.array import (
     AddChannel,
@@ -127,7 +127,9 @@ class Identityd(MapTransform):
         super().__init__(keys)
         self.identity = Identity()
 
-    def __call__(self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]) -> Dict[Hashable, np.ndarray]:
+    def __call__(
+        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
+    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.identity(d[key])
@@ -192,9 +194,7 @@ class AddChanneld(MapTransform):
         super().__init__(keys)
         self.adder = AddChannel()
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.adder(d[key])
@@ -318,7 +318,9 @@ class ToTensord(MapTransform):
         super().__init__(keys)
         self.converter = ToTensor()
 
-    def __call__(self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(
+        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
+    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
@@ -339,7 +341,9 @@ class ToNumpyd(MapTransform):
         super().__init__(keys)
         self.converter = ToNumpy()
 
-    def __call__(self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]) -> Dict[Hashable, np.ndarray]:
+    def __call__(
+        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
+    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
@@ -382,9 +386,7 @@ class SqueezeDimd(MapTransform):
         super().__init__(keys)
         self.converter = SqueezeDim(dim=dim)
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
@@ -435,9 +437,7 @@ class DataStatsd(MapTransform):
         self.logger_handler = logger_handler
         self.printer = DataStats(logger_handler=logger_handler)
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
         d = dict(data)
         for idx, key in enumerate(self.keys):
             d[key] = self.printer(
@@ -469,9 +469,7 @@ class SimulateDelayd(MapTransform):
         self.delay_time = ensure_tuple_rep(delay_time, len(self.keys))
         self.delayer = SimulateDelay()
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
         d = dict(data)
         for idx, key in enumerate(self.keys):
             d[key] = self.delayer(d[key], delay_time=self.delay_time[idx])

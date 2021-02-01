@@ -78,7 +78,7 @@ class Regressor(nn.Module):
 
         padding = same_padding(kernel_size)
 
-        self.final_size = np.asarray(self.in_shape, int)
+        self.final_size = np.asarray(self.in_shape, dtype=int)
         self.reshape = Reshape(*self.out_shape)
 
         # encode stage
@@ -86,7 +86,7 @@ class Regressor(nn.Module):
             layer = self._get_layer(echannel, c, s, i == len(channels) - 1)
             echannel = c  # use the output channel number as the input for the next loop
             self.net.add_module("layer_%i" % i, layer)
-            self.final_size = calculate_out_shape(self.final_size, kernel_size, s, padding)
+            self.final_size = np.asarray(calculate_out_shape(self.final_size, kernel_size, s, padding), dtype=int)
 
         self.final = self._get_final_layer((echannel,) + self.final_size)
 

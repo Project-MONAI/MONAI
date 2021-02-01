@@ -110,7 +110,7 @@ class NiftiSaver:
         while len(data.shape) < 4:
             data = np.expand_dims(data, -1)
         # change data to "channel last" format and write to nifti format file
-        data = np.moveaxis(data, 0, -1)
+        data = np.moveaxis(np.asarray(data), 0, -1)
         write_nifti(
             data,
             file_name=filename,

@@ -329,7 +329,7 @@ def rectify_header_sform_qform(img_nii):
     return img_nii
 
 
-def zoom_affine(affine: np.ndarray, scale: Sequence[float], diagonal: bool = True) -> np.ndarray:
+def zoom_affine(affine: np.ndarray, scale: Sequence[float], diagonal: bool = True):
     """
     To make column norm of `affine` the same as `scale`.  If diagonal is False,
     returns an affine that combines orthogonal rotation and the new scale.
@@ -379,7 +379,7 @@ def zoom_affine(affine: np.ndarray, scale: Sequence[float], diagonal: bool = Tru
 
 
 def compute_shape_offset(
-    spatial_shape: np.ndarray, in_affine: np.ndarray, out_affine: np.ndarray
+    spatial_shape: Union[np.ndarray, Sequence[int]], in_affine: np.ndarray, out_affine: np.ndarray
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Given input and output affine, compute appropriate shapes

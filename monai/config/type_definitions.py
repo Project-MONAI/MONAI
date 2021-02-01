@@ -9,10 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy as np
-from typing import Collection, Hashable, Iterable, Union
+from typing import Collection, Hashable, Iterable, TypeVar, Union
 
-__all__ = ["KeysCollection", "IndexSelection", "DtypeLike"]
+import numpy as np
+import torch
+
+__all__ = ["KeysCollection", "IndexSelection", "DtypeLike", "NdarrayTensor"]
 
 """Commonly used concepts
 This module provides naming and type specifications for commonly used concepts
@@ -61,3 +63,7 @@ DtypeLike = Union[
 """Type of datatypes
 adapted from https://github.com/numpy/numpy/blob/master/numpy/typing/_dtype_like.py
 """
+
+# Generic type which can represent either a numpy.ndarray or a torch.Tensor
+# Unlike Union can create a dependence between parameter(s) / return(s)
+NdarrayTensor = TypeVar("NdarrayTensor", np.ndarray, torch.Tensor)

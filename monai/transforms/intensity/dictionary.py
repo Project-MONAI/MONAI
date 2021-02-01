@@ -21,7 +21,7 @@ from typing import Any, Dict, Hashable, Mapping, Optional, Sequence, Tuple, Unio
 import numpy as np
 import torch
 
-from monai.config import KeysCollection, DtypeLike
+from monai.config import DtypeLike, KeysCollection
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.intensity.array import (
     AdjustContrast,

@@ -95,12 +95,12 @@ class PNGSaver:
         if data.shape[0] == 1:
             data = data.squeeze(0)
         elif 2 < data.shape[0] < 5:
-            data = np.moveaxis(data, 0, -1)
+            data = np.moveaxis(data, 0, -1)  # type: ignore
         else:
             raise ValueError(f"Unsupported number of channels: {data.shape[0]}, available options are [1, 3, 4]")
 
         write_png(
-            data,
+            np.asarray(data),
             file_name=filename,
             output_spatial_shape=spatial_shape,
             mode=self.mode,

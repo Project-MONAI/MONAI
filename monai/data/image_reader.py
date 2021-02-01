@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence,
 import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
-from monai.config import KeysCollection, DtypeLike
+from monai.config import DtypeLike, KeysCollection
 from monai.data.utils import correct_nifti_header_if_necessary
 from monai.utils import ensure_tuple, optional_import
 
@@ -244,7 +244,7 @@ class ITKReader(ImageReader):
         affine = np.eye(direction.shape[0] + 1)
         affine[(slice(-1), slice(-1))] = direction @ np.diag(spacing)
         affine[(slice(-1), -1)] = origin
-        return affine
+        return np.asarray(affine)
 
     def _get_spatial_shape(self, img) -> np.ndarray:
         """
@@ -258,7 +258,7 @@ class ITKReader(ImageReader):
         shape.reverse()
         return np.asarray(shape)
 
-    def _get_array_data(self, img) -> np.ndarray:
+    def _get_array_data(self, img):
         """
         Get the raw array data of the image, converted to Numpy array.
 
@@ -385,7 +385,7 @@ class NibabelReader(ImageReader):
             img: a Nibabel image object loaded from a image file.
 
         """
-        return img.affine.copy()
+        return np.array(img.affine, copy=True)
 
     def _get_spatial_shape(self, img) -> np.ndarray:
         """
