@@ -43,45 +43,41 @@ KEYS = ["image", "label"]
 
 TESTS: List[Tuple] = []
 
-# TESTS.append((
-#     "Spatial 2d",
-#     DATA_2D,
-#     0.0,
-#     SpatialPadd(KEYS, spatial_size=[111, 113], method=Method.END),
-#     SpatialPadd(KEYS, spatial_size=[118, 117]),
-# ))
-
-# TESTS.append((
-#     "Spatial 3d",
-#     DATA_3D,
-#     0.0,
-#     SpatialPadd(KEYS, spatial_size=[112, 113, 116]),
-# ))
-
-# TESTS.append((
-#     "Rand, prob 0",
-#     DATA_2D,
-#     0,
-#     RandRotated(KEYS, prob=0),
-# ))
-
-
-
 TESTS.append((
-    f"Spatial crop 2d",
+    "Spatial 2d",
     DATA_2D,
     0.0,
-    SpatialCropd("image", [49, 51], [96, 97]),
+    SpatialPadd(KEYS, spatial_size=[111, 113], method=Method.END),
+    SpatialPadd(KEYS, spatial_size=[118, 117]),
 ))
 
-# for im_size in [100, 101]:
-#     for center in [im_size // 2, 40]:
-#         TESTS.append([
-#             f"Spatial crop 2d, input size: {im_size, im_size + 1}, crop center: {center, center + 1}, crop size: {90, 91}",
-#             DATA_2D,
-#             0.0,
-#             SpatialCropd(KEYS, [center, center + 1], [90, 91]),
-#         ])
+TESTS.append((
+    "Spatial 3d",
+    DATA_3D,
+    0.0,
+    SpatialPadd(KEYS, spatial_size=[112, 113, 116]),
+))
+
+TESTS.append((
+    "Rand, prob 0",
+    DATA_2D,
+    0,
+    RandRotated(KEYS, prob=0),
+))
+
+TESTS.append((
+    "Spatial crop 2d",
+    DATA_2D,
+    2e-2,
+    SpatialCropd("image", [49, 51], [90, 89]),
+))
+
+TESTS.append((
+    "Spatial crop 3d",
+    DATA_3D,
+    2e-2,
+    SpatialCropd("image", [49, 51, 44], [90, 89, 93]),
+))
 
 # # # TODO: add 3D
 # for data in [DATA_2D]:  # , DATA_3D]:
@@ -104,12 +100,12 @@ TESTS.append((
 #         RandRotated(KEYS, x, y, z, 1),
 #     ))
 
-# TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
+TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
 
-TESTS = [*TESTS]  #, *TESTS_COMPOSE_X2]
+TESTS = [*TESTS, *TESTS_COMPOSE_X2]
 
 
-TEST_FAIL_0 = (IM_2D, 0.0, Compose([SpatialPad(spatial_size=[101,103])]))
+TEST_FAIL_0 = (IM_2D, 0.0, Compose([SpatialPad(spatial_size=[101, 103])]))
 TESTS_FAIL = [TEST_FAIL_0]
 
 def plot_im(orig, fwd_bck, fwd):
@@ -139,7 +135,6 @@ class TestInverse(unittest.TestCase):
             fwd_bck = fwd_bck_d[key]
             unmodified = unmodified_d[key]
             mean_diff = np.mean(np.abs(orig - fwd_bck))
-            plot_im(orig, fwd_bck, unmodified)
             try:
                 self.assertLessEqual(mean_diff, acceptable_diff)
             except AssertionError:
