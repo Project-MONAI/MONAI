@@ -151,7 +151,7 @@ class SpatialPadd(MapTransform, InvertibleTransform):
         return d
 
 
-class BorderPadd(MapTransform):
+class BorderPadd(MapTransform, InvertibleTransform):
     """
     Pad the input data by adding specified borders to every dimension.
     Dictionary-based wrapper of :py:class:`monai.transforms.BorderPad`.
@@ -192,7 +192,39 @@ class BorderPadd(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key, m in zip(self.keys, self.mode):
+            self.append_applied_transforms(d, key)
             d[key] = self.padder(d[key], mode=m)
+        return d
+
+    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
+        return {
+            "keys": key,
+            "spatial_border": self.padder.spatial_border,
+            "mode": self.mode[idx],
+        }
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+
+        for key in self.keys:
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            orig_size = np.array(transform["orig_size"])
+            roi_start = np.array(transform["init_args"]["spatial_border"])
+            # Need to convert single value to [min1,min2,...]
+            if roi_start.size == 1:
+                roi_start = np.full((len(orig_size)), roi_start)
+            # need to convert [min1,max1,min2,...] to [min1,min2,...]
+            elif roi_start.size == 2 * orig_size.size:
+                roi_start = roi_start[::2]
+            roi_end = np.array(transform["orig_size"]) + roi_start
+
+            inverse_transform = SpatialCrop(roi_start=roi_start, roi_end=roi_end)
+            # Apply inverse transform
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
+
         return d
 
 

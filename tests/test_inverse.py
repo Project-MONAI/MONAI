@@ -28,7 +28,8 @@ from monai.transforms import (
     Rotated,
     SpatialPad,
     SpatialPadd,
-    SpatialCropd
+    SpatialCropd,
+    BorderPadd,
 )
 from monai.utils import Method, optional_import
 
@@ -43,7 +44,7 @@ else:
     plt, has_matplotlib = optional_import("matplotlib.pyplot")
 
 
-IM_1D = AddChannel()(np.arange(0, 11))
+IM_1D = AddChannel()(np.arange(0, 10))
 IM_2D = AddChannel()(create_test_image_2d(100, 101)[0])
 IM_3D = AddChannel()(create_test_image_3d(100, 101, 107)[0])
 
@@ -102,6 +103,27 @@ TESTS.append((
     DATA_3D,
     2e-2,
     RandSpatialCropd(KEYS, [96, 93, 92], False, True)
+))
+
+TESTS.append((
+    "BorderPadd 2d",
+    DATA_2D,
+    0,
+    BorderPadd(KEYS, [3, 7, 2, 5]),
+))
+
+TESTS.append((
+    "BorderPadd 2d",
+    DATA_2D,
+    0,
+    BorderPadd(KEYS, [3, 7]),
+))
+
+TESTS.append((
+    "BorderPadd 3d",
+    DATA_3D,
+    0,
+    BorderPadd(KEYS, [4]),
 ))
 
 # TODO: add 3D
