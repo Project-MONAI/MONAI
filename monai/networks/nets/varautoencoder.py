@@ -46,7 +46,7 @@ class VarAutoEncoder(AutoEncoder):
         self.in_channels, *self.in_shape = in_shape
 
         self.latent_size = latent_size
-        self.final_size = np.asarray(self.in_shape, int)
+        self.final_size = np.asarray(self.in_shape, dtype=int)
 
         super().__init__(
             dimensions,
@@ -68,7 +68,7 @@ class VarAutoEncoder(AutoEncoder):
         padding = same_padding(self.kernel_size)
 
         for s in strides:
-            self.final_size = np.asarray(calculate_out_shape(self.final_size, self.kernel_size, s, padding), dtype=int)
+            self.final_size = calculate_out_shape(self.final_size, self.kernel_size, s, padding)  # type: ignore
 
         linear_size = int(np.product(self.final_size)) * self.encoded_channels
         self.mu = nn.Linear(linear_size, self.latent_size)

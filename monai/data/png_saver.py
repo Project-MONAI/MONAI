@@ -95,7 +95,7 @@ class PNGSaver:
         if data.shape[0] == 1:
             data = data.squeeze(0)
         elif 2 < data.shape[0] < 5:
-            data = np.moveaxis(data, 0, -1)  # type: ignore
+            data = np.moveaxis(np.asarray(data), 0, -1)
         else:
             raise ValueError(f"Unsupported number of channels: {data.shape[0]}, available options are [1, 3, 4]")
 
