@@ -78,7 +78,7 @@ class Regressor(nn.Module):
 
         padding = same_padding(kernel_size)
 
-        self.final_size = np.asarray(self.in_shape, np.int)
+        self.final_size = np.asarray(self.in_shape, int)
         self.reshape = Reshape(*self.out_shape)
 
         # encode stage

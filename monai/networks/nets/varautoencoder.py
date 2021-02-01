@@ -46,7 +46,7 @@ class VarAutoEncoder(AutoEncoder):
         self.in_channels, *self.in_shape = in_shape
 
         self.latent_size = latent_size
-        self.final_size = np.asarray(self.in_shape, np.int)
+        self.final_size = np.asarray(self.in_shape, int)
 
         super().__init__(
             dimensions,

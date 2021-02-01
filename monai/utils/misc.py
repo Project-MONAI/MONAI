@@ -287,7 +287,7 @@ def list_to_dict(items):
 
 
 _torch_to_np_dtype = {
-    torch.bool: np.bool,
+    torch.bool: bool,
     torch.uint8: np.uint8,
     torch.int8: np.int8,
     torch.int16: np.int16,

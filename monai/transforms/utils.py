@@ -271,8 +271,8 @@ def weighted_patch_samples(
         raise ValueError("w must be an ND array.")
     if r_state is None:
         r_state = np.random.RandomState()
-    img_size = np.asarray(w.shape, dtype=np.int)
-    win_size = np.asarray(fall_back_tuple(spatial_size, img_size), dtype=np.int)
+    img_size = np.asarray(w.shape, dtype=int)
+    win_size = np.asarray(fall_back_tuple(spatial_size, img_size), dtype=int)
 
     s = tuple(slice(w // 2, m - w + w // 2) if m > w else slice(m // 2, m // 2 + 1) for w, m in zip(win_size, img_size))
     v = w[s]  # weight map in the 'valid' mode
@@ -287,7 +287,7 @@ def weighted_patch_samples(
         idx = v.searchsorted(r_state.random(n_samples) * v[-1], side="right")
     # compensate 'valid' mode
     diff = np.minimum(win_size, img_size) // 2
-    return [np.unravel_index(i, v_size) + diff for i in np.asarray(idx, dtype=np.int)]
+    return [np.unravel_index(i, v_size) + diff for i in np.asarray(idx, dtype=int)]
 
 
 def generate_pos_neg_label_crop_centers(
