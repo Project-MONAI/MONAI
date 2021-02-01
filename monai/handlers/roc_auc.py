@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Union
+from typing import Callable, Optional, Union, Any
 
 import torch
 
@@ -73,6 +73,7 @@ class ROCAUC(EpochMetric):  # type: ignore[valid-type, misc]  # due to optional_
                 average=Average(average),
             )
 
+        self._is_reduced: bool = False
         super().__init__(
             compute_fn=_compute_fn,
             output_transform=output_transform,
@@ -80,7 +81,7 @@ class ROCAUC(EpochMetric):  # type: ignore[valid-type, misc]  # due to optional_
             device=device,
         )
 
-    def compute(self) -> float:
+    def compute(self) -> Any:
         _prediction_tensor = torch.cat(self._predictions, dim=0)
         _target_tensor = torch.cat(self._targets, dim=0)
 
@@ -91,7 +92,7 @@ class ROCAUC(EpochMetric):  # type: ignore[valid-type, misc]  # due to optional_
             _target_tensor = evenly_divisible_all_gather(_target_tensor)
         self._is_reduced = True
 
-        result = 0.0
+        result: torch.Tensor = torch.zeros(1)
         if idist.get_rank() == 0:
             # Run compute_fn on zero rank only
             result = self.compute_fn(_prediction_tensor, _target_tensor)
