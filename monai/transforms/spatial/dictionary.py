@@ -288,7 +288,7 @@ class Orientationd(MapTransform, InvertibleTransform):
         return d
 
 
-class Rotate90d(MapTransform):
+class Rotate90d(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Rotate90`.
     """
@@ -306,7 +306,30 @@ class Rotate90d(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
+            self.append_applied_transforms(d, key)
             d[key] = self.rotator(d[key])
+        return d
+
+    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
+        return {
+            "keys": key,
+            "k": self.rotator.k,
+            "spatial_axes": self.rotator.spatial_axes,
+        }
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in self.keys:
+            transform = self.get_most_recent_transform(d, key)
+            spatial_axes = transform["init_args"]["spatial_axes"]
+            num_times_rotated = transform["init_args"]["k"]
+            num_times_to_rotate = 4 - num_times_rotated
+            inverse_transform = Rotate90(num_times_to_rotate, spatial_axes)
+            # Apply inverse
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
+
         return d
 
 

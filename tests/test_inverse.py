@@ -35,6 +35,7 @@ from monai.transforms import (
     DivisiblePadd,
     Flipd,
     LoadImaged,
+    Rotate90d,
 )
 from monai.utils import optional_import, set_determinism
 from tests.utils import make_nifti_image, make_rand_affine
@@ -191,6 +192,20 @@ TESTS.append((
     DATA_3D,
     0,
     Orientationd(KEYS, 'RAS'),
+))
+
+TESTS.append((
+    "Rotate90d 2d",
+    DATA_2D,
+    0,
+    Rotate90d(KEYS),
+))
+
+TESTS.append((
+    "Rotate90d 3d",
+    DATA_3D,
+    0,
+    Rotate90d(KEYS, k=2, spatial_axes=[1, 2]),
 ))
 
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
