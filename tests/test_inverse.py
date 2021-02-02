@@ -30,6 +30,7 @@ from monai.transforms import (
     SpatialPadd,
     SpatialCropd,
     BorderPadd,
+    DivisiblePadd,
 )
 from monai.utils import Method, optional_import
 
@@ -124,6 +125,20 @@ TESTS.append((
     DATA_3D,
     0,
     BorderPadd(KEYS, [4]),
+))
+
+TESTS.append((
+    "DivisiblePadd 2d",
+    DATA_2D,
+    0,
+    DivisiblePadd(KEYS, k=4),
+))
+
+TESTS.append((
+    "DivisiblePadd 3d",
+    DATA_3D,
+    0,
+    DivisiblePadd(KEYS, k=[4, 8, 11]),
 ))
 
 # TODO: add 3D

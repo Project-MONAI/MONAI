@@ -228,7 +228,7 @@ class BorderPadd(MapTransform, InvertibleTransform):
         return d
 
 
-class DivisiblePadd(MapTransform):
+class DivisiblePadd(MapTransform, InvertibleTransform):
     """
     Pad the input data, so that the spatial sizes are divisible by `k`.
     Dictionary-based wrapper of :py:class:`monai.transforms.DivisiblePad`.
@@ -260,7 +260,33 @@ class DivisiblePadd(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key, m in zip(self.keys, self.mode):
+            self.append_applied_transforms(d, key)
             d[key] = self.padder(d[key], mode=m)
+        return d
+
+    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
+        return {
+            "keys": key,
+            "k": self.padder.k,
+            "mode": self.mode[idx],
+        }
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+
+        for key in self.keys:
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            orig_size = np.array(transform["orig_size"])
+            current_size = np.array(d[key].shape[1:])
+            roi_start = np.floor((current_size - orig_size) / 2)
+            roi_end = orig_size + roi_start
+            inverse_transform = SpatialCrop(roi_start=roi_start, roi_end=roi_end)
+            # Apply inverse transform
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
+
         return d
 
 
