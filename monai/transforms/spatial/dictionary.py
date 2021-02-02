@@ -699,7 +699,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
         return d
 
 
-class Flipd(MapTransform):
+class Flipd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Flip`.
 
@@ -718,7 +718,25 @@ class Flipd(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
+            self.append_applied_transforms(d, key)
             d[key] = self.flipper(d[key])
+        return d
+
+    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
+        return {
+            "keys": key,
+            "spatial_axis": self.flipper.spatial_axis,
+        }
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in self.keys:
+            _ = self.get_most_recent_transform(d, key)
+            # Inverse is same as forward
+            d[key] = self.flipper(d[key])
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
+
         return d
 
 

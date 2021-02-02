@@ -31,6 +31,7 @@ from monai.transforms import (
     SpatialCropd,
     BorderPadd,
     DivisiblePadd,
+    Flipd,
 )
 from monai.utils import Method, optional_import
 
@@ -139,6 +140,13 @@ TESTS.append((
     DATA_3D,
     0,
     DivisiblePadd(KEYS, k=[4, 8, 11]),
+))
+
+TESTS.append((
+    "Flipd 3d",
+    DATA_3D,
+    0,
+    Flipd(KEYS, [1, 2]),
 ))
 
 # TODO: add 3D
