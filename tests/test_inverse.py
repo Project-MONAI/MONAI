@@ -10,6 +10,7 @@
 # limitations under the License.
 
 
+from monai.transforms.spatial.dictionary import Orientationd
 import random
 import unittest
 from typing import TYPE_CHECKING
@@ -36,7 +37,7 @@ from monai.transforms import (
     LoadImaged,
 )
 from monai.utils import optional_import, set_determinism
-from tests.utils import make_nifti_image
+from tests.utils import make_nifti_image, make_rand_affine
 
 # from parameterized import parameterized
 
@@ -50,10 +51,11 @@ else:
 
 set_determinism(seed=0)
 
+AFFINE = make_rand_affine()
 
 IM_1D = AddChannel()(np.arange(0, 10))
 IM_2D_FNAME, SEG_2D_FNAME = [make_nifti_image(i) for i in create_test_image_2d(100, 101)]
-IM_3D_FNAME, SEG_3D_FNAME = [make_nifti_image(i) for i in create_test_image_3d(100, 101, 107)]
+IM_3D_FNAME, SEG_3D_FNAME = [make_nifti_image(i, AFFINE) for i in create_test_image_3d(100, 101, 107)]
 
 KEYS = ["image", "label"]
 DATA_1D = {"image": IM_1D, "label": IM_1D, "other": IM_1D}
@@ -184,6 +186,13 @@ TESTS.append((
 #     RandRotated(KEYS, *(random.uniform(np.pi / 6, np.pi) for _ in range(3)), 1),
 # ))
 
+TESTS.append((
+    "Orientationd 3d",
+    DATA_3D,
+    0,
+    Orientationd(KEYS, 'RAS'),
+))
+
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
 
 TESTS = [*TESTS, *TESTS_COMPOSE_X2]
@@ -218,11 +227,7 @@ class TestInverse(unittest.TestCase):
             orig = orig_d[key]
             fwd_bck = fwd_bck_d[key]
             unmodified = unmodified_d[key]
-            if isinstance(orig, dict):
-                self.assertEqual(orig.keys(), fwd_bck.keys())
-                for a, b in zip(orig.values(), fwd_bck.values()):
-                    self.assertTrue(np.all(a == b) or np.all(np.isnan(a) & np.isnan(b)))
-            else:
+            if isinstance(orig, np.ndarray):
                 mean_diff = np.mean(np.abs(orig - fwd_bck))
                 try:
                     self.assertLessEqual(mean_diff, acceptable_diff)

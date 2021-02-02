@@ -223,16 +223,16 @@ class InvertibleTransform(ABC):
     first out for the inverted transforms.
     """
 
-    def append_applied_transforms(self, data: dict, key: Hashable, idx: int = 0, extra_args: Optional[dict] = None) -> None:
+    def append_applied_transforms(self, data: dict, key: Hashable, idx: int = 0, extra_info: Optional[dict] = None) -> None:
         """Append to list of applied transforms for that key."""
         key_transform = str(key) + "_transforms"
         # If this is the first, create list
         if key_transform not in data:
             data[key_transform] = []
-        data[key_transform].append(
-            {"class": type(self), "init_args": self.get_input_args(key, idx),
-            "orig_size": data[key].shape[1:], "extra_info": extra_args}
-        )
+        data[key_transform].append({
+            "class": type(self), "init_args": self.get_input_args(key, idx),
+            "orig_size": data[key].shape[1:], "extra_info": extra_info
+        })
         # If class is randomizable, store whether the transform was actually performed (based on `prob`)
         if isinstance(self, Randomizable):
             data[key_transform][-1]["do_transform"] = self._do_transform

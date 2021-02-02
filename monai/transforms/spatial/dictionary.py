@@ -46,7 +46,10 @@ from monai.utils import (
     ensure_tuple,
     ensure_tuple_rep,
     fall_back_tuple,
+    optional_import,
 )
+
+nib, _ = optional_import("nibabel")
 
 __all__ = [
     "Spacingd",
@@ -247,10 +250,11 @@ class Orientationd(MapTransform, InvertibleTransform):
     ) -> Dict[Union[Hashable, str], Union[np.ndarray, Dict[str, np.ndarray]]]:
         d: Dict = dict(data)
         for key in self.keys:
-            meta_data = d[f"{key}_{self.meta_key_postfix}"]
-            d[key], _, new_affine = self.ornt_transform(d[key], affine=meta_data["affine"])
-            self.append_applied_transforms(d, key, {"old_affine": meta_data["affine"], "new_affine": new_affine})
-            meta_data["affine"] = new_affine
+            meta_data_key = f"{key}_{self.meta_key_postfix}"
+            meta_data = d[meta_data_key]
+            d[key], old_affine, new_affine = self.ornt_transform(d[key], affine=meta_data["affine"])
+            self.append_applied_transforms(d, key, extra_info={"meta_data_key": meta_data_key, "old_affine": old_affine})
+            d[meta_data_key]["affine"] = new_affine
         return d
 
     def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
@@ -266,11 +270,18 @@ class Orientationd(MapTransform, InvertibleTransform):
         d = deepcopy(dict(data))
         for key in self.keys:
             transform = self.get_most_recent_transform(d, key)
-            old_affine = transform["extra_info"]["old_affine"]
-            new_affine = transform["extra_info"]["new_affine"]
-
-            # Inverse is same as forward
-            d[key] = self.flipper(d[key])
+            meta_data = d[transform["extra_info"]["meta_data_key"]]
+            orig_affine = transform["extra_info"]["old_affine"]
+            orig_axcodes = nib.orientations.aff2axcodes(orig_affine)
+            inverse_transform = Orientation(
+                axcodes=orig_axcodes,
+                as_closest_canonical=transform["init_args"]["as_closest_canonical"],
+                labels=transform["init_args"]["labels"],
+            )
+            # Apply inverse
+            d[key], _, new_affine = inverse_transform(d[key], affine=meta_data["affine"])
+            self.append_applied_transforms(d, key, extra_info={"old_affine": meta_data["affine"]})
+            meta_data["affine"] = new_affine
             # Remove the applied transform
             self.remove_most_recent_transform(d, key)
 
