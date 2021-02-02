@@ -36,6 +36,7 @@ from monai.transforms import (
     Flipd,
     LoadImaged,
     Rotate90d,
+    Zoomd,
 )
 from monai.utils import optional_import, set_determinism
 from tests.utils import make_nifti_image, make_rand_affine
@@ -208,11 +209,33 @@ TESTS.append((
     Rotate90d(KEYS, k=2, spatial_axes=[1, 2]),
 ))
 
+TESTS.append((
+    "Zoomd 1d",
+    DATA_1D,
+    0,
+    Zoomd(KEYS, zoom=2, keep_size=False),
+))
+
+TESTS.append((
+    "Zoomd 2d",
+    DATA_2D,
+    8e-2,
+    Zoomd(KEYS, zoom=0.5),
+))
+
+TESTS.append((
+    "Zoomd 3d",
+    DATA_3D,
+    2e-2,
+    Zoomd(KEYS, zoom=[2.5, 1, 3], keep_size=False),
+))
+
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
 
 TESTS = [*TESTS, *TESTS_COMPOSE_X2]
 
 
+# Should fail because uses an array transform (SpatialPad), as opposed to dictionary
 TEST_FAIL_0 = (DATA_2D["image"], 0.0, Compose([SpatialPad(spatial_size=[101, 103])]))
 TESTS_FAIL = [TEST_FAIL_0]
 
@@ -251,6 +274,8 @@ class TestInverse(unittest.TestCase):
                         print(f"Mean diff = {mean_diff} (expected <= {acceptable_diff})")
                         plot_im(orig, fwd_bck, unmodified)
                     raise
+            else:
+                np.testing.assert_equal(orig, fwd_bck)
 
     # @parameterized.expand(TESTS)
     def test_inverse(self, _, data, acceptable_diff, *transforms):

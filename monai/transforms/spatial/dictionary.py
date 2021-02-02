@@ -23,7 +23,7 @@ import torch
 
 from monai.config import DtypeLike, KeysCollection
 from monai.networks.layers.simplelayers import GaussianFilter
-from monai.transforms.croppad.array import CenterSpatialCrop
+from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
 from monai.transforms.spatial.array import (
     Flip,
     Orientation,
@@ -270,6 +270,7 @@ class Orientationd(MapTransform, InvertibleTransform):
         d = deepcopy(dict(data))
         for key in self.keys:
             transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
             meta_data = d[transform["extra_info"]["meta_data_key"]]
             orig_affine = transform["extra_info"]["old_affine"]
             orig_axcodes = nib.orientations.aff2axcodes(orig_affine)
@@ -280,7 +281,6 @@ class Orientationd(MapTransform, InvertibleTransform):
             )
             # Apply inverse
             d[key], _, new_affine = inverse_transform(d[key], affine=meta_data["affine"])
-            self.append_applied_transforms(d, key, extra_info={"old_affine": meta_data["affine"]})
             meta_data["affine"] = new_affine
             # Remove the applied transform
             self.remove_most_recent_transform(d, key)
@@ -321,6 +321,7 @@ class Rotate90d(MapTransform, InvertibleTransform):
         d = deepcopy(dict(data))
         for key in self.keys:
             transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
             spatial_axes = transform["init_args"]["spatial_axes"]
             num_times_rotated = transform["init_args"]["k"]
             num_times_to_rotate = 4 - num_times_rotated
@@ -1075,7 +1076,7 @@ class RandRotated(Randomizable, MapTransform, InvertibleTransform):
         return d
 
 
-class Zoomd(MapTransform):
+class Zoomd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Zoom`.
 
@@ -1117,6 +1118,7 @@ class Zoomd(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for idx, key in enumerate(self.keys):
+            self.append_applied_transforms(d, key)
             d[key] = self.zoomer(
                 d[key],
                 mode=self.mode[idx],
@@ -1125,6 +1127,37 @@ class Zoomd(MapTransform):
             )
         return d
 
+    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
+        return {
+            "keys": key,
+            "zoom": self.zoomer.zoom,
+            "mode": self.mode[idx],
+            "padding_mode": self.padding_mode[idx],
+            "align_corners": self.align_corners[idx],
+            "keep_size": self.zoomer.keep_size,
+        }
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in self.keys:
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            init_args = transform["init_args"]
+            zoom = np.array(init_args["zoom"])
+            inverse_transform = Zoom(zoom=1 / zoom, keep_size=init_args["keep_size"])
+            # Apply inverse
+            d[key] = inverse_transform(
+                d[key],
+                mode=init_args["mode"],
+                padding_mode=init_args["padding_mode"],
+                align_corners=init_args["align_corners"],
+            )
+            # Size might be out by 1 voxel so pad
+            d[key] = SpatialPad(transform["orig_size"])(d[key])
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
+
+        return d
 
 class RandZoomd(Randomizable, MapTransform):
     """
