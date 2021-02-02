@@ -75,7 +75,7 @@ class CSVSaver:
         """
         save_key = meta_data["filename_or_obj"] if meta_data else str(self._data_index)
         self._data_index += 1
-        if torch.is_tensor(data):
+        if isinstance(data, torch.Tensor):
             data = data.detach().cpu().numpy()
         if not isinstance(data, np.ndarray):
             raise AssertionError

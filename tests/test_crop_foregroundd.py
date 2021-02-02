@@ -65,14 +65,14 @@ class TestCropForegroundd(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
     def test_foreground_position(self, argments, image, _):
         result = CropForegroundd(**argments)(image)
-        self.assertListEqual(result["foreground_start_coord"], [1, 1])
-        self.assertListEqual(result["foreground_end_coord"], [4, 4])
+        np.testing.assert_allclose(result["foreground_start_coord"], np.array([1, 1]))
+        np.testing.assert_allclose(result["foreground_end_coord"], np.array([4, 4]))
 
         argments["start_coord_key"] = "test_start_coord"
         argments["end_coord_key"] = "test_end_coord"
         result = CropForegroundd(**argments)(image)
-        self.assertListEqual(result["test_start_coord"], [1, 1])
-        self.assertListEqual(result["test_end_coord"], [4, 4])
+        np.testing.assert_allclose(result["test_start_coord"], np.array([1, 1]))
+        np.testing.assert_allclose(result["test_end_coord"], np.array([4, 4]))
 
 
 if __name__ == "__main__":

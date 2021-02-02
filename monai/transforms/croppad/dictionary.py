@@ -412,8 +412,8 @@ class CropForegroundd(MapTransform):
         box_start, box_end = generate_spatial_bounding_box(
             d[self.source_key], self.select_fn, self.channel_indices, self.margin
         )
-        d[self.start_coord_key] = box_start
-        d[self.end_coord_key] = box_end
+        d[self.start_coord_key] = np.asarray(box_start)
+        d[self.end_coord_key] = np.asarray(box_end)
         cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
         for key in self.keys:
             d[key] = cropper(d[key])
@@ -583,7 +583,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
             if key in self.keys:
                 img = d[key]
                 for i, center in enumerate(self.centers):
-                    cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)
+                    cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)  # type: ignore
                     results[i][key] = cropper(img)
             else:
                 for i in range(self.num_samples):

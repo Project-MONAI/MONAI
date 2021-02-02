@@ -62,7 +62,7 @@ class PHLFilter(torch.autograd.Function):
     """
     Filters input based on arbitrary feature vectors. Uses a permutohedral
     lattice data structure to efficiently approximate n-dimensional gaussian
-    filtering. Complexity is broadly independant of kernel size. Most applicable
+    filtering. Complexity is broadly independent of kernel size. Most applicable
     to higher filter dimensions and larger kernel sizes.
 
     See:
