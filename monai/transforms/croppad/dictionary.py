@@ -558,7 +558,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
         return [self.cropper(data) for _ in range(self.num_samples)]
 
 
-class CropForegroundd(MapTransform):
+class CropForegroundd(MapTransform, InvertibleTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.CropForeground`.
     Crop only the foreground object of the expected images.
@@ -610,7 +610,40 @@ class CropForegroundd(MapTransform):
         d[self.end_coord_key] = np.asarray(box_end)
         cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
         for key in self.keys:
+            self.append_applied_transforms(d, key, extra_info={"box_start": box_start, "box_end": box_end})
             d[key] = cropper(d[key])
+        return d
+
+    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
+        return {
+            "keys": key,
+            "source_key": self.source_key,
+            "select_fn": self.select_fn,
+            "channel_indices": self.channel_indices,
+            "margin": self.margin,
+            "start_coord_key": self.start_coord_key,
+            "end_coord_key": self.end_coord_key,
+        }
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in self.keys:
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            orig_size = np.array(transform["orig_size"])
+            extra_info = transform["extra_info"]
+            pad_to_start = np.array(extra_info["box_start"])
+            pad_to_end = orig_size - np.array(extra_info["box_end"])
+            # interweave mins and maxes
+            pad = np.empty((2 * len(orig_size)), dtype=np.int32)
+            pad[0::2] = pad_to_start
+            pad[1::2] = pad_to_end
+            inverse_transform = BorderPad(pad.tolist())
+            # Apply inverse transform
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
+
         return d
 
 

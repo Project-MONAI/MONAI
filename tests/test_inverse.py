@@ -38,6 +38,7 @@ from monai.transforms import (
     Rotate90d,
     Zoomd,
     CenterSpatialCropd,
+    CropForegroundd,
 )
 from monai.utils import optional_import, set_determinism
 from tests.utils import make_nifti_image, make_rand_affine
@@ -100,7 +101,7 @@ TESTS.append((
 TESTS.append((
     "SpatialCropd 3d",
     DATA_3D,
-    2e-2,
+    4e-2,
     SpatialCropd(KEYS, [49, 51, 44], [90, 89, 93]),
 ))
 
@@ -170,7 +171,7 @@ TESTS.append((
 TESTS.append((
     "Rotated 2d",
     DATA_2D,
-    6e-2,
+    8e-2,
     Rotated(KEYS, random.uniform(np.pi / 6, np.pi), keep_size=True, align_corners=False),
 ))
 
@@ -245,6 +246,20 @@ TESTS.append((
     CenterSpatialCropd(KEYS, roi_size=[95, 97, 98]),
 ))
 
+TESTS.append((
+    "CropForegroundd 2d",
+    DATA_2D,
+    0,
+    CropForegroundd(KEYS, source_key="label", margin=[2, 1])
+))
+
+TESTS.append((
+    "CropForegroundd 3d",
+    DATA_3D,
+    0,
+    CropForegroundd(KEYS, source_key="label")
+))
+
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
 
 TESTS = [*TESTS, *TESTS_COMPOSE_X2]
@@ -275,7 +290,7 @@ def plot_im(orig, fwd_bck, fwd):
 
 
 class TestInverse(unittest.TestCase):
-    def check_inverse(self, keys, orig_d, fwd_bck_d, unmodified_d, acceptable_diff):
+    def check_inverse(self, name, keys, orig_d, fwd_bck_d, unmodified_d, acceptable_diff):
         for key in keys:
             orig = orig_d[key]
             fwd_bck = fwd_bck_d[key]
@@ -285,13 +300,15 @@ class TestInverse(unittest.TestCase):
                 try:
                     self.assertLessEqual(mean_diff, acceptable_diff)
                 except AssertionError:
+                    print(f"Failed: {name}. Mean diff = {mean_diff} (expected <= {acceptable_diff})")
                     if has_matplotlib:
-                        print(f"Mean diff = {mean_diff} (expected <= {acceptable_diff})")
                         plot_im(orig, fwd_bck, unmodified)
                     raise
 
     # @parameterized.expand(TESTS)
     def test_inverse(self, _, data, acceptable_diff, *transforms):
+        name = _
+
         forwards = [data.copy()]
 
         # Apply forwards
@@ -308,7 +325,7 @@ class TestInverse(unittest.TestCase):
         for i, t in enumerate(reversed(transforms)):
             if isinstance(t, InvertibleTransform):
                 fwd_bck = t.inverse(fwd_bck)
-                self.check_inverse(data.keys(), forwards[-i - 2], fwd_bck, forwards[-1], acceptable_diff)
+                self.check_inverse(name, data.keys(), forwards[-i - 2], fwd_bck, forwards[-1], acceptable_diff)
 
     # @parameterized.expand(TESTS_FAIL)
     def test_fail(self, data, _, *transform):
@@ -318,6 +335,7 @@ class TestInverse(unittest.TestCase):
 
     # @parameterized.expand(TEST_COMPOSES)
     def test_w_data_loader(self, _, data, acceptable_diff, *transforms):
+        name = _
         transform = transforms[0]
         numel = 2
         test_data = [data for _ in range(numel)]
@@ -328,7 +346,7 @@ class TestInverse(unittest.TestCase):
         for _ in range(num_epochs):
             for data_fwd in dataset:
                 data_fwd_bck = transform.inverse(data_fwd)
-                self.check_inverse(data.keys(), data, data_fwd_bck, data_fwd, acceptable_diff)
+                self.check_inverse(name, data.keys(), data, data_fwd_bck, data_fwd, acceptable_diff)
 
 
 if __name__ == "__main__":
