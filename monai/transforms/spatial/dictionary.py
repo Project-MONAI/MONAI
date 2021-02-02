@@ -194,7 +194,7 @@ class Spacingd(MapTransform):
         return d
 
 
-class Orientationd(MapTransform):
+class Orientationd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Orientation`.
 
@@ -249,7 +249,31 @@ class Orientationd(MapTransform):
         for key in self.keys:
             meta_data = d[f"{key}_{self.meta_key_postfix}"]
             d[key], _, new_affine = self.ornt_transform(d[key], affine=meta_data["affine"])
+            self.append_applied_transforms(d, key, {"old_affine": meta_data["affine"], "new_affine": new_affine})
             meta_data["affine"] = new_affine
+        return d
+
+    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
+        return {
+            "keys": key,
+            "axcodes": self.ornt_transform.axcodes,
+            "as_closest_canonical": self.ornt_transform.as_closest_canonical,
+            "labels": self.ornt_transform.labels,
+            "meta_key_postfix": self.meta_key_postfix,
+        }
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in self.keys:
+            transform = self.get_most_recent_transform(d, key)
+            old_affine = transform["extra_info"]["old_affine"]
+            new_affine = transform["extra_info"]["new_affine"]
+
+            # Inverse is same as forward
+            d[key] = self.flipper(d[key])
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
+
         return d
 
 

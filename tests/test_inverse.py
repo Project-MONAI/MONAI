@@ -21,6 +21,7 @@ from monai.data import create_test_image_2d, create_test_image_3d
 from monai.data import CacheDataset
 from monai.transforms import (
     InvertibleTransform,
+    AddChanneld,
     AddChannel,
     Compose,
     RandRotated,
@@ -32,8 +33,10 @@ from monai.transforms import (
     BorderPadd,
     DivisiblePadd,
     Flipd,
+    LoadImaged,
 )
 from monai.utils import Method, optional_import
+from tests.utils import make_nifti_image
 
 # from parameterized import parameterized
 
@@ -47,13 +50,14 @@ else:
 
 
 IM_1D = AddChannel()(np.arange(0, 10))
-IM_2D = AddChannel()(create_test_image_2d(100, 101)[0])
-IM_3D = AddChannel()(create_test_image_3d(100, 101, 107)[0])
+IM_2D_FNAME, SEG_2D_FNAME = [make_nifti_image(i) for i in create_test_image_2d(100, 101)]
+IM_3D_FNAME, SEG_3D_FNAME = [make_nifti_image(i) for i in create_test_image_3d(100, 101, 107)]
 
-DATA_1D = {"image": IM_1D, "label": IM_1D, "other": IM_1D}
-DATA_2D = {"image": IM_2D, "label": IM_2D, "other": IM_2D}
-DATA_3D = {"image": IM_3D, "label": IM_3D, "other": IM_3D}
 KEYS = ["image", "label"]
+DATA_1D = {"image": IM_1D, "label": IM_1D, "other": IM_1D}
+LOAD_IMS = Compose([LoadImaged(KEYS), AddChanneld(KEYS)])
+DATA_2D = LOAD_IMS({"image": IM_2D_FNAME, "label": SEG_2D_FNAME})
+DATA_3D = LOAD_IMS({"image": IM_3D_FNAME, "label": SEG_3D_FNAME})
 
 TESTS: List[Tuple] = []
 
@@ -149,6 +153,14 @@ TESTS.append((
     Flipd(KEYS, [1, 2]),
 ))
 
+TESTS.append((
+    "Flipd 3d",
+    DATA_3D,
+    0,
+    Flipd(KEYS, [1, 2]),
+))
+
+
 # TODO: add 3D
 for data in [DATA_2D]:  # , DATA_3D]:
     ndim = data['image'].ndim
@@ -175,7 +187,7 @@ TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for
 TESTS = [*TESTS, *TESTS_COMPOSE_X2]
 
 
-TEST_FAIL_0 = (IM_2D, 0.0, Compose([SpatialPad(spatial_size=[101, 103])]))
+TEST_FAIL_0 = (DATA_2D["image"], 0.0, Compose([SpatialPad(spatial_size=[101, 103])]))
 TESTS_FAIL = [TEST_FAIL_0]
 
 def plot_im(orig, fwd_bck, fwd):
@@ -204,14 +216,19 @@ class TestInverse(unittest.TestCase):
             orig = orig_d[key]
             fwd_bck = fwd_bck_d[key]
             unmodified = unmodified_d[key]
-            mean_diff = np.mean(np.abs(orig - fwd_bck))
-            try:
-                self.assertLessEqual(mean_diff, acceptable_diff)
-            except AssertionError:
-                if has_matplotlib:
-                    print(f"Mean diff = {mean_diff} (expected <= {acceptable_diff})")
-                    plot_im(orig, fwd_bck, unmodified)
-                raise
+            if isinstance(orig, dict):
+                self.assertEqual(orig.keys(), fwd_bck.keys())
+                for a, b in zip(orig.values(), fwd_bck.values()):
+                    self.assertTrue(np.all(a == b) or np.all(np.isnan(a) & np.isnan(b)))
+            else:
+                mean_diff = np.mean(np.abs(orig - fwd_bck))
+                try:
+                    self.assertLessEqual(mean_diff, acceptable_diff)
+                except AssertionError:
+                    if has_matplotlib:
+                        print(f"Mean diff = {mean_diff} (expected <= {acceptable_diff})")
+                        plot_im(orig, fwd_bck, unmodified)
+                    raise
 
     # @parameterized.expand(TESTS)
     def test_inverse(self, _, data, acceptable_diff, *transforms):
