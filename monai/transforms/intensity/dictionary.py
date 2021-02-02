@@ -21,7 +21,7 @@ from typing import Any, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple
 import numpy as np
 import torch
 
-from monai.config import KeysCollection
+from monai.config import DtypeLike, KeysCollection
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.intensity.array import (
     AdjustContrast,
@@ -296,7 +296,7 @@ class NormalizeIntensityd(MapTransform):
         divisor: Optional[np.ndarray] = None,
         nonzero: bool = False,
         channel_wise: bool = False,
-        dtype: np.dtype = np.float32,
+        dtype: DtypeLike = np.float32,
     ) -> None:
         super().__init__(keys)
         self.normalizer = NormalizeIntensity(subtrahend, divisor, nonzero, channel_wise, dtype)
@@ -476,7 +476,7 @@ class MaskIntensityd(MapTransform):
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
-        mask_data: if mask data is single channel, apply to evey channel
+        mask_data: if mask data is single channel, apply to every channel
             of input image. if multiple channels, the channel number must
             match input data. mask_data will be converted to `bool` values
             by `mask_data > 0` before applying transform to input image.
