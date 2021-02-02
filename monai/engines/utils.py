@@ -32,7 +32,7 @@ __all__ = [
 
 class IterationEvents(EventEnum):
     """
-    Addtional Events engine can register and trigger in the iteration process.
+    Additional Events engine can register and trigger in the iteration process.
     Refer to the example in ignite: https://github.com/pytorch/ignite/blob/master/ignite/engine/events.py#L146
     These Events can be triggered during training iteration:
     `FORWARD_COMPLETED` is the Event when `network(image, label)` completed.

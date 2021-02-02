@@ -19,7 +19,7 @@ from typing import Optional, Union
 
 import numpy as np
 
-from monai.config import KeysCollection
+from monai.config import DtypeLike, KeysCollection
 from monai.data.image_reader import ImageReader
 from monai.transforms.io.array import LoadImage
 from monai.transforms.transform import MapTransform
@@ -52,7 +52,7 @@ class LoadImaged(MapTransform):
         self,
         keys: KeysCollection,
         reader: Optional[Union[ImageReader, str]] = None,
-        dtype: Optional[np.dtype] = np.float32,
+        dtype: DtypeLike = np.float32,
         meta_key_postfix: str = "meta_dict",
         overwriting: bool = False,
         *args,

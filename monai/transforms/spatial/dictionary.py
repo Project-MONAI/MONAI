@@ -21,7 +21,7 @@ from typing import Any, Dict, Hashable, Mapping, Optional, Sequence, Tuple, Unio
 import numpy as np
 import torch
 
-from monai.config import KeysCollection
+from monai.config import DtypeLike, KeysCollection
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.croppad.array import CenterSpatialCrop
 from monai.transforms.spatial.array import (
@@ -121,7 +121,7 @@ class Spacingd(MapTransform):
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
         align_corners: Union[Sequence[bool], bool] = False,
-        dtype: Optional[Union[Sequence[np.dtype], np.dtype]] = np.float64,
+        dtype: Optional[Union[Sequence[DtypeLike], DtypeLike]] = np.float64,
         meta_key_postfix: str = "meta_dict",
     ) -> None:
         """
@@ -153,7 +153,7 @@ class Spacingd(MapTransform):
             dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
-                It also can be a sequence of np.dtype, each element corresponds to a key in ``keys``.
+                It also can be a sequence of dtypes, each element corresponds to a key in ``keys``.
             meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
                 default is `meta_dict`, the meta data is a dictionary object.
                 For example, to handle key `image`,  read/write affine matrices from the
@@ -176,13 +176,13 @@ class Spacingd(MapTransform):
     def __call__(
         self, data: Mapping[Union[Hashable, str], Dict[str, np.ndarray]]
     ) -> Dict[Union[Hashable, str], Union[np.ndarray, Dict[str, np.ndarray]]]:
-        d = dict(data)
+        d: Dict = dict(data)
         for idx, key in enumerate(self.keys):
             meta_data = d[f"{key}_{self.meta_key_postfix}"]
             # resample array of each corresponding key
             # using affine fetched from d[affine_key]
             d[key], _, new_affine = self.spacing_transform(
-                data_array=d[key],
+                data_array=np.asarray(d[key]),
                 affine=meta_data["affine"],
                 mode=self.mode[idx],
                 padding_mode=self.padding_mode[idx],
@@ -245,7 +245,7 @@ class Orientationd(MapTransform):
     def __call__(
         self, data: Mapping[Union[Hashable, str], Dict[str, np.ndarray]]
     ) -> Dict[Union[Hashable, str], Union[np.ndarray, Dict[str, np.ndarray]]]:
-        d = dict(data)
+        d: Dict = dict(data)
         for key in self.keys:
             meta_data = d[f"{key}_{self.meta_key_postfix}"]
             d[key], _, new_affine = self.ornt_transform(d[key], affine=meta_data["affine"])
@@ -795,7 +795,7 @@ class Rotated(MapTransform, InvertibleTransform):
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
         align_corners: Union[Sequence[bool], bool] = False,
-        dtype: Union[Sequence[Optional[np.dtype]], Optional[np.dtype]] = np.float64,
+        dtype: Union[Sequence[DtypeLike], DtypeLike] = np.float64,
     ) -> None:
         super().__init__(keys)
         self.rotator = Rotate(angle=angle, keep_size=keep_size)
@@ -902,7 +902,7 @@ class RandRotated(Randomizable, MapTransform, InvertibleTransform):
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
         align_corners: Union[Sequence[bool], bool] = False,
-        dtype: Union[Sequence[Optional[np.dtype]], Optional[np.dtype]] = np.float64,
+        dtype: Union[Sequence[DtypeLike], DtypeLike] = np.float64,
     ) -> None:
         MapTransform.__init__(self, keys)
         Randomizable.__init__(self, prob)
