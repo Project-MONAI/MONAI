@@ -981,7 +981,7 @@ class RandRotated(Randomizable, MapTransform, InvertibleTransform):
             for key in self.keys:
                 self.append_applied_transforms(d, key)
             return d
-        angle: Sequence = (self.x if d[self.keys[0]].ndim == 3 else (self.x, self.y, self.z),)
+        angle: Sequence = self.x if d[self.keys[0]].ndim == 3 else (self.x, self.y, self.z)
         rotator = Rotate(
             angle=angle,
             keep_size=self.keep_size,

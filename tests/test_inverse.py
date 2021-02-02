@@ -35,7 +35,7 @@ from monai.transforms import (
     Flipd,
     LoadImaged,
 )
-from monai.utils import Method, optional_import
+from monai.utils import optional_import, set_determinism
 from tests.utils import make_nifti_image
 
 # from parameterized import parameterized
@@ -47,6 +47,8 @@ if TYPE_CHECKING:
     has_matplotlib = True
 else:
     plt, has_matplotlib = optional_import("matplotlib.pyplot")
+
+set_determinism(seed=0)
 
 
 IM_1D = AddChannel()(np.arange(0, 10))
@@ -62,50 +64,50 @@ DATA_3D = LOAD_IMS({"image": IM_3D_FNAME, "label": SEG_3D_FNAME})
 TESTS: List[Tuple] = []
 
 TESTS.append((
-    "Spatial 2d",
+    "SpatialPadd (x2) 2d",
     DATA_2D,
     0.0,
-    SpatialPadd(KEYS, spatial_size=[111, 113], method=Method.END),
+    SpatialPadd(KEYS, spatial_size=[111, 113], method="end"),
     SpatialPadd(KEYS, spatial_size=[118, 117]),
 ))
 
 TESTS.append((
-    "Spatial 3d",
+    "SpatialPadd 3d",
     DATA_3D,
     0.0,
     SpatialPadd(KEYS, spatial_size=[112, 113, 116]),
 ))
 
 TESTS.append((
-    "Rand, prob 0",
+    "RandRotated, prob 0",
     DATA_2D,
     0,
     RandRotated(KEYS, prob=0),
 ))
 
 TESTS.append((
-    "Spatial crop 2d",
+    "SpatialCropd 2d",
     DATA_2D,
     2e-2,
     SpatialCropd(KEYS, [49, 51], [90, 89]),
 ))
 
 TESTS.append((
-    "Spatial crop 3d",
+    "SpatialCropd 3d",
     DATA_3D,
     2e-2,
     SpatialCropd(KEYS, [49, 51, 44], [90, 89, 93]),
 ))
 
 TESTS.append((
-    "Rand spatial crop 2d",
+    "RandSpatialCropd 2d",
     DATA_2D,
     2e-2,
     RandSpatialCropd(KEYS, [96, 93], True, False)
 ))
 
 TESTS.append((
-    "Rand spatial crop 3d",
+    "RandSpatialCropd 3d",
     DATA_3D,
     2e-2,
     RandSpatialCropd(KEYS, [96, 93, 92], False, True)
@@ -160,27 +162,27 @@ TESTS.append((
     Flipd(KEYS, [1, 2]),
 ))
 
+TESTS.append((
+    "Rotated 2d",
+    DATA_2D,
+    6e-2,
+    Rotated(KEYS, random.uniform(np.pi / 6, np.pi), keep_size=True, align_corners=False),
+))
 
-# TODO: add 3D
-for data in [DATA_2D]:  # , DATA_3D]:
-    ndim = data['image'].ndim
-    for keep_size in [True, False]:
-        for align_corners in [False, True]:
-            angle = random.uniform(np.pi / 6, np.pi)
-            TESTS.append((
-                f"Rotate{ndim}d, keep_size={keep_size}, align_corners={align_corners}",
-                data,
-                5e-2,
-                Rotated(KEYS, angle, keep_size, "bilinear", "border", align_corners),
-            ))
+TESTS.append((
+    "RandRotated 2d",
+    DATA_2D,
+    6e-2,
+    RandRotated(KEYS, random.uniform(np.pi / 6, np.pi)),
+))
 
-    x, y, z = (random.uniform(np.pi / 6, np.pi) for _ in range(3))
-    TESTS.append((
-        f"RandRotate{ndim}d",
-        data,
-        5e-2,
-        RandRotated(KEYS, x, y, z, 1),
-    ))
+# TODO: add 3D (can replace RandRotated 2d)
+# TESTS.append((
+#     "RandRotated 3d",
+#     DATA_3D,
+#     5e-2,
+#     RandRotated(KEYS, *(random.uniform(np.pi / 6, np.pi) for _ in range(3)), 1),
+# ))
 
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
 
