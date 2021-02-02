@@ -10,11 +10,14 @@
 # limitations under the License.
 
 import collections.abc
+import inspect
 import itertools
 import random
+import types
+import warnings
 from ast import literal_eval
 from distutils.util import strtobool
-from typing import Any, Callable, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 import torch
@@ -37,6 +40,7 @@ __all__ = [
     "dtype_torch_to_numpy",
     "dtype_numpy_to_torch",
     "MAX_SEED",
+    "copy_to_device",
 ]
 
 _seed = None
@@ -72,7 +76,7 @@ def issequenceiterable(obj: Any) -> bool:
     """
     Determine if the object is an iterable sequence and is not a string.
     """
-    if torch.is_tensor(obj):
+    if isinstance(obj, torch.Tensor):
         return int(obj.dim()) > 0  # a 0-d tensor is not iterable
     return isinstance(obj, collections.abc.Iterable) and not isinstance(obj, str)
 
@@ -126,7 +130,9 @@ def ensure_tuple_rep(tup: Any, dim: int) -> Tuple[Any, ...]:
     raise ValueError(f"Sequence must have length {dim}, got {len(tup)}.")
 
 
-def fall_back_tuple(user_provided: Any, default: Sequence, func: Callable = lambda x: x and x > 0) -> Tuple[Any, ...]:
+def fall_back_tuple(
+    user_provided: Any, default: Union[Sequence, np.ndarray], func: Callable = lambda x: x and x > 0
+) -> Tuple[Any, ...]:
     """
     Refine `user_provided` according to the `default`, and returns as a validated tuple.
 
@@ -171,13 +177,13 @@ def fall_back_tuple(user_provided: Any, default: Sequence, func: Callable = lamb
 
 
 def is_scalar_tensor(val: Any) -> bool:
-    if torch.is_tensor(val) and val.ndim == 0:
+    if isinstance(val, torch.Tensor) and val.ndim == 0:
         return True
     return False
 
 
 def is_scalar(val: Any) -> bool:
-    if torch.is_tensor(val) and val.ndim == 0:
+    if isinstance(val, torch.Tensor) and val.ndim == 0:
         return True
     return bool(np.isscalar(val))
 
@@ -283,7 +289,7 @@ def list_to_dict(items):
 
 
 _torch_to_np_dtype = {
-    torch.bool: np.bool,
+    torch.bool: bool,
     torch.uint8: np.uint8,
     torch.int8: np.int8,
     torch.int16: np.int16,
@@ -306,3 +312,40 @@ def dtype_torch_to_numpy(dtype):
 def dtype_numpy_to_torch(dtype):
     """Convert a numpy dtype to its torch equivalent."""
     return _np_to_torch_dtype[dtype]
+
+
+def copy_to_device(
+    obj: Any,
+    device: Optional[Union[str, torch.device]],
+    non_blocking: bool = True,
+    verbose: bool = False,
+) -> Any:
+    """
+    Copy object or tuple/list/dictionary of objects to ``device``.
+
+    Args:
+        obj: object or tuple/list/dictionary of objects to move to ``device``.
+        device: move ``obj`` to this device. Can be a string (e.g., ``cpu``, ``cuda``,
+            ``cuda:0``, etc.) or of type ``torch.device``.
+        non_blocking_transfer: when `True`, moves data to device asynchronously if
+            possible, e.g., moving CPU Tensors with pinned memory to CUDA devices.
+        verbose: when `True`, will print a warning for any elements of incompatible type
+            not copied to ``device``.
+    Returns:
+        Same as input, copied to ``device`` where possible. Original input will be
+            unchanged.
+    """
+
+    if hasattr(obj, "to"):
+        return obj.to(device, non_blocking=non_blocking)
+    elif isinstance(obj, tuple):
+        return tuple(copy_to_device(o, device, non_blocking) for o in obj)
+    elif isinstance(obj, list):
+        return [copy_to_device(o, device, non_blocking) for o in obj]
+    elif isinstance(obj, dict):
+        return {k: copy_to_device(o, device, non_blocking) for k, o in obj.items()}
+    elif verbose:
+        fn_name = cast(types.FrameType, inspect.currentframe()).f_code.co_name
+        warnings.warn(f"{fn_name} called with incompatible type: " + f"{type(obj)}. Data will be returned unchanged.")
+
+    return obj

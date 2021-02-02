@@ -56,13 +56,13 @@ TEST_CASES = [
 class TestDiceCELoss(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_result(self, input_param, input_data, expected_val):
-        result = DiceCELoss(**input_param).forward(**input_data)
+        result = DiceCELoss(**input_param)(**input_data)
         np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, atol=1e-4, rtol=1e-4)
 
     def test_ill_shape(self):
         loss = DiceCELoss()
         with self.assertRaisesRegex(ValueError, ""):
-            loss.forward(torch.ones((1, 2, 3)), torch.ones((1, 1, 2, 3)))
+            loss(torch.ones((1, 2, 3)), torch.ones((1, 1, 2, 3)))
 
 
 if __name__ == "__main__":

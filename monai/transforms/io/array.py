@@ -17,6 +17,7 @@ from typing import List, Optional, Sequence, Union
 
 import numpy as np
 
+from monai.config import DtypeLike
 from monai.data.image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader
 from monai.transforms.compose import Transform
 from monai.utils import ensure_tuple, optional_import
@@ -42,7 +43,7 @@ class LoadImage(Transform):
         self,
         reader: Optional[Union[ImageReader, str]] = None,
         image_only: bool = False,
-        dtype: np.dtype = np.float32,
+        dtype: DtypeLike = np.float32,
         *args,
         **kwargs,
     ) -> None:

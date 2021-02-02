@@ -86,7 +86,7 @@ class PNGSaver:
         self._data_index += 1
         spatial_shape = meta_data.get("spatial_shape", None) if meta_data and self.resample else None
 
-        if torch.is_tensor(data):
+        if isinstance(data, torch.Tensor):
             data = data.detach().cpu().numpy()
 
         filename = create_file_basename(self.output_postfix, filename, self.output_dir)
@@ -95,12 +95,12 @@ class PNGSaver:
         if data.shape[0] == 1:
             data = data.squeeze(0)
         elif 2 < data.shape[0] < 5:
-            data = np.moveaxis(data, 0, -1)
+            data = np.moveaxis(np.asarray(data), 0, -1)
         else:
             raise ValueError(f"Unsupported number of channels: {data.shape[0]}, available options are [1, 3, 4]")
 
         write_png(
-            data,
+            np.asarray(data),
             file_name=filename,
             output_spatial_shape=spatial_shape,
             mode=self.mode,
