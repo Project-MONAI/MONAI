@@ -110,7 +110,7 @@ def write_metrics_reports(
             list of strings - generate summary report for every metric_details with specified operations, they
             should be within this list: [`mean`, `median`, `max`, `min`, `90percent`, `std`].
             default to None.
-        deli: the delimiter charactor in the file, default to "\t".
+        deli: the delimiter character in the file, default to "\t".
         output_type: expected output file type, supported types: ["csv"], default to "csv".
 
     """

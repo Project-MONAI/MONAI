@@ -96,7 +96,7 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
         # save score of every image into engine.state for other components
         if self.save_details:
             if self._engine is None or self._name is None:
-                raise RuntimeError("plesae call the attach() function to connect expected engine first.")
+                raise RuntimeError("please call the attach() function to connect expected engine first.")
             self._engine.state.metric_details[self._name] = _scores
 
         result: torch.Tensor = torch.zeros(1)
