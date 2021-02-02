@@ -28,16 +28,18 @@ if TYPE_CHECKING:
     from itk import Image  # type: ignore
     from nibabel.nifti1 import Nifti1Image
     from PIL import Image as PILImage
+    import cuimage
 
-    has_itk = has_nib = has_pil = True
+    has_itk = has_nib = has_pil = has_cux = True
 else:
     itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
     Image, _ = optional_import("itk", allow_namespace_pkg=True, name="Image")
     nib, has_nib = optional_import("nibabel")
     Nifti1Image, _ = optional_import("nibabel.nifti1", name="Nifti1Image")
     PILImage, has_pil = optional_import("PIL.Image")
+    cuimage, has_cux = optional_import("cuimage")
 
-__all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReader"]
+__all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReader", "CuImageReader"]
 
 
 class ImageReader(ABC):
@@ -598,3 +600,96 @@ class PILReader(ImageReader):
             img: a PIL Image object loaded from a image file.
         """
         return np.asarray((img.width, img.height))
+
+
+class CuImageReader(ImageReader):
+    """
+    Extraxt 2D patches from TIFF image file(s)
+
+    Args:
+        converter: additional function to convert the image data after `read()`.
+    """
+
+    def __init__(self, converter: Optional[Callable] = None):
+        super().__init__()
+        self.converter = converter
+
+    def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
+        """
+        Verify whether the specified file or files format is supported by WSI reader.
+
+        Args:
+            filename: file name or a list of file names to read.
+                if a list of files, verify all the suffixes.
+        """
+        return has_cux and is_supported_format(filename, ["tif", "tiff"])
+
+    def read(self, data: Union[Sequence[str], str, np.ndarray]):
+        """
+        Read image data from specified file or files.
+        Note that the returned object is CuImage or list of CuImages.
+
+        Args:
+            data: file name or a list of file names to read.
+
+        """
+        img_: List[CuImage] = []
+
+        filenames: Sequence[str] = ensure_tuple(data)
+        for name in filenames:
+            img = cuimage.CuImage(name)
+            img_.append(img)
+
+        return img_ if len(filenames) > 1 else img_[0]
+
+    def get_data(self, img_obj, location=(0, 0), size=None, level=0, dtype=np.uint8):
+        """
+        Extract regions as numpy array from WSI image and return them.
+
+        Args:
+            img:      a CuImage Image object loaded from a file, or list of CuImage objects
+            location: (x_min, y_min) tuple giving the top left pixel in the level 0 reference frame, or list of tuples (default=(0, 0))
+            size:     (width, height) tuple giving the region size, or list of tuples (default=(wsi_width, wsi_height))
+            level:    the level number, or list of level numbers (default=0)
+
+        """
+        # img_obj_list = ensure_tuple(img_obj)
+        # n_images = len(img_obj_list)
+        if size is None:
+            if location == (0, 0):
+                # the maximum size is set to WxH
+                size = (img_obj.shape[1], img_obj.shape[0])
+                print('Size is set to maximum size: ', size)
+            else:
+                print('Size need to be provided!')
+                return
+        
+        raw_region = img_obj.read_region(location=location, size=size, level=level)
+        region = np.asarray(raw_region, dtype=dtype)
+        # CuImage: (H x W x C) -> torch image: (C X H X W)
+        region = region.transpose((2, 0, 1))
+
+        return region
+
+    
+    def _extract_region(self, img_obj, location=(0, 0), size=None, level=0, dtype=np.uint8):
+        image_path, location, labels = self.samples[index]
+
+        # correct the out-of-boundary regions
+        slide = self.cu_image_dict[image_path]
+        location, region_size, x_pad, y_pad = self.correct_boundries(slide, location)
+
+        # read region from WSI image
+        raw_region = slide.read_region(location=location, size=region_size, level=0)
+        if self.use_openslide:
+            raw_region = raw_region.convert("RGB")
+
+        if (region_size[0] < self.region_size[0]) or (region_size[1] < self.region_size[1]):
+            region = np.ones((self.region_size[0], self.region_size[1], 3), dtype=np.uint8) * 255
+            region[y_pad[0] : y_pad[1], x_pad[0] : x_pad[1]] = np.asarray(raw_region, dtype=np.uint8)
+        else:
+            region = np.asarray(raw_region, dtype=np.uint8)
+
+        # cuClara image: (H x W x C) -> torch image: (C X H X W)
+        region = region.transpose((2, 0, 1))
+        return region, labels
