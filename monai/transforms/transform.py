@@ -252,10 +252,11 @@ class InvertibleTransform(ABC):
             if np.any(t1[k] != t2[k]):
                 raise RuntimeError(explanation)
 
-    def get_most_recent_transform(self, data: dict, key: Hashable) -> dict:
+    def get_most_recent_transform(self, data: dict, key: Hashable, check: bool = True) -> dict:
         """Get most recent transform."""
         transform = dict(data[str(key) + "_transforms"][-1])
-        self.check_transforms_match(transform, key)
+        if check:
+            self.check_transforms_match(transform, key)
         return transform
 
     @staticmethod

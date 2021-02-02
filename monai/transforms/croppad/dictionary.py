@@ -353,7 +353,7 @@ class SpatialCropd(MapTransform, InvertibleTransform):
         return d
 
 
-class CenterSpatialCropd(MapTransform):
+class CenterSpatialCropd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.CenterSpatialCrop`.
 
@@ -371,9 +371,40 @@ class CenterSpatialCropd(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
+            self.append_applied_transforms(d, key)
             d[key] = self.cropper(d[key])
+            # cropper will modify `roi_size` key, so update it
+            self.get_most_recent_transform(d, key, False)["init_args"]["roi_size"] = self.cropper.roi_size
         return d
 
+    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
+        return {
+            "keys": key,
+            "roi_size": self.cropper.roi_size,
+        }
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+
+        for key in self.keys:
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            orig_size = np.array(transform["orig_size"])
+            current_size = np.array(transform["init_args"]["roi_size"])
+            pad_to_start = np.floor((orig_size - current_size) / 2)
+            # in each direction, if original size is even and current size is odd, += 1
+            pad_to_start[np.logical_and(orig_size % 2 == 0, current_size % 2 == 1)] += 1
+            pad_to_end = orig_size - current_size - pad_to_start
+            pad = np.empty((2 * len(orig_size)), dtype=np.int32)
+            pad[0::2] = pad_to_start
+            pad[1::2] = pad_to_end
+            inverse_transform = BorderPad(pad.tolist())
+            # Apply inverse transform
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
+
+        return d
 
 class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
     """
