@@ -99,7 +99,7 @@ class LocalNet(nn.Module):
             if size % (2 ** self.extract_max_level) != 0:
                 raise ValueError(
                     f"given extract_max_level {self.extract_max_level}, "
-                    f"all input spatial dimension must be devidable by {2 ** self.extract_max_level}, "
+                    f"all input spatial dimension must be divisible by {2 ** self.extract_max_level}, "
                     f"got input of size {image_size}"
                 )
         mid_features = []  # 0 -> self.extract_max_level - 1
