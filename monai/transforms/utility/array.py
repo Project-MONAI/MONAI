@@ -21,7 +21,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike, NdarrayTensor
-from monai.transforms.compose import Randomizable, Transform
+from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points, map_binary_to_indices
 from monai.utils import ensure_tuple, min_version, optional_import
 

@@ -19,7 +19,7 @@ import numpy as np
 
 from monai.config import DtypeLike
 from monai.data.image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader
-from monai.transforms.compose import Transform
+from monai.transforms.transform import Transform
 from monai.utils import ensure_tuple, optional_import
 
 nib, _ = optional_import("nibabel")
