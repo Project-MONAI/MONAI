@@ -35,7 +35,7 @@ from monai.transforms.intensity.array import (
     ShiftIntensity,
     ThresholdIntensity,
 )
-from monai.utils import dtype_torch_to_numpy, ensure_tuple_size
+from monai.utils import dtype_torch_to_numpy, ensure_tuple_rep, ensure_tuple_size
 
 __all__ = [
     "RandGaussianNoised",
@@ -110,7 +110,7 @@ class RandGaussianNoised(Randomizable, MapTransform):
     ) -> None:
         super().__init__(keys)
         self.prob = prob
-        self.mean = ensure_tuple_size(mean, len(self.keys), mean)
+        self.mean = ensure_tuple_rep(mean, len(self.keys))
         self.std = std
         self._do_transform = False
         self._noise: List[np.ndarray] = []
