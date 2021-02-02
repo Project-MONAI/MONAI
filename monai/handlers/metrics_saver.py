@@ -52,7 +52,7 @@ class MetricsSaver:
             should be within this list: [`mean`, `median`, `max`, `min`, `90percent`, `std`].
             default to None.
         save_rank: only the handler on specified rank will save to files in multi-gpus validation, default to 0.
-        delimiter: the delimiter charactor in CSV file, default to "\t".
+        delimiter: the delimiter character in CSV file, default to "\t".
         output_type: expected output file type, supported types: ["csv"], default to "csv".
 
     """

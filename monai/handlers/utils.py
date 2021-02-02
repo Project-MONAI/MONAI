@@ -63,7 +63,7 @@ def evenly_divisible_all_gather(data: torch.Tensor) -> torch.Tensor:
         data: source tensor to pad and execute all_gather in distributed data parallel.
 
     """
-    if not torch.is_tensor(data):
+    if not isinstance(data, torch.Tensor):
         raise ValueError("input data must be PyTorch Tensor.")
 
     if idist.get_world_size() <= 1:
@@ -134,7 +134,7 @@ def write_metrics_reports(
             list of strings - generate summary report for every metric_details with specified operations, they
             should be within this list: [`mean`, `median`, `max`, `min`, `90percent`, `std`].
             default to None.
-        deli: the delimiter charactor in the file, default to "\t".
+        deli: the delimiter character in the file, default to "\t".
         output_type: expected output file type, supported types: ["csv"], default to "csv".
 
     """
@@ -151,7 +151,7 @@ def write_metrics_reports(
 
     if metric_details is not None and len(metric_details) > 0:
         for k, v in metric_details.items():
-            if torch.is_tensor(v):
+            if isinstance(v, torch.Tensor):
                 v = v.cpu().numpy()
             if v.ndim == 0:
                 # reshape to [1, 1] if no batch and class dims
@@ -186,5 +186,5 @@ def write_metrics_reports(
 
                 with open(os.path.join(save_dir, f"{k}_summary.csv"), "w") as f:
                     f.write(f"class{deli}{deli.join(ops)}\n")
-                    for i, c in enumerate(v.transpose()):
+                    for i, c in enumerate(np.transpose(v)):
                         f.write(f"{class_labels[i]}{deli}{deli.join([f'{supported_ops[k](c):.4f}' for k in ops])}\n")
