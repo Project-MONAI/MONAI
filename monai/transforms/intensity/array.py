@@ -515,9 +515,9 @@ class MaskIntensity(Transform):
     data will be set to `0`, others will keep the original value.
 
     Args:
-        mask_data: if mask data is single channel, apply to evey channel
-            of input image. if multiple channels, the channel number must
-            match input data. mask_data will be converted to `bool` values
+        mask_data: if `mask_data` is single channel, apply to every channel
+            of input image. if multiple channels, the number of channels must
+            match the input data. `mask_data` will be converted to `bool` values
             by `mask_data > 0` before applying transform to input image.
 
     """
@@ -528,13 +528,14 @@ class MaskIntensity(Transform):
     def __call__(self, img: np.ndarray, mask_data: Optional[np.ndarray] = None) -> np.ndarray:
         """
         Args:
-            mask_data: if mask data is single channel, apply to evey channel
+            mask_data: if mask data is single channel, apply to every channel
                 of input image. if multiple channels, the channel number must
                 match input data. mask_data will be converted to `bool` values
                 by `mask_data > 0` before applying transform to input image.
 
         Raises:
-            ValueError: When ``mask_data`` and ``img`` channels differ and ``mask_data`` is not single channel.
+            - ValueError: When both ``mask_data`` and ``self.mask_data`` are None.
+            - ValueError: When ``mask_data`` and ``img`` channels differ and ``mask_data`` is not single channel.
 
         """
         if self.mask_data is None and mask_data is None:

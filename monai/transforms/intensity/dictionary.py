@@ -474,7 +474,7 @@ class MaskIntensityd(MapTransform):
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
-        mask_data: if mask data is single channel, apply to evey channel
+        mask_data: if mask data is single channel, apply to every channel
             of input image. if multiple channels, the channel number must
             match input data. mask_data will be converted to `bool` values
             by `mask_data > 0` before applying transform to input image.
