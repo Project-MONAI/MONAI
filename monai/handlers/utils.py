@@ -11,12 +11,12 @@
 
 import os
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Union, List
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Union
 
 import numpy as np
 import torch
 
-from monai.utils import ensure_tuple, exact_version, optional_import, get_torch_version_tuple
+from monai.utils import ensure_tuple, exact_version, get_torch_version_tuple, optional_import
 
 idist, _ = optional_import("ignite", "0.4.2", exact_version, "distributed")
 if TYPE_CHECKING:
@@ -94,7 +94,7 @@ def string_list_all_gather(strings: List[str], delimiter: str = "\t") -> List[st
     """
     if idist.get_world_size() <= 1:
         return strings
-    
+
     _joined = delimiter.join(strings)
     if get_torch_version_tuple() > (1, 6, 0):
         # all gather across all ranks

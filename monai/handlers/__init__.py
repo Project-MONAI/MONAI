@@ -27,9 +27,9 @@ from .surface_distance import SurfaceDistance
 from .tensorboard_handlers import TensorBoardImageHandler, TensorBoardStatsHandler
 from .utils import (
     evenly_divisible_all_gather,
-    string_list_all_gather,
     stopping_fn_from_loss,
     stopping_fn_from_metric,
+    string_list_all_gather,
     write_metrics_reports,
 )
 from .validation_handler import ValidationHandler
