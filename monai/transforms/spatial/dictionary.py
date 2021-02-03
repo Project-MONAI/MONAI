@@ -867,7 +867,7 @@ class Flipd(MapTransform, InvertibleTransform):
         return d
 
 
-class RandFlipd(Randomizable, MapTransform):
+class RandFlipd(Randomizable, MapTransform, InvertibleTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandFlip`.
 
@@ -898,10 +898,31 @@ class RandFlipd(Randomizable, MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         self.randomize()
         d = dict(data)
-        if not self._do_transform:
-            return d
         for key in self.keys:
-            d[key] = self.flipper(d[key])
+            if self._do_transform:
+                d[key] = self.flipper(d[key])
+            self.append_applied_transforms(d, key)
+
+        return d
+
+
+    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
+        return {
+            "keys": key,
+            "spatial_axis": self.flipper.spatial_axis,
+        }
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in self.keys:
+            transform = self.get_most_recent_transform(d, key)
+            # Check if random transform was actually performed (based on `prob`)
+            if transform["do_transform"]:
+                # Inverse is same as forward
+                d[key] = self.flipper(d[key])
+                # Remove the applied transform
+                self.remove_most_recent_transform(d, key)
+
         return d
 
 
