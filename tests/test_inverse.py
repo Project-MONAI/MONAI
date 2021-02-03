@@ -43,6 +43,7 @@ from monai.transforms import (
     RandZoomd,
     RandFlipd,
     RandRotate90d,
+    RandAffined,
 )
 from monai.utils import optional_import, set_determinism
 from tests.utils import make_nifti_image, make_rand_affine
@@ -313,6 +314,13 @@ TESTS.append((
     ResizeWithPadOrCropd(KEYS, [201, 150, 78])
 ))
 
+TESTS.append((
+    "RandAffine 3d",
+    DATA_3D,
+    5e-2,
+    RandAffined(KEYS, [98, 96, 105], 1, rotate_range=np.pi / 6, shear_range=[1, 1, 1], translate_range=[10, 5, -4], scale_range=[0.9, 1, 1.1])
+))
+
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
 
 TESTS = [*TESTS, *TESTS_COMPOSE_X2]
@@ -327,15 +335,17 @@ def plot_im(orig, fwd_bck, fwd):
     fig, axes = plt.subplots(
         1, 4, gridspec_kw={"width_ratios": [orig.shape[1], fwd_bck.shape[1], diff_orig_fwd_bck.shape[1], fwd.shape[1]]}
     )
+    vmin = min(np.array(i).min() for i in [orig, fwd_bck, fwd])
+    vmax = max(np.array(i).max() for i in [orig, fwd_bck, fwd])
     for i, (im, title) in enumerate(
-        zip([orig, fwd_bck, diff_orig_fwd_bck, fwd], ["orig", "fwd_bck", "%% diff", "fwd"])
+        zip([orig, fwd_bck, diff_orig_fwd_bck, fwd], ["x", "f⁻¹fx", "diff", "fx"])
     ):
         ax = axes[i]
-        vmax = max(np.max(i) for i in [orig, fwd_bck, fwd]) if i != 2 else None
-        im = np.squeeze(im)
+        im = np.squeeze(np.array(im))
         while im.ndim > 2:
             im = im[..., im.shape[-1] // 2]
-        im_show = ax.imshow(np.squeeze(im), vmax=vmax)
+        _vmin, _vmax = (vmin, vmax) if i != 2 else (None, None)
+        im_show = ax.imshow(np.squeeze(im), vmin=_vmin, vmax=_vmax)
         ax.set_title(title, fontsize=25)
         ax.axis("off")
         fig.colorbar(im_show, ax=ax)

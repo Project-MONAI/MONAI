@@ -36,6 +36,7 @@ from monai.transforms.spatial.array import (
     Rotate90,
     Spacing,
     Zoom,
+    AffineGrid,
 )
 from monai.transforms.transform import InvertibleTransform, MapTransform, Randomizable
 from monai.transforms.utils import create_grid
@@ -520,7 +521,7 @@ class Resized(MapTransform, InvertibleTransform):
         return d
 
 
-class RandAffined(Randomizable, MapTransform):
+class RandAffined(Randomizable, MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.RandAffine`.
     """
@@ -581,7 +582,8 @@ class RandAffined(Randomizable, MapTransform):
             - :py:class:`monai.transforms.compose.MapTransform`
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
         """
-        MapTransform().__init__(self, keys)
+        MapTransform.__init__(self, keys)
+        Randomizable.__init__(self, prob)
         self.rand_affine = RandAffine(
             prob=prob,
             rotate_range=rotate_range,
@@ -604,6 +606,8 @@ class RandAffined(Randomizable, MapTransform):
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self.rand_affine.randomize()
+        self.prob = self.rand_affine.prob
+        self._do_transform = self.rand_affine._do_transform
 
     def __call__(
         self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
@@ -618,7 +622,70 @@ class RandAffined(Randomizable, MapTransform):
             grid = create_grid(spatial_size=sp_size)
 
         for idx, key in enumerate(self.keys):
+            rag = self.rand_affine.rand_affine_grid
+            extra_info = {
+                "rotate_params": rag.rotate_params,
+                "shear_params": rag.shear_params,
+                "translate_params": rag.translate_params,
+                "scale_params": rag.scale_params,
+                "orig_was_numpy": isinstance(d[key], np.ndarray),
+            }
+            # rotate_params, shear_params, translate_params, scale_params
+            self.append_applied_transforms(d, key, idx, extra_info=extra_info)
             d[key] = self.rand_affine.resampler(d[key], grid, mode=self.mode[idx], padding_mode=self.padding_mode[idx])
+        return d
+
+    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
+        return {
+            "keys": key,
+            "spatial_size": self.rand_affine.spatial_size,
+            "prob": self.rand_affine.prob,
+            "rotate_range": self.rand_affine.rand_affine_grid.rotate_range,
+            "shear_range": self.rand_affine.rand_affine_grid.shear_range,
+            "translate_range": self.rand_affine.rand_affine_grid.translate_range,
+            "scale_range": self.rand_affine.rand_affine_grid.scale_range,
+            "mode": self.rand_affine.mode,
+            "padding_mode": self.rand_affine.padding_mode,
+            "as_tensor_output": self.rand_affine.resampler.as_tensor_output,
+            "device": self.rand_affine.resampler.device,
+        }
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+
+        for key in self.keys:
+            transform = self.get_most_recent_transform(d, key)
+            extra_info = transform["extra_info"]
+            init_args = transform["init_args"]
+            orig_size = transform["orig_size"]
+            # Create inverse transform
+            if transform["do_transform"]:
+                rotate_params = - np.array(extra_info["rotate_params"])
+                shear_params = - np.array(extra_info["shear_params"])
+                translate_params = - np.array(extra_info["translate_params"])
+                scale_params = 1 / np.array(extra_info["scale_params"])
+                if np.sum(rotate_params != 0) >= 2:
+                    raise RuntimeError("RandAffined:inverse not yet implemented for >= 2 rotation directions")
+
+                affine_grid = AffineGrid(
+                    rotate_params=rotate_params.tolist(),
+                    shear_params=shear_params.tolist(),
+                    translate_params=translate_params.tolist(),
+                    scale_params=scale_params.tolist(),
+                    as_tensor_output=init_args["as_tensor_output"],
+                    device=init_args["device"],
+                )
+                grid = affine_grid(orig_size)
+            else:
+                grid = create_grid(spatial_size=orig_size)
+
+            # Apply inverse transform
+            d[key] = self.rand_affine.resampler(d[key], grid, init_args["mode"], init_args["padding_mode"])
+            if extra_info["orig_was_numpy"]:
+                d[key] = d[key].cpu().numpy()
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
+
         return d
 
 
