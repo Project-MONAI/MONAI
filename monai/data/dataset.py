@@ -572,8 +572,8 @@ class SmartCacheDataset(CacheDataset):
         4. Call `shutdown()` when training ends.
 
     Note:
-        This replacement will not work if set the `multiprocessing_context` of DataLoader to `spawn`
-        or on windows(the default multiprocessing method is `spawn`) and set `num_workers` greater than 0 .
+        This replacement will not work if setting the `multiprocessing_context` of DataLoader to `spawn`
+        or on windows(the default multiprocessing method is `spawn`) and setting `num_workers` greater than 0.
 
     """
 
