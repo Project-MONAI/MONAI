@@ -32,6 +32,7 @@ from .enums import (
 )
 from .misc import (
     MAX_SEED,
+    ImageMetaKey,
     copy_to_device,
     dtype_numpy_to_torch,
     dtype_torch_to_numpy,
@@ -41,7 +42,6 @@ from .misc import (
     fall_back_tuple,
     first,
     get_seed,
-    ImageMetaKey,
     is_scalar,
     is_scalar_tensor,
     issequenceiterable,

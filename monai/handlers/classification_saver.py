@@ -14,8 +14,8 @@ from typing import TYPE_CHECKING, Callable, Optional
 
 from monai.data import CSVSaver
 from monai.handlers.utils import evenly_divisible_all_gather, string_list_all_gather
-from monai.utils import exact_version, optional_import
 from monai.utils import ImageMetaKey as Key
+from monai.utils import exact_version, optional_import
 
 idist, _ = optional_import("ignite", "0.4.2", exact_version, "distributed")
 Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
