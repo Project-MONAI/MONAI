@@ -819,7 +819,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         return results
 
 
-class ResizeWithPadOrCropd(MapTransform):
+class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ResizeWithPadOrCrop`.
 
@@ -847,7 +847,32 @@ class ResizeWithPadOrCropd(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
+            self.append_applied_transforms(d, key)
             d[key] = self.padcropper(d[key])
+            # padder will modify `spatial_size`, so update it
+            self.get_most_recent_transform(d, key, False)["init_args"]["spatial_size"] = self.padcropper.padder.spatial_size
+        return d
+
+    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
+        return {
+            "keys": key,
+            "spatial_size": self.padcropper.padder.spatial_size,
+            "mode": self.padcropper.padder.mode,
+        }
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in self.keys:
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            orig_size = transform["orig_size"]
+            mode = transform["init_args"]["mode"]
+            inverse_transform = ResizeWithPadOrCrop(spatial_size=orig_size, mode=mode)
+            # Apply inverse transform
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
+
         return d
 
 
