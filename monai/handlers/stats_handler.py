@@ -27,7 +27,7 @@ DEFAULT_KEY_VAL_FORMAT = "{}: {:.4f} "
 DEFAULT_TAG = "Loss"
 
 
-class StatsHandler(object):
+class StatsHandler:
     """
     StatsHandler defines a set of Ignite Event-handlers for all the log printing logics.
     It's can be used for any Ignite Engine(trainer, validator and evaluator).
@@ -196,10 +196,12 @@ class StatsHandler(object):
                         " {}:{}".format(name, type(value))
                     )
                     continue  # not printing multi dimensional output
-                out_str += self.key_var_format.format(name, value.item() if torch.is_tensor(value) else value)
+                out_str += self.key_var_format.format(name, value.item() if isinstance(value, torch.Tensor) else value)
         else:
             if is_scalar(loss):  # not printing multi dimensional output
-                out_str += self.key_var_format.format(self.tag_name, loss.item() if torch.is_tensor(loss) else loss)
+                out_str += self.key_var_format.format(
+                    self.tag_name, loss.item() if isinstance(loss, torch.Tensor) else loss
+                )
             else:
                 warnings.warn(
                     "ignoring non-scalar output in StatsHandler,"

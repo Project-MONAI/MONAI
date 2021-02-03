@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Callable, List, Optional, Union, cast
+from typing import Callable, Optional, Union, cast
 
 import numpy as np
 import torch
@@ -57,7 +57,7 @@ def compute_roc_auc(
     softmax: bool = False,
     other_act: Optional[Callable] = None,
     average: Union[Average, str] = Average.MACRO,
-) -> Union[np.ndarray, List[float], float]:
+):
     """Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC). Referring to:
     `sklearn.metrics.roc_auc_score <https://scikit-learn.org/stable/modules/generated/
     sklearn.metrics.roc_auc_score.html#sklearn.metrics.roc_auc_score>`_.

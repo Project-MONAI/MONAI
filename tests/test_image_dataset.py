@@ -16,7 +16,7 @@ import unittest
 import nibabel as nib
 import numpy as np
 
-from monai.data import NiftiDataset
+from monai.data import ImageDataset
 from monai.transforms import Randomizable
 
 FILENAMES = ["test1.nii.gz", "test2.nii", "test3.nii.gz"]
@@ -35,7 +35,7 @@ class RandTest(Randomizable):
         return data + self._a
 
 
-class TestNiftiDataset(unittest.TestCase):
+class TestImageDataset(unittest.TestCase):
     def test_dataset(self):
         with tempfile.TemporaryDirectory() as tempdir:
             full_names, ref_data = [], []
@@ -47,46 +47,46 @@ class TestNiftiDataset(unittest.TestCase):
                 nib.save(nib.Nifti1Image(test_image, np.eye(4)), save_path)
 
             # default loading no meta
-            dataset = NiftiDataset(full_names)
+            dataset = ImageDataset(full_names)
             for d, ref in zip(dataset, ref_data):
                 np.testing.assert_allclose(d, ref, atol=1e-3)
 
             # loading no meta, int
-            dataset = NiftiDataset(full_names, dtype=np.float16)
+            dataset = ImageDataset(full_names, dtype=np.float16)
             for d, _ in zip(dataset, ref_data):
                 self.assertEqual(d.dtype, np.float16)
 
             # loading with meta, no transform
-            dataset = NiftiDataset(full_names, image_only=False)
+            dataset = ImageDataset(full_names, image_only=False)
             for d_tuple, ref in zip(dataset, ref_data):
                 d, meta = d_tuple
                 np.testing.assert_allclose(d, ref, atol=1e-3)
                 np.testing.assert_allclose(meta["original_affine"], np.eye(4))
 
             # loading image/label, no meta
-            dataset = NiftiDataset(full_names, seg_files=full_names, image_only=True)
+            dataset = ImageDataset(full_names, seg_files=full_names, image_only=True)
             for d_tuple, ref in zip(dataset, ref_data):
                 img, seg = d_tuple
                 np.testing.assert_allclose(img, ref, atol=1e-3)
                 np.testing.assert_allclose(seg, ref, atol=1e-3)
 
             # loading image/label, no meta
-            dataset = NiftiDataset(full_names, transform=lambda x: x + 1, image_only=True)
+            dataset = ImageDataset(full_names, transform=lambda x: x + 1, image_only=True)
             for d, ref in zip(dataset, ref_data):
                 np.testing.assert_allclose(d, ref + 1, atol=1e-3)
 
             # set seg transform, but no seg_files
             with self.assertRaises(RuntimeError):
-                dataset = NiftiDataset(full_names, seg_transform=lambda x: x + 1, image_only=True)
+                dataset = ImageDataset(full_names, seg_transform=lambda x: x + 1, image_only=True)
                 _ = dataset[0]
 
             # set seg transform, but no seg_files
             with self.assertRaises(RuntimeError):
-                dataset = NiftiDataset(full_names, seg_transform=lambda x: x + 1, image_only=True)
+                dataset = ImageDataset(full_names, seg_transform=lambda x: x + 1, image_only=True)
                 _ = dataset[0]
 
             # loading image/label, with meta
-            dataset = NiftiDataset(
+            dataset = ImageDataset(
                 full_names,
                 transform=lambda x: x + 1,
                 seg_files=full_names,
@@ -100,7 +100,7 @@ class TestNiftiDataset(unittest.TestCase):
                 np.testing.assert_allclose(meta["original_affine"], np.eye(4), atol=1e-3)
 
             # loading image/label, with meta
-            dataset = NiftiDataset(
+            dataset = ImageDataset(
                 full_names, transform=lambda x: x + 1, seg_files=full_names, labels=[1, 2, 3], image_only=False
             )
             for idx, (d_tuple, ref) in enumerate(zip(dataset, ref_data)):
@@ -111,7 +111,7 @@ class TestNiftiDataset(unittest.TestCase):
                 np.testing.assert_allclose(meta["original_affine"], np.eye(4), atol=1e-3)
 
             # loading image/label, with sync. transform
-            dataset = NiftiDataset(
+            dataset = ImageDataset(
                 full_names, transform=RandTest(), seg_files=full_names, seg_transform=RandTest(), image_only=False
             )
             for d_tuple, ref in zip(dataset, ref_data):

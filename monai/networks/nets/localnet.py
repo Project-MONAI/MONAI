@@ -32,15 +32,17 @@ class LocalNet(nn.Module):
         num_channel_initial: int,
         extract_levels: List[int],
         out_activation: Optional[Union[Tuple, str]],
+        out_initializer: str = "kaiming_uniform",
     ) -> None:
         """
         Args:
             spatial_dims: number of spatial dimensions.
             in_channels: number of input channels.
             out_channels: number of output channels.
-            num_channel_initial: number of initial channels,
-            extract_levels: number of extraction levels,
-            out_activation: activation to use at end layer,
+            num_channel_initial: number of initial channels.
+            extract_levels: number of extraction levels.
+            out_activation: activation to use at end layer.
+            out_initializer: initializer for extraction layers.
         """
         super(LocalNet, self).__init__()
         self.extract_levels = extract_levels
@@ -85,6 +87,7 @@ class LocalNet(nn.Module):
                     in_channels=num_channels[level],
                     out_channels=out_channels,
                     act=out_activation,
+                    initializer=out_initializer,
                 )
                 for level in self.extract_levels
             ]
@@ -96,7 +99,7 @@ class LocalNet(nn.Module):
             if size % (2 ** self.extract_max_level) != 0:
                 raise ValueError(
                     f"given extract_max_level {self.extract_max_level}, "
-                    f"all input spatial dimension must be devidable by {2 ** self.extract_max_level}, "
+                    f"all input spatial dimension must be divisible by {2 ** self.extract_max_level}, "
                     f"got input of size {image_size}"
                 )
         mid_features = []  # 0 -> self.extract_max_level - 1

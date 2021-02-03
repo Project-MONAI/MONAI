@@ -96,7 +96,7 @@ def make_animated_gif_summary(
 
     for it_i in range(min(max_out, list(image.shape)[0])):
         one_channel_img: Union[torch.Tensor, np.ndarray] = (
-            image[it_i, :, :, :].squeeze(dim=0) if torch.is_tensor(image) else image[it_i, :, :, :]
+            image[it_i, :, :, :].squeeze(dim=0) if isinstance(image, torch.Tensor) else image[it_i, :, :, :]
         )
         summary_op = _image3_animated_gif(tag + suffix.format(it_i), one_channel_img, scale_factor)
     return summary_op
@@ -182,7 +182,7 @@ def plot_2d_or_3d_image(
         max_frames: number of frames for 2D-t plot.
         tag: tag of the plotted image on TensorBoard.
     """
-    d = data[index].detach().cpu().numpy() if torch.is_tensor(data) else data[index]
+    d = data[index].detach().cpu().numpy() if isinstance(data, torch.Tensor) else data[index]
 
     if d.ndim == 2:
         d = rescale_array(d, 0, 1)

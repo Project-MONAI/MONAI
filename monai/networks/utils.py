@@ -150,7 +150,7 @@ def to_norm_affine(
         ValueError: When ``src_size`` or ``dst_size`` dimensions differ from ``affine``.
 
     """
-    if not torch.is_tensor(affine):
+    if not isinstance(affine, torch.Tensor):
         raise TypeError(f"affine must be a torch.Tensor but is {type(affine).__name__}.")
     if affine.ndimension() != 3 or affine.shape[1] != affine.shape[2]:
         raise ValueError(f"affine must be Nxdxd, got {tuple(affine.shape)}.")

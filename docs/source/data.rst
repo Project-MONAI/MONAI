@@ -63,6 +63,11 @@ Generic Interfaces
   :members:
   :special-members: __getitem__
 
+`ImageDataset`
+~~~~~~~~~~~~~~
+.. autoclass:: ImageDataset
+  :members:
+  :special-members: __getitem__
 
 Patch-based dataset
 -------------------
@@ -103,11 +108,6 @@ PILReader
 
 Nifti format handling
 ---------------------
-
-Reading
-~~~~~~~
-.. autoclass:: monai.data.NiftiDataset
-  :members:
 
 Writing Nifti
 ~~~~~~~~~~~~~

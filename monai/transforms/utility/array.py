@@ -15,11 +15,12 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 import logging
 import time
-from typing import Callable, List, Optional, Sequence, Tuple, TypeVar, Union
+from typing import Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
+from monai.config import DtypeLike, NdarrayTensor
 from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points, map_binary_to_indices
 from monai.utils import ensure_tuple, min_version, optional_import
@@ -45,10 +46,6 @@ __all__ = [
     "AddExtremePointsChannel",
     "TorchVision",
 ]
-
-# Generic type which can represent either a numpy.ndarray or a torch.Tensor
-# Unlike Union can create a dependence between parameter(s) / return(s)
-NdarrayTensor = TypeVar("NdarrayTensor", np.ndarray, torch.Tensor)
 
 
 class Identity(Transform):
@@ -135,7 +132,7 @@ class AddChannel(Transform):
     transforms.
     """
 
-    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
+    def __call__(self, img: NdarrayTensor):
         """
         Apply the transform to `img`.
         """
@@ -209,7 +206,7 @@ class CastToType(Transform):
     specified PyTorch data type.
     """
 
-    def __init__(self, dtype: Union[np.dtype, torch.dtype] = np.float32) -> None:
+    def __init__(self, dtype=np.float32) -> None:
         """
         Args:
             dtype: convert image to this data type, default is `np.float32`.
@@ -217,7 +214,7 @@ class CastToType(Transform):
         self.dtype = dtype
 
     def __call__(
-        self, img: Union[np.ndarray, torch.Tensor], dtype: Optional[Union[np.dtype, torch.dtype]] = None
+        self, img: Union[np.ndarray, torch.Tensor], dtype: Optional[Union[DtypeLike, torch.dtype]] = None
     ) -> Union[np.ndarray, torch.Tensor]:
         """
         Apply the transform to `img`, assuming `img` is a numpy array or PyTorch Tensor.
@@ -230,8 +227,8 @@ class CastToType(Transform):
 
         """
         if isinstance(img, np.ndarray):
-            return img.astype(self.dtype if dtype is None else dtype)
-        if torch.is_tensor(img):
+            return img.astype(self.dtype if dtype is None else dtype)  # type: ignore
+        if isinstance(img, torch.Tensor):
             return torch.as_tensor(img, dtype=self.dtype if dtype is None else dtype)
         raise TypeError(f"img must be one of (numpy.ndarray, torch.Tensor) but is {type(img).__name__}.")
 
@@ -245,7 +242,7 @@ class ToTensor(Transform):
         """
         Apply the transform to `img` and make it contiguous.
         """
-        if torch.is_tensor(img):
+        if isinstance(img, torch.Tensor):
             return img.contiguous()
         return torch.as_tensor(np.ascontiguousarray(img))
 
@@ -259,7 +256,7 @@ class ToNumpy(Transform):
         """
         Apply the transform to `img` and make it contiguous.
         """
-        if torch.is_tensor(img):
+        if isinstance(img, torch.Tensor):
             img = img.detach().cpu().numpy()  # type: ignore
         return np.ascontiguousarray(img)
 
@@ -276,7 +273,7 @@ class Transpose(Transform):
         """
         Apply the transform to `img`.
         """
-        return img.transpose(self.indices)
+        return img.transpose(self.indices)  # type: ignore
 
 
 class SqueezeDim(Transform):
@@ -303,7 +300,7 @@ class SqueezeDim(Transform):
         Args:
             img: numpy arrays with required dimension `dim` removed
         """
-        return img.squeeze(self.dim)
+        return img.squeeze(self.dim)  # type: ignore
 
 
 class DataStats(Transform):
@@ -372,7 +369,7 @@ class DataStats(Transform):
         if self.value_range if value_range is None else value_range:
             if isinstance(img, np.ndarray):
                 lines.append(f"Value range: ({np.min(img)}, {np.max(img)})")
-            elif torch.is_tensor(img):
+            elif isinstance(img, torch.Tensor):
                 lines.append(f"Value range: ({torch.min(img)}, {torch.max(img)})")
             else:
                 lines.append(f"Value range: (not a PyTorch or Numpy array, type: {type(img)})")
@@ -497,7 +494,7 @@ class LabelToMask(Transform):
 
     def __call__(
         self, img: np.ndarray, select_labels: Optional[Union[Sequence[int], int]] = None, merge_channels: bool = False
-    ) -> np.ndarray:
+    ):
         """
         Args:
             select_labels: labels to generate mask from. for 1 channel label, the `select_labels`
@@ -617,7 +614,7 @@ class AddExtremePointsChannel(Transform, Randomizable):
         sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 3.0,
         rescale_min: float = -1.0,
         rescale_max: float = 1.0,
-    ) -> np.ndarray:
+    ):
         """
         Args:
             img: the image that we want to add new channel to.

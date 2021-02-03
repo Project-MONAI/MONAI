@@ -26,8 +26,8 @@ __all__ = ["ignore_background", "do_metric_reduction", "get_mask_edges", "get_su
 
 
 def ignore_background(
-    y_pred: torch.Tensor,
-    y: torch.Tensor,
+    y_pred: Union[np.ndarray, torch.Tensor],
+    y: Union[np.ndarray, torch.Tensor],
 ):
     """
     This function is used to remove background (the first channel) for `y_pred` and `y`.
@@ -53,7 +53,7 @@ def do_metric_reduction(
         f: a tensor that contains the calculated metric scores per batch and
             per class. The first two dims should be batch and class.
         reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
-        ``"mean_channel"``, ``"sum_channel"``}
+            ``"mean_channel"``, ``"sum_channel"``}, if "none", return the input f tensor and not_nans.
         Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
 
     Raises:
@@ -65,11 +65,13 @@ def do_metric_reduction(
     # we need to account for it
     nans = torch.isnan(f)
     not_nans = (~nans).float()
-    f[nans] = 0
 
     t_zero = torch.zeros(1, device=f.device, dtype=f.dtype)
     reduction = MetricReduction(reduction)
+    if reduction == MetricReduction.NONE:
+        return f, not_nans
 
+    f[nans] = 0
     if reduction == MetricReduction.MEAN:
         # 2 steps, first, mean by channel (accounting for nans), then by batch
         not_nans = not_nans.sum(dim=1)
@@ -136,9 +138,9 @@ def get_mask_edges(
     """
 
     # Get both labelfields as np arrays
-    if torch.is_tensor(seg_pred):
+    if isinstance(seg_pred, torch.Tensor):
         seg_pred = seg_pred.detach().cpu().numpy()
-    if torch.is_tensor(seg_gt):
+    if isinstance(seg_gt, torch.Tensor):
         seg_gt = seg_gt.detach().cpu().numpy()
 
     if seg_pred.shape != seg_gt.shape:
@@ -155,7 +157,7 @@ def get_mask_edges(
             return (np.zeros_like(seg_pred), np.zeros_like(seg_gt))
 
         seg_pred, seg_gt = np.expand_dims(seg_pred, 0), np.expand_dims(seg_gt, 0)
-        box_start, box_end = generate_spatial_bounding_box(seg_pred | seg_gt)
+        box_start, box_end = generate_spatial_bounding_box(np.asarray(seg_pred | seg_gt))
         cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
         seg_pred, seg_gt = np.squeeze(cropper(seg_pred)), np.squeeze(cropper(seg_gt))
 
@@ -190,7 +192,7 @@ def get_surface_distance(
     else:
         if not np.any(seg_pred):
             dis = np.inf * np.ones_like(seg_gt)
-            return dis[seg_gt]
+            return np.asarray(dis[seg_gt])
         if distance_metric == "euclidean":
             dis = distance_transform_edt(~seg_gt)
         elif distance_metric in ["chessboard", "taxicab"]:
@@ -198,4 +200,4 @@ def get_surface_distance(
         else:
             raise ValueError(f"distance_metric {distance_metric} is not implemented.")
 
-    return dis[seg_pred]
+    return np.asarray(dis[seg_pred])
