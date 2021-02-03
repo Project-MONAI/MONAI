@@ -18,6 +18,7 @@ from monai.config import DtypeLike
 from monai.data.nifti_writer import write_nifti
 from monai.data.utils import create_file_basename
 from monai.utils import GridSampleMode, GridSamplePadMode
+from monai.utils import ImageMetaKey as Key
 
 
 class NiftiSaver:
@@ -95,7 +96,7 @@ class NiftiSaver:
         See Also
             :py:meth:`monai.data.nifti_writer.write_nifti`
         """
-        filename = meta_data["filename_or_obj"] if meta_data else str(self._data_index)
+        filename = meta_data[Key.FILENAME_OR_OBJ] if meta_data else str(self._data_index)
         self._data_index += 1
         original_affine = meta_data.get("original_affine", None) if meta_data else None
         affine = meta_data.get("affine", None) if meta_data else None

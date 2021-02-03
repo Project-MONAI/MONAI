@@ -17,6 +17,8 @@ from typing import Dict, Optional, Union
 import numpy as np
 import torch
 
+from monai.utils import ImageMetaKey as Key
+
 
 class CSVSaver:
     """
@@ -73,7 +75,7 @@ class CSVSaver:
             meta_data: the meta data information corresponding to the data.
 
         """
-        save_key = meta_data["filename_or_obj"] if meta_data else str(self._data_index)
+        save_key = meta_data[Key.FILENAME_OR_OBJ] if meta_data else str(self._data_index)
         self._data_index += 1
         if isinstance(data, torch.Tensor):
             data = data.detach().cpu().numpy()
