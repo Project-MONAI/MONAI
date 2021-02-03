@@ -61,6 +61,9 @@ def evenly_divisible_all_gather(data: torch.Tensor) -> torch.Tensor:
 
     Args:
         data: source tensor to pad and execute all_gather in distributed data parallel.
+    
+    Note:
+        The input data on different ranks must have exactly same `dtype`.
 
     """
     if not isinstance(data, torch.Tensor):
