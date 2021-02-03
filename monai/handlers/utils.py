@@ -11,12 +11,12 @@
 
 import os
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Union
 
 import numpy as np
 import torch
 
-from monai.utils import ensure_tuple, exact_version, optional_import
+from monai.utils import ensure_tuple, exact_version, get_torch_version_tuple, optional_import
 
 idist, _ = optional_import("ignite", "0.4.2", exact_version, "distributed")
 if TYPE_CHECKING:
@@ -28,6 +28,7 @@ __all__ = [
     "stopping_fn_from_metric",
     "stopping_fn_from_loss",
     "evenly_divisible_all_gather",
+    "string_list_all_gather",
     "write_metrics_reports",
 ]
 
@@ -62,7 +63,7 @@ def evenly_divisible_all_gather(data: torch.Tensor) -> torch.Tensor:
         data: source tensor to pad and execute all_gather in distributed data parallel.
 
     """
-    if not torch.is_tensor(data):
+    if not isinstance(data, torch.Tensor):
         raise ValueError("input data must be PyTorch Tensor.")
 
     if idist.get_world_size() <= 1:
@@ -79,6 +80,29 @@ def evenly_divisible_all_gather(data: torch.Tensor) -> torch.Tensor:
     data = idist.all_gather(data)
     # delete the padding NaN items
     return torch.cat([data[i * max_len : i * max_len + l, ...] for i, l in enumerate(all_lens)], dim=0)
+
+
+def string_list_all_gather(strings: List[str], delimiter: str = "\t") -> List[str]:
+    """
+    Utility function for distributed data parallel to all gather a list of strings.
+
+    Args:
+        strings: a list of strings to all gather.
+        delimiter: use the delimiter to join the string list to be a long string,
+            then all gather across ranks and split to a list. default to "\t".
+
+    """
+    if idist.get_world_size() <= 1:
+        return strings
+
+    _joined = delimiter.join(strings)
+    if get_torch_version_tuple() > (1, 6, 0):
+        # all gather across all ranks
+        _joined = delimiter.join(idist.all_gather(_joined))
+    else:
+        raise RuntimeError("MetricsSaver can not save metric details in distributed mode with PyTorch < 1.7.0.")
+
+    return _joined.split(delimiter)
 
 
 def write_metrics_reports(
@@ -110,7 +134,7 @@ def write_metrics_reports(
             list of strings - generate summary report for every metric_details with specified operations, they
             should be within this list: [`mean`, `median`, `max`, `min`, `90percent`, `std`].
             default to None.
-        deli: the delimiter charactor in the file, default to "\t".
+        deli: the delimiter character in the file, default to "\t".
         output_type: expected output file type, supported types: ["csv"], default to "csv".
 
     """
@@ -127,7 +151,7 @@ def write_metrics_reports(
 
     if metric_details is not None and len(metric_details) > 0:
         for k, v in metric_details.items():
-            if torch.is_tensor(v):
+            if isinstance(v, torch.Tensor):
                 v = v.cpu().numpy()
             if v.ndim == 0:
                 # reshape to [1, 1] if no batch and class dims
@@ -162,5 +186,5 @@ def write_metrics_reports(
 
                 with open(os.path.join(save_dir, f"{k}_summary.csv"), "w") as f:
                     f.write(f"class{deli}{deli.join(ops)}\n")
-                    for i, c in enumerate(v.transpose()):
+                    for i, c in enumerate(np.transpose(v)):
                         f.write(f"{class_labels[i]}{deli}{deli.join([f'{supported_ops[k](c):.4f}' for k in ops])}\n")
