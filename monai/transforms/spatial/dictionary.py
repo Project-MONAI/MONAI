@@ -102,7 +102,7 @@ InterpolateModeSequence = Union[Sequence[Union[InterpolateMode, str]], Interpola
 NumpyPadModeSequence = Union[Sequence[Union[NumpyPadMode, str]], NumpyPadMode, str]
 
 
-class Spacingd(MapTransform):
+class Spacingd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Spacing`.
 
@@ -181,10 +181,11 @@ class Spacingd(MapTransform):
     ) -> Dict[Union[Hashable, str], Union[np.ndarray, Dict[str, np.ndarray]]]:
         d: Dict = dict(data)
         for idx, key in enumerate(self.keys):
-            meta_data = d[f"{key}_{self.meta_key_postfix}"]
+            meta_data_key = f"{key}_{self.meta_key_postfix}"
+            meta_data = d[meta_data_key]
             # resample array of each corresponding key
             # using affine fetched from d[affine_key]
-            d[key], _, new_affine = self.spacing_transform(
+            d[key], old_affine, new_affine = self.spacing_transform(
                 data_array=np.asarray(d[key]),
                 affine=meta_data["affine"],
                 mode=self.mode[idx],
@@ -192,8 +193,49 @@ class Spacingd(MapTransform):
                 align_corners=self.align_corners[idx],
                 dtype=self.dtype[idx],
             )
+            self.append_applied_transforms(d, key, extra_info={"meta_data_key": meta_data_key, "old_affine": old_affine})
             # set the 'affine' key
             meta_data["affine"] = new_affine
+        return d
+
+    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
+        return {
+            "keys": key,
+            "pixdim": self.spacing_transform.pixdim,
+            "diagonal": self.spacing_transform.diagonal,
+            "mode": self.mode[idx],
+            "padding_mode": self.padding_mode[idx],
+            "align_corners": self.align_corners[idx],
+            "dtype": self.dtype[idx],
+            "meta_key_postfix": self.meta_key_postfix
+        }
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in self.keys:
+            transform = self.get_most_recent_transform(d, key)
+            init_args = transform["init_args"]
+            if init_args["diagonal"]:
+                raise RuntimeError(
+                    "Spacingd:inverse not yet implemented for diagonal=True. " +
+                    "Please raise a github issue if you need this feature")
+            # Create inverse transform
+            meta_data = d[transform["extra_info"]["meta_data_key"]]
+            orig_pixdim = np.sqrt(np.sum(np.square(transform["extra_info"]["old_affine"]), 0))[:-1]
+            inverse_transform = Spacing(orig_pixdim, diagonal=init_args["diagonal"])
+            # Apply inverse
+            d[key], _, new_affine = inverse_transform(
+                data_array=np.asarray(d[key]),
+                affine=meta_data["affine"],
+                mode=init_args["mode"],
+                padding_mode=init_args["padding_mode"],
+                align_corners=init_args["align_corners"],
+                dtype=init_args["dtype"],
+            )
+            meta_data["affine"] = new_affine
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
+
         return d
 
 

@@ -9,12 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-from monai.transforms.spatial.dictionary import Orientationd
 import random
 import unittest
 from typing import TYPE_CHECKING
-
 
 import numpy as np
 from typing import List, Tuple
@@ -39,6 +36,8 @@ from monai.transforms import (
     Zoomd,
     CenterSpatialCropd,
     CropForegroundd,
+    Orientationd,
+    Spacingd,
 )
 from monai.utils import optional_import, set_determinism
 from tests.utils import make_nifti_image, make_rand_affine
@@ -56,6 +55,7 @@ else:
 # set_determinism(seed=0)
 
 AFFINE = make_rand_affine()
+AFFINE[0] *= 2
 
 IM_1D = AddChannel()(np.arange(0, 10))
 IM_2D_FNAME, SEG_2D_FNAME = [make_nifti_image(i) for i in create_test_image_2d(100, 101)]
@@ -221,8 +221,8 @@ TESTS.append((
 TESTS.append((
     "Zoomd 2d",
     DATA_2D,
-    8e-2,
-    Zoomd(KEYS, zoom=0.5),
+    1e-1,
+    Zoomd(KEYS, zoom=0.9),
 ))
 
 TESTS.append((
@@ -258,6 +258,13 @@ TESTS.append((
     DATA_3D,
     0,
     CropForegroundd(KEYS, source_key="label")
+))
+
+TESTS.append((
+    "Spacingd 3d",
+    DATA_3D,
+    3e-2,
+    Spacingd(KEYS, [0.5, 0.7, 0.9], diagonal=False)
 ))
 
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
