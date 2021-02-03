@@ -17,6 +17,7 @@ import torch
 from monai.data.png_writer import write_png
 from monai.data.utils import create_file_basename
 from monai.utils import InterpolateMode
+from monai.utils import ImageMetaKey as Key
 
 
 class PNGSaver:
@@ -82,7 +83,7 @@ class PNGSaver:
             :py:meth:`monai.data.png_writer.write_png`
 
         """
-        filename = meta_data["filename_or_obj"] if meta_data else str(self._data_index)
+        filename = meta_data[Key.FILENAME_OR_OBJ] if meta_data else str(self._data_index)
         self._data_index += 1
         spatial_shape = meta_data.get("spatial_shape", None) if meta_data and self.resample else None
 

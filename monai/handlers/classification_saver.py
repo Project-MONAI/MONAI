@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Callable, Optional
 from monai.data import CSVSaver
 from monai.handlers.utils import evenly_divisible_all_gather, string_list_all_gather
 from monai.utils import exact_version, optional_import
+from monai.utils import ImageMetaKey as Key
 
 idist, _ = optional_import("ignite", "0.4.2", exact_version, "distributed")
 Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
@@ -86,9 +87,9 @@ class ClassificationSaver:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
         _meta_data = self.batch_transform(engine.state.batch)
-        if "filename_or_obj" in _meta_data:
+        if Key.FILENAME_OR_OBJ in _meta_data:
             # all gather filenames across ranks
-            _meta_data["filename_or_obj"] = string_list_all_gather(_meta_data["filename_or_obj"])
+            _meta_data[Key.FILENAME_OR_OBJ] = string_list_all_gather(_meta_data[Key.FILENAME_OR_OBJ])
         # all gather predictions across ranks
         _engine_output = evenly_divisible_all_gather(self.output_transform(engine.state.output))
 

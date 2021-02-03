@@ -28,6 +28,7 @@ __all__ = [
     "ChannelMatching",
     "SkipMode",
     "Method",
+    "ImageMetaKey",
 ]
 
 
@@ -214,3 +215,11 @@ class Method(Enum):
 
     SYMMETRIC = "symmetric"
     END = "end"
+
+
+class ImageMetaKey(Enum):
+    """
+    Common key names in the meta data header of images
+    """
+
+    FILENAME_OR_OBJ = "filename_or_obj"

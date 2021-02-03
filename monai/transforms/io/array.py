@@ -21,6 +21,7 @@ from monai.config import DtypeLike
 from monai.data.image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader
 from monai.transforms.compose import Transform
 from monai.utils import ensure_tuple, optional_import
+from monai.utils import ImageMetaKey as Key
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
@@ -126,5 +127,5 @@ class LoadImage(Transform):
 
         if self.image_only:
             return img_array
-        meta_data["filename_or_obj"] = ensure_tuple(filename)[0]
+        meta_data[Key.FILENAME_OR_OBJ] = ensure_tuple(filename)[0]
         return img_array, meta_data

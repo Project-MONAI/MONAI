@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Union
 
 from monai.handlers.utils import string_list_all_gather, write_metrics_reports
 from monai.utils import ensure_tuple, exact_version, optional_import
+from monai.utils import ImageMetaKey as Key
 
 Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
 idist, _ = optional_import("ignite", "0.4.2", exact_version, "distributed")
@@ -92,7 +93,7 @@ class MetricsSaver:
 
     def _get_filenames(self, engine: Engine) -> None:
         if self.metric_details is not None:
-            _filenames = list(ensure_tuple(self.batch_transform(engine.state.batch)["filename_or_obj"]))
+            _filenames = list(ensure_tuple(self.batch_transform(engine.state.batch)[Key.FILENAME_OR_OBJ]))
             self._filenames += _filenames
 
     def __call__(self, engine: Engine) -> None:

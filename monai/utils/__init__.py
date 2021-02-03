@@ -19,6 +19,7 @@ from .enums import (
     ChannelMatching,
     GridSampleMode,
     GridSamplePadMode,
+    ImageMetaKey,
     InterpolateMode,
     LossReduction,
     Method,
