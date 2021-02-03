@@ -38,6 +38,7 @@ from monai.transforms import (
     CropForegroundd,
     Orientationd,
     Spacingd,
+    Resized,
 )
 from monai.utils import optional_import, set_determinism
 from tests.utils import make_nifti_image, make_rand_affine
@@ -221,7 +222,7 @@ TESTS.append((
 TESTS.append((
     "Zoomd 2d",
     DATA_2D,
-    1e-1,
+    2e-1,
     Zoomd(KEYS, zoom=0.9),
 ))
 
@@ -265,6 +266,20 @@ TESTS.append((
     DATA_3D,
     3e-2,
     Spacingd(KEYS, [0.5, 0.7, 0.9], diagonal=False)
+))
+
+TESTS.append((
+    "Resized 2d",
+    DATA_2D,
+    1e-1,
+    Resized(KEYS, [50, 47])
+))
+
+TESTS.append((
+    "Resized 3d",
+    DATA_3D,
+    1e-2,
+    Resized(KEYS, [201, 150, 78])
 ))
 
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
