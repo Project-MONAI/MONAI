@@ -581,7 +581,7 @@ class RandAffined(Randomizable, MapTransform):
             - :py:class:`monai.transforms.compose.MapTransform`
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
         """
-        super().__init__(keys)
+        MapTransform().__init__(self, keys)
         self.rand_affine = RandAffine(
             prob=prob,
             rotate_range=rotate_range,
