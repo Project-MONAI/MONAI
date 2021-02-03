@@ -377,7 +377,7 @@ class Rotate90d(MapTransform, InvertibleTransform):
         return d
 
 
-class RandRotate90d(Randomizable, MapTransform):
+class RandRotate90d(Randomizable, MapTransform, InvertibleTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandRotate90`.
     With probability `prob`, input arrays are rotated by 90 degrees
@@ -417,12 +417,41 @@ class RandRotate90d(Randomizable, MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Mapping[Hashable, np.ndarray]:
         self.randomize()
         if not self._do_transform:
+            for key in self.keys:
+                self.append_applied_transforms(data, key)
             return data
 
         rotator = Rotate90(self._rand_k, self.spatial_axes)
         d = dict(data)
         for key in self.keys:
             d[key] = rotator(d[key])
+            self.append_applied_transforms(d, key, extra_info={"rand_k": self._rand_k})
+        return d
+
+    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
+        return {
+            "keys": key,
+            "prob": self.prob,
+            "max_k": self.max_k,
+            "spatial_axes": self.spatial_axes,
+        }
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in self.keys:
+            transform = self.get_most_recent_transform(d, key)
+            # Check if random transform was actually performed (based on `prob`)
+            if transform["do_transform"]:
+                # Create inverse transform
+                spatial_axes = transform["init_args"]["spatial_axes"]
+                num_times_rotated = transform["extra_info"]["rand_k"]
+                num_times_to_rotate = 4 - num_times_rotated
+                inverse_transform = Rotate90(num_times_to_rotate, spatial_axes)
+                # Apply inverse
+                d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
+
         return d
 
 

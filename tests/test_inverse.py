@@ -42,6 +42,7 @@ from monai.transforms import (
     ResizeWithPadOrCropd,
     RandZoomd,
     RandFlipd,
+    RandRotate90d,
 )
 from monai.utils import optional_import, set_determinism
 from tests.utils import make_nifti_image, make_rand_affine
@@ -219,6 +220,13 @@ TESTS.append((
     DATA_3D,
     0,
     Rotate90d(KEYS, k=2, spatial_axes=[1, 2]),
+))
+
+TESTS.append((
+    "RandRotate90d 3d",
+    DATA_3D,
+    0,
+    RandRotate90d(KEYS, prob=1, spatial_axes=[1, 2]),
 ))
 
 TESTS.append((
