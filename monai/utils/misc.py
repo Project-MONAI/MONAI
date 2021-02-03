@@ -41,6 +41,7 @@ __all__ = [
     "dtype_numpy_to_torch",
     "MAX_SEED",
     "copy_to_device",
+    "ImageMetaKey",
 ]
 
 _seed = None
@@ -349,3 +350,11 @@ def copy_to_device(
         warnings.warn(f"{fn_name} called with incompatible type: " + f"{type(obj)}. Data will be returned unchanged.")
 
     return obj
+
+
+class ImageMetaKey:
+    """
+    Common key names in the meta data header of images
+    """
+
+    FILENAME_OR_OBJ = "filename_or_obj"
