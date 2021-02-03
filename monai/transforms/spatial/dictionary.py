@@ -1233,7 +1233,7 @@ class Zoomd(MapTransform, InvertibleTransform):
 
         return d
 
-class RandZoomd(Randomizable, MapTransform):
+class RandZoomd(Randomizable, MapTransform, InvertibleTransform):
     """
     Dict-based version :py:class:`monai.transforms.RandZoom`.
 
@@ -1299,6 +1299,8 @@ class RandZoomd(Randomizable, MapTransform):
         self.randomize()
         d = dict(data)
         if not self._do_transform:
+            for key in self.keys:
+                self.append_applied_transforms(d, key)
             return d
 
         img_dims = data[self.keys[0]].ndim
@@ -1310,12 +1312,47 @@ class RandZoomd(Randomizable, MapTransform):
             self._zoom = ensure_tuple_rep(self._zoom[0], img_dims - 2) + ensure_tuple(self._zoom[-1])
         zoomer = Zoom(self._zoom, keep_size=self.keep_size)
         for idx, key in enumerate(self.keys):
+            self.append_applied_transforms(d, key, extra_info={"zoom": self._zoom})
             d[key] = zoomer(
                 d[key],
                 mode=self.mode[idx],
                 padding_mode=self.padding_mode[idx],
                 align_corners=self.align_corners[idx],
             )
+        return d
+
+    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
+        return {
+            "keys": key,
+            "prob": self.prob,
+            "min_zoom": self.min_zoom,
+            "max_zoom": self.max_zoom,
+            "mode": self.mode[idx],
+            "padding_mode": self.padding_mode[idx],
+            "align_corners": self.align_corners[idx],
+            "keep_size": self.keep_size,
+        }
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in self.keys:
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            init_args = transform["init_args"]
+            zoom = np.array(transform["extra_info"]["zoom"])
+            inverse_transform = Zoom(zoom=1 / zoom, keep_size=init_args["keep_size"])
+            # Apply inverse
+            d[key] = inverse_transform(
+                d[key],
+                mode=init_args["mode"],
+                padding_mode=init_args["padding_mode"],
+                align_corners=init_args["align_corners"],
+            )
+            # Size might be out by 1 voxel so pad
+            d[key] = SpatialPad(transform["orig_size"])(d[key])
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
+
         return d
 
 

@@ -40,6 +40,7 @@ from monai.transforms import (
     Spacingd,
     Resized,
     ResizeWithPadOrCropd,
+    RandZoomd,
 )
 from monai.utils import optional_import, set_determinism
 from tests.utils import make_nifti_image, make_rand_affine
@@ -287,6 +288,13 @@ TESTS.append((
     DATA_3D,
     1e-2,
     ResizeWithPadOrCropd(KEYS, [201, 150, 78])
+))
+
+TESTS.append((
+    "RandZoom 3d",
+    DATA_3D,
+    5e-2,
+    RandZoomd(KEYS, 1, [0.5, 0.6, 0.9], [3, 4.2, 6.1], keep_size=False)
 ))
 
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
