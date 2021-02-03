@@ -178,19 +178,18 @@ TESTS.append((
 ))
 
 TESTS.append((
-    "RandRotated 2d",
-    DATA_2D,
-    6e-2,
-    RandRotated(KEYS, random.uniform(np.pi / 6, np.pi)),
+    "Rotated 3d",
+    DATA_3D,
+    5e-2,
+    Rotated(KEYS, [random.uniform(np.pi / 6, np.pi) for _ in range(3)], 1),
 ))
 
-# TODO: add 3D (can replace RandRotated 2d)
-# TESTS.append((
-#     "RandRotated 3d",
-#     DATA_3D,
-#     5e-2,
-#     RandRotated(KEYS, *(random.uniform(np.pi / 6, np.pi) for _ in range(3)), 1),
-# ))
+TESTS.append((
+    "RandRotated 3d",
+    DATA_3D,
+    5e-2,
+    RandRotated(KEYS, *(random.uniform(np.pi / 6, np.pi) for _ in range(3)), 1),
+))
 
 TESTS.append((
     "Orientationd 3d",
@@ -286,7 +285,7 @@ TESTS.append((
 TESTS.append((
     "ResizeWithPadOrCropd 3d",
     DATA_3D,
-    0,
+    1e-2,
     ResizeWithPadOrCropd(KEYS, [201, 150, 78])
 ))
 

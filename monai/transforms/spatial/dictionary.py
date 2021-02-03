@@ -22,6 +22,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike, KeysCollection
+from monai.networks.layers import AffineTransform
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
 from monai.transforms.spatial.array import (
@@ -952,14 +953,16 @@ class Rotated(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for idx, key in enumerate(self.keys):
-            self.append_applied_transforms(d, key, idx)
-            d[key] = self.rotator(
+            orig_size = d[key].shape[1:]
+            d[key], rot_mat = self.rotator(
                 d[key],
                 mode=self.mode[idx],
                 padding_mode=self.padding_mode[idx],
                 align_corners=self.align_corners[idx],
                 dtype=self.dtype[idx],
+                return_rotation_matrix=True,
             )
+            self.append_applied_transforms(d, key, idx, orig_size=orig_size, extra_info={"rot_mat": rot_mat})
         return d
 
     def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
@@ -975,26 +978,27 @@ class Rotated(MapTransform, InvertibleTransform):
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
-        for idx, key in enumerate(self.keys):
-            if d[key][0].ndim != 2:
-                raise NotImplementedError("inverse rotation only currently implemented for 2D")
+        for key in self.keys:
             transform = self.get_most_recent_transform(d, key)
+            init_args = transform["init_args"]
             # Create inverse transform
-            in_angle = transform["init_args"]["angle"]
-            angle = [-a for a in in_angle] if isinstance(in_angle, Sequence) else -in_angle
-            inverse_rotator = Rotate(angle=angle, keep_size=transform["init_args"]["keep_size"])
-            # Apply inverse transform
-            d[key] = inverse_rotator(
-                d[key],
-                mode=self.mode[idx],
-                padding_mode=self.padding_mode[idx],
-                align_corners=self.align_corners[idx],
-                dtype=self.dtype[idx],
-            )
-            # If the keep_size==False, need to crop image
-            if not transform["init_args"]["keep_size"]:
-                d[key] = CenterSpatialCrop(transform["orig_size"])(d[key])
+            fwd_rot_mat = transform["extra_info"]["rot_mat"]
+            inv_rot_mat = np.linalg.inv(fwd_rot_mat)
 
+            xform = AffineTransform(
+                normalized=False,
+                mode=init_args["mode"],
+                padding_mode=init_args["padding_mode"],
+                align_corners=init_args["align_corners"],
+                reverse_indexing=True,
+            )
+            dtype = init_args["dtype"]
+            output = xform(
+                torch.as_tensor(np.ascontiguousarray(d[key]).astype(dtype)).unsqueeze(0),
+                torch.as_tensor(np.ascontiguousarray(inv_rot_mat).astype(dtype)),
+                spatial_size=transform["orig_size"],
+            )
+            d[key] = np.asarray(output.squeeze(0).detach().cpu().numpy(), dtype=np.float32)
             # Remove the applied transform
             self.remove_most_recent_transform(d, key)
 
@@ -1089,14 +1093,16 @@ class RandRotated(Randomizable, MapTransform, InvertibleTransform):
             keep_size=self.keep_size,
         )
         for idx, key in enumerate(self.keys):
-            self.append_applied_transforms(d, key, idx, {"angle": angle})
-            d[key] = rotator(
+            orig_size = d[key].shape[1:]
+            d[key], rot_mat = rotator(
                 d[key],
                 mode=self.mode[idx],
                 padding_mode=self.padding_mode[idx],
                 align_corners=self.align_corners[idx],
                 dtype=self.dtype[idx],
+                return_rotation_matrix=True,
             )
+            self.append_applied_transforms(d, key, idx, orig_size=orig_size, extra_info={"rot_mat": rot_mat})
         return d
 
     def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
@@ -1115,28 +1121,29 @@ class RandRotated(Randomizable, MapTransform, InvertibleTransform):
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
-        for idx, key in enumerate(self.keys):
-            if d[key][0].ndim != 2:
-                raise NotImplementedError("inverse rotation only currently implemented for 2D")
+        for key in self.keys:
             transform = self.get_most_recent_transform(d, key)
             # Check if random transform was actually performed (based on `prob`)
             if transform["do_transform"]:
+                init_args = transform["init_args"]
                 # Create inverse transform
-                in_angle = transform["extra_info"]["angle"]
-                angle = [-a for a in in_angle] if isinstance(in_angle, Sequence) else -in_angle
-                inverse_rotator = Rotate(angle=angle, keep_size=transform["init_args"]["keep_size"])
-                # Apply inverse transform
-                d[key] = inverse_rotator(
-                    d[key],
-                    mode=self.mode[idx],
-                    padding_mode=self.padding_mode[idx],
-                    align_corners=self.align_corners[idx],
-                    dtype=self.dtype[idx],
-                )
-                # If the keep_size==False, need to crop image
-                if not transform["init_args"]["keep_size"]:
-                    d[key] = CenterSpatialCrop(transform["orig_size"])(d[key])
+                fwd_rot_mat = transform["extra_info"]["rot_mat"]
+                inv_rot_mat = np.linalg.inv(fwd_rot_mat)
 
+                xform = AffineTransform(
+                    normalized=False,
+                    mode=init_args["mode"],
+                    padding_mode=init_args["padding_mode"],
+                    align_corners=init_args["align_corners"],
+                    reverse_indexing=True,
+                )
+                dtype = init_args["dtype"]
+                output = xform(
+                    torch.as_tensor(np.ascontiguousarray(d[key]).astype(dtype)).unsqueeze(0),
+                    torch.as_tensor(np.ascontiguousarray(inv_rot_mat).astype(dtype)),
+                    spatial_size=transform["orig_size"],
+                )
+                d[key] = np.asarray(output.squeeze(0).detach().cpu().numpy(), dtype=np.float32)
             # Remove the applied transform
             self.remove_most_recent_transform(d, key)
 

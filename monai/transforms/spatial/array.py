@@ -420,6 +420,7 @@ class Rotate(Transform):
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
         dtype: DtypeLike = None,
+        return_rotation_matrix: bool = False,
     ) -> np.ndarray:
         """
         Args:
@@ -437,6 +438,7 @@ class Rotate(Transform):
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
+            return_rotation_matrix: whether or not to return the applied rotation matrix.
 
         Raises:
             ValueError: When ``img`` spatially is not one of [2D, 3D].
@@ -473,7 +475,10 @@ class Rotate(Transform):
             torch.as_tensor(np.ascontiguousarray(transform).astype(_dtype)),
             spatial_size=output_shape,
         )
-        return np.asarray(output.squeeze(0).detach().cpu().numpy(), dtype=np.float32)
+        output_np = np.asarray(output.squeeze(0).detach().cpu().numpy(), dtype=np.float32)
+        if return_rotation_matrix:
+            return output_np, transform
+        return output_np
 
 
 class Zoom(Transform):

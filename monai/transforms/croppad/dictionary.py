@@ -371,10 +371,9 @@ class CenterSpatialCropd(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
-            self.append_applied_transforms(d, key)
+            orig_size = d[key].shape[1:]
             d[key] = self.cropper(d[key])
-            # cropper will modify `roi_size` key, so update it
-            self.get_most_recent_transform(d, key, False)["init_args"]["roi_size"] = self.cropper.roi_size
+            self.append_applied_transforms(d, key, orig_size=orig_size)
         return d
 
     def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
@@ -847,10 +846,9 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
-            self.append_applied_transforms(d, key)
+            orig_size = d[key].shape[1:]
             d[key] = self.padcropper(d[key])
-            # padder will modify `spatial_size`, so update it
-            self.get_most_recent_transform(d, key, False)["init_args"]["spatial_size"] = self.padcropper.padder.spatial_size
+            self.append_applied_transforms(d, key, orig_size=orig_size)
         return d
 
     def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
