@@ -60,7 +60,9 @@ def grid_pull(input: torch.Tensor, grid: torch.Tensor, interpolation="linear", b
         - 2 or 'quadratic'  or InterpolationType.quadratic
         - 3 or 'cubic'      or InterpolationType.cubic
         - 4 or 'fourth'     or InterpolationType.fourth
-        - etc.
+        - 5 or 'fifth'      or InterpolationType.fifth
+        - 6 or 'sixth'      or InterpolationType.sixth
+        - 7 or 'seventh'    or InterpolationType.seventh
 
     A list of values can be provided, in the order [W, H, D],
     to specify dimension-specific interpolation orders.
@@ -68,14 +70,13 @@ def grid_pull(input: torch.Tensor, grid: torch.Tensor, interpolation="linear", b
     `bound` can be an int, a string or a BoundType.
     Possible values are::
 
-        - 0 or 'replicate'  or BoundType.replicate
-        - 1 or 'dct1'       or BoundType.dct1
-        - 2 or 'dct2'       or BoundType.dct2
-        - 3 or 'dst1'       or BoundType.dst1
-        - 4 or 'dst2'       or BoundType.dst2
-        - 5 or 'dft'        or BoundType.dft
-        - 6 or 'sliding'    or BoundType.sliding [not implemented]
-        - 7 or 'zero'       or BoundType.zero
+        - 0 or 'replicate' or 'nearest'      or BoundType.replicate
+        - 1 or 'dct1'      or 'mirror'       or BoundType.dct1
+        - 2 or 'dct2'      or 'reflect'      or BoundType.dct2
+        - 3 or 'dst1'      or 'antimirror'   or BoundType.dst1
+        - 4 or 'dst2'      or 'antireflect'  or BoundType.dst2
+        - 5 or 'dft'       or 'wrap'         or BoundType.dft
+        - 7 or 'zero'                        or BoundType.zero
 
     A list of values can be provided, in the order [W, H, D],
     to specify dimension-specific boundary conditions.
@@ -87,15 +88,17 @@ def grid_pull(input: torch.Tensor, grid: torch.Tensor, interpolation="linear", b
         - `dct2` corresponds to Neumann boundary conditions (symmetric)
         - `dst2` corresponds to Dirichlet boundary conditions (antisymmetric)
 
-    See:
-        https://en.wikipedia.org/wiki/Discrete_cosine_transform
-        https://en.wikipedia.org/wiki/Discrete_sine_transform
+    See Also:
+        - https://en.wikipedia.org/wiki/Discrete_cosine_transform
+        - https://en.wikipedia.org/wiki/Discrete_sine_transform
+        - ``help(monai._C.BoundType)``
+        - ``help(monai._C.InterpolationType)``
 
     Args:
         input: Input image. `(B, C, Wi, Hi, Di)`.
-        grid: Deformation field. `(B, Wo, Ho, Do, 2|3)`.
+        grid: Deformation field. `(B, Wo, Ho, Do, 1|2|3)`.
         interpolation (int or list[int] , optional): Interpolation order.
-            Defaults to `1`.
+            Defaults to `'linear'`.
         bound (BoundType, or list[BoundType], optional): Boundary conditions.
             Defaults to `'zero'`.
         extrapolate: Extrapolate out-of-bound data.
@@ -106,11 +109,10 @@ def grid_pull(input: torch.Tensor, grid: torch.Tensor, interpolation="linear", b
 
     """
     # Convert parameters
-    bound = ensure_tuple(bound)
-    interpolation = ensure_tuple(interpolation)
-    bound = [_C.BoundType.__members__[b] if isinstance(b, str) else _C.BoundType(b) for b in bound]
+    bound = [_C.BoundType.__members__[b] if isinstance(b, str) else _C.BoundType(b) for b in ensure_tuple(bound)]
     interpolation = [
-        _C.InterpolationType.__members__[i] if isinstance(i, str) else _C.InterpolationType(i) for i in interpolation
+        _C.InterpolationType.__members__[i] if isinstance(i, str) else _C.InterpolationType(i)
+        for i in ensure_tuple(interpolation)
     ]
 
     return _GridPull.apply(input, grid, interpolation, bound, extrapolate)
@@ -156,7 +158,9 @@ def grid_push(
         - 2 or 'quadratic'  or InterpolationType.quadratic
         - 3 or 'cubic'      or InterpolationType.cubic
         - 4 or 'fourth'     or InterpolationType.fourth
-        - etc.
+        - 5 or 'fifth'      or InterpolationType.fifth
+        - 6 or 'sixth'      or InterpolationType.sixth
+        - 7 or 'seventh'    or InterpolationType.seventh
 
     A list of values can be provided, in the order `[W, H, D]`,
     to specify dimension-specific interpolation orders.
@@ -164,14 +168,13 @@ def grid_push(
     `bound` can be an int, a string or a BoundType.
     Possible values are::
 
-        - 0 or 'replicate'  or BoundType.replicate
-        - 1 or 'dct1'       or BoundType.dct1
-        - 2 or 'dct2'       or BoundType.dct2
-        - 3 or 'dst1'       or BoundType.dst1
-        - 4 or 'dst2'       or BoundType.dst2
-        - 5 or 'dft'        or BoundType.dft
-        - 6 or 'sliding'    or BoundType.sliding [not implemented]
-        - 7 or 'zero'       or BoundType.zero
+        - 0 or 'replicate' or 'nearest'      or BoundType.replicate
+        - 1 or 'dct1'      or 'mirror'       or BoundType.dct1
+        - 2 or 'dct2'      or 'reflect'      or BoundType.dct2
+        - 3 or 'dst1'      or 'antimirror'   or BoundType.dst1
+        - 4 or 'dst2'      or 'antireflect'  or BoundType.dst2
+        - 5 or 'dft'       or 'wrap'         or BoundType.dft
+        - 7 or 'zero'                        or BoundType.zero
 
     A list of values can be provided, in the order `[W, H, D]`,
     to specify dimension-specific boundary conditions.
@@ -183,17 +186,19 @@ def grid_push(
         - `dct2` corresponds to Neumann boundary conditions (symmetric)
         - `dst2` corresponds to Dirichlet boundary conditions (antisymmetric)
 
-    See also:
+    See Also:
 
         - https://en.wikipedia.org/wiki/Discrete_cosine_transform
         - https://en.wikipedia.org/wiki/Discrete_sine_transform
+        - ``help(monai._C.BoundType)``
+        - ``help(monai._C.InterpolationType)``
 
     Args:
         input: Input image `(B, C, Wi, Hi, Di)`.
-        grid: Deformation field `(B, Wi, Hi, Di, 2|3)`.
+        grid: Deformation field `(B, Wi, Hi, Di, 1|2|3)`.
         shape: Shape of the source image.
         interpolation (int or list[int] , optional): Interpolation order.
-            Defaults to `1`.
+            Defaults to `'linear'`.
         bound (BoundType, or list[BoundType], optional): Boundary conditions.
             Defaults to `'zero'`.
         extrapolate: Extrapolate out-of-bound data.
@@ -204,11 +209,10 @@ def grid_push(
 
     """
     # Convert parameters
-    bound = ensure_tuple(bound)
-    interpolation = ensure_tuple(interpolation)
-    bound = [_C.BoundType.__members__[b] if isinstance(b, str) else _C.BoundType(b) for b in bound]
+    bound = [_C.BoundType.__members__[b] if isinstance(b, str) else _C.BoundType(b) for b in ensure_tuple(bound)]
     interpolation = [
-        _C.InterpolationType.__members__[i] if isinstance(i, str) else _C.InterpolationType(i) for i in interpolation
+        _C.InterpolationType.__members__[i] if isinstance(i, str) else _C.InterpolationType(i)
+        for i in ensure_tuple(interpolation)
     ]
 
     if shape is None:
@@ -252,7 +256,9 @@ def grid_count(grid: torch.Tensor, shape=None, interpolation="linear", bound="ze
         - 2 or 'quadratic'  or InterpolationType.quadratic
         - 3 or 'cubic'      or InterpolationType.cubic
         - 4 or 'fourth'     or InterpolationType.fourth
-        - etc.
+        - 5 or 'fifth'      or InterpolationType.fifth
+        - 6 or 'sixth'      or InterpolationType.sixth
+        - 7 or 'seventh'    or InterpolationType.seventh
 
     A list of values can be provided, in the order [W, H, D],
     to specify dimension-specific interpolation orders.
@@ -260,14 +266,13 @@ def grid_count(grid: torch.Tensor, shape=None, interpolation="linear", bound="ze
     `bound` can be an int, a string or a BoundType.
     Possible values are::
 
-        - 0 or 'replicate'  or BoundType.replicate
-        - 1 or 'dct1'       or BoundType.dct1
-        - 2 or 'dct2'       or BoundType.dct2
-        - 3 or 'dst1'       or BoundType.dst1
-        - 4 or 'dst2'       or BoundType.dst2
-        - 5 or 'dft'        or BoundType.dft
-        - 6 or 'sliding'    or BoundType.sliding [not implemented]
-        - 7 or 'zero'       or BoundType.zero
+        - 0 or 'replicate' or 'nearest'      or BoundType.replicate
+        - 1 or 'dct1'      or 'mirror'       or BoundType.dct1
+        - 2 or 'dct2'      or 'reflect'      or BoundType.dct2
+        - 3 or 'dst1'      or 'antimirror'   or BoundType.dst1
+        - 4 or 'dst2'      or 'antireflect'  or BoundType.dst2
+        - 5 or 'dft'       or 'wrap'         or BoundType.dft
+        - 7 or 'zero'                        or BoundType.zero
 
     A list of values can be provided, in the order [W, H, D],
     to specify dimension-specific boundary conditions.
@@ -283,12 +288,14 @@ def grid_count(grid: torch.Tensor, shape=None, interpolation="linear", bound="ze
 
         - https://en.wikipedia.org/wiki/Discrete_cosine_transform
         - https://en.wikipedia.org/wiki/Discrete_sine_transform
+        - ``help(monai._C.BoundType)``
+        - ``help(monai._C.InterpolationType)``
 
     Args:
         grid: Deformation field `(B, Wi, Hi, Di, 2|3)`.
         shape: shape of the source image.
         interpolation (int or list[int] , optional): Interpolation order.
-            Defaults to `1`.
+            Defaults to `'linear'`.
         bound (BoundType, or list[BoundType], optional): Boundary conditions.
             Defaults to `'zero'`.
         extrapolate (bool, optional): Extrapolate out-of-bound data.
@@ -299,11 +306,10 @@ def grid_count(grid: torch.Tensor, shape=None, interpolation="linear", bound="ze
 
     """
     # Convert parameters
-    bound = ensure_tuple(bound)
-    interpolation = ensure_tuple(interpolation)
-    bound = [_C.BoundType.__members__[b] if isinstance(b, str) else _C.BoundType(b) for b in bound]
+    bound = [_C.BoundType.__members__[b] if isinstance(b, str) else _C.BoundType(b) for b in ensure_tuple(bound)]
     interpolation = [
-        _C.InterpolationType.__members__[i] if isinstance(i, str) else _C.InterpolationType(i) for i in interpolation
+        _C.InterpolationType.__members__[i] if isinstance(i, str) else _C.InterpolationType(i)
+        for i in ensure_tuple(interpolation)
     ]
 
     if shape is None:
@@ -351,7 +357,9 @@ def grid_grad(input: torch.Tensor, grid: torch.Tensor, interpolation="linear", b
         - 2 or 'quadratic'  or InterpolationType.quadratic
         - 3 or 'cubic'      or InterpolationType.cubic
         - 4 or 'fourth'     or InterpolationType.fourth
-        - etc.
+        - 5 or 'fifth'      or InterpolationType.fifth
+        - 6 or 'sixth'      or InterpolationType.sixth
+        - 7 or 'seventh'    or InterpolationType.seventh
 
     A list of values can be provided, in the order [W, H, D],
     to specify dimension-specific interpolation orders.
@@ -359,14 +367,13 @@ def grid_grad(input: torch.Tensor, grid: torch.Tensor, interpolation="linear", b
     `bound` can be an int, a string or a BoundType.
     Possible values are::
 
-        - 0 or 'replicate'  or BoundType.replicate
-        - 1 or 'dct1'       or BoundType.dct1
-        - 2 or 'dct2'       or BoundType.dct2
-        - 3 or 'dst1'       or BoundType.dst1
-        - 4 or 'dst2'       or BoundType.dst2
-        - 5 or 'dft'        or BoundType.dft
-        - 6 or 'sliding'    or BoundType.sliding [not implemented]
-        - 7 or 'zero'       or BoundType.zero
+        - 0 or 'replicate' or 'nearest'      or BoundType.replicate
+        - 1 or 'dct1'      or 'mirror'       or BoundType.dct1
+        - 2 or 'dct2'      or 'reflect'      or BoundType.dct2
+        - 3 or 'dst1'      or 'antimirror'   or BoundType.dst1
+        - 4 or 'dst2'      or 'antireflect'  or BoundType.dst2
+        - 5 or 'dft'       or 'wrap'         or BoundType.dft
+        - 7 or 'zero'                        or BoundType.zero
 
     A list of values can be provided, in the order [W, H, D],
     to specify dimension-specific boundary conditions.
@@ -378,30 +385,32 @@ def grid_grad(input: torch.Tensor, grid: torch.Tensor, interpolation="linear", b
         - `dct2` corresponds to Neumann boundary conditions (symmetric)
         - `dst2` corresponds to Dirichlet boundary conditions (antisymmetric)
 
-    See also:
+    See Also:
 
         - https://en.wikipedia.org/wiki/Discrete_cosine_transform
         - https://en.wikipedia.org/wiki/Discrete_sine_transform
+        - ``help(monai._C.BoundType)``
+        - ``help(monai._C.InterpolationType)``
+
 
     Args:
         input: Input image. `(B, C, Wi, Hi, Di)`.
         grid: Deformation field. `(B, Wo, Ho, Do, 2|3)`.
         interpolation (int or list[int] , optional): Interpolation order.
-            Defaults to `1`.
+            Defaults to `'linear'`.
         bound (BoundType, or list[BoundType], optional): Boundary conditions.
             Defaults to `'zero'`.
         extrapolate: Extrapolate out-of-bound data. Defaults to `True`.
 
     Returns:
-        output (torch.Tensor): Sampled gradients (B, C, Wo, Ho, Do, 2|3).
+        output (torch.Tensor): Sampled gradients (B, C, Wo, Ho, Do, 1|2|3).
 
     """
     # Convert parameters
-    bound = ensure_tuple(bound)
-    interpolation = ensure_tuple(interpolation)
-    bound = [_C.BoundType.__members__[b] if isinstance(b, str) else _C.BoundType(b) for b in bound]
+    bound = [_C.BoundType.__members__[b] if isinstance(b, str) else _C.BoundType(b) for b in ensure_tuple(bound)]
     interpolation = [
-        _C.InterpolationType.__members__[i] if isinstance(i, str) else _C.InterpolationType(i) for i in interpolation
+        _C.InterpolationType.__members__[i] if isinstance(i, str) else _C.InterpolationType(i)
+        for i in ensure_tuple(interpolation)
     ]
 
     return _GridGrad.apply(input, grid, interpolation, bound, extrapolate)
