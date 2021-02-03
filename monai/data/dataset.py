@@ -571,6 +571,10 @@ class SmartCacheDataset(CacheDataset):
         3. Call `update_cache()` before every epoch to replace training items.
         4. Call `shutdown()` when training ends.
 
+    Note:
+        This replacement will not work if set the `multiprocessing_context` of DataLoader to `spawn`
+        or on windows(the default multiprocessing method is `spawn`) and set `num_workers` greater than 0 .
+
     """
 
     def __init__(
@@ -601,7 +605,7 @@ class SmartCacheDataset(CacheDataset):
         if self._cache is None:
             self._cache = self._fill_cache()
         if self.cache_num >= len(data):
-            raise ValueError("cache_num must be smaller than dataset length to support replacement.")
+            warnings.warn("cache_num is greater or equal than dataset length, fall back to regular CacheDataset.")
         if replace_rate <= 0:
             raise ValueError("replace_rate must be greater than 0, otherwise, please use CacheDataset.")
         self.num_replace_workers: int = num_replace_workers
@@ -637,7 +641,7 @@ class SmartCacheDataset(CacheDataset):
         """
         if self._replace_mgr is None:
             return False
-        return self._replace_mgr.isAlive()
+        return self._replace_mgr.is_alive()
 
     def start(self):
         """
@@ -688,7 +692,7 @@ class SmartCacheDataset(CacheDataset):
         If the cache has been shutdown before, need to restart the `_replace_mgr` thread.
 
         """
-        if not self._replace_mgr.isAlive():
+        if not self._replace_mgr.is_alive():
             self._restart()
 
         # make sure update is done
