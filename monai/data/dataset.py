@@ -641,7 +641,7 @@ class SmartCacheDataset(CacheDataset):
         """
         if self._replace_mgr is None:
             return False
-        return self._replace_mgr.isAlive()
+        return self._replace_mgr.is_alive()
 
     def start(self):
         """
@@ -692,7 +692,7 @@ class SmartCacheDataset(CacheDataset):
         If the cache has been shutdown before, need to restart the `_replace_mgr` thread.
 
         """
-        if not self._replace_mgr.isAlive():
+        if not self._replace_mgr.is_alive():
             self._restart()
 
         # make sure update is done
