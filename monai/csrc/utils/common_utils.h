@@ -42,18 +42,18 @@ limitations under the License.
 #define CHECK_SAME_DEVICE(value1, value2)     \
   TORCH_CHECK(                                \
       value1.device() == value2.device(),     \
-      "(): expected " #value2 " and " #value2 \
+      "(): expected " #value1 " and " #value2 \
       " to be on same device, "               \
-      "but " #value2 " is on ",               \
+      "but " #value1 " is on ",               \
       value1.device(),                        \
       " and " #value2 " is on ",              \
       value2.device());
 #define CHECK_SAME_DTYPE(value1, value2)      \
   TORCH_CHECK(                                \
       value1.dtype() == value2.dtype(),       \
-      "(): expected " #value2 " and " #value2 \
+      "(): expected " #value1 " and " #value2 \
       " to have the same dtype, "             \
-      "but " #value2 " has ",                 \
+      "but " #value1 " has ",                 \
       value1.dtype(),                         \
       " and " #value2 " has ",                \
       value2.dtype());
