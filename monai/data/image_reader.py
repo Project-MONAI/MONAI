@@ -23,13 +23,14 @@ from monai.utils import ensure_tuple, optional_import
 from .utils import is_supported_format
 
 if TYPE_CHECKING:
+    import cuimage
     import itk  # type: ignore
     import nibabel as nib
+    import openslide
     from itk import Image  # type: ignore
     from nibabel.nifti1 import Nifti1Image
     from PIL import Image as PILImage
-    import cuimage
-    import openslide
+
 
     has_itk = has_nib = has_pil = has_cux = True
 else:
