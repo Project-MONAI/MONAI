@@ -17,7 +17,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 import copy
 import logging
-from typing import Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union, Any
+from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -637,6 +637,7 @@ class RandLambdad(Lambdad, Randomizable):
     For more details, please check :py:class:`monai.transforms.Lambdad`.
 
     """
+
     def randomize(self, data: Any) -> None:
         pass
 
