@@ -24,6 +24,7 @@ from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.croppad.array import CenterSpatialCrop
+from monai.utils import issequenceiterable
 from monai.transforms.utils import (
     create_control_grid,
     create_grid,
@@ -890,6 +891,10 @@ class AffineGrid(Transform):
         as_tensor_output: whether to output tensor instead of numpy array.
             defaults to True.
         device: device to store the output grid data.
+        affine: If applied, ignore the params (`rotate_params`, etc.) and use the
+            supplied matrix. Should be square with each side = num of image spatial
+            dimensions + 1.
+        return_affine: boolean as to whether to return the generated affine matrix or not.
 
     """
 
@@ -901,6 +906,8 @@ class AffineGrid(Transform):
         scale_params: Optional[Union[Sequence[float], float]] = None,
         as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
+        affine: Optional[Union[np.array, torch.Tensor]] = None,
+        return_affine: bool = False,
     ) -> None:
         self.rotate_params = rotate_params
         self.shear_params = shear_params
@@ -909,6 +916,9 @@ class AffineGrid(Transform):
 
         self.as_tensor_output = as_tensor_output
         self.device = device
+
+        self.affine = affine
+        self.return_affine = return_affine
 
     def __call__(
         self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[Union[np.ndarray, torch.Tensor]] = None
@@ -928,16 +938,19 @@ class AffineGrid(Transform):
             else:
                 raise ValueError("Incompatible values: grid=None and spatial_size=None.")
 
-        spatial_dims = len(grid.shape) - 1
-        affine = np.eye(spatial_dims + 1)
-        if self.rotate_params:
-            affine = affine @ create_rotate(spatial_dims, self.rotate_params)
-        if self.shear_params:
-            affine = affine @ create_shear(spatial_dims, self.shear_params)
-        if self.translate_params:
-            affine = affine @ create_translate(spatial_dims, self.translate_params)
-        if self.scale_params:
-            affine = affine @ create_scale(spatial_dims, self.scale_params)
+        if self.affine is None:
+            spatial_dims = len(grid.shape) - 1
+            affine = np.eye(spatial_dims + 1)
+            if self.rotate_params:
+                affine = affine @ create_rotate(spatial_dims, self.rotate_params)
+            if self.shear_params:
+                affine = affine @ create_shear(spatial_dims, self.shear_params)
+            if self.translate_params:
+                affine = affine @ create_translate(spatial_dims, self.translate_params)
+            if self.scale_params:
+                affine = affine @ create_scale(spatial_dims, self.scale_params)
+        else:
+            affine = self.affine
         affine = torch.as_tensor(np.ascontiguousarray(affine), device=self.device)
 
         grid = torch.tensor(grid) if not isinstance(grid, torch.Tensor) else grid.detach().clone()
@@ -946,9 +959,10 @@ class AffineGrid(Transform):
         grid = (affine.float() @ grid.reshape((grid.shape[0], -1)).float()).reshape([-1] + list(grid.shape[1:]))
         if grid is None or not isinstance(grid, torch.Tensor):
             raise ValueError("Unknown grid.")
-        if self.as_tensor_output:
-            return grid
-        return np.asarray(grid.cpu().numpy())
+        output = grid if self.as_tensor_output else np.asarray(grid.cpu().numpy())
+        if self.return_affine:
+            return output, affine
+        return output
 
 
 class RandAffineGrid(Randomizable, Transform):
@@ -958,33 +972,29 @@ class RandAffineGrid(Randomizable, Transform):
 
     def __init__(
         self,
-        rotate_range: Optional[Union[Sequence[float], float]] = None,
-        shear_range: Optional[Union[Sequence[float], float]] = None,
-        translate_range: Optional[Union[Sequence[float], float]] = None,
-        scale_range: Optional[Union[Sequence[float], float]] = None,
+        rotate_range: Optional[Union[Sequence[Sequence[float]], Sequence[float], float]] = None,
+        shear_range: Optional[Union[Sequence[Sequence[float]], Sequence[float], float]] = None,
+        translate_range: Optional[Union[Sequence[Sequence[float]], Sequence[float], float]] = None,
+        scale_range: Optional[Union[Sequence[Sequence[float]], Sequence[float], float]] = None,
         as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
+        return_affine: bool = False,
     ) -> None:
         """
         Args:
-            rotate_range: angle range in radians. rotate_range[0] with be used to generate the 1st rotation
-                parameter from `uniform[-rotate_range[0], rotate_range[0])`. Similarly, `rotate_range[1]` and
-                `rotate_range[2]` are used in 3D affine for the range of 2nd and 3rd axes.
-            shear_range: shear_range[0] with be used to generate the 1st shearing parameter from
-                `uniform[-shear_range[0], shear_range[0])`. Similarly, `shear_range[1]` to
-                `shear_range[N]` controls the range of the uniform distribution used to generate the 2nd to
-                N-th parameter.
-            translate_range : translate_range[0] with be used to generate the 1st shift parameter from
-                `uniform[-translate_range[0], translate_range[0])`. Similarly, `translate_range[1]`
-                to `translate_range[N]` controls the range of the uniform distribution used to generate
-                the 2nd to N-th parameter.
-            scale_range: scaling_range[0] with be used to generate the 1st scaling factor from
-                `uniform[-scale_range[0], scale_range[0]) + 1.0`. Similarly, `scale_range[1]` to
-                `scale_range[N]` controls the range of the uniform distribution used to generate the 2nd to
-                N-th parameter.
+            rotate_range: angle range in radians. If element `i` is iterable, then
+                `uniform[-rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
+                for the ith dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used. This can
+                be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be in range
+                `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]` for dim0
+                and nothing for the remaining dimensions.
+            shear_range: shear_range with format matching `rotate_range`.
+            translate_range: translate_range with format matching `rotate_range`.
+            scale_range: scaling_range with format matching `rotate_range`.
             as_tensor_output: whether to output tensor instead of numpy array.
                 defaults to True.
             device: device to store the output grid data.
+            return_affine: boolean as to whether to return the generated affine matrix or not.
 
         See also:
             - :py:meth:`monai.transforms.utils.create_rotate`
@@ -1005,15 +1015,25 @@ class RandAffineGrid(Randomizable, Transform):
         self.as_tensor_output = as_tensor_output
         self.device = device
 
+        self.return_affine = return_affine
+
+    def _get_rand_param(self, param_range):
+        out_param = []
+        for f in param_range:
+            if issequenceiterable(f):
+                if len(f) != 2:
+                    raise ValueError("If giving range as [min,max], should only have two elements per dim.")
+                out_param.append(self.R.uniform(f[0], f[1]))
+            elif f is not None:
+                out_param.append(self.R.uniform(-f, f))
+        return out_param
+
+
     def randomize(self, data: Optional[Any] = None) -> None:
-        if self.rotate_range:
-            self.rotate_params = [self.R.uniform(-f, f) for f in self.rotate_range if f is not None]
-        if self.shear_range:
-            self.shear_params = [self.R.uniform(-f, f) for f in self.shear_range if f is not None]
-        if self.translate_range:
-            self.translate_params = [self.R.uniform(-f, f) for f in self.translate_range if f is not None]
-        if self.scale_range:
-            self.scale_params = [self.R.uniform(-f, f) + 1.0 for f in self.scale_range if f is not None]
+        self.rotate_params = self._get_rand_param(self.rotate_range)
+        self.shear_params = self._get_rand_param(self.shear_range)
+        self.translate_params = self._get_rand_param(self.translate_range)
+        self.scale_params = self._get_rand_param(self.scale_range)
 
     def __call__(
         self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[Union[np.ndarray, torch.Tensor]] = None
@@ -1034,6 +1054,7 @@ class RandAffineGrid(Randomizable, Transform):
             scale_params=self.scale_params,
             as_tensor_output=self.as_tensor_output,
             device=self.device,
+            return_affine=self.return_affine,
         )
         return affine_grid(spatial_size, grid)
 
@@ -1289,21 +1310,15 @@ class RandAffine(Randomizable, Transform):
         Args:
             prob: probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid.
-            rotate_range: angle range in radians. rotate_range[0] with be used to generate the 1st rotation
-                parameter from `uniform[-rotate_range[0], rotate_range[0])`. Similarly, `rotate_range[1]` and
-                `rotate_range[2]` are used in 3D affine for the range of 2nd and 3rd axes.
-            shear_range: shear_range[0] with be used to generate the 1st shearing parameter from
-                `uniform[-shear_range[0], shear_range[0])`. Similarly, `shear_range[1]` to
-                `shear_range[N]` controls the range of the uniform distribution used to generate the 2nd to
-                N-th parameter.
-            translate_range : translate_range[0] with be used to generate the 1st shift parameter from
-                `uniform[-translate_range[0], translate_range[0])`. Similarly, `translate_range[1]`
-                to `translate_range[N]` controls the range of the uniform distribution used to generate
-                the 2nd to N-th parameter.
-            scale_range: scaling_range[0] with be used to generate the 1st scaling factor from
-                `uniform[-scale_range[0], scale_range[0]) + 1.0`. Similarly, `scale_range[1]` to
-                `scale_range[N]` controls the range of the uniform distribution used to generate the 2nd to
-                N-th parameter.
+            rotate_range: angle range in radians. If element `i` is iterable, then
+                `uniform[-rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
+                for the ith dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used. This can
+                be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be in range
+                `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]` for dim0
+                and nothing for the remaining dimensions.
+            shear_range: shear_range with format matching `rotate_range`.
+            translate_range: translate_range with format matching `rotate_range`.
+            scale_range: scaling_range with format matching `rotate_range`.
             spatial_size: output image spatial size.
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
@@ -1333,6 +1348,7 @@ class RandAffine(Randomizable, Transform):
             scale_range=scale_range,
             as_tensor_output=True,
             device=device,
+            return_affine=True,
         )
         self.resampler = Resample(as_tensor_output=as_tensor_output, device=device)
 
@@ -1412,17 +1428,15 @@ class Rand2DElastic(Randomizable, Transform):
             prob: probability of returning a randomized elastic transform.
                 defaults to 0.1, with 10% chance returns a randomized elastic transform,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
-            rotate_range: angle range in radians. rotate_range[0] with be used to generate the 1st rotation
-                parameter from `uniform[-rotate_range[0], rotate_range[0])`.
-            shear_range: shear_range[0] with be used to generate the 1st shearing parameter from
-                `uniform[-shear_range[0], shear_range[0])`. Similarly, `shear_range[1]` controls
-                the range of the uniform distribution used to generate the 2nd parameter.
-            translate_range : translate_range[0] with be used to generate the 1st shift parameter from
-                `uniform[-translate_range[0], translate_range[0])`. Similarly, `translate_range[1]` controls
-                the range of the uniform distribution used to generate the 2nd parameter.
-            scale_range: scaling_range[0] with be used to generate the 1st scaling factor from
-                `uniform[-scale_range[0], scale_range[0]) + 1.0`. Similarly, `scale_range[1]` controls
-                the range of the uniform distribution used to generate the 2nd parameter.
+            rotate_range: angle range in radians. If element `i` is iterable, then
+                `uniform[-rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
+                for the ith dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used. This can
+                be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be in range
+                `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]` for dim0
+                and nothing for the remaining dimensions.
+            shear_range: shear_range with format matching `rotate_range`.
+            translate_range: translate_range with format matching `rotate_range`.
+            scale_range: scaling_range with format matching `rotate_range`.
             spatial_size: specifying output image spatial size [h, w].
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
@@ -1541,19 +1555,15 @@ class Rand3DElastic(Randomizable, Transform):
             prob: probability of returning a randomized elastic transform.
                 defaults to 0.1, with 10% chance returns a randomized elastic transform,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
-            rotate_range: angle range in radians. rotate_range[0] with be used to generate the 1st rotation
-                parameter from `uniform[-rotate_range[0], rotate_range[0])`. Similarly, `rotate_range[1]` and
-                `rotate_range[2]` are used in 3D affine for the range of 2nd and 3rd axes.
-            shear_range: shear_range[0] with be used to generate the 1st shearing parameter from
-                `uniform[-shear_range[0], shear_range[0])`. Similarly, `shear_range[1]` and `shear_range[2]`
-                controls the range of the uniform distribution used to generate the 2nd and 3rd parameters.
-            translate_range : translate_range[0] with be used to generate the 1st shift parameter from
-                `uniform[-translate_range[0], translate_range[0])`. Similarly, `translate_range[1]` and
-                `translate_range[2]` controls the range of the uniform distribution used to generate
-                the 2nd and 3rd parameters.
-            scale_range: scaling_range[0] with be used to generate the 1st scaling factor from
-                `uniform[-scale_range[0], scale_range[0]) + 1.0`. Similarly, `scale_range[1]` and `scale_range[2]`
-                controls the range of the uniform distribution used to generate the 2nd and 3rd parameters.
+            rotate_range: angle range in radians. If element `i` is iterable, then
+                `uniform[-rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
+                for the ith dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used. This can
+                be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be in range
+                `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]` for dim0
+                and nothing for the remaining dimensions.
+            shear_range: shear_range with format matching `rotate_range`.
+            translate_range: translate_range with format matching `rotate_range`.
+            scale_range: scaling_range with format matching `rotate_range`.
             spatial_size: specifying output image spatial size [h, w, d].
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
