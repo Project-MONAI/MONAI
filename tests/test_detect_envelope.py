@@ -98,7 +98,7 @@ TEST_CASE_INVALID_N = [
 
 TEST_CASE_INVALID_DTYPE = [
     {},
-    np.expand_dims(np.array(hann_windowed_sine, dtype=np.complex), 0),  # complex numbers are invalid
+    np.expand_dims(np.array(hann_windowed_sine, dtype=complex), 0),  # complex numbers are invalid
     "__call__",  # method expected to raise exception
 ]
 
