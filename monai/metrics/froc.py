@@ -48,13 +48,13 @@ def compute_fp_tp_probs(
     """
     assert probs.shape == ycorr.shape == xcorr.shape, "the shapes for coordinates and probabilities should be the same."
 
-    if torch.is_tensor(probs):
+    if isinstance(probs, torch.Tensor):
         probs = probs.detach().cpu().numpy()
-    if torch.is_tensor(ycorr):
+    if isinstance(ycorr, torch.Tensor):
         ycorr = ycorr.detach().cpu().numpy()
-    if torch.is_tensor(xcorr):
+    if isinstance(xcorr, torch.Tensor):
         xcorr = xcorr.detach().cpu().numpy()
-    if torch.is_tensor(evaluation_mask):
+    if isinstance(evaluation_mask, torch.Tensor):
         evaluation_mask = evaluation_mask.detach().cpu().numpy()
 
     if isolated_tumor_cells is None:
@@ -98,9 +98,9 @@ def compute_froc_curve_data(
 
     """
     assert type(fp_probs) == type(tp_probs), "fp and tp probs should have same type."
-    if torch.is_tensor(fp_probs):
+    if isinstance(fp_probs, torch.Tensor):
         fp_probs = fp_probs.detach().cpu().numpy()
-    if torch.is_tensor(tp_probs):
+    if isinstance(tp_probs, torch.Tensor):
         tp_probs = tp_probs.detach().cpu().numpy()
 
     total_fps, total_tps = [], []
