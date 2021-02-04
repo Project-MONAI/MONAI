@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Type, Un
 import numpy as np
 import torch
 import torch.nn as nn
-from numpy.core.arrayprint import _none_or_positive_arg
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
@@ -363,7 +362,7 @@ class LearningRateFinder:
         for param_group, new_lr in zip(self.optimizer.param_groups, new_lrs):
             param_group["lr"] = new_lr
 
-    def _check_for_scheduler(self) -> _none_or_positive_arg:
+    def _check_for_scheduler(self):
         """Check optimizer doesn't already have scheduler."""
         for param_group in self.optimizer.param_groups:
             if "initial_lr" in param_group:

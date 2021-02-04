@@ -487,7 +487,7 @@ class AffineTransform(nn.Module):
 
         """
         # validate `theta`
-        if not torch.is_tensor(theta):
+        if not isinstance(theta, torch.Tensor):
             raise TypeError(f"theta must be torch.Tensor but is {type(theta).__name__}.")
         if theta.dim() not in (2, 3):
             raise ValueError(f"theta must be Nxdxd or dxd, got {theta.shape}.")
@@ -504,7 +504,7 @@ class AffineTransform(nn.Module):
             raise ValueError(f"theta must be Nx3x3 or Nx4x4, got {theta.shape}.")
 
         # validate `src`
-        if not torch.is_tensor(src):
+        if not isinstance(src, torch.Tensor):
             raise TypeError(f"src must be torch.Tensor but is {type(src).__name__}.")
         sr = src.dim() - 2  # input spatial rank
         if sr not in (2, 3):

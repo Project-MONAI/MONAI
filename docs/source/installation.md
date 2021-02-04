@@ -1,16 +1,23 @@
 # Installation guide
 
+## Table of Contents
+1. [From PyPI](#from-pypi)
+	1. [Milestone release](#milestone-release)
+	2. [Weekly preview release](#weekly-preview-release)
+2. [From GitHub](#from-github)
+	1. [System-wide](#milestone-release)
+	2. [Editable](#weekly-preview-release)
+3. [Validating the install](#validating-the-install)
+4. [MONAI version string](#monai-version-string)
+5. [From DockerHub](#from-dockerhub)
+6. [Installing the recommended dependencies](#Installing-the-recommended-dependencies)
+
+---
+
 MONAI's core functionality is written in Python 3 (>= 3.6) and only requires [Numpy](https://numpy.org/) and [Pytorch](https://pytorch.org/).
 
 The package is currently distributed via Github as the primary source code repository,
 and the Python package index (PyPI). The pre-built Docker images are made available on DockerHub.
-
-This page provides steps to:
-- [Install MONAI from PyPI](#from-pypi)
-- [Install MONAI from GitHub](#from-github)
-- [Validate the install](#validating-the-install)
-- [Understand MONAI version string](#monai-version-string)
-- [Run MONAI From DockerHub](#from-dockerhub)
 
 To install optional features such as handling the NIfTI files using
 [Nibabel](https://nipy.org/nibabel/), or building workflows using [Pytorch

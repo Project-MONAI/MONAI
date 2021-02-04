@@ -9,34 +9,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import unittest
 
-import numpy as np
 import torch
 import torch.distributed as dist
 
-from monai.handlers import ROCAUC
+from monai.handlers.utils import evenly_divisible_all_gather
 from tests.utils import DistCall, DistTestCase
 
 
-class DistributedROCAUC(DistTestCase):
-    @DistCall(nnodes=1, nproc_per_node=2, node_rank=0)
-    def test_compute(self):
-        auc_metric = ROCAUC(to_onehot_y=True, softmax=True)
-        device = f"cuda:{dist.get_rank()}" if torch.cuda.is_available() else "cpu"
+class DistributedEvenlyDivisibleAllGather(DistTestCase):
+    @DistCall(nnodes=1, nproc_per_node=2)
+    def test_data(self):
+        self._run()
+
+    def _run(self):
         if dist.get_rank() == 0:
-            y_pred = torch.tensor([[0.1, 0.9], [0.3, 1.4]], device=device)
-            y = torch.tensor([[0], [1]], device=device)
-            auc_metric.update([y_pred, y])
+            data1 = torch.tensor([[1, 2], [3, 4]])
+            data2 = torch.tensor([[1.0, 2.0]])
 
         if dist.get_rank() == 1:
-            y_pred = torch.tensor([[0.2, 0.1], [0.1, 0.5], [0.3, 0.4]], device=device)
-            y = torch.tensor([[0], [1], [1]], device=device)
-            auc_metric.update([y_pred, y])
+            data1 = torch.tensor([[5, 6]])
+            data2 = torch.tensor([[3.0, 4.0], [5.0, 6.0]])
 
-        result = auc_metric.compute()
-        np.testing.assert_allclose(0.66667, result, rtol=1e-4)
+        result1 = evenly_divisible_all_gather(data=data1)
+        torch.testing.assert_allclose(result1, torch.tensor([[1, 2], [3, 4], [5, 6]]))
+        result2 = evenly_divisible_all_gather(data=data2)
+        torch.testing.assert_allclose(result2, torch.tensor([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]))
 
 
 if __name__ == "__main__":

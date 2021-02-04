@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Callable, Optional, Union
 
 import numpy as np
 
+from monai.config import DtypeLike
 from monai.data import NiftiSaver, PNGSaver
 from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, exact_version, optional_import
 
@@ -38,8 +39,8 @@ class SegmentationSaver:
         mode: Union[GridSampleMode, InterpolateMode, str] = "nearest",
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         scale: Optional[int] = None,
-        dtype: Optional[np.dtype] = np.float64,
-        output_dtype: Optional[np.dtype] = np.float32,
+        dtype: DtypeLike = np.float64,
+        output_dtype: DtypeLike = np.float32,
         batch_transform: Callable = lambda x: x,
         output_transform: Callable = lambda x: x,
         name: Optional[str] = None,

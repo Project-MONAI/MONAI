@@ -14,9 +14,11 @@ from typing import Dict, Optional, Union
 import numpy as np
 import torch
 
+from monai.config import DtypeLike
 from monai.data.nifti_writer import write_nifti
 from monai.data.utils import create_file_basename
 from monai.utils import GridSampleMode, GridSamplePadMode
+from monai.utils import ImageMetaKey as Key
 
 
 class NiftiSaver:
@@ -36,8 +38,8 @@ class NiftiSaver:
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
-        dtype: Optional[np.dtype] = np.float64,
-        output_dtype: Optional[np.dtype] = np.float32,
+        dtype: DtypeLike = np.float64,
+        output_dtype: DtypeLike = np.float32,
     ) -> None:
         """
         Args:
@@ -94,13 +96,13 @@ class NiftiSaver:
         See Also
             :py:meth:`monai.data.nifti_writer.write_nifti`
         """
-        filename = meta_data["filename_or_obj"] if meta_data else str(self._data_index)
+        filename = meta_data[Key.FILENAME_OR_OBJ] if meta_data else str(self._data_index)
         self._data_index += 1
         original_affine = meta_data.get("original_affine", None) if meta_data else None
         affine = meta_data.get("affine", None) if meta_data else None
         spatial_shape = meta_data.get("spatial_shape", None) if meta_data else None
 
-        if torch.is_tensor(data):
+        if isinstance(data, torch.Tensor):
             data = data.detach().cpu().numpy()
 
         filename = create_file_basename(self.output_postfix, filename, self.output_dir)
@@ -109,7 +111,7 @@ class NiftiSaver:
         while len(data.shape) < 4:
             data = np.expand_dims(data, -1)
         # change data to "channel last" format and write to nifti format file
-        data = np.moveaxis(data, 0, -1)
+        data = np.moveaxis(np.asarray(data), 0, -1)
         write_nifti(
             data,
             file_name=filename,
