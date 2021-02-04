@@ -9,13 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Union
+from typing import Any, Callable, Optional, Union
 
 import torch
 
+from monai.handlers.utils import evenly_divisible_all_gather
 from monai.metrics import compute_roc_auc
 from monai.utils import Average, exact_version, optional_import
 
+idist, _ = optional_import("ignite", "0.4.2", exact_version, "distributed")
 EpochMetric, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "EpochMetric")
 
 
@@ -71,9 +73,32 @@ class ROCAUC(EpochMetric):  # type: ignore[valid-type, misc]  # due to optional_
                 average=Average(average),
             )
 
+        self._is_reduced: bool = False
         super().__init__(
             compute_fn=_compute_fn,
             output_transform=output_transform,
             check_compute_fn=False,
             device=device,
         )
+
+    def compute(self) -> Any:
+        _prediction_tensor = torch.cat(self._predictions, dim=0)
+        _target_tensor = torch.cat(self._targets, dim=0)
+
+        ws = idist.get_world_size()
+        if ws > 1 and not self._is_reduced:
+            # All gather across all processes
+            _prediction_tensor = evenly_divisible_all_gather(_prediction_tensor)
+            _target_tensor = evenly_divisible_all_gather(_target_tensor)
+        self._is_reduced = True
+
+        result: torch.Tensor = torch.zeros(1)
+        if idist.get_rank() == 0:
+            # Run compute_fn on zero rank only
+            result = self.compute_fn(_prediction_tensor, _target_tensor)
+
+        if ws > 1:
+            # broadcast result to all processes
+            result = idist.broadcast(result, src=0)
+
+        return result.item() if torch.is_tensor(result) else result
