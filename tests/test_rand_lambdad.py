@@ -14,7 +14,23 @@ import unittest
 import numpy as np
 
 from monai.transforms.utility.dictionary import RandLambdad
+from monai.transforms import Randomizable
+
 from tests.utils import NumpyImageTestCase2D
+
+
+class RandTest(Randomizable):
+    """
+    randomisable transform for testing.
+    """
+
+    def randomize(self, data=None):
+        self.set_random_state(seed=134)
+        self._a = self.R.random()
+
+    def __call__(self, data):
+        self.randomize()
+        return data + self._a
 
 
 class TestRandLambdad(NumpyImageTestCase2D):
@@ -22,13 +38,10 @@ class TestRandLambdad(NumpyImageTestCase2D):
         img = self.imt
         data = {"img": img, "prop": 1.0}
 
-        def noise_func(x):
-            np.random.seed(123)
-            return x + np.random.randint(0, 10)
-            np.random.seed(None)
+        test_func = RandTest()
 
-        expected = {"img": noise_func(data["img"]), "prop": 1.0}
-        ret = RandLambdad(keys=["img", "prop"], func=noise_func, overwrite=[True, False])(data)
+        expected = {"img": test_func(data["img"]), "prop": 1.0}
+        ret = RandLambdad(keys=["img", "prop"], func=test_func, overwrite=[True, False])(data)
         self.assertTrue(np.allclose(expected["img"], ret["img"]))
         self.assertTrue(np.allclose(expected["prop"], ret["prop"]))
 
