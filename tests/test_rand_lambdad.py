@@ -27,6 +27,7 @@ class RandTest(Randomizable):
     def randomize(self, data=None):
         self.set_random_state(seed=134)
         self._a = self.R.random()
+        self.set_random_state(seed=None)
 
     def __call__(self, data):
         self.randomize()
