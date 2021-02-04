@@ -626,6 +626,16 @@ class RandLambdad(Lambdad, Randomizable):
     Randomizable version :py:class:`monai.transforms.Lambdad`, the input `func` contains random logic.
     It's a randomizable transform so `CacheDataset` will not execute it and cache the results.
 
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        func: Lambda/function to be applied. It also can be a sequence of Callable,
+            each element corresponds to a key in ``keys``.
+        overwrite: whether to overwrite the original data in the input dictionary with lamdbda function output.
+            default to True. it also can be a sequence of bool, each element corresponds to a key in ``keys``.
+
+    For more details, please check :py:class:`monai.transforms.Lambdad`.
+
     """
     def randomize(self, data: Any) -> None:
         pass
