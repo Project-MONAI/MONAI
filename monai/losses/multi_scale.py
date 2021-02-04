@@ -9,8 +9,7 @@ from monai.networks.layers import gaussian_1d, separable_filtering
 def make_gaussian_kernel(sigma: int) -> torch.Tensor:
     if sigma <= 0:
         raise ValueError(f"expecting postive sigma, got sign={sigma}")
-    sigma = torch.tensor(sigma)
-    kernel = gaussian_1d(sigma=sigma, truncated=3, approx="sampled", normalize=False)
+    kernel = gaussian_1d(sigma=torch.tensor(sigma), truncated=3, approx="sampled", normalize=False)
     return kernel
 
 
@@ -61,7 +60,8 @@ class MultiScaleLoss(_Loss):
 
     def forward(self, y_true: torch.Tensor, y_pred: torch.Tensor) -> torch.Tensor:
         if self.scales is None:
-            return self.loss(y_pred, y_true)
+            loss: torch.Tensor = self.loss(y_pred, y_true)
+            return loss
         losses = []
         for s in self.scales:
             if s == 0:
