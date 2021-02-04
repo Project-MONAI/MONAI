@@ -52,6 +52,8 @@ class TestMultiScale(unittest.TestCase):
             MultiScaleLoss(loss=dice_loss, kernel="none")
         with self.assertRaisesRegex(ValueError, ""):
             MultiScaleLoss(loss=dice_loss, scales=[-1])(torch.ones((1, 1, 3)), torch.ones((1, 1, 3)))
+        with self.assertRaisesRegex(ValueError, ""):
+            MultiScaleLoss(loss=dice_loss, scales=[-1], reduction="none")(torch.ones((1, 1, 3)), torch.ones((1, 1, 3)))
 
 
 if __name__ == "__main__":
