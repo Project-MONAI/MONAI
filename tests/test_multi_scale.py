@@ -10,58 +10,34 @@
 # limitations under the License.
 import unittest
 
-import torch
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.losses import DiceLoss
 from monai.losses.multi_scale import MultiScaleLoss
 
-dice_loss = DiceLoss(
-    include_background=True,
-    sigmoid=True,
-    smooth_nr=1e-5,
-    smooth_dr=1e-5
-)
+dice_loss = DiceLoss(include_background=True, sigmoid=True, smooth_nr=1e-5, smooth_dr=1e-5)
 
 TEST_CASES = [
     [
-        {
-            "loss": dice_loss,
-            "scales": None,
-            "kernel": "gaussian"
-        },
-        {
-            "y_pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
-            "y_true": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]])
-        },
+        {"loss": dice_loss, "scales": None, "kernel": "gaussian"},
+        {"y_pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]), "y_true": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]])},
         0.307576,
     ],
     [
-        {
-            "loss": dice_loss,
-            "scales": [0, 1],
-            "kernel": "gaussian"
-        },
-        {
-            "y_pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]),
-            "y_true": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]])
-        },
+        {"loss": dice_loss, "scales": [0, 1], "kernel": "gaussian"},
+        {"y_pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]), "y_true": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]])},
         0.463116,
     ],
     [
-        {
-            "loss": dice_loss,
-            "scales": [0, 1, 2],
-            "kernel": "cauchy"
-        },
+        {"loss": dice_loss, "scales": [0, 1, 2], "kernel": "cauchy"},
         {
             "y_pred": torch.tensor([[[[[1.0, -1.0], [-1.0, 1.0]]]]]),
-            "y_true": torch.tensor([[[[[1.0, 0.0], [1.0, 1.0]]]]])
+            "y_true": torch.tensor([[[[[1.0, 0.0], [1.0, 1.0]]]]]),
         },
         0.715228,
-    ]
-
+    ],
 ]
 
 
@@ -75,9 +51,7 @@ class TestMultiScale(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, ""):
             MultiScaleLoss(loss=dice_loss, kernel="none")
         with self.assertRaisesRegex(ValueError, ""):
-            MultiScaleLoss(loss=dice_loss, scales=[-1])(
-                torch.ones((1, 1, 3)), torch.ones((1, 1, 3))
-            )
+            MultiScaleLoss(loss=dice_loss, scales=[-1])(torch.ones((1, 1, 3)), torch.ones((1, 1, 3)))
 
 
 if __name__ == "__main__":

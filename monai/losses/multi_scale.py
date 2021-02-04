@@ -1,9 +1,9 @@
-from typing import Optional, List, Union
+from typing import List, Optional
 
 import torch
 from torch.nn.modules.loss import _Loss
 
-from monai.networks.layers import separable_filtering, gaussian_1d
+from monai.networks.layers import gaussian_1d, separable_filtering
 
 
 def make_gaussian_kernel(sigma: int) -> torch.Tensor:
@@ -15,13 +15,8 @@ def make_gaussian_kernel(sigma: int) -> torch.Tensor:
 
 
 def make_cauchy_kernel(sigma: int) -> torch.Tensor:
-    """
-    Approximating cauchy kernel in 1d.
-
-    :param sigma: int, defining standard deviation of kernel.
-    :return: shape = (dim, )
-    """
-    assert sigma > 0
+    if sigma <= 0:
+        raise ValueError(f"expecting postive sigma, got sign={sigma}")
     tail = int(sigma * 5)
     k = torch.tensor([((x / sigma) ** 2 + 1) for x in range(-tail, tail + 1)])
     k = torch.reciprocal(k)
@@ -36,24 +31,30 @@ kernel_fn_dict = {
 
 
 class MultiScaleLoss(_Loss):
+    """
+    This is a wrapper class.
+    It smooths the input and target at different scales before passing them into the wrapped loss function.
+    The output is the average loss at all scales.
+
+    Adapted from:
+        DeepReg (https://github.com/DeepRegNet/DeepReg)
+    """
+
     def __init__(
         self,
         loss: _Loss,
         scales: Optional[List] = None,
         kernel: str = "gaussian",
-    ):
+    ) -> None:
         """
         Args:
+            loss: loss function to be wrapped
             scales: list of scalars or None, if None, do not apply any scaling.
             kernel: gaussian or cauchy.
-            reduction: using SUM reduction over batch axis,
-                calling the loss like `loss(y_true, y_pred)` will return a scalar tensor.
-            name: str, name of the loss.
         """
         super(MultiScaleLoss, self).__init__()
         if kernel not in kernel_fn_dict.keys():
-            raise ValueError(f"got unsupported kernel type: {kernel}",
-                             "only support gaussian and cauchy")
+            raise ValueError(f"got unsupported kernel type: {kernel}", "only support gaussian and cauchy")
         self.kernel_fn = kernel_fn_dict[kernel]
         self.loss = loss
         self.scales = scales
@@ -65,9 +66,7 @@ class MultiScaleLoss(_Loss):
         for s in self.scales:
             if s == 0:
                 # no smoothing
-                losses.append(
-                    self.loss(y_pred, y_true)
-                )
+                losses.append(self.loss(y_pred, y_true))
             else:
                 losses.append(
                     self.loss(
@@ -77,4 +76,3 @@ class MultiScaleLoss(_Loss):
                 )
         loss = torch.mean(torch.stack(losses, dim=0), dim=0)
         return loss
-
