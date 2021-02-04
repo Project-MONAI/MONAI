@@ -13,9 +13,8 @@ import unittest
 
 import numpy as np
 
-from monai.transforms.utility.dictionary import RandLambdad
 from monai.transforms import Randomizable
-
+from monai.transforms.utility.dictionary import RandLambdad
 from tests.utils import NumpyImageTestCase2D
 
 
