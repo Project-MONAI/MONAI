@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.metrics import compute_fp_tp_probs, compute_froc_score
+from monai.metrics import compute_fp_tp_probs, compute_froc_curve_data, compute_froc_score
 
 TEST_CASE_1 = [
     {
@@ -64,6 +64,7 @@ TEST_CASE_4 = [
         "num_of_tumors": 4,
         "num_of_samples": 2,
     },
+    (0.25, 0.5, 1, 2, 4, 8),
     0.95833333,
 ]
 
@@ -73,8 +74,8 @@ TEST_CASE_5 = [
         "tp_probs": torch.tensor([1, 1, 0, 0, 0.8, 0.8, 0]),
         "num_of_tumors": 4,
         "num_of_samples": 2,
-        "eval_thresholds": [0.25],
     },
+    (0.25),
     0.75,
 ]
 
@@ -90,9 +91,10 @@ class TestComputeFpTp(unittest.TestCase):
 
 class TestComputeFrocScore(unittest.TestCase):
     @parameterized.expand([TEST_CASE_4, TEST_CASE_5])
-    def test_value(self, input_data, expected_score):
-        avg_sensitivity = compute_froc_score(**input_data)
-        np.testing.assert_allclose(avg_sensitivity, expected_score, rtol=1e-5)
+    def test_value(self, input_data, thresholds, expected_score):
+        fps_per_image, total_sensitivity = compute_froc_curve_data(**input_data)
+        score = compute_froc_score(fps_per_image, total_sensitivity, thresholds)
+        np.testing.assert_allclose(score, expected_score, rtol=1e-5)
 
 
 if __name__ == "__main__":

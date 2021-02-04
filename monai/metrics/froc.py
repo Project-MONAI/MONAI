@@ -57,7 +57,7 @@ def compute_fp_tp_probs(
     if torch.is_tensor(evaluation_mask):
         evaluation_mask = evaluation_mask.detach().cpu().numpy()
 
-    if not isolated_tumor_cells:
+    if isolated_tumor_cells is None:
         isolated_tumor_cells = []
 
     max_label = np.max(evaluation_mask)
@@ -76,18 +76,16 @@ def compute_fp_tp_probs(
     return fp_probs, tp_probs, num_of_tumors
 
 
-def compute_froc_score(
+def compute_froc_curve_data(
     fp_probs: Union[np.ndarray, torch.Tensor],
     tp_probs: Union[np.ndarray, torch.Tensor],
     num_of_tumors: int,
     num_of_samples: int,
-    eval_thresholds: Tuple = (0.25, 0.5, 1, 2, 4, 8),
 ):
     """
     This function is modified from the official evaluation code of
     `CAMELYON 16 Challenge <https://camelyon16.grand-challenge.org/>`_, and used to compute
-    the Free Response Operating Characteristic (FROC) score, which is defined as the average
-    sensitivity at predefined false positive rates.
+    the required data for plotting the Free Response Operating Characteristic (FROC) curve.
 
     Args:
         fp_probs: an array that contains the probabilities of the false positive detections for all
@@ -97,8 +95,6 @@ def compute_froc_score(
         num_of_tumors: the total number of tumors (excluding Isolate Tumor Cells) for all samples
             that to be computed.
         num_of_samples: the number of samples that to be computed.
-        eval_thresholds: the false positive rates for calculating the average sensitivity. Defaults
-            to (0.25, 0.5, 1, 2, 4, 8) which is the same as the CAMELYON 16 Challenge.
 
     """
     assert type(fp_probs) == type(tp_probs), "fp and tp probs should have same type."
@@ -114,8 +110,28 @@ def compute_froc_score(
         total_tps.append((tp_probs >= thresh).sum())
     total_fps.append(0)
     total_tps.append(0)
-    total_fps = np.asarray(total_fps) / float(num_of_samples)
+    fps_per_image = np.asarray(total_fps) / float(num_of_samples)
     total_sensitivity = np.asarray(total_tps) / float(num_of_tumors)
+    return fps_per_image, total_sensitivity
 
-    interp_sens = np.interp(eval_thresholds, total_fps[::-1], total_sensitivity[::-1])
+
+def compute_froc_score(
+    fps_per_image: np.ndarray,
+    total_sensitivity: np.ndarray,
+    eval_thresholds: Tuple = (0.25, 0.5, 1, 2, 4, 8),
+):
+    """
+    This function is modified from the official evaluation code of
+    `CAMELYON 16 Challenge <https://camelyon16.grand-challenge.org/>`_, and used to compute
+    the challenge's second evaluation metric, which is defined as the average sensitivity at
+    the predefined false positive rates per whole slide image.
+
+    Args:
+        fps_per_image: the average number of false positives per image for different thresholds.
+        total_sensitivity: sensitivities (true positive rates) for different thresholds.
+        eval_thresholds: the false positive rates for calculating the average sensitivity. Defaults
+            to (0.25, 0.5, 1, 2, 4, 8) which is the same as the CAMELYON 16 Challenge.
+
+    """
+    interp_sens = np.interp(eval_thresholds, fps_per_image[::-1], total_sensitivity[::-1])
     return np.mean(interp_sens)
