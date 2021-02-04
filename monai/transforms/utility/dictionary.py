@@ -17,7 +17,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 import copy
 import logging
-from typing import Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union, Any
 
 import numpy as np
 import torch
@@ -621,6 +621,16 @@ class Lambdad(MapTransform):
         return d
 
 
+class RandLambdad(Lambdad, Randomizable):
+    """
+    Randomizable version :py:class:`monai.transforms.Lambdad`, the input `func` contains random logic.
+    It's a randomizable transform so `CacheDataset` will not execute it and cache the results.
+
+    """
+    def randomize(self, data: Any) -> None:
+        pass
+
+
 class LabelToMaskd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.LabelToMask`.
@@ -830,3 +840,4 @@ ConvertToMultiChannelBasedOnBratsClassesD = (
 ) = ConvertToMultiChannelBasedOnBratsClassesd
 AddExtremePointsChannelD = AddExtremePointsChannelDict = AddExtremePointsChanneld
 TorchVisionD = TorchVisionDict = TorchVisiond
+RandLambdaD = RandLambdaDict = RandLambdad
