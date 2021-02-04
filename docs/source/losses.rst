@@ -75,3 +75,11 @@ Registration Losses
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: GlobalMutualInformationLoss
     :members:
+
+Loss Wrappers
+--------------
+
+`MultiScaleLoss`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: MultiScaleLoss
+    :members:
