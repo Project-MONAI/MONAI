@@ -15,7 +15,6 @@ import numpy as np
 
 from monai.transforms import Randomizable
 from monai.transforms.utility.dictionary import RandLambdad
-from tests.utils import NumpyImageTestCase2D
 
 
 class RandTest(Randomizable):
@@ -24,26 +23,25 @@ class RandTest(Randomizable):
     """
 
     def randomize(self, data=None):
-        self.set_random_state(seed=134)
         self._a = self.R.random()
-        self.set_random_state(seed=None)
 
     def __call__(self, data):
         self.randomize()
         return data + self._a
 
 
-class TestRandLambdad(NumpyImageTestCase2D):
+class TestRandLambdad(unittest.TestCase):
     def test_rand_lambdad_identity(self):
-        img = self.imt
+        img = np.zeros((10, 10))
         data = {"img": img, "prop": 1.0}
 
         test_func = RandTest()
-
+        test_func.set_random_state(seed=134)
         expected = {"img": test_func(data["img"]), "prop": 1.0}
+        test_func.set_random_state(seed=134)
         ret = RandLambdad(keys=["img", "prop"], func=test_func, overwrite=[True, False])(data)
-        self.assertTrue(np.allclose(expected["img"], ret["img"]))
-        self.assertTrue(np.allclose(expected["prop"], ret["prop"]))
+        np.testing.assert_allclose(expected["img"], ret["img"])
+        np.testing.assert_allclose(expected["prop"], ret["prop"])
 
 
 if __name__ == "__main__":
