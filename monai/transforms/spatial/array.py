@@ -894,7 +894,6 @@ class AffineGrid(Transform):
         affine: If applied, ignore the params (`rotate_params`, etc.) and use the
             supplied matrix. Should be square with each side = num of image spatial
             dimensions + 1.
-        return_affine: boolean as to whether to return the generated affine matrix or not.
 
     """
 
@@ -907,7 +906,6 @@ class AffineGrid(Transform):
         as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
         affine: Optional[Union[np.array, torch.Tensor]] = None,
-        return_affine: bool = False,
     ) -> None:
         self.rotate_params = rotate_params
         self.shear_params = shear_params
@@ -918,15 +916,18 @@ class AffineGrid(Transform):
         self.device = device
 
         self.affine = affine
-        self.return_affine = return_affine
 
     def __call__(
-        self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[Union[np.ndarray, torch.Tensor]] = None
+        self,
+        spatial_size: Optional[Sequence[int]] = None,
+        grid: Optional[Union[np.ndarray, torch.Tensor]] = None,
+        return_affine: bool = False,
     ) -> Union[np.ndarray, torch.Tensor]:
         """
         Args:
             spatial_size: output grid size.
             grid: grid to be transformed. Shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
+            return_affine: boolean as to whether to return the generated affine matrix or not.
 
         Raises:
             ValueError: When ``grid=None`` and ``spatial_size=None``. Incompatible values.
@@ -960,7 +961,7 @@ class AffineGrid(Transform):
         if grid is None or not isinstance(grid, torch.Tensor):
             raise ValueError("Unknown grid.")
         output = grid if self.as_tensor_output else np.asarray(grid.cpu().numpy())
-        if self.return_affine:
+        if return_affine:
             return output, affine
         return output
 
@@ -978,7 +979,6 @@ class RandAffineGrid(Randomizable, Transform):
         scale_range: Optional[Union[Sequence[Sequence[float]], Sequence[float], float]] = None,
         as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
-        return_affine: bool = False,
     ) -> None:
         """
         Args:
@@ -994,7 +994,6 @@ class RandAffineGrid(Randomizable, Transform):
             as_tensor_output: whether to output tensor instead of numpy array.
                 defaults to True.
             device: device to store the output grid data.
-            return_affine: boolean as to whether to return the generated affine matrix or not.
 
         See also:
             - :py:meth:`monai.transforms.utils.create_rotate`
@@ -1015,8 +1014,6 @@ class RandAffineGrid(Randomizable, Transform):
         self.as_tensor_output = as_tensor_output
         self.device = device
 
-        self.return_affine = return_affine
-
     def _get_rand_param(self, param_range):
         out_param = []
         for f in param_range:
@@ -1036,12 +1033,16 @@ class RandAffineGrid(Randomizable, Transform):
         self.scale_params = self._get_rand_param(self.scale_range)
 
     def __call__(
-        self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[Union[np.ndarray, torch.Tensor]] = None
+        self,
+        spatial_size: Optional[Sequence[int]] = None,
+        grid: Optional[Union[np.ndarray, torch.Tensor]] = None,
+        return_affine: bool = False,
     ) -> Union[np.ndarray, torch.Tensor]:
         """
         Args:
             spatial_size: output grid size.
             grid: grid to be transformed. Shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
+            return_affine: boolean as to whether to return the generated affine matrix or not.
 
         Returns:
             a 2D (3xHxW) or 3D (4xHxWxD) grid.
@@ -1054,9 +1055,8 @@ class RandAffineGrid(Randomizable, Transform):
             scale_params=self.scale_params,
             as_tensor_output=self.as_tensor_output,
             device=self.device,
-            return_affine=self.return_affine,
         )
-        return affine_grid(spatial_size, grid)
+        return affine_grid(spatial_size, grid, return_affine)
 
 
 class RandDeformGrid(Randomizable, Transform):
@@ -1348,7 +1348,6 @@ class RandAffine(Randomizable, Transform):
             scale_range=scale_range,
             as_tensor_output=True,
             device=device,
-            return_affine=True,
         )
         self.resampler = Resample(as_tensor_output=as_tensor_output, device=device)
 
@@ -1373,6 +1372,7 @@ class RandAffine(Randomizable, Transform):
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+        return_affine: bool = False,
     ) -> Union[np.ndarray, torch.Tensor]:
         """
         Args:
@@ -1388,17 +1388,26 @@ class RandAffine(Randomizable, Transform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            return_affine: boolean as to whether to return the generated affine matrix or not.
         """
         self.randomize()
 
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
+        affine = np.eye(len(sp_size) + 1)
         if self._do_transform:
-            grid = self.rand_affine_grid(spatial_size=sp_size)
+            out = self.rand_affine_grid(spatial_size=sp_size)
+            if return_affine:
+                grid, affine = out
+            else:
+                grid = out
         else:
             grid = create_grid(spatial_size=sp_size)
-        return self.resampler(
+        resampled = self.resampler(
             img=img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
         )
+        if return_affine:
+            return resampled, affine
+        return resampled
 
 
 class Rand2DElastic(Randomizable, Transform):

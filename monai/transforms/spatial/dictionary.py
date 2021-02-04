@@ -611,7 +611,7 @@ class RandAffined(Randomizable, MapTransform, InvertibleTransform):
 
         sp_size = fall_back_tuple(self.rand_affine.spatial_size, data[self.keys[0]].shape[1:])
         if self.rand_affine._do_transform:
-            grid, affine = self.rand_affine.rand_affine_grid(spatial_size=sp_size)
+            grid, affine = self.rand_affine.rand_affine_grid(spatial_size=sp_size, return_affine=True)
         else:
             grid = create_grid(spatial_size=sp_size)
             affine = np.eye(len(sp_size) + 1)
