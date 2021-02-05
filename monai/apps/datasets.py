@@ -483,7 +483,7 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
         cache_rate=1.0,
         num_init_workers=None,
         num_replace_workers=0,
-        image_reader_name="CuImage"
+        image_reader_name="CuImage",
     ):
         extractor = PatchWSIDataset(data, region_size, grid_size, patch_size, image_reader_name)
         super().__init__(

@@ -38,13 +38,9 @@ TEST_CASE_3 = [
 TEST_CASE_4 = [
     filename,
     {"location": (86016 // 2, 89600 // 2), "size": (8, 8), "level": 2, "grid_shape": (2, 1), "patch_size": 1},
-    np.array(
-        [
-            [[[198]], [[132]], [[194]]],
-            [[[228]], [[154]], [[217]]]
-        ]
-    ),
+    np.array([[[[198]], [[132]], [[194]]], [[[228]], [[154]], [[217]]]]),
 ]
+
 
 class TestCuImageReader(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
