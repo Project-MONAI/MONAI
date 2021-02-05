@@ -17,8 +17,8 @@ import numpy as np
 
 from monai.apps.utils import download_and_extract
 from monai.data import (
-    Dataset,
     CacheDataset,
+    Dataset,
     SmartCacheDataset,
     load_decathlon_datalist,
     load_decathlon_properties,
@@ -398,7 +398,7 @@ class PatchWSIDataset(Dataset):
     Load whole slide images and associated class labels and create patches
     """
 
-    def __init__(self, data, region_size, grid_size, patch_size, transform=None, image_reader_name="CuImage"):
+    def __init__(self, data, region_size, grid_size, patch_size, image_reader_name="CuImage", transform=None):
         self.image_reader_name = image_reader_name.lower()
         if type(region_size) == int:
             self.region_size = (region_size, region_size)
@@ -414,7 +414,7 @@ class PatchWSIDataset(Dataset):
         self.transform = transform
         self.image_base_path = data[0]["image_base_path"]
         self.samples = self.load_samples(data[0]["labels"])
-        self.image_path_list = set([x[0] for x in self.samples])
+        self.image_path_list = set(x[0] for x in self.samples)
         self.num_samples = len(self.samples)
 
         self.cu_image_dict = {}
@@ -483,9 +483,9 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
         cache_rate=1.0,
         num_init_workers=None,
         num_replace_workers=0,
-        use_openslide=False,
+        image_reader_name="CuImage"
     ):
-        extractor = PatchWSIDataset(data, region_size, grid_size, patch_size, use_openslide=use_openslide)
+        extractor = PatchWSIDataset(data, region_size, grid_size, patch_size, image_reader_name)
         super().__init__(
             data=extractor,
             transform=transform,

@@ -31,7 +31,6 @@ if TYPE_CHECKING:
     from nibabel.nifti1 import Nifti1Image
     from PIL import Image as PILImage
 
-
     has_itk = has_nib = has_pil = has_cux = True
 else:
     itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
@@ -42,7 +41,7 @@ else:
     cuimage, has_cux = optional_import("cuimage")
     openslide, has_osl = optional_import("openslide")
 
-__all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReader", "CuImageReader", "OpenSlide"]
+__all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReader", "CuImageReader", "OpenSlideReader"]
 
 
 class ImageReader(ABC):
@@ -646,14 +645,7 @@ class CuImageReader(ImageReader):
         return img_ if len(filenames) > 1 else img_[0]
 
     def get_data(
-        self,
-        img_obj,
-        location=(0, 0),
-        size=None,
-        level=0,
-        dtype=np.uint8,
-        grid_shape=(1, 1),
-        patch_size=None
+        self, img_obj, location=(0, 0), size=None, level=0, dtype=np.uint8, grid_shape=(1, 1), patch_size=None
     ):
         """
         Extract regions as numpy array from WSI image and return them.
@@ -686,14 +678,14 @@ class CuImageReader(ImageReader):
         size = [s * (2 ** level) for s in size]
         location, corrected_size, x_pad, y_pad = self.correct_boundries(img_obj, location, size)
         region = img_obj.read_region(location=location, size=corrected_size, level=level)
-
         if (corrected_size[0] == size[0]) and (corrected_size[1] == size[1]):
             region = np.asarray(region, dtype=dtype)
         else:
+            print(img_obj)
             # pad with white (255, 255, 255)
             region = np.ones((size[0], size[1], 3), dtype=dtype) * 255
             region[y_pad[0] : y_pad[1], x_pad[0] : x_pad[1]] = np.asarray(region, dtype=dtype)
-            
+
         # CuImage: (H x W x C) -> torch image: (C X H X W)
         region = region.transpose((2, 0, 1))
         return region
@@ -772,14 +764,7 @@ class OpenSlideReader(ImageReader):
         return img_ if len(filenames) > 1 else img_[0]
 
     def get_data(
-        self,
-        img_obj,
-        location=(0, 0),
-        size=None,
-        level=0,
-        dtype=np.uint8,
-        grid_shape=(1, 1),
-        patch_size=None
+        self, img_obj, location=(0, 0), size=None, level=0, dtype=np.uint8, grid_shape=(1, 1), patch_size=None
     ):
         """
         Extract regions as numpy array from WSI image and return them.
@@ -815,6 +800,7 @@ class OpenSlideReader(ImageReader):
         # OpenSlide: (H x W x C) -> torch image: (C X H X W)
         region = region.transpose((2, 0, 1))
         return region
+
 
 def _extract_patches(region, grid_shape, patch_size, dtype=np.uint8):
     if grid_shape == (1, 1):
