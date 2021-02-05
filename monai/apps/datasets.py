@@ -414,7 +414,7 @@ class PatchWSIDataset(Dataset):
         self.transform = transform
         self.image_base_path = data[0]["image_base_path"]
         self.samples = self.load_samples(data[0]["labels"])
-        self.image_path_list = set(x[0] for x in self.samples)
+        self.image_path_list = {x[0] for x in self.samples}
         self.num_samples = len(self.samples)
 
         self.cu_image_dict = {}
