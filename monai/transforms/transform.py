@@ -12,6 +12,7 @@
 A collection of generic interfaces for MONAI transforms.
 """
 
+import warnings
 from abc import ABC, abstractmethod
 from typing import Any, Hashable, Optional, Tuple
 
@@ -19,8 +20,11 @@ import numpy as np
 
 from monai.config import KeysCollection
 from monai.utils import MAX_SEED, ensure_tuple
+from monai.utils import optional_import
 
-__all__ = ["Randomizable", "Transform", "MapTransform", "InvertibleTransform"]
+sitk, has_sitk = optional_import("SimpleITK")
+
+__all__ = ["Randomizable", "Transform", "MapTransform", "InvertibleTransform", "NonRigidTransform"]
 
 
 class Randomizable(ABC):
@@ -278,3 +282,36 @@ class InvertibleTransform(ABC):
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+
+class NonRigidTransform(ABC):
+    @staticmethod
+    def compute_inverse_deformation(output_size, fwd_def_grid_orig, spacing=None):
+        if not has_sitk:
+            warnings.warn("Please install SimpleITK to estimate inverse of non-rigid transforms. Data has not been modified")
+            return None
+        # return fwd_def_grid_orig
+        # Remove any extra dimensions (we'll add them back in at the end)
+        fwd_def_grid = fwd_def_grid_orig[:len(output_size)]
+        # Def -> disp
+        def_to_disp = np.mgrid[[slice(0, i) for i in fwd_def_grid.shape[1:]]].astype(np.float64)
+        for idx, i in enumerate(fwd_def_grid.shape[1:]):
+            def_to_disp[idx] -= (i - 1) / 2
+        fwd_disp_grid = fwd_def_grid - def_to_disp
+        # move tensor component to end (T,H,W,[D])->(H,W,[D],T)
+        fwd_disp_grid = np.moveaxis(fwd_disp_grid, 0, -1)
+        # Inverse with SimpleITK
+        fwd_disp_grid_sitk = sitk.GetImageFromArray(fwd_disp_grid, isVector=True)
+        if spacing is not None:
+            fwd_disp_grid_sitk.SetSpacing(spacing)
+        inv_disp_grid_sitk = sitk.InvertDisplacementField(fwd_disp_grid_sitk)
+        inv_disp_grid = sitk.GetArrayFromImage(inv_disp_grid_sitk)
+        # move tensor component back to beginning
+        inv_disp_grid = np.moveaxis(inv_disp_grid, -1, 0)
+        # Disp -> def
+        inv_def_grid = inv_disp_grid + def_to_disp
+        # Add back in any removed dimensions
+        ndim_in = fwd_def_grid_orig.shape[0]
+        ndim_out = inv_def_grid.shape[0]
+        inv_def_grid = np.concatenate([inv_def_grid, fwd_def_grid_orig[ndim_out:ndim_in]])
+
+        return inv_def_grid

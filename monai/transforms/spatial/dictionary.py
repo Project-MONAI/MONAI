@@ -38,7 +38,7 @@ from monai.transforms.spatial.array import (
     Zoom,
     AffineGrid,
 )
-from monai.transforms.transform import InvertibleTransform, MapTransform, Randomizable
+from monai.transforms.transform import InvertibleTransform, MapTransform, Randomizable, NonRigidTransform
 from monai.transforms.utils import create_grid
 from monai.utils import (
     GridSampleMode,
@@ -600,8 +600,6 @@ class RandAffined(Randomizable, MapTransform, InvertibleTransform):
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self.rand_affine.randomize()
-        self.prob = self.rand_affine.prob
-        self._do_transform = self.rand_affine._do_transform
 
     def __call__(
         self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
@@ -661,7 +659,7 @@ class RandAffined(Randomizable, MapTransform, InvertibleTransform):
         return d
 
 
-class Rand2DElasticd(Randomizable, MapTransform):
+class Rand2DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Rand2DElastic`.
     """
@@ -722,7 +720,8 @@ class Rand2DElasticd(Randomizable, MapTransform):
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
-        super().__init__(keys)
+        MapTransform.__init__(self, keys)
+        Randomizable.__init__(self, prob)
         self.rand_2d_elastic = Rand2DElastic(
             spacing=spacing,
             magnitude_range=magnitude_range,
@@ -771,13 +770,55 @@ class Rand2DElasticd(Randomizable, MapTransform):
             grid = create_grid(spatial_size=sp_size)
 
         for idx, key in enumerate(self.keys):
+            self.append_applied_transforms(d, key, idx, extra_info={"grid": deepcopy(grid)})
             d[key] = self.rand_2d_elastic.resampler(
                 d[key], grid, mode=self.mode[idx], padding_mode=self.padding_mode[idx]
             )
         return d
 
+    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
+        return {
+            "keys": key,
+            "spacing": self.rand_2d_elastic.deform_grid.spacing,
+            "magnitude_range": self.rand_2d_elastic.deform_grid.magnitude,
+            "spatial_size": self.rand_2d_elastic.spatial_size,
+            "prob": self.rand_2d_elastic.prob,
+            "rotate_range": self.rand_2d_elastic.rand_affine_grid.rotate_range,
+            "shear_range": self.rand_2d_elastic.rand_affine_grid.shear_range,
+            "translate_range": self.rand_2d_elastic.rand_affine_grid.translate_range,
+            "scale_range": self.rand_2d_elastic.rand_affine_grid.scale_range,
+            "mode": self.mode[idx],
+            "padding_mode": self.padding_mode[idx],
+            "as_tensor_output": self.rand_2d_elastic.resampler.as_tensor_output,
+            "device": self.rand_2d_elastic.resampler.device,
+        }
 
-class Rand3DElasticd(Randomizable, MapTransform):
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+
+        for key in self.keys:
+            transform = self.get_most_recent_transform(d, key)
+
+            extra_info = transform["extra_info"]
+            init_args = transform["init_args"]
+            orig_size = transform["orig_size"]
+            # Create inverse transform
+            inv_def_grid = self.compute_inverse_deformation(orig_size, extra_info["grid"], init_args["spacing"])
+            # if no sitk, `inv_def_grid` will be `None`, and data will not be changed.
+            if inv_def_grid is not None:
+                # Apply inverse transform
+                d[key] = self.rand_2d_elastic.resampler(
+                    d[key], inv_def_grid, init_args["mode"], init_args["padding_mode"]
+                )
+                # Back to original size
+                d[key] = CenterSpatialCrop(roi_size=orig_size)(d[key])
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
+
+        return d
+
+
+class Rand3DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Rand3DElastic`.
     """
@@ -839,7 +880,8 @@ class Rand3DElasticd(Randomizable, MapTransform):
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
-        super().__init__(keys)
+        MapTransform.__init__(self, keys)
+        Randomizable.__init__(self, prob)
         self.rand_3d_elastic = Rand3DElastic(
             sigma_range=sigma_range,
             magnitude_range=magnitude_range,
@@ -864,6 +906,8 @@ class Rand3DElasticd(Randomizable, MapTransform):
 
     def randomize(self, grid_size: Sequence[int]) -> None:
         self.rand_3d_elastic.randomize(grid_size)
+        self.prob = self.rand_3d_elastic.prob
+        self._do_transform = self.rand_3d_elastic._do_transform
 
     def __call__(
         self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
@@ -882,9 +926,51 @@ class Rand3DElasticd(Randomizable, MapTransform):
             grid = self.rand_3d_elastic.rand_affine_grid(grid=grid)
 
         for idx, key in enumerate(self.keys):
+            self.append_applied_transforms(d, key, idx, extra_info={"grid": grid.cpu().numpy()})
             d[key] = self.rand_3d_elastic.resampler(
                 d[key], grid, mode=self.mode[idx], padding_mode=self.padding_mode[idx]
             )
+        return d
+
+    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
+        return {
+            "keys": key,
+            "sigma_range": self.rand_3d_elastic.sigma,
+            "magnitude_range": self.rand_3d_elastic.magnitude_range,
+            "spatial_size": self.rand_3d_elastic.spatial_size,
+            "prob": self.rand_3d_elastic.prob,
+            "rotate_range": self.rand_3d_elastic.rand_affine_grid.rotate_range,
+            "shear_range": self.rand_3d_elastic.rand_affine_grid.shear_range,
+            "translate_range": self.rand_3d_elastic.rand_affine_grid.translate_range,
+            "scale_range": self.rand_3d_elastic.rand_affine_grid.scale_range,
+            "mode": self.mode[idx],
+            "padding_mode": self.padding_mode[idx],
+            "as_tensor_output": self.rand_3d_elastic.resampler.as_tensor_output,
+            "device": self.rand_3d_elastic.resampler.device,
+        }
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+
+        for key in self.keys:
+            transform = self.get_most_recent_transform(d, key)
+
+            extra_info = transform["extra_info"]
+            init_args = transform["init_args"]
+            orig_size = transform["orig_size"]
+            # Create inverse transform
+            inv_def_grid = self.compute_inverse_deformation(orig_size, extra_info["grid"])
+            # if no sitk, `inv_def_grid` will be `None`, and data will not be changed.
+            if inv_def_grid is not None:
+                # Back to original size
+                inv_def_grid = CenterSpatialCrop(roi_size=orig_size)(inv_def_grid)
+                # Apply inverse transform
+                d[key] = self.rand_3d_elastic.resampler(
+                    d[key], inv_def_grid, init_args["mode"], init_args["padding_mode"]
+                )
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
+
         return d
 
 

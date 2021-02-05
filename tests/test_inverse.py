@@ -44,6 +44,9 @@ from monai.transforms import (
     RandFlipd,
     RandRotate90d,
     RandAffined,
+    Rand2DElasticd,
+    Rand3DElasticd,
+    ResizeWithPadOrCrop,
 )
 from monai.utils import optional_import, set_determinism
 from tests.utils import make_nifti_image, make_rand_affine
@@ -58,13 +61,13 @@ if TYPE_CHECKING:
 else:
     plt, has_matplotlib = optional_import("matplotlib.pyplot")
 
-set_determinism(seed=0)
+# set_determinism(seed=0)
 
 AFFINE = make_rand_affine()
 AFFINE[0] *= 2
 
 IM_1D = AddChannel()(np.arange(0, 10))
-IM_2D_FNAME, SEG_2D_FNAME = [make_nifti_image(i) for i in create_test_image_2d(100, 101)]
+IM_2D_FNAME, SEG_2D_FNAME = [make_nifti_image(i) for i in create_test_image_2d(101, 101)]
 IM_3D_FNAME, SEG_3D_FNAME = [make_nifti_image(i, AFFINE) for i in create_test_image_3d(100, 101, 107)]
 
 KEYS = ["image", "label"]
@@ -330,6 +333,42 @@ TESTS.append((
     )
 ))
 
+TESTS.append((
+    "Rand2DElasticd 2d",
+    DATA_2D,
+    0,
+    Rand2DElasticd(
+        KEYS,
+        spacing=[10, 10],
+        magnitude_range=[1, 1],
+        # spatial_size=[155, 192],
+        prob=1,
+        padding_mode="zeros",
+        rotate_range=[np.pi / 6, np.pi / 7],
+        # shear_range=[[0.5, 0.5]],
+        # translate_range=[10, 5],
+        # scale_range=[[0.8, 1.2], [0.9, 1.3]],
+    )
+))
+
+TESTS.append((
+    "Rand3DElasticd 3d",
+    DATA_3D,
+    0,
+    Rand3DElasticd(
+        KEYS,
+        sigma_range=[1, 3],
+        magnitude_range=[1., 2., 1.],
+        spatial_size=[155, 192, 200],
+        prob=1,
+        padding_mode="zeros",
+        rotate_range=[np.pi / 6, np.pi / 7],
+        shear_range=[[0.5, 0.5]],
+        translate_range=[10, 5],
+        scale_range=[[0.8, 1.2], [0.9, 1.3]],
+    )
+))
+
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
 
 TESTS = [*TESTS, *TESTS_COMPOSE_X2]
@@ -341,19 +380,18 @@ TESTS_FAIL = [TEST_FAIL_0]
 
 def plot_im(orig, fwd_bck, fwd):
     diff_orig_fwd_bck = orig - fwd_bck
+    ims_to_show = [orig, fwd, fwd_bck, diff_orig_fwd_bck]
+    titles = ["x", "fx", "f⁻¹fx", "x - f⁻¹fx"]
     fig, axes = plt.subplots(
-        1, 4, gridspec_kw={"width_ratios": [orig.shape[1], fwd_bck.shape[1], diff_orig_fwd_bck.shape[1], fwd.shape[1]]}
+        1, 4, gridspec_kw={"width_ratios": [i.shape[1] for i in ims_to_show]}
     )
     vmin = min(np.array(i).min() for i in [orig, fwd_bck, fwd])
     vmax = max(np.array(i).max() for i in [orig, fwd_bck, fwd])
-    for i, (im, title) in enumerate(
-        zip([orig, fwd_bck, diff_orig_fwd_bck, fwd], ["x", "f⁻¹fx", "diff", "fx"])
-    ):
-        ax = axes[i]
+    for im, title, ax in zip(ims_to_show, titles, axes):
+        _vmin, _vmax = (vmin, vmax) if id(im) != id(diff_orig_fwd_bck) else (None, None)
         im = np.squeeze(np.array(im))
         while im.ndim > 2:
             im = im[..., im.shape[-1] // 2]
-        _vmin, _vmax = (vmin, vmax) if i != 2 else (None, None)
         im_show = ax.imshow(np.squeeze(im), vmin=_vmin, vmax=_vmax)
         ax.set_title(title, fontsize=25)
         ax.axis("off")
@@ -369,10 +407,12 @@ class TestInverse(unittest.TestCase):
             unmodified = unmodified_d[key]
             if isinstance(orig, np.ndarray):
                 mean_diff = np.mean(np.abs(orig - fwd_bck))
+                unmodded_diff = np.mean(np.abs(orig - ResizeWithPadOrCrop(orig.shape[1:])(unmodified)))
                 try:
                     self.assertLessEqual(mean_diff, acceptable_diff)
+                    self.assertLessEqual(mean_diff, unmodded_diff)
                 except AssertionError:
-                    print(f"Failed: {name}. Mean diff = {mean_diff} (expected <= {acceptable_diff})")
+                    print(f"Failed: {name}. Mean diff = {mean_diff} (expected <= {acceptable_diff}), unmodified diff: {unmodded_diff}")
                     if has_matplotlib:
                         plot_im(orig, fwd_bck, unmodified)
                     raise
