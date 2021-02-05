@@ -17,7 +17,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 import copy
 import logging
-from typing import Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -64,10 +64,12 @@ __all__ = [
     "CopyItemsd",
     "ConcatItemsd",
     "Lambdad",
+    "RandLambdad",
     "LabelToMaskd",
     "FgBgToIndicesd",
     "ConvertToMultiChannelBasedOnBratsClassesd",
     "AddExtremePointsChanneld",
+    "TorchVisiond",
     "IdentityD",
     "IdentityDict",
     "AsChannelFirstD",
@@ -76,6 +78,8 @@ __all__ = [
     "AsChannelLastDict",
     "AddChannelD",
     "AddChannelDict",
+    "RandLambdaD",
+    "RandLambdaDict",
     "RepeatChannelD",
     "RepeatChannelDict",
     "SplitChannelD",
@@ -106,7 +110,6 @@ __all__ = [
     "ConvertToMultiChannelBasedOnBratsClassesDict",
     "AddExtremePointsChannelD",
     "AddExtremePointsChannelDict",
-    "TorchVisiond",
     "TorchVisionD",
     "TorchVisionDict",
 ]
@@ -621,6 +624,27 @@ class Lambdad(MapTransform):
         return d
 
 
+class RandLambdad(Lambdad, Randomizable):
+    """
+    Randomizable version :py:class:`monai.transforms.Lambdad`, the input `func` contains random logic.
+    It's a randomizable transform so `CacheDataset` will not execute it and cache the results.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        func: Lambda/function to be applied. It also can be a sequence of Callable,
+            each element corresponds to a key in ``keys``.
+        overwrite: whether to overwrite the original data in the input dictionary with lamdbda function output.
+            default to True. it also can be a sequence of bool, each element corresponds to a key in ``keys``.
+
+    For more details, please check :py:class:`monai.transforms.Lambdad`.
+
+    """
+
+    def randomize(self, data: Any) -> None:
+        pass
+
+
 class LabelToMaskd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.LabelToMask`.
@@ -830,3 +854,4 @@ ConvertToMultiChannelBasedOnBratsClassesD = (
 ) = ConvertToMultiChannelBasedOnBratsClassesd
 AddExtremePointsChannelD = AddExtremePointsChannelDict = AddExtremePointsChanneld
 TorchVisionD = TorchVisionDict = TorchVisiond
+RandLambdaD = RandLambdaDict = RandLambdad
