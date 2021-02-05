@@ -5,7 +5,9 @@ import unittest
 import numpy as np
 from numpy.testing import assert_array_equal
 from parameterized import parameterized
+
 from monai.data.image_reader import OpenSlideReader
+from tests.utils import skip_if_quick
 
 filename = "test_001.tif"
 
@@ -33,15 +35,36 @@ TEST_CASE_3 = [
     ),
 ]
 
+TEST_CASE_4 = [
+    filename,
+    {"location": (86016 // 2, 89600 // 2), "size": (8, 8), "level": 2, "grid_shape": (2, 1), "patch_size": 1},
+    np.array(
+        [
+            [[[198]], [[132]], [[194]]],
+            [[[228]], [[154]], [[217]]]
+        ]
+    ),
+]
 
 class TestOpenSlideReader(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    @skip_if_quick
     def test_read_region(self, filename, patch_info, expected_img):
         self.camelyon_data_download(filename)
         reader = OpenSlideReader()
         img_obj = reader.read(filename)
         img = reader.get_data(img_obj, **patch_info)
 
+        self.assertTupleEqual(img.shape, expected_img.shape)
+        self.assertIsNone(assert_array_equal(img, expected_img))
+
+    @parameterized.expand([TEST_CASE_3, TEST_CASE_4])
+    @skip_if_quick
+    def test_read_patches(self, filename, patch_info, expected_img):
+        self.camelyon_data_download(filename)
+        reader = OpenSlideReader()
+        img_obj = reader.read(filename)
+        img = reader.get_data(img_obj, **patch_info)
         self.assertTupleEqual(img.shape, expected_img.shape)
         self.assertIsNone(assert_array_equal(img, expected_img))
 
