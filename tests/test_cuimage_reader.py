@@ -1,6 +1,7 @@
 import ftplib
 import os
 import unittest
+from unittest.case import skipIf
 
 import numpy as np
 from numpy.testing import assert_array_equal
@@ -33,6 +34,16 @@ TEST_CASE_3 = [
     ),
 ]
 
+TEST_CASE_4 = [
+    filename,
+    {"location": (86016 // 2, 89600 // 2), "size": (8, 8), "level": 2, "grid_shape": (2, 1), "patch_size": 1},
+    np.array(
+        [
+            [[[198]], [[132]], [[194]]],
+            [[[228]], [[154]], [[217]]]
+        ]
+    ),
+]
 
 class TestCuImageReader(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
@@ -45,14 +56,13 @@ class TestCuImageReader(unittest.TestCase):
         self.assertTupleEqual(img.shape, expected_img.shape)
         self.assertIsNone(assert_array_equal(img, expected_img))
 
-    @parameterized.expand([TEST_CASE_3])
-    def test_read_region(self, filename, patch_info, expected_img):
+    @parameterized.expand([TEST_CASE_3, TEST_CASE_4])
+    def test_read_patches(self, filename, patch_info, expected_img):
         self.camelyon_data_download(filename)
         reader = CuImageReader()
         img_obj = reader.read(filename)
         img = reader.get_data(img_obj, **patch_info)
-        print("img.shape: ", img.shape)
-        print("img: ", img)
+        print(img)
         self.assertTupleEqual(img.shape, expected_img.shape)
         self.assertIsNone(assert_array_equal(img, expected_img))
 
