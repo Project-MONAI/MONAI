@@ -684,11 +684,51 @@ class CuImageReader(ImageReader):
 
     def _extract_region(self, img_obj, location=(0, 0), size=None, level=0, dtype=np.uint8):
         size = [s * (2 ** level) for s in size]
-        region = img_obj.read_region(location=location, size=size, level=level)
-        region = np.asarray(region, dtype=dtype)
+        location, corrected_size, x_pad, y_pad = self.correct_boundries(img_obj, location, size)
+        region = img_obj.read_region(location=location, size=corrected_size, level=level)
+
+        if (corrected_size[0] == size[0]) and (corrected_size[1] == size[1]):
+            region = np.asarray(region, dtype=dtype)
+        else:
+            # pad with white (255, 255, 255)
+            region = np.ones((size[0], size[1], 3), dtype=dtype) * 255
+            region[y_pad[0] : y_pad[1], x_pad[0] : x_pad[1]] = np.asarray(region, dtype=dtype)
+            
         # CuImage: (H x W x C) -> torch image: (C X H X W)
         region = region.transpose((2, 0, 1))
         return region
+
+    def correct_boundries(self, slide, location, size):
+        x_min, y_min = location
+        region_width, region_height = size
+        image_width, image_height = slide.resolutions["level_dimensions"][0]
+
+        x_max = x_min + region_width
+        y_max = y_min + region_height
+
+        x_pad_min = 0
+        x_pad_max = region_width
+        y_pad_min = 0
+        y_pad_max = region_height
+        if x_min < 0:
+            x_pad_min = -x_min
+            x_min = 0
+        if y_min < 0:
+            y_pad_min = -y_min
+            y_min = 0
+        if x_max > image_width:
+            x_pad_max = region_width - (x_max - image_width)
+            x_max = image_width
+        if y_max > image_height:
+            y_pad_max = region_height - (y_max - image_height)
+            y_max = image_height
+        region_size = (x_max - x_min), (y_max - y_min)
+        return (
+            (x_min, y_min),
+            region_size,
+            (x_pad_min, x_pad_max),
+            (y_pad_min, y_pad_max),
+        )
 
 
 class OpenSlideReader(ImageReader):
