@@ -16,7 +16,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
 from collections.abc import Iterable
-from typing import Any, Dict, Hashable, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -35,7 +35,7 @@ from monai.transforms.intensity.array import (
     ThresholdIntensity,
 )
 from monai.transforms.transform import MapTransform, Randomizable
-from monai.utils import dtype_torch_to_numpy, ensure_tuple_size
+from monai.utils import dtype_torch_to_numpy, ensure_tuple_rep, ensure_tuple_size
 
 __all__ = [
     "RandGaussianNoised",
@@ -110,26 +110,28 @@ class RandGaussianNoised(Randomizable, MapTransform):
     ) -> None:
         MapTransform.__init__(self, keys)
         Randomizable.__init__(self, prob)
-        self.mean = ensure_tuple_size(mean, len(self.keys))
+        self.mean = ensure_tuple_rep(mean, len(self.keys))
         self.std = std
-        self._noise: Optional[np.ndarray] = None
+        self._noise: List[np.ndarray] = []
 
     def randomize(self, im_shape: Sequence[int]) -> None:
         self._do_transform = self.R.random() < self.prob
-        self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
+        self._noise.clear()
+        for m in self.mean:
+            self._noise.append(self.R.normal(m, self.R.uniform(0, self.std), size=im_shape))
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
 
         image_shape = d[self.keys[0]].shape  # image shape from the first data key
         self.randomize(image_shape)
-        if self._noise is None:
+        if len(self._noise) != len(self.keys):
             raise AssertionError
         if not self._do_transform:
             return d
-        for key in self.keys:
+        for noise, key in zip(self._noise, self.keys):
             dtype = dtype_torch_to_numpy(d[key].dtype) if isinstance(d[key], torch.Tensor) else d[key].dtype
-            d[key] = d[key] + self._noise.astype(dtype)
+            d[key] = d[key] + noise.astype(dtype)
         return d
 
 

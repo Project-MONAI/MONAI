@@ -286,11 +286,16 @@ class Orientation(Transform):
 class Flip(Transform):
     """
     Reverses the order of elements along the given spatial axis. Preserves shape.
-    Uses ``np.flip`` in practice. See numpy.flip for additional details.
-    https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
+    Uses ``np.flip`` in practice. See numpy.flip for additional details:
+    https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html.
 
     Args:
         spatial_axis: spatial axes along which to flip over. Default is None.
+            The default `axis=None` will flip over all of the axes of the input array.
+            If axis is negative it counts from the last to the first axis.
+            If axis is a tuple of ints, flipping is performed on all of the axes
+            specified in the tuple.
+
     """
 
     def __init__(self, spatial_axis: Optional[Union[Sequence[int], int]]) -> None:
@@ -573,6 +578,9 @@ class Zoom(Transform):
 class Rotate90(Transform):
     """
     Rotate an array by 90 degrees in the plane specified by `axes`.
+    See np.rot90 for additional details:
+    https://numpy.org/doc/stable/reference/generated/numpy.rot90.html.
+
     """
 
     def __init__(self, k: int = 1, spatial_axes: Tuple[int, int] = (0, 1)) -> None:
@@ -581,6 +589,7 @@ class Rotate90(Transform):
             k: number of times to rotate by 90 degrees.
             spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
                 Default: (0, 1), this is the first two axis in spatial dimensions.
+                If axis is negative it counts from the last to the first axis.
         """
         self.k = k
         spatial_axes_ = ensure_tuple(spatial_axes)
