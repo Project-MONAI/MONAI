@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -9,76 +9,112 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
 import logging
 import os
-import sys
-from typing import Callable, Dict, List, Sequence, Union
+from typing import Dict, List
 
 import numpy as np
 
-from monai.apps.datasets import DecathlonDataset
 from monai.transforms import AsChannelFirstd, Compose, LoadImaged, Orientationd, Spacingd
 from monai.utils import GridSampleMode
 
 
-# TODO:: Test basic functionality
-# TODO:: Unit Test
-class DeepgrowDataset(DecathlonDataset):
-    def __init__(
-        self,
-        dimension: int,
-        pixdim: Sequence[float],
-        root_dir: str,
-        task: str,
-        section: str,
-        transform: Union[Sequence[Callable], Callable] = (),
-        download: bool = False,
-        seed: int = 0,
-        val_frac: float = 0.2,
-        cache_num: int = sys.maxsize,
-        cache_rate: float = 1.0,
-        num_workers: int = 0,
-        limit: int = 0,
-    ) -> None:
-        self.dimension = dimension
-        self.pixdim = pixdim
-        self.limit = limit
+def create_dataset(
+    datalist,
+    output_dir,
+    dimension,
+    pixdim,
+    keys=("image", "label"),
+    base_dir=None,
+    limit=0,
+    relative_path=False,
+    transforms=None,
+) -> List[Dict]:
+    """
+    Utility to pre-process and create dataset list for Deepgrow training over on existing one.
+    The input data list is normally a list of images and labels (3D volume) which needs pre-processing for Deepgrow
+      training pipeline.
 
-        super().__init__(
-            root_dir=root_dir,
-            task=task,
-            section=section,
-            transform=transform,
-            download=download,
-            seed=seed,
-            val_frac=val_frac,
-            cache_num=cache_num,
-            cache_rate=cache_rate,
-            num_workers=num_workers,
+    Args:
+        datalist: A generic dataset with a length property which normally contains a list of data dictionary.
+            For example, typical input data can be a list of dictionaries::
+                [{'image': 'img1.nii', 'label': 'label1.nii'}]
+
+        output_dir: target directory to store the training data for Deepgrow Training
+        pixdim: output voxel spacing.
+        dimension: dimension for Deepgrow training.  It can be 2 or 3.
+        keys: Image and Label keys in input datalist.  Defaults to 'image' and 'label'
+        base_dir: base directory in case related path is used for the keys in datalist.  Defaults to None.
+        limit: limit number of inputs for pre-processing.  Defaults to 0 (no limit).
+        relative_path: output keys values should be based on relative path.  Defaults to False.
+        transforms: explicit transforms to execute operations on input data.
+
+    Raises:
+        ValueError: When ``dimension`` is not one of [2, 3]
+        ValueError: When ``datalist`` is Empty
+
+    Example::
+
+        datalist = create_dataset(
+            datalist=[{'image': 'img1.nii', 'label': 'label1.nii'}],
+            base_dir=None,
+            output_dir=output_2d,
+            dimension=2,
+            keys=('image', 'label')
+            pixdim=(1.0, 1.0),
+            limit=0,
+            relative_path=True
         )
 
-    def _generate_data_list(self, dataset_dir: str) -> List[Dict]:
-        dataset = super()._generate_data_list(dataset_dir)
+        print(datalist[0]["image"], datalist[0]["label"])
+    """
 
-        tmp_dataset_dir = dataset_dir + "_{}.deep".format(self.section)
-        new_datalist = create_dataset(
-            datalist=dataset,
-            keys=["image", "label"],
-            output_dir=tmp_dataset_dir,
-            dimension=self.dimension,
-            pixdim=self.pixdim,
-            limit=self.limit,
-            relative_path=False,
-        )
+    if dimension not in [2, 3]:
+        raise ValueError("Dimension can be only 2 or 3 as Deepgrow supports only 2D/3D Training")
 
-        dataset_json = os.path.join(tmp_dataset_dir, "dataset.json")
-        with open(dataset_json, "w") as fp:
-            json.dump({self.section: new_datalist}, fp, indent=2)
-        return new_datalist
+    if not len(datalist):
+        raise ValueError("Input Datalist is empty")
+
+    if not isinstance(keys, list) and not isinstance(keys, tuple):
+        keys = [keys]
+
+    transforms = _default_transforms(keys, pixdim) if transforms is None else transforms
+    new_datalist = []
+    for idx in range(len(datalist)):
+        if limit and idx >= limit:
+            break
+
+        image = datalist[idx][keys[0]]
+        label = datalist[idx].get(keys[1]) if len(keys) > 1 else None
+        if base_dir:
+            image = os.path.join(base_dir, image)
+            label = os.path.join(base_dir, label) if label else None
+
+        image = os.path.abspath(image)
+        label = os.path.abspath(label) if label else None
+
+        logging.info("Image: {}; Label: {}".format(image, label if label else None))
+        if dimension == 2:
+            data = _save_data_2d(
+                vol_idx=idx,
+                data=transforms({"image": image, "label": label}),
+                keys=("image", "label"),
+                dataset_dir=output_dir,
+                relative_path=relative_path,
+            )
+        else:
+            data = _save_data_3d(
+                vol_idx=idx,
+                data=transforms({"image": image, "label": label}),
+                keys=("image", "label"),
+                dataset_dir=output_dir,
+                relative_path=relative_path,
+            )
+        new_datalist.extend(data)
+    return new_datalist
 
 
-def _get_transforms(keys, pixdim):
+def _default_transforms(keys, pixdim):
     mode = [GridSampleMode.BILINEAR, GridSampleMode.NEAREST] if len(keys) == 2 else [GridSampleMode.BILINEAR]
     transforms = [
         LoadImaged(keys=keys),
@@ -96,7 +132,11 @@ def _save_data_2d(vol_idx, data, keys, dataset_dir, relative_path):
     data_list = []
 
     if len(vol_image.shape) == 4:
-        logging.info("4D-Image, pick only first series; Image: {}; Label: {}".format(vol_image.shape, vol_label.shape))
+        logging.info(
+            "4D-Image, pick only first series; Image: {}; Label: {}".format(
+                vol_image.shape, vol_label.shape if vol_label else None
+            )
+        )
         vol_image = vol_image[0]
         vol_image = np.moveaxis(vol_image, -1, 0)
 
@@ -150,8 +190,8 @@ def _save_data_2d(vol_idx, data, keys, dataset_dir, relative_path):
                 }
             )
 
-    print(
-        "{} => Image: {} => {}; Label: {} => {}; Unique Labels: {}".format(
+    logging.info(
+        "{} => Image Shape: {} => {}; Label Shape: {} => {}; Unique Labels: {}".format(
             vol_idx,
             vol_image.shape,
             image_count,
@@ -216,8 +256,8 @@ def _save_data_3d(vol_idx, data, keys, dataset_dir, relative_path):
                 }
             )
 
-    print(
-        "{} => Image: {} => {}; Label: {} => {}; Unique Labels: {}".format(
+    logging.info(
+        "{} => Image Shape: {} => {}; Label Shape: {} => {}; Unique Labels: {}".format(
             vol_idx,
             vol_image.shape,
             image_count,
@@ -227,45 +267,3 @@ def _save_data_3d(vol_idx, data, keys, dataset_dir, relative_path):
         )
     )
     return data_list
-
-
-def create_dataset(
-    datalist, output_dir, dimension, pixdim, keys=("image", "label"), base_dir=None, limit=0, relative_path=False
-) -> List[Dict]:
-    if not isinstance(keys, list) and not isinstance(keys, tuple):
-        keys = [keys]
-
-    transforms = _get_transforms(keys, pixdim)
-    new_datalist = []
-    for idx in range(len(datalist)):
-        if limit and idx >= limit:
-            break
-
-        image = datalist[idx][keys[0]]
-        label = datalist[idx].get(keys[1]) if len(keys) > 1 else None
-        if base_dir:
-            image = os.path.join(base_dir, image)
-            label = os.path.join(base_dir, label) if label else None
-
-        image = os.path.abspath(image)
-        label = os.path.abspath(label) if label else None
-
-        print("{} => {}".format(image, label if label else None))
-        if dimension == 2:
-            data = _save_data_2d(
-                vol_idx=idx,
-                data=transforms({"image": image, "label": label}),
-                keys=("image", "label"),
-                dataset_dir=output_dir,
-                relative_path=relative_path,
-            )
-        else:
-            data = _save_data_3d(
-                vol_idx=idx,
-                data=transforms({"image": image, "label": label}),
-                keys=("image", "label"),
-                dataset_dir=output_dir,
-                relative_path=relative_path,
-            )
-        new_datalist.extend(data)
-    return new_datalist

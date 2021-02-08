@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,8 +16,6 @@ import torch
 from monai.engines.utils import CommonKeys
 from monai.engines.workflow import Engine, Events
 from monai.transforms import Compose
-
-# TODO:: Unit Test
 
 
 class Interaction:
@@ -40,7 +38,7 @@ class Interaction:
 
         if not isinstance(self.transforms, Compose):
             transforms = []
-            for t in transforms:
+            for t in self.transforms:
                 transforms.append(self.init_external_class(t))
             self.transforms = Compose(transforms)
 
@@ -55,7 +53,8 @@ class Interaction:
         return c(**class_args) if class_args else c()
 
     def attach(self, engine: Engine) -> None:
-        engine.add_event_handler(Events.ITERATION_STARTED, self)
+        if not engine.has_event_handler(self, Events.ITERATION_STARTED):
+            engine.add_event_handler(Events.ITERATION_STARTED, self)
 
     def __call__(self, engine: Engine, batchdata: Dict[str, torch.Tensor]):
         if batchdata is None:
