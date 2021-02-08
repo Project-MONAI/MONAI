@@ -81,11 +81,11 @@ class SkipIfModule:
         return unittest.skipIf(self.module_avail, f"Skipping because optional module present: {self.module_name}")(obj)
 
 
-def skip_if_no_cpp_extention(obj):
+def skip_if_no_cpp_extension(obj):
     """
-    Skip the unit tests if the cpp extention isnt available
+    Skip the unit tests if the cpp extension is not available
     """
-    return unittest.skipUnless(USE_COMPILED, "Skipping cpp extention tests")(obj)
+    return unittest.skipUnless(USE_COMPILED, "Skipping cpp extension tests")(obj)
 
 
 def skip_if_no_cuda(obj):
