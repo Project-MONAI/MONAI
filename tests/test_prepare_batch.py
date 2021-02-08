@@ -26,15 +26,9 @@ TEST_CASE_2 = [
 
 # Image only
 TEST_CASE_3 = [
-    {
-        "image": torch.stack([1.0 * torch.ones((2, 2)), 2.0 * torch.ones((2, 2)), 3.0 * torch.ones((2, 2))])
-    },
-    (
-        torch.stack([2.0 * torch.ones((2, 2)), 3.0 * torch.ones((2, 2)), 1.0 * torch.ones((2, 2))]),
-        None
-    ),
+    {"image": torch.stack([1.0 * torch.ones((2, 2)), 2.0 * torch.ones((2, 2)), 3.0 * torch.ones((2, 2))])},
+    (torch.stack([2.0 * torch.ones((2, 2)), 3.0 * torch.ones((2, 2)), 1.0 * torch.ones((2, 2))]), None),
 ]
-
 
 
 class TestPrepareBatch(unittest.TestCase):
