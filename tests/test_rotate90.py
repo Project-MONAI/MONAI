@@ -37,11 +37,11 @@ class TestRotate90(NumpyImageTestCase2D):
         self.assertTrue(np.allclose(rotated, expected))
 
     def test_spatial_axes(self):
-        rotate = Rotate90(spatial_axes=(0, 1))
+        rotate = Rotate90(spatial_axes=(0, -1))
         rotated = rotate(self.imt[0])
         expected = []
         for channel in self.imt[0]:
-            expected.append(np.rot90(channel, 1, (0, 1)))
+            expected.append(np.rot90(channel, 1, (0, -1)))
         expected = np.stack(expected)
         self.assertTrue(np.allclose(rotated, expected))
 
