@@ -24,15 +24,29 @@ TEST_CASE_2 = [
     ),
 ]
 
+# Image only
+TEST_CASE_3 = [
+    {
+        "image": torch.stack([1.0 * torch.ones((2, 2)), 2.0 * torch.ones((2, 2)), 3.0 * torch.ones((2, 2))])
+    },
+    (
+        torch.stack([2.0 * torch.ones((2, 2)), 3.0 * torch.ones((2, 2)), 1.0 * torch.ones((2, 2))]),
+        None
+    ),
+]
+
+
 
 class TestPrepareBatch(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_prepare_batch_shuffle(self, data, expected_output):
         prepare_batch = PrepareBatchShuffle()
         output = prepare_batch(batchdata=data)
-        print(output)
         self.assertTrue(torch.equal(output[0], expected_output[0]))
-        self.assertTrue(torch.equal(output[1], expected_output[1]))
+        if expected_output[1] is None:
+            self.assertIsNone(output[1])
+        else:
+            self.assertTrue(torch.equal(output[1], expected_output[1]))
 
 
 if __name__ == "__main__":
