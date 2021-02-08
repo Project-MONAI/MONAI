@@ -40,11 +40,11 @@ class SegResNet(nn.Module):
         use_conv_final: if add a final convolution block to output. Defaults to ``True``.
         blocks_down: number of down sample blocks in each layer. Defaults to ``[1,2,2,4]``.
         blocks_up: number of up sample blocks in each layer. Defaults to ``[1,1,1]``.
-        upsample_mode: [``"transpose"``, ``"nontrainable"``, ``"pixelshuffle"``]
+        upsample_mode: [``"deconv"``, ``"nontrainable"``, ``"pixelshuffle"``]
             The mode of upsampling manipulations.
             Using the ``nontrainable`` modes cannot guarantee the model's reproducibility. Defaults to``nontrainable``.
 
-            - ``transpose``, uses transposed convolution layers.
+            - ``deconv``, uses deconvolution layers.
             - ``nontrainable``, uses non-trainable `linear` interpolation.
             - ``pixelshuffle``, uses :py:class:`monai.networks.blocks.SubpixelUpsample`.
 
@@ -192,11 +192,11 @@ class SegResNetVAE(SegResNet):
         use_conv_final: if add a final convolution block to output. Defaults to ``True``.
         blocks_down: number of down sample blocks in each layer. Defaults to ``[1,2,2,4]``.
         blocks_up: number of up sample blocks in each layer. Defaults to ``[1,1,1]``.
-        upsample_mode: [``"transpose"``, ``"nontrainable"``, ``"pixelshuffle"``]
+        upsample_mode: [``"deconv"``, ``"nontrainable"``, ``"pixelshuffle"``]
             The mode of upsampling manipulations.
             Using the ``nontrainable`` modes cannot guarantee the model's reproducibility. Defaults to `nontrainable`.
 
-            - ``transpose``, uses transposed convolution layers.
+            - ``deconv``, uses deconvolution layers.
             - ``nontrainable``, uses non-trainable `linear` interpolation.
             - ``pixelshuffle``, uses :py:class:`monai.networks.blocks.SubpixelUpsample`.
 
