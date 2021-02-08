@@ -12,13 +12,13 @@
 import unittest
 
 from monai.utils import optional_import
-from tests.utils import skip_if_no_cpp_extention
+from tests.utils import skip_if_no_cpp_extension
 
 b, _ = optional_import("monai._C", name="BoundType")
 p, _ = optional_import("monai._C", name="InterpolationType")
 
 
-@skip_if_no_cpp_extention
+@skip_if_no_cpp_extension
 class TestEnumBoundInterp(unittest.TestCase):
     def test_bound(self):
         self.assertEqual(str(b.replicate), "BoundType.replicate")

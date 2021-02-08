@@ -16,7 +16,7 @@ from parameterized import parameterized
 
 from monai.networks.layers import grid_pull
 from monai.utils import optional_import
-from tests.utils import skip_if_no_cpp_extention
+from tests.utils import skip_if_no_cpp_extension
 
 BType, has_b_type = optional_import("monai._C", name="BoundType")
 PType, has_p_type = optional_import("monai._C", name="InterpolationType")
@@ -47,7 +47,7 @@ for bound in bounds:
         ]
         TEST_1D_BP_fwd.append(test_case)
 
-@skip_if_no_cpp_extention
+@skip_if_no_cpp_extension
 class TestGridPull(unittest.TestCase):
     @parameterized.expand(TEST_1D_BP_fwd)
     def test_grid_pull(self, input_param, expected_val):
