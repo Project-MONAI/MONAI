@@ -11,15 +11,30 @@
 
 import csv
 import os
+import warnings
+from typing import List, Optional
 
-Expected_1D_BP_fwd = []
-pwd = os.path.dirname(os.path.abspath(__file__))  # current file's location
-with open(os.path.join(pwd, "cpp_resample_answers.txt")) as f:
-    res_reader = csv.reader(f, delimiter=",")
-    for r in res_reader:
-        res_row = []
-        for item in r:
-            if item.strip().startswith("#"):
-                continue
-            res_row.append(float(item))
-        Expected_1D_BP_fwd.append(res_row)
+
+def _read_testing_data_answers(fname: Optional[str] = None, delimiter=",") -> List:
+    answers: List = []
+    if not fname:
+        return answers
+    # read answers from directory of the current file
+    pwd = os.path.dirname(os.path.abspath(__file__))
+    filename = os.path.join(pwd, fname)
+    if not os.path.isfile(filename):
+        warnings.warn("test data {} not found.".format(filename))
+        return answers
+    with open(filename) as f:
+        res_reader = csv.reader(f, delimiter=delimiter)
+        for r in res_reader:
+            res_row = []
+            for item in r:
+                if item.strip().startswith("#"):
+                    continue  # allow for some simple comments in the file
+                res_row.append(float(item))
+            answers.append(res_row)
+    return answers
+
+
+Expected_1D_GP_fwd: List = _read_testing_data_answers(fname="1D_BP_fwd.txt")

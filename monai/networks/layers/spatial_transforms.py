@@ -35,7 +35,7 @@ class _GridPull(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad):
-        var = ctx.saved_variables
+        var = ctx.saved_tensors
         opt = ctx.opt
         grad_input = grad_grid = None
         grads = _C.grid_pull_backward(grad, *var, *opt)
@@ -131,7 +131,7 @@ class _GridPush(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad):
-        var = ctx.saved_variables
+        var = ctx.saved_tensors
         opt = ctx.opt
         grad_input = grad_grid = None
         grads = _C.grid_push_backward(grad, *var, *opt)
@@ -234,7 +234,7 @@ class _GridCount(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad):
-        var = ctx.saved_variables
+        var = ctx.saved_tensors
         opt = ctx.opt
         grad_grid = None
         if ctx.needs_input_grad[0]:
@@ -331,7 +331,7 @@ class _GridGrad(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad):
-        var = ctx.saved_variables
+        var = ctx.saved_tensors
         opt = ctx.opt
         grad_input = grad_grid = None
         if ctx.needs_input_grad[0] or ctx.needs_input_grad[1]:
