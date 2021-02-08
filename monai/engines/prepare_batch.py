@@ -1,4 +1,3 @@
-
 from abc import ABC, abstractmethod
 from typing import Dict, Optional, Sequence, Tuple, Union
 
@@ -21,6 +20,7 @@ class PrepareBatch(ABC):
         otherwise, it should update the batchdata dict and return it directly.
 
     """
+
     @abstractmethod
     def __call__(
         self,
@@ -38,6 +38,7 @@ class PrepareBatchDefault(PrepareBatch):
     it should be the last component in the prepare_batch chain.
 
     """
+
     def __call__(
         self,
         batchdata: Dict[str, torch.Tensor],
@@ -60,6 +61,7 @@ class PrepareBatchExtraInput(PrepareBatch):
             dict to the network(**kwargs).
 
     """
+
     def __init__(self, extra_keys: Union[str, Sequence[str], Dict[str, str]]) -> None:
         self.extra_keys = extra_keys
 
@@ -100,8 +102,7 @@ class PrepareBatchShuffle(PrepareBatch):
         non_blocking: bool = False,
     ) -> Union[Tuple[torch.Tensor, Optional[torch.Tensor]], torch.Tensor]:
 
-        images = batchdata["image"].to(device=device, non_blocking=non_blocking)
-        labels = batchdata["label"].to(device=device, non_blocking=non_blocking)
+        images, labels = default_prepare_batch(batchdata, device, non_blocking)
         idx_rand = torch.randperm(len(labels)).to(device=device, non_blocking=non_blocking)
 
         return images[idx_rand], labels[idx_rand]
