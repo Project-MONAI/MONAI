@@ -405,6 +405,7 @@ class CenterSpatialCropd(MapTransform, InvertibleTransform):
 
         return d
 
+
 class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandSpatialCrop`.

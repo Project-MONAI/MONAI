@@ -150,6 +150,7 @@ def make_nifti_image(array, affine=None):
     os.close(temp_f)
     return image_name
 
+
 def make_rand_affine(ndim: int = 3):
     """Create random affine transformation (with values == -1, 0 or 1)."""
     vals = np.random.choice([-1, 1], size=ndim)
@@ -159,6 +160,7 @@ def make_rand_affine(ndim: int = 3):
     for i, (v, p) in enumerate(zip(vals, positions)):
         af[i, p] = v
     return af
+
 
 class DistTestCase(unittest.TestCase):
     """

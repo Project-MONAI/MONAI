@@ -14,14 +14,14 @@ A collection of generic interfaces for MONAI transforms.
 
 import warnings
 from abc import ABC, abstractmethod
-from typing import Any, Hashable, Optional, Tuple
-import torch
-import numpy as np
 from itertools import chain
+from typing import Any, Dict, Hashable, Optional, Tuple
+
+import numpy as np
+import torch
 
 from monai.config import KeysCollection
-from monai.utils import MAX_SEED, ensure_tuple
-from monai.utils import optional_import
+from monai.utils import MAX_SEED, ensure_tuple, optional_import
 
 sitk, has_sitk = optional_import("SimpleITK")
 vtk, has_vtk = optional_import("vtk")
@@ -230,10 +230,17 @@ class InvertibleTransform(ABC):
     first out for the inverted transforms.
     """
 
-    def append_applied_transforms(self, data: dict, key: Hashable, idx: int = 0, extra_info: Optional[dict] = None, orig_size: Optional[Tuple] = None) -> None:
+    def append_applied_transforms(
+        self,
+        data: dict,
+        key: Hashable,
+        idx: int = 0,
+        extra_info: Optional[dict] = None,
+        orig_size: Optional[Tuple] = None,
+    ) -> None:
         """Append to list of applied transforms for that key."""
         key_transform = str(key) + "_transforms"
-        info = {}
+        info: Dict[str, Any] = {}
         info["class"] = type(self)
         info["init_args"] = self.get_input_args(key, idx)
         info["orig_size"] = orig_size or data[key].shape[1:]
@@ -286,6 +293,7 @@ class InvertibleTransform(ABC):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
+
 class NonRigidTransform(ABC):
     @staticmethod
     def _get_disp_to_def_arr(shape, spacing):
@@ -308,7 +316,7 @@ class NonRigidTransform(ABC):
     @staticmethod
     def _inv_disp_w_vtk(fwd_disp):
         while fwd_disp.shape[-1] < 3:
-            fwd_disp = np.append(fwd_disp, np.zeros(fwd_disp.shape[:-1] + (1, )), axis=-1)
+            fwd_disp = np.append(fwd_disp, np.zeros(fwd_disp.shape[:-1] + (1,)), axis=-1)
             fwd_disp = fwd_disp[..., None, :]
         # fwd_disp_vtk = vtk.vtkImageImport()
         # # The previously created array is converted to a string of chars and imported.
@@ -365,15 +373,18 @@ class NonRigidTransform(ABC):
 
         return inv_disp
 
-
     @staticmethod
-    def compute_inverse_deformation(num_spatial_dims, fwd_def_orig, spacing=None, num_iters: int = 100, use_package: str = "sitk"):
+    def compute_inverse_deformation(
+        num_spatial_dims, fwd_def_orig, spacing=None, num_iters: int = 100, use_package: str = "sitk"
+    ):
         """Package can be vtk or sitk."""
         if use_package.lower() == "vtk" and not has_vtk:
             warnings.warn("Please install VTK to estimate inverse of non-rigid transforms. Data has not been modified")
             return None
         if use_package.lower() == "sitk" and not has_sitk:
-            warnings.warn("Please install SimpleITK to estimate inverse of non-rigid transforms. Data has not been modified")
+            warnings.warn(
+                "Please install SimpleITK to estimate inverse of non-rigid transforms. Data has not been modified"
+            )
             return None
 
         # Convert to numpy if necessary
@@ -394,8 +405,8 @@ class NonRigidTransform(ABC):
         else:
             inv_disp = NonRigidTransform._inv_disp_w_sitk(fwd_disp, num_iters)
 
-
         import matplotlib.pyplot as plt
+
         fig, axes = plt.subplots(2, 2)
         for i, direc1 in enumerate(["x", "y"]):
             for j, (im, direc2) in enumerate(zip([fwd_disp, inv_disp], ["fwd", "inv"])):

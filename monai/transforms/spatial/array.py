@@ -22,9 +22,8 @@ import torch
 from monai.config import USE_COMPILED, DtypeLike
 from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
-from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.croppad.array import CenterSpatialCrop
-from monai.utils import issequenceiterable
+from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import (
     create_control_grid,
     create_grid,
@@ -42,6 +41,7 @@ from monai.utils import (
     ensure_tuple_rep,
     ensure_tuple_size,
     fall_back_tuple,
+    issequenceiterable,
     optional_import,
 )
 
@@ -427,7 +427,7 @@ class Rotate(Transform):
         align_corners: Optional[bool] = None,
         dtype: DtypeLike = None,
         return_rotation_matrix: bool = False,
-    ) -> np.ndarray:
+    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
         """
         Args:
             img: channel first array, must have shape: [chns, H, W] or [chns, H, W, D].
@@ -746,7 +746,7 @@ class RandRotate(Randomizable, Transform):
             align_corners=self.align_corners if align_corners is None else align_corners,
             dtype=dtype or self.dtype or img.dtype,
         )
-        return rotator(img)
+        return np.array(rotator(img))
 
 
 class RandFlip(Randomizable, Transform):
@@ -914,7 +914,7 @@ class AffineGrid(Transform):
         scale_params: Optional[Union[Sequence[float], float]] = None,
         as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
-        affine: Optional[Union[np.array, torch.Tensor]] = None,
+        affine: Optional[Union[np.ndarray, torch.Tensor]] = None,
     ) -> None:
         self.rotate_params = rotate_params
         self.shear_params = shear_params
@@ -931,7 +931,7 @@ class AffineGrid(Transform):
         spatial_size: Optional[Sequence[int]] = None,
         grid: Optional[Union[np.ndarray, torch.Tensor]] = None,
         return_affine: bool = False,
-    ) -> Union[np.ndarray, torch.Tensor]:
+    ) -> Union[np.ndarray, torch.Tensor, Tuple[Union[np.ndarray, torch.Tensor], torch.Tensor]]:
         """
         Args:
             spatial_size: output grid size.
@@ -948,6 +948,7 @@ class AffineGrid(Transform):
             else:
                 raise ValueError("Incompatible values: grid=None and spatial_size=None.")
 
+        affine: Union[np.ndarray, torch.Tensor]
         if self.affine is None:
             spatial_dims = len(grid.shape) - 1
             affine = np.eye(spatial_dims + 1)
@@ -969,7 +970,7 @@ class AffineGrid(Transform):
         grid = (affine.float() @ grid.reshape((grid.shape[0], -1)).float()).reshape([-1] + list(grid.shape[1:]))
         if grid is None or not isinstance(grid, torch.Tensor):
             raise ValueError("Unknown grid.")
-        output = grid if self.as_tensor_output else np.asarray(grid.cpu().numpy())
+        output: Union[np.ndarray, torch.Tensor] = grid if self.as_tensor_output else np.asarray(grid.cpu().numpy())
         if return_affine:
             return output, affine
         return output
@@ -982,10 +983,10 @@ class RandAffineGrid(Randomizable, Transform):
 
     def __init__(
         self,
-        rotate_range: Optional[Union[Sequence[Sequence[float]], Sequence[float], float]] = None,
-        shear_range: Optional[Union[Sequence[Sequence[float]], Sequence[float], float]] = None,
-        translate_range: Optional[Union[Sequence[Sequence[float]], Sequence[float], float]] = None,
-        scale_range: Optional[Union[Sequence[Sequence[float]], Sequence[float], float]] = None,
+        rotate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        shear_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        translate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
         as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
     ) -> None:
@@ -1034,7 +1035,6 @@ class RandAffineGrid(Randomizable, Transform):
                 out_param.append(self.R.uniform(-f, f))
         return out_param
 
-
     def randomize(self, data: Optional[Any] = None) -> None:
         self.rotate_params = self._get_rand_param(self.rotate_range)
         self.shear_params = self._get_rand_param(self.shear_range)
@@ -1046,7 +1046,7 @@ class RandAffineGrid(Randomizable, Transform):
         spatial_size: Optional[Sequence[int]] = None,
         grid: Optional[Union[np.ndarray, torch.Tensor]] = None,
         return_affine: bool = False,
-    ) -> Union[np.ndarray, torch.Tensor]:
+    ) -> Union[np.ndarray, torch.Tensor, Tuple[Union[np.ndarray, torch.Tensor], torch.Tensor]]:
         """
         Args:
             spatial_size: output grid size.
@@ -1291,7 +1291,7 @@ class Affine(Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
-        grid = self.affine_grid(spatial_size=sp_size)
+        grid: torch.Tensor = self.affine_grid(spatial_size=sp_size)  # type: ignore
         return self.resampler(
             img=img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
         )
@@ -1305,11 +1305,11 @@ class RandAffine(Randomizable, Transform):
     def __init__(
         self,
         prob: float = 0.1,
-        rotate_range: Optional[Union[Sequence[float], float]] = None,
-        shear_range: Optional[Union[Sequence[float], float]] = None,
-        translate_range: Optional[Union[Sequence[float], float]] = None,
-        scale_range: Optional[Union[Sequence[float], float]] = None,
-        spatial_size: Optional[Union[Sequence[float], float]] = None,
+        rotate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        shear_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        translate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        spatial_size: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = True,
@@ -1382,7 +1382,7 @@ class RandAffine(Randomizable, Transform):
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         return_affine: bool = False,
-    ) -> Union[np.ndarray, torch.Tensor]:
+    ) -> Union[np.ndarray, torch.Tensor, Tuple[Union[np.ndarray, torch.Tensor], torch.Tensor]]:
         """
         Args:
             img: shape must be (num_channels, H, W[, D]),
@@ -1429,11 +1429,11 @@ class Rand2DElastic(Randomizable, Transform):
         spacing: Union[Tuple[float, float], float],
         magnitude_range: Tuple[float, float],
         prob: float = 0.1,
-        rotate_range: Optional[Union[Sequence[float], float]] = None,
-        shear_range: Optional[Union[Sequence[float], float]] = None,
-        translate_range: Optional[Union[Sequence[float], float]] = None,
-        scale_range: Optional[Union[Sequence[float], float]] = None,
-        spatial_size: Optional[Union[Sequence[int], int]] = None,
+        rotate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        shear_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        translate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        spatial_size: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = False,
@@ -1554,11 +1554,11 @@ class Rand3DElastic(Randomizable, Transform):
         sigma_range: Tuple[float, float],
         magnitude_range: Tuple[float, float],
         prob: float = 0.1,
-        rotate_range: Optional[Union[Sequence[float], float]] = None,
-        shear_range: Optional[Union[Sequence[float], float]] = None,
-        translate_range: Optional[Union[Sequence[float], float]] = None,
-        scale_range: Optional[Union[Sequence[float], float]] = None,
-        spatial_size: Optional[Union[Sequence[int], int]] = None,
+        rotate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        shear_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        translate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        spatial_size: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = False,

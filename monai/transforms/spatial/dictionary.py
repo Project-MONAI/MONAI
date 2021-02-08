@@ -26,6 +26,7 @@ from monai.networks.layers import AffineTransform
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
 from monai.transforms.spatial.array import (
+    AffineGrid,
     Flip,
     Orientation,
     Rand2DElastic,
@@ -36,9 +37,8 @@ from monai.transforms.spatial.array import (
     Rotate90,
     Spacing,
     Zoom,
-    AffineGrid,
 )
-from monai.transforms.transform import InvertibleTransform, MapTransform, Randomizable, NonRigidTransform
+from monai.transforms.transform import InvertibleTransform, MapTransform, NonRigidTransform, Randomizable
 from monai.transforms.utils import create_grid
 from monai.utils import (
     GridSampleMode,
@@ -195,7 +195,9 @@ class Spacingd(MapTransform, InvertibleTransform):
                 align_corners=self.align_corners[idx],
                 dtype=self.dtype[idx],
             )
-            self.append_applied_transforms(d, key, extra_info={"meta_data_key": meta_data_key, "old_affine": old_affine})
+            self.append_applied_transforms(
+                d, key, extra_info={"meta_data_key": meta_data_key, "old_affine": old_affine}
+            )
             # set the 'affine' key
             meta_data["affine"] = new_affine
         return d
@@ -209,7 +211,7 @@ class Spacingd(MapTransform, InvertibleTransform):
             "padding_mode": self.padding_mode[idx],
             "align_corners": self.align_corners[idx],
             "dtype": self.dtype[idx],
-            "meta_key_postfix": self.meta_key_postfix
+            "meta_key_postfix": self.meta_key_postfix,
         }
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
@@ -219,8 +221,9 @@ class Spacingd(MapTransform, InvertibleTransform):
             init_args = transform["init_args"]
             if init_args["diagonal"]:
                 raise RuntimeError(
-                    "Spacingd:inverse not yet implemented for diagonal=True. " +
-                    "Please raise a github issue if you need this feature")
+                    "Spacingd:inverse not yet implemented for diagonal=True. "
+                    + "Please raise a github issue if you need this feature"
+                )
             # Create inverse transform
             meta_data = d[transform["extra_info"]["meta_data_key"]]
             orig_pixdim = np.sqrt(np.sum(np.square(transform["extra_info"]["old_affine"]), 0))[:-1]
@@ -297,7 +300,9 @@ class Orientationd(MapTransform, InvertibleTransform):
             meta_data_key = f"{key}_{self.meta_key_postfix}"
             meta_data = d[meta_data_key]
             d[key], old_affine, new_affine = self.ornt_transform(d[key], affine=meta_data["affine"])
-            self.append_applied_transforms(d, key, extra_info={"meta_data_key": meta_data_key, "old_affine": old_affine})
+            self.append_applied_transforms(
+                d, key, extra_info={"meta_data_key": meta_data_key, "old_affine": old_affine}
+            )
             d[meta_data_key]["affine"] = new_affine
         return d
 
@@ -417,13 +422,13 @@ class RandRotate90d(Randomizable, MapTransform, InvertibleTransform):
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Mapping[Hashable, np.ndarray]:
         self.randomize()
+        d = dict(data)
         if not self._do_transform:
             for key in self.keys:
-                self.append_applied_transforms(data, key)
+                self.append_applied_transforms(d, key)
             return data
 
         rotator = Rotate90(self._rand_k, self.spatial_axes)
-        d = dict(data)
         for key in self.keys:
             d[key] = rotator(d[key])
             self.append_applied_transforms(d, key, extra_info={"rand_k": self._rand_k})
@@ -531,10 +536,10 @@ class RandAffined(Randomizable, MapTransform, InvertibleTransform):
         keys: KeysCollection,
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         prob: float = 0.1,
-        rotate_range: Optional[Union[Sequence[float], float]] = None,
-        shear_range: Optional[Union[Sequence[float], float]] = None,
-        translate_range: Optional[Union[Sequence[float], float]] = None,
-        scale_range: Optional[Union[Sequence[float], float]] = None,
+        rotate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        shear_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        translate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = True,
@@ -615,7 +620,7 @@ class RandAffined(Randomizable, MapTransform, InvertibleTransform):
             affine = np.eye(len(sp_size) + 1)
 
         for idx, key in enumerate(self.keys):
-            self.append_applied_transforms(d, key, idx, extra_info={"affine": affine, "orig_was_numpy": isinstance(d[key], np.ndarray)})
+            self.append_applied_transforms(d, key, idx, extra_info={"affine": affine})
             d[key] = self.rand_affine.resampler(d[key], grid, mode=self.mode[idx], padding_mode=self.padding_mode[idx])
         return d
 
@@ -647,12 +652,13 @@ class RandAffined(Randomizable, MapTransform, InvertibleTransform):
             inv_affine = np.linalg.inv(fwd_affine)
 
             affine_grid = AffineGrid(affine=inv_affine)
-            grid = affine_grid(orig_size)
+            grid: torch.Tensor = affine_grid(orig_size)  # type: ignore
 
             # Apply inverse transform
-            d[key] = self.rand_affine.resampler(d[key], grid, init_args["mode"], init_args["padding_mode"])
-            if extra_info["orig_was_numpy"]:
-                d[key] = d[key].cpu().numpy()
+            out = self.rand_affine.resampler(d[key], grid, init_args["mode"], init_args["padding_mode"])
+            # Convert to original output type
+            if isinstance(out, torch.Tensor):
+                d[key] = out.cpu().numpy()
             # Remove the applied transform
             self.remove_most_recent_transform(d, key)
 
@@ -671,10 +677,10 @@ class Rand2DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
         magnitude_range: Tuple[float, float],
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         prob: float = 0.1,
-        rotate_range: Optional[Union[Sequence[float], float]] = None,
-        shear_range: Optional[Union[Sequence[float], float]] = None,
-        translate_range: Optional[Union[Sequence[float], float]] = None,
-        scale_range: Optional[Union[Sequence[float], float]] = None,
+        rotate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        shear_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        translate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = False,
@@ -813,9 +819,13 @@ class Rand2DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
                     # Back to original size
                     inv_def = CenterSpatialCrop(roi_size=orig_size)(inv_def)
                     # Apply inverse transform
-                    d[key] = self.rand_2d_elastic.resampler(
+                    out = self.rand_2d_elastic.resampler(
                         d[key], inv_def, init_args["mode"], init_args["padding_mode"]
                     )
+                    if isinstance(out, torch.Tensor):
+                        d[key] = out.cpu().numpy()
+                    else:
+                        d[key] = out
             # Remove the applied transform
             self.remove_most_recent_transform(d, key)
 
@@ -832,12 +842,12 @@ class Rand3DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
         keys: KeysCollection,
         sigma_range: Tuple[float, float],
         magnitude_range: Tuple[float, float],
-        spatial_size: Optional[Union[Sequence[int], int]] = None,
+        spatial_size: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
         prob: float = 0.1,
-        rotate_range: Optional[Union[Sequence[float], float]] = None,
-        shear_range: Optional[Union[Sequence[float], float]] = None,
-        translate_range: Optional[Union[Sequence[float], float]] = None,
-        scale_range: Optional[Union[Sequence[float], float]] = None,
+        rotate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        shear_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        translate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = False,
@@ -973,9 +983,13 @@ class Rand3DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
                     # Back to original size
                     inv_def = CenterSpatialCrop(roi_size=orig_size)(inv_def)
                     # Apply inverse transform
-                    d[key] = self.rand_3d_elastic.resampler(
+                    out = self.rand_3d_elastic.resampler(
                         d[key], inv_def, init_args["mode"], init_args["padding_mode"]
                     )
+                    if isinstance(out, torch.Tensor):
+                        d[key] = out.cpu().numpy()
+                    else:
+                        d[key] = out
             # Remove the applied transform
             self.remove_most_recent_transform(d, key)
 
@@ -1060,7 +1074,6 @@ class RandFlipd(Randomizable, MapTransform, InvertibleTransform):
             self.append_applied_transforms(d, key)
 
         return d
-
 
     def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
         return {
@@ -1264,7 +1277,7 @@ class RandRotated(Randomizable, MapTransform, InvertibleTransform):
             for key in self.keys:
                 self.append_applied_transforms(d, key)
             return d
-        angle: Sequence = self.x if d[self.keys[0]].ndim == 3 else (self.x, self.y, self.z)
+        angle: Union[Sequence[float], float] = self.x if d[self.keys[0]].ndim == 3 else (self.x, self.y, self.z)
         rotator = Rotate(
             angle=angle,
             keep_size=self.keep_size,
@@ -1409,6 +1422,7 @@ class Zoomd(MapTransform, InvertibleTransform):
             self.remove_most_recent_transform(d, key)
 
         return d
+
 
 class RandZoomd(Randomizable, MapTransform, InvertibleTransform):
     """

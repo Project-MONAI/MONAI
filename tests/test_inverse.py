@@ -11,42 +11,41 @@
 
 import random
 import unittest
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Tuple
 
 import numpy as np
-from typing import List, Tuple
-from monai.data import create_test_image_2d, create_test_image_3d
-from monai.data import CacheDataset
+
+from monai.data import CacheDataset, create_test_image_2d, create_test_image_3d
 from monai.transforms import (
-    InvertibleTransform,
-    AddChanneld,
     AddChannel,
-    Compose,
-    RandRotated,
-    RandSpatialCropd,
-    Rotated,
-    SpatialPad,
-    SpatialPadd,
-    SpatialCropd,
+    AddChanneld,
     BorderPadd,
+    CenterSpatialCropd,
+    Compose,
+    CropForegroundd,
     DivisiblePadd,
     Flipd,
+    InvertibleTransform,
     LoadImaged,
-    Rotate90d,
-    Zoomd,
-    CenterSpatialCropd,
-    CropForegroundd,
     Orientationd,
-    Spacingd,
-    Resized,
-    ResizeWithPadOrCropd,
-    RandZoomd,
-    RandFlipd,
-    RandRotate90d,
-    RandAffined,
     Rand2DElasticd,
     Rand3DElasticd,
+    RandAffined,
+    RandFlipd,
+    RandRotate90d,
+    RandRotated,
+    RandSpatialCropd,
+    RandZoomd,
+    Resized,
     ResizeWithPadOrCrop,
+    ResizeWithPadOrCropd,
+    Rotate90d,
+    Rotated,
+    Spacingd,
+    SpatialCropd,
+    SpatialPad,
+    SpatialPadd,
+    Zoomd,
 )
 from monai.utils import optional_import, set_determinism
 from tests.utils import make_nifti_image, make_rand_affine
@@ -78,296 +77,307 @@ DATA_3D = LOAD_IMS({"image": IM_3D_FNAME, "label": SEG_3D_FNAME})
 
 TESTS: List[Tuple] = []
 
-TESTS.append((
-    "SpatialPadd (x2) 2d",
-    DATA_2D,
-    0.0,
-    SpatialPadd(KEYS, spatial_size=[111, 113], method="end"),
-    SpatialPadd(KEYS, spatial_size=[118, 117]),
-))
-
-TESTS.append((
-    "SpatialPadd 3d",
-    DATA_3D,
-    0.0,
-    SpatialPadd(KEYS, spatial_size=[112, 113, 116]),
-))
-
-TESTS.append((
-    "RandRotated, prob 0",
-    DATA_2D,
-    0,
-    RandRotated(KEYS, prob=0),
-))
-
-TESTS.append((
-    "SpatialCropd 2d",
-    DATA_2D,
-    3e-2,
-    SpatialCropd(KEYS, [49, 51], [90, 89]),
-))
-
-TESTS.append((
-    "SpatialCropd 3d",
-    DATA_3D,
-    4e-2,
-    SpatialCropd(KEYS, [49, 51, 44], [90, 89, 93]),
-))
-
-TESTS.append((
-    "RandSpatialCropd 2d",
-    DATA_2D,
-    5e-2,
-    RandSpatialCropd(KEYS, [96, 93], True, False)
-))
-
-TESTS.append((
-    "RandSpatialCropd 3d",
-    DATA_3D,
-    2e-2,
-    RandSpatialCropd(KEYS, [96, 93, 92], False, True)
-))
-
-TESTS.append((
-    "BorderPadd 2d",
-    DATA_2D,
-    0,
-    BorderPadd(KEYS, [3, 7, 2, 5]),
-))
-
-TESTS.append((
-    "BorderPadd 2d",
-    DATA_2D,
-    0,
-    BorderPadd(KEYS, [3, 7]),
-))
-
-TESTS.append((
-    "BorderPadd 3d",
-    DATA_3D,
-    0,
-    BorderPadd(KEYS, [4]),
-))
-
-TESTS.append((
-    "DivisiblePadd 2d",
-    DATA_2D,
-    0,
-    DivisiblePadd(KEYS, k=4),
-))
-
-TESTS.append((
-    "DivisiblePadd 3d",
-    DATA_3D,
-    0,
-    DivisiblePadd(KEYS, k=[4, 8, 11]),
-))
-
-TESTS.append((
-    "Flipd 3d",
-    DATA_3D,
-    0,
-    Flipd(KEYS, [1, 2]),
-))
-
-TESTS.append((
-    "Flipd 3d",
-    DATA_3D,
-    0,
-    Flipd(KEYS, [1, 2]),
-))
-
-TESTS.append((
-    "RandFlipd 3d",
-    DATA_3D,
-    0,
-    RandFlipd(KEYS, 1, [1, 2]),
-))
-
-TESTS.append((
-    "Rotated 2d",
-    DATA_2D,
-    8e-2,
-    Rotated(KEYS, random.uniform(np.pi / 6, np.pi), keep_size=True, align_corners=False),
-))
-
-TESTS.append((
-    "Rotated 3d",
-    DATA_3D,
-    5e-2,
-    Rotated(KEYS, [random.uniform(np.pi / 6, np.pi) for _ in range(3)], 1),
-))
-
-TESTS.append((
-    "RandRotated 3d",
-    DATA_3D,
-    5e-2,
-    RandRotated(KEYS, *(random.uniform(np.pi / 6, np.pi) for _ in range(3)), 1),
-))
-
-TESTS.append((
-    "Orientationd 3d",
-    DATA_3D,
-    0,
-    Orientationd(KEYS, 'RAS'),
-))
-
-TESTS.append((
-    "Rotate90d 2d",
-    DATA_2D,
-    0,
-    Rotate90d(KEYS),
-))
-
-TESTS.append((
-    "Rotate90d 3d",
-    DATA_3D,
-    0,
-    Rotate90d(KEYS, k=2, spatial_axes=[1, 2]),
-))
-
-TESTS.append((
-    "RandRotate90d 3d",
-    DATA_3D,
-    0,
-    RandRotate90d(KEYS, prob=1, spatial_axes=[1, 2]),
-))
-
-TESTS.append((
-    "Zoomd 1d",
-    DATA_1D,
-    0,
-    Zoomd(KEYS, zoom=2, keep_size=False),
-))
-
-TESTS.append((
-    "Zoomd 2d",
-    DATA_2D,
-    2e-1,
-    Zoomd(KEYS, zoom=0.9),
-))
-
-TESTS.append((
-    "Zoomd 3d",
-    DATA_3D,
-    3e-2,
-    Zoomd(KEYS, zoom=[2.5, 1, 3], keep_size=False),
-))
-
-TESTS.append((
-    "RandZoom 3d",
-    DATA_3D,
-    5e-2,
-    RandZoomd(KEYS, 1, [0.5, 0.6, 0.9], [3, 4.2, 6.1], keep_size=False)
-))
-
-TESTS.append((
-    "CenterSpatialCropd 2d",
-    DATA_2D,
-    0,
-    CenterSpatialCropd(KEYS, roi_size=95),
-))
-
-TESTS.append((
-    "CenterSpatialCropd 3d",
-    DATA_3D,
-    0,
-    CenterSpatialCropd(KEYS, roi_size=[95, 97, 98]),
-))
-
-TESTS.append((
-    "CropForegroundd 2d",
-    DATA_2D,
-    0,
-    CropForegroundd(KEYS, source_key="label", margin=[2, 1])
-))
-
-TESTS.append((
-    "CropForegroundd 3d",
-    DATA_3D,
-    0,
-    CropForegroundd(KEYS, source_key="label")
-))
-
-TESTS.append((
-    "Spacingd 3d",
-    DATA_3D,
-    3e-2,
-    Spacingd(KEYS, [0.5, 0.7, 0.9], diagonal=False)
-))
-
-TESTS.append((
-    "Resized 2d",
-    DATA_2D,
-    2e-1,
-    Resized(KEYS, [50, 47])
-))
-
-TESTS.append((
-    "Resized 3d",
-    DATA_3D,
-    5e-2,
-    Resized(KEYS, [201, 150, 78])
-))
-
-TESTS.append((
-    "ResizeWithPadOrCropd 3d",
-    DATA_3D,
-    1e-2,
-    ResizeWithPadOrCropd(KEYS, [201, 150, 78])
-))
-
-TESTS.append((
-    "RandAffine 3d",
-    DATA_3D,
-    5e-2,
-    RandAffined(
-        KEYS,
-        [155, 179, 192],
-        prob=1,
-        padding_mode="zeros",
-        rotate_range=[np.pi / 6, -np.pi / 5, np.pi / 7],
-        shear_range=[[0.5, 0.5]],
-        translate_range=[10, 5, -4],
-        scale_range=[[0.8, 1.2], [0.9, 1.3]],
+TESTS.append(
+    (
+        "SpatialPadd (x2) 2d",
+        DATA_2D,
+        0.0,
+        SpatialPadd(KEYS, spatial_size=[111, 113], method="end"),
+        SpatialPadd(KEYS, spatial_size=[118, 117]),
     )
-))
+)
 
-TESTS.append((
-    "Rand2DElasticd 2d",
-    DATA_2D,
-    8e-2,
-    Rand2DElasticd(
-        KEYS,
-        spacing=[10, 10],
-        magnitude_range=[2, 2],
-        # spatial_size=[155, 192],
-        prob=1,
-        padding_mode="zeros",
-        rotate_range=[[np.pi / 6, np.pi / 6], np.pi / 7],
-        # shear_range=[[0.5, 0.5]],
-        # translate_range=[10, 5],
-        # scale_range=[[0.8, 1.2], [0.9, 1.3]],
+TESTS.append(
+    (
+        "SpatialPadd 3d",
+        DATA_3D,
+        0.0,
+        SpatialPadd(KEYS, spatial_size=[112, 113, 116]),
     )
-))
+)
 
-TESTS.append((
-    "Rand3DElasticd 3d",
-    DATA_3D,
-    0,
-    Rand3DElasticd(
-        KEYS,
-        sigma_range=[1, 3],
-        magnitude_range=[1., 2., 1.],
-        spatial_size=[155, 192, 200],
-        prob=1,
-        padding_mode="zeros",
-        rotate_range=[np.pi / 6, np.pi / 7],
-        shear_range=[[0.5, 0.5]],
-        translate_range=[10, 5],
-        scale_range=[[0.8, 1.2], [0.9, 1.3]],
+TESTS.append(
+    (
+        "RandRotated, prob 0",
+        DATA_2D,
+        0,
+        RandRotated(KEYS, prob=0),
     )
-))
+)
+
+TESTS.append(
+    (
+        "SpatialCropd 2d",
+        DATA_2D,
+        3e-2,
+        SpatialCropd(KEYS, [49, 51], [90, 89]),
+    )
+)
+
+TESTS.append(
+    (
+        "SpatialCropd 3d",
+        DATA_3D,
+        4e-2,
+        SpatialCropd(KEYS, [49, 51, 44], [90, 89, 93]),
+    )
+)
+
+TESTS.append(("RandSpatialCropd 2d", DATA_2D, 5e-2, RandSpatialCropd(KEYS, [96, 93], True, False)))
+
+TESTS.append(("RandSpatialCropd 3d", DATA_3D, 2e-2, RandSpatialCropd(KEYS, [96, 93, 92], False, True)))
+
+TESTS.append(
+    (
+        "BorderPadd 2d",
+        DATA_2D,
+        0,
+        BorderPadd(KEYS, [3, 7, 2, 5]),
+    )
+)
+
+TESTS.append(
+    (
+        "BorderPadd 2d",
+        DATA_2D,
+        0,
+        BorderPadd(KEYS, [3, 7]),
+    )
+)
+
+TESTS.append(
+    (
+        "BorderPadd 3d",
+        DATA_3D,
+        0,
+        BorderPadd(KEYS, [4]),
+    )
+)
+
+TESTS.append(
+    (
+        "DivisiblePadd 2d",
+        DATA_2D,
+        0,
+        DivisiblePadd(KEYS, k=4),
+    )
+)
+
+TESTS.append(
+    (
+        "DivisiblePadd 3d",
+        DATA_3D,
+        0,
+        DivisiblePadd(KEYS, k=[4, 8, 11]),
+    )
+)
+
+TESTS.append(
+    (
+        "Flipd 3d",
+        DATA_3D,
+        0,
+        Flipd(KEYS, [1, 2]),
+    )
+)
+
+TESTS.append(
+    (
+        "Flipd 3d",
+        DATA_3D,
+        0,
+        Flipd(KEYS, [1, 2]),
+    )
+)
+
+TESTS.append(
+    (
+        "RandFlipd 3d",
+        DATA_3D,
+        0,
+        RandFlipd(KEYS, 1, [1, 2]),
+    )
+)
+
+TESTS.append(
+    (
+        "Rotated 2d",
+        DATA_2D,
+        8e-2,
+        Rotated(KEYS, random.uniform(np.pi / 6, np.pi), keep_size=True, align_corners=False),
+    )
+)
+
+TESTS.append(
+    (
+        "Rotated 3d",
+        DATA_3D,
+        5e-2,
+        Rotated(KEYS, [random.uniform(np.pi / 6, np.pi) for _ in range(3)], True),  # type: ignore
+    )
+)
+
+TESTS.append(
+    (
+        "RandRotated 3d",
+        DATA_3D,
+        5e-2,
+        RandRotated(KEYS, *[random.uniform(np.pi / 6, np.pi) for _ in range(3)], 1),  # type: ignore
+    )
+)
+
+TESTS.append(
+    (
+        "Orientationd 3d",
+        DATA_3D,
+        0,
+        Orientationd(KEYS, "RAS"),
+    )
+)
+
+TESTS.append(
+    (
+        "Rotate90d 2d",
+        DATA_2D,
+        0,
+        Rotate90d(KEYS),
+    )
+)
+
+TESTS.append(
+    (
+        "Rotate90d 3d",
+        DATA_3D,
+        0,
+        Rotate90d(KEYS, k=2, spatial_axes=(1, 2)),
+    )
+)
+
+TESTS.append(
+    (
+        "RandRotate90d 3d",
+        DATA_3D,
+        0,
+        RandRotate90d(KEYS, prob=1, spatial_axes=(1, 2)),
+    )
+)
+
+TESTS.append(
+    (
+        "Zoomd 1d",
+        DATA_1D,
+        0,
+        Zoomd(KEYS, zoom=2, keep_size=False),
+    )
+)
+
+TESTS.append(
+    (
+        "Zoomd 2d",
+        DATA_2D,
+        2e-1,
+        Zoomd(KEYS, zoom=0.9),
+    )
+)
+
+TESTS.append(
+    (
+        "Zoomd 3d",
+        DATA_3D,
+        3e-2,
+        Zoomd(KEYS, zoom=[2.5, 1, 3], keep_size=False),
+    )
+)
+
+TESTS.append(("RandZoom 3d", DATA_3D, 5e-2, RandZoomd(KEYS, 1, [0.5, 0.6, 0.9], [3, 4.2, 6.1], keep_size=False)))
+
+TESTS.append(
+    (
+        "CenterSpatialCropd 2d",
+        DATA_2D,
+        0,
+        CenterSpatialCropd(KEYS, roi_size=95),
+    )
+)
+
+TESTS.append(
+    (
+        "CenterSpatialCropd 3d",
+        DATA_3D,
+        0,
+        CenterSpatialCropd(KEYS, roi_size=[95, 97, 98]),
+    )
+)
+
+TESTS.append(("CropForegroundd 2d", DATA_2D, 0, CropForegroundd(KEYS, source_key="label", margin=2)))
+
+TESTS.append(("CropForegroundd 3d", DATA_3D, 0, CropForegroundd(KEYS, source_key="label")))
+
+TESTS.append(("Spacingd 3d", DATA_3D, 3e-2, Spacingd(KEYS, [0.5, 0.7, 0.9], diagonal=False)))
+
+TESTS.append(("Resized 2d", DATA_2D, 2e-1, Resized(KEYS, [50, 47])))
+
+TESTS.append(("Resized 3d", DATA_3D, 5e-2, Resized(KEYS, [201, 150, 78])))
+
+TESTS.append(("ResizeWithPadOrCropd 3d", DATA_3D, 1e-2, ResizeWithPadOrCropd(KEYS, [201, 150, 78])))
+
+TESTS.append(
+    (
+        "RandAffine 3d",
+        DATA_3D,
+        5e-2,
+        RandAffined(
+            KEYS,
+            [155, 179, 192],
+            prob=1,
+            padding_mode="zeros",
+            rotate_range=[np.pi / 6, -np.pi / 5, np.pi / 7],
+            shear_range=[(0.5, 0.5)],
+            translate_range=[10, 5, -4],
+            scale_range=[(0.8, 1.2), (0.9, 1.3)],
+        ),
+    )
+)
+
+TESTS.append(
+    (
+        "Rand2DElasticd 2d",
+        DATA_2D,
+        8e-2,
+        Rand2DElasticd(
+            KEYS,
+            spacing=(10.0, 10.0),
+            magnitude_range=(2, 2),
+            # spatial_size=[155, 192],
+            prob=1,
+            padding_mode="zeros",
+            rotate_range=[(np.pi / 6, np.pi / 6), np.pi / 7],
+            # shear_range=[(0.5, 0.5)],
+            # translate_range=[10, 5],
+            # scale_range=[(0.8, 1.2), (0.9, 1.3)],
+        ),
+    )
+)
+
+TESTS.append(
+    (
+        "Rand3DElasticd 3d",
+        DATA_3D,
+        0,
+        Rand3DElasticd(
+            KEYS,
+            sigma_range=(1, 3),
+            magnitude_range=(1.0, 2.0),
+            spatial_size=[155, 192, 200],
+            prob=1,
+            padding_mode="zeros",
+            rotate_range=[np.pi / 6, np.pi / 7],
+            shear_range=[(0.5, 0.5)],
+            translate_range=[10, 5],
+            scale_range=[(0.8, 1.2), (0.9, 1.3)],
+        ),
+    )
+)
 
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
 
@@ -378,13 +388,12 @@ TESTS = [*TESTS, *TESTS_COMPOSE_X2]
 TEST_FAIL_0 = (DATA_2D["image"], 0.0, Compose([SpatialPad(spatial_size=[101, 103])]))
 TESTS_FAIL = [TEST_FAIL_0]
 
+
 def plot_im(orig, fwd_bck, fwd):
     diff_orig_fwd_bck = orig - fwd_bck
     ims_to_show = [orig, fwd, fwd_bck, diff_orig_fwd_bck]
     titles = ["x", "fx", "f⁻¹fx", "x - f⁻¹fx"]
-    fig, axes = plt.subplots(
-        1, 4, gridspec_kw={"width_ratios": [i.shape[1] for i in ims_to_show]}
-    )
+    fig, axes = plt.subplots(1, 4, gridspec_kw={"width_ratios": [i.shape[1] for i in ims_to_show]})
     vmin = min(np.array(i).min() for i in [orig, fwd_bck, fwd])
     vmax = max(np.array(i).max() for i in [orig, fwd_bck, fwd])
     for im, title, ax in zip(ims_to_show, titles, axes):
@@ -412,7 +421,9 @@ class TestInverse(unittest.TestCase):
                     self.assertLessEqual(mean_diff, acceptable_diff)
                     self.assertLessEqual(mean_diff, unmodded_diff)
                 except AssertionError:
-                    print(f"Failed: {name}. Mean diff = {mean_diff} (expected <= {acceptable_diff}), unmodified diff: {unmodded_diff}")
+                    print(
+                        f"Failed: {name}. Mean diff = {mean_diff} (expected <= {acceptable_diff}), unmodified diff: {unmodded_diff}"
+                    )
                     if has_matplotlib:
                         plot_im(orig, fwd_bck, unmodified)
                     raise
