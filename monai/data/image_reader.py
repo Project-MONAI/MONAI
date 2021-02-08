@@ -626,7 +626,7 @@ class CuImageReader(ImageReader):
         """
         return has_cux and is_supported_format(filename, ["tif", "tiff"])
 
-    def read(self, data: Union[Sequence[str], str, np.ndarray]):
+    def read(self, data: Union[Sequence[str], str, np.ndarray], **kwargs):
         """
         Read image data from specified file or files.
         Note that the returned object is CuImage or list of CuImage objects.
@@ -745,7 +745,7 @@ class OpenSlideReader(ImageReader):
         """
         return has_cux and is_supported_format(filename, ["tif", "tiff"])
 
-    def read(self, data: Union[Sequence[str], str, np.ndarray]):
+    def read(self, data: Union[Sequence[str], str, np.ndarray], **kwargs):
         """
         Read image data from specified file or files.
         Note that the returned object is OpenSlide or list of OpenSlide objects.
