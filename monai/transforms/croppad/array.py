@@ -16,6 +16,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
+import torch
 
 from monai.config import IndexSelection
 from monai.data.utils import get_random_patch, get_valid_patch_size
@@ -128,7 +129,7 @@ class BorderPad(Transform):
         self.spatial_border = spatial_border
         self.mode: NumpyPadMode = NumpyPadMode(mode)
 
-    def __call__(self, img: np.ndarray, mode: Optional[Union[NumpyPadMode, str]] = None) -> np.ndarray:
+    def __call__(self, img: np.ndarray, mode: Optional[Union[NumpyPadMode, str]] = None):
         """
         Args:
             img: data to be transformed, assuming `img` is channel-first and
@@ -219,10 +220,10 @@ class SpatialCrop(Transform):
 
     def __init__(
         self,
-        roi_center: Optional[Sequence[int]] = None,
-        roi_size: Optional[Sequence[int]] = None,
-        roi_start: Optional[Sequence[int]] = None,
-        roi_end: Optional[Sequence[int]] = None,
+        roi_center: Union[Sequence[int], np.ndarray, None] = None,
+        roi_size: Union[Sequence[int], np.ndarray, None] = None,
+        roi_start: Union[Sequence[int], np.ndarray, None] = None,
+        roi_end: Union[Sequence[int], np.ndarray, None] = None,
     ) -> None:
         """
         Args:
@@ -242,14 +243,14 @@ class SpatialCrop(Transform):
             self.roi_start = np.maximum(np.asarray(roi_start, dtype=np.int16), 0)
             self.roi_end = np.maximum(np.asarray(roi_end, dtype=np.int16), self.roi_start)
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> np.ndarray:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
         """
         sd = min(len(self.roi_start), len(self.roi_end), len(img.shape[1:]))  # spatial dims
         slices = [slice(None)] + [slice(s, e) for s, e in zip(self.roi_start[:sd], self.roi_end[:sd])]
-        return img[tuple(slices)]
+        return np.asarray(img[tuple(slices)])
 
 
 class CenterSpatialCrop(Transform):
@@ -264,7 +265,7 @@ class CenterSpatialCrop(Transform):
     def __init__(self, roi_size: Union[Sequence[int], int]) -> None:
         self.roi_size = roi_size
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: np.ndarray):
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
@@ -306,7 +307,7 @@ class RandSpatialCrop(Randomizable, Transform):
             valid_size = get_valid_patch_size(img_size, self._size)
             self._slices = (slice(None),) + get_random_patch(img_size, valid_size, self.R)
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: np.ndarray):
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
@@ -590,6 +591,8 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         """
         if label is None:
             label = self.label
+        if label is None:
+            raise ValueError("label should be provided.")
         if image is None:
             image = self.image
         if fg_indices is None or bg_indices is None:
@@ -602,7 +605,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         results: List[np.ndarray] = []
         if self.centers is not None:
             for center in self.centers:
-                cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)
+                cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)  # type: ignore
                 results.append(cropper(img))
 
         return results

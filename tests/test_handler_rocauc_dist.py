@@ -31,12 +31,12 @@ class DistributedROCAUC(DistTestCase):
             auc_metric.update([y_pred, y])
 
         if dist.get_rank() == 1:
-            y_pred = torch.tensor([[0.2, 0.1], [0.1, 0.5]], device=device)
-            y = torch.tensor([[0], [1]], device=device)
+            y_pred = torch.tensor([[0.2, 0.1], [0.1, 0.5], [0.3, 0.4]], device=device)
+            y = torch.tensor([[0], [1], [1]], device=device)
             auc_metric.update([y_pred, y])
 
         result = auc_metric.compute()
-        np.testing.assert_allclose(0.75, result)
+        np.testing.assert_allclose(0.66667, result, rtol=1e-4)
 
 
 if __name__ == "__main__":
