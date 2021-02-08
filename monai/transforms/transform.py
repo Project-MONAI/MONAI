@@ -285,25 +285,23 @@ class InvertibleTransform(ABC):
 
 class NonRigidTransform(ABC):
     @staticmethod
-    def compute_inverse_deformation(output_size, fwd_def_grid_orig, spacing=None):
+    def compute_inverse_deformation(num_spatial_dims, fwd_def_grid_orig, spacing, num_iters: int = 10):
         if not has_sitk:
             warnings.warn("Please install SimpleITK to estimate inverse of non-rigid transforms. Data has not been modified")
             return None
-        # return fwd_def_grid_orig
         # Remove any extra dimensions (we'll add them back in at the end)
-        fwd_def_grid = fwd_def_grid_orig[:len(output_size)]
+        fwd_def_grid = fwd_def_grid_orig[:num_spatial_dims].cpu().numpy()
         # Def -> disp
         def_to_disp = np.mgrid[[slice(0, i) for i in fwd_def_grid.shape[1:]]].astype(np.float64)
         for idx, i in enumerate(fwd_def_grid.shape[1:]):
             def_to_disp[idx] -= (i - 1) / 2
+            def_to_disp[idx] *= spacing[idx]
         fwd_disp_grid = fwd_def_grid - def_to_disp
         # move tensor component to end (T,H,W,[D])->(H,W,[D],T)
         fwd_disp_grid = np.moveaxis(fwd_disp_grid, 0, -1)
         # Inverse with SimpleITK
         fwd_disp_grid_sitk = sitk.GetImageFromArray(fwd_disp_grid, isVector=True)
-        if spacing is not None:
-            fwd_disp_grid_sitk.SetSpacing(spacing)
-        inv_disp_grid_sitk = sitk.InvertDisplacementField(fwd_disp_grid_sitk)
+        inv_disp_grid_sitk = sitk.InvertDisplacementField(fwd_disp_grid_sitk, num_iters)
         inv_disp_grid = sitk.GetArrayFromImage(inv_disp_grid_sitk)
         # move tensor component back to beginning
         inv_disp_grid = np.moveaxis(inv_disp_grid, -1, 0)
