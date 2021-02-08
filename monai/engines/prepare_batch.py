@@ -101,8 +101,9 @@ class PrepareBatchShuffle(PrepareBatch):
         device: Optional[Union[str, torch.device]] = None,
         non_blocking: bool = False,
     ) -> Union[Tuple[torch.Tensor, Optional[torch.Tensor]], torch.Tensor]:
-
         images, labels = default_prepare_batch(batchdata, device, non_blocking)
-        idx_rand = torch.randperm(len(labels)).to(device=device, non_blocking=non_blocking)
+        idx_rand = torch.randperm(len(images)).to(device=device, non_blocking=non_blocking)
 
-        return images[idx_rand], labels[idx_rand]
+        if labels is not None:
+            return images[idx_rand], labels[idx_rand]
+        return images[idx_rand], None
