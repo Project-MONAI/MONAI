@@ -16,7 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.layers.filtering import PHLFilter
-from tests.utils import skip_if_no_cpp_extention
+from tests.utils import skip_if_no_cpp_extension
 
 TEST_CASES = [
     [
@@ -238,7 +238,7 @@ TEST_CASES = [
 ]
 
 
-@skip_if_no_cpp_extention
+@skip_if_no_cpp_extension
 class PHLFilterTestCaseCpu(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_cpu(self, test_case_description, sigmas, input, features, expected):
