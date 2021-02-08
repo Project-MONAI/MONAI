@@ -663,7 +663,7 @@ class CuImageReader(ImageReader):
         if size is None:
             if location == (0, 0):
                 # the maximum size is set to WxH
-                size = (img_obj.shape[1], img_obj.shape[0])
+                size = (img_obj.shape[1] // (2 ** level), img_obj.shape[0])
                 print("Size is set to maximum size: ", size)
             else:
                 print("Size need to be provided!")
@@ -678,14 +678,13 @@ class CuImageReader(ImageReader):
     def _extract_region(self, img_obj, location=(0, 0), size=None, level=0, dtype=np.uint8):
         size = [s * (2 ** level) for s in size]
         location, corrected_size, x_pad, y_pad = self.correct_boundries(img_obj, location, size)
-        region = img_obj.read_region(location=location, size=corrected_size, level=level)
+        region_raw = img_obj.read_region(location=location, size=corrected_size, level=level)
         if (corrected_size[0] == size[0]) and (corrected_size[1] == size[1]):
-            region = np.asarray(region, dtype=dtype)
+            region = np.asarray(region_raw, dtype=dtype)
         else:
-            print(img_obj)
             # pad with white (255, 255, 255)
             region = np.ones((size[0], size[1], 3), dtype=dtype) * 255
-            region[y_pad[0] : y_pad[1], x_pad[0] : x_pad[1]] = np.asarray(region, dtype=dtype)
+            region[y_pad[0] : y_pad[1], x_pad[0] : x_pad[1]] = np.asarray(region_raw, dtype=dtype)
 
         # CuImage: (H x W x C) -> torch image: (C X H X W)
         region = region.transpose((2, 0, 1))
