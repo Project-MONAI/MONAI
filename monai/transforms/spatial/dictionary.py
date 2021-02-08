@@ -756,13 +756,13 @@ class Rand2DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
         self.randomize(spatial_size=sp_size)
 
         if self.rand_2d_elastic._do_transform:
-            grid = self.rand_2d_elastic.deform_grid(spatial_size=sp_size)
-            grid = self.rand_2d_elastic.rand_affine_grid(grid=grid)
+            cpg = self.rand_2d_elastic.deform_grid(spatial_size=sp_size)
+            cpg = self.rand_2d_elastic.rand_affine_grid(grid=cpg)
             grid = torch.nn.functional.interpolate(  # type: ignore
                 recompute_scale_factor=True,
-                input=grid.unsqueeze(0),
+                input=cpg.unsqueeze(0),
                 scale_factor=ensure_tuple_rep(self.rand_2d_elastic.deform_grid.spacing, 2),
-                mode=InterpolateMode.BICUBIC.value,
+                mode=InterpolateMode.BILINEAR.value,
                 align_corners=False,
             )
             grid = CenterSpatialCrop(roi_size=sp_size)(grid[0])
@@ -803,15 +803,19 @@ class Rand2DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
             init_args = transform["init_args"]
             orig_size = transform["orig_size"]
             # Create inverse transform
-            inv_def_grid = self.compute_inverse_deformation(orig_size, extra_info["grid"], init_args["spacing"])
-            # if no sitk, `inv_def_grid` will be `None`, and data will not be changed.
-            if inv_def_grid is not None:
-                # Apply inverse transform
-                d[key] = self.rand_2d_elastic.resampler(
-                    d[key], inv_def_grid, init_args["mode"], init_args["padding_mode"]
-                )
-                # Back to original size
+            fwd_def = extra_info["grid"]
+            if fwd_def is None:
                 d[key] = CenterSpatialCrop(roi_size=orig_size)(d[key])
+            else:
+                inv_def = self.compute_inverse_deformation(len(orig_size), fwd_def)
+                # if no sitk, `inv_def` will be `None`, and data will not be changed.
+                if inv_def is not None:
+                    # Back to original size
+                    inv_def = CenterSpatialCrop(roi_size=orig_size)(inv_def)
+                    # Apply inverse transform
+                    d[key] = self.rand_2d_elastic.resampler(
+                        d[key], inv_def, init_args["mode"], init_args["padding_mode"]
+                    )
             # Remove the applied transform
             self.remove_most_recent_transform(d, key)
 
@@ -959,15 +963,19 @@ class Rand3DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
             init_args = transform["init_args"]
             orig_size = transform["orig_size"]
             # Create inverse transform
-            inv_def_grid = self.compute_inverse_deformation(orig_size, extra_info["grid"])
-            # if no sitk, `inv_def_grid` will be `None`, and data will not be changed.
-            if inv_def_grid is not None:
-                # Back to original size
-                inv_def_grid = CenterSpatialCrop(roi_size=orig_size)(inv_def_grid)
-                # Apply inverse transform
-                d[key] = self.rand_3d_elastic.resampler(
-                    d[key], inv_def_grid, init_args["mode"], init_args["padding_mode"]
-                )
+            fwd_def = extra_info["grid"]
+            if fwd_def is None:
+                d[key] = CenterSpatialCrop(roi_size=orig_size)(d[key])
+            else:
+                inv_def = self.compute_inverse_deformation(len(orig_size), fwd_def)
+                # if no sitk, `inv_def` will be `None`, and data will not be changed.
+                if inv_def is not None:
+                    # Back to original size
+                    inv_def = CenterSpatialCrop(roi_size=orig_size)(inv_def)
+                    # Apply inverse transform
+                    d[key] = self.rand_3d_elastic.resampler(
+                        d[key], inv_def, init_args["mode"], init_args["padding_mode"]
+                    )
             # Remove the applied transform
             self.remove_most_recent_transform(d, key)
 

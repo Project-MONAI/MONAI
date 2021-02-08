@@ -61,13 +61,13 @@ if TYPE_CHECKING:
 else:
     plt, has_matplotlib = optional_import("matplotlib.pyplot")
 
-# set_determinism(seed=0)
+set_determinism(seed=0)
 
 AFFINE = make_rand_affine()
 AFFINE[0] *= 2
 
 IM_1D = AddChannel()(np.arange(0, 10))
-IM_2D_FNAME, SEG_2D_FNAME = [make_nifti_image(i) for i in create_test_image_2d(101, 101)]
+IM_2D_FNAME, SEG_2D_FNAME = [make_nifti_image(i) for i in create_test_image_2d(101, 100)]
 IM_3D_FNAME, SEG_3D_FNAME = [make_nifti_image(i, AFFINE) for i in create_test_image_3d(100, 101, 107)]
 
 KEYS = ["image", "label"]
@@ -336,15 +336,15 @@ TESTS.append((
 TESTS.append((
     "Rand2DElasticd 2d",
     DATA_2D,
-    0,
+    8e-2,
     Rand2DElasticd(
         KEYS,
         spacing=[10, 10],
-        magnitude_range=[1, 1],
+        magnitude_range=[2, 2],
         # spatial_size=[155, 192],
         prob=1,
         padding_mode="zeros",
-        rotate_range=[np.pi / 6, np.pi / 7],
+        rotate_range=[[np.pi / 6, np.pi / 6], np.pi / 7],
         # shear_range=[[0.5, 0.5]],
         # translate_range=[10, 5],
         # scale_range=[[0.8, 1.2], [0.9, 1.3]],

@@ -15,14 +15,17 @@ A collection of generic interfaces for MONAI transforms.
 import warnings
 from abc import ABC, abstractmethod
 from typing import Any, Hashable, Optional, Tuple
-
+import torch
 import numpy as np
+from itertools import chain
 
 from monai.config import KeysCollection
 from monai.utils import MAX_SEED, ensure_tuple
 from monai.utils import optional_import
 
 sitk, has_sitk = optional_import("SimpleITK")
+vtk, has_vtk = optional_import("vtk")
+vtk_numpy_support, _ = optional_import("vtk.util.numpy_support")
 
 __all__ = ["Randomizable", "Transform", "MapTransform", "InvertibleTransform", "NonRigidTransform"]
 
@@ -285,31 +288,130 @@ class InvertibleTransform(ABC):
 
 class NonRigidTransform(ABC):
     @staticmethod
-    def compute_inverse_deformation(num_spatial_dims, fwd_def_grid_orig, spacing, num_iters: int = 10):
-        if not has_sitk:
+    def _get_disp_to_def_arr(shape, spacing):
+        def_to_disp = np.mgrid[[slice(0, i) for i in shape]].astype(np.float64)
+        for idx, i in enumerate(shape):
+            # shift for origin (in MONAI, center of image)
+            def_to_disp[idx] -= (i - 1) / 2
+            # if supplied, account for spacing (e.g., for control point grids)
+            if spacing is not None:
+                def_to_disp[idx] *= spacing[idx]
+        return def_to_disp
+
+    @staticmethod
+    def _inv_disp_w_sitk(fwd_disp, num_iters):
+        fwd_disp_sitk = sitk.GetImageFromArray(fwd_disp, isVector=True)
+        inv_disp_sitk = sitk.InvertDisplacementField(fwd_disp_sitk, num_iters)
+        inv_disp = sitk.GetArrayFromImage(inv_disp_sitk)
+        return inv_disp
+
+    @staticmethod
+    def _inv_disp_w_vtk(fwd_disp):
+        while fwd_disp.shape[-1] < 3:
+            fwd_disp = np.append(fwd_disp, np.zeros(fwd_disp.shape[:-1] + (1, )), axis=-1)
+            fwd_disp = fwd_disp[..., None, :]
+        # fwd_disp_vtk = vtk.vtkImageImport()
+        # # The previously created array is converted to a string of chars and imported.
+        # data_string = fwd_disp.tostring()
+        # fwd_disp_vtk.CopyImportVoidPointer(data_string, len(data_string))
+        # # The type of the newly imported data is set to unsigned char (uint8)
+        # fwd_disp_vtk.SetDataScalarTypeToUnsignedChar()
+        # fwd_disp_vtk.SetNumberOfScalarComponents(3)
+        extent = list(chain.from_iterable(zip([0, 0, 0], fwd_disp.shape[:-1])))
+        # fwd_disp_vtk.SetWholeExtent(extent)
+        # fwd_disp_vtk.SetDataExtentToWholeExtent()
+        # fwd_disp_vtk.Update()
+        # fwd_disp_vtk = fwd_disp_vtk.GetOutput()
+
+        fwd_disp_flattened = fwd_disp.flatten()  # need to keep this in memory
+        vtk_data_array = vtk_numpy_support.numpy_to_vtk(fwd_disp_flattened)
+
+        # Generating the vtkImageData
+        fwd_disp_vtk = vtk.vtkImageData()
+        fwd_disp_vtk.SetOrigin(0, 0, 0)
+        fwd_disp_vtk.SetSpacing(1, 1, 1)
+        fwd_disp_vtk.SetDimensions(*fwd_disp.shape[:-1])
+
+        fwd_disp_vtk.AllocateScalars(vtk_numpy_support.get_vtk_array_type(fwd_disp.dtype), 3)
+        fwd_disp_vtk.SetExtent(extent)
+        fwd_disp_vtk.GetPointData().AddArray(vtk_data_array)
+
+        # # create b-spline coefficients for the displacement grid
+        # bspline_filter = vtk.vtkImageBSplineCoefficients()
+        # bspline_filter.SetInputData(fwd_disp_vtk)
+        # bspline_filter.Update()
+
+        # # use these b-spline coefficients to create a transform
+        # bspline_transform = vtk.vtkBSplineTransform()
+        # bspline_transform.SetCoefficientData(bspline_filter.GetOutput())
+        # bspline_transform.Update()
+
+        # # invert the b-spline transform onto a new grid
+        # grid_maker = vtk.vtkTransformToGrid()
+        # grid_maker.SetInput(bspline_transform.GetInverse())
+        # grid_maker.SetGridOrigin(fwd_disp_vtk.GetOrigin())
+        # grid_maker.SetGridSpacing(fwd_disp_vtk.GetSpacing())
+        # grid_maker.SetGridExtent(fwd_disp_vtk.GetExtent())
+        # grid_maker.SetGridScalarTypeToFloat()
+        # grid_maker.Update()
+
+        # # Get inverse displacement as an image
+        # inv_disp_vtk = grid_maker.GetOutput()
+
+        # from vtk.util.numpy_support import vtk_to_numpy
+        # inv_disp = vtk_numpy_support.vtk_to_numpy(inv_disp_vtk.GetPointData().GetScalars())
+        inv_disp = vtk_numpy_support.vtk_to_numpy(fwd_disp_vtk.GetPointData().GetArray(0))
+        inv_disp = inv_disp.reshape(fwd_disp.shape)
+
+        return inv_disp
+
+
+    @staticmethod
+    def compute_inverse_deformation(num_spatial_dims, fwd_def_orig, spacing=None, num_iters: int = 100, use_package: str = "sitk"):
+        """Package can be vtk or sitk."""
+        if use_package.lower() == "vtk" and not has_vtk:
+            warnings.warn("Please install VTK to estimate inverse of non-rigid transforms. Data has not been modified")
+            return None
+        if use_package.lower() == "sitk" and not has_sitk:
             warnings.warn("Please install SimpleITK to estimate inverse of non-rigid transforms. Data has not been modified")
             return None
-        # Remove any extra dimensions (we'll add them back in at the end)
-        fwd_def_grid = fwd_def_grid_orig[:num_spatial_dims].cpu().numpy()
-        # Def -> disp
-        def_to_disp = np.mgrid[[slice(0, i) for i in fwd_def_grid.shape[1:]]].astype(np.float64)
-        for idx, i in enumerate(fwd_def_grid.shape[1:]):
-            def_to_disp[idx] -= (i - 1) / 2
-            def_to_disp[idx] *= spacing[idx]
-        fwd_disp_grid = fwd_def_grid - def_to_disp
-        # move tensor component to end (T,H,W,[D])->(H,W,[D],T)
-        fwd_disp_grid = np.moveaxis(fwd_disp_grid, 0, -1)
-        # Inverse with SimpleITK
-        fwd_disp_grid_sitk = sitk.GetImageFromArray(fwd_disp_grid, isVector=True)
-        inv_disp_grid_sitk = sitk.InvertDisplacementField(fwd_disp_grid_sitk, num_iters)
-        inv_disp_grid = sitk.GetArrayFromImage(inv_disp_grid_sitk)
-        # move tensor component back to beginning
-        inv_disp_grid = np.moveaxis(inv_disp_grid, -1, 0)
-        # Disp -> def
-        inv_def_grid = inv_disp_grid + def_to_disp
-        # Add back in any removed dimensions
-        ndim_in = fwd_def_grid_orig.shape[0]
-        ndim_out = inv_def_grid.shape[0]
-        inv_def_grid = np.concatenate([inv_def_grid, fwd_def_grid_orig[ndim_out:ndim_in]])
 
-        return inv_def_grid
+        # Convert to numpy if necessary
+        if isinstance(fwd_def_orig, torch.Tensor):
+            fwd_def_orig = fwd_def_orig.cpu().numpy()
+        # Remove any extra dimensions (we'll add them back in at the end)
+        fwd_def = fwd_def_orig[:num_spatial_dims]
+        # Def -> disp
+        def_to_disp = NonRigidTransform._get_disp_to_def_arr(fwd_def.shape[1:], spacing)
+        fwd_disp = fwd_def - def_to_disp
+        # move tensor component to end (T,H,W,[D])->(H,W,[D],T)
+        fwd_disp = np.moveaxis(fwd_disp, 0, -1)
+
+        # If using vtk...
+        if use_package.lower() == "vtk":
+            inv_disp = NonRigidTransform._inv_disp_w_vtk(fwd_disp)
+        # If using sitk...
+        else:
+            inv_disp = NonRigidTransform._inv_disp_w_sitk(fwd_disp, num_iters)
+
+
+        import matplotlib.pyplot as plt
+        fig, axes = plt.subplots(2, 2)
+        for i, direc1 in enumerate(["x", "y"]):
+            for j, (im, direc2) in enumerate(zip([fwd_disp, inv_disp], ["fwd", "inv"])):
+                ax = axes[i, j]
+                im_show = ax.imshow(im[..., i])
+                ax.set_title(f"{direc2}{direc1}", fontsize=25)
+                ax.axis("off")
+                fig.colorbar(im_show, ax=ax)
+        plt.show()
+        # move tensor component back to beginning
+        inv_disp = np.moveaxis(inv_disp, -1, 0)
+        # Disp -> def
+        inv_def = inv_disp + def_to_disp
+        # Add back in any removed dimensions
+        ndim_in = fwd_def_orig.shape[0]
+        ndim_out = inv_def.shape[0]
+        inv_def = np.concatenate([inv_def, fwd_def_orig[ndim_out:ndim_in]])
+
+        return inv_def
