@@ -44,7 +44,7 @@ class SegResNet(nn.Module):
             The mode of upsampling manipulations.
             Using the ``nontrainable`` modes cannot guarantee the model's reproducibility. Defaults to``nontrainable``.
 
-            - ``deconv``, uses deconvolution layers.
+            - ``deconv``, uses transposed convolution layers.
             - ``nontrainable``, uses non-trainable `linear` interpolation.
             - ``pixelshuffle``, uses :py:class:`monai.networks.blocks.SubpixelUpsample`.
 
@@ -196,7 +196,7 @@ class SegResNetVAE(SegResNet):
             The mode of upsampling manipulations.
             Using the ``nontrainable`` modes cannot guarantee the model's reproducibility. Defaults to `nontrainable`.
 
-            - ``deconv``, uses deconvolution layers.
+            - ``deconv``, uses transposed convolution layers.
             - ``nontrainable``, uses non-trainable `linear` interpolation.
             - ``pixelshuffle``, uses :py:class:`monai.networks.blocks.SubpixelUpsample`.
 
