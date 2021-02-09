@@ -103,7 +103,7 @@ def string_list_all_gather(strings: List[str], delimiter: str = "\t") -> List[st
         # all gather across all ranks
         _joined = delimiter.join(idist.all_gather(_joined))
     else:
-        raise RuntimeError("MetricsSaver can not save metric details in distributed mode with PyTorch < 1.7.0.")
+        raise RuntimeError("string all_gather can not be supported in PyTorch < 1.7.0.")
 
     return _joined.split(delimiter)
 
