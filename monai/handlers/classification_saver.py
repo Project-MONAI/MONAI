@@ -88,8 +88,8 @@ class ClassificationSaver:
         """
         _meta_data = self.batch_transform(engine.state.batch)
         if Key.FILENAME_OR_OBJ in _meta_data:
-            # all gather filenames across ranks
-            _meta_data[Key.FILENAME_OR_OBJ] = string_list_all_gather(_meta_data[Key.FILENAME_OR_OBJ])
+            # all gather filenames across ranks, only filenames are necessary
+            _meta_data = {Key.FILENAME_OR_OBJ: string_list_all_gather(_meta_data[Key.FILENAME_OR_OBJ])}
         # all gather predictions across ranks
         _engine_output = evenly_divisible_all_gather(self.output_transform(engine.state.output))
 
