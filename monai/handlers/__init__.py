@@ -24,7 +24,7 @@ from .segmentation_saver import SegmentationSaver
 from .smartcache_handler import SmartCacheHandler
 from .stats_handler import StatsHandler
 from .surface_distance import SurfaceDistance
-from .tensorboard_handlers import TensorBoardImageHandler, TensorBoardStatsHandler
+from .tensorboard_handlers import TensorBoardHandler, TensorBoardImageHandler, TensorBoardStatsHandler
 from .utils import (
     evenly_divisible_all_gather,
     stopping_fn_from_loss,
