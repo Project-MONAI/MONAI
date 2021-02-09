@@ -20,6 +20,7 @@ from monai.transforms import DeleteChannel
 
 TEST_CASE_1 = [{"repeats": 2}, np.array([[1, 2], [1, 2], [3, 4], [3, 4]]), (2, 2)]
 
+
 class TestRepeatChannel(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
     def test_shape(self, input_param, input_data, expected_shape):

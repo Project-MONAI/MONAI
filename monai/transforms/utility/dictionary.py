@@ -31,12 +31,12 @@ from monai.transforms.utility.array import (
     CastToType,
     ConvertToMultiChannelBasedOnBratsClasses,
     DataStats,
+    DeleteChannel,
     FgBgToIndices,
     Identity,
     LabelToMask,
     Lambda,
     RepeatChannel,
-    DeleteChannel,
     SimulateDelay,
     SplitChannel,
     SqueezeDim,
@@ -53,7 +53,7 @@ __all__ = [
     "AsChannelLastd",
     "AddChanneld",
     "RepeatChanneld",
-    "DeleteChanneld",    
+    "DeleteChanneld",
     "SplitChanneld",
     "CastToTyped",
     "ToTensord",
@@ -249,7 +249,7 @@ class DeleteChanneld(MapTransform):
             d[key] = self.repeater(d[key])
         return d
 
-    
+
 class SplitChanneld(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SplitChannel`.
@@ -860,7 +860,7 @@ IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
 AddChannelD = AddChannelDict = AddChanneld
-DeleteChannelD = DeleteChannelDict = DeleteChanneld 
+DeleteChannelD = DeleteChannelDict = DeleteChanneld
 RepeatChannelD = RepeatChannelDict = RepeatChanneld
 SplitChannelD = SplitChannelDict = SplitChanneld
 CastToTypeD = CastToTypeDict = CastToTyped
