@@ -32,13 +32,14 @@ Applications
 `Deepgrow`
 -----------
 
-`Data`
-^^^^^^^^^^^^^^^^^^
-.. automodule:: monai.apps.deepgrow
+.. automodule:: monai.apps.deepgrow.dataset
 .. autofunction:: create_dataset
 
-`Transforms`
-^^^^^^^^^^^^^^
+.. automodule:: monai.apps.deepgrow.interaction
+.. autoclass:: Interaction
+    :members:
+
+.. automodule:: monai.apps.deepgrow.transforms
 .. autoclass:: AddInitialSeedPointd
     :members:
 .. autoclass:: AddGuidanceSignald
