@@ -12,13 +12,14 @@
 import hashlib
 import json
 import math
+from monai.utils.misc import issequenceiterable
 import os
 import pickle
 import warnings
 from collections import defaultdict
 from itertools import product, starmap
 from pathlib import PurePath
-from typing import Dict, Generator, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Generator, Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -252,6 +253,9 @@ def decollate_batch(data: dict, batch_size: Optional[int] = None):
     such as metadata, may have been stored in a list (or a list inside nested dictionaries). In
     this case we return the element of the list corresponding to the batch idx.
 
+    Return types aren't guaranteed to be the same as the original, since numpy arrays will have been
+    converted to torch.Tensor, and tuples/lists may have been converted to lists of tensors
+
     For example:
 
     ```
@@ -277,26 +281,30 @@ def decollate_batch(data: dict, batch_size: Optional[int] = None):
         for v in data.values():
             if isinstance(v, torch.Tensor):
                 batch_size = v.shape[0]
+                break
     if batch_size is None:
         raise RuntimeError("Couldn't determine batch size, please specify as argument.")
 
-    def decollate(data, idx, batch_size):
+    def torch_to_single(d: torch.Tensor):
+        """If input is a torch.Tensor with only 1 element, return just the element."""
+        return d if d.numel() > 1 else d.item()
+
+    def decollate(data: Any, idx: int):
+        """Recursively de-collate."""
+        if isinstance(data, dict):
+            return {k: decollate(v, idx) for k, v in data.items()}
         if isinstance(data, torch.Tensor):
             out = data[idx]
-            return out if out.numel() > 1 else out.item()
-        elif isinstance(data, dict):
-            return {k: decollate(v, idx, batch_size) for k, v in data.items()}
+            return torch_to_single(out)
         elif isinstance(data, list):
-            if len(data) == batch_size:
-                return data[idx]
-            if len(data) == 1:
-                return [decollate(data[0], idx, batch_size)]
             if isinstance(data[0], torch.Tensor):
-                return [d[idx] if d[idx].numel() > 1 else d[idx].item() for d in data]
-            raise TypeError(f"Not sure how to de-collate list of len: {len(data)}")
+                return [torch_to_single(d[idx]) for d in data]
+            if issequenceiterable(data[0]):
+                return [decollate(d, idx) for d in data]
+            return data[idx]
         raise TypeError(f"Not sure how to de-collate type: {type(data)}")
 
-    return [{key: decollate(data[key], idx, batch_size) for key in data.keys()} for idx in range(batch_size)]
+    return [{key: decollate(data[key], idx) for key in data.keys()} for idx in range(batch_size)]
 
 def worker_init_fn(worker_id: int) -> None:
     """
