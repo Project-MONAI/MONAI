@@ -694,7 +694,7 @@ def extreme_points_to_image(
 
 
 def map_spatial_axes(
-    img: np.ndarray,
+    img_ndim: int,
     spatial_axes: Optional[Union[Sequence[int], int]] = None,
     channel_first: bool = True,
 ) -> List[int]:
@@ -711,7 +711,7 @@ def map_spatial_axes(
     [0, -1] -> [0, -2]
 
     Args:
-        img: target image data to compute real axes.
+        img_ndim: dimension number of the target image.
         spatial_axes: spatial axes to be converted, default is None.
             The default `None` will convert to all the spatial axes of the image.
             If axis is negative it counts from the last to the first axis.
@@ -720,7 +720,7 @@ def map_spatial_axes(
 
     """
     if spatial_axes is None:
-        spatial_axes_ = list(range(1, img.ndim) if channel_first else range(0, img.ndim - 1))
+        spatial_axes_ = list(range(1, img_ndim) if channel_first else range(0, img_ndim - 1))
     else:
         spatial_axes_ = []
         for a in ensure_tuple(spatial_axes):

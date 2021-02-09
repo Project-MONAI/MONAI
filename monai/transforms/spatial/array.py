@@ -307,7 +307,7 @@ class Flip(Transform):
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
 
-        result: np.ndarray = np.flip(img, map_spatial_axes(img, self.spatial_axis))
+        result: np.ndarray = np.flip(img, map_spatial_axes(img.ndim, self.spatial_axis))
         return result.astype(img.dtype)
 
 
@@ -597,7 +597,7 @@ class Rotate90(Transform):
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
 
-        result: np.ndarray = np.rot90(img, self.k, map_spatial_axes(img, self.spatial_axes))
+        result: np.ndarray = np.rot90(img, self.k, map_spatial_axes(img.ndim, self.spatial_axes))
         return result.astype(img.dtype)
 
 
