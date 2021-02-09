@@ -16,8 +16,6 @@ from parameterized import parameterized
 
 from monai.transforms import DeleteChannel
 
-# TEST_CASE_1 = [{"repeats": 3}, np.array([[[0, 1], [1, 2]]]), (3, 2, 2)]
-
 TEST_CASE_1 = [{"repeats": 2}, np.array([[1, 2], [1, 2], [3, 4], [3, 4]]), (2, 2)]
 
 
