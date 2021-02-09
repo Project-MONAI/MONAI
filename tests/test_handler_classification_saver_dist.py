@@ -41,7 +41,10 @@ class DistributedHandlerClassificationSaver(DistTestCase):
             saver.attach(engine)
 
             # rank 0 has 8 images, rank 1 has 10 images
-            data = [{"filename_or_obj": ["testfile" + str(i) for i in range(8 * rank, (8 + rank) * (rank + 1))]}]
+            data = [{
+                "filename_or_obj": ["testfile" + str(i) for i in range(8 * rank, (8 + rank) * (rank + 1))],
+                "data_shape": [(1, 1) for _ in range(8 * rank, (8 + rank) * (rank + 1))],
+            }]
             engine.run(data, max_epochs=1)
             filepath = os.path.join(tempdir, "predictions.csv")
             if rank == 1:
