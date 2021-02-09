@@ -21,8 +21,8 @@ from glob import glob
 import nibabel as nib
 import numpy as np
 import torch
-from torch.utils.tensorboard import SummaryWriter
 from ignite.metrics import Accuracy
+from torch.utils.tensorboard import SummaryWriter
 
 import monai
 from monai.data import create_test_image_3d
