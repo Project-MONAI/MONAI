@@ -159,9 +159,13 @@ class TensorBoardStatsHandler:
                         " {}:{}".format(name, type(value))
                     )
                     continue  # not plot multi dimensional output
-                writer.add_scalar(name, value.item() if torch.is_tensor(value) else value, engine.state.iteration)
+                writer.add_scalar(
+                    name, value.item() if isinstance(value, torch.Tensor) else value, engine.state.iteration
+                )
         elif is_scalar(loss):  # not printing multi dimensional output
-            writer.add_scalar(self.tag_name, loss.item() if torch.is_tensor(loss) else loss, engine.state.iteration)
+            writer.add_scalar(
+                self.tag_name, loss.item() if isinstance(loss, torch.Tensor) else loss, engine.state.iteration
+            )
         else:
             warnings.warn(
                 "ignoring non-scalar output in TensorBoardStatsHandler,"
@@ -261,7 +265,7 @@ class TensorBoardImageHandler:
         """
         step = self.global_iter_transform(engine.state.epoch if self.epoch_level else engine.state.iteration)
         show_images = self.batch_transform(engine.state.batch)[0]
-        if torch.is_tensor(show_images):
+        if isinstance(show_images, torch.Tensor):
             show_images = show_images.detach().cpu().numpy()
         if show_images is not None:
             if not isinstance(show_images, np.ndarray):
@@ -274,7 +278,7 @@ class TensorBoardImageHandler:
             )
 
         show_labels = self.batch_transform(engine.state.batch)[1]
-        if torch.is_tensor(show_labels):
+        if isinstance(show_labels, torch.Tensor):
             show_labels = show_labels.detach().cpu().numpy()
         if show_labels is not None:
             if not isinstance(show_labels, np.ndarray):
@@ -287,7 +291,7 @@ class TensorBoardImageHandler:
             )
 
         show_outputs = self.output_transform(engine.state.output)
-        if torch.is_tensor(show_outputs):
+        if isinstance(show_outputs, torch.Tensor):
             show_outputs = show_outputs.detach().cpu().numpy()
         if show_outputs is not None:
             if not isinstance(show_outputs, np.ndarray):

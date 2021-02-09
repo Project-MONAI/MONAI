@@ -196,10 +196,12 @@ class StatsHandler:
                         " {}:{}".format(name, type(value))
                     )
                     continue  # not printing multi dimensional output
-                out_str += self.key_var_format.format(name, value.item() if torch.is_tensor(value) else value)
+                out_str += self.key_var_format.format(name, value.item() if isinstance(value, torch.Tensor) else value)
         else:
             if is_scalar(loss):  # not printing multi dimensional output
-                out_str += self.key_var_format.format(self.tag_name, loss.item() if torch.is_tensor(loss) else loss)
+                out_str += self.key_var_format.format(
+                    self.tag_name, loss.item() if isinstance(loss, torch.Tensor) else loss
+                )
             else:
                 warnings.warn(
                     "ignoring non-scalar output in StatsHandler,"
