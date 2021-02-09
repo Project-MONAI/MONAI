@@ -31,6 +31,7 @@ from monai.transforms.utils import (
     create_scale,
     create_shear,
     create_translate,
+    map_spatial_axes,
 )
 from monai.utils import (
     GridSampleMode,
@@ -297,7 +298,7 @@ class Flip(Transform):
 
     """
 
-    def __init__(self, spatial_axis: Optional[Union[Sequence[int], int]]) -> None:
+    def __init__(self, spatial_axis: Optional[Union[Sequence[int], int]] = None) -> None:
         self.spatial_axis = spatial_axis
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
@@ -305,10 +306,8 @@ class Flip(Transform):
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-        flipped = []
-        for channel in img:
-            flipped.append(np.flip(channel, self.spatial_axis))
-        return np.stack(flipped).astype(img.dtype)
+
+        return np.flip(img, map_spatial_axes(img, self.spatial_axis)).astype(img.dtype)
 
 
 class Resize(Transform):
@@ -596,10 +595,8 @@ class Rotate90(Transform):
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-        rotated = []
-        for channel in img:
-            rotated.append(np.rot90(channel, self.k, self.spatial_axes))
-        return np.stack(rotated).astype(img.dtype)
+
+        return np.rot90(img, self.k, map_spatial_axes(img, self.spatial_axes)).astype(img.dtype)
 
 
 class RandRotate90(Randomizable, Transform):

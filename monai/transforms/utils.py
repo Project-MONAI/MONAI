@@ -48,6 +48,7 @@ __all__ = [
     "get_largest_connected_component_mask",
     "get_extreme_points",
     "extreme_points_to_image",
+    "map_spatial_axes",
 ]
 
 
@@ -690,3 +691,42 @@ def extreme_points_to_image(
     points_image = (points_image - min_intensity) / (max_intensity - min_intensity)
     points_image = points_image * (rescale_max - rescale_min) + rescale_min
     return points_image
+
+
+def map_spatial_axes(
+    img: np.ndarray,
+    spatial_axes: Optional[Union[Sequence[int], int]] = None,
+    channel_first: bool = True,
+) -> List[int]:
+    """
+    Utility to map the spatial axes to real axes in channel first/last shape.
+    For example:
+    If `channel_first` is True, and `img` has 3 spatial dims, map spatial axes to real axes as below:
+    None -> [1, 2, 3]
+    [0, 1] -> [1, 2]
+    [0, -1] -> [1, -1]
+    If `channel_first` is False, and `img` has 3 spatial dims, map spatial axes to real axes as below:
+    None -> [0, 1, 2]
+    [0, 1] -> [0, 1]
+    [0, -1] -> [0, -2]
+
+    Args:
+        img: target image data to compute real axes.
+        spatial_axes: spatial axes to be converted, default is None.
+            The default `None` will convert to all the spatial axes of the image.
+            If axis is negative it counts from the last to the first axis.
+            If axis is a tuple of ints.
+        channel_first: the image data is channel first or channel last, defaut to channel first.
+
+    """
+    if spatial_axes is None:
+        spatial_axes_ = list(range(1, img.ndim) if channel_first else range(0, img.ndim - 1))
+    else:
+        spatial_axes_ = []
+        for a in ensure_tuple(spatial_axes):
+            if channel_first:
+                spatial_axes_.append(a if a < 0 else a + 1)
+            else:
+                spatial_axes_.append(a - 1 if a < 0 else a)
+
+    return spatial_axes_
