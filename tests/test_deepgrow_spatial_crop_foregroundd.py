@@ -23,7 +23,7 @@ TEST_CASE_1 = [
         "select_fn": lambda x: x > 0,
         "channel_indices": None,
         "margin": 0,
-        "spatial_size": [4, 4, 4],
+        "spatial_size": [1, 4, 4],
     },
     {
         "img": np.array([[[[1, 0, 2, 0, 1], [0, 1, 2, 1, 0], [2, 2, 3, 2, 2], [0, 1, 2, 1, 0], [1, 0, 2, 0, 1]]]]),
@@ -31,7 +31,7 @@ TEST_CASE_1 = [
         "img_meta_dict": {},
         "label_meta_dict": {},
     },
-    np.array([[[[1, 0, 2, 0], [0, 1, 2, 1], [2, 2, 3, 2], [0, 1, 2, 1]]]]),
+    np.array([[[[1, 2, 1], [2, 3, 2], [1, 2, 1]]]]),
 ]
 
 
@@ -44,13 +44,13 @@ class TestSpatialCropForegroundd(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
     def test_foreground_position(self, arguments, input_data, _):
         result = SpatialCropForegroundd(**arguments)(input_data)
-        np.testing.assert_allclose(result["img_meta_dict"]["foreground_start_coord"], np.array([0, 0, 0]))
+        np.testing.assert_allclose(result["img_meta_dict"]["foreground_start_coord"], np.array([0, 1, 1]))
         np.testing.assert_allclose(result["img_meta_dict"]["foreground_end_coord"], np.array([1, 4, 4]))
 
         arguments["start_coord_key"] = "test_start_coord"
         arguments["end_coord_key"] = "test_end_coord"
         result = SpatialCropForegroundd(**arguments)(input_data)
-        np.testing.assert_allclose(result["img_meta_dict"]["test_start_coord"], np.array([0, 0, 0]))
+        np.testing.assert_allclose(result["img_meta_dict"]["test_start_coord"], np.array([0, 1, 1]))
         np.testing.assert_allclose(result["img_meta_dict"]["test_end_coord"], np.array([1, 4, 4]))
 
 
