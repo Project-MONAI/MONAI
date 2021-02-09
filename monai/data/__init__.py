@@ -56,4 +56,5 @@ from .utils import (
     to_affine_nd,
     worker_init_fn,
     zoom_affine,
+    decollate_batch,
 )
