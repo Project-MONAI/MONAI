@@ -21,7 +21,6 @@ from monai.apps.deepgrow.transforms import (
     FindDiscrepancyRegionsd,
     ResizeGuidanced,
     RestoreCroppedLabeld,
-    SpatialCropForegroundd,
     SpatialCropGuidanced,
 )
 from monai.transforms import AddChanneld
