@@ -29,6 +29,7 @@ distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="di
 gaussian_filter, _ = optional_import("scipy.ndimage", name="gaussian_filter")
 
 
+# Transforms to support Training for Deepgrow models
 class FindAllValidSlicesd(Transform):
     """
     Find/List all valid slices in the label.  Label is assumed to be a 3D Volume with channel_first axis
@@ -408,7 +409,7 @@ class SpatialCropForegroundd(MapTransform):
         return data
 
 
-# Transforms to support Inference for deepgrow models
+# Transforms to support Inference for Deepgrow models
 class SpatialCropGuidanced(MapTransform):
     """
     Crop image based on user guidance/clicks with minimal spatial size.

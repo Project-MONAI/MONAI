@@ -32,12 +32,13 @@ def create_dataset(
 ) -> List[Dict]:
     """
     Utility to pre-process and create dataset list for Deepgrow training over on existing one.
-    The input data list is normally a list of images and labels (3D volume) which needs pre-processing for Deepgrow
-      training pipeline.
+    The input data list is normally a list of images and labels (3D volume) that needs pre-processing
+    for Deepgrow training pipeline.
 
     Args:
         datalist: A generic dataset with a length property which normally contains a list of data dictionary.
             For example, typical input data can be a list of dictionaries::
+
                 [{'image': 'img1.nii', 'label': 'label1.nii'}]
 
         output_dir: target directory to store the training data for Deepgrow Training
