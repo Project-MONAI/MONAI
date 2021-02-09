@@ -39,9 +39,10 @@ class TensorBoardHandler:
         log_dir: if using default SummaryWriter, write logs to this directory, default is `./runs`.
 
     """
+
     def __init__(self, summary_writer: Optional[SummaryWriter] = None, log_dir: str = "./runs"):
         self._writer = SummaryWriter(log_dir=log_dir) if summary_writer is None else summary_writer
-    
+
     def attach(self, engine: Engine) -> None:
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
