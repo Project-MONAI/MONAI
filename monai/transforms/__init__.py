@@ -286,6 +286,7 @@ from .utility.dictionary import (
     DataStatsDict,
     DeleteChanneld,
     DeleteChannelD,
+    DeleteChannelDict,
     DeleteItemsd,
     DeleteItemsD,
     DeleteItemsDict,
