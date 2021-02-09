@@ -18,7 +18,6 @@ from monai.apps.deepgrow.transforms import (
     AddGuidanceSignald,
     AddInitialSeedPointd,
     Fetch2DSliced,
-    FindAllValidSlicesd,
     FindDiscrepancyRegionsd,
     ResizeGuidanced,
     RestoreCroppedLabeld,
@@ -38,17 +37,6 @@ DATA = {
 
 
 class TestTransforms(unittest.TestCase):
-    def test_findallvalidslicesd(self):
-        result = AddChanneld(keys=("image", "label"))(DATA.copy())
-        result = FindAllValidSlicesd()(result)
-        assert len(result["sids"]) == 1
-
-    def test_spatialcropforegroundd(self):
-        roi_size = [4, 4, 4]
-        result = AddChanneld(keys=("image", "label"))(DATA.copy())
-        result = SpatialCropForegroundd(keys=("image", "label"), source_key="label", spatial_size=roi_size)(result)
-        assert result["image"].shape == (1, 1, 4, 4)
-
     def test_addinitialseedpointd_addguidancesignald(self):
         result = AddChanneld(keys=("image", "label"))(DATA.copy())
         result = AddInitialSeedPointd(label="label", guidance="guidance", sids="sids")(result)

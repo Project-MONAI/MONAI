@@ -58,19 +58,19 @@ TEST_CASE_5 = [
 
 class TestCropForegroundd(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
-    def test_value(self, argments, image, expected_data):
-        result = CropForegroundd(**argments)(image)
+    def test_value(self, arguments, image, expected_data):
+        result = CropForegroundd(**arguments)(image)
         np.testing.assert_allclose(result["img"], expected_data)
 
     @parameterized.expand([TEST_CASE_1])
-    def test_foreground_position(self, argments, image, _):
-        result = CropForegroundd(**argments)(image)
+    def test_foreground_position(self, arguments, image, _):
+        result = CropForegroundd(**arguments)(image)
         np.testing.assert_allclose(result["foreground_start_coord"], np.array([1, 1]))
         np.testing.assert_allclose(result["foreground_end_coord"], np.array([4, 4]))
 
-        argments["start_coord_key"] = "test_start_coord"
-        argments["end_coord_key"] = "test_end_coord"
-        result = CropForegroundd(**argments)(image)
+        arguments["start_coord_key"] = "test_start_coord"
+        arguments["end_coord_key"] = "test_end_coord"
+        result = CropForegroundd(**arguments)(image)
         np.testing.assert_allclose(result["test_start_coord"], np.array([1, 1]))
         np.testing.assert_allclose(result["test_end_coord"], np.array([4, 4]))
 

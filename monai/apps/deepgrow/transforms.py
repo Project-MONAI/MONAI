@@ -32,7 +32,8 @@ gaussian_filter, _ = optional_import("scipy.ndimage", name="gaussian_filter")
 # Transforms to support Training for Deepgrow models
 class FindAllValidSlicesd(Transform):
     """
-    Find/List all valid slices in the label.  Label is assumed to be a 3D Volume with channel_first axis
+    Find/List all valid slices in the label.
+    Label is assumed to be a 4D Volume with shape CDHW, where C=1.
     """
 
     def __init__(self, label="label", sids="sids"):
@@ -45,9 +46,6 @@ class FindAllValidSlicesd(Transform):
         self.sids = sids
 
     def _apply(self, label):
-        if len(label.shape) != 4:  # only for 3D
-            return None
-
         sids = []
         for sid in range(label.shape[1]):  # Assume channel is first
             if np.sum(label[0][sid]) == 0:
@@ -56,10 +54,18 @@ class FindAllValidSlicesd(Transform):
         return np.asarray(sids)
 
     def __call__(self, data):
-        sids = self._apply(data[self.label])
+        d = dict(data)
+        label = d[self.label]
+        if label.shape[0] != 1:
+            raise ValueError("Only supports single channel labels!")
+
+        if len(label.shape) != 4:  # only for 3D
+            raise ValueError("Only supports label with shape CDHW!")
+
+        sids = self._apply(label)
         if sids is not None and len(sids):
-            data[self.sids] = sids
-        return data
+            d[self.sids] = sids
+        return d
 
 
 class AddInitialSeedPointd(Randomizable, Transform):
@@ -334,7 +340,17 @@ class AddRandomGuidanced(Randomizable, Transform):
 
 class SpatialCropForegroundd(MapTransform):
     """
-    Crop the foreground object of the expected images based on label that fits minimum spatial size.
+    Crop only the foreground object of the expected images.
+    Note that if the bounding box is smaller than spatial size in all dimensions then we will crop the
+    object using box's center and spatial_size.
+
+    The typical usage is to help training and evaluation if the valid part is small in the whole medical image.
+    The valid part can be determined by any field in the data with `source_key`, for example:
+    - Select values > 0 in image field as the foreground and crop on all fields specified by `keys`.
+    - Select label = 3 in label field as the foreground to crop on all fields specified by `keys`.
+    - Select label > 0 in the third channel of a One-Hot label field as the foreground to crop all `keys` fields.
+    Users can define arbitrary function to select expected foreground from the whole source image or specified
+    channels. And it can also add margin to every dim of the bounding box of foreground object.
     """
 
     def __init__(
@@ -383,8 +399,9 @@ class SpatialCropForegroundd(MapTransform):
         self.cropped_shape_key = cropped_shape_key
 
     def __call__(self, data):
+        d = dict(data)
         box_start, box_end = generate_spatial_bounding_box(
-            data[self.source_key], self.select_fn, self.channel_indices, self.margin
+            d[self.source_key], self.select_fn, self.channel_indices, self.margin
         )
 
         center = np.mean([box_start, box_end], axis=0).astype(int).tolist()
@@ -399,14 +416,14 @@ class SpatialCropForegroundd(MapTransform):
 
         for key in self.keys:
             meta_key = f"{key}_{self.meta_key_postfix}"
-            data[meta_key][self.start_coord_key] = box_start
-            data[meta_key][self.end_coord_key] = box_end
-            data[meta_key][self.original_shape_key] = data[key].shape
+            d[meta_key][self.start_coord_key] = box_start
+            d[meta_key][self.end_coord_key] = box_end
+            d[meta_key][self.original_shape_key] = d[key].shape
 
-            image = cropper(data[key])
-            data[meta_key][self.cropped_shape_key] = image.shape
-            data[key] = image
-        return data
+            image = cropper(d[key])
+            d[meta_key][self.cropped_shape_key] = image.shape
+            d[key] = image
+        return d
 
 
 # Transforms to support Inference for Deepgrow models
