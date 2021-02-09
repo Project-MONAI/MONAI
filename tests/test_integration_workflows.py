@@ -21,6 +21,7 @@ from glob import glob
 import nibabel as nib
 import numpy as np
 import torch
+from torch.utils.tensorboard import SummaryWriter
 from ignite.metrics import Accuracy
 
 import monai
@@ -105,6 +106,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
     loss = monai.losses.DiceLoss(sigmoid=True)
     opt = torch.optim.Adam(net.parameters(), 1e-3)
     lr_scheduler = torch.optim.lr_scheduler.StepLR(opt, step_size=2, gamma=0.1)
+    summary_writer = SummaryWriter(log_dir=root_dir)
 
     val_post_transforms = Compose(
         [
@@ -123,7 +125,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
 
     val_handlers = [
         StatsHandler(output_transform=lambda x: None),
-        TensorBoardStatsHandler(log_dir=root_dir, output_transform=lambda x: None),
+        TensorBoardStatsHandler(summary_writer=summary_writer, output_transform=lambda x: None),
         TensorBoardImageHandler(
             log_dir=root_dir, batch_transform=lambda x: (x["image"], x["label"]), output_transform=lambda x: x["pred"]
         ),
@@ -176,7 +178,9 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         LrScheduleHandler(lr_scheduler=lr_scheduler, print_lr=True),
         ValidationHandler(validator=evaluator, interval=2, epoch_level=True),
         StatsHandler(tag_name="train_loss", output_transform=lambda x: x["loss"]),
-        TensorBoardStatsHandler(log_dir=root_dir, tag_name="train_loss", output_transform=lambda x: x["loss"]),
+        TensorBoardStatsHandler(
+            summary_writer=summary_writer, tag_name="train_loss", output_transform=lambda x: x["loss"]
+        ),
         CheckpointSaver(save_dir=root_dir, save_dict={"net": net, "opt": opt}, save_interval=2, epoch_level=True),
         _TestTrainIterEvents(),
     ]
