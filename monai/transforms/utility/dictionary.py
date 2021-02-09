@@ -17,12 +17,12 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 import copy
 import logging
-from typing import Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
-from monai.config import KeysCollection
+from monai.config import DtypeLike, KeysCollection, NdarrayTensor
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.utility.array import (
     AddChannel,
@@ -64,10 +64,12 @@ __all__ = [
     "CopyItemsd",
     "ConcatItemsd",
     "Lambdad",
+    "RandLambdad",
     "LabelToMaskd",
     "FgBgToIndicesd",
     "ConvertToMultiChannelBasedOnBratsClassesd",
     "AddExtremePointsChanneld",
+    "TorchVisiond",
     "IdentityD",
     "IdentityDict",
     "AsChannelFirstD",
@@ -76,6 +78,8 @@ __all__ = [
     "AsChannelLastDict",
     "AddChannelD",
     "AddChannelDict",
+    "RandLambdaD",
+    "RandLambdaDict",
     "RepeatChannelD",
     "RepeatChannelDict",
     "SplitChannelD",
@@ -106,7 +110,6 @@ __all__ = [
     "ConvertToMultiChannelBasedOnBratsClassesDict",
     "AddExtremePointsChannelD",
     "AddExtremePointsChannelDict",
-    "TorchVisiond",
     "TorchVisionD",
     "TorchVisionDict",
 ]
@@ -127,7 +130,9 @@ class Identityd(MapTransform):
         super().__init__(keys)
         self.identity = Identity()
 
-    def __call__(self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]) -> Dict[Hashable, np.ndarray]:
+    def __call__(
+        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
+    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.identity(d[key])
@@ -192,9 +197,7 @@ class AddChanneld(MapTransform):
         super().__init__(keys)
         self.adder = AddChannel()
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.adder(d[key])
@@ -279,14 +282,14 @@ class CastToTyped(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        dtype: Union[Sequence[Union[np.dtype, torch.dtype]], np.dtype, torch.dtype] = np.float32,
+        dtype: Union[Sequence[Union[DtypeLike, torch.dtype]], DtypeLike, torch.dtype] = np.float32,
     ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             dtype: convert image to this data type, default is `np.float32`.
-                it also can be a sequence of np.dtype or torch.dtype,
+                it also can be a sequence of dtypes or torch.dtype,
                 each element corresponds to a key in ``keys``.
 
         """
@@ -318,7 +321,9 @@ class ToTensord(MapTransform):
         super().__init__(keys)
         self.converter = ToTensor()
 
-    def __call__(self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(
+        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
+    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
@@ -339,7 +344,9 @@ class ToNumpyd(MapTransform):
         super().__init__(keys)
         self.converter = ToNumpy()
 
-    def __call__(self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]) -> Dict[Hashable, np.ndarray]:
+    def __call__(
+        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
+    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
@@ -382,9 +389,7 @@ class SqueezeDimd(MapTransform):
         super().__init__(keys)
         self.converter = SqueezeDim(dim=dim)
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
@@ -435,9 +440,7 @@ class DataStatsd(MapTransform):
         self.logger_handler = logger_handler
         self.printer = DataStats(logger_handler=logger_handler)
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
         d = dict(data)
         for idx, key in enumerate(self.keys):
             d[key] = self.printer(
@@ -469,9 +472,7 @@ class SimulateDelayd(MapTransform):
         self.delay_time = ensure_tuple_rep(delay_time, len(self.keys))
         self.delayer = SimulateDelay()
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
         d = dict(data)
         for idx, key in enumerate(self.keys):
             d[key] = self.delayer(d[key], delay_time=self.delay_time[idx])
@@ -621,6 +622,27 @@ class Lambdad(MapTransform):
             if self.overwrite[idx]:
                 d[key] = ret
         return d
+
+
+class RandLambdad(Lambdad, Randomizable):
+    """
+    Randomizable version :py:class:`monai.transforms.Lambdad`, the input `func` contains random logic.
+    It's a randomizable transform so `CacheDataset` will not execute it and cache the results.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        func: Lambda/function to be applied. It also can be a sequence of Callable,
+            each element corresponds to a key in ``keys``.
+        overwrite: whether to overwrite the original data in the input dictionary with lamdbda function output.
+            default to True. it also can be a sequence of bool, each element corresponds to a key in ``keys``.
+
+    For more details, please check :py:class:`monai.transforms.Lambdad`.
+
+    """
+
+    def randomize(self, data: Any) -> None:
+        pass
 
 
 class LabelToMaskd(MapTransform):
@@ -832,3 +854,4 @@ ConvertToMultiChannelBasedOnBratsClassesD = (
 ) = ConvertToMultiChannelBasedOnBratsClassesd
 AddExtremePointsChannelD = AddExtremePointsChannelDict = AddExtremePointsChanneld
 TorchVisionD = TorchVisionDict = TorchVisiond
+RandLambdaD = RandLambdaDict = RandLambdad

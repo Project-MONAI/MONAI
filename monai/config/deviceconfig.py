@@ -162,7 +162,7 @@ def get_system_info() -> OrderedDict:
             _dict_append(
                 output,
                 "Avg. sensor temp. (Celsius)",
-                lambda: round(
+                lambda: np.round(
                     np.mean([item.current for sublist in psutil.sensors_temperatures().values() for item in sublist], 1)
                 ),
             )
