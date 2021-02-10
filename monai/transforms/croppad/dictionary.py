@@ -32,7 +32,8 @@ from monai.transforms.croppad.array import (
     SpatialCrop,
     SpatialPad,
 )
-from monai.transforms.transform import InvertibleTransform, MapTransform, Randomizable
+from monai.transforms.transform import MapTransform, Randomizable
+from monai.transforms.inverse_transform import InvertibleTransform
 from monai.transforms.utils import (
     generate_pos_neg_label_crop_centers,
     generate_spatial_bounding_box,
@@ -119,30 +120,23 @@ class SpatialPadd(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for idx, (key, m) in enumerate(zip(self.keys, self.mode)):
-            orig_size = d[key].shape
+            self.append_applied_transforms(d, key, idx)
             d[key] = self.padder(d[key], mode=m)
-            self.append_applied_transforms(d, key, idx, {"orig_size": orig_size})
         return d
-
-    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
-        return {
-            "keys": key,
-            "method": self.padder.method,
-            "mode": self.mode[idx],
-            "spatial_size": self.padder.spatial_size,
-        }
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
         for key in self.keys:
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            extra_info = transform["extra_info"]
-            roi_size = extra_info["orig_size"][1:]
-            im_shape = d[key].shape[1:] if self.padder.method == Method.SYMMETRIC else extra_info["orig_size"][1:]
-            roi_center = [floor(i / 2) if r % 2 == 0 else (i - 1) / 2 for r, i in zip(roi_size, im_shape)]
+            orig_size = transform["orig_size"]
+            if self.padder.method == Method.SYMMETRIC:
+                current_size = d[key].shape[1:]
+                roi_center = [floor(i / 2) if r % 2 == 0 else (i - 1) / 2 for r, i in zip(orig_size, current_size)]
+            else:
+                roi_center = [floor(r / 2) if r % 2 == 0 else (r - 1) / 2 for r in orig_size]
 
-            inverse_transform = SpatialCrop(roi_center, roi_size)
+            inverse_transform = SpatialCrop(roi_center, orig_size)
             # Apply inverse transform
             d[key] = inverse_transform(d[key])
             # Remove the applied transform
@@ -210,7 +204,7 @@ class BorderPadd(MapTransform, InvertibleTransform):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
             orig_size = np.array(transform["orig_size"])
-            roi_start = np.array(transform["init_args"]["spatial_border"])
+            roi_start = np.array(self.padder.spatial_border)
             # Need to convert single value to [min1,min2,...]
             if roi_start.size == 1:
                 roi_start = np.full((len(orig_size)), roi_start)
@@ -263,13 +257,6 @@ class DivisiblePadd(MapTransform, InvertibleTransform):
             self.append_applied_transforms(d, key)
             d[key] = self.padder(d[key], mode=m)
         return d
-
-    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
-        return {
-            "keys": key,
-            "k": self.padder.k,
-            "mode": self.mode[idx],
-        }
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
@@ -338,8 +325,8 @@ class SpatialCropd(MapTransform, InvertibleTransform):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
             orig_size = transform["orig_size"]
-            pad_to_start = transform["init_args"]["roi_start"]
-            pad_to_end = orig_size - transform["init_args"]["roi_end"]
+            pad_to_start = self.cropper.roi_start
+            pad_to_end = orig_size - self.cropper.roi_end
             # interweave mins and maxes
             pad = np.empty((2 * len(orig_size)), dtype=np.int32)
             pad[0::2] = pad_to_start
@@ -455,10 +442,11 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
         if self._size is None:
             raise AssertionError
         for idx, key in enumerate(self.keys):
-            self.append_applied_transforms(d, key, idx, {"slices": self._slices})
             if self.random_center:
+                self.append_applied_transforms(d, key, idx, {"slices": [(i.start, i.stop) for i in self._slices[1:]]})
                 d[key] = d[key][self._slices]
             else:
+                self.append_applied_transforms(d, key, idx)
                 cropper = CenterSpatialCrop(self._size)
                 d[key] = cropper(d[key])
         return d
@@ -478,13 +466,13 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
             orig_size = transform["orig_size"]
-            random_center = transform["init_args"]["random_center"]
+            random_center = self.random_center
             pad_to_start = np.empty((len(orig_size)), dtype=np.int32)
             pad_to_end = np.empty((len(orig_size)), dtype=np.int32)
             if random_center:
-                for i, _slice in enumerate(transform["extra_info"]["slices"][1:]):
-                    pad_to_start[i] = _slice.start
-                    pad_to_end[i] = orig_size[i] - _slice.stop
+                for i, _slice in enumerate(transform["extra_info"]["slices"]):
+                    pad_to_start[i] = _slice[0]
+                    pad_to_end[i] = orig_size[i] - _slice[1]
             else:
                 current_size = d[key].shape[1:]
                 for i, (o_s, c_s) in enumerate(zip(orig_size, current_size)):

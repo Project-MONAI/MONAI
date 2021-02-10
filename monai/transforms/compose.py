@@ -18,7 +18,8 @@ from typing import Any, Callable, Mapping, Optional, Sequence, Union
 
 import numpy as np
 
-from monai.transforms.transform import InvertibleTransform, Randomizable, Transform
+from monai.transforms.transform import Randomizable, Transform
+from monai.transforms.inverse_transform import InvertibleTransform
 from monai.transforms.utils import apply_transform
 from monai.utils import MAX_SEED, ensure_tuple, get_seed
 
@@ -121,12 +122,10 @@ class Compose(Randomizable, Transform, InvertibleTransform):
         if not isinstance(data, Mapping):
             raise RuntimeError("Inverse method only available for dictionary transforms")
         d = deepcopy(dict(data))
-        # loop over data elements
-        for k in d:
-            transform_key = k + "_transforms"
-            if transform_key not in data:
-                continue
-            for t in reversed(data[transform_key]):
-                transform = t["class"](**t["init_args"])
-                d = transform.inverse(d)
+
+        # loop backwards over transforms
+        for t in reversed(self.transforms):
+            # check if transform is one of the invertible ones
+            if isinstance(t, InvertibleTransform):
+                d = t.inverse(d)
         return d

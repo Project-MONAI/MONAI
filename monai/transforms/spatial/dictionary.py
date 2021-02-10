@@ -38,7 +38,8 @@ from monai.transforms.spatial.array import (
     Spacing,
     Zoom,
 )
-from monai.transforms.transform import InvertibleTransform, MapTransform, NonRigidTransform, Randomizable
+from monai.transforms.transform import MapTransform, Randomizable
+from monai.transforms.inverse_transform import InvertibleTransform, NonRigidTransform
 from monai.transforms.utils import create_grid
 from monai.utils import (
     GridSampleMode,

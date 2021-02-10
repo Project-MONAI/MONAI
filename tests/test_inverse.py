@@ -13,9 +13,12 @@ import random
 import unittest
 from typing import TYPE_CHECKING, List, Tuple
 
+from monai.data.utils import decollate_batch
 import numpy as np
-
+import torch
+from monai.data import DataLoader
 from monai.data import CacheDataset, create_test_image_2d, create_test_image_3d
+from monai.networks.nets import UNet
 from monai.transforms import (
     AddChannel,
     AddChanneld,
@@ -47,6 +50,7 @@ from monai.transforms import (
     SpatialPadd,
     Zoomd,
 )
+from monai.data import BatchInverseTransform
 from monai.utils import optional_import, set_determinism
 from tests.utils import make_nifti_image, make_rand_affine
 
@@ -125,7 +129,7 @@ TESTS.append(
 
 TESTS.append(("RandSpatialCropd 2d", DATA_2D, 5e-2, RandSpatialCropd(KEYS, [96, 93], True, False)))
 
-TESTS.append(("RandSpatialCropd 3d", DATA_3D, 2e-2, RandSpatialCropd(KEYS, [96, 93, 92], False, True)))
+TESTS.append(("RandSpatialCropd 3d", DATA_3D, 2e-2, RandSpatialCropd(KEYS, [96, 93, 92], False, False)))
 
 TESTS.append(
     (
@@ -351,7 +355,7 @@ TESTS.append(
             # spatial_size=[155, 192],
             prob=1,
             padding_mode="zeros",
-            rotate_range=[(np.pi / 6, np.pi / 6), np.pi / 7],
+            # rotate_range=[(np.pi / 6, np.pi / 6), np.pi / 7],
             # shear_range=[(0.5, 0.5)],
             # translate_range=[10, 5],
             # scale_range=[(0.8, 1.2), (0.9, 1.3)],
@@ -381,7 +385,7 @@ TESTS.append(
 
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
 
-TESTS = [*TESTS, *TESTS_COMPOSE_X2]
+TESTS = TESTS + TESTS_COMPOSE_X2
 
 
 # Should fail because uses an array transform (SpatialPad), as opposed to dictionary
@@ -413,6 +417,8 @@ class TestInverse(unittest.TestCase):
         for key in keys:
             orig = orig_d[key]
             fwd_bck = fwd_bck_d[key]
+            if isinstance(fwd_bck, torch.Tensor):
+                fwd_bck = fwd_bck.cpu().numpy()
             unmodified = unmodified_d[key]
             if isinstance(orig, np.ndarray):
                 mean_diff = np.mean(np.abs(orig - fwd_bck))
@@ -424,8 +430,11 @@ class TestInverse(unittest.TestCase):
                     print(
                         f"Failed: {name}. Mean diff = {mean_diff} (expected <= {acceptable_diff}), unmodified diff: {unmodded_diff}"
                     )
-                    if has_matplotlib:
+                    if has_matplotlib and orig[0].ndim > 1:
                         plot_im(orig, fwd_bck, unmodified)
+                    elif orig[0].ndim == 1:
+                        print(orig)
+                        print(fwd_bck)
                     raise
 
     # @parameterized.expand(TESTS)
@@ -456,20 +465,37 @@ class TestInverse(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             d = transform[0].inverse(d)
 
-    # @parameterized.expand(TEST_COMPOSES)
-    def test_w_data_loader(self, _, data, acceptable_diff, *transforms):
+    def test_w_dataloader(self, _, data, acceptable_diff, *transforms):
         name = _
-        transform = transforms[0]
-        numel = 2
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        if isinstance(transforms, tuple):
+            transforms = Compose(transforms)
+        numel = 4
         test_data = [data for _ in range(numel)]
 
-        dataset = CacheDataset(test_data, transform, progress=False)
-        self.assertEqual(len(dataset), 2)
-        num_epochs = 2
-        for _ in range(num_epochs):
-            for data_fwd in dataset:
-                data_fwd_bck = transform.inverse(data_fwd)
-                self.check_inverse(name, data.keys(), data, data_fwd_bck, data_fwd, acceptable_diff)
+        ndims = len(data["image"].shape[1:])
+        batch_size = 2
+        num_workers = 0
+
+        dataset = CacheDataset(test_data, transforms, progress=False)
+        loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+        inv_batch = BatchInverseTransform(transforms, loader)
+
+        model = UNet(ndims, 1, 1, channels=(6, 6), strides=(2, 2)).to(device)
+        for batch_data in loader:
+            inputs, _ = (
+                batch_data["image"].to(device),
+                batch_data["label"].to(device),
+            )
+
+            fwd_bck_batch = inv_batch(batch_data)
+            fwd_bck = decollate_batch(fwd_bck_batch)
+
+            for _test_data, _fwd_bck, _dataset in zip(test_data, fwd_bck, dataset):
+                self.check_inverse(name, data.keys(), _test_data, _fwd_bck, _dataset, acceptable_diff)
+
+            if torch.cuda.is_available():
+                _ = model(inputs)
 
 
 if __name__ == "__main__":
@@ -477,6 +503,6 @@ if __name__ == "__main__":
     test = TestInverse()
     for t in TESTS:
         test.test_inverse(*t)
-        test.test_w_data_loader(*t)
+        test.test_w_dataloader(*t)
     for t in TESTS_FAIL:
         test.test_fail(*t)

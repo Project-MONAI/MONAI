@@ -297,6 +297,8 @@ def decollate_batch(data: dict, batch_size: Optional[int] = None):
             out = data[idx]
             return torch_to_single(out)
         elif isinstance(data, list):
+            if len(data) == 0:
+                return data
             if isinstance(data[0], torch.Tensor):
                 return [torch_to_single(d[idx]) for d in data]
             if issequenceiterable(data[0]):

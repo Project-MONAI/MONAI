@@ -52,7 +52,7 @@ class TestDeCollate(unittest.TestCase):
             raise RuntimeError(f"Not sure how to compare types. type(in1): {type(in1)}, type(in2): {type(in2)}")
 
     @parameterized.expand(TESTS)
-    def test_decollation(self, _, data, batch_size=2, num_workers=0):
+    def test_decollation(self, _, data, batch_size=2, num_workers=2):
         transforms = Compose([
             LoadImaged("image"),
             AddChanneld("image"),
