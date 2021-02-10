@@ -12,18 +12,20 @@
 import warnings
 from abc import ABC
 from itertools import chain
-from typing import Any, Dict, Hashable, Optional, Tuple
+from typing import Hashable, Optional, Tuple
+
 import numpy as np
 import torch
 
-from monai.utils import optional_import
 from monai.transforms.transform import Randomizable
+from monai.utils import optional_import
 
 sitk, has_sitk = optional_import("SimpleITK")
 vtk, has_vtk = optional_import("vtk")
 vtk_numpy_support, _ = optional_import("vtk.util.numpy_support")
 
 __all__ = ["InvertibleTransform", "NonRigidTransform"]
+
 
 class InvertibleTransform(ABC):
     """Classes for invertible transforms.
@@ -61,7 +63,6 @@ class InvertibleTransform(ABC):
         if key_transform not in data:
             data[key_transform] = []
         data[key_transform].append(info)
-
 
     def check_transforms_match(self, transform: dict) -> None:
         # Check transorms are of same type.
@@ -203,6 +204,7 @@ class NonRigidTransform(ABC):
 
         if False:
             import matplotlib.pyplot as plt
+
             fig, axes = plt.subplots(2, 2)
             for i, direc1 in enumerate(["x", "y"]):
                 for j, (im, direc2) in enumerate(zip([fwd_disp, inv_disp], ["fwd", "inv"])):

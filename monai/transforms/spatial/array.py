@@ -592,7 +592,7 @@ class Rotate90(Transform):
                 If axis is negative it counts from the last to the first axis.
         """
         self.k = k
-        spatial_axes_ = ensure_tuple(spatial_axes)
+        spatial_axes_: Tuple[int, int] = ensure_tuple(spatial_axes)  # type: ignore
         if len(spatial_axes_) != 2:
             raise ValueError("spatial_axes must be 2 int numbers to indicate the axes to rotate 90 degrees.")
         self.spatial_axes = spatial_axes_

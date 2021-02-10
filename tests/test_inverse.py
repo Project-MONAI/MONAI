@@ -10,14 +10,16 @@
 # limitations under the License.
 
 import random
+import sys
 import unittest
 from typing import TYPE_CHECKING, List, Tuple
-import sys
-from monai.data.utils import decollate_batch
+
 import numpy as np
 import torch
-from monai.data import DataLoader
-from monai.data import CacheDataset, create_test_image_2d, create_test_image_3d
+from parameterized import parameterized
+
+from monai.data import BatchInverseTransform, CacheDataset, DataLoader, create_test_image_2d, create_test_image_3d
+from monai.data.utils import decollate_batch
 from monai.networks.nets import UNet
 from monai.transforms import (
     AddChannel,
@@ -50,13 +52,8 @@ from monai.transforms import (
     SpatialPadd,
     Zoomd,
 )
-
-from monai.data import BatchInverseTransform
 from monai.utils import optional_import, set_determinism
-from tests.utils import make_nifti_image, make_rand_affine, skip_if_quick, test_is_quick
-
-from parameterized import parameterized
-
+from tests.utils import make_nifti_image, make_rand_affine, test_is_quick
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt
@@ -391,7 +388,7 @@ if not test_is_quick:
 
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
 
-TESTS = TESTS + TESTS_COMPOSE_X2
+TESTS = TESTS + TESTS_COMPOSE_X2  # type: ignore
 
 
 # Should fail because uses an array transform (SpatialPad), as opposed to dictionary

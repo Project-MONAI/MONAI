@@ -32,8 +32,8 @@ from monai.transforms.croppad.array import (
     SpatialCrop,
     SpatialPad,
 )
-from monai.transforms.transform import MapTransform, Randomizable
 from monai.transforms.inverse_transform import InvertibleTransform
+from monai.transforms.transform import MapTransform, Randomizable
 from monai.transforms.utils import (
     generate_pos_neg_label_crop_centers,
     generate_spatial_bounding_box,
@@ -132,9 +132,9 @@ class SpatialPadd(MapTransform, InvertibleTransform):
             orig_size = transform["orig_size"]
             if self.padder.method == Method.SYMMETRIC:
                 current_size = d[key].shape[1:]
-                roi_center = [floor(i / 2) if r % 2 == 0 else (i - 1) / 2 for r, i in zip(orig_size, current_size)]
+                roi_center = [floor(i / 2) if r % 2 == 0 else (i - 1) // 2 for r, i in zip(orig_size, current_size)]
             else:
-                roi_center = [floor(r / 2) if r % 2 == 0 else (r - 1) / 2 for r in orig_size]
+                roi_center = [floor(r / 2) if r % 2 == 0 else (r - 1) // 2 for r in orig_size]
 
             inverse_transform = SpatialCrop(roi_center, orig_size)
             # Apply inverse transform
@@ -421,9 +421,9 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
         self.randomize(d[self.keys[0]].shape[1:])  # image shape from the first data key
         if self._size is None:
             raise AssertionError
-        for idx, key in enumerate(self.keys):
+        for key in self.keys:
             if self.random_center:
-                self.append_applied_transforms(d, key, {"slices": [(i.start, i.stop) for i in self._slices[1:]]})
+                self.append_applied_transforms(d, key, {"slices": [(i.start, i.stop) for i in self._slices[1:]]})  # type: ignore
                 d[key] = d[key][self._slices]
             else:
                 self.append_applied_transforms(d, key)

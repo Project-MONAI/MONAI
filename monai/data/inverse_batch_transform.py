@@ -9,17 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable
-from monai.data.utils import decollate_batch
+from torch.utils.data.dataset import Dataset
 
 from monai.data.dataloader import DataLoader
-from monai.data.dataset import Dataset
-
+from monai.data.utils import decollate_batch
+from monai.transforms.inverse_transform import InvertibleTransform
 
 __all__ = ["BatchInverseTransform"]
 
+
 class _BatchInverseDataset(Dataset):
-    def __init__(self, data, transform) -> None:
+    def __init__(self, data, transform: InvertibleTransform) -> None:
         self.data = decollate_batch(data)
         self.transform = transform
 
@@ -30,7 +30,8 @@ class _BatchInverseDataset(Dataset):
 
 class BatchInverseTransform:
     """something"""
-    def __init__(self, transform: Callable, loader) -> None:
+
+    def __init__(self, transform: InvertibleTransform, loader) -> None:
         """
         Args:
             transform: a callable data transform on input data.

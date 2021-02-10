@@ -138,6 +138,7 @@ from .intensity.dictionary import (
     ThresholdIntensityD,
     ThresholdIntensityDict,
 )
+from .inverse_transform import InvertibleTransform, NonRigidTransform
 from .io.array import LoadImage
 from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict
 from .post.array import (
@@ -235,7 +236,6 @@ from .spatial.dictionary import (
     ZoomDict,
 )
 from .transform import MapTransform, Randomizable, Transform
-from .inverse_transform import InvertibleTransform, NonRigidTransform
 from .utility.array import (
     AddChannel,
     AddExtremePointsChannel,

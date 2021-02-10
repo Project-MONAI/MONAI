@@ -18,8 +18,8 @@ from typing import Any, Callable, Mapping, Optional, Sequence, Union
 
 import numpy as np
 
-from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.inverse_transform import InvertibleTransform
+from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import apply_transform
 from monai.utils import MAX_SEED, ensure_tuple, get_seed
 

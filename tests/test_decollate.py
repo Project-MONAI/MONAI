@@ -9,19 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import torch
 import unittest
+
 import numpy as np
-
-from monai.data import DataLoader
-from monai.data import CacheDataset, create_test_image_2d
-from monai.transforms import AddChanneld, Compose, LoadImaged, ToTensord, SpatialPadd, RandFlipd
-from monai.data.utils import decollate_batch
-from monai.utils import set_determinism
-from tests.utils import make_nifti_image
-
+import torch
 from parameterized import parameterized
 
+from monai.data import CacheDataset, DataLoader, create_test_image_2d
+from monai.data.utils import decollate_batch
+from monai.transforms import AddChanneld, Compose, LoadImaged, RandFlipd, SpatialPadd, ToTensord
+from monai.utils import set_determinism
+from tests.utils import make_nifti_image
 
 set_determinism(seed=0)
 
@@ -30,10 +28,13 @@ IM_2D_FNAME = make_nifti_image(create_test_image_2d(100, 101)[0])
 DATA_2D = {"image": IM_2D_FNAME}
 
 TESTS = []
-TESTS.append((
-    "2D",
-    [DATA_2D for _ in range(6)],
-))
+TESTS.append(
+    (
+        "2D",
+        [DATA_2D for _ in range(6)],
+    )
+)
+
 
 class TestDeCollate(unittest.TestCase):
     def check_match(self, in1, in2):
@@ -53,13 +54,15 @@ class TestDeCollate(unittest.TestCase):
 
     @parameterized.expand(TESTS)
     def test_decollation(self, _, data, batch_size=2, num_workers=2):
-        transforms = Compose([
-            LoadImaged("image"),
-            AddChanneld("image"),
-            SpatialPadd("image", 150),
-            RandFlipd("image", prob=1., spatial_axis=1),
-            ToTensord("image"),
-        ])
+        transforms = Compose(
+            [
+                LoadImaged("image"),
+                AddChanneld("image"),
+                SpatialPadd("image", 150),
+                RandFlipd("image", prob=1.0, spatial_axis=1),
+                ToTensord("image"),
+            ]
+        )
         dataset = CacheDataset(data, transforms, progress=False)
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
 

@@ -25,6 +25,7 @@ from monai.config import DtypeLike, KeysCollection
 from monai.networks.layers import AffineTransform
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
+from monai.transforms.inverse_transform import InvertibleTransform, NonRigidTransform
 from monai.transforms.spatial.array import (
     AffineGrid,
     Flip,
@@ -39,7 +40,6 @@ from monai.transforms.spatial.array import (
     Zoom,
 )
 from monai.transforms.transform import MapTransform, Randomizable
-from monai.transforms.inverse_transform import InvertibleTransform, NonRigidTransform
 from monai.transforms.utils import create_grid
 from monai.utils import (
     GridSampleMode,
@@ -350,7 +350,7 @@ class Rotate90d(MapTransform, InvertibleTransform):
             inverse_transform = Rotate90(num_times_to_rotate, spatial_axes)
             # Might need to convert to numpy
             if isinstance(d[key], torch.Tensor):
-                d[key] = d[key].cpu().numpy()
+                d[key] = torch.Tensor(d[key]).cpu().numpy()
             # Apply inverse
             d[key] = inverse_transform(d[key])
             # Remove the applied transform
@@ -410,7 +410,6 @@ class RandRotate90d(Randomizable, MapTransform, InvertibleTransform):
             self.append_applied_transforms(d, key, extra_info={"rand_k": self._rand_k})
         return d
 
-
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
         for key in self.keys:
@@ -423,7 +422,7 @@ class RandRotate90d(Randomizable, MapTransform, InvertibleTransform):
                 inverse_transform = Rotate90(num_times_to_rotate, self.spatial_axes)
                 # Might need to convert to numpy
                 if isinstance(d[key], torch.Tensor):
-                    d[key] = d[key].cpu().numpy()
+                    d[key] = torch.Tensor(d[key]).cpu().numpy()
                 # Apply inverse
                 d[key] = inverse_transform(d[key])
             # Remove the applied transform
@@ -745,9 +744,7 @@ class Rand2DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
                     # Back to original size
                     inv_def = CenterSpatialCrop(roi_size=orig_size)(inv_def)
                     # Apply inverse transform
-                    out = self.rand_2d_elastic.resampler(
-                        d[key], inv_def, self.mode[idx], self.padding_mode[idx]
-                    )
+                    out = self.rand_2d_elastic.resampler(d[key], inv_def, self.mode[idx], self.padding_mode[idx])
                     d[key] = out.cpu().numpy() if isinstance(out, torch.Tensor) else out
             # Remove the applied transform
             self.remove_most_recent_transform(d, key)
@@ -886,9 +883,7 @@ class Rand3DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
                     # Back to original size
                     inv_def = CenterSpatialCrop(roi_size=orig_size)(inv_def)
                     # Apply inverse transform
-                    out = self.rand_3d_elastic.resampler(
-                        d[key], inv_def, self.mode[idx], self.padding_mode[idx]
-                    )
+                    out = self.rand_3d_elastic.resampler(d[key], inv_def, self.mode[idx], self.padding_mode[idx])
                     if isinstance(out, torch.Tensor):
                         d[key] = out.cpu().numpy()
                     else:
@@ -928,7 +923,7 @@ class Flipd(MapTransform, InvertibleTransform):
             _ = self.get_most_recent_transform(d, key)
             # Might need to convert to numpy
             if isinstance(d[key], torch.Tensor):
-                d[key] = d[key].cpu().numpy()
+                d[key] = torch.Tensor(d[key]).cpu().numpy()
             # Inverse is same as forward
             d[key] = self.flipper(d[key])
             # Remove the applied transform
@@ -983,7 +978,7 @@ class RandFlipd(Randomizable, MapTransform, InvertibleTransform):
             if transform["do_transform"]:
                 # Might need to convert to numpy
                 if isinstance(d[key], torch.Tensor):
-                    d[key] = d[key].cpu().numpy()
+                    d[key] = torch.Tensor(d[key]).cpu().numpy()
                 # Inverse is same as forward
                 d[key] = self.flipper(d[key])
                 # Remove the applied transform

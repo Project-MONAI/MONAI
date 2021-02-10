@@ -14,7 +14,9 @@ A collection of generic interfaces for MONAI transforms.
 
 from abc import ABC, abstractmethod
 from typing import Any, Hashable, Optional, Tuple
+
 import numpy as np
+
 from monai.config import KeysCollection
 from monai.utils import MAX_SEED, ensure_tuple
 

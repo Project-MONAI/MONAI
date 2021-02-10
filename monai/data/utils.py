@@ -12,7 +12,6 @@
 import hashlib
 import json
 import math
-from monai.utils.misc import issequenceiterable
 import os
 import pickle
 import warnings
@@ -37,6 +36,7 @@ from monai.utils import (
     first,
     optional_import,
 )
+from monai.utils.misc import issequenceiterable
 
 nib, _ = optional_import("nibabel")
 
@@ -244,6 +244,7 @@ def list_data_collate(batch: Sequence):
     data = [i for k in batch for i in k] if isinstance(elem, list) else batch
     return default_collate(data)
 
+
 def decollate_batch(data: dict, batch_size: Optional[int] = None):
     """De-collate a batch of data (for example, as produced by a `DataLoader`).
 
@@ -307,6 +308,7 @@ def decollate_batch(data: dict, batch_size: Optional[int] = None):
         raise TypeError(f"Not sure how to de-collate type: {type(data)}")
 
     return [{key: decollate(data[key], idx) for key in data.keys()} for idx in range(batch_size)]
+
 
 def worker_init_fn(worker_id: int) -> None:
     """
