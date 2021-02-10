@@ -50,7 +50,6 @@ class InvertibleTransform(ABC):
         key_transform = str(key) + "_transforms"
         info: Dict[str, Any] = {}
         info["id"] = id(self)
-        # info["init_args"] = self.get_input_args(key, idx)
         info["orig_size"] = orig_size or data[key].shape[1:]
         if extra_info is not None:
             info["extra_info"] = extra_info
@@ -79,10 +78,6 @@ class InvertibleTransform(ABC):
     def remove_most_recent_transform(data: dict, key: Hashable) -> None:
         """Remove most recent transform."""
         data[str(key) + "_transforms"].pop()
-
-    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
-        """Get input arguments for a single key."""
-        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     def inverse(self, data: dict):
         """
@@ -206,17 +201,18 @@ class NonRigidTransform(ABC):
         else:
             inv_disp = NonRigidTransform._inv_disp_w_sitk(fwd_disp, num_iters)
 
-        import matplotlib.pyplot as plt
+        if False:
+            import matplotlib.pyplot as plt
+            fig, axes = plt.subplots(2, 2)
+            for i, direc1 in enumerate(["x", "y"]):
+                for j, (im, direc2) in enumerate(zip([fwd_disp, inv_disp], ["fwd", "inv"])):
+                    ax = axes[i, j]
+                    im_show = ax.imshow(im[..., i])
+                    ax.set_title(f"{direc2}{direc1}", fontsize=25)
+                    ax.axis("off")
+                    fig.colorbar(im_show, ax=ax)
+            plt.show()
 
-        fig, axes = plt.subplots(2, 2)
-        for i, direc1 in enumerate(["x", "y"]):
-            for j, (im, direc2) in enumerate(zip([fwd_disp, inv_disp], ["fwd", "inv"])):
-                ax = axes[i, j]
-                im_show = ax.imshow(im[..., i])
-                ax.set_title(f"{direc2}{direc1}", fontsize=25)
-                ax.axis("off")
-                fig.colorbar(im_show, ax=ax)
-        plt.show()
         # move tensor component back to beginning
         inv_disp = np.moveaxis(inv_disp, -1, 0)
         # Disp -> def

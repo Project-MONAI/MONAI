@@ -203,40 +203,28 @@ class Spacingd(MapTransform, InvertibleTransform):
             meta_data["affine"] = new_affine
         return d
 
-    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
-        return {
-            "keys": key,
-            "pixdim": self.spacing_transform.pixdim,
-            "diagonal": self.spacing_transform.diagonal,
-            "mode": self.mode[idx],
-            "padding_mode": self.padding_mode[idx],
-            "align_corners": self.align_corners[idx],
-            "dtype": self.dtype[idx],
-            "meta_key_postfix": self.meta_key_postfix,
-        }
-
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
-        for key in self.keys:
+        for idx, key in enumerate(self.keys):
             transform = self.get_most_recent_transform(d, key)
-            init_args = transform["init_args"]
-            if init_args["diagonal"]:
+            if self.spacing_transform.diagonal:
                 raise RuntimeError(
                     "Spacingd:inverse not yet implemented for diagonal=True. "
                     + "Please raise a github issue if you need this feature"
                 )
             # Create inverse transform
             meta_data = d[transform["extra_info"]["meta_data_key"]]
-            orig_pixdim = np.sqrt(np.sum(np.square(transform["extra_info"]["old_affine"]), 0))[:-1]
-            inverse_transform = Spacing(orig_pixdim, diagonal=init_args["diagonal"])
+            old_affine = np.array(transform["extra_info"]["old_affine"])
+            orig_pixdim = np.sqrt(np.sum(np.square(old_affine), 0))[:-1]
+            inverse_transform = Spacing(orig_pixdim, diagonal=self.spacing_transform.diagonal)
             # Apply inverse
             d[key], _, new_affine = inverse_transform(
                 data_array=np.asarray(d[key]),
                 affine=meta_data["affine"],
-                mode=init_args["mode"],
-                padding_mode=init_args["padding_mode"],
-                align_corners=init_args["align_corners"],
-                dtype=init_args["dtype"],
+                mode=self.mode[idx],
+                padding_mode=self.padding_mode[idx],
+                align_corners=self.align_corners[idx],
+                dtype=self.dtype[idx],
             )
             meta_data["affine"] = new_affine
             # Remove the applied transform
@@ -307,15 +295,6 @@ class Orientationd(MapTransform, InvertibleTransform):
             d[meta_data_key]["affine"] = new_affine
         return d
 
-    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
-        return {
-            "keys": key,
-            "axcodes": self.ornt_transform.axcodes,
-            "as_closest_canonical": self.ornt_transform.as_closest_canonical,
-            "labels": self.ornt_transform.labels,
-            "meta_key_postfix": self.meta_key_postfix,
-        }
-
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
         for key in self.keys:
@@ -326,8 +305,8 @@ class Orientationd(MapTransform, InvertibleTransform):
             orig_axcodes = nib.orientations.aff2axcodes(orig_affine)
             inverse_transform = Orientation(
                 axcodes=orig_axcodes,
-                as_closest_canonical=transform["init_args"]["as_closest_canonical"],
-                labels=transform["init_args"]["labels"],
+                as_closest_canonical=self.ornt_transform.as_closest_canonical,
+                labels=self.ornt_transform.labels,
             )
             # Apply inverse
             d[key], _, new_affine = inverse_transform(d[key], affine=meta_data["affine"])
@@ -360,22 +339,18 @@ class Rotate90d(MapTransform, InvertibleTransform):
             d[key] = self.rotator(d[key])
         return d
 
-    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
-        return {
-            "keys": key,
-            "k": self.rotator.k,
-            "spatial_axes": self.rotator.spatial_axes,
-        }
-
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
         for key in self.keys:
-            transform = self.get_most_recent_transform(d, key)
+            _ = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            spatial_axes = transform["init_args"]["spatial_axes"]
-            num_times_rotated = transform["init_args"]["k"]
+            spatial_axes = self.rotator.spatial_axes
+            num_times_rotated = self.rotator.k
             num_times_to_rotate = 4 - num_times_rotated
             inverse_transform = Rotate90(num_times_to_rotate, spatial_axes)
+            # Might need to convert to numpy
+            if isinstance(d[key], torch.Tensor):
+                d[key] = d[key].cpu().numpy()
             # Apply inverse
             d[key] = inverse_transform(d[key])
             # Remove the applied transform
@@ -435,13 +410,6 @@ class RandRotate90d(Randomizable, MapTransform, InvertibleTransform):
             self.append_applied_transforms(d, key, extra_info={"rand_k": self._rand_k})
         return d
 
-    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
-        return {
-            "keys": key,
-            "prob": self.prob,
-            "max_k": self.max_k,
-            "spatial_axes": self.spatial_axes,
-        }
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
@@ -450,10 +418,12 @@ class RandRotate90d(Randomizable, MapTransform, InvertibleTransform):
             # Check if random transform was actually performed (based on `prob`)
             if transform["do_transform"]:
                 # Create inverse transform
-                spatial_axes = transform["init_args"]["spatial_axes"]
                 num_times_rotated = transform["extra_info"]["rand_k"]
                 num_times_to_rotate = 4 - num_times_rotated
-                inverse_transform = Rotate90(num_times_to_rotate, spatial_axes)
+                inverse_transform = Rotate90(num_times_to_rotate, self.spatial_axes)
+                # Might need to convert to numpy
+                if isinstance(d[key], torch.Tensor):
+                    d[key] = d[key].cpu().numpy()
                 # Apply inverse
                 d[key] = inverse_transform(d[key])
             # Remove the applied transform
@@ -502,21 +472,13 @@ class Resized(MapTransform, InvertibleTransform):
             d[key] = self.resizer(d[key], mode=self.mode[idx], align_corners=self.align_corners[idx])
         return d
 
-    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
-        return {
-            "keys": key,
-            "spatial_size": self.resizer.spatial_size,
-            "mode": self.mode[idx],
-            "align_corners": self.align_corners[idx],
-        }
-
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
-        for key in self.keys:
+        for idx, key in enumerate(self.keys):
             transform = self.get_most_recent_transform(d, key)
             orig_size = transform["orig_size"]
-            mode = transform["init_args"]["mode"]
-            align_corners = transform["init_args"]["align_corners"]
+            mode = self.mode[idx]
+            align_corners = self.align_corners[idx]
             # Create inverse transform
             inverse_transform = Resize(orig_size, mode, align_corners)
             # Apply inverse transform
@@ -625,38 +587,21 @@ class RandAffined(Randomizable, MapTransform, InvertibleTransform):
             d[key] = self.rand_affine.resampler(d[key], grid, mode=self.mode[idx], padding_mode=self.padding_mode[idx])
         return d
 
-    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
-        return {
-            "keys": key,
-            "spatial_size": self.rand_affine.spatial_size,
-            "prob": self.rand_affine.prob,
-            "rotate_range": self.rand_affine.rand_affine_grid.rotate_range,
-            "shear_range": self.rand_affine.rand_affine_grid.shear_range,
-            "translate_range": self.rand_affine.rand_affine_grid.translate_range,
-            "scale_range": self.rand_affine.rand_affine_grid.scale_range,
-            "mode": self.rand_affine.mode,
-            "padding_mode": self.rand_affine.padding_mode,
-            "as_tensor_output": self.rand_affine.resampler.as_tensor_output,
-            "device": self.rand_affine.resampler.device,
-        }
-
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
 
-        for key in self.keys:
+        for idx, key in enumerate(self.keys):
             transform = self.get_most_recent_transform(d, key)
-            extra_info = transform["extra_info"]
-            init_args = transform["init_args"]
             orig_size = transform["orig_size"]
             # Create inverse transform
-            fwd_affine = extra_info["affine"]
+            fwd_affine = transform["extra_info"]["affine"]
             inv_affine = np.linalg.inv(fwd_affine)
 
             affine_grid = AffineGrid(affine=inv_affine)
             grid: torch.Tensor = affine_grid(orig_size)  # type: ignore
 
             # Apply inverse transform
-            out = self.rand_affine.resampler(d[key], grid, init_args["mode"], init_args["padding_mode"])
+            out = self.rand_affine.resampler(d[key], grid, self.mode[idx], self.padding_mode[idx])
             # Convert to original output type
             if isinstance(out, torch.Tensor):
                 d[key] = out.cpu().numpy()
@@ -783,34 +728,14 @@ class Rand2DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
             )
         return d
 
-    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
-        return {
-            "keys": key,
-            "spacing": self.rand_2d_elastic.deform_grid.spacing,
-            "magnitude_range": self.rand_2d_elastic.deform_grid.magnitude,
-            "spatial_size": self.rand_2d_elastic.spatial_size,
-            "prob": self.rand_2d_elastic.prob,
-            "rotate_range": self.rand_2d_elastic.rand_affine_grid.rotate_range,
-            "shear_range": self.rand_2d_elastic.rand_affine_grid.shear_range,
-            "translate_range": self.rand_2d_elastic.rand_affine_grid.translate_range,
-            "scale_range": self.rand_2d_elastic.rand_affine_grid.scale_range,
-            "mode": self.mode[idx],
-            "padding_mode": self.padding_mode[idx],
-            "as_tensor_output": self.rand_2d_elastic.resampler.as_tensor_output,
-            "device": self.rand_2d_elastic.resampler.device,
-        }
-
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
 
-        for key in self.keys:
+        for idx, key in enumerate(self.keys):
             transform = self.get_most_recent_transform(d, key)
-
-            extra_info = transform["extra_info"]
-            init_args = transform["init_args"]
             orig_size = transform["orig_size"]
             # Create inverse transform
-            fwd_def = extra_info["grid"]
+            fwd_def = transform["extra_info"]["grid"]
             if fwd_def is None:
                 d[key] = CenterSpatialCrop(roi_size=orig_size)(d[key])
             else:
@@ -821,12 +746,9 @@ class Rand2DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
                     inv_def = CenterSpatialCrop(roi_size=orig_size)(inv_def)
                     # Apply inverse transform
                     out = self.rand_2d_elastic.resampler(
-                        d[key], inv_def, init_args["mode"], init_args["padding_mode"]
+                        d[key], inv_def, self.mode[idx], self.padding_mode[idx]
                     )
-                    if isinstance(out, torch.Tensor):
-                        d[key] = out.cpu().numpy()
-                    else:
-                        d[key] = out
+                    d[key] = out.cpu().numpy() if isinstance(out, torch.Tensor) else out
             # Remove the applied transform
             self.remove_most_recent_transform(d, key)
 
@@ -947,34 +869,14 @@ class Rand3DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
             )
         return d
 
-    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
-        return {
-            "keys": key,
-            "sigma_range": self.rand_3d_elastic.sigma,
-            "magnitude_range": self.rand_3d_elastic.magnitude_range,
-            "spatial_size": self.rand_3d_elastic.spatial_size,
-            "prob": self.rand_3d_elastic.prob,
-            "rotate_range": self.rand_3d_elastic.rand_affine_grid.rotate_range,
-            "shear_range": self.rand_3d_elastic.rand_affine_grid.shear_range,
-            "translate_range": self.rand_3d_elastic.rand_affine_grid.translate_range,
-            "scale_range": self.rand_3d_elastic.rand_affine_grid.scale_range,
-            "mode": self.mode[idx],
-            "padding_mode": self.padding_mode[idx],
-            "as_tensor_output": self.rand_3d_elastic.resampler.as_tensor_output,
-            "device": self.rand_3d_elastic.resampler.device,
-        }
-
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
 
-        for key in self.keys:
+        for idx, key in enumerate(self.keys):
             transform = self.get_most_recent_transform(d, key)
-
-            extra_info = transform["extra_info"]
-            init_args = transform["init_args"]
             orig_size = transform["orig_size"]
             # Create inverse transform
-            fwd_def = extra_info["grid"]
+            fwd_def = transform["extra_info"]["grid"]
             if fwd_def is None:
                 d[key] = CenterSpatialCrop(roi_size=orig_size)(d[key])
             else:
@@ -985,7 +887,7 @@ class Rand3DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
                     inv_def = CenterSpatialCrop(roi_size=orig_size)(inv_def)
                     # Apply inverse transform
                     out = self.rand_3d_elastic.resampler(
-                        d[key], inv_def, init_args["mode"], init_args["padding_mode"]
+                        d[key], inv_def, self.mode[idx], self.padding_mode[idx]
                     )
                     if isinstance(out, torch.Tensor):
                         d[key] = out.cpu().numpy()
@@ -1020,16 +922,13 @@ class Flipd(MapTransform, InvertibleTransform):
             d[key] = self.flipper(d[key])
         return d
 
-    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
-        return {
-            "keys": key,
-            "spatial_axis": self.flipper.spatial_axis,
-        }
-
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
         for key in self.keys:
             _ = self.get_most_recent_transform(d, key)
+            # Might need to convert to numpy
+            if isinstance(d[key], torch.Tensor):
+                d[key] = d[key].cpu().numpy()
             # Inverse is same as forward
             d[key] = self.flipper(d[key])
             # Remove the applied transform
@@ -1076,18 +975,15 @@ class RandFlipd(Randomizable, MapTransform, InvertibleTransform):
 
         return d
 
-    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
-        return {
-            "keys": key,
-            "spatial_axis": self.flipper.spatial_axis,
-        }
-
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
         for key in self.keys:
             transform = self.get_most_recent_transform(d, key)
             # Check if random transform was actually performed (based on `prob`)
             if transform["do_transform"]:
+                # Might need to convert to numpy
+                if isinstance(d[key], torch.Tensor):
+                    d[key] = d[key].cpu().numpy()
                 # Inverse is same as forward
                 d[key] = self.flipper(d[key])
                 # Remove the applied transform
@@ -1156,34 +1052,22 @@ class Rotated(MapTransform, InvertibleTransform):
             self.append_applied_transforms(d, key, idx, orig_size=orig_size, extra_info={"rot_mat": rot_mat})
         return d
 
-    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
-        return {
-            "keys": key,
-            "angle": self.rotator.angle,
-            "keep_size": self.rotator.keep_size,
-            "mode": self.mode[idx],
-            "padding_mode": self.padding_mode[idx],
-            "align_corners": self.align_corners[idx],
-            "dtype": self.dtype[idx],
-        }
-
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
-        for key in self.keys:
+        for idx, key in enumerate(self.keys):
             transform = self.get_most_recent_transform(d, key)
-            init_args = transform["init_args"]
             # Create inverse transform
             fwd_rot_mat = transform["extra_info"]["rot_mat"]
             inv_rot_mat = np.linalg.inv(fwd_rot_mat)
 
             xform = AffineTransform(
                 normalized=False,
-                mode=init_args["mode"],
-                padding_mode=init_args["padding_mode"],
-                align_corners=init_args["align_corners"],
+                mode=self.mode[idx],
+                padding_mode=self.padding_mode[idx],
+                align_corners=self.align_corners[idx],
                 reverse_indexing=True,
             )
-            dtype = init_args["dtype"]
+            dtype = self.dtype[idx]
             output = xform(
                 torch.as_tensor(np.ascontiguousarray(d[key]).astype(dtype)).unsqueeze(0),
                 torch.as_tensor(np.ascontiguousarray(inv_rot_mat).astype(dtype)),
@@ -1296,39 +1180,24 @@ class RandRotated(Randomizable, MapTransform, InvertibleTransform):
             self.append_applied_transforms(d, key, idx, orig_size=orig_size, extra_info={"rot_mat": rot_mat})
         return d
 
-    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
-        return {
-            "keys": key,
-            "range_x": self.range_x,
-            "range_y": self.range_y,
-            "range_z": self.range_z,
-            "prob": self.prob,
-            "keep_size": self.keep_size,
-            "mode": self.mode[idx],
-            "padding_mode": self.padding_mode[idx],
-            "align_corners": self.align_corners[idx],
-            "dtype": self.dtype[idx],
-        }
-
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
-        for key in self.keys:
+        for idx, key in enumerate(self.keys):
             transform = self.get_most_recent_transform(d, key)
             # Check if random transform was actually performed (based on `prob`)
             if transform["do_transform"]:
-                init_args = transform["init_args"]
                 # Create inverse transform
                 fwd_rot_mat = transform["extra_info"]["rot_mat"]
                 inv_rot_mat = np.linalg.inv(fwd_rot_mat)
 
                 xform = AffineTransform(
                     normalized=False,
-                    mode=init_args["mode"],
-                    padding_mode=init_args["padding_mode"],
-                    align_corners=init_args["align_corners"],
+                    mode=self.mode[idx],
+                    padding_mode=self.padding_mode[idx],
+                    align_corners=self.align_corners[idx],
                     reverse_indexing=True,
                 )
-                dtype = init_args["dtype"]
+                dtype = self.dtype[idx]
                 output = xform(
                     torch.as_tensor(np.ascontiguousarray(d[key]).astype(dtype)).unsqueeze(0),
                     torch.as_tensor(np.ascontiguousarray(inv_rot_mat).astype(dtype)),
@@ -1392,30 +1261,19 @@ class Zoomd(MapTransform, InvertibleTransform):
             )
         return d
 
-    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
-        return {
-            "keys": key,
-            "zoom": self.zoomer.zoom,
-            "mode": self.mode[idx],
-            "padding_mode": self.padding_mode[idx],
-            "align_corners": self.align_corners[idx],
-            "keep_size": self.zoomer.keep_size,
-        }
-
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
-        for key in self.keys:
+        for idx, key in enumerate(self.keys):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            init_args = transform["init_args"]
-            zoom = np.array(init_args["zoom"])
-            inverse_transform = Zoom(zoom=1 / zoom, keep_size=init_args["keep_size"])
+            zoom = np.array(self.zoomer.zoom)
+            inverse_transform = Zoom(zoom=1 / zoom, keep_size=self.zoomer.keep_size)
             # Apply inverse
             d[key] = inverse_transform(
                 d[key],
-                mode=init_args["mode"],
-                padding_mode=init_args["padding_mode"],
-                align_corners=init_args["align_corners"],
+                mode=self.mode[idx],
+                padding_mode=self.padding_mode[idx],
+                align_corners=self.align_corners[idx],
             )
             # Size might be out by 1 voxel so pad
             d[key] = SpatialPad(transform["orig_size"])(d[key])
@@ -1513,32 +1371,19 @@ class RandZoomd(Randomizable, MapTransform, InvertibleTransform):
             )
         return d
 
-    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
-        return {
-            "keys": key,
-            "prob": self.prob,
-            "min_zoom": self.min_zoom,
-            "max_zoom": self.max_zoom,
-            "mode": self.mode[idx],
-            "padding_mode": self.padding_mode[idx],
-            "align_corners": self.align_corners[idx],
-            "keep_size": self.keep_size,
-        }
-
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
-        for key in self.keys:
+        for idx, key in enumerate(self.keys):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            init_args = transform["init_args"]
             zoom = np.array(transform["extra_info"]["zoom"])
-            inverse_transform = Zoom(zoom=1 / zoom, keep_size=init_args["keep_size"])
+            inverse_transform = Zoom(zoom=1 / zoom, keep_size=self.keep_size)
             # Apply inverse
             d[key] = inverse_transform(
                 d[key],
-                mode=init_args["mode"],
-                padding_mode=init_args["padding_mode"],
-                align_corners=init_args["align_corners"],
+                mode=self.mode[idx],
+                padding_mode=self.padding_mode[idx],
+                align_corners=self.align_corners[idx],
             )
             # Size might be out by 1 voxel so pad
             d[key] = SpatialPad(transform["orig_size"])(d[key])

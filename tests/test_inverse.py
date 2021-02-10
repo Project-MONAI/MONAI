@@ -293,7 +293,7 @@ TESTS.append(
     )
 )
 
-TESTS.append(("RandZoom 3d", DATA_3D, 5e-2, RandZoomd(KEYS, 1, [0.5, 0.6, 0.9], [3, 4.2, 6.1], keep_size=False)))
+TESTS.append(("RandZoom 3d", DATA_3D, 5e-2, RandZoomd(KEYS, 1, [0.5, 0.6, 0.9], [1.1, 1, 1.05], keep_size=True)))
 
 TESTS.append(
     (
@@ -347,7 +347,7 @@ TESTS.append(
     (
         "Rand2DElasticd 2d",
         DATA_2D,
-        8e-2,
+        1e-1,
         Rand2DElasticd(
             KEYS,
             spacing=(10.0, 10.0),
@@ -367,7 +367,7 @@ TESTS.append(
     (
         "Rand3DElasticd 3d",
         DATA_3D,
-        0,
+        2e-1,
         Rand3DElasticd(
             KEYS,
             sigma_range=(1, 3),

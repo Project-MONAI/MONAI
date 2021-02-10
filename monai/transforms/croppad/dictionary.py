@@ -190,13 +190,6 @@ class BorderPadd(MapTransform, InvertibleTransform):
             d[key] = self.padder(d[key], mode=m)
         return d
 
-    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
-        return {
-            "keys": key,
-            "spatial_border": self.padder.spatial_border,
-            "mode": self.mode[idx],
-        }
-
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
 
@@ -311,13 +304,6 @@ class SpatialCropd(MapTransform, InvertibleTransform):
             d[key] = self.cropper(d[key])
         return d
 
-    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
-        return {
-            "keys": key,
-            "roi_start": self.cropper.roi_start,
-            "roi_end": self.cropper.roi_end,
-        }
-
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
 
@@ -363,12 +349,6 @@ class CenterSpatialCropd(MapTransform, InvertibleTransform):
             self.append_applied_transforms(d, key, orig_size=orig_size)
         return d
 
-    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
-        return {
-            "keys": key,
-            "roi_size": self.cropper.roi_size,
-        }
-
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
 
@@ -376,7 +356,7 @@ class CenterSpatialCropd(MapTransform, InvertibleTransform):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
             orig_size = np.array(transform["orig_size"])
-            current_size = np.array(transform["init_args"]["roi_size"])
+            current_size = np.array(d[key].shape[1:])
             pad_to_start = np.floor((orig_size - current_size) / 2)
             # in each direction, if original size is even and current size is odd, += 1
             pad_to_start[np.logical_and(orig_size % 2 == 0, current_size % 2 == 1)] += 1
@@ -450,14 +430,6 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
                 cropper = CenterSpatialCrop(self._size)
                 d[key] = cropper(d[key])
         return d
-
-    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
-        return {
-            "keys": key,
-            "roi_size": self.roi_size,
-            "random_center": self.random_center,
-            "random_size": self.random_size,
-        }
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
@@ -601,17 +573,6 @@ class CropForegroundd(MapTransform, InvertibleTransform):
             self.append_applied_transforms(d, key, extra_info={"box_start": box_start, "box_end": box_end})
             d[key] = cropper(d[key])
         return d
-
-    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
-        return {
-            "keys": key,
-            "source_key": self.source_key,
-            "select_fn": self.select_fn,
-            "channel_indices": self.channel_indices,
-            "margin": self.margin,
-            "start_coord_key": self.start_coord_key,
-            "end_coord_key": self.end_coord_key,
-        }
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
@@ -840,21 +801,13 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
             self.append_applied_transforms(d, key, orig_size=orig_size)
         return d
 
-    def get_input_args(self, key: Hashable, idx: int = 0) -> dict:
-        return {
-            "keys": key,
-            "spatial_size": self.padcropper.padder.spatial_size,
-            "mode": self.padcropper.padder.mode,
-        }
-
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
         for key in self.keys:
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
             orig_size = transform["orig_size"]
-            mode = transform["init_args"]["mode"]
-            inverse_transform = ResizeWithPadOrCrop(spatial_size=orig_size, mode=mode)
+            inverse_transform = ResizeWithPadOrCrop(spatial_size=orig_size, mode=self.padcropper.padder.mode)
             # Apply inverse transform
             d[key] = inverse_transform(d[key])
             # Remove the applied transform
