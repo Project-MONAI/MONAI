@@ -42,15 +42,16 @@ class InvertibleTransform(ABC):
         self,
         data: dict,
         key: Hashable,
-        idx: int = 0,
         extra_info: Optional[dict] = None,
         orig_size: Optional[Tuple] = None,
     ) -> None:
         """Append to list of applied transforms for that key."""
         key_transform = str(key) + "_transforms"
-        info: Dict[str, Any] = {}
-        info["id"] = id(self)
-        info["orig_size"] = orig_size or data[key].shape[1:]
+        info = {
+            "class": self.__class__.__name__,
+            "id": id(self),
+            "orig_size": orig_size or data[key].shape[1:],
+        }
         if extra_info is not None:
             info["extra_info"] = extra_info
         # If class is randomizable, store whether the transform was actually performed (based on `prob`)
@@ -62,16 +63,15 @@ class InvertibleTransform(ABC):
         data[key_transform].append(info)
 
 
-    def check_transforms_match(self, transform: dict, key: Hashable) -> None:
-        explanation = "Should inverse most recently applied invertible transform first"
+    def check_transforms_match(self, transform: dict) -> None:
         # Check transorms are of same type.
         if transform["id"] != id(self):
-            raise RuntimeError(explanation)
+            raise RuntimeError("Should inverse most recently applied invertible transform first")
 
     def get_most_recent_transform(self, data: dict, key: Hashable) -> dict:
         """Get most recent transform."""
         transform = dict(data[str(key) + "_transforms"][-1])
-        self.check_transforms_match(transform, key)
+        self.check_transforms_match(transform)
         return transform
 
     @staticmethod
@@ -116,7 +116,7 @@ class NonRigidTransform(ABC):
             fwd_disp = fwd_disp[..., None, :]
         # fwd_disp_vtk = vtk.vtkImageImport()
         # # The previously created array is converted to a string of chars and imported.
-        # data_string = fwd_disp.tostring()
+        # data_string = fwd_disp.tobytes()
         # fwd_disp_vtk.CopyImportVoidPointer(data_string, len(data_string))
         # # The type of the newly imported data is set to unsigned char (uint8)
         # fwd_disp_vtk.SetDataScalarTypeToUnsignedChar()

@@ -119,8 +119,8 @@ class SpatialPadd(MapTransform, InvertibleTransform):
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        for idx, (key, m) in enumerate(zip(self.keys, self.mode)):
-            self.append_applied_transforms(d, key, idx)
+        for key, m in zip(self.keys, self.mode):
+            self.append_applied_transforms(d, key)
             d[key] = self.padder(d[key], mode=m)
         return d
 
@@ -423,10 +423,10 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
             raise AssertionError
         for idx, key in enumerate(self.keys):
             if self.random_center:
-                self.append_applied_transforms(d, key, idx, {"slices": [(i.start, i.stop) for i in self._slices[1:]]})
+                self.append_applied_transforms(d, key, {"slices": [(i.start, i.stop) for i in self._slices[1:]]})
                 d[key] = d[key][self._slices]
             else:
-                self.append_applied_transforms(d, key, idx)
+                self.append_applied_transforms(d, key)
                 cropper = CenterSpatialCrop(self._size)
                 d[key] = cropper(d[key])
         return d

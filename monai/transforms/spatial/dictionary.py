@@ -402,7 +402,7 @@ class RandRotate90d(Randomizable, MapTransform, InvertibleTransform):
         if not self._do_transform:
             for key in self.keys:
                 self.append_applied_transforms(d, key)
-            return data
+            return d
 
         rotator = Rotate90(self._rand_k, self.spatial_axes)
         for key in self.keys:
@@ -583,7 +583,7 @@ class RandAffined(Randomizable, MapTransform, InvertibleTransform):
             affine = np.eye(len(sp_size) + 1)
 
         for idx, key in enumerate(self.keys):
-            self.append_applied_transforms(d, key, idx, extra_info={"affine": affine})
+            self.append_applied_transforms(d, key, extra_info={"affine": affine})
             d[key] = self.rand_affine.resampler(d[key], grid, mode=self.mode[idx], padding_mode=self.padding_mode[idx])
         return d
 
@@ -722,7 +722,7 @@ class Rand2DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
             grid = create_grid(spatial_size=sp_size)
 
         for idx, key in enumerate(self.keys):
-            self.append_applied_transforms(d, key, idx, extra_info={"grid": deepcopy(grid)})
+            self.append_applied_transforms(d, key, extra_info={"grid": deepcopy(grid)})
             d[key] = self.rand_2d_elastic.resampler(
                 d[key], grid, mode=self.mode[idx], padding_mode=self.padding_mode[idx]
             )
@@ -863,7 +863,7 @@ class Rand3DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
             grid = self.rand_3d_elastic.rand_affine_grid(grid=grid)
 
         for idx, key in enumerate(self.keys):
-            self.append_applied_transforms(d, key, idx, extra_info={"grid": grid.cpu().numpy()})
+            self.append_applied_transforms(d, key, extra_info={"grid": grid.cpu().numpy()})
             d[key] = self.rand_3d_elastic.resampler(
                 d[key], grid, mode=self.mode[idx], padding_mode=self.padding_mode[idx]
             )
@@ -1049,7 +1049,7 @@ class Rotated(MapTransform, InvertibleTransform):
                 dtype=self.dtype[idx],
                 return_rotation_matrix=True,
             )
-            self.append_applied_transforms(d, key, idx, orig_size=orig_size, extra_info={"rot_mat": rot_mat})
+            self.append_applied_transforms(d, key, orig_size=orig_size, extra_info={"rot_mat": rot_mat})
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
@@ -1177,7 +1177,7 @@ class RandRotated(Randomizable, MapTransform, InvertibleTransform):
                 dtype=self.dtype[idx],
                 return_rotation_matrix=True,
             )
-            self.append_applied_transforms(d, key, idx, orig_size=orig_size, extra_info={"rot_mat": rot_mat})
+            self.append_applied_transforms(d, key, orig_size=orig_size, extra_info={"rot_mat": rot_mat})
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:

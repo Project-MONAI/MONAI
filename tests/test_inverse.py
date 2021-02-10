@@ -12,7 +12,7 @@
 import random
 import unittest
 from typing import TYPE_CHECKING, List, Tuple
-
+import sys
 from monai.data.utils import decollate_batch
 import numpy as np
 import torch
@@ -50,11 +50,12 @@ from monai.transforms import (
     SpatialPadd,
     Zoomd,
 )
+
 from monai.data import BatchInverseTransform
 from monai.utils import optional_import, set_determinism
-from tests.utils import make_nifti_image, make_rand_affine
+from tests.utils import make_nifti_image, make_rand_affine, skip_if_quick, test_is_quick
 
-# from parameterized import parameterized
+from parameterized import parameterized
 
 
 if TYPE_CHECKING:
@@ -235,6 +236,8 @@ TESTS.append(
         "Orientationd 3d",
         DATA_3D,
         0,
+        # For data loader, output needs to be same size, so input must be square/cubic
+        SpatialPadd(KEYS, max(DATA_3D["image"].shape)),
         Orientationd(KEYS, "RAS"),
     )
 )
@@ -262,6 +265,8 @@ TESTS.append(
         "RandRotate90d 3d",
         DATA_3D,
         0,
+        # For data loader, output needs to be same size, so input must be square/cubic
+        SpatialPadd(KEYS, max(DATA_3D["image"].shape)),
         RandRotate90d(KEYS, prob=1, spatial_axes=(1, 2)),
     )
 )
@@ -293,7 +298,7 @@ TESTS.append(
     )
 )
 
-TESTS.append(("RandZoom 3d", DATA_3D, 5e-2, RandZoomd(KEYS, 1, [0.5, 0.6, 0.9], [1.1, 1, 1.05], keep_size=True)))
+TESTS.append(("RandZoom 3d", DATA_3D, 9e-2, RandZoomd(KEYS, 1, [0.5, 0.6, 0.9], [1.1, 1, 1.05], keep_size=True)))
 
 TESTS.append(
     (
@@ -363,25 +368,26 @@ TESTS.append(
     )
 )
 
-TESTS.append(
-    (
-        "Rand3DElasticd 3d",
-        DATA_3D,
-        2e-1,
-        Rand3DElasticd(
-            KEYS,
-            sigma_range=(1, 3),
-            magnitude_range=(1.0, 2.0),
-            spatial_size=[155, 192, 200],
-            prob=1,
-            padding_mode="zeros",
-            rotate_range=[np.pi / 6, np.pi / 7],
-            shear_range=[(0.5, 0.5)],
-            translate_range=[10, 5],
-            scale_range=[(0.8, 1.2), (0.9, 1.3)],
-        ),
+if not test_is_quick:
+    TESTS.append(
+        (
+            "Rand3DElasticd 3d",
+            DATA_3D,
+            2e-1,
+            Rand3DElasticd(
+                KEYS,
+                sigma_range=(1, 3),
+                magnitude_range=(1.0, 2.0),
+                spatial_size=[155, 192, 200],
+                prob=1,
+                padding_mode="zeros",
+                rotate_range=[np.pi / 6, np.pi / 7],
+                shear_range=[(0.5, 0.5)],
+                translate_range=[10, 5],
+                scale_range=[(0.8, 1.2), (0.9, 1.3)],
+            ),
+        )
     )
-)
 
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
 
@@ -425,7 +431,6 @@ class TestInverse(unittest.TestCase):
                 unmodded_diff = np.mean(np.abs(orig - ResizeWithPadOrCrop(orig.shape[1:])(unmodified)))
                 try:
                     self.assertLessEqual(mean_diff, acceptable_diff)
-                    self.assertLessEqual(mean_diff, unmodded_diff)
                 except AssertionError:
                     print(
                         f"Failed: {name}. Mean diff = {mean_diff} (expected <= {acceptable_diff}), unmodified diff: {unmodded_diff}"
@@ -437,7 +442,7 @@ class TestInverse(unittest.TestCase):
                         print(fwd_bck)
                     raise
 
-    # @parameterized.expand(TESTS)
+    @parameterized.expand(TESTS)
     def test_inverse(self, _, data, acceptable_diff, *transforms):
         name = _
 
@@ -459,12 +464,7 @@ class TestInverse(unittest.TestCase):
                 fwd_bck = t.inverse(fwd_bck)
                 self.check_inverse(name, data.keys(), forwards[-i - 2], fwd_bck, forwards[-1], acceptable_diff)
 
-    # @parameterized.expand(TESTS_FAIL)
-    def test_fail(self, data, _, *transform):
-        d = transform[0](data)
-        with self.assertRaises(RuntimeError):
-            d = transform[0].inverse(d)
-
+    @parameterized.expand(TESTS)
     def test_w_dataloader(self, _, data, acceptable_diff, *transforms):
         name = _
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -475,7 +475,8 @@ class TestInverse(unittest.TestCase):
 
         ndims = len(data["image"].shape[1:])
         batch_size = 2
-        num_workers = 0
+        # num workers = 0 for mac
+        num_workers = 2 if sys.platform != "darwin" else 0
 
         dataset = CacheDataset(test_data, transforms, progress=False)
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
@@ -491,18 +492,19 @@ class TestInverse(unittest.TestCase):
             fwd_bck_batch = inv_batch(batch_data)
             fwd_bck = decollate_batch(fwd_bck_batch)
 
-            for _test_data, _fwd_bck, _dataset in zip(test_data, fwd_bck, dataset):
-                self.check_inverse(name, data.keys(), _test_data, _fwd_bck, _dataset, acceptable_diff)
+            for idx, (_test_data, _fwd_bck) in enumerate(zip(test_data, fwd_bck)):
+                _fwd = transforms(test_data[idx])
+                self.check_inverse(name, data.keys(), _test_data, _fwd_bck, _fwd, acceptable_diff)
 
             if torch.cuda.is_available():
                 _ = model(inputs)
 
+    @parameterized.expand(TESTS_FAIL)
+    def test_fail(self, data, _, *transform):
+        d = transform[0](data)
+        with self.assertRaises(RuntimeError):
+            d = transform[0].inverse(d)
+
 
 if __name__ == "__main__":
-    # unittest.main()
-    test = TestInverse()
-    for t in TESTS:
-        test.test_inverse(*t)
-        test.test_w_dataloader(*t)
-    for t in TESTS_FAIL:
-        test.test_fail(*t)
+    unittest.main()
