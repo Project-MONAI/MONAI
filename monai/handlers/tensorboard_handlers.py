@@ -41,10 +41,23 @@ class TensorBoardHandler:
     """
 
     def __init__(self, summary_writer: Optional[SummaryWriter] = None, log_dir: str = "./runs"):
-        self._writer = SummaryWriter(log_dir=log_dir) if summary_writer is None else summary_writer
+        if summary_writer is None:
+            self._writer = SummaryWriter(log_dir=log_dir)
+            self.internal_writer = True
+        else:
+            self._writer = summary_writer
+            self.internal_writer = False
 
     def attach(self, engine: Engine) -> None:
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+
+    def close(self):
+        """
+        Close the summary writer if created in this TensorBoard handler.
+
+        """
+        if self.internal_writer:
+            self._writer.close()
 
 
 class TensorBoardStatsHandler(TensorBoardHandler):
