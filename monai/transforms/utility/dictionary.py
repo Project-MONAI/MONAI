@@ -84,6 +84,8 @@ __all__ = [
     "RandLambdaDict",
     "RepeatChannelD",
     "RepeatChannelDict",
+    "DeleteChannelD",
+    "DeleteChannelDict",    
     "SplitChannelD",
     "SplitChannelDict",
     "CastToTypeD",
