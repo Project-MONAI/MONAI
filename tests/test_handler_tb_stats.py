@@ -39,6 +39,7 @@ class TestHandlerTBStats(unittest.TestCase):
             stats_handler = TensorBoardStatsHandler(log_dir=tempdir)
             stats_handler.attach(engine)
             engine.run(range(3), max_epochs=2)
+            stats_handler.close()
             # check logging output
             self.assertTrue(len(glob.glob(tempdir)) > 0)
 
@@ -64,6 +65,7 @@ class TestHandlerTBStats(unittest.TestCase):
             )
             stats_handler.attach(engine)
             engine.run(range(3), max_epochs=2)
+            writer.close()
             # check logging output
             self.assertTrue(len(glob.glob(tempdir)) > 0)
 
