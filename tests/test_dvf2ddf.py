@@ -3,6 +3,8 @@ import unittest
 import numpy as np
 import torch
 from parameterized import parameterized
+from torch import nn
+from torch.optim import SGD
 
 from monai.networks.blocks.warp import DVF2DDF
 
@@ -31,6 +33,17 @@ class TestDVF2DDF(unittest.TestCase):
         layer = DVF2DDF(**input_param)
         result = layer(**input_data)
         np.testing.assert_allclose(result.cpu().numpy(), expected_val.cpu().numpy(), rtol=1e-4, atol=1e-4)
+
+    def test_gradient(self):
+        network = nn.Conv2d(in_channels=1, out_channels=2, kernel_size=1)
+        dvf2ddf = DVF2DDF(spatial_dims=2, num_steps=1)
+        optimizer = SGD(network.parameters(), lr=0.01)
+        x = torch.ones((1, 1, 5, 5))
+        x = network(x)
+        x = dvf2ddf(x)
+        loss = torch.sum(x)
+        loss.backward()
+        optimizer.step()
 
 
 if __name__ == "__main__":

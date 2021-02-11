@@ -144,5 +144,5 @@ class DVF2DDF(nn.Module):
         """
         ddf: torch.Tensor = dvf / (2 ** self.num_steps)
         for _ in range(self.num_steps):
-            ddf += self.warp_layer(image=ddf, ddf=ddf)
+            ddf = ddf + self.warp_layer(image=ddf, ddf=ddf)
         return ddf
