@@ -119,7 +119,7 @@ class NonRigidTransform(ABC):
         for i, s in enumerate(fwd_disp.shape[:-1]):
             if s == 1:
                 fwd_disp = np.repeat(fwd_disp, repeats=2, axis=i)
-        fwd_disp_flattened = fwd_disp.flatten()  # need to keep this in memory
+        fwd_disp_flattened = fwd_disp.reshape(-1, 3)  # need to keep this in memory
         vtk_data_array = vtk_numpy_support.numpy_to_vtk(fwd_disp_flattened)
 
         # Generating the vtkImageData
@@ -127,19 +127,14 @@ class NonRigidTransform(ABC):
         fwd_disp_vtk.SetOrigin(0, 0, 0)
         fwd_disp_vtk.SetSpacing(1, 1, 1)
         fwd_disp_vtk.SetDimensions(*fwd_disp.shape[:-1])
-        if False:
-            fwd_disp_vtk.SetNumberOfScalarComponents(3)
-            fwd_disp_vtk.GetPointData().AddArray(vtk_data_array)
-        else:
-            fwd_disp_vtk.AllocateScalars(vtk_numpy_support.get_vtk_array_type(fwd_disp.dtype), 3)
-            fwd_disp_vtk.GetPointData().GetArray(0).SetArray(vtk_data_array)
-
+        fwd_disp_vtk.GetPointData().SetScalars(vtk_data_array)
 
         if __debug__:
             fwd_disp_vtk_np = vtk_numpy_support.vtk_to_numpy(fwd_disp_vtk.GetPointData().GetArray(0))
             assert fwd_disp_vtk_np.size == fwd_disp.size
             assert fwd_disp_vtk_np.min() == fwd_disp.min()
             assert fwd_disp_vtk_np.max() == fwd_disp.max()
+            assert fwd_disp_vtk.GetNumberOfScalarComponents() == 3
 
         # create b-spline coefficients for the displacement grid
         bspline_filter = vtk.vtkImageBSplineCoefficients()
