@@ -34,14 +34,13 @@ class FindAllValidSlicesd(Transform):
     """
     Find/List all valid slices in the label.
     Label is assumed to be a 4D Volume with shape CDHW, where C=1.
+
+    Args:
+        label: key to the label source.
+        sids: key to store slices indices having valid label map.
     """
 
     def __init__(self, label="label", sids="sids"):
-        """
-        Args:
-            label: label source.
-            sids: key to store slices indices having valid label map.
-        """
         self.label = label
         self.sids = sids
 
@@ -70,18 +69,17 @@ class FindAllValidSlicesd(Transform):
 
 class AddInitialSeedPointd(Randomizable, Transform):
     """
-    Add Random guidance as initial seed point for a given label.
+    Add random guidance as initial seed point for a given label.
+
+    Args:
+        label: label source.
+        guidance: key to store guidance.
+        sids: key that represents list of valid slice indices for the given label.
+        sid: key that represents the slice to add initial seed point.  If not present, random sid will be chosen.
+        connected_regions: maximum connected regions to use for adding initial points.
     """
 
-    def __init__(self, label="label", guidance="guidance", sids="sids", sid="sid", connected_regions=6):
-        """
-        Args:
-            label: label source.
-            guidance: key to store guidance.
-            sids: key that represents list of valid slice indices for the given label.
-            sid: key that represents sid for which initial seed point.  If not present, random sid will be chosen.
-            connected_regions: maximum connected regions to use for adding initial points.
-        """
+    def __init__(self, label="label", guidance="guidance", sids="sids", sid="sid", connected_regions=5):
         self.label = label
         self.sids = sids
         self.sid = sid
@@ -105,7 +103,7 @@ class AddInitialSeedPointd(Randomizable, Transform):
         assert np.max(blobs_labels) > 0, "Not a valid Label"
 
         pos_guidance = []
-        for ridx in range(1, 2 if dims == 3 else self.connected_regions):
+        for ridx in range(1, 2 if dims == 3 else self.connected_regions + 1):
             if dims == 2:
                 label = (blobs_labels == ridx).astype(np.float32)
                 if np.sum(label) == 0:
@@ -120,7 +118,7 @@ class AddInitialSeedPointd(Randomizable, Transform):
             dst = distance[seed]
 
             g = np.asarray(np.unravel_index(seed, label.shape)).transpose().tolist()[0]
-            g[0] = dst[0]
+            g[0] = dst[0]  # for debug
             if dimensions == 2 or dims == 3:
                 pos_guidance.append(g)
             else:
@@ -143,17 +141,18 @@ class AddInitialSeedPointd(Randomizable, Transform):
 class AddGuidanceSignald(Transform):
     """
     Add Guidance signal for input image.
+
+    Based on the "guidance" points, apply gaussian to them and add them as new channel for input image.
+
+    Args:
+        image: key to the image source.
+        guidance: key to store guidance.
+        sigma: standard deviation for Gaussian kernel.
+        number_intensity_ch: channel index.
+        batched: whether input is batched or not.
     """
 
     def __init__(self, image="image", guidance="guidance", sigma=2, number_intensity_ch=1, batched=False):
-        """
-        Args:
-            image: image source.
-            guidance: key to store guidance.
-            sigma: standard deviation for Gaussian kernel.
-            number_intensity_ch: channel index.
-            batched: defines if input is batched.
-        """
         self.image = image
         self.guidance = guidance
         self.sigma = sigma
@@ -212,16 +211,15 @@ class AddGuidanceSignald(Transform):
 class FindDiscrepancyRegionsd(Transform):
     """
     Find discrepancy between prediction and actual during click interactions during training.
+
+    Args:
+        label: key to label source.
+        pred: key to prediction source.
+        discrepancy: key to store discrepancies found between label and prediction.
+        batched: whether input is batched or not.
     """
 
     def __init__(self, label="label", pred="pred", discrepancy="discrepancy", batched=True):
-        """
-        Args:
-            label: label source.
-            pred: prediction source.
-            discrepancy: key to store discrepancies found between label and prediction.
-            batched: defines if input is batched.
-        """
         self.label = label
         self.pred = pred
         self.discrepancy = discrepancy
