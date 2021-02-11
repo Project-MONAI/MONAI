@@ -710,7 +710,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         fg_indices_key: Optional[str] = None,
         bg_indices_key: Optional[str] = None,
     ) -> None:
-        super().__init__(keys)
+        MapTransform.__init__(self, keys)
         self.label_key = label_key
         self.spatial_size: Union[Tuple[int, ...], Sequence[int], int] = spatial_size
         if pos < 0 or neg < 0:
