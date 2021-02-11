@@ -9,9 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from torch.utils.data.dataset import Dataset
-
 from monai.data.dataloader import DataLoader
+from monai.data.dataset import Dataset
 from monai.data.utils import decollate_batch
 from monai.transforms.inverse_transform import InvertibleTransform
 

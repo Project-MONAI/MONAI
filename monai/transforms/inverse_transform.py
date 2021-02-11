@@ -113,14 +113,15 @@ class NonRigidTransform(ABC):
     @staticmethod
     def _inv_disp_w_vtk(fwd_disp):
         orig_shape = fwd_disp.shape
+        required_num_tensor_components = 3
         # VTK requires 3 tensor components, so if shape was (H, W, 2), make it
         # (H, W, 1, 3) (i.e., depth 1 with a 3rd tensor component of 0s)
-        while fwd_disp.shape[-1] < 3:
+        while fwd_disp.shape[-1] < required_num_tensor_components:
             fwd_disp = np.append(fwd_disp, np.zeros(fwd_disp.shape[:-1] + (1,)), axis=-1)
             fwd_disp = fwd_disp[..., None, :]
 
         # Create VTKDoubleArray. Shape needs to be (H*W*D, 3)
-        fwd_disp_flattened = fwd_disp.reshape(-1, 3)  # need to keep this in memory
+        fwd_disp_flattened = fwd_disp.reshape(-1, required_num_tensor_components)  # need to keep this in memory
         vtk_data_array = vtk_numpy_support.numpy_to_vtk(fwd_disp_flattened)
 
         # Generating the vtkImageData
@@ -135,7 +136,7 @@ class NonRigidTransform(ABC):
             assert fwd_disp_vtk_np.size == fwd_disp.size
             assert fwd_disp_vtk_np.min() == fwd_disp.min()
             assert fwd_disp_vtk_np.max() == fwd_disp.max()
-            assert fwd_disp_vtk.GetNumberOfScalarComponents() == 3
+            assert fwd_disp_vtk.GetNumberOfScalarComponents() == required_num_tensor_components
 
         # create b-spline coefficients for the displacement grid
         bspline_filter = vtk.vtkImageBSplineCoefficients()
@@ -200,7 +201,7 @@ class NonRigidTransform(ABC):
         else:
             inv_disp = NonRigidTransform._inv_disp_w_sitk(fwd_disp, num_iters)
 
-        if False:
+        if True:
             import matplotlib.pyplot as plt
 
             fig, axes = plt.subplots(2, 2)
