@@ -117,14 +117,12 @@ def create_dataset(
 
 def _default_transforms(keys, pixdim):
     mode = [GridSampleMode.BILINEAR, GridSampleMode.NEAREST] if len(keys) == 2 else [GridSampleMode.BILINEAR]
-    transforms = [
+    return Compose([
         LoadImaged(keys=keys),
         AsChannelFirstd(keys=keys),
         Spacingd(keys=keys, pixdim=pixdim, mode=mode),
         Orientationd(keys=keys, axcodes="RAS"),
-    ]
-
-    return Compose(transforms)
+    ])
 
 
 def _save_data_2d(vol_idx, data, keys, dataset_dir, relative_path):

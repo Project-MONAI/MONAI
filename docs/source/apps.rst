@@ -30,7 +30,7 @@ Applications
 .. autofunction:: download_and_extract
 
 `Deepgrow`
------------
+----------
 
 .. automodule:: monai.apps.deepgrow.dataset
 .. autofunction:: create_dataset

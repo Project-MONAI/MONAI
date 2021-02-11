@@ -20,7 +20,7 @@ from monai.transforms import Compose
 
 class Interaction:
     """
-    Deepgrow Training/Evaluation iteration method with interactions (simulation of clicks) support for image and label.
+    Ignite handler used to introduce interactions (simulation of clicks) for Deepgrow Training/Evaluation.
 
     Args:
         transforms: execute additional transformation during every iteration (before train).
