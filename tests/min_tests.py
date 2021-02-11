@@ -107,8 +107,6 @@ def run_testsuit():
         "test_deepgrow_dataset",
         "test_deepgrow_interaction",
         "test_deepgrow_transforms",
-        "test_deepgrow_spatial_crop_foregroundd",
-        "test_deepgrow_find_all_valid_slicesd",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
