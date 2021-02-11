@@ -112,13 +112,14 @@ class NonRigidTransform(ABC):
 
     @staticmethod
     def _inv_disp_w_vtk(fwd_disp):
+        orig_shape = fwd_disp.shape
+        # VTK requires 3 tensor components, so if shape was (H, W, 2), make it
+        # (H, W, 1, 3) (i.e., depth 1 with a 3rd tensor component of 0s)
         while fwd_disp.shape[-1] < 3:
             fwd_disp = np.append(fwd_disp, np.zeros(fwd_disp.shape[:-1] + (1,)), axis=-1)
             fwd_disp = fwd_disp[..., None, :]
-        # if any spatial dimensions have size == 1, double them along that axis (required by vtk)
-        for i, s in enumerate(fwd_disp.shape[:-1]):
-            if s == 1:
-                fwd_disp = np.repeat(fwd_disp, repeats=2, axis=i)
+
+        # Create VTKDoubleArray. Shape needs to be (H*W*D, 3)
         fwd_disp_flattened = fwd_disp.reshape(-1, 3)  # need to keep this in memory
         vtk_data_array = vtk_numpy_support.numpy_to_vtk(fwd_disp_flattened)
 
@@ -158,8 +159,12 @@ class NonRigidTransform(ABC):
         # Get inverse displacement as an image
         inv_disp_vtk = grid_maker.GetOutput()
 
+        # Convert back to numpy and reshape
         inv_disp = vtk_numpy_support.vtk_to_numpy(inv_disp_vtk.GetPointData().GetArray(0))
-        inv_disp = inv_disp.reshape(fwd_disp.shape)
+        # if there were originally < 3 tensor components, remove the zeros we added at the start
+        inv_disp = inv_disp[..., :orig_shape[-1]]
+        # reshape to original
+        inv_disp = inv_disp.reshape(orig_shape)
 
         return inv_disp
 
