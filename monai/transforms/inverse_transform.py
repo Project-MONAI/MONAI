@@ -115,19 +115,10 @@ class NonRigidTransform(ABC):
         while fwd_disp.shape[-1] < 3:
             fwd_disp = np.append(fwd_disp, np.zeros(fwd_disp.shape[:-1] + (1,)), axis=-1)
             fwd_disp = fwd_disp[..., None, :]
-        # fwd_disp_vtk = vtk.vtkImageImport()
-        # # The previously created array is converted to a string of chars and imported.
-        # data_string = fwd_disp.tobytes()
-        # fwd_disp_vtk.CopyImportVoidPointer(data_string, len(data_string))
-        # # The type of the newly imported data is set to unsigned char (uint8)
-        # fwd_disp_vtk.SetDataScalarTypeToUnsignedChar()
-        # fwd_disp_vtk.SetNumberOfScalarComponents(3)
-        extent = list(chain.from_iterable(zip([0, 0, 0], fwd_disp.shape[:-1])))
-        # fwd_disp_vtk.SetWholeExtent(extent)
-        # fwd_disp_vtk.SetDataExtentToWholeExtent()
-        # fwd_disp_vtk.Update()
-        # fwd_disp_vtk = fwd_disp_vtk.GetOutput()
-
+        # if any spatial dimensions have size == 1, double them along that axis (required by vtk)
+        for i, s in enumerate(fwd_disp.shape[:-1]):
+            if s == 1:
+                fwd_disp = np.repeat(fwd_disp, repeats=2, axis=i)
         fwd_disp_flattened = fwd_disp.flatten()  # need to keep this in memory
         vtk_data_array = vtk_numpy_support.numpy_to_vtk(fwd_disp_flattened)
 
@@ -136,43 +127,50 @@ class NonRigidTransform(ABC):
         fwd_disp_vtk.SetOrigin(0, 0, 0)
         fwd_disp_vtk.SetSpacing(1, 1, 1)
         fwd_disp_vtk.SetDimensions(*fwd_disp.shape[:-1])
+        if False:
+            fwd_disp_vtk.SetNumberOfScalarComponents(3)
+            fwd_disp_vtk.GetPointData().AddArray(vtk_data_array)
+        else:
+            fwd_disp_vtk.AllocateScalars(vtk_numpy_support.get_vtk_array_type(fwd_disp.dtype), 3)
+            fwd_disp_vtk.GetPointData().GetArray(0).SetArray(vtk_data_array)
 
-        fwd_disp_vtk.AllocateScalars(vtk_numpy_support.get_vtk_array_type(fwd_disp.dtype), 3)
-        fwd_disp_vtk.SetExtent(extent)
-        fwd_disp_vtk.GetPointData().AddArray(vtk_data_array)
 
-        # # create b-spline coefficients for the displacement grid
-        # bspline_filter = vtk.vtkImageBSplineCoefficients()
-        # bspline_filter.SetInputData(fwd_disp_vtk)
-        # bspline_filter.Update()
+        if __debug__:
+            fwd_disp_vtk_np = vtk_numpy_support.vtk_to_numpy(fwd_disp_vtk.GetPointData().GetArray(0))
+            assert fwd_disp_vtk_np.size == fwd_disp.size
+            assert fwd_disp_vtk_np.min() == fwd_disp.min()
+            assert fwd_disp_vtk_np.max() == fwd_disp.max()
 
-        # # use these b-spline coefficients to create a transform
-        # bspline_transform = vtk.vtkBSplineTransform()
-        # bspline_transform.SetCoefficientData(bspline_filter.GetOutput())
-        # bspline_transform.Update()
+        # create b-spline coefficients for the displacement grid
+        bspline_filter = vtk.vtkImageBSplineCoefficients()
+        bspline_filter.SetInputData(fwd_disp_vtk)
+        bspline_filter.Update()
 
-        # # invert the b-spline transform onto a new grid
-        # grid_maker = vtk.vtkTransformToGrid()
-        # grid_maker.SetInput(bspline_transform.GetInverse())
-        # grid_maker.SetGridOrigin(fwd_disp_vtk.GetOrigin())
-        # grid_maker.SetGridSpacing(fwd_disp_vtk.GetSpacing())
-        # grid_maker.SetGridExtent(fwd_disp_vtk.GetExtent())
-        # grid_maker.SetGridScalarTypeToFloat()
-        # grid_maker.Update()
+        # use these b-spline coefficients to create a transform
+        bspline_transform = vtk.vtkBSplineTransform()
+        bspline_transform.SetCoefficientData(bspline_filter.GetOutput())
+        bspline_transform.Update()
 
-        # # Get inverse displacement as an image
-        # inv_disp_vtk = grid_maker.GetOutput()
+        # invert the b-spline transform onto a new grid
+        grid_maker = vtk.vtkTransformToGrid()
+        grid_maker.SetInput(bspline_transform.GetInverse())
+        grid_maker.SetGridOrigin(fwd_disp_vtk.GetOrigin())
+        grid_maker.SetGridSpacing(fwd_disp_vtk.GetSpacing())
+        grid_maker.SetGridExtent(fwd_disp_vtk.GetExtent())
+        grid_maker.SetGridScalarTypeToFloat()
+        grid_maker.Update()
 
-        # from vtk.util.numpy_support import vtk_to_numpy
-        # inv_disp = vtk_numpy_support.vtk_to_numpy(inv_disp_vtk.GetPointData().GetScalars())
-        inv_disp = vtk_numpy_support.vtk_to_numpy(fwd_disp_vtk.GetPointData().GetArray(0))
+        # Get inverse displacement as an image
+        inv_disp_vtk = grid_maker.GetOutput()
+
+        inv_disp = vtk_numpy_support.vtk_to_numpy(inv_disp_vtk.GetPointData().GetArray(0))
         inv_disp = inv_disp.reshape(fwd_disp.shape)
 
         return inv_disp
 
     @staticmethod
     def compute_inverse_deformation(
-        num_spatial_dims, fwd_def_orig, spacing=None, num_iters: int = 100, use_package: str = "sitk"
+        num_spatial_dims, fwd_def_orig, spacing=None, num_iters: int = 100, use_package: str = "vtk"
     ):
         """Package can be vtk or sitk."""
         if use_package.lower() == "vtk" and not has_vtk:
