@@ -8,10 +8,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""
-A collection of "vanilla" transforms for spatial operations
-https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
-"""
+
 import json
 from typing import Optional, Sequence, Union
 
@@ -40,7 +37,7 @@ class FindAllValidSlicesd(Transform):
         sids: key to store slices indices having valid label map.
     """
 
-    def __init__(self, label="label", sids="sids"):
+    def __init__(self, label: str = "label", sids: str = "sids"):
         self.label = label
         self.sids = sids
 
@@ -79,7 +76,14 @@ class AddInitialSeedPointd(Randomizable, Transform):
         connected_regions: maximum connected regions to use for adding initial points.
     """
 
-    def __init__(self, label="label", guidance="guidance", sids="sids", sid="sid", connected_regions=5):
+    def __init__(
+        self,
+        label: str = "label",
+        guidance: str = "guidance",
+        sids: str = "sids",
+        sid: str = "sid",
+        connected_regions: int = 5,
+    ):
         self.label = label
         self.sids = sids
         self.sid = sid
@@ -152,7 +156,14 @@ class AddGuidanceSignald(Transform):
         batched: whether input is batched or not.
     """
 
-    def __init__(self, image="image", guidance="guidance", sigma=2, number_intensity_ch=1, batched=False):
+    def __init__(
+        self,
+        image: str = "image",
+        guidance: str = "guidance",
+        sigma: int = 2,
+        number_intensity_ch: int = 1,
+        batched: bool = False,
+    ):
         self.image = image
         self.guidance = guidance
         self.sigma = sigma
@@ -219,7 +230,9 @@ class FindDiscrepancyRegionsd(Transform):
         batched: whether input is batched or not.
     """
 
-    def __init__(self, label="label", pred="pred", discrepancy="discrepancy", batched=True):
+    def __init__(
+        self, label: str = "label", pred: str = "pred", discrepancy: str = "discrepancy", batched: bool = True
+    ):
         self.label = label
         self.pred = pred
         self.discrepancy = discrepancy
@@ -255,16 +268,21 @@ class FindDiscrepancyRegionsd(Transform):
 class AddRandomGuidanced(Randomizable, Transform):
     """
     Add random guidance based on discrepancies that were found between label and prediction.
+
+    Args:
+        guidance: key to guidance source.
+        discrepancy: key that represents discrepancies found between label and prediction.
+        probability: key that represents click/interaction probability.
+        batched: whether input is batched or not.
     """
 
-    def __init__(self, guidance="guidance", discrepancy="discrepancy", probability="probability", batched=True):
-        """
-        Args:
-            guidance: guidance source.
-            discrepancy: key that represents discrepancies found between label and prediction.
-            probability: key that represents click/interaction probability.
-            batched: defines if input is batched.
-        """
+    def __init__(
+        self,
+        guidance: str = "guidance",
+        discrepancy: str = "discrepancy",
+        probability: str = "probability",
+        batched: bool = True,
+    ):
         self.guidance = guidance
         self.discrepancy = discrepancy
         self.probability = probability
@@ -349,13 +367,31 @@ class SpatialCropForegroundd(MapTransform):
     - Select label > 0 in the third channel of a One-Hot label field as the foreground to crop all `keys` fields.
     Users can define arbitrary function to select expected foreground from the whole source image or specified
     channels. And it can also add margin to every dim of the bounding box of foreground object.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.MapTransform`
+        source_key: data source to generate the bounding box of foreground, can be image or label, etc.
+        spatial_size: minimal spatial size of the image patch e.g. [128, 128, 128] to fit in.
+        select_fn: function to select expected foreground, default is to select values > 0.
+        channel_indices: if defined, select foreground only on the specified channels
+            of image. if None, select foreground on the whole image.
+        margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
+        meta_key_postfix: use `{key}_{meta_key_postfix}` to to fetch/store the meta data according to the key data,
+            default is `meta_dict`, the meta data is a dictionary object.
+            For example, to handle key `image`,  read/write affine matrices from the
+            metadata `image_meta_dict` dictionary's `affine` field.
+        start_coord_key: key to record the start coordinate of spatial bounding box for foreground.
+        end_coord_key: key to record the end coordinate of spatial bounding box for foreground.
+        original_shape_key: key to record original shape for foreground.
+        cropped_shape_key: key to record cropped shape for foreground.
     """
 
     def __init__(
         self,
-        keys,
+        keys: KeysCollection,
         source_key: str,
-        spatial_size,
+        spatial_size: Union[Sequence[int], np.ndarray],
         select_fn=lambda x: x > 0,
         channel_indices=None,
         margin: int = 0,
@@ -365,24 +401,6 @@ class SpatialCropForegroundd(MapTransform):
         original_shape_key: str = "foreground_original_shape",
         cropped_shape_key: str = "foreground_cropped_shape",
     ) -> None:
-        """
-        Args:
-            keys: keys of the corresponding items to be transformed.
-            source_key: data source to generate the bounding box of foreground, can be image or label, etc.
-            spatial_size: minimal spatial size of the image patch e.g. [128, 128, 128] to fit in.
-            select_fn: function to select expected foreground, default is to select values > 0.
-            channel_indices: if defined, select foreground only on the specified channels
-                of image. if None, select foreground on the whole image.
-            margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
-            meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
-                default is `meta_dict`, the meta data is a dictionary object.
-                For example, to handle key `image`,  read/write affine matrices from the
-                metadata `image_meta_dict` dictionary's `affine` field.
-            start_coord_key: key to record the start coordinate of spatial bounding box for foreground.
-            end_coord_key: key to record the end coordinate of spatial bounding box for foreground.
-            original_shape_key: key to record original shape for foreground.
-            cropped_shape_key: key to record cropped shape for foreground.
-        """
         super().__init__(keys)
 
         self.source_key = source_key
@@ -428,13 +446,27 @@ class SpatialCropForegroundd(MapTransform):
 class SpatialCropGuidanced(MapTransform):
     """
     Crop image based on user guidance/clicks with minimal spatial size.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+        guidance: user input clicks/guidance used to generate the bounding box of foreground
+        spatial_size: minimal spatial size of the image patch e.g. [128, 128, 128] to fit in.
+        margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
+        meta_key_postfix: use `{key}_{meta_key_postfix}` to to fetch/store the meta data according to the key data,
+            default is `meta_dict`, the meta data is a dictionary object.
+            For example, to handle key `image`,  read/write affine matrices from the
+            metadata `image_meta_dict` dictionary's `affine` field.
+        start_coord_key: key to record the start coordinate of spatial bounding box for foreground.
+        end_coord_key: key to record the end coordinate of spatial bounding box for foreground.
+        original_shape_key: key to record original shape for foreground.
+        cropped_shape_key: key to record cropped shape for foreground.
     """
 
     def __init__(
         self,
         keys,
         guidance: str,
-        spatial_size,
+        spatial_size: Union[Sequence[int], np.ndarray],
         spatial_size_key: str = "spatial_size",
         margin: int = 20,
         meta_key_postfix="meta_dict",
@@ -443,21 +475,6 @@ class SpatialCropGuidanced(MapTransform):
         original_shape_key: str = "foreground_original_shape",
         cropped_shape_key: str = "foreground_cropped_shape",
     ) -> None:
-        """
-        Args:
-            keys: keys of the corresponding items to be transformed.
-            guidance: user input clicks/guidance used to generate the bounding box of foreground
-            spatial_size: minimal spatial size of the image patch e.g. [128, 128, 128] to fit in.
-            margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
-            meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
-                default is `meta_dict`, the meta data is a dictionary object.
-                For example, to handle key `image`,  read/write affine matrices from the
-                metadata `image_meta_dict` dictionary's `affine` field.
-            start_coord_key: key to record the start coordinate of spatial bounding box for foreground.
-            end_coord_key: key to record the end coordinate of spatial bounding box for foreground.
-            original_shape_key: key to record original shape for foreground.
-            cropped_shape_key: key to record cropped shape for foreground.
-        """
         super().__init__(keys)
 
         self.guidance = guidance
@@ -529,25 +546,24 @@ class SpatialCropGuidanced(MapTransform):
 class ResizeGuidanced(Transform):
     """
     Resize/re-scale user click/guidance based on original vs resized/cropped image.
+
+    Args:
+        guidance: user input clicks/guidance used to generate the bounding box of foreground
+        ref_image: key to the reference image to fetch current and original image details
+        meta_key_postfix: use `{ref_image}_{meta_key_postfix}` to to fetch/store the meta data according to the key data,
+            default is `meta_dict`, the meta data is a dictionary object.
+            For example, to handle key `image`,  read/write affine matrices from the
+            metadata `image_meta_dict` dictionary's `affine` field.
+        cropped_shape_key: key that records cropped shape for foreground.
     """
 
     def __init__(
         self,
         guidance: str,
-        ref_image,
+        ref_image: str,
         meta_key_postfix="meta_dict",
         cropped_shape_key: str = "foreground_cropped_shape",
     ) -> None:
-        """
-        Args:
-            guidance: user input clicks/guidance used to generate the bounding box of foreground
-            ref_image: reference image to fetch current and original image details
-            meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
-                default is `meta_dict`, the meta data is a dictionary object.
-                For example, to handle key `image`,  read/write affine matrices from the
-                metadata `image_meta_dict` dictionary's `affine` field.
-            cropped_shape_key: key that records cropped shape for foreground.
-        """
         self.guidance = guidance
         self.ref_image = ref_image
         self.meta_key_postfix = meta_key_postfix
@@ -571,6 +587,27 @@ class ResizeGuidanced(Transform):
 class RestoreCroppedLabeld(MapTransform):
     """
     Restore/resize label based on original vs resized/cropped image.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+        ref_image: key to the reference image to fetch current and original image details
+        slice_only: apply only to an applicable slice, in case of 2D model/prediction
+        channel_first: if channel is positioned at first
+        mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            One of the listed string values or a user supplied function for padding. Defaults to ``"constant"``.
+            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
+            See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            It also can be a sequence of bool, each element corresponds to a key in ``keys``.
+        meta_key_postfix: use `{ref_image}_{postfix}` to to fetch/store the meta data according to the key data,
+            default is `meta_dict`, the meta data is a dictionary object.
+            For example, to handle key `image`,  read/write affine matrices from the
+            metadata `image_meta_dict` dictionary's `affine` field.
+        start_coord_key: key to record the start coordinate of spatial bounding box for foreground.
+        end_coord_key: key to record the end coordinate of spatial bounding box for foreground.
+        original_shape_key: key to record original shape for foreground.
+        cropped_shape_key: key to record cropped shape for foreground.
     """
 
     def __init__(
@@ -587,28 +624,6 @@ class RestoreCroppedLabeld(MapTransform):
         original_shape_key: str = "foreground_original_shape",
         cropped_shape_key: str = "foreground_cropped_shape",
     ) -> None:
-        """
-        Args:
-            keys: keys of the corresponding items to be transformed.
-            ref_image: reference image to fetch current and original image details
-            slice_only: apply only to an applicable slice, in case of 2D model/prediction
-            channel_first: if channel is positioned at first
-            mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                One of the listed string values or a user supplied function for padding. Defaults to ``"constant"``.
-                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-            align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-                It also can be a sequence of bool, each element corresponds to a key in ``keys``.
-            meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
-                default is `meta_dict`, the meta data is a dictionary object.
-                For example, to handle key `image`,  read/write affine matrices from the
-                metadata `image_meta_dict` dictionary's `affine` field.
-            start_coord_key: key to record the start coordinate of spatial bounding box for foreground.
-            end_coord_key: key to record the end coordinate of spatial bounding box for foreground.
-            original_shape_key: key to record original shape for foreground.
-            cropped_shape_key: key to record cropped shape for foreground.
-        """
         super().__init__(keys)
         self.ref_image = ref_image
         self.slice_only = slice_only
@@ -679,35 +694,34 @@ class RestoreCroppedLabeld(MapTransform):
 class AddGuidanceFromPointsd(Randomizable, Transform):
     """
     Add guidance based on user clicks.
+
+    Args:
+        ref_image: key to the reference image to fetch current and original image details.
+        guidance: output key to store guidance.
+        foreground: key that represents user foreground (+ve) clicks.
+        background: key that represents user background (-ve) clicks.
+        axis: axis that represents slice in 3D volume.
+        channel_first: if channel is positioned at first.
+        dimensions: dimensions based on model used for deepgrow (2D vs 3D).
+        slice_key: key that represents applicable slice to add guidance.
+        meta_key_postfix: use `{ref_image}_{postfix}` to to fetch/store the meta data according to the key data,
+            default is `meta_dict`, the meta data is a dictionary object.
+            For example, to handle key `image`,  read/write affine matrices from the
+            metadata `image_meta_dict` dictionary's `affine` field.
     """
 
     def __init__(
         self,
-        ref_image,
-        guidance="guidance",
-        foreground="foreground",
-        background="background",
-        axis=0,
-        channel_first=True,
-        dimensions=2,
-        slice_key="slice",
+        ref_image: str,
+        guidance: str = "guidance",
+        foreground: str = "foreground",
+        background: str = "background",
+        axis: int = 0,
+        channel_first: bool = True,
+        dimensions: int = 2,
+        slice_key: str = "slice",
         meta_key_postfix: str = "meta_dict",
     ):
-        """
-        Args:
-            ref_image: reference image to fetch current and original image details.
-            guidance: output key to store guidance.
-            foreground: key that represents user foreground (+ve) clicks.
-            background: key that represents user background (-ve) clicks.
-            axis: axis that represents slice in 3D volume.
-            channel_first: if channel is positioned at first.
-            dimensions: dimensions based on model used for deepgrow (2D vs 3D).
-            slice_key: key that represents applicable slice to add guidance.
-            meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
-                default is `meta_dict`, the meta data is a dictionary object.
-                For example, to handle key `image`,  read/write affine matrices from the
-                metadata `image_meta_dict` dictionary's `affine` field.
-        """
         self.ref_image = ref_image
         self.guidance = guidance
         self.foreground = foreground
@@ -770,19 +784,20 @@ class AddGuidanceFromPointsd(Randomizable, Transform):
 class Fetch2DSliced(MapTransform):
     """
     Fetch once slice in case of a 3D volume.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+        guidance: key that represents guidance.
+        axis: axis that represents slice in 3D volume.
+        meta_key_postfix: use `{key}_{postfix}` to to fetch/store the meta data according to the key data,
+            default is `meta_dict`, the meta data is a dictionary object.
+            For example, to handle key `image`,  read/write affine matrices from the
+            metadata `image_meta_dict` dictionary's `affine` field.
     """
 
-    def __init__(self, keys, guidance="guidance", axis=0, meta_key_postfix: str = "meta_dict"):
-        """
-        Args:
-            keys: keys of the corresponding items to be transformed.
-            guidance: key that represents guidance.
-            axis: axis that represents slice in 3D volume.
-            meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
-                default is `meta_dict`, the meta data is a dictionary object.
-                For example, to handle key `image`,  read/write affine matrices from the
-                metadata `image_meta_dict` dictionary's `affine` field.
-        """
+    def __init__(
+        self, keys: KeysCollection, guidance: str = "guidance", axis: int = 0, meta_key_postfix: str = "meta_dict"
+    ):
         super().__init__(keys)
         self.guidance = guidance
         self.axis = axis
