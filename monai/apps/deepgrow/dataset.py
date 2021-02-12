@@ -26,7 +26,7 @@ def create_dataset(
     pixdim,
     image_key: str = "image",
     label_key: str = "label",
-    base_dir: str = None,
+    base_dir=None,
     limit: int = 0,
     relative_path: bool = False,
     transforms=None,
