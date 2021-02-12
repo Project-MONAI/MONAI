@@ -15,22 +15,22 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.apps.deepgrow.transforms import (
-    AddGuidanceFromPointsd,
     AddGuidanceSignald,
     AddInitialSeedPointd,
-    Fetch2DSliced,
+    AddRandomGuidanced,
     FindAllValidSlicesd,
     FindDiscrepancyRegionsd,
-    ResizeGuidanced,
-    RestoreCroppedLabeld,
     SpatialCropForegroundd,
-    SpatialCropGuidanced,
 )
-from monai.transforms import AddChanneld
+
+IMAGE = np.array([[[[1, 0, 2, 0, 1], [0, 1, 2, 1, 0], [2, 2, 3, 2, 2], [0, 1, 2, 1, 0], [1, 0, 2, 0, 1]]]])
+LABEL = np.array([[[[0, 0, 0, 0, 0], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 1, 0, 1, 0], [0, 0, 0, 0, 0]]]])
+BATCH_IMAGE = np.array([[[[[1, 0, 2, 0, 1], [0, 1, 2, 1, 0], [2, 2, 3, 2, 2], [0, 1, 2, 1, 0], [1, 0, 2, 0, 1]]]]])
+BATCH_LABEL = np.array([[[[[0, 0, 0, 0, 0], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 1, 0, 1, 0], [0, 0, 0, 0, 0]]]]])
 
 DATA_1 = {
-    "image": np.array([[[[1, 0, 2, 0, 1], [0, 1, 2, 1, 0], [2, 2, 3, 2, 2], [0, 1, 2, 1, 0], [1, 0, 2, 0, 1]]]]),
-    "label": np.array([[[[0, 0, 0, 0, 0], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 1, 0, 1, 0], [0, 0, 0, 0, 0]]]]),
+    "image": IMAGE,
+    "label": LABEL,
     "image_meta_dict": {},
     "label_meta_dict": {},
 }
@@ -52,22 +52,28 @@ DATA_2 = {
             ]
         ]
     ),
-    "guidance": [[[1, 0, 2, 2], [1, 1, 2, 2]], [[-1, -1, -1, -1], [-1, -1, -1, -1]]],
+    "guidance": np.array([[[1, 0, 2, 2], [1, 1, 2, 2]], [[-1, -1, -1, -1], [-1, -1, -1, -1]]]),
 }
 
 DATA_3 = {
-    "image": np.array([[[[1, 0, 2, 0, 1], [0, 1, 2, 1, 0], [2, 2, 3, 2, 2], [0, 1, 2, 1, 0], [1, 0, 2, 0, 1]]]]),
-    "label": np.array([[[[0, 0, 0, 0, 0], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 1, 0, 1, 0], [0, 0, 0, 0, 0]]]]),
-    "pred": np.array([[[[0, 0, 0, 0, 0], [0, 1, 0, 0, 0], [0, 1, 1, 0, 0], [0, 1, 0, 1, 0], [0, 0, 0, 0, 0]]]]),
+    "image": BATCH_IMAGE,
+    "label": BATCH_LABEL,
+    "pred": np.array([[[[[0, 0, 0, 0, 0], [0, 1, 0, 0, 0], [0, 1, 1, 0, 0], [0, 1, 0, 1, 0], [0, 0, 0, 0, 0]]]]]),
 }
 
-DATA_INFER = {
-    "image": np.array([[[1, 0, 2, 0, 1], [0, 1, 2, 1, 0], [2, 2, 3, 2, 2], [0, 1, 2, 1, 0], [1, 0, 2, 0, 1]]]),
-    "label": np.array([[[0, 0, 0, 0, 0], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 1, 0, 1, 0], [0, 0, 0, 0, 0]]]),
-    "image_meta_dict": {},
-    "label_meta_dict": {},
-    "foreground": [[2, 2, 0]],
-    "background": [],
+DATA_4 = {
+    "image": BATCH_IMAGE,
+    "label": BATCH_LABEL,
+    "guidance": np.array([[[[1, 0, 2, 2]], [[-1, -1, -1, -1]]]]),
+    "discrepancy": np.array(
+        [
+            [
+                [[[[0, 0, 0, 0, 0], [0, 0, 0, 1, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]],
+                [[[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 1, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]],
+            ]
+        ]
+    ),
+    "probability": [1.0],
 }
 
 FIND_SLICE_TEST_CASE_1 = [
@@ -98,11 +104,11 @@ CROP_TEST_CASE_1 = [
 ADD_INITIAL_POINT_TEST_CASE_1 = [
     {"label": "label", "guidance": "guidance", "sids": "sids"},
     DATA_1,
-    [[[1, 0, 2, 2]], [[-1, -1, -1, -1]]],
+    np.array([[[1, 0, 2, 2]], [[-1, -1, -1, -1]]]),
 ]
 
 ADD_GUIDANCE_TEST_CASE_1 = [
-    {"image": "image", "guidance": "guidance"},
+    {"image": "image", "guidance": "guidance", "batched": False},
     DATA_2,
     np.array(
         [
@@ -140,11 +146,17 @@ FIND_DISCREPANCY_TEST_CASE_1 = [
     np.array(
         [
             [
-                [[[0, 0, 0, 0, 0], [0, 0, 0, 1, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]],
-                [[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 1, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]],
+                [[[[0, 0, 0, 0, 0], [0, 0, 0, 1, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]],
+                [[[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 1, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]],
             ]
         ]
     ),
+]
+
+ADD_RANDOM_GUIDANCE_TEST_CASE_1 = [
+    {"guidance": "guidance", "discrepancy": "discrepancy", "probability": "probability", "batched": True},
+    DATA_4,
+    np.array([[[[1, 0, 2, 2], [1, 0, 1, 3]], [[-1, -1, -1, -1], [-1, -1, -1, -1]]]]),
 ]
 
 
@@ -187,8 +199,7 @@ class TestAddInitialSeedPointd(unittest.TestCase):
 class TestAddGuidanceSignald(unittest.TestCase):
     @parameterized.expand([ADD_GUIDANCE_TEST_CASE_1])
     def test_correct_results(self, arguments, input_data, expected_result):
-        add_fn = AddGuidanceSignald(**arguments)
-        result = add_fn(input_data)
+        result = AddGuidanceSignald(**arguments)(input_data)
         np.testing.assert_allclose(result["image"], expected_result, rtol=1e-5)
 
 
@@ -199,30 +210,14 @@ class TestFindDiscrepancyRegionsd(unittest.TestCase):
         np.testing.assert_allclose(result[arguments["discrepancy"]], expected_result)
 
 
-class TestTransforms(unittest.TestCase):
-    def test_inference(self):
-        result = DATA_INFER.copy()
-        result["image_meta_dict"]["spatial_shape"] = (5, 5, 1)
-        result["image_meta_dict"]["original_affine"] = (0, 0)
-
-        result = AddGuidanceFromPointsd(
-            ref_image="image", guidance="guidance", foreground="foreground", background="background", dimensions=2
-        )(result)
-        assert len(result["guidance"][0][0]) == 2
-
-        result = Fetch2DSliced(keys="image", guidance="guidance")(result)
-        assert result["image"].shape == (5, 5)
-
-        result = AddChanneld(keys="image")(result)
-
-        result = SpatialCropGuidanced(keys="image", guidance="guidance", spatial_size=(4, 4))(result)
-        assert result["image"].shape == (1, 4, 4)
-
-        result = ResizeGuidanced(guidance="guidance", ref_image="image")(result)
-
-        result["pred"] = np.random.randint(0, 2, size=(1, 4, 4))
-        result = RestoreCroppedLabeld(keys="pred", ref_image="image", mode="nearest")(result)
-        assert result["pred"].shape == (1, 5, 5)
+class TestAddRandomGuidanced(unittest.TestCase):
+    @parameterized.expand([ADD_RANDOM_GUIDANCE_TEST_CASE_1])
+    def test_correct_results(self, arguments, input_data, expected_result):
+        seed = 0
+        add_fn = AddRandomGuidanced(**arguments)
+        add_fn.set_random_state(seed)
+        result = add_fn(input_data)
+        np.testing.assert_allclose(result[arguments["guidance"]], expected_result, rtol=1e-5)
 
 
 if __name__ == "__main__":

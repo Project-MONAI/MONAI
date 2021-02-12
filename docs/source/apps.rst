@@ -39,17 +39,9 @@ Applications
     :members:
 .. autoclass:: AddRandomGuidanced
     :members:
-.. autoclass:: AddGuidanceFromPointsd
-    :members:
 .. autoclass:: SpatialCropForegroundd
-    :members:
-.. autoclass:: SpatialCropGuidanced
-    :members:
-.. autoclass:: RestoreCroppedLabeld
     :members:
 .. autoclass:: FindDiscrepancyRegionsd
     :members:
 .. autoclass:: FindAllValidSlicesd
-    :members:
-.. autoclass:: Fetch2DSliced
     :members:
