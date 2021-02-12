@@ -9,17 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
-from typing import Optional, Sequence, Union
+from typing import Sequence, Union
 
 import numpy as np
 
 from monai.config import KeysCollection
-from monai.transforms import Resize, SpatialCrop
+from monai.transforms import SpatialCrop
 from monai.transforms.compose import MapTransform, Randomizable, Transform
-from monai.transforms.spatial.dictionary import InterpolateModeSequence
 from monai.transforms.utils import generate_spatial_bounding_box
-from monai.utils import InterpolateMode, ensure_tuple_rep, min_version, optional_import
+from monai.utils import min_version, optional_import
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_cdt")
