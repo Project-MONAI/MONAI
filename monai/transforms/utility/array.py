@@ -185,7 +185,7 @@ class DeleteChannel(Transform):
         if np.shape(img)[0] < 2:
             raise AssertionError("Image must have more than one channel")
 
-        return img[:: self.repeats, :]
+        return np.array(img[:: self.repeats, :])
 
 
 class SplitChannel(Transform):
