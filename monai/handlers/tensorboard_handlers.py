@@ -29,7 +29,38 @@ else:
 DEFAULT_TAG = "Loss"
 
 
-class TensorBoardStatsHandler:
+class TensorBoardHandler:
+    """
+    Base class for the handlers to write data into TensorBoard.
+
+    Args:
+        summary_writer: user can specify TensorBoard SummaryWriter,
+            default to create a new writer.
+        log_dir: if using default SummaryWriter, write logs to this directory, default is `./runs`.
+
+    """
+
+    def __init__(self, summary_writer: Optional[SummaryWriter] = None, log_dir: str = "./runs"):
+        if summary_writer is None:
+            self._writer = SummaryWriter(log_dir=log_dir)
+            self.internal_writer = True
+        else:
+            self._writer = summary_writer
+            self.internal_writer = False
+
+    def attach(self, engine: Engine) -> None:
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+
+    def close(self):
+        """
+        Close the summary writer if created in this TensorBoard handler.
+
+        """
+        if self.internal_writer:
+            self._writer.close()
+
+
+class TensorBoardStatsHandler(TensorBoardHandler):
     """
     TensorBoardStatsHandler defines a set of Ignite Event-handlers for all the TensorBoard logics.
     It's can be used for any Ignite Engine(trainer, validator and evaluator).
@@ -71,7 +102,7 @@ class TensorBoardStatsHandler:
                 when plotting epoch vs metric curves.
             tag_name: when iteration output is a scalar, tag_name is used to plot, defaults to ``'Loss'``.
         """
-        self._writer = SummaryWriter(log_dir=log_dir) if summary_writer is None else summary_writer
+        super().__init__(summary_writer=summary_writer, log_dir=log_dir)
         self.epoch_event_writer = epoch_event_writer
         self.iteration_event_writer = iteration_event_writer
         self.output_transform = output_transform
@@ -176,7 +207,7 @@ class TensorBoardStatsHandler:
         writer.flush()
 
 
-class TensorBoardImageHandler:
+class TensorBoardImageHandler(TensorBoardHandler):
     """
     TensorBoardImageHandler is an Ignite Event handler that can visualize images, labels and outputs as 2D/3D images.
     2D output (shape in Batch, channel, H, W) will be shown as simple image using the first element in the batch,
@@ -229,7 +260,7 @@ class TensorBoardImageHandler:
             max_channels: number of channels to plot.
             max_frames: number of frames for 2D-t plot.
         """
-        self._writer = SummaryWriter(log_dir=log_dir) if summary_writer is None else summary_writer
+        super().__init__(summary_writer=summary_writer, log_dir=log_dir)
         self.interval = interval
         self.epoch_level = epoch_level
         self.batch_transform = batch_transform
