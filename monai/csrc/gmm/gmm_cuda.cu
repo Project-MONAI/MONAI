@@ -465,7 +465,7 @@ float GMMTerm(uchar4 pixel, const float *gmm)
 }
 
 __global__
-void GMMDataTermKernel(Npp32s *terminals, int terminal_pitch, int gmmN, const float *gmm, int gmm_pitch, const uchar4 *image, int image_pitch, const unsigned char *trimap, int trimap_pitch, int width, int height)
+void GMMDataTermKernel(int *terminals, int terminal_pitch, int gmmN, const float *gmm, int gmm_pitch, const uchar4 *image, int image_pitch, const unsigned char *trimap, int trimap_pitch, int width, int height)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -512,7 +512,7 @@ void GMMDataTermKernel(Npp32s *terminals, int terminal_pitch, int gmmN, const fl
 }
 
 
-cudaError_t GMMDataTerm(Npp32s *terminals, int terminal_pitch, int gmmN, const float *gmm, int gmm_pitch, const uchar4 *image, int image_pitch, const unsigned char *trimap, int trimap_pitch, int width, int height)
+cudaError_t GMMDataTerm(int *terminals, int terminal_pitch, int gmmN, const float *gmm, int gmm_pitch, const uchar4 *image, int image_pitch, const unsigned char *trimap, int trimap_pitch, int width, int height)
 {
 
     dim3 block(32,8);
@@ -796,4 +796,60 @@ cudaError_t GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pit
     }
 
     return cudaGetLastError();
+}
+
+__global__ void INPUT_KERNEL(float* input, int* labels, int width, int height, int channel_stride, uchar4* image, int image_pitch, unsigned char* trimap, int trimap_pitch)
+{
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (x >= width || y >= height) return;
+
+    int home = x + y * width;
+    int image_home = x + y * image_pitch;
+    int trimap_home = x + y * trimap_pitch;
+    
+    uchar4 color;
+    color.x = input[home + 0 * channel_stride] * 255;
+    color.y = input[home + 1 * channel_stride] * 255;
+    color.z = input[home + 2 * channel_stride] * 255;
+    color.w = input[home + 3 * channel_stride] * 255;
+
+    unsigned char trimap_value = labels[home];
+
+    image[image_home] = color;
+    trimap[trimap_home] = trimap_value;
+}
+
+__global__ void OUTPUT_KERNEL(int* terminals, int terminals_pitch, int* output, int width, int height)
+{
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (x >= width || y >= height) return;
+
+    int home = x + y * width;
+    int terminals_home = x + y * terminals_pitch;
+
+    output[home] = terminals[terminals_home];
+}
+
+
+#define BLOCK_SIZE 32
+#define TILE(SIZE, STRIDE) (((SIZE - 1)/STRIDE) + 1)
+
+void INPUT(float* input, int* labels, int width, int height, int channel_stride, uchar4* image, int image_pitch, unsigned char* trimap, int trimap_pitch)
+{
+    dim3 block_count = dim3(TILE(width, BLOCK_SIZE), TILE(height, BLOCK_SIZE));
+    dim3 block_size = dim3(BLOCK_SIZE, BLOCK_SIZE);
+
+    INPUT_KERNEL<<<block_count, block_size>>>(input, labels, width, height, channel_stride, image, image_pitch, trimap, trimap_pitch);
+}
+
+void OUTPUT(int* terminals, int terminals_pitch, int* output, int width, int height)
+{
+    dim3 block_count = dim3(TILE(width, BLOCK_SIZE), TILE(height, BLOCK_SIZE));
+    dim3 block_size = dim3(BLOCK_SIZE, BLOCK_SIZE);
+
+    OUTPUT_KERNEL<<<block_count, block_size>>>(terminals, terminals_pitch, output, width, height);
 }

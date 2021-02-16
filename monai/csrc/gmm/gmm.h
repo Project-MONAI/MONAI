@@ -14,7 +14,7 @@ limitations under the License.
 #include <torch/extension.h>
 #include "gmm_cuda.cuh"
 
-torch::Tensor GMM(torch::Tensor image, torch::Tensor labels, int mixture_count, int gaussians_per_mixture)
+torch::Tensor GMM(torch::Tensor input_tensor, torch::Tensor label_tensor, int mixture_count, int gaussians_per_mixture)
 {
-    return GMM_Cuda(image, labels, mixture_count, gaussians_per_mixture);
+    return GMM_Cuda(input_tensor, label_tensor, mixture_count, gaussians_per_mixture);
 }
