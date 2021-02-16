@@ -495,6 +495,31 @@ class TestInverse(unittest.TestCase):
             if torch.cuda.is_available():
                 _ = model(inputs)
 
+    def test_diff_sized_inputs(self):
+
+        key = "image"
+        test_data = [{key: AddChannel()(create_test_image_2d(100 + i, 101 + i)[0])} for i in range(4)]
+
+        batch_size = 2
+        # num workers = 0 for mac
+        num_workers = 2 if sys.platform != "darwin" else 0
+        transforms = Compose([SpatialPadd(key, (150, 153))])
+
+        dataset = CacheDataset(test_data, transform=transforms, progress=False)
+        loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+        # blank collate function since input are different size
+        inv_batch = BatchInverseTransform(transforms, loader, collate_fn=lambda x: x)
+
+        for batch_idx, batch_data in enumerate(loader):
+            fwd = decollate_batch(batch_data)
+            fwd_bck = inv_batch(batch_data)
+
+            for idx, (_fwd, _fwd_bck) in enumerate(zip(fwd, fwd_bck)):
+                unmodified = test_data[batch_idx * batch_size + idx]
+                self.check_inverse("diff_sized_inputs", [key], unmodified, _fwd_bck, _fwd, 0)
+
+
+
     @parameterized.expand(TESTS_FAIL)
     def test_fail(self, data, _, *transform):
         d = transform[0](data)

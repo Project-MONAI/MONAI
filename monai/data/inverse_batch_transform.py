@@ -9,9 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Callable
 from monai.data.dataloader import DataLoader
+from torch.utils.data.dataloader import DataLoader as TorchDataLoader
 from monai.data.dataset import Dataset
-from monai.data.utils import decollate_batch
+from monai.data.utils import decollate_batch, list_data_collate
 from monai.transforms.inverse_transform import InvertibleTransform
 
 __all__ = ["BatchInverseTransform"]
@@ -30,17 +32,29 @@ class _BatchInverseDataset(Dataset):
 class BatchInverseTransform:
     """something"""
 
-    def __init__(self, transform: InvertibleTransform, loader) -> None:
+    def __init__(
+        self, transform: InvertibleTransform, loader: TorchDataLoader, collate_fn: Callable = None
+    ) -> None:
         """
         Args:
             transform: a callable data transform on input data.
             loader: data loader used to generate the batch of data.
+            collate_fn: how to collate data after inverse transformations. Default will use the DataLoader's default collation method.
+                If returning images of different sizes, this will likely create an error (since the collation will concatenate arrays,
+                requiring them to be the same size). In this case, using `collate_fn=lambda x: x` might solve the problem.
         """
         self.transform = transform
         self.batch_size = loader.batch_size
         self.num_workers = loader.num_workers
+        self.collate_fn = collate_fn
 
     def __call__(self, data):
         inv_ds = _BatchInverseDataset(data, self.transform)
-        inv_loader = DataLoader(inv_ds, batch_size=self.batch_size, num_workers=self.num_workers)
-        return next(iter(inv_loader))
+        inv_loader = DataLoader(inv_ds, batch_size=self.batch_size, num_workers=self.num_workers, collate_fn=self.collate_fn)
+        try:
+            return next(iter(inv_loader))
+        except RuntimeError as re:
+            re = str(re)
+            if "stack expects each tensor to be equal size" in re:
+                re += "\nMONAI hint: try creating `BatchInverseTransform` with `collate_fn=lambda x: x`."
+            raise RuntimeError(re)
