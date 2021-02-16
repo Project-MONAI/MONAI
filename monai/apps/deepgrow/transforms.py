@@ -42,9 +42,8 @@ class FindAllValidSlicesd(Transform):
     def _apply(self, label):
         sids = []
         for sid in range(label.shape[1]):  # Assume channel is first
-            if np.sum(label[0][sid]) == 0:
-                continue
-            sids.append(sid)
+            if np.sum(label[0][sid]) != 0:
+                sids.append(sid)
         return np.asarray(sids)
 
     def __call__(self, data):
@@ -133,15 +132,16 @@ class AddInitialSeedPointd(Randomizable, Transform):
         return np.asarray([pos_guidance, [default_guidance] * len(pos_guidance)])
 
     def __call__(self, data):
-        sid = data.get(self.sid)
-        sids = data.get(self.sids)
+        d = dict(data)
+        sid = d.get(self.sid, None)
+        sids = d.get(self.sids, None)
         if sids is not None:
             if sid is None or sid not in sids:
                 sid = self.R.choice(sids, replace=False)
         else:
             sid = None
-        data[self.guidance] = self._apply(data[self.label], sid)
-        return data
+        d[self.guidance] = self._apply(d[self.label], sid)
+        return d
 
 
 class AddGuidanceSignald(Transform):
@@ -214,11 +214,12 @@ class AddGuidanceSignald(Transform):
         return images
 
     def __call__(self, data):
-        image = data[self.image]
-        guidance = data[self.guidance]
+        d = dict(data)
+        image = d[self.image]
+        guidance = d[self.guidance]
 
-        data[self.image] = self._apply(image, guidance)
-        return data
+        d[self.image] = self._apply(image, guidance)
+        return d
 
 
 class FindDiscrepancyRegionsd(Transform):
@@ -265,11 +266,12 @@ class FindDiscrepancyRegionsd(Transform):
         return disparity
 
     def __call__(self, data):
-        label = data[self.label]
-        pred = data[self.pred]
+        d = dict(data)
+        label = d[self.label]
+        pred = d[self.pred]
 
-        data[self.discrepancy] = self._apply(label, pred)
-        return data
+        d[self.discrepancy] = self._apply(label, pred)
+        return d
 
 
 class AddRandomGuidanced(Randomizable, Transform):
@@ -363,12 +365,13 @@ class AddRandomGuidanced(Randomizable, Transform):
         return np.asarray(guidance)
 
     def __call__(self, data):
-        guidance = data[self.guidance]
-        discrepancy = data[self.discrepancy]
-        probability = data[self.probability]
+        d = dict(data)
+        guidance = d[self.guidance]
+        discrepancy = d[self.discrepancy]
+        probability = d[self.probability]
 
-        data[self.guidance] = self._apply(guidance, discrepancy, probability)
-        return data
+        d[self.guidance] = self._apply(guidance, discrepancy, probability)
+        return d
 
 
 class SpatialCropForegroundd(MapTransform):
