@@ -128,7 +128,7 @@ class NonRigidTransform(ABC):
         fwd_disp_vtk = vtk.vtkImageData()
         fwd_disp_vtk.SetOrigin(0, 0, 0)
         fwd_disp_vtk.SetSpacing(1, 1, 1)
-        fwd_disp_vtk.SetDimensions(*fwd_disp.shape[:-1])
+        fwd_disp_vtk.SetDimensions(*fwd_disp.shape[:-1][::-1])  # VTK spacing opposite order to numpy
         fwd_disp_vtk.GetPointData().SetScalars(vtk_data_array)
 
         if __debug__:
@@ -198,21 +198,10 @@ class NonRigidTransform(ABC):
         if use_package.lower() == "vtk":
             inv_disp = NonRigidTransform._inv_disp_w_vtk(fwd_disp)
         # If using sitk...
-        else:
+        elif use_package.lower() == "sitk":
             inv_disp = NonRigidTransform._inv_disp_w_sitk(fwd_disp, num_iters)
-
-        if True:
-            import matplotlib.pyplot as plt
-
-            fig, axes = plt.subplots(2, 2)
-            for i, direc1 in enumerate(["x", "y"]):
-                for j, (im, direc2) in enumerate(zip([fwd_disp, inv_disp], ["fwd", "inv"])):
-                    ax = axes[i, j]
-                    im_show = ax.imshow(im[..., i])
-                    ax.set_title(f"{direc2}{direc1}", fontsize=25)
-                    ax.axis("off")
-                    fig.colorbar(im_show, ax=ax)
-            plt.show()
+        else:
+            raise RuntimeError("Enter vtk or sitk for inverse calculation")
 
         # move tensor component back to beginning
         inv_disp = np.moveaxis(inv_disp, -1, 0)

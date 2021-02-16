@@ -349,18 +349,18 @@ TESTS.append(
     (
         "Rand2DElasticd 2d",
         DATA_2D,
-        1e-1,
+        2e-1,
         Rand2DElasticd(
             KEYS,
             spacing=(10.0, 10.0),
-            magnitude_range=(2, 2),
-            # spatial_size=[155, 192],
+            magnitude_range=(1, 1),
+            spatial_size=[155, 192],
             prob=1,
             padding_mode="zeros",
-            # rotate_range=[(np.pi / 6, np.pi / 6), np.pi / 7],
-            # shear_range=[(0.5, 0.5)],
-            # translate_range=[10, 5],
-            # scale_range=[(0.8, 1.2), (0.9, 1.3)],
+            rotate_range=[(np.pi / 6, np.pi / 6)],
+            shear_range=[(0.5, 0.5)],
+            translate_range=[10, 5],
+            scale_range=[(1.2, 1.2), (1.3, 1.3)],
         ),
     )
 )
@@ -370,19 +370,18 @@ if not test_is_quick:
         (
             "Rand3DElasticd 3d",
             DATA_3D,
-            2e-1,
-            Rand3DElasticd(
-                KEYS,
-                sigma_range=(1, 3),
-                magnitude_range=(1.0, 2.0),
-                spatial_size=[155, 192, 200],
-                prob=1,
-                padding_mode="zeros",
-                rotate_range=[np.pi / 6, np.pi / 7],
-                shear_range=[(0.5, 0.5)],
-                translate_range=[10, 5],
-                scale_range=[(0.8, 1.2), (0.9, 1.3)],
-            ),
+        1e-1,
+        Rand3DElasticd(
+            KEYS,
+            sigma_range=(3, 5),
+            magnitude_range=(100, 100),
+            prob=1,
+            padding_mode="zeros",
+            rotate_range=[np.pi / 6, np.pi / 7],
+            shear_range=[(0.5, 0.5), 0.2],
+            translate_range=[10, 5, 3],
+            scale_range=[(0.8, 1.2), (0.9, 1.3)],
+        ),
         )
     )
 

@@ -238,7 +238,7 @@ class NormalizeIntensity(Transform):
         self.dtype = dtype
 
     def _normalize(self, img: np.ndarray, sub=None, div=None) -> np.ndarray:
-        slices = (img != 0) if self.nonzero else np.ones(img.shape, dtype=np.bool_)
+        slices = (img != 0) if self.nonzero else np.ones(img.shape, dtype=bool)
         if not np.any(slices):
             return img
 

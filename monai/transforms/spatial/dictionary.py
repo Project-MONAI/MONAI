@@ -676,7 +676,7 @@ class Rand2DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
         self.rand_2d_elastic = Rand2DElastic(
             spacing=spacing,
             magnitude_range=magnitude_range,
-            prob=prob,
+            prob=1.0,  # because probability controlled by this class
             rotate_range=rotate_range,
             shear_range=shear_range,
             translate_range=translate_range,
@@ -696,7 +696,19 @@ class Rand2DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
         return self
 
     def randomize(self, spatial_size: Sequence[int]) -> None:
+        self._do_transform = self.R.rand() < self.prob
         self.rand_2d_elastic.randomize(spatial_size)
+
+    @staticmethod
+    def cpg_to_dvf(cpg, spacing, output_shape):
+        grid = torch.nn.functional.interpolate(
+            recompute_scale_factor=True,
+            input=cpg.unsqueeze(0),
+            scale_factor=ensure_tuple_rep(spacing, 2),
+            mode=InterpolateMode.BILINEAR.value,
+            align_corners=False,
+        )
+        return CenterSpatialCrop(roi_size=output_shape)(grid[0])
 
     def __call__(
         self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
@@ -706,22 +718,17 @@ class Rand2DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
         sp_size = fall_back_tuple(self.rand_2d_elastic.spatial_size, data[self.keys[0]].shape[1:])
         self.randomize(spatial_size=sp_size)
 
-        if self.rand_2d_elastic._do_transform:
+        if self._do_transform:
             cpg = self.rand_2d_elastic.deform_grid(spatial_size=sp_size)
-            cpg = self.rand_2d_elastic.rand_affine_grid(grid=cpg)
-            grid = torch.nn.functional.interpolate(  # type: ignore
-                recompute_scale_factor=True,
-                input=cpg.unsqueeze(0),
-                scale_factor=ensure_tuple_rep(self.rand_2d_elastic.deform_grid.spacing, 2),
-                mode=InterpolateMode.BILINEAR.value,
-                align_corners=False,
-            )
-            grid = CenterSpatialCrop(roi_size=sp_size)(grid[0])
+            cpg_w_affine, affine = self.rand_2d_elastic.rand_affine_grid(grid=cpg, return_affine=True)
+            grid = self.cpg_to_dvf(cpg_w_affine, self.rand_2d_elastic.deform_grid.spacing, sp_size)
+            extra_info = {"cpg": deepcopy(cpg), "affine": deepcopy(affine)}
         else:
             grid = create_grid(spatial_size=sp_size)
+            extra_info = None
 
         for idx, key in enumerate(self.keys):
-            self.append_applied_transforms(d, key, extra_info={"grid": deepcopy(grid)})
+            self.append_applied_transforms(d, key, extra_info=extra_info)
             d[key] = self.rand_2d_elastic.resampler(
                 d[key], grid, mode=self.mode[idx], padding_mode=self.padding_mode[idx]
             )
@@ -729,23 +736,35 @@ class Rand2DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
+        # This variable will be `not None` if vtk or sitk is present
+        inv_def_w_affine = None
 
         for idx, key in enumerate(self.keys):
             transform = self.get_most_recent_transform(d, key)
-            orig_size = transform["orig_size"]
             # Create inverse transform
-            fwd_def = transform["extra_info"]["grid"]
-            if fwd_def is None:
-                d[key] = CenterSpatialCrop(roi_size=orig_size)(d[key])
+            if transform["do_transform"]:
+                orig_size = transform["orig_size"]
+                # Only need to calculate inverse deformation once as it is the same for all keys
+                if idx == 0:
+                    # If magnitude == 0, then non-rigid component is identity -- so just create blank
+                    if self.rand_2d_elastic.deform_grid.magnitude == (0.0, 0.0):
+                        inv_def_no_affine = create_grid(spatial_size=orig_size)
+                    else:
+                        fwd_cpg_no_affine = transform["extra_info"]["cpg"]
+                        fwd_def_no_affine = self.cpg_to_dvf(fwd_cpg_no_affine, self.rand_2d_elastic.deform_grid.spacing, orig_size)
+                        inv_def_no_affine = self.compute_inverse_deformation(len(orig_size), fwd_def_no_affine)
+                    # if inverse did not succeed (sitk or vtk present), data will not be changed.
+                    if inv_def_no_affine is not None:
+                        fwd_affine = transform["extra_info"]["affine"]
+                        inv_affine = np.linalg.inv(fwd_affine)
+                        inv_def_w_affine = AffineGrid(affine=inv_affine)(grid=inv_def_no_affine)
+                        # Back to original size
+                        inv_def_w_affine = CenterSpatialCrop(roi_size=orig_size)(inv_def_w_affine)
+                # Apply inverse transform
+                out = self.rand_2d_elastic.resampler(d[key], inv_def_w_affine, self.mode[idx], self.padding_mode[idx])
+                d[key] = out.cpu().numpy() if isinstance(out, torch.Tensor) else out
             else:
-                inv_def = self.compute_inverse_deformation(len(orig_size), fwd_def)
-                # if no sitk, `inv_def` will be `None`, and data will not be changed.
-                if inv_def is not None:
-                    # Back to original size
-                    inv_def = CenterSpatialCrop(roi_size=orig_size)(inv_def)
-                    # Apply inverse transform
-                    out = self.rand_2d_elastic.resampler(d[key], inv_def, self.mode[idx], self.padding_mode[idx])
-                    d[key] = out.cpu().numpy() if isinstance(out, torch.Tensor) else out
+                d[key] = CenterSpatialCrop(roi_size=orig_size)(d[key])
             # Remove the applied transform
             self.remove_most_recent_transform(d, key)
 
@@ -819,7 +838,7 @@ class Rand3DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
         self.rand_3d_elastic = Rand3DElastic(
             sigma_range=sigma_range,
             magnitude_range=magnitude_range,
-            prob=prob,
+            prob=1.0,  # because probability controlled by this class
             rotate_range=rotate_range,
             shear_range=shear_range,
             translate_range=translate_range,
@@ -839,9 +858,8 @@ class Rand3DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
         return self
 
     def randomize(self, grid_size: Sequence[int]) -> None:
+        self._do_transform = self.R.rand() < self.prob
         self.rand_3d_elastic.randomize(grid_size)
-        self.prob = self.rand_3d_elastic.prob
-        self._do_transform = self.rand_3d_elastic._do_transform
 
     def __call__(
         self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
@@ -850,44 +868,49 @@ class Rand3DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
         sp_size = fall_back_tuple(self.rand_3d_elastic.spatial_size, data[self.keys[0]].shape[1:])
 
         self.randomize(grid_size=sp_size)
-        grid = create_grid(spatial_size=sp_size)
-        if self.rand_3d_elastic._do_transform:
+        grid_no_affine = create_grid(spatial_size=sp_size)
+        if self._do_transform:
             device = self.rand_3d_elastic.device
-            grid = torch.tensor(grid).to(device)
+            grid_no_affine = torch.tensor(grid_no_affine).to(device)
             gaussian = GaussianFilter(spatial_dims=3, sigma=self.rand_3d_elastic.sigma, truncated=3.0).to(device)
             offset = torch.tensor(self.rand_3d_elastic.rand_offset, device=device).unsqueeze(0)
-            grid[:3] += gaussian(offset)[0] * self.rand_3d_elastic.magnitude
-            grid = self.rand_3d_elastic.rand_affine_grid(grid=grid)
+            grid_no_affine[:3] += gaussian(offset)[0] * self.rand_3d_elastic.magnitude
+            grid_w_affine, affine = self.rand_3d_elastic.rand_affine_grid(grid=grid_no_affine, return_affine=True)
 
         for idx, key in enumerate(self.keys):
-            self.append_applied_transforms(d, key, extra_info={"grid": grid.cpu().numpy()})
+            self.append_applied_transforms(d, key, extra_info={"grid_no_affine": grid_no_affine.cpu().numpy(), "affine": affine})
             d[key] = self.rand_3d_elastic.resampler(
-                d[key], grid, mode=self.mode[idx], padding_mode=self.padding_mode[idx]
+                d[key], grid_w_affine, mode=self.mode[idx], padding_mode=self.padding_mode[idx]
             )
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
+        # This variable will be `not None` if vtk or sitk is present
+        inv_def_w_affine = None
 
         for idx, key in enumerate(self.keys):
             transform = self.get_most_recent_transform(d, key)
-            orig_size = transform["orig_size"]
             # Create inverse transform
-            fwd_def = transform["extra_info"]["grid"]
-            if fwd_def is None:
-                d[key] = CenterSpatialCrop(roi_size=orig_size)(d[key])
+            if transform["do_transform"]:
+                orig_size = transform["orig_size"]
+                # Only need to calculate inverse deformation once as it is the same for all keys
+                if idx == 0:
+                    fwd_def_no_affine = transform["extra_info"]["grid_no_affine"]
+                    inv_def_no_affine = self.compute_inverse_deformation(len(orig_size), fwd_def_no_affine)
+                    # if inverse did not succeed (sitk or vtk present), data will not be changed.
+                    if inv_def_no_affine is not None:
+                        fwd_affine = transform["extra_info"]["affine"]
+                        inv_affine = np.linalg.inv(fwd_affine)
+                        inv_def_w_affine = AffineGrid(affine=inv_affine)(grid=inv_def_no_affine)
+                        # Back to original size
+                        inv_def_w_affine = CenterSpatialCrop(roi_size=orig_size)(inv_def_w_affine)
+                # Apply inverse transform
+                if inv_def_w_affine is not None:
+                    out = self.rand_3d_elastic.resampler(d[key], inv_def_w_affine, self.mode[idx], self.padding_mode[idx])
+                    d[key] = out.cpu().numpy() if isinstance(out, torch.Tensor) else out
             else:
-                inv_def = self.compute_inverse_deformation(len(orig_size), fwd_def)
-                # if no sitk, `inv_def` will be `None`, and data will not be changed.
-                if inv_def is not None:
-                    # Back to original size
-                    inv_def = CenterSpatialCrop(roi_size=orig_size)(inv_def)
-                    # Apply inverse transform
-                    out = self.rand_3d_elastic.resampler(d[key], inv_def, self.mode[idx], self.padding_mode[idx])
-                    if isinstance(out, torch.Tensor):
-                        d[key] = out.cpu().numpy()
-                    else:
-                        d[key] = out
+                d[key] = CenterSpatialCrop(roi_size=orig_size)(d[key])
             # Remove the applied transform
             self.remove_most_recent_transform(d, key)
 
