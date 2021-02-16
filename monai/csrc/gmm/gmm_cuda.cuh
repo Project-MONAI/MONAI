@@ -58,7 +58,7 @@ torch::Tensor GMM_Cuda(torch::Tensor input_tensor, torch::Tensor label_tensor, i
     cudaMallocPitch(&d_alpha, &alpha_pitch, width, height);
     
     float* d_scratch_mem;
-    int scratch_gmm_size = (int)(blocks * gmm_pitch * gmms + blocks * 4);
+    int scratch_gmm_size = blocks * gmm_pitch * gmms + blocks * 4;
     cudaMalloc(&d_scratch_mem, scratch_gmm_size);
 
     float* d_gmm;
@@ -72,9 +72,9 @@ torch::Tensor GMM_Cuda(torch::Tensor input_tensor, torch::Tensor label_tensor, i
 
     INPUT(input_tensor.data_ptr<float>(), label_tensor.data_ptr<int>(), width, height, width * height, d_image, image_pitch, d_trimap, trimap_pitch);
 
-    GMMInitialize(gmms, d_gmm, d_scratch_mem, (int)gmm_pitch, d_image, (int)image_pitch, d_alpha, (int)alpha_pitch, width, height);
-    GMMUpdate(gmms, d_gmm, d_scratch_mem, (int)gmm_pitch, d_image, (int)image_pitch, d_alpha, (int)alpha_pitch, width, height);
-    GMMDataTerm(d_terminals, (int)terminals_pitch, gmms, d_gmm, (int)gmm_pitch, d_image, (int)image_pitch, d_trimap, (int)trimap_pitch, width, height);
+    GMMInitialize(gmms, d_gmm, d_scratch_mem, gmm_pitch, d_image, image_pitch, d_alpha, alpha_pitch, width, height);
+    GMMUpdate(gmms, d_gmm, d_scratch_mem, gmm_pitch, d_image, image_pitch, d_alpha, alpha_pitch, width, height);
+    GMMDataTerm(d_terminals, terminals_pitch, gmms, d_gmm, gmm_pitch, d_image, image_pitch, d_trimap, trimap_pitch, width, height);
 
     OUTPUT(d_terminals, terminals_pitch, output.data_ptr<int>(), width, height);
 

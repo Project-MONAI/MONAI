@@ -110,8 +110,7 @@ float get_constant(float *gmm, int i)
 
 // Tile Size: 32x32, Block Size 32xwarp_N
 template<int warp_N, bool create_gmm_flags>
-__global__
-void GMMReductionKernel(int gmm_idx, float *gmm, int gmm_pitch, const uchar4 *image, int image_pitch, unsigned char *alpha, int alpha_pitch, int width, int height, unsigned int *tile_gmms)
+__global__ void GMMReductionKernel(int gmm_idx, float *gmm, int gmm_pitch, const uchar4 *image, int image_pitch, unsigned char *alpha, int alpha_pitch, int width, int height, unsigned int *tile_gmms)
 {
     __shared__ uchar4 s_lists[32*32];
     __shared__ volatile float s_gmm[32*warp_N];
@@ -271,8 +270,7 @@ __constant__ int inv_indices[] = { (4 << (5*4)) + (5 << (4*4)) + (4 << (3*4)) + 
 
 // One block per GMM, 32*warp_N threads (1-dim)
 template <int warp_N, bool invertSigma>
-__global__
-void GMMFinalizeKernel(float *gmm, float *gmm_scratch, int gmm_pitch, int N)
+__global__ void GMMFinalizeKernel(float *gmm, float *gmm_scratch, int gmm_pitch, int N)
 {
     __shared__ volatile float s_gmm[warp_N*32];
     __shared__ float s_final[warp_N];
@@ -388,8 +386,7 @@ void GMMFinalizeKernel(float *gmm, float *gmm_scratch, int gmm_pitch, int N)
 
 
 // Single block, 32x2
-__global__
-void GMMcommonTerm(int gmmK, float *gmm, int gmm_pitch)
+__global__ void GMMcommonTerm(int gmmK, float *gmm, int gmm_pitch)
 {
 
     __shared__ volatile float s_n[2][32];
@@ -464,8 +461,7 @@ float GMMTerm(uchar4 pixel, const float *gmm)
     return gmm[10] * expf(-0.5f * (xxa + yyd + zzf + 2.0f * (yxb + zxc + zye)));
 }
 
-__global__
-void GMMDataTermKernel(int *terminals, int terminal_pitch, int gmmN, const float *gmm, int gmm_pitch, const uchar4 *image, int image_pitch, const unsigned char *trimap, int trimap_pitch, int width, int height)
+__global__ void GMMDataTermKernel(int *terminals, int terminal_pitch, int gmmN, const float *gmm, int gmm_pitch, const uchar4 *image, int image_pitch, const unsigned char *trimap, int trimap_pitch, int width, int height)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -514,7 +510,6 @@ void GMMDataTermKernel(int *terminals, int terminal_pitch, int gmmN, const float
 
 cudaError_t GMMDataTerm(int *terminals, int terminal_pitch, int gmmN, const float *gmm, int gmm_pitch, const uchar4 *image, int image_pitch, const unsigned char *trimap, int trimap_pitch, int width, int height)
 {
-
     dim3 block(32,8);
     dim3 grid((width+block.x-1) / block.x, (height+block.y-1) / block.y);
 
@@ -524,8 +519,7 @@ cudaError_t GMMDataTerm(int *terminals, int terminal_pitch, int gmmN, const floa
 }
 
 
-__global__
-void GMMAssignKernel(int gmmN, const float *gmm, int gmm_pitch, const uchar4 *image, int image_pitch, unsigned char *g_alpha, int alpha_pitch, int width, int height)
+__global__ void GMMAssignKernel(int gmmN, const float *gmm, int gmm_pitch, const uchar4 *image, int image_pitch, unsigned char *g_alpha, int alpha_pitch, int width, int height)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -680,8 +674,7 @@ struct GMMSplit_t
 };
 
 // 1 Block, 32x2
-__global__
-void GMMFindSplit(GMMSplit_t *gmmSplit, int gmmK, float *gmm, int gmm_pitch)
+__global__ void GMMFindSplit(GMMSplit_t *gmmSplit, int gmmK, float *gmm, int gmm_pitch)
 {
     __shared__ float s_eigenvalues[2][32];
 
@@ -726,8 +719,7 @@ void GMMFindSplit(GMMSplit_t *gmmSplit, int gmmK, float *gmm, int gmm_pitch)
     }
 }
 
-__global__
-void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, int gmm_pitch, const uchar4 *image, int image_pitch, unsigned char *alpha, int alpha_pitch, int width, int height)
+__global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, int gmm_pitch, const uchar4 *image, int image_pitch, unsigned char *alpha, int alpha_pitch, int width, int height)
 {
     __shared__ GMMSplit_t s_gmmSplit[2];
 
@@ -828,10 +820,7 @@ __global__ void OUTPUT_KERNEL(int* terminals, int terminals_pitch, int* output, 
 
     if (x >= width || y >= height) return;
 
-    int home = x + y * width;
-    int terminals_home = x + y * terminals_pitch;
-
-    output[home] = terminals[terminals_home];
+    output[x + y * width] = terminals[x + y * terminals_pitch];
 }
 
 
@@ -843,7 +832,7 @@ void INPUT(float* input, int* labels, int width, int height, int channel_stride,
     dim3 block_count = dim3(TILE(width, BLOCK_SIZE), TILE(height, BLOCK_SIZE));
     dim3 block_size = dim3(BLOCK_SIZE, BLOCK_SIZE);
 
-    INPUT_KERNEL<<<block_count, block_size>>>(input, labels, width, height, channel_stride, image, image_pitch, trimap, trimap_pitch);
+    INPUT_KERNEL<<<block_count, block_size>>>(input, labels, width, height, channel_stride, image, image_pitch / 4, trimap, trimap_pitch);
 }
 
 void OUTPUT(int* terminals, int terminals_pitch, int* output, int width, int height)
@@ -851,5 +840,5 @@ void OUTPUT(int* terminals, int terminals_pitch, int* output, int width, int hei
     dim3 block_count = dim3(TILE(width, BLOCK_SIZE), TILE(height, BLOCK_SIZE));
     dim3 block_size = dim3(BLOCK_SIZE, BLOCK_SIZE);
 
-    OUTPUT_KERNEL<<<block_count, block_size>>>(terminals, terminals_pitch, output, width, height);
+    OUTPUT_KERNEL<<<block_count, block_size>>>(terminals, terminals_pitch / 4, output, width, height);
 }
