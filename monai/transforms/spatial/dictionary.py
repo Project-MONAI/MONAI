@@ -399,14 +399,11 @@ class RandRotate90d(Randomizable, MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Mapping[Hashable, np.ndarray]:
         self.randomize()
         d = dict(data)
-        if not self._do_transform:
-            for key in self.keys:
-                self.append_applied_transforms(d, key)
-            return d
 
         rotator = Rotate90(self._rand_k, self.spatial_axes)
         for key in self.keys:
-            d[key] = rotator(d[key])
+            if self._do_transform:
+                d[key] = rotator(d[key])
             self.append_applied_transforms(d, key, extra_info={"rand_k": self._rand_k})
         return d
 
@@ -1178,7 +1175,7 @@ class RandRotated(Randomizable, MapTransform, InvertibleTransform):
         d = dict(data)
         if not self._do_transform:
             for key in self.keys:
-                self.append_applied_transforms(d, key)
+                self.append_applied_transforms(d, key, extra_info={"rot_mat": np.eye(4)})
             return d
         angle: Union[Sequence[float], float] = self.x if d[self.keys[0]].ndim == 3 else (self.x, self.y, self.z)
         rotator = Rotate(
@@ -1368,7 +1365,7 @@ class RandZoomd(Randomizable, MapTransform, InvertibleTransform):
         d = dict(data)
         if not self._do_transform:
             for key in self.keys:
-                self.append_applied_transforms(d, key)
+                self.append_applied_transforms(d, key, extra_info={"zoom": self._zoom})
             return d
 
         img_dims = data[self.keys[0]].ndim
