@@ -11,23 +11,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#include <nppi.h>
-#include <stdio.h>
+#define MIXTURES 2
 
-#define INF (255.0f * 255.0f * 3 * 8 + 1)
-#define _FIXED(x) rintf(1e1f * (x))
-
-struct _GMM_t
-{
-    float det;
-    float sigma_inv[9];
-    unsigned int count;
-} GMM_t;
-
-
-__device__
-__forceinline__
-float get_component(uchar4 pixel, int i)
+__device__ __forceinline__ float get_component(uchar4 pixel, int i)
 {
     switch (i)
     {
@@ -65,9 +51,7 @@ float get_component(uchar4 pixel, int i)
     return 0.0f;
 }
 
-__device__
-__forceinline__
-float get_constant(float *gmm, int i)
+__device__ __forceinline__ float get_constant(float *gmm, int i)
 {
     const float epsilon = 1.0e-3f;
 
@@ -154,7 +138,6 @@ __global__ void GMMReductionKernel(int gmm_idx, float *gmm, int gmm_pitch, const
 
     int y = blockIdx.y * 32 + threadIdx.y;
     int x = blockIdx.x * 32 + threadIdx.x;
-
 
     // Build lists of pixels that belong to this GMM
 
@@ -253,7 +236,6 @@ __global__ void GMMReductionKernel(int gmm_idx, float *gmm, int gmm_pitch, const
             block_gmm[i] = thread_gmm;
         }
     }
-
 }
 
 __constant__ int det_indices[] = { (9 << (4*4)) + (4 << (3*4)) + (6 << (2*4)) + (5 << (1*4)) + (4 << (0*4)),
@@ -340,7 +322,6 @@ __global__ void GMMFinalizeKernel(float *gmm, float *gmm_scratch, int gmm_pitch,
 
     if (threadIdx.y == 0)
     {
-
         // Compute det(Sigma) using final_gmm [10-14] as scratch mem
 
         if (threadIdx.x < 5)
@@ -380,7 +361,6 @@ __global__ void GMMFinalizeKernel(float *gmm, float *gmm_scratch, int gmm_pitch,
         {
             gmm[blockIdx.x * gmm_pitch + threadIdx.x] = final_gmm[threadIdx.x];
         }
-
     }
 }
 
@@ -388,7 +368,6 @@ __global__ void GMMFinalizeKernel(float *gmm, float *gmm_scratch, int gmm_pitch,
 // Single block, 32x2
 __global__ void GMMcommonTerm(int gmmK, float *gmm, int gmm_pitch)
 {
-
     __shared__ volatile float s_n[2][32];
 
     int gmm_idx = (threadIdx.x * 2) | threadIdx.y;
@@ -443,10 +422,7 @@ cudaError_t GMMUpdate(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, 
     return cudaGetLastError();
 }
 
-
-
-__device__
-float GMMTerm(uchar4 pixel, const float *gmm)
+__device__ float GMMTerm(uchar4 pixel, const float *gmm)
 {
     float3 v = make_float3(pixel.x - gmm[1], pixel.y - gmm[2], pixel.z - gmm[3]);
 
@@ -461,59 +437,43 @@ float GMMTerm(uchar4 pixel, const float *gmm)
     return gmm[10] * expf(-0.5f * (xxa + yyd + zzf + 2.0f * (yxb + zxc + zye)));
 }
 
-__global__ void GMMDataTermKernel(int *terminals, int terminal_pitch, int gmmN, const float *gmm, int gmm_pitch, const uchar4 *image, int image_pitch, const unsigned char *trimap, int trimap_pitch, int width, int height)
+__global__ void GMMDataTermKernel(const uchar4 *image, int image_pitch, int gmmN, const float *gmm, int gmm_pitch, float* output, int width, int height)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
 
-    if (x < width && y < height)
+    if (x >= width || y >= height) return;
+
+    uchar4 pixel = image[x + y * image_pitch];
+
+    float weights[MIXTURES];
+    float weight_total = 0.0f;
+
+    for(int i = 0; i < MIXTURES; i++)
     {
-        unsigned char c = trimap[y*trimap_pitch+x];
+        float mixture_weight = 0.0f;
 
-        Npp32f data;
-
-        if (c == 0)
+        for(int j = 0; j < gmmN; j += MIXTURES)
         {
-            // Definitely Background
-            data = -INF;
-        }
-        else if (c == 2)
-        {
-            // Definitely Foreground
-            data = + INF;
-        }
-        else
-        {
-            // Unknown
-            uchar4 pixel = image[y * image_pitch + x];
-
-            Npp32f data_bg = GMMTerm(pixel, gmm);
-            Npp32f data_fg = GMMTerm(pixel, &gmm[gmm_pitch]);
-
-            for (int i=2; i<gmmN; i+=2)
-            {
-                data_bg += GMMTerm(pixel, &gmm[(i) * gmm_pitch]);
-                data_fg += GMMTerm(pixel, &gmm[(i+1) * gmm_pitch]);
-            }
-
-            data_bg = -logf(data_bg);
-            data_fg = -logf(data_fg);
-
-            data = data_bg - data_fg;
-            data = max(min(data, INF),-INF);
+            mixture_weight += GMMTerm(pixel, &gmm[(j + i) * gmm_pitch]);
         }
 
-        terminals[y*terminal_pitch + x] = _FIXED(data);
+        weights[i] = mixture_weight;
+        weight_total += mixture_weight;
+    }
+
+    for(int i = 0; i < MIXTURES; i++)
+    {
+        output[x + y * width + i * height * width] = weights[i] / weight_total;
     }
 }
 
-
-cudaError_t GMMDataTerm(int *terminals, int terminal_pitch, int gmmN, const float *gmm, int gmm_pitch, const uchar4 *image, int image_pitch, const unsigned char *trimap, int trimap_pitch, int width, int height)
+cudaError_t GMMDataTerm(const uchar4 *image, int image_pitch, int gmmN, const float *gmm, int gmm_pitch, float* output, int width, int height)
 {
     dim3 block(32,8);
     dim3 grid((width+block.x-1) / block.x, (height+block.y-1) / block.y);
 
-    GMMDataTermKernel<<<grid, block>>>(terminals, terminal_pitch/4, gmmN, gmm, gmm_pitch/4, image, image_pitch/4, trimap, trimap_pitch, width, height);
+    GMMDataTermKernel<<<grid, block>>>(image, image_pitch/4, gmmN, gmm, gmm_pitch/4, output, width, height);
 
     return cudaGetLastError();
 }
