@@ -62,7 +62,7 @@ class Warp(nn.Module):
         """
         Args:
             image: Tensor in shape (batch, num_channels, H, W[, D])
-            ddf: Tensor in the same spatial size as image, in shape (batch, spatial_dims, H, W[, D])
+            ddf: Tensor in the same spatial size as image, in shape (batch, ``spatial_dims``, H, W[, D])
 
         Returns:
             warped_image in the same shape as image (batch, num_channels, H, W[, D])
@@ -111,3 +111,40 @@ class Warp(nn.Module):
             )
 
         return warped_image
+
+
+class DVF2DDF(nn.Module):
+    """
+    Layer calculates a dense velocity field (DVF) from a dense displacement field (DDF)
+    with scaling and squaring.
+
+    Adapted from:
+        DeepReg (https://github.com/DeepRegNet/DeepReg)
+
+    """
+
+    def __init__(
+        self,
+        spatial_dims: int,
+        num_steps: int = 7,
+        mode: int = 1,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = GridSamplePadMode.ZEROS,
+    ):
+        super(DVF2DDF, self).__init__()
+        if num_steps <= 0:
+            raise ValueError(f"expecting positive num_steps, got {num_steps}")
+        self.num_steps = num_steps
+        self.warp_layer = Warp(spatial_dims=spatial_dims, mode=mode, padding_mode=padding_mode)
+
+    def forward(self, dvf):
+        """
+        Args:
+            dvf: dvf to be transformed, in shape (batch, ``spatial_dims``, H, W[,D])
+
+        Returns:
+
+        """
+        ddf: torch.Tensor = dvf / (2 ** self.num_steps)
+        for _ in range(self.num_steps):
+            ddf = ddf + self.warp_layer(image=ddf, ddf=ddf)
+        return ddf
