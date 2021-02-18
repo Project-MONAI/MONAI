@@ -19,12 +19,11 @@ limitations under the License.
 #define BLOCK_SIZE 32
 #define TILE(SIZE, STRIDE) (((SIZE - 1)/STRIDE) + 1)
 
-cudaError_t GMMAssign(int gmmN, const float *gmm, int gmm_pitch, const uchar4 *image, unsigned char *alpha, int width, int height);
-cudaError_t GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const uchar4 *image, unsigned char *alpha, int width, int height);
-cudaError_t GMMUpdate(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const uchar4 *image, unsigned char *alpha, int width, int height);
+void InitializeImageAndAlpha(float* input, int* labels, int width, int height, int channel_stride, uchar4* image, char* alpha);
+cudaError_t GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const uchar4 *image, char *alpha, int width, int height);
+cudaError_t GMMUpdate(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const uchar4 *image, char *alpha, int width, int height);
 cudaError_t GMMDataTerm(const uchar4 *image, int gmmN, const float *gmm, int gmm_pitch, float* output, int width, int height);
 
-void INPUT(float* input, int* labels, int width, int height, int channel_stride, uchar4* image, unsigned char* trimap);
 
 void ErrorCheck(const char* name)
 {
@@ -52,27 +51,21 @@ torch::Tensor GMM_Cuda(torch::Tensor input_tensor, torch::Tensor label_tensor, i
     int scratch_gmm_size = blocks * gmm_pitch * gmms + blocks * 4;
 
     uchar4* d_image;
-    unsigned char* d_trimap;
-    unsigned char* d_alpha;
+    char* d_trimap;
+    char* d_alpha;
     float* d_scratch_mem;
     float* d_gmm;
 
     cudaMalloc(&d_image, width * height * sizeof(float));
-    cudaMalloc(&d_trimap, width * height * sizeof(unsigned char));
-    cudaMalloc(&d_alpha, width * height * sizeof(unsigned char));
+    cudaMalloc(&d_alpha, width * height * sizeof(char));
     cudaMalloc(&d_scratch_mem, scratch_gmm_size);
     cudaMalloc(&d_gmm, gmm_pitch * gmms);
 
     //#################################
 
-    INPUT(input_tensor.data_ptr<float>(), label_tensor.data_ptr<int>(), width, height, width * height, d_image, d_trimap);
-
-    cudaMemcpyAsync(d_alpha, d_trimap, width * height * sizeof(unsigned char), cudaMemcpyDeviceToDevice);
-
+    InitializeImageAndAlpha(input_tensor.data_ptr<float>(), label_tensor.data_ptr<int>(), width, height, width * height, d_image, d_alpha);
     GMMInitialize(gmms, d_gmm, d_scratch_mem, gmm_pitch, d_image, d_alpha, width, height);
-
     GMMUpdate(gmms, d_gmm, d_scratch_mem, gmm_pitch, d_image, d_alpha, width, height);
-
     GMMDataTerm(d_image, gmms, d_gmm, gmm_pitch, output.data_ptr<float>(), width, height);
 
     return output;
