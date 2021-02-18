@@ -7,6 +7,7 @@ from torch import nn
 from torch.optim import SGD
 
 from monai.networks.blocks.warp import DVF2DDF
+from monai.utils import set_determinism
 
 TEST_CASES = [
     [{"spatial_dims": 2, "num_steps": 1}, {"dvf": torch.zeros(1, 2, 2, 2)}, torch.zeros(1, 2, 2, 2)],
@@ -28,6 +29,12 @@ TEST_CASES = [
 
 
 class TestDVF2DDF(unittest.TestCase):
+    def setUp(self):
+        set_determinism(0)
+
+    def tearDown(self):
+        set_determinism(None)
+
     @parameterized.expand(TEST_CASES)
     def test_value(self, input_param, input_data, expected_val):
         layer = DVF2DDF(**input_param)
@@ -44,6 +51,7 @@ class TestDVF2DDF(unittest.TestCase):
         loss = torch.sum(x)
         loss.backward()
         optimizer.step()
+        np.testing.assert_allclose(network.weight.grad.cpu().numpy(), np.array([[[[22.471329]]], [[[22.552576]]]]))
 
 
 if __name__ == "__main__":

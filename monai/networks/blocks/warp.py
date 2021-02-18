@@ -115,10 +115,12 @@ class Warp(nn.Module):
 
 class DVF2DDF(nn.Module):
     """
-    Layer calculates DVF from DDF with scaling and squaring.
+    Layer calculates a dense velocity field (DVF) from a dense displacement field (DDF)
+    with scaling and squaring.
 
     Adapted from:
         DeepReg (https://github.com/DeepRegNet/DeepReg)
+
     """
 
     def __init__(
