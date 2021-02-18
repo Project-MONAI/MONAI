@@ -96,8 +96,8 @@ __device__ __forceinline__ float get_constant(float *gmm, int i)
 template<int warp_N, bool create_gmm_flags>
 __global__ void GMMReductionKernel(int gmm_idx, float *gmm, int gmm_pitch, const uchar4 *image, unsigned char *alpha, int width, int height, unsigned int *tile_gmms)
 {
-    __shared__ uchar4 s_lists[32*32];
-    __shared__ volatile float s_gmm[32*warp_N];
+    __shared__ uchar4 s_lists[32 * 32];
+    __shared__ volatile float s_gmm[32 * warp_N];
     __shared__ float s_final[warp_N];
 
     __shared__ int gmm_flags[32];
@@ -167,21 +167,7 @@ __global__ void GMMReductionKernel(int gmm_idx, float *gmm, int gmm_pitch, const
 
     if (threadIdx.y == 0 && create_gmm_flags)
     {
-#if __CUDA_ARCH__ < 200
-        unsigned int gmm_flags_bvec = 0;
-
-        for (int i=0; i<32; ++i)
-        {
-            if (gmm_flags[i] > 0)
-            {
-                gmm_flags_bvec |= 1 << i;
-            }
-        }
-
-        tile_gmms[blockIdx.y * gridDim.x + blockIdx.x] = gmm_flags_bvec;
-#else
         tile_gmms[blockIdx.y * gridDim.x + blockIdx.x] = __ballot_sync(0xFFFFFFFF, gmm_flags[threadIdx.x] > 0);
-#endif
     }
 
     // Reduce for each global GMM element
@@ -763,7 +749,6 @@ __global__ void INPUT_KERNEL(float* input, int* labels, int width, int height, i
     color.x = input[home + 0 * channel_stride] * 255;
     color.y = input[home + 1 * channel_stride] * 255;
     color.z = input[home + 2 * channel_stride] * 255;
-    color.w = input[home + 3 * channel_stride] * 255;
 
     unsigned char trimap_value = labels[home];
 

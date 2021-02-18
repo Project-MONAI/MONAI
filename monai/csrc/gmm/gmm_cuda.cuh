@@ -36,35 +36,31 @@ torch::Tensor GMM_Cuda(torch::Tensor input_tensor, torch::Tensor label_tensor, i
 {
     //#################################
 
-
     TensorDescription desc = TensorDescription(input_tensor);
 
     int width = desc.sizes[0];
     int height = desc.sizes[1];
+    int element_count = width * height;
 
     torch::Tensor output = torch::empty({desc.batchCount, mixture_count, width, height}, torch::dtype(torch::kFloat32).device(torch::kCUDA));
 
     //#################################
 
-    int gmms = mixture_count * gaussians_per_mixture;
-
-    int blocks = TILE(width, BLOCK_SIZE) * TILE(height, BLOCK_SIZE);
     size_t gmm_pitch = 11 * sizeof(float);
+    int gmms = mixture_count * gaussians_per_mixture;
+    int blocks = TILE(width, BLOCK_SIZE) * TILE(height, BLOCK_SIZE);
+    int scratch_gmm_size = blocks * gmm_pitch * gmms + blocks * 4;
 
     uchar4* d_image;
-    cudaMalloc(&d_image, width * height * sizeof(float));
-    
     unsigned char* d_trimap;
-    cudaMalloc(&d_trimap, width * height * sizeof(unsigned char));
-
     unsigned char* d_alpha;
-    cudaMalloc(&d_alpha, width * height * sizeof(unsigned char));
-    
     float* d_scratch_mem;
-    int scratch_gmm_size = blocks * gmm_pitch * gmms + blocks * 4;
-    cudaMalloc(&d_scratch_mem, scratch_gmm_size);
-
     float* d_gmm;
+
+    cudaMalloc(&d_image, width * height * sizeof(float));
+    cudaMalloc(&d_trimap, width * height * sizeof(unsigned char));
+    cudaMalloc(&d_alpha, width * height * sizeof(unsigned char));
+    cudaMalloc(&d_scratch_mem, scratch_gmm_size);
     cudaMalloc(&d_gmm, gmm_pitch * gmms);
 
     //#################################
