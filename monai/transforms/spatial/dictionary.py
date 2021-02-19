@@ -543,7 +543,7 @@ class RandAffined(Randomizable, MapTransform, InvertibleTransform):
         MapTransform.__init__(self, keys)
         Randomizable.__init__(self, prob)
         self.rand_affine = RandAffine(
-            prob=prob,
+            prob=1.0,  # because probability handled in this class
             rotate_range=rotate_range,
             shear_range=shear_range,
             translate_range=translate_range,
@@ -563,6 +563,7 @@ class RandAffined(Randomizable, MapTransform, InvertibleTransform):
         return self
 
     def randomize(self, data: Optional[Any] = None) -> None:
+        self._do_transform = self.R.rand() < self.prob
         self.rand_affine.randomize()
 
     def __call__(
@@ -572,7 +573,7 @@ class RandAffined(Randomizable, MapTransform, InvertibleTransform):
         self.randomize()
 
         sp_size = fall_back_tuple(self.rand_affine.spatial_size, data[self.keys[0]].shape[1:])
-        if self.rand_affine._do_transform:
+        if self._do_transform:
             grid, affine = self.rand_affine.rand_affine_grid(spatial_size=sp_size, return_affine=True)
         else:
             grid = create_grid(spatial_size=sp_size)
@@ -597,10 +598,12 @@ class RandAffined(Randomizable, MapTransform, InvertibleTransform):
             grid: torch.Tensor = affine_grid(orig_size)  # type: ignore
 
             # Apply inverse transform
-            out = self.rand_affine.resampler(d[key], grid, self.mode[idx], self.padding_mode[idx])
-            # Convert to original output type
-            if isinstance(out, torch.Tensor):
-                d[key] = out.cpu().numpy()
+            d[key] = self.rand_affine.resampler(torch.Tensor(d[key]), grid, self.mode[idx], self.padding_mode[idx])
+
+            # Convert to numpy
+            if isinstance(d[key], torch.Tensor):
+                d[key] = d[key].cpu().numpy()
+
             # Remove the applied transform
             self.remove_most_recent_transform(d, key)
 
