@@ -17,10 +17,10 @@ import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
 from monai.config import DtypeLike, KeysCollection
-from monai.data.utils import correct_nifti_header_if_necessary
+import monai.data.utils
 from monai.utils import ensure_tuple, optional_import
 
-from .utils import is_supported_format
+import monai.data.utils
 
 if TYPE_CHECKING:
     import itk  # type: ignore
@@ -311,7 +311,7 @@ class NibabelReader(ImageReader):
 
         """
         suffixes: Sequence[str] = ["nii", "nii.gz"]
-        return has_nib and is_supported_format(filename, suffixes)
+        return has_nib and monai.data.is_supported_format(filename, suffixes)
 
     def read(self, data: Union[Sequence[str], str], **kwargs):
         """
@@ -332,7 +332,7 @@ class NibabelReader(ImageReader):
         kwargs_.update(kwargs)
         for name in filenames:
             img = nib.load(name, **kwargs_)
-            img = correct_nifti_header_if_necessary(img)
+            img = monai.data.utils.correct_nifti_header_if_necessary(img)
             img_.append(img)
         return img_ if len(filenames) > 1 else img_[0]
 
