@@ -34,20 +34,22 @@ class MetricsSaver:
             "*" - save all the existing metrics in `engine.state.metrics` dict into separate files.
             list of strings - specify the expected metrics to save.
             default to "*" to save all the metrics into `metrics.csv`.
-        metric_details: expected metric details to save into files, for example: mean dice
-            of every channel of every image in the validation dataset.
-            the data in `engine.state.metric_details` must contain at least 2 dims: (batch, classes, ...),
+        metric_details: expected metric details to save into files, the data comes from
+            `engine.state.metric_details`, which should be provided by different `Metrics`,
+            typically, it's some intermediate values in metric computation.
+            for example: mean dice of every channel of every image in the validation dataset.
+            it must contain at least 2 dims: (batch, classes, ...),
             if not, will unsequeeze to 2 dims.
             this arg can be: None, "*" or list of strings.
-            None - don't save any metrics into files.
-            "*" - save all the existing metrics in `engine.state.metric_details` dict into separate files.
-            list of strings - specify the expected metrics to save.
-            if not None, every metric will save a separate `{metric name}_raw.csv` file.
+            None - don't save any metric_details into files.
+            "*" - save all the existing metric_details in `engine.state.metric_details` dict into separate files.
+            list of strings - specify the metric_details of expected metrics to save.
+            if not None, every metric_details array will save a separate `{metric name}_raw.csv` file.
         batch_transform: callable function to extract the meta_dict from input batch data if saving metric details.
             used to extract filenames from input dict data.
-        summary_ops: expected computation operations to generate the summary report.
+        summary_ops: expected computation operations to generate the summary report based on specified metric_details.
             it can be: None, "*" or list of strings.
-            None - don't generate summary report for every expected metric_details
+            None - don't generate summary report for every specified metric_details
             "*" - generate summary report for every metric_details with all the supported operations.
             list of strings - generate summary report for every metric_details with specified operations, they
             should be within this list: [`mean`, `median`, `max`, `min`, `90percent`, `std`].
