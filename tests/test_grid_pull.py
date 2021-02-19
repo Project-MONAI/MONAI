@@ -33,19 +33,23 @@ def make_grid(shape, dtype=None, device=None):
 # 1D combinations of bounds/interpolations
 bounds = set(BType.__members__.values()) if has_b_type else []
 interps = set(PType.__members__.values()) if has_p_type else []
+device = "cuda" if torch.cuda.is_available() else "cpu"
 TEST_1D_GP_fwd = []
 for bound in bounds:
     for interp in interps:
         if not Expected_1D_GP_fwd:
-            break
+            break  # skip if the testing data are unavailable
         test_case = [
             {
-                "input": torch.arange(10, dtype=torch.float, requires_grad=True).reshape((1, 1, 10)),
-                "grid": make_grid((20,), dtype=torch.float) + 0.5,
+                "input": torch.arange(10, dtype=torch.float, requires_grad=True, device=device).reshape((1, 1, 10)),
+                "grid": make_grid((20,), dtype=torch.float, device=device) + 0.5,
                 "interpolation": interp,
                 "bound": bound,
             },
-            torch.tensor([[Expected_1D_GP_fwd.pop(0)]]),
+            {
+                "val": torch.tensor([[Expected_1D_GP_fwd.pop(0)]]),
+                "device": device,
+            },
         ]
         TEST_1D_GP_fwd.append(test_case)
 
@@ -53,12 +57,13 @@ for bound in bounds:
 @skip_if_no_cpp_extension
 class TestGridPull(unittest.TestCase):
     @parameterized.expand(TEST_1D_GP_fwd, skip_on_empty=True)
-    def test_grid_pull(self, input_param, expected_val):
+    def test_grid_pull(self, input_param, expected):
         result = grid_pull(**input_param)
-        np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val.cpu().numpy(), rtol=1e-4, atol=1e-4)
+        self.assertTrue("{}".format(result.device).startswith(expected["device"]))
+        np.testing.assert_allclose(result.detach().cpu().numpy(), expected["val"].cpu().numpy(), rtol=1e-4, atol=1e-4)
 
     @parameterized.expand(TEST_1D_GP_fwd, skip_on_empty=True)
-    def test_grid_pull_grad(self, input_param, expected_val):
+    def test_grid_pull_grad(self, input_param, expected):
         result = grid_pull(**input_param)
         input_param["input"].retain_grad()
         input_param["grid"].retain_grad()
