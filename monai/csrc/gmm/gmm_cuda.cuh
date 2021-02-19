@@ -43,23 +43,20 @@ torch::Tensor GMM_Cuda(torch::Tensor input_tensor, torch::Tensor label_tensor, i
     int scratch_gmm_size = blocks * gmm_pitch * gmms + blocks * 4;
 
     int* d_alpha;
-    float* d_scratch_mem;
     float* d_gmm;
 
     cudaMalloc(&d_alpha, width * height * sizeof(int));
-    cudaMalloc(&d_scratch_mem, scratch_gmm_size);
     cudaMalloc(&d_gmm, gmm_pitch * gmms);
 
     torch::Tensor output = torch::empty({desc.batchCount, mixture_count, width, height}, torch::dtype(torch::kFloat32).device(torch::kCUDA));
 
-    cudaMemcpy(d_alpha, label_tensor.data_ptr<int>(), width * height * sizeof(int), cudaMemcpyDeviceToDevice);
+    cudaMemcpyAsync(d_alpha, label_tensor.data_ptr<int>(), width * height * sizeof(int), cudaMemcpyDeviceToDevice);
 
-    GMMInitialize(gmms, d_gmm, d_scratch_mem, gmm_pitch, input_tensor.data_ptr<float>(), d_alpha, width, height);
-    GMMUpdate(gmms, d_gmm, d_scratch_mem, gmm_pitch, input_tensor.data_ptr<float>(), d_alpha, width, height);
+    GMMInitialize(gmms, d_gmm, output.data_ptr<float>(), gmm_pitch, input_tensor.data_ptr<float>(), d_alpha, width, height);
+    GMMUpdate(gmms, d_gmm, output.data_ptr<float>(), gmm_pitch, input_tensor.data_ptr<float>(), d_alpha, width, height);
     GMMDataTerm(input_tensor.data_ptr<float>(), gmms, d_gmm, gmm_pitch, output.data_ptr<float>(), width, height);
 
     cudaFree(d_alpha);
-    cudaFree(d_scratch_mem);
     cudaFree(d_gmm);
 
     return output;
