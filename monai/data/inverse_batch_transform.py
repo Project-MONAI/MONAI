@@ -9,11 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional
+from typing import Callable
 from monai.data.dataloader import DataLoader
 from torch.utils.data.dataloader import DataLoader as TorchDataLoader
 from monai.data.dataset import Dataset
-from monai.data.utils import decollate_batch
+from monai.data.utils import decollate_batch, list_data_collate
 from monai.transforms.inverse_transform import InvertibleTransform
 
 __all__ = ["BatchInverseTransform"]

@@ -20,7 +20,7 @@ import numpy as np
 import torch
 
 from monai.config import USE_COMPILED, DtypeLike
-import monai.data.utils
+from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.transforms.croppad.array import CenterSpatialCrop
 from monai.transforms.transform import Randomizable, Transform
@@ -160,24 +160,24 @@ class Spacing(Transform):
             affine = np.eye(sr + 1, dtype=np.float64)
             affine_ = np.eye(sr + 1, dtype=np.float64)
         else:
-            affine_ = monai.data.utils.to_affine_nd(sr, affine)
+            affine_ = to_affine_nd(sr, affine)
         out_d = self.pixdim[:sr]
         if out_d.size < sr:
             out_d = np.append(out_d, [1.0] * (out_d.size - sr))
         if np.any(out_d <= 0):
             raise ValueError(f"pixdim must be positive, got {out_d}.")
         # compute output affine, shape and offset
-        new_affine = monai.data.utils.zoom_affine(affine_, out_d, diagonal=self.diagonal)
-        output_shape, offset = monai.data.utils.compute_shape_offset(data_array.shape[1:], affine_, new_affine)
+        new_affine = zoom_affine(affine_, out_d, diagonal=self.diagonal)
+        output_shape, offset = compute_shape_offset(data_array.shape[1:], affine_, new_affine)
         new_affine[:sr, -1] = offset[:sr]
         transform = np.linalg.inv(affine_) @ new_affine
         # adapt to the actual rank
-        transform = monai.data.utils.to_affine_nd(sr, transform)
+        transform = to_affine_nd(sr, transform)
 
         # no resampling if it's identity transform
         if np.allclose(transform, np.diag(np.ones(len(transform))), atol=1e-3):
             output_data = data_array.copy().astype(np.float32)
-            new_affine = monai.data.utils.to_affine_nd(affine, new_affine)
+            new_affine = to_affine_nd(affine, new_affine)
             return output_data, affine, new_affine
 
         # resample
@@ -195,7 +195,7 @@ class Spacing(Transform):
             spatial_size=output_shape,
         )
         output_data = np.asarray(output_data.squeeze(0).detach().cpu().numpy(), dtype=np.float32)  # type: ignore
-        new_affine = monai.data.utils.to_affine_nd(affine, new_affine)
+        new_affine = to_affine_nd(affine, new_affine)
         return output_data, affine, new_affine
 
 
@@ -261,7 +261,7 @@ class Orientation(Transform):
             affine = np.eye(sr + 1, dtype=np.float64)
             affine_ = np.eye(sr + 1, dtype=np.float64)
         else:
-            affine_ = monai.data.utils.to_affine_nd(sr, affine)
+            affine_ = to_affine_nd(sr, affine)
         src = nib.io_orientation(affine_)
         if self.as_closest_canonical:
             spatial_ornt = src
@@ -280,7 +280,7 @@ class Orientation(Transform):
         shape = data_array.shape[1:]
         data_array = np.ascontiguousarray(nib.orientations.apply_orientation(data_array, ornt))
         new_affine = affine_ @ nib.orientations.inv_ornt_aff(spatial_ornt, shape)
-        new_affine = monai.data.utils.to_affine_nd(affine, new_affine)
+        new_affine = to_affine_nd(affine, new_affine)
         return data_array, affine, new_affine
 
 

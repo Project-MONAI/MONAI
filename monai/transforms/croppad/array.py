@@ -19,7 +19,7 @@ import numpy as np
 import torch
 
 from monai.config import IndexSelection
-import monai.data.utils
+from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import (
     generate_pos_neg_label_crop_centers,
@@ -304,8 +304,8 @@ class RandSpatialCrop(Randomizable, Transform):
         if self.random_size:
             self._size = tuple((self.R.randint(low=self._size[i], high=img_size[i] + 1) for i in range(len(img_size))))
         if self.random_center:
-            valid_size = monai.data.utils.get_valid_patch_size(img_size, self._size)
-            self._slices = (slice(None),) + monai.data.utils.get_random_patch(img_size, valid_size, self.R)
+            valid_size = get_valid_patch_size(img_size, self._size)
+            self._slices = (slice(None),) + get_random_patch(img_size, valid_size, self.R)
 
     def __call__(self, img: np.ndarray):
         """
