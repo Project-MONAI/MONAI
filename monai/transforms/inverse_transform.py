@@ -11,7 +11,7 @@
 
 import warnings
 from abc import ABC
-from typing import Hashable, Optional, Tuple
+from typing import Any, Dict, Hashable, Optional, Tuple
 
 import numpy as np
 import torch
@@ -79,7 +79,7 @@ class InvertibleTransform(ABC):
         """Remove most recent transform."""
         data[str(key) + "_transforms"].pop()
 
-    def inverse(self, data: dict, keys: Optional[Tuple[Hashable, ...]] = None):
+    def inverse(self, data: dict, keys: Optional[Tuple[Hashable, ...]] = None) -> Dict[str, Any]:
         """
         Inverse of ``__call__``.
 

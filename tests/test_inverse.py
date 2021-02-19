@@ -52,15 +52,18 @@ from monai.transforms import (
     SpatialPadd,
     Zoomd,
 )
-from monai.utils import optional_import, set_determinism
+from monai.utils import first, optional_import, set_determinism
 from tests.utils import make_nifti_image, make_rand_affine, test_is_quick
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt
+    import vtk
 
     has_matplotlib = True
+    has_vtk = True
 else:
     plt, has_matplotlib = optional_import("matplotlib.pyplot")
+    _, has_vtk = optional_import("vtk")
 
 set_determinism(seed=0)
 
@@ -345,27 +348,28 @@ TESTS.append(
     )
 )
 
-TESTS.append(
-    (
-        "Rand2DElasticd 2d",
-        DATA_2D,
-        2e-1,
-        Rand2DElasticd(
-            KEYS,
-            spacing=(10.0, 10.0),
-            magnitude_range=(1, 1),
-            spatial_size=[155, 192],
-            prob=1,
-            padding_mode="zeros",
-            rotate_range=[(np.pi / 6, np.pi / 6)],
-            shear_range=[(0.5, 0.5)],
-            translate_range=[10, 5],
-            scale_range=[(1.2, 1.2), (1.3, 1.3)],
-        ),
+if has_vtk:
+    TESTS.append(
+        (
+            "Rand2DElasticd 2d",
+            DATA_2D,
+            2e-1,
+            Rand2DElasticd(
+                KEYS,
+                spacing=(10.0, 10.0),
+                magnitude_range=(1, 1),
+                spatial_size=[155, 192],
+                prob=1,
+                padding_mode="zeros",
+                rotate_range=[(np.pi / 6, np.pi / 6)],
+                shear_range=[(0.5, 0.5)],
+                translate_range=[10, 5],
+                scale_range=[(1.2, 1.2), (1.3, 1.3)],
+            ),
+        )
     )
-)
 
-if not test_is_quick:
+if not test_is_quick and has_vtk:
     TESTS.append(
         (
             "Rand3DElasticd 3d",
@@ -463,7 +467,7 @@ class TestInverse(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_w_dataloader(self, _, data, acceptable_diff, *transforms):
         name = _
-        device = "cuda" if torch.cuda.is_available() else "cpu"
+        device = "cpu"
         if isinstance(transforms, tuple):
             transforms = Compose(transforms)
         numel = 4
@@ -471,8 +475,7 @@ class TestInverse(unittest.TestCase):
 
         ndims = len(data["image"].shape[1:])
         batch_size = 2
-        # num workers = 0 for mac
-        num_workers = 2 if sys.platform != "darwin" else 0
+        num_workers = 0
 
         dataset = CacheDataset(test_data, transforms, progress=False)
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
@@ -501,8 +504,7 @@ class TestInverse(unittest.TestCase):
         test_data = [{key: AddChannel()(create_test_image_2d(100 + i, 101 + i)[0])} for i in range(4)]
 
         batch_size = 2
-        # num workers = 0 for mac
-        num_workers = 2 if sys.platform != "darwin" else 0
+        num_workers = 0
         transforms = Compose([SpatialPadd(key, (150, 153))])
 
         dataset = CacheDataset(test_data, transform=transforms, progress=False)
@@ -523,6 +525,49 @@ class TestInverse(unittest.TestCase):
         d = transform[0](data)
         with self.assertRaises(RuntimeError):
             d = transform[0].inverse(d)
+
+    def test_inverse_inferred_seg(self):
+
+        test_data = []
+        for _ in range(4):
+            image, label = create_test_image_2d(100, 101)
+            test_data.append({"image": image, "label": label.astype(np.float32)})
+
+        batch_size = 2
+        # num workers = 0 for mac
+        num_workers = 2 if sys.platform != "darwin" else 0
+        transforms = Compose([AddChanneld(KEYS), SpatialPadd(KEYS, (150, 153)), CenterSpatialCropd(KEYS, (110, 99))])
+        num_invertible_transforms = sum(1 for i in transforms.transforms if isinstance(i, InvertibleTransform))
+
+        dataset = CacheDataset(test_data, transform=transforms, progress=False)
+        loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        model = UNet(
+            dimensions=2,
+            in_channels=1,
+            out_channels=1,
+            channels=(2, 4),
+            strides=(2,),
+        ).to(device)
+
+        data = first(loader)
+        labels = data["label"].to(device)
+        segs = model(labels).detach().cpu()
+        segs_dict = {"label": segs, "label_transforms": data["label_transforms"]}
+        segs_dict_decollated = decollate_batch(segs_dict)
+
+        # inverse of individual segmentation
+        seg_dict = first(segs_dict_decollated)
+        inv_seg = transforms.inverse(seg_dict, "label")["label"]
+        self.assertEqual(len(data["label_transforms"]), num_invertible_transforms)
+        self.assertEqual(len(seg_dict["label_transforms"]), num_invertible_transforms)
+        self.assertEqual(inv_seg.shape[1:], test_data[0]["label"].shape)
+
+        # Inverse of batch
+        batch_inverter = BatchInverseTransform(transforms, loader, collate_fn=lambda x: x)
+        inv_batch = batch_inverter(segs_dict, "label")
+        self.assertEqual(inv_batch[0]["label"].shape[1:], test_data[0]["label"].shape)
 
 
 if __name__ == "__main__":

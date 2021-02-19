@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional
+from typing import Any, Callable, Dict, Hashable, Optional, Tuple
 
 from torch.utils.data.dataloader import DataLoader as TorchDataLoader
 
@@ -17,18 +17,20 @@ from monai.data.dataloader import DataLoader
 from monai.data.dataset import Dataset
 from monai.data.utils import decollate_batch
 from monai.transforms.inverse_transform import InvertibleTransform
+from monai.utils import first
 
 __all__ = ["BatchInverseTransform"]
 
 
 class _BatchInverseDataset(Dataset):
-    def __init__(self, data, transform: InvertibleTransform) -> None:
+    def __init__(self, data: Dict[str, Any], transform: InvertibleTransform, keys: Optional[Tuple[Hashable, ...]] = None) -> None:
         self.data = decollate_batch(data)
         self.invertible_transform = transform
+        self.keys = keys
 
-    def __getitem__(self, index: int):
+    def __getitem__(self, index: int) -> Dict[str, Any]:
         data = self.data[index]
-        return self.invertible_transform.inverse(data)
+        return self.invertible_transform.inverse(data, self.keys)
 
 
 class BatchInverseTransform:
@@ -51,13 +53,15 @@ class BatchInverseTransform:
         self.num_workers = loader.num_workers
         self.collate_fn = collate_fn
 
-    def __call__(self, data):
-        inv_ds = _BatchInverseDataset(data, self.transform)
+    def __call__(self, data: Dict[str, Any], keys: Optional[Tuple[Hashable, ...]] = None) -> Dict[str, Any]:
+
+        inv_ds = _BatchInverseDataset(data, self.transform, keys)
         inv_loader = DataLoader(
             inv_ds, batch_size=self.batch_size, num_workers=self.num_workers, collate_fn=self.collate_fn
         )
         try:
-            return next(iter(inv_loader))
+            # Only need to return first as only 1 batch of data
+            return first(inv_loader)  # type: ignore
         except RuntimeError as re:
             re_str = str(re)
             if "stack expects each tensor to be equal size" in re_str:
