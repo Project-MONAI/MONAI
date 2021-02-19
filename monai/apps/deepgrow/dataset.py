@@ -37,10 +37,10 @@ def create_dataset(
     for Deepgrow training pipeline.
 
     Args:
-        datalist: A generic dataset with a length property which normally contains a list of data dictionary.
+        datalist: A list of data dictionary. Each entry should at least contain 'image_key': <image filename>.
             For example, typical input data can be a list of dictionaries::
 
-                [{'image': 'img1.nii', 'label': 'label1.nii'}]
+                [{'image': <image filename>, 'label': <label filename>}]
 
         output_dir: target directory to store the training data for Deepgrow Training
         pixdim: output voxel spacing.
@@ -166,7 +166,7 @@ def _save_data_2d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
         if vol_label is None:
             data_list.append(
                 {
-                    "image": image_file.replace(dataset_dir + "/", "") if relative_path else image_file,
+                    "image": image_file.replace(dataset_dir + os.pathsep, "") if relative_path else image_file,
                 }
             )
             continue
@@ -188,11 +188,14 @@ def _save_data_2d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
             label_count += 1
             data_list.append(
                 {
-                    "image": image_file.replace(dataset_dir + "/", "") if relative_path else image_file,
-                    "label": label_file.replace(dataset_dir + "/", "") if relative_path else label_file,
+                    "image": image_file.replace(dataset_dir + os.pathsep, "") if relative_path else image_file,
+                    "label": label_file.replace(dataset_dir + os.pathsep, "") if relative_path else label_file,
                     "region": int(idx),
                 }
             )
+
+    if unique_labels_count >= 20:
+        logging.warning(f"Unique labels {unique_labels_count} exceeds 20. Please check if this is correct.")
 
     logging.info(
         "{} => Image Shape: {} => {}; Label Shape: {} => {}; Unique Labels: {}".format(
@@ -211,7 +214,11 @@ def _save_data_3d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
     data_list = []
 
     if len(vol_image.shape) == 4:
-        logging.info("4D-Image, pick only first series; Image: {}; Label: {}".format(vol_image.shape, vol_label.shape))
+        logging.info(
+            "4D-Image, pick only first series; Image: {}; Label: {}".format(
+                vol_image.shape, vol_label.shape if vol_label else None
+            )
+        )
         vol_image = vol_image[0]
         vol_image = np.moveaxis(vol_image, -1, 0)
 
@@ -231,7 +238,7 @@ def _save_data_3d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
     if vol_label is None:
         data_list.append(
             {
-                "image": image_file.replace(dataset_dir + "/", "") if relative_path else image_file,
+                "image": image_file.replace(dataset_dir + os.pathsep, "") if relative_path else image_file,
             }
         )
     else:
@@ -252,11 +259,14 @@ def _save_data_3d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
             label_count += 1
             data_list.append(
                 {
-                    "image": image_file.replace(dataset_dir + "/", "") if relative_path else image_file,
-                    "label": label_file.replace(dataset_dir + "/", "") if relative_path else label_file,
+                    "image": image_file.replace(dataset_dir + os.pathsep, "") if relative_path else image_file,
+                    "label": label_file.replace(dataset_dir + os.pathsep, "") if relative_path else label_file,
                     "region": int(idx),
                 }
             )
+
+    if unique_labels_count >= 20:
+        logging.warning(f"Unique labels {unique_labels_count} exceeds 20. Please check if this is correct.")
 
     logging.info(
         "{} => Image Shape: {} => {}; Label Shape: {} => {}; Unique Labels: {}".format(

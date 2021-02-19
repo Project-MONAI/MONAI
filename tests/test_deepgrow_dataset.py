@@ -41,14 +41,16 @@ class TestCreateDataset(unittest.TestCase):
             datalist = self._create_data(tempdir)
             output_dir = os.path.join(tempdir, "2d")
             deepgrow_datalist = create_dataset(datalist=datalist, output_dir=output_dir, dimension=2, pixdim=(1, 1))
-            assert len(deepgrow_datalist) == 3 and deepgrow_datalist[0]["region"] == 1
+            self.assertEqual(len(deepgrow_datalist), 3)
+            self.assertEqual(deepgrow_datalist[0]["region"], 1)
 
     def test_create_dataset_3d(self):
         with tempfile.TemporaryDirectory() as tempdir:
             datalist = self._create_data(tempdir)
             output_dir = os.path.join(tempdir, "3d")
             deepgrow_datalist = create_dataset(datalist=datalist, output_dir=output_dir, dimension=3, pixdim=(1, 1, 1))
-            assert len(deepgrow_datalist) == 1 and deepgrow_datalist[0]["region"] == 1
+            self.assertEqual(len(deepgrow_datalist), 1)
+            self.assertEqual(deepgrow_datalist[0]["region"], 1)
 
 
 if __name__ == "__main__":
