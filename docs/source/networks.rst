@@ -120,12 +120,12 @@ Blocks
 .. autoclass:: SubpixelUpSample
 
 `LocalNet DownSample Block`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: LocalNetDownSampleBlock
     :members:
 
 `LocalNet UpSample Block`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: LocalNetUpSampleBlock
     :members:
 
@@ -135,8 +135,13 @@ Blocks
     :members:
 
 `Warp`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~
 .. autoclass:: Warp
+    :members:
+
+`DVF2DDF`
+~~~~~~~~~
+.. autoclass:: DVF2DDF
     :members:
 
 Layers
@@ -201,7 +206,7 @@ Layers
 ~~~~~~~~~~~~~~~~
 .. autoclass:: GaussianFilter
     :members:
-    
+
 `BilateralFilter`
 ~~~~~~~~~~~~~~~~~
 .. autoclass:: BilateralFilter
