@@ -41,6 +41,7 @@ __all__ = [
     "dtype_numpy_to_torch",
     "MAX_SEED",
     "copy_to_device",
+    "ImageMetaKey",
 ]
 
 _seed = None
@@ -76,7 +77,7 @@ def issequenceiterable(obj: Any) -> bool:
     """
     Determine if the object is an iterable sequence and is not a string.
     """
-    if torch.is_tensor(obj):
+    if isinstance(obj, torch.Tensor):
         return int(obj.dim()) > 0  # a 0-d tensor is not iterable
     return isinstance(obj, collections.abc.Iterable) and not isinstance(obj, str)
 
@@ -130,7 +131,9 @@ def ensure_tuple_rep(tup: Any, dim: int) -> Tuple[Any, ...]:
     raise ValueError(f"Sequence must have length {dim}, got {len(tup)}.")
 
 
-def fall_back_tuple(user_provided: Any, default: Sequence, func: Callable = lambda x: x and x > 0) -> Tuple[Any, ...]:
+def fall_back_tuple(
+    user_provided: Any, default: Union[Sequence, np.ndarray], func: Callable = lambda x: x and x > 0
+) -> Tuple[Any, ...]:
     """
     Refine `user_provided` according to the `default`, and returns as a validated tuple.
 
@@ -175,13 +178,13 @@ def fall_back_tuple(user_provided: Any, default: Sequence, func: Callable = lamb
 
 
 def is_scalar_tensor(val: Any) -> bool:
-    if torch.is_tensor(val) and val.ndim == 0:
+    if isinstance(val, torch.Tensor) and val.ndim == 0:
         return True
     return False
 
 
 def is_scalar(val: Any) -> bool:
-    if torch.is_tensor(val) and val.ndim == 0:
+    if isinstance(val, torch.Tensor) and val.ndim == 0:
         return True
     return bool(np.isscalar(val))
 
@@ -287,7 +290,7 @@ def list_to_dict(items):
 
 
 _torch_to_np_dtype = {
-    torch.bool: np.bool,
+    torch.bool: bool,
     torch.uint8: np.uint8,
     torch.int8: np.int8,
     torch.int16: np.int16,
@@ -347,3 +350,11 @@ def copy_to_device(
         warnings.warn(f"{fn_name} called with incompatible type: " + f"{type(obj)}. Data will be returned unchanged.")
 
     return obj
+
+
+class ImageMetaKey:
+    """
+    Common key names in the meta data header of images
+    """
+
+    FILENAME_OR_OBJ = "filename_or_obj"

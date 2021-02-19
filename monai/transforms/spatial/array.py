@@ -19,7 +19,7 @@ from typing import Any, List, Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
 
-from monai.config import USE_COMPILED
+from monai.config import USE_COMPILED, DtypeLike
 from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.transforms.compose import Randomizable, Transform
@@ -31,6 +31,7 @@ from monai.transforms.utils import (
     create_scale,
     create_shear,
     create_translate,
+    map_spatial_axes,
 )
 from monai.utils import (
     GridSampleMode,
@@ -81,7 +82,7 @@ class Spacing(Transform):
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
-        dtype: Optional[np.dtype] = np.float64,
+        dtype: DtypeLike = np.float64,
     ) -> None:
         """
         Args:
@@ -123,7 +124,7 @@ class Spacing(Transform):
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
-        dtype: Optional[np.dtype] = None,
+        dtype: DtypeLike = None,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Args:
@@ -192,7 +193,7 @@ class Spacing(Transform):
             torch.as_tensor(np.ascontiguousarray(transform).astype(_dtype)),
             spatial_size=output_shape,
         )
-        output_data = output_data.squeeze(0).detach().cpu().numpy().astype(np.float32)
+        output_data = np.asarray(output_data.squeeze(0).detach().cpu().numpy(), dtype=np.float32)  # type: ignore
         new_affine = to_affine_nd(affine, new_affine)
         return output_data, affine, new_affine
 
@@ -285,14 +286,19 @@ class Orientation(Transform):
 class Flip(Transform):
     """
     Reverses the order of elements along the given spatial axis. Preserves shape.
-    Uses ``np.flip`` in practice. See numpy.flip for additional details.
-    https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
+    Uses ``np.flip`` in practice. See numpy.flip for additional details:
+    https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html.
 
     Args:
         spatial_axis: spatial axes along which to flip over. Default is None.
+            The default `axis=None` will flip over all of the axes of the input array.
+            If axis is negative it counts from the last to the first axis.
+            If axis is a tuple of ints, flipping is performed on all of the axes
+            specified in the tuple.
+
     """
 
-    def __init__(self, spatial_axis: Optional[Union[Sequence[int], int]]) -> None:
+    def __init__(self, spatial_axis: Optional[Union[Sequence[int], int]] = None) -> None:
         self.spatial_axis = spatial_axis
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
@@ -300,10 +306,9 @@ class Flip(Transform):
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-        flipped = []
-        for channel in img:
-            flipped.append(np.flip(channel, self.spatial_axis))
-        return np.stack(flipped).astype(img.dtype)
+
+        result: np.ndarray = np.flip(img, map_spatial_axes(img.ndim, self.spatial_axis))
+        return result.astype(img.dtype)
 
 
 class Resize(Transform):
@@ -372,7 +377,7 @@ class Resize(Transform):
             align_corners=self.align_corners if align_corners is None else align_corners,
         )
         resized = resized.squeeze(0).detach().cpu().numpy()
-        return resized
+        return np.asarray(resized)
 
 
 class Rotate(Transform):
@@ -404,7 +409,7 @@ class Rotate(Transform):
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
-        dtype: Optional[np.dtype] = np.float64,
+        dtype: DtypeLike = np.float64,
     ) -> None:
         self.angle = angle
         self.keep_size = keep_size
@@ -419,7 +424,7 @@ class Rotate(Transform):
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
-        dtype: Optional[np.dtype] = None,
+        dtype: DtypeLike = None,
     ) -> np.ndarray:
         """
         Args:
@@ -457,7 +462,7 @@ class Rotate(Transform):
                 (len(im_shape), -1)
             )
             corners = transform[:-1, :-1] @ corners
-            output_shape = (corners.ptp(axis=1) + 0.5).astype(int)
+            output_shape = np.asarray(corners.ptp(axis=1) + 0.5, dtype=int)
         shift_1 = create_translate(input_ndim, -(output_shape - 1) / 2)
         transform = shift @ transform @ shift_1
 
@@ -473,8 +478,7 @@ class Rotate(Transform):
             torch.as_tensor(np.ascontiguousarray(transform).astype(_dtype)),
             spatial_size=output_shape,
         )
-        output = output.squeeze(0).detach().cpu().numpy().astype(np.float32)
-        return output
+        return np.asarray(output.squeeze(0).detach().cpu().numpy(), dtype=np.float32)
 
 
 class Zoom(Transform):
@@ -522,7 +526,7 @@ class Zoom(Transform):
         mode: Optional[Union[InterpolateMode, str]] = None,
         padding_mode: Optional[Union[NumpyPadMode, str]] = None,
         align_corners: Optional[bool] = None,
-    ) -> np.ndarray:
+    ):
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]).
@@ -568,6 +572,9 @@ class Zoom(Transform):
 class Rotate90(Transform):
     """
     Rotate an array by 90 degrees in the plane specified by `axes`.
+    See np.rot90 for additional details:
+    https://numpy.org/doc/stable/reference/generated/numpy.rot90.html.
+
     """
 
     def __init__(self, k: int = 1, spatial_axes: Tuple[int, int] = (0, 1)) -> None:
@@ -576,6 +583,7 @@ class Rotate90(Transform):
             k: number of times to rotate by 90 degrees.
             spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
                 Default: (0, 1), this is the first two axis in spatial dimensions.
+                If axis is negative it counts from the last to the first axis.
         """
         self.k = k
         spatial_axes_ = ensure_tuple(spatial_axes)
@@ -588,10 +596,9 @@ class Rotate90(Transform):
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-        rotated = []
-        for channel in img:
-            rotated.append(np.rot90(channel, self.k, self.spatial_axes))
-        return np.stack(rotated).astype(img.dtype)
+
+        result: np.ndarray = np.rot90(img, self.k, map_spatial_axes(img.ndim, self.spatial_axes))
+        return result.astype(img.dtype)
 
 
 class RandRotate90(Randomizable, Transform):
@@ -670,7 +677,7 @@ class RandRotate(Randomizable, Transform):
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
-        dtype: Optional[np.dtype] = np.float64,
+        dtype: DtypeLike = np.float64,
     ) -> None:
         self.range_x = ensure_tuple(range_x)
         if len(self.range_x) == 1:
@@ -706,7 +713,7 @@ class RandRotate(Randomizable, Transform):
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
-        dtype: Optional[np.dtype] = None,
+        dtype: DtypeLike = None,
     ) -> np.ndarray:
         """
         Args:
@@ -856,12 +863,15 @@ class RandZoom(Randomizable, Transform):
             # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
             self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 2) + ensure_tuple(self._zoom[-1])
         zoomer = Zoom(self._zoom, keep_size=self.keep_size)
-        return zoomer(
-            img,
-            mode=mode or self.mode,
-            padding_mode=padding_mode or self.padding_mode,
-            align_corners=self.align_corners if align_corners is None else align_corners,
-        ).astype(_dtype)
+        return np.asarray(
+            zoomer(
+                img,
+                mode=mode or self.mode,
+                padding_mode=padding_mode or self.padding_mode,
+                align_corners=self.align_corners if align_corners is None else align_corners,
+            ),
+            dtype=_dtype,
+        )
 
 
 class AffineGrid(Transform):
@@ -937,13 +947,15 @@ class AffineGrid(Transform):
             affine = affine @ create_scale(spatial_dims, self.scale_params)
         affine = torch.as_tensor(np.ascontiguousarray(affine), device=self.device)
 
-        grid = torch.tensor(grid) if not torch.is_tensor(grid) else grid.detach().clone()
+        grid = torch.tensor(grid) if not isinstance(grid, torch.Tensor) else grid.detach().clone()
         if self.device:
             grid = grid.to(self.device)
         grid = (affine.float() @ grid.reshape((grid.shape[0], -1)).float()).reshape([-1] + list(grid.shape[1:]))
+        if grid is None or not isinstance(grid, torch.Tensor):
+            raise ValueError("Unknown grid.")
         if self.as_tensor_output:
             return grid
-        return grid.cpu().numpy()
+        return np.asarray(grid.cpu().numpy())
 
 
 class RandAffineGrid(Randomizable, Transform):
@@ -1069,7 +1081,7 @@ class RandDeformGrid(Randomizable, Transform):
         self.random_offset = self.R.normal(size=([len(grid_size)] + list(grid_size))).astype(np.float32)
         self.rand_mag = self.R.uniform(self.magnitude[0], self.magnitude[1])
 
-    def __call__(self, spatial_size: Sequence[int]) -> Union[np.ndarray, torch.Tensor]:
+    def __call__(self, spatial_size: Sequence[int]):
         """
         Args:
             spatial_size: spatial size of the grid.
@@ -1129,11 +1141,11 @@ class Resample(Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
 
-        if not torch.is_tensor(img):
+        if not isinstance(img, torch.Tensor):
             img = torch.as_tensor(np.ascontiguousarray(img))
         if grid is None:
             raise AssertionError("Error, grid argument must be supplied as an ndarray or tensor ")
-        grid = torch.tensor(grid) if not torch.is_tensor(grid) else grid.detach().clone()
+        grid = torch.tensor(grid) if not isinstance(grid, torch.Tensor) else grid.detach().clone()
         if self.device:
             img = img.to(self.device)
             grid = grid.to(self.device)
@@ -1173,8 +1185,8 @@ class Resample(Transform):
                 align_corners=True,
             )[0]
         if self.as_tensor_output:
-            return out
-        return out.cpu().numpy()
+            return torch.as_tensor(out)
+        return np.asarray(out.cpu().numpy())
 
 
 class Affine(Transform):
@@ -1499,12 +1511,12 @@ class Rand2DElastic(Randomizable, Transform):
             grid = self.rand_affine_grid(grid=grid)
             grid = torch.nn.functional.interpolate(  # type: ignore
                 recompute_scale_factor=True,
-                input=grid.unsqueeze(0),
+                input=torch.as_tensor(grid).unsqueeze(0),
                 scale_factor=list(ensure_tuple(self.deform_grid.spacing)),
                 mode=InterpolateMode.BICUBIC.value,
                 align_corners=False,
             )
-            grid = CenterSpatialCrop(roi_size=sp_size)(grid[0])
+            grid = CenterSpatialCrop(roi_size=sp_size)(np.asarray(grid[0]))
         else:
             grid = create_grid(spatial_size=sp_size)
         return self.resampler(img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode)
