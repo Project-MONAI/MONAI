@@ -12,7 +12,7 @@ limitations under the License.
 */
 
 #include <torch/extension.h>
-#include "gmm_cuda.cuh"
+#include "gmm_cuda.h"
 
 torch::Tensor GMM(torch::Tensor input_tensor, torch::Tensor label_tensor, int mixture_count, int gaussians_per_mixture)
 {

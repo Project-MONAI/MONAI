@@ -11,6 +11,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+#define BLOCK_SIZE 32
+#define TILE(SIZE, STRIDE) (((SIZE - 1)/STRIDE) + 1)
+
 #define CHANNELS 3
 #define MIXTURES 2
 
@@ -659,9 +662,6 @@ __global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, int gm
     }
 }
 
-#define BLOCK_SIZE 32
-#define TILE(SIZE, STRIDE) (((SIZE - 1)/STRIDE) + 1)
-
 void GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const float *image, int *alpha, int width, int height)
 {
     dim3 grid((width+31) / 32, (height+31) / 32);
@@ -710,4 +710,27 @@ void GMMDataTerm(const float *image, int gmmN, const float *gmm, int gmm_pitch, 
     dim3 grid((width+block.x-1) / block.x, (height+block.y-1) / block.y);
 
     GMMDataTermKernel<<<grid, block>>>(image, gmmN, gmm, gmm_pitch/4, output, width, height);
+}
+
+void GMM_Cuda(const float* input, const int* labels, float* output, int batch_count, int channel_count, int width, int height, int mixture_count, int gaussians_per_mixture)
+{
+    int element_count = width * height;
+
+    size_t gmm_pitch = 11 * sizeof(float);
+    int gmms = mixture_count * gaussians_per_mixture;
+    int blocks = TILE(width, BLOCK_SIZE) * TILE(height, BLOCK_SIZE);
+    int scratch_gmm_size = blocks * gmm_pitch * gmms + blocks * 4;
+
+    float* scratch_mem = output;
+    float* gmm; cudaMalloc(&gmm, gmm_pitch * gmms);
+    int* alpha; cudaMalloc(&alpha, element_count * sizeof(int));
+
+    cudaMemcpyAsync(alpha, labels, element_count * sizeof(int), cudaMemcpyDeviceToDevice);
+
+    GMMInitialize(gmms, gmm, scratch_mem, gmm_pitch, input, alpha, width, height);
+    GMMUpdate(gmms, gmm, scratch_mem, gmm_pitch, input, alpha, width, height);
+    GMMDataTerm(input, gmms, gmm, gmm_pitch, output, width, height);
+
+    cudaFree(alpha);
+    cudaFree(gmm);
 }
