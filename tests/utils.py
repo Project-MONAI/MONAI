@@ -30,9 +30,9 @@ import torch.distributed as dist
 
 from monai.config.deviceconfig import USE_COMPILED
 from monai.data import create_test_image_2d, create_test_image_3d
+from monai.transforms import Randomizable
 from monai.utils import ensure_tuple, optional_import, set_determinism
 from monai.utils.module import get_torch_version_tuple
-from monai.transforms import Randomizable
 
 nib, _ = optional_import("nibabel")
 ver, has_pkg_res = optional_import("pkg_resources", name="parse_version")
