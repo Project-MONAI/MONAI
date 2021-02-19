@@ -9,26 +9,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from monai.data.utils import pad_list_data_collate
 import unittest
 from typing import List, Tuple
 
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms import (
-    RandRotated,
-    RandSpatialCropd,
-    RandZoomd,
-    RandRotate90d,
-)
+from monai.data.utils import pad_list_data_collate
+from monai.transforms import RandRotate90d, RandRotated, RandSpatialCropd, RandZoomd
 from monai.utils import set_determinism
 
 set_determinism(seed=0)
 
-import numpy as np
 from monai.data import CacheDataset, DataLoader
-from monai.transforms import RandSpatialCropd, RandRotated
 
 TESTS: List[Tuple] = []
 
@@ -36,6 +29,7 @@ TESTS.append((RandSpatialCropd("image", roi_size=[8, 7], random_size=True),))
 TESTS.append((RandRotated("image", prob=1, range_x=np.pi, keep_size=False),))
 TESTS.append((RandZoomd("image", prob=1, min_zoom=1.1, max_zoom=2.0, keep_size=False),))
 TESTS.append((RandRotate90d("image", prob=1, max_k=2),))
+
 
 class TestPadCollation(unittest.TestCase):
     def setUp(self) -> None:
@@ -58,6 +52,7 @@ class TestPadCollation(unittest.TestCase):
         loader = DataLoader(dataset, batch_size=2, collate_fn=pad_list_data_collate)
         for _ in loader:
             pass
+
 
 if __name__ == "__main__":
     unittest.main()

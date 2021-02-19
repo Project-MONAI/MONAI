@@ -370,18 +370,18 @@ if not test_is_quick:
         (
             "Rand3DElasticd 3d",
             DATA_3D,
-        1e-1,
-        Rand3DElasticd(
-            KEYS,
-            sigma_range=(3, 5),
-            magnitude_range=(100, 100),
-            prob=1,
-            padding_mode="zeros",
-            rotate_range=[np.pi / 6, np.pi / 7],
-            shear_range=[(0.5, 0.5), 0.2],
-            translate_range=[10, 5, 3],
-            scale_range=[(0.8, 1.2), (0.9, 1.3)],
-        ),
+            1e-1,
+            Rand3DElasticd(
+                KEYS,
+                sigma_range=(3, 5),
+                magnitude_range=(100, 100),
+                prob=1,
+                padding_mode="zeros",
+                rotate_range=[np.pi / 6, np.pi / 7],
+                shear_range=[(0.5, 0.5), 0.2],
+                translate_range=[10, 5, 3],
+                scale_range=[(0.8, 1.2), (0.9, 1.3)],
+            ),
         )
     )
 
@@ -517,8 +517,6 @@ class TestInverse(unittest.TestCase):
             for idx, (_fwd, _fwd_bck) in enumerate(zip(fwd, fwd_bck)):
                 unmodified = test_data[batch_idx * batch_size + idx]
                 self.check_inverse("diff_sized_inputs", [key], unmodified, _fwd_bck, _fwd, 0)
-
-
 
     @parameterized.expand(TESTS_FAIL)
     def test_fail(self, data, _, *transform):

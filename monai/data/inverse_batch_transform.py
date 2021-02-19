@@ -10,8 +10,10 @@
 # limitations under the License.
 
 from typing import Callable, Optional
-from monai.data.dataloader import DataLoader
+
 from torch.utils.data.dataloader import DataLoader as TorchDataLoader
+
+from monai.data.dataloader import DataLoader
 from monai.data.dataset import Dataset
 from monai.data.utils import decollate_batch
 from monai.transforms.inverse_transform import InvertibleTransform
@@ -22,11 +24,11 @@ __all__ = ["BatchInverseTransform"]
 class _BatchInverseDataset(Dataset):
     def __init__(self, data, transform: InvertibleTransform) -> None:
         self.data = decollate_batch(data)
-        self.transform = transform
+        self.invertible_transform = transform
 
     def __getitem__(self, index: int):
         data = self.data[index]
-        return self.transform.inverse(data)
+        return self.invertible_transform.inverse(data)
 
 
 class BatchInverseTransform:
@@ -39,9 +41,10 @@ class BatchInverseTransform:
         Args:
             transform: a callable data transform on input data.
             loader: data loader used to generate the batch of data.
-            collate_fn: how to collate data after inverse transformations. Default will use the DataLoader's default collation method.
-                If returning images of different sizes, this will likely create an error (since the collation will concatenate arrays,
-                requiring them to be the same size). In this case, using `collate_fn=lambda x: x` might solve the problem.
+            collate_fn: how to collate data after inverse transformations. Default will use the DataLoader's default
+                collation method. If returning images of different sizes, this will likely create an error (since the
+                collation will concatenate arrays, requiring them to be the same size). In this case, using
+                `collate_fn=lambda x: x` might solve the problem.
         """
         self.transform = transform
         self.batch_size = loader.batch_size
@@ -50,7 +53,9 @@ class BatchInverseTransform:
 
     def __call__(self, data):
         inv_ds = _BatchInverseDataset(data, self.transform)
-        inv_loader = DataLoader(inv_ds, batch_size=self.batch_size, num_workers=self.num_workers, collate_fn=self.collate_fn)
+        inv_loader = DataLoader(
+            inv_ds, batch_size=self.batch_size, num_workers=self.num_workers, collate_fn=self.collate_fn
+        )
         try:
             return next(iter(inv_loader))
         except RuntimeError as re:

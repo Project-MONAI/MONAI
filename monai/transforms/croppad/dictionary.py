@@ -21,8 +21,8 @@ from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Seque
 
 import numpy as np
 
-from monai.config import IndexSelection, KeysCollection
 import monai.data.utils
+from monai.config import IndexSelection, KeysCollection
 from monai.transforms.croppad.array import (
     BorderPad,
     BoundingRect,

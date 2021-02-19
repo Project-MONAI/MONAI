@@ -19,8 +19,8 @@ from typing import Any, List, Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
 
-from monai.config import USE_COMPILED, DtypeLike
 import monai.data.utils
+from monai.config import USE_COMPILED, DtypeLike
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.transforms.croppad.array import CenterSpatialCrop
 from monai.transforms.transform import Randomizable, Transform

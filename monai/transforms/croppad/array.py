@@ -18,8 +18,8 @@ from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
 
-from monai.config import IndexSelection
 import monai.data.utils
+from monai.config import IndexSelection
 from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import (
     generate_pos_neg_label_crop_centers,

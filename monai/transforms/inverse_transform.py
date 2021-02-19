@@ -11,7 +11,6 @@
 
 import warnings
 from abc import ABC
-from itertools import chain
 from typing import Hashable, Optional, Tuple
 
 import numpy as np
@@ -163,7 +162,7 @@ class NonRigidTransform(ABC):
         # Convert back to numpy and reshape
         inv_disp = vtk_numpy_support.vtk_to_numpy(inv_disp_vtk.GetPointData().GetArray(0))
         # if there were originally < 3 tensor components, remove the zeros we added at the start
-        inv_disp = inv_disp[..., :orig_shape[-1]]
+        inv_disp = inv_disp[..., : orig_shape[-1]]
         # reshape to original
         inv_disp = inv_disp.reshape(orig_shape)
 

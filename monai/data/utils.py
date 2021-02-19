@@ -24,8 +24,8 @@ import numpy as np
 import torch
 from torch.utils.data import DistributedSampler as _TorchDistributedSampler
 from torch.utils.data._utils.collate import default_collate
-import monai.transforms.croppad.dictionary
 
+import monai.transforms.croppad.dictionary
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.utils import (
     MAX_SEED,
@@ -249,13 +249,18 @@ def list_data_collate(batch: Sequence):
     except RuntimeError as re:
         re_str = str(re)
         if "stack expects each tensor to be equal size" in re_str:
-            re_str += "\nMONAI hint: if your transforms intentionally create images of different shapes, creating your `DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem (check its documentation)."
+            re_str += (
+                "\nMONAI hint: if your transforms intentionally create images of different shapes, creating your "
+                + "`DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem (check its "
+                + "documentation)."
+            )
         raise RuntimeError(re_str)
 
 
 def pad_list_data_collate(batch: Sequence):
     """
-    Same as MONAI's ``list_data_collate``, except any tensors are centrally padded to match the shape of the biggest tensor in each dimension
+    Same as MONAI's ``list_data_collate``, except any tensors are centrally padded to match the shape of the biggest
+    tensor in each dimension.
 
     Note:
         Need to use this collate if apply some transforms that can generate batch data.
@@ -288,7 +293,6 @@ def pad_list_data_collate(batch: Sequence):
 
     # After padding, use default list collator
     return list_data_collate(batch)
-
 
 
 def decollate_batch(data: dict, batch_size: Optional[int] = None):

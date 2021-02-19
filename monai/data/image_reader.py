@@ -16,11 +16,9 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence,
 import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
+import monai.data.utils
 from monai.config import DtypeLike, KeysCollection
-import monai.data.utils
 from monai.utils import ensure_tuple, optional_import
-
-import monai.data.utils
 
 if TYPE_CHECKING:
     import itk  # type: ignore
@@ -442,7 +440,7 @@ class NumpyReader(ImageReader):
                 if a list of files, verify all the suffixes.
         """
         suffixes: Sequence[str] = ["npz", "npy"]
-        return is_supported_format(filename, suffixes)
+        return monai.data.is_supported_format(filename, suffixes)
 
     def read(self, data: Union[Sequence[str], str], **kwargs):
         """
@@ -526,7 +524,7 @@ class PILReader(ImageReader):
                 if a list of files, verify all the suffixes.
         """
         suffixes: Sequence[str] = ["png", "jpg", "jpeg", "bmp"]
-        return has_pil and is_supported_format(filename, suffixes)
+        return has_pil and monai.data.is_supported_format(filename, suffixes)
 
     def read(self, data: Union[Sequence[str], str, np.ndarray], **kwargs):
         """
