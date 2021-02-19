@@ -57,7 +57,6 @@ from tests.utils import make_nifti_image, make_rand_affine, test_is_quick
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt
-    import vtk
 
     has_matplotlib = True
     has_vtk = True

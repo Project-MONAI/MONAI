@@ -779,7 +779,9 @@ class Rand2DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
                         inv_def_w_affine = CenterSpatialCrop(roi_size=orig_size)(inv_def_w_affine)
                 # Apply inverse transform
                 if inv_def_no_affine is not None:
-                    out = self.rand_2d_elastic.resampler(d[key], inv_def_w_affine, self.mode[idx], self.padding_mode[idx])
+                    out = self.rand_2d_elastic.resampler(
+                        d[key], inv_def_w_affine, self.mode[idx], self.padding_mode[idx]
+                    )
                     d[key] = out.cpu().numpy() if isinstance(out, torch.Tensor) else out
 
             else:

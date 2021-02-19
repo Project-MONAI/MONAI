@@ -11,6 +11,7 @@
 
 from typing import Any, Callable, Dict, Hashable, Optional, Tuple
 
+import numpy as np
 from torch.utils.data.dataloader import DataLoader as TorchDataLoader
 
 from monai.data.dataloader import DataLoader
@@ -23,12 +24,14 @@ __all__ = ["BatchInverseTransform"]
 
 
 class _BatchInverseDataset(Dataset):
-    def __init__(self, data: Dict[str, Any], transform: InvertibleTransform, keys: Optional[Tuple[Hashable, ...]] = None) -> None:
+    def __init__(
+        self, data: Dict[str, Any], transform: InvertibleTransform, keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> None:
         self.data = decollate_batch(data)
         self.invertible_transform = transform
         self.keys = keys
 
-    def __getitem__(self, index: int) -> Dict[str, Any]:
+    def __getitem__(self, index: int) -> Dict[Hashable, np.ndarray]:
         data = self.data[index]
         return self.invertible_transform.inverse(data, self.keys)
 
@@ -53,7 +56,7 @@ class BatchInverseTransform:
         self.num_workers = loader.num_workers
         self.collate_fn = collate_fn
 
-    def __call__(self, data: Dict[str, Any], keys: Optional[Tuple[Hashable, ...]] = None) -> Dict[str, Any]:
+    def __call__(self, data: Dict[str, Any], keys: Optional[Tuple[Hashable, ...]] = None) -> Dict[Hashable, np.ndarray]:
 
         inv_ds = _BatchInverseDataset(data, self.transform, keys)
         inv_loader = DataLoader(

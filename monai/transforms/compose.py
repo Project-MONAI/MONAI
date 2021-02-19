@@ -14,7 +14,7 @@ A collection of generic interfaces for MONAI transforms.
 
 import warnings
 from copy import deepcopy
-from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Hashable, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
