@@ -25,9 +25,8 @@ void ErrorCheck(const char* name)
     py::print(name, ": ", cudaGetErrorString(cudaGetLastError()));
 }
 
-void InitializeImageAndAlpha(float* input, int* labels, int width, int height, int channel_stride, uchar4* image, char* alpha);
-void GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const float *image, char *alpha, int width, int height);
-void GMMUpdate(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const float *image, char *alpha, int width, int height);
+void GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const float *image, int *alpha, int width, int height);
+void GMMUpdate(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const float *image, int *alpha, int width, int height);
 void GMMDataTerm(const float *image, int gmmN, const float *gmm, int gmm_pitch, float* output, int width, int height);
 
 torch::Tensor GMM_Cuda(torch::Tensor input_tensor, torch::Tensor label_tensor, int mixture_count, int gaussians_per_mixture)
@@ -43,24 +42,22 @@ torch::Tensor GMM_Cuda(torch::Tensor input_tensor, torch::Tensor label_tensor, i
     int blocks = TILE(width, BLOCK_SIZE) * TILE(height, BLOCK_SIZE);
     int scratch_gmm_size = blocks * gmm_pitch * gmms + blocks * 4;
 
-    uchar4* d_image;
-    char* d_alpha;
+    int* d_alpha;
     float* d_scratch_mem;
     float* d_gmm;
 
-    cudaMalloc(&d_image, width * height * sizeof(float));
-    cudaMalloc(&d_alpha, width * height * sizeof(char));
+    cudaMalloc(&d_alpha, width * height * sizeof(int));
     cudaMalloc(&d_scratch_mem, scratch_gmm_size);
     cudaMalloc(&d_gmm, gmm_pitch * gmms);
 
     torch::Tensor output = torch::empty({desc.batchCount, mixture_count, width, height}, torch::dtype(torch::kFloat32).device(torch::kCUDA));
 
-    InitializeImageAndAlpha(input_tensor.data_ptr<float>(), label_tensor.data_ptr<int>(), width, height, width * height, d_image, d_alpha);
+    cudaMemcpy(d_alpha, label_tensor.data_ptr<int>(), width * height * sizeof(int), cudaMemcpyDeviceToDevice);
+
     GMMInitialize(gmms, d_gmm, d_scratch_mem, gmm_pitch, input_tensor.data_ptr<float>(), d_alpha, width, height);
     GMMUpdate(gmms, d_gmm, d_scratch_mem, gmm_pitch, input_tensor.data_ptr<float>(), d_alpha, width, height);
     GMMDataTerm(input_tensor.data_ptr<float>(), gmms, d_gmm, gmm_pitch, output.data_ptr<float>(), width, height);
 
-    cudaFree(d_image);
     cudaFree(d_alpha);
     cudaFree(d_scratch_mem);
     cudaFree(d_gmm);

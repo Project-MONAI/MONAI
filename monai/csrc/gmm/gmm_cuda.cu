@@ -95,7 +95,7 @@ __device__ __forceinline__ float get_constant(float *gmm, int i)
 
 // Tile Size: 32x32, Block Size 32xwarp_N
 template<int warp_N, bool create_gmm_flags>
-__global__ void GMMReductionKernel(int gmm_idx, float *gmm, int gmm_pitch, const float *image, char *alpha, int width, int height, unsigned int *tile_gmms)
+__global__ void GMMReductionKernel(int gmm_idx, float *gmm, int gmm_pitch, const float *image, int *alpha, int width, int height, unsigned int *tile_gmms)
 {
     __shared__ float s_lists[32 * 32 * CHANNELS];
     __shared__ volatile float s_gmm[32 * warp_N];
@@ -608,7 +608,7 @@ __global__ void GMMFindSplit(GMMSplit_t *gmmSplit, int gmmK, float *gmm, int gmm
     }
 }
 
-__global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, int gmm_pitch, const float *image, char *alpha, int width, int height)
+__global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, int gmm_pitch, const float *image, int *alpha, int width, int height)
 {
     __shared__ GMMSplit_t s_gmmSplit[2];
 
@@ -631,7 +631,7 @@ __global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, int gm
 
         if (x < width && y < height)
         {
-            char my_alpha = alpha[y * width + x];
+            int my_alpha = alpha[y * width + x];
 
             if(my_alpha != -1)
             {
@@ -659,36 +659,10 @@ __global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, int gm
     }
 }
 
-__global__ void InitializeImageAndAlphaKernel(float* input, int* labels, int width, int height, int channel_stride, uchar4* image, char* alpha)
-{
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-
-    if (x >= width || y >= height) return;
-
-    int home = x + y * width;
-    
-    uchar4 color;
-    color.x = input[home + 0 * channel_stride] * 255;
-    color.y = input[home + 1 * channel_stride] * 255;
-    color.z = input[home + 2 * channel_stride] * 255;
-
-    image[home] = color;
-    alpha[home] = labels[home];
-}
-
 #define BLOCK_SIZE 32
 #define TILE(SIZE, STRIDE) (((SIZE - 1)/STRIDE) + 1)
 
-void InitializeImageAndAlpha(float* input, int* labels, int width, int height, int channel_stride, uchar4* image, char* alpha)
-{
-    dim3 block_count = dim3(TILE(width, BLOCK_SIZE), TILE(height, BLOCK_SIZE));
-    dim3 block_size = dim3(BLOCK_SIZE, BLOCK_SIZE);
-
-    InitializeImageAndAlphaKernel<<<block_count, block_size>>>(input, labels, width, height, channel_stride, image, alpha);
-}
-
-void GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const float *image, char *alpha, int width, int height)
+void GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const float *image, int *alpha, int width, int height)
 {
     dim3 grid((width+31) / 32, (height+31) / 32);
     dim3 block(32,4);
@@ -711,7 +685,7 @@ void GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, con
     }
 }
 
-void GMMUpdate(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const float *image, char *alpha, int width, int height)
+void GMMUpdate(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const float *image, int *alpha, int width, int height)
 {
     dim3 grid((width+31) / 32, (height+31) / 32);
     dim3 block(32,4);
