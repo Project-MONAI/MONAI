@@ -19,17 +19,16 @@ limitations under the License.
 #define BLOCK_SIZE 32
 #define TILE(SIZE, STRIDE) (((SIZE - 1)/STRIDE) + 1)
 
-void InitializeImageAndAlpha(float* input, int* labels, int width, int height, int channel_stride, uchar4* image, char* alpha);
-cudaError_t GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const uchar4 *image, char *alpha, int width, int height);
-cudaError_t GMMUpdate(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const uchar4 *image, char *alpha, int width, int height);
-cudaError_t GMMDataTerm(const uchar4 *image, int gmmN, const float *gmm, int gmm_pitch, float* output, int width, int height);
-
-
 void ErrorCheck(const char* name)
 {
     cudaDeviceSynchronize();
     py::print(name, ": ", cudaGetErrorString(cudaGetLastError()));
 }
+
+void InitializeImageAndAlpha(float* input, int* labels, int width, int height, int channel_stride, uchar4* image, char* alpha);
+void GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const uchar4 *image, char *alpha, int width, int height);
+void GMMUpdate(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const uchar4 *image, char *alpha, int width, int height);
+void GMMDataTerm(const uchar4 *image, int gmmN, const float *gmm, int gmm_pitch, float* output, int width, int height);
 
 torch::Tensor GMM_Cuda(torch::Tensor input_tensor, torch::Tensor label_tensor, int mixture_count, int gaussians_per_mixture)
 {
@@ -60,6 +59,11 @@ torch::Tensor GMM_Cuda(torch::Tensor input_tensor, torch::Tensor label_tensor, i
     GMMInitialize(gmms, d_gmm, d_scratch_mem, gmm_pitch, d_image, d_alpha, width, height);
     GMMUpdate(gmms, d_gmm, d_scratch_mem, gmm_pitch, d_image, d_alpha, width, height);
     GMMDataTerm(d_image, gmms, d_gmm, gmm_pitch, output.data_ptr<float>(), width, height);
+
+    cudaFree(d_image);
+    cudaFree(d_alpha);
+    cudaFree(d_scratch_mem);
+    cudaFree(d_gmm);
 
     return output;
 }
