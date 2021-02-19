@@ -33,17 +33,11 @@ void ErrorCheck(const char* name)
 
 torch::Tensor GMM_Cuda(torch::Tensor input_tensor, torch::Tensor label_tensor, int mixture_count, int gaussians_per_mixture)
 {
-    //#################################
-
     TensorDescription desc = TensorDescription(input_tensor);
 
     int width = desc.sizes[0];
     int height = desc.sizes[1];
     int element_count = width * height;
-
-    torch::Tensor output = torch::empty({desc.batchCount, mixture_count, width, height}, torch::dtype(torch::kFloat32).device(torch::kCUDA));
-
-    //#################################
 
     size_t gmm_pitch = 11 * sizeof(float);
     int gmms = mixture_count * gaussians_per_mixture;
@@ -51,7 +45,6 @@ torch::Tensor GMM_Cuda(torch::Tensor input_tensor, torch::Tensor label_tensor, i
     int scratch_gmm_size = blocks * gmm_pitch * gmms + blocks * 4;
 
     uchar4* d_image;
-    char* d_trimap;
     char* d_alpha;
     float* d_scratch_mem;
     float* d_gmm;
@@ -61,7 +54,7 @@ torch::Tensor GMM_Cuda(torch::Tensor input_tensor, torch::Tensor label_tensor, i
     cudaMalloc(&d_scratch_mem, scratch_gmm_size);
     cudaMalloc(&d_gmm, gmm_pitch * gmms);
 
-    //#################################
+    torch::Tensor output = torch::empty({desc.batchCount, mixture_count, width, height}, torch::dtype(torch::kFloat32).device(torch::kCUDA));
 
     InitializeImageAndAlpha(input_tensor.data_ptr<float>(), label_tensor.data_ptr<int>(), width, height, width * height, d_image, d_alpha);
     GMMInitialize(gmms, d_gmm, d_scratch_mem, gmm_pitch, d_image, d_alpha, width, height);
