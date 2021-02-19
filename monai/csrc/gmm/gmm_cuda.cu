@@ -11,9 +11,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+#define CHANNELS 3
 #define MIXTURES 2
 
-__device__ __forceinline__ float get_component(uchar4 pixel, int i)
+__device__ __forceinline__ float get_component(float* pixel, int i)
 {
     switch (i)
     {
@@ -21,31 +22,31 @@ __device__ __forceinline__ float get_component(uchar4 pixel, int i)
             return 1.0f;
 
         case 1 :
-            return pixel.x;
+            return pixel[0];
 
         case 2 :
-            return pixel.y;
+            return pixel[1];
 
         case 3 :
-            return pixel.z;
+            return pixel[2];
 
         case 4 :
-            return pixel.x * pixel.x;
+            return pixel[0] * pixel[0];
 
         case 5 :
-            return pixel.x * pixel.y;
+            return pixel[0] * pixel[1];
 
         case 6 :
-            return pixel.x * pixel.z;
+            return pixel[0] * pixel[2];
 
         case 7 :
-            return pixel.y * pixel.y;
+            return pixel[1] * pixel[1];
 
         case 8 :
-            return pixel.y * pixel.z;
+            return pixel[1] * pixel[2];
 
         case 9 :
-            return pixel.z * pixel.z;
+            return pixel[2] * pixel[2];
     };
 
     return 0.0f;
@@ -94,9 +95,9 @@ __device__ __forceinline__ float get_constant(float *gmm, int i)
 
 // Tile Size: 32x32, Block Size 32xwarp_N
 template<int warp_N, bool create_gmm_flags>
-__global__ void GMMReductionKernel(int gmm_idx, float *gmm, int gmm_pitch, const uchar4 *image, char *alpha, int width, int height, unsigned int *tile_gmms)
+__global__ void GMMReductionKernel(int gmm_idx, float *gmm, int gmm_pitch, const float *image, char *alpha, int width, int height, unsigned int *tile_gmms)
 {
-    __shared__ uchar4 s_lists[32 * 32];
+    __shared__ float s_lists[32 * 32 * CHANNELS];
     __shared__ volatile float s_gmm[32 * warp_N];
     __shared__ float s_final[warp_N];
 
@@ -156,8 +157,9 @@ __global__ void GMMReductionKernel(int gmm_idx, float *gmm, int gmm_pitch, const
     
                 if (my_gmm_idx == gmm_idx)
                 {
-                    uchar4 pixel = image[y * width + x];
-                    s_lists[thread_idx + list_idx * (32*warp_N)] = pixel;
+                    s_lists[(thread_idx + list_idx * (32*warp_N)) * CHANNELS + 0] = image[x + y * width + 0 * width * height] * 255;
+                    s_lists[(thread_idx + list_idx * (32*warp_N)) * CHANNELS + 1] = image[x + y * width + 1 * width * height] * 255;
+                    s_lists[(thread_idx + list_idx * (32*warp_N)) * CHANNELS + 2] = image[x + y * width + 2 * width * height] * 255;
                     ++list_idx;
                 }
             }
@@ -186,11 +188,20 @@ __global__ void GMMReductionKernel(int gmm_idx, float *gmm, int gmm_pitch, const
         }
         else
         {
-            thread_gmm = list_idx > 0 ? get_component(s_lists[thread_idx],i) : 0.0f;
+            float temp_array[3];
+            temp_array[0] = s_lists[thread_idx * 3 + 0];
+            temp_array[1] = s_lists[thread_idx * 3 + 1];
+            temp_array[2] = s_lists[thread_idx * 3 + 2];
+
+            thread_gmm = list_idx > 0 ? get_component(temp_array,i) : 0.0f;
 
             for (int k=1; k<(32/warp_N) && k < list_idx; ++k)
             {
-                thread_gmm += get_component(s_lists[thread_idx + k * (32*warp_N)], i);
+                temp_array[0] = s_lists[(thread_idx + k * (32*warp_N)) * 3 + 0];
+                temp_array[1] = s_lists[(thread_idx + k * (32*warp_N)) * 3 + 1];
+                temp_array[2] = s_lists[(thread_idx + k * (32*warp_N)) * 3 + 2];
+
+                thread_gmm += get_component(temp_array, i);
             }
         }
 
@@ -389,9 +400,9 @@ __global__ void GMMcommonTerm(int gmmK, float *gmm, int gmm_pitch)
     }
 }
 
-__device__ float GMMTerm(uchar4 pixel, const float *gmm)
+__device__ float GMMTerm(float* pixel, const float *gmm)
 {
-    float3 v = make_float3(pixel.x - gmm[1], pixel.y - gmm[2], pixel.z - gmm[3]);
+    float3 v = make_float3(pixel[0] - gmm[1], pixel[1] - gmm[2], pixel[2] - gmm[3]);
 
     float xxa = v.x * v.x * gmm[4];
     float yyd = v.y * v.y * gmm[7];
@@ -404,14 +415,17 @@ __device__ float GMMTerm(uchar4 pixel, const float *gmm)
     return gmm[10] * expf(-0.5f * (xxa + yyd + zzf + 2.0f * (yxb + zxc + zye)));
 }
 
-__global__ void GMMDataTermKernel(const uchar4 *image, int gmmN, const float *gmm, int gmm_pitch, float* output, int width, int height)
+__global__ void GMMDataTermKernel(const float *image, int gmmN, const float *gmm, int gmm_pitch, float* output, int width, int height)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
 
     if (x >= width || y >= height) return;
 
-    uchar4 pixel = image[x + y * width];
+    float temp_array[CHANNELS];
+    temp_array[0] = image[x + y * width + 0 * width * height] * 255;
+    temp_array[1] = image[x + y * width + 1 * width * height] * 255;
+    temp_array[2] = image[x + y * width + 2 * width * height] * 255;
 
     float weights[MIXTURES];
     float weight_total = 0.0f;
@@ -422,7 +436,7 @@ __global__ void GMMDataTermKernel(const uchar4 *image, int gmmN, const float *gm
 
         for(int j = 0; j < gmmN; j += MIXTURES)
         {
-            mixture_weight += GMMTerm(pixel, &gmm[(j + i) * gmm_pitch]);
+            mixture_weight += GMMTerm(temp_array, &gmm[(j + i) * gmm_pitch]);
         }
 
         weights[i] = mixture_weight;
@@ -594,7 +608,7 @@ __global__ void GMMFindSplit(GMMSplit_t *gmmSplit, int gmmK, float *gmm, int gmm
     }
 }
 
-__global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, int gmm_pitch, const uchar4 *image, char *alpha, int width, int height)
+__global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, int gmm_pitch, const float *image, char *alpha, int width, int height)
 {
     __shared__ GMMSplit_t s_gmmSplit[2];
 
@@ -627,9 +641,12 @@ __global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, int gm
                 if (gmm_idx == s_gmmSplit[select].idx)
                 {
                     // in the split cluster now
-                    uchar4 pixel = image[y * width + x];
+                    float temp_array[CHANNELS];
+                    temp_array[0] = image[x + y * width + 0 * width * height] * 255;
+                    temp_array[1] = image[x + y * width + 1 * width * height] * 255;
+                    temp_array[2] = image[x + y * width + 2 * width * height] * 255;
     
-                    float value = scalar_prod(s_gmmSplit[select].eigenvector, make_float3(pixel.x, pixel.y, pixel.z));
+                    float value = scalar_prod(s_gmmSplit[select].eigenvector, make_float3(temp_array[0], temp_array[1], temp_array[2]));
     
                     if (value > s_gmmSplit[select].threshold)
                     {
@@ -671,7 +688,7 @@ void InitializeImageAndAlpha(float* input, int* labels, int width, int height, i
     InitializeImageAndAlphaKernel<<<block_count, block_size>>>(input, labels, width, height, channel_stride, image, alpha);
 }
 
-void GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const uchar4 *image, char *alpha, int width, int height)
+void GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const float *image, char *alpha, int width, int height)
 {
     dim3 grid((width+31) / 32, (height+31) / 32);
     dim3 block(32,4);
@@ -694,7 +711,7 @@ void GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, con
     }
 }
 
-void GMMUpdate(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const uchar4 *image, char *alpha, int width, int height)
+void GMMUpdate(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const float *image, char *alpha, int width, int height)
 {
     dim3 grid((width+31) / 32, (height+31) / 32);
     dim3 block(32,4);
@@ -713,7 +730,7 @@ void GMMUpdate(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const u
     GMMcommonTerm<<<1, block>>>(gmm_N / 2, gmm, gmm_pitch/4);
 }
 
-void GMMDataTerm(const uchar4 *image, int gmmN, const float *gmm, int gmm_pitch, float* output, int width, int height)
+void GMMDataTerm(const float *image, int gmmN, const float *gmm, int gmm_pitch, float* output, int width, int height)
 {
     dim3 block(32,8);
     dim3 grid((width+block.x-1) / block.x, (height+block.y-1) / block.y);
