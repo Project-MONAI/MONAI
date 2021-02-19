@@ -19,12 +19,6 @@ limitations under the License.
 #define BLOCK_SIZE 32
 #define TILE(SIZE, STRIDE) (((SIZE - 1)/STRIDE) + 1)
 
-void ErrorCheck(const char* name)
-{
-    cudaDeviceSynchronize();
-    py::print(name, ": ", cudaGetErrorString(cudaGetLastError()));
-}
-
 void GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const float *image, int *alpha, int width, int height);
 void GMMUpdate(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const float *image, int *alpha, int width, int height);
 void GMMDataTerm(const float *image, int gmmN, const float *gmm, int gmm_pitch, float* output, int width, int height);
@@ -42,19 +36,20 @@ torch::Tensor GMM_Cuda(torch::Tensor input_tensor, torch::Tensor label_tensor, i
     int blocks = TILE(width, BLOCK_SIZE) * TILE(height, BLOCK_SIZE);
     int scratch_gmm_size = blocks * gmm_pitch * gmms + blocks * 4;
 
-    int* d_alpha;
-    float* d_gmm;
+    torch::Tensor output_tensor = torch::empty({desc.batchCount, mixture_count, width, height}, torch::dtype(torch::kFloat32).device(torch::kCUDA));
 
-    cudaMalloc(&d_alpha, width * height * sizeof(int));
-    cudaMalloc(&d_gmm, gmm_pitch * gmms);
+    float* input = input_tensor.data_ptr<float>();
+    float* output = output_tensor.data_ptr<float>();
+    float* scratch_mem = output;
 
-    torch::Tensor output = torch::empty({desc.batchCount, mixture_count, width, height}, torch::dtype(torch::kFloat32).device(torch::kCUDA));
+    float* gmm; cudaMalloc(&d_gmm, gmm_pitch * gmms);
+    int* alpha; cudaMalloc(&d_alpha, width * height * sizeof(int));
 
     cudaMemcpyAsync(d_alpha, label_tensor.data_ptr<int>(), width * height * sizeof(int), cudaMemcpyDeviceToDevice);
 
-    GMMInitialize(gmms, d_gmm, output.data_ptr<float>(), gmm_pitch, input_tensor.data_ptr<float>(), d_alpha, width, height);
-    GMMUpdate(gmms, d_gmm, output.data_ptr<float>(), gmm_pitch, input_tensor.data_ptr<float>(), d_alpha, width, height);
-    GMMDataTerm(input_tensor.data_ptr<float>(), gmms, d_gmm, gmm_pitch, output.data_ptr<float>(), width, height);
+    GMMInitialize(gmms, d_gmm, scratch_mem, gmm_pitch, input, d_alpha, width, height);
+    GMMUpdate(gmms, d_gmm, scratch_mem, gmm_pitch, input, d_alpha, width, height);
+    GMMDataTerm(input, gmms, d_gmm, gmm_pitch, output, width, height);
 
     cudaFree(d_alpha);
     cudaFree(d_gmm);
