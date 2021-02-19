@@ -124,9 +124,11 @@ class SpatialPadd(MapTransform, InvertibleTransform):
             d[key] = self.padder(d[key], mode=m)
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
-        for key in self.keys:
+        for key in keys or self.keys:
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
             orig_size = transform["orig_size"]
@@ -190,10 +192,12 @@ class BorderPadd(MapTransform, InvertibleTransform):
             d[key] = self.padder(d[key], mode=m)
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
 
-        for key in self.keys:
+        for key in keys or self.keys:
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
             orig_size = np.array(transform["orig_size"])
@@ -251,10 +255,12 @@ class DivisiblePadd(MapTransform, InvertibleTransform):
             d[key] = self.padder(d[key], mode=m)
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
 
-        for key in self.keys:
+        for key in keys or self.keys:
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
             orig_size = np.array(transform["orig_size"])
@@ -304,10 +310,12 @@ class SpatialCropd(MapTransform, InvertibleTransform):
             d[key] = self.cropper(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
 
-        for key in self.keys:
+        for key in keys or self.keys:
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
             orig_size = transform["orig_size"]
@@ -349,10 +357,12 @@ class CenterSpatialCropd(MapTransform, InvertibleTransform):
             self.append_applied_transforms(d, key, orig_size=orig_size)
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
 
-        for key in self.keys:
+        for key in keys or self.keys:
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
             orig_size = np.array(transform["orig_size"])
@@ -431,10 +441,12 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
                 d[key] = cropper(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
 
-        for key in self.keys:
+        for key in keys or self.keys:
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
             orig_size = transform["orig_size"]
@@ -574,9 +586,11 @@ class CropForegroundd(MapTransform, InvertibleTransform):
             d[key] = cropper(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
-        for key in self.keys:
+        for key in keys or self.keys:
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
             orig_size = np.array(transform["orig_size"])
@@ -801,9 +815,11 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
             self.append_applied_transforms(d, key, orig_size=orig_size)
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
-        for key in self.keys:
+        for key in keys or self.keys:
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
             orig_size = transform["orig_size"]

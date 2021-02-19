@@ -203,9 +203,11 @@ class Spacingd(MapTransform, InvertibleTransform):
             meta_data["affine"] = new_affine
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
-        for idx, key in enumerate(self.keys):
+        for idx, key in enumerate(keys or self.keys):
             transform = self.get_most_recent_transform(d, key)
             if self.spacing_transform.diagonal:
                 raise RuntimeError(
@@ -295,9 +297,11 @@ class Orientationd(MapTransform, InvertibleTransform):
             d[meta_data_key]["affine"] = new_affine
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
-        for key in self.keys:
+        for key in keys or self.keys:
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
             meta_data = d[transform["extra_info"]["meta_data_key"]]
@@ -339,9 +343,11 @@ class Rotate90d(MapTransform, InvertibleTransform):
             d[key] = self.rotator(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
-        for key in self.keys:
+        for key in keys or self.keys:
             _ = self.get_most_recent_transform(d, key)
             # Create inverse transform
             spatial_axes = self.rotator.spatial_axes
@@ -407,9 +413,11 @@ class RandRotate90d(Randomizable, MapTransform, InvertibleTransform):
             self.append_applied_transforms(d, key, extra_info={"rand_k": self._rand_k})
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
-        for key in self.keys:
+        for key in keys or self.keys:
             transform = self.get_most_recent_transform(d, key)
             # Check if random transform was actually performed (based on `prob`)
             if transform["do_transform"]:
@@ -468,9 +476,11 @@ class Resized(MapTransform, InvertibleTransform):
             d[key] = self.resizer(d[key], mode=self.mode[idx], align_corners=self.align_corners[idx])
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
-        for idx, key in enumerate(self.keys):
+        for idx, key in enumerate(keys or self.keys):
             transform = self.get_most_recent_transform(d, key)
             orig_size = transform["orig_size"]
             mode = self.mode[idx]
@@ -584,10 +594,12 @@ class RandAffined(Randomizable, MapTransform, InvertibleTransform):
             d[key] = self.rand_affine.resampler(d[key], grid, mode=self.mode[idx], padding_mode=self.padding_mode[idx])
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
 
-        for idx, key in enumerate(self.keys):
+        for idx, key in enumerate(keys or self.keys):
             transform = self.get_most_recent_transform(d, key)
             orig_size = transform["orig_size"]
             # Create inverse transform
@@ -733,12 +745,14 @@ class Rand2DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
             )
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
         # This variable will be `not None` if vtk or sitk is present
         inv_def_no_affine = None
 
-        for idx, key in enumerate(self.keys):
+        for idx, key in enumerate(keys or self.keys):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
             if transform["do_transform"]:
@@ -758,7 +772,9 @@ class Rand2DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
                     if inv_def_no_affine is not None:
                         fwd_affine = transform["extra_info"]["affine"]
                         inv_affine = np.linalg.inv(fwd_affine)
-                        inv_def_w_affine: np.ndarray = AffineGrid(affine=inv_affine, as_tensor_output=False)(grid=inv_def_no_affine)  # type: ignore
+                        inv_def_w_affine: np.ndarray = AffineGrid(affine=inv_affine, as_tensor_output=False)(
+                            grid=inv_def_no_affine
+                        )  # type: ignore
                         # Back to original size
                         inv_def_w_affine = CenterSpatialCrop(roi_size=orig_size)(inv_def_w_affine)
                 # Apply inverse transform
@@ -887,10 +903,12 @@ class Rand3DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
             )
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
 
-        for idx, key in enumerate(self.keys):
+        for idx, key in enumerate(keys or self.keys):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
             if transform["do_transform"]:
@@ -903,7 +921,9 @@ class Rand3DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
                     if inv_def_no_affine is not None:
                         fwd_affine = transform["extra_info"]["affine"]
                         inv_affine = np.linalg.inv(fwd_affine)
-                        inv_def_w_affine: np.ndarray = AffineGrid(affine=inv_affine, as_tensor_output=False)(grid=inv_def_no_affine)  # type: ignore
+                        inv_def_w_affine: np.ndarray = AffineGrid(affine=inv_affine, as_tensor_output=False)(
+                            grid=inv_def_no_affine
+                        )  # type: ignore
                         # Back to original size
                         inv_def_w_affine = CenterSpatialCrop(roi_size=orig_size)(inv_def_w_affine)
                 # Apply inverse transform
@@ -943,9 +963,11 @@ class Flipd(MapTransform, InvertibleTransform):
             d[key] = self.flipper(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
-        for key in self.keys:
+        for key in keys or self.keys:
             _ = self.get_most_recent_transform(d, key)
             # Might need to convert to numpy
             if isinstance(d[key], torch.Tensor):
@@ -996,9 +1018,11 @@ class RandFlipd(Randomizable, MapTransform, InvertibleTransform):
 
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
-        for key in self.keys:
+        for key in keys or self.keys:
             transform = self.get_most_recent_transform(d, key)
             # Check if random transform was actually performed (based on `prob`)
             if transform["do_transform"]:
@@ -1073,9 +1097,11 @@ class Rotated(MapTransform, InvertibleTransform):
             self.append_applied_transforms(d, key, orig_size=orig_size, extra_info={"rot_mat": rot_mat})
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
-        for idx, key in enumerate(self.keys):
+        for idx, key in enumerate(keys or self.keys):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
             fwd_rot_mat = transform["extra_info"]["rot_mat"]
@@ -1201,9 +1227,11 @@ class RandRotated(Randomizable, MapTransform, InvertibleTransform):
             self.append_applied_transforms(d, key, orig_size=orig_size, extra_info={"rot_mat": rot_mat})
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
-        for idx, key in enumerate(self.keys):
+        for idx, key in enumerate(keys or self.keys):
             transform = self.get_most_recent_transform(d, key)
             # Check if random transform was actually performed (based on `prob`)
             if transform["do_transform"]:
@@ -1282,9 +1310,11 @@ class Zoomd(MapTransform, InvertibleTransform):
             )
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
-        for idx, key in enumerate(self.keys):
+        for idx, key in enumerate(keys or self.keys):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
             zoom = np.array(self.zoomer.zoom)
@@ -1392,9 +1422,11 @@ class RandZoomd(Randomizable, MapTransform, InvertibleTransform):
             )
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
-        for idx, key in enumerate(self.keys):
+        for idx, key in enumerate(keys or self.keys):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
             zoom = np.array(transform["extra_info"]["zoom"])

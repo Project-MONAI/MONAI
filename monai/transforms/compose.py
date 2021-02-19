@@ -14,7 +14,7 @@ A collection of generic interfaces for MONAI transforms.
 
 import warnings
 from copy import deepcopy
-from typing import Any, Callable, Mapping, Optional, Sequence, Union
+from typing import Any, Callable, Hashable, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -113,12 +113,16 @@ class Compose(Randomizable, Transform, InvertibleTransform):
                     f'Transform "{tfm_name}" in Compose not randomized\n{tfm_name}.{type_error}.', RuntimeWarning
                 )
 
+    def __len__(self):
+        """Return number of transformations."""
+        return sum(len(t) if isinstance(t, Compose) else 1 for t in self.transforms)
+
     def __call__(self, input_):
         for _transform in self.transforms:
             input_ = apply_transform(_transform, input_)
         return input_
 
-    def inverse(self, data):
+    def inverse(self, data, keys: Optional[Tuple[Hashable, ...]] = None):
         if not isinstance(data, Mapping):
             raise RuntimeError("Inverse method only available for dictionary transforms")
         d = deepcopy(dict(data))
@@ -127,5 +131,5 @@ class Compose(Randomizable, Transform, InvertibleTransform):
         for t in reversed(self.transforms):
             # check if transform is one of the invertible ones
             if isinstance(t, InvertibleTransform):
-                d = t.inverse(d)
+                d = t.inverse(d, keys)
         return d

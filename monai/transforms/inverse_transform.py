@@ -79,7 +79,7 @@ class InvertibleTransform(ABC):
         """Remove most recent transform."""
         data[str(key) + "_transforms"].pop()
 
-    def inverse(self, data: dict):
+    def inverse(self, data: dict, keys: Optional[Tuple[Hashable, ...]] = None):
         """
         Inverse of ``__call__``.
 
