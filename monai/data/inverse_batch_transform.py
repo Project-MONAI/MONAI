@@ -33,7 +33,7 @@ class BatchInverseTransform:
     """something"""
 
     def __init__(
-        self, transform: InvertibleTransform, loader: TorchDataLoader, collate_fn: Callable = None
+        self, transform: InvertibleTransform, loader: TorchDataLoader, collate_fn: Optional[Callable] = None
     ) -> None:
         """
         Args:
@@ -54,7 +54,7 @@ class BatchInverseTransform:
         try:
             return next(iter(inv_loader))
         except RuntimeError as re:
-            re = str(re)
-            if "stack expects each tensor to be equal size" in re:
-                re += "\nMONAI hint: try creating `BatchInverseTransform` with `collate_fn=lambda x: x`."
-            raise RuntimeError(re)
+            re_str = str(re)
+            if "stack expects each tensor to be equal size" in re_str:
+                re_str += "\nMONAI hint: try creating `BatchInverseTransform` with `collate_fn=lambda x: x`."
+            raise RuntimeError(re_str)
