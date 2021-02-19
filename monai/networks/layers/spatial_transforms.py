@@ -230,12 +230,11 @@ class _GridCount(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad):
-        var = ctx.saved_tensors
-        opt = ctx.opt
-        grad_grid = None
         if ctx.needs_input_grad[0]:
-            grad_grid = _C.grid_count_backward(grad, *var, *opt)
-        return grad_grid, None, None, None, None
+            var = ctx.saved_tensors
+            opt = ctx.opt
+            return _C.grid_count_backward(grad, *var, *opt), None, None, None, None
+        return None, None, None, None, None
 
 
 def grid_count(grid: torch.Tensor, shape=None, interpolation="linear", bound="zero", extrapolate: bool = True):
@@ -327,18 +326,15 @@ class _GridGrad(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad):
+        if not (ctx.needs_input_grad[0] or ctx.needs_input_grad[1]):
+            return None, None, None, None, None
         var = ctx.saved_tensors
         opt = ctx.opt
-        grad_input = grad_grid = None
-        if ctx.needs_input_grad[0] or ctx.needs_input_grad[1]:
-            grads = _C.grid_grad_backward(grad, *var, *opt)
-            if ctx.needs_input_grad[0]:
-                grad_input = grads[0]
-                if ctx.needs_input_grad[1]:
-                    grad_grid = grads[1]
-            elif ctx.needs_input_grad[1]:
-                grad_grid = grads[0]
-        return grad_input, grad_grid, None, None, None
+        grads = _C.grid_grad_backward(grad, *var, *opt)
+        if ctx.needs_input_grad[0]:
+            return grads[0], grads[1] if ctx.needs_input_grad[1] else None, None, None, None
+        if ctx.needs_input_grad[1]:
+            return None, grads[0], None, None, None
 
 
 def grid_grad(input: torch.Tensor, grid: torch.Tensor, interpolation="linear", bound="zero", extrapolate: bool = True):

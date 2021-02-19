@@ -38,3 +38,4 @@ def _read_testing_data_answers(fname: Optional[str] = None, delimiter=",") -> Li
 
 
 Expected_1D_GP_fwd: List = _read_testing_data_answers(fname="1D_BP_fwd.txt")
+Expected_1D_GP_bwd: List = _read_testing_data_answers(fname="1D_BP_bwd.txt")
