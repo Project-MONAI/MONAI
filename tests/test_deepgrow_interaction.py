@@ -20,7 +20,7 @@ from monai.transforms import Activationsd, Compose, ToNumpyd
 
 
 class TestInteractions(unittest.TestCase):
-    def test_interaction(self):
+    def run_interaction(self, train, compose):
         data = []
         for i in range(5):
             data.append({"image": torch.tensor([float(i)]), "label": torch.tensor([float(i)])})
@@ -31,10 +31,11 @@ class TestInteractions(unittest.TestCase):
         dataset = Dataset(data, transform=None)
         data_loader = torch.utils.data.DataLoader(dataset, batch_size=5)
 
-        iteration_transforms = Compose([Activationsd(keys="pred", sigmoid=True), ToNumpyd(keys="pred")])
+        iteration_transforms = [Activationsd(keys="pred", sigmoid=True), ToNumpyd(keys="pred")]
+        iteration_transforms = Compose(iteration_transforms) if compose else iteration_transforms
 
-        i = Interaction(transforms=iteration_transforms, train=True, max_interactions=5)
-        assert len(i.transforms.transforms) == 2
+        i = Interaction(transforms=iteration_transforms, train=train, max_interactions=5)
+        self.assertEqual(len(i.transforms.transforms), 2, "Mismatch in expected transforms")
 
         # set up engine
         engine = SupervisedTrainer(
@@ -48,6 +49,13 @@ class TestInteractions(unittest.TestCase):
         )
 
         engine.run()
+        self.assertIsNotNone(engine.state.batch.get("probability"), "Probability is missing")
+
+    def test_train_interaction(self):
+        self.run_interaction(train=True, compose=True)
+
+    def test_val_interaction(self):
+        self.run_interaction(train=False, compose=False)
 
 
 if __name__ == "__main__":
