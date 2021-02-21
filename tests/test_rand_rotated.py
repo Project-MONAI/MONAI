@@ -54,7 +54,7 @@ class TestRandRotated2D(NumpyImageTestCase2D):
             self.imt[0, 0], -np.rad2deg(angle), (0, 1), not keep_size, order=_order, mode=_mode, prefilter=False
         )
         expected = np.stack(expected).astype(np.float32)
-        self.assertTrue(np.allclose(expected, rotated["img"][0]))
+        self.assertTrue(np.allclose(expected, rotated["img"][0], rtol=1e-2, atol=1))
 
 
 class TestRandRotated3D(NumpyImageTestCase3D):
