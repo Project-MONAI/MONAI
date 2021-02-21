@@ -9,11 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Union
+from typing import Callable, Optional, Sequence, Union
 
 import numpy as np
+import torch
 
-from monai.config import KeysCollection
+from monai.config import IndexSelection, KeysCollection
+from monai.networks.layers import GaussianFilter
 from monai.transforms import SpatialCrop
 from monai.transforms.compose import MapTransform, Randomizable, Transform
 from monai.transforms.utils import generate_spatial_bounding_box
@@ -21,7 +23,6 @@ from monai.utils import min_version, optional_import
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_cdt")
-gaussian_filter, _ = optional_import("scipy.ndimage", name="gaussian_filter")
 
 
 # Transforms to support Training for Deepgrow models
@@ -197,7 +198,11 @@ class AddGuidanceSignald(Transform):
                     signal[i, p1, p2] = 1.0
 
             if np.max(signal[i]) > 0:
-                signal[i] = gaussian_filter(signal[i], sigma=self.sigma)
+                signal_tensor = torch.tensor(signal[i])
+                pt_gaussian = GaussianFilter(len(signal_tensor.shape), sigma=self.sigma)
+                signal_tensor = pt_gaussian(signal_tensor.unsqueeze(0).unsqueeze(0))
+                signal_tensor = signal_tensor.squeeze(0).squeeze(0)
+                signal[i] = signal_tensor.detach().cpu().numpy()
                 signal[i] = (signal[i] - np.min(signal[i])) / (np.max(signal[i]) - np.min(signal[i]))
         return signal
 
@@ -306,9 +311,16 @@ class AddRandomGuidanced(Randomizable, Transform):
         self.discrepancy = discrepancy
         self.probability = probability
         self.batched = batched
+        self._will_interact = None
 
     def randomize(self, data=None):
-        pass
+        probability = data[self.probability]
+        if not self.batched:
+            self._will_interact = self.R.choice([True, False], p=[probability, 1.0 - probability])
+        else:
+            self._will_interact = []
+            for p in probability:
+                self._will_interact.append(self.R.choice([True, False], p=[p, 1.0 - p]))
 
     def find_guidance(self, discrepancy):
         distance = distance_transform_cdt(discrepancy).flatten()
@@ -324,8 +336,7 @@ class AddRandomGuidanced(Randomizable, Transform):
             return g
         return None
 
-    def add_guidance(self, discrepancy, probability):
-        will_interact = self.R.choice([True, False], p=[probability, 1.0 - probability])
+    def add_guidance(self, discrepancy, will_interact):
         if not will_interact:
             return None, None
 
@@ -343,10 +354,10 @@ class AddRandomGuidanced(Randomizable, Transform):
             return None, self.find_guidance(neg_discr)
         return None, None
 
-    def _apply(self, guidance, discrepancy, probability):
+    def _apply(self, guidance, discrepancy):
         guidance = guidance.tolist() if isinstance(guidance, np.ndarray) else guidance
         if not self.batched:
-            pos, neg = self.add_guidance(discrepancy, probability)
+            pos, neg = self.add_guidance(discrepancy, self._will_interact)
             if pos:
                 guidance[0].append(pos)
                 guidance[1].append([-1] * len(pos))
@@ -354,8 +365,8 @@ class AddRandomGuidanced(Randomizable, Transform):
                 guidance[0].append([-1] * len(neg))
                 guidance[1].append(neg)
         else:
-            for g, d, p in zip(guidance, discrepancy, probability):
-                pos, neg = self.add_guidance(d, p)
+            for g, d, w in zip(guidance, discrepancy, self._will_interact):
+                pos, neg = self.add_guidance(d, w)
                 if pos:
                     g[0].append(pos)
                     g[1].append([-1] * len(pos))
@@ -368,17 +379,23 @@ class AddRandomGuidanced(Randomizable, Transform):
         d = dict(data)
         guidance = d[self.guidance]
         discrepancy = d[self.discrepancy]
-        probability = d[self.probability]
 
-        d[self.guidance] = self._apply(guidance, discrepancy, probability)
+        self.randomize(data)
+        d[self.guidance] = self._apply(guidance, discrepancy)
         return d
 
 
 class SpatialCropForegroundd(MapTransform):
     """
     Crop only the foreground object of the expected images.
-    Note that if the bounding box is smaller than spatial size in all dimensions then we will crop the
-    object using box's center and spatial_size.
+
+    Difference VS CropForegroundd:
+
+      1. If the bounding box is smaller than spatial size in all dimensions then this transform will crop the
+         object using box's center and spatial_size.
+
+      2. This transform will set "start_coord_key", "end_coord_key", "original_shape_key" and "cropped_shape_key"
+         in data[{key}_{meta_key_postfix}]
 
     The typical usage is to help training and evaluation if the valid part is small in the whole medical image.
     The valid part can be determined by any field in the data with `source_key`, for example:
@@ -412,8 +429,8 @@ class SpatialCropForegroundd(MapTransform):
         keys: KeysCollection,
         source_key: str,
         spatial_size: Union[Sequence[int], np.ndarray],
-        select_fn=lambda x: x > 0,
-        channel_indices=None,
+        select_fn: Callable = lambda x: x > 0,
+        channel_indices: Optional[IndexSelection] = None,
         margin: int = 0,
         meta_key_postfix="meta_dict",
         start_coord_key: str = "foreground_start_coord",
