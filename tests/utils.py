@@ -30,7 +30,6 @@ import torch.distributed as dist
 
 from monai.config.deviceconfig import USE_COMPILED
 from monai.data import create_test_image_2d, create_test_image_3d
-from monai.transforms import Randomizable
 from monai.utils import ensure_tuple, optional_import, set_determinism
 from monai.utils.module import get_torch_version_tuple
 
@@ -435,25 +434,14 @@ def _call_original_func(name, module, *args, **kwargs):
     return f(*args, **kwargs)
 
 
-class NumpyImageTestCase2D(unittest.TestCase, Randomizable):
+class NumpyImageTestCase2D(unittest.TestCase):
     im_shape = (128, 64)
     input_channels = 1
     output_channels = 4
     num_classes = 3
 
-    def randomize(self, data=None):
-        return create_test_image_2d(
-            width=self.im_shape[0],
-            height=self.im_shape[1],
-            num_objs=4,
-            rad_max=20,
-            noise_max=0,
-            num_seg_classes=self.num_classes,
-            random_state=self.R,
-        )
-
     def setUp(self):
-        im, msk = self.randomize()
+        im, msk = create_test_image_2d(self.im_shape[0], self.im_shape[1], 4, 20, 0, self.num_classes)
 
         self.imt = im[None, None]
         self.seg1 = (msk[None, None] > 0).astype(np.float32)
@@ -468,26 +456,14 @@ class TorchImageTestCase2D(NumpyImageTestCase2D):
         self.segn = torch.tensor(self.segn)
 
 
-class NumpyImageTestCase3D(unittest.TestCase, Randomizable):
+class NumpyImageTestCase3D(unittest.TestCase):
     im_shape = (64, 48, 80)
     input_channels = 1
     output_channels = 4
     num_classes = 3
 
-    def randomize(self, data=None):
-        return create_test_image_3d(
-            height=self.im_shape[0],
-            width=self.im_shape[1],
-            depth=self.im_shape[2],
-            num_objs=4,
-            rad_max=20,
-            noise_max=0,
-            num_seg_classes=self.num_classes,
-            random_state=self.R,
-        )
-
     def setUp(self):
-        im, msk = self.randomize()
+        im, msk = create_test_image_3d(self.im_shape[0], self.im_shape[1], self.im_shape[2], 4, 20, 0, self.num_classes)
 
         self.imt = im[None, None]
         self.seg1 = (msk[None, None] > 0).astype(np.float32)
