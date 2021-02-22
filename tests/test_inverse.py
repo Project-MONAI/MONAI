@@ -541,7 +541,7 @@ class TestInverse(unittest.TestCase):
 
             for idx, (_fwd, _fwd_bck) in enumerate(zip(fwd, fwd_bck)):
                 unmodified = test_data[batch_idx * batch_size + idx]
-                self.check_inverse("diff_sized_inputs", KEYS, unmodified, _fwd_bck, _fwd, 2e-2)
+                self.check_inverse("diff_sized_inputs", KEYS, unmodified, _fwd_bck, _fwd, 1e-1)
 
     @parameterized.expand(TESTS_FAIL)
     def test_fail(self, data, _, *transform):
