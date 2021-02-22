@@ -38,3 +38,17 @@ Applications
 .. automodule:: monai.apps.deepgrow.interaction
 .. autoclass:: Interaction
     :members:
+
+.. automodule:: monai.apps.deepgrow.transforms
+.. autoclass:: AddInitialSeedPointd
+    :members:
+.. autoclass:: AddGuidanceSignald
+    :members:
+.. autoclass:: AddRandomGuidanced
+    :members:
+.. autoclass:: SpatialCropForegroundd
+    :members:
+.. autoclass:: FindDiscrepancyRegionsd
+    :members:
+.. autoclass:: FindAllValidSlicesd
+    :members:
