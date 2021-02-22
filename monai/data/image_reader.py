@@ -12,12 +12,12 @@
 import os
 import warnings
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, Type
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
-from monai.config import KeysCollection
+from monai.config import DtypeLike, KeysCollection
 from monai.data.utils import correct_nifti_header_if_necessary
 from monai.utils import ensure_tuple, optional_import
 
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from nibabel.nifti1 import Nifti1Image
     from PIL import Image as PILImage
 
-    has_itk = has_nib = has_pil = has_cux = True
+    has_itk = has_nib = has_pil = has_cux = has_osl =True
 else:
     itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
     Image, _ = optional_import("itk", allow_namespace_pkg=True, name="Image")
@@ -310,7 +310,7 @@ class NibabelReader(ImageReader):
 
     """
 
-    def __init__(self, as_closest_canonical: bool = False, dtype: Optional[Type] = np.float32, **kwargs):
+    def __init__(self, as_closest_canonical: bool = False, dtype: Optional[DtypeLike] = np.float32, **kwargs):
         super().__init__()
         self.as_closest_canonical = as_closest_canonical
         self.dtype = dtype
@@ -667,7 +667,7 @@ class WSIReader(ImageReader):
         location: Tuple[int, int] = (0, 0),
         size: Optional[Tuple[int, int]] = None,
         level: int = 0,
-        dtype: Type = np.uint8,
+        dtype: DtypeLike = np.uint8,
         grid_shape: Tuple[int, int] = (1, 1),
         patch_size: Optional[int] = None,
     ):
@@ -704,7 +704,7 @@ class WSIReader(ImageReader):
         location: Tuple[int, int] = (0, 0),
         size: Optional[Tuple[int, int]] = None,
         level: int = 0,
-        dtype: Type = np.uint8,
+        dtype: DtypeLike = np.uint8,
     ):
         region = img_obj.read_region(location=location, size=size, level=level)
         if self.wsi_reader_name == "openslide":
@@ -720,7 +720,7 @@ class WSIReader(ImageReader):
         region: np.ndarray,
         grid_shape: Tuple[int, int] = (1, 1),
         patch_size: Optional[Tuple[int, int]] = None,
-        dtype: Type = np.uint8,
+        dtype: DtypeLike = np.uint8,
     ):
         if patch_size is None and grid_shape == (1, 1):
             return region
