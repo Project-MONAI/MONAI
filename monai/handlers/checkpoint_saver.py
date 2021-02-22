@@ -186,6 +186,7 @@ class CheckpointSaver:
         Note to set `key_metric_save_state=True` when saving the previous checkpoint.
 
         Example::
+
             CheckpointSaver(
                 ...
                 save_key_metric=True,
