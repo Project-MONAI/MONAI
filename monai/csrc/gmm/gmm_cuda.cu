@@ -610,30 +610,31 @@ __global__ void GMMFindSplit(GMMSplit_t *gmmSplit, int gmmK, float *gmm, int gmm
     }
 }
 
-__global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, int gmm_pitch, const float *image, int *alpha, int width, int height)
+#define DO_SPLIT_DEGENERACY 4
+
+__global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, int gmm_pitch, const float *image, int *alpha, int element_count)
 {
     __shared__ GMMSplit_t s_gmmSplit[2];
 
     int *s_linear = (int *) s_gmmSplit;
     int *g_linear = (int *) gmmSplit;
 
-    if (threadIdx.y ==0 && threadIdx.x < 10)
+    if (threadIdx.x < 10)
     {
         s_linear[threadIdx.x] = g_linear[threadIdx.x];
     }
 
     __syncthreads();
 
-    int x = blockIdx.x * 32 + threadIdx.x;
-    int y0 = blockIdx.y * 32;
+    int index = threadIdx.x + blockIdx.x * BLOCK_SIZE * DO_SPLIT_DEGENERACY;
 
-    for (int i = threadIdx.y; i < 32; i += blockDim.y)
+    for (int i = 0; i < DO_SPLIT_DEGENERACY; i++)
     {
-        int y = y0 + i;
+        index += BLOCK_SIZE;
 
-        if (x < width && y < height)
+        if (index < element_count)
         {
-            int my_alpha = alpha[y * width + x];
+            int my_alpha = alpha[index];
 
             if(my_alpha != -1)
             {
@@ -644,16 +645,16 @@ __global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, int gm
                 {
                     // in the split cluster now
                     float temp_array[CHANNELS];
-                    temp_array[0] = image[x + y * width + 0 * width * height] * 255;
-                    temp_array[1] = image[x + y * width + 1 * width * height] * 255;
-                    temp_array[2] = image[x + y * width + 2 * width * height] * 255;
+                    temp_array[0] = image[index + 0 * element_count] * 255;
+                    temp_array[1] = image[index + 1 * element_count] * 255;
+                    temp_array[2] = image[index + 2 * element_count] * 255;
     
                     float value = scalar_prod(s_gmmSplit[select].eigenvector, make_float3(temp_array[0], temp_array[1], temp_array[2]));
     
                     if (value > s_gmmSplit[select].threshold)
                     {
                         // assign pixel to new cluster
-                        alpha[y * width + x] =  k + select;
+                        alpha[index] =  k + select;
                     }
                 }
             }
@@ -661,7 +662,7 @@ __global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, int gm
     }
 }
 
-void GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const float *image, int *alpha, int width, int height)
+void GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const float *image, int *alpha, int element_count, int width, int height)
 {
     dim3 grid((width+31) / 32, (height+31) / 32);
     dim3 block(32,4);
@@ -680,7 +681,7 @@ void GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, con
 
         GMMFindSplit<<<1, smallblock>>>((GMMSplit_t *) scratch_mem, k / 2, gmm, gmm_pitch/4);
 
-        GMMDoSplit<<<grid, block>>>((GMMSplit_t *) scratch_mem, (k/2) << 1, gmm, gmm_pitch/4, image, alpha, width, height);
+        GMMDoSplit<<<TILE(element_count, BLOCK_SIZE * DO_SPLIT_DEGENERACY), BLOCK_SIZE>>>((GMMSplit_t *) scratch_mem, (k/2) << 1, gmm, gmm_pitch/4, image, alpha, element_count);
     }
 }
 
@@ -726,7 +727,7 @@ void GMM_Cuda(const float* input, const int* labels, float* output, int batch_co
 
     cudaMemcpyAsync(alpha, labels, element_count * sizeof(int), cudaMemcpyDeviceToDevice);
 
-    GMMInitialize(gmms, gmm, scratch_mem, gmm_pitch, input, alpha, width, height);
+    GMMInitialize(gmms, gmm, scratch_mem, gmm_pitch, input, alpha, element_count, width, height);
     GMMUpdate(gmms, gmm, scratch_mem, gmm_pitch, input, alpha, width, height);
     GMMDataTerm(input, gmms, gmm, gmm_pitch, output, element_count);
 
