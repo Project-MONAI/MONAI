@@ -167,8 +167,8 @@ class SaveImaged(MapTransform):
         mode: Union[GridSampleMode, InterpolateMode, str] = "nearest",
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         scale: Optional[int] = None,
-        dtype: Optional[np.dtype] = np.float64,
-        output_dtype: Optional[np.dtype] = np.float32,
+        dtype: DtypeLike = np.float64,
+        output_dtype: DtypeLike = np.float32,
         save_batch: bool = False,
     ) -> None:
         super().__init__(keys)

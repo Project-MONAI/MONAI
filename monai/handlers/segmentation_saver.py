@@ -48,11 +48,11 @@ class SegmentationSaver:
         """
         Args:
             output_dir: output image directory.
-        output_postfix: a string appended to all output file names, default to `seg`.
-        output_ext: output file extension name, available extensions: `.nii.gz`, `.nii`, `.png`.
-        resample: whether to resample before saving the data array.
-            if saving PNG format image, based on the `spatial_shape` from metadata.
-            if saving NIfTI format image, based on the `original_affine` from metadata.
+            output_postfix: a string appended to all output file names, default to `seg`.
+            output_ext: output file extension name, available extensions: `.nii.gz`, `.nii`, `.png`.
+            resample: whether to resample before saving the data array.
+                if saving PNG format image, based on the `spatial_shape` from metadata.
+                if saving NIfTI format image, based on the `original_affine` from metadata.
             mode: This option is used when ``resample = True``. Defaults to ``"nearest"``.
 
                 - NIfTI files {``"bilinear"``, ``"nearest"``}
