@@ -112,7 +112,8 @@ class LoadImaged(MapTransform):
 
 class SaveImaged(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.SaveImage`,
+    Dictionary-based wrapper of :py:class:`monai.transforms.SaveImage`.
+
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`

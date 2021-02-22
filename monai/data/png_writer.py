@@ -77,7 +77,7 @@ def write_png(
             raise ValueError(f"Unsupported scale: {scale}, available options are [255, 65535]")
 
     # PNG data must be int number
-    if data.dtype not in (np.uint8, np.uint16):
+    if not isinstance(data.dtype, (np.uint8, np.uint16)):
         data = data.astype(np.uint8)
 
     img = Image.fromarray(data)

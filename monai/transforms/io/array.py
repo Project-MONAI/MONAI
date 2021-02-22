@@ -213,6 +213,9 @@ class SaveImage(Transform):
                 mode=InterpolateMode(mode),
                 scale=scale,
             )
+        else:
+            raise ValueError(f"unsupported output extension: {output_ext}.")
+
         self.save_batch = save_batch
 
     def __call__(self, img: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None):
