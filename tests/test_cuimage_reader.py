@@ -6,7 +6,7 @@ import numpy as np
 from numpy.testing import assert_array_equal
 from parameterized import parameterized
 
-from monai.data.image_reader import CuImageReader
+from monai.data.image_reader import WSIReader
 from tests.utils import skip_if_quick
 
 filename = "test_001.tif"
@@ -47,7 +47,7 @@ class TestCuImageReader(unittest.TestCase):
     @skip_if_quick
     def test_read_region(self, filename, patch_info, expected_img):
         self.camelyon_data_download(filename)
-        reader = CuImageReader()
+        reader = WSIReader("CuClaraImage")
         img_obj = reader.read(filename)
         img = reader.get_data(img_obj, **patch_info)
 
@@ -58,7 +58,7 @@ class TestCuImageReader(unittest.TestCase):
     @skip_if_quick
     def test_read_patches(self, filename, patch_info, expected_img):
         self.camelyon_data_download(filename)
-        reader = CuImageReader()
+        reader = WSIReader("CuClaraImage")
         img_obj = reader.read(filename)
         img = reader.get_data(img_obj, **patch_info)
         self.assertTupleEqual(img.shape, expected_img.shape)

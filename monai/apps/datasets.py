@@ -25,7 +25,7 @@ from monai.data import (
     partition_dataset,
     select_cross_validation_folds,
 )
-from monai.data.image_reader import CuImageReader, OpenSlideReader
+from monai.data.image_reader import WSIReader
 from monai.transforms import LoadImaged, Randomizable
 from monai.utils import ensure_tuple
 
