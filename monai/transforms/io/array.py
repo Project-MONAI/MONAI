@@ -17,8 +17,10 @@ from typing import List, Optional, Sequence, Union
 
 import numpy as np
 
+from monai.config import DtypeLike
 from monai.data.image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader
 from monai.transforms.compose import Transform
+from monai.utils import ImageMetaKey as Key
 from monai.utils import ensure_tuple, optional_import
 
 nib, _ = optional_import("nibabel")
@@ -42,7 +44,7 @@ class LoadImage(Transform):
         self,
         reader: Optional[Union[ImageReader, str]] = None,
         image_only: bool = False,
-        dtype: np.dtype = np.float32,
+        dtype: DtypeLike = np.float32,
         *args,
         **kwargs,
     ) -> None:
@@ -125,5 +127,5 @@ class LoadImage(Transform):
 
         if self.image_only:
             return img_array
-        meta_data["filename_or_obj"] = ensure_tuple(filename)[0]
+        meta_data[Key.FILENAME_OR_OBJ] = ensure_tuple(filename)[0]
         return img_array, meta_data

@@ -14,6 +14,7 @@ from typing import Any, Callable, Optional, Sequence, Union
 import numpy as np
 from torch.utils.data import Dataset
 
+from monai.config import DtypeLike
 from monai.data.image_reader import ImageReader
 from monai.transforms import LoadImage, Randomizable, apply_transform
 from monai.utils import MAX_SEED, get_seed
@@ -36,7 +37,7 @@ class ImageDataset(Dataset, Randomizable):
         transform: Optional[Callable] = None,
         seg_transform: Optional[Callable] = None,
         image_only: bool = True,
-        dtype: Optional[np.dtype] = np.float32,
+        dtype: DtypeLike = np.float32,
         reader: Optional[Union[ImageReader, str]] = None,
         *args,
         **kwargs,

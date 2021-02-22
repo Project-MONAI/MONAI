@@ -16,7 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.layers.filtering import BilateralFilter
-from tests.utils import skip_if_no_cpp_extention, skip_if_no_cuda
+from tests.utils import skip_if_no_cpp_extension, skip_if_no_cuda
 
 TEST_CASES = [
     [
@@ -361,7 +361,7 @@ TEST_CASES = [
 
 
 @skip_if_no_cuda
-@skip_if_no_cpp_extention
+@skip_if_no_cpp_extension
 class BilateralFilterTestCaseCudaApprox(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_cuda_approx(self, test_case_description, sigmas, input, expected):

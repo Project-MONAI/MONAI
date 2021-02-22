@@ -27,4 +27,4 @@ from .squeeze_and_excitation import (
     SEResNeXtBottleneck,
 )
 from .upsample import SubpixelUpsample, Subpixelupsample, SubpixelUpSample, Upsample, UpSample
-from .warp import Warp
+from .warp import DVF2DDF, Warp

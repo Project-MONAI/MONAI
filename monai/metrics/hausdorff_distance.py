@@ -127,9 +127,10 @@ def compute_hausdorff_distance(
             y_pred=y_pred,
             y=y,
         )
-
-    y = y.float()
-    y_pred = y_pred.float()
+    if isinstance(y, torch.Tensor):
+        y = y.float()
+    if isinstance(y_pred, torch.Tensor):
+        y_pred = y_pred.float()
 
     if y.shape != y_pred.shape:
         raise ValueError("y_pred and y should have same shapes.")

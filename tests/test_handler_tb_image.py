@@ -40,6 +40,7 @@ class TestHandlerTBImage(unittest.TestCase):
 
             data = zip(np.random.normal(size=(10, 4, *shape)), np.random.normal(size=(10, 4, *shape)))
             engine.run(data, epoch_length=10, max_epochs=1)
+            stats_handler.close()
 
             self.assertTrue(len(glob.glob(tempdir)) > 0)
 
