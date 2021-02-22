@@ -104,6 +104,8 @@ def run_testsuit():
         "test_handler_metrics_saver_dist",
         "test_evenly_divisible_all_gather_dist",
         "test_handler_classification_saver_dist",
+        "test_deepgrow_transforms",
+        "test_deepgrow_interaction",
         "test_deepgrow_dataset",
         "test_save_image",
         "test_save_imaged",
