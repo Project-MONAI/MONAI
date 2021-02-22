@@ -418,17 +418,16 @@ __device__ float GMMTerm(float* pixel, const float *gmm)
     return gmm[10] * expf(-0.5f * (xxa + yyd + zzf + 2.0f * (yxb + zxc + zye)));
 }
 
-__global__ void GMMDataTermKernel(const float *image, int gmmN, const float *gmm, int gmm_pitch, float* output, int width, int height)
+__global__ void GMMDataTermKernel(const float *image, int gmmN, const float *gmm, int gmm_pitch, float* output, int element_count)
 {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (x >= width || y >= height) return;
+    if (index >= element_count) return;
 
     float temp_array[CHANNELS];
-    temp_array[0] = image[x + y * width + 0 * width * height] * 255;
-    temp_array[1] = image[x + y * width + 1 * width * height] * 255;
-    temp_array[2] = image[x + y * width + 2 * width * height] * 255;
+    temp_array[0] = image[index + 0 * element_count] * 255;
+    temp_array[1] = image[index + 1 * element_count] * 255;
+    temp_array[2] = image[index + 2 * element_count] * 255;
 
     float weights[MIXTURES];
     float weight_total = 0.0f;
@@ -448,7 +447,7 @@ __global__ void GMMDataTermKernel(const float *image, int gmmN, const float *gmm
 
     for(int i = 0; i < MIXTURES; i++)
     {
-        output[x + y * width + i * height * width] = weights[i] / weight_total;
+        output[index + i * element_count] = weights[i] / weight_total;
     }
 }
 
@@ -704,12 +703,12 @@ void GMMUpdate(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const f
     GMMcommonTerm<<<1, block>>>(gmm_N / 2, gmm, gmm_pitch/4);
 }
 
-void GMMDataTerm(const float *image, int gmmN, const float *gmm, int gmm_pitch, float* output, int width, int height)
+void GMMDataTerm(const float *image, int gmmN, const float *gmm, int gmm_pitch, float* output, int element_count)
 {
-    dim3 block(32,8);
-    dim3 grid((width+block.x-1) / block.x, (height+block.y-1) / block.y);
+    dim3 block(BLOCK_SIZE, 1);
+    dim3 grid(TILE(element_count, BLOCK_SIZE), 1);
 
-    GMMDataTermKernel<<<grid, block>>>(image, gmmN, gmm, gmm_pitch/4, output, width, height);
+    GMMDataTermKernel<<<grid, block>>>(image, gmmN, gmm, gmm_pitch/4, output, element_count);
 }
 
 void GMM_Cuda(const float* input, const int* labels, float* output, int batch_count, int channel_count, int width, int height, int mixture_count, int gaussians_per_mixture)
@@ -729,7 +728,7 @@ void GMM_Cuda(const float* input, const int* labels, float* output, int batch_co
 
     GMMInitialize(gmms, gmm, scratch_mem, gmm_pitch, input, alpha, width, height);
     GMMUpdate(gmms, gmm, scratch_mem, gmm_pitch, input, alpha, width, height);
-    GMMDataTerm(input, gmms, gmm, gmm_pitch, output, width, height);
+    GMMDataTerm(input, gmms, gmm, gmm_pitch, output, element_count);
 
     cudaFree(alpha);
     cudaFree(gmm);
