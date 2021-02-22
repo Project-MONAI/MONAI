@@ -103,7 +103,7 @@ def string_list_all_gather(strings: List[str], delimiter: str = "\t") -> List[st
         # all gather across all ranks
         _joined = delimiter.join(idist.all_gather(_joined))
     else:
-        raise RuntimeError("MetricsSaver can not save metric details in distributed mode with PyTorch < 1.7.0.")
+        raise RuntimeError("string all_gather can not be supported in PyTorch < 1.7.0.")
 
     return _joined.split(delimiter)
 
@@ -128,7 +128,7 @@ def write_metrics_reports(
         images: name or path of every input image corresponding to the metric_details data.
             if None, will use index number as the filename of every input image.
         metrics: a dictionary of (metric name, metric value) pairs.
-        metric_details: a dictionary of (metric name, metric raw values) pairs,
+        metric_details: a dictionary of (metric name, metric raw values) pairs, usually, it comes from metrics computation,
             for example, the raw value can be the mean_dice of every channel of every input image.
         summary_ops: expected computation operations to generate the summary report.
             it can be: None, "*" or list of strings.
