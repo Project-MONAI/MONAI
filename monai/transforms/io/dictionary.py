@@ -156,6 +156,7 @@ class SaveImaged(MapTransform):
             usually pre-transforms run for channel first data, while post-transforms run for batch data.
 
     """
+
     def __init__(
         self,
         keys: KeysCollection,

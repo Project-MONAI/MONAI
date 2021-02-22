@@ -13,24 +13,19 @@ A collection of "vanilla" transforms for IO functions
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import List, Dict, Optional, Sequence, Union
+from typing import Dict, List, Optional, Sequence, Union
 
 import numpy as np
 import torch
 
 from monai.config import DtypeLike
-from monai.utils import ImageMetaKey as Key
+from monai.data.image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader
 from monai.data.nifti_saver import NiftiSaver
 from monai.data.png_saver import PNGSaver
-from monai.data.image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader
 from monai.transforms.compose import Transform
-from monai.utils import (
-    ensure_tuple,
-    optional_import,
-    GridSampleMode,
-    GridSamplePadMode,
-    InterpolateMode,
-)
+from monai.utils import GridSampleMode, GridSamplePadMode
+from monai.utils import ImageMetaKey as Key
+from monai.utils import InterpolateMode, ensure_tuple, optional_import
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
@@ -183,6 +178,7 @@ class SaveImage(Transform):
             usually pre-transforms run for channel first data, while post-transforms run for batch data.
 
     """
+
     def __init__(
         self,
         output_dir: str = "./",

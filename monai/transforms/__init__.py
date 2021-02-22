@@ -139,14 +139,7 @@ from .intensity.dictionary import (
     ThresholdIntensityDict,
 )
 from .io.array import LoadImage, SaveImage
-from .io.dictionary import (
-    LoadImaged,
-    LoadImageD,
-    LoadImageDict,
-    SaveImaged,
-    SaveImageD,
-    SaveImageDict,
-)
+from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict
 from .post.array import (
     Activations,
     AsDiscrete,
