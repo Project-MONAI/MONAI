@@ -28,3 +28,13 @@ Applications
 .. autofunction:: extractall
 
 .. autofunction:: download_and_extract
+
+`Deepgrow`
+----------
+
+.. automodule:: monai.apps.deepgrow.dataset
+.. autofunction:: create_dataset
+
+.. automodule:: monai.apps.deepgrow.interaction
+.. autoclass:: Interaction
+    :members:

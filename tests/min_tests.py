@@ -104,6 +104,8 @@ def run_testsuit():
         "test_handler_metrics_saver_dist",
         "test_evenly_divisible_all_gather_dist",
         "test_handler_classification_saver_dist",
+        "test_deepgrow_interaction",
+        "test_deepgrow_dataset",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
