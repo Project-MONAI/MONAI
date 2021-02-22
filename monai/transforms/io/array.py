@@ -18,6 +18,8 @@ from typing import List, Dict, Optional, Sequence, Union
 import numpy as np
 import torch
 
+from monai.config import DtypeLike
+from monai.utils import ImageMetaKey as Key
 from monai.data.nifti_saver import NiftiSaver
 from monai.data.png_saver import PNGSaver
 from monai.data.image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader
@@ -51,7 +53,7 @@ class LoadImage(Transform):
         self,
         reader: Optional[Union[ImageReader, str]] = None,
         image_only: bool = False,
-        dtype: np.dtype = np.float32,
+        dtype: DtypeLike = np.float32,
         *args,
         **kwargs,
     ) -> None:
@@ -134,7 +136,7 @@ class LoadImage(Transform):
 
         if self.image_only:
             return img_array
-        meta_data["filename_or_obj"] = ensure_tuple(filename)[0]
+        meta_data[Key.FILENAME_OR_OBJ] = ensure_tuple(filename)[0]
         return img_array, meta_data
 
 

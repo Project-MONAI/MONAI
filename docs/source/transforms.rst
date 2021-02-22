@@ -951,6 +951,12 @@ Utility (Dict)
     :members:
     :special-members: __call__
 
+`RandLambdad`
+"""""""""""""
+.. autoclass:: RandLambdad
+    :members:
+    :special-members: __call__
+
 `LabelToMaskd`
 """"""""""""""
 .. autoclass:: LabelToMaskd
