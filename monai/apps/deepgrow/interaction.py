@@ -21,6 +21,7 @@ from monai.transforms import Compose
 class Interaction:
     """
     Ignite handler used to introduce interactions (simulation of clicks) for Deepgrow Training/Evaluation.
+    To learn about Interactive segmentations please refer https://arxiv.org/abs/1903.08205
 
     Args:
         transforms: execute additional transformation during every iteration (before train).
