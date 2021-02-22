@@ -19,7 +19,7 @@ import torch
 from parameterized import parameterized
 
 from monai.data import BatchInverseTransform, CacheDataset, DataLoader, create_test_image_2d, create_test_image_3d
-from monai.data.utils import decollate_batch
+from monai.data.utils import decollate_batch, pad_list_data_collate
 from monai.networks.nets import UNet
 from monai.transforms import (
     AddChannel,
@@ -518,6 +518,30 @@ class TestInverse(unittest.TestCase):
             for idx, (_fwd, _fwd_bck) in enumerate(zip(fwd, fwd_bck)):
                 unmodified = test_data[batch_idx * batch_size + idx]
                 self.check_inverse("diff_sized_inputs", [key], unmodified, _fwd_bck, _fwd, 0)
+
+    def test_inverse_w_pad_list_data_collate(self):
+
+        test_data = []
+        for _ in range(4):
+            image, label = [AddChannel()(i) for i in create_test_image_2d(100, 101)]
+            test_data.append({"image": image, "label": label.astype(np.float32)})
+
+        batch_size = 2
+        num_workers = 0
+        transforms = Compose([CropForegroundd(KEYS, source_key="label")])
+
+        dataset = CacheDataset(test_data, transform=transforms, progress=False)
+        loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, collate_fn=pad_list_data_collate)
+        # blank collate function since input are different size
+        inv_batch = BatchInverseTransform(transforms, loader)
+
+        for batch_idx, batch_data in enumerate(loader):
+            fwd = decollate_batch(batch_data)
+            fwd_bck = decollate_batch(inv_batch(batch_data))
+
+            for idx, (_fwd, _fwd_bck) in enumerate(zip(fwd, fwd_bck)):
+                unmodified = test_data[batch_idx * batch_size + idx]
+                self.check_inverse("diff_sized_inputs", KEYS, unmodified, _fwd_bck, _fwd, 2e-2)
 
     @parameterized.expand(TESTS_FAIL)
     def test_fail(self, data, _, *transform):
