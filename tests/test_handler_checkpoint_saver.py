@@ -20,7 +20,7 @@ import torch.optim as optim
 from ignite.engine import Engine
 from parameterized import parameterized
 
-from monai.handlers import CheckpointSaver, CheckpointLoader
+from monai.handlers import CheckpointLoader, CheckpointSaver
 
 TEST_CASE_1 = [True, None, False, None, 1, None, False, True, 0, None, ["test_checkpoint_final_iteration=40.pt"]]
 
