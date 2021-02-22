@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Callable, Optional, Union
 
 import numpy as np
 
-from monai.data import NiftiSaver, PNGSaver
+from monai.transforms import SaveImage
 from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
@@ -47,9 +47,11 @@ class SegmentationSaver:
         """
         Args:
             output_dir: output image directory.
-            output_postfix: a string appended to all output file names.
-            output_ext: output file extension name.
-            resample: whether to resample before saving the data array.
+        output_postfix: a string appended to all output file names, default to `seg`.
+        output_ext: output file extension name, available extensions: `.nii.gz`, `.nii`, `.png`.
+        resample: whether to resample before saving the data array.
+            if saving PNG format image, based on the `spatial_shape` from metadata.
+            if saving NIfTI format image, based on the `original_affine` from metadata.
             mode: This option is used when ``resample = True``. Defaults to ``"nearest"``.
 
                 - NIfTI files {``"bilinear"``, ``"nearest"``}
@@ -71,8 +73,8 @@ class SegmentationSaver:
                 [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
                 It's used for PNG format only.
             dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
-                If None, use the data type of input data. To be compatible with other modules,
-                the output data type is always ``np.float32``, it's used for Nifti format only.
+                If None, use the data type of input data.
+                It's used for Nifti format only.
             output_dtype: data type for saving data. Defaults to ``np.float32``, it's used for Nifti format only.
             batch_transform: a callable that is used to transform the
                 ignite.engine.batch into expected format to extract the meta_data dictionary.
@@ -83,27 +85,18 @@ class SegmentationSaver:
             name: identifier of logging.logger to use, defaulting to `engine.logger`.
 
         """
-        self.saver: Union[NiftiSaver, PNGSaver]
-        if output_ext in (".nii.gz", ".nii"):
-            self.saver = NiftiSaver(
-                output_dir=output_dir,
-                output_postfix=output_postfix,
-                output_ext=output_ext,
-                resample=resample,
-                mode=GridSampleMode(mode),
-                padding_mode=padding_mode,
-                dtype=dtype,
-                output_dtype=output_dtype,
-            )
-        elif output_ext == ".png":
-            self.saver = PNGSaver(
-                output_dir=output_dir,
-                output_postfix=output_postfix,
-                output_ext=output_ext,
-                resample=resample,
-                mode=InterpolateMode(mode),
-                scale=scale,
-            )
+        self._saver = SaveImage(
+            output_dir=output_dir,
+            output_postfix=output_postfix,
+            output_ext=output_ext,
+            resample=resample,
+            mode=mode,
+            padding_mode=padding_mode,
+            scale=scale,
+            dtype=dtype,
+            output_dtype=output_dtype,
+            save_batch=True,
+        )
         self.batch_transform = batch_transform
         self.output_transform = output_transform
 
@@ -130,5 +123,5 @@ class SegmentationSaver:
         """
         meta_data = self.batch_transform(engine.state.batch)
         engine_output = self.output_transform(engine.state.output)
-        self.saver.save_batch(engine_output, meta_data)
+        self._saver(engine_output, meta_data)
         self.logger.info("saved all the model outputs into files.")

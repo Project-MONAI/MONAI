@@ -103,6 +103,8 @@ def run_testsuit():
         "test_handler_metrics_saver",
         "test_handler_metrics_saver_dist",
         "test_evenly_divisible_all_gather_dist",
+        "test_save_image",
+        "test_save_imaged",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 

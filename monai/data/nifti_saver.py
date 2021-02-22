@@ -56,8 +56,7 @@ class NiftiSaver:
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
-                If None, use the data type of input data. To be compatible with other modules,
-                the output data type is always ``np.float32``.
+                If None, use the data type of input data.
             output_dtype: data type for saving data. Defaults to ``np.float32``.
         """
         self.output_dir = output_dir
