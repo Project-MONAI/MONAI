@@ -13,7 +13,7 @@ from typing import Optional, Sequence, Union
 
 import numpy as np
 
-from monai.transforms import Resize
+from monai.transforms.spatial.array import Resize
 from monai.utils import InterpolateMode, ensure_tuple_rep, optional_import
 
 Image, _ = optional_import("PIL", name="Image")
@@ -75,6 +75,10 @@ def write_png(
             data = (scale * data).astype(np.uint16)
         else:
             raise ValueError(f"Unsupported scale: {scale}, available options are [255, 65535]")
+
+    # PNG data must be int number
+    if data.dtype not in (np.uint8, np.uint16):  # type: ignore
+        data = data.astype(np.uint8)
 
     img = Image.fromarray(data)
     img.save(file_name, "PNG")
