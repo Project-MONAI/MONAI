@@ -273,7 +273,7 @@ class ITKReader(ImageReader):
         shape.reverse()
         return np.asarray(shape)
 
-    def _get_array_data(self, img) -> np.ndarray:
+    def _get_array_data(self, img):
         """
         Get the raw array data of the image, converted to Numpy array.
 
