@@ -11,7 +11,7 @@ from tests.utils import skip_if_quick
 
 filename = "test_001.tif"
 
-TEST_CASE_0 = [filename, (3, 53760, 77824)]
+TEST_CASE_0 = [filename, (3, 89600, 86016)]
 
 TEST_CASE_1 = [
     filename,
