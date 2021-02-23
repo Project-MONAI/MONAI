@@ -11,7 +11,7 @@
 
 from monai.transforms.croppad.array import CenterSpatialCrop
 from monai.utils.misc import ensure_tuple
-from typing import Any, Callable, Dict, Hashable, Optional, Tuple
+from typing import Any, Callable, Dict, Hashable, Optional, Tuple, Union
 
 import numpy as np
 from torch.utils.data.dataloader import DataLoader as TorchDataLoader
@@ -45,11 +45,11 @@ class _BatchInverseDataset(Dataset):
             keys = self.keys or [key for key in data.keys() if str(key) + "_transforms" in data.keys()]
             for key in keys:
                 transform_key = str(key) + "_transforms"
-                transform = data[transform_key].pop()
-                if transform["class"] != "SpatialPadd":
-                    raise RuntimeError("Expected most recent transform to have been SpatialPadd because " +
-                                       "pad_list_data_collate was used. Instead, found " + transform["class"])
-                data[key] = CenterSpatialCrop(transform["orig_size"])(data[key])
+                transform = data[transform_key][-1]
+                if transform["class"] == "SpatialPadd":
+                    data[key] = CenterSpatialCrop(transform["orig_size"])(data[key])
+                    # remove transform
+                    data[transform_key].pop()
 
         return self.invertible_transform.inverse(data, self.keys)
 
@@ -75,17 +75,23 @@ class BatchInverseTransform:
         self.collate_fn = collate_fn
         self.pad_collation_used = loader.collate_fn == pad_list_data_collate
 
-    def __call__(self, data: Dict[str, Any], keys: Optional[Tuple[Hashable, ...]] = None) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Dict[str, Any], keys: Optional[Tuple[Hashable, ...]] = None) -> Union[Dict[Hashable, np.ndarray], np.ndarray]:
 
         inv_ds = _BatchInverseDataset(data, self.transform, keys, self.pad_collation_used)
         inv_loader = DataLoader(
             inv_ds, batch_size=self.batch_size, num_workers=self.num_workers, collate_fn=self.collate_fn
         )
         try:
-            # Only need to return first as only 1 batch of data
-            return first(inv_loader)  # type: ignore
+            output = first(inv_loader)
         except RuntimeError as re:
             re_str = str(re)
             if "stack expects each tensor to be equal size" in re_str:
                 re_str += "\nMONAI hint: try creating `BatchInverseTransform` with `collate_fn=lambda x: x`."
             raise RuntimeError(re_str)
+
+        # Only need to return first as only 1 batch of data
+        if keys is not None:
+            keys_tuple = ensure_tuple(keys)
+            if len(keys_tuple) == 1:
+                return output[keys_tuple[0]]
+        return output  # type: ignore

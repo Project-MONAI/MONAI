@@ -14,8 +14,8 @@ from typing import Optional, Sequence, Union
 import numpy as np
 import torch
 
+import monai
 from monai.config import DtypeLike
-from monai.data.utils import compute_shape_offset, to_affine_nd
 from monai.networks.layers import AffineTransform
 from monai.utils import GridSampleMode, GridSamplePadMode, optional_import
 
@@ -95,15 +95,15 @@ def write_nifti(
     sr = min(data.ndim, 3)
     if affine is None:
         affine = np.eye(4, dtype=np.float64)
-    affine = to_affine_nd(sr, affine)
+    affine = monai.data.utils.to_affine_nd(sr, affine)
 
     if target_affine is None:
         target_affine = affine
-    target_affine = to_affine_nd(sr, target_affine)
+    target_affine = monai.data.utils.to_affine_nd(sr, target_affine)
 
     if np.allclose(affine, target_affine, atol=1e-3):
         # no affine changes, save (data, affine)
-        results_img = nib.Nifti1Image(data.astype(output_dtype), to_affine_nd(3, target_affine))
+        results_img = nib.Nifti1Image(data.astype(output_dtype), monai.data.utils.to_affine_nd(3, target_affine))
         nib.save(results_img, file_name)
         return
 
@@ -115,7 +115,7 @@ def write_nifti(
     data = nib.orientations.apply_orientation(data, ornt_transform)
     _affine = affine @ nib.orientations.inv_ornt_aff(ornt_transform, data_shape)
     if np.allclose(_affine, target_affine, atol=1e-3) or not resample:
-        results_img = nib.Nifti1Image(data.astype(output_dtype), to_affine_nd(3, target_affine))
+        results_img = nib.Nifti1Image(data.astype(output_dtype), monai.data.utils.to_affine_nd(3, target_affine))
         nib.save(results_img, file_name)
         return
 
@@ -125,7 +125,7 @@ def write_nifti(
     )
     transform = np.linalg.inv(_affine) @ target_affine
     if output_spatial_shape is None:
-        output_spatial_shape, _ = compute_shape_offset(data.shape, _affine, target_affine)
+        output_spatial_shape, _ = monai.data.utils.compute_shape_offset(data.shape, _affine, target_affine)
     output_spatial_shape_ = list(output_spatial_shape) if output_spatial_shape is not None else []
     if data.ndim > 3:  # multi channel, resampling each channel
         while len(output_spatial_shape_) < 3:
@@ -151,6 +151,6 @@ def write_nifti(
         )
         data_np = data_torch.squeeze(0).squeeze(0).detach().cpu().numpy()
 
-    results_img = nib.Nifti1Image(data_np.astype(output_dtype), to_affine_nd(3, target_affine))
+    results_img = nib.Nifti1Image(data_np.astype(output_dtype), monai.data.utils.to_affine_nd(3, target_affine))
     nib.save(results_img, file_name)
     return

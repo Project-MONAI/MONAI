@@ -15,7 +15,6 @@ import numpy as np
 import torch
 
 from monai.data.png_writer import write_png
-from monai.data.utils import create_file_basename
 from monai.utils import ImageMetaKey as Key
 from monai.utils import InterpolateMode
 
@@ -90,7 +89,7 @@ class PNGSaver:
         if isinstance(data, torch.Tensor):
             data = data.detach().cpu().numpy()
 
-        filename = create_file_basename(self.output_postfix, filename, self.output_dir)
+        filename = monai.data.utils.create_file_basename(self.output_postfix, filename, self.output_dir)
         filename = f"{filename}{self.output_ext}"
 
         if data.shape[0] == 1:

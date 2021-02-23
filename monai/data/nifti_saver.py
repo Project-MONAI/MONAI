@@ -14,9 +14,9 @@ from typing import Dict, Optional, Union
 import numpy as np
 import torch
 
+import monai
 from monai.config import DtypeLike
 from monai.data.nifti_writer import write_nifti
-from monai.data.utils import create_file_basename
 from monai.utils import GridSampleMode, GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
 
@@ -104,7 +104,7 @@ class NiftiSaver:
         if isinstance(data, torch.Tensor):
             data = data.detach().cpu().numpy()
 
-        filename = create_file_basename(self.output_postfix, filename, self.output_dir)
+        filename = monai.data.utils.create_file_basename(self.output_postfix, filename, self.output_dir)
         filename = f"{filename}{self.output_ext}"
         # change data shape to be (channel, h, w, d)
         while len(data.shape) < 4:
