@@ -18,7 +18,7 @@ import warnings
 from collections import defaultdict
 from itertools import product, starmap
 from pathlib import PurePath
-from typing import Dict, Generator, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Generator, Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -36,6 +36,7 @@ from monai.utils import (
     first,
     optional_import,
 )
+from monai.utils.misc import issequenceiterable
 
 nib, _ = optional_import("nibabel")
 
