@@ -155,10 +155,12 @@ def make_nifti_image(array, affine=None):
     return image_name
 
 
-def make_rand_affine(ndim: int = 3):
+def make_rand_affine(ndim: int = 3, random_state: Optional[np.random.RandomState] = None):
     """Create random affine transformation (with values == -1, 0 or 1)."""
-    vals = np.random.choice([-1, 1], size=ndim)
-    positions = np.random.choice([0, 1, 2], size=ndim, replace=False)
+    rs = np.random if random_state is None else random_state
+
+    vals = rs.choice([-1, 1], size=ndim)
+    positions = rs.choice(range(ndim), size=ndim, replace=False)
     af = np.zeros([ndim + 1, ndim + 1])
     af[ndim, ndim] = 1
     for i, (v, p) in enumerate(zip(vals, positions)):
