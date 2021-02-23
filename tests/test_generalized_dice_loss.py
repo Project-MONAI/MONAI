@@ -16,6 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.losses import GeneralizedDiceLoss
+from tests.utils import test_script_save
 
 TEST_CASES = [
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
@@ -177,6 +178,13 @@ class TestGeneralizedDiceLoss(unittest.TestCase):
         with self.assertWarns(Warning):
             loss = GeneralizedDiceLoss(to_onehot_y=True)
             loss.forward(chn_input, chn_target)
+            
+    def test_script(self):
+        loss = GeneralizedDiceLoss()
+        test_input = torch.ones(2, 1, 8, 8)
+        test_script_save(loss, test_input, test_input)
+            
+    
 
 
 if __name__ == "__main__":

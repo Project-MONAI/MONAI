@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Callable, Optional, Union
+from typing import Callable, Optional, Union, List
 
 import numpy as np
 import torch
@@ -139,7 +139,7 @@ class DiceLoss(_Loss):
             raise AssertionError(f"ground truth has differing shape ({target.shape}) from input ({input.shape})")
 
         # reducing only spatial dimensions (not batch nor channels)
-        reduce_axis = list(range(2, len(input.shape)))
+        reduce_axis: List[int] = torch.arange(2,len(input.shape)).tolist()
         if self.batch:
             # reducing spatial dimensions and batch
             reduce_axis = [0] + reduce_axis
@@ -268,22 +268,32 @@ class GeneralizedDiceLoss(_Loss):
             raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
         if int(sigmoid) + int(softmax) + int(other_act is not None) > 1:
             raise ValueError("Incompatible values: more than 1 of [sigmoid=True, softmax=True, other_act is not None].")
+
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         self.sigmoid = sigmoid
         self.softmax = softmax
         self.other_act = other_act
 
-        w_type = Weight(w_type)
-        self.w_func: Callable = torch.ones_like
-        if w_type == Weight.SIMPLE:
-            self.w_func = torch.reciprocal
-        elif w_type == Weight.SQUARE:
-            self.w_func = lambda x: torch.reciprocal(x * x)
+        self.w_type = Weight(w_type)
+        
+#         self.w_func: Callable = torch.ones_like
+#         if w_type == Weight.SIMPLE:
+#             self.w_func = torch.reciprocal
+#         elif w_type == Weight.SQUARE:
+#             self.w_func = lambda x: torch.reciprocal(x * x)
 
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
         self.batch = batch
+        
+    def w_func(self, grnd):
+        if self.w_type == Weight.SIMPLE:
+            return torch.reciprocal(grnd)
+        elif self.w_type == Weight.SQUARE:
+            return torch.reciprocal(grnd * grnd)
+        else:
+            return torch.ones_like(grnd)
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -325,7 +335,7 @@ class GeneralizedDiceLoss(_Loss):
             raise AssertionError(f"ground truth has differing shape ({target.shape}) from input ({input.shape})")
 
         # reducing only spatial dimensions (not batch nor channels)
-        reduce_axis = list(range(2, len(input.shape)))
+        reduce_axis: List[int] = torch.arange(2,len(input.shape)).tolist()
         if self.batch:
             reduce_axis = [0] + reduce_axis
         intersection = torch.sum(target * input, reduce_axis)

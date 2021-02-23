@@ -45,24 +45,42 @@ def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.f
         For every value v = labels[b,1,h,w], the value in the result at [b,v,h,w] will be 1 and all others 0.
         Note that this will include the background label, thus a binary mask should be treated as having 2 classes.
     """
+
     if labels.dim() <= 0:
-        raise AssertionError("labels should have dim of 1 or more.")
+        raise ValueError("`labels` should have dim of 1 or more")
+    elif labels.shape[1] != 1:
+        raise ValueError("`labels` should have a single channel")
 
-    # if `dim` is bigger, add singleton dim at the end
-    if labels.ndim < dim + 1:
-        shape = ensure_tuple_size(labels.shape, dim + 1, 1)
-        labels = labels.reshape(*shape)
+    oh = torch.nn.functional.one_hot(labels.long(), num_classes)
 
-    sh = list(labels.shape)
+    return oh.transpose(1, -1)[..., 0]  # swap class axis with channel axis (which should be 1) and drop channel axis
 
-    if sh[dim] != 1:
-        raise AssertionError("labels should have a channel with length equals to one.")
-    sh[dim] = num_classes
+#     oh=oh[:,0]
+    
+#     if oh.ndim() == 3:
+#         return oh.permute(0,2,1)
+#     if oh.ndim() == 4:
+#         return oh.permute(0,3,1,2)
+#     elif oh.ndim() == 5:
+#         return oh.permute(0,4,1,2,3)
+#     else:
+#         raise ValueError(f"Unknown tensor format with {oh.ndim()} dimensions")
 
-    o = torch.zeros(size=sh, dtype=dtype, device=labels.device)
-    labels = o.scatter_(dim=dim, index=labels.long(), value=1)
+#     # if `dim` is bigger, add singleton dim at the end
+#     if labels.ndim < dim + 1:
+#         shape = ensure_tuple_size(labels.shape, dim + 1, 1)
+#         labels = labels.reshape(*shape)
 
-    return labels
+#     sh = list(labels.shape)
+
+#     if sh[dim] != 1:
+#         raise AssertionError("labels should have a channel with length equals to one.")
+#     sh[dim] = num_classes
+
+#     o = torch.zeros(size=sh, dtype=dtype, device=labels.device)
+#     labels = o.scatter_(dim=dim, index=labels.long(), value=1)
+
+#     return labels
 
 
 def slice_channels(tensor: torch.Tensor, *slicevals: Optional[int]) -> torch.Tensor:
