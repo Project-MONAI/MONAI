@@ -310,7 +310,7 @@ class NibabelReader(ImageReader):
 
     """
 
-    def __init__(self, as_closest_canonical: bool = False, dtype: Optional[DtypeLike] = np.float32, **kwargs):
+    def __init__(self, as_closest_canonical: bool = False, dtype: DtypeLike = np.float32, **kwargs):
         super().__init__()
         self.as_closest_canonical = as_closest_canonical
         self.dtype = dtype
