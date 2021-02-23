@@ -256,7 +256,7 @@ class ITKReader(ImageReader):
         origin = np.asarray(img.GetOrigin())
 
         direction = np.asarray(direction)
-        affine = np.eye(direction.shape[0] + 1)
+        affine: np.ndarray = np.eye(direction.shape[0] + 1)
         affine[(slice(-1), slice(-1))] = direction @ np.diag(spacing)
         affine[(slice(-1), -1)] = origin
         return affine
@@ -725,7 +725,7 @@ class WSIReader(ImageReader):
         if patch_size is None and grid_shape == (1, 1):
             return region
 
-        n_patches = np.prod(grid_shape)
+        n_patches = grid_shape[0] * grid_shape[1]
         region_size = region.shape[1:]
 
         if patch_size is None:
