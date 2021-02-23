@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from nibabel.nifti1 import Nifti1Image
     from PIL import Image as PILImage
 
-    has_itk = has_nib = has_pil = has_cux = has_osl =True
+    has_itk = has_nib = has_pil = has_cux = has_osl = True
 else:
     itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
     Image, _ = optional_import("itk", allow_namespace_pkg=True, name="Image")
@@ -657,6 +657,8 @@ class WSIReader(ImageReader):
         filenames: Sequence[str] = ensure_tuple(data)
         for name in filenames:
             img = self.wsi_reader(name)
+            if self.wsi_reader_name == "openslide":
+                img.shape = (img.dimensions[1], img.dimensions[0], 3)
             img_.append(img)
 
         return img_ if len(filenames) > 1 else img_[0]
@@ -678,7 +680,7 @@ class WSIReader(ImageReader):
             img:      a wsi_reader object loaded from a file, or list of CuImage objects
             location: (x_min, y_min) tuple giving the top left pixel in the level 0 reference frame,
                        or list of tuples (default=(0, 0))
-            size:     (width, height) tuple giving the region size, or list of tuples (default=(wsi_width, wsi_height))
+            size:     (height, width) tuple giving the region size, or list of tuples (default=(wsi_width, wsi_height))
                         This is the size of image at the given level (`level`)
             level:    the level number, or list of level numbers (default=0)
 
@@ -686,8 +688,8 @@ class WSIReader(ImageReader):
         if size is None:
             if location == (0, 0):
                 # the maximum size is set to WxH
-                size = (img_obj.shape[1] // (2 ** level), img_obj.shape[0] // (2 ** level))
-                print(f"Size is set to maximum size at level={level}:  {size}")
+                size = (img_obj.shape[0] // (2 ** level), img_obj.shape[1] // (2 ** level))
+                print(f"Reading the whole image at level={level} with shape={size}")
             else:
                 print("Size need to be provided!")
                 return
@@ -695,7 +697,9 @@ class WSIReader(ImageReader):
         if patch_size is None:
             patches = region
         else:
-            patches = self._extract_patches(region, patch_size=(patch_size, patch_size), grid_shape=grid_shape, dtype=dtype)
+            patches = self._extract_patches(
+                region, patch_size=(patch_size, patch_size), grid_shape=grid_shape, dtype=dtype
+            )
         return patches
 
     def _extract_region(
@@ -706,6 +710,8 @@ class WSIReader(ImageReader):
         level: int = 0,
         dtype: DtypeLike = np.uint8,
     ):
+        # convert to read_region size, which is (width, height)
+        size = size[::-1]
         region = img_obj.read_region(location=location, size=size, level=level)
         if self.wsi_reader_name == "openslide":
             region = region.convert("RGB")
