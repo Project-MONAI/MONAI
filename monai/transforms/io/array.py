@@ -13,20 +13,24 @@ A collection of "vanilla" transforms for IO functions
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import List, Optional, Sequence, Union
+from typing import Dict, List, Optional, Sequence, Union
 
 import numpy as np
+import torch
 
 from monai.config import DtypeLike
 from monai.data.image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader
+from monai.data.nifti_saver import NiftiSaver
+from monai.data.png_saver import PNGSaver
 from monai.transforms.compose import Transform
+from monai.utils import GridSampleMode, GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
-from monai.utils import ensure_tuple, optional_import
+from monai.utils import InterpolateMode, ensure_tuple, optional_import
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
 
-__all__ = ["LoadImage"]
+__all__ = ["LoadImage", "SaveImage"]
 
 
 class LoadImage(Transform):
@@ -129,3 +133,93 @@ class LoadImage(Transform):
             return img_array
         meta_data[Key.FILENAME_OR_OBJ] = ensure_tuple(filename)[0]
         return img_array, meta_data
+
+
+class SaveImage(Transform):
+    """
+    Save transformed data into files, support NIfTI and PNG formats.
+    It can work for both numpy array and PyTorch Tensor in both pre-transform chain
+    and post transform chain.
+
+    Args:
+        output_dir: output image directory.
+        output_postfix: a string appended to all output file names, default to `trans`.
+        output_ext: output file extension name, available extensions: `.nii.gz`, `.nii`, `.png`.
+        resample: whether to resample before saving the data array.
+            if saving PNG format image, based on the `spatial_shape` from metadata.
+            if saving NIfTI format image, based on the `original_affine` from metadata.
+        mode: This option is used when ``resample = True``. Defaults to ``"nearest"``.
+
+            - NIfTI files {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            - PNG files {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+                The interpolation mode.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+
+        padding_mode: This option is used when ``resample = True``. Defaults to ``"border"``.
+
+            - NIfTI files {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            - PNG files
+                This option is ignored.
+
+        scale: {``255``, ``65535``} postprocess data by clipping to [0, 1] and scaling
+            [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
+            it's used for PNG format only.
+        dtype: data type during resampling computation. Defaults to ``np.float64`` for best precision.
+            if None, use the data type of input data. To be compatible with other modules,
+            the output data type is always ``np.float32``.
+            it's used for NIfTI format only.
+        output_dtype: data type for saving data. Defaults to ``np.float32``.
+            it's used for NIfTI format only.
+        save_batch: whether the import image is a batch data, default to `False`.
+            usually pre-transforms run for channel first data, while post-transforms run for batch data.
+
+    """
+
+    def __init__(
+        self,
+        output_dir: str = "./",
+        output_postfix: str = "trans",
+        output_ext: str = ".nii.gz",
+        resample: bool = True,
+        mode: Union[GridSampleMode, InterpolateMode, str] = "nearest",
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        scale: Optional[int] = None,
+        dtype: DtypeLike = np.float64,
+        output_dtype: DtypeLike = np.float32,
+        save_batch: bool = False,
+    ) -> None:
+        self.saver: Union[NiftiSaver, PNGSaver]
+        if output_ext in (".nii.gz", ".nii"):
+            self.saver = NiftiSaver(
+                output_dir=output_dir,
+                output_postfix=output_postfix,
+                output_ext=output_ext,
+                resample=resample,
+                mode=GridSampleMode(mode),
+                padding_mode=padding_mode,
+                dtype=dtype,
+                output_dtype=output_dtype,
+            )
+        elif output_ext == ".png":
+            self.saver = PNGSaver(
+                output_dir=output_dir,
+                output_postfix=output_postfix,
+                output_ext=output_ext,
+                resample=resample,
+                mode=InterpolateMode(mode),
+                scale=scale,
+            )
+        else:
+            raise ValueError(f"unsupported output extension: {output_ext}.")
+
+        self.save_batch = save_batch
+
+    def __call__(self, img: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None):
+        if self.save_batch:
+            self.saver.save_batch(img, meta_data)
+        else:
+            self.saver.save(img, meta_data)

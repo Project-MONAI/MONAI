@@ -22,12 +22,16 @@ import numpy as np
 from monai.config import DtypeLike, KeysCollection
 from monai.data.image_reader import ImageReader
 from monai.transforms.compose import MapTransform
-from monai.transforms.io.array import LoadImage
+from monai.transforms.io.array import LoadImage, SaveImage
+from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode
 
 __all__ = [
     "LoadImaged",
     "LoadImageD",
     "LoadImageDict",
+    "SaveImaged",
+    "SaveImageD",
+    "SaveImageDict",
 ]
 
 
@@ -106,4 +110,91 @@ class LoadImaged(MapTransform):
         return d
 
 
+class SaveImaged(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.SaveImage`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        meta_key_postfix: `key_{postfix}` was used to store the metadata in `LoadImaged`.
+            So need the key to extract metadata to save images, default is `meta_dict`.
+            The meta data is a dictionary object, if no corresponding metadata, set to `None`.
+            For example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+        output_dir: output image directory.
+        output_postfix: a string appended to all output file names, default to `trans`.
+        output_ext: output file extension name, available extensions: `.nii.gz`, `.nii`, `.png`.
+        resample: whether to resample before saving the data array.
+            if saving PNG format image, based on the `spatial_shape` from metadata.
+            if saving NIfTI format image, based on the `original_affine` from metadata.
+        mode: This option is used when ``resample = True``. Defaults to ``"nearest"``.
+
+            - NIfTI files {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            - PNG files {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+                The interpolation mode.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+
+        padding_mode: This option is used when ``resample = True``. Defaults to ``"border"``.
+
+            - NIfTI files {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            - PNG files
+                This option is ignored.
+
+        scale: {``255``, ``65535``} postprocess data by clipping to [0, 1] and scaling
+            [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
+            it's used for PNG format only.
+        dtype: data type during resampling computation. Defaults to ``np.float64`` for best precision.
+            if None, use the data type of input data. To be compatible with other modules,
+            the output data type is always ``np.float32``.
+            it's used for NIfTI format only.
+        output_dtype: data type for saving data. Defaults to ``np.float32``.
+            it's used for NIfTI format only.
+        save_batch: whether the import image is a batch data, default to `False`.
+            usually pre-transforms run for channel first data, while post-transforms run for batch data.
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        meta_key_postfix: str = "meta_dict",
+        output_dir: str = "./",
+        output_postfix: str = "trans",
+        output_ext: str = ".nii.gz",
+        resample: bool = True,
+        mode: Union[GridSampleMode, InterpolateMode, str] = "nearest",
+        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        scale: Optional[int] = None,
+        dtype: DtypeLike = np.float64,
+        output_dtype: DtypeLike = np.float32,
+        save_batch: bool = False,
+    ) -> None:
+        super().__init__(keys)
+        self.meta_key_postfix = meta_key_postfix
+        self._saver = SaveImage(
+            output_dir=output_dir,
+            output_postfix=output_postfix,
+            output_ext=output_ext,
+            resample=resample,
+            mode=mode,
+            padding_mode=padding_mode,
+            scale=scale,
+            dtype=dtype,
+            output_dtype=output_dtype,
+            save_batch=save_batch,
+        )
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            meta_data = d[f"{key}_{self.meta_key_postfix}"] if self.meta_key_postfix is not None else None
+            self._saver(img=d[key], meta_data=meta_data)
+        return d
+
+
 LoadImageD = LoadImageDict = LoadImaged
+SaveImageD = SaveImageDict = SaveImaged

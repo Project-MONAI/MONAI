@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:20.10-py3
+ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:20.12-py3
 
 FROM ${PYTORCH_IMAGE}
 
@@ -21,7 +21,8 @@ WORKDIR /opt/monai
 COPY requirements.txt requirements-min.txt requirements-dev.txt /tmp/
 RUN cp /tmp/requirements.txt /tmp/req.bak \
   && awk '!/torch/' /tmp/requirements.txt > /tmp/tmp && mv /tmp/tmp /tmp/requirements.txt \
-  && python -m pip install --no-cache-dir --use-feature=2020-resolver -r /tmp/requirements-dev.txt
+  && python -m pip install --upgrade --no-cache-dir pip \
+  && python -m pip install --no-cache-dir -r /tmp/requirements-dev.txt
 
 # compile ext and remove temp files
 # TODO: remark for issue [revise the dockerfile #1276](https://github.com/Project-MONAI/MONAI/issues/1276)
