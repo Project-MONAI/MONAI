@@ -156,6 +156,13 @@ class TestCompose(unittest.TestCase):
             self.assertAlmostEqual(out_1.cpu().item(), 0.131966779)
         set_determinism(None)
 
+    def test_len(self):
+        x = AddChannel()
+        t = Compose([x, x, x, x, Compose([Compose([x, x]), x, x])])
+
+        # test len
+        self.assertEqual(len(t), 8)
+
 
 if __name__ == "__main__":
     unittest.main()

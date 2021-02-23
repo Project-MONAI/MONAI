@@ -231,6 +231,10 @@ class Compose(Randomizable, Transform):
                     f'Transform "{tfm_name}" in Compose not randomized\n{tfm_name}.{type_error}.', RuntimeWarning
                 )
 
+    def __len__(self):
+        """Return number of transformations."""
+        return sum(len(t) if isinstance(t, Compose) else 1 for t in self.transforms)
+
     def __call__(self, input_):
         for _transform in self.transforms:
             input_ = apply_transform(_transform, input_)
