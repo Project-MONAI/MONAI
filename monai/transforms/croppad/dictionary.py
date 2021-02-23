@@ -566,7 +566,9 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
             self.spatial_size, self.num_samples, self.pos_ratio, label.shape[1:], fg_indices_, bg_indices_, self.R
         )
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Union[List[Dict[Hashable, np.ndarray]], Dict[Hashable, np.ndarray]]:
+    def __call__(
+        self, data: Mapping[Hashable, np.ndarray]
+    ) -> Union[List[Dict[Hashable, np.ndarray]], Dict[Hashable, np.ndarray]]:
         d = dict(data)
         label = d[self.label_key]
         image = d[self.image_key] if self.image_key else None

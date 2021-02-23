@@ -85,6 +85,8 @@ TEST_CASE_3 = [
 ]
 
 TESTS = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3]
+
+
 class TestRandCropByPosNegLabel(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_type_shape(self, input_param, input_data, expected_type, expected_shape):
