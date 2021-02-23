@@ -400,7 +400,7 @@ class NibabelReader(ImageReader):
             img: a Nibabel image object loaded from a image file.
 
         """
-        return img.affine.copy()
+        return np.array(img.affine, copy=True)
 
     def _get_spatial_shape(self, img) -> np.ndarray:
         """
@@ -705,8 +705,8 @@ class WSIReader(ImageReader):
     def _extract_region(
         self,
         img_obj,
+        size: Tuple[int, int],
         location: Tuple[int, int] = (0, 0),
-        size: Optional[Tuple[int, int]] = None,
         level: int = 0,
         dtype: DtypeLike = np.uint8,
     ):
