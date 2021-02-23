@@ -11,16 +11,17 @@ from tests.utils import skip_if_quick
 
 filename = "test_001.tif"
 
+TEST_CASE_0 = [filename, (3, 53760, 77824)]
 
 TEST_CASE_1 = [
     filename,
-    {"location": (86016 // 2, 89600 // 2), "size": (1, 2), "level": 4},
+    {"location": (86016 // 2, 89600 // 2), "size": (2, 1), "level": 4},
     np.array([[[234], [223]], [[174], [163]], [[228], [217]]]),
 ]
 
 TEST_CASE_2 = [
     filename,
-    {"location": (86016 // 2, 89600 // 2), "size": (1, 2), "level": 2},
+    {"location": (86016 // 2, 89600 // 2), "size": (2, 1), "level": 2},
     np.array([[[220], [197]], [[165], [143]], [[220], [195]]]),
 ]
 
@@ -43,6 +44,16 @@ TEST_CASE_4 = [
 
 
 class TestCuImageReader(unittest.TestCase):
+    @parameterized.expand([TEST_CASE_0])
+    @skip_if_quick
+    def test_read_whole_image(self, filename, expected_shape):
+        self.camelyon_data_download(filename)
+        reader = WSIReader("CuClaraImage")
+        img_obj = reader.read(filename)
+        img = reader.get_data(img_obj)
+
+        self.assertTupleEqual(img.shape, expected_shape)
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     @skip_if_quick
     def test_read_region(self, filename, patch_info, expected_img):
@@ -66,7 +77,7 @@ class TestCuImageReader(unittest.TestCase):
 
     def camelyon_data_download(self, filename):
         if not os.path.exists(filename):
-            print(f"Test image [{filename}] does not exists downloading...")
+            print(f"Test image [{filename}] does not exist. Downloading...")
             path = "gigadb/pub/10.5524/100001_101000/100439/CAMELYON16/testing/images/"
             ftp = ftplib.FTP("parrot.genomics.cn")
             ftp.login("anonymous", "")
