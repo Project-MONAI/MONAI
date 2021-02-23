@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy as np
 from typing import Any, Dict
+
+import numpy as np
 import torch
 
 from monai.data.dataloader import DataLoader
@@ -21,8 +22,8 @@ from monai.transforms.compose import Compose
 from monai.transforms.inverse_transform import InvertibleTransform
 from monai.transforms.transform import Randomizable
 
-
 __all__ = ["TestTimeAugmentation"]
+
 
 def is_transform_rand(transform):
     if not isinstance(transform, Compose):
@@ -48,10 +49,15 @@ class TestTimeAugmentation:
 
         # check that the transform has at least one random component
         if not is_transform_rand(self.transform):
-            raise RuntimeError(type(self).__name__ + " requires a `Randomizable` transform or a"
-                               + " `Compose` containing at least one `Randomizable` transform.")
+            raise RuntimeError(
+                type(self).__name__
+                + " requires a `Randomizable` transform or a"
+                + " `Compose` containing at least one `Randomizable` transform."
+            )
 
-    def __call__(self, data: Dict[str, Any], num_examples=10, image_key="image", label_key="label", return_full_data=False):
+    def __call__(
+        self, data: Dict[str, Any], num_examples=10, image_key="image", label_key="label", return_full_data=False
+    ):
         d = dict(data)
 
         # check num examples is multiple of batch size
@@ -83,8 +89,10 @@ class TestTimeAugmentation:
 
             # check binary labels are extracted
             if not all(torch.unique(batch_output.int()) == torch.Tensor([0, 1])):
-                raise RuntimeError("Test-time augmentation requires binary channels. If this is "
-                                   "not binary segmentation, then you should one-hot your output.")
+                raise RuntimeError(
+                    "Test-time augmentation requires binary channels. If this is "
+                    "not binary segmentation, then you should one-hot your output."
+                )
 
             # create a dictionary containing the inferred batch and their transforms
             inferred_dict = {label_key: batch_output, label_transform_key: batch_data[label_transform_key]}

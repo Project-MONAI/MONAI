@@ -531,7 +531,9 @@ class TestInverse(unittest.TestCase):
         transforms = Compose([CropForegroundd(KEYS, source_key="label")])
 
         dataset = CacheDataset(test_data, transform=transforms, progress=False)
-        loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, collate_fn=pad_list_data_collate)
+        loader = DataLoader(
+            dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, collate_fn=pad_list_data_collate
+        )
         # blank collate function since input are different size
         inv_batch = BatchInverseTransform(transforms, loader)
 

@@ -14,6 +14,7 @@ from typing import Dict, Optional, Union
 import numpy as np
 import torch
 
+import monai.data.utils
 from monai.data.png_writer import write_png
 from monai.utils import ImageMetaKey as Key
 from monai.utils import InterpolateMode

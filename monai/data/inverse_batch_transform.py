@@ -9,9 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from monai.transforms.croppad.array import CenterSpatialCrop
-from monai.utils.misc import ensure_tuple
-from typing import Any, Callable, Dict, Hashable, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Hashable, Optional, Tuple
 
 import numpy as np
 from torch.utils.data.dataloader import DataLoader as TorchDataLoader
@@ -19,8 +17,10 @@ from torch.utils.data.dataloader import DataLoader as TorchDataLoader
 from monai.data.dataloader import DataLoader
 from monai.data.dataset import Dataset
 from monai.data.utils import decollate_batch, pad_list_data_collate
+from monai.transforms.croppad.array import CenterSpatialCrop
 from monai.transforms.inverse_transform import InvertibleTransform
 from monai.utils import first
+from monai.utils.misc import ensure_tuple
 
 __all__ = ["BatchInverseTransform"]
 
@@ -75,23 +75,16 @@ class BatchInverseTransform:
         self.collate_fn = collate_fn
         self.pad_collation_used = loader.collate_fn == pad_list_data_collate
 
-    def __call__(self, data: Dict[str, Any], keys: Optional[Tuple[Hashable, ...]] = None) -> Union[Dict[Hashable, np.ndarray], np.ndarray]:
+    def __call__(self, data: Dict[str, Any], keys: Optional[Tuple[Hashable, ...]] = None) -> Any:
 
         inv_ds = _BatchInverseDataset(data, self.transform, keys, self.pad_collation_used)
         inv_loader = DataLoader(
             inv_ds, batch_size=self.batch_size, num_workers=self.num_workers, collate_fn=self.collate_fn
         )
         try:
-            output = first(inv_loader)
+            return first(inv_loader)
         except RuntimeError as re:
             re_str = str(re)
             if "stack expects each tensor to be equal size" in re_str:
                 re_str += "\nMONAI hint: try creating `BatchInverseTransform` with `collate_fn=lambda x: x`."
             raise RuntimeError(re_str)
-
-        # Only need to return first as only 1 batch of data
-        if keys is not None:
-            keys_tuple = ensure_tuple(keys)
-            if len(keys_tuple) == 1:
-                return output[keys_tuple[0]]
-        return output  # type: ignore

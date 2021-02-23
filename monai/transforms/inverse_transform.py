@@ -10,13 +10,12 @@
 # limitations under the License.
 
 import warnings
-from abc import ABC
 from typing import Dict, Hashable, Optional, Tuple
 
 import numpy as np
 import torch
 
-from monai.transforms.transform import Randomizable
+from monai.transforms.transform import Randomizable, Transform
 from monai.utils import optional_import
 
 sitk, has_sitk = optional_import("SimpleITK")
@@ -26,7 +25,7 @@ vtk_numpy_support, _ = optional_import("vtk.util.numpy_support")
 __all__ = ["InvertibleTransform", "NonRigidTransform"]
 
 
-class InvertibleTransform(ABC):
+class InvertibleTransform(Transform):
     """Classes for invertible transforms.
 
     This class exists so that an ``invert`` method can be implemented. This allows, for
@@ -90,7 +89,7 @@ class InvertibleTransform(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
-class NonRigidTransform(ABC):
+class NonRigidTransform(Transform):
     @staticmethod
     def _get_disp_to_def_arr(shape, spacing):
         def_to_disp = np.mgrid[[slice(0, i) for i in shape]].astype(np.float64)

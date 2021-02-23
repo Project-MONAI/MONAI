@@ -19,14 +19,14 @@ from typing import Any, Callable, Hashable, Mapping, Optional, Sequence, Tuple, 
 import numpy as np
 
 from monai.transforms.inverse_transform import InvertibleTransform
-from monai.transforms.transform import Randomizable, Transform
+from monai.transforms.transform import Randomizable
 from monai.transforms.utils import apply_transform
 from monai.utils import MAX_SEED, ensure_tuple, get_seed
 
 __all__ = ["Compose"]
 
 
-class Compose(Randomizable, Transform, InvertibleTransform):
+class Compose(Randomizable, InvertibleTransform):
     """
     ``Compose`` provides the ability to chain a series of calls together in a
     sequence. Each transform in the sequence must take a single argument and

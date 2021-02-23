@@ -22,8 +22,8 @@ import numpy as np
 from monai.config import DtypeLike, KeysCollection
 from monai.data.image_reader import ImageReader
 from monai.transforms.io.array import LoadImage, SaveImage
-from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode
 from monai.transforms.transform import MapTransform
+from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode
 
 __all__ = [
     "LoadImaged",

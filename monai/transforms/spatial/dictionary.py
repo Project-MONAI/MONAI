@@ -772,11 +772,11 @@ class Rand2DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
                     if inv_def_no_affine is not None:
                         fwd_affine = transform["extra_info"]["affine"]
                         inv_affine = np.linalg.inv(fwd_affine)
-                        inv_def_w_affine: np.ndarray = AffineGrid(affine=inv_affine, as_tensor_output=False)(
+                        inv_def_w_affine_wrong_size = AffineGrid(affine=inv_affine, as_tensor_output=False)(
                             grid=inv_def_no_affine
-                        )  # type: ignore
+                        )
                         # Back to original size
-                        inv_def_w_affine = CenterSpatialCrop(roi_size=orig_size)(inv_def_w_affine)
+                        inv_def_w_affine = CenterSpatialCrop(roi_size=orig_size)(inv_def_w_affine_wrong_size)  # type: ignore
                 # Apply inverse transform
                 if inv_def_no_affine is not None:
                     out = self.rand_2d_elastic.resampler(
@@ -925,11 +925,11 @@ class Rand3DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
                     if inv_def_no_affine is not None:
                         fwd_affine = transform["extra_info"]["affine"]
                         inv_affine = np.linalg.inv(fwd_affine)
-                        inv_def_w_affine: np.ndarray = AffineGrid(affine=inv_affine, as_tensor_output=False)(
+                        inv_def_w_affine_wrong_size = AffineGrid(affine=inv_affine, as_tensor_output=False)(
                             grid=inv_def_no_affine
-                        )  # type: ignore
+                        )
                         # Back to original size
-                        inv_def_w_affine = CenterSpatialCrop(roi_size=orig_size)(inv_def_w_affine)
+                        inv_def_w_affine = CenterSpatialCrop(roi_size=orig_size)(inv_def_w_affine_wrong_size)  # type: ignore
                 # Apply inverse transform
                 if inv_def_w_affine is not None:
                     out = self.rand_3d_elastic.resampler(

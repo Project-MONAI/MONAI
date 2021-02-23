@@ -14,7 +14,7 @@ from typing import Optional, Sequence, Union
 import numpy as np
 import torch
 
-import monai
+import monai.data.utils
 from monai.config import DtypeLike
 from monai.networks.layers import AffineTransform
 from monai.utils import GridSampleMode, GridSamplePadMode, optional_import

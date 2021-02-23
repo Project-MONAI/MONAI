@@ -14,7 +14,7 @@ from typing import Dict, Optional, Union
 import numpy as np
 import torch
 
-import monai
+import monai.data.utils
 from monai.config import DtypeLike
 from monai.data.nifti_writer import write_nifti
 from monai.utils import GridSampleMode, GridSamplePadMode

@@ -26,13 +26,13 @@ from .grid_dataset import GridPatchDataset, PatchDataset
 from .image_dataset import ImageDataset
 from .image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader
 from .inverse_batch_transform import BatchInverseTransform
-from .test_time_augmentation import TestTimeAugmentation
 from .iterable_dataset import IterableDataset
 from .nifti_saver import NiftiSaver
 from .nifti_writer import write_nifti
 from .png_saver import PNGSaver
 from .png_writer import write_png
 from .synthetic import create_test_image_2d, create_test_image_3d
+from .test_time_augmentation import TestTimeAugmentation
 from .thread_buffer import ThreadBuffer
 from .utils import (
     DistributedSampler,
