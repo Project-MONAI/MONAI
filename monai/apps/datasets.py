@@ -18,14 +18,11 @@ import numpy as np
 from monai.apps.utils import download_and_extract
 from monai.data import (
     CacheDataset,
-    Dataset,
-    SmartCacheDataset,
     load_decathlon_datalist,
     load_decathlon_properties,
     partition_dataset,
     select_cross_validation_folds,
 )
-from monai.data.image_reader import WSIReader
 from monai.transforms import LoadImaged, Randomizable
 from monai.utils import ensure_tuple
 
@@ -391,107 +388,3 @@ class CrossValidation:
                 return select_cross_validation_folds(partitions=data, folds=folds)
 
         return _NsplitsDataset(**self.dataset_params)
-
-
-class PatchWSIDataset(Dataset):
-    """
-    Load whole slide images and associated class labels and create patches
-    """
-
-    def __init__(self, data, region_size, grid_size, patch_size, image_reader_name="CuImage", transform=None):
-        self.image_reader_name = image_reader_name.lower()
-        if type(region_size) == int:
-            self.region_size = (region_size, region_size)
-        else:
-            self.region_size = region_size
-        if type(grid_size) == int:
-            self.grid_size = (grid_size, grid_size)
-        else:
-            self.grid_size = grid_size
-        self.sub_region_size = (self.region_size[0] / self.grid_size[0], self.region_size[1] / self.grid_size[1])
-        self.patch_size = patch_size
-
-        self.transform = transform
-        self.image_base_path = data[0]["image_base_path"]
-        self.samples = self.load_samples(data[0]["labels"])
-        self.image_path_list = {x[0] for x in self.samples}
-        self.num_samples = len(self.samples)
-
-        self.cu_image_dict = {}
-
-        if self.image_reader_name == "cuimage":
-            self.image_reader = CuImageReader()
-        elif self.image_reader_name == "openslide":
-            self.image_reader = OpenSlideReader()
-        else:
-            raise ValueError('image_reader_name should be either "CuImage" or "OpenSlide"')
-        self._fetch_cu_images()
-
-    def _fetch_cu_images(self):
-        for image_path in self.image_path_list:
-            self.cu_image_dict[image_path] = self.image_reader.read(image_path)
-
-    def process_label_row(self, row):
-        row = row.strip("\n").split(",")
-        # create full image path
-        image_name = row[0] + ".tif"
-        image_path = os.path.join(self.image_base_path, image_name)
-        # change center locations to upper left location
-        location = (int(row[1]) - self.region_size[0] // 2, int(row[2]) - self.region_size[1] // 2)
-        # convert labels to float32 and add empty HxW channel to label
-        labels = tuple(int(lbl) for lbl in row[3:])
-        labels = np.array(labels, dtype=np.float32)[:, np.newaxis, np.newaxis]
-        return image_path, location, labels
-
-    def load_samples(self, loc_path):
-        with open(loc_path) as label_file:
-            rows = [self.process_label_row(row) for row in label_file.readlines()]
-        return rows
-
-    def __len__(self):
-        return self.num_samples
-
-    def __getitem__(self, index):
-        image_path, location, labels = self.samples[index]
-        images = self.image_reader.get_data(
-            img_obj=self.cu_image_dict[image_path],
-            location=location,
-            size=self.region_size,
-            grid_shape=self.grid_size,
-            patch_size=self.patch_size,
-        )
-        samples = [{"image": images[i], "label": labels[i]} for i in range(labels.shape[0])]
-        if self.transform:
-            samples = self.transform(samples)
-        return samples
-
-
-class SmartCachePatchWSIDataset(SmartCacheDataset):
-    """
-    Add SmartCache functionality to PatchWSIDataset
-    """
-
-    def __init__(
-        self,
-        data,
-        region_size,
-        grid_size,
-        patch_size,
-        transform,
-        replace_rate,
-        cache_num,
-        cache_rate=1.0,
-        num_init_workers=None,
-        num_replace_workers=0,
-        image_reader_name="CuImage",
-    ):
-        extractor = PatchWSIDataset(data, region_size, grid_size, patch_size, image_reader_name)
-        super().__init__(
-            data=extractor,
-            transform=transform,
-            replace_rate=replace_rate,
-            cache_num=cache_num,
-            cache_rate=cache_rate,
-            num_init_workers=num_init_workers,
-            num_replace_workers=num_replace_workers,
-        )
