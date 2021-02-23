@@ -574,7 +574,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         image: Optional[np.ndarray] = None,
         fg_indices: Optional[np.ndarray] = None,
         bg_indices: Optional[np.ndarray] = None,
-    ) -> List[np.ndarray]:
+    ) -> Union[List[np.ndarray], np.ndarray]:
         """
         Args:
             img: input data to crop samples from based on the pos/neg ratio of `label` and `image`.
@@ -607,6 +607,10 @@ class RandCropByPosNegLabel(Randomizable, Transform):
             for center in self.centers:
                 cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)  # type: ignore
                 results.append(cropper(img))
+
+        # if only 1 sample requested, no point returning list
+        if len(results) == 1:
+            return results[0]
 
         return results
 

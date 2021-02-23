@@ -82,15 +82,39 @@ TEST_CASE_2 = [
     (3, 2, 2, 2),
 ]
 
+TEST_CASE_3 = [
+    {
+        "keys": ["image", "extral", "label"],
+        "label_key": "label",
+        "spatial_size": [2, 2, 2],
+        "pos": 1,
+        "neg": 1,
+        "num_samples": 1,
+        "image_key": None,
+        "image_threshold": 0,
+    },
+    {
+        "image": np.zeros([3, 3, 3, 3]) - 1,
+        "extral": np.zeros([3, 3, 3, 3]),
+        "label": np.ones([3, 3, 3, 3]),
+        "affine": np.eye(3),
+        "shape": "CHWD",
+    },
+    dict,
+    (3, 2, 2, 2),
+]
+
+TESTS = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3]
 
 class TestRandCropByPosNegLabeld(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2])
+    @parameterized.expand(TESTS)
     def test_type_shape(self, input_param, input_data, expected_type, expected_shape):
         result = RandCropByPosNegLabeld(**input_param)(input_data)
         self.assertIsInstance(result, expected_type)
-        self.assertTupleEqual(result[0]["image"].shape, expected_shape)
-        self.assertTupleEqual(result[0]["extral"].shape, expected_shape)
-        self.assertTupleEqual(result[0]["label"].shape, expected_shape)
+        out = result[0] if isinstance(result, list) else result
+        self.assertTupleEqual(out["image"].shape, expected_shape)
+        self.assertTupleEqual(out["extral"].shape, expected_shape)
+        self.assertTupleEqual(out["label"].shape, expected_shape)
 
 
 if __name__ == "__main__":
