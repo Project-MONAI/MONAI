@@ -113,9 +113,25 @@ class Compose(Randomizable, InvertibleTransform):
                     f'Transform "{tfm_name}" in Compose not randomized\n{tfm_name}.{type_error}.', RuntimeWarning
                 )
 
+    def flatten(self):
+        """Return a Composition with a simple list of transforms, as opposed to any nested Compositions.
+
+        e.g., `t1 = Compose([x, x, x, x, Compose([Compose([x, x]), x, x])]).flatten()`
+        will result in the equivalent of `t1 = Compose([x, x, x, x, x, x, x, x])`.
+
+        """
+        new_transforms = []
+        for t in self.transforms:
+            if isinstance(t, Compose):
+                new_transforms += t.flatten().transforms
+            else:
+                new_transforms.append(t)
+
+        return Compose(new_transforms)
+
     def __len__(self):
         """Return number of transformations."""
-        return sum(len(t) if isinstance(t, Compose) else 1 for t in self.transforms)
+        return len(self.flatten().transforms)
 
     def __call__(self, input_):
         for _transform in self.transforms:
