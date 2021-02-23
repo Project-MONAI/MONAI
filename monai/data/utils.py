@@ -259,18 +259,18 @@ def decollate_batch(data: dict, batch_size: Optional[int] = None):
 
     For example:
 
-    ```
-    batch_data = {
-        "image": torch.rand((2,1,10,10)),
-        "image_meta_dict": {"scl_slope": torch.Tensor([0.0, 0.0])}
-    }
-    out = decollate_batch(batch_data)
-    print(len(out))
-    >>> 2
+    .. code-block:: python
 
-    print(out[0])
-    >>> {'image': tensor([[[4.3549e-01...43e-01]]]), 'image_meta_dict': {'scl_slope': 0.0}}
-    ```
+        batch_data = {
+            "image": torch.rand((2,1,10,10)),
+            "image_meta_dict": {"scl_slope": torch.Tensor([0.0, 0.0])}
+        }
+        out = decollate_batch(batch_data)
+        print(len(out))
+        >>> 2
+
+        print(out[0])
+        >>> {'image': tensor([[[4.3549e-01...43e-01]]]), 'image_meta_dict': {'scl_slope': 0.0}}
 
     Args:
         data: data to be de-collated
