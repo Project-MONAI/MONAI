@@ -38,6 +38,7 @@ from .utils import (
     compute_shape_offset,
     correct_nifti_header_if_necessary,
     create_file_basename,
+    decollate_batch,
     dense_patch_slices,
     get_random_patch,
     get_valid_patch_size,
