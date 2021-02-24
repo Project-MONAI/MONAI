@@ -23,7 +23,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike, KeysCollection, NdarrayTensor
-from monai.transforms.compose import MapTransform, Randomizable
+from monai.transforms.transform import MapTransform, Randomizable
 from monai.transforms.utility.array import (
     AddChannel,
     AsChannelFirst,
