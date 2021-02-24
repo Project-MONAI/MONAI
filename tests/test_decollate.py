@@ -65,7 +65,7 @@ class TestDeCollate(unittest.TestCase):
         )
         # If nibabel present, read from disk
         if has_nib:
-            transforms.transforms.insert(0, LoadImaged("image"))
+            transforms = Compose([LoadImaged("image"), transforms])
 
         dataset = CacheDataset(data, transforms, progress=False)
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
