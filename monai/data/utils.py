@@ -36,6 +36,7 @@ from monai.utils import (
     first,
     optional_import,
 )
+from monai.utils.enums import Method
 
 nib, _ = optional_import("nibabel")
 
@@ -63,6 +64,7 @@ __all__ = [
     "json_hashing",
     "pickle_hashing",
     "sorted_dict",
+    "pad_list_data_collate",
 ]
 
 
@@ -240,7 +242,83 @@ def list_data_collate(batch: Sequence):
     """
     elem = batch[0]
     data = [i for k in batch for i in k] if isinstance(elem, list) else batch
-    return default_collate(data)
+    try:
+        return default_collate(data)
+    except RuntimeError as re:
+        re_str = str(re)
+        if "stack expects each tensor to be equal size" in re_str:
+            re_str += (
+                "\nMONAI hint: if your transforms intentionally create images of different shapes, creating your "
+                + "`DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem (check its "
+                + "documentation)."
+            )
+        raise RuntimeError(re_str)
+
+
+def pad_list_data_collate(
+    batch: Sequence,
+    method: Union[Method, str] = Method.SYMMETRIC,
+    mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+):
+    """
+    Same as MONAI's ``list_data_collate``, except any tensors are centrally padded to match the shape of the biggest
+    tensor in each dimension.
+
+    Note:
+        Need to use this collate if apply some transforms that can generate batch data.
+
+    Args:
+        batch: batch of data to pad-collate
+        method: padding method (see :py:class:`monai.transforms.SpatialPad`)
+        mode: padding mode (see :py:class:`monai.transforms.SpatialPad`)
+    """
+    list_of_dicts = isinstance(batch[0], dict)
+    for key_or_idx in batch[0].keys() if list_of_dicts else range(len(batch[0])):
+        max_shapes = []
+        for elem in batch:
+            if not isinstance(elem[key_or_idx], (torch.Tensor, np.ndarray)):
+                break
+            max_shapes.append(elem[key_or_idx].shape[1:])
+        # len > 0 if objects were arrays
+        if len(max_shapes) == 0:
+            continue
+        max_shape = np.array(max_shapes).max(axis=0)
+        # If all same size, skip
+        if np.all(np.array(max_shapes).min(axis=0) == max_shape):
+            continue
+        # Do we need to convert output to Tensor?
+        output_to_tensor = isinstance(batch[0][key_or_idx], torch.Tensor)
+
+        # Use `SpatialPadd` or `SpatialPad` to match sizes
+        # Default params are central padding, padding with 0's
+        # If input is dictionary, use the dictionary version so that the transformation is recorded
+        padder: Union[SpatialPadd, SpatialPad]
+        if list_of_dicts:
+            from monai.transforms.croppad.dictionary import SpatialPadd  # needs to be here to avoid circular import
+
+            padder = SpatialPadd(key_or_idx, max_shape, method, mode)  # type: ignore
+
+        else:
+            from monai.transforms.croppad.array import SpatialPad  # needs to be here to avoid circular import
+
+            padder = SpatialPad(max_shape, method, mode)  # type: ignore
+
+        for idx in range(len(batch)):
+            padded = padder(batch[idx])[key_or_idx] if list_of_dicts else padder(batch[idx][key_or_idx])
+            # since tuple is immutable we'll have to recreate
+            if isinstance(batch[idx], tuple):
+                batch[idx] = list(batch[idx])  # type: ignore
+                batch[idx][key_or_idx] = padded
+                batch[idx] = tuple(batch[idx])  # type: ignore
+            # else, replace
+            else:
+                batch[idx][key_or_idx] = padder(batch[idx])[key_or_idx]
+
+            if output_to_tensor:
+                batch[idx][key_or_idx] = torch.Tensor(batch[idx][key_or_idx])
+
+    # After padding, use default list collator
+    return list_data_collate(batch)
 
 
 def worker_init_fn(worker_id: int) -> None:
