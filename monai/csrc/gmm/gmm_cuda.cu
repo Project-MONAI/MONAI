@@ -98,7 +98,7 @@ __device__ __forceinline__ float get_constant(float *gmm, int i)
 
 // Tile Size: 32x32, Block Size 32xwarp_N
 template<int warp_N, bool create_gmm_flags>
-__global__ void GMMReductionKernel(int gmm_idx, float *gmm, int gmm_pitch, const float *image, int *alpha, int width, int height, unsigned int *tile_gmms)
+__global__ void GMMReductionKernel(int gmm_idx, float *gmm, int gmm_pitch, const float *image, int *alpha, int element_count, unsigned int *tile_gmms)
 {
     __shared__ float s_lists[32 * 32 * CHANNELS];
     __shared__ volatile float s_gmm[32 * warp_N];
@@ -110,7 +110,9 @@ __global__ void GMMReductionKernel(int gmm_idx, float *gmm, int gmm_pitch, const
     int thread_idx = threadIdx.x;
     int lane_idx = threadIdx.x & 31;
 
-    float *block_gmm = &gmm[(gridDim.x * gridDim.y * gmm_idx + blockIdx.y * gridDim.x + blockIdx.x) * gmm_pitch];
+    int block_idx = blockIdx.y * gridDim.x + blockIdx.x;
+
+    float *block_gmm = &gmm[(gridDim.x * gridDim.y * gmm_idx + block_idx) * gmm_pitch];
     volatile float *warp_gmm = &s_gmm[warp_idx * 32];
 
     if (create_gmm_flags)
@@ -124,7 +126,7 @@ __global__ void GMMReductionKernel(int gmm_idx, float *gmm, int gmm_pitch, const
     }
     else
     {
-        unsigned int gmm_mask = tile_gmms[blockIdx.y * gridDim.x + blockIdx.x];
+        unsigned int gmm_mask = tile_gmms[block_idx];
 
         if ((gmm_mask & (1u << gmm_idx)) == 0)
         {
@@ -140,16 +142,15 @@ __global__ void GMMReductionKernel(int gmm_idx, float *gmm, int gmm_pitch, const
 
     int list_idx = 0;
 
-    int y = blockIdx.y * 32 + warp_idx;
-    int x = blockIdx.x * 32 + lane_idx;
+    int index = block_idx * 32 * 32 + warp_idx * 32 + lane_idx;
 
     // Build lists of pixels that belong to this GMM
 
     for (int k=0; k < (32/warp_N); ++k)
     {
-        if (x < width && y < height)
+        if (index < element_count)
         {
-            int my_gmm_idx = alpha[y * width + x];
+            int my_gmm_idx = alpha[index];
 
             if (my_gmm_idx != -1)
             {
@@ -160,22 +161,22 @@ __global__ void GMMReductionKernel(int gmm_idx, float *gmm, int gmm_pitch, const
     
                 if (my_gmm_idx == gmm_idx)
                 {
-                    s_lists[(thread_idx + list_idx * (32*warp_N)) * CHANNELS + 0] = image[x + y * width + 0 * width * height] * 255;
-                    s_lists[(thread_idx + list_idx * (32*warp_N)) * CHANNELS + 1] = image[x + y * width + 1 * width * height] * 255;
-                    s_lists[(thread_idx + list_idx * (32*warp_N)) * CHANNELS + 2] = image[x + y * width + 2 * width * height] * 255;
+                    s_lists[(thread_idx + list_idx * (32*warp_N)) * CHANNELS + 0] = image[index + 0 * element_count] * 255;
+                    s_lists[(thread_idx + list_idx * (32*warp_N)) * CHANNELS + 1] = image[index + 1 * element_count] * 255;
+                    s_lists[(thread_idx + list_idx * (32*warp_N)) * CHANNELS + 2] = image[index + 2 * element_count] * 255;
                     ++list_idx;
                 }
             }
         }
 
-        y += warp_N;
+        index += warp_N * 32;
     }
 
     __syncthreads();
 
     if (warp_idx == 0 && create_gmm_flags)
     {
-        tile_gmms[blockIdx.y * gridDim.x + blockIdx.x] = __ballot_sync(0xFFFFFFFF, gmm_flags[lane_idx] > 0);
+        tile_gmms[block_idx] = __ballot_sync(0xFFFFFFFF, gmm_flags[lane_idx] > 0);
     }
 
     // Reduce for each global GMM element
@@ -672,11 +673,11 @@ void GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, con
 
     for (int k = 2; k < gmm_N; k+=2)
     {
-        GMMReductionKernel<4, true><<<grid, block>>>(0, block_gmm_scratch, gmm_pitch/4, image, alpha, width, height, block_active_scratch);
+        GMMReductionKernel<4, true><<<grid, block>>>(0, block_gmm_scratch, gmm_pitch/4, image, alpha, element_count, block_active_scratch);
 
         for (int i=1; i < k; ++i)
         {
-            GMMReductionKernel<4, false><<<grid, block>>>(i, block_gmm_scratch, gmm_pitch/4, image, alpha, width, height, block_active_scratch);
+            GMMReductionKernel<4, false><<<grid, block>>>(i, block_gmm_scratch, gmm_pitch/4, image, alpha, element_count, block_active_scratch);
         }
 
         GMMFinalizeKernel<4, false><<<k, block>>>(gmm, block_gmm_scratch, gmm_pitch/4, grid.x * grid.y);
@@ -694,11 +695,11 @@ void GMMUpdate(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const f
     float* block_gmm_scratch = &scratch_mem[grid.x * grid.y];
     unsigned int* block_active_scratch = (unsigned int*)scratch_mem;
 
-    GMMReductionKernel<4, true><<<grid, block>>>(0, block_gmm_scratch, gmm_pitch/4, image, alpha, width, height, block_active_scratch);
+    GMMReductionKernel<4, true><<<grid, block>>>(0, block_gmm_scratch, gmm_pitch/4, image, alpha, element_count, block_active_scratch);
 
     for (int i = 1; i < gmm_N; ++i)
     {
-        GMMReductionKernel<4, false><<<grid, block>>>(i, block_gmm_scratch, gmm_pitch/4, image, alpha, width, height, block_active_scratch);
+        GMMReductionKernel<4, false><<<grid, block>>>(i, block_gmm_scratch, gmm_pitch/4, image, alpha, element_count, block_active_scratch);
     }
 
     GMMFinalizeKernel<4, true><<<gmm_N, block>>>(gmm, block_gmm_scratch, gmm_pitch/4, grid.x * grid.y);
