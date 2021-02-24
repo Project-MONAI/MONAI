@@ -283,6 +283,7 @@ def pad_list_data_collate(batch: Sequence):
         # Use `SpatialPadd` or `SpatialPad` to match sizes
         # Default params are central padding, padding with 0's
         # If input is dictionary, use the dictionary version so that the transformation is recorded
+        padder: Union[SpatialPadd, SpatialPad]
         if list_of_dicts:
             from monai.transforms.croppad.dictionary import SpatialPadd  # needs to be here to avoid circular import
 
@@ -291,15 +292,15 @@ def pad_list_data_collate(batch: Sequence):
         else:
             from monai.transforms.croppad.array import SpatialPad  # needs to be here to avoid circular import
 
-            padder = SpatialPad(max_shape)
+            padder = SpatialPad(max_shape)  # type: ignore
 
         for idx in range(len(batch)):
             padded = padder(batch[idx])[key_or_idx] if list_of_dicts else padder(batch[idx][key_or_idx])
             # since tuple is immutable we'll have to recreate
             if isinstance(batch[idx], tuple):
-                batch[idx] = list(batch[idx])
+                batch[idx] = list(batch[idx])  # type: ignore
                 batch[idx][key_or_idx] = padded
-                batch[idx] = tuple(batch[idx])
+                batch[idx] = tuple(batch[idx])  # type: ignore
             # else, replace
             else:
                 batch[idx][key_or_idx] = padder(batch[idx])[key_or_idx]
