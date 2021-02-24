@@ -12,7 +12,7 @@ limitations under the License.
 */
 
 #define BLOCK_SIZE 32
-#define TILE(SIZE, STRIDE) (((SIZE - 1)/STRIDE) + 1)
+#define TILE(SIZE, STRIDE) ((((SIZE) - 1)/(STRIDE)) + 1)
 
 #define CHANNELS 3
 #define MIXTURES 2
@@ -21,35 +21,16 @@ __device__ __forceinline__ float get_component(float* pixel, int i)
 {
     switch (i)
     {
-        case 0 :
-            return 1.0f;
-
-        case 1 :
-            return pixel[0];
-
-        case 2 :
-            return pixel[1];
-
-        case 3 :
-            return pixel[2];
-
-        case 4 :
-            return pixel[0] * pixel[0];
-
-        case 5 :
-            return pixel[0] * pixel[1];
-
-        case 6 :
-            return pixel[0] * pixel[2];
-
-        case 7 :
-            return pixel[1] * pixel[1];
-
-        case 8 :
-            return pixel[1] * pixel[2];
-
-        case 9 :
-            return pixel[2] * pixel[2];
+        case 0 : return 1.0f;
+        case 1 : return pixel[0];
+        case 2 : return pixel[1];
+        case 3 : return pixel[2];
+        case 4 : return pixel[0] * pixel[0];
+        case 5 : return pixel[0] * pixel[1];
+        case 6 : return pixel[0] * pixel[2];
+        case 7 : return pixel[1] * pixel[1];
+        case 8 : return pixel[1] * pixel[2];
+        case 9 : return pixel[2] * pixel[2];
     };
 
     return 0.0f;
@@ -61,35 +42,16 @@ __device__ __forceinline__ float get_constant(float *gmm, int i)
 
     switch (i)
     {
-        case 0 :
-            return 0.0f;
-
-        case 1 :
-            return 0.0f;
-
-        case 2 :
-            return 0.0f;
-
-        case 3 :
-            return 0.0f;
-
-        case 4 :
-            return gmm[1] * gmm[1] + epsilon;
-
-        case 5 :
-            return gmm[1] * gmm[2];
-
-        case 6 :
-            return gmm[1] * gmm[3];
-
-        case 7 :
-            return gmm[2] * gmm[2] + epsilon;
-
-        case 8 :
-            return gmm[2] * gmm[3];
-
-        case 9 :
-            return gmm[3] * gmm[3] + epsilon;
+        case 0 : return 0.0f;
+        case 1 : return 0.0f;
+        case 2 : return 0.0f;
+        case 3 : return 0.0f;
+        case 4 : return gmm[1] * gmm[1] + epsilon;
+        case 5 : return gmm[1] * gmm[2];
+        case 6 : return gmm[1] * gmm[3];
+        case 7 : return gmm[2] * gmm[2] + epsilon;
+        case 8 : return gmm[2] * gmm[3];
+        case 9 : return gmm[3] * gmm[3] + epsilon;
     };
 
     return 0.0f;
@@ -663,10 +625,10 @@ __global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, int gm
     }
 }
 
-void GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const float *image, int *alpha, int element_count)
+void GMMInitialize(const float *image, int *alpha, float *gmm, float *scratch_mem, int gmm_N, int gmm_pitch, int element_count)
 {
-    dim3 grid((element_count + (32 * 32 - 1)) / (32 * 32));
-    dim3 block(32 * 4);
+    dim3 grid(TILE(element_count, BLOCK_SIZE * BLOCK_SIZE));
+    dim3 block(BLOCK_SIZE * 4);
     
     float* block_gmm_scratch = &scratch_mem[grid.x];
     unsigned int* block_active_scratch = (unsigned int*)scratch_mem;
@@ -682,15 +644,15 @@ void GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, con
 
         GMMFinalizeKernel<4, false><<<k, block>>>(gmm, block_gmm_scratch, gmm_pitch/4, grid.x);
 
-        GMMFindSplit<<<1, dim3(32,2)>>>((GMMSplit_t *) scratch_mem, k / 2, gmm, gmm_pitch/4);
+        GMMFindSplit<<<1, dim3(BLOCK_SIZE, 2)>>>((GMMSplit_t *) scratch_mem, k / 2, gmm, gmm_pitch/4);
         GMMDoSplit<<<TILE(element_count, BLOCK_SIZE * DO_SPLIT_DEGENERACY), BLOCK_SIZE>>>((GMMSplit_t *) scratch_mem, (k/2) << 1, gmm, gmm_pitch/4, image, alpha, element_count);
     }
 }
 
-void GMMUpdate(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const float *image, int *alpha, int element_count)
+void GMMUpdate(const float *image, int *alpha, float *gmm, float *scratch_mem, int gmm_N, int gmm_pitch, int element_count)
 {
-    dim3 grid((element_count + (32 * 32 - 1)) / (32 * 32));
-    dim3 block(32 * 4);
+    dim3 grid(TILE(element_count, BLOCK_SIZE * BLOCK_SIZE));
+    dim3 block(BLOCK_SIZE * 4);
 
     float* block_gmm_scratch = &scratch_mem[grid.x];
     unsigned int* block_active_scratch = (unsigned int*)scratch_mem;
@@ -704,15 +666,15 @@ void GMMUpdate(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const f
 
     GMMFinalizeKernel<4, true><<<gmm_N, block>>>(gmm, block_gmm_scratch, gmm_pitch/4, grid.x);
 
-    GMMcommonTerm<<<1, dim3(32,2)>>>(gmm_N / 2, gmm, gmm_pitch/4);
+    GMMcommonTerm<<<1, dim3(BLOCK_SIZE, 2)>>>(gmm_N / 2, gmm, gmm_pitch/4);
 }
 
-void GMMDataTerm(const float *image, int gmmN, const float *gmm, int gmm_pitch, float* output, int element_count)
+void GMMDataTerm(const float *image, const float *gmm, float* output, int gmm_N, int gmm_pitch, int element_count)
 {
     dim3 block(BLOCK_SIZE, 1);
     dim3 grid(TILE(element_count, BLOCK_SIZE), 1);
 
-    GMMDataTermKernel<<<grid, block>>>(image, gmmN, gmm, gmm_pitch/4, output, element_count);
+    GMMDataTermKernel<<<grid, block>>>(image, gmm_N, gmm, gmm_pitch/4, output, element_count);
 }
 
 void GMM_Cuda(const float* input, const int* labels, float* output, int batch_count, int channel_count, int element_count, int mixture_count, int gaussians_per_mixture)
@@ -725,10 +687,10 @@ void GMM_Cuda(const float* input, const int* labels, float* output, int batch_co
     int* alpha; cudaMalloc(&alpha, element_count * sizeof(int));
 
     cudaMemcpyAsync(alpha, labels, element_count * sizeof(int), cudaMemcpyDeviceToDevice);
-
-    GMMInitialize(gmms, gmm, scratch_mem, gmm_pitch, input, alpha, element_count);
-    GMMUpdate(gmms, gmm, scratch_mem, gmm_pitch, input, alpha, element_count);
-    GMMDataTerm(input, gmms, gmm, gmm_pitch, output, element_count);
+    
+    GMMInitialize(input, alpha, gmm, scratch_mem, gmms, gmm_pitch, element_count);
+    GMMUpdate(input, alpha, gmm, scratch_mem, gmms, gmm_pitch, element_count);
+    GMMDataTerm(input, gmm, output, gmms, gmm_pitch, element_count);
 
     cudaFree(alpha);
     cudaFree(gmm);
