@@ -624,12 +624,12 @@ class WSIReader(ImageReader):
     def __init__(self, wsi_reader_name: str = "CuImage"):
         super().__init__()
         self.wsi_reader_name = wsi_reader_name.lower()
-        if self.wsi_reader_name == "cuclaraimage":
-            self.wsi_reader = cuimage.CuImage
-            print("> CuImage is being used.")
-        elif self.wsi_reader_name == "openslide":
+        if self.wsi_reader_name == "openslide":
             self.wsi_reader = openslide.OpenSlide
             print("> OpenSlide is being used.")
+        elif self.wsi_reader_name == "cuclaraimage":
+            self.wsi_reader = cuimage.CuImage
+            print("> CuImage is being used.")
         else:
             raise ValueError('`wsi_reader_name` should be either "CuClaraImage" or "OpenSlide"')
 
@@ -710,8 +710,9 @@ class WSIReader(ImageReader):
         level: int = 0,
         dtype: DtypeLike = np.uint8,
     ):
-        # convert to read_region size, which is (width, height)
+        # reverse the order of dimensions for size and location to be compatible with image shape
         size = size[::-1]
+        location = location[::-1]
         region = img_obj.read_region(location=location, size=size, level=level)
         if self.wsi_reader_name == "openslide":
             region = region.convert("RGB")
