@@ -15,7 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 import logging
 import time
-from typing import Callable, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -24,6 +24,13 @@ from monai.config import DtypeLike, NdarrayTensor
 from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points, map_binary_to_indices
 from monai.utils import ensure_tuple, min_version, optional_import
+
+if TYPE_CHECKING:
+    from PIL import Image as PILImage
+
+    has_pil = True
+else:
+    PILImage, has_pil = optional_import("PIL.Image")
 
 __all__ = [
     "Identity",
@@ -259,6 +266,21 @@ class ToNumpy(Transform):
         if isinstance(img, torch.Tensor):
             img = img.detach().cpu().numpy()  # type: ignore
         return np.ascontiguousarray(img)
+
+
+class ToPIL(Transform):
+    """
+    Converts the input image (in the form of NumPy array or PyTorch Tensor) to PIL image
+    """
+
+    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> PILImage.Image:
+        """
+        Apply the transform to `img` and make it contiguous.
+        """
+        if isinstance(img, torch.Tensor):
+            img = img.detach().cpu().numpy()
+        img = np.ascontiguousarray(img)
+        return PILImage.fromarray(img)
 
 
 class Transpose(Transform):
