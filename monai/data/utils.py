@@ -263,12 +263,13 @@ def pad_list_data_collate(batch: Sequence):
         Need to use this collate if apply some transforms that can generate batch data.
 
     """
-    for key in batch[0].keys():
+    list_of_dicts = isinstance(batch[0], dict)
+    for key_or_idx in batch[0].keys() if list_of_dicts else range(len(batch[0])):
         max_shapes = []
         for elem in batch:
-            if not isinstance(elem[key], (torch.Tensor, np.ndarray)):
+            if not isinstance(elem[key_or_idx], (torch.Tensor, np.ndarray)):
                 break
-            max_shapes.append(elem[key].shape[1:])
+            max_shapes.append(elem[key_or_idx].shape[1:])
         # len > 0 if objects were arrays
         if len(max_shapes) == 0:
             continue
@@ -277,18 +278,34 @@ def pad_list_data_collate(batch: Sequence):
         if np.all(np.array(max_shapes).min(axis=0) == max_shape):
             continue
         # Do we need to convert output to Tensor?
-        output_to_tensor = isinstance(batch[0][key], torch.Tensor)
+        output_to_tensor = isinstance(batch[0][key_or_idx], torch.Tensor)
 
-        # Use `SpatialPadd` to match sizes
+        # Use `SpatialPadd` or `SpatialPad` to match sizes
         # Default params are central padding, padding with 0's
-        # Use the dictionary version so that the transformation is recorded
-        from monai.transforms.croppad.dictionary import SpatialPadd  # needs to be here to avoid circular import
+        # If input is dictionary, use the dictionary version so that the transformation is recorded
+        if list_of_dicts:
+            from monai.transforms.croppad.dictionary import SpatialPadd  # needs to be here to avoid circular import
 
-        padder = SpatialPadd(key, max_shape)  # type: ignore
+            padder = SpatialPadd(key_or_idx, max_shape)  # type: ignore
+
+        else:
+            from monai.transforms.croppad.array import SpatialPad  # needs to be here to avoid circular import
+
+            padder = SpatialPad(max_shape)
+
         for idx in range(len(batch)):
-            batch[idx][key] = padder(batch[idx])[key]
+            padded = padder(batch[idx])[key_or_idx] if list_of_dicts else padder(batch[idx][key_or_idx])
+            # since tuple is immutable we'll have to recreate
+            if isinstance(batch[idx], tuple):
+                batch[idx] = list(batch[idx])
+                batch[idx][key_or_idx] = padded
+                batch[idx] = tuple(batch[idx])
+            # else, replace
+            else:
+                batch[idx][key_or_idx] = padder(batch[idx])[key_or_idx]
+
             if output_to_tensor:
-                batch[idx][key] = torch.Tensor(batch[idx][key])
+                batch[idx][key_or_idx] = torch.Tensor(batch[idx][key_or_idx])
 
     # After padding, use default list collator
     return list_data_collate(batch)
