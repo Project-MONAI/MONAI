@@ -35,7 +35,7 @@ class TestPadCollation(unittest.TestCase):
     def setUp(self) -> None:
         # image is non square to throw rotation errors
         im = np.arange(0, 10 * 9).reshape(1, 10, 9)
-        self.data = [{"image": im} for _ in range(2)]
+        self.data = [{"image": im} for _ in range(20)]
 
     @parameterized.expand(TESTS)
     def test_pad_collation(self, transform):
@@ -43,7 +43,7 @@ class TestPadCollation(unittest.TestCase):
         dataset = CacheDataset(self.data, transform, progress=False)
 
         # Default collation should raise an error
-        loader_fail = DataLoader(dataset, batch_size=2)
+        loader_fail = DataLoader(dataset, batch_size=10)
         with self.assertRaises(RuntimeError):
             for _ in loader_fail:
                 pass
