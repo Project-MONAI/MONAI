@@ -19,7 +19,7 @@ from tests.utils import NumpyImageTestCase2D
 
 INVALID_CASES = [("wrong_axis", ["s", 1], TypeError), ("not_numbers", "s", TypeError)]
 
-VALID_CASES = [("no_axis", None), ("one_axis", 1), ("many_axis", [0, 1])]
+VALID_CASES = [("no_axis", None), ("one_axis", 1), ("many_axis", [0, 1]), ("negative_axis", [0, -1])]
 
 
 class TestFlip(NumpyImageTestCase2D):

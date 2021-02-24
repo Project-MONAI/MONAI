@@ -51,14 +51,16 @@ class Dataset(_TorchDataset):
          },                           },                           }]
     """
 
-    def __init__(self, data: Sequence, transform: Optional[Callable] = None) -> None:
+    def __init__(self, data: Sequence, transform: Optional[Callable] = None, progress: bool = True) -> None:
         """
         Args:
             data: input data to load and transform to generate dataset for model.
             transform: a callable data transform on input data.
+            progress: whether to display a progress bar.
         """
         self.data = data
         self.transform = transform
+        self.progress = progress
 
     def __len__(self) -> int:
         return len(self.data)
@@ -115,6 +117,7 @@ class PersistentDataset(Dataset):
         transform: Union[Sequence[Callable], Callable],
         cache_dir: Optional[Union[Path, str]] = None,
         hash_func: Callable[..., bytes] = pickle_hashing,
+        progress: bool = True,
     ) -> None:
         """
         Args:
@@ -129,10 +132,11 @@ class PersistentDataset(Dataset):
                 If the cache_dir doesn't exist, will automatically create it.
             hash_func: a callable to compute hash from data items to be cached.
                 defaults to `monai.data.utils.pickle_hashing`.
+            progress: whether to display a progress bar.
         """
         if not isinstance(transform, Compose):
             transform = Compose(transform)
-        super().__init__(data=data, transform=transform)
+        super().__init__(data=data, transform=transform, progress=progress)
         self.cache_dir = Path(cache_dir) if cache_dir is not None else None
         self.hash_func = hash_func
         if self.cache_dir is not None:
@@ -345,7 +349,7 @@ class LMDBDataset(PersistentDataset):
             lmdb_kwargs: additional keyword arguments to the lmdb environment.
                 for more details please visit: https://lmdb.readthedocs.io/en/release/#environment-class
         """
-        super().__init__(data=data, transform=transform, cache_dir=cache_dir, hash_func=hash_func)
+        super().__init__(data=data, transform=transform, cache_dir=cache_dir, hash_func=hash_func, progress=progress)
         if not self.cache_dir:
             raise ValueError("cache_dir must be specified.")
         self.db_file = self.cache_dir / f"{db_name}.lmdb"
@@ -354,14 +358,13 @@ class LMDBDataset(PersistentDataset):
         if not self.lmdb_kwargs.get("map_size", 0):
             self.lmdb_kwargs["map_size"] = 1024 ** 4  # default map_size
         self._read_env = None
-        self.progress = progress
         print(f"Accessing lmdb file: {self.db_file.absolute()}.")
 
     def _fill_cache_start_reader(self):
         # create cache
         self.lmdb_kwargs["readonly"] = False
         env = lmdb.open(path=f"{self.db_file}", subdir=False, **self.lmdb_kwargs)
-        if not has_tqdm:
+        if self.progress and not has_tqdm:
             warnings.warn("LMDBDataset: tqdm is not installed. not displaying the caching progress.")
         for item in tqdm(self.data) if has_tqdm and self.progress else self.data:
             key = self.hash_func(item)
@@ -470,6 +473,7 @@ class CacheDataset(Dataset):
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_workers: Optional[int] = None,
+        progress: bool = True,
     ) -> None:
         """
         Args:
@@ -481,10 +485,11 @@ class CacheDataset(Dataset):
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
             num_workers: the number of worker processes to use.
                 If num_workers is None then the number returned by os.cpu_count() is used.
+            progress: whether to display a progress bar.
         """
         if not isinstance(transform, Compose):
             transform = Compose(transform)
-        super().__init__(data=data, transform=transform)
+        super().__init__(data=data, transform=transform, progress=progress)
         self.cache_num = min(int(cache_num), int(len(data) * cache_rate), len(data))
         self.num_workers = num_workers
         if self.num_workers is not None:
@@ -494,10 +499,10 @@ class CacheDataset(Dataset):
     def _fill_cache(self) -> List:
         if self.cache_num <= 0:
             return []
-        if not has_tqdm:
+        if self.progress and not has_tqdm:
             warnings.warn("tqdm is not installed, will not show the caching progress bar.")
         with ThreadPool(self.num_workers) as p:
-            if has_tqdm:
+            if self.progress and has_tqdm:
                 return list(
                     tqdm(
                         p.imap(self._load_cache_item, range(self.cache_num)),
@@ -571,6 +576,10 @@ class SmartCacheDataset(CacheDataset):
         3. Call `update_cache()` before every epoch to replace training items.
         4. Call `shutdown()` when training ends.
 
+    Note:
+        This replacement will not work if setting the `multiprocessing_context` of DataLoader to `spawn`
+        or on windows(the default multiprocessing method is `spawn`) and setting `num_workers` greater than 0.
+
     """
 
     def __init__(
@@ -601,7 +610,7 @@ class SmartCacheDataset(CacheDataset):
         if self._cache is None:
             self._cache = self._fill_cache()
         if self.cache_num >= len(data):
-            raise ValueError("cache_num must be smaller than dataset length to support replacement.")
+            warnings.warn("cache_num is greater or equal than dataset length, fall back to regular CacheDataset.")
         if replace_rate <= 0:
             raise ValueError("replace_rate must be greater than 0, otherwise, please use CacheDataset.")
         self.num_replace_workers: int = num_replace_workers
@@ -637,7 +646,7 @@ class SmartCacheDataset(CacheDataset):
         """
         if self._replace_mgr is None:
             return False
-        return self._replace_mgr.isAlive()
+        return self._replace_mgr.is_alive()
 
     def start(self):
         """
@@ -688,7 +697,7 @@ class SmartCacheDataset(CacheDataset):
         If the cache has been shutdown before, need to restart the `_replace_mgr` thread.
 
         """
-        if not self._replace_mgr.isAlive():
+        if not self._replace_mgr.is_alive():
             self._restart()
 
         # make sure update is done

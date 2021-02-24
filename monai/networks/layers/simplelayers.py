@@ -182,12 +182,12 @@ def separable_filtering(
         TypeError: When ``x`` is not a ``torch.Tensor``.
     """
 
-    if not torch.is_tensor(x):
+    if not isinstance(x, torch.Tensor):
         raise TypeError(f"x must be a torch.Tensor but is {type(x).__name__}.")
 
     spatial_dims = len(x.shape) - 2
     _kernels = [
-        torch.as_tensor(s, dtype=torch.float, device=s.device if torch.is_tensor(s) else None)
+        torch.as_tensor(s, dtype=torch.float, device=s.device if isinstance(s, torch.Tensor) else None)
         for s in ensure_tuple_rep(kernels, spatial_dims)
     ]
     _paddings = [cast(int, (same_padding(k.shape[0]))) for k in _kernels]
@@ -251,7 +251,7 @@ class SavitzkyGolayFilter(nn.Module):
         """
 
         # Make input a real tensor on the CPU
-        x = torch.as_tensor(x, device=x.device if torch.is_tensor(x) else None)
+        x = torch.as_tensor(x, device=x.device if isinstance(x, torch.Tensor) else None)
         if torch.is_complex(x):
             raise ValueError("x must be real.")
         else:
@@ -317,7 +317,7 @@ class HilbertTransform(nn.Module):
         """
 
         # Make input a real tensor
-        x = torch.as_tensor(x, device=x.device if torch.is_tensor(x) else None)
+        x = torch.as_tensor(x, device=x.device if isinstance(x, torch.Tensor) else None)
         if torch.is_complex(x):
             raise ValueError("x must be real.")
         x = x.to(dtype=torch.float)
@@ -384,7 +384,7 @@ class GaussianFilter(nn.Module):
         super().__init__()
         self.sigma = [
             torch.nn.Parameter(
-                torch.as_tensor(s, dtype=torch.float, device=s.device if torch.is_tensor(s) else None),
+                torch.as_tensor(s, dtype=torch.float, device=s.device if isinstance(s, torch.Tensor) else None),
                 requires_grad=requires_grad,
             )
             for s in ensure_tuple_rep(sigma, int(spatial_dims))

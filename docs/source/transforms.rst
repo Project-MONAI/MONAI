@@ -237,6 +237,12 @@ IO
     :members:
     :special-members: __call__
 
+`SaveImage`
+"""""""""""
+.. autoclass:: SaveImage
+    :members:
+    :special-members: __call__
+
 Post-processing
 ^^^^^^^^^^^^^^^
 
@@ -702,6 +708,12 @@ IO (Dict)
     :members:
     :special-members: __call__
 
+`SaveImaged`
+""""""""""""
+.. autoclass:: SaveImaged
+    :members:
+    :special-members: __call__
+
 Post-processing (Dict)
 ^^^^^^^^^^^^^^^^^^^^^^
 
@@ -936,6 +948,12 @@ Utility (Dict)
 `Lambdad`
 """""""""
 .. autoclass:: Lambdad
+    :members:
+    :special-members: __call__
+
+`RandLambdad`
+"""""""""""""
+.. autoclass:: RandLambdad
     :members:
     :special-members: __call__
 

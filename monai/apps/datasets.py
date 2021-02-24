@@ -94,7 +94,9 @@ class MedNISTDataset(Randomizable, CacheDataset):
         data = self._generate_data_list(dataset_dir)
         if transform == ():
             transform = LoadImaged("image")
-        super().__init__(data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers)
+        CacheDataset.__init__(
+            self, data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers
+        )
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self.rann = self.R.random()
@@ -275,7 +277,9 @@ class DecathlonDataset(Randomizable, CacheDataset):
         self._properties = load_decathlon_properties(os.path.join(dataset_dir, "dataset.json"), property_keys)
         if transform == ():
             transform = LoadImaged(["image", "label"])
-        super().__init__(data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers)
+        CacheDataset.__init__(
+            self, data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers
+        )
 
     def get_indices(self) -> np.ndarray:
         """
