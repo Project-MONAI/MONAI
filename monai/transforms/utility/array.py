@@ -27,10 +27,8 @@ from monai.utils import ensure_tuple, min_version, optional_import
 
 if TYPE_CHECKING:
     from PIL import Image as PILImage
-
-    has_pil = True
 else:
-    PILImage, has_pil = optional_import("PIL.Image")
+    PILImage, _ = optional_import("PIL.Image")
 
 __all__ = [
     "Identity",
