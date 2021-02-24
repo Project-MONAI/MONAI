@@ -245,7 +245,7 @@ def list_data_collate(batch: Sequence):
     return default_collate(data)
 
 
-def decollate_batch(data: dict, batch_size: Optional[int] = None):
+def decollate_batch(data: dict, batch_size: Optional[int] = None) -> List[dict]:
     """De-collate a batch of data (for example, as produced by a `DataLoader`).
 
     Returns a list of dictionaries. Each dictionary will only contain the data for a given batch.
@@ -273,7 +273,7 @@ def decollate_batch(data: dict, batch_size: Optional[int] = None):
         >>> {'image': tensor([[[4.3549e-01...43e-01]]]), 'image_meta_dict': {'scl_slope': 0.0}}
 
     Args:
-        data: data to be de-collated
+        data: data to be de-collated.
         batch_size: number of batches in data. If `None` is passed, try to figure out batch size.
     """
     if not isinstance(data, dict):

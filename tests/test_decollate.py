@@ -18,6 +18,7 @@ from parameterized import parameterized
 from monai.data import CacheDataset, DataLoader, create_test_image_2d
 from monai.data.utils import decollate_batch
 from monai.transforms import AddChanneld, Compose, LoadImaged, RandFlipd, SpatialPadd, ToTensord
+from monai.transforms.post.dictionary import Decollated
 from monai.utils import optional_import, set_determinism
 from tests.utils import make_nifti_image
 
@@ -75,10 +76,12 @@ class TestDeCollate(unittest.TestCase):
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
 
         for b, batch_data in enumerate(loader):
-            decollated = decollate_batch(batch_data)
+            decollated_1 = decollate_batch(batch_data)
+            decollated_2 = Decollated()(batch_data)
 
-            for i, d in enumerate(decollated):
-                self.check_match(dataset[b * batch_size + i], d)
+            for decollated in [decollated_1, decollated_2]:
+                for i, d in enumerate(decollated):
+                    self.check_match(dataset[b * batch_size + i], d)
 
 
 if __name__ == "__main__":
