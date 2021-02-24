@@ -106,9 +106,9 @@ __global__ void GMMReductionKernel(int gmm_idx, float *gmm, int gmm_pitch, const
 
     __shared__ int gmm_flags[32];
 
-    const int warp_idx = threadIdx.y;
-    const int thread_idx = threadIdx.y * 32 + threadIdx.x;
-    const int lane_idx = threadIdx.x;
+    int warp_idx = threadIdx.x >> 5;
+    int thread_idx = threadIdx.x;
+    int lane_idx = threadIdx.x & 31;
 
     float *block_gmm = &gmm[(gridDim.x * gridDim.y * gmm_idx + blockIdx.y * gridDim.x + blockIdx.x) * gmm_pitch];
     volatile float *warp_gmm = &s_gmm[warp_idx * 32];
@@ -665,7 +665,7 @@ __global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, int gm
 void GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const float *image, int *alpha, int element_count, int width, int height)
 {
     dim3 grid((width+31) / 32, (height+31) / 32);
-    dim3 block(32, 4);
+    dim3 block(32 * 4);
 
     for (int k = 2; k < gmm_N; k+=2)
     {
@@ -676,7 +676,7 @@ void GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, con
             GMMReductionKernel<4, false><<<grid, block>>>(i, &scratch_mem[grid.x *grid.y], gmm_pitch/4, image, alpha, width, height, (unsigned int *) scratch_mem);
         }
 
-        GMMFinalizeKernel<4, false><<<k, 32 * 4>>>(gmm, &scratch_mem[grid.x *grid.y], gmm_pitch/4, grid.x *grid.y);
+        GMMFinalizeKernel<4, false><<<k, block>>>(gmm, &scratch_mem[grid.x *grid.y], gmm_pitch/4, grid.x *grid.y);
 
         GMMFindSplit<<<1, dim3(32,2)>>>((GMMSplit_t *) scratch_mem, k / 2, gmm, gmm_pitch/4);
         GMMDoSplit<<<TILE(element_count, BLOCK_SIZE * DO_SPLIT_DEGENERACY), BLOCK_SIZE>>>((GMMSplit_t *) scratch_mem, (k/2) << 1, gmm, gmm_pitch/4, image, alpha, element_count);
@@ -686,20 +686,18 @@ void GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, con
 void GMMUpdate(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const float *image, int *alpha, int width, int height)
 {
     dim3 grid((width+31) / 32, (height+31) / 32);
-    dim3 block(32,4);
+    dim3 block(32 * 4);
 
     GMMReductionKernel<4, true><<<grid, block>>>(0, &scratch_mem[grid.x *grid.y], gmm_pitch/4, image, alpha, width, height, (unsigned int *) scratch_mem);
 
-    for (int i=1; i<gmm_N; ++i)
+    for (int i = 1; i < gmm_N; ++i)
     {
         GMMReductionKernel<4, false><<<grid, block>>>(i, &scratch_mem[grid.x *grid.y], gmm_pitch/4, image, alpha, width, height, (unsigned int *) scratch_mem);
     }
 
-    GMMFinalizeKernel<4, true><<<gmm_N, 32 *4>>>(gmm, &scratch_mem[grid.x *grid.y], gmm_pitch/4, grid.x *grid.y);
+    GMMFinalizeKernel<4, true><<<gmm_N, block>>>(gmm, &scratch_mem[grid.x *grid.y], gmm_pitch/4, grid.x *grid.y);
 
-    block.x = 32;
-    block.y = 2;
-    GMMcommonTerm<<<1, block>>>(gmm_N / 2, gmm, gmm_pitch/4);
+    GMMcommonTerm<<<1, dim3(32,2)>>>(gmm_N / 2, gmm, gmm_pitch/4);
 }
 
 void GMMDataTerm(const float *image, int gmmN, const float *gmm, int gmm_pitch, float* output, int element_count)
