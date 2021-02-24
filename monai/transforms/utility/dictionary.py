@@ -327,8 +327,8 @@ class ToTensord(MapTransform):
         self.converter = ToTensor()
 
     def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor, PILImage]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor, PILImage]]:
+        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor, PILImage.Image]]
+    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor, PILImage.Image]]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
@@ -350,8 +350,8 @@ class ToNumpyd(MapTransform):
         self.converter = ToNumpy()
 
     def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor, PILImage]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor, PILImage]]:
+        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor, PILImage.Image]]
+    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor, PILImage.Image]]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
@@ -373,8 +373,8 @@ class ToPILd(MapTransform):
         self.converter = ToPIL()
 
     def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor, PILImage]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor, PILImage]]:
+        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor, PILImage.Image]]
+    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor, PILImage.Image]]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
