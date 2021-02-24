@@ -168,7 +168,7 @@ class TestCompose(unittest.TestCase):
         self.assertEqual(len(t1), 8)
 
     def test_backwards_compatible_imports(self):
-        from monai.transforms.compose import MapTransform, Transform, Randomizable  # noqa: F401
+        from monai.transforms.compose import MapTransform, Randomizable, Transform  # noqa: F401
 
 
 if __name__ == "__main__":
