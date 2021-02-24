@@ -19,7 +19,6 @@ from monai.data.utils import pad_list_data_collate
 from monai.transforms import RandRotate90d, RandRotated, RandSpatialCropd, RandZoomd
 from monai.utils import set_determinism
 
-set_determinism(seed=0)
 
 from monai.data import CacheDataset, DataLoader
 
@@ -33,9 +32,13 @@ TESTS.append((RandRotate90d("image", prob=1, max_k=2),))
 
 class TestPadCollation(unittest.TestCase):
     def setUp(self) -> None:
+        set_determinism(seed=0)
         # image is non square to throw rotation errors
         im = np.arange(0, 10 * 9).reshape(1, 10, 9)
         self.data = [{"image": im} for _ in range(20)]
+
+    def tearDown(self) -> None:
+        set_determinism(None)
 
     @parameterized.expand(TESTS)
     def test_pad_collation(self, transform):
