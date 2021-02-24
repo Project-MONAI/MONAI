@@ -98,7 +98,7 @@ def string_list_all_gather(strings: List[str]) -> List[str]:
     if world_size <= 1:
         return strings
 
-    result = [[] for _ in range(world_size)]
+    result: List[List[str]] = [[] for _ in range(world_size)]
     # get length of strings
     length = len(strings)
     all_lens = idist.all_gather(length)
