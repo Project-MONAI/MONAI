@@ -110,9 +110,9 @@ __global__ void GMMReductionKernel(int gmm_idx, float *gmm, int gmm_pitch, const
     int thread_idx = threadIdx.x;
     int lane_idx = threadIdx.x & 31;
 
-    int block_idx = blockIdx.y * gridDim.x + blockIdx.x;
+    int block_idx = blockIdx.x;
 
-    float *block_gmm = &gmm[(gridDim.x * gridDim.y * gmm_idx + block_idx) * gmm_pitch];
+    float *block_gmm = &gmm[(gridDim.x * gmm_idx + block_idx) * gmm_pitch];
     volatile float *warp_gmm = &s_gmm[warp_idx * 32];
 
     if (create_gmm_flags)
@@ -663,12 +663,12 @@ __global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, int gm
     }
 }
 
-void GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const float *image, int *alpha, int element_count, int width, int height)
+void GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const float *image, int *alpha, int element_count)
 {
-    dim3 grid((width+31) / 32, (height+31) / 32);
+    dim3 grid((element_count + (32 * 32 - 1)) / (32 * 32));
     dim3 block(32 * 4);
     
-    float* block_gmm_scratch = &scratch_mem[grid.x * grid.y];
+    float* block_gmm_scratch = &scratch_mem[grid.x];
     unsigned int* block_active_scratch = (unsigned int*)scratch_mem;
 
     for (int k = 2; k < gmm_N; k+=2)
@@ -680,19 +680,19 @@ void GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, con
             GMMReductionKernel<4, false><<<grid, block>>>(i, block_gmm_scratch, gmm_pitch/4, image, alpha, element_count, block_active_scratch);
         }
 
-        GMMFinalizeKernel<4, false><<<k, block>>>(gmm, block_gmm_scratch, gmm_pitch/4, grid.x * grid.y);
+        GMMFinalizeKernel<4, false><<<k, block>>>(gmm, block_gmm_scratch, gmm_pitch/4, grid.x);
 
         GMMFindSplit<<<1, dim3(32,2)>>>((GMMSplit_t *) scratch_mem, k / 2, gmm, gmm_pitch/4);
         GMMDoSplit<<<TILE(element_count, BLOCK_SIZE * DO_SPLIT_DEGENERACY), BLOCK_SIZE>>>((GMMSplit_t *) scratch_mem, (k/2) << 1, gmm, gmm_pitch/4, image, alpha, element_count);
     }
 }
 
-void GMMUpdate(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const float *image, int *alpha, int element_count, int width, int height)
+void GMMUpdate(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const float *image, int *alpha, int element_count)
 {
-    dim3 grid((width+31) / 32, (height+31) / 32);
+    dim3 grid((element_count + (32 * 32 - 1)) / (32 * 32));
     dim3 block(32 * 4);
 
-    float* block_gmm_scratch = &scratch_mem[grid.x * grid.y];
+    float* block_gmm_scratch = &scratch_mem[grid.x];
     unsigned int* block_active_scratch = (unsigned int*)scratch_mem;
 
     GMMReductionKernel<4, true><<<grid, block>>>(0, block_gmm_scratch, gmm_pitch/4, image, alpha, element_count, block_active_scratch);
@@ -702,7 +702,7 @@ void GMMUpdate(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const f
         GMMReductionKernel<4, false><<<grid, block>>>(i, block_gmm_scratch, gmm_pitch/4, image, alpha, element_count, block_active_scratch);
     }
 
-    GMMFinalizeKernel<4, true><<<gmm_N, block>>>(gmm, block_gmm_scratch, gmm_pitch/4, grid.x * grid.y);
+    GMMFinalizeKernel<4, true><<<gmm_N, block>>>(gmm, block_gmm_scratch, gmm_pitch/4, grid.x);
 
     GMMcommonTerm<<<1, dim3(32,2)>>>(gmm_N / 2, gmm, gmm_pitch/4);
 }
@@ -715,14 +715,10 @@ void GMMDataTerm(const float *image, int gmmN, const float *gmm, int gmm_pitch, 
     GMMDataTermKernel<<<grid, block>>>(image, gmmN, gmm, gmm_pitch/4, output, element_count);
 }
 
-void GMM_Cuda(const float* input, const int* labels, float* output, int batch_count, int channel_count, int width, int height, int mixture_count, int gaussians_per_mixture)
+void GMM_Cuda(const float* input, const int* labels, float* output, int batch_count, int channel_count, int element_count, int mixture_count, int gaussians_per_mixture)
 {
-    int element_count = width * height;
-
     size_t gmm_pitch = 11 * sizeof(float);
     int gmms = mixture_count * gaussians_per_mixture;
-    int blocks = TILE(width, BLOCK_SIZE) * TILE(height, BLOCK_SIZE);
-    int scratch_gmm_size = blocks * gmm_pitch * gmms + blocks * 4;
 
     float* scratch_mem = output;
     float* gmm; cudaMalloc(&gmm, gmm_pitch * gmms);
@@ -730,8 +726,8 @@ void GMM_Cuda(const float* input, const int* labels, float* output, int batch_co
 
     cudaMemcpyAsync(alpha, labels, element_count * sizeof(int), cudaMemcpyDeviceToDevice);
 
-    GMMInitialize(gmms, gmm, scratch_mem, gmm_pitch, input, alpha, element_count, width, height);
-    GMMUpdate(gmms, gmm, scratch_mem, gmm_pitch, input, alpha, element_count, width, height);
+    GMMInitialize(gmms, gmm, scratch_mem, gmm_pitch, input, alpha, element_count);
+    GMMUpdate(gmms, gmm, scratch_mem, gmm_pitch, input, alpha, element_count);
     GMMDataTerm(input, gmms, gmm, gmm_pitch, output, element_count);
 
     cudaFree(alpha);
