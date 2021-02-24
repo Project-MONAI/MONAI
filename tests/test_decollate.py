@@ -23,8 +23,6 @@ from tests.utils import make_nifti_image
 
 _, has_nib = optional_import("nibabel")
 
-set_determinism(seed=0)
-
 IM_2D = create_test_image_2d(100, 101)[0]
 DATA_2D = {"image": make_nifti_image(IM_2D) if has_nib else IM_2D}
 
@@ -38,6 +36,13 @@ TESTS.append(
 
 
 class TestDeCollate(unittest.TestCase):
+
+    def setUp(self) -> None:
+        set_determinism(seed=0)
+
+    def tearDown(self) -> None:
+        set_determinism(None)
+
     def check_match(self, in1, in2):
         if isinstance(in1, dict):
             self.assertTrue(isinstance(in2, dict))
