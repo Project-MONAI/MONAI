@@ -9,37 +9,37 @@ from parameterized import parameterized
 from monai.data.image_reader import WSIReader
 from tests.utils import skip_if_quick
 
-filename = "test_001.tif"
+filename = "test_065.tif"
 
-TEST_CASE_0 = [filename, (3, 89600, 86016)]
+TEST_CASE_0 = [filename, (3, 53760, 77824)]
 
 TEST_CASE_1 = [
     filename,
-    {"location": (86016 // 2, 89600 // 2), "size": (2, 1), "level": 4},
-    np.array([[[234], [223]], [[174], [163]], [[228], [217]]]),
+    {"location": (53760 // 2, 77824 // 2), "size": (2, 1), "level": 4},
+    np.array([[[218], [237]], [[211], [230]], [[219], [237]]]),
 ]
 
 TEST_CASE_2 = [
     filename,
-    {"location": (86016 // 2, 89600 // 2), "size": (2, 1), "level": 2},
-    np.array([[[220], [197]], [[165], [143]], [[220], [195]]]),
+    {"location": (53760 // 2, 77824 // 2), "size": (2, 1), "level": 2},
+    np.array([[[229], [226]], [[218], [221]], [[232], [228]]]),
 ]
 
 TEST_CASE_3 = [
     filename,
-    {"location": (86016 // 2, 89600 // 2), "size": (8, 8), "level": 2, "grid_shape": (2, 1), "patch_size": 2},
+    {"location": (53760 // 2, 77824 // 2), "size": (8, 8), "level": 2, "grid_shape": (2, 1), "patch_size": 2},
     np.array(
         [
-            [[[218, 242], [189, 198]], [[154, 173], [125, 132]], [[214, 236], [185, 194]]],
-            [[[190, 209], [221, 228]], [[120, 137], [149, 154]], [[180, 200], [212, 217]]],
+            [[[227, 228], [227, 228]], [[226, 228], [226, 228]], [[231, 228], [231, 230]]],
+            [[[224, 224], [224, 226]], [[227, 228], [227, 227]], [[232, 231], [232, 231]]],
         ]
     ),
 ]
 
 TEST_CASE_4 = [
     filename,
-    {"location": (86016 // 2, 89600 // 2), "size": (8, 8), "level": 2, "grid_shape": (2, 1), "patch_size": 1},
-    np.array([[[[198]], [[132]], [[194]]], [[[228]], [[154]], [[217]]]]),
+    {"location": (53760 // 2, 77824 // 2), "size": (8, 8), "level": 2, "grid_shape": (2, 1), "patch_size": 1},
+    np.array([[[[228]], [[228]], [[230]]], [[[226]], [[227]], [[231]]]]),
 ]
 
 
@@ -61,7 +61,6 @@ class TestOpenSlideReader(unittest.TestCase):
         reader = WSIReader("OpenSlide")
         img_obj = reader.read(filename)
         img = reader.get_data(img_obj, **patch_info)
-
         self.assertTupleEqual(img.shape, expected_img.shape)
         self.assertIsNone(assert_array_equal(img, expected_img))
 
