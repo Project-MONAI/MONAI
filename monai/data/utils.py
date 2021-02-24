@@ -36,6 +36,7 @@ from monai.utils import (
     first,
     optional_import,
 )
+from monai.utils.enums import Method
 
 nib, _ = optional_import("nibabel")
 
@@ -254,7 +255,11 @@ def list_data_collate(batch: Sequence):
         raise RuntimeError(re_str)
 
 
-def pad_list_data_collate(batch: Sequence):
+def pad_list_data_collate(
+    batch: Sequence,
+    method: Union[Method, str] = Method.SYMMETRIC,
+    mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+):
     """
     Same as MONAI's ``list_data_collate``, except any tensors are centrally padded to match the shape of the biggest
     tensor in each dimension.
@@ -262,6 +267,10 @@ def pad_list_data_collate(batch: Sequence):
     Note:
         Need to use this collate if apply some transforms that can generate batch data.
 
+    Args:
+        batch: batch of data to pad-collate
+        method: padding method (see :py:class:`monai.transforms.SpatialPad`)
+        mode: padding mode (see :py:class:`monai.transforms.SpatialPad`)
     """
     list_of_dicts = isinstance(batch[0], dict)
     for key_or_idx in batch[0].keys() if list_of_dicts else range(len(batch[0])):
@@ -287,12 +296,12 @@ def pad_list_data_collate(batch: Sequence):
         if list_of_dicts:
             from monai.transforms.croppad.dictionary import SpatialPadd  # needs to be here to avoid circular import
 
-            padder = SpatialPadd(key_or_idx, max_shape)  # type: ignore
+            padder = SpatialPadd(key_or_idx, max_shape, method, mode)  # type: ignore
 
         else:
             from monai.transforms.croppad.array import SpatialPad  # needs to be here to avoid circular import
 
-            padder = SpatialPad(max_shape)  # type: ignore
+            padder = SpatialPad(max_shape, method, mode)  # type: ignore
 
         for idx in range(len(batch)):
             padded = padder(batch[idx])[key_or_idx] if list_of_dicts else padder(batch[idx][key_or_idx])
