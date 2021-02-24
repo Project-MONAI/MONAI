@@ -3,7 +3,7 @@
 pytorch-ignite==0.4.2
 gdown>=3.6.4
 scipy
-itk
+itk>=5.0
 nibabel
 pillow
 tensorboard

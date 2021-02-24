@@ -19,19 +19,19 @@ from monai.utils import ensure_tuple
 
 TEST_CASES = [
     [
-        {"pixdim": (1.0, 1.5, 1.0), "padding_mode": "zeros", "dtype": np.float},
+        {"pixdim": (1.0, 1.5, 1.0), "padding_mode": "zeros", "dtype": float},
         np.arange(4).reshape((1, 2, 2)) + 1.0,  # data
         {"affine": np.eye(4)},
         np.array([[[1.0, 1.0], [3.0, 2.0]]]),
     ],
     [
-        {"pixdim": 1.0, "padding_mode": "zeros", "dtype": np.float},
+        {"pixdim": 1.0, "padding_mode": "zeros", "dtype": float},
         np.ones((1, 2, 1, 2)),  # data
         {"affine": np.eye(4)},
         np.array([[[[1.0, 1.0]], [[1.0, 1.0]]]]),
     ],
     [
-        {"pixdim": (1.0, 1.0, 1.0), "padding_mode": "zeros", "dtype": np.float},
+        {"pixdim": (1.0, 1.0, 1.0), "padding_mode": "zeros", "dtype": float},
         np.ones((1, 2, 1, 2)),  # data
         {"affine": np.eye(4)},
         np.array([[[[1.0, 1.0]], [[1.0, 1.0]]]]),

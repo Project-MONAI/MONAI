@@ -10,13 +10,14 @@
 # limitations under the License.
 
 import os
+import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
-from monai.config import KeysCollection
+from monai.config import DtypeLike, KeysCollection
 from monai.data.utils import correct_nifti_header_if_necessary
 from monai.utils import ensure_tuple, optional_import
 
@@ -219,6 +220,16 @@ class ITKReader(ImageReader):
             # ignore deprecated, legacy members that cause issues
             if key.startswith("ITK_original_"):
                 continue
+            if (
+                key == "NRRD_measurement frame"
+                and int(itk.Version.GetITKMajorVersion()) == 5
+                and int(itk.Version.GetITKMinorVersion()) < 2
+            ):
+                warnings.warn(
+                    "Ignoring 'measurement frame' field. "
+                    "Correct reading of NRRD05 files requires ITK >= 5.2: `pip install --upgrade --pre itk`"
+                )
+                continue
             meta_dict[key] = img_meta_dict[key]
         meta_dict["origin"] = np.asarray(img.GetOrigin())
         meta_dict["spacing"] = np.asarray(img.GetSpacing())
@@ -244,7 +255,7 @@ class ITKReader(ImageReader):
         affine = np.eye(direction.shape[0] + 1)
         affine[(slice(-1), slice(-1))] = direction @ np.diag(spacing)
         affine[(slice(-1), -1)] = origin
-        return affine
+        return np.asarray(affine)
 
     def _get_spatial_shape(self, img) -> np.ndarray:
         """
@@ -258,7 +269,7 @@ class ITKReader(ImageReader):
         shape.reverse()
         return np.asarray(shape)
 
-    def _get_array_data(self, img) -> np.ndarray:
+    def _get_array_data(self, img):
         """
         Get the raw array data of the image, converted to Numpy array.
 
@@ -295,7 +306,7 @@ class NibabelReader(ImageReader):
 
     """
 
-    def __init__(self, as_closest_canonical: bool = False, dtype: Optional[np.dtype] = np.float32, **kwargs):
+    def __init__(self, as_closest_canonical: bool = False, dtype: DtypeLike = np.float32, **kwargs):
         super().__init__()
         self.as_closest_canonical = as_closest_canonical
         self.dtype = dtype
@@ -385,7 +396,7 @@ class NibabelReader(ImageReader):
             img: a Nibabel image object loaded from a image file.
 
         """
-        return img.affine.copy()
+        return np.array(img.affine, copy=True)
 
     def _get_spatial_shape(self, img) -> np.ndarray:
         """

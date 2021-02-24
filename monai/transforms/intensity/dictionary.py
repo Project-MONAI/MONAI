@@ -16,12 +16,12 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
 from collections.abc import Iterable
-from typing import Any, Dict, Hashable, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
-from monai.config import KeysCollection
+from monai.config import DtypeLike, KeysCollection
 from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.intensity.array import (
     AdjustContrast,
@@ -35,7 +35,7 @@ from monai.transforms.intensity.array import (
     ShiftIntensity,
     ThresholdIntensity,
 )
-from monai.utils import dtype_torch_to_numpy, ensure_tuple_size
+from monai.utils import dtype_torch_to_numpy, ensure_tuple_rep, ensure_tuple_size
 
 __all__ = [
     "RandGaussianNoised",
@@ -110,27 +110,29 @@ class RandGaussianNoised(Randomizable, MapTransform):
     ) -> None:
         super().__init__(keys)
         self.prob = prob
-        self.mean = ensure_tuple_size(mean, len(self.keys))
+        self.mean = ensure_tuple_rep(mean, len(self.keys))
         self.std = std
         self._do_transform = False
-        self._noise: Optional[np.ndarray] = None
+        self._noise: List[np.ndarray] = []
 
     def randomize(self, im_shape: Sequence[int]) -> None:
         self._do_transform = self.R.random() < self.prob
-        self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
+        self._noise.clear()
+        for m in self.mean:
+            self._noise.append(self.R.normal(m, self.R.uniform(0, self.std), size=im_shape))
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
 
         image_shape = d[self.keys[0]].shape  # image shape from the first data key
         self.randomize(image_shape)
-        if self._noise is None:
+        if len(self._noise) != len(self.keys):
             raise AssertionError
         if not self._do_transform:
             return d
-        for key in self.keys:
+        for noise, key in zip(self._noise, self.keys):
             dtype = dtype_torch_to_numpy(d[key].dtype) if isinstance(d[key], torch.Tensor) else d[key].dtype
-            d[key] = d[key] + self._noise.astype(dtype)
+            d[key] = d[key] + noise.astype(dtype)
         return d
 
 
@@ -294,7 +296,7 @@ class NormalizeIntensityd(MapTransform):
         divisor: Optional[np.ndarray] = None,
         nonzero: bool = False,
         channel_wise: bool = False,
-        dtype: np.dtype = np.float32,
+        dtype: DtypeLike = np.float32,
     ) -> None:
         super().__init__(keys)
         self.normalizer = NormalizeIntensity(subtrahend, divisor, nonzero, channel_wise, dtype)
@@ -474,7 +476,7 @@ class MaskIntensityd(MapTransform):
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
-        mask_data: if mask data is single channel, apply to evey channel
+        mask_data: if mask data is single channel, apply to every channel
             of input image. if multiple channels, the channel number must
             match input data. mask_data will be converted to `bool` values
             by `mask_data > 0` before applying transform to input image.

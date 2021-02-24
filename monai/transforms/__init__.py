@@ -138,8 +138,8 @@ from .intensity.dictionary import (
     ThresholdIntensityD,
     ThresholdIntensityDict,
 )
-from .io.array import LoadImage
-from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict
+from .io.array import LoadImage, SaveImage
+from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict
 from .post.array import (
     Activations,
     AsDiscrete,
@@ -298,6 +298,9 @@ from .utility.dictionary import (
     Lambdad,
     LambdaD,
     LambdaDict,
+    RandLambdad,
+    RandLambdaD,
+    RandLambdaDict,
     RepeatChanneld,
     RepeatChannelD,
     RepeatChannelDict,
@@ -335,6 +338,7 @@ from .utils import (
     in_bounds,
     is_empty,
     map_binary_to_indices,
+    map_spatial_axes,
     rand_choice,
     rescale_array,
     rescale_array_int_max,

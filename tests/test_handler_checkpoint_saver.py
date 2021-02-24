@@ -20,9 +20,9 @@ import torch.optim as optim
 from ignite.engine import Engine
 from parameterized import parameterized
 
-from monai.handlers import CheckpointSaver
+from monai.handlers import CheckpointLoader, CheckpointSaver
 
-TEST_CASE_1 = [True, None, False, None, 1, None, True, 0, None, ["test_checkpoint_final_iteration=40.pt"]]
+TEST_CASE_1 = [True, None, False, None, 1, None, False, True, 0, None, ["test_checkpoint_final_iteration=40.pt"]]
 
 TEST_CASE_2 = [
     False,
@@ -31,6 +31,7 @@ TEST_CASE_2 = [
     "val_loss",
     2,
     None,
+    False,
     True,
     0,
     None,
@@ -44,6 +45,7 @@ TEST_CASE_3 = [
     None,
     1,
     None,
+    False,
     True,
     2,
     2,
@@ -58,16 +60,17 @@ TEST_CASE_4 = [
     1,
     None,
     False,
+    False,
     10,
     2,
     ["test_checkpoint_iteration=30.pt", "test_checkpoint_iteration=40.pt"],
 ]
 
-TEST_CASE_5 = [True, None, False, None, 1, None, True, 0, None, ["test_checkpoint_final_iteration=40.pt"], True]
+TEST_CASE_5 = [True, None, False, None, 1, None, False, True, 0, None, ["test_checkpoint_final_iteration=40.pt"], True]
 
-TEST_CASE_6 = [True, "final_model.pt", False, None, 1, None, True, 0, None, ["final_model.pt"]]
+TEST_CASE_6 = [True, "final_model.pt", False, None, 1, None, False, True, 0, None, ["final_model.pt"]]
 
-TEST_CASE_7 = [False, None, True, "val_loss", 1, "model.pt", True, 0, None, ["model.pt"]]
+TEST_CASE_7 = [False, None, True, "val_loss", 1, "model.pt", False, True, 0, None, ["model.pt"]]
 
 
 class TestHandlerCheckpointSaver(unittest.TestCase):
@@ -80,6 +83,7 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
         key_metric_name,
         key_metric_n_saved,
         key_metric_filename,
+        key_metric_save_state,
         epoch_level,
         save_interval,
         n_saved,
@@ -112,6 +116,7 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
                 key_metric_name,
                 key_metric_n_saved,
                 key_metric_filename,
+                key_metric_save_state,
                 epoch_level,
                 save_interval,
                 n_saved,
@@ -140,6 +145,45 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 engine.run(range(3), max_epochs=2)
             self.assertTrue(os.path.exists(os.path.join(tempdir, "net_final_iteration=1.pt")))
+
+    def test_load_state_dict(self):
+        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+        net = torch.nn.PReLU()
+
+        # set up engine
+        def _train_func(engine, batch):
+            engine.state.metrics["val_loss"] = engine.state.iteration
+
+        engine = Engine(_train_func)
+
+        # set up testing handler
+        with tempfile.TemporaryDirectory() as tempdir:
+            engine = Engine(_train_func)
+            CheckpointSaver(
+                save_dir=tempdir,
+                save_dict={"net": net},
+                save_key_metric=True,
+                key_metric_name="val_loss",
+                key_metric_n_saved=2,
+                key_metric_save_state=True,
+            ).attach(engine)
+            engine.run(range(3), max_epochs=2)
+
+            saver = CheckpointSaver(
+                save_dir=tempdir,
+                save_dict={"net": net},
+                save_key_metric=True,
+                key_metric_name="val_loss",
+                key_metric_n_saved=2,
+            )
+            engine = Engine(_train_func)
+            CheckpointLoader(os.path.join(tempdir, "net_key_metric=6.pt"), {"checkpointer": saver}).attach(engine)
+            engine.run(range(1), max_epochs=1)
+
+            resumed = saver._key_metric_checkpoint._saved
+            for i in range(2):
+                self.assertEqual(resumed[i].priority, 3 * (i + 1))
+                self.assertEqual(resumed[i].filename, f"net_key_metric={3 * (i + 1)}.pt")
 
 
 if __name__ == "__main__":
