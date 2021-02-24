@@ -36,7 +36,6 @@ TESTS.append(
 
 
 class TestDeCollate(unittest.TestCase):
-
     def setUp(self) -> None:
         set_determinism(seed=0)
 
