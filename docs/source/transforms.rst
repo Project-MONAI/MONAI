@@ -237,6 +237,12 @@ IO
     :members:
     :special-members: __call__
 
+`SaveImage`
+"""""""""""
+.. autoclass:: SaveImage
+    :members:
+    :special-members: __call__
+
 Post-processing
 ^^^^^^^^^^^^^^^
 
@@ -699,6 +705,12 @@ IO (Dict)
 `LoadImaged`
 """"""""""""
 .. autoclass:: LoadImaged
+    :members:
+    :special-members: __call__
+
+`SaveImaged`
+""""""""""""
+.. autoclass:: SaveImaged
     :members:
     :special-members: __call__
 
