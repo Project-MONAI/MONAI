@@ -253,6 +253,7 @@ from .utility.array import (
     ToNumpy,
     TorchVision,
     ToTensor,
+    ToPIL,
     Transpose,
 )
 from .utility.dictionary import (
@@ -315,7 +316,14 @@ from .utility.dictionary import (
     SqueezeDimD,
     SqueezeDimDict,
     ToNumpyd,
+    ToNumpyD,
+    ToNumpyDict,
+    ToPILd,
+    ToPILD,
+    ToPILDict,
     TorchVisiond,
+    TorchVisionD,
+    TorchVisionDict,
     ToTensord,
     ToTensorD,
     ToTensorDict,
