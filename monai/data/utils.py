@@ -63,6 +63,7 @@ __all__ = [
     "json_hashing",
     "pickle_hashing",
     "sorted_dict",
+    "pad_list_data_collate",
 ]
 
 
@@ -240,7 +241,57 @@ def list_data_collate(batch: Sequence):
     """
     elem = batch[0]
     data = [i for k in batch for i in k] if isinstance(elem, list) else batch
-    return default_collate(data)
+    try:
+        return default_collate(data)
+    except RuntimeError as re:
+        re_str = str(re)
+        if "stack expects each tensor to be equal size" in re_str:
+            re_str += (
+                "\nMONAI hint: if your transforms intentionally create images of different shapes, creating your "
+                + "`DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem (check its "
+                + "documentation)."
+            )
+        raise RuntimeError(re_str)
+
+
+def pad_list_data_collate(batch: Sequence):
+    """
+    Same as MONAI's ``list_data_collate``, except any tensors are centrally padded to match the shape of the biggest
+    tensor in each dimension.
+
+    Note:
+        Need to use this collate if apply some transforms that can generate batch data.
+
+    """
+    for key in batch[0].keys():
+        max_shapes = []
+        for elem in batch:
+            if not isinstance(elem[key], (torch.Tensor, np.ndarray)):
+                break
+            max_shapes.append(elem[key].shape[1:])
+        # len > 0 if objects were arrays
+        if len(max_shapes) == 0:
+            continue
+        max_shape = np.array(max_shapes).max(axis=0)
+        # If all same size, skip
+        if np.all(np.array(max_shapes).min(axis=0) == max_shape):
+            continue
+        # Do we need to convert output to Tensor?
+        output_to_tensor = isinstance(batch[0][key], torch.Tensor)
+
+        # Use `SpatialPadd` to match sizes
+        # Default params are central padding, padding with 0's
+        # Use the dictionary version so that the transformation is recorded
+        from monai.transforms.croppad.dictionary import SpatialPadd  # needs to be here to avoid circular import
+
+        padder = SpatialPadd(key, max_shape)  # type: ignore
+        for idx in range(len(batch)):
+            batch[idx][key] = padder(batch[idx])[key]
+            if output_to_tensor:
+                batch[idx][key] = torch.Tensor(batch[idx][key])
+
+    # After padding, use default list collator
+    return list_data_collate(batch)
 
 
 def worker_init_fn(worker_id: int) -> None:
