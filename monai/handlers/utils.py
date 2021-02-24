@@ -85,27 +85,38 @@ def evenly_divisible_all_gather(data: torch.Tensor) -> torch.Tensor:
     return torch.cat([data[i * max_len : i * max_len + l, ...] for i, l in enumerate(all_lens)], dim=0)
 
 
-def string_list_all_gather(strings: List[str], delimiter: str = "\t") -> List[str]:
+def string_list_all_gather(strings: List[str]) -> List[str]:
     """
     Utility function for distributed data parallel to all gather a list of strings.
+    Note that if the item in `strings` is longer than 1024 chars, it will be truncated to 1024.
 
     Args:
         strings: a list of strings to all gather.
-        delimiter: use the delimiter to join the string list to be a long string,
-            then all gather across ranks and split to a list. default to "\t".
 
     """
-    if idist.get_world_size() <= 1:
+    world_size = idist.get_world_size()
+    if world_size <= 1:
         return strings
 
-    _joined = delimiter.join(strings)
+    result = [[] for _ in range(world_size)]
+    # get length of strings
+    length = len(strings)
+    all_lens = idist.all_gather(length)
+    max_len = max(all_lens).item()
+    # pad the item to make sure the same length
+    if length < max_len:
+        strings = strings + ["" for _ in range(max_len - length)]
+
     if get_torch_version_tuple() > (1, 6, 0):
-        # all gather across all ranks
-        _joined = delimiter.join(idist.all_gather(_joined))
+        for s in strings:
+            gathered = idist.all_gather(s)
+            for i, g in enumerate(gathered):
+                if len(g) > 0:
+                    result[i].append(g)
     else:
         raise RuntimeError("string all_gather can not be supported in PyTorch < 1.7.0.")
 
-    return _joined.split(delimiter)
+    return [i for k in result for i in k]
 
 
 def write_metrics_reports(
