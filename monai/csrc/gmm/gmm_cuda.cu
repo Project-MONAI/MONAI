@@ -115,9 +115,9 @@ __global__ void GMMReductionKernel(int gmm_idx, float *gmm, int gmm_pitch, const
 
     if (create_gmm_flags)
     {
-        if (threadIdx.y == 0)
+        if (warp_idx == 0)
         {
-            gmm_flags[threadIdx.x] = 0;
+            gmm_flags[lane_idx] = 0;
         }
 
         __syncthreads();
@@ -129,9 +129,9 @@ __global__ void GMMReductionKernel(int gmm_idx, float *gmm, int gmm_pitch, const
         if ((gmm_mask & (1u << gmm_idx)) == 0)
         {
 
-            if (threadIdx.x < 10 && threadIdx.y ==0)
+            if (lane_idx < 10 && warp_idx == 0)
             {
-                block_gmm[threadIdx.x] = 0.0f;
+                block_gmm[lane_idx] = 0.0f;
             }
 
             return;
@@ -140,8 +140,8 @@ __global__ void GMMReductionKernel(int gmm_idx, float *gmm, int gmm_pitch, const
 
     int list_idx = 0;
 
-    int y = blockIdx.y * 32 + threadIdx.y;
-    int x = blockIdx.x * 32 + threadIdx.x;
+    int y = blockIdx.y * 32 + warp_idx;
+    int x = blockIdx.x * 32 + lane_idx;
 
     // Build lists of pixels that belong to this GMM
 
@@ -173,9 +173,9 @@ __global__ void GMMReductionKernel(int gmm_idx, float *gmm, int gmm_pitch, const
 
     __syncthreads();
 
-    if (threadIdx.y == 0 && create_gmm_flags)
+    if (warp_idx == 0 && create_gmm_flags)
     {
-        tile_gmms[blockIdx.y * gridDim.x + blockIdx.x] = __ballot_sync(0xFFFFFFFF, gmm_flags[threadIdx.x] > 0);
+        tile_gmms[blockIdx.y * gridDim.x + blockIdx.x] = __ballot_sync(0xFFFFFFFF, gmm_flags[lane_idx] > 0);
     }
 
     // Reduce for each global GMM element
@@ -229,7 +229,7 @@ __global__ void GMMReductionKernel(int gmm_idx, float *gmm, int gmm_pitch, const
         __syncthreads();
 
         // Final Reduction
-        if (warp_idx ==0 && lane_idx == 0)
+        if (warp_idx == 0 && lane_idx == 0)
         {
             for (int j=1; j<warp_N; ++j)
             {
@@ -665,8 +665,7 @@ __global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, int gm
 void GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, const float *image, int *alpha, int element_count, int width, int height)
 {
     dim3 grid((width+31) / 32, (height+31) / 32);
-    dim3 block(32,4);
-    dim3 smallblock(32,2);
+    dim3 block(32, 4);
 
     for (int k = 2; k < gmm_N; k+=2)
     {
@@ -677,10 +676,9 @@ void GMMInitialize(int gmm_N, float *gmm, float *scratch_mem, int gmm_pitch, con
             GMMReductionKernel<4, false><<<grid, block>>>(i, &scratch_mem[grid.x *grid.y], gmm_pitch/4, image, alpha, width, height, (unsigned int *) scratch_mem);
         }
 
-        GMMFinalizeKernel<4, false><<<k, 32 *4>>>(gmm, &scratch_mem[grid.x *grid.y], gmm_pitch/4, grid.x *grid.y);
+        GMMFinalizeKernel<4, false><<<k, 32 * 4>>>(gmm, &scratch_mem[grid.x *grid.y], gmm_pitch/4, grid.x *grid.y);
 
-        GMMFindSplit<<<1, smallblock>>>((GMMSplit_t *) scratch_mem, k / 2, gmm, gmm_pitch/4);
-
+        GMMFindSplit<<<1, dim3(32,2)>>>((GMMSplit_t *) scratch_mem, k / 2, gmm, gmm_pitch/4);
         GMMDoSplit<<<TILE(element_count, BLOCK_SIZE * DO_SPLIT_DEGENERACY), BLOCK_SIZE>>>((GMMSplit_t *) scratch_mem, (k/2) << 1, gmm, gmm_pitch/4, image, alpha, element_count);
     }
 }
