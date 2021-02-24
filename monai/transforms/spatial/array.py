@@ -22,8 +22,8 @@ import torch
 from monai.config import USE_COMPILED, DtypeLike
 from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
-from monai.transforms.compose import Randomizable, Transform
 from monai.transforms.croppad.array import CenterSpatialCrop
+from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import (
     create_control_grid,
     create_grid,

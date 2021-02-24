@@ -21,7 +21,6 @@ import numpy as np
 import torch
 
 from monai.config import KeysCollection
-from monai.transforms.compose import MapTransform
 from monai.transforms.post.array import (
     Activations,
     AsDiscrete,
@@ -30,6 +29,7 @@ from monai.transforms.post.array import (
     MeanEnsemble,
     VoteEnsemble,
 )
+from monai.transforms.transform import MapTransform
 from monai.utils import ensure_tuple_rep
 
 __all__ = [
