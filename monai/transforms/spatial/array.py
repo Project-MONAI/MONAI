@@ -626,8 +626,8 @@ class RandRotate90(Randomizable, Transform):
         self._rand_k = 0
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        super().randomize(None)
         self._rand_k = self.R.randint(self.max_k) + 1
+        super().randomize(None)
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
         """

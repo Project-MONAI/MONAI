@@ -183,8 +183,8 @@ class RandShiftIntensityd(Randomizable, MapTransform):
             self.offsets = (min(offsets), max(offsets))
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        super().randomize(None)
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
+        super().randomize(None)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
@@ -253,8 +253,8 @@ class RandScaleIntensityd(Randomizable, MapTransform):
             self.factors = (min(factors), max(factors))
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        super().randomize(None)
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
+        super().randomize(None)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
