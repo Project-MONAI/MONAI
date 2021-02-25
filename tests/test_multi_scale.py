@@ -16,7 +16,7 @@ from parameterized import parameterized
 
 from monai.losses import DiceLoss
 from monai.losses.multi_scale import MultiScaleLoss
-from tests.utils import test_script_save
+from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
 
 dice_loss = DiceLoss(include_background=True, sigmoid=True, smooth_nr=1e-5, smooth_dr=1e-5)
 
@@ -56,6 +56,7 @@ class TestMultiScale(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, ""):
             MultiScaleLoss(loss=dice_loss, scales=[-1], reduction="none")(torch.ones((1, 1, 3)), torch.ones((1, 1, 3)))
 
+    @SkipIfBeforePyTorchVersion((1, 7, 0))
     def test_script(self):
         input_param, input_data, expected_val = TEST_CASES[0]
         loss = MultiScaleLoss(**input_param)
