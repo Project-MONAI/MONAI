@@ -88,7 +88,8 @@ def evenly_divisible_all_gather(data: torch.Tensor) -> torch.Tensor:
 def string_list_all_gather(strings: List[str]) -> List[str]:
     """
     Utility function for distributed data parallel to all gather a list of strings.
-    Note that if the item in `strings` is longer than 1024 chars, it will be truncated to 1024.
+    Note that if the item in `strings` is longer than 1024 chars, it will be truncated to 1024:
+    https://github.com/pytorch/ignite/blob/master/ignite/distributed/comp_models/base.py#L92
 
     Args:
         strings: a list of strings to all gather.
