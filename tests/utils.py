@@ -47,12 +47,16 @@ def test_pretrained_networks(network, input_param, device):
     return net
 
 
+def test_is_quick():
+    return os.environ.get(quick_test_var, "").lower() == "true"
+
+
 def skip_if_quick(obj):
     """
     Skip the unit tests if environment variable `quick_test_var=true`.
     For example, the user can skip the relevant tests by setting ``export QUICKTEST=true``.
     """
-    is_quick = os.environ.get(quick_test_var, "").lower() == "true"
+    is_quick = test_is_quick()
 
     return unittest.skipIf(is_quick, "Skipping slow tests")(obj)
 
@@ -149,6 +153,19 @@ def make_nifti_image(array, affine=None):
     nib.save(test_image, image_name)
     os.close(temp_f)
     return image_name
+
+
+def make_rand_affine(ndim: int = 3, random_state: Optional[np.random.RandomState] = None):
+    """Create random affine transformation (with values == -1, 0 or 1)."""
+    rs = np.random if random_state is None else random_state
+
+    vals = rs.choice([-1, 1], size=ndim)
+    positions = rs.choice(range(ndim), size=ndim, replace=False)
+    af = np.zeros([ndim + 1, ndim + 1])
+    af[ndim, ndim] = 1
+    for i, (v, p) in enumerate(zip(vals, positions)):
+        af[i, p] = v
+    return af
 
 
 class DistTestCase(unittest.TestCase):

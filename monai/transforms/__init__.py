@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from .adaptors import FunctionSignature, adaptor, apply_alias, to_kwargs
-from .compose import Compose, MapTransform, Randomizable, Transform
+from .compose import Compose
 from .croppad.array import (
     BorderPad,
     BoundingRect,
@@ -138,8 +138,8 @@ from .intensity.dictionary import (
     ThresholdIntensityD,
     ThresholdIntensityDict,
 )
-from .io.array import LoadImage
-from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict
+from .io.array import LoadImage, SaveImage
+from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict
 from .post.array import (
     Activations,
     AsDiscrete,
@@ -155,6 +155,9 @@ from .post.dictionary import (
     AsDiscreted,
     AsDiscreteD,
     AsDiscreteDict,
+    Decollated,
+    DecollateD,
+    DecollateDict,
     Ensembled,
     KeepLargestConnectedComponentd,
     KeepLargestConnectedComponentD,
@@ -234,6 +237,7 @@ from .spatial.dictionary import (
     ZoomD,
     ZoomDict,
 )
+from .transform import MapTransform, Randomizable, Transform
 from .utility.array import (
     AddChannel,
     AddExtremePointsChannel,

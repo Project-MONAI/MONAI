@@ -156,6 +156,20 @@ class TestCompose(unittest.TestCase):
             self.assertAlmostEqual(out_1.cpu().item(), 0.131966779)
         set_determinism(None)
 
+    def test_flatten_and_len(self):
+        x = AddChannel()
+        t1 = Compose([x, x, x, x, Compose([Compose([x, x]), x, x])])
+
+        t2 = t1.flatten()
+        for t in t2.transforms:
+            self.assertNotIsInstance(t, Compose)
+
+        # test len
+        self.assertEqual(len(t1), 8)
+
+    def test_backwards_compatible_imports(self):
+        from monai.transforms.compose import MapTransform, Randomizable, Transform  # noqa: F401
+
 
 if __name__ == "__main__":
     unittest.main()

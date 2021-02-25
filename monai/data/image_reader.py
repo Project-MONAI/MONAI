@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import os
+import warnings
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
@@ -218,6 +219,16 @@ class ITKReader(ImageReader):
         for key in img_meta_dict.GetKeys():
             # ignore deprecated, legacy members that cause issues
             if key.startswith("ITK_original_"):
+                continue
+            if (
+                key == "NRRD_measurement frame"
+                and int(itk.Version.GetITKMajorVersion()) == 5
+                and int(itk.Version.GetITKMinorVersion()) < 2
+            ):
+                warnings.warn(
+                    "Ignoring 'measurement frame' field. "
+                    "Correct reading of NRRD05 files requires ITK >= 5.2: `pip install --upgrade --pre itk`"
+                )
                 continue
             meta_dict[key] = img_meta_dict[key]
         meta_dict["origin"] = np.asarray(img.GetOrigin())
