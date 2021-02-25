@@ -70,6 +70,8 @@ __all__ = [
     "Rand3DElastic",
 ]
 
+RandRange = Optional[Union[Sequence[Union[Tuple[float, float], float]], float]]
+
 
 class Spacing(Transform):
     """
@@ -982,10 +984,10 @@ class RandAffineGrid(Randomizable, Transform):
 
     def __init__(
         self,
-        rotate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-        shear_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-        translate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-        scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        rotate_range: RandRange = None,
+        shear_range: RandRange = None,
+        translate_range: RandRange = None,
+        scale_range: RandRange = None,
         as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
     ) -> None:
@@ -999,7 +1001,8 @@ class RandAffineGrid(Randomizable, Transform):
                 and nothing for the remaining dimensions.
             shear_range: shear_range with format matching `rotate_range`.
             translate_range: translate_range with format matching `rotate_range`.
-            scale_range: scaling_range with format matching `rotate_range`.
+            scale_range: scaling_range with format matching `rotate_range`. A value of 1.0 is added to the result.
+                This allows 0 to correspond to no change (i.e., a scaling of 1).
             as_tensor_output: whether to output tensor instead of numpy array.
                 defaults to True.
             device: device to store the output grid data.
@@ -1023,22 +1026,22 @@ class RandAffineGrid(Randomizable, Transform):
         self.as_tensor_output = as_tensor_output
         self.device = device
 
-    def _get_rand_param(self, param_range):
+    def _get_rand_param(self, param_range, add_scalar: float = 0.0):
         out_param = []
         for f in param_range:
             if issequenceiterable(f):
                 if len(f) != 2:
                     raise ValueError("If giving range as [min,max], should only have two elements per dim.")
-                out_param.append(self.R.uniform(f[0], f[1]))
+                out_param.append(self.R.uniform(f[0], f[1]) + add_scalar)
             elif f is not None:
-                out_param.append(self.R.uniform(-f, f))
+                out_param.append(self.R.uniform(-f, f) + add_scalar)
         return out_param
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self.rotate_params = self._get_rand_param(self.rotate_range)
         self.shear_params = self._get_rand_param(self.shear_range)
         self.translate_params = self._get_rand_param(self.translate_range)
-        self.scale_params = self._get_rand_param(self.scale_range)
+        self.scale_params = self._get_rand_param(self.scale_range, 1.0)
 
     def __call__(
         self,
@@ -1304,11 +1307,11 @@ class RandAffine(Randomizable, Transform):
     def __init__(
         self,
         prob: float = 0.1,
-        rotate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-        shear_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-        translate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-        scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-        spatial_size: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        rotate_range: RandRange = None,
+        shear_range: RandRange = None,
+        translate_range: RandRange = None,
+        scale_range: RandRange = None,
+        spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = True,
@@ -1326,7 +1329,8 @@ class RandAffine(Randomizable, Transform):
                 and nothing for the remaining dimensions.
             shear_range: shear_range with format matching `rotate_range`.
             translate_range: translate_range with format matching `rotate_range`.
-            scale_range: scaling_range with format matching `rotate_range`.
+            scale_range: scaling_range with format matching `rotate_range`. A value of 1.0 is added to the result.
+                This allows 0 to correspond to no change (i.e., a scaling of 1).
             spatial_size: output image spatial size.
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
@@ -1428,11 +1432,11 @@ class Rand2DElastic(Randomizable, Transform):
         spacing: Union[Tuple[float, float], float],
         magnitude_range: Tuple[float, float],
         prob: float = 0.1,
-        rotate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-        shear_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-        translate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-        scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-        spatial_size: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        rotate_range: RandRange = None,
+        shear_range: RandRange = None,
+        translate_range: RandRange = None,
+        scale_range: RandRange = None,
+        spatial_size: Optional[Union[Tuple[int, int], int]] = None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = False,
@@ -1453,7 +1457,8 @@ class Rand2DElastic(Randomizable, Transform):
                 and nothing for the remaining dimensions.
             shear_range: shear_range with format matching `rotate_range`.
             translate_range: translate_range with format matching `rotate_range`.
-            scale_range: scaling_range with format matching `rotate_range`.
+            scale_range: scaling_range with format matching `rotate_range`. A value of 1.0 is added to the result.
+                This allows 0 to correspond to no change (i.e., a scaling of 1).
             spatial_size: specifying output image spatial size [h, w].
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
@@ -1553,11 +1558,11 @@ class Rand3DElastic(Randomizable, Transform):
         sigma_range: Tuple[float, float],
         magnitude_range: Tuple[float, float],
         prob: float = 0.1,
-        rotate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-        shear_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-        translate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-        scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
-        spatial_size: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        rotate_range: RandRange = None,
+        shear_range: RandRange = None,
+        translate_range: RandRange = None,
+        scale_range: RandRange = None,
+        spatial_size: Optional[Union[Tuple[int, int, int], int]] = None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = False,
@@ -1580,7 +1585,8 @@ class Rand3DElastic(Randomizable, Transform):
                 and nothing for the remaining dimensions.
             shear_range: shear_range with format matching `rotate_range`.
             translate_range: translate_range with format matching `rotate_range`.
-            scale_range: scaling_range with format matching `rotate_range`.
+            scale_range: scaling_range with format matching `rotate_range`. A value of 1.0 is added to the result.
+                This allows 0 to correspond to no change (i.e., a scaling of 1).
             spatial_size: specifying output image spatial size [h, w, d].
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.

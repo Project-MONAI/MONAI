@@ -533,7 +533,8 @@ class RandAffined(Randomizable, MapTransform, InvertibleTransform):
                 and nothing for the remaining dimensions.
             shear_range: shear_range with format matching `rotate_range`.
             translate_range: translate_range with format matching `rotate_range`.
-            scale_range: scaling_range with format matching `rotate_range`.
+            scale_range: scaling_range with format matching `rotate_range`. A value of 1.0 is added to the result.
+                This allows 0 to correspond to no change (i.e., a scaling of 1).
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
@@ -631,7 +632,7 @@ class Rand2DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
         keys: KeysCollection,
         spacing: Union[Tuple[float, float], float],
         magnitude_range: Tuple[float, float],
-        spatial_size: Optional[Union[Sequence[int], int]] = None,
+        spatial_size: Optional[Union[Tuple[int, int], int]] = None,
         prob: float = 0.1,
         rotate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
         shear_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
@@ -665,7 +666,8 @@ class Rand2DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
                 and nothing for the remaining dimensions.
             shear_range: shear_range with format matching `rotate_range`.
             translate_range: translate_range with format matching `rotate_range`.
-            scale_range: scaling_range with format matching `rotate_range`.
+            scale_range: scaling_range with format matching `rotate_range`. A value of 1.0 is added to the result.
+                This allows 0 to correspond to no change (i.e., a scaling of 1).
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
@@ -802,7 +804,7 @@ class Rand3DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
         keys: KeysCollection,
         sigma_range: Tuple[float, float],
         magnitude_range: Tuple[float, float],
-        spatial_size: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        spatial_size: Optional[Union[Tuple[int, int, int], int]] = None,
         prob: float = 0.1,
         rotate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
         shear_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
@@ -837,7 +839,8 @@ class Rand3DElasticd(Randomizable, MapTransform, InvertibleTransform, NonRigidTr
                 and nothing for the remaining dimensions.
             shear_range: shear_range with format matching `rotate_range`.
             translate_range: translate_range with format matching `rotate_range`.
-            scale_range: scaling_range with format matching `rotate_range`.
+            scale_range: scaling_range with format matching `rotate_range`. A value of 1.0 is added to the result.
+                This allows 0 to correspond to no change (i.e., a scaling of 1).
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
