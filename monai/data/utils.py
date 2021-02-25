@@ -18,7 +18,7 @@ import warnings
 from collections import defaultdict
 from itertools import product, starmap
 from pathlib import PurePath
-from typing import Dict, Generator, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Generator, Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -37,6 +37,7 @@ from monai.utils import (
     optional_import,
 )
 from monai.utils.enums import Method
+from monai.utils.misc import issequenceiterable
 
 nib, _ = optional_import("nibabel")
 
@@ -64,6 +65,7 @@ __all__ = [
     "json_hashing",
     "pickle_hashing",
     "sorted_dict",
+    "decollate_batch",
     "pad_list_data_collate",
 ]
 
@@ -253,6 +255,71 @@ def list_data_collate(batch: Sequence):
                 + "documentation)."
             )
         raise RuntimeError(re_str)
+
+
+def decollate_batch(data: dict, batch_size: Optional[int] = None) -> List[dict]:
+    """De-collate a batch of data (for example, as produced by a `DataLoader`).
+
+    Returns a list of dictionaries. Each dictionary will only contain the data for a given batch.
+
+    Images originally stored as (B,C,H,W,[D]) will be returned as (C,H,W,[D]). Other information,
+    such as metadata, may have been stored in a list (or a list inside nested dictionaries). In
+    this case we return the element of the list corresponding to the batch idx.
+
+    Return types aren't guaranteed to be the same as the original, since numpy arrays will have been
+    converted to torch.Tensor, and tuples/lists may have been converted to lists of tensors
+
+    For example:
+
+    .. code-block:: python
+
+        batch_data = {
+            "image": torch.rand((2,1,10,10)),
+            "image_meta_dict": {"scl_slope": torch.Tensor([0.0, 0.0])}
+        }
+        out = decollate_batch(batch_data)
+        print(len(out))
+        >>> 2
+
+        print(out[0])
+        >>> {'image': tensor([[[4.3549e-01...43e-01]]]), 'image_meta_dict': {'scl_slope': 0.0}}
+
+    Args:
+        data: data to be de-collated.
+        batch_size: number of batches in data. If `None` is passed, try to figure out batch size.
+    """
+    if not isinstance(data, dict):
+        raise RuntimeError("Only currently implemented for dictionary data (might be trivial to adapt).")
+    if batch_size is None:
+        for v in data.values():
+            if isinstance(v, torch.Tensor):
+                batch_size = v.shape[0]
+                break
+    if batch_size is None:
+        raise RuntimeError("Couldn't determine batch size, please specify as argument.")
+
+    def torch_to_single(d: torch.Tensor):
+        """If input is a torch.Tensor with only 1 element, return just the element."""
+        return d if d.numel() > 1 else d.item()
+
+    def decollate(data: Any, idx: int):
+        """Recursively de-collate."""
+        if isinstance(data, dict):
+            return {k: decollate(v, idx) for k, v in data.items()}
+        if isinstance(data, torch.Tensor):
+            out = data[idx]
+            return torch_to_single(out)
+        elif isinstance(data, list):
+            if len(data) == 0:
+                return data
+            if isinstance(data[0], torch.Tensor):
+                return [torch_to_single(d[idx]) for d in data]
+            if issequenceiterable(data[0]):
+                return [decollate(d, idx) for d in data]
+            return data[idx]
+        raise TypeError(f"Not sure how to de-collate type: {type(data)}")
+
+    return [{key: decollate(data[key], idx) for key in data.keys()} for idx in range(batch_size)]
 
 
 def pad_list_data_collate(
