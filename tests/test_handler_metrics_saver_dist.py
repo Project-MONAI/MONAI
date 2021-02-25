@@ -47,7 +47,7 @@ class DistributedMetricsSaver(DistTestCase):
 
             # test the case that all_gather with string length > 1024 chars
             filename_postfix = "abcdefghigklmnopqrstuvwxyz"
-            for i in range(1100):
+            for _ in range(1100):
                 filename_postfix += filename_postfix[random.randint(0, 26)]
 
             if dist.get_rank() == 0:
