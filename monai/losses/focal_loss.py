@@ -80,8 +80,8 @@ class FocalLoss(_WeightedLoss):
         i = logits
         t = target
 
-        if i.ndimension() != t.ndimension():
-            raise ValueError(f"logits and target ndim must match, got logits={i.ndimension()} target={t.ndimension()}.")
+        if i.ndim != t.ndim:
+            raise ValueError(f"logits and target ndim must match, got logits={i.ndim} target={t.ndim}.")
 
         if t.shape[1] != 1 and t.shape[1] != i.shape[1]:
             raise ValueError(
