@@ -591,6 +591,7 @@ class SmartCacheDataset(CacheDataset):
         cache_rate: float = 1.0,
         num_init_workers: Optional[int] = None,
         num_replace_workers: int = 0,
+        progress: bool = True,
     ) -> None:
         """
         Args:
@@ -605,8 +606,10 @@ class SmartCacheDataset(CacheDataset):
                 If num_init_workers is None then the number returned by os.cpu_count() is used.
             num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
                 if 0, run in main thread, no separate thread will open.
+            progress: whether to display a progress bar.
+
         """
-        super().__init__(data, transform, cache_num, cache_rate, num_init_workers)
+        super().__init__(data, transform, cache_num, cache_rate, num_init_workers, progress)
         if self._cache is None:
             self._cache = self._fill_cache()
         if self.cache_num >= len(data):
