@@ -243,7 +243,7 @@ class ToTensor(Transform):
     Converts the input image to a tensor without applying any other transformations.
     """
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> torch.Tensor:
+    def __call__(self, img: Union[np.ndarray, torch.Tensor, PILImage.Image]) -> torch.Tensor:
         """
         Apply the transform to `img` and make it contiguous.
         """
@@ -257,7 +257,7 @@ class ToNumpy(Transform):
     Converts the input data to numpy array, can support list or tuple of numbers and PyTorch Tensor.
     """
 
-    def __call__(self, img: Union[List, Tuple, np.ndarray, torch.Tensor]) -> np.ndarray:
+    def __call__(self, img: Union[List, Tuple, np.ndarray, torch.Tensor, PILImage.Image]) -> np.ndarray:
         """
         Apply the transform to `img` and make it contiguous.
         """
@@ -271,7 +271,7 @@ class ToPIL(Transform):
     Converts the input image (in the form of NumPy array or PyTorch Tensor) to PIL image
     """
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> PILImage.Image:
+    def __call__(self, img: Union[np.ndarray, torch.Tensor, PILImage.Image]) -> PILImage.Image:
         """
         Apply the transform to `img` and make it contiguous.
         """
