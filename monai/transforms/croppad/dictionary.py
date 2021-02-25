@@ -23,6 +23,7 @@ import numpy as np
 
 import monai.data.utils
 from monai.config import IndexSelection, KeysCollection
+from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.croppad.array import (
     BorderPad,
     BoundingRect,
