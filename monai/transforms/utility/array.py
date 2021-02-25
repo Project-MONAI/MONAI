@@ -275,9 +275,10 @@ class ToPIL(Transform):
         """
         Apply the transform to `img` and make it contiguous.
         """
+        if isinstance(img, PILImage.Image):
+            return img
         if isinstance(img, torch.Tensor):
             img = img.detach().cpu().numpy()
-        img = np.ascontiguousarray(img)
         return PILImage.fromarray(img)
 
 

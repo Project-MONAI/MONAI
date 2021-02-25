@@ -45,10 +45,12 @@ from monai.transforms.utility.array import (
     ToTensor,
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
-from monai.utils import ensure_tuple, ensure_tuple_rep
+from monai.utils import ensure_tuple, ensure_tuple_rep, optional_import
 
 if TYPE_CHECKING:
     from PIL import Image as PILImage
+else:
+    PILImage, _ = optional_import("PIL.Image")
 
 __all__ = [
     "Identityd",
