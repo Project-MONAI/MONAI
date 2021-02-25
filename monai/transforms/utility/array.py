@@ -26,9 +26,13 @@ from monai.transforms.utils import extreme_points_to_image, get_extreme_points, 
 from monai.utils import ensure_tuple, min_version, optional_import
 
 if TYPE_CHECKING:
-    from PIL import Image as PILImage
+    from PIL.Image import Image as PILImageImage
+    from PIL.Image import fromarray as PILImage_fromarray
+
+    has_pil = True
 else:
-    PILImage, _ = optional_import("PIL.Image")
+    PILImage_fromarray, has_pil = optional_import("PIL.Image", name="fromarray")
+    PILImageImage, _ = optional_import("PIL.Image", name="Image")
 
 __all__ = [
     "Identity",
@@ -243,7 +247,7 @@ class ToTensor(Transform):
     Converts the input image to a tensor without applying any other transformations.
     """
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor, PILImage.Image]) -> torch.Tensor:
+    def __call__(self, img: Union[np.ndarray, torch.Tensor, PILImageImage]) -> torch.Tensor:
         """
         Apply the transform to `img` and make it contiguous.
         """
@@ -257,7 +261,7 @@ class ToNumpy(Transform):
     Converts the input data to numpy array, can support list or tuple of numbers and PyTorch Tensor.
     """
 
-    def __call__(self, img: Union[List, Tuple, np.ndarray, torch.Tensor, PILImage.Image]) -> np.ndarray:
+    def __call__(self, img: Union[List, Tuple, np.ndarray, torch.Tensor, PILImageImage]) -> np.ndarray:
         """
         Apply the transform to `img` and make it contiguous.
         """
@@ -271,15 +275,15 @@ class ToPIL(Transform):
     Converts the input image (in the form of NumPy array or PyTorch Tensor) to PIL image
     """
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor, PILImage.Image]) -> PILImage.Image:
+    def __call__(self, img: Union[np.ndarray, torch.Tensor, PILImageImage]) -> PILImageImage:
         """
         Apply the transform to `img` and make it contiguous.
         """
-        if isinstance(img, PILImage.Image):
+        if isinstance(img, PILImageImage):
             return img
         if isinstance(img, torch.Tensor):
             img = img.detach().cpu().numpy()
-        return PILImage.fromarray(img)
+        return PILImage_fromarray(img)
 
 
 class Transpose(Transform):

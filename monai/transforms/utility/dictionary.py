@@ -48,9 +48,11 @@ from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.utils import ensure_tuple, ensure_tuple_rep, optional_import
 
 if TYPE_CHECKING:
-    from PIL import Image as PILImage
+    from PIL.Image import Image as PILImageImage
+
+    has_pil = True
 else:
-    PILImage, _ = optional_import("PIL.Image")
+    PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 
 __all__ = [
     "Identityd",
@@ -329,8 +331,8 @@ class ToTensord(MapTransform):
         self.converter = ToTensor()
 
     def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor, PILImage.Image]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor, PILImage.Image]]:
+        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor, PILImageImage]]
+    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor, PILImageImage]]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
@@ -352,8 +354,8 @@ class ToNumpyd(MapTransform):
         self.converter = ToNumpy()
 
     def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor, PILImage.Image]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor, PILImage.Image]]:
+        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor, PILImageImage]]
+    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor, PILImageImage]]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
@@ -375,8 +377,8 @@ class ToPILd(MapTransform):
         self.converter = ToPIL()
 
     def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor, PILImage.Image]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor, PILImage.Image]]:
+        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor, PILImageImage]]
+    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor, PILImageImage]]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
