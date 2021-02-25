@@ -324,7 +324,7 @@ class Decollated(MapTransform):
     def __init__(self, batch_size: Optional[int] = None) -> None:
         self.batch_size = batch_size
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: dict) -> List[dict]:
         return monai.data.decollate_batch(data, self.batch_size)
 
 
