@@ -139,7 +139,7 @@ class TverskyLoss(_Loss):
         g1 = 1 - g0
 
         # reducing only spatial dimensions (not batch nor channels)
-        reduce_axis = list(range(2, len(input.shape)))
+        reduce_axis: List[int] = torch.arange(2, len(input.shape)).tolist()
         if self.batch:
             # reducing spatial dimensions and batch
             reduce_axis = [0] + reduce_axis

@@ -139,7 +139,7 @@ class DiceLoss(_Loss):
             raise AssertionError(f"ground truth has differing shape ({target.shape}) from input ({input.shape})")
 
         # reducing only spatial dimensions (not batch nor channels)
-        reduce_axis: List[int] = torch.arange(2,len(input.shape)).tolist()
+        reduce_axis: List[int] = torch.arange(2, len(input.shape)).tolist()
         if self.batch:
             # reducing spatial dimensions and batch
             reduce_axis = [0] + reduce_axis
@@ -335,7 +335,7 @@ class GeneralizedDiceLoss(_Loss):
             raise AssertionError(f"ground truth has differing shape ({target.shape}) from input ({input.shape})")
 
         # reducing only spatial dimensions (not batch nor channels)
-        reduce_axis: List[int] = torch.arange(2,len(input.shape)).tolist()
+        reduce_axis: List[int] = torch.arange(2, len(input.shape)).tolist()
         if self.batch:
             reduce_axis = [0] + reduce_axis
         intersection = torch.sum(target * input, reduce_axis)
