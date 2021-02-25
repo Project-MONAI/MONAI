@@ -45,13 +45,13 @@ class DistributedMetricsSaver(DistTestCase):
 
             engine = Engine(_val_func)
 
-            # test the case that all_gather length > 1024 chars
-            filename_prefix = "abcdefghigklmnopqrstuvwxyz"
-            for i in range(600):
-                filename_prefix += filename_prefix[random.randint(0, 26)]
+            # test the case that all_gather with string length > 1024 chars
+            filename_postfix = "abcdefghigklmnopqrstuvwxyz"
+            for i in range(1100):
+                filename_postfix += filename_postfix[random.randint(0, 26)]
 
             if dist.get_rank() == 0:
-                data = [{"image_meta_dict": {"filename_or_obj": [f"{filename_prefix}1"]}}]
+                data = [{"image_meta_dict": {"filename_or_obj": [f"1{filename_postfix}"]}}]
 
                 @engine.on(Events.EPOCH_COMPLETED)
                 def _save_metrics0(engine):
@@ -64,8 +64,8 @@ class DistributedMetricsSaver(DistTestCase):
             if dist.get_rank() == 1:
                 # different ranks have different data length
                 data = [
-                    {"image_meta_dict": {"filename_or_obj": [f"{filename_prefix}2"]}},
-                    {"image_meta_dict": {"filename_or_obj": [f"{filename_prefix}3"]}},
+                    {"image_meta_dict": {"filename_or_obj": [f"2{filename_postfix}"]}},
+                    {"image_meta_dict": {"filename_or_obj": [f"3{filename_postfix}"]}},
                 ]
 
                 @engine.on(Events.EPOCH_COMPLETED)
@@ -92,7 +92,8 @@ class DistributedMetricsSaver(DistTestCase):
                     f_csv = csv.reader(f)
                     for i, row in enumerate(f_csv):
                         if i > 0:
-                            self.assertEqual(row, [f"{filename_prefix}{i}\t{float(i)}\t{float(i + 1)}\t{i + 0.5}"])
+                            expected = [f"{i}{filename_postfix[0: 1023]}\t{float(i)}\t{float(i + 1)}\t{i + 0.5}"]
+                            self.assertEqual(row, expected)
                 self.assertTrue(os.path.exists(os.path.join(tempdir, "metric3_summary.csv")))
                 # check the metric_summary.csv and content
                 with open(os.path.join(tempdir, "metric3_summary.csv")) as f:
