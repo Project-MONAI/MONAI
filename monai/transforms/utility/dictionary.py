@@ -770,7 +770,7 @@ class AddExtremePointsChanneld(Randomizable, MapTransform):
         rescale_min: float = -1.0,
         rescale_max: float = 1.0,
     ):
-        super().__init__(keys)
+        MapTransform.__init__(self, keys)
         self.background = background
         self.pert = pert
         self.points: List[Tuple[int, ...]] = []
