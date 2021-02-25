@@ -318,8 +318,7 @@ class RandRotate90d(Randomizable, MapTransform):
         rotator = Rotate90(self._rand_k, self.spatial_axes)
         for key in self.keys:
             if self._do_transform:
-            d[key] = rotator(d[key])
-            self.append_applied_transforms(d, key, extra_info={"rand_k": self._rand_k})
+                d[key] = rotator(d[key])
         return d
 
 
