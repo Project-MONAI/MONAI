@@ -22,7 +22,6 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike, KeysCollection
-from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.intensity.array import (
     AdjustContrast,
     GaussianSharpen,
@@ -35,6 +34,7 @@ from monai.transforms.intensity.array import (
     ShiftIntensity,
     ThresholdIntensity,
 )
+from monai.transforms.transform import MapTransform, Randomizable
 from monai.utils import dtype_torch_to_numpy, ensure_tuple_rep, ensure_tuple_size
 
 __all__ = [

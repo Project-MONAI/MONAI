@@ -47,12 +47,16 @@ def test_pretrained_networks(network, input_param, device):
     return net
 
 
+def test_is_quick():
+    return os.environ.get(quick_test_var, "").lower() == "true"
+
+
 def skip_if_quick(obj):
     """
     Skip the unit tests if environment variable `quick_test_var=true`.
     For example, the user can skip the relevant tests by setting ``export QUICKTEST=true``.
     """
-    is_quick = os.environ.get(quick_test_var, "").lower() == "true"
+    is_quick = test_is_quick()
 
     return unittest.skipIf(is_quick, "Skipping slow tests")(obj)
 
@@ -151,6 +155,19 @@ def make_nifti_image(array, affine=None):
     return image_name
 
 
+def make_rand_affine(ndim: int = 3, random_state: Optional[np.random.RandomState] = None):
+    """Create random affine transformation (with values == -1, 0 or 1)."""
+    rs = np.random if random_state is None else random_state
+
+    vals = rs.choice([-1, 1], size=ndim)
+    positions = rs.choice(range(ndim), size=ndim, replace=False)
+    af = np.zeros([ndim + 1, ndim + 1])
+    af[ndim, ndim] = 1
+    for i, (v, p) in enumerate(zip(vals, positions)):
+        af[i, p] = v
+    return af
+
+
 class DistTestCase(unittest.TestCase):
     """
     testcase without _outcome, so that it's picklable.
@@ -220,7 +237,11 @@ class DistCall:
         """
         self.nnodes = int(nnodes)
         self.nproc_per_node = int(nproc_per_node)
-        self.node_rank = int(os.environ.get("NODE_RANK", "0")) if node_rank is None else node_rank
+        if self.nnodes < 1 or self.nproc_per_node < 1:
+            raise ValueError(
+                f"number of nodes and processes per node must be >= 1, got {self.nnodes} and {self.nproc_per_node}"
+            )
+        self.node_rank = int(os.environ.get("NODE_RANK", "0")) if node_rank is None else int(node_rank)
         self.master_addr = master_addr
         self.master_port = np.random.randint(10000, 20000) if master_port is None else master_port
 
@@ -269,11 +290,20 @@ class DistCall:
         finally:
             os.environ.clear()
             os.environ.update(_env)
-            dist.destroy_process_group()
+            try:
+                dist.destroy_process_group()
+            except RuntimeError as e:
+                warnings.warn(f"While closing process group: {e}.")
 
     def __call__(self, obj):
         if not torch.distributed.is_available():
             return unittest.skipIf(True, "Skipping distributed tests because not torch.distributed.is_available()")(obj)
+        if torch.cuda.is_available() and torch.cuda.device_count() < self.nproc_per_node:
+            return unittest.skipIf(
+                True,
+                f"Skipping distributed tests because it requires {self.nnodes} devices "
+                f"but got {torch.cuda.device_count()}",
+            )(obj)
 
         _cache_original_func(obj)
 
