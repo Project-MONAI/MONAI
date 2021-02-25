@@ -22,11 +22,11 @@ from monai.utils import optional_import
 
 if TYPE_CHECKING:
     from PIL.Image import Image as PILImageImage
-    from PIL.Image import fromarray as PILImage_fromarray
+    from PIL.Image import fromarray as pil_image_fromarray
 
     has_pil = True
 else:
-    PILImage_fromarray, has_pil = optional_import("PIL.Image", name="fromarray")
+    pil_image_fromarray, has_pil = optional_import("PIL.Image", name="fromarray")
     PILImageImage, _ = optional_import("PIL.Image", name="Image")
 
 TEST_CASE_ARRAY_1 = [np.array([[1.0, 2.0], [3.0, 4.0]])]
@@ -53,7 +53,7 @@ class TestToPIL(unittest.TestCase):
     @parameterized.expand([TEST_CASE_ARRAY_1])
     @skipUnless(has_pil, "Requires `pillow` package.")
     def test_pil_input(self, test_data):
-        test_data_pil = PILImage_fromarray(test_data)
+        test_data_pil = pil_image_fromarray(test_data)
         self.assertTrue(isinstance(test_data_pil, PILImageImage))
         result = ToPIL()(test_data_pil)
         self.assertTrue(isinstance(result, PILImageImage))

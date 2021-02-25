@@ -27,12 +27,12 @@ from monai.utils import ensure_tuple, min_version, optional_import
 
 if TYPE_CHECKING:
     from PIL.Image import Image as PILImageImage
-    from PIL.Image import fromarray as PILImage_fromarray
+    from PIL.Image import fromarray as pil_image_fromarray
 
     has_pil = True
 else:
-    PILImage_fromarray, has_pil = optional_import("PIL.Image", name="fromarray")
-    PILImageImage, _ = optional_import("PIL.Image", name="Image")
+    PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
+    pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
 
 __all__ = [
     "Identity",
@@ -283,7 +283,7 @@ class ToPIL(Transform):
             return img
         if isinstance(img, torch.Tensor):
             img = img.detach().cpu().numpy()
-        return PILImage_fromarray(img)
+        return pil_image_fromarray(img)
 
 
 class Transpose(Transform):
