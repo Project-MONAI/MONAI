@@ -60,7 +60,7 @@ __device__ __forceinline__ float get_constant(float *gmm, int i)
 
 // Tile Size: 32x32, Block Size 32xwarp_N
 template<int warp_N, bool create_gmm_flags>
-__global__ void GMMReductionKernel(int gmm_idx, float *gmm, int gmm_pitch, const float *image, int *alpha, int element_count, unsigned int *tile_gmms)
+__global__ void GMMReductionKernel(int gmm_idx, float *gmm, int component_count, const float *image, int *alpha, int element_count, unsigned int *tile_gmms)
 {
     __shared__ float s_lists[32 * 32 * CHANNELS];
     __shared__ volatile float s_gmm[32 * warp_N];
@@ -74,7 +74,7 @@ __global__ void GMMReductionKernel(int gmm_idx, float *gmm, int gmm_pitch, const
 
     int block_idx = blockIdx.x;
 
-    float *block_gmm = &gmm[(gridDim.x * gmm_idx + block_idx) * gmm_pitch];
+    float *block_gmm = &gmm[(gridDim.x * gmm_idx + block_idx) * component_count];
     volatile float *warp_gmm = &s_gmm[warp_idx * 32];
 
     if (create_gmm_flags)
@@ -218,7 +218,7 @@ __constant__ int inv_indices[] = { (4 << (5*4)) + (5 << (4*4)) + (4 << (3*4)) + 
 
 // One block per GMM, 32*warp_N threads (1-dim)
 template <int warp_N, bool invertSigma>
-__global__ void GMMFinalizeKernel(float *gmm, float *gmm_scratch, int gmm_pitch, int N)
+__global__ void GMMFinalizeKernel(float *gmm, float *gmm_scratch, int component_count, int N)
 {
     __shared__ volatile float s_gmm[warp_N*32];
     __shared__ float s_final[warp_N];
@@ -226,7 +226,7 @@ __global__ void GMMFinalizeKernel(float *gmm, float *gmm_scratch, int gmm_pitch,
 
     const int thread_N = warp_N * 32;
 
-    float *gmm_partial = &gmm_scratch[N*blockIdx.x*gmm_pitch];
+    float *gmm_partial = &gmm_scratch[N*blockIdx.x*component_count];
 
     volatile float *warp_gmm = &s_gmm[threadIdx.x & 0x0ffe0];
 
@@ -242,7 +242,7 @@ __global__ void GMMFinalizeKernel(float *gmm, float *gmm_scratch, int gmm_pitch,
 
         for (int j=thread_idx; j < N; j+= thread_N)
         {
-            thread_gmm += gmm_partial[j * gmm_pitch + i];
+            thread_gmm += gmm_partial[j * component_count + i];
         }
 
         warp_gmm[lane_idx] = thread_gmm;
@@ -325,20 +325,20 @@ __global__ void GMMFinalizeKernel(float *gmm, float *gmm_scratch, int gmm_pitch,
 
         if (threadIdx.x < 11)
         {
-            gmm[blockIdx.x * gmm_pitch + threadIdx.x] = final_gmm[threadIdx.x];
+            gmm[blockIdx.x * component_count + threadIdx.x] = final_gmm[threadIdx.x];
         }
     }
 }
 
 
 // Single block, 32x2
-__global__ void GMMcommonTerm(int gmmK, float *gmm, int gmm_pitch)
+__global__ void GMMcommonTerm(int gmmK, float *gmm, int component_count)
 {
     __shared__ volatile float s_n[2][32];
 
     int gmm_idx = (threadIdx.x * 2) | threadIdx.y;
 
-    float gmm_n = threadIdx.x < gmmK ? gmm[gmm_idx * gmm_pitch] : 0.0f;
+    float gmm_n = threadIdx.x < gmmK ? gmm[gmm_idx * component_count] : 0.0f;
     float sum = gmm_n;
     s_n[threadIdx.y][threadIdx.x] = sum;
 
@@ -359,10 +359,10 @@ __global__ void GMMcommonTerm(int gmmK, float *gmm, int gmm_pitch)
 
     if (threadIdx.x < gmmK)
     {
-        float det = gmm[gmm_idx * gmm_pitch + 10];
+        float det = gmm[gmm_idx * component_count + 10];
         float commonTerm =  gmm_n / (sqrtf(det) * sum);
 
-        gmm[gmm_idx * gmm_pitch + 10] = commonTerm;
+        gmm[gmm_idx * component_count + 10] = commonTerm;
     }
 }
 
@@ -381,7 +381,7 @@ __device__ float GMMTerm(float* pixel, const float *gmm)
     return gmm[10] * expf(-0.5f * (xxa + yyd + zzf + 2.0f * (yxb + zxc + zye)));
 }
 
-__global__ void GMMDataTermKernel(const float *image, int gmmN, const float *gmm, int gmm_pitch, float* output, int element_count)
+__global__ void GMMDataTermKernel(const float *image, int gmmN, const float *gmm, int component_count, float* output, int element_count)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -401,7 +401,7 @@ __global__ void GMMDataTermKernel(const float *image, int gmmN, const float *gmm
 
         for(int j = 0; j < gmmN; j += MIXTURES)
         {
-            mixture_weight += GMMTerm(temp_array, &gmm[(j + i) * gmm_pitch]);
+            mixture_weight += GMMTerm(temp_array, &gmm[(j + i) * component_count]);
         }
 
         weights[i] = mixture_weight;
@@ -529,7 +529,7 @@ struct GMMSplit_t
 };
 
 // 1 Block, 32x2
-__global__ void GMMFindSplit(GMMSplit_t *gmmSplit, int gmmK, float *gmm, int gmm_pitch)
+__global__ void GMMFindSplit(GMMSplit_t *gmmSplit, int gmmK, float *gmm, int component_count)
 {
     __shared__ float s_eigenvalues[2][32];
 
@@ -540,7 +540,7 @@ __global__ void GMMFindSplit(GMMSplit_t *gmmSplit, int gmmK, float *gmm, int gmm
 
     if (threadIdx.x < gmmK)
     {
-        largest_eigenvalue_eigenvector(&gmm[gmm_idx * gmm_pitch + 4], eigenvector, eigenvalue);
+        largest_eigenvalue_eigenvector(&gmm[gmm_idx * component_count + 4], eigenvector, eigenvalue);
     }
 
     // Warp Reduction
@@ -566,7 +566,7 @@ __global__ void GMMFindSplit(GMMSplit_t *gmmSplit, int gmmK, float *gmm, int gmm
         GMMSplit_t split;
 
         split.idx = threadIdx.x;
-        split.threshold = scalar_prod(make_float3(gmm[gmm_idx * gmm_pitch + 1], gmm[gmm_idx * gmm_pitch + 2], gmm[gmm_idx * gmm_pitch + 3]), eigenvector);
+        split.threshold = scalar_prod(make_float3(gmm[gmm_idx * component_count + 1], gmm[gmm_idx * component_count + 2], gmm[gmm_idx * component_count + 3]), eigenvector);
         split.eigenvector = eigenvector;
 
         gmmSplit[threadIdx.y] = split;
@@ -575,7 +575,7 @@ __global__ void GMMFindSplit(GMMSplit_t *gmmSplit, int gmmK, float *gmm, int gmm
 
 #define DO_SPLIT_DEGENERACY 4
 
-__global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, int gmm_pitch, const float *image, int *alpha, int element_count)
+__global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, int component_count, const float *image, int *alpha, int element_count)
 {
     __shared__ GMMSplit_t s_gmmSplit[2];
 
@@ -625,7 +625,7 @@ __global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, int gm
     }
 }
 
-void GMMInitialize(const float *image, int *alpha, float *gmm, float *scratch_mem, int gmm_N, int gmm_pitch, int element_count)
+void GMMInitialize(const float *image, int *alpha, float *gmm, float *scratch_mem, int gmm_N, int component_count, int element_count)
 {
     dim3 grid(TILE(element_count, BLOCK_SIZE * BLOCK_SIZE));
     dim3 block(BLOCK_SIZE * 4);
@@ -635,21 +635,21 @@ void GMMInitialize(const float *image, int *alpha, float *gmm, float *scratch_me
 
     for (int k = 2; k < gmm_N; k+=2)
     {
-        GMMReductionKernel<4, true><<<grid, block>>>(0, block_gmm_scratch, gmm_pitch/4, image, alpha, element_count, block_active_scratch);
+        GMMReductionKernel<4, true><<<grid, block>>>(0, block_gmm_scratch, component_count, image, alpha, element_count, block_active_scratch);
 
         for (int i=1; i < k; ++i)
         {
-            GMMReductionKernel<4, false><<<grid, block>>>(i, block_gmm_scratch, gmm_pitch/4, image, alpha, element_count, block_active_scratch);
+            GMMReductionKernel<4, false><<<grid, block>>>(i, block_gmm_scratch, component_count, image, alpha, element_count, block_active_scratch);
         }
 
-        GMMFinalizeKernel<4, false><<<k, block>>>(gmm, block_gmm_scratch, gmm_pitch/4, grid.x);
+        GMMFinalizeKernel<4, false><<<k, block>>>(gmm, block_gmm_scratch, component_count, grid.x);
 
-        GMMFindSplit<<<1, dim3(BLOCK_SIZE, 2)>>>((GMMSplit_t *) scratch_mem, k / 2, gmm, gmm_pitch/4);
-        GMMDoSplit<<<TILE(element_count, BLOCK_SIZE * DO_SPLIT_DEGENERACY), BLOCK_SIZE>>>((GMMSplit_t *) scratch_mem, (k/2) << 1, gmm, gmm_pitch/4, image, alpha, element_count);
+        GMMFindSplit<<<1, dim3(BLOCK_SIZE, 2)>>>((GMMSplit_t *) scratch_mem, k / 2, gmm, component_count);
+        GMMDoSplit<<<TILE(element_count, BLOCK_SIZE * DO_SPLIT_DEGENERACY), BLOCK_SIZE>>>((GMMSplit_t *) scratch_mem, (k/2) << 1, gmm, component_count, image, alpha, element_count);
     }
 }
 
-void GMMUpdate(const float *image, int *alpha, float *gmm, float *scratch_mem, int gmm_N, int gmm_pitch, int element_count)
+void GMMUpdate(const float *image, int *alpha, float *gmm, float *scratch_mem, int gmm_N, int component_count, int element_count)
 {
     dim3 grid(TILE(element_count, BLOCK_SIZE * BLOCK_SIZE));
     dim3 block(BLOCK_SIZE * 4);
@@ -657,40 +657,43 @@ void GMMUpdate(const float *image, int *alpha, float *gmm, float *scratch_mem, i
     float* block_gmm_scratch = &scratch_mem[grid.x];
     unsigned int* block_active_scratch = (unsigned int*)scratch_mem;
 
-    GMMReductionKernel<4, true><<<grid, block>>>(0, block_gmm_scratch, gmm_pitch/4, image, alpha, element_count, block_active_scratch);
+    GMMReductionKernel<4, true><<<grid, block>>>(0, block_gmm_scratch, component_count, image, alpha, element_count, block_active_scratch);
 
     for (int i = 1; i < gmm_N; ++i)
     {
-        GMMReductionKernel<4, false><<<grid, block>>>(i, block_gmm_scratch, gmm_pitch/4, image, alpha, element_count, block_active_scratch);
+        GMMReductionKernel<4, false><<<grid, block>>>(i, block_gmm_scratch, component_count, image, alpha, element_count, block_active_scratch);
     }
 
-    GMMFinalizeKernel<4, true><<<gmm_N, block>>>(gmm, block_gmm_scratch, gmm_pitch/4, grid.x);
+    GMMFinalizeKernel<4, true><<<gmm_N, block>>>(gmm, block_gmm_scratch, component_count, grid.x);
 
-    GMMcommonTerm<<<1, dim3(BLOCK_SIZE, 2)>>>(gmm_N / 2, gmm, gmm_pitch/4);
+    GMMcommonTerm<<<1, dim3(BLOCK_SIZE, 2)>>>(gmm_N / 2, gmm, component_count);
 }
 
-void GMMDataTerm(const float *image, const float *gmm, float* output, int gmm_N, int gmm_pitch, int element_count)
+void GMMDataTerm(const float *image, const float *gmm, float* output, int gmm_N, int component_count, int element_count)
 {
     dim3 block(BLOCK_SIZE, 1);
     dim3 grid(TILE(element_count, BLOCK_SIZE), 1);
 
-    GMMDataTermKernel<<<grid, block>>>(image, gmm_N, gmm, gmm_pitch/4, output, element_count);
+    GMMDataTermKernel<<<grid, block>>>(image, gmm_N, gmm, component_count, output, element_count);
 }
 
 void GMM_Cuda(const float* input, const int* labels, float* output, int batch_count, int channel_count, int element_count, int mixture_count, int gaussians_per_mixture)
 {
-    size_t gmm_pitch = 11 * sizeof(float);
+    int component_count = 1 + (channel_count + 1) * (channel_count + 2) / 2;
     int gmms = mixture_count * gaussians_per_mixture;
 
     float* scratch_mem = output;
-    float* gmm; cudaMalloc(&gmm, gmm_pitch * gmms);
-    int* alpha; cudaMalloc(&alpha, element_count * sizeof(int));
+    float* gmm; 
+    int* alpha;
+
+    cudaMalloc(&gmm, component_count * mixture_count * gaussians_per_mixture * sizeof(float));
+    cudaMalloc(&alpha, element_count * sizeof(int));
 
     cudaMemcpyAsync(alpha, labels, element_count * sizeof(int), cudaMemcpyDeviceToDevice);
     
-    GMMInitialize(input, alpha, gmm, scratch_mem, gmms, gmm_pitch, element_count);
-    GMMUpdate(input, alpha, gmm, scratch_mem, gmms, gmm_pitch, element_count);
-    GMMDataTerm(input, gmm, output, gmms, gmm_pitch, element_count);
+    GMMInitialize(input, alpha, gmm, scratch_mem, gmms, component_count, element_count);
+    GMMUpdate(input, alpha, gmm, scratch_mem, gmms, component_count, element_count);
+    GMMDataTerm(input, gmm, output, gmms, component_count, element_count);
 
     cudaFree(alpha);
     cudaFree(gmm);
