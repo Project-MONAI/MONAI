@@ -12,10 +12,10 @@
 import unittest
 
 import numpy as np
-import torch
 import PIL.Image as PILImage
-
+import torch
 from parameterized import parameterized
+
 from monai.transforms import ToPILD
 
 TEST_CASE_ARRAY_1 = [{"keys": "image"}, {"image": np.array([[1.0, 2.0], [3.0, 4.0]])}]
