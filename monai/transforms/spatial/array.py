@@ -623,8 +623,8 @@ class RandRotate90(Randomizable, Transform):
         self._rand_k = 0
 
     def randomize(self, data: Optional[Any] = None) -> None:
+        super().randomize()
         self._rand_k = self.R.randint(self.max_k) + 1
-        self._do_transform = self.R.random() < self.prob
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
         """
@@ -700,7 +700,7 @@ class RandRotate(Randomizable, Transform):
         self.z = 0.0
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        self._do_transform = self.R.random_sample() < self.prob
+        super().randomize()
         self.x = self.R.uniform(low=self.range_x[0], high=self.range_x[1])
         self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
         self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
@@ -756,9 +756,6 @@ class RandFlip(Randomizable, Transform):
     def __init__(self, prob: float = 0.1, spatial_axis: Optional[Union[Sequence[int], int]] = None) -> None:
         Randomizable.__init__(self, min(max(prob, 0.0), 1.0))
         self.flipper = Flip(spatial_axis=spatial_axis)
-
-    def randomize(self, data: Optional[Any] = None) -> None:
-        self._do_transform = self.R.random_sample() < self.prob
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
         """
@@ -823,7 +820,7 @@ class RandZoom(Randomizable, Transform):
         self._zoom: Sequence[float] = [1.0]
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        self._do_transform = self.R.random_sample() < self.prob
+        super().randomize()
         self._zoom = [self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom)]
 
     def __call__(
@@ -1351,7 +1348,7 @@ class RandAffine(Randomizable, Transform):
         return self
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        self._do_transform = self.R.rand() < self.prob
+        super().randomize()
         self.rand_affine_grid.randomize()
 
     def __call__(
@@ -1473,7 +1470,7 @@ class Rand2DElastic(Randomizable, Transform):
         return self
 
     def randomize(self, spatial_size: Sequence[int]) -> None:
-        self._do_transform = self.R.rand() < self.prob
+        super().randomize()
         self.deform_grid.randomize(spatial_size)
         self.rand_affine_grid.randomize()
 
@@ -1600,7 +1597,7 @@ class Rand3DElastic(Randomizable, Transform):
         return self
 
     def randomize(self, grid_size: Sequence[int]) -> None:
-        self._do_transform = self.R.rand() < self.prob
+        super().randomize()
         if self._do_transform:
             self.rand_offset = self.R.uniform(-1.0, 1.0, [3] + list(grid_size)).astype(np.float32)
         self.magnitude = self.R.uniform(self.magnitude_range[0], self.magnitude_range[1])

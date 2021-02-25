@@ -81,8 +81,7 @@ class Randomizable(ABC):
         self.R = np.random.RandomState()
         return self
 
-    @abstractmethod
-    def randomize(self, data: Any) -> None:
+    def randomize(self, data: Optional[Any] = None) -> None:
         """
         Within this method, :py:attr:`self.R` should be used, instead of `np.random`, to introduce random factors.
 
@@ -90,12 +89,8 @@ class Randomizable(ABC):
         identify errors of sync the random state.
 
         This method can generate the random factors based on properties of the input data.
-
-        Raises:
-            NotImplementedError: When the subclass does not override this method.
-
         """
-        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+        self._do_transform = self.R.rand() < self.prob
 
 
 class Transform(ABC):

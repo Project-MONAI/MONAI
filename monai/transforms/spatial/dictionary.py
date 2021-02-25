@@ -308,8 +308,8 @@ class RandRotate90d(Randomizable, MapTransform):
         self._rand_k = 0
 
     def randomize(self, data: Optional[Any] = None) -> None:
+        super().randomize()
         self._rand_k = self.R.randint(self.max_k) + 1
-        self._do_transform = self.R.random() < self.prob
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Mapping[Hashable, np.ndarray]:
         self.randomize()
@@ -446,7 +446,7 @@ class RandAffined(Randomizable, MapTransform):
         return self
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        self._do_transform = self.R.rand() < self.prob
+        super().randomize()
         self.rand_affine.randomize()
 
     def __call__(
@@ -554,7 +554,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
         return self
 
     def randomize(self, spatial_size: Sequence[int]) -> None:
-        self._do_transform = self.R.rand() < self.prob
+        super().randomize()
         self.rand_2d_elastic.randomize(spatial_size)
 
     def __call__(
@@ -677,7 +677,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
         return self
 
     def randomize(self, grid_size: Sequence[int]) -> None:
-        self._do_transform = self.R.rand() < self.prob
+        super().randomize()
         self.rand_3d_elastic.randomize(grid_size)
 
     def __call__(
@@ -750,9 +750,6 @@ class RandFlipd(Randomizable, MapTransform):
         self.spatial_axis = spatial_axis
 
         self.flipper = Flip(spatial_axis=spatial_axis)
-
-    def randomize(self, data: Optional[Any] = None) -> None:
-        self._do_transform = self.R.random_sample() < self.prob
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         self.randomize()
@@ -891,7 +888,7 @@ class RandRotated(Randomizable, MapTransform):
         self.z = 0.0
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        self._do_transform = self.R.random_sample() < self.prob
+        super().randomize()
         self.x = self.R.uniform(low=self.range_x[0], high=self.range_x[1])
         self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
         self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
@@ -1025,7 +1022,7 @@ class RandZoomd(Randomizable, MapTransform):
         self._zoom: Sequence[float] = [1.0]
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        self._do_transform = self.R.random_sample() < self.prob
+        super().randomize()
         self._zoom = [self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom)]
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
