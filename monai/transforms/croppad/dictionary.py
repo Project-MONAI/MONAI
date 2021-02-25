@@ -283,7 +283,9 @@ class RandSpatialCropd(Randomizable, MapTransform):
         random_center: bool = True,
         random_size: bool = True,
     ) -> None:
-        super().__init__(keys)
+        Randomizable.__init__(self, prob=1.0)
+        MapTransform.__init__(self, keys)
+        self._do_transform = True
         self.roi_size = roi_size
         self.random_center = random_center
         self.random_size = random_size
@@ -534,7 +536,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         fg_indices_key: Optional[str] = None,
         bg_indices_key: Optional[str] = None,
     ) -> None:
-        super().__init__(keys)
+        MapTransform.__init__(self, keys)
         self.label_key = label_key
         self.spatial_size: Union[Tuple[int, ...], Sequence[int], int] = spatial_size
         if pos < 0 or neg < 0:

@@ -60,10 +60,9 @@ class RandGaussianNoise(Randomizable, Transform):
     """
 
     def __init__(self, prob: float = 0.1, mean: Union[Sequence[float], float] = 0.0, std: float = 0.1) -> None:
-        self.prob = prob
+        Randomizable.__init__(self, prob)
         self.mean = mean
         self.std = std
-        self._do_transform = False
         self._noise = None
 
     def randomize(self, im_shape: Sequence[int]) -> None:
@@ -113,15 +112,13 @@ class RandShiftIntensity(Randomizable, Transform):
                 if single number, offset value is picked from (-offsets, offsets).
             prob: probability of shift.
         """
+        Randomizable.__init__(self, prob)
         if isinstance(offsets, (int, float)):
             self.offsets = (min(-offsets, offsets), max(-offsets, offsets))
         else:
             if len(offsets) != 2:
                 raise AssertionError("offsets should be a number or pair of numbers.")
             self.offsets = (min(offsets), max(offsets))
-
-        self.prob = prob
-        self._do_transform = False
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
@@ -186,15 +183,13 @@ class RandScaleIntensity(Randomizable, Transform):
             prob: probability of scale.
 
         """
+        Randomizable.__init__(self, prob)
         if isinstance(factors, (int, float)):
             self.factors = (min(-factors, factors), max(-factors, factors))
         else:
             if len(factors) != 2:
                 raise AssertionError("factors should be a number or pair of numbers.")
             self.factors = (min(factors), max(factors))
-
-        self.prob = prob
-        self._do_transform = False
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
@@ -243,7 +238,7 @@ class NormalizeIntensity(Transform):
         self.dtype = dtype
 
     def _normalize(self, img: np.ndarray, sub=None, div=None) -> np.ndarray:
-        slices = (img != 0) if self.nonzero else np.ones(img.shape, dtype=np.bool_)
+        slices = (img != 0) if self.nonzero else np.ones(img.shape, dtype=bool)
         if not np.any(slices):
             return img
 
@@ -383,7 +378,7 @@ class RandAdjustContrast(Randomizable, Transform):
     """
 
     def __init__(self, prob: float = 0.1, gamma: Union[Sequence[float], float] = (0.5, 4.5)) -> None:
-        self.prob = prob
+        Randomizable.__init__(self, prob)
 
         if isinstance(gamma, (int, float)):
             if gamma <= 0.5:
@@ -396,7 +391,6 @@ class RandAdjustContrast(Randomizable, Transform):
                 raise AssertionError("gamma should be a number or pair of numbers.")
             self.gamma = (min(gamma), max(gamma))
 
-        self._do_transform = False
         self.gamma_value = None
 
     def randomize(self, data: Optional[Any] = None) -> None:
@@ -679,12 +673,11 @@ class RandGaussianSmooth(Randomizable, Transform):
         prob: float = 0.1,
         approx: str = "erf",
     ) -> None:
+        Randomizable.__init__(self, prob)
         self.sigma_x = sigma_x
         self.sigma_y = sigma_y
         self.sigma_z = sigma_z
-        self.prob = prob
         self.approx = approx
-        self._do_transform = False
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self._do_transform = self.R.random_sample() < self.prob
@@ -782,6 +775,7 @@ class RandGaussianSharpen(Randomizable, Transform):
         approx: str = "erf",
         prob: float = 0.1,
     ) -> None:
+        Randomizable.__init__(self, prob)
         self.sigma1_x = sigma1_x
         self.sigma1_y = sigma1_y
         self.sigma1_z = sigma1_z
@@ -790,8 +784,6 @@ class RandGaussianSharpen(Randomizable, Transform):
         self.sigma2_z = sigma2_z
         self.alpha = alpha
         self.approx = approx
-        self.prob = prob
-        self._do_transform = False
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self._do_transform = self.R.random_sample() < self.prob
@@ -827,6 +819,7 @@ class RandHistogramShift(Randomizable, Transform):
     """
 
     def __init__(self, num_control_points: Union[Tuple[int, int], int] = 10, prob: float = 0.1) -> None:
+        Randomizable.__init__(self, prob)
 
         if isinstance(num_control_points, int):
             if num_control_points <= 2:
@@ -838,8 +831,6 @@ class RandHistogramShift(Randomizable, Transform):
             if min(num_control_points) <= 2:
                 raise AssertionError("num_control_points should be greater than or equal to 3")
             self.num_control_points = (min(num_control_points), max(num_control_points))
-        self.prob = prob
-        self._do_transform = False
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self._do_transform = self.R.random() < self.prob
