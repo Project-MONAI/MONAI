@@ -18,14 +18,14 @@ from parameterized import parameterized
 from monai.data import CacheDataset, DataLoader, create_test_image_2d
 from monai.data.utils import decollate_batch
 from monai.transforms import AddChanneld, Compose, LoadImaged, RandFlipd, SpatialPadd, ToTensord
-from monai.utils import set_determinism
+from monai.transforms.post.dictionary import Decollated
+from monai.utils import optional_import, set_determinism
 from tests.utils import make_nifti_image
 
-set_determinism(seed=0)
+_, has_nib = optional_import("nibabel")
 
-IM_2D_FNAME = make_nifti_image(create_test_image_2d(100, 101)[0])
-
-DATA_2D = {"image": IM_2D_FNAME}
+IM_2D = create_test_image_2d(100, 101)[0]
+DATA_2D = {"image": make_nifti_image(IM_2D) if has_nib else IM_2D}
 
 TESTS = []
 TESTS.append(
@@ -37,6 +37,12 @@ TESTS.append(
 
 
 class TestDeCollate(unittest.TestCase):
+    def setUp(self) -> None:
+        set_determinism(seed=0)
+
+    def tearDown(self) -> None:
+        set_determinism(None)
+
     def check_match(self, in1, in2):
         if isinstance(in1, dict):
             self.assertTrue(isinstance(in2, dict))
@@ -56,21 +62,26 @@ class TestDeCollate(unittest.TestCase):
     def test_decollation(self, _, data, batch_size=2, num_workers=2):
         transforms = Compose(
             [
-                LoadImaged("image"),
                 AddChanneld("image"),
                 SpatialPadd("image", 150),
                 RandFlipd("image", prob=1.0, spatial_axis=1),
                 ToTensord("image"),
             ]
         )
+        # If nibabel present, read from disk
+        if has_nib:
+            transforms = Compose([LoadImaged("image"), transforms])
+
         dataset = CacheDataset(data, transforms, progress=False)
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
 
         for b, batch_data in enumerate(loader):
-            decollated = decollate_batch(batch_data)
+            decollated_1 = decollate_batch(batch_data)
+            decollated_2 = Decollated()(batch_data)
 
-            for i, d in enumerate(decollated):
-                self.check_match(dataset[b * batch_size + i], d)
+            for decollated in [decollated_1, decollated_2]:
+                for i, d in enumerate(decollated):
+                    self.check_match(dataset[b * batch_size + i], d)
 
 
 if __name__ == "__main__":
