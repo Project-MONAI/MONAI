@@ -300,7 +300,7 @@ class RandRotate90d(Randomizable, MapTransform):
                 Default: (0, 1), this is the first two axis in spatial dimensions.
         """
         MapTransform.__init__(self, keys)
-        Randomizable.__init__(self, min(max(prob, 0.0), 1.0))
+        Randomizable.__init__(self, prob)
 
         self.max_k = max_k
         self.spatial_axes = spatial_axes

@@ -43,9 +43,9 @@ class Randomizable(ABC):
 
     R: np.random.RandomState = np.random.RandomState()
 
-    def __init__(self, prob):
-        self._do_transform = False
-        self.prob = prob
+    def __init__(self, prob=1.0, do_transform=False):
+        self._do_transform = do_transform
+        self.prob = min(max(prob, 0.0), 1.0)
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None

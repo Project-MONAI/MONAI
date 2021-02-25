@@ -283,9 +283,8 @@ class RandSpatialCropd(Randomizable, MapTransform):
         random_center: bool = True,
         random_size: bool = True,
     ) -> None:
-        Randomizable.__init__(self, prob=1.0)
+        Randomizable.__init__(self)
         MapTransform.__init__(self, keys)
-        self._do_transform = True
         self.roi_size = roi_size
         self.random_center = random_center
         self.random_size = random_size
@@ -346,7 +345,8 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
         random_center: bool = True,
         random_size: bool = True,
     ) -> None:
-        super().__init__(keys)
+        Randomizable.__init__(self)
+        MapTransform.__init__(self, keys)
         if num_samples < 1:
             raise ValueError(f"num_samples must be positive, got {num_samples}.")
         self.num_samples = num_samples
@@ -448,7 +448,8 @@ class RandWeightedCropd(Randomizable, MapTransform):
         num_samples: int = 1,
         center_coord_key: Optional[str] = None,
     ):
-        super().__init__(keys)
+        Randomizable.__init__(self)
+        MapTransform.__init__(self, keys)
         self.spatial_size = ensure_tuple(spatial_size)
         self.w_key = w_key
         self.num_samples = int(num_samples)
@@ -536,6 +537,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         fg_indices_key: Optional[str] = None,
         bg_indices_key: Optional[str] = None,
     ) -> None:
+        Randomizable.__init__(self)
         MapTransform.__init__(self, keys)
         self.label_key = label_key
         self.spatial_size: Union[Tuple[int, ...], Sequence[int], int] = spatial_size
