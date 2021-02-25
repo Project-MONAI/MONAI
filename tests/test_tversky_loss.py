@@ -183,7 +183,7 @@ class TestTverskyLoss(unittest.TestCase):
         with self.assertWarns(Warning):
             loss = TverskyLoss(to_onehot_y=True)
             loss.forward(chn_input, chn_target)
-            
+
     def test_script(self):
         loss = TverskyLoss()
         test_input = torch.ones(2, 1, 8, 8)

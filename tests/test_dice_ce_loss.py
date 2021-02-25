@@ -64,7 +64,7 @@ class TestDiceCELoss(unittest.TestCase):
         loss = DiceCELoss()
         with self.assertRaisesRegex(ValueError, ""):
             loss(torch.ones((1, 2, 3)), torch.ones((1, 1, 2, 3)))
-            
+
     def test_script(self):
         loss = DiceCELoss()
         test_input = torch.ones(2, 1, 8, 8)

@@ -215,7 +215,7 @@ class TestGeneralizedWassersteinDiceLoss(unittest.TestCase):
 
             # check that the predicted segmentation has improved
             self.assertGreater(diff_start, diff_end)
-            
+
     def test_script(self):
         target = torch.tensor([[0, 0, 0, 0], [0, 1, 1, 0], [0, 1, 1, 0], [0, 0, 0, 0]])
 
@@ -223,10 +223,8 @@ class TestGeneralizedWassersteinDiceLoss(unittest.TestCase):
         target = target.unsqueeze(0)
         pred_very_good = 1000 * F.one_hot(target, num_classes=2).permute(0, 3, 1, 2).float()
 
-        loss = GeneralizedWassersteinDiceLoss(
-            dist_matrix=np.array([[0.0, 1.0], [1.0, 0.0]]), weighting_mode="default"
-        )
-        
+        loss = GeneralizedWassersteinDiceLoss(dist_matrix=np.array([[0.0, 1.0], [1.0, 0.0]]), weighting_mode="default")
+
         test_script_save(loss, pred_very_good, target)
 
 

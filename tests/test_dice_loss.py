@@ -18,7 +18,6 @@ from parameterized import parameterized
 from monai.losses import DiceLoss
 from tests.utils import test_script_save
 
-
 TEST_CASES = [
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
         {"include_background": True, "sigmoid": True, "smooth_nr": 1e-6, "smooth_dr": 1e-6},
@@ -196,7 +195,7 @@ class TestDiceLoss(unittest.TestCase):
         with self.assertWarns(Warning):
             loss = DiceLoss(to_onehot_y=True)
             loss.forward(chn_input, chn_target)
-            
+
     def test_script(self):
         loss = DiceLoss()
         test_input = torch.ones(2, 1, 8, 8)

@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Callable, Optional, Union, List
+from typing import Callable, List, Optional, Union
 
 import numpy as np
 import torch
@@ -276,17 +276,17 @@ class GeneralizedDiceLoss(_Loss):
         self.other_act = other_act
 
         self.w_type = Weight(w_type)
-        
-#         self.w_func: Callable = torch.ones_like
-#         if w_type == Weight.SIMPLE:
-#             self.w_func = torch.reciprocal
-#         elif w_type == Weight.SQUARE:
-#             self.w_func = lambda x: torch.reciprocal(x * x)
+
+        #         self.w_func: Callable = torch.ones_like
+        #         if w_type == Weight.SIMPLE:
+        #             self.w_func = torch.reciprocal
+        #         elif w_type == Weight.SQUARE:
+        #             self.w_func = lambda x: torch.reciprocal(x * x)
 
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
         self.batch = batch
-        
+
     def w_func(self, grnd):
         if self.w_type == Weight.SIMPLE:
             return torch.reciprocal(grnd)
