@@ -66,7 +66,7 @@ class RandGaussianNoise(Randomizable, Transform):
         self._noise = None
 
     def randomize(self, im_shape: Sequence[int]) -> None:
-        super().randomize()
+        super().randomize(None)
         self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
 
     def __call__(self, img: Union[torch.Tensor, np.ndarray]) -> Union[torch.Tensor, np.ndarray]:
@@ -121,7 +121,7 @@ class RandShiftIntensity(Randomizable, Transform):
             self.offsets = (min(offsets), max(offsets))
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        super().randomize()
+        super().randomize(None)
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
@@ -192,7 +192,7 @@ class RandScaleIntensity(Randomizable, Transform):
             self.factors = (min(factors), max(factors))
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        super().randomize()
+        super().randomize(None)
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
@@ -394,7 +394,7 @@ class RandAdjustContrast(Randomizable, Transform):
         self.gamma_value = None
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        super().randomize()
+        super().randomize(None)
         self.gamma_value = self.R.uniform(low=self.gamma[0], high=self.gamma[1])
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
@@ -680,7 +680,7 @@ class RandGaussianSmooth(Randomizable, Transform):
         self.approx = approx
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        super().randomize()
+        super().randomize(None)
         self.x = self.R.uniform(low=self.sigma_x[0], high=self.sigma_x[1])
         self.y = self.R.uniform(low=self.sigma_y[0], high=self.sigma_y[1])
         self.z = self.R.uniform(low=self.sigma_z[0], high=self.sigma_z[1])
@@ -786,7 +786,7 @@ class RandGaussianSharpen(Randomizable, Transform):
         self.approx = approx
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        super().randomize()
+        super().randomize(None)
         self.x1 = self.R.uniform(low=self.sigma1_x[0], high=self.sigma1_x[1])
         self.y1 = self.R.uniform(low=self.sigma1_y[0], high=self.sigma1_y[1])
         self.z1 = self.R.uniform(low=self.sigma1_z[0], high=self.sigma1_z[1])
@@ -833,7 +833,7 @@ class RandHistogramShift(Randomizable, Transform):
             self.num_control_points = (min(num_control_points), max(num_control_points))
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        super().randomize()
+        super().randomize(None)
         num_control_point = self.R.randint(self.num_control_points[0], self.num_control_points[1] + 1)
         self.reference_control_points = np.linspace(0, 1, num_control_point)
         self.floating_control_points = np.copy(self.reference_control_points)

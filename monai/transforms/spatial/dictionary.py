@@ -308,7 +308,7 @@ class RandRotate90d(Randomizable, MapTransform):
         self._rand_k = 0
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        super().randomize()
+        super().randomize(None)
         self._rand_k = self.R.randint(self.max_k) + 1
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Mapping[Hashable, np.ndarray]:
@@ -441,7 +441,7 @@ class RandAffined(Randomizable, MapTransform):
         return self
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        super().randomize()
+        super().randomize(None)
         self.rand_affine.randomize()
 
     def __call__(
@@ -548,7 +548,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
         return self
 
     def randomize(self, spatial_size: Sequence[int]) -> None:
-        super().randomize()
+        super().randomize(None)
         self.rand_2d_elastic.randomize(spatial_size)
 
     def __call__(
@@ -559,7 +559,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
         sp_size = fall_back_tuple(self.rand_2d_elastic.spatial_size, data[self.keys[0]].shape[1:])
         self.randomize(spatial_size=sp_size)
 
-        if self.rand_2d_elastic.do_transform:
+        if self._do_transform:
             grid = self.rand_2d_elastic.deform_grid(spatial_size=sp_size)
             grid = self.rand_2d_elastic.rand_affine_grid(grid=grid)
             grid = torch.nn.functional.interpolate(  # type: ignore
@@ -668,7 +668,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
         return self
 
     def randomize(self, grid_size: Sequence[int]) -> None:
-        super().randomize()
+        super().randomize(None)
         self.rand_3d_elastic.randomize(grid_size)
 
     def __call__(
@@ -743,7 +743,7 @@ class RandFlipd(Randomizable, MapTransform):
         self.flipper = Flip(spatial_axis=spatial_axis)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
-        self.randomize()
+        self.randomize(None)
         d = dict(data)
         for key in self.keys:
             if self._do_transform:
@@ -879,7 +879,7 @@ class RandRotated(Randomizable, MapTransform):
         self.z = 0.0
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        super().randomize()
+        super().randomize(None)
         self.x = self.R.uniform(low=self.range_x[0], high=self.range_x[1])
         self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
         self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
@@ -1013,7 +1013,7 @@ class RandZoomd(Randomizable, MapTransform):
         self._zoom: Sequence[float] = [1.0]
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        super().randomize()
+        super().randomize(None)
         self._zoom = [self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom)]
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
