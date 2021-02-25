@@ -22,7 +22,7 @@ import torch
 
 from monai.config import DtypeLike
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
-from monai.transforms.compose import Randomizable, Transform
+from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import rescale_array
 from monai.utils import PT_BEFORE_1_7, InvalidPyTorchVersionError, dtype_torch_to_numpy, ensure_tuple_size
 
