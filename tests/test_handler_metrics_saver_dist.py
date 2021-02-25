@@ -13,6 +13,7 @@
 import csv
 import os
 import tempfile
+import random
 import unittest
 
 import torch
@@ -44,8 +45,13 @@ class DistributedMetricsSaver(DistTestCase):
 
             engine = Engine(_val_func)
 
+            # test the case that all_gather length > 1024 chars
+            filename_prefix = "abcdefghigklmnopqrstuvwxyz"
+            for i in range(600):
+                filename_prefix += filename_prefix[random.randint(0, 26)]
+
             if dist.get_rank() == 0:
-                data = [{"image_meta_dict": {"filename_or_obj": ["filepath1"]}}]
+                data = [{"image_meta_dict": {"filename_or_obj": [f"{filename_prefix}1"]}}]
 
                 @engine.on(Events.EPOCH_COMPLETED)
                 def _save_metrics0(engine):
@@ -58,8 +64,8 @@ class DistributedMetricsSaver(DistTestCase):
             if dist.get_rank() == 1:
                 # different ranks have different data length
                 data = [
-                    {"image_meta_dict": {"filename_or_obj": ["filepath2"]}},
-                    {"image_meta_dict": {"filename_or_obj": ["filepath3"]}},
+                    {"image_meta_dict": {"filename_or_obj": [f"{filename_prefix}2"]}},
+                    {"image_meta_dict": {"filename_or_obj": [f"{filename_prefix}3"]}},
                 ]
 
                 @engine.on(Events.EPOCH_COMPLETED)
@@ -86,7 +92,7 @@ class DistributedMetricsSaver(DistTestCase):
                     f_csv = csv.reader(f)
                     for i, row in enumerate(f_csv):
                         if i > 0:
-                            self.assertEqual(row, [f"filepath{i}\t{float(i)}\t{float(i + 1)}\t{i + 0.5}"])
+                            self.assertEqual(row, [f"{filename_prefix}{i}\t{float(i)}\t{float(i + 1)}\t{i + 0.5}"])
                 self.assertTrue(os.path.exists(os.path.join(tempdir, "metric3_summary.csv")))
                 # check the metric_summary.csv and content
                 with open(os.path.join(tempdir, "metric3_summary.csv")) as f:
