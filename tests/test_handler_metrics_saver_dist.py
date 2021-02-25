@@ -12,8 +12,8 @@
 
 import csv
 import os
-import tempfile
 import random
+import tempfile
 import unittest
 
 import torch
