@@ -374,10 +374,10 @@ class RandAffined(Randomizable, MapTransform):
         keys: KeysCollection,
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         prob: float = 0.1,
-        rotate_range: Optional[Union[Sequence[float], float]] = None,
-        shear_range: Optional[Union[Sequence[float], float]] = None,
-        translate_range: Optional[Union[Sequence[float], float]] = None,
-        scale_range: Optional[Union[Sequence[float], float]] = None,
+        rotate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        shear_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        translate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = True,
@@ -394,21 +394,16 @@ class RandAffined(Randomizable, MapTransform):
                 to `(32, 64)` if the second spatial dimension size of img is `64`.
             prob: probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid.
-            rotate_range: angle range in radians. rotate_range[0] with be used to generate the 1st rotation
-                parameter from `uniform[-rotate_range[0], rotate_range[0])`. Similarly, `rotate_range[1]` and
-                `rotate_range[2]` are used in 3D affine for the range of 2nd and 3rd axes.
-            shear_range: shear_range[0] with be used to generate the 1st shearing parameter from
-                `uniform[-shear_range[0], shear_range[0])`. Similarly, `shear_range[1]` to
-                `shear_range[N]` controls the range of the uniform distribution used to generate the 2nd to
-                N-th parameter.
-            translate_range : translate_range[0] with be used to generate the 1st shift parameter from
-                `uniform[-translate_range[0], translate_range[0])`. Similarly, `translate_range[1]`
-                to `translate_range[N]` controls the range of the uniform distribution used to generate
-                the 2nd to N-th parameter.
-            scale_range: scaling_range[0] with be used to generate the 1st scaling factor from
-                `uniform[-scale_range[0], scale_range[0]) + 1.0`. Similarly, `scale_range[1]` to
-                `scale_range[N]` controls the range of the uniform distribution used to generate the 2nd to
-                N-th parameter.
+            rotate_range: angle range in radians. If element `i` is iterable, then
+                `uniform[-rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
+                for the ith dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used. This can
+                be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be in range
+                `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]` for dim0
+                and nothing for the remaining dimensions.
+            shear_range: shear_range with format matching `rotate_range`.
+            translate_range: translate_range with format matching `rotate_range`.
+            scale_range: scaling_range with format matching `rotate_range`. A value of 1.0 is added to the result.
+                This allows 0 to correspond to no change (i.e., a scaling of 1).
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
@@ -476,12 +471,12 @@ class Rand2DElasticd(Randomizable, MapTransform):
         keys: KeysCollection,
         spacing: Union[Tuple[float, float], float],
         magnitude_range: Tuple[float, float],
-        spatial_size: Optional[Union[Sequence[int], int]] = None,
+        spatial_size: Optional[Union[Tuple[int, int], int]] = None,
         prob: float = 0.1,
-        rotate_range: Optional[Union[Sequence[float], float]] = None,
-        shear_range: Optional[Union[Sequence[float], float]] = None,
-        translate_range: Optional[Union[Sequence[float], float]] = None,
-        scale_range: Optional[Union[Sequence[float], float]] = None,
+        rotate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        shear_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        translate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = False,
@@ -502,17 +497,16 @@ class Rand2DElasticd(Randomizable, MapTransform):
             prob: probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
-            rotate_range: angle range in radians. rotate_range[0] with be used to generate the 1st rotation
-                parameter from `uniform[-rotate_range[0], rotate_range[0])`.
-            shear_range: shear_range[0] with be used to generate the 1st shearing parameter from
-                `uniform[-shear_range[0], shear_range[0])`. Similarly, `shear_range[1]` controls
-                the range of the uniform distribution used to generate the 2nd parameter.
-            translate_range : translate_range[0] with be used to generate the 1st shift parameter from
-                `uniform[-translate_range[0], translate_range[0])`. Similarly, `translate_range[1]` controls
-                the range of the uniform distribution used to generate the 2nd parameter.
-            scale_range: scaling_range[0] with be used to generate the 1st scaling factor from
-                `uniform[-scale_range[0], scale_range[0]) + 1.0`. Similarly, `scale_range[1]` controls
-                the range of the uniform distribution used to generate the 2nd parameter.
+            rotate_range: angle range in radians. If element `i` is iterable, then
+                `uniform[-rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
+                for the ith dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used. This can
+                be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be in range
+                `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]` for dim0
+                and nothing for the remaining dimensions.
+            shear_range: shear_range with format matching `rotate_range`.
+            translate_range: translate_range with format matching `rotate_range`.
+            scale_range: scaling_range with format matching `rotate_range`. A value of 1.0 is added to the result.
+                This allows 0 to correspond to no change (i.e., a scaling of 1).
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
@@ -594,12 +588,12 @@ class Rand3DElasticd(Randomizable, MapTransform):
         keys: KeysCollection,
         sigma_range: Tuple[float, float],
         magnitude_range: Tuple[float, float],
-        spatial_size: Optional[Union[Sequence[int], int]] = None,
+        spatial_size: Optional[Union[Tuple[int, int, int], int]] = None,
         prob: float = 0.1,
-        rotate_range: Optional[Union[Sequence[float], float]] = None,
-        shear_range: Optional[Union[Sequence[float], float]] = None,
-        translate_range: Optional[Union[Sequence[float], float]] = None,
-        scale_range: Optional[Union[Sequence[float], float]] = None,
+        rotate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        shear_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        translate_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
+        scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = False,
@@ -621,19 +615,16 @@ class Rand3DElasticd(Randomizable, MapTransform):
             prob: probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
-            rotate_range: angle range in radians. rotate_range[0] with be used to generate the 1st rotation
-                parameter from `uniform[-rotate_range[0], rotate_range[0])`. Similarly, `rotate_range[1]` and
-                `rotate_range[2]` are used in 3D affine for the range of 2nd and 3rd axes.
-            shear_range: shear_range[0] with be used to generate the 1st shearing parameter from
-                `uniform[-shear_range[0], shear_range[0])`. Similarly, `shear_range[1]` and `shear_range[2]`
-                controls the range of the uniform distribution used to generate the 2nd and 3rd parameters.
-            translate_range : translate_range[0] with be used to generate the 1st shift parameter from
-                `uniform[-translate_range[0], translate_range[0])`. Similarly, `translate_range[1]` and
-                `translate_range[2]` controls the range of the uniform distribution used to generate
-                the 2nd and 3rd parameters.
-            scale_range: scaling_range[0] with be used to generate the 1st scaling factor from
-                `uniform[-scale_range[0], scale_range[0]) + 1.0`. Similarly, `scale_range[1]` and `scale_range[2]`
-                controls the range of the uniform distribution used to generate the 2nd and 3rd parameters.
+            rotate_range: angle range in radians. If element `i` is iterable, then
+                `uniform[-rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
+                for the ith dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used. This can
+                be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be in range
+                `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]` for dim0
+                and nothing for the remaining dimensions.
+            shear_range: shear_range with format matching `rotate_range`.
+            translate_range: translate_range with format matching `rotate_range`.
+            scale_range: scaling_range with format matching `rotate_range`. A value of 1.0 is added to the result.
+                This allows 0 to correspond to no change (i.e., a scaling of 1).
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
