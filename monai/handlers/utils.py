@@ -163,7 +163,6 @@ def write_metrics_reports(
         with open(os.path.join(save_dir, "metrics.csv"), "w") as f:
             for k, v in metrics.items():
                 f.write(f"{k}{deli}{str(v)}\n")
-
     if metric_details is not None and len(metric_details) > 0:
         for k, v in metric_details.items():
             if isinstance(v, torch.Tensor):
