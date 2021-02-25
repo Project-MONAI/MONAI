@@ -760,11 +760,6 @@ class RandFlipd(Randomizable, MapTransform):
         for key in self.keys:
             if self._do_transform:
                 d[key] = self.flipper(d[key])
-            self.append_applied_transforms(d, key)
-
-            return d
-
-            d[key] = self.flipper(d[key])
         return d
 
 
