@@ -23,10 +23,10 @@ TEST_CASE_1 = [
 ]
 
 
-class TestAddChanneld(unittest.TestCase):
+class TestRemoveRepeatedChanneld(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
     def test_shape(self, input_param, input_data, expected_shape):
-        result = DeleteChanneld(**input_param)(input_data)
+        result = RemoveRepeatedChanneld(**input_param)(input_data)
         self.assertEqual(result["img"].shape, expected_shape)
 
 

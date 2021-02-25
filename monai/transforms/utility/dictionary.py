@@ -31,7 +31,7 @@ from monai.transforms.utility.array import (
     CastToType,
     ConvertToMultiChannelBasedOnBratsClasses,
     DataStats,
-    DeleteChannel,
+    RemoveRepeatedChannel,
     FgBgToIndices,
     Identity,
     LabelToMask,
@@ -53,7 +53,7 @@ __all__ = [
     "AsChannelLastd",
     "AddChanneld",
     "RepeatChanneld",
-    "DeleteChanneld",
+    "RemoveRepeatedChanneld",
     "SplitChanneld",
     "CastToTyped",
     "ToTensord",
@@ -84,8 +84,8 @@ __all__ = [
     "RandLambdaDict",
     "RepeatChannelD",
     "RepeatChannelDict",
-    "DeleteChannelD",
-    "DeleteChannelDict",
+    "RemoveRepeatedChannelD",
+    "RemoveRepeatedChannelDict",
     "SplitChannelD",
     "SplitChannelDict",
     "CastToTypeD",
@@ -230,9 +230,9 @@ class RepeatChanneld(MapTransform):
         return d
 
 
-class DeleteChanneld(MapTransform):
+class RemoveRepeatedChanneld(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.DeleteChannel`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.RemoveRepeatedChannel`.
     """
 
     def __init__(self, keys: KeysCollection, repeats: int) -> None:
@@ -243,7 +243,7 @@ class DeleteChanneld(MapTransform):
             repeats: the number of repetitions for each element.
         """
         super().__init__(keys)
-        self.repeater = DeleteChannel(repeats)
+        self.repeater = RemoveRepeatedChannel(repeats)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
@@ -862,7 +862,7 @@ IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
 AddChannelD = AddChannelDict = AddChanneld
-DeleteChannelD = DeleteChannelDict = DeleteChanneld
+RemoveRepeatedChannelD = RemoveRepeatedChannelDict = RemoveRepeatedChanneld
 RepeatChannelD = RepeatChannelDict = RepeatChanneld
 SplitChannelD = SplitChannelDict = SplitChanneld
 CastToTypeD = CastToTypeDict = CastToTyped

@@ -31,7 +31,7 @@ __all__ = [
     "AsChannelLast",
     "AddChannel",
     "RepeatChannel",
-    "DeleteChannel",
+    "RemoveRepeatedChannel",
     "SplitChannel",
     "CastToType",
     "ToTensor",
@@ -162,11 +162,11 @@ class RepeatChannel(Transform):
         return np.repeat(img, self.repeats, 0)
 
 
-class DeleteChannel(Transform):
+class RemoveRepeatedChannel(Transform):
     """
-    DeleteChannel data to undo RepeatChannel
+    RemoveRepeatedChannel data to undo RepeatChannel
     The `repeats` count specifies the deletion of the origin data, for example:
-    ``DeleteChannel(repeats=2)([[1, 2], [1, 2], [3, 4], [3, 4]])`` generates: ``[[1, 2], [3, 4]]``
+    ``RemoveRepeatedChannel(repeats=2)([[1, 2], [1, 2], [3, 4], [3, 4]])`` generates: ``[[1, 2], [3, 4]]``
 
     Args:
         repeats: the number of repetitions to be deleted for each element.
