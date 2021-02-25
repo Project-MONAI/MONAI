@@ -16,7 +16,7 @@ import torch
 import PIL.Image as PILImage
 
 from parameterized import parameterized
-from monai.transforms import ToPILD, ToNumpyd
+from monai.transforms import ToPILD
 
 TEST_CASE_ARRAY_1 = [{"keys": "image"}, {"image": np.array([[1.0, 2.0], [3.0, 4.0]])}]
 TEST_CASE__TENSOR_1 = [{"keys": "image"}, {"image": torch.tensor([[1.0, 2.0], [3.0, 4.0]])}]
@@ -25,26 +25,26 @@ TEST_CASE__TENSOR_1 = [{"keys": "image"}, {"image": torch.tensor([[1.0, 2.0], [3
 class TestToPIL(unittest.TestCase):
     @parameterized.expand([TEST_CASE_ARRAY_1])
     def test_numpy_input(self, input_param, test_data):
-        self.assertTrue(isinstance(test_data[input_param['keys']], np.ndarray))
-        result = ToPILD(**input_param)(test_data)[input_param['keys']]
+        self.assertTrue(isinstance(test_data[input_param["keys"]], np.ndarray))
+        result = ToPILD(**input_param)(test_data)[input_param["keys"]]
         self.assertTrue(isinstance(result, PILImage.Image))
-        np.testing.assert_allclose(np.array(result), test_data[input_param['keys']])
+        np.testing.assert_allclose(np.array(result), test_data[input_param["keys"]])
 
     @parameterized.expand([TEST_CASE__TENSOR_1])
     def test_tensor_input(self, input_param, test_data):
-        self.assertTrue(isinstance(test_data[input_param['keys']], torch.Tensor))
-        result = ToPILD(**input_param)(test_data)[input_param['keys']]
+        self.assertTrue(isinstance(test_data[input_param["keys"]], torch.Tensor))
+        result = ToPILD(**input_param)(test_data)[input_param["keys"]]
         self.assertTrue(isinstance(result, PILImage.Image))
-        np.testing.assert_allclose(np.array(result), test_data[input_param['keys']].numpy())
+        np.testing.assert_allclose(np.array(result), test_data[input_param["keys"]].numpy())
 
     @parameterized.expand([TEST_CASE_ARRAY_1])
     def test_pil_input(self, input_param, test_data):
-        input_array = test_data[input_param['keys']]
-        test_data[input_param['keys']] = PILImage.fromarray(input_array)
-        self.assertTrue(isinstance(test_data[input_param['keys']], PILImage.Image))
-        result = ToPILD(**input_param)(test_data)[input_param['keys']]
+        input_array = test_data[input_param["keys"]]
+        test_data[input_param["keys"]] = PILImage.fromarray(input_array)
+        self.assertTrue(isinstance(test_data[input_param["keys"]], PILImage.Image))
+        result = ToPILD(**input_param)(test_data)[input_param["keys"]]
         self.assertTrue(isinstance(result, PILImage.Image))
-        np.testing.assert_allclose(np.array(result), test_data[input_param['keys']])
+        np.testing.assert_allclose(np.array(result), test_data[input_param["keys"]])
 
 
 if __name__ == "__main__":

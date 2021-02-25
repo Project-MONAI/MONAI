@@ -251,9 +251,9 @@ from .utility.array import (
     SplitChannel,
     SqueezeDim,
     ToNumpy,
+    ToPIL,
     TorchVision,
     ToTensor,
-    ToPIL,
     Transpose,
 )
 from .utility.dictionary import (
