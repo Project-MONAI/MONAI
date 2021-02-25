@@ -31,6 +31,7 @@ __all__ = [
     "AsChannelLast",
     "AddChannel",
     "RepeatChannel",
+    "RemoveRepeatedChannel",
     "SplitChannel",
     "CastToType",
     "ToTensor",
@@ -159,6 +160,32 @@ class RepeatChannel(Transform):
         Apply the transform to `img`, assuming `img` is a "channel-first" array.
         """
         return np.repeat(img, self.repeats, 0)
+
+
+class RemoveRepeatedChannel(Transform):
+    """
+    RemoveRepeatedChannel data to undo RepeatChannel
+    The `repeats` count specifies the deletion of the origin data, for example:
+    ``RemoveRepeatedChannel(repeats=2)([[1, 2], [1, 2], [3, 4], [3, 4]])`` generates: ``[[1, 2], [3, 4]]``
+
+    Args:
+        repeats: the number of repetitions to be deleted for each element.
+    """
+
+    def __init__(self, repeats: int) -> None:
+        if repeats <= 0:
+            raise AssertionError("repeats count must be greater than 0.")
+
+        self.repeats = repeats
+
+    def __call__(self, img: np.ndarray) -> np.ndarray:
+        """
+        Apply the transform to `img`, assuming `img` is a "channel-first" array.
+        """
+        if np.shape(img)[0] < 2:
+            raise AssertionError("Image must have more than one channel")
+
+        return np.array(img[:: self.repeats, :])
 
 
 class SplitChannel(Transform):

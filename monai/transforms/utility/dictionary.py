@@ -35,6 +35,7 @@ from monai.transforms.utility.array import (
     Identity,
     LabelToMask,
     Lambda,
+    RemoveRepeatedChannel,
     RepeatChannel,
     SimulateDelay,
     SplitChannel,
@@ -52,6 +53,7 @@ __all__ = [
     "AsChannelLastd",
     "AddChanneld",
     "RepeatChanneld",
+    "RemoveRepeatedChanneld",
     "SplitChanneld",
     "CastToTyped",
     "ToTensord",
@@ -82,6 +84,8 @@ __all__ = [
     "RandLambdaDict",
     "RepeatChannelD",
     "RepeatChannelDict",
+    "RemoveRepeatedChannelD",
+    "RemoveRepeatedChannelDict",
     "SplitChannelD",
     "SplitChannelDict",
     "CastToTypeD",
@@ -218,6 +222,28 @@ class RepeatChanneld(MapTransform):
         """
         super().__init__(keys)
         self.repeater = RepeatChannel(repeats)
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.repeater(d[key])
+        return d
+
+
+class RemoveRepeatedChanneld(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.RemoveRepeatedChannel`.
+    """
+
+    def __init__(self, keys: KeysCollection, repeats: int) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            repeats: the number of repetitions for each element.
+        """
+        super().__init__(keys)
+        self.repeater = RemoveRepeatedChannel(repeats)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
@@ -836,6 +862,7 @@ IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
 AddChannelD = AddChannelDict = AddChanneld
+RemoveRepeatedChannelD = RemoveRepeatedChannelDict = RemoveRepeatedChanneld
 RepeatChannelD = RepeatChannelDict = RepeatChanneld
 SplitChannelD = SplitChannelDict = SplitChanneld
 CastToTypeD = CastToTypeDict = CastToTyped
