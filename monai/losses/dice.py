@@ -277,12 +277,6 @@ class GeneralizedDiceLoss(_Loss):
 
         self.w_type = Weight(w_type)
 
-        #         self.w_func: Callable = torch.ones_like
-        #         if w_type == Weight.SIMPLE:
-        #             self.w_func = torch.reciprocal
-        #         elif w_type == Weight.SQUARE:
-        #             self.w_func = lambda x: torch.reciprocal(x * x)
-
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
         self.batch = batch

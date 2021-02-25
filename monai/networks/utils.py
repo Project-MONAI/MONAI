@@ -19,8 +19,6 @@ from typing import Any, Callable, Optional, Sequence, cast
 import torch
 import torch.nn as nn
 
-from monai.utils import ensure_tuple_size
-
 __all__ = [
     "one_hot",
     "slice_channels",
