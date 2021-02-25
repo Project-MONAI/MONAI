@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms import DeleteChanneld
+from monai.transforms import RemoveRepeatedChanneld
 
 TEST_CASE_1 = [
     {"keys": ["img"], "repeats": 2},
