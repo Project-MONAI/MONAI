@@ -26,6 +26,7 @@ from torch.utils.data import Dataset as _TorchDataset
 
 from monai.data.utils import pickle_hashing
 from monai.transforms import Compose, Randomizable, Transform, apply_transform
+from monai.transforms.transform import RandomizableTransform
 from monai.utils import MAX_SEED, get_seed, min_version, optional_import
 
 if TYPE_CHECKING:
@@ -161,7 +162,7 @@ class PersistentDataset(Dataset):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
         for _transform in self.transform.transforms:
             # execute all the deterministic transforms
-            if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
+            if isinstance(_transform, RandomizableTransform) or not isinstance(_transform, Transform):
                 break
             item_transformed = apply_transform(_transform, item_transformed)
         return item_transformed
@@ -183,7 +184,7 @@ class PersistentDataset(Dataset):
         for _transform in self.transform.transforms:
             if (
                 start_post_randomize_run
-                or isinstance(_transform, Randomizable)
+                or isinstance(_transform, RandomizableTransform)
                 or not isinstance(_transform, Transform)
             ):
                 start_post_randomize_run = True
@@ -522,7 +523,7 @@ class CacheDataset(Dataset):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
         for _transform in self.transform.transforms:
             # execute all the deterministic transforms
-            if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
+            if isinstance(_transform, RandomizableTransform) or not isinstance(_transform, Transform):
                 break
             item = apply_transform(_transform, item)
         return item
@@ -539,7 +540,7 @@ class CacheDataset(Dataset):
         if not isinstance(self.transform, Compose):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
         for _transform in self.transform.transforms:
-            if start_run or isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
+            if start_run or isinstance(_transform, RandomizableTransform) or not isinstance(_transform, Transform):
                 start_run = True
                 data = apply_transform(_transform, data)
         return data
@@ -924,9 +925,9 @@ class ArrayDataset(Randomizable, _TorchDataset):
             # set transforms of each zip component
             for dataset in self.dataset.data:
                 transform = getattr(dataset, "transform", None)
-                if isinstance(transform, Randomizable):
+                if isinstance(transform, RandomizableTransform):
                     transform.set_random_state(seed=self._seed)
         transform = getattr(self.dataset, "transform", None)
-        if isinstance(transform, Randomizable):
+        if isinstance(transform, RandomizableTransform):
             transform.set_random_state(seed=self._seed)
         return self.dataset[index]
