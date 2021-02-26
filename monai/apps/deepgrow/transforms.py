@@ -17,7 +17,7 @@ import torch
 from monai.config import IndexSelection, KeysCollection
 from monai.networks.layers import GaussianFilter
 from monai.transforms import SpatialCrop
-from monai.transforms.transform import MapTransform, Randomizable, Transform
+from monai.transforms.transform import MapTransform, RandomizableTransform, Transform
 from monai.transforms.utils import generate_spatial_bounding_box
 from monai.utils import min_version, optional_import
 
@@ -62,7 +62,7 @@ class FindAllValidSlicesd(Transform):
         return d
 
 
-class AddInitialSeedPointd(Randomizable, Transform):
+class AddInitialSeedPointd(RandomizableTransform):
     """
     Add random guidance as initial seed point for a given label.
 
@@ -279,7 +279,7 @@ class FindDiscrepancyRegionsd(Transform):
         return d
 
 
-class AddRandomGuidanced(Randomizable, Transform):
+class AddRandomGuidanced(RandomizableTransform):
     """
     Add random guidance based on discrepancies that were found between label and prediction.
 
