@@ -99,8 +99,11 @@ class TestCompose(unittest.TestCase):
         self.assertAlmostEqual(c(1), 1.90734751)
 
     def test_randomize_warn(self):
-        class _RandomClass(Randomizable):
+        class _RandomClass(RandomizableTransform):
             def randomize(self, foo1, foo2):
+                pass
+
+            def __call__(self, data):
                 pass
 
         c = Compose([_RandomClass(), _RandomClass()])
