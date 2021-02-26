@@ -18,15 +18,14 @@ from typing import Any, Callable, Optional, Sequence, Union
 import numpy as np
 
 # For backwards compatiblity (so this still works: from monai.transforms.compose import MapTransform)
-from monai.transforms.transform import MapTransform  # noqa: F401
-from monai.transforms.transform import Randomizable, Transform
+from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform, Transform  # noqa: F401
 from monai.transforms.utils import apply_transform
 from monai.utils import MAX_SEED, ensure_tuple, get_seed
 
 __all__ = ["Compose"]
 
 
-class Compose(Randomizable, Transform):
+class Compose(RandomizableTransform):
     """
     ``Compose`` provides the ability to chain a series of calls together in a
     sequence. Each transform in the sequence must take a single argument and
@@ -96,14 +95,14 @@ class Compose(Randomizable, Transform):
     def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None) -> "Compose":
         super().set_random_state(seed=seed, state=state)
         for _transform in self.transforms:
-            if not isinstance(_transform, Randomizable):
+            if not isinstance(_transform, RandomizableTransform):
                 continue
             _transform.set_random_state(seed=self.R.randint(MAX_SEED, dtype="uint32"))
         return self
 
     def randomize(self, data: Optional[Any] = None) -> None:
         for _transform in self.transforms:
-            if not isinstance(_transform, Randomizable):
+            if not isinstance(_transform, RandomizableTransform):
                 continue
             try:
                 _transform.randomize(data)
