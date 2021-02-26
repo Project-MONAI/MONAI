@@ -183,7 +183,8 @@ class RegistrationDownSampleBlock(nn.Module):
         for i in x.shape[2:]:
             if i % 2 != 0:
                 raise ValueError("expecting x spatial dimensions be even, " f"got x of shape {x.shape}")
-        return self.layer(x)
+        out: torch.Tensor = self.layer(x)
+        return out
 
 
 def get_deconv_block(
@@ -217,7 +218,7 @@ class RegistrationExtractionBlock(nn.Module):
         extract_levels: Tuple[int],
         num_channels: Union[Tuple[int], List[int]],
         out_channels: int,
-        kernel_initializer: str = "kaiming_uniform",
+        kernel_initializer: Optional[str] = "kaiming_uniform",
         activation: Optional[str] = None,
     ):
         """
