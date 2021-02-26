@@ -27,6 +27,11 @@ Generic Interfaces
 .. autoclass:: Randomizable
     :members:
 
+`RandomizableTransform`
+^^^^^^^^^^^^^^^^^^^^^^^
+.. autoclass:: RandomizableTransform
+    :members:
+
 `Compose`
 ^^^^^^^^^
 .. autoclass:: Compose
