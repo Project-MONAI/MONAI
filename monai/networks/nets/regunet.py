@@ -80,7 +80,11 @@ class RegUNet(nn.Module):
         self.extract_levels = extract_levels
         self.pooling = pooling
         self.concat_skip = concat_skip
-        self.encode_kernel_sizes = encode_kernel_sizes
+
+        if isinstance(encode_kernel_sizes, int):
+            encode_kernel_sizes = [encode_kernel_sizes] * (self.depth + 1)
+        assert len(encode_kernel_sizes) == self.depth + 1
+        self.encode_kernel_sizes: List[int] = encode_kernel_sizes
 
         self.num_channels = [self.num_channel_initial * (2 ** d) for d in range(self.depth + 1)]
         self.min_extract_level = min(self.extract_levels)
@@ -104,10 +108,6 @@ class RegUNet(nn.Module):
         self.build_decode_layers()
 
     def build_encode_layers(self):
-        if isinstance(self.encode_kernel_sizes, int):
-            self.encode_kernel_sizes = [self.encode_kernel_sizes] * (self.depth + 1)
-        assert len(self.encode_kernel_sizes) == self.depth + 1
-
         # encoding / down-sampling
         self.encode_convs = nn.ModuleList(
             [

@@ -24,10 +24,10 @@ def get_conv_block(
     out_channels: int,
     kernel_size: Union[Sequence[int], int] = 3,
     strides: int = 1,
-    padding: Optional[int] = None,
+    padding: Optional[Union[Tuple[int, ...], int]] = None,
     act: Optional[Union[Tuple, str]] = "RELU",
     norm: Optional[Union[Tuple, str]] = "BATCH",
-    initializer: str = "kaiming_uniform",
+    initializer: Optional[str] = "kaiming_uniform",
 ) -> nn.Module:
     if padding is None:
         padding = same_padding(kernel_size)
@@ -114,7 +114,7 @@ class RegistrationResidualConvBlock(nn.Module):
         self.norms = nn.ModuleList([Norm[Norm.BATCH, spatial_dims](out_channels) for _ in range(num_layers)])
         self.acts = nn.ModuleList([nn.ReLU() for _ in range(num_layers)])
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
 
         Args:
@@ -169,7 +169,7 @@ class RegistrationDownSampleBlock(nn.Module):
                 padding=0,
             )
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Halves the spatial dimensions and keeps the same channel.
         output in shape (batch, ``channels``, insize_1 / 2, insize_2 / 2, [insize_3 / 2]),
@@ -258,12 +258,12 @@ class RegistrationExtractionBlock(nn.Module):
         Returns:
             Tensor of shape (batch, `out_channels`, size1, size2, size3), where (size1, size2, size3) = ``image_size``
         """
-        out = [
+        feature_list = [
             F.interpolate(
                 layer(x[self.max_level - level]),
                 size=image_size,
             )
             for layer, level in zip(self.layers, self.extract_levels)
         ]
-        out = torch.mean(torch.stack(out, dim=0), dim=0)
+        out: torch.Tensor = torch.mean(torch.stack(feature_list, dim=0), dim=0)
         return out
