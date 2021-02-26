@@ -14,7 +14,7 @@ import unittest
 
 from monai.data import DataLoader, Dataset
 from monai.transforms import AddChannel, Compose
-from monai.transforms.transform import Randomizable, RandomizableTransform
+from monai.transforms.transform import RandomizableTransform
 from monai.utils import set_determinism
 
 
