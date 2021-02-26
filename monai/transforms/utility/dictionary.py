@@ -17,13 +17,13 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 import copy
 import logging
-from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
 from monai.config import DtypeLike, KeysCollection, NdarrayTensor
-from monai.transforms.compose import MapTransform, Randomizable
+from monai.transforms.transform import MapTransform, Randomizable
 from monai.transforms.utility.array import (
     AddChannel,
     AsChannelFirst,
@@ -35,16 +35,25 @@ from monai.transforms.utility.array import (
     Identity,
     LabelToMask,
     Lambda,
+    RemoveRepeatedChannel,
     RepeatChannel,
     SimulateDelay,
     SplitChannel,
     SqueezeDim,
     ToNumpy,
+    ToPIL,
     TorchVision,
     ToTensor,
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
-from monai.utils import ensure_tuple, ensure_tuple_rep
+from monai.utils import ensure_tuple, ensure_tuple_rep, optional_import
+
+if TYPE_CHECKING:
+    from PIL.Image import Image as PILImageImage
+
+    has_pil = True
+else:
+    PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 
 __all__ = [
     "Identityd",
@@ -52,10 +61,12 @@ __all__ = [
     "AsChannelLastd",
     "AddChanneld",
     "RepeatChanneld",
+    "RemoveRepeatedChanneld",
     "SplitChanneld",
     "CastToTyped",
     "ToTensord",
     "ToNumpyd",
+    "ToPILd",
     "DeleteItemsd",
     "SelectItemsd",
     "SqueezeDimd",
@@ -82,6 +93,8 @@ __all__ = [
     "RandLambdaDict",
     "RepeatChannelD",
     "RepeatChannelDict",
+    "RemoveRepeatedChannelD",
+    "RemoveRepeatedChannelDict",
     "SplitChannelD",
     "SplitChannelDict",
     "CastToTypeD",
@@ -226,6 +239,28 @@ class RepeatChanneld(MapTransform):
         return d
 
 
+class RemoveRepeatedChanneld(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.RemoveRepeatedChannel`.
+    """
+
+    def __init__(self, keys: KeysCollection, repeats: int) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            repeats: the number of repetitions for each element.
+        """
+        super().__init__(keys)
+        self.repeater = RemoveRepeatedChannel(repeats)
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.repeater(d[key])
+        return d
+
+
 class SplitChanneld(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SplitChannel`.
@@ -322,8 +357,8 @@ class ToTensord(MapTransform):
         self.converter = ToTensor()
 
     def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor, PILImageImage]]
+    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor, PILImageImage]]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
@@ -345,8 +380,31 @@ class ToNumpyd(MapTransform):
         self.converter = ToNumpy()
 
     def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor, PILImageImage]]
+    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor, PILImageImage]]:
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.converter(d[key])
+        return d
+
+
+class ToPILd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.ToNumpy`.
+    """
+
+    def __init__(self, keys: KeysCollection) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+        """
+        super().__init__(keys)
+        self.converter = ToPIL()
+
+    def __call__(
+        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor, PILImageImage]]
+    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor, PILImageImage]]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.converter(d[key])
@@ -836,10 +894,13 @@ IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
 AddChannelD = AddChannelDict = AddChanneld
+RemoveRepeatedChannelD = RemoveRepeatedChannelDict = RemoveRepeatedChanneld
 RepeatChannelD = RepeatChannelDict = RepeatChanneld
 SplitChannelD = SplitChannelDict = SplitChanneld
 CastToTypeD = CastToTypeDict = CastToTyped
 ToTensorD = ToTensorDict = ToTensord
+ToNumpyD = ToNumpyDict = ToNumpyd
+ToPILD = ToPILDict = ToPILd
 DeleteItemsD = DeleteItemsDict = DeleteItemsd
 SqueezeDimD = SqueezeDimDict = SqueezeDimd
 DataStatsD = DataStatsDict = DataStatsd

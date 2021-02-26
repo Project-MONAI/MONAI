@@ -17,7 +17,7 @@ import torch
 from monai.config import IndexSelection, KeysCollection
 from monai.networks.layers import GaussianFilter
 from monai.transforms import Resize, SpatialCrop
-from monai.transforms.compose import MapTransform, Randomizable, Transform
+from monai.transforms.transform import MapTransform, Randomizable, Transform
 from monai.transforms.utils import generate_spatial_bounding_box
 from monai.utils import InterpolateMode, ensure_tuple_rep, min_version, optional_import
 
