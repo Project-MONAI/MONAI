@@ -15,7 +15,8 @@ limitations under the License.
 #define TILE(SIZE, STRIDE) ((((SIZE) - 1)/(STRIDE)) + 1)
 
 #define CHANNELS 3
-#define MIXTURES 2
+#define MAX_CHANNELS 16
+#define MAX_MIXTURES 16
 
 __device__ __forceinline__ float get_component(float* pixel, int i)
 {
@@ -60,7 +61,7 @@ __device__ __forceinline__ float get_constant(float *gmm, int i)
 
 // Tile Size: 32x32, Block Size 32xwarp_N
 template<int warp_N, bool create_gmm_flags>
-__global__ void GMMReductionKernel(int gmm_idx, float *gmm, int component_count, const float *image, int *alpha, int element_count, unsigned int *tile_gmms)
+__global__ void GMMReductionKernel(int gmm_idx, const float* image, const int* alpha, float* gmm, unsigned int* tile_gmms, int element_count, int component_count)
 {
     __shared__ float s_lists[32 * 32 * CHANNELS];
     __shared__ volatile float s_gmm[32 * warp_N];
@@ -154,18 +155,18 @@ __global__ void GMMReductionKernel(int gmm_idx, float *gmm, int component_count,
         }
         else
         {
-            float temp_array[3];
-            temp_array[0] = s_lists[thread_idx * 3 + 0];
-            temp_array[1] = s_lists[thread_idx * 3 + 1];
-            temp_array[2] = s_lists[thread_idx * 3 + 2];
+            float temp_array[CHANNELS];
+            temp_array[0] = s_lists[thread_idx * CHANNELS + 0];
+            temp_array[1] = s_lists[thread_idx * CHANNELS + 1];
+            temp_array[2] = s_lists[thread_idx * CHANNELS + 2];
 
-            thread_gmm = list_idx > 0 ? get_component(temp_array,i) : 0.0f;
+            thread_gmm = list_idx > 0 ? get_component(temp_array, i) : 0.0f;
 
             for (int k=1; k<(32/warp_N) && k < list_idx; ++k)
             {
-                temp_array[0] = s_lists[(thread_idx + k * (32*warp_N)) * 3 + 0];
-                temp_array[1] = s_lists[(thread_idx + k * (32*warp_N)) * 3 + 1];
-                temp_array[2] = s_lists[(thread_idx + k * (32*warp_N)) * 3 + 2];
+                temp_array[0] = s_lists[(thread_idx + k * (32*warp_N)) * CHANNELS + 0];
+                temp_array[1] = s_lists[(thread_idx + k * (32*warp_N)) * CHANNELS + 1];
+                temp_array[2] = s_lists[(thread_idx + k * (32*warp_N)) * CHANNELS + 2];
 
                 thread_gmm += get_component(temp_array, i);
             }
@@ -218,7 +219,7 @@ __constant__ int inv_indices[] = { (4 << (5*4)) + (5 << (4*4)) + (4 << (3*4)) + 
 
 // One block per GMM, 32*warp_N threads (1-dim)
 template <int warp_N, bool invertSigma>
-__global__ void GMMFinalizeKernel(float *gmm, float *gmm_scratch, int component_count, int N)
+__global__ void GMMFinalizeKernel(const float *gmm_scratch, float *gmm, int gmm_stride, int component_count)
 {
     __shared__ volatile float s_gmm[warp_N*32];
     __shared__ float s_final[warp_N];
@@ -226,7 +227,7 @@ __global__ void GMMFinalizeKernel(float *gmm, float *gmm_scratch, int component_
 
     const int thread_N = warp_N * 32;
 
-    float *gmm_partial = &gmm_scratch[N*blockIdx.x*component_count];
+    const float *gmm_partial = &gmm_scratch[blockIdx.x * gmm_stride * component_count];
 
     volatile float *warp_gmm = &s_gmm[threadIdx.x & 0x0ffe0];
 
@@ -240,7 +241,7 @@ __global__ void GMMFinalizeKernel(float *gmm, float *gmm_scratch, int component_
     {
         float thread_gmm = 0.0f;
 
-        for (int j=thread_idx; j < N; j+= thread_N)
+        for (int j=thread_idx; j < gmm_stride; j+= thread_N)
         {
             thread_gmm += gmm_partial[j * component_count + i];
         }
@@ -267,7 +268,7 @@ __global__ void GMMFinalizeKernel(float *gmm, float *gmm_scratch, int component_
         __syncthreads();
 
         // Final Reduction
-        if (warp_idx ==0 && lane_idx == 0)
+        if (warp_idx == 0 && lane_idx == 0)
         {
             for (int j=1; j<warp_N; ++j)
             {
@@ -332,13 +333,13 @@ __global__ void GMMFinalizeKernel(float *gmm, float *gmm_scratch, int component_
 
 
 // Single block, 32x2
-__global__ void GMMcommonTerm(int gmmK, float *gmm, int component_count)
+__global__ void GMMcommonTerm(float *gmm, int mixture_count, int mixture_size, int component_count)
 {
-    __shared__ volatile float s_n[2][32];
+    __shared__ volatile float s_n[MAX_MIXTURES][32];
 
-    int gmm_idx = (threadIdx.x * 2) | threadIdx.y;
+    int gmm_idx = (threadIdx.x * mixture_count) | threadIdx.y;
 
-    float gmm_n = threadIdx.x < gmmK ? gmm[gmm_idx * component_count] : 0.0f;
+    float gmm_n = threadIdx.x < mixture_size ? gmm[gmm_idx * component_count] : 0.0f;
     float sum = gmm_n;
     s_n[threadIdx.y][threadIdx.x] = sum;
 
@@ -357,7 +358,7 @@ __global__ void GMMcommonTerm(int gmmK, float *gmm, int component_count)
 
     sum += s_n[threadIdx.y][(threadIdx.x + 1) & 31];
 
-    if (threadIdx.x < gmmK)
+    if (threadIdx.x < mixture_size)
     {
         float det = gmm[gmm_idx * component_count + 10];
         float commonTerm =  gmm_n / (sqrtf(det) * sum);
@@ -381,7 +382,7 @@ __device__ float GMMTerm(float* pixel, const float *gmm)
     return gmm[10] * expf(-0.5f * (xxa + yyd + zzf + 2.0f * (yxb + zxc + zye)));
 }
 
-__global__ void GMMDataTermKernel(const float *image, int gmmN, const float *gmm, int component_count, float* output, int element_count)
+__global__ void GMMDataTermKernel(const float *image, const float *gmm, float* output, int element_count, int mixture_count, int mixture_size, int component_count)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -392,23 +393,23 @@ __global__ void GMMDataTermKernel(const float *image, int gmmN, const float *gmm
     temp_array[1] = image[index + 1 * element_count] * 255;
     temp_array[2] = image[index + 2 * element_count] * 255;
 
-    float weights[MIXTURES];
+    float weights[MAX_MIXTURES];
     float weight_total = 0.0f;
 
-    for(int i = 0; i < MIXTURES; i++)
+    for(int i = 0; i < mixture_count; i++)
     {
         float mixture_weight = 0.0f;
 
-        for(int j = 0; j < gmmN; j += MIXTURES)
+        for(int j = 0; j < mixture_size; j++)
         {
-            mixture_weight += GMMTerm(temp_array, &gmm[(j + i) * component_count]);
+            mixture_weight += GMMTerm(temp_array, &gmm[(mixture_count * j + i) * component_count]);
         }
 
         weights[i] = mixture_weight;
         weight_total += mixture_weight;
     }
 
-    for(int i = 0; i < MIXTURES; i++)
+    for(int i = 0; i < mixture_count; i++)
     {
         output[index + i * element_count] = weights[i] / weight_total;
     }
@@ -531,7 +532,7 @@ struct GMMSplit_t
 // 1 Block, 32x2
 __global__ void GMMFindSplit(GMMSplit_t *gmmSplit, int gmmK, float *gmm, int component_count)
 {
-    __shared__ float s_eigenvalues[2][32];
+    __shared__ float s_eigenvalues[MAX_MIXTURES][32];
 
     int gmm_idx = (threadIdx.x << 1) + threadIdx.y;
 
@@ -577,7 +578,7 @@ __global__ void GMMFindSplit(GMMSplit_t *gmmSplit, int gmmK, float *gmm, int com
 
 __global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, int component_count, const float *image, int *alpha, int element_count)
 {
-    __shared__ GMMSplit_t s_gmmSplit[2];
+    __shared__ GMMSplit_t s_gmmSplit[MAX_MIXTURES];
 
     int *s_linear = (int *) s_gmmSplit;
     int *g_linear = (int *) gmmSplit;
@@ -625,31 +626,34 @@ __global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, int co
     }
 }
 
-void GMMInitialize(const float *image, int *alpha, float *gmm, float *scratch_mem, int gmm_N, int component_count, int element_count)
+void GMMInitialize(const float *image, int *alpha, float *gmm, float *scratch_mem, int element_count, int mixture_count, int mixture_size, int component_count)
 {
     dim3 grid(TILE(element_count, BLOCK_SIZE * BLOCK_SIZE));
     dim3 block(BLOCK_SIZE * 4);
     
     float* block_gmm_scratch = &scratch_mem[grid.x];
     unsigned int* block_active_scratch = (unsigned int*)scratch_mem;
+    GMMSplit_t* gmm_split_scratch = (GMMSplit_t*) scratch_mem;
 
-    for (int k = 2; k < gmm_N; k+=2)
+    int gmm_N = mixture_count * mixture_size;
+
+    for (int k = mixture_count; k < gmm_N; k+=mixture_count)
     {
-        GMMReductionKernel<4, true><<<grid, block>>>(0, block_gmm_scratch, component_count, image, alpha, element_count, block_active_scratch);
+        GMMReductionKernel<4, true><<<grid, block>>>(0, image, alpha, block_gmm_scratch, block_active_scratch, element_count, component_count);
 
         for (int i=1; i < k; ++i)
         {
-            GMMReductionKernel<4, false><<<grid, block>>>(i, block_gmm_scratch, component_count, image, alpha, element_count, block_active_scratch);
+            GMMReductionKernel<4, false><<<grid, block>>>(i, image, alpha, block_gmm_scratch, block_active_scratch, element_count, component_count);
         }
 
-        GMMFinalizeKernel<4, false><<<k, block>>>(gmm, block_gmm_scratch, component_count, grid.x);
+        GMMFinalizeKernel<4, false><<<k, block>>>(block_gmm_scratch, gmm, grid.x, component_count);
 
-        GMMFindSplit<<<1, dim3(BLOCK_SIZE, 2)>>>((GMMSplit_t *) scratch_mem, k / 2, gmm, component_count);
-        GMMDoSplit<<<TILE(element_count, BLOCK_SIZE * DO_SPLIT_DEGENERACY), BLOCK_SIZE>>>((GMMSplit_t *) scratch_mem, (k/2) << 1, gmm, component_count, image, alpha, element_count);
+        GMMFindSplit<<<1, dim3(BLOCK_SIZE, mixture_count)>>>(gmm_split_scratch, k / mixture_count, gmm, component_count);
+        GMMDoSplit<<<TILE(element_count, BLOCK_SIZE * DO_SPLIT_DEGENERACY), BLOCK_SIZE>>>(gmm_split_scratch, k, gmm, component_count, image, alpha, element_count);
     }
 }
 
-void GMMUpdate(const float *image, int *alpha, float *gmm, float *scratch_mem, int gmm_N, int component_count, int element_count)
+void GMMUpdate(const float *image, int *alpha, float *gmm, float *scratch_mem, int element_count, int mixture_count, int mixture_size, int component_count)
 {
     dim3 grid(TILE(element_count, BLOCK_SIZE * BLOCK_SIZE));
     dim3 block(BLOCK_SIZE * 4);
@@ -657,43 +661,45 @@ void GMMUpdate(const float *image, int *alpha, float *gmm, float *scratch_mem, i
     float* block_gmm_scratch = &scratch_mem[grid.x];
     unsigned int* block_active_scratch = (unsigned int*)scratch_mem;
 
-    GMMReductionKernel<4, true><<<grid, block>>>(0, block_gmm_scratch, component_count, image, alpha, element_count, block_active_scratch);
+    int gmm_N = mixture_count * mixture_size;
+
+    GMMReductionKernel<4, true><<<grid, block>>>(0, image, alpha, block_gmm_scratch, block_active_scratch, element_count, component_count);
 
     for (int i = 1; i < gmm_N; ++i)
     {
-        GMMReductionKernel<4, false><<<grid, block>>>(i, block_gmm_scratch, component_count, image, alpha, element_count, block_active_scratch);
+        GMMReductionKernel<4, false><<<grid, block>>>(i, image, alpha, block_gmm_scratch, block_active_scratch, element_count, component_count);
     }
 
-    GMMFinalizeKernel<4, true><<<gmm_N, block>>>(gmm, block_gmm_scratch, component_count, grid.x);
+    GMMFinalizeKernel<4, true><<<gmm_N, block>>>(block_gmm_scratch, gmm, grid.x, component_count);
 
-    GMMcommonTerm<<<1, dim3(BLOCK_SIZE, 2)>>>(gmm_N / 2, gmm, component_count);
+    GMMcommonTerm<<<1, dim3(BLOCK_SIZE, mixture_count)>>>(gmm, mixture_count, mixture_size, component_count);
 }
 
-void GMMDataTerm(const float *image, const float *gmm, float* output, int gmm_N, int component_count, int element_count)
+void GMMDataTerm(const float *image, const float *gmm, float* output, int element_count, int mixture_count, int mixture_size, int component_count)
 {
     dim3 block(BLOCK_SIZE, 1);
     dim3 grid(TILE(element_count, BLOCK_SIZE), 1);
 
-    GMMDataTermKernel<<<grid, block>>>(image, gmm_N, gmm, component_count, output, element_count);
+    GMMDataTermKernel<<<grid, block>>>(image, gmm, output, element_count, mixture_count, mixture_size, component_count);
 }
 
-void GMM_Cuda(const float* input, const int* labels, float* output, int batch_count, int channel_count, int element_count, int mixture_count, int gaussians_per_mixture)
+void GMM_Cuda(const float* input, const int* labels, float* output, int batch_count, int channel_count, int element_count, int mixture_count, int mixture_size)
 {
     int component_count = 1 + (channel_count + 1) * (channel_count + 2) / 2;
-    int gmms = mixture_count * gaussians_per_mixture;
+    int gmm_size = component_count * mixture_count * mixture_size;
 
     float* scratch_mem = output;
     float* gmm; 
     int* alpha;
 
-    cudaMalloc(&gmm, component_count * mixture_count * gaussians_per_mixture * sizeof(float));
+    cudaMalloc(&gmm, gmm_size * sizeof(float));
     cudaMalloc(&alpha, element_count * sizeof(int));
 
     cudaMemcpyAsync(alpha, labels, element_count * sizeof(int), cudaMemcpyDeviceToDevice);
     
-    GMMInitialize(input, alpha, gmm, scratch_mem, gmms, component_count, element_count);
-    GMMUpdate(input, alpha, gmm, scratch_mem, gmms, component_count, element_count);
-    GMMDataTerm(input, gmm, output, gmms, component_count, element_count);
+    GMMInitialize(input, alpha, gmm, scratch_mem, element_count, mixture_count, mixture_size, component_count);
+    GMMUpdate(input, alpha, gmm, scratch_mem, element_count, mixture_count, mixture_size, component_count);
+    GMMDataTerm(input, gmm, output, element_count, mixture_count, mixture_size, component_count);
 
     cudaFree(alpha);
     cudaFree(gmm);
