@@ -23,7 +23,7 @@ from monai.config import USE_COMPILED, DtypeLike
 from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.transforms.croppad.array import CenterSpatialCrop
-from monai.transforms.transform import Randomizable, Transform
+from monai.transforms.transform import RandomizableTransform, Transform
 from monai.transforms.utils import (
     create_control_grid,
     create_grid,
@@ -604,7 +604,7 @@ class Rotate90(Transform):
         return result.astype(img.dtype)
 
 
-class RandRotate90(Randomizable, Transform):
+class RandRotate90(RandomizableTransform):
     """
     With probability `prob`, input arrays are rotated by 90 degrees
     in the plane specified by `spatial_axes`.
@@ -619,7 +619,7 @@ class RandRotate90(Randomizable, Transform):
             spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
                 Default: (0, 1), this is the first two axis in spatial dimensions.
         """
-        Randomizable.__init__(self, min(max(prob, 0.0), 1.0))
+        RandomizableTransform.__init__(self, min(max(prob, 0.0), 1.0))
         self.max_k = max_k
         self.spatial_axes = spatial_axes
 
@@ -641,7 +641,7 @@ class RandRotate90(Randomizable, Transform):
         return rotator(img)
 
 
-class RandRotate(Randomizable, Transform):
+class RandRotate(RandomizableTransform):
     """
     Randomly rotate the input arrays.
 
@@ -681,7 +681,7 @@ class RandRotate(Randomizable, Transform):
         align_corners: bool = False,
         dtype: DtypeLike = np.float64,
     ) -> None:
-        Randomizable.__init__(self, prob)
+        RandomizableTransform.__init__(self, prob)
         self.range_x = ensure_tuple(range_x)
         if len(self.range_x) == 1:
             self.range_x = tuple(sorted([-self.range_x[0], self.range_x[0]]))
@@ -745,7 +745,7 @@ class RandRotate(Randomizable, Transform):
         return rotator(img)
 
 
-class RandFlip(Randomizable, Transform):
+class RandFlip(RandomizableTransform):
     """
     Randomly flips the image along axes. Preserves shape.
     See numpy.flip for additional details.
@@ -757,7 +757,7 @@ class RandFlip(Randomizable, Transform):
     """
 
     def __init__(self, prob: float = 0.1, spatial_axis: Optional[Union[Sequence[int], int]] = None) -> None:
-        Randomizable.__init__(self, min(max(prob, 0.0), 1.0))
+        RandomizableTransform.__init__(self, min(max(prob, 0.0), 1.0))
         self.flipper = Flip(spatial_axis=spatial_axis)
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
@@ -771,7 +771,7 @@ class RandFlip(Randomizable, Transform):
         return self.flipper(img)
 
 
-class RandZoom(Randomizable, Transform):
+class RandZoom(RandomizableTransform):
     """
     Randomly zooms input arrays with given probability within given zoom range.
 
@@ -810,7 +810,7 @@ class RandZoom(Randomizable, Transform):
         align_corners: Optional[bool] = None,
         keep_size: bool = True,
     ) -> None:
-        Randomizable.__init__(self, prob)
+        RandomizableTransform.__init__(self, prob)
         self.min_zoom = ensure_tuple(min_zoom)
         self.max_zoom = ensure_tuple(max_zoom)
         if len(self.min_zoom) != len(self.max_zoom):
@@ -954,7 +954,7 @@ class AffineGrid(Transform):
         return np.asarray(grid.cpu().numpy())
 
 
-class RandAffineGrid(Randomizable, Transform):
+class RandAffineGrid(RandomizableTransform):
     """
     Generate randomised affine grid.
     """
@@ -1043,7 +1043,7 @@ class RandAffineGrid(Randomizable, Transform):
         return affine_grid(spatial_size, grid)
 
 
-class RandDeformGrid(Randomizable, Transform):
+class RandDeformGrid(RandomizableTransform):
     """
     Generate random deformation grid.
     """
@@ -1272,7 +1272,7 @@ class Affine(Transform):
         )
 
 
-class RandAffine(Randomizable, Transform):
+class RandAffine(RandomizableTransform):
     """
     Random affine transform.
     """
@@ -1324,7 +1324,7 @@ class RandAffine(Randomizable, Transform):
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
-        Randomizable.__init__(self, prob)
+        RandomizableTransform.__init__(self, prob)
 
         self.rand_affine_grid = RandAffineGrid(
             rotate_range=rotate_range,
@@ -1385,7 +1385,7 @@ class RandAffine(Randomizable, Transform):
         )
 
 
-class Rand2DElastic(Randomizable, Transform):
+class Rand2DElastic(RandomizableTransform):
     """
     Random elastic deformation and affine in 2D
     """
@@ -1442,7 +1442,7 @@ class Rand2DElastic(Randomizable, Transform):
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
-        Randomizable.__init__(self, prob)
+        RandomizableTransform.__init__(self, prob)
         self.deform_grid = RandDeformGrid(
             spacing=spacing, magnitude_range=magnitude_range, as_tensor_output=True, device=device
         )
@@ -1511,7 +1511,7 @@ class Rand2DElastic(Randomizable, Transform):
         return self.resampler(img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode)
 
 
-class Rand3DElastic(Randomizable, Transform):
+class Rand3DElastic(RandomizableTransform):
     """
     Random elastic deformation and affine in 3D
     """
@@ -1570,7 +1570,7 @@ class Rand3DElastic(Randomizable, Transform):
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
-        Randomizable.__init__(self, prob)
+        RandomizableTransform.__init__(self, prob)
         self.rand_affine_grid = RandAffineGrid(rotate_range, shear_range, translate_range, scale_range, True, device)
         self.resampler = Resample(as_tensor_output=as_tensor_output, device=device)
 

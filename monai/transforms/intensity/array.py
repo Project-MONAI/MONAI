@@ -22,7 +22,7 @@ import torch
 
 from monai.config import DtypeLike
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
-from monai.transforms.transform import Randomizable, Transform
+from monai.transforms.transform import RandomizableTransform, Transform
 from monai.transforms.utils import rescale_array
 from monai.utils import PT_BEFORE_1_7, InvalidPyTorchVersionError, dtype_torch_to_numpy, ensure_tuple_size
 
@@ -49,7 +49,7 @@ __all__ = [
 ]
 
 
-class RandGaussianNoise(Randomizable, Transform):
+class RandGaussianNoise(RandomizableTransform):
     """
     Add Gaussian noise to image.
 
@@ -60,7 +60,7 @@ class RandGaussianNoise(Randomizable, Transform):
     """
 
     def __init__(self, prob: float = 0.1, mean: Union[Sequence[float], float] = 0.0, std: float = 0.1) -> None:
-        Randomizable.__init__(self, prob)
+        RandomizableTransform.__init__(self, prob)
         self.mean = mean
         self.std = std
         self._noise = None
@@ -100,7 +100,7 @@ class ShiftIntensity(Transform):
         return np.asarray((img + self.offset), dtype=img.dtype)
 
 
-class RandShiftIntensity(Randomizable, Transform):
+class RandShiftIntensity(RandomizableTransform):
     """
     Randomly shift intensity with randomly picked offset.
     """
@@ -112,7 +112,7 @@ class RandShiftIntensity(Randomizable, Transform):
                 if single number, offset value is picked from (-offsets, offsets).
             prob: probability of shift.
         """
-        Randomizable.__init__(self, prob)
+        RandomizableTransform.__init__(self, prob)
         if isinstance(offsets, (int, float)):
             self.offsets = (min(-offsets, offsets), max(-offsets, offsets))
         else:
@@ -169,7 +169,7 @@ class ScaleIntensity(Transform):
         raise ValueError("Incompatible values: minv=None or maxv=None and factor=None.")
 
 
-class RandScaleIntensity(Randomizable, Transform):
+class RandScaleIntensity(RandomizableTransform):
     """
     Randomly scale the intensity of input image by ``v = v * (1 + factor)`` where the `factor`
     is randomly picked from (-factors[0], factors[0]).
@@ -183,7 +183,7 @@ class RandScaleIntensity(Randomizable, Transform):
             prob: probability of scale.
 
         """
-        Randomizable.__init__(self, prob)
+        RandomizableTransform.__init__(self, prob)
         if isinstance(factors, (int, float)):
             self.factors = (min(-factors, factors), max(-factors, factors))
         else:
@@ -365,7 +365,7 @@ class AdjustContrast(Transform):
         return np.power(((img - img_min) / float(img_range + epsilon)), self.gamma) * img_range + img_min
 
 
-class RandAdjustContrast(Randomizable, Transform):
+class RandAdjustContrast(RandomizableTransform):
     """
     Randomly changes image intensity by gamma. Each pixel/voxel intensity is updated as::
 
@@ -378,7 +378,7 @@ class RandAdjustContrast(Randomizable, Transform):
     """
 
     def __init__(self, prob: float = 0.1, gamma: Union[Sequence[float], float] = (0.5, 4.5)) -> None:
-        Randomizable.__init__(self, prob)
+        RandomizableTransform.__init__(self, prob)
 
         if isinstance(gamma, (int, float)):
             if gamma <= 0.5:
@@ -651,7 +651,7 @@ class GaussianSmooth(Transform):
         return gaussian_filter(input_data).squeeze(0).detach().numpy()
 
 
-class RandGaussianSmooth(Randomizable, Transform):
+class RandGaussianSmooth(RandomizableTransform):
     """
     Apply Gaussian smooth to the input data based on randomly selected `sigma` parameters.
 
@@ -673,7 +673,7 @@ class RandGaussianSmooth(Randomizable, Transform):
         prob: float = 0.1,
         approx: str = "erf",
     ) -> None:
-        Randomizable.__init__(self, prob)
+        RandomizableTransform.__init__(self, prob)
         self.sigma_x = sigma_x
         self.sigma_y = sigma_y
         self.sigma_z = sigma_z
@@ -741,7 +741,7 @@ class GaussianSharpen(Transform):
         return (blurred_f + self.alpha * (blurred_f - filter_blurred_f)).squeeze(0).detach().numpy()
 
 
-class RandGaussianSharpen(Randomizable, Transform):
+class RandGaussianSharpen(RandomizableTransform):
     """
     Sharpen images using the Gaussian Blur filter based on randomly selected `sigma1`, `sigma2` and `alpha`.
     The algorithm is :py:class:`monai.transforms.GaussianSharpen`.
@@ -775,7 +775,7 @@ class RandGaussianSharpen(Randomizable, Transform):
         approx: str = "erf",
         prob: float = 0.1,
     ) -> None:
-        Randomizable.__init__(self, prob)
+        RandomizableTransform.__init__(self, prob)
         self.sigma1_x = sigma1_x
         self.sigma1_y = sigma1_y
         self.sigma1_z = sigma1_z
@@ -807,7 +807,7 @@ class RandGaussianSharpen(Randomizable, Transform):
         return GaussianSharpen(sigma1=sigma1, sigma2=sigma2, alpha=self.a, approx=self.approx)(img)
 
 
-class RandHistogramShift(Randomizable, Transform):
+class RandHistogramShift(RandomizableTransform):
     """
     Apply random nonlinear transform to the image's intensity histogram.
 
@@ -819,7 +819,7 @@ class RandHistogramShift(Randomizable, Transform):
     """
 
     def __init__(self, num_control_points: Union[Tuple[int, int], int] = 10, prob: float = 0.1) -> None:
-        Randomizable.__init__(self, prob)
+        RandomizableTransform.__init__(self, prob)
 
         if isinstance(num_control_points, int):
             if num_control_points <= 2:

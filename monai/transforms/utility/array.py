@@ -21,7 +21,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike, NdarrayTensor
-from monai.transforms.transform import Randomizable, Transform
+from monai.transforms.transform import RandomizableTransform, Transform
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points, map_binary_to_indices
 from monai.utils import ensure_tuple, min_version, optional_import
 
@@ -631,7 +631,7 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
         return np.stack(result, axis=0).astype(np.float32)
 
 
-class AddExtremePointsChannel(Transform, Randomizable):
+class AddExtremePointsChannel(RandomizableTransform):
     """
     Add extreme points of label to the image as a new channel. This transform generates extreme
     point from label and applies a gaussian filter. The pixel values in points image are rescaled

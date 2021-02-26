@@ -35,7 +35,7 @@ from monai.transforms.spatial.array import (
     Spacing,
     Zoom,
 )
-from monai.transforms.transform import MapTransform, Randomizable
+from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.transforms.utils import create_grid
 from monai.utils import (
     GridSampleMode,
@@ -274,7 +274,7 @@ class Rotate90d(MapTransform):
         return d
 
 
-class RandRotate90d(Randomizable, MapTransform):
+class RandRotate90d(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandRotate90`.
     With probability `prob`, input arrays are rotated by 90 degrees
@@ -300,7 +300,7 @@ class RandRotate90d(Randomizable, MapTransform):
                 Default: (0, 1), this is the first two axis in spatial dimensions.
         """
         MapTransform.__init__(self, keys)
-        Randomizable.__init__(self, prob)
+        RandomizableTransform.__init__(self, prob)
 
         self.max_k = max_k
         self.spatial_axes = spatial_axes
@@ -362,7 +362,7 @@ class Resized(MapTransform):
         return d
 
 
-class RandAffined(Randomizable, MapTransform):
+class RandAffined(RandomizableTransform, MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.RandAffine`.
     """
@@ -419,7 +419,7 @@ class RandAffined(Randomizable, MapTransform):
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
         """
         MapTransform.__init__(self, keys)
-        Randomizable.__init__(self, prob)
+        RandomizableTransform.__init__(self, prob)
         self.rand_affine = RandAffine(
             prob=1.0,  # because probability handled in this class
             rotate_range=rotate_range,
@@ -461,7 +461,7 @@ class RandAffined(Randomizable, MapTransform):
         return d
 
 
-class Rand2DElasticd(Randomizable, MapTransform):
+class Rand2DElasticd(RandomizableTransform, MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Rand2DElastic`.
     """
@@ -524,7 +524,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
         MapTransform.__init__(self, keys)
-        Randomizable.__init__(self, prob)
+        RandomizableTransform.__init__(self, prob)
         self.rand_2d_elastic = Rand2DElastic(
             spacing=spacing,
             magnitude_range=magnitude_range,
@@ -580,7 +580,7 @@ class Rand2DElasticd(Randomizable, MapTransform):
         return d
 
 
-class Rand3DElasticd(Randomizable, MapTransform):
+class Rand3DElasticd(RandomizableTransform, MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Rand3DElastic`.
     """
@@ -644,7 +644,7 @@ class Rand3DElasticd(Randomizable, MapTransform):
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
         MapTransform.__init__(self, keys)
-        Randomizable.__init__(self, prob)
+        RandomizableTransform.__init__(self, prob)
         self.rand_3d_elastic = Rand3DElastic(
             sigma_range=sigma_range,
             magnitude_range=magnitude_range,
@@ -717,7 +717,7 @@ class Flipd(MapTransform):
         return d
 
 
-class RandFlipd(Randomizable, MapTransform):
+class RandFlipd(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandFlip`.
 
@@ -737,7 +737,7 @@ class RandFlipd(Randomizable, MapTransform):
         spatial_axis: Optional[Union[Sequence[int], int]] = None,
     ) -> None:
         MapTransform.__init__(self, keys)
-        Randomizable.__init__(self, prob)
+        RandomizableTransform.__init__(self, prob)
         self.spatial_axis = spatial_axis
 
         self.flipper = Flip(spatial_axis=spatial_axis)
@@ -809,7 +809,7 @@ class Rotated(MapTransform):
         return d
 
 
-class RandRotated(Randomizable, MapTransform):
+class RandRotated(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandRotate`
     Randomly rotates the input arrays.
@@ -857,7 +857,7 @@ class RandRotated(Randomizable, MapTransform):
         dtype: Union[Sequence[DtypeLike], DtypeLike] = np.float64,
     ) -> None:
         MapTransform.__init__(self, keys)
-        Randomizable.__init__(self, prob)
+        RandomizableTransform.__init__(self, prob)
         self.range_x = ensure_tuple(range_x)
         if len(self.range_x) == 1:
             self.range_x = tuple(sorted([-self.range_x[0], self.range_x[0]]))
@@ -955,7 +955,7 @@ class Zoomd(MapTransform):
         return d
 
 
-class RandZoomd(Randomizable, MapTransform):
+class RandZoomd(RandomizableTransform, MapTransform):
     """
     Dict-based version :py:class:`monai.transforms.RandZoom`.
 
@@ -999,7 +999,7 @@ class RandZoomd(Randomizable, MapTransform):
         keep_size: bool = True,
     ) -> None:
         MapTransform.__init__(self, keys)
-        Randomizable.__init__(self, prob)
+        RandomizableTransform.__init__(self, prob)
         self.min_zoom = ensure_tuple(min_zoom)
         self.max_zoom = ensure_tuple(max_zoom)
         if len(self.min_zoom) != len(self.max_zoom):

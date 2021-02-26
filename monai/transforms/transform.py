@@ -20,32 +20,16 @@ import numpy as np
 from monai.config import KeysCollection
 from monai.utils import MAX_SEED, ensure_tuple
 
-__all__ = ["Randomizable", "Transform", "MapTransform"]
+__all__ = ["Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
 
 
 class Randomizable(ABC):
     """
     An interface for handling random state locally, currently based on a class variable `R`,
     which is an instance of `np.random.RandomState`.
-    This is mainly for randomized data augmentation transforms. For example::
-
-        class RandShiftIntensity(Randomizable):
-            def randomize():
-                self._offset = self.R.uniform(low=0, high=100)
-            def __call__(self, img):
-                self.randomize()
-                return img + self._offset
-
-        transform = RandShiftIntensity()
-        transform.set_random_state(seed=0)
-
     """
 
     R: np.random.RandomState = np.random.RandomState()
-
-    def __init__(self, prob=1.0, do_transform=False):
-        self._do_transform = do_transform
-        self.prob = min(max(prob, 0.0), 1.0)
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
@@ -89,8 +73,11 @@ class Randomizable(ABC):
         identify errors of sync the random state.
 
         This method can generate the random factors based on properties of the input data.
+
+        Raises:
+            NotImplementedError: When the subclass does not override this method.
         """
-        self._do_transform = self.R.rand() < self.prob
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
 class Transform(ABC):
@@ -139,6 +126,40 @@ class Transform(ABC):
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+
+
+class RandomizableTransform(Randomizable, Transform):
+    """
+    An interface for handling random state locally, currently based on a class variable `R`,
+    which is an instance of `np.random.RandomState`.
+    This is mainly for randomized data augmentation transforms. For example::
+
+        class RandShiftIntensity(RandomizableTransform):
+            def randomize():
+                self._offset = self.R.uniform(low=0, high=100)
+            def __call__(self, img):
+                self.randomize()
+                return img + self._offset
+
+        transform = RandShiftIntensity()
+        transform.set_random_state(seed=0)
+
+    """
+
+    def __init__(self, prob=1.0, do_transform=False):
+        self._do_transform = do_transform
+        self.prob = min(max(prob, 0.0), 1.0)
+
+    def randomize(self, data: Any) -> None:
+        """
+        Within this method, :py:attr:`self.R` should be used, instead of `np.random`, to introduce random factors.
+
+        all :py:attr:`self.R` calls happen here so that we have a better chance to
+        identify errors of sync the random state.
+
+        This method can generate the random factors based on properties of the input data.
+        """
+        self._do_transform = self.R.rand() < self.prob
 
 
 class MapTransform(Transform):

@@ -34,7 +34,7 @@ from monai.transforms.intensity.array import (
     ShiftIntensity,
     ThresholdIntensity,
 )
-from monai.transforms.transform import MapTransform, Randomizable
+from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.utils import dtype_torch_to_numpy, ensure_tuple_rep, ensure_tuple_size
 
 __all__ = [
@@ -92,7 +92,7 @@ __all__ = [
 ]
 
 
-class RandGaussianNoised(Randomizable, MapTransform):
+class RandGaussianNoised(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandGaussianNoise`.
     Add Gaussian noise to image. This transform assumes all the expected fields have same shape.
@@ -109,7 +109,7 @@ class RandGaussianNoised(Randomizable, MapTransform):
         self, keys: KeysCollection, prob: float = 0.1, mean: Union[Sequence[float], float] = 0.0, std: float = 0.1
     ) -> None:
         MapTransform.__init__(self, keys)
-        Randomizable.__init__(self, prob)
+        RandomizableTransform.__init__(self, prob)
         self.mean = ensure_tuple_rep(mean, len(self.keys))
         self.std = std
         self._noise: List[np.ndarray] = []
@@ -157,7 +157,7 @@ class ShiftIntensityd(MapTransform):
         return d
 
 
-class RandShiftIntensityd(Randomizable, MapTransform):
+class RandShiftIntensityd(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandShiftIntensity`.
     """
@@ -173,7 +173,7 @@ class RandShiftIntensityd(Randomizable, MapTransform):
                 (Default 0.1, with 10% probability it returns a rotated array.)
         """
         MapTransform.__init__(self, keys)
-        Randomizable.__init__(self, prob)
+        RandomizableTransform.__init__(self, prob)
 
         if isinstance(offsets, (int, float)):
             self.offsets = (min(-offsets, offsets), max(-offsets, offsets))
@@ -226,7 +226,7 @@ class ScaleIntensityd(MapTransform):
         return d
 
 
-class RandScaleIntensityd(Randomizable, MapTransform):
+class RandScaleIntensityd(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandScaleIntensity`.
     """
@@ -243,7 +243,7 @@ class RandScaleIntensityd(Randomizable, MapTransform):
 
         """
         MapTransform.__init__(self, keys)
-        Randomizable.__init__(self, prob)
+        RandomizableTransform.__init__(self, prob)
 
         if isinstance(factors, (int, float)):
             self.factors = (min(-factors, factors), max(-factors, factors))
@@ -377,7 +377,7 @@ class AdjustContrastd(MapTransform):
         return d
 
 
-class RandAdjustContrastd(Randomizable, MapTransform):
+class RandAdjustContrastd(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandAdjustContrast`.
     Randomly changes image intensity by gamma. Each pixel/voxel intensity is updated as:
@@ -396,7 +396,7 @@ class RandAdjustContrastd(Randomizable, MapTransform):
         self, keys: KeysCollection, prob: float = 0.1, gamma: Union[Tuple[float, float], float] = (0.5, 4.5)
     ) -> None:
         MapTransform.__init__(self, keys)
-        Randomizable.__init__(self, prob)
+        RandomizableTransform.__init__(self, prob)
 
         if isinstance(gamma, (int, float)):
             if gamma <= 0.5:
@@ -523,7 +523,7 @@ class GaussianSmoothd(MapTransform):
         return d
 
 
-class RandGaussianSmoothd(Randomizable, MapTransform):
+class RandGaussianSmoothd(RandomizableTransform, MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.GaussianSmooth`.
 
@@ -549,7 +549,7 @@ class RandGaussianSmoothd(Randomizable, MapTransform):
         prob: float = 0.1,
     ) -> None:
         MapTransform.__init__(self, keys)
-        Randomizable.__init__(self, prob)
+        RandomizableTransform.__init__(self, prob)
         self.sigma_x = sigma_x
         self.sigma_y = sigma_y
         self.sigma_z = sigma_z
@@ -609,7 +609,7 @@ class GaussianSharpend(MapTransform):
         return d
 
 
-class RandGaussianSharpend(Randomizable, MapTransform):
+class RandGaussianSharpend(RandomizableTransform, MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.GaussianSharpen`.
 
@@ -646,7 +646,7 @@ class RandGaussianSharpend(Randomizable, MapTransform):
         prob: float = 0.1,
     ):
         MapTransform.__init__(self, keys)
-        Randomizable.__init__(self, prob)
+        RandomizableTransform.__init__(self, prob)
         self.sigma1_x = sigma1_x
         self.sigma1_y = sigma1_y
         self.sigma1_z = sigma1_z
@@ -681,7 +681,7 @@ class RandGaussianSharpend(Randomizable, MapTransform):
         return d
 
 
-class RandHistogramShiftd(Randomizable, MapTransform):
+class RandHistogramShiftd(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandHistogramShift`.
     Apply random nonlinear transform the the image's intensity histogram.
@@ -699,7 +699,7 @@ class RandHistogramShiftd(Randomizable, MapTransform):
         self, keys: KeysCollection, num_control_points: Union[Tuple[int, int], int] = 10, prob: float = 0.1
     ) -> None:
         MapTransform.__init__(self, keys)
-        Randomizable.__init__(self, prob)
+        RandomizableTransform.__init__(self, prob)
         if isinstance(num_control_points, int):
             if num_control_points <= 2:
                 raise AssertionError("num_control_points should be greater than or equal to 3")

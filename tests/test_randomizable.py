@@ -13,10 +13,10 @@ import unittest
 
 import numpy as np
 
-from monai.transforms import Randomizable
+from monai.transforms.transform import RandomizableTransform
 
 
-class RandTest(Randomizable):
+class RandTest(RandomizableTransform):
     def randomize(self, data=None):
         pass
 
