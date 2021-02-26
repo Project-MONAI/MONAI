@@ -15,7 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 import logging
 import time
-from typing import Callable, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -24,6 +24,15 @@ from monai.config import DtypeLike, NdarrayTensor
 from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points, map_binary_to_indices
 from monai.utils import ensure_tuple, min_version, optional_import
+
+if TYPE_CHECKING:
+    from PIL.Image import Image as PILImageImage
+    from PIL.Image import fromarray as pil_image_fromarray
+
+    has_pil = True
+else:
+    PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
+    pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
 
 __all__ = [
     "Identity",
@@ -265,7 +274,7 @@ class ToTensor(Transform):
     Converts the input image to a tensor without applying any other transformations.
     """
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> torch.Tensor:
+    def __call__(self, img: Union[np.ndarray, torch.Tensor, PILImageImage]) -> torch.Tensor:
         """
         Apply the transform to `img` and make it contiguous.
         """
@@ -279,13 +288,29 @@ class ToNumpy(Transform):
     Converts the input data to numpy array, can support list or tuple of numbers and PyTorch Tensor.
     """
 
-    def __call__(self, img: Union[List, Tuple, np.ndarray, torch.Tensor]) -> np.ndarray:
+    def __call__(self, img: Union[List, Tuple, np.ndarray, torch.Tensor, PILImageImage]) -> np.ndarray:
         """
         Apply the transform to `img` and make it contiguous.
         """
         if isinstance(img, torch.Tensor):
             img = img.detach().cpu().numpy()  # type: ignore
         return np.ascontiguousarray(img)
+
+
+class ToPIL(Transform):
+    """
+    Converts the input image (in the form of NumPy array or PyTorch Tensor) to PIL image
+    """
+
+    def __call__(self, img: Union[np.ndarray, torch.Tensor, PILImageImage]) -> PILImageImage:
+        """
+        Apply the transform to `img` and make it contiguous.
+        """
+        if isinstance(img, PILImageImage):
+            return img
+        if isinstance(img, torch.Tensor):
+            img = img.detach().cpu().numpy()
+        return pil_image_fromarray(img)
 
 
 class Transpose(Transform):
