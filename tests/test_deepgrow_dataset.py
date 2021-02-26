@@ -19,6 +19,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.apps.deepgrow.dataset import create_dataset
+from monai.utils import set_determinism
 
 TEST_CASE_1 = [{"dimension": 2, "pixdim": (1, 1)}, {"length": 3}, 9, 1]
 
@@ -49,6 +50,7 @@ TEST_CASE_8 = [
 
 class TestCreateDataset(unittest.TestCase):
     def setUp(self):
+        set_determinism(1)
         self.tempdir = tempfile.mkdtemp()
 
     def _create_data(self, length=1, image_channel=1, with_label=True):
@@ -97,6 +99,7 @@ class TestCreateDataset(unittest.TestCase):
 
     def tearDown(self):
         shutil.rmtree(self.tempdir)
+        set_determinism(None)
 
 
 if __name__ == "__main__":
