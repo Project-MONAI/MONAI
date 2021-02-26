@@ -8,8 +8,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import json
-from typing import Callable, Optional, Sequence, Union
+from typing import Callable, Dict, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -48,7 +47,7 @@ class FindAllValidSlicesd(Transform):
         return np.asarray(sids)
 
     def __call__(self, data):
-        d = dict(data)
+        d: Dict = dict(data)
         label = d[self.label]
         if label.shape[0] != 1:
             raise ValueError("Only supports single channel labels!")
@@ -87,14 +86,23 @@ class AddInitialSeedPointd(RandomizableTransform):
         sid: str = "sid",
         connected_regions: int = 5,
     ):
+        super().__init__(prob=1.0, do_transform=True)
         self.label = label
-        self.sids = sids
-        self.sid = sid
+        self.sids_key = sids
+        self.sid_key = sid
+        self.sid = None
         self.guidance = guidance
         self.connected_regions = connected_regions
 
-    def randomize(self, data=None):
-        pass
+    def randomize(self, data):
+        sid = data.get(self.sid_key, None)
+        sids = data.get(self.sids_key, None)
+        if sids is not None:
+            if sid is None or sid not in sids:
+                sid = self.R.choice(sids, replace=False)
+        else:
+            sid = None
+        self.sid = sid
 
     def _apply(self, label, sid):
         dimensions = 3 if len(label.shape) > 3 else 2
@@ -135,14 +143,8 @@ class AddInitialSeedPointd(RandomizableTransform):
 
     def __call__(self, data):
         d = dict(data)
-        sid = d.get(self.sid, None)
-        sids = d.get(self.sids, None)
-        if sids is not None:
-            if sid is None or sid not in sids:
-                sid = self.R.choice(sids, replace=False)
-        else:
-            sid = None
-        d[self.guidance] = self._apply(d[self.label], sid)
+        self.randomize(data)
+        d[self.guidance] = self._apply(d[self.label], self.sid)
         return d
 
 
@@ -317,6 +319,7 @@ class AddRandomGuidanced(RandomizableTransform):
         probability: str = "probability",
         batched: bool = True,
     ):
+        super().__init__(prob=1.0, do_transform=True)
         self.guidance = guidance
         self.discrepancy = discrepancy
         self.probability = probability
@@ -469,8 +472,8 @@ class SpatialCropForegroundd(MapTransform):
             d[self.source_key], self.select_fn, self.channel_indices, self.margin
         )
 
-        center = np.mean([box_start, box_end], axis=0).astype(int).tolist()
-        current_size = np.subtract(box_end, box_start).astype(int).tolist()
+        center = list(np.mean([box_start, box_end], axis=0).astype(int))
+        current_size = list(np.subtract(box_end, box_start).astype(int))
 
         if np.all(np.less(current_size, self.spatial_size)):
             cropper = SpatialCrop(roi_center=center, roi_size=self.spatial_size)
@@ -515,7 +518,7 @@ class AddGuidanceFromPointsd(Transform):
         axis: axis that represents slices in 3D volume. (axis to Depth)
         depth_first: if depth (slices) is positioned at first dimension.
         dimensions: dimensions based on model used for deepgrow (2D vs 3D).
-        slice: key that represents applicable slice to add guidance.
+        slice_key: key that represents applicable slice to add guidance.
         meta_key_postfix: use `{ref_image}_{postfix}` to to fetch the meta data according to the key data,
             default is `meta_dict`, the meta data is a dictionary object.
             For example, to handle key `image`,  read/write affine matrices from the
@@ -531,7 +534,7 @@ class AddGuidanceFromPointsd(Transform):
         axis: int = 0,
         depth_first: bool = True,
         dimensions: int = 2,
-        slice: str = "slice",
+        slice_key: str = "slice",
         meta_key_postfix: str = "meta_dict",
     ):
         self.ref_image = ref_image
@@ -541,7 +544,7 @@ class AddGuidanceFromPointsd(Transform):
         self.axis = axis
         self.depth_first = depth_first
         self.dimensions = dimensions
-        self.slice = slice
+        self.slice = slice_key
         self.meta_key_postfix = meta_key_postfix
 
     def _apply(self, pos_clicks, neg_clicks, factor, slice_num):
@@ -552,7 +555,7 @@ class AddGuidanceFromPointsd(Transform):
             points.extend(neg_clicks)
             points = np.array(points)
 
-            slices = np.unique(points[:, self.axis]).tolist()
+            slices = list(np.unique(points[:, self.axis]))
             slice_idx = slices[0] if slice_num is None else next(x for x in slices if x == slice_num)
 
             if len(pos_clicks):
@@ -591,11 +594,11 @@ class AddGuidanceFromPointsd(Transform):
 
         fg_bg_clicks = []
         for key in [self.foreground, self.background]:
-            clicks = json.loads(d[key]) if isinstance(d[key], str) else d[key]
-            clicks = np.array(clicks).astype(int).tolist()
+            clicks = d[key]
+            clicks = list(np.array(clicks).astype(int))
             if self.depth_first:
                 for i in range(len(clicks)):
-                    clicks[i] = np.roll(clicks[i], 1).tolist()
+                    clicks[i] = list(np.roll(clicks[i], 1))
             fg_bg_clicks.append(clicks)
         d[self.guidance] = self._apply(fg_bg_clicks[0], fg_bg_clicks[1], factor, d.get(self.slice, None))
         return d
@@ -669,14 +672,14 @@ class SpatialCropGuidanced(MapTransform):
         return box_start, box_end
 
     def __call__(self, data):
-        d = dict(data)
+        d: Dict = dict(data)
         guidance = d[self.guidance]
         original_spatial_shape = d[self.keys[0]].shape[1:]
         box_start, box_end = self.bounding_box(np.array(guidance[0] + guidance[1]), original_spatial_shape)
-        center = np.mean([box_start, box_end], axis=0).astype(int).tolist()
+        center = list(np.mean([box_start, box_end], axis=0).astype(int))
         spatial_size = self.spatial_size
 
-        box_size = np.subtract(box_end, box_start).astype(int).tolist()
+        box_size = list(np.subtract(box_end, box_start).astype(int))
         spatial_size = spatial_size[-len(box_size) :]
 
         if len(spatial_size) < len(box_size):
@@ -746,7 +749,7 @@ class ResizeGuidanced(Transform):
     def __call__(self, data):
         d = dict(data)
         guidance = d[self.guidance]
-        meta_dict = d[f"{self.ref_image}_{self.meta_key_postfix}"]
+        meta_dict: Dict = d[f"{self.ref_image}_{self.meta_key_postfix}"]
         current_shape = d[self.ref_image].shape[1:]
         cropped_shape = meta_dict[self.cropped_shape_key][1:]
         factor = np.divide(current_shape, cropped_shape)
@@ -829,7 +832,7 @@ class RestoreLabeld(MapTransform):
 
     def __call__(self, data):
         d = dict(data)
-        meta_dict = d[f"{self.ref_image}_{self.meta_key_postfix}"]
+        meta_dict: Dict = d[f"{self.ref_image}_{self.meta_key_postfix}"]
 
         for idx, key in enumerate(self.keys):
             image = d[key]
@@ -855,7 +858,7 @@ class RestoreLabeld(MapTransform):
             # Undo Spacing
             current_size = result.shape[1:]
             # change spatial_shape from HWD to DHW
-            spatial_shape = np.roll(meta_dict["spatial_shape"], 1).tolist()
+            spatial_shape = list(np.roll(meta_dict["spatial_shape"], 1))
             spatial_size = spatial_shape[-len(current_size) :]
 
             if np.any(np.not_equal(current_size, spatial_size)):
@@ -868,7 +871,7 @@ class RestoreLabeld(MapTransform):
                 final_result = result if len(result.shape) <= 3 else result[0]
             else:
                 slice_idx = meta_dict["slice_idx"][0]
-                final_result = np.zeros(spatial_shape)
+                final_result = np.zeros(tuple(spatial_shape))
                 final_result[slice_idx] = result
             d[key] = final_result
 

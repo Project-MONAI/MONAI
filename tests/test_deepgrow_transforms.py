@@ -263,9 +263,16 @@ ADD_GUIDANCE_FROM_POINTS_TEST_CASE_4 = [
 ]
 
 ADD_GUIDANCE_FROM_POINTS_TEST_CASE_5 = [
-    {"ref_image": "image", "dimensions": 2, "guidance": "guidance", "depth_first": True, "slice": "slice"},
+    {"ref_image": "image", "dimensions": 2, "guidance": "guidance", "depth_first": True, "slice_key": "slice"},
     DATA_7,
     [[5, 7]],
+    [],
+]
+
+ADD_GUIDANCE_FROM_POINTS_TEST_CASE_6 = [
+    {"ref_image": "image", "dimensions": 2, "guidance": "guidance", "depth_first": True},
+    DATA_5,
+    [[2, 2]],
     [],
 ]
 
@@ -408,6 +415,7 @@ class TestAddGuidanceFromPointsd(unittest.TestCase):
             ADD_GUIDANCE_FROM_POINTS_TEST_CASE_3,
             ADD_GUIDANCE_FROM_POINTS_TEST_CASE_4,
             ADD_GUIDANCE_FROM_POINTS_TEST_CASE_5,
+            ADD_GUIDANCE_FROM_POINTS_TEST_CASE_6,
         ]
     )
     def test_correct_results(self, arguments, input_data, expected_pos, expected_neg):
