@@ -148,3 +148,9 @@ class DVF2DDF(nn.Module):
         for _ in range(self.num_steps):
             ddf = ddf + self.warp_layer(image=ddf, ddf=ddf)
         return ddf
+
+
+if __name__ == "__main__":
+    ddf = torch.ones((1, 3, 2, 2, 2)) * 0.5
+    layer = Warp(spatial_dims=3)
+    print(layer(ddf, ddf)[0, 0])

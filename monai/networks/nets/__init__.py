@@ -17,6 +17,7 @@ from .densenet import DenseNet, densenet121, densenet169, densenet201, densenet2
 from .dynunet import DynUNet, DynUnet, Dynunet
 from .fullyconnectednet import FullyConnectedNet, VarFullyConnectedNet
 from .generator import Generator
+from .globalnet import GlobalNet
 from .highresnet import HighResBlock, HighResNet
 from .localnet import LocalNet
 from .regressor import Regressor

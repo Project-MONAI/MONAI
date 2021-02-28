@@ -350,6 +350,11 @@ Nets
 .. autoclass:: RegUNet
   :members:
 
+`GlobalNet`
+~~~~~~~~~~
+.. autoclass:: GlobalNet
+  :members:
+
 `LocalNet`
 ~~~~~~~~~~~
 .. autoclass:: LocalNet
