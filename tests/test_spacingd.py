@@ -49,7 +49,10 @@ class TestSpacingDCase(unittest.TestCase):
             ),
         )
         res = spacing(data)
-        self.assertEqual(("image", "image_meta_dict", "image_transforms", "seg", "seg_meta_dict", "seg_transforms"), tuple(sorted(res)))
+        self.assertEqual(
+            ("image", "image_meta_dict", "image_transforms", "seg", "seg_meta_dict", "seg_transforms"),
+            tuple(sorted(res)),
+        )
         np.testing.assert_allclose(res["image"].shape, (2, 1, 46))
         np.testing.assert_allclose(res["image_meta_dict"]["affine"], np.diag((1, 0.2, 1, 1)))
 
@@ -69,7 +72,10 @@ class TestSpacingDCase(unittest.TestCase):
             ),
         )
         res = spacing(data)
-        self.assertEqual(("image", "image_meta_dict", "image_transforms", "seg", "seg_meta_dict", "seg_transforms"), tuple(sorted(res)))
+        self.assertEqual(
+            ("image", "image_meta_dict", "image_transforms", "seg", "seg_meta_dict", "seg_transforms"),
+            tuple(sorted(res)),
+        )
         np.testing.assert_allclose(res["image"].shape, (2, 1, 46))
         np.testing.assert_allclose(res["image_meta_dict"]["affine"], np.diag((1, 0.2, 1, 1)))
 
