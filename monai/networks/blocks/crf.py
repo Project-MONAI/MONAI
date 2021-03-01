@@ -56,11 +56,11 @@ class CRF(torch.nn.Module):
 
     def __init__(
         self,
-        bilateral_weight: [float] = 0.8,
-        gaussian_weight: [float] = 0.2,
-        bilateral_spatial_sigma: [float] = 64,
-        bilateral_color_sigma: [float] = 0.2,
-        gaussian_spatial_sigma: [float] = 64,
+        bilateral_weight: [float] = 1.0,
+        gaussian_weight: [float] = 1.0,
+        bilateral_spatial_sigma: [float] = 5.0,
+        bilateral_color_sigma: [float] = 0.5,
+        gaussian_spatial_sigma: [float] = 5.0,
         compatability_kernel_range: [int] = 1,
         iterations: [int] = 5,
     ):
