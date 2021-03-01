@@ -20,8 +20,8 @@ from typing import Callable, Dict, Hashable, List, Mapping, Optional, Sequence, 
 import numpy as np
 import torch
 
+import monai.data
 from monai.config import KeysCollection
-from monai.transforms.compose import MapTransform
 from monai.transforms.post.array import (
     Activations,
     AsDiscrete,
@@ -30,6 +30,7 @@ from monai.transforms.post.array import (
     MeanEnsemble,
     VoteEnsemble,
 )
+from monai.transforms.transform import MapTransform
 from monai.utils import ensure_tuple_rep
 
 __all__ = [
@@ -52,6 +53,9 @@ __all__ = [
     "MeanEnsembleDict",
     "VoteEnsembleD",
     "VoteEnsembleDict",
+    "DecollateD",
+    "DecollateDict",
+    "Decollated",
 ]
 
 
@@ -306,9 +310,28 @@ class VoteEnsembled(Ensembled):
         super().__init__(keys, ensemble, output_key)
 
 
+class Decollated(MapTransform):
+    """
+    Decollate a batch of data.
+
+    Note that unlike most MapTransforms, this will decollate all data, so keys are not needed.
+
+    Args:
+        batch_size: if not supplied, we try to determine it based on array lengths. Will raise an error if
+            it fails to determine it automatically.
+    """
+
+    def __init__(self, batch_size: Optional[int] = None) -> None:
+        self.batch_size = batch_size
+
+    def __call__(self, data: dict) -> List[dict]:
+        return monai.data.decollate_batch(data, self.batch_size)
+
+
 ActivationsD = ActivationsDict = Activationsd
 AsDiscreteD = AsDiscreteDict = AsDiscreted
 KeepLargestConnectedComponentD = KeepLargestConnectedComponentDict = KeepLargestConnectedComponentd
 LabelToContourD = LabelToContourDict = LabelToContourd
 MeanEnsembleD = MeanEnsembleDict = MeanEnsembled
 VoteEnsembleD = VoteEnsembleDict = VoteEnsembled
+DecollateD = DecollateDict = Decollated
