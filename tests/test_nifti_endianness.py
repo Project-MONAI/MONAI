@@ -1,13 +1,14 @@
-from monai.utils.module import optional_import
+import tempfile
+import unittest
 from typing import List, Tuple
 from unittest.case import skipUnless
-from monai.data import Dataset, DataLoader
-from monai.transforms import LoadImaged, LoadImage
-from monai.data import create_test_image_2d
+
 import numpy as np
-import unittest
-import tempfile
 from parameterized import parameterized
+
+from monai.data import DataLoader, Dataset, create_test_image_2d
+from monai.transforms import LoadImage, LoadImaged
+from monai.utils.module import optional_import
 
 nib, has_nib = optional_import("nibabel")
 
@@ -17,6 +18,7 @@ for endianness in ["<", ">"]:
         for image_only in [True, False]:
             TESTS.append((endianness, use_array, image_only))
 
+
 class TestNiftiEndianness(unittest.TestCase):
     def setUp(self):
         self.im, _ = create_test_image_2d(100, 100)
@@ -24,7 +26,7 @@ class TestNiftiEndianness(unittest.TestCase):
 
     @skipUnless(has_nib, "Requires NiBabel")
     @parameterized.expand(TESTS)
-    def test_value(self, endianness, use_array, image_only):
+    def test_endianness(self, endianness, use_array, image_only):
 
         hdr = nib.Nifti1Header(endianness=endianness)
         nii = nib.Nifti1Image(self.im, np.eye(4), header=hdr)
@@ -35,6 +37,7 @@ class TestNiftiEndianness(unittest.TestCase):
         check_ds = Dataset(data, tr)
         check_loader = DataLoader(check_ds, batch_size=1)
         _ = next(iter(check_loader))
+
 
 if __name__ == "__main__":
     unittest.main()

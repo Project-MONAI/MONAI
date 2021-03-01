@@ -33,6 +33,27 @@ Image, _ = optional_import("PIL.Image")
 __all__ = ["LoadImage", "SaveImage"]
 
 
+def switch_endianness(data, old, new):
+    """
+    If any numpy arrays have `old` (e.g., ">"),
+    replace with `new` (e.g., "<").
+    """
+    if isinstance(data, np.ndarray):
+        if data.dtype.byteorder == old:
+            data = data.newbyteorder(new)
+    elif isinstance(data, tuple):
+        data = (switch_endianness(x, old, new) for x in data)
+    elif isinstance(data, list):
+        data = [switch_endianness(x, old, new) for x in data]
+    elif isinstance(data, dict):
+        data = {k: switch_endianness(v, old, new) for k, v in data.items()}
+    elif isinstance(data, (bool, str)):
+        pass
+    else:
+        raise AssertionError()
+    return data
+
+
 class LoadImage(Transform):
     """
     Load image file or files from provided path based on reader.
@@ -132,6 +153,9 @@ class LoadImage(Transform):
         if self.image_only:
             return img_array
         meta_data[Key.FILENAME_OR_OBJ] = ensure_tuple(filename)[0]
+        # make sure all elements in metadata are little endian
+        meta_data = switch_endianness(meta_data, ">", "<")
+
         return img_array, meta_data
 
 
