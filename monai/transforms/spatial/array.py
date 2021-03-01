@@ -782,6 +782,7 @@ class RandAxisFlip(RandomizableTransform):
         prob: Probability of flipping.
 
     """
+
     def __init__(self, prob: float = 0.1) -> None:
         RandomizableTransform.__init__(self, min(max(prob, 0.0), 1.0))
         self._axis: Optional[int] = None

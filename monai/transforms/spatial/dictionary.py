@@ -766,6 +766,7 @@ class RandAxisFlipd(RandomizableTransform, MapTransform):
         prob: Probability of flipping.
 
     """
+
     def __init__(self, keys: KeysCollection, prob: float = 0.1) -> None:
         MapTransform.__init__(self, keys)
         RandomizableTransform.__init__(self, prob)
