@@ -772,9 +772,9 @@ class RandAxisFlipd(RandomizableTransform, MapTransform):
         RandomizableTransform.__init__(self, prob)
         self._axis: Optional[int] = None
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, data: np.ndarray) -> None:
         super().randomize(None)
-        self._axis = self.R.randint(data.ndim)
+        self._axis = self.R.randint(data.ndim - 1)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         self.randomize(data=data[self.keys[0]])

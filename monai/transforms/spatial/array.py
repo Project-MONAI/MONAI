@@ -787,9 +787,9 @@ class RandAxisFlip(RandomizableTransform):
         RandomizableTransform.__init__(self, min(max(prob, 0.0), 1.0))
         self._axis: Optional[int] = None
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, data: np.ndarray) -> None:
         super().randomize(None)
-        self._axis = self.R.randint(data.ndim)
+        self._axis = self.R.randint(data.ndim - 1)
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
         """
