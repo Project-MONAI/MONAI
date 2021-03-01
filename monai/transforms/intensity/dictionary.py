@@ -140,19 +140,20 @@ class ShiftIntensityd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.ShiftIntensity`.
     """
 
-    def __init__(self, keys: KeysCollection, offset: float) -> None:
+    def __init__(self, keys: KeysCollection, offset: float, allow_missing_keys: bool = False) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             offset: offset value to shift the intensity of image.
+            allow_missing_keys: don't raise exception if key is missing.
         """
-        super().__init__(keys)
+        super().__init__(keys, allow_missing_keys)
         self.shifter = ShiftIntensity(offset)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        for key in self.keys:
+        for key in self.generator(d):
             d[key] = self.shifter(d[key])
         return d
 

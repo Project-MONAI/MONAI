@@ -13,7 +13,7 @@ A collection of generic interfaces for MONAI transforms.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Hashable, Optional, Tuple
+from typing import Any, Dict, Hashable, Iterable, Optional, Tuple
 
 import numpy as np
 
@@ -178,7 +178,7 @@ class MapTransform(Transform):
                     if key in data:
                         # update output data with some_transform_function(data[key]).
                     else:
-                        # do nothing or some exceptions handling.
+                        # raise exception unless allow_missing_keys==True.
                 return data
 
     Raises:
@@ -187,8 +187,9 @@ class MapTransform(Transform):
 
     """
 
-    def __init__(self, keys: KeysCollection) -> None:
+    def __init__(self, keys: KeysCollection, allow_missing_keys: bool) -> None:
         self.keys: Tuple[Hashable, ...] = ensure_tuple(keys)
+        self.allow_missing_keys = allow_missing_keys
         if not self.keys:
             raise ValueError("keys must be non empty.")
         for key in self.keys:
@@ -224,3 +225,19 @@ class MapTransform(Transform):
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+
+    def generator(
+        self,
+        data: Dict[str, Any],
+        extra_iterables: Optional[Iterable] = None,
+    ):
+        if extra_iterables is None:
+            for key in self.keys:
+                if key not in data.keys() and self.allow_missing_keys:
+                    continue
+                yield key
+        else:
+            for key, *extra_iterables in zip(self.keys, extra_iterables):
+                if key not in data.keys() and self.allow_missing_keys:
+                    continue
+                yield [key] + extra_iterables
