@@ -1,6 +1,6 @@
 import tempfile
 import unittest
-from typing import List, Tuple
+from typing import TYPE_CHECKING, List, Tuple
 from unittest.case import skipUnless
 
 import numpy as np
@@ -10,7 +10,12 @@ from monai.data import DataLoader, Dataset, create_test_image_2d
 from monai.transforms import LoadImage, LoadImaged
 from monai.utils.module import optional_import
 
-nib, has_nib = optional_import("nibabel")
+if TYPE_CHECKING:
+    import nibabel as nib
+
+    has_nib = True
+else:
+    nib, has_nib = optional_import("nibabel")
 
 TESTS: List[Tuple] = []
 for endianness in ["<", ">"]:
