@@ -906,9 +906,7 @@ class Rand3DElasticd(RandomizableTransform, MapTransform, InvertibleTransform, N
             affine = np.eye(len(sp_size) + 1)
 
         for idx, key in enumerate(self.keys):
-            self.append_applied_transforms(
-                d, key, extra_info={"grid_no_affine": grid_no_affine, "affine": affine}
-            )
+            self.append_applied_transforms(d, key, extra_info={"grid_no_affine": grid_no_affine, "affine": affine})
             d[key] = self.rand_3d_elastic.resampler(
                 d[key], grid_w_affine, mode=self.mode[idx], padding_mode=self.padding_mode[idx]
             )
