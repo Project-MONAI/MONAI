@@ -15,6 +15,8 @@ defined in :py:class:`monai.transforms.croppad.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
+from copy import deepcopy
+from math import floor
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -30,6 +32,7 @@ from monai.transforms.croppad.array import (
     SpatialCrop,
     SpatialPad,
 )
+from monai.transforms.inverse_transform import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utils import (
     generate_pos_neg_label_crop_centers,
@@ -82,7 +85,7 @@ __all__ = [
 NumpyPadModeSequence = Union[Sequence[Union[NumpyPadMode, str]], NumpyPadMode, str]
 
 
-class SpatialPadd(MapTransform):
+class SpatialPadd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SpatialPad`.
     Performs padding to the data, symmetric for all sides or all on one side for each dimension.
@@ -117,11 +120,34 @@ class SpatialPadd(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key, m in zip(self.keys, self.mode):
+            self.append_applied_transforms(d, key)
             d[key] = self.padder(d[key], mode=m)
         return d
 
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in keys or self.keys:
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            orig_size = transform["orig_size"]
+            if self.padder.method == Method.SYMMETRIC:
+                current_size = d[key].shape[1:]
+                roi_center = [floor(i / 2) if r % 2 == 0 else (i - 1) // 2 for r, i in zip(orig_size, current_size)]
+            else:
+                roi_center = [floor(r / 2) if r % 2 == 0 else (r - 1) // 2 for r in orig_size]
 
-class BorderPadd(MapTransform):
+            inverse_transform = SpatialCrop(roi_center, orig_size)
+            # Apply inverse transform
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
+
+        return d
+
+
+class BorderPadd(MapTransform, InvertibleTransform):
     """
     Pad the input data by adding specified borders to every dimension.
     Dictionary-based wrapper of :py:class:`monai.transforms.BorderPad`.
@@ -162,11 +188,38 @@ class BorderPadd(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key, m in zip(self.keys, self.mode):
+            self.append_applied_transforms(d, key)
             d[key] = self.padder(d[key], mode=m)
         return d
 
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
 
-class DivisiblePadd(MapTransform):
+        for key in keys or self.keys:
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            orig_size = np.array(transform["orig_size"])
+            roi_start = np.array(self.padder.spatial_border)
+            # Need to convert single value to [min1,min2,...]
+            if roi_start.size == 1:
+                roi_start = np.full((len(orig_size)), roi_start)
+            # need to convert [min1,max1,min2,...] to [min1,min2,...]
+            elif roi_start.size == 2 * orig_size.size:
+                roi_start = roi_start[::2]
+            roi_end = np.array(transform["orig_size"]) + roi_start
+
+            inverse_transform = SpatialCrop(roi_start=roi_start, roi_end=roi_end)
+            # Apply inverse transform
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
+
+        return d
+
+
+class DivisiblePadd(MapTransform, InvertibleTransform):
     """
     Pad the input data, so that the spatial sizes are divisible by `k`.
     Dictionary-based wrapper of :py:class:`monai.transforms.DivisiblePad`.
@@ -198,11 +251,32 @@ class DivisiblePadd(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key, m in zip(self.keys, self.mode):
+            self.append_applied_transforms(d, key)
             d[key] = self.padder(d[key], mode=m)
         return d
 
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
 
-class SpatialCropd(MapTransform):
+        for key in keys or self.keys:
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            orig_size = np.array(transform["orig_size"])
+            current_size = np.array(d[key].shape[1:])
+            roi_start = np.floor((current_size - orig_size) / 2)
+            roi_end = orig_size + roi_start
+            inverse_transform = SpatialCrop(roi_start=roi_start, roi_end=roi_end)
+            # Apply inverse transform
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
+
+        return d
+
+
+class SpatialCropd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SpatialCrop`.
     Either a spatial center and size must be provided, or alternatively if center and size
@@ -232,11 +306,35 @@ class SpatialCropd(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
+            self.append_applied_transforms(d, key)
             d[key] = self.cropper(d[key])
         return d
 
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
 
-class CenterSpatialCropd(MapTransform):
+        for key in keys or self.keys:
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            orig_size = transform["orig_size"]
+            pad_to_start = self.cropper.roi_start
+            pad_to_end = orig_size - self.cropper.roi_end
+            # interweave mins and maxes
+            pad = np.empty((2 * len(orig_size)), dtype=np.int32)
+            pad[0::2] = pad_to_start
+            pad[1::2] = pad_to_end
+            inverse_transform = BorderPad(pad.tolist())
+            # Apply inverse transform
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
+
+        return d
+
+
+class CenterSpatialCropd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.CenterSpatialCrop`.
 
@@ -254,11 +352,38 @@ class CenterSpatialCropd(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
+            orig_size = d[key].shape[1:]
             d[key] = self.cropper(d[key])
+            self.append_applied_transforms(d, key, orig_size=orig_size)
+        return d
+
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+
+        for key in keys or self.keys:
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            orig_size = np.array(transform["orig_size"])
+            current_size = np.array(d[key].shape[1:])
+            pad_to_start = np.floor((orig_size - current_size) / 2)
+            # in each direction, if original size is even and current size is odd, += 1
+            pad_to_start[np.logical_and(orig_size % 2 == 0, current_size % 2 == 1)] += 1
+            pad_to_end = orig_size - current_size - pad_to_start
+            pad = np.empty((2 * len(orig_size)), dtype=np.int32)
+            pad[0::2] = pad_to_start
+            pad[1::2] = pad_to_end
+            inverse_transform = BorderPad(pad.tolist())
+            # Apply inverse transform
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
+
         return d
 
 
-class RandSpatialCropd(RandomizableTransform, MapTransform):
+class RandSpatialCropd(RandomizableTransform, MapTransform, InvertibleTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandSpatialCrop`.
     Crop image with random size or specific size ROI. It can crop at a random position as
@@ -285,6 +410,7 @@ class RandSpatialCropd(RandomizableTransform, MapTransform):
     ) -> None:
         RandomizableTransform.__init__(self)
         MapTransform.__init__(self, keys)
+        self._do_transform = True
         self.roi_size = roi_size
         self.random_center = random_center
         self.random_size = random_size
@@ -306,10 +432,48 @@ class RandSpatialCropd(RandomizableTransform, MapTransform):
             raise AssertionError
         for key in self.keys:
             if self.random_center:
+                self.append_applied_transforms(d, key, {"slices": [(i.start, i.stop) for i in self._slices[1:]]})  # type: ignore
                 d[key] = d[key][self._slices]
             else:
+                self.append_applied_transforms(d, key)
                 cropper = CenterSpatialCrop(self._size)
                 d[key] = cropper(d[key])
+        return d
+
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+
+        for key in keys or self.keys:
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            orig_size = transform["orig_size"]
+            random_center = self.random_center
+            pad_to_start = np.empty((len(orig_size)), dtype=np.int32)
+            pad_to_end = np.empty((len(orig_size)), dtype=np.int32)
+            if random_center:
+                for i, _slice in enumerate(transform["extra_info"]["slices"]):
+                    pad_to_start[i] = _slice[0]
+                    pad_to_end[i] = orig_size[i] - _slice[1]
+            else:
+                current_size = d[key].shape[1:]
+                for i, (o_s, c_s) in enumerate(zip(orig_size, current_size)):
+                    pad_to_start[i] = pad_to_end[i] = (o_s - c_s) / 2
+                    if o_s % 2 == 0 and c_s % 2 == 1:
+                        pad_to_start[i] += 1
+                    elif o_s % 2 == 1 and c_s % 2 == 0:
+                        pad_to_end[i] += 1
+            # interweave mins and maxes
+            pad = np.empty((2 * len(orig_size)), dtype=np.int32)
+            pad[0::2] = pad_to_start
+            pad[1::2] = pad_to_end
+            inverse_transform = BorderPad(pad.tolist())
+            # Apply inverse transform
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
+
         return d
 
 
@@ -366,7 +530,7 @@ class RandSpatialCropSamplesd(RandomizableTransform, MapTransform):
         return [self.cropper(data) for _ in range(self.num_samples)]
 
 
-class CropForegroundd(MapTransform):
+class CropForegroundd(MapTransform, InvertibleTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.CropForeground`.
     Crop only the foreground object of the expected images.
@@ -418,7 +582,31 @@ class CropForegroundd(MapTransform):
         d[self.end_coord_key] = np.asarray(box_end)
         cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
         for key in self.keys:
+            self.append_applied_transforms(d, key, extra_info={"box_start": box_start, "box_end": box_end})
             d[key] = cropper(d[key])
+        return d
+
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in keys or self.keys:
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            orig_size = np.array(transform["orig_size"])
+            extra_info = transform["extra_info"]
+            pad_to_start = np.array(extra_info["box_start"])
+            pad_to_end = orig_size - np.array(extra_info["box_end"])
+            # interweave mins and maxes
+            pad = np.empty((2 * len(orig_size)), dtype=np.int32)
+            pad[0::2] = pad_to_start
+            pad[1::2] = pad_to_end
+            inverse_transform = BorderPad(pad.tolist())
+            # Apply inverse transform
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
+
         return d
 
 
@@ -596,7 +784,7 @@ class RandCropByPosNegLabeld(RandomizableTransform, MapTransform):
         return results
 
 
-class ResizeWithPadOrCropd(MapTransform):
+class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ResizeWithPadOrCrop`.
 
@@ -624,7 +812,25 @@ class ResizeWithPadOrCropd(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
+            orig_size = d[key].shape[1:]
             d[key] = self.padcropper(d[key])
+            self.append_applied_transforms(d, key, orig_size=orig_size)
+        return d
+
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in keys or self.keys:
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            orig_size = transform["orig_size"]
+            inverse_transform = ResizeWithPadOrCrop(spatial_size=orig_size, mode=self.padcropper.padder.mode)
+            # Apply inverse transform
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
+
         return d
 
 

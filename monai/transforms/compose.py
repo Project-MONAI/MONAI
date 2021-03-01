@@ -13,9 +13,12 @@ A collection of generic interfaces for MONAI transforms.
 """
 
 import warnings
-from typing import Any, Callable, Optional, Sequence, Union
+from copy import deepcopy
+from typing import Any, Callable, Hashable, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
+
+from monai.transforms.inverse_transform import InvertibleTransform
 
 # For backwards compatiblity (so this still works: from monai.transforms.compose import MapTransform)
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform, Transform  # noqa: F401
@@ -25,7 +28,7 @@ from monai.utils import MAX_SEED, ensure_tuple, get_seed
 __all__ = ["Compose"]
 
 
-class Compose(RandomizableTransform):
+class Compose(RandomizableTransform, InvertibleTransform):
     """
     ``Compose`` provides the ability to chain a series of calls together in a
     sequence. Each transform in the sequence must take a single argument and
@@ -136,3 +139,17 @@ class Compose(RandomizableTransform):
         for _transform in self.transforms:
             input_ = apply_transform(_transform, input_)
         return input_
+
+    def inverse(self, data, keys: Optional[Tuple[Hashable, ...]] = None):
+        if not isinstance(data, Mapping):
+            raise RuntimeError("Inverse method only available for dictionary transforms")
+        d = deepcopy(dict(data))
+        if keys:
+            keys = ensure_tuple(keys)
+
+        # loop backwards over transforms
+        for t in reversed(self.transforms):
+            # check if transform is one of the invertible ones
+            if isinstance(t, InvertibleTransform):
+                d = t.inverse(d, keys)
+        return d

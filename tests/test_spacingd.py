@@ -21,7 +21,7 @@ class TestSpacingDCase(unittest.TestCase):
         data = {"image": np.ones((2, 10, 15, 20)), "image_meta_dict": {"affine": np.eye(4)}}
         spacing = Spacingd(keys="image", pixdim=(1, 2, 1.4))
         res = spacing(data)
-        self.assertEqual(("image", "image_meta_dict"), tuple(sorted(res)))
+        self.assertEqual(("image", "image_meta_dict", "image_transforms"), tuple(sorted(res)))
         np.testing.assert_allclose(res["image"].shape, (2, 10, 8, 15))
         np.testing.assert_allclose(res["image_meta_dict"]["affine"], np.diag([1, 2, 1.4, 1.0]))
 
@@ -29,7 +29,7 @@ class TestSpacingDCase(unittest.TestCase):
         data = {"image": np.ones((2, 10, 20)), "image_meta_dict": {"affine": np.eye(3)}}
         spacing = Spacingd(keys="image", pixdim=(1, 2, 1.4))
         res = spacing(data)
-        self.assertEqual(("image", "image_meta_dict"), tuple(sorted(res)))
+        self.assertEqual(("image", "image_meta_dict", "image_transforms"), tuple(sorted(res)))
         np.testing.assert_allclose(res["image"].shape, (2, 10, 10))
         np.testing.assert_allclose(res["image_meta_dict"]["affine"], np.diag((1, 2, 1)))
 
@@ -49,7 +49,7 @@ class TestSpacingDCase(unittest.TestCase):
             ),
         )
         res = spacing(data)
-        self.assertEqual(("image", "image_meta_dict", "seg", "seg_meta_dict"), tuple(sorted(res)))
+        self.assertEqual(("image", "image_meta_dict", "image_transforms", "seg", "seg_meta_dict", "seg_transforms"), tuple(sorted(res)))
         np.testing.assert_allclose(res["image"].shape, (2, 1, 46))
         np.testing.assert_allclose(res["image_meta_dict"]["affine"], np.diag((1, 0.2, 1, 1)))
 
@@ -69,7 +69,7 @@ class TestSpacingDCase(unittest.TestCase):
             ),
         )
         res = spacing(data)
-        self.assertEqual(("image", "image_meta_dict", "seg", "seg_meta_dict"), tuple(sorted(res)))
+        self.assertEqual(("image", "image_meta_dict", "image_transforms", "seg", "seg_meta_dict", "seg_transforms"), tuple(sorted(res)))
         np.testing.assert_allclose(res["image"].shape, (2, 1, 46))
         np.testing.assert_allclose(res["image_meta_dict"]["affine"], np.diag((1, 0.2, 1, 1)))
 

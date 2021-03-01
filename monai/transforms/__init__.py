@@ -138,6 +138,7 @@ from .intensity.dictionary import (
     ThresholdIntensityD,
     ThresholdIntensityDict,
 )
+from .inverse_transform import InvertibleTransform, NonRigidTransform
 from .io.array import LoadImage, SaveImage
 from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict
 from .post.array import (
