@@ -47,7 +47,7 @@ def switch_endianness(data, old, new):
         data = [switch_endianness(x, old, new) for x in data]
     elif isinstance(data, dict):
         data = {k: switch_endianness(v, old, new) for k, v in data.items()}
-    elif isinstance(data, (bool, str)):
+    elif isinstance(data, (bool, str, float, int)):
         pass
     else:
         raise AssertionError()
