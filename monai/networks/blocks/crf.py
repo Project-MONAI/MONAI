@@ -128,7 +128,8 @@ class CRF(torch.nn.Module):
 def _create_coordinate_tensor(tensor):
     axes = [torch.arange(tensor.size(i)) for i in range(2, tensor.dim())]
     grids = torch.meshgrid(axes)
-    return torch.stack(grids).unsqueeze(0).to(device=tensor.device, dtype=tensor.dtype)
+    coords = torch.stack(grids).to(device=tensor.device, dtype=tensor.dtype)
+    return torch.stack(tensor.size(0) * [coords], dim=0)
 
 
 def _potts_model_weights(class_count):
