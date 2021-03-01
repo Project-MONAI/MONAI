@@ -77,6 +77,8 @@ class LoadImaged(MapTransform):
                 For example, load nifti file for `image`, store the metadata into `image_meta_dict`.
             overwriting: whether allow to overwrite existing meta data of same key.
                 default is False, which will raise exception if encountering existing key.
+            image_only: if True return dictionary containing just only the image volumes, otherwise return
+            	dictionary containing image data array and header dict per input key.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
         """
