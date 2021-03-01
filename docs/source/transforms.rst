@@ -314,6 +314,12 @@ Spatial
     :members:
     :special-members: __call__
 
+`RandAxisFlip`
+""""""""""""""
+.. autoclass:: RandAxisFlip
+    :members:
+    :special-members: __call__
+
 `RandZoom`
 """"""""""
 .. autoclass:: RandZoom
@@ -788,6 +794,12 @@ Spatial (Dict)
 `RandFlipd`
 """""""""""
 .. autoclass:: RandFlipd
+    :members:
+    :special-members: __call__
+
+`RandAxisFlipd`
+"""""""""""""""
+.. autoclass:: RandAxisFlipd
     :members:
     :special-members: __call__
 
