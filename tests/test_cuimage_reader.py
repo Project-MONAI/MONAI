@@ -1,6 +1,5 @@
 import os
 import unittest
-from typing import TypedDict
 from unittest import skipUnless
 from urllib import request
 
@@ -14,38 +13,28 @@ from monai.utils import optional_import
 _, has_cui = optional_import("cuimage")
 
 
-class SampleImage(TypedDict):
-    name: str
-    url: str
-    height: int
-    width: int
+FILE_URL = "http://openslide.cs.cmu.edu/download/openslide-testdata/Generic-TIFF/CMU-1.tiff"
+HEIGHT = 32914
+WIDTH = 46000
 
-
-FILE_INFO: SampleImage = {
-    "name": "CMU-1.tiff",
-    "url": "http://openslide.cs.cmu.edu/download/openslide-testdata/Generic-TIFF/CMU-1.tiff",
-    "height": 32914,
-    "width": 46000,
-}
-
-TEST_CASE_0 = [FILE_INFO, (3, FILE_INFO["height"], FILE_INFO["width"])]
+TEST_CASE_0 = [FILE_URL, (3, HEIGHT, WIDTH)]
 
 TEST_CASE_1 = [
-    FILE_INFO,
-    {"location": (FILE_INFO["height"] // 2, FILE_INFO["width"] // 2), "size": (2, 1), "level": 4},
-    np.array([[[246], [246]], [[246], [246]], [[244], [244]]]),
-]
-
-TEST_CASE_2 = [
-    FILE_INFO,
-    {"location": (FILE_INFO["height"] // 2, FILE_INFO["width"] // 2), "size": (2, 1), "level": 2},
+    FILE_URL,
+    {"location": (HEIGHT // 2, WIDTH // 2), "size": (2, 1), "level": 0},
     np.array([[[246], [246]], [[246], [246]], [[246], [246]]]),
 ]
 
+TEST_CASE_2 = [
+    FILE_URL,
+    {"location": (0, 0), "size": (2, 1), "level": 2},
+    np.array([[[239], [239]], [[239], [239]], [[239], [239]]]),
+]
+
 TEST_CASE_3 = [
-    FILE_INFO,
+    FILE_URL,
     {
-        "location": (FILE_INFO["height"] // 2, FILE_INFO["width"] // 2),
+        "location": (0, 0),
         "size": (8, 8),
         "level": 2,
         "grid_shape": (2, 1),
@@ -53,30 +42,30 @@ TEST_CASE_3 = [
     },
     np.array(
         [
-            [[[246, 246], [246, 246]], [[246, 246], [246, 246]], [[246, 246], [246, 246]]],
-            [[[246, 246], [246, 246]], [[246, 246], [246, 246]], [[246, 246], [246, 246]]],
+            [[[239, 239], [239, 239]], [[239, 239], [239, 239]], [[239, 239], [239, 239]]],
+            [[[242, 242], [242, 243]], [[242, 242], [242, 243]], [[242, 242], [242, 243]]],
         ]
     ),
 ]
 
 TEST_CASE_4 = [
-    FILE_INFO,
+    FILE_URL,
     {
-        "location": (FILE_INFO["height"] // 2, FILE_INFO["width"] // 2),
+        "location": (0, 0),
         "size": (8, 8),
         "level": 2,
         "grid_shape": (2, 1),
         "patch_size": 1,
     },
-    np.array([[[[246]], [[246]], [[246]]], [[[246]], [[246]], [[246]]]]),
+    np.array([[[[239]], [[239]], [[239]]], [[[243]], [[243]], [[243]]]]),
 ]
 
 
-class TestCuImageReader(unittest.TestCase):
+class TestCuClaraImageReader(unittest.TestCase):
     @parameterized.expand([TEST_CASE_0])
     @skipUnless(has_cui, "Requires CuClaraImage")
-    def test_read_whole_image(self, file_info, expected_shape):
-        filename = self.camelyon_data_download(file_info)
+    def test_read_whole_image(self, file_url, expected_shape):
+        filename = self.camelyon_data_download(file_url)
         reader = WSIReader("CuClaraImage")
         img_obj = reader.read(filename)
         img = reader.get_data(img_obj)
@@ -84,8 +73,8 @@ class TestCuImageReader(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     @skipUnless(has_cui, "Requires CuClaraImage")
-    def test_read_region(self, file_info, patch_info, expected_img):
-        filename = self.camelyon_data_download(file_info)
+    def test_read_region(self, file_url, patch_info, expected_img):
+        filename = self.camelyon_data_download(file_url)
         reader = WSIReader("CuClaraImage")
         img_obj = reader.read(filename)
         img = reader.get_data(img_obj, **patch_info)
@@ -94,24 +83,19 @@ class TestCuImageReader(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_3, TEST_CASE_4])
     @skipUnless(has_cui, "Requires CuClaraImage")
-    def test_read_patches(self, file_info, patch_info, expected_img):
-        filename = self.camelyon_data_download(file_info)
+    def test_read_patches(self, file_url, patch_info, expected_img):
+        filename = self.camelyon_data_download(file_url)
         reader = WSIReader("CuClaraImage")
         img_obj = reader.read(filename)
         img = reader.get_data(img_obj, **patch_info)
         self.assertTupleEqual(img.shape, expected_img.shape)
         self.assertIsNone(assert_array_equal(img, expected_img))
 
-    def camelyon_data_download(self, file_info):
-        from time import perf_counter
-
-        filename = file_info["name"]
+    def camelyon_data_download(self, file_url):
+        filename = os.path.basename(file_url)
         if not os.path.exists(filename):
             print(f"Test image [{filename}] does not exist. Downloading...")
-            t0 = perf_counter()
-            request.urlretrieve(file_info["url"], filename)
-            t1 = perf_counter()
-            print(f"Elapsed time: {t1 - t0}s")
+            request.urlretrieve(file_url, filename)
         return filename
 
 
