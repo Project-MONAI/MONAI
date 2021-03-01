@@ -893,6 +893,7 @@ class Rand3DElasticd(RandomizableTransform, MapTransform, InvertibleTransform, N
 
         self.randomize(grid_size=sp_size)
         grid_no_affine = create_grid(spatial_size=sp_size)
+        affine = np.eye(4)
         if self._do_transform:
             device = self.rand_3d_elastic.device
             grid_no_affine = torch.tensor(grid_no_affine).to(device)
@@ -900,10 +901,13 @@ class Rand3DElasticd(RandomizableTransform, MapTransform, InvertibleTransform, N
             offset = torch.tensor(self.rand_3d_elastic.rand_offset, device=device).unsqueeze(0)
             grid_no_affine[:3] += gaussian(offset)[0] * self.rand_3d_elastic.magnitude
             grid_w_affine, affine = self.rand_3d_elastic.rand_affine_grid(grid=grid_no_affine, return_affine=True)
+        else:
+            grid_w_affine = grid_no_affine
+            affine = np.eye(len(sp_size) + 1)
 
         for idx, key in enumerate(self.keys):
             self.append_applied_transforms(
-                d, key, extra_info={"grid_no_affine": grid_no_affine.cpu().numpy(), "affine": affine}
+                d, key, extra_info={"grid_no_affine": grid_no_affine, "affine": affine}
             )
             d[key] = self.rand_3d_elastic.resampler(
                 d[key], grid_w_affine, mode=self.mode[idx], padding_mode=self.padding_mode[idx]
