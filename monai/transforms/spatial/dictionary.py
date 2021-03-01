@@ -718,7 +718,7 @@ class Rand2DElasticd(RandomizableTransform, MapTransform, InvertibleTransform, N
             recompute_scale_factor=True,
             input=cpg.unsqueeze(0),
             scale_factor=ensure_tuple_rep(spacing, 2),
-            mode=InterpolateMode.BILINEAR.value,
+            mode=InterpolateMode.BICUBIC.value,
             align_corners=False,
         )
         return CenterSpatialCrop(roi_size=output_shape)(grid[0])
