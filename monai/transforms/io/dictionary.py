@@ -59,6 +59,7 @@ class LoadImaged(MapTransform):
         dtype: DtypeLike = np.float32,
         meta_key_postfix: str = "meta_dict",
         overwriting: bool = False,
+        image_only: bool = False,
         *args,
         **kwargs,
     ) -> None:
@@ -80,7 +81,7 @@ class LoadImaged(MapTransform):
             kwargs: additional parameters for reader if providing a reader name.
         """
         super().__init__(keys)
-        self._loader = LoadImage(reader, False, dtype, *args, **kwargs)
+        self._loader = LoadImage(reader, image_only, dtype, *args, **kwargs)
         if not isinstance(meta_key_postfix, str):
             raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
         self.meta_key_postfix = meta_key_postfix
@@ -98,15 +99,20 @@ class LoadImaged(MapTransform):
         d = dict(data)
         for key in self.keys:
             data = self._loader(d[key], reader)
-            if not isinstance(data, (tuple, list)):
-                raise ValueError("loader must return a tuple or list.")
-            d[key] = data[0]
-            if not isinstance(data[1], dict):
-                raise ValueError("metadata must be a dict.")
-            key_to_add = f"{key}_{self.meta_key_postfix}"
-            if key_to_add in d and not self.overwriting:
-                raise KeyError(f"Meta data with key {key_to_add} already exists and overwriting=False.")
-            d[key_to_add] = data[1]
+            if self._loader.image_only:
+                if not isinstance(data, np.ndarray):
+                    raise ValueError("loader must return a numpy array (because image_only=True was used).")
+                d[key] = data
+            else:
+                if not isinstance(data, (tuple, list)):
+                    raise ValueError("loader must return a tuple or list (because image_only=False was used).")
+                d[key] = data[0]
+                if not isinstance(data[1], dict):
+                    raise ValueError("metadata must be a dict.")
+                key_to_add = f"{key}_{self.meta_key_postfix}"
+                if key_to_add in d and not self.overwriting:
+                    raise KeyError(f"Meta data with key {key_to_add} already exists and overwriting=False.")
+                d[key_to_add] = data[1]
         return d
 
 
