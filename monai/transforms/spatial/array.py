@@ -59,6 +59,7 @@ __all__ = [
     "RandRotate90",
     "RandRotate",
     "RandFlip",
+    "RandAxisFlip",
     "RandZoom",
     "AffineGrid",
     "RandAffineGrid",
@@ -769,6 +770,36 @@ class RandFlip(RandomizableTransform):
         if not self._do_transform:
             return img
         return self.flipper(img)
+
+
+class RandAxisFlip(RandomizableTransform):
+    """
+    Randomly select a spatial axis and flip along it.
+    See numpy.flip for additional details.
+    https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
+
+    Args:
+        prob: Probability of flipping.
+
+    """
+    def __init__(self, prob: float = 0.1) -> None:
+        RandomizableTransform.__init__(self, min(max(prob, 0.0), 1.0))
+        self._axis: Optional[int] = None
+
+    def randomize(self, data: Optional[Any] = None) -> None:
+        super().randomize(None)
+        self._axis = self.R.randint(data.ndim)
+
+    def __call__(self, img: np.ndarray) -> np.ndarray:
+        """
+        Args:
+            img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
+        """
+        self.randomize(data=img)
+        if not self._do_transform:
+            return img
+        flipper = Flip(spatial_axis=self._axis)
+        return flipper(img)
 
 
 class RandZoom(RandomizableTransform):
