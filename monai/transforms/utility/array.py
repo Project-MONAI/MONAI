@@ -628,7 +628,7 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
         result.append(np.logical_or(np.logical_or(img == 1, img == 4), img == 2))
         # label 4 is ET
         result.append(img == 4)
-        return np.stack(result, axis=0).astype(np.float32)
+        return np.stack(result, axis=0)
 
 
 class AddExtremePointsChannel(RandomizableTransform):
