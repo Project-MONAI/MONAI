@@ -29,8 +29,8 @@ class TestNiftiEndianness(unittest.TestCase):
         self.im, _ = create_test_image_2d(100, 100)
         self.fname = tempfile.NamedTemporaryFile(suffix=".nii.gz").name
 
-    @skipUnless(has_nib, "Requires NiBabel")
     @parameterized.expand(TESTS)
+    @skipUnless(has_nib, "Requires NiBabel")
     def test_endianness(self, endianness, use_array, image_only):
 
         hdr = nib.Nifti1Header(endianness=endianness)
