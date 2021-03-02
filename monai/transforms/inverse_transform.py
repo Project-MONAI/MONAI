@@ -36,6 +36,16 @@ class InvertibleTransform(Transform):
     When the `__call__` method is called, a serialization of the class is stored. When
     the `inverse` method is called, the serialization is then removed. We use last in,
     first out for the inverted transforms.
+
+    Note to developers: When converting a transform to an invertible transform, you need to:
+        1. Inherit from this class.
+        2. In `__call__`, add a call to `append_applied_transforms`.
+        3. Any extra information that might be needed for the inverse can be included with the
+            dictionary `extra_info`. This dictionary should have the same keys regardless of
+            whether `do_transform` was True or False and can only contain objects that are
+            accepted in pytorch's batch (e.g., `None` is not allowed).
+        4. Implement an `inverse` method. Make sure that after performing the inverse,
+            `remove_most_recent_transform` is called.
     """
 
     def append_applied_transforms(
