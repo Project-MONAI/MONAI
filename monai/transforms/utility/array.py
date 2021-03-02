@@ -15,7 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 import logging
 import time
-from typing import Dict, TYPE_CHECKING, Callable, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -158,6 +158,7 @@ class AutoAdjustChannel(Transform):
     Convert the data to channel_first based on the `original_channel_dim` information.
 
     """
+
     def __call__(self, img: NdarrayTensor, meta_dict: Dict):
         """
         Apply the transform to `img`.
