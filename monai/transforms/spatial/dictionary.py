@@ -65,6 +65,7 @@ __all__ = [
     "Rand3DElasticd",
     "Flipd",
     "RandFlipd",
+    "RandAxisFlipd",
     "Rotated",
     "RandRotated",
     "Zoomd",
@@ -89,6 +90,8 @@ __all__ = [
     "FlipDict",
     "RandFlipD",
     "RandFlipDict",
+    "RandAxisFlipD",
+    "RandAxisFlipDict",
     "RotateD",
     "RotateDict",
     "RandRotateD",
@@ -1039,6 +1042,36 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
                 # Remove the applied transform
                 self.remove_most_recent_transform(d, key)
 
+class RandAxisFlipd(RandomizableTransform, MapTransform):
+    """
+    Dictionary-based version :py:class:`monai.transforms.RandAxisFlip`.
+
+    See `numpy.flip` for additional details.
+    https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
+
+    Args:
+        keys: Keys to pick data for transformation.
+        prob: Probability of flipping.
+
+    """
+
+    def __init__(self, keys: KeysCollection, prob: float = 0.1) -> None:
+        MapTransform.__init__(self, keys)
+        RandomizableTransform.__init__(self, prob)
+        self._axis: Optional[int] = None
+
+    def randomize(self, data: np.ndarray) -> None:
+        super().randomize(None)
+        self._axis = self.R.randint(data.ndim - 1)
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        self.randomize(data=data[self.keys[0]])
+        flipper = Flip(spatial_axis=self._axis)
+
+        d = dict(data)
+        for key in self.keys:
+            if self._do_transform:
+                d[key] = flipper(d[key])
         return d
 
 
@@ -1461,6 +1494,7 @@ Rand2DElasticD = Rand2DElasticDict = Rand2DElasticd
 Rand3DElasticD = Rand3DElasticDict = Rand3DElasticd
 FlipD = FlipDict = Flipd
 RandFlipD = RandFlipDict = RandFlipd
+RandAxisFlipD = RandAxisFlipDict = RandAxisFlipd
 RotateD = RotateDict = Rotated
 RandRotateD = RandRotateDict = RandRotated
 ZoomD = ZoomDict = Zoomd
