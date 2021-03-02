@@ -154,6 +154,7 @@ class AutoAdjustChannel(Transform):
     """
     Automatically adjust the channel dimension of input data.
     It extract the `original_channel_dim` info from provided meta_data dictionary.
+     Typical values of `original_channel_dim` can be: "no_channel", 0, -1.
     Convert the data to channel_first based on the `original_channel_dim` information.
 
     """
@@ -161,11 +162,12 @@ class AutoAdjustChannel(Transform):
         """
         Apply the transform to `img`.
         """
-        if "original_channel_dim" not in meta_dict:
-            raise ValueError("meta_dict must contain `original_channel_dim` information.")
-        channel_dim = meta_dict["original_channel_dim"]
+
+        channel_dim = meta_dict.get("original_channel_dim", None)
 
         if channel_dim is None:
+            raise ValueError("meta_dict must contain `original_channel_dim` information.")
+        elif channel_dim == "no_channel":
             return AddChannel()(img)
         else:
             return AsChannelFirst(channel_dim=channel_dim)(img)

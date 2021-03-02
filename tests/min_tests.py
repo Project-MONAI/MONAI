@@ -109,6 +109,8 @@ def run_testsuit():
         "test_deepgrow_dataset",
         "test_save_image",
         "test_save_imaged",
+        "test_auto_adjust_channel",
+        "test_auto_adjust_channeld",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 

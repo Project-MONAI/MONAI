@@ -111,7 +111,7 @@ def _copy_compatible_dict(from_dict: Dict, to_dict: Dict):
 
 def _stack_images(image_list: List, meta_dict: Dict):
     if len(image_list) > 1:
-        if meta_dict.get("original_channel_dim", None) is not None:
+        if meta_dict.get("original_channel_dim", None) not in ("no_channel", None):
             raise RuntimeError("can not read a list of images which already have channel dimension.")
         meta_dict["original_channel_dim"] = 0
         img_array = np.stack(image_list, axis=0)
@@ -213,7 +213,7 @@ class ITKReader(ImageReader):
             header["spatial_shape"] = self._get_spatial_shape(i)
             data = self._get_array_data(i)
             img_array.append(data)
-            header["original_channel_dim"] = None if len(data.shape) == len(header["spatial_shape"]) else -1
+            header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else -1
             _copy_compatible_dict(header, compatible_meta)
 
         return _stack_images(img_array, compatible_meta), compatible_meta
@@ -386,7 +386,7 @@ class NibabelReader(ImageReader):
             header["spatial_shape"] = self._get_spatial_shape(i)
             data = self._get_array_data(i)
             img_array.append(data)
-            header["original_channel_dim"] = None if len(data.shape) == len(header["spatial_shape"]) else -1
+            header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else -1
             _copy_compatible_dict(header, compatible_meta)
 
         return _stack_images(img_array, compatible_meta), compatible_meta
@@ -599,7 +599,7 @@ class PILReader(ImageReader):
             header["spatial_shape"] = self._get_spatial_shape(i)
             data = np.asarray(i)
             img_array.append(data)
-            header["original_channel_dim"] = None if len(data.shape) == len(header["spatial_shape"]) else -1
+            header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else -1
             _copy_compatible_dict(header, compatible_meta)
 
         return _stack_images(img_array, compatible_meta), compatible_meta

@@ -437,6 +437,12 @@ Utility
     :members:
     :special-members: __call__
 
+`AutoAdjustChannel`
+"""""""""""""""""""
+.. autoclass:: AutoAdjustChannel
+    :members:
+    :special-members: __call__
+
 `RepeatChannel`
 """""""""""""""
 .. autoclass:: RepeatChannel
@@ -887,6 +893,12 @@ Utility (Dict)
 `AddChanneld`
 """""""""""""
 .. autoclass:: AddChanneld
+    :members:
+    :special-members: __call__
+
+`AutoAdjustChanneld`
+""""""""""""""""""""
+.. autoclass:: AutoAdjustChanneld
     :members:
     :special-members: __call__
 
