@@ -154,7 +154,7 @@ class AutoAdjustChannel(Transform):
     """
     Automatically adjust the channel dimension of input data.
     It extract the `original_channel_dim` info from provided meta_data dictionary.
-     Typical values of `original_channel_dim` can be: "no_channel", 0, -1.
+    Typical values of `original_channel_dim` can be: "no_channel", 0, -1.
     Convert the data to channel_first based on the `original_channel_dim` information.
 
     """
