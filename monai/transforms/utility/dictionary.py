@@ -516,7 +516,9 @@ class DataStatsd(MapTransform):
 
     def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
         d = dict(data)
-        for key, prefix, data_shape, value_range, data_value, additional_info in self.key_iterator(d, self.prefix, self.data_shape, self.value_range, self.data_value, self.additional_info):
+        for key, prefix, data_shape, value_range, data_value, additional_info in self.key_iterator(
+            d, self.prefix, self.data_shape, self.value_range, self.data_value, self.additional_info
+        ):
             d[key] = self.printer(
                 d[key],
                 prefix,
@@ -533,7 +535,9 @@ class SimulateDelayd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.SimulateDelay`.
     """
 
-    def __init__(self, keys: KeysCollection, delay_time: Union[Sequence[float], float] = 0.0, allow_missing_keys: bool = False) -> None:
+    def __init__(
+        self, keys: KeysCollection, delay_time: Union[Sequence[float], float] = 0.0, allow_missing_keys: bool = False
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -561,7 +565,9 @@ class CopyItemsd(MapTransform):
 
     """
 
-    def __init__(self, keys: KeysCollection, times: int, names: KeysCollection) -> None:
+    def __init__(
+        self, keys: KeysCollection, times: int, names: KeysCollection, allow_missing_keys: bool = False
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -571,13 +577,14 @@ class CopyItemsd(MapTransform):
             names: the names corresponding to the newly copied data,
                 the length should match `len(keys) x times`. for example, if keys is ["img", "seg"]
                 and times is 2, names can be: ["img_1", "seg_1", "img_2", "seg_2"].
+            allow_missing_keys: don't raise exception if key is missing.
 
         Raises:
             ValueError: When ``times`` is nonpositive.
             ValueError: When ``len(names)`` is not ``len(keys) * times``. Incompatible values.
 
         """
-        super().__init__(keys)
+        super().__init__(keys, allow_missing_keys)
         if times < 1:
             raise ValueError(f"times must be positive, got {times}.")
         self.times = times
@@ -596,13 +603,14 @@ class CopyItemsd(MapTransform):
 
         """
         d = dict(data)
-        for key, new_key in zip(self.keys * self.times, self.names):
+        for new_key in self.names:
             if new_key in d:
                 raise KeyError(f"Key {new_key} already exists in data.")
-            if isinstance(d[key], torch.Tensor):
-                d[new_key] = d[key].detach().clone()
-            else:
-                d[new_key] = copy.deepcopy(d[key])
+            for key in self.key_iterator(d):
+                if isinstance(d[key], torch.Tensor):
+                    d[new_key] = d[key].detach().clone()
+                else:
+                    d[new_key] = copy.deepcopy(d[key])
         return d
 
 

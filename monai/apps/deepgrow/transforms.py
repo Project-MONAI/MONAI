@@ -907,7 +907,14 @@ class Fetch2DSliced(MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
-    def __init__(self, keys, guidance="guidance", axis: int = 0, meta_key_postfix: str = "meta_dict", allow_missing_keys: bool = False):
+    def __init__(
+        self,
+        keys,
+        guidance="guidance",
+        axis: int = 0,
+        meta_key_postfix: str = "meta_dict",
+        allow_missing_keys: bool = False,
+    ):
         super().__init__(keys, allow_missing_keys)
         self.guidance = guidance
         self.axis = axis

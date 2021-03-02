@@ -13,7 +13,7 @@ A collection of generic interfaces for MONAI transforms.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Hashable, Iterable, Optional, Tuple
+from typing import Any, Dict, Generator, Hashable, Iterable, Optional, Tuple
 
 import numpy as np
 
@@ -228,9 +228,9 @@ class MapTransform(Transform):
 
     def key_iterator(
         self,
-        data: Dict[str, Any],
-        extra_iterables: Optional[Iterable] = None,
-    ):
+        data: Dict[Hashable, Any],
+        *extra_iterables: Optional[Iterable],
+    ) -> Generator:
         """
         Iterate across keys and optionally extra iterables. If key is missing, exception is raised if
         `allow_missing_keys==False` (default). If `allow_missing_keys==True`, key is skipped.
@@ -239,19 +239,14 @@ class MapTransform(Transform):
             data: data that the transform will be applied to
             extra_iterables: anything else to be iterated through
         """
-        if extra_iterables is None:
-            for key in self.keys:
-                if key not in data.keys():
-                    if self.allow_missing_keys:
-                        continue
-                    else:
-                        raise KeyError("Key was missing and allow_missing_keys==False")
-                yield key
-        else:
-            for key, *extra_iterables in zip(self.keys, extra_iterables):
-                if key not in data.keys():
-                    if self.allow_missing_keys:
-                        continue
-                    else:
-                        raise KeyError("Key was missing and allow_missing_keys==False")
-                yield [key] + extra_iterables
+        # if no extra iterables given, create a dummy list of Nones
+        ex_iters = extra_iterables if extra_iterables else [None] * len(self.keys)
+
+        # loop over keys and any extra iterables
+        for key, *_ex_iters in zip(self.keys, ex_iters):
+            # all normal, yield (what we yield depends on whether extra iterables were given)
+            if str(key) in data.keys():
+                yield (key,) + tuple(_ex_iters) if extra_iterables else key
+            # if missing keys not allowed, raise
+            elif not self.allow_missing_keys:
+                raise KeyError(f"Key was missing ({key}) and allow_missing_keys==False")

@@ -181,7 +181,9 @@ class Spacingd(MapTransform):
         self, data: Mapping[Union[Hashable, str], Dict[str, np.ndarray]]
     ) -> Dict[Union[Hashable, str], Union[np.ndarray, Dict[str, np.ndarray]]]:
         d: Dict = dict(data)
-        for key, mode, padding_mode, align_corners, dtype in self.key_iterator(d, self.mode, self.padding_mode, self.align_corners, self.dtype):
+        for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
+            d, self.mode, self.padding_mode, self.align_corners, self.dtype
+        ):
             meta_data = d[f"{key}_{self.meta_key_postfix}"]
             # resample array of each corresponding key
             # using affine fetched from d[affine_key]
@@ -264,7 +266,9 @@ class Rotate90d(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Rotate90`.
     """
 
-    def __init__(self, keys: KeysCollection, k: int = 1, spatial_axes: Tuple[int, int] = (0, 1), allow_missing_keys: bool = False) -> None:
+    def __init__(
+        self, keys: KeysCollection, k: int = 1, spatial_axes: Tuple[int, int] = (0, 1), allow_missing_keys: bool = False
+    ) -> None:
         """
         Args:
             k: number of times to rotate by 90 degrees.
@@ -590,9 +594,7 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
             grid = create_grid(spatial_size=sp_size)
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
-            d[key] = self.rand_2d_elastic.resampler(
-                d[key], grid, mode=mode, padding_mode=padding_mode
-            )
+            d[key] = self.rand_2d_elastic.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)
         return d
 
 
@@ -661,7 +663,7 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
-        MapTransform.__init__(self, keys, allow_missing_keys=)
+        MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
         self.rand_3d_elastic = Rand3DElastic(
             sigma_range=sigma_range,
@@ -706,9 +708,7 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
             grid = self.rand_3d_elastic.rand_affine_grid(grid=grid)
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
-            d[key] = self.rand_3d_elastic.resampler(
-                d[key], grid, mode=mode, padding_mode=padding_mode
-            )
+            d[key] = self.rand_3d_elastic.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)
         return d
 
 
@@ -725,7 +725,12 @@ class Flipd(MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
-    def __init__(self, keys: KeysCollection, spatial_axis: Optional[Union[Sequence[int], int]] = None, allow_missing_keys: bool = False) -> None:
+    def __init__(
+        self,
+        keys: KeysCollection,
+        spatial_axis: Optional[Union[Sequence[int], int]] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
@@ -757,7 +762,7 @@ class RandFlipd(RandomizableTransform, MapTransform):
         spatial_axis: Optional[Union[Sequence[int], int]] = None,
         allow_missing_keys: bool = False,
     ) -> None:
-        MapTransform.__init__(self, keys)
+        MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
         self.spatial_axis = spatial_axis
 
@@ -855,7 +860,9 @@ class Rotated(MapTransform):
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        for key, mode, padding_mode, align_corners, dtype in self.key_iterator(d, self.mode, self.padding_mode, self.align_corners, self.dtype):
+        for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
+            d, self.mode, self.padding_mode, self.align_corners, self.dtype
+        ):
             d[key] = self.rotator(
                 d[key],
                 mode=mode,
@@ -952,7 +959,9 @@ class RandRotated(RandomizableTransform, MapTransform):
             angle=self.x if d[self.keys[0]].ndim == 3 else (self.x, self.y, self.z),
             keep_size=self.keep_size,
         )
-        for key, mode, padding_mode, align_corners, dtype in self.key_iterator(d, self.mode, self.padding_mode, self.align_corners, self.dtype):
+        for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
+            d, self.mode, self.padding_mode, self.align_corners, self.dtype
+        ):
             d[key] = rotator(
                 d[key],
                 mode=mode,
@@ -1006,7 +1015,9 @@ class Zoomd(MapTransform):
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        for key, mode, padding_mode, align_corners in self.key_iterator(d, self.mode, self.padding_mode, self.align_corners):
+        for key, mode, padding_mode, align_corners in self.key_iterator(
+            d, self.mode, self.padding_mode, self.align_corners
+        ):
             d[key] = self.zoomer(
                 d[key],
                 mode=mode,
@@ -1094,7 +1105,9 @@ class RandZoomd(RandomizableTransform, MapTransform):
             # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
             self._zoom = ensure_tuple_rep(self._zoom[0], img_dims - 2) + ensure_tuple(self._zoom[-1])
         zoomer = Zoom(self._zoom, keep_size=self.keep_size)
-        for key, mode, padding_mode, align_corners in self.key_iterator(d, self.mode, self.padding_mode, self.align_corners):
+        for key, mode, padding_mode, align_corners in self.key_iterator(
+            d, self.mode, self.padding_mode, self.align_corners
+        ):
             d[key] = zoomer(
                 d[key],
                 mode=mode,

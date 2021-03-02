@@ -103,12 +103,18 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         prob: Probability to add Gaussian noise.
         mean: Mean or “centre” of the distribution.
         std: Standard deviation (spread) of distribution.
+        allow_missing_keys: don't raise exception if key is missing.
     """
 
     def __init__(
-        self, keys: KeysCollection, prob: float = 0.1, mean: Union[Sequence[float], float] = 0.0, std: float = 0.1
+        self,
+        keys: KeysCollection,
+        prob: float = 0.1,
+        mean: Union[Sequence[float], float] = 0.0,
+        std: float = 0.1,
+        allow_missing_keys: bool = False,
     ) -> None:
-        MapTransform.__init__(self, keys)
+        MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
         self.mean = ensure_tuple_rep(mean, len(self.keys))
         self.std = std
@@ -129,7 +135,7 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
             raise AssertionError
         if not self._do_transform:
             return d
-        for noise, key in zip(self._noise, self.keys):
+        for key, noise in self.key_iterator(d, self._noise):
             dtype = dtype_torch_to_numpy(d[key].dtype) if isinstance(d[key], torch.Tensor) else d[key].dtype
             d[key] = d[key] + noise.astype(dtype)
         return d
@@ -163,7 +169,13 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
     Dictionary-based version :py:class:`monai.transforms.RandShiftIntensity`.
     """
 
-    def __init__(self, keys: KeysCollection, offsets: Union[Tuple[float, float], float], prob: float = 0.1, allow_missing_keys: bool = False) -> None:
+    def __init__(
+        self,
+        keys: KeysCollection,
+        offsets: Union[Tuple[float, float], float],
+        prob: float = 0.1,
+        allow_missing_keys: bool = False,
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -207,7 +219,12 @@ class ScaleIntensityd(MapTransform):
     """
 
     def __init__(
-        self, keys: KeysCollection, minv: float = 0.0, maxv: float = 1.0, factor: Optional[float] = None, allow_missing_keys: bool = False
+        self,
+        keys: KeysCollection,
+        minv: float = 0.0,
+        maxv: float = 1.0,
+        factor: Optional[float] = None,
+        allow_missing_keys: bool = False,
     ) -> None:
         """
         Args:
@@ -234,7 +251,13 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
     Dictionary-based version :py:class:`monai.transforms.RandScaleIntensity`.
     """
 
-    def __init__(self, keys: KeysCollection, factors: Union[Tuple[float, float], float], prob: float = 0.1, allow_missing_keys: bool = False) -> None:
+    def __init__(
+        self,
+        keys: KeysCollection,
+        factors: Union[Tuple[float, float], float],
+        prob: float = 0.1,
+        allow_missing_keys: bool = False,
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -299,7 +322,7 @@ class NormalizeIntensityd(MapTransform):
         dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
-        super().__init__(keys)
+        super().__init__(keys, allow_missing_keys)
         self.normalizer = NormalizeIntensity(subtrahend, divisor, nonzero, channel_wise, dtype)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
@@ -322,8 +345,15 @@ class ThresholdIntensityd(MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
-    def __init__(self, keys: KeysCollection, threshold: float, above: bool = True, cval: float = 0.0, allow_missing_keys: bool = False) -> None:
-        super().__init__(keys)
+    def __init__(
+        self,
+        keys: KeysCollection,
+        threshold: float,
+        above: bool = True,
+        cval: float = 0.0,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
         self.filter = ThresholdIntensity(threshold, above, cval)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
@@ -349,7 +379,14 @@ class ScaleIntensityRanged(MapTransform):
     """
 
     def __init__(
-        self, keys: KeysCollection, a_min: float, a_max: float, b_min: float, b_max: float, clip: bool = False, allow_missing_keys: bool = False
+        self,
+        keys: KeysCollection,
+        a_min: float,
+        a_max: float,
+        b_min: float,
+        b_max: float,
+        clip: bool = False,
+        allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.scaler = ScaleIntensityRange(a_min, a_max, b_min, b_max, clip)
@@ -403,7 +440,11 @@ class RandAdjustContrastd(RandomizableTransform, MapTransform):
     """
 
     def __init__(
-        self, keys: KeysCollection, prob: float = 0.1, gamma: Union[Tuple[float, float], float] = (0.5, 4.5), allow_missing_keys: bool = False
+        self,
+        keys: KeysCollection,
+        prob: float = 0.1,
+        gamma: Union[Tuple[float, float], float] = (0.5, 4.5),
+        allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
@@ -527,7 +568,13 @@ class GaussianSmoothd(MapTransform):
 
     """
 
-    def __init__(self, keys: KeysCollection, sigma: Union[Sequence[float], float], approx: str = "erf", allow_missing_keys: bool = False) -> None:
+    def __init__(
+        self,
+        keys: KeysCollection,
+        sigma: Union[Sequence[float], float],
+        approx: str = "erf",
+        allow_missing_keys: bool = False,
+    ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.converter = GaussianSmooth(sigma, approx=approx)
 
@@ -718,7 +765,11 @@ class RandHistogramShiftd(RandomizableTransform, MapTransform):
     """
 
     def __init__(
-        self, keys: KeysCollection, num_control_points: Union[Tuple[int, int], int] = 10, prob: float = 0.1, allow_missing_keys: bool = False
+        self,
+        keys: KeysCollection,
+        num_control_points: Union[Tuple[int, int], int] = 10,
+        prob: float = 0.1,
+        allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)

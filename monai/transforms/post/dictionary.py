@@ -142,7 +142,9 @@ class AsDiscreted(MapTransform):
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
-        for key, argmax, to_onehot, n_classes, threshold_values, logit_thresh in self.key_iterator(d, self.argmax, self.to_onehot, self.n_classes, self.threshold_values, self.logit_thresh):
+        for key, argmax, to_onehot, n_classes, threshold_values, logit_thresh in self.key_iterator(
+            d, self.argmax, self.to_onehot, self.n_classes, self.threshold_values, self.logit_thresh
+        ):
             d[key] = self.converter(
                 d[key],
                 argmax,

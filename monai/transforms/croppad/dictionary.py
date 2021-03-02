@@ -134,6 +134,7 @@ class BorderPadd(MapTransform):
         keys: KeysCollection,
         spatial_border: Union[Sequence[int], int],
         mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT,
+        allow_missing_keys: bool = False,
     ) -> None:
         """
         Args:
@@ -155,15 +156,16 @@ class BorderPadd(MapTransform):
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
+            allow_missing_keys: don't raise exception if key is missing.
 
         """
-        super().__init__(keys)
+        super().__init__(keys, allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padder = BorderPad(spatial_border=spatial_border)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        for key, m in zip(self.keys, self.mode):
+        for key, m in self.key_iterator(d, self.mode):
             d[key] = self.padder(d[key], mode=m)
         return d
 
@@ -175,7 +177,11 @@ class DivisiblePadd(MapTransform):
     """
 
     def __init__(
-        self, keys: KeysCollection, k: Union[Sequence[int], int], mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT
+        self,
+        keys: KeysCollection,
+        k: Union[Sequence[int], int],
+        mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT,
+        allow_missing_keys: bool = False,
     ) -> None:
         """
         Args:
@@ -189,17 +195,18 @@ class DivisiblePadd(MapTransform):
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
+            allow_missing_keys: don't raise exception if key is missing.
 
         See also :py:class:`monai.transforms.SpatialPad`
 
         """
-        super().__init__(keys)
+        super().__init__(keys, allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padder = DivisiblePad(k=k)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        for key, m in zip(self.keys, self.mode):
+        for key, m in self.key_iterator(d, self.mode):
             d[key] = self.padder(d[key], mode=m)
         return d
 
@@ -252,7 +259,9 @@ class CenterSpatialCropd(MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
-    def __init__(self, keys: KeysCollection, roi_size: Union[Sequence[int], int], allow_missing_keys: bool = False) -> None:
+    def __init__(
+        self, keys: KeysCollection, roi_size: Union[Sequence[int], int], allow_missing_keys: bool = False
+    ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.cropper = CenterSpatialCrop(roi_size)
 
@@ -338,6 +347,7 @@ class RandSpatialCropSamplesd(RandomizableTransform, MapTransform):
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specific size ROI.
             The actual size is sampled from `randint(roi_size, img_size)`.
+        allow_missing_keys: don't raise exception if key is missing.
 
     Raises:
         ValueError: When ``num_samples`` is nonpositive.
@@ -351,13 +361,14 @@ class RandSpatialCropSamplesd(RandomizableTransform, MapTransform):
         num_samples: int,
         random_center: bool = True,
         random_size: bool = True,
+        allow_missing_keys: bool = False,
     ) -> None:
         RandomizableTransform.__init__(self)
-        MapTransform.__init__(self, keys)
+        MapTransform.__init__(self, keys, allow_missing_keys)
         if num_samples < 1:
             raise ValueError(f"num_samples must be positive, got {num_samples}.")
         self.num_samples = num_samples
-        self.cropper = RandSpatialCropd(keys, roi_size, random_center, random_size)
+        self.cropper = RandSpatialCropd(keys, roi_size, random_center, random_size, allow_missing_keys)
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
@@ -656,7 +667,13 @@ class BoundingRectd(MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
-    def __init__(self, keys: KeysCollection, bbox_key_postfix: str = "bbox", select_fn: Callable = lambda x: x > 0, allow_missing_keys: bool = False):
+    def __init__(
+        self,
+        keys: KeysCollection,
+        bbox_key_postfix: str = "bbox",
+        select_fn: Callable = lambda x: x > 0,
+        allow_missing_keys: bool = False,
+    ):
         super().__init__(keys, allow_missing_keys)
         self.bbox = BoundingRect(select_fn=select_fn)
         self.bbox_key_postfix = bbox_key_postfix
