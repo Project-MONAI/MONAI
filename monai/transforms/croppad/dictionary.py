@@ -489,22 +489,22 @@ class RandWeightedCropd(RandomizableTransform, MapTransform):
         _spatial_size = fall_back_tuple(self.spatial_size, d[self.w_key].shape[1:])
 
         results: List[Dict[Hashable, np.ndarray]] = [{} for _ in range(self.num_samples)]
-        for key in data.keys():
-            for key in self.key_iterator(d):
-                img = d[key]
-                if img.shape[1:] != d[self.w_key].shape[1:]:
-                    raise ValueError(
-                        f"data {key} and weight map {self.w_key} spatial shape mismatch: "
-                        f"{img.shape[1:]} vs {d[self.w_key].shape[1:]}."
-                    )
-                for i, center in enumerate(self.centers):
-                    cropper = SpatialCrop(roi_center=center, roi_size=_spatial_size)
-                    results[i][key] = cropper(img)
-                    if self.center_coord_key:
-                        results[i][self.center_coord_key] = center
-            else:
-                for i in range(self.num_samples):
-                    results[i][key] = data[key]
+        for key in self.key_iterator(d):
+            img = d[key]
+            if img.shape[1:] != d[self.w_key].shape[1:]:
+                raise ValueError(
+                    f"data {key} and weight map {self.w_key} spatial shape mismatch: "
+                    f"{img.shape[1:]} vs {d[self.w_key].shape[1:]}."
+                )
+            for i, center in enumerate(self.centers):
+                cropper = SpatialCrop(roi_center=center, roi_size=_spatial_size)
+                results[i][key] = cropper(img)
+                if self.center_coord_key:
+                    results[i][self.center_coord_key] = center
+        # fill in the extra keys with unmodified data
+        for key in set(data.keys()).difference(set(self.keys)):
+            for i in range(self.num_samples):
+                results[i][key] = data[key]
 
         return results
 

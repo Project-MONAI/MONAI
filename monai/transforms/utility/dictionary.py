@@ -441,7 +441,7 @@ class SelectItemsd(MapTransform):
     """
 
     def __call__(self, data):
-        result = {key: val for key, val in data.items() if key in self.key_iterator(d)}
+        result = {key: data[key] for key in self.key_iterator(data)}
         return result
 
 

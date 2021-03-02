@@ -187,7 +187,7 @@ class MapTransform(Transform):
 
     """
 
-    def __init__(self, keys: KeysCollection, allow_missing_keys: bool) -> None:
+    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
         self.keys: Tuple[Hashable, ...] = ensure_tuple(keys)
         self.allow_missing_keys = allow_missing_keys
         if not self.keys:
@@ -240,13 +240,13 @@ class MapTransform(Transform):
             extra_iterables: anything else to be iterated through
         """
         # if no extra iterables given, create a dummy list of Nones
-        ex_iters = extra_iterables if extra_iterables else [None] * len(self.keys)
+        ex_iters = extra_iterables if extra_iterables else [[None] * len(self.keys)]
 
         # loop over keys and any extra iterables
         _ex_iters: List[Any]
         for key, *_ex_iters in zip(self.keys, *ex_iters):
             # all normal, yield (what we yield depends on whether extra iterables were given)
-            if str(key) in data.keys():
+            if key in data.keys():
                 yield (key,) + tuple(_ex_iters) if extra_iterables else key
             # if missing keys not allowed, raise
             elif not self.allow_missing_keys:
