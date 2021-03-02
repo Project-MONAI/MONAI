@@ -226,18 +226,32 @@ class MapTransform(Transform):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def generator(
+    def key_iterator(
         self,
         data: Dict[str, Any],
         extra_iterables: Optional[Iterable] = None,
     ):
+        """
+        Iterate across keys and optionally extra iterables. If key is missing, exception is raised if
+        `allow_missing_keys==False` (default). If `allow_missing_keys==True`, key is skipped.
+
+        Args:
+            data: data that the transform will be applied to
+            extra_iterables: anything else to be iterated through
+        """
         if extra_iterables is None:
             for key in self.keys:
-                if key not in data.keys() and self.allow_missing_keys:
-                    continue
+                if key not in data.keys():
+                    if self.allow_missing_keys:
+                        continue
+                    else:
+                        raise KeyError("Key was missing and allow_missing_keys==False")
                 yield key
         else:
             for key, *extra_iterables in zip(self.keys, extra_iterables):
-                if key not in data.keys() and self.allow_missing_keys:
-                    continue
+                if key not in data.keys():
+                    if self.allow_missing_keys:
+                        continue
+                    else:
+                        raise KeyError("Key was missing and allow_missing_keys==False")
                 yield [key] + extra_iterables

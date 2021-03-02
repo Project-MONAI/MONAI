@@ -59,6 +59,7 @@ class LoadImaged(MapTransform):
         dtype: DtypeLike = np.float32,
         meta_key_postfix: str = "meta_dict",
         overwriting: bool = False,
+        allow_missing_keys: bool = False,
         *args,
         **kwargs,
     ) -> None:
@@ -76,10 +77,11 @@ class LoadImaged(MapTransform):
                 For example, load nifti file for `image`, store the metadata into `image_meta_dict`.
             overwriting: whether allow to overwrite existing meta data of same key.
                 default is False, which will raise exception if encountering existing key.
+            allow_missing_keys: don't raise exception if key is missing.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
         """
-        super().__init__(keys)
+        super().__init__(keys, allow_missing_keys)
         self._loader = LoadImage(reader, False, dtype, *args, **kwargs)
         if not isinstance(meta_key_postfix, str):
             raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
@@ -96,7 +98,7 @@ class LoadImaged(MapTransform):
 
         """
         d = dict(data)
-        for key in self.keys:
+        for key in self.key_iterator(d):
             data = self._loader(d[key], reader)
             if not isinstance(data, (tuple, list)):
                 raise ValueError("loader must return a tuple or list.")
@@ -155,6 +157,7 @@ class SaveImaged(MapTransform):
             it's used for NIfTI format only.
         save_batch: whether the import image is a batch data, default to `False`.
             usually pre-transforms run for channel first data, while post-transforms run for batch data.
+        allow_missing_keys: don't raise exception if key is missing.
 
     """
 
@@ -172,8 +175,9 @@ class SaveImaged(MapTransform):
         dtype: DtypeLike = np.float64,
         output_dtype: DtypeLike = np.float32,
         save_batch: bool = False,
+        allow_missing_keys: bool = False,
     ) -> None:
-        super().__init__(keys)
+        super().__init__(keys, allow_missing_keys)
         self.meta_key_postfix = meta_key_postfix
         self._saver = SaveImage(
             output_dir=output_dir,
@@ -190,7 +194,7 @@ class SaveImaged(MapTransform):
 
     def __call__(self, data):
         d = dict(data)
-        for key in self.keys:
+        for key in self.key_iterator(d):
             meta_data = d[f"{key}_{self.meta_key_postfix}"] if self.meta_key_postfix is not None else None
             self._saver(img=d[key], meta_data=meta_data)
         return d

@@ -118,7 +118,7 @@ class SpatialPadd(MapTransform):
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        for key, m in self.generator(d, self.mode):
+        for key, m in self.key_iterator(d, self.mode):
             d[key] = self.padder(d[key], mode=m)
         return d
 
@@ -235,7 +235,7 @@ class SpatialCropd(MapTransform):
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        for key in self.generator(d):
+        for key in self.key_iterator(d):
             d[key] = self.cropper(d[key])
         return d
 
@@ -258,7 +258,7 @@ class CenterSpatialCropd(MapTransform):
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        for key in self.generator(d):
+        for key in self.key_iterator(d):
             d[key] = self.cropper(d[key])
         return d
 
@@ -311,7 +311,7 @@ class RandSpatialCropd(RandomizableTransform, MapTransform):
         self.randomize(d[self.keys[0]].shape[1:])  # image shape from the first data key
         if self._size is None:
             raise AssertionError
-        for key in self.generator(d):
+        for key in self.key_iterator(d):
             if self.random_center:
                 d[key] = d[key][self._slices]
             else:
@@ -426,7 +426,7 @@ class CropForegroundd(MapTransform):
         d[self.start_coord_key] = np.asarray(box_start)
         d[self.end_coord_key] = np.asarray(box_end)
         cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
-        for key in self.generator(d):
+        for key in self.key_iterator(d):
             d[key] = cropper(d[key])
         return d
 
@@ -479,7 +479,7 @@ class RandWeightedCropd(RandomizableTransform, MapTransform):
 
         results: List[Dict[Hashable, np.ndarray]] = [{} for _ in range(self.num_samples)]
         for key in data.keys():
-            for key in self.generator(d):
+            for key in self.key_iterator(d):
                 img = d[key]
                 if img.shape[1:] != d[self.w_key].shape[1:]:
                     raise ValueError(
@@ -528,6 +528,7 @@ class RandCropByPosNegLabeld(RandomizableTransform, MapTransform):
             `image_threshold`, and randomly select crop centers based on them, need to provide `fg_indices_key`
             and `bg_indices_key` together, expect to be 1 dim array of spatial indices after flattening.
             a typical usage is to call `FgBgToIndicesd` transform first and cache the results.
+        allow_missing_keys: don't raise exception if key is missing.
 
     Raises:
         ValueError: When ``pos`` or ``neg`` are negative.
@@ -547,9 +548,10 @@ class RandCropByPosNegLabeld(RandomizableTransform, MapTransform):
         image_threshold: float = 0.0,
         fg_indices_key: Optional[str] = None,
         bg_indices_key: Optional[str] = None,
+        allow_missing_keys: bool = False,
     ) -> None:
         RandomizableTransform.__init__(self)
-        MapTransform.__init__(self, keys)
+        MapTransform.__init__(self, keys, allow_missing_keys)
         self.label_key = label_key
         self.spatial_size: Union[Tuple[int, ...], Sequence[int], int] = spatial_size
         if pos < 0 or neg < 0:
@@ -594,15 +596,15 @@ class RandCropByPosNegLabeld(RandomizableTransform, MapTransform):
         if self.centers is None:
             raise AssertionError
         results: List[Dict[Hashable, np.ndarray]] = [{} for _ in range(self.num_samples)]
-        for key in data.keys():
-            if key in self.keys:
+
+        for i, center in enumerate(self.centers):
+            for key in self.key_iterator(d):
                 img = d[key]
-                for i, center in enumerate(self.centers):
-                    cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)  # type: ignore
-                    results[i][key] = cropper(img)
-            else:
-                for i in range(self.num_samples):
-                    results[i][key] = data[key]
+                cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)  # type: ignore
+                results[i][key] = cropper(img)
+            # fill in the extra keys with unmodified data
+            for key in set(data.keys()).difference(set(self.keys)):
+                results[i][key] = data[key]
 
         return results
 
@@ -620,6 +622,7 @@ class ResizeWithPadOrCropd(MapTransform):
             ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
             One of the listed string values or a user supplied function for padding. Defaults to ``"constant"``.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        allow_missing_keys: don't raise exception if key is missing.
 
     """
 
@@ -628,13 +631,14 @@ class ResizeWithPadOrCropd(MapTransform):
         keys: KeysCollection,
         spatial_size: Union[Sequence[int], int],
         mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+        allow_missing_keys: bool = False,
     ) -> None:
-        super().__init__(keys)
+        super().__init__(keys, allow_missing_keys)
         self.padcropper = ResizeWithPadOrCrop(spatial_size=spatial_size, mode=mode)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        for key in self.keys:
+        for key in self.key_iterator(d):
             d[key] = self.padcropper(d[key])
         return d
 
@@ -649,10 +653,11 @@ class BoundingRectd(MapTransform):
         bbox_key_postfix: the output bounding box coordinates will be
             written to the value of `{key}_{bbox_key_postfix}`.
         select_fn: function to select expected foreground, default is to select values > 0.
+        allow_missing_keys: don't raise exception if key is missing.
     """
 
-    def __init__(self, keys: KeysCollection, bbox_key_postfix: str = "bbox", select_fn: Callable = lambda x: x > 0):
-        super().__init__(keys=keys)
+    def __init__(self, keys: KeysCollection, bbox_key_postfix: str = "bbox", select_fn: Callable = lambda x: x > 0, allow_missing_keys: bool = False):
+        super().__init__(keys, allow_missing_keys)
         self.bbox = BoundingRect(select_fn=select_fn)
         self.bbox_key_postfix = bbox_key_postfix
 
@@ -661,7 +666,7 @@ class BoundingRectd(MapTransform):
         See also: :py:class:`monai.transforms.utils.generate_spatial_bounding_box`.
         """
         d = dict(data)
-        for key in self.keys:
+        for key in self.key_iterator(d):
             bbox = self.bbox(d[key])
             key_to_add = f"{key}_{self.bbox_key_postfix}"
             if key_to_add in d:

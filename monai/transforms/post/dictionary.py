@@ -71,6 +71,7 @@ class Activationsd(MapTransform):
         sigmoid: Union[Sequence[bool], bool] = False,
         softmax: Union[Sequence[bool], bool] = False,
         other: Optional[Union[Sequence[Callable], Callable]] = None,
+        allow_missing_keys: bool = False,
     ) -> None:
         """
         Args:
@@ -83,9 +84,10 @@ class Activationsd(MapTransform):
             other: callable function to execute other activation layers,
                 for example: `other = lambda x: torch.tanh(x)`. it also can be a sequence of Callable, each
                 element corresponds to a key in ``keys``.
+            allow_missing_keys: don't raise exception if key is missing.
 
         """
-        super().__init__(keys)
+        super().__init__(keys, allow_missing_keys)
         self.sigmoid = ensure_tuple_rep(sigmoid, len(self.keys))
         self.softmax = ensure_tuple_rep(softmax, len(self.keys))
         self.other = ensure_tuple_rep(other, len(self.keys))
@@ -93,8 +95,8 @@ class Activationsd(MapTransform):
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
-        for idx, key in enumerate(self.keys):
-            d[key] = self.converter(d[key], self.sigmoid[idx], self.softmax[idx], self.other[idx])
+        for key, sigmoid, softmax, other in self.key_iterator(d, self.sigmoid, self.softmax, self.other):
+            d[key] = self.converter(d[key], sigmoid, softmax, other)
         return d
 
 
@@ -111,6 +113,7 @@ class AsDiscreted(MapTransform):
         n_classes: Optional[Union[Sequence[int], int]] = None,
         threshold_values: Union[Sequence[bool], bool] = False,
         logit_thresh: Union[Sequence[float], float] = 0.5,
+        allow_missing_keys: bool = False,
     ) -> None:
         """
         Args:
@@ -126,9 +129,10 @@ class AsDiscreted(MapTransform):
                 it also can be a sequence of bool, each element corresponds to a key in ``keys``.
             logit_thresh: the threshold value for thresholding operation, default is 0.5.
                 it also can be a sequence of float, each element corresponds to a key in ``keys``.
+            allow_missing_keys: don't raise exception if key is missing.
 
         """
-        super().__init__(keys)
+        super().__init__(keys, allow_missing_keys)
         self.argmax = ensure_tuple_rep(argmax, len(self.keys))
         self.to_onehot = ensure_tuple_rep(to_onehot, len(self.keys))
         self.n_classes = ensure_tuple_rep(n_classes, len(self.keys))
@@ -138,14 +142,14 @@ class AsDiscreted(MapTransform):
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
-        for idx, key in enumerate(self.keys):
+        for key, argmax, to_onehot, n_classes, threshold_values, logit_thresh in self.key_iterator(d, self.argmax, self.to_onehot, self.n_classes, self.threshold_values, self.logit_thresh):
             d[key] = self.converter(
                 d[key],
-                self.argmax[idx],
-                self.to_onehot[idx],
-                self.n_classes[idx],
-                self.threshold_values[idx],
-                self.logit_thresh[idx],
+                argmax,
+                to_onehot,
+                n_classes,
+                threshold_values,
+                logit_thresh,
             )
         return d
 
@@ -161,6 +165,7 @@ class KeepLargestConnectedComponentd(MapTransform):
         applied_labels: Union[Sequence[int], int],
         independent: bool = True,
         connectivity: Optional[int] = None,
+        allow_missing_keys: bool = False,
     ) -> None:
         """
         Args:
@@ -175,14 +180,15 @@ class KeepLargestConnectedComponentd(MapTransform):
             connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
                 Accepted values are ranging from  1 to input.ndim. If ``None``, a full
                 connectivity of ``input.ndim`` is used.
+            allow_missing_keys: don't raise exception if key is missing.
 
         """
-        super().__init__(keys)
+        super().__init__(keys, allow_missing_keys)
         self.converter = KeepLargestConnectedComponent(applied_labels, independent, connectivity)
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
-        for key in self.keys:
+        for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
         return d
 
@@ -192,20 +198,21 @@ class LabelToContourd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.LabelToContour`.
     """
 
-    def __init__(self, keys: KeysCollection, kernel_type: str = "Laplace") -> None:
+    def __init__(self, keys: KeysCollection, kernel_type: str = "Laplace", allow_missing_keys: bool = False) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             kernel_type: the method applied to do edge detection, default is "Laplace".
+            allow_missing_keys: don't raise exception if key is missing.
 
         """
-        super().__init__(keys)
+        super().__init__(keys, allow_missing_keys)
         self.converter = LabelToContour(kernel_type=kernel_type)
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
-        for key in self.keys:
+        for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
         return d
 
@@ -221,6 +228,7 @@ class Ensembled(MapTransform):
         keys: KeysCollection,
         ensemble: Callable[[Union[Sequence[torch.Tensor], torch.Tensor]], torch.Tensor],
         output_key: Optional[str] = None,
+        allow_missing_keys: bool = False,
     ) -> None:
         """
         Args:
@@ -229,13 +237,14 @@ class Ensembled(MapTransform):
             output_key: the key to store ensemble result in the dictionary.
             ensemble: callable method to execute ensemble on specified data.
                 if only 1 key provided in `keys`, `output_key` can be None and use `keys` as default.
+            allow_missing_keys: don't raise exception if key is missing.
 
         Raises:
             TypeError: When ``ensemble`` is not ``callable``.
             ValueError: When ``len(keys) > 1`` and ``output_key=None``. Incompatible values.
 
         """
-        super().__init__(keys)
+        super().__init__(keys, allow_missing_keys)
         if not callable(ensemble):
             raise TypeError(f"ensemble must be callable but is {type(ensemble).__name__}.")
         self.ensemble = ensemble
@@ -249,7 +258,7 @@ class Ensembled(MapTransform):
         if len(self.keys) == 1:
             items = d[self.keys[0]]
         else:
-            items = [d[key] for key in self.keys]
+            items = [d[key] for key in self.key_iterator(d)]
         d[self.output_key] = self.ensemble(items)
 
         return d
