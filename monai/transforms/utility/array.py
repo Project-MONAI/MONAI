@@ -15,7 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 import logging
 import time
-from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Tuple, Union
+from typing import Dict, TYPE_CHECKING, Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -39,6 +39,7 @@ __all__ = [
     "AsChannelFirst",
     "AsChannelLast",
     "AddChannel",
+    "AutoAdjustChannel",
     "RepeatChannel",
     "RemoveRepeatedChannel",
     "SplitChannel",
@@ -147,6 +148,27 @@ class AddChannel(Transform):
         Apply the transform to `img`.
         """
         return img[None]
+
+
+class AutoAdjustChannel(Transform):
+    """
+    Automatically adjust the channel dimension of input data.
+    It extract the `original_channel_dim` info from provided meta_data dictionary.
+    Convert the data to channel_first based on the `original_channel_dim` information.
+
+    """
+    def __call__(self, img: NdarrayTensor, meta_dict: Dict):
+        """
+        Apply the transform to `img`.
+        """
+        if "original_channel_dim" not in meta_dict:
+            raise ValueError("meta_dict must contain `original_channel_dim` information.")
+        channel_dim = meta_dict["original_channel_dim"]
+
+        if channel_dim is None:
+            return AddChannel()(img)
+        else:
+            return AsChannelFirst(channel_dim=channel_dim)(img)
 
 
 class RepeatChannel(Transform):

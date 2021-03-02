@@ -247,6 +247,7 @@ from .utility.array import (
     AddExtremePointsChannel,
     AsChannelFirst,
     AsChannelLast,
+    AutoAdjustChannel,
     CastToType,
     ConvertToMultiChannelBasedOnBratsClasses,
     DataStats,
