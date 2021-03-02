@@ -109,6 +109,17 @@ def _copy_compatible_dict(from_dict: Dict, to_dict: Dict):
             )
 
 
+def _stack_images(image_list: List, meta_dict: Dict):
+    if len(image_list) > 1:
+        if meta_dict.get("original_channel_dim", None) not in ("no_channel", None):
+            raise RuntimeError("can not read a list of images which already have channel dimension.")
+        meta_dict["original_channel_dim"] = 0
+        img_array = np.stack(image_list, axis=0)
+    else:
+        img_array = image_list[0]
+    return img_array
+
+
 class ITKReader(ImageReader):
     """
     Load medical images based on ITK library.
@@ -200,11 +211,12 @@ class ITKReader(ImageReader):
             header["original_affine"] = self._get_affine(i)
             header["affine"] = header["original_affine"].copy()
             header["spatial_shape"] = self._get_spatial_shape(i)
-            img_array.append(self._get_array_data(i))
+            data = self._get_array_data(i)
+            img_array.append(data)
+            header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else -1
             _copy_compatible_dict(header, compatible_meta)
 
-        img_array_ = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
-        return img_array_, compatible_meta
+        return _stack_images(img_array, compatible_meta), compatible_meta
 
     def _get_meta_dict(self, img) -> Dict:
         """
@@ -265,6 +277,7 @@ class ITKReader(ImageReader):
             img: a ITK image object loaded from a image file.
 
         """
+        # the img data should have no channel dim or the last dim is channel
         shape = list(itk.size(img))
         shape.reverse()
         return np.asarray(shape)
@@ -371,11 +384,12 @@ class NibabelReader(ImageReader):
                 i = nib.as_closest_canonical(i)
                 header["affine"] = self._get_affine(i)
             header["spatial_shape"] = self._get_spatial_shape(i)
-            img_array.append(self._get_array_data(i))
+            data = self._get_array_data(i)
+            img_array.append(data)
+            header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else -1
             _copy_compatible_dict(header, compatible_meta)
 
-        img_array_ = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
-        return img_array_, compatible_meta
+        return _stack_images(img_array, compatible_meta), compatible_meta
 
     def _get_meta_dict(self, img) -> Dict:
         """
@@ -408,6 +422,7 @@ class NibabelReader(ImageReader):
         """
         ndim = img.header["dim"][0]
         spatial_rank = min(ndim, 3)
+        # the img data should have no channel dim or the last dim is channel
         return np.asarray(img.header["dim"][1 : spatial_rank + 1])
 
     def _get_array_data(self, img) -> np.ndarray:
@@ -504,12 +519,12 @@ class NumpyReader(ImageReader):
         for i in ensure_tuple(img):
             header = {}
             if isinstance(i, np.ndarray):
+                # can not detect the channel dim of numpy array, use all the dims as spatial_shape
                 header["spatial_shape"] = i.shape
             img_array.append(i)
             _copy_compatible_dict(header, compatible_meta)
 
-        img_array_ = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
-        return img_array_, compatible_meta
+        return _stack_images(img_array, compatible_meta), compatible_meta
 
 
 class PILReader(ImageReader):
@@ -582,11 +597,12 @@ class PILReader(ImageReader):
         for i in ensure_tuple(img):
             header = self._get_meta_dict(i)
             header["spatial_shape"] = self._get_spatial_shape(i)
-            img_array.append(np.asarray(i))
+            data = np.asarray(i)
+            img_array.append(data)
+            header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else -1
             _copy_compatible_dict(header, compatible_meta)
 
-        img_array_ = np.stack(img_array, axis=0) if len(img_array) > 1 else img_array[0]
-        return img_array_, compatible_meta
+        return _stack_images(img_array, compatible_meta), compatible_meta
 
     def _get_meta_dict(self, img) -> Dict:
         """
@@ -608,4 +624,5 @@ class PILReader(ImageReader):
         Args:
             img: a PIL Image object loaded from a image file.
         """
+        # the img data should have no channel dim or the last dim is channel
         return np.asarray((img.width, img.height))
