@@ -28,7 +28,7 @@ from monai.transforms.utility.array import (
     AddChannel,
     AsChannelFirst,
     AsChannelLast,
-    AutoAdjustChannel,
+    EnsureChannelFirst,
     CastToType,
     ConvertToMultiChannelBasedOnBratsClasses,
     DataStats,
@@ -61,7 +61,7 @@ __all__ = [
     "AsChannelFirstd",
     "AsChannelLastd",
     "AddChanneld",
-    "AutoAdjustChanneld",
+    "EnsureChannelFirstd",
     "RepeatChanneld",
     "RemoveRepeatedChanneld",
     "SplitChanneld",
@@ -91,8 +91,8 @@ __all__ = [
     "AsChannelLastDict",
     "AddChannelD",
     "AddChannelDict",
-    "AutoAdjustChannelD",
-    "AutoAdjustChannelDict",
+    "EnsureChannelFirstD",
+    "EnsureChannelFirstDict",
     "RandLambdaD",
     "RandLambdaDict",
     "RepeatChannelD",
@@ -221,9 +221,9 @@ class AddChanneld(MapTransform):
         return d
 
 
-class AutoAdjustChanneld(MapTransform):
+class EnsureChannelFirstd(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.AutoAdjustChannel`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.EnsureChannelFirst`.
     """
 
     def __init__(self, keys: KeysCollection, meta_key_postfix: str = "meta_dict") -> None:
@@ -237,7 +237,7 @@ class AutoAdjustChanneld(MapTransform):
 
         """
         super().__init__(keys)
-        self.adjuster = AutoAdjustChannel()
+        self.adjuster = EnsureChannelFirst()
         self.meta_key_postfix = meta_key_postfix
 
     def __call__(self, data) -> Dict[Hashable, np.ndarray]:
@@ -924,7 +924,7 @@ IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
 AddChannelD = AddChannelDict = AddChanneld
-AutoAdjustChannelD = AutoAdjustChannelDict = AutoAdjustChanneld
+EnsureChannelFirstD = EnsureChannelFirstDict = EnsureChannelFirstd
 RemoveRepeatedChannelD = RemoveRepeatedChannelDict = RemoveRepeatedChanneld
 RepeatChannelD = RepeatChannelDict = RepeatChanneld
 SplitChannelD = SplitChannelDict = SplitChanneld

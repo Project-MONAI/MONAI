@@ -39,7 +39,7 @@ __all__ = [
     "AsChannelFirst",
     "AsChannelLast",
     "AddChannel",
-    "AutoAdjustChannel",
+    "EnsureChannelFirst",
     "RepeatChannel",
     "RemoveRepeatedChannel",
     "SplitChannel",
@@ -150,7 +150,7 @@ class AddChannel(Transform):
         return img[None]
 
 
-class AutoAdjustChannel(Transform):
+class EnsureChannelFirst(Transform):
     """
     Automatically adjust the channel dimension of input data.
     It extract the `original_channel_dim` info from provided meta_data dictionary.

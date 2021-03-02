@@ -20,7 +20,7 @@ from parameterized import parameterized
 from PIL import Image
 
 from monai.data import ITKReader
-from monai.transforms import AutoAdjustChannel, LoadImage
+from monai.transforms import EnsureChannelFirst, LoadImage
 
 TEST_CASE_1 = [{"image_only": False}, ["test_image.nii.gz"], None]
 
@@ -49,7 +49,7 @@ TEST_CASE_7 = [
 ]
 
 
-class TestAutoAdjustChannel(unittest.TestCase):
+class TestEnsureChannelFirst(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
     def test_load_nifti(self, input_param, filenames, original_channel_dim):
         if original_channel_dim is None:
@@ -62,13 +62,13 @@ class TestAutoAdjustChannel(unittest.TestCase):
                 filenames[i] = os.path.join(tempdir, name)
                 nib.save(nib.Nifti1Image(test_image, np.eye(4)), filenames[i])
             result, header = LoadImage(**input_param)(filenames)
-            result = AutoAdjustChannel()(result, header)
+            result = EnsureChannelFirst()(result, header)
             self.assertEqual(result.shape[0], len(filenames))
 
     @parameterized.expand([TEST_CASE_7])
     def test_itk_dicom_series_reader(self, input_param, filenames, original_channel_dim):
         result, header = LoadImage(**input_param)(filenames)
-        result = AutoAdjustChannel()(result, header)
+        result = EnsureChannelFirst()(result, header)
         self.assertEqual(result.shape[0], 1)
 
     def test_load_png(self):
@@ -78,7 +78,7 @@ class TestAutoAdjustChannel(unittest.TestCase):
             filename = os.path.join(tempdir, "test_image.png")
             Image.fromarray(test_image.astype("uint8")).save(filename)
             result, header = LoadImage(image_only=False)(filename)
-            result = AutoAdjustChannel()(result, header)
+            result = EnsureChannelFirst()(result, header)
             self.assertEqual(result.shape[0], 3)
 
 

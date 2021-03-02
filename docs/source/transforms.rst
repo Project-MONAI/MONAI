@@ -437,9 +437,9 @@ Utility
     :members:
     :special-members: __call__
 
-`AutoAdjustChannel`
+`EnsureChannelFirst`
 """""""""""""""""""
-.. autoclass:: AutoAdjustChannel
+.. autoclass:: EnsureChannelFirst
     :members:
     :special-members: __call__
 
@@ -896,9 +896,9 @@ Utility (Dict)
     :members:
     :special-members: __call__
 
-`AutoAdjustChanneld`
+`EnsureChannelFirstd`
 """"""""""""""""""""
-.. autoclass:: AutoAdjustChanneld
+.. autoclass:: EnsureChannelFirstd
     :members:
     :special-members: __call__
 

@@ -18,7 +18,7 @@ import numpy as np
 from parameterized import parameterized
 from PIL import Image
 
-from monai.transforms import AutoAdjustChanneld, LoadImaged
+from monai.transforms import EnsureChannelFirstd, LoadImaged
 
 TEST_CASE_1 = [{"keys": "img"}, ["test_image.nii.gz"], None]
 
@@ -31,7 +31,7 @@ TEST_CASE_3 = [
 ]
 
 
-class TestAutoAdjustChanneld(unittest.TestCase):
+class TestEnsureChannelFirstd(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_load_nifti(self, input_param, filenames, original_channel_dim):
         if original_channel_dim is None:
@@ -44,7 +44,7 @@ class TestAutoAdjustChanneld(unittest.TestCase):
                 filenames[i] = os.path.join(tempdir, name)
                 nib.save(nib.Nifti1Image(test_image, np.eye(4)), filenames[i])
             result = LoadImaged(**input_param)({"img": filenames})
-            result = AutoAdjustChanneld(**input_param)(result)
+            result = EnsureChannelFirstd(**input_param)(result)
             self.assertEqual(result["img"].shape[0], len(filenames))
 
     def test_load_png(self):
@@ -54,7 +54,7 @@ class TestAutoAdjustChanneld(unittest.TestCase):
             filename = os.path.join(tempdir, "test_image.png")
             Image.fromarray(test_image.astype("uint8")).save(filename)
             result = LoadImaged(keys="img")({"img": filename})
-            result = AutoAdjustChanneld(keys="img")(result)
+            result = EnsureChannelFirstd(keys="img")(result)
             self.assertEqual(result["img"].shape[0], 3)
 
 
