@@ -159,10 +159,12 @@ class AutoAdjustChannel(Transform):
 
     """
 
-    def __call__(self, img: NdarrayTensor, meta_dict: Dict):
+    def __call__(self, img: np.ndarray, meta_dict: Optional[Dict] = None):
         """
         Apply the transform to `img`.
         """
+        if not isinstance(meta_dict, dict):
+            raise ValueError("meta_dict must be a dictionay data.")
 
         channel_dim = meta_dict.get("original_channel_dim", None)
 

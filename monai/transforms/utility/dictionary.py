@@ -240,7 +240,7 @@ class AutoAdjustChanneld(MapTransform):
         self.adjuster = AutoAdjustChannel()
         self.meta_key_postfix = meta_key_postfix
 
-    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.keys:
             d[key] = self.adjuster(d[key], d[f"{key}_{self.meta_key_postfix}"])
