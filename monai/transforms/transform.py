@@ -243,7 +243,7 @@ class MapTransform(Transform):
         ex_iters = extra_iterables if extra_iterables else [None] * len(self.keys)
 
         # loop over keys and any extra iterables
-        for key, *_ex_iters in zip(self.keys, ex_iters):
+        for key, *_ex_iters in zip(self.keys, *ex_iters):
             # all normal, yield (what we yield depends on whether extra iterables were given)
             if str(key) in data.keys():
                 yield (key,) + tuple(_ex_iters) if extra_iterables else key
