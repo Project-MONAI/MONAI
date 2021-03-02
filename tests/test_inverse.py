@@ -61,24 +61,33 @@ if TYPE_CHECKING:
 
     has_matplotlib = True
     has_vtk = True
+    has_nib = True
 else:
     plt, has_matplotlib = optional_import("matplotlib.pyplot")
     _, has_vtk = optional_import("vtk")
+    _, has_nib = optional_import("nibabel")
 
-set_determinism(seed=0)
 
 AFFINE = make_rand_affine()
 AFFINE[0] *= 2
 
-IM_1D = AddChannel()(np.arange(0, 10))
-IM_2D_FNAME, SEG_2D_FNAME = [make_nifti_image(i) for i in create_test_image_2d(101, 100)]
-IM_3D_FNAME, SEG_3D_FNAME = [make_nifti_image(i, AFFINE) for i in create_test_image_3d(100, 101, 107)]
-
 KEYS = ["image", "label"]
+IM_1D = AddChannel()(np.arange(0, 10))
 DATA_1D = {"image": IM_1D, "label": IM_1D, "other": IM_1D}
-LOAD_IMS = Compose([LoadImaged(KEYS), AddChanneld(KEYS)])
-DATA_2D = LOAD_IMS({"image": IM_2D_FNAME, "label": SEG_2D_FNAME})
-DATA_3D = LOAD_IMS({"image": IM_3D_FNAME, "label": SEG_3D_FNAME})
+
+IM_2D, SEG_2D = create_test_image_2d(101, 100)
+IM_3D, SEG_3D = create_test_image_3d(100, 101, 107)
+if has_nib:
+    IM_2D_FNAME, SEG_2D_FNAME = [make_nifti_image(i) for i in create_test_image_2d(101, 100)]
+    IM_3D_FNAME, SEG_3D_FNAME = [make_nifti_image(i, AFFINE) for i in create_test_image_3d(100, 101, 107)]
+
+    LOAD_IMS = Compose([LoadImaged(KEYS), AddChanneld(KEYS)])
+    DATA_2D = LOAD_IMS({"image": IM_2D_FNAME, "label": SEG_2D_FNAME})
+    DATA_3D = LOAD_IMS({"image": IM_3D_FNAME, "label": SEG_3D_FNAME})
+else:
+    ADD_CH = AddChanneld(KEYS)
+    DATA_2D = ADD_CH({"image": IM_2D, "label": SEG_2D})
+    DATA_3D = ADD_CH({"image": IM_3D, "label": SEG_3D})
 
 TESTS: List[Tuple] = []
 
@@ -429,6 +438,12 @@ def plot_im(orig, fwd_bck, fwd):
 
 
 class TestInverse(unittest.TestCase):
+    def setUp(self):
+        set_determinism(seed=0)
+
+    def tearDown(self):
+        set_determinism(seed=None)
+
     def check_inverse(self, name, keys, orig_d, fwd_bck_d, unmodified_d, acceptable_diff):
         for key in keys:
             orig = orig_d[key]
