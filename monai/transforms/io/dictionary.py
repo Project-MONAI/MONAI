@@ -59,6 +59,7 @@ class LoadImaged(MapTransform):
         dtype: DtypeLike = np.float32,
         meta_key_postfix: str = "meta_dict",
         overwriting: bool = False,
+        image_only: bool = False,
         allow_missing_keys: bool = False,
         *args,
         **kwargs,
@@ -77,12 +78,14 @@ class LoadImaged(MapTransform):
                 For example, load nifti file for `image`, store the metadata into `image_meta_dict`.
             overwriting: whether allow to overwrite existing meta data of same key.
                 default is False, which will raise exception if encountering existing key.
+            image_only: if True return dictionary containing just only the image volumes, otherwise return
+                dictionary containing image data array and header dict per input key.
             allow_missing_keys: don't raise exception if key is missing.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
         """
         super().__init__(keys, allow_missing_keys)
-        self._loader = LoadImage(reader, False, dtype, *args, **kwargs)
+        self._loader = LoadImage(reader, image_only, dtype, *args, **kwargs)
         if not isinstance(meta_key_postfix, str):
             raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
         self.meta_key_postfix = meta_key_postfix
@@ -100,15 +103,20 @@ class LoadImaged(MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             data = self._loader(d[key], reader)
-            if not isinstance(data, (tuple, list)):
-                raise ValueError("loader must return a tuple or list.")
-            d[key] = data[0]
-            if not isinstance(data[1], dict):
-                raise ValueError("metadata must be a dict.")
-            key_to_add = f"{key}_{self.meta_key_postfix}"
-            if key_to_add in d and not self.overwriting:
-                raise KeyError(f"Meta data with key {key_to_add} already exists and overwriting=False.")
-            d[key_to_add] = data[1]
+            if self._loader.image_only:
+                if not isinstance(data, np.ndarray):
+                    raise ValueError("loader must return a numpy array (because image_only=True was used).")
+                d[key] = data
+            else:
+                if not isinstance(data, (tuple, list)):
+                    raise ValueError("loader must return a tuple or list (because image_only=False was used).")
+                d[key] = data[0]
+                if not isinstance(data[1], dict):
+                    raise ValueError("metadata must be a dict.")
+                key_to_add = f"{key}_{self.meta_key_postfix}"
+                if key_to_add in d and not self.overwriting:
+                    raise KeyError(f"Meta data with key {key_to_add} already exists and overwriting=False.")
+                d[key_to_add] = data[1]
         return d
 
 
