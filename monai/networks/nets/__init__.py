@@ -10,6 +10,7 @@
 # limitations under the License.
 
 from .ahnet import AHNet
+from .regunet import RegUNet
 from .autoencoder import AutoEncoder
 from .basic_unet import BasicUNet, BasicUnet, Basicunet
 from .classifier import Classifier, Critic, Discriminator
@@ -20,7 +21,6 @@ from .generator import Generator
 from .highresnet import HighResBlock, HighResNet
 from .localnet import LocalNet
 from .regressor import Regressor
-from .regunet import RegUNet
 from .segresnet import SegResNet, SegResNetVAE
 from .senet import SENet, se_resnet50, se_resnet101, se_resnet152, se_resnext50_32x4d, se_resnext101_32x4d, senet154
 from .unet import UNet, Unet, unet
