@@ -438,7 +438,7 @@ Utility
     :special-members: __call__
 
 `EnsureChannelFirst`
-"""""""""""""""""""
+""""""""""""""""""""
 .. autoclass:: EnsureChannelFirst
     :members:
     :special-members: __call__
@@ -897,7 +897,7 @@ Utility (Dict)
     :special-members: __call__
 
 `EnsureChannelFirstd`
-""""""""""""""""""""
+"""""""""""""""""""""
 .. autoclass:: EnsureChannelFirstd
     :members:
     :special-members: __call__
