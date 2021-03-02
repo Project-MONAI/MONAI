@@ -1039,10 +1039,12 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
                     d[key] = torch.Tensor(d[key]).cpu().numpy()
                 # Inverse is same as forward
                 d[key] = self.flipper(d[key])
-                # Remove the applied transform
-                self.remove_most_recent_transform(d, key)
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
+        return d
 
-class RandAxisFlipd(RandomizableTransform, MapTransform):
+
+class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandAxisFlip`.
 
@@ -1072,6 +1074,25 @@ class RandAxisFlipd(RandomizableTransform, MapTransform):
         for key in self.keys:
             if self._do_transform:
                 d[key] = flipper(d[key])
+                self.append_applied_transforms(d, key, extra_info={"axis": self._axis})
+        return d
+
+    def inverse(
+        self, data: Mapping[Hashable, np.ndarray], keys: Optional[Tuple[Hashable, ...]] = None
+    ) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in keys or self.keys:
+            transform = self.get_most_recent_transform(d, key)
+            # Check if random transform was actually performed (based on `prob`)
+            if transform["do_transform"]:
+                flipper = Flip(spatial_axis=transform["extra_info"]["axis"])
+                # Might need to convert to numpy
+                if isinstance(d[key], torch.Tensor):
+                    d[key] = torch.Tensor(d[key]).cpu().numpy()
+                # Inverse is same as forward
+                d[key] = flipper(d[key])
+            # Remove the applied transform
+            self.remove_most_recent_transform(d, key)
         return d
 
 

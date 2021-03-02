@@ -36,6 +36,7 @@ from monai.transforms import (
     Rand2DElasticd,
     Rand3DElasticd,
     RandAffined,
+    RandAxisFlipd,
     RandFlipd,
     RandRotate90d,
     RandRotated,
@@ -202,6 +203,16 @@ TESTS.append(
         RandFlipd(KEYS, 1, [1, 2]),
     )
 )
+
+TESTS.append(
+    (
+        "RandAxisFlipd 3d",
+        DATA_3D,
+        0,
+        RandAxisFlipd(KEYS, 1),
+    )
+)
+
 
 TESTS.append(
     (
