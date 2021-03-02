@@ -31,6 +31,7 @@ from monai.transforms.utility.array import (
     CastToType,
     ConvertToMultiChannelBasedOnBratsClasses,
     DataStats,
+    EnsureChannelFirst,
     FgBgToIndices,
     Identity,
     LabelToMask,
@@ -60,6 +61,7 @@ __all__ = [
     "AsChannelFirstd",
     "AsChannelLastd",
     "AddChanneld",
+    "EnsureChannelFirstd",
     "RepeatChanneld",
     "RemoveRepeatedChanneld",
     "SplitChanneld",
@@ -89,6 +91,8 @@ __all__ = [
     "AsChannelLastDict",
     "AddChannelD",
     "AddChannelDict",
+    "EnsureChannelFirstD",
+    "EnsureChannelFirstDict",
     "RandLambdaD",
     "RandLambdaDict",
     "RepeatChannelD",
@@ -214,6 +218,32 @@ class AddChanneld(MapTransform):
         d = dict(data)
         for key in self.keys:
             d[key] = self.adder(d[key])
+        return d
+
+
+class EnsureChannelFirstd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.EnsureChannelFirst`.
+    """
+
+    def __init__(self, keys: KeysCollection, meta_key_postfix: str = "meta_dict") -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            meta_key_postfix: `key_{postfix}` was used to store the metadata in `LoadImaged`.
+                So need the key to extract metadata for channel dim information, default is `meta_dict`.
+                For example, for data with key `image`, metadata by default is in `image_meta_dict`.
+
+        """
+        super().__init__(keys)
+        self.adjuster = EnsureChannelFirst()
+        self.meta_key_postfix = meta_key_postfix
+
+    def __call__(self, data) -> Dict[Hashable, np.ndarray]:
+        d = dict(data)
+        for key in self.keys:
+            d[key] = self.adjuster(d[key], d[f"{key}_{self.meta_key_postfix}"])
         return d
 
 
@@ -894,6 +924,7 @@ IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
 AddChannelD = AddChannelDict = AddChanneld
+EnsureChannelFirstD = EnsureChannelFirstDict = EnsureChannelFirstd
 RemoveRepeatedChannelD = RemoveRepeatedChannelDict = RemoveRepeatedChanneld
 RepeatChannelD = RepeatChannelDict = RepeatChanneld
 SplitChannelD = SplitChannelDict = SplitChanneld
