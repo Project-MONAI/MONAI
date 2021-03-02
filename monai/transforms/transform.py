@@ -13,7 +13,7 @@ A collection of generic interfaces for MONAI transforms.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Generator, Hashable, Iterable, Optional, Tuple
+from typing import Any, Dict, Generator, Hashable, Iterable, List, Optional, Tuple
 
 import numpy as np
 
@@ -243,6 +243,7 @@ class MapTransform(Transform):
         ex_iters = extra_iterables if extra_iterables else [None] * len(self.keys)
 
         # loop over keys and any extra iterables
+        _ex_iters: List[Any]
         for key, *_ex_iters in zip(self.keys, *ex_iters):
             # all normal, yield (what we yield depends on whether extra iterables were given)
             if str(key) in data.keys():
