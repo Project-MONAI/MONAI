@@ -79,9 +79,17 @@ class TestDeCollate(unittest.TestCase):
             decollated_1 = decollate_batch(batch_data)
             decollated_2 = Decollated()(batch_data)
 
-            for decollated in [decollated_1, decollated_2]:
+            for z, decollated in enumerate([decollated_1, decollated_2]):
                 for i, d in enumerate(decollated):
-                    self.check_match(dataset[b * batch_size + i], d)
+                    try:
+                        self.check_match(dataset[b * batch_size + i], d)
+                    except RuntimeError:
+                        print(f"problem with b={b}, i={i}, decollated_{z+1}")
+                        print("d")
+                        print(d)
+                        print("dataset[b * batch_size + i]")
+                        print(dataset[b * batch_size + i])
+                        raise
 
 
 if __name__ == "__main__":
