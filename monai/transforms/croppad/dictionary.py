@@ -21,7 +21,6 @@ import numpy as np
 
 from monai.config import IndexSelection, KeysCollection
 from monai.data.utils import get_random_patch, get_valid_patch_size
-from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.croppad.array import (
     BorderPad,
     BoundingRect,
@@ -31,6 +30,7 @@ from monai.transforms.croppad.array import (
     SpatialCrop,
     SpatialPad,
 )
+from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utils import (
     generate_pos_neg_label_crop_centers,
     generate_spatial_bounding_box,
@@ -258,7 +258,7 @@ class CenterSpatialCropd(MapTransform):
         return d
 
 
-class RandSpatialCropd(Randomizable, MapTransform):
+class RandSpatialCropd(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandSpatialCrop`.
     Crop image with random size or specific size ROI. It can crop at a random position as
@@ -283,7 +283,8 @@ class RandSpatialCropd(Randomizable, MapTransform):
         random_center: bool = True,
         random_size: bool = True,
     ) -> None:
-        super().__init__(keys)
+        RandomizableTransform.__init__(self)
+        MapTransform.__init__(self, keys)
         self.roi_size = roi_size
         self.random_center = random_center
         self.random_size = random_size
@@ -312,7 +313,7 @@ class RandSpatialCropd(Randomizable, MapTransform):
         return d
 
 
-class RandSpatialCropSamplesd(Randomizable, MapTransform):
+class RandSpatialCropSamplesd(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandSpatialCropSamples`.
     Crop image with random size or specific size ROI to generate a list of N samples.
@@ -344,7 +345,8 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
         random_center: bool = True,
         random_size: bool = True,
     ) -> None:
-        super().__init__(keys)
+        RandomizableTransform.__init__(self)
+        MapTransform.__init__(self, keys)
         if num_samples < 1:
             raise ValueError(f"num_samples must be positive, got {num_samples}.")
         self.num_samples = num_samples
@@ -420,7 +422,7 @@ class CropForegroundd(MapTransform):
         return d
 
 
-class RandWeightedCropd(Randomizable, MapTransform):
+class RandWeightedCropd(RandomizableTransform, MapTransform):
     """
     Samples a list of `num_samples` image patches according to the provided `weight_map`.
 
@@ -446,7 +448,8 @@ class RandWeightedCropd(Randomizable, MapTransform):
         num_samples: int = 1,
         center_coord_key: Optional[str] = None,
     ):
-        super().__init__(keys)
+        RandomizableTransform.__init__(self)
+        MapTransform.__init__(self, keys)
         self.spatial_size = ensure_tuple(spatial_size)
         self.w_key = w_key
         self.num_samples = int(num_samples)
@@ -484,7 +487,7 @@ class RandWeightedCropd(Randomizable, MapTransform):
         return results
 
 
-class RandCropByPosNegLabeld(Randomizable, MapTransform):
+class RandCropByPosNegLabeld(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandCropByPosNegLabel`.
     Crop random fixed sized regions with the center being a foreground or background voxel
@@ -534,7 +537,8 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         fg_indices_key: Optional[str] = None,
         bg_indices_key: Optional[str] = None,
     ) -> None:
-        super().__init__(keys)
+        RandomizableTransform.__init__(self)
+        MapTransform.__init__(self, keys)
         self.label_key = label_key
         self.spatial_size: Union[Tuple[int, ...], Sequence[int], int] = spatial_size
         if pos < 0 or neg < 0:

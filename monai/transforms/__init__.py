@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from .adaptors import FunctionSignature, adaptor, apply_alias, to_kwargs
-from .compose import Compose, MapTransform, Randomizable, Transform
+from .compose import Compose
 from .croppad.array import (
     BorderPad,
     BoundingRect,
@@ -155,6 +155,9 @@ from .post.dictionary import (
     AsDiscreted,
     AsDiscreteD,
     AsDiscreteDict,
+    Decollated,
+    DecollateD,
+    DecollateDict,
     Ensembled,
     KeepLargestConnectedComponentd,
     KeepLargestConnectedComponentD,
@@ -178,6 +181,7 @@ from .spatial.array import (
     Rand3DElastic,
     RandAffine,
     RandAffineGrid,
+    RandAxisFlip,
     RandDeformGrid,
     RandFlip,
     RandRotate,
@@ -206,6 +210,9 @@ from .spatial.dictionary import (
     RandAffined,
     RandAffineD,
     RandAffineDict,
+    RandAxisFlipd,
+    RandAxisFlipD,
+    RandAxisFlipDict,
     RandFlipd,
     RandFlipD,
     RandFlipDict,
@@ -234,6 +241,7 @@ from .spatial.dictionary import (
     ZoomD,
     ZoomDict,
 )
+from .transform import MapTransform, Randomizable, RandomizableTransform, Transform
 from .utility.array import (
     AddChannel,
     AddExtremePointsChannel,
@@ -246,11 +254,13 @@ from .utility.array import (
     Identity,
     LabelToMask,
     Lambda,
+    RemoveRepeatedChannel,
     RepeatChannel,
     SimulateDelay,
     SplitChannel,
     SqueezeDim,
     ToNumpy,
+    ToPIL,
     TorchVision,
     ToTensor,
     Transpose,
@@ -301,6 +311,9 @@ from .utility.dictionary import (
     RandLambdad,
     RandLambdaD,
     RandLambdaDict,
+    RemoveRepeatedChanneld,
+    RemoveRepeatedChannelD,
+    RemoveRepeatedChannelDict,
     RepeatChanneld,
     RepeatChannelD,
     RepeatChannelDict,
@@ -315,7 +328,14 @@ from .utility.dictionary import (
     SqueezeDimD,
     SqueezeDimDict,
     ToNumpyd,
+    ToNumpyD,
+    ToNumpyDict,
+    ToPILd,
+    ToPILD,
+    ToPILDict,
     TorchVisiond,
+    TorchVisionD,
+    TorchVisionDict,
     ToTensord,
     ToTensorD,
     ToTensorDict,

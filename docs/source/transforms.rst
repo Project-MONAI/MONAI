@@ -27,6 +27,11 @@ Generic Interfaces
 .. autoclass:: Randomizable
     :members:
 
+`RandomizableTransform`
+^^^^^^^^^^^^^^^^^^^^^^^
+.. autoclass:: RandomizableTransform
+    :members:
+
 `Compose`
 ^^^^^^^^^
 .. autoclass:: Compose
@@ -306,6 +311,12 @@ Spatial
 `RandFlip`
 """"""""""
 .. autoclass:: RandFlip
+    :members:
+    :special-members: __call__
+
+`RandAxisFlip`
+""""""""""""""
+.. autoclass:: RandAxisFlip
     :members:
     :special-members: __call__
 
@@ -783,6 +794,12 @@ Spatial (Dict)
 `RandFlipd`
 """""""""""
 .. autoclass:: RandFlipd
+    :members:
+    :special-members: __call__
+
+`RandAxisFlipd`
+"""""""""""""""
+.. autoclass:: RandAxisFlipd
     :members:
     :special-members: __call__
 

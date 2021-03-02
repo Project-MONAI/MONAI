@@ -237,7 +237,11 @@ class DistCall:
         """
         self.nnodes = int(nnodes)
         self.nproc_per_node = int(nproc_per_node)
-        self.node_rank = int(os.environ.get("NODE_RANK", "0")) if node_rank is None else node_rank
+        if self.nnodes < 1 or self.nproc_per_node < 1:
+            raise ValueError(
+                f"number of nodes and processes per node must be >= 1, got {self.nnodes} and {self.nproc_per_node}"
+            )
+        self.node_rank = int(os.environ.get("NODE_RANK", "0")) if node_rank is None else int(node_rank)
         self.master_addr = master_addr
         self.master_port = np.random.randint(10000, 20000) if master_port is None else master_port
 
@@ -286,11 +290,20 @@ class DistCall:
         finally:
             os.environ.clear()
             os.environ.update(_env)
-            dist.destroy_process_group()
+            try:
+                dist.destroy_process_group()
+            except RuntimeError as e:
+                warnings.warn(f"While closing process group: {e}.")
 
     def __call__(self, obj):
         if not torch.distributed.is_available():
             return unittest.skipIf(True, "Skipping distributed tests because not torch.distributed.is_available()")(obj)
+        if torch.cuda.is_available() and torch.cuda.device_count() < self.nproc_per_node:
+            return unittest.skipIf(
+                True,
+                f"Skipping distributed tests because it requires {self.nnodes} devices "
+                f"but got {torch.cuda.device_count()}",
+            )(obj)
 
         _cache_original_func(obj)
 
