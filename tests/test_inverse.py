@@ -245,7 +245,7 @@ TESTS.append(
     (
         "RandRotated 3d",
         DATA_3D,
-        5e-2,
+        1e-1,
         RandRotated(KEYS, *[random.uniform(np.pi / 6, np.pi) for _ in range(3)], 1),  # type: ignore
     )
 )
@@ -347,13 +347,13 @@ TESTS.append(("Resized 2d", DATA_2D, 2e-1, Resized(KEYS, [50, 47])))
 
 TESTS.append(("Resized 3d", DATA_3D, 5e-2, Resized(KEYS, [201, 150, 78])))
 
-TESTS.append(("ResizeWithPadOrCropd 3d", DATA_3D, 1e-2, ResizeWithPadOrCropd(KEYS, [201, 150, 78])))
+TESTS.append(("ResizeWithPadOrCropd 3d", DATA_3D, 3e-2, ResizeWithPadOrCropd(KEYS, [201, 150, 78])))
 
 TESTS.append(
     (
         "RandAffine 3d",
         DATA_3D,
-        5e-2,
+        7e-2,
         RandAffined(
             KEYS,
             [155, 179, 192],

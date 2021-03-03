@@ -20,6 +20,7 @@ from typing import Any, Dict, Hashable, Mapping, Optional, Sequence, Tuple, Unio
 
 import numpy as np
 import torch
+import warnings
 
 from monai.config import DtypeLike, KeysCollection
 from monai.networks.layers import AffineTransform
@@ -192,6 +193,9 @@ class Spacingd(MapTransform, InvertibleTransform):
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
             meta_data_key = f"{key}_{self.meta_key_postfix}"
+            if meta_data_key not in data.keys():
+                warnings.warn(f"No meta data found with key: {meta_data_key}. Nothing to do.")
+                continue
             meta_data = d[meta_data_key]
             # resample array of each corresponding key
             # using affine fetched from d[affine_key]
@@ -298,6 +302,9 @@ class Orientationd(MapTransform, InvertibleTransform):
         d: Dict = dict(data)
         for key in self.key_iterator(d):
             meta_data_key = f"{key}_{self.meta_key_postfix}"
+            if meta_data_key not in data.keys():
+                warnings.warn(f"No meta data found with key: {meta_data_key}. Nothing to do.")
+                continue
             meta_data = d[meta_data_key]
             d[key], old_affine, new_affine = self.ornt_transform(d[key], affine=meta_data["affine"])
             self.append_applied_transforms(
