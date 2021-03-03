@@ -13,7 +13,6 @@ import unittest
 
 import numpy as np
 import torch
-from parameterized import parameterized
 
 from monai.data import CacheDataset, DataLoader, create_test_image_2d
 from monai.data.utils import decollate_batch
@@ -23,18 +22,6 @@ from monai.utils import optional_import, set_determinism
 from tests.utils import make_nifti_image
 
 _, has_nib = optional_import("nibabel")
-
-IM_2D = create_test_image_2d(100, 101)[0]
-DATA_2D = {"image": make_nifti_image(IM_2D) if has_nib else IM_2D}
-
-TESTS = []
-TESTS.append(
-    (
-        "2D",
-        [DATA_2D for _ in range(6)],
-    )
-)
-
 
 class TestDeCollate(unittest.TestCase):
     def setUp(self) -> None:
@@ -58,8 +45,11 @@ class TestDeCollate(unittest.TestCase):
         else:
             raise RuntimeError(f"Not sure how to compare types. type(in1): {type(in1)}, type(in2): {type(in2)}")
 
-    @parameterized.expand(TESTS)
-    def test_decollation(self, _, data, batch_size=2, num_workers=2):
+    def test_decollation(self, batch_size=2, num_workers=2):
+
+        im = create_test_image_2d(100, 101)[0]
+        data = [{"image": make_nifti_image(im) if has_nib else im} for _ in range(6)]
+
         transforms = Compose(
             [
                 AddChanneld("image"),
