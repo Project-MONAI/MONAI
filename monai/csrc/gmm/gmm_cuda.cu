@@ -61,7 +61,7 @@ __device__ __forceinline__ float get_constant(float *gmm, int i)
 
 // Tile Size: 32x32, Block Size 32xwarp_N
 template<int warp_N, bool create_gmm_flags>
-__global__ void GMMReductionKernel(int gmm_idx, const float* image, const int* alpha, float* gmm, unsigned int* tile_gmms, int element_count, int component_count)
+__global__ void GMMReductionKernel(int gmm_idx, const float* image, const int* alpha, float* gmm, unsigned int* tile_gmms, int element_count, int component_count, int mixture_count)
 {
     __shared__ float s_lists[32 * 32 * CHANNELS];
     __shared__ volatile float s_gmm[32 * warp_N];
@@ -113,10 +113,12 @@ __global__ void GMMReductionKernel(int gmm_idx, const float* image, const int* a
     {
         if (index < element_count)
         {
-            int my_gmm_idx = alpha[index];
+            int my_alpha = alpha[index];
 
-            if (my_gmm_idx != -1)
+            if (my_alpha != -1)
             {
+                int my_gmm_idx = (my_alpha & 15) + (my_alpha >> 4) * mixture_count;
+
                 if (create_gmm_flags)
                 {
                     gmm_flags[my_gmm_idx] = 1;
@@ -529,12 +531,13 @@ struct GMMSplit_t
     float3 eigenvector;
 };
 
-// 1 Block, 32x2
-__global__ void GMMFindSplit(GMMSplit_t *gmmSplit, int gmmK, float *gmm, int component_count)
+// 1 Block, 32xmixture_count
+__global__ void GMMFindSplit(GMMSplit_t *gmmSplit, int gmmK, float *gmm, int component_count, int mixture_count)
 {
     __shared__ float s_eigenvalues[MAX_MIXTURES][32];
 
-    int gmm_idx = (threadIdx.x << 1) + threadIdx.y;
+    // int gmm_idx = (threadIdx.x << 1) + threadIdx.y;
+    int gmm_idx = threadIdx.x * mixture_count + threadIdx.y;
 
     float eigenvalue = 0;
     float3 eigenvector;
@@ -602,8 +605,8 @@ __global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, int co
 
             if(my_alpha != -1)
             {
-                int select = my_alpha & 1;
-                int gmm_idx = my_alpha >> 1;
+                int select = my_alpha & 15;
+                int gmm_idx = my_alpha >> 4;
     
                 if (gmm_idx == s_gmmSplit[select].idx)
                 {
@@ -639,17 +642,17 @@ void GMMInitialize(const float *image, int *alpha, float *gmm, float *scratch_me
 
     for (int k = mixture_count; k < gmm_N; k+=mixture_count)
     {
-        GMMReductionKernel<4, true><<<grid, block>>>(0, image, alpha, block_gmm_scratch, block_active_scratch, element_count, component_count);
+        GMMReductionKernel<4, true><<<grid, block>>>(0, image, alpha, block_gmm_scratch, block_active_scratch, element_count, component_count, mixture_count);
 
         for (int i=1; i < k; ++i)
         {
-            GMMReductionKernel<4, false><<<grid, block>>>(i, image, alpha, block_gmm_scratch, block_active_scratch, element_count, component_count);
+            GMMReductionKernel<4, false><<<grid, block>>>(i, image, alpha, block_gmm_scratch, block_active_scratch, element_count, component_count, mixture_count);
         }
 
         GMMFinalizeKernel<4, false><<<k, block>>>(block_gmm_scratch, gmm, grid.x, component_count);
 
-        GMMFindSplit<<<1, dim3(BLOCK_SIZE, mixture_count)>>>(gmm_split_scratch, k / mixture_count, gmm, component_count);
-        GMMDoSplit<<<TILE(element_count, BLOCK_SIZE * DO_SPLIT_DEGENERACY), BLOCK_SIZE>>>(gmm_split_scratch, k, gmm, component_count, image, alpha, element_count);
+        GMMFindSplit<<<1, dim3(BLOCK_SIZE, mixture_count)>>>(gmm_split_scratch, k / mixture_count, gmm, component_count, mixture_count);
+        GMMDoSplit<<<TILE(element_count, BLOCK_SIZE * DO_SPLIT_DEGENERACY), BLOCK_SIZE>>>(gmm_split_scratch, (k / mixture_count) << 4, gmm, component_count, image, alpha, element_count);
     }
 }
 
@@ -663,11 +666,11 @@ void GMMUpdate(const float *image, int *alpha, float *gmm, float *scratch_mem, i
 
     int gmm_N = mixture_count * mixture_size;
 
-    GMMReductionKernel<4, true><<<grid, block>>>(0, image, alpha, block_gmm_scratch, block_active_scratch, element_count, component_count);
+    GMMReductionKernel<4, true><<<grid, block>>>(0, image, alpha, block_gmm_scratch, block_active_scratch, element_count, component_count, mixture_count);
 
     for (int i = 1; i < gmm_N; ++i)
     {
-        GMMReductionKernel<4, false><<<grid, block>>>(i, image, alpha, block_gmm_scratch, block_active_scratch, element_count, component_count);
+        GMMReductionKernel<4, false><<<grid, block>>>(i, image, alpha, block_gmm_scratch, block_active_scratch, element_count, component_count, mixture_count);
     }
 
     GMMFinalizeKernel<4, true><<<gmm_N, block>>>(block_gmm_scratch, gmm, grid.x, component_count);
