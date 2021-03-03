@@ -25,6 +25,10 @@ def identity_generator(x):
         yield item, idx
 
 
+# Can't pickle local object
+patch_iter = default_patch_iter(patch_size=(2, 2), start_pos=(0, 0))
+
+
 class TestGridPatchDataset(unittest.TestCase):
     def setUp(self):
         set_determinism(seed=1234)
@@ -47,8 +51,6 @@ class TestGridPatchDataset(unittest.TestCase):
         set_determinism(seed=1234)
         # image dataset
         images = [np.arange(16, dtype=float).reshape(1, 4, 4), np.arange(16, dtype=float).reshape(1, 4, 4)]
-        # image patch sampler
-        patch_iter = default_patch_iter(patch_size=(2, 2), start_pos=(0, 0))
         # image level
         patch_intensity = RandShiftIntensity(offsets=1.0, prob=1.0)
         ds = GridPatchDataset(dataset=images, patch_iter=patch_iter, transform=patch_intensity)
