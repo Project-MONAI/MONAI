@@ -122,6 +122,8 @@ class SaveImaged(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SaveImage`.
 
+    NB: image should include channel dimension: [B],C,H,W,[D].
+
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
@@ -163,6 +165,10 @@ class SaveImaged(MapTransform):
             it's used for NIfTI format only.
         save_batch: whether the import image is a batch data, default to `False`.
             usually pre-transforms run for channel first data, while post-transforms run for batch data.
+        squeeze_end_dims: if True, any trailing singleton dimensions will be removed (after the channel
+            has been moved to the end). So if input is (C,H,W,D), this will be altered to (H,W,D,C), and
+            then if C==1, it will be saved as (H,W,D). If D also ==1, it will be saved as (H,W). If false,
+            image will always be saved as (H,W,D,C).
 
     """
 
@@ -180,6 +186,7 @@ class SaveImaged(MapTransform):
         dtype: DtypeLike = np.float64,
         output_dtype: DtypeLike = np.float32,
         save_batch: bool = False,
+        squeeze_end_dims: bool = True,
     ) -> None:
         super().__init__(keys)
         self.meta_key_postfix = meta_key_postfix
@@ -194,6 +201,7 @@ class SaveImaged(MapTransform):
             dtype=dtype,
             output_dtype=output_dtype,
             save_batch=save_batch,
+            squeeze_end_dims=squeeze_end_dims,
         )
 
     def __call__(self, data):
