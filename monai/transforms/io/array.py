@@ -165,6 +165,8 @@ class SaveImage(Transform):
     It can work for both numpy array and PyTorch Tensor in both pre-transform chain
     and post transform chain.
 
+    NB: image should include channel dimension: [B],C,H,W,[D].
+
     Args:
         output_dir: output image directory.
         output_postfix: a string appended to all output file names, default to `trans`.
@@ -200,6 +202,10 @@ class SaveImage(Transform):
             it's used for NIfTI format only.
         save_batch: whether the import image is a batch data, default to `False`.
             usually pre-transforms run for channel first data, while post-transforms run for batch data.
+        squeeze_end_dims: if True, any trailing singleton dimensions will be removed (after the channel
+            has been moved to the end). So if input is (C,H,W,D), this will be altered to (H,W,D,C), and
+            then if C==1, it will be saved as (H,W,D). If D also ==1, it will be saved as (H,W). If false,
+            image will always be saved as (H,W,D,C).
 
     """
 
@@ -215,6 +221,7 @@ class SaveImage(Transform):
         dtype: DtypeLike = np.float64,
         output_dtype: DtypeLike = np.float32,
         save_batch: bool = False,
+        squeeze_end_dims: bool = True,
     ) -> None:
         self.saver: Union[NiftiSaver, PNGSaver]
         if output_ext in (".nii.gz", ".nii"):
@@ -227,6 +234,7 @@ class SaveImage(Transform):
                 padding_mode=padding_mode,
                 dtype=dtype,
                 output_dtype=output_dtype,
+                squeeze_end_dims=squeeze_end_dims,
             )
         elif output_ext == ".png":
             self.saver = PNGSaver(
