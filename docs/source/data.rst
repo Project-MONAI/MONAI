@@ -105,6 +105,10 @@ PILReader
 .. autoclass:: PILReader
   :members:
 
+WSIReader
+~~~~~~~~~
+.. autoclass:: WSIReader
+  :members:
 
 Nifti format handling
 ---------------------

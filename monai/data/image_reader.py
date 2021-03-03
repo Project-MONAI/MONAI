@@ -621,7 +621,7 @@ class WSIReader(ImageReader):
 
     """
 
-    def __init__(self, wsi_reader_name: str = "CuImage"):
+    def __init__(self, wsi_reader_name: str = "cuClaraImage"):
         super().__init__()
         self.wsi_reader_name = wsi_reader_name.lower()
         if self.wsi_reader_name == "openslide":
@@ -631,7 +631,7 @@ class WSIReader(ImageReader):
             self.wsi_reader = cuimage.CuImage
             print("> CuImage is being used.")
         else:
-            raise ValueError('`wsi_reader_name` should be either "CuClaraImage" or "OpenSlide"')
+            raise ValueError('`wsi_reader_name` should be either "cuClaraImage" or "OpenSlide"')
 
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
         """
@@ -677,13 +677,15 @@ class WSIReader(ImageReader):
         Extract regions as numpy array from WSI image and return them.
 
         Args:
-            img:      a wsi_reader object loaded from a file, or list of CuImage objects
+            img_obj: a WSIReader object loaded from a file, or list of CuImage objects
             location: (x_min, y_min) tuple giving the top left pixel in the level 0 reference frame,
-                       or list of tuples (default=(0, 0))
-            size:     (height, width) tuple giving the region size, or list of tuples (default=(wsi_width, wsi_height))
-                        This is the size of image at the given level (`level`)
-            level:    the level number, or list of level numbers (default=0)
-
+            or list of tuples (default=(0, 0))
+            size: (height, width) tuple giving the region size, or list of tuples (default=(wsi_width, wsi_height))
+            This is the size of image at the given level (`level`)
+            level: the level number, or list of level numbers (default=0)
+            dtype: the data type of output image
+            grid_shape: (row, columns) tuple define a grid to extract patches on that
+            patch_size: (heigsht, width) the size of extracted patches at the given level
         """
         if size is None:
             if location == (0, 0):
@@ -691,8 +693,7 @@ class WSIReader(ImageReader):
                 size = (img_obj.shape[0] // (2 ** level), img_obj.shape[1] // (2 ** level))
                 print(f"Reading the whole image at level={level} with shape={size}")
             else:
-                print("Size need to be provided!")
-                return
+                raise ValueError("Size need to be provided to extract the region!")
         region = self._extract_region(img_obj, location=location, size=size, level=level, dtype=dtype)
         if patch_size is None:
             patches = region
