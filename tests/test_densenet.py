@@ -21,7 +21,6 @@ from monai.networks.nets import densenet121, densenet169, densenet201, densenet2
 from monai.utils import optional_import
 from tests.utils import skip_if_quick, test_pretrained_networks, test_script_save
 
-
 if TYPE_CHECKING:
     import torchvision
 
