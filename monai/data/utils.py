@@ -219,7 +219,9 @@ def iter_patch(
 
     for coords in iter_patch_coordinates(iter_size, patch_size_, start_pos_padded):
         slices = tuple(slice(coord[0], coord[1]) for coord in coords)
-        yield arrpad[slices], np.asarray(coords)  # data, and coords (in numpy; so that it works with torch loader)
+        # compensate original image padding
+        coords_no_pad = tuple((coord[0] - p, coord[1] - p) for coord, p in zip(coords, patch_size_))
+        yield arrpad[slices], np.asarray(coords_no_pad)  # data and coords (in numpy; works with torch loader)
 
     # copy back data from the padded image if required
     if copy_back:

@@ -62,7 +62,7 @@ class TestGridPatchDataset(unittest.TestCase):
         )
         np.testing.assert_allclose(
             item[1],
-            np.array([[[1, 2], [2, 4], [4, 6]], [[1, 2], [4, 6], [4, 6]]]),
+            np.array([[[0, 1], [0, 2], [2, 4]], [[0, 1], [2, 4], [2, 4]]]),
             rtol=1e-5,
         )
         if sys.platform != "win32":
@@ -75,7 +75,7 @@ class TestGridPatchDataset(unittest.TestCase):
             )
             np.testing.assert_allclose(
                 item[1],
-                np.array([[[1, 2], [2, 4], [4, 6]], [[1, 2], [4, 6], [4, 6]]]),
+                np.array([[[0, 1], [0, 2], [2, 4]], [[0, 1], [2, 4], [2, 4]]]),
                 rtol=1e-5,
             )
 

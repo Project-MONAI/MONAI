@@ -89,8 +89,8 @@ class GridPatchDataset(IterableDataset):
             print("coordinates:", item[1])
 
         # >>> patch size: torch.Size([2, 1, 2, 2])
-        #     coordinates: tensor([[[1, 2], [2, 4], [4, 6]],
-        #                          [[1, 2], [4, 6], [4, 6]]])
+        #     coordinates: tensor([[[0, 1], [0, 2], [0, 2]],
+        #                          [[0, 1], [2, 4], [0, 2]]])
 
     """
 
