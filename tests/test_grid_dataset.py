@@ -44,7 +44,7 @@ class TestGridPatchDataset(unittest.TestCase):
         for item in DataLoader(result, batch_size=3, num_workers=n_workers):
             output.append("".join(item))
         expected = ["vwx", "wor", "yzh", "ldf", "ell", "oob", "owo", "ar", "rld"]
-        self.assertEqual(output, expected)
+        self.assertEqual(sorted(output), sorted(expected))
         self.assertEqual(len("".join(expected)), len("".join(test_dataset)))
 
     def test_loading_array(self):
