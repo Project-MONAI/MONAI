@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# To build with a different base image
+# please run `docker build` using the `--build-arg PYTORCH_IMAGE=...` flag.
 ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:21.02-py3
-
 FROM ${PYTORCH_IMAGE}
 
 LABEL maintainer="monai.contact@gmail.com"
