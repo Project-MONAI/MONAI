@@ -22,7 +22,7 @@ from .dataset import (
     ZipDataset,
 )
 from .decathlon_datalist import load_decathlon_datalist, load_decathlon_properties
-from .grid_dataset import GridPatchDataset, PatchDataset
+from .grid_dataset import GridPatchDataset, PatchDataset, default_patch_iter
 from .image_dataset import ImageDataset
 from .image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader, WSIReader
 from .iterable_dataset import IterableDataset
@@ -44,7 +44,7 @@ from .utils import (
     get_valid_patch_size,
     is_supported_format,
     iter_patch,
-    iter_patch_slices,
+    iter_patch_coordinates,
     json_hashing,
     list_data_collate,
     pad_list_data_collate,
