@@ -339,7 +339,7 @@ __global__ void GMMcommonTerm(float *gmm, int mixture_count, int mixture_size, i
 {
     __shared__ volatile float s_n[MAX_MIXTURES][32];
 
-    int gmm_idx = (threadIdx.x * mixture_count) | threadIdx.y;
+    int gmm_idx = (threadIdx.x * mixture_count) + threadIdx.y;
 
     float gmm_n = threadIdx.x < mixture_size ? gmm[gmm_idx * component_count] : 0.0f;
     float sum = gmm_n;
