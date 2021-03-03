@@ -23,6 +23,7 @@ from tests.utils import make_nifti_image
 
 _, has_nib = optional_import("nibabel")
 
+
 class TestDeCollate(unittest.TestCase):
     def setUp(self) -> None:
         set_determinism(seed=0)
