@@ -934,7 +934,7 @@ class Rand3DElasticd(RandomizableTransform, MapTransform, InvertibleTransform, N
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             self.append_applied_transforms(d, key, extra_info={"grid_no_affine": grid_no_affine, "affine": affine})
-            d[key] = self.rand_3d_elastic.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)
+            d[key] = self.rand_3d_elastic.resampler(d[key], grid_w_affine, mode=mode, padding_mode=padding_mode)
         return d
 
     def inverse(
