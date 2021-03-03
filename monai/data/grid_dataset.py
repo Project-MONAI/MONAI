@@ -20,65 +20,78 @@ from monai.data.utils import iter_patch
 from monai.transforms import apply_transform
 from monai.utils import NumpyPadMode, ensure_tuple
 
-__all__ = ["PatchDataset", "GridPatchDataset", "default_patch_iter"]
+__all__ = ["PatchDataset", "GridPatchDataset", "PatchIter"]
 
 
-def default_patch_iter(
-    patch_size: Sequence[int],
-    start_pos: Sequence[int],
-    mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
-    **pad_opts: Dict,
-):
+class PatchIter:
+    """
+    A class to return a patch generator with predefined properties such as `patch_size`.
+    Typically used with :py:class:`monai.data.GridPatchDataset`.
     """
 
-    Args:
-        patch_size: size of patches to generate slices for, 0/None selects whole dimension
-        start_pos: starting position in the array, default is 0 for each dimension
-        mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                One of the listed string values or a user supplied function. Defaults to ``"wrap"``.
-                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-        pad_opts: padding options, see numpy.pad
+    def __init__(
+        self,
+        patch_size: Sequence[int],
+        start_pos: Sequence[int],
+        mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
+        **pad_opts: Dict,
+    ):
+        """
 
-    Note:
-        The `patch_size` is the size of the
-        patch to sample from the input arrays. It is assumed the arrays first dimension is the channel dimension which
-        will be yielded in its entirety so this should not be specified in `patch_size`. For example, for an input 3D
-        array with 1 channel of size (1, 20, 20, 20) a regular grid sampling of eight patches (1, 10, 10, 10) would be
-        specified by a `patch_size` of (10, 10, 10).
+        Args:
+            patch_size: size of patches to generate slices for, 0/None selects whole dimension
+            start_pos: starting position in the array, default is 0 for each dimension
+            mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+                    ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                    One of the listed string values or a user supplied function. Defaults to ``"wrap"``.
+                    See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            pad_opts: padding options, see numpy.pad
 
-    """
+        Note:
+            The `patch_size` is the size of the
+            patch to sample from the input arrays. It is assumed the arrays first dimension is the channel dimension which
+            will be yielded in its entirety so this should not be specified in `patch_size`. For example, for an input 3D
+            array with 1 channel of size (1, 20, 20, 20) a regular grid sampling of eight patches (1, 10, 10, 10) would be
+            specified by a `patch_size` of (10, 10, 10).
 
-    def patch_iter_func(image):
+        """
+        self.patch_size = (None,) + tuple(patch_size)
+        self.start_pos = ensure_tuple(start_pos)
+        self.mode: NumpyPadMode = NumpyPadMode(mode)
+        self.pad_opts = pad_opts
+
+    def __call__(self, array):
+        """
+        Args:
+            array: the image to generate patches from.
+        """
         yield from iter_patch(
-            image,
-            patch_size=(None,) + tuple(patch_size),  # expand to have the channel dim
-            start_pos=ensure_tuple(start_pos),
+            array,
+            patch_size=self.patch_size,  # expand to have the channel dim
+            start_pos=self.start_pos,
             copy_back=False,
-            mode=mode,
-            **pad_opts,
+            mode=self.mode,
+            **self.pad_opts,
         )
-
-    return patch_iter_func
 
 
 class GridPatchDataset(IterableDataset):
     """
     Yields patches from images read from an image dataset.
-    Typically used with `default_patch_iter` so that the patches are chosen in a contiguous grid sampling scheme.
+    Typically used with `PatchIter` so that the patches are chosen in a contiguous grid sampling scheme.
 
      .. code-block:: python
 
         import numpy as np
 
-        from monai.data import GridPatchDataset, DataLoader, default_patch_iter
+        from monai.data import GridPatchDataset, DataLoader, PatchIter
         from monai.transforms import RandShiftIntensity
 
         # image-level dataset
         images = [np.arange(16, dtype=float).reshape(1, 4, 4),
                   np.arange(16, dtype=float).reshape(1, 4, 4)]
         # image-level patch generator, "grid sampling"
-        patch_iter = default_patch_iter(patch_size=(2, 2), start_pos=(0, 0))
+        patch_iter = PatchIter(patch_size=(2, 2), start_pos=(0, 0))
         # patch-level intensity shifts
         patch_intensity = RandShiftIntensity(offsets=1.0, prob=1.0)
 
@@ -111,6 +124,7 @@ class GridPatchDataset(IterableDataset):
             dataset: the dataset to read image data from.
             patch_iter: converts an input image (item from dataset) into a iterable of image patches.
                 `patch_iter(dataset[idx])` must yield a tuple: (patches, coordinates).
+                see also: :py:class:`monai.data.PatchIter`.
             transform: a callable data transform operates on the patches.
             with_coordinates: whether to yield the coordinates of each patch, default to `True`.
 

@@ -422,6 +422,8 @@ def set_rnd(obj, seed: int) -> int:
         obj.set_random_state(seed=seed % MAX_SEED)
         return seed + 1  # a different seed for the next component
     for key in obj.__dict__:
+        if key.startswith("__"):  # skip the private methods
+            continue
         seed = set_rnd(obj.__dict__[key], seed=seed)
     return seed
 

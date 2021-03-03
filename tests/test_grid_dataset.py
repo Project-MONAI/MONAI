@@ -14,7 +14,7 @@ import unittest
 
 import numpy as np
 
-from monai.data import DataLoader, GridPatchDataset, default_patch_iter
+from monai.data import DataLoader, GridPatchDataset, PatchIter
 from monai.transforms import RandShiftIntensity
 from monai.utils import set_determinism
 
@@ -23,10 +23,6 @@ def identity_generator(x):
     # simple transform that returns the input itself
     for idx, item in enumerate(x):
         yield item, idx
-
-
-# Can't pickle local object
-patch_iter = default_patch_iter(patch_size=(2, 2), start_pos=(0, 0))
 
 
 class TestGridPatchDataset(unittest.TestCase):
@@ -53,6 +49,7 @@ class TestGridPatchDataset(unittest.TestCase):
         images = [np.arange(16, dtype=float).reshape(1, 4, 4), np.arange(16, dtype=float).reshape(1, 4, 4)]
         # image level
         patch_intensity = RandShiftIntensity(offsets=1.0, prob=1.0)
+        patch_iter = PatchIter(patch_size=(2, 2), start_pos=(0, 0))
         ds = GridPatchDataset(dataset=images, patch_iter=patch_iter, transform=patch_intensity)
         # use the grid patch dataset
         for item in DataLoader(ds, batch_size=2, shuffle=False, num_workers=0):
