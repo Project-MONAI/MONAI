@@ -236,7 +236,7 @@ TESTS.append(
     (
         "Rotated 3d",
         DATA_3D,
-        5e-2,
+        1e-1,
         Rotated(KEYS, [random.uniform(np.pi / 6, np.pi) for _ in range(3)], True),  # type: ignore
     )
 )
@@ -353,7 +353,7 @@ TESTS.append(
     (
         "RandAffine 3d",
         DATA_3D,
-        7e-2,
+        1e-1,
         RandAffined(
             KEYS,
             [155, 179, 192],
