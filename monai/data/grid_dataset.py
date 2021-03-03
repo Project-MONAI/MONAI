@@ -48,12 +48,15 @@ def default_patch_iter(
         specified by a `patch_size` of (10, 10, 10).
 
     """
-    _patch_size = (None,) + tuple(patch_size)
-    _start_pos = ensure_tuple(start_pos)
 
     def patch_iter_func(image):
         yield from iter_patch(
-            image, patch_size=_patch_size, start_pos=_start_pos, copy_back=False, mode=mode, **pad_opts
+            image,
+            patch_size=(None,) + tuple(patch_size),  # expand to have the channel dim
+            start_pos=ensure_tuple(start_pos),
+            copy_back=False,
+            mode=mode,
+            **pad_opts,
         )
 
     return patch_iter_func
