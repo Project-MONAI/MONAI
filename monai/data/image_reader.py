@@ -20,6 +20,7 @@ from torch.utils.data._utils.collate import np_str_obj_array_pattern
 from monai.config import DtypeLike, KeysCollection
 from monai.data.utils import correct_nifti_header_if_necessary
 from monai.utils import ensure_tuple, optional_import
+from monai.transforms import EnsureChannelFirst
 
 from .utils import is_supported_format
 
@@ -638,17 +639,17 @@ class WSIReader(ImageReader):
 
     """
 
-    def __init__(self, wsi_reader_name: str = "cuClaraImage"):
+    def __init__(self, reader_lib: str = "cuClaraImage"):
         super().__init__()
-        self.wsi_reader_name = wsi_reader_name.lower()
-        if self.wsi_reader_name == "openslide":
+        self.reader_lib = reader_lib.lower()
+        if self.reader_lib == "openslide":
             self.wsi_reader = openslide.OpenSlide
             print("> OpenSlide is being used.")
-        elif self.wsi_reader_name == "cuclaraimage":
+        elif self.reader_lib == "cuclaraimage":
             self.wsi_reader = cuimage.CuImage
             print("> CuImage is being used.")
         else:
-            raise ValueError('`wsi_reader_name` should be either "cuClaraImage" or "OpenSlide"')
+            raise ValueError('`reader_lib` should be either "cuClaraImage" or "OpenSlide"')
 
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
         """
@@ -674,7 +675,7 @@ class WSIReader(ImageReader):
         filenames: Sequence[str] = ensure_tuple(data)
         for name in filenames:
             img = self.wsi_reader(name)
-            if self.wsi_reader_name == "openslide":
+            if self.reader_lib == "openslide":
                 img.shape = (img.dimensions[1], img.dimensions[0], 3)
             img_.append(img)
 
@@ -682,7 +683,7 @@ class WSIReader(ImageReader):
 
     def get_data(
         self,
-        img_obj,
+        img,
         location: Tuple[int, int] = (0, 0),
         size: Optional[Tuple[int, int]] = None,
         level: int = 0,
@@ -694,10 +695,10 @@ class WSIReader(ImageReader):
         Extract regions as numpy array from WSI image and return them.
 
         Args:
-            img_obj: a WSIReader object loaded from a file, or list of CuImage objects
+            img: a WSIReader image object loaded from a file, or list of CuImage objects
             location: (x_min, y_min) tuple giving the top left pixel in the level 0 reference frame,
             or list of tuples (default=(0, 0))
-            size: (height, width) tuple giving the region size, or list of tuples (default=(wsi_width, wsi_height))
+            size: (height, width) tuple giving the region size, or list of tuples (default to full image size)
             This is the size of image at the given level (`level`)
             level: the level number, or list of level numbers (default=0)
             dtype: the data type of output image
@@ -707,11 +708,11 @@ class WSIReader(ImageReader):
         if size is None:
             if location == (0, 0):
                 # the maximum size is set to WxH
-                size = (img_obj.shape[0] // (2 ** level), img_obj.shape[1] // (2 ** level))
+                size = (img.shape[0] // (2 ** level), img.shape[1] // (2 ** level))
                 print(f"Reading the whole image at level={level} with shape={size}")
             else:
                 raise ValueError("Size need to be provided to extract the region!")
-        region = self._extract_region(img_obj, location=location, size=size, level=level, dtype=dtype)
+        region = self._extract_region(img, location=location, size=size, level=level, dtype=dtype)
         if patch_size is None:
             patches = region
         else:
@@ -732,7 +733,7 @@ class WSIReader(ImageReader):
         size = size[::-1]
         location = location[::-1]
         region = img_obj.read_region(location=location, size=size, level=level)
-        if self.wsi_reader_name == "openslide":
+        if self.reader_lib == "openslide":
             region = region.convert("RGB")
         # convert to numpy
         region = np.asarray(region, dtype=dtype)
