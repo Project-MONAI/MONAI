@@ -16,6 +16,7 @@ import os
 import queue
 import sys
 import tempfile
+import time
 import traceback
 import unittest
 import warnings
@@ -273,6 +274,7 @@ class DistCall:
             os.environ["RANK"] = str(self.nproc_per_node * self.node_rank + local_rank)
 
             if torch.cuda.is_available():
+                os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
                 torch.cuda.set_device(int(local_rank))
 
             dist.init_process_group(
@@ -283,6 +285,11 @@ class DistCall:
                 rank=int(os.environ["RANK"]),
             )
             func(*args, **kwargs)
+            # the primary node lives longer to
+            # avoid _store_based_barrier, RuntimeError: Broken pipe
+            # as the TCP store daemon is on the rank 0
+            if int(os.environ["RANK"]) == 0:
+                time.sleep(0.1)
             results.put(True)
         except Exception as e:
             results.put(False)
