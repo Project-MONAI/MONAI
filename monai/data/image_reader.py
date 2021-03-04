@@ -19,8 +19,8 @@ from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
 from monai.config import DtypeLike, KeysCollection
 from monai.data.utils import correct_nifti_header_if_necessary
+from monai.transforms.utility.array import EnsureChannelFirst
 from monai.utils import ensure_tuple, optional_import
-from monai.transforms import EnsureChannelFirst
 
 from .utils import is_supported_format
 
@@ -712,13 +712,21 @@ class WSIReader(ImageReader):
                 print(f"Reading the whole image at level={level} with shape={size}")
             else:
                 raise ValueError("Size need to be provided to extract the region!")
+
         region = self._extract_region(img, location=location, size=size, level=level, dtype=dtype)
+
+        metadata: Dict = {}
+        metadata["spatial_shape"] = size
+        metadata["original_channel_dim"] = -1
+        region = EnsureChannelFirst()(region, metadata)
+
         if patch_size is None:
             patches = region
         else:
             patches = self._extract_patches(
                 region, patch_size=(patch_size, patch_size), grid_shape=grid_shape, dtype=dtype
             )
+
         return patches
 
     def _extract_region(
@@ -737,8 +745,7 @@ class WSIReader(ImageReader):
             region = region.convert("RGB")
         # convert to numpy
         region = np.asarray(region, dtype=dtype)
-        # cuCalaraImage/OpenSlide: (H x W x C) -> torch image: (C X H X W)
-        region = region.transpose((2, 0, 1))
+
         return region
 
     def _extract_patches(
