@@ -18,6 +18,20 @@ limitations under the License.
 #define MAX_CHANNELS 16
 #define MAX_MIXTURES 16
 
+__device__ __forceinline__ void self_outer_product_triangle(int length, float* vector, float* output, float diag_epsilon)
+{
+    for (int i = 0, x = 0; x < length; x++)
+    {
+        output[i] = vector[x] * vector[x] + diag_epsilon;
+        i++;
+
+        for (int y = x + 1; y < length; y++, i++)
+        {
+            output[i] = vector[x] * vector[y];
+        }
+    }
+}
+
 __device__ __forceinline__ float get_component(float* pixel, int i)
 {
     switch (i)
@@ -60,14 +74,12 @@ __device__ __forceinline__ float get_constant(float *gmm, int i)
 
 
 // Tile Size: 32x32, Block Size 32xwarp_N
-template<int warp_N, bool create_gmm_flags>
-__global__ void GMMReductionKernel(int gmm_idx, const float* image, const int* alpha, float* gmm, unsigned int* tile_gmms, int element_count, int channel_count, int component_count, int mixture_count)
+template<int warp_N>
+__global__ void GMMReductionKernel(int gmm_idx, const float* image, const int* alpha, float* gmm, int element_count, int channel_count, int component_count, int mixture_count)
 {
     __shared__ float s_lists[32 * 32 * CHANNELS];
     __shared__ volatile float s_gmm[32 * warp_N];
     __shared__ float s_final[warp_N];
-
-    __shared__ int gmm_flags[32];
 
     int warp_idx = threadIdx.x >> 5;
     int thread_idx = threadIdx.x;
@@ -77,31 +89,6 @@ __global__ void GMMReductionKernel(int gmm_idx, const float* image, const int* a
 
     float *block_gmm = &gmm[(gridDim.x * gmm_idx + block_idx) * component_count];
     volatile float *warp_gmm = &s_gmm[warp_idx * 32];
-
-    if (create_gmm_flags)
-    {
-        if (warp_idx == 0)
-        {
-            gmm_flags[lane_idx] = 0;
-        }
-
-        __syncthreads();
-    }
-    else
-    {
-        unsigned int gmm_mask = tile_gmms[block_idx];
-
-        if ((gmm_mask & (1u << gmm_idx)) == 0)
-        {
-
-            if (lane_idx < 10 && warp_idx == 0)
-            {
-                block_gmm[lane_idx] = 0.0f;
-            }
-
-            return;
-        }
-    }
 
     int list_idx = 0;
 
@@ -118,11 +105,6 @@ __global__ void GMMReductionKernel(int gmm_idx, const float* image, const int* a
             if (my_alpha != -1)
             {
                 int my_gmm_idx = (my_alpha & 15) + (my_alpha >> 4) * mixture_count;
-
-                if (create_gmm_flags)
-                {
-                    gmm_flags[my_gmm_idx] = 1;
-                }
     
                 if (my_gmm_idx == gmm_idx)
                 {
@@ -138,11 +120,6 @@ __global__ void GMMReductionKernel(int gmm_idx, const float* image, const int* a
     }
 
     __syncthreads();
-
-    if (warp_idx == 0 && create_gmm_flags)
-    {
-        tile_gmms[block_idx] = __ballot_sync(0xFFFFFFFF, gmm_flags[lane_idx] > 0);
-    }
 
     // Reduce for each global GMM element
 
@@ -642,11 +619,9 @@ void GMMInitialize(const float *image, int *alpha, float *gmm, float *scratch_me
 
     for (int k = mixture_count; k < gmm_N; k+=mixture_count)
     {
-        GMMReductionKernel<4, true><<<grid, block>>>(0, image, alpha, block_gmm_scratch, block_active_scratch, element_count, channel_count, component_count, mixture_count);
-
-        for (int i=1; i < k; ++i)
+        for (int i = 0; i < k; ++i)
         {
-            GMMReductionKernel<4, false><<<grid, block>>>(i, image, alpha, block_gmm_scratch, block_active_scratch, element_count, channel_count, component_count, mixture_count);
+            GMMReductionKernel<4><<<grid, block>>>(i, image, alpha, block_gmm_scratch, element_count, channel_count, component_count, mixture_count);
         }
 
         GMMFinalizeKernel<4, false><<<k, block>>>(block_gmm_scratch, gmm, grid.x, component_count);
@@ -666,11 +641,9 @@ void GMMUpdate(const float *image, int *alpha, float *gmm, float *scratch_mem, i
 
     int gmm_N = mixture_count * mixture_size;
 
-    GMMReductionKernel<4, true><<<grid, block>>>(0, image, alpha, block_gmm_scratch, block_active_scratch, element_count, channel_count, component_count, mixture_count);
-
-    for (int i = 1; i < gmm_N; ++i)
+    for (int i = 0; i < gmm_N; ++i)
     {
-        GMMReductionKernel<4, false><<<grid, block>>>(i, image, alpha, block_gmm_scratch, block_active_scratch, element_count, channel_count, component_count, mixture_count);
+        GMMReductionKernel<4><<<grid, block>>>(i, image, alpha, block_gmm_scratch, element_count, channel_count, component_count, mixture_count);
     }
 
     GMMFinalizeKernel<4, true><<<gmm_N, block>>>(block_gmm_scratch, gmm, grid.x, component_count);
