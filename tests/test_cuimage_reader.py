@@ -68,7 +68,7 @@ class TestCuClaraImageReader(unittest.TestCase):
         filename = self.camelyon_data_download(file_url)
         reader = WSIReader("CuClaraImage")
         img_obj = reader.read(filename)
-        img = reader.get_data(img_obj)
+        img = reader.get_data(img_obj)[0]
         self.assertTupleEqual(img.shape, expected_shape)
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
@@ -77,7 +77,7 @@ class TestCuClaraImageReader(unittest.TestCase):
         filename = self.camelyon_data_download(file_url)
         reader = WSIReader("CuClaraImage")
         img_obj = reader.read(filename)
-        img = reader.get_data(img_obj, **patch_info)
+        img = reader.get_data(img_obj, **patch_info)[0]
         self.assertTupleEqual(img.shape, expected_img.shape)
         self.assertIsNone(assert_array_equal(img, expected_img))
 
@@ -87,7 +87,7 @@ class TestCuClaraImageReader(unittest.TestCase):
         filename = self.camelyon_data_download(file_url)
         reader = WSIReader("CuClaraImage")
         img_obj = reader.read(filename)
-        img = reader.get_data(img_obj, **patch_info)
+        img = reader.get_data(img_obj, **patch_info)[0]
         self.assertTupleEqual(img.shape, expected_img.shape)
         self.assertIsNone(assert_array_equal(img, expected_img))
 

@@ -727,7 +727,7 @@ class WSIReader(ImageReader):
                 region, patch_size=(patch_size, patch_size), grid_shape=grid_shape, dtype=dtype
             )
 
-        return patches
+        return patches, metadata
 
     def _extract_region(
         self,
