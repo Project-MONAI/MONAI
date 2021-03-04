@@ -31,6 +31,7 @@ from .nifti_writer import write_nifti
 from .png_saver import PNGSaver
 from .png_writer import write_png
 from .synthetic import create_test_image_2d, create_test_image_3d
+from .test_time_augmentation import TestTimeAugmentation
 from .thread_buffer import ThreadBuffer
 from .utils import (
     DistributedSampler,
