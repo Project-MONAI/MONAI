@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
 import unittest
 
 import numpy as np
@@ -34,7 +35,12 @@ class TestDeCollate(unittest.TestCase):
     def check_match(self, in1, in2):
         if isinstance(in1, dict):
             self.assertTrue(isinstance(in2, dict))
-            self.check_match(list(in1.keys()), list(in2.keys()))
+            for (k1, v1), (k2, v2) in zip(in1.items(), in2.items()):
+                self.check_match(k1, k2)
+                # Transform ids won't match for windows with multiprocessing
+                if k1 == "id" and sys.platform == "win32":
+                    continue
+                self.check_match(v1, v2)
             self.check_match(list(in1.values()), list(in2.values()))
         elif any(isinstance(in1, i) for i in [list, tuple]):
             for l1, l2 in zip(in1, in2):
@@ -64,23 +70,15 @@ class TestDeCollate(unittest.TestCase):
             transforms = Compose([LoadImaged("image"), transforms])
 
         dataset = CacheDataset(data, transforms, progress=False)
-        loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+        loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0)
 
         for b, batch_data in enumerate(loader):
             decollated_1 = decollate_batch(batch_data)
             decollated_2 = Decollated()(batch_data)
 
-            for z, decollated in enumerate([decollated_1, decollated_2]):
+            for decollated in [decollated_1, decollated_2]:
                 for i, d in enumerate(decollated):
-                    try:
-                        self.check_match(dataset[b * batch_size + i], d)
-                    except RuntimeError:
-                        print(f"problem with b={b}, i={i}, decollated_{z+1}")
-                        print("d")
-                        print(d)
-                        print("dataset[b * batch_size + i]")
-                        print(dataset[b * batch_size + i])
-                        raise
+                    self.check_match(dataset[b * batch_size + i], d)
 
 
 if __name__ == "__main__":

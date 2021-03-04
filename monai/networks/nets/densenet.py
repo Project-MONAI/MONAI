@@ -210,14 +210,14 @@ def _load_state_dict(model, model_url, progress):
     <https://github.com/pytorch/vision/blob/master/torchvision/models/densenet.py>`_
     """
     pattern = re.compile(
-        r"^(.*denselayer\d+\.(?:norm|relu|conv))\.((?:[12])\.(?:weight|bias|running_mean|running_var))$"
+        r"^(.*denselayer\d+)(\.(?:norm|relu|conv))\.((?:[12])\.(?:weight|bias|running_mean|running_var))$"
     )
 
     state_dict = load_state_dict_from_url(model_url, progress=progress)
     for key in list(state_dict.keys()):
         res = pattern.match(key)
         if res:
-            new_key = res.group(1) + res.group(2)
+            new_key = res.group(1) + ".layers" + res.group(2) + res.group(3)
             state_dict[new_key] = state_dict[key]
             del state_dict[key]
 

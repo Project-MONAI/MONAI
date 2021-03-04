@@ -499,11 +499,11 @@ class TestInverse(unittest.TestCase):
     def test_inverse_inferred_seg(self):
 
         test_data = []
-        for _ in range(4):
+        for _ in range(20):
             image, label = create_test_image_2d(100, 101)
             test_data.append({"image": image, "label": label.astype(np.float32)})
 
-        batch_size = 2
+        batch_size = 10
         # num workers = 0 for mac
         num_workers = 2 if sys.platform != "darwin" else 0
         transforms = Compose([AddChanneld(KEYS), SpatialPadd(KEYS, (150, 153)), CenterSpatialCropd(KEYS, (110, 99))])

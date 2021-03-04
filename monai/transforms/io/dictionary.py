@@ -172,6 +172,7 @@ class SaveImaged(MapTransform):
             has been moved to the end). So if input is (C,H,W,D), this will be altered to (H,W,D,C), and
             then if C==1, it will be saved as (H,W,D). If D also ==1, it will be saved as (H,W). If false,
             image will always be saved as (H,W,D,C).
+            it's used for NIfTI format only.
 
     """
 
