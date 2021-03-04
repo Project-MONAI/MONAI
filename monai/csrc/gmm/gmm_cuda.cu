@@ -61,7 +61,7 @@ __device__ __forceinline__ float get_constant(float *gmm, int i)
 
 // Tile Size: 32x32, Block Size 32xwarp_N
 template<int warp_N, bool create_gmm_flags>
-__global__ void GMMReductionKernel(int gmm_idx, const float* image, const int* alpha, float* gmm, unsigned int* tile_gmms, int element_count, int component_count, int mixture_count)
+__global__ void GMMReductionKernel(int gmm_idx, const float* image, const int* alpha, float* gmm, unsigned int* tile_gmms, int element_count, int channel_count, int component_count, int mixture_count)
 {
     __shared__ float s_lists[32 * 32 * CHANNELS];
     __shared__ volatile float s_gmm[32 * warp_N];
@@ -629,7 +629,7 @@ __global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, int co
     }
 }
 
-void GMMInitialize(const float *image, int *alpha, float *gmm, float *scratch_mem, int element_count, int mixture_count, int mixture_size, int component_count)
+void GMMInitialize(const float *image, int *alpha, float *gmm, float *scratch_mem, int element_count, int mixture_count, int mixture_size, int channel_count, int component_count)
 {
     dim3 grid(TILE(element_count, BLOCK_SIZE * BLOCK_SIZE));
     dim3 block(BLOCK_SIZE * 4);
@@ -642,11 +642,11 @@ void GMMInitialize(const float *image, int *alpha, float *gmm, float *scratch_me
 
     for (int k = mixture_count; k < gmm_N; k+=mixture_count)
     {
-        GMMReductionKernel<4, true><<<grid, block>>>(0, image, alpha, block_gmm_scratch, block_active_scratch, element_count, component_count, mixture_count);
+        GMMReductionKernel<4, true><<<grid, block>>>(0, image, alpha, block_gmm_scratch, block_active_scratch, element_count, channel_count, component_count, mixture_count);
 
         for (int i=1; i < k; ++i)
         {
-            GMMReductionKernel<4, false><<<grid, block>>>(i, image, alpha, block_gmm_scratch, block_active_scratch, element_count, component_count, mixture_count);
+            GMMReductionKernel<4, false><<<grid, block>>>(i, image, alpha, block_gmm_scratch, block_active_scratch, element_count, channel_count, component_count, mixture_count);
         }
 
         GMMFinalizeKernel<4, false><<<k, block>>>(block_gmm_scratch, gmm, grid.x, component_count);
@@ -656,7 +656,7 @@ void GMMInitialize(const float *image, int *alpha, float *gmm, float *scratch_me
     }
 }
 
-void GMMUpdate(const float *image, int *alpha, float *gmm, float *scratch_mem, int element_count, int mixture_count, int mixture_size, int component_count)
+void GMMUpdate(const float *image, int *alpha, float *gmm, float *scratch_mem, int element_count, int mixture_count, int mixture_size, int channel_count, int component_count)
 {
     dim3 grid(TILE(element_count, BLOCK_SIZE * BLOCK_SIZE));
     dim3 block(BLOCK_SIZE * 4);
@@ -666,11 +666,11 @@ void GMMUpdate(const float *image, int *alpha, float *gmm, float *scratch_mem, i
 
     int gmm_N = mixture_count * mixture_size;
 
-    GMMReductionKernel<4, true><<<grid, block>>>(0, image, alpha, block_gmm_scratch, block_active_scratch, element_count, component_count, mixture_count);
+    GMMReductionKernel<4, true><<<grid, block>>>(0, image, alpha, block_gmm_scratch, block_active_scratch, element_count, channel_count, component_count, mixture_count);
 
     for (int i = 1; i < gmm_N; ++i)
     {
-        GMMReductionKernel<4, false><<<grid, block>>>(i, image, alpha, block_gmm_scratch, block_active_scratch, element_count, component_count, mixture_count);
+        GMMReductionKernel<4, false><<<grid, block>>>(i, image, alpha, block_gmm_scratch, block_active_scratch, element_count, channel_count, component_count, mixture_count);
     }
 
     GMMFinalizeKernel<4, true><<<gmm_N, block>>>(block_gmm_scratch, gmm, grid.x, component_count);
@@ -700,8 +700,8 @@ void GMM_Cuda(const float* input, const int* labels, float* output, int batch_co
 
     cudaMemcpyAsync(alpha, labels, element_count * sizeof(int), cudaMemcpyDeviceToDevice);
     
-    GMMInitialize(input, alpha, gmm, scratch_mem, element_count, mixture_count, mixture_size, component_count);
-    GMMUpdate(input, alpha, gmm, scratch_mem, element_count, mixture_count, mixture_size, component_count);
+    GMMInitialize(input, alpha, gmm, scratch_mem, element_count, mixture_count, mixture_size, channel_count, component_count);
+    GMMUpdate(input, alpha, gmm, scratch_mem, element_count, mixture_count, mixture_size, channel_count, component_count);
     GMMDataTerm(input, gmm, output, element_count, mixture_count, mixture_size, component_count);
 
     cudaFree(alpha);
