@@ -19,8 +19,6 @@ from typing import Any, Callable, Optional, Sequence, cast
 import torch
 import torch.nn as nn
 
-from monai.utils import ensure_tuple_size
-
 __all__ = [
     "one_hot",
     "slice_channels",
@@ -50,13 +48,14 @@ def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.f
 
     # if `dim` is bigger, add singleton dim at the end
     if labels.ndim < dim + 1:
-        shape = ensure_tuple_size(labels.shape, dim + 1, 1)
-        labels = labels.reshape(*shape)
+        shape = list(labels.shape) + [1] * (dim + 1 - len(labels.shape))
+        labels = torch.reshape(labels, shape)
 
     sh = list(labels.shape)
 
     if sh[dim] != 1:
-        raise AssertionError("labels should have a channel with length equals to one.")
+        raise AssertionError("labels should have a channel with length equal to one.")
+
     sh[dim] = num_classes
 
     o = torch.zeros(size=sh, dtype=dtype, device=labels.device)

@@ -21,8 +21,8 @@ import numpy as np
 
 from monai.config import DtypeLike, KeysCollection
 from monai.data.image_reader import ImageReader
-from monai.transforms.compose import MapTransform
 from monai.transforms.io.array import LoadImage, SaveImage
+from monai.transforms.transform import MapTransform
 from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode
 
 __all__ = [
@@ -59,6 +59,8 @@ class LoadImaged(MapTransform):
         dtype: DtypeLike = np.float32,
         meta_key_postfix: str = "meta_dict",
         overwriting: bool = False,
+        image_only: bool = False,
+        allow_missing_keys: bool = False,
         *args,
         **kwargs,
     ) -> None:
@@ -76,11 +78,14 @@ class LoadImaged(MapTransform):
                 For example, load nifti file for `image`, store the metadata into `image_meta_dict`.
             overwriting: whether allow to overwrite existing meta data of same key.
                 default is False, which will raise exception if encountering existing key.
+            image_only: if True return dictionary containing just only the image volumes, otherwise return
+                dictionary containing image data array and header dict per input key.
+            allow_missing_keys: don't raise exception if key is missing.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
         """
-        super().__init__(keys)
-        self._loader = LoadImage(reader, False, dtype, *args, **kwargs)
+        super().__init__(keys, allow_missing_keys)
+        self._loader = LoadImage(reader, image_only, dtype, *args, **kwargs)
         if not isinstance(meta_key_postfix, str):
             raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
         self.meta_key_postfix = meta_key_postfix
@@ -96,23 +101,30 @@ class LoadImaged(MapTransform):
 
         """
         d = dict(data)
-        for key in self.keys:
+        for key in self.key_iterator(d):
             data = self._loader(d[key], reader)
-            if not isinstance(data, (tuple, list)):
-                raise ValueError("loader must return a tuple or list.")
-            d[key] = data[0]
-            if not isinstance(data[1], dict):
-                raise ValueError("metadata must be a dict.")
-            key_to_add = f"{key}_{self.meta_key_postfix}"
-            if key_to_add in d and not self.overwriting:
-                raise KeyError(f"Meta data with key {key_to_add} already exists and overwriting=False.")
-            d[key_to_add] = data[1]
+            if self._loader.image_only:
+                if not isinstance(data, np.ndarray):
+                    raise ValueError("loader must return a numpy array (because image_only=True was used).")
+                d[key] = data
+            else:
+                if not isinstance(data, (tuple, list)):
+                    raise ValueError("loader must return a tuple or list (because image_only=False was used).")
+                d[key] = data[0]
+                if not isinstance(data[1], dict):
+                    raise ValueError("metadata must be a dict.")
+                key_to_add = f"{key}_{self.meta_key_postfix}"
+                if key_to_add in d and not self.overwriting:
+                    raise KeyError(f"Meta data with key {key_to_add} already exists and overwriting=False.")
+                d[key_to_add] = data[1]
         return d
 
 
 class SaveImaged(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SaveImage`.
+
+    NB: image should include channel dimension: [B],C,H,W,[D].
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -155,6 +167,11 @@ class SaveImaged(MapTransform):
             it's used for NIfTI format only.
         save_batch: whether the import image is a batch data, default to `False`.
             usually pre-transforms run for channel first data, while post-transforms run for batch data.
+        allow_missing_keys: don't raise exception if key is missing.
+        squeeze_end_dims: if True, any trailing singleton dimensions will be removed (after the channel
+            has been moved to the end). So if input is (C,H,W,D), this will be altered to (H,W,D,C), and
+            then if C==1, it will be saved as (H,W,D). If D also ==1, it will be saved as (H,W). If false,
+            image will always be saved as (H,W,D,C).
 
     """
 
@@ -172,8 +189,10 @@ class SaveImaged(MapTransform):
         dtype: DtypeLike = np.float64,
         output_dtype: DtypeLike = np.float32,
         save_batch: bool = False,
+        allow_missing_keys: bool = False,
+        squeeze_end_dims: bool = True,
     ) -> None:
-        super().__init__(keys)
+        super().__init__(keys, allow_missing_keys)
         self.meta_key_postfix = meta_key_postfix
         self._saver = SaveImage(
             output_dir=output_dir,
@@ -186,11 +205,12 @@ class SaveImaged(MapTransform):
             dtype=dtype,
             output_dtype=output_dtype,
             save_batch=save_batch,
+            squeeze_end_dims=squeeze_end_dims,
         )
 
     def __call__(self, data):
         d = dict(data)
-        for key in self.keys:
+        for key in self.key_iterator(d):
             meta_data = d[f"{key}_{self.meta_key_postfix}"] if self.meta_key_postfix is not None else None
             self._saver(img=d[key], meta_data=meta_data)
         return d

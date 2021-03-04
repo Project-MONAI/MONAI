@@ -212,6 +212,12 @@ class CAM(CAMBase):
         cam = CAM(nn_module=model_2d, target_layers="layer4", fc_layers="last_linear")
         result = cam(x=torch.rand((2, 3, 48, 64)))
 
+    N.B.: To help select the target layer, it may be useful to list all layers:
+
+    .. code-block:: python
+
+        for name, _ in model.named_modules(): print(name)
+
     See Also:
 
         - :py:class:`monai.visualize.class_activation_maps.GradCAM`
@@ -306,6 +312,12 @@ class GradCAM(CAMBase):
         model_2d = se_resnet50(spatial_dims=2, in_channels=3, num_classes=4)
         cam = GradCAM(nn_module=model_2d, target_layers="layer4")
         result = cam(x=torch.rand((2, 3, 48, 64)))
+
+    N.B.: To help select the target layer, it may be useful to list all layers:
+
+    .. code-block:: python
+
+        for name, _ in model.named_modules(): print(name)
 
     See Also:
 

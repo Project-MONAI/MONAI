@@ -17,12 +17,12 @@ import nibabel as nib
 import numpy as np
 
 from monai.data import ImageDataset
-from monai.transforms import Randomizable
+from monai.transforms.transform import RandomizableTransform
 
 FILENAMES = ["test1.nii.gz", "test2.nii", "test3.nii.gz"]
 
 
-class RandTest(Randomizable):
+class RandTest(RandomizableTransform):
     """
     randomisable transform for testing.
     """
