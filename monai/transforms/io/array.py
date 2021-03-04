@@ -42,7 +42,7 @@ def switch_endianness(data, old, new):
         if data.dtype.byteorder == old:
             data = data.newbyteorder(new)
     elif isinstance(data, tuple):
-        data = (switch_endianness(x, old, new) for x in data)
+        data = tuple(switch_endianness(x, old, new) for x in data)
     elif isinstance(data, list):
         data = [switch_endianness(x, old, new) for x in data]
     elif isinstance(data, dict):

@@ -7,6 +7,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.data import DataLoader, Dataset, create_test_image_2d
+from monai.transforms.io.array import switch_endianness
 from monai.transforms import LoadImage, LoadImaged
 from monai.utils.module import optional_import
 
@@ -42,6 +43,11 @@ class TestNiftiEndianness(unittest.TestCase):
         check_ds = Dataset(data, tr)
         check_loader = DataLoader(check_ds, batch_size=1)
         _ = next(iter(check_loader))
+
+    def test_switch(self):  # verify data types
+        for data in (np.zeros((2, 1)), ("test",), [24, 42], {"foo": "bar"}, True, 42):
+            output = switch_endianness(data, ">", "<")
+            self.assertEqual(type(data), type(output))
 
 
 if __name__ == "__main__":
