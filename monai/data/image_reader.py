@@ -643,11 +643,13 @@ class WSIReader(ImageReader):
         super().__init__()
         self.reader_lib = reader_lib.lower()
         if self.reader_lib == "openslide":
-            self.wsi_reader = openslide.OpenSlide
-            print("> OpenSlide is being used.")
+            if has_osl:
+                self.wsi_reader = openslide.OpenSlide
+                print("> OpenSlide is being used.")
         elif self.reader_lib == "cuclaraimage":
-            self.wsi_reader = cuimage.CuImage
-            print("> CuImage is being used.")
+            if has_cux:
+                self.wsi_reader = cuimage.CuImage
+                print("> CuImage is being used.")
         else:
             raise ValueError('`reader_lib` should be either "cuClaraImage" or "OpenSlide"')
 
