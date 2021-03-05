@@ -139,16 +139,12 @@ class Compose(RandomizableTransform, InvertibleTransform):
             input_ = apply_transform(_transform, input_)
         return input_
 
-    def inverse(self, data, keys: Optional[Tuple[Hashable, ...]] = None):
-        if not isinstance(data, Mapping):
-            raise RuntimeError("Inverse method only available for dictionary transforms")
-        d = deepcopy(dict(data))
-        if keys:
-            keys = ensure_tuple(keys)
+    def inverse(self, data):
+        invertible_transforms = [t for t in self.flatten().transforms if isinstance(t, InvertibleTransform)]
+        if len(invertible_transforms) == 0:
+            warnings.warn("inverse has been called but no invertible transforms have been supplied")
 
         # loop backwards over transforms
-        for t in reversed(self.transforms):
-            # check if transform is one of the invertible ones
-            if isinstance(t, InvertibleTransform):
-                d = t.inverse(d, keys)
-        return d
+        for t in reversed(invertible_transforms):
+            data = t.inverse(data)
+        return data

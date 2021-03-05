@@ -52,6 +52,7 @@ from monai.transforms import (
     SpatialPad,
     SpatialPadd,
     Zoomd,
+    AllowMissingKeysMode,
 )
 from monai.utils import first, optional_import, set_determinism
 from tests.utils import make_nifti_image, make_rand_affine, test_is_quick
@@ -393,11 +394,6 @@ TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for
 TESTS = TESTS + TESTS_COMPOSE_X2  # type: ignore
 
 
-# Should fail because uses an array transform (SpatialPad), as opposed to dictionary
-TEST_FAIL_0 = ("2D", 0.0, Compose([SpatialPad(spatial_size=[101, 103])]))
-TESTS_FAIL = [TEST_FAIL_0]
-
-
 def plot_im(orig, fwd_bck, fwd):
     diff_orig_fwd_bck = orig - fwd_bck
     ims_to_show = [orig, fwd, fwd_bck, diff_orig_fwd_bck]
@@ -489,13 +485,6 @@ class TestInverse(unittest.TestCase):
                 fwd_bck = t.inverse(fwd_bck)
                 self.check_inverse(name, data.keys(), forwards[-i - 2], fwd_bck, forwards[-1], acceptable_diff)
 
-    @parameterized.expand(TESTS_FAIL)
-    def test_fail(self, data_name, _, *transform):
-        data = self.all_data[data_name]["image"]
-        d = transform[0](data)
-        with self.assertRaises(RuntimeError):
-            d = transform[0].inverse(d)
-
     def test_inverse_inferred_seg(self):
 
         test_data = []
@@ -529,7 +518,8 @@ class TestInverse(unittest.TestCase):
 
         # inverse of individual segmentation
         seg_dict = first(segs_dict_decollated)
-        inv_seg = transforms.inverse(seg_dict, "label")["label"]
+        with AllowMissingKeysMode(transforms):
+            inv_seg = transforms.inverse(seg_dict)["label"]
         self.assertEqual(len(data["label_transforms"]), num_invertible_transforms)
         self.assertEqual(len(seg_dict["label_transforms"]), num_invertible_transforms)
         self.assertEqual(inv_seg.shape[1:], test_data[0]["label"].shape)

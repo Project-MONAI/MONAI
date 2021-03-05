@@ -88,7 +88,7 @@ class InvertibleTransform(Transform):
         """Remove most recent transform."""
         data[str(key) + "_transforms"].pop()
 
-    def inverse(self, data: dict, keys: Optional[Tuple[Hashable, ...]] = None) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: dict) -> Dict[Hashable, np.ndarray]:
         """
         Inverse of ``__call__``.
 
