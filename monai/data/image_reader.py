@@ -645,7 +645,7 @@ class WSIReader(ImageReader):
         if self.reader_lib == "openslide":
             if has_osl:
                 self.wsi_reader = openslide.OpenSlide
-                print("> OpenSlide is being used.")                
+                print("> OpenSlide is being used.")
         elif self.reader_lib == "cuclaraimage":
             if has_cux:
                 self.wsi_reader = cuimage.CuImage
