@@ -13,15 +13,40 @@ A collection of generic interfaces for MONAI transforms.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Generator, Hashable, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Generator, Hashable, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 
 from monai.config import KeysCollection
 from monai.utils import MAX_SEED, ensure_tuple
 
-__all__ = ["Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
+__all__ = ["apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
 
+
+
+def apply_transform(transform: Callable, data, map_items: bool = True):
+    """
+    Transform `data` with `transform`.
+    If `data` is a list or tuple and `map_data` is True, each item of `data` will be transformed
+    and this method returns a list of outcomes.
+    otherwise transform will be applied once with `data` as the argument.
+
+    Args:
+        transform: a callable to be used to transform `data`
+        data: an object to be transformed.
+        map_items: whether to apply transform to each item in `data`,
+            if `data` is a list or tuple. Defaults to True.
+
+    Raises:
+        Exception: When ``transform`` raises an exception.
+
+    """
+    try:
+        if isinstance(data, (list, tuple)) and map_items:
+            return [transform(item) for item in data]
+        return transform(data)
+    except Exception as e:
+        raise RuntimeError(f"applying transform {transform}") from e
 
 class Randomizable(ABC):
     """
