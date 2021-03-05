@@ -24,6 +24,7 @@ from monai.networks.nets import UNet
 from monai.transforms import (
     AddChannel,
     AddChanneld,
+    AllowMissingKeysMode,
     BorderPadd,
     CenterSpatialCropd,
     Compose,
@@ -49,10 +50,8 @@ from monai.transforms import (
     Rotated,
     Spacingd,
     SpatialCropd,
-    SpatialPad,
     SpatialPadd,
     Zoomd,
-    AllowMissingKeysMode,
 )
 from monai.utils import first, optional_import, set_determinism
 from tests.utils import make_nifti_image, make_rand_affine, test_is_quick

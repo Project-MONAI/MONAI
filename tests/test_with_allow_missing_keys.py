@@ -9,9 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy as np
 import unittest
-from monai.transforms import Compose, SpatialPadd, SpatialPad, AllowMissingKeysMode
+
+import numpy as np
+
+from monai.transforms import AllowMissingKeysMode, Compose, SpatialPad, SpatialPadd
+
 
 class TestWithAllowMissingKeys(unittest.TestCase):
     def setUp(self):
@@ -45,7 +48,7 @@ class TestWithAllowMissingKeys(unittest.TestCase):
         for _t, amk in zip(t.transforms, amks):
             self.assertEqual(_t.allow_missing_keys, amk)
         # should fail because not all amks==True and key is missing
-        with self.assertRaises([KeyError, RuntimeError]):
+        with self.assertRaises((KeyError, RuntimeError)):
             _ = t(self.data)
 
     def test_array_transform(self):
@@ -53,6 +56,7 @@ class TestWithAllowMissingKeys(unittest.TestCase):
             with AllowMissingKeysMode(t):
                 # should work as nothing should have changed
                 _ = t(self.data["image"])
+
 
 if __name__ == "__main__":
     unittest.main()

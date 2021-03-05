@@ -13,15 +13,20 @@ A collection of generic interfaces for MONAI transforms.
 """
 
 import warnings
-from copy import deepcopy
-from typing import Any, Callable, Hashable, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Optional, Sequence, Union
 
 import numpy as np
 
 from monai.transforms.inverse import InvertibleTransform
 
 # For backwards compatiblity (so this still works: from monai.transforms.compose import MapTransform)
-from monai.transforms.transform import apply_transform, MapTransform, Randomizable, RandomizableTransform, Transform  # noqa: F401
+from monai.transforms.transform import (  # noqa: F401
+    MapTransform,
+    Randomizable,
+    RandomizableTransform,
+    Transform,
+    apply_transform,
+)
 from monai.utils import MAX_SEED, ensure_tuple, get_seed
 
 __all__ = ["Compose"]

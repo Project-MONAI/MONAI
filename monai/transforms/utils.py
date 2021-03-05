@@ -10,8 +10,6 @@
 # limitations under the License.
 
 import itertools
-from monai.transforms.transform import MapTransform
-from monai.transforms.compose import Compose
 import random
 import warnings
 from typing import Callable, List, Optional, Sequence, Tuple, Union
@@ -21,6 +19,8 @@ import torch
 
 from monai.config import DtypeLike, IndexSelection
 from monai.networks.layers import GaussianFilter
+from monai.transforms.compose import Compose
+from monai.transforms.transform import MapTransform
 from monai.utils import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple, min_version, optional_import
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
@@ -39,7 +39,6 @@ __all__ = [
     "map_binary_to_indices",
     "weighted_patch_samples",
     "generate_pos_neg_label_crop_centers",
-    "apply_transform",
     "create_grid",
     "create_control_grid",
     "create_rotate",
@@ -709,7 +708,8 @@ def map_spatial_axes(
 
     return spatial_axes_
 
-class AllowMissingKeysMode():
+
+class AllowMissingKeysMode:
     """Temporarily set all MapTransforms to not throw an error if keys are missing. After, revert to original states.
 
     Args:
@@ -725,6 +725,7 @@ class AllowMissingKeysMode():
         with AllowMissingKeysMode(t):
             _ = t(data)  # OK!
     """
+
     def __init__(self, transform: Union[MapTransform, Compose]):
         if isinstance(transform, MapTransform):
             self.transforms = [transform]

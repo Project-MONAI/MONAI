@@ -126,9 +126,7 @@ class SpatialPadd(MapTransform, InvertibleTransform):
             d[key] = self.padder(d[key], mode=m)
         return d
 
-    def inverse(
-        self, data: Mapping[Hashable, np.ndarray]
-    ) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -196,9 +194,7 @@ class BorderPadd(MapTransform, InvertibleTransform):
             d[key] = self.padder(d[key], mode=m)
         return d
 
-    def inverse(
-        self, data: Mapping[Hashable, np.ndarray]
-    ) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
@@ -264,9 +260,7 @@ class DivisiblePadd(MapTransform, InvertibleTransform):
             d[key] = self.padder(d[key], mode=m)
         return d
 
-    def inverse(
-        self, data: Mapping[Hashable, np.ndarray]
-    ) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
@@ -321,9 +315,7 @@ class SpatialCropd(MapTransform, InvertibleTransform):
             d[key] = self.cropper(d[key])
         return d
 
-    def inverse(
-        self, data: Mapping[Hashable, np.ndarray]
-    ) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
@@ -371,9 +363,7 @@ class CenterSpatialCropd(MapTransform, InvertibleTransform):
             self.append_applied_transforms(d, key, orig_size=orig_size)
         return d
 
-    def inverse(
-        self, data: Mapping[Hashable, np.ndarray]
-    ) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
@@ -456,9 +446,7 @@ class RandSpatialCropd(RandomizableTransform, MapTransform, InvertibleTransform)
                 d[key] = cropper(d[key])
         return d
 
-    def inverse(
-        self, data: Mapping[Hashable, np.ndarray]
-    ) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
@@ -606,9 +594,7 @@ class CropForegroundd(MapTransform, InvertibleTransform):
             d[key] = cropper(d[key])
         return d
 
-    def inverse(
-        self, data: Mapping[Hashable, np.ndarray]
-    ) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -843,9 +829,7 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
             self.append_applied_transforms(d, key, orig_size=orig_size)
         return d
 
-    def inverse(
-        self, data: Mapping[Hashable, np.ndarray]
-    ) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)

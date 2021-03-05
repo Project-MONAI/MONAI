@@ -13,7 +13,7 @@ A collection of generic interfaces for MONAI transforms.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Generator, Hashable, Iterable, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Generator, Hashable, Iterable, List, Optional, Tuple
 
 import numpy as np
 
@@ -21,7 +21,6 @@ from monai.config import KeysCollection
 from monai.utils import MAX_SEED, ensure_tuple
 
 __all__ = ["apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
-
 
 
 def apply_transform(transform: Callable, data, map_items: bool = True):
@@ -47,6 +46,7 @@ def apply_transform(transform: Callable, data, map_items: bool = True):
         return transform(data)
     except Exception as e:
         raise RuntimeError(f"applying transform {transform}") from e
+
 
 class Randomizable(ABC):
     """
