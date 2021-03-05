@@ -639,13 +639,13 @@ class WSIReader(ImageReader):
 
     """
 
-    def __init__(self, reader_lib: str = "cuClaraImage"):
+    def __init__(self, reader_lib: str = "OpenSlide"):
         super().__init__()
         self.reader_lib = reader_lib.lower()
         if self.reader_lib == "openslide":
             if has_osl:
                 self.wsi_reader = openslide.OpenSlide
-                print("> OpenSlide is being used.")
+                print("> OpenSlide is being used.")                
         elif self.reader_lib == "cuclaraimage":
             if has_cux:
                 self.wsi_reader = cuimage.CuImage
@@ -672,6 +672,11 @@ class WSIReader(ImageReader):
             data: file name or a list of file names to read.
 
         """
+        if (self.reader_lib == "openslide") and (not has_osl):
+            raise ImportError("No module named 'openslide'")
+        elif (self.reader_lib == "cuclaraimage") and (not has_cux):
+            raise ImportError("No module named 'cuimage'")
+
         img_: List = []
 
         filenames: Sequence[str] = ensure_tuple(data)
