@@ -21,8 +21,7 @@ import numpy as np
 from monai.transforms.inverse import InvertibleTransform
 
 # For backwards compatiblity (so this still works: from monai.transforms.compose import MapTransform)
-from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform, Transform  # noqa: F401
-from monai.transforms.utils import apply_transform
+from monai.transforms.transform import apply_transform, MapTransform, Randomizable, RandomizableTransform, Transform  # noqa: F401
 from monai.utils import MAX_SEED, ensure_tuple, get_seed
 
 __all__ = ["Compose"]
