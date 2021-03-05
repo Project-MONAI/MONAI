@@ -32,7 +32,7 @@ from monai.transforms.croppad.array import (
     SpatialCrop,
     SpatialPad,
 )
-from monai.transforms.inverse_transform import InvertibleTransform
+from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utils import (
     generate_pos_neg_label_crop_centers,

@@ -18,7 +18,7 @@ from typing import Any, Callable, Hashable, Mapping, Optional, Sequence, Tuple, 
 
 import numpy as np
 
-from monai.transforms.inverse_transform import InvertibleTransform
+from monai.transforms.inverse import InvertibleTransform
 
 # For backwards compatiblity (so this still works: from monai.transforms.compose import MapTransform)
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform, Transform  # noqa: F401

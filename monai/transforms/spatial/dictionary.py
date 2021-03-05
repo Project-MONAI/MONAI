@@ -25,7 +25,7 @@ from monai.config import DtypeLike, KeysCollection
 from monai.networks.layers import AffineTransform
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
-from monai.transforms.inverse_transform import InvertibleTransform, NonRigidTransform
+from monai.transforms.inverse import InvertibleTransform, NonRigidTransform
 from monai.transforms.spatial.array import (
     AffineGrid,
     Flip,
