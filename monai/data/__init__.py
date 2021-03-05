@@ -24,7 +24,7 @@ from .dataset import (
 from .decathlon_datalist import load_decathlon_datalist, load_decathlon_properties
 from .grid_dataset import GridPatchDataset, PatchDataset
 from .image_dataset import ImageDataset
-from .image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader
+from .image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader, WSIReader
 from .iterable_dataset import IterableDataset
 from .nifti_saver import NiftiSaver
 from .nifti_writer import write_nifti
@@ -38,6 +38,7 @@ from .utils import (
     compute_shape_offset,
     correct_nifti_header_if_necessary,
     create_file_basename,
+    decollate_batch,
     dense_patch_slices,
     get_random_patch,
     get_valid_patch_size,
@@ -46,6 +47,7 @@ from .utils import (
     iter_patch_slices,
     json_hashing,
     list_data_collate,
+    pad_list_data_collate,
     partition_dataset,
     partition_dataset_classes,
     pickle_hashing,

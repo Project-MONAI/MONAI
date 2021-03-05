@@ -21,7 +21,7 @@ import torch
 import torch.nn.functional as F
 
 from monai.networks import one_hot
-from monai.transforms.compose import Transform
+from monai.transforms.transform import Transform
 from monai.transforms.utils import get_largest_connected_component_mask
 from monai.utils import ensure_tuple
 
