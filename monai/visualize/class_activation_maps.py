@@ -204,7 +204,7 @@ class CAM(CAMBase):
     Compute class activation map from the last fully-connected layers before the spatial pooling.
     This implementation is based on:
 
-        Zhou et al., Learning deep features for discriminative localization. CVPR '16,
+        Zhou et al., Learning Deep Features for Discriminative Localization. CVPR '16,
         https://arxiv.org/abs/1512.04150
 
     Examples
