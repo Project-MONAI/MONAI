@@ -77,6 +77,11 @@ Patch-based dataset
 .. autoclass:: GridPatchDataset
   :members:
 
+`PatchIter`
+~~~~~~~~~~~
+.. autoclass:: PatchIter
+  :members:
+
 `PatchDataset`
 ~~~~~~~~~~~~~~
 .. autoclass:: PatchDataset
