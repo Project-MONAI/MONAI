@@ -146,6 +146,7 @@ class SpatialPadd(MapTransform, InvertibleTransform):
 
         return d
 
+
 class BorderPadd(MapTransform):
     """
     Pad the input data by adding specified borders to every dimension.

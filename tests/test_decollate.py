@@ -9,10 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from enum import Enum
-from monai.transforms.inverse import InvertibleTransform
-import unittest
 import sys
+import unittest
+from enum import Enum
+
 import numpy as np
 import torch
 from parameterized import parameterized
@@ -20,6 +20,7 @@ from parameterized import parameterized
 from monai.data import CacheDataset, DataLoader, create_test_image_2d
 from monai.data.utils import decollate_batch
 from monai.transforms import AddChanneld, Compose, LoadImaged, RandFlipd, SpatialPadd, ToTensord
+from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.post.dictionary import Decollated
 from monai.utils import optional_import, set_determinism
 from tests.utils import make_nifti_image

@@ -16,7 +16,6 @@ import numpy as np
 
 from monai.transforms.transform import RandomizableTransform, Transform
 
-
 __all__ = ["InvertibleTransform"]
 
 

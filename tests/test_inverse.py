@@ -23,7 +23,6 @@ from monai.networks.nets import UNet
 from monai.transforms import (
     AddChannel,
     AddChanneld,
-    CenterSpatialCropd,
     Compose,
     InvertibleTransform,
     LoadImaged,
