@@ -62,3 +62,6 @@ Ask and answer questions over on [MONAI's GitHub Discussions tab](https://github
 - Issue tracker: https://github.com/Project-MONAI/MONAI/issues
 - Wiki: https://github.com/Project-MONAI/MONAI/wiki
 - Test status: https://github.com/Project-MONAI/MONAI/actions
+- PyPI package: https://pypi.org/project/monai/
+- Weekly previews: https://pypi.org/project/monai-weekly/
+- Docker Hub: https://hub.docker.com/r/projectmonai/monai
