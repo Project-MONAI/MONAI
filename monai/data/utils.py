@@ -18,7 +18,7 @@ import warnings
 from collections import defaultdict
 from itertools import product, starmap
 from pathlib import PurePath
-from typing import Dict, Generator, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Generator, Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -36,6 +36,8 @@ from monai.utils import (
     first,
     optional_import,
 )
+from monai.utils.enums import Method
+from monai.utils.misc import issequenceiterable
 
 nib, _ = optional_import("nibabel")
 
@@ -63,6 +65,8 @@ __all__ = [
     "json_hashing",
     "pickle_hashing",
     "sorted_dict",
+    "decollate_batch",
+    "pad_list_data_collate",
 ]
 
 
@@ -240,7 +244,148 @@ def list_data_collate(batch: Sequence):
     """
     elem = batch[0]
     data = [i for k in batch for i in k] if isinstance(elem, list) else batch
-    return default_collate(data)
+    try:
+        return default_collate(data)
+    except RuntimeError as re:
+        re_str = str(re)
+        if "stack expects each tensor to be equal size" in re_str:
+            re_str += (
+                "\nMONAI hint: if your transforms intentionally create images of different shapes, creating your "
+                + "`DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem (check its "
+                + "documentation)."
+            )
+        raise RuntimeError(re_str)
+
+
+def decollate_batch(data: dict, batch_size: Optional[int] = None) -> List[dict]:
+    """De-collate a batch of data (for example, as produced by a `DataLoader`).
+
+    Returns a list of dictionaries. Each dictionary will only contain the data for a given batch.
+
+    Images originally stored as (B,C,H,W,[D]) will be returned as (C,H,W,[D]). Other information,
+    such as metadata, may have been stored in a list (or a list inside nested dictionaries). In
+    this case we return the element of the list corresponding to the batch idx.
+
+    Return types aren't guaranteed to be the same as the original, since numpy arrays will have been
+    converted to torch.Tensor, and tuples/lists may have been converted to lists of tensors
+
+    For example:
+
+    .. code-block:: python
+
+        batch_data = {
+            "image": torch.rand((2,1,10,10)),
+            "image_meta_dict": {"scl_slope": torch.Tensor([0.0, 0.0])}
+        }
+        out = decollate_batch(batch_data)
+        print(len(out))
+        >>> 2
+
+        print(out[0])
+        >>> {'image': tensor([[[4.3549e-01...43e-01]]]), 'image_meta_dict': {'scl_slope': 0.0}}
+
+    Args:
+        data: data to be de-collated.
+        batch_size: number of batches in data. If `None` is passed, try to figure out batch size.
+    """
+    if not isinstance(data, dict):
+        raise RuntimeError("Only currently implemented for dictionary data (might be trivial to adapt).")
+    if batch_size is None:
+        for v in data.values():
+            if isinstance(v, torch.Tensor):
+                batch_size = v.shape[0]
+                break
+    if batch_size is None:
+        raise RuntimeError("Couldn't determine batch size, please specify as argument.")
+
+    def torch_to_single(d: torch.Tensor):
+        """If input is a torch.Tensor with only 1 element, return just the element."""
+        return d if d.numel() > 1 else d.item()
+
+    def decollate(data: Any, idx: int):
+        """Recursively de-collate."""
+        if isinstance(data, dict):
+            return {k: decollate(v, idx) for k, v in data.items()}
+        if isinstance(data, torch.Tensor):
+            out = data[idx]
+            return torch_to_single(out)
+        elif isinstance(data, list):
+            if len(data) == 0:
+                return data
+            if isinstance(data[0], torch.Tensor):
+                return [torch_to_single(d[idx]) for d in data]
+            if issequenceiterable(data[0]):
+                return [decollate(d, idx) for d in data]
+            return data[idx]
+        raise TypeError(f"Not sure how to de-collate type: {type(data)}")
+
+    return [{key: decollate(data[key], idx) for key in data.keys()} for idx in range(batch_size)]
+
+
+def pad_list_data_collate(
+    batch: Sequence,
+    method: Union[Method, str] = Method.SYMMETRIC,
+    mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+):
+    """
+    Same as MONAI's ``list_data_collate``, except any tensors are centrally padded to match the shape of the biggest
+    tensor in each dimension.
+
+    Note:
+        Need to use this collate if apply some transforms that can generate batch data.
+
+    Args:
+        batch: batch of data to pad-collate
+        method: padding method (see :py:class:`monai.transforms.SpatialPad`)
+        mode: padding mode (see :py:class:`monai.transforms.SpatialPad`)
+    """
+    list_of_dicts = isinstance(batch[0], dict)
+    for key_or_idx in batch[0].keys() if list_of_dicts else range(len(batch[0])):
+        max_shapes = []
+        for elem in batch:
+            if not isinstance(elem[key_or_idx], (torch.Tensor, np.ndarray)):
+                break
+            max_shapes.append(elem[key_or_idx].shape[1:])
+        # len > 0 if objects were arrays
+        if len(max_shapes) == 0:
+            continue
+        max_shape = np.array(max_shapes).max(axis=0)
+        # If all same size, skip
+        if np.all(np.array(max_shapes).min(axis=0) == max_shape):
+            continue
+        # Do we need to convert output to Tensor?
+        output_to_tensor = isinstance(batch[0][key_or_idx], torch.Tensor)
+
+        # Use `SpatialPadd` or `SpatialPad` to match sizes
+        # Default params are central padding, padding with 0's
+        # If input is dictionary, use the dictionary version so that the transformation is recorded
+        padder: Union[SpatialPadd, SpatialPad]
+        if list_of_dicts:
+            from monai.transforms.croppad.dictionary import SpatialPadd  # needs to be here to avoid circular import
+
+            padder = SpatialPadd(key_or_idx, max_shape, method, mode)  # type: ignore
+
+        else:
+            from monai.transforms.croppad.array import SpatialPad  # needs to be here to avoid circular import
+
+            padder = SpatialPad(max_shape, method, mode)  # type: ignore
+
+        for idx in range(len(batch)):
+            padded = padder(batch[idx])[key_or_idx] if list_of_dicts else padder(batch[idx][key_or_idx])
+            # since tuple is immutable we'll have to recreate
+            if isinstance(batch[idx], tuple):
+                batch[idx] = list(batch[idx])  # type: ignore
+                batch[idx][key_or_idx] = padded
+                batch[idx] = tuple(batch[idx])  # type: ignore
+            # else, replace
+            else:
+                batch[idx][key_or_idx] = padder(batch[idx])[key_or_idx]
+
+            if output_to_tensor:
+                batch[idx][key_or_idx] = torch.Tensor(batch[idx][key_or_idx])
+
+    # After padding, use default list collator
+    return list_data_collate(batch)
 
 
 def worker_init_fn(worker_id: int) -> None:
@@ -777,10 +922,6 @@ class DistributedSampler(_TorchDistributedSampler):
     """
 
     def __init__(self, even_divisible: bool = True, *args, **kwargs):
-        self.total_size: int = 0
-        self.rank: int = 0
-        self.num_samples: int = 0
-        self.num_replicas: int = 0
         super().__init__(*args, **kwargs)
 
         if not even_divisible:
