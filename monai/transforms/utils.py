@@ -12,6 +12,7 @@
 import itertools
 import random
 import warnings
+from contextlib import contextmanager
 from typing import Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -22,6 +23,7 @@ from monai.networks.layers import GaussianFilter
 from monai.transforms.compose import Compose
 from monai.transforms.transform import MapTransform
 from monai.utils import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple, min_version, optional_import
+from monai.utils.misc import issequenceiterable
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 
@@ -50,7 +52,7 @@ __all__ = [
     "get_extreme_points",
     "extreme_points_to_image",
     "map_spatial_axes",
-    "AllowMissingKeysMode",
+    "allow_missing_keys_mode",
 ]
 
 
@@ -709,7 +711,8 @@ def map_spatial_axes(
     return spatial_axes_
 
 
-class AllowMissingKeysMode:
+@contextmanager
+def allow_missing_keys_mode(transform: Union[MapTransform, Compose, Tuple[MapTransform], Tuple[Compose]]):
     """Temporarily set all MapTransforms to not throw an error if keys are missing. After, revert to original states.
 
     Args:
@@ -722,28 +725,34 @@ class AllowMissingKeysMode:
         data = {"image": np.arange(16, dtype=float).reshape(1, 4, 4)}
         t = SpatialPadd(["image", "label"], 10, allow_missing_keys=False)
         _ = t(data)  # would raise exception
-        with AllowMissingKeysMode(t):
+        with allow_missing_keys_mode(t):
             _ = t(data)  # OK!
     """
+    # If given a sequence of transforms, Compose them to get a single list
+    if issequenceiterable(transform):
+        transform = Compose(transform)
 
-    def __init__(self, transform: Union[MapTransform, Compose]):
-        if isinstance(transform, MapTransform):
-            self.transforms = [transform]
-        elif isinstance(transform, Compose):
-            # Only keep contained MapTransforms
-            self.transforms = [t for t in transform.flatten().transforms if isinstance(t, MapTransform)]
-        else:
-            self.transforms = []
+    # Get list of MapTransforms
+    transforms = []
+    if isinstance(transform, MapTransform):
+        transforms = [transform]
+    elif isinstance(transform, Compose):
+        # Only keep contained MapTransforms
+        transforms = [t for t in transform.flatten().transforms if isinstance(t, MapTransform)]
+    if len(transforms) == 0:
+        raise TypeError(
+            "allow_missing_keys_mode expects either MapTransform(s) or Compose(s) containing MapTransform(s)"
+        )
 
-        # Get the state of each `allow_missing_keys`
-        self.orig_states = [t.allow_missing_keys for t in self.transforms]
+    # Get the state of each `allow_missing_keys`
+    orig_states = [t.allow_missing_keys for t in transforms]
 
-    def __enter__(self):
+    try:
         # Set all to True
-        for t in self.transforms:
+        for t in transforms:
             t.allow_missing_keys = True
-
-    def __exit__(self, type, value, traceback):
+        yield
+    finally:
         # Revert
-        for t, o_s in zip(self.transforms, self.orig_states):
+        for t, o_s in zip(transforms, orig_states):
             t.allow_missing_keys = o_s

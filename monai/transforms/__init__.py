@@ -196,6 +196,9 @@ from .spatial.array import (
     Zoom,
 )
 from .spatial.dictionary import (
+    Affined,
+    AffineD,
+    AffineDict,
     Flipd,
     FlipD,
     FlipDict,
@@ -346,7 +349,7 @@ from .utility.dictionary import (
     ToTensorDict,
 )
 from .utils import (
-    AllowMissingKeysMode,
+    allow_missing_keys_mode,
     copypaste_arrays,
     create_control_grid,
     create_grid,

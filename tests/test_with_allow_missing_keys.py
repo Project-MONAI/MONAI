@@ -13,17 +13,17 @@ import unittest
 
 import numpy as np
 
-from monai.transforms import AllowMissingKeysMode, Compose, SpatialPad, SpatialPadd
+from monai.transforms import Compose, SpatialPad, SpatialPadd, allow_missing_keys_mode
 
 
-class TestWithAllowMissingKeys(unittest.TestCase):
+class TestWithAllowMissingKeysMode(unittest.TestCase):
     def setUp(self):
         self.data = {"image": np.arange(16, dtype=float).reshape(1, 4, 4)}
 
     def test_map_transform(self):
         for amk in [True, False]:
             t = SpatialPadd(["image", "label"], 10, allow_missing_keys=amk)
-            with AllowMissingKeysMode(t):
+            with allow_missing_keys_mode(t):
                 # check state is True
                 self.assertTrue(t.allow_missing_keys)
                 # and that transform works even though key is missing
@@ -38,7 +38,7 @@ class TestWithAllowMissingKeys(unittest.TestCase):
     def test_compose(self):
         amks = [True, False, True]
         t = Compose([SpatialPadd(["image", "label"], 10, allow_missing_keys=amk) for amk in amks])
-        with AllowMissingKeysMode(t):
+        with allow_missing_keys_mode(t):
             # check states are all True
             for _t in t.transforms:
                 self.assertTrue(_t.allow_missing_keys)
@@ -53,9 +53,20 @@ class TestWithAllowMissingKeys(unittest.TestCase):
 
     def test_array_transform(self):
         for t in [SpatialPad(10), Compose([SpatialPad(10)])]:
-            with AllowMissingKeysMode(t):
-                # should work as nothing should have changed
-                _ = t(self.data["image"])
+            with self.assertRaises(TypeError):
+                with allow_missing_keys_mode(t):
+                    pass
+
+    def test_multiple(self):
+        orig_states = [True, False]
+        ts = [SpatialPadd(["image", "label"], 10, allow_missing_keys=i) for i in orig_states]
+        with allow_missing_keys_mode(ts):
+            for t in ts:
+                self.assertTrue(t.allow_missing_keys)
+                # and that transform works even though key is missing
+                _ = t(self.data)
+        for t, o_s in zip(ts, orig_states):
+            self.assertEqual(t.allow_missing_keys, o_s)
 
 
 if __name__ == "__main__":
