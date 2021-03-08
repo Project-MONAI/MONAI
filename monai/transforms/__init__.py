@@ -195,6 +195,9 @@ from .spatial.array import (
     Zoom,
 )
 from .spatial.dictionary import (
+    Affined,
+    AffineD,
+    AffineDict,
     Flipd,
     FlipD,
     FlipDict,
@@ -207,9 +210,6 @@ from .spatial.dictionary import (
     Rand3DElasticd,
     Rand3DElasticD,
     Rand3DElasticDict,
-    Affined,
-    AffineD,
-    AffineDict,
     RandAffined,
     RandAffineD,
     RandAffineDict,
