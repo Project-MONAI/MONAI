@@ -9,9 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy as np
 import unittest
-from monai.transforms import Compose, SpatialPadd, SpatialPad, allow_missing_keys_mode
+
+import numpy as np
+
+from monai.transforms import Compose, SpatialPad, SpatialPadd, allow_missing_keys_mode
+
 
 class TestWithAllowMissingKeysMode(unittest.TestCase):
     def setUp(self):
@@ -53,6 +56,7 @@ class TestWithAllowMissingKeysMode(unittest.TestCase):
             with allow_missing_keys_mode(t):
                 # should work as nothing should have changed
                 _ = t(self.data["image"])
+
 
 if __name__ == "__main__":
     unittest.main()

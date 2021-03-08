@@ -9,12 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from contextlib import contextmanager
 import itertools
-from monai.transforms.transform import MapTransform
-from monai.transforms.compose import Compose
 import random
 import warnings
+from contextlib import contextmanager
 from typing import Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -22,6 +20,8 @@ import torch
 
 from monai.config import DtypeLike, IndexSelection
 from monai.networks.layers import GaussianFilter
+from monai.transforms.compose import Compose
+from monai.transforms.transform import MapTransform
 from monai.utils import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple, min_version, optional_import
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
@@ -40,7 +40,6 @@ __all__ = [
     "map_binary_to_indices",
     "weighted_patch_samples",
     "generate_pos_neg_label_crop_centers",
-    "apply_transform",
     "create_grid",
     "create_control_grid",
     "create_rotate",
@@ -709,6 +708,7 @@ def map_spatial_axes(
                 spatial_axes_.append(a - 1 if a < 0 else a)
 
     return spatial_axes_
+
 
 @contextmanager
 def allow_missing_keys_mode(transform: Union[MapTransform, Compose]):
