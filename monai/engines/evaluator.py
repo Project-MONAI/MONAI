@@ -12,7 +12,6 @@
 from typing import TYPE_CHECKING, Callable, Dict, Iterable, Optional, Sequence, Tuple
 
 import torch
-from torch.utils.data import DataLoader
 
 from monai.engines.utils import CommonKeys as Keys
 from monai.engines.utils import IterationEvents, default_prepare_batch
