@@ -89,7 +89,7 @@ class InvertibleTransform(Transform):
             info[self.Keys.extra_info.value] = extra_info
         # If class is randomizable transform, store whether the transform was actually performed (based on `prob`)
         if isinstance(self, RandomizableTransform):
-            info[self.Keys.do_transform] = self._do_transform
+            info[self.Keys.do_transform.value] = self._do_transform
         # If this is the first, create list
         if key_transform not in data:
             data[key_transform] = []
