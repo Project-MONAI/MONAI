@@ -40,7 +40,7 @@ class InvertibleTransform(Transform):
 
     Note to developers: When converting a transform to an invertible transform, you need to:
         1. Inherit from this class.
-        2. In `__call__`, add a call to `append_applied_transforms`.
+        2. In `__call__`, add a call to `push_transform`.
         3. Any extra information that might be needed for the inverse can be included with the
             dictionary `extra_info`. This dictionary should have the same keys regardless of
             whether `do_transform` was True or False and can only contain objects that are
@@ -59,7 +59,7 @@ class InvertibleTransform(Transform):
         do_transform = "do_transforms"
         key_suffix = "_transform"
 
-    def append_applied_transforms(
+    def push_transform(
         self,
         data: dict,
         key: Hashable,
@@ -94,10 +94,9 @@ class InvertibleTransform(Transform):
         self.check_transforms_match(transform)
         return transform
 
-    @staticmethod
-    def remove_most_recent_transform(data: dict, key: Hashable) -> None:
+    def pop_transform(self, data: dict, key: Hashable) -> None:
         """Remove most recent transform."""
-        data[str(key) + str(InvertibleTransform.Keys.key_suffix)].pop()
+        data[str(key) + str(self.Keys.key_suffix)].pop()
 
     def inverse(self, data: dict) -> Dict[Hashable, np.ndarray]:
         """

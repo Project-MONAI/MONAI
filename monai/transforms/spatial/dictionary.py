@@ -207,9 +207,7 @@ class Spacingd(MapTransform, InvertibleTransform):
                 align_corners=align_corners,
                 dtype=dtype,
             )
-            self.append_applied_transforms(
-                d, key, extra_info={"meta_data_key": meta_data_key, "old_affine": old_affine}
-            )
+            self.push_transform(d, key, extra_info={"meta_data_key": meta_data_key, "old_affine": old_affine})
             # set the 'affine' key
             meta_data["affine"] = new_affine
         return d
@@ -241,7 +239,7 @@ class Spacingd(MapTransform, InvertibleTransform):
             )
             meta_data["affine"] = new_affine
             # Remove the applied transform
-            self.remove_most_recent_transform(d, key)
+            self.pop_transform(d, key)
 
         return d
 
@@ -304,9 +302,7 @@ class Orientationd(MapTransform, InvertibleTransform):
             meta_data_key = f"{key}_{self.meta_key_postfix}"
             meta_data = d[meta_data_key]
             d[key], old_affine, new_affine = self.ornt_transform(d[key], affine=meta_data["affine"])
-            self.append_applied_transforms(
-                d, key, extra_info={"meta_data_key": meta_data_key, "old_affine": old_affine}
-            )
+            self.push_transform(d, key, extra_info={"meta_data_key": meta_data_key, "old_affine": old_affine})
             d[meta_data_key]["affine"] = new_affine
         return d
 
@@ -327,7 +323,7 @@ class Orientationd(MapTransform, InvertibleTransform):
             d[key], _, new_affine = inverse_transform(d[key], affine=meta_data["affine"])
             meta_data["affine"] = new_affine
             # Remove the applied transform
-            self.remove_most_recent_transform(d, key)
+            self.pop_transform(d, key)
 
         return d
 
@@ -353,7 +349,7 @@ class Rotate90d(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.key_iterator(d):
-            self.append_applied_transforms(d, key)
+            self.push_transform(d, key)
             d[key] = self.rotator(d[key])
         return d
 
@@ -372,7 +368,7 @@ class Rotate90d(MapTransform, InvertibleTransform):
             # Apply inverse
             d[key] = inverse_transform(d[key])
             # Remove the applied transform
-            self.remove_most_recent_transform(d, key)
+            self.pop_transform(d, key)
 
         return d
 
@@ -424,7 +420,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             if self._do_transform:
                 d[key] = rotator(d[key])
-            self.append_applied_transforms(d, key, extra_info={"rand_k": self._rand_k})
+            self.push_transform(d, key, extra_info={"rand_k": self._rand_k})
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
@@ -443,7 +439,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
                 # Apply inverse
                 d[key] = inverse_transform(d[key])
             # Remove the applied transform
-            self.remove_most_recent_transform(d, key)
+            self.pop_transform(d, key)
 
         return d
 
@@ -486,7 +482,7 @@ class Resized(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key, mode, align_corners in self.key_iterator(d, self.mode, self.align_corners):
-            self.append_applied_transforms(d, key)
+            self.push_transform(d, key)
             d[key] = self.resizer(d[key], mode=mode, align_corners=align_corners)
         return d
 
@@ -500,7 +496,7 @@ class Resized(MapTransform, InvertibleTransform):
             # Apply inverse transform
             d[key] = inverse_transform(d[key])
             # Remove the applied transform
-            self.remove_most_recent_transform(d, key)
+            self.pop_transform(d, key)
 
         return d
 
@@ -676,7 +672,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             affine = np.eye(len(sp_size) + 1)
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
-            self.append_applied_transforms(d, key, extra_info={"affine": affine})
+            self.push_transform(d, key, extra_info={"affine": affine})
             d[key] = self.rand_affine.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)
         return d
 
@@ -700,7 +696,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             d[key] = out if isinstance(out, np.ndarray) else out.cpu().numpy()
 
             # Remove the applied transform
-            self.remove_most_recent_transform(d, key)
+            self.pop_transform(d, key)
 
         return d
 
@@ -826,7 +822,7 @@ class Rand2DElasticd(RandomizableTransform, MapTransform, InvertibleTransform, N
             extra_info = None
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
-            self.append_applied_transforms(d, key, extra_info=extra_info)
+            self.push_transform(d, key, extra_info=extra_info)
             d[key] = self.rand_2d_elastic.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)
         return d
 
@@ -868,7 +864,7 @@ class Rand2DElasticd(RandomizableTransform, MapTransform, InvertibleTransform, N
             else:
                 d[key] = CenterSpatialCrop(roi_size=orig_size)(d[key])
             # Remove the applied transform
-            self.remove_most_recent_transform(d, key)
+            self.pop_transform(d, key)
 
         return d
 
@@ -987,7 +983,7 @@ class Rand3DElasticd(RandomizableTransform, MapTransform, InvertibleTransform, N
             affine = np.eye(len(sp_size) + 1)
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
-            self.append_applied_transforms(d, key, extra_info={"grid_no_affine": grid_no_affine, "affine": affine})
+            self.push_transform(d, key, extra_info={"grid_no_affine": grid_no_affine, "affine": affine})
             d[key] = self.rand_3d_elastic.resampler(d[key], grid_w_affine, mode=mode, padding_mode=padding_mode)
         return d
 
@@ -1019,7 +1015,7 @@ class Rand3DElasticd(RandomizableTransform, MapTransform, InvertibleTransform, N
             else:
                 d[key] = CenterSpatialCrop(roi_size=orig_size)(d[key])
             # Remove the applied transform
-            self.remove_most_recent_transform(d, key)
+            self.pop_transform(d, key)
 
         return d
 
@@ -1049,7 +1045,7 @@ class Flipd(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.key_iterator(d):
-            self.append_applied_transforms(d, key)
+            self.push_transform(d, key)
             d[key] = self.flipper(d[key])
         return d
 
@@ -1063,7 +1059,7 @@ class Flipd(MapTransform, InvertibleTransform):
             # Inverse is same as forward
             d[key] = self.flipper(d[key])
             # Remove the applied transform
-            self.remove_most_recent_transform(d, key)
+            self.pop_transform(d, key)
 
         return d
 
@@ -1101,7 +1097,7 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             if self._do_transform:
                 d[key] = self.flipper(d[key])
-            self.append_applied_transforms(d, key)
+            self.push_transform(d, key)
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
@@ -1116,7 +1112,7 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
                 # Inverse is same as forward
                 d[key] = self.flipper(d[key])
             # Remove the applied transform
-            self.remove_most_recent_transform(d, key)
+            self.pop_transform(d, key)
         return d
 
 
@@ -1151,7 +1147,7 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             if self._do_transform:
                 d[key] = flipper(d[key])
-                self.append_applied_transforms(d, key, extra_info={"axis": self._axis})
+                self.push_transform(d, key, extra_info={"axis": self._axis})
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
@@ -1167,7 +1163,7 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
                 # Inverse is same as forward
                 d[key] = flipper(d[key])
             # Remove the applied transform
-            self.remove_most_recent_transform(d, key)
+            self.pop_transform(d, key)
         return d
 
 
@@ -1232,7 +1228,7 @@ class Rotated(MapTransform, InvertibleTransform):
                 dtype=dtype,
                 return_rotation_matrix=True,
             )
-            self.append_applied_transforms(d, key, orig_size=orig_size, extra_info={"rot_mat": rot_mat})
+            self.push_transform(d, key, orig_size=orig_size, extra_info={"rot_mat": rot_mat})
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
@@ -1259,7 +1255,7 @@ class Rotated(MapTransform, InvertibleTransform):
             )
             d[key] = np.asarray(output.squeeze(0).detach().cpu().numpy(), dtype=np.float32)
             # Remove the applied transform
-            self.remove_most_recent_transform(d, key)
+            self.pop_transform(d, key)
 
         return d
 
@@ -1346,7 +1342,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         d = dict(data)
         if not self._do_transform:
             for key in self.keys:
-                self.append_applied_transforms(d, key, extra_info={"rot_mat": np.eye(4)})
+                self.push_transform(d, key, extra_info={"rot_mat": np.eye(4)})
             return d
         angle: Union[Sequence[float], float] = self.x if d[self.keys[0]].ndim == 3 else (self.x, self.y, self.z)
         rotator = Rotate(
@@ -1365,7 +1361,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
                 dtype=dtype,
                 return_rotation_matrix=True,
             )
-            self.append_applied_transforms(d, key, orig_size=orig_size, extra_info={"rot_mat": rot_mat})
+            self.push_transform(d, key, orig_size=orig_size, extra_info={"rot_mat": rot_mat})
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
@@ -1394,7 +1390,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
                 )
                 d[key] = np.asarray(output.squeeze(0).detach().cpu().numpy(), dtype=np.float32)
             # Remove the applied transform
-            self.remove_most_recent_transform(d, key)
+            self.pop_transform(d, key)
 
         return d
 
@@ -1445,7 +1441,7 @@ class Zoomd(MapTransform, InvertibleTransform):
         for key, mode, padding_mode, align_corners in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners
         ):
-            self.append_applied_transforms(d, key)
+            self.push_transform(d, key)
             d[key] = self.zoomer(
                 d[key],
                 mode=mode,
@@ -1473,7 +1469,7 @@ class Zoomd(MapTransform, InvertibleTransform):
             # Size might be out by 1 voxel so pad
             d[key] = SpatialPad(transform[InvertibleTransform.Keys.orig_size])(d[key])
             # Remove the applied transform
-            self.remove_most_recent_transform(d, key)
+            self.pop_transform(d, key)
 
         return d
 
@@ -1547,7 +1543,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         d = dict(data)
         if not self._do_transform:
             for key in self.keys:
-                self.append_applied_transforms(d, key, extra_info={"zoom": self._zoom})
+                self.push_transform(d, key, extra_info={"zoom": self._zoom})
             return d
 
         img_dims = data[self.keys[0]].ndim
@@ -1561,7 +1557,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         for key, mode, padding_mode, align_corners in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners
         ):
-            self.append_applied_transforms(d, key, extra_info={"zoom": self._zoom})
+            self.push_transform(d, key, extra_info={"zoom": self._zoom})
             d[key] = zoomer(
                 d[key],
                 mode=mode,
@@ -1589,7 +1585,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
             # Size might be out by 1 voxel so pad
             d[key] = SpatialPad(transform[InvertibleTransform.Keys.orig_size])(d[key])
             # Remove the applied transform
-            self.remove_most_recent_transform(d, key)
+            self.pop_transform(d, key)
 
         return d
 

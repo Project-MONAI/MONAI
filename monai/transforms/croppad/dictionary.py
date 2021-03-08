@@ -122,7 +122,7 @@ class SpatialPadd(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key, m in self.key_iterator(d, self.mode):
-            self.append_applied_transforms(d, key)
+            self.push_transform(d, key)
             d[key] = self.padder(d[key], mode=m)
         return d
 
@@ -142,7 +142,7 @@ class SpatialPadd(MapTransform, InvertibleTransform):
             # Apply inverse transform
             d[key] = inverse_transform(d[key])
             # Remove the applied transform
-            self.remove_most_recent_transform(d, key)
+            self.pop_transform(d, key)
 
         return d
 
@@ -190,7 +190,7 @@ class BorderPadd(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key, m in self.key_iterator(d, self.mode):
-            self.append_applied_transforms(d, key)
+            self.push_transform(d, key)
             d[key] = self.padder(d[key], mode=m)
         return d
 
@@ -214,7 +214,7 @@ class BorderPadd(MapTransform, InvertibleTransform):
             # Apply inverse transform
             d[key] = inverse_transform(d[key])
             # Remove the applied transform
-            self.remove_most_recent_transform(d, key)
+            self.pop_transform(d, key)
 
         return d
 
@@ -256,7 +256,7 @@ class DivisiblePadd(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key, m in self.key_iterator(d, self.mode):
-            self.append_applied_transforms(d, key)
+            self.push_transform(d, key)
             d[key] = self.padder(d[key], mode=m)
         return d
 
@@ -274,7 +274,7 @@ class DivisiblePadd(MapTransform, InvertibleTransform):
             # Apply inverse transform
             d[key] = inverse_transform(d[key])
             # Remove the applied transform
-            self.remove_most_recent_transform(d, key)
+            self.pop_transform(d, key)
 
         return d
 
@@ -311,7 +311,7 @@ class SpatialCropd(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.key_iterator(d):
-            self.append_applied_transforms(d, key)
+            self.push_transform(d, key)
             d[key] = self.cropper(d[key])
         return d
 
@@ -332,7 +332,7 @@ class SpatialCropd(MapTransform, InvertibleTransform):
             # Apply inverse transform
             d[key] = inverse_transform(d[key])
             # Remove the applied transform
-            self.remove_most_recent_transform(d, key)
+            self.pop_transform(d, key)
 
         return d
 
@@ -360,7 +360,7 @@ class CenterSpatialCropd(MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             orig_size = d[key].shape[1:]
             d[key] = self.cropper(d[key])
-            self.append_applied_transforms(d, key, orig_size=orig_size)
+            self.push_transform(d, key, orig_size=orig_size)
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
@@ -382,7 +382,7 @@ class CenterSpatialCropd(MapTransform, InvertibleTransform):
             # Apply inverse transform
             d[key] = inverse_transform(d[key])
             # Remove the applied transform
-            self.remove_most_recent_transform(d, key)
+            self.pop_transform(d, key)
 
         return d
 
@@ -438,10 +438,10 @@ class RandSpatialCropd(RandomizableTransform, MapTransform, InvertibleTransform)
             raise AssertionError
         for key in self.key_iterator(d):
             if self.random_center:
-                self.append_applied_transforms(d, key, {"slices": [(i.start, i.stop) for i in self._slices[1:]]})  # type: ignore
+                self.push_transform(d, key, {"slices": [(i.start, i.stop) for i in self._slices[1:]]})  # type: ignore
                 d[key] = d[key][self._slices]
             else:
-                self.append_applied_transforms(d, key)
+                self.push_transform(d, key)
                 cropper = CenterSpatialCrop(self._size)
                 d[key] = cropper(d[key])
         return d
@@ -476,7 +476,7 @@ class RandSpatialCropd(RandomizableTransform, MapTransform, InvertibleTransform)
             # Apply inverse transform
             d[key] = inverse_transform(d[key])
             # Remove the applied transform
-            self.remove_most_recent_transform(d, key)
+            self.pop_transform(d, key)
 
         return d
 
@@ -590,7 +590,7 @@ class CropForegroundd(MapTransform, InvertibleTransform):
         d[self.end_coord_key] = np.asarray(box_end)
         cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
         for key in self.key_iterator(d):
-            self.append_applied_transforms(d, key, extra_info={"box_start": box_start, "box_end": box_end})
+            self.push_transform(d, key, extra_info={"box_start": box_start, "box_end": box_end})
             d[key] = cropper(d[key])
         return d
 
@@ -611,7 +611,7 @@ class CropForegroundd(MapTransform, InvertibleTransform):
             # Apply inverse transform
             d[key] = inverse_transform(d[key])
             # Remove the applied transform
-            self.remove_most_recent_transform(d, key)
+            self.pop_transform(d, key)
 
         return d
 
@@ -826,7 +826,7 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             orig_size = d[key].shape[1:]
             d[key] = self.padcropper(d[key])
-            self.append_applied_transforms(d, key, orig_size=orig_size)
+            self.push_transform(d, key, orig_size=orig_size)
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
@@ -839,7 +839,7 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
             # Apply inverse transform
             d[key] = inverse_transform(d[key])
             # Remove the applied transform
-            self.remove_most_recent_transform(d, key)
+            self.pop_transform(d, key)
 
         return d
 
