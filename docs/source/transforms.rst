@@ -851,6 +851,12 @@ Spatial (Dict)
     :members:
     :special-members: __call__
 
+`Affined`
+"""""""""
+.. autoclass:: Affined
+    :members:
+    :special-members: __call__
+
 `RandAffined`
 """""""""""""
 .. autoclass:: RandAffined
