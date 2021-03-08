@@ -34,9 +34,28 @@ class InvertibleTransform(Transform):
     and after be returned to their original size before saving to file for comparison in
     an external viewer.
 
-    When the `__call__` method is called, a serialization of the class is stored. When
-    the `inverse` method is called, the serialization is then removed. We use last in,
-    first out for the inverted transforms.
+    When the `__call__` method is called, the transformation information for each key is
+    stored. If the transforms were applied to keys "image" and "label", there will be two
+    extra keys in the dictionary: "image_transforms" and "label_transforms". Each list
+    contains a list of the transforms applied to that key. When the ``inverse`` method is
+    called, the inverse is called on each key individually, which allows for different
+    parameters being passed to each label (e.g., different interpolation for image and
+    label).
+
+    When the ``inverse`` method is called, the inverse transforms are applied in a last-
+    in-first-out order. As the inverse is applied, its entry is removed from the list
+    detailing the applied transformations. That is to say that during the forward pass,
+    the list of applied transforms grows, and then during the inverse it shrinks back
+    down to an empty list.
+
+    The information in data[key_transform] will be compatible with the default collate
+    since it only stores strings, numbers and arrays.
+
+    We currently check that the id() of the transform is the same in the forward and
+    inverse directions. This is a useful check to ensure that the inverses are being
+    processed in the correct order. However, this may cause issues if the id() of the
+    object changes (such as multiprocessing on Windows). If you feel this issue affects
+    you, please raise a GitHub issue.
 
     Note to developers: When converting a transform to an invertible transform, you need to:
         1. Inherit from this class.
