@@ -195,6 +195,9 @@ from .spatial.array import (
     Zoom,
 )
 from .spatial.dictionary import (
+    Affined,
+    AffineD,
+    AffineDict,
     Flipd,
     FlipD,
     FlipDict,
