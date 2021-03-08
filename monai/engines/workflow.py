@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence
+from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Iterable
 
 import torch
 import torch.distributed as dist
@@ -44,7 +44,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
     Args:
         device: an object representing the device on which to run.
         max_epochs: the total epoch number for engine to run, validator and evaluator have only 1 epoch.
-        data_loader: Ignite engine use data_loader to run, must be torch.DataLoader.
+        data_loader: Ignite engine use data_loader to run, must be Iterable, typically be torch.DataLoader.
         epoch_length: number of iterations for one epoch, default to `len(data_loader)`.
         non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
             with respect to the host. For other cases, this argument has no effect.
@@ -73,7 +73,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         self,
         device: torch.device,
         max_epochs: int,
-        data_loader: DataLoader,
+        data_loader: Iterable,
         epoch_length: Optional[int] = None,
         non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
@@ -90,9 +90,8 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             super().__init__(self._iteration)
         if not isinstance(device, torch.device):
             raise TypeError(f"device must be a torch.device but is {type(device).__name__}.")
-        if not isinstance(data_loader, DataLoader):
-            raise TypeError(f"data_loader must be a torch.utils.data.DataLoader but is {type(data_loader).__name__}.")
-        sampler = data_loader.__dict__["sampler"]
+
+        sampler = data_loader.__dict__["sampler"] if isinstance(data_loader, DataLoader) else None
         if isinstance(sampler, DistributedSampler):
 
             @self.on(Events.EPOCH_STARTED)

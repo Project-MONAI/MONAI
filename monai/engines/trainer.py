@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Tuple, Union, Iterable
 
 import torch
 from torch.optim.optimizer import Optimizer
@@ -58,7 +58,7 @@ class SupervisedTrainer(Trainer):
     Args:
         device: an object representing the device on which to run.
         max_epochs: the total epoch number for trainer to run.
-        train_data_loader: Ignite engine use data_loader to run, must be torch.DataLoader.
+        train_data_loader: Ignite engine use data_loader to run, must be Iterable, typically be torch.DataLoader.
         network: to train with this network.
         optimizer: the optimizer associated to the network.
         loss_function: the loss function associated to the optimizer.
@@ -85,7 +85,7 @@ class SupervisedTrainer(Trainer):
         self,
         device: torch.device,
         max_epochs: int,
-        train_data_loader: DataLoader,
+        train_data_loader: Iterable,
         network: torch.nn.Module,
         optimizer: Optimizer,
         loss_function: Callable,
@@ -229,7 +229,7 @@ class GanTrainer(Trainer):
         self,
         device: torch.device,
         max_epochs: int,
-        train_data_loader: DataLoader,
+        train_data_loader: Iterable,
         g_network: torch.nn.Module,
         g_optimizer: Optimizer,
         g_loss_function: Callable,
