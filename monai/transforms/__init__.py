@@ -244,7 +244,7 @@ from .spatial.dictionary import (
     ZoomD,
     ZoomDict,
 )
-from .transform import MapTransform, Randomizable, RandomizableTransform, Transform
+from .transform import MapTransform, Randomizable, RandomizableTransform, Transform, apply_transform
 from .utility.array import (
     AddChannel,
     AddExtremePointsChannel,
@@ -348,7 +348,7 @@ from .utility.dictionary import (
     ToTensorDict,
 )
 from .utils import (
-    apply_transform,
+    allow_missing_keys_mode,
     copypaste_arrays,
     create_control_grid,
     create_grid,
