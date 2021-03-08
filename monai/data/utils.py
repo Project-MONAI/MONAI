@@ -18,7 +18,7 @@ import warnings
 from collections import defaultdict
 from itertools import product, starmap
 from pathlib import PurePath
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Generator, Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -43,7 +43,7 @@ nib, _ = optional_import("nibabel")
 
 __all__ = [
     "get_random_patch",
-    "iter_patch_coordinates",
+    "iter_patch_slices",
     "dense_patch_slices",
     "iter_patch",
     "get_valid_patch_size",
@@ -95,12 +95,13 @@ def get_random_patch(
     return tuple(slice(mc, mc + ps) for mc, ps in zip(min_corner, patch_size))
 
 
-def iter_patch_coordinates(dims: Sequence[int], patch_size: Union[Sequence[int], int], start_pos: Sequence[int] = ()):
+def iter_patch_slices(
+    dims: Sequence[int], patch_size: Union[Sequence[int], int], start_pos: Sequence[int] = ()
+) -> Generator[Tuple[slice, ...], None, None]:
     """
-    Yield successive tuples of `(start, end)` integers defining patches of size `patch_size` from
-    an array of dimensions `dims`.
-    The iteration starts from position `start_pos` in the array, or starting at the origin if this isn't provided.
-    Each patch is chosen in a contiguous grid using a first dimension as least significant ordering.
+    Yield successive tuples of slices defining patches of size `patch_size` from an array of dimensions `dims`. The
+    iteration starts from position `start_pos` in the array, or starting at the origin if this isn't provided. Each
+    patch is chosen in a contiguous grid using a first dimension as least significant ordering.
 
     Args:
         dims: dimensions of array to iterate over
@@ -108,7 +109,7 @@ def iter_patch_coordinates(dims: Sequence[int], patch_size: Union[Sequence[int],
         start_pos: starting position in the array, default is 0 for each dimension
 
     Yields:
-        Tuples of integers defining each patch
+        Tuples of slice objects defining each patch
     """
 
     # ensure patchSize and startPos are the right length
@@ -121,7 +122,7 @@ def iter_patch_coordinates(dims: Sequence[int], patch_size: Union[Sequence[int],
 
     # choose patches by applying product to the ranges
     for position in product(*ranges[::-1]):  # reverse ranges order to iterate in index order
-        yield tuple((s, s + p) for s, p in zip(position[::-1], patch_size_))
+        yield tuple(slice(s, s + p) for s, p in zip(position[::-1], patch_size_))
 
 
 def dense_patch_slices(
@@ -170,7 +171,7 @@ def iter_patch(
     arr: np.ndarray,
     patch_size: Union[Sequence[int], int] = 0,
     start_pos: Sequence[int] = (),
-    copy_back: bool = False,
+    copy_back: bool = True,
     mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
     **pad_opts: Dict,
 ):
@@ -217,10 +218,9 @@ def iter_patch(
     # patches which are only in the padded regions
     iter_size = tuple(s + p for s, p in zip(arr.shape, patch_size_))
 
-    for coords in iter_patch_coordinates(iter_size, patch_size_, start_pos_padded):
-        slices = tuple(slice(coord[0], coord[1]) for coord in coords)
+    for slices in iter_patch_slices(iter_size, patch_size_, start_pos_padded):
         # compensate original image padding
-        coords_no_pad = tuple((coord[0] - p, coord[1] - p) for coord, p in zip(coords, patch_size_))
+        coords_no_pad = tuple((coord.start - p, coord.stop - p) for coord, p in zip(slices, patch_size_))
         yield arrpad[slices], np.asarray(coords_no_pad)  # data and coords (in numpy; works with torch loader)
 
     # copy back data from the padded image if required

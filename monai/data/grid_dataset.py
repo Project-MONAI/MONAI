@@ -32,7 +32,7 @@ class PatchIter:
     def __init__(
         self,
         patch_size: Sequence[int],
-        start_pos: Sequence[int],
+        start_pos: Sequence[int] = (),
         mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
         **pad_opts: Dict,
     ):
@@ -42,9 +42,9 @@ class PatchIter:
             patch_size: size of patches to generate slices for, 0/None selects whole dimension
             start_pos: starting position in the array, default is 0 for each dimension
             mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-                    ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                    One of the listed string values or a user supplied function. Defaults to ``"wrap"``.
-                    See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                One of the listed string values or a user supplied function. Defaults to ``"wrap"``.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
             pad_opts: padding options, see numpy.pad
 
         Note:
@@ -151,11 +151,17 @@ class GridPatchDataset(IterableDataset):
 
         for index in range(iter_start, iter_end):
             image = self.dataset[index]
-            for patch, slices, *_ in self.patch_iter(image):  # patch iter should at least yield 2 items: patch, coords
-                out_patch = patch if self.transform is None else apply_transform(self.transform, patch, map_items=False)
-                if not self.with_coordinates:
+            if not self.with_coordinates:
+                for patch, *_ in self.patch_iter(image):  # patch_iter to yield at least 1 item: patch
+                    out_patch = (
+                        patch if self.transform is None else apply_transform(self.transform, patch, map_items=False)
+                    )
                     yield out_patch
-                else:
+            else:
+                for patch, slices, *_ in self.patch_iter(image):  # patch_iter to yield at least 2 items: patch, coords
+                    out_patch = (
+                        patch if self.transform is None else apply_transform(self.transform, patch, map_items=False)
+                    )
                     yield out_patch, slices
 
 

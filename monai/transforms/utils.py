@@ -367,31 +367,6 @@ def generate_pos_neg_label_crop_centers(
     return centers
 
 
-def apply_transform(transform: Callable, data, map_items: bool = True):
-    """
-    Transform `data` with `transform`.
-    If `data` is a list or tuple and `map_data` is True, each item of `data` will be transformed
-    and this method returns a list of outcomes.
-    otherwise transform will be applied once with `data` as the argument.
-
-    Args:
-        transform: a callable to be used to transform `data`
-        data: an object to be transformed.
-        map_items: whether to apply transform to each item in `data`,
-            when `data` is a list or tuple. Defaults to True.
-
-    Raises:
-        Exception: When ``transform`` raises an exception.
-
-    """
-    try:
-        if isinstance(data, (list, tuple)) and map_items:
-            return [transform(item) for item in data]
-        return transform(data)
-    except Exception as e:
-        raise RuntimeError(f"applying transform {transform}") from e
-
-
 def create_grid(
     spatial_size: Sequence[int],
     spacing: Optional[Sequence[float]] = None,

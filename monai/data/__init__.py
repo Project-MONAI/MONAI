@@ -44,7 +44,7 @@ from .utils import (
     get_valid_patch_size,
     is_supported_format,
     iter_patch,
-    iter_patch_coordinates,
+    iter_patch_slices,
     json_hashing,
     list_data_collate,
     pad_list_data_collate,
