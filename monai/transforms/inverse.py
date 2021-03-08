@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import warnings
+from enum import Enum
 from typing import Dict, Hashable, Optional, Tuple
 
 import numpy as np
@@ -48,6 +49,16 @@ class InvertibleTransform(Transform):
             `remove_most_recent_transform` is called.
     """
 
+    class Keys(Enum):
+        """Extra meta data keys used for inverse transforms."""
+
+        class_name = "class"
+        id = "id"
+        orig_size = "orig_size"
+        extra_info = "extra_info"
+        do_transform = "do_transforms"
+        key_suffix = "_transform"
+
     def append_applied_transforms(
         self,
         data: dict,
@@ -56,17 +67,17 @@ class InvertibleTransform(Transform):
         orig_size: Optional[Tuple] = None,
     ) -> None:
         """Append to list of applied transforms for that key."""
-        key_transform = str(key) + "_transforms"
+        key_transform = str(key) + str(self.Keys.key_suffix)
         info = {
-            "class": self.__class__.__name__,
-            "id": id(self),
-            "orig_size": orig_size or data[key].shape[1:],
+            self.Keys.class_name: self.__class__.__name__,
+            self.Keys.id: id(self),
+            self.Keys.orig_size: orig_size or data[key].shape[1:],
         }
         if extra_info is not None:
-            info["extra_info"] = extra_info
+            info[self.Keys.extra_info] = extra_info
         # If class is randomizable transform, store whether the transform was actually performed (based on `prob`)
         if isinstance(self, RandomizableTransform):
-            info["do_transform"] = self._do_transform
+            info[self.Keys.do_transform] = self._do_transform
         # If this is the first, create list
         if key_transform not in data:
             data[key_transform] = []
@@ -74,19 +85,19 @@ class InvertibleTransform(Transform):
 
     def check_transforms_match(self, transform: dict) -> None:
         # Check transorms are of same type.
-        if transform["id"] != id(self):
+        if transform[self.Keys.id] != id(self):
             raise RuntimeError("Should inverse most recently applied invertible transform first")
 
     def get_most_recent_transform(self, data: dict, key: Hashable) -> dict:
         """Get most recent transform."""
-        transform = dict(data[str(key) + "_transforms"][-1])
+        transform = dict(data[str(key) + str(self.Keys.key_suffix)][-1])
         self.check_transforms_match(transform)
         return transform
 
     @staticmethod
     def remove_most_recent_transform(data: dict, key: Hashable) -> None:
         """Remove most recent transform."""
-        data[str(key) + "_transforms"].pop()
+        data[str(key) + str(InvertibleTransform.Keys.key_suffix)].pop()
 
     def inverse(self, data: dict) -> Dict[Hashable, np.ndarray]:
         """

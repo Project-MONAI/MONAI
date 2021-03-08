@@ -131,7 +131,7 @@ class SpatialPadd(MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            orig_size = transform["orig_size"]
+            orig_size = transform[InvertibleTransform.Keys.orig_size]
             if self.padder.method == Method.SYMMETRIC:
                 current_size = d[key].shape[1:]
                 roi_center = [floor(i / 2) if r % 2 == 0 else (i - 1) // 2 for r, i in zip(orig_size, current_size)]
@@ -200,7 +200,7 @@ class BorderPadd(MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            orig_size = np.array(transform["orig_size"])
+            orig_size = np.array(transform[InvertibleTransform.Keys.orig_size])
             roi_start = np.array(self.padder.spatial_border)
             # Need to convert single value to [min1,min2,...]
             if roi_start.size == 1:
@@ -208,7 +208,7 @@ class BorderPadd(MapTransform, InvertibleTransform):
             # need to convert [min1,max1,min2,...] to [min1,min2,...]
             elif roi_start.size == 2 * orig_size.size:
                 roi_start = roi_start[::2]
-            roi_end = np.array(transform["orig_size"]) + roi_start
+            roi_end = np.array(transform[InvertibleTransform.Keys.orig_size]) + roi_start
 
             inverse_transform = SpatialCrop(roi_start=roi_start, roi_end=roi_end)
             # Apply inverse transform
@@ -266,7 +266,7 @@ class DivisiblePadd(MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            orig_size = np.array(transform["orig_size"])
+            orig_size = np.array(transform[InvertibleTransform.Keys.orig_size])
             current_size = np.array(d[key].shape[1:])
             roi_start = np.floor((current_size - orig_size) / 2)
             roi_end = orig_size + roi_start
@@ -321,7 +321,7 @@ class SpatialCropd(MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            orig_size = transform["orig_size"]
+            orig_size = transform[InvertibleTransform.Keys.orig_size]
             pad_to_start = self.cropper.roi_start
             pad_to_end = orig_size - self.cropper.roi_end
             # interweave mins and maxes
@@ -369,7 +369,7 @@ class CenterSpatialCropd(MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            orig_size = np.array(transform["orig_size"])
+            orig_size = np.array(transform[InvertibleTransform.Keys.orig_size])
             current_size = np.array(d[key].shape[1:])
             pad_to_start = np.floor((orig_size - current_size) / 2)
             # in each direction, if original size is even and current size is odd, += 1
@@ -452,12 +452,12 @@ class RandSpatialCropd(RandomizableTransform, MapTransform, InvertibleTransform)
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            orig_size = transform["orig_size"]
+            orig_size = transform[InvertibleTransform.Keys.orig_size]
             random_center = self.random_center
             pad_to_start = np.empty((len(orig_size)), dtype=np.int32)
             pad_to_end = np.empty((len(orig_size)), dtype=np.int32)
             if random_center:
-                for i, _slice in enumerate(transform["extra_info"]["slices"]):
+                for i, _slice in enumerate(transform[InvertibleTransform.Keys.extra_info]["slices"]):
                     pad_to_start[i] = _slice[0]
                     pad_to_end[i] = orig_size[i] - _slice[1]
             else:
@@ -599,8 +599,8 @@ class CropForegroundd(MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            orig_size = np.array(transform["orig_size"])
-            extra_info = transform["extra_info"]
+            orig_size = np.array(transform[InvertibleTransform.Keys.orig_size])
+            extra_info = transform[InvertibleTransform.Keys.extra_info]
             pad_to_start = np.array(extra_info["box_start"])
             pad_to_end = orig_size - np.array(extra_info["box_end"])
             # interweave mins and maxes
@@ -834,7 +834,7 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            orig_size = transform["orig_size"]
+            orig_size = transform[InvertibleTransform.Keys.orig_size]
             inverse_transform = ResizeWithPadOrCrop(spatial_size=orig_size, mode=self.padcropper.padder.mode)
             # Apply inverse transform
             d[key] = inverse_transform(d[key])

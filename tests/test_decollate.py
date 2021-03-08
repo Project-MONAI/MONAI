@@ -18,6 +18,7 @@ import torch
 from monai.data import CacheDataset, DataLoader, create_test_image_2d
 from monai.data.utils import decollate_batch
 from monai.transforms import AddChanneld, Compose, LoadImaged, RandFlipd, SpatialPadd, ToTensord
+from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.post.dictionary import Decollated
 from monai.utils import optional_import, set_determinism
 from tests.utils import make_nifti_image
@@ -38,7 +39,7 @@ class TestDeCollate(unittest.TestCase):
             for (k1, v1), (k2, v2) in zip(in1.items(), in2.items()):
                 self.check_match(k1, k2)
                 # Transform ids won't match for windows with multiprocessing
-                if k1 == "id" and sys.platform == "win32":
+                if k1 == str(InvertibleTransform.Keys.id) and sys.platform == "win32":
                     continue
                 self.check_match(v1, v2)
             self.check_match(list(in1.values()), list(in2.values()))

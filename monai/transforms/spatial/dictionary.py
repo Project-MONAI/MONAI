@@ -226,8 +226,8 @@ class Spacingd(MapTransform, InvertibleTransform):
                     + "Please raise a github issue if you need this feature"
                 )
             # Create inverse transform
-            meta_data = d[transform["extra_info"]["meta_data_key"]]
-            old_affine = np.array(transform["extra_info"]["old_affine"])
+            meta_data = d[transform[InvertibleTransform.Keys.extra_info]["meta_data_key"]]
+            old_affine = np.array(transform[InvertibleTransform.Keys.extra_info]["old_affine"])
             orig_pixdim = np.sqrt(np.sum(np.square(old_affine), 0))[:-1]
             inverse_transform = Spacing(orig_pixdim, diagonal=self.spacing_transform.diagonal)
             # Apply inverse
@@ -315,8 +315,8 @@ class Orientationd(MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            meta_data = d[transform["extra_info"]["meta_data_key"]]
-            orig_affine = transform["extra_info"]["old_affine"]
+            meta_data = d[transform[InvertibleTransform.Keys.extra_info]["meta_data_key"]]
+            orig_affine = transform[InvertibleTransform.Keys.extra_info]["old_affine"]
             orig_axcodes = nib.orientations.aff2axcodes(orig_affine)
             inverse_transform = Orientation(
                 axcodes=orig_axcodes,
@@ -432,9 +432,9 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Check if random transform was actually performed (based on `prob`)
-            if transform["do_transform"]:
+            if transform[InvertibleTransform.Keys.do_transform]:
                 # Create inverse transform
-                num_times_rotated = transform["extra_info"]["rand_k"]
+                num_times_rotated = transform[InvertibleTransform.Keys.extra_info]["rand_k"]
                 num_times_to_rotate = 4 - num_times_rotated
                 inverse_transform = Rotate90(num_times_to_rotate, self.spatial_axes)
                 # Might need to convert to numpy
@@ -494,7 +494,7 @@ class Resized(MapTransform, InvertibleTransform):
         d = deepcopy(dict(data))
         for key, mode, align_corners in self.key_iterator(d, self.mode, self.align_corners):
             transform = self.get_most_recent_transform(d, key)
-            orig_size = transform["orig_size"]
+            orig_size = transform[InvertibleTransform.Keys.orig_size]
             # Create inverse transform
             inverse_transform = Resize(orig_size, mode, align_corners)
             # Apply inverse transform
@@ -685,9 +685,9 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             transform = self.get_most_recent_transform(d, key)
-            orig_size = transform["orig_size"]
+            orig_size = transform[InvertibleTransform.Keys.orig_size]
             # Create inverse transform
-            fwd_affine = transform["extra_info"]["affine"]
+            fwd_affine = transform[InvertibleTransform.Keys.extra_info]["affine"]
             inv_affine = np.linalg.inv(fwd_affine)
 
             affine_grid = AffineGrid(affine=inv_affine)
@@ -838,22 +838,22 @@ class Rand2DElasticd(RandomizableTransform, MapTransform, InvertibleTransform, N
         for idx, (key, mode, padding_mode) in enumerate(self.key_iterator(d, self.mode, self.padding_mode)):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            if transform["do_transform"]:
-                orig_size = transform["orig_size"]
+            if transform[InvertibleTransform.Keys.do_transform]:
+                orig_size = transform[InvertibleTransform.Keys.orig_size]
                 # Only need to calculate inverse deformation once as it is the same for all keys
                 if idx == 0:
                     # If magnitude == 0, then non-rigid component is identity -- so just create blank
                     if self.rand_2d_elastic.deform_grid.magnitude == (0.0, 0.0):
                         inv_def_no_affine = create_grid(spatial_size=orig_size)
                     else:
-                        fwd_cpg_no_affine = transform["extra_info"]["cpg"]
+                        fwd_cpg_no_affine = transform[InvertibleTransform.Keys.extra_info]["cpg"]
                         fwd_def_no_affine = self.cpg_to_dvf(
                             fwd_cpg_no_affine, self.rand_2d_elastic.deform_grid.spacing, orig_size
                         )
                         inv_def_no_affine = self.compute_inverse_deformation(len(orig_size), fwd_def_no_affine)
                     # if inverse did not succeed (sitk or vtk present), data will not be changed.
                     if inv_def_no_affine is not None:
-                        fwd_affine = transform["extra_info"]["affine"]
+                        fwd_affine = transform[InvertibleTransform.Keys.extra_info]["affine"]
                         inv_affine = np.linalg.inv(fwd_affine)
                         inv_def_w_affine_wrong_size = AffineGrid(affine=inv_affine, as_tensor_output=False)(
                             grid=inv_def_no_affine
@@ -997,15 +997,15 @@ class Rand3DElasticd(RandomizableTransform, MapTransform, InvertibleTransform, N
         for idx, (key, mode, padding_mode) in enumerate(self.key_iterator(d, self.mode, self.padding_mode)):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            if transform["do_transform"]:
-                orig_size = transform["orig_size"]
+            if transform[InvertibleTransform.Keys.do_transform]:
+                orig_size = transform[InvertibleTransform.Keys.orig_size]
                 # Only need to calculate inverse deformation once as it is the same for all keys
                 if idx == 0:
-                    fwd_def_no_affine = transform["extra_info"]["grid_no_affine"]
+                    fwd_def_no_affine = transform[InvertibleTransform.Keys.extra_info]["grid_no_affine"]
                     inv_def_no_affine = self.compute_inverse_deformation(len(orig_size), fwd_def_no_affine)
                     # if inverse did not succeed (sitk or vtk present), data will not be changed.
                     if inv_def_no_affine is not None:
-                        fwd_affine = transform["extra_info"]["affine"]
+                        fwd_affine = transform[InvertibleTransform.Keys.extra_info]["affine"]
                         inv_affine = np.linalg.inv(fwd_affine)
                         inv_def_w_affine_wrong_size = AffineGrid(affine=inv_affine, as_tensor_output=False)(
                             grid=inv_def_no_affine
@@ -1109,7 +1109,7 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Check if random transform was actually performed (based on `prob`)
-            if transform["do_transform"]:
+            if transform[InvertibleTransform.Keys.do_transform]:
                 # Might need to convert to numpy
                 if isinstance(d[key], torch.Tensor):
                     d[key] = torch.Tensor(d[key]).cpu().numpy()
@@ -1159,8 +1159,8 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Check if random transform was actually performed (based on `prob`)
-            if transform["do_transform"]:
-                flipper = Flip(spatial_axis=transform["extra_info"]["axis"])
+            if transform[InvertibleTransform.Keys.do_transform]:
+                flipper = Flip(spatial_axis=transform[InvertibleTransform.Keys.extra_info]["axis"])
                 # Might need to convert to numpy
                 if isinstance(d[key], torch.Tensor):
                     d[key] = torch.Tensor(d[key]).cpu().numpy()
@@ -1242,7 +1242,7 @@ class Rotated(MapTransform, InvertibleTransform):
         ):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            fwd_rot_mat = transform["extra_info"]["rot_mat"]
+            fwd_rot_mat = transform[InvertibleTransform.Keys.extra_info]["rot_mat"]
             inv_rot_mat = np.linalg.inv(fwd_rot_mat)
 
             xform = AffineTransform(
@@ -1255,7 +1255,7 @@ class Rotated(MapTransform, InvertibleTransform):
             output = xform(
                 torch.as_tensor(np.ascontiguousarray(d[key]).astype(dtype)).unsqueeze(0),
                 torch.as_tensor(np.ascontiguousarray(inv_rot_mat).astype(dtype)),
-                spatial_size=transform["orig_size"],
+                spatial_size=transform[InvertibleTransform.Keys.orig_size],
             )
             d[key] = np.asarray(output.squeeze(0).detach().cpu().numpy(), dtype=np.float32)
             # Remove the applied transform
@@ -1375,9 +1375,9 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         ):
             transform = self.get_most_recent_transform(d, key)
             # Check if random transform was actually performed (based on `prob`)
-            if transform["do_transform"]:
+            if transform[InvertibleTransform.Keys.do_transform]:
                 # Create inverse transform
-                fwd_rot_mat = transform["extra_info"]["rot_mat"]
+                fwd_rot_mat = transform[InvertibleTransform.Keys.extra_info]["rot_mat"]
                 inv_rot_mat = np.linalg.inv(fwd_rot_mat)
 
                 xform = AffineTransform(
@@ -1390,7 +1390,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
                 output = xform(
                     torch.as_tensor(np.ascontiguousarray(d[key]).astype(dtype)).unsqueeze(0),
                     torch.as_tensor(np.ascontiguousarray(inv_rot_mat).astype(dtype)),
-                    spatial_size=transform["orig_size"],
+                    spatial_size=transform[InvertibleTransform.Keys.orig_size],
                 )
                 d[key] = np.asarray(output.squeeze(0).detach().cpu().numpy(), dtype=np.float32)
             # Remove the applied transform
@@ -1471,7 +1471,7 @@ class Zoomd(MapTransform, InvertibleTransform):
                 align_corners=align_corners,
             )
             # Size might be out by 1 voxel so pad
-            d[key] = SpatialPad(transform["orig_size"])(d[key])
+            d[key] = SpatialPad(transform[InvertibleTransform.Keys.orig_size])(d[key])
             # Remove the applied transform
             self.remove_most_recent_transform(d, key)
 
@@ -1577,7 +1577,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         ):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            zoom = np.array(transform["extra_info"]["zoom"])
+            zoom = np.array(transform[InvertibleTransform.Keys.extra_info]["zoom"])
             inverse_transform = Zoom(zoom=1 / zoom, keep_size=self.keep_size)
             # Apply inverse
             d[key] = inverse_transform(
@@ -1587,7 +1587,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
                 align_corners=align_corners,
             )
             # Size might be out by 1 voxel so pad
-            d[key] = SpatialPad(transform["orig_size"])(d[key])
+            d[key] = SpatialPad(transform[InvertibleTransform.Keys.orig_size])(d[key])
             # Remove the applied transform
             self.remove_most_recent_transform(d, key)
 
