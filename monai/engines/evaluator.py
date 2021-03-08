@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Tuple, Iterable
+from typing import TYPE_CHECKING, Callable, Dict, Iterable, Optional, Sequence, Tuple
 
 import torch
 from torch.utils.data import DataLoader
