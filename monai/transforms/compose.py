@@ -151,5 +151,5 @@ class Compose(RandomizableTransform, InvertibleTransform):
 
         # loop backwards over transforms
         for t in reversed(invertible_transforms):
-            data = t.inverse(data)
+            data = apply_transform(t.inverse, data)
         return data
