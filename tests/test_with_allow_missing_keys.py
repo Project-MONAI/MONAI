@@ -53,9 +53,20 @@ class TestWithAllowMissingKeysMode(unittest.TestCase):
 
     def test_array_transform(self):
         for t in [SpatialPad(10), Compose([SpatialPad(10)])]:
-            with allow_missing_keys_mode(t):
-                # should work as nothing should have changed
-                _ = t(self.data["image"])
+            with self.assertRaises(TypeError):
+                with allow_missing_keys_mode(t):
+                    pass
+
+    def test_multiple(self):
+        orig_states = [True, False]
+        ts = [SpatialPadd(["image", "label"], 10, allow_missing_keys=i) for i in orig_states]
+        with allow_missing_keys_mode(ts):
+            for t in ts:
+                self.assertTrue(t.allow_missing_keys)
+                # and that transform works even though key is missing
+                _ = t(self.data)
+        for t, o_s in zip(ts, orig_states):
+            self.assertEqual(t.allow_missing_keys, o_s)
 
 
 if __name__ == "__main__":
