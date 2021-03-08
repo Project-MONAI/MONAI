@@ -569,13 +569,13 @@ def query_memory(n=2):
     """
     Find best n idle devices and return a string of device ids.
     """
-    bash_string = "nvidia-smi --query-gpu=utilization.gpu,temperature.gpu,memory.used --format=csv,noheader,nounits"
+    bash_string = "nvidia-smi --query-gpu=utilization.gpu,power.draw,memory.used --format=csv,noheader,nounits"
 
     try:
         p1 = Popen(bash_string.split(), stdout=PIPE)
         output, error = p1.communicate()
         free_memory = [x.split(",") for x in output.decode("utf-8").split("\n")[:-1]]
-        free_memory = np.asarray(free_memory, dtype=np.float).T
+        free_memory = np.asarray(free_memory, dtype=float).T
         ids = np.lexsort(free_memory)[:n]
     except (FileNotFoundError, TypeError, IndexError):
         ids = range(n) if isinstance(n, int) else []
