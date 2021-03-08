@@ -24,7 +24,6 @@ from monai.networks.nets import UNet
 from monai.transforms import (
     AddChannel,
     AddChanneld,
-    AllowMissingKeysMode,
     BorderPadd,
     CenterSpatialCropd,
     Compose,
@@ -52,6 +51,7 @@ from monai.transforms import (
     SpatialCropd,
     SpatialPadd,
     Zoomd,
+    allow_missing_keys_mode,
 )
 from monai.utils import first, optional_import, set_determinism
 from tests.utils import make_nifti_image, make_rand_affine, test_is_quick
@@ -517,7 +517,7 @@ class TestInverse(unittest.TestCase):
 
         # inverse of individual segmentation
         seg_dict = first(segs_dict_decollated)
-        with AllowMissingKeysMode(transforms):
+        with allow_missing_keys_mode(transforms):
             inv_seg = transforms.inverse(seg_dict)["label"]
         self.assertEqual(len(data["label_transforms"]), num_invertible_transforms)
         self.assertEqual(len(seg_dict["label_transforms"]), num_invertible_transforms)
