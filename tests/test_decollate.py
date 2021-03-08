@@ -9,8 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from enum import Enum
+from monai.transforms.inverse import InvertibleTransform
 import unittest
-
+import sys
 import numpy as np
 import torch
 from parameterized import parameterized
@@ -46,7 +48,14 @@ class TestDeCollate(unittest.TestCase):
     def check_match(self, in1, in2):
         if isinstance(in1, dict):
             self.assertTrue(isinstance(in2, dict))
-            self.check_match(list(in1.keys()), list(in2.keys()))
+            for (k1, v1), (k2, v2) in zip(in1.items(), in2.items()):
+                if isinstance(k1, Enum) and isinstance(k2, Enum):
+                    k1, k2 = k1.value, k2.value
+                self.check_match(k1, k2)
+                # Transform ids won't match for windows with multiprocessing, so don't check values
+                if k1 == InvertibleTransform.Keys.id.value and sys.platform == "win32":
+                    continue
+                self.check_match(v1, v2)
             self.check_match(list(in1.values()), list(in2.values()))
         elif any(isinstance(in1, i) for i in [list, tuple]):
             for l1, l2 in zip(in1, in2):

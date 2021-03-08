@@ -15,6 +15,8 @@ defined in :py:class:`monai.transforms.croppad.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
+from copy import deepcopy
+from math import floor
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -30,6 +32,7 @@ from monai.transforms.croppad.array import (
     SpatialCrop,
     SpatialPad,
 )
+from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utils import (
     generate_pos_neg_label_crop_centers,
@@ -82,7 +85,7 @@ __all__ = [
 NumpyPadModeSequence = Union[Sequence[Union[NumpyPadMode, str]], NumpyPadMode, str]
 
 
-class SpatialPadd(MapTransform):
+class SpatialPadd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SpatialPad`.
     Performs padding to the data, symmetric for all sides or all on one side for each dimension.
@@ -119,9 +122,29 @@ class SpatialPadd(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key, m in self.key_iterator(d, self.mode):
+            self.push_transform(d, key)
             d[key] = self.padder(d[key], mode=m)
         return d
 
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            orig_size = transform[self.Keys.orig_size.value]
+            if self.padder.method == Method.SYMMETRIC:
+                current_size = d[key].shape[1:]
+                roi_center = [floor(i / 2) if r % 2 == 0 else (i - 1) // 2 for r, i in zip(orig_size, current_size)]
+            else:
+                roi_center = [floor(r / 2) if r % 2 == 0 else (r - 1) // 2 for r in orig_size]
+
+            inverse_transform = SpatialCrop(roi_center, orig_size)
+            # Apply inverse transform
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.pop_transform(d, key)
+
+        return d
 
 class BorderPadd(MapTransform):
     """
