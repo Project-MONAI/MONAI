@@ -18,6 +18,18 @@ limitations under the License.
 #define MAX_CHANNELS 16
 #define MAX_MIXTURES 16
 
+
+__constant__ int det_indices[] = { (9 << (4*4)) + (4 << (3*4)) + (6 << (2*4)) + (5 << (1*4)) + (4 << (0*4)),
+    (5 << (4*4)) + (8 << (3*4)) + (6 << (2*4)) + (6 << (1*4)) + (7 << (0*4)),
+    (5 << (4*4)) + (8 << (3*4)) + (7 << (2*4)) + (8 << (1*4)) + (9 << (0*4))
+  };
+
+__constant__ int inv_indices[] = { (4 << (5*4)) + (5 << (4*4)) + (4 << (3*4)) + (5 << (2*4)) + (6 << (1*4)) + (7 << (0*4)),
+    (7 << (5*4)) + (6 << (4*4)) + (9 << (3*4)) + (8 << (2*4)) + (8 << (1*4)) + (9 << (0*4)),
+    (5 << (5*4)) + (4 << (4*4)) + (6 << (3*4)) + (6 << (2*4)) + (5 << (1*4)) + (8 << (0*4)),
+    (5 << (5*4)) + (8 << (4*4)) + (6 << (3*4)) + (7 << (2*4)) + (9 << (1*4)) + (8 << (0*4))
+  };
+
 __device__ __forceinline__ void self_outer_product_triangle(int length, float* vector, float* output, float diag_epsilon)
 {
     for (int i = 0, x = 0; x < length; x++)
@@ -70,6 +82,253 @@ __device__ __forceinline__ float get_constant(float *gmm, int i)
     };
 
     return 0.0f;
+}
+
+template<int block_size>
+__global__ void CovarianceReductionKernel(int gaussian_index, const float* g_image, const int* g_alpha, float* g_matrices, int element_count, int channel_count, int component_count, int mixture_count)
+{
+    __shared__ float s_matrix_component[block_size];
+
+    int local_index = threadIdx.x;
+    int block_index = blockIdx.x;
+    int global_index = local_index + block_index * block_size;
+    int matrix_offset = (gaussian_index * gridDim.x + block_index) * 11;
+
+    float pixel[3];
+    bool home_active = false;
+
+    if (global_index < element_count)
+    { 
+        int my_alpha = g_alpha[global_index];
+
+        if (gaussian_index == (my_alpha & 15) + (my_alpha >> 4) * mixture_count)
+        {
+            pixel[0] = g_image[global_index + 0 * element_count] * 255;
+            pixel[1] = g_image[global_index + 1 * element_count] * 255;
+            pixel[2] = g_image[global_index + 2 * element_count] * 255;
+
+            home_active = true;
+        }
+    }
+
+    __syncthreads();
+
+    for (int i = 0; i < 10; i++)
+    {
+        s_matrix_component[local_index] = home_active ? get_component(pixel, i) : 0.0f; __syncthreads();
+
+        if (local_index < 256) { s_matrix_component[local_index] += s_matrix_component[local_index + 256]; } __syncthreads();
+        if (local_index < 128) { s_matrix_component[local_index] += s_matrix_component[local_index + 128]; } __syncthreads(); 
+        if (local_index <  64) { s_matrix_component[local_index] += s_matrix_component[local_index +  64]; } __syncthreads(); 
+
+        if (local_index <  32) 
+        { 
+            s_matrix_component[local_index] += s_matrix_component[local_index + 32];
+            s_matrix_component[local_index] += s_matrix_component[local_index + 16];
+            s_matrix_component[local_index] += s_matrix_component[local_index +  8];
+            s_matrix_component[local_index] += s_matrix_component[local_index +  4];
+            s_matrix_component[local_index] += s_matrix_component[local_index +  2];
+            s_matrix_component[local_index] += s_matrix_component[local_index +  1];
+        }
+
+        if (local_index == 0)
+        {
+            g_matrices[matrix_offset + i] = s_matrix_component[0];
+        }
+
+        __syncthreads();
+    }
+}
+
+template<int block_size, bool invert_sigma>
+__global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_gmm, int matrix_count, int component_count)
+{
+    int local_index = threadIdx.x;
+    int gmm_index = blockIdx.x;
+    
+    int load_count = TILE(matrix_count, block_size);
+
+    __shared__ float s_matrix_component[block_size];
+    __shared__ float s_gmm[15];
+
+    float matrix_component = 0.0f;
+    float norm_factor = 0.0f;
+
+    for (int i = 0; i < 10; i++)
+    {
+        matrix_component = 0.0f;
+
+        for(int j = 0; j < load_count; j++)
+        {
+            int matrix_index = gmm_index * matrix_count + local_index + j * block_size;
+            matrix_component += g_matrices[matrix_index * component_count + i];
+        }
+
+        s_matrix_component[local_index] = matrix_component; __syncthreads();
+
+        if (local_index < 256) { s_matrix_component[local_index] += s_matrix_component[local_index + 256]; } __syncthreads();
+        if (local_index < 128) { s_matrix_component[local_index] += s_matrix_component[local_index + 128]; } __syncthreads(); 
+        if (local_index <  64) { s_matrix_component[local_index] += s_matrix_component[local_index +  64]; } __syncthreads(); 
+
+        if (local_index <  32) 
+        { 
+            s_matrix_component[local_index] += s_matrix_component[local_index + 32];
+            s_matrix_component[local_index] += s_matrix_component[local_index + 16];
+            s_matrix_component[local_index] += s_matrix_component[local_index +  8];
+            s_matrix_component[local_index] += s_matrix_component[local_index +  4];
+            s_matrix_component[local_index] += s_matrix_component[local_index +  2];
+            s_matrix_component[local_index] += s_matrix_component[local_index +  1];
+        }
+
+        if (local_index == 0)
+        {
+            s_gmm[i] = norm_factor * s_matrix_component[0] - get_constant(s_gmm, i);
+
+            if (i == 0 && s_matrix_component[0] > 0)
+            {
+                norm_factor = 1.0f / s_matrix_component[0];
+            }
+        }
+
+        __syncthreads();
+    }
+
+    if (local_index < 5)
+    { 
+        int idx0 = (det_indices[0] & (15 << (local_index * 4))) >> (local_index * 4);
+        int idx1 = (det_indices[1] & (15 << (local_index * 4))) >> (local_index * 4);
+        int idx2 = (det_indices[2] & (15 << (local_index * 4))) >> (local_index * 4);
+
+        s_gmm[10 + local_index] = s_gmm[idx0] * s_gmm[idx1] * s_gmm[idx2];
+
+        if(local_index == 0)
+        {
+            s_gmm[10] = s_gmm[10] + 2.0f * s_gmm[11] - s_gmm[12] - s_gmm[13] - s_gmm[14];
+        }
+    }
+
+    if (invert_sigma && local_index < 6)
+    {
+        int idx0 = (inv_indices[0] & (15 << (local_index * 4))) >> (local_index * 4);
+        int idx1 = (inv_indices[1] & (15 << (local_index * 4))) >> (local_index * 4);
+        int idx2 = (inv_indices[2] & (15 << (local_index * 4))) >> (local_index * 4);
+        int idx3 = (inv_indices[3] & (15 << (local_index * 4))) >> (local_index * 4);
+
+        if(local_index == 0)
+        {
+            if (s_gmm[10] > 0.0f)
+            {
+                s_gmm[4 + local_index] = (s_gmm[idx0] * s_gmm[idx1] - s_gmm[idx2] * s_gmm[idx3]) / s_gmm[10];
+            }
+            else
+            {
+                s_gmm[4 + local_index] = 0.0f;
+            }
+        }
+    }
+
+    if (local_index < 11)
+    {
+        g_gmm[gmm_index * 11 + local_index] = s_gmm[local_index];
+    }
+}
+
+template <int block_size, bool invertSigma>
+__global__ void GMMFinalizeKernelNew(const float* gmm_scratch, float* gmm, int gmm_stride, int component_count)
+{
+    __shared__ volatile float s_gmm[block_size];
+    __shared__ float final_gmm[15];
+
+    const float *gmm_partial = &gmm_scratch[blockIdx.x * gmm_stride * component_count];
+
+    int thread_idx = threadIdx.x;
+
+    float norm_factor = 1.0f;
+
+    for (int i=0; i<10; ++i)
+    {
+        float thread_gmm = 0.0f;
+
+        for (int j=thread_idx; j < gmm_stride; j+= 32)
+        {
+            thread_gmm += gmm_partial[j * component_count + i];
+        }
+
+        s_gmm[thread_idx] = thread_gmm; __syncthreads();
+
+        if (thread_idx < 256) { s_gmm[thread_idx] += s_gmm[thread_idx + 256]; } __syncthreads();
+        if (thread_idx < 128) { s_gmm[thread_idx] += s_gmm[thread_idx + 128]; } __syncthreads(); 
+        if (thread_idx <  64) { s_gmm[thread_idx] += s_gmm[thread_idx +  64]; } __syncthreads(); 
+
+        if (thread_idx <  32) 
+        { 
+            s_gmm[thread_idx] += s_gmm[thread_idx + 32];
+            s_gmm[thread_idx] += s_gmm[thread_idx + 16];
+            s_gmm[thread_idx] += s_gmm[thread_idx +  8];
+            s_gmm[thread_idx] += s_gmm[thread_idx +  4];
+            s_gmm[thread_idx] += s_gmm[thread_idx +  2];
+            s_gmm[thread_idx] += s_gmm[thread_idx +  1];
+        }
+
+        __syncthreads();
+
+        // Final Reduction
+        if (thread_idx == 0)
+        {
+            final_gmm[i] = norm_factor * s_gmm[0] - get_constant(final_gmm, i);
+
+            if (i == 0)
+            {
+                if (s_gmm[0] > 0)
+                {
+                    norm_factor = 1.0f / s_gmm[0];
+                }
+            }
+        }
+    }
+
+    if (threadIdx.y == 0)
+    {
+        // Compute det(Sigma) using final_gmm [10-14] as scratch mem
+
+        if (threadIdx.x < 5)
+        {
+
+            int idx0 = (det_indices[0] & (15 << (threadIdx.x * 4))) >> (threadIdx.x * 4);
+            int idx1 = (det_indices[1] & (15 << (threadIdx.x * 4))) >> (threadIdx.x * 4);
+            int idx2 = (det_indices[2] & (15 << (threadIdx.x * 4))) >> (threadIdx.x * 4);
+
+            final_gmm[10 + threadIdx.x] = final_gmm[idx0] * final_gmm[idx1] * final_gmm[idx2];
+
+            float det = final_gmm[10] + 2.0f * final_gmm[11] - final_gmm[12] - final_gmm[13] - final_gmm[14];
+            final_gmm[10] = det;
+        }
+
+        // Compute inv(Sigma)
+        if (invertSigma && threadIdx.x < 6)
+        {
+            int idx0 = (inv_indices[0] & (15 << (threadIdx.x * 4))) >> (threadIdx.x * 4);
+            int idx1 = (inv_indices[1] & (15 << (threadIdx.x * 4))) >> (threadIdx.x * 4);
+            int idx2 = (inv_indices[2] & (15 << (threadIdx.x * 4))) >> (threadIdx.x * 4);
+            int idx3 = (inv_indices[3] & (15 << (threadIdx.x * 4))) >> (threadIdx.x * 4);
+
+            float temp = final_gmm[idx0] * final_gmm[idx1] - final_gmm[idx2] * final_gmm[idx3];
+
+            if (final_gmm[10] > 0.0f)
+            {
+                final_gmm[4+threadIdx.x] = temp / final_gmm[10];
+            }
+            else
+            {
+                final_gmm[4+threadIdx.x] = 0.0f;
+            }
+        }
+
+        if (threadIdx.x < 11)
+        {
+            gmm[blockIdx.x * component_count + threadIdx.x] = final_gmm[threadIdx.x];
+        }
+    }
 }
 
 
@@ -184,18 +443,6 @@ __global__ void GMMReductionKernel(int gmm_idx, const float* image, const int* a
     }
 }
 
-__constant__ int det_indices[] = { (9 << (4*4)) + (4 << (3*4)) + (6 << (2*4)) + (5 << (1*4)) + (4 << (0*4)),
-                                   (5 << (4*4)) + (8 << (3*4)) + (6 << (2*4)) + (6 << (1*4)) + (7 << (0*4)),
-                                   (5 << (4*4)) + (8 << (3*4)) + (7 << (2*4)) + (8 << (1*4)) + (9 << (0*4))
-                                 };
-
-__constant__ int inv_indices[] = { (4 << (5*4)) + (5 << (4*4)) + (4 << (3*4)) + (5 << (2*4)) + (6 << (1*4)) + (7 << (0*4)),
-                                   (7 << (5*4)) + (6 << (4*4)) + (9 << (3*4)) + (8 << (2*4)) + (8 << (1*4)) + (9 << (0*4)),
-                                   (5 << (5*4)) + (4 << (4*4)) + (6 << (3*4)) + (6 << (2*4)) + (5 << (1*4)) + (8 << (0*4)),
-                                   (5 << (5*4)) + (8 << (4*4)) + (6 << (3*4)) + (7 << (2*4)) + (9 << (1*4)) + (8 << (0*4))
-                                 };
-
-
 // One block per GMM, 32*warp_N threads (1-dim)
 template <int warp_N, bool invertSigma>
 __global__ void GMMFinalizeKernel(const float *gmm_scratch, float *gmm, int gmm_stride, int component_count)
@@ -309,7 +556,6 @@ __global__ void GMMFinalizeKernel(const float *gmm_scratch, float *gmm, int gmm_
         }
     }
 }
-
 
 // Single block, 32x2
 __global__ void GMMcommonTerm(float *gmm, int mixture_count, int mixture_size, int component_count)
@@ -611,7 +857,7 @@ void GMMInitialize(const float *image, int *alpha, float *gmm, float *scratch_me
     dim3 grid(TILE(element_count, BLOCK_SIZE * BLOCK_SIZE));
     dim3 block(BLOCK_SIZE * 4);
     
-    float* block_gmm_scratch = &scratch_mem[grid.x];
+    float* block_gmm_scratch = &scratch_mem[TILE(element_count, 512)];
     unsigned int* block_active_scratch = (unsigned int*)scratch_mem;
     GMMSplit_t* gmm_split_scratch = (GMMSplit_t*) scratch_mem;
 
@@ -621,10 +867,10 @@ void GMMInitialize(const float *image, int *alpha, float *gmm, float *scratch_me
     {
         for (int i = 0; i < k; ++i)
         {
-            GMMReductionKernel<4><<<grid, block>>>(i, image, alpha, block_gmm_scratch, element_count, channel_count, component_count, mixture_count);
+            CovarianceReductionKernel<512><<<TILE(element_count, 512), 512>>>(i, image, alpha, block_gmm_scratch, element_count, channel_count, component_count, mixture_count);
         }
 
-        GMMFinalizeKernel<4, false><<<k, block>>>(block_gmm_scratch, gmm, grid.x, component_count);
+        CovarianceFinalizationKernel<512, false><<<k, 512>>>(block_gmm_scratch, gmm, TILE(element_count, 512), component_count);
 
         GMMFindSplit<<<1, dim3(BLOCK_SIZE, mixture_count)>>>(gmm_split_scratch, k / mixture_count, gmm, component_count, mixture_count);
         GMMDoSplit<<<TILE(element_count, BLOCK_SIZE * DO_SPLIT_DEGENERACY), BLOCK_SIZE>>>(gmm_split_scratch, (k / mixture_count) << 4, gmm, component_count, image, alpha, element_count);
@@ -643,9 +889,11 @@ void GMMUpdate(const float *image, int *alpha, float *gmm, float *scratch_mem, i
 
     for (int i = 0; i < gmm_N; ++i)
     {
+        //CovarianceReductionKernel<512><<<TILE(element_count, 512), 512>>>(i, image, alpha, block_gmm_scratch, element_count, channel_count, component_count, mixture_count);
         GMMReductionKernel<4><<<grid, block>>>(i, image, alpha, block_gmm_scratch, element_count, channel_count, component_count, mixture_count);
     }
 
+    //CovarianceFinalizationKernel<512, false><<<gmm_N, 512>>>(block_gmm_scratch, gmm, TILE(element_count, 512), component_count);
     GMMFinalizeKernel<4, true><<<gmm_N, block>>>(block_gmm_scratch, gmm, grid.x, component_count);
 
     GMMcommonTerm<<<1, dim3(BLOCK_SIZE, mixture_count)>>>(gmm, mixture_count, mixture_size, component_count);
