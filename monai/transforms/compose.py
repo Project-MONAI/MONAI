@@ -18,8 +18,13 @@ from typing import Any, Callable, Optional, Sequence, Union
 import numpy as np
 
 # For backwards compatiblity (so this still works: from monai.transforms.compose import MapTransform)
-from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform, Transform  # noqa: F401
-from monai.transforms.utils import apply_transform
+from monai.transforms.transform import (  # noqa: F401
+    MapTransform,
+    Randomizable,
+    RandomizableTransform,
+    Transform,
+    apply_transform,
+)
 from monai.utils import MAX_SEED, ensure_tuple, get_seed
 
 __all__ = ["Compose"]

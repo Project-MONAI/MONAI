@@ -173,6 +173,17 @@ class CAMBase:
         return self.compute_map(torch.zeros(*input_size, device=device), layer_idx=layer_idx).shape
 
     def compute_map(self, x, class_idx=None, layer_idx=-1):
+        """
+        Compute the actual feature map with input tensor `x`.
+
+        Args:
+            x: input to `nn_module`.
+            class_idx: index of the class to be visualized. Default to `None` (computing `class_idx` from `argmax`)
+            layer_idx: index of the target layer if there are multiple target layers. Defaults to -1.
+
+        Returns:
+            activation maps (raw outputs without upsampling/post-processing.)
+        """
         raise NotImplementedError()
 
     def _upsample_and_post_process(self, acti_map, x):
@@ -191,6 +202,10 @@ class CAMBase:
 class CAM(CAMBase):
     """
     Compute class activation map from the last fully-connected layers before the spatial pooling.
+    This implementation is based on:
+
+        Zhou et al., Learning Deep Features for Discriminative Localization. CVPR '16,
+        https://arxiv.org/abs/1512.04150
 
     Examples
 
@@ -211,6 +226,12 @@ class CAM(CAMBase):
         model_2d = se_resnet50(spatial_dims=2, in_channels=3, num_classes=4)
         cam = CAM(nn_module=model_2d, target_layers="layer4", fc_layers="last_linear")
         result = cam(x=torch.rand((2, 3, 48, 64)))
+
+    N.B.: To help select the target layer, it may be useful to list all layers:
+
+    .. code-block:: python
+
+        for name, _ in model.named_modules(): print(name)
 
     See Also:
 
@@ -249,9 +270,6 @@ class CAM(CAMBase):
         self.fc_layers = fc_layers
 
     def compute_map(self, x, class_idx=None, layer_idx=-1):
-        """
-        Compute the actual feature map with input tensor `x`.
-        """
         logits, acti, _ = self.nn_module(x)
         acti = acti[layer_idx]
         if class_idx is None:
@@ -307,6 +325,12 @@ class GradCAM(CAMBase):
         cam = GradCAM(nn_module=model_2d, target_layers="layer4")
         result = cam(x=torch.rand((2, 3, 48, 64)))
 
+    N.B.: To help select the target layer, it may be useful to list all layers:
+
+    .. code-block:: python
+
+        for name, _ in model.named_modules(): print(name)
+
     See Also:
 
         - :py:class:`monai.visualize.class_activation_maps.CAM`
@@ -314,9 +338,6 @@ class GradCAM(CAMBase):
     """
 
     def compute_map(self, x, class_idx=None, retain_graph=False, layer_idx=-1):
-        """
-        Compute the actual feature map with input tensor `x`.
-        """
         _, acti, grad = self.nn_module(x, class_idx=class_idx, retain_graph=retain_graph)
         acti, grad = acti[layer_idx], grad[layer_idx]
         b, c, *spatial = grad.shape
@@ -356,9 +377,6 @@ class GradCAMpp(GradCAM):
     """
 
     def compute_map(self, x, class_idx=None, retain_graph=False, layer_idx=-1):
-        """
-        Compute the actual feature map with input tensor `x`.
-        """
         _, acti, grad = self.nn_module(x, class_idx=class_idx, retain_graph=retain_graph)
         acti, grad = acti[layer_idx], grad[layer_idx]
         b, c, *spatial = grad.shape

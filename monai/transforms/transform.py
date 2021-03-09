@@ -13,14 +13,39 @@ A collection of generic interfaces for MONAI transforms.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Hashable, Optional, Tuple
+from typing import Any, Callable, Dict, Generator, Hashable, Iterable, List, Optional, Tuple
 
 import numpy as np
 
 from monai.config import KeysCollection
 from monai.utils import MAX_SEED, ensure_tuple
 
-__all__ = ["Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
+__all__ = ["apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
+
+
+def apply_transform(transform: Callable, data, map_items: bool = True):
+    """
+    Transform `data` with `transform`.
+    If `data` is a list or tuple and `map_data` is True, each item of `data` will be transformed
+    and this method returns a list of outcomes.
+    otherwise transform will be applied once with `data` as the argument.
+
+    Args:
+        transform: a callable to be used to transform `data`
+        data: an object to be transformed.
+        map_items: whether to apply transform to each item in `data`,
+            if `data` is a list or tuple. Defaults to True.
+
+    Raises:
+        Exception: When ``transform`` raises an exception.
+
+    """
+    try:
+        if isinstance(data, (list, tuple)) and map_items:
+            return [transform(item) for item in data]
+        return transform(data)
+    except Exception as e:
+        raise RuntimeError(f"applying transform {transform}") from e
 
 
 class Randomizable(ABC):
@@ -178,7 +203,7 @@ class MapTransform(Transform):
                     if key in data:
                         # update output data with some_transform_function(data[key]).
                     else:
-                        # do nothing or some exceptions handling.
+                        # raise exception unless allow_missing_keys==True.
                 return data
 
     Raises:
@@ -187,8 +212,9 @@ class MapTransform(Transform):
 
     """
 
-    def __init__(self, keys: KeysCollection) -> None:
+    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
         self.keys: Tuple[Hashable, ...] = ensure_tuple(keys)
+        self.allow_missing_keys = allow_missing_keys
         if not self.keys:
             raise ValueError("keys must be non empty.")
         for key in self.keys:
@@ -224,3 +250,29 @@ class MapTransform(Transform):
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+
+    def key_iterator(
+        self,
+        data: Dict[Hashable, Any],
+        *extra_iterables: Optional[Iterable],
+    ) -> Generator:
+        """
+        Iterate across keys and optionally extra iterables. If key is missing, exception is raised if
+        `allow_missing_keys==False` (default). If `allow_missing_keys==True`, key is skipped.
+
+        Args:
+            data: data that the transform will be applied to
+            extra_iterables: anything else to be iterated through
+        """
+        # if no extra iterables given, create a dummy list of Nones
+        ex_iters = extra_iterables if extra_iterables else [[None] * len(self.keys)]
+
+        # loop over keys and any extra iterables
+        _ex_iters: List[Any]
+        for key, *_ex_iters in zip(self.keys, *ex_iters):
+            # all normal, yield (what we yield depends on whether extra iterables were given)
+            if key in data.keys():
+                yield (key,) + tuple(_ex_iters) if extra_iterables else key
+            # if missing keys not allowed, raise
+            elif not self.allow_missing_keys:
+                raise KeyError(f"Key was missing ({key}) and allow_missing_keys==False")
