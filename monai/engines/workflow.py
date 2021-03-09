@@ -98,6 +98,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
                 @self.on(Events.EPOCH_STARTED)
                 def set_sampler_epoch(engine: Engine):
                     sampler.set_epoch(engine.state.epoch)
+
             if epoch_length is None:
                 epoch_length = len(data_loader)
         else:
