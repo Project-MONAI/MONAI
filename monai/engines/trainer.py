@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Callable, Dict, Iterable, Optional, Sequence, 
 
 import torch
 from torch.optim.optimizer import Optimizer
+from torch.utils.data import DataLoader
 
 from monai.engines.utils import CommonKeys as Keys
 from monai.engines.utils import GanKeys, IterationEvents, default_make_latent, default_prepare_batch
@@ -57,7 +58,7 @@ class SupervisedTrainer(Trainer):
     Args:
         device: an object representing the device on which to run.
         max_epochs: the total epoch number for trainer to run.
-        train_data_loader: Ignite engine use data_loader to run, must be Iterable, typically be torch.DataLoader.
+        train_data_loader: Ignite engine use data_loader to run, must be Iterable or torch.DataLoader.
         network: to train with this network.
         optimizer: the optimizer associated to the network.
         loss_function: the loss function associated to the optimizer.
@@ -84,7 +85,7 @@ class SupervisedTrainer(Trainer):
         self,
         device: torch.device,
         max_epochs: int,
-        train_data_loader: Iterable,
+        train_data_loader: Union[Iterable, DataLoader],
         network: torch.nn.Module,
         optimizer: Optimizer,
         loss_function: Callable,
@@ -228,7 +229,7 @@ class GanTrainer(Trainer):
         self,
         device: torch.device,
         max_epochs: int,
-        train_data_loader: Iterable,
+        train_data_loader: DataLoader,
         g_network: torch.nn.Module,
         g_optimizer: Optimizer,
         g_loss_function: Callable,
@@ -250,6 +251,9 @@ class GanTrainer(Trainer):
         additional_metrics: Optional[Dict[str, Metric]] = None,
         train_handlers: Optional[Sequence] = None,
     ):
+        if not isinstance(train_data_loader, DataLoader):
+            raise ValueError("train_data_loader must be PyTorch DataLoader.")
+
         # set up Ignite engine and environments
         super().__init__(
             device=device,
@@ -295,7 +299,7 @@ class GanTrainer(Trainer):
             raise ValueError("must provide batch data for current iteration.")
 
         d_input = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)
-        batch_size = self.data_loader.batch_size
+        batch_size = self.data_loader.batch_size  # type: ignore
         g_input = self.g_prepare_batch(batch_size, self.latent_shape, engine.state.device, engine.non_blocking)
         g_output = self.g_inferer(g_input, self.g_network)
 

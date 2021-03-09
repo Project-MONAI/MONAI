@@ -9,9 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Iterable, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Callable, Dict, Iterable, Optional, Sequence, Tuple, Union
 
 import torch
+from torch.utils.data import DataLoader
 
 from monai.engines.utils import CommonKeys as Keys
 from monai.engines.utils import IterationEvents, default_prepare_batch
@@ -37,7 +38,7 @@ class Evaluator(Workflow):
 
     Args:
         device: an object representing the device on which to run.
-        val_data_loader: Ignite engine use data_loader to run, must be Iterable, typically be torch.DataLoader.
+        val_data_loader: Ignite engine use data_loader to run, must be Iterable or torch.DataLoader.
         epoch_length: number of iterations for one epoch, default to `len(val_data_loader)`.
         non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
             with respect to the host. For other cases, this argument has no effect.
@@ -59,7 +60,7 @@ class Evaluator(Workflow):
     def __init__(
         self,
         device: torch.device,
-        val_data_loader: Iterable,
+        val_data_loader: Union[Iterable, DataLoader],
         epoch_length: Optional[int] = None,
         non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
@@ -133,7 +134,7 @@ class SupervisedEvaluator(Evaluator):
     def __init__(
         self,
         device: torch.device,
-        val_data_loader: Iterable,
+        val_data_loader: Union[Iterable, DataLoader],
         network: torch.nn.Module,
         epoch_length: Optional[int] = None,
         non_blocking: bool = False,
@@ -240,7 +241,7 @@ class EnsembleEvaluator(Evaluator):
     def __init__(
         self,
         device: torch.device,
-        val_data_loader: Iterable,
+        val_data_loader: Union[Iterable, DataLoader],
         networks: Sequence[torch.nn.Module],
         pred_keys: Sequence[str],
         epoch_length: Optional[int] = None,
