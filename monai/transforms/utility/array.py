@@ -15,7 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 import logging
 import time
-from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -39,6 +39,7 @@ __all__ = [
     "AsChannelFirst",
     "AsChannelLast",
     "AddChannel",
+    "EnsureChannelFirst",
     "RepeatChannel",
     "RemoveRepeatedChannel",
     "SplitChannel",
@@ -147,6 +148,32 @@ class AddChannel(Transform):
         Apply the transform to `img`.
         """
         return img[None]
+
+
+class EnsureChannelFirst(Transform):
+    """
+    Automatically adjust or add the channel dimension of input data to ensure `channel_first` shape.
+    It extracts the `original_channel_dim` info from provided meta_data dictionary.
+    Typical values of `original_channel_dim` can be: "no_channel", 0, -1.
+    Convert the data to `channel_first` based on the `original_channel_dim` information.
+
+    """
+
+    def __call__(self, img: np.ndarray, meta_dict: Optional[Dict] = None):
+        """
+        Apply the transform to `img`.
+        """
+        if not isinstance(meta_dict, dict):
+            raise ValueError("meta_dict must be a dictionay data.")
+
+        channel_dim = meta_dict.get("original_channel_dim", None)
+
+        if channel_dim is None:
+            raise ValueError("meta_dict must contain `original_channel_dim` information.")
+        elif channel_dim == "no_channel":
+            return AddChannel()(img)
+        else:
+            return AsChannelFirst(channel_dim=channel_dim)(img)
 
 
 class RepeatChannel(Transform):
@@ -628,7 +655,7 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
         result.append(np.logical_or(np.logical_or(img == 1, img == 4), img == 2))
         # label 4 is ET
         result.append(img == 4)
-        return np.stack(result, axis=0).astype(np.float32)
+        return np.stack(result, axis=0)
 
 
 class AddExtremePointsChannel(RandomizableTransform):

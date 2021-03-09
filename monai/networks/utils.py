@@ -14,7 +14,7 @@ Utilities and types for defining networks, these depend on PyTorch.
 
 import warnings
 from contextlib import contextmanager
-from typing import Any, Callable, Optional, Sequence, cast
+from typing import Any, Callable, Optional, Sequence
 
 import torch
 import torch.nn as nn
@@ -86,10 +86,10 @@ def predict_segmentation(
         threshold: thresholding the prediction values if multi-labels task.
     """
     if not mutually_exclusive:
-        return (cast(torch.Tensor, logits >= threshold)).int()
+        return (logits >= threshold).int()
     if logits.shape[1] == 1:
         warnings.warn("single channel prediction, `mutually_exclusive=True` ignored, use threshold instead.")
-        return (cast(torch.Tensor, logits >= threshold)).int()
+        return (logits >= threshold).int()
     return logits.argmax(1, keepdim=True)
 
 

@@ -16,6 +16,7 @@ import os
 import queue
 import sys
 import tempfile
+import time
 import traceback
 import unittest
 import warnings
@@ -273,6 +274,7 @@ class DistCall:
             os.environ["RANK"] = str(self.nproc_per_node * self.node_rank + local_rank)
 
             if torch.cuda.is_available():
+                os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
                 torch.cuda.set_device(int(local_rank))
 
             dist.init_process_group(
@@ -283,6 +285,11 @@ class DistCall:
                 rank=int(os.environ["RANK"]),
             )
             func(*args, **kwargs)
+            # the primary node lives longer to
+            # avoid _store_based_barrier, RuntimeError: Broken pipe
+            # as the TCP store daemon is on the rank 0
+            if int(os.environ["RANK"]) == 0:
+                time.sleep(0.1)
             results.put(True)
         except Exception as e:
             results.put(False)
@@ -562,13 +569,13 @@ def query_memory(n=2):
     """
     Find best n idle devices and return a string of device ids.
     """
-    bash_string = "nvidia-smi --query-gpu=utilization.gpu,temperature.gpu,memory.used --format=csv,noheader,nounits"
+    bash_string = "nvidia-smi --query-gpu=utilization.gpu,power.draw,memory.used --format=csv,noheader,nounits"
 
     try:
         p1 = Popen(bash_string.split(), stdout=PIPE)
         output, error = p1.communicate()
         free_memory = [x.split(",") for x in output.decode("utf-8").split("\n")[:-1]]
-        free_memory = np.asarray(free_memory, dtype=np.float).T
+        free_memory = np.asarray(free_memory, dtype=float).T
         ids = np.lexsort(free_memory)[:n]
     except (FileNotFoundError, TypeError, IndexError):
         ids = range(n) if isinstance(n, int) else []

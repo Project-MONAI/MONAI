@@ -181,6 +181,7 @@ from .spatial.array import (
     Rand3DElastic,
     RandAffine,
     RandAffineGrid,
+    RandAxisFlip,
     RandDeformGrid,
     RandFlip,
     RandRotate,
@@ -194,6 +195,9 @@ from .spatial.array import (
     Zoom,
 )
 from .spatial.dictionary import (
+    Affined,
+    AffineD,
+    AffineDict,
     Flipd,
     FlipD,
     FlipDict,
@@ -209,6 +213,9 @@ from .spatial.dictionary import (
     RandAffined,
     RandAffineD,
     RandAffineDict,
+    RandAxisFlipd,
+    RandAxisFlipD,
+    RandAxisFlipDict,
     RandFlipd,
     RandFlipD,
     RandFlipDict,
@@ -237,7 +244,7 @@ from .spatial.dictionary import (
     ZoomD,
     ZoomDict,
 )
-from .transform import MapTransform, Randomizable, RandomizableTransform, Transform
+from .transform import MapTransform, Randomizable, RandomizableTransform, Transform, apply_transform
 from .utility.array import (
     AddChannel,
     AddExtremePointsChannel,
@@ -246,6 +253,7 @@ from .utility.array import (
     CastToType,
     ConvertToMultiChannelBasedOnBratsClasses,
     DataStats,
+    EnsureChannelFirst,
     FgBgToIndices,
     Identity,
     LabelToMask,
@@ -292,6 +300,9 @@ from .utility.dictionary import (
     DeleteItemsd,
     DeleteItemsD,
     DeleteItemsDict,
+    EnsureChannelFirstd,
+    EnsureChannelFirstD,
+    EnsureChannelFirstDict,
     FgBgToIndicesd,
     FgBgToIndicesD,
     FgBgToIndicesDict,
@@ -337,7 +348,7 @@ from .utility.dictionary import (
     ToTensorDict,
 )
 from .utils import (
-    apply_transform,
+    allow_missing_keys_mode,
     copypaste_arrays,
     create_control_grid,
     create_grid,
