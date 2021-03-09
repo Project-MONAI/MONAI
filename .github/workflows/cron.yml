@@ -58,7 +58,11 @@ jobs:
     runs-on: [self-hosted, linux, x64, common]
     steps:
     - uses: actions/checkout@v2
-    - name: Install the dependencies
+    - name: Install APT dependencies
+      run: |
+        apt-get update
+        DEBIAN_FRONTEND="noninteractive" apt-get install -y libopenslide0
+    - name: Install Python dependencies
       run: |
         which python
         python -m pip install --upgrade pip wheel
