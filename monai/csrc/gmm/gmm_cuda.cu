@@ -214,16 +214,13 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
         int idx2 = (inv_indices[2] & (15 << (local_index * 4))) >> (local_index * 4);
         int idx3 = (inv_indices[3] & (15 << (local_index * 4))) >> (local_index * 4);
 
-        if(local_index == 0)
+        if (s_gmm[10] > 0.0f)
         {
-            if (s_gmm[10] > 0.0f)
-            {
-                s_gmm[4 + local_index] = (s_gmm[idx0] * s_gmm[idx1] - s_gmm[idx2] * s_gmm[idx3]) / s_gmm[10];
-            }
-            else
-            {
-                s_gmm[4 + local_index] = 0.0f;
-            }
+            s_gmm[4 + local_index] = (s_gmm[idx0] * s_gmm[idx1] - s_gmm[idx2] * s_gmm[idx3]) / s_gmm[10];
+        }
+        else
+        {
+            s_gmm[4 + local_index] = 0.0f;
         }
     }
 
@@ -232,105 +229,6 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
         g_gmm[gmm_index * 11 + local_index] = s_gmm[local_index];
     }
 }
-
-template <int block_size, bool invertSigma>
-__global__ void GMMFinalizeKernelNew(const float* gmm_scratch, float* gmm, int gmm_stride, int component_count)
-{
-    __shared__ volatile float s_gmm[block_size];
-    __shared__ float final_gmm[15];
-
-    const float *gmm_partial = &gmm_scratch[blockIdx.x * gmm_stride * component_count];
-
-    int thread_idx = threadIdx.x;
-
-    float norm_factor = 1.0f;
-
-    for (int i=0; i<10; ++i)
-    {
-        float thread_gmm = 0.0f;
-
-        for (int j=thread_idx; j < gmm_stride; j+= 32)
-        {
-            thread_gmm += gmm_partial[j * component_count + i];
-        }
-
-        s_gmm[thread_idx] = thread_gmm; __syncthreads();
-
-        if (thread_idx < 256) { s_gmm[thread_idx] += s_gmm[thread_idx + 256]; } __syncthreads();
-        if (thread_idx < 128) { s_gmm[thread_idx] += s_gmm[thread_idx + 128]; } __syncthreads(); 
-        if (thread_idx <  64) { s_gmm[thread_idx] += s_gmm[thread_idx +  64]; } __syncthreads(); 
-
-        if (thread_idx <  32) 
-        { 
-            s_gmm[thread_idx] += s_gmm[thread_idx + 32];
-            s_gmm[thread_idx] += s_gmm[thread_idx + 16];
-            s_gmm[thread_idx] += s_gmm[thread_idx +  8];
-            s_gmm[thread_idx] += s_gmm[thread_idx +  4];
-            s_gmm[thread_idx] += s_gmm[thread_idx +  2];
-            s_gmm[thread_idx] += s_gmm[thread_idx +  1];
-        }
-
-        __syncthreads();
-
-        // Final Reduction
-        if (thread_idx == 0)
-        {
-            final_gmm[i] = norm_factor * s_gmm[0] - get_constant(final_gmm, i);
-
-            if (i == 0)
-            {
-                if (s_gmm[0] > 0)
-                {
-                    norm_factor = 1.0f / s_gmm[0];
-                }
-            }
-        }
-    }
-
-    if (threadIdx.y == 0)
-    {
-        // Compute det(Sigma) using final_gmm [10-14] as scratch mem
-
-        if (threadIdx.x < 5)
-        {
-
-            int idx0 = (det_indices[0] & (15 << (threadIdx.x * 4))) >> (threadIdx.x * 4);
-            int idx1 = (det_indices[1] & (15 << (threadIdx.x * 4))) >> (threadIdx.x * 4);
-            int idx2 = (det_indices[2] & (15 << (threadIdx.x * 4))) >> (threadIdx.x * 4);
-
-            final_gmm[10 + threadIdx.x] = final_gmm[idx0] * final_gmm[idx1] * final_gmm[idx2];
-
-            float det = final_gmm[10] + 2.0f * final_gmm[11] - final_gmm[12] - final_gmm[13] - final_gmm[14];
-            final_gmm[10] = det;
-        }
-
-        // Compute inv(Sigma)
-        if (invertSigma && threadIdx.x < 6)
-        {
-            int idx0 = (inv_indices[0] & (15 << (threadIdx.x * 4))) >> (threadIdx.x * 4);
-            int idx1 = (inv_indices[1] & (15 << (threadIdx.x * 4))) >> (threadIdx.x * 4);
-            int idx2 = (inv_indices[2] & (15 << (threadIdx.x * 4))) >> (threadIdx.x * 4);
-            int idx3 = (inv_indices[3] & (15 << (threadIdx.x * 4))) >> (threadIdx.x * 4);
-
-            float temp = final_gmm[idx0] * final_gmm[idx1] - final_gmm[idx2] * final_gmm[idx3];
-
-            if (final_gmm[10] > 0.0f)
-            {
-                final_gmm[4+threadIdx.x] = temp / final_gmm[10];
-            }
-            else
-            {
-                final_gmm[4+threadIdx.x] = 0.0f;
-            }
-        }
-
-        if (threadIdx.x < 11)
-        {
-            gmm[blockIdx.x * component_count + threadIdx.x] = final_gmm[threadIdx.x];
-        }
-    }
-}
-
 
 // Tile Size: 32x32, Block Size 32xwarp_N
 template<int warp_N>
@@ -867,10 +765,12 @@ void GMMInitialize(const float *image, int *alpha, float *gmm, float *scratch_me
     {
         for (int i = 0; i < k; ++i)
         {
-            CovarianceReductionKernel<512><<<TILE(element_count, 512), 512>>>(i, image, alpha, block_gmm_scratch, element_count, channel_count, component_count, mixture_count);
+            //CovarianceReductionKernel<512><<<TILE(element_count, 512), 512>>>(i, image, alpha, block_gmm_scratch, element_count, channel_count, component_count, mixture_count);
+            GMMReductionKernel<4><<<grid, block>>>(i, image, alpha, block_gmm_scratch, element_count, channel_count, component_count, mixture_count);
         }
 
-        CovarianceFinalizationKernel<512, false><<<k, 512>>>(block_gmm_scratch, gmm, TILE(element_count, 512), component_count);
+        //CovarianceFinalizationKernel<512, false><<<k, 512>>>(block_gmm_scratch, gmm, TILE(element_count, 512), component_count);
+        GMMFinalizeKernel<4, true><<<k, block>>>(block_gmm_scratch, gmm, grid.x, component_count);
 
         GMMFindSplit<<<1, dim3(BLOCK_SIZE, mixture_count)>>>(gmm_split_scratch, k / mixture_count, gmm, component_count, mixture_count);
         GMMDoSplit<<<TILE(element_count, BLOCK_SIZE * DO_SPLIT_DEGENERACY), BLOCK_SIZE>>>(gmm_split_scratch, (k / mixture_count) << 4, gmm, component_count, image, alpha, element_count);
