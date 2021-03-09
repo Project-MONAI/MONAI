@@ -5,7 +5,8 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets.globalnet import AffineHead, GlobalNet
+from monai.networks.nets import GlobalNet
+from monai.networks.nets.regunet import AffineHead
 from tests.utils import test_script_save
 
 TEST_CASES_AFFINE_TRANSFORM = [
