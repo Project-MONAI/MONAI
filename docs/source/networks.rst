@@ -119,6 +119,21 @@ Blocks
 .. autoclass:: Subpixelupsample
 .. autoclass:: SubpixelUpSample
 
+`Registration Residual Conv Block`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: RegistrationResidualConvBlock
+    :members:
+
+`Registration Down Sample Block`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: RegistrationDownSampleBlock
+    :members:
+
+`Registration Extraction Block`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: RegistrationExtractionBlock
+    :members:
+
 `LocalNet DownSample Block`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: LocalNetDownSampleBlock
@@ -328,6 +343,11 @@ Nets
 `VNet`
 ~~~~~~
 .. autoclass:: VNet
+  :members:
+
+`RegUNet`
+~~~~~~~~~~
+.. autoclass:: RegUNet
   :members:
 
 `LocalNet`
