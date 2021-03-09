@@ -11,6 +11,7 @@
 
 import unittest
 
+import numpy as np
 import torch
 from parameterized import parameterized
 
@@ -79,6 +80,7 @@ class TestGradientClassActivationMap(unittest.TestCase):
         cam = GradCAM(nn_module=model, target_layers=input_data["target_layers"])
         image = torch.rand(input_data["shape"], device=device)
         result = cam(x=image, layer_idx=-1)
+        np.testing.assert_array_equal(cam.nn_module.class_idx, model(image).max(1)[-1])
         fea_shape = cam.feature_map_size(input_data["shape"], device=device)
         self.assertTupleEqual(fea_shape, input_data["feature_shape"])
         self.assertTupleEqual(result.shape, expected_shape)
