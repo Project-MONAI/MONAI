@@ -27,7 +27,7 @@ class InvertibleTransform(Transform):
     and after be returned to their original size before saving to file for comparison in
     an external viewer.
 
-    When the `__call__` method is called, the transformation information for each key is
+    When the ``__call__`` method is called, the transformation information for each key is
     stored. If the transforms were applied to keys "image" and "label", there will be two
     extra keys in the dictionary: "image_transforms" and "label_transforms". Each list
     contains a list of the transforms applied to that key. When the ``inverse`` method is
@@ -41,24 +41,26 @@ class InvertibleTransform(Transform):
     the list of applied transforms grows, and then during the inverse it shrinks back
     down to an empty list.
 
-    The information in data[key_transform] will be compatible with the default collate
+    The information in ``data[key_transform]`` will be compatible with the default collate
     since it only stores strings, numbers and arrays.
 
-    We currently check that the id() of the transform is the same in the forward and
+    We currently check that the ``id()`` of the transform is the same in the forward and
     inverse directions. This is a useful check to ensure that the inverses are being
-    processed in the correct order. However, this may cause issues if the id() of the
+    processed in the correct order. However, this may cause issues if the ``id()`` of the
     object changes (such as multiprocessing on Windows). If you feel this issue affects
     you, please raise a GitHub issue.
 
     Note to developers: When converting a transform to an invertible transform, you need to:
-        1. Inherit from this class.
-        2. In `__call__`, add a call to `push_transform`.
-        3. Any extra information that might be needed for the inverse can be included with the
-            dictionary `extra_info`. This dictionary should have the same keys regardless of
-            whether `do_transform` was True or False and can only contain objects that are
-            accepted in pytorch's batch (e.g., `None` is not allowed).
-        4. Implement an `inverse` method. Make sure that after performing the inverse,
-            `remove_most_recent_transform` is called.
+
+        #. Inherit from this class.
+        #. In ``__call__``, add a call to ``push_transform``.
+        #. Any extra information that might be needed for the inverse can be included with the
+           dictionary ``extra_info``. This dictionary should have the same keys regardless of
+           whether ``do_transform`` was `True` or `False` and can only contain objects that are
+           accepted in pytorch data loader's collate function (e.g., `None` is not allowed).
+        #. Implement an ``inverse`` method. Make sure that after performing the inverse,
+           ``pop_transform`` is called.
+
     """
 
     class Keys(Enum):
@@ -96,7 +98,7 @@ class InvertibleTransform(Transform):
         data[key_transform].append(info)
 
     def check_transforms_match(self, transform: dict) -> None:
-        # Check transorms are of same type.
+        """Check transforms are of same instance."""
         if transform[self.Keys.id.value] != id(self):
             raise RuntimeError("Should inverse most recently applied invertible transform first")
 
