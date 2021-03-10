@@ -88,16 +88,6 @@ class TestGradientClassActivationMap(unittest.TestCase):
         self.assertTupleEqual(fea_shape, input_data["feature_shape"])
         self.assertTupleEqual(result.shape, expected_shape)
 
-    @parameterized.expand([TEST_CASE_0])
-    def test_consistency(self, input_data, _):
-        device = "cuda:0" if torch.cuda.is_available() else "cpu"
-        model = self.get_model(input_data["model"]).to(device)
-        model.eval()
-        cam_persist = GradCAM(nn_module=model, target_layers=input_data["target_layers"])
-        for _ in range(3):
-            cam_fresh = GradCAM(nn_module=model, target_layers=input_data["target_layers"])
-            image = torch.rand(input_data["shape"], device=device)
-            np.testing.assert_array_almost_equal(cam_persist(image), cam_fresh(image))
 
 if __name__ == "__main__":
     unittest.main()

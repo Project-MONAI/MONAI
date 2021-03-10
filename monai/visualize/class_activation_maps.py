@@ -17,7 +17,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from monai.networks.utils import eval_mode, train_mode
 from monai.transforms import ScaleIntensity
 from monai.utils import ensure_tuple
 from monai.visualize.visualizer import default_upsampler
