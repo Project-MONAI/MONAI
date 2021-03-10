@@ -17,7 +17,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from monai.networks.utils import eval_mode, train_mode
 from monai.transforms import ScaleIntensity
 from monai.utils import ensure_tuple
 from monai.visualize.visualizer import default_upsampler
@@ -110,26 +109,24 @@ class ModelWithHooks:
                     return mod
         raise NotImplementedError(f"Could not find {layer_id}.")
 
-    def class_score(self, logits, class_idx=None):
-        if class_idx is not None:
-            return logits[:, class_idx].squeeze(), class_idx
-        class_idx = logits.max(1)[-1]
-        return logits[:, class_idx].squeeze(), class_idx
+    def class_score(self, logits, class_idx):
+        return logits[:, class_idx].squeeze()
 
     def __call__(self, x, class_idx=None, retain_graph=False):
-        # Use train_mode if grad is required, else eval_mode
-        mode = train_mode if self.register_backward else eval_mode
-        with mode(self.model):
-            logits = self.model(x)
-            acti, grad = None, None
-            if self.register_forward:
-                acti = tuple(self.activations[layer] for layer in self.target_layers)
-            if self.register_backward:
-                score, class_idx = self.class_score(logits, class_idx)
-                self.model.zero_grad()
-                self.score, self.class_idx = score, class_idx
-                score.sum().backward(retain_graph=retain_graph)
-                grad = tuple(self.gradients[layer] for layer in self.target_layers)
+        train = self.model.training
+        self.model.eval()
+        logits = self.model(x)
+        self.class_idx = logits.max(1)[-1] if class_idx is None else class_idx
+        acti, grad = None, None
+        if self.register_forward:
+            acti = tuple(self.activations[layer] for layer in self.target_layers)
+        if self.register_backward:
+            self.score = self.class_score(logits, self.class_idx)
+            self.model.zero_grad()
+            self.score.sum().backward(retain_graph=retain_graph)
+            grad = tuple(self.gradients[layer] for layer in self.target_layers)
+        if train:
+            self.model.train()
         return logits, acti, grad
 
     def get_wrapped_net(self):
