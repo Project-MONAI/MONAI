@@ -214,3 +214,14 @@ class Method(Enum):
 
     SYMMETRIC = "symmetric"
     END = "end"
+
+
+class InverseKeys(Enum):
+    """Extra meta data keys used for inverse transforms."""
+
+    CLASS_NAME = "class"
+    ID = "id"
+    ORIG_SIZE = "orig_size"
+    EXTRA_INFO = "extra_info"
+    DO_TRANSFORM = "do_transforms"
+    KEY_SUFFIX = "_transforms"

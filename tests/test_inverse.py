@@ -31,6 +31,7 @@ from monai.transforms import (
     allow_missing_keys_mode,
 )
 from monai.utils import first, optional_import, set_determinism
+from monai.utils.enums import InverseKeys
 from tests.utils import make_nifti_image, make_rand_affine
 
 if TYPE_CHECKING:
@@ -189,7 +190,7 @@ class TestInverse(unittest.TestCase):
         data = first(loader)
         labels = data["label"].to(device)
         segs = model(labels).detach().cpu()
-        label_transform_key = "label" + InvertibleTransform.Keys.key_suffix.value
+        label_transform_key = "label" + InverseKeys.KEY_SUFFIX.value
         segs_dict = {"label": segs, label_transform_key: data[label_transform_key]}
         segs_dict_decollated = decollate_batch(segs_dict)
 

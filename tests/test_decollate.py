@@ -20,9 +20,9 @@ from parameterized import parameterized
 from monai.data import CacheDataset, DataLoader, create_test_image_2d
 from monai.data.utils import decollate_batch
 from monai.transforms import AddChanneld, Compose, LoadImaged, RandFlipd, SpatialPadd, ToTensord
-from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.post.dictionary import Decollated
 from monai.utils import optional_import, set_determinism
+from monai.utils.enums import InverseKeys
 from tests.utils import make_nifti_image
 
 _, has_nib = optional_import("nibabel")
@@ -54,7 +54,7 @@ class TestDeCollate(unittest.TestCase):
                     k1, k2 = k1.value, k2.value
                 self.check_match(k1, k2)
                 # Transform ids won't match for windows with multiprocessing, so don't check values
-                if k1 == InvertibleTransform.Keys.id.value and sys.platform == "win32":
+                if k1 == InverseKeys.ID.value and sys.platform == "win32":
                     continue
                 self.check_match(v1, v2)
             self.check_match(list(in1.values()), list(in2.values()))

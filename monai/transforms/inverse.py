@@ -9,12 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from enum import Enum
 from typing import Dict, Hashable, Optional, Tuple
 
 import numpy as np
 
 from monai.transforms.transform import RandomizableTransform, Transform
+from monai.utils.enums import InverseKeys
 
 __all__ = ["InvertibleTransform"]
 
@@ -63,16 +63,6 @@ class InvertibleTransform(Transform):
 
     """
 
-    class Keys(Enum):
-        """Extra meta data keys used for inverse transforms."""
-
-        class_name = "class"
-        id = "id"
-        orig_size = "orig_size"
-        extra_info = "extra_info"
-        do_transform = "do_transforms"
-        key_suffix = "_transforms"
-
     def push_transform(
         self,
         data: dict,
@@ -81,17 +71,17 @@ class InvertibleTransform(Transform):
         orig_size: Optional[Tuple] = None,
     ) -> None:
         """Append to list of applied transforms for that key."""
-        key_transform = str(key) + self.Keys.key_suffix.value
+        key_transform = str(key) + InverseKeys.KEY_SUFFIX.value
         info = {
-            self.Keys.class_name.value: self.__class__.__name__,
-            self.Keys.id.value: id(self),
-            self.Keys.orig_size.value: orig_size or data[key].shape[1:],
+            InverseKeys.CLASS_NAME.value: self.__class__.__name__,
+            InverseKeys.ID.value: id(self),
+            InverseKeys.ORIG_SIZE.value: orig_size or data[key].shape[1:],
         }
         if extra_info is not None:
-            info[self.Keys.extra_info.value] = extra_info
+            info[InverseKeys.EXTRA_INFO.value] = extra_info
         # If class is randomizable transform, store whether the transform was actually performed (based on `prob`)
         if isinstance(self, RandomizableTransform):
-            info[self.Keys.do_transform.value] = self._do_transform
+            info[InverseKeys.DO_TRANSFORM.value] = self._do_transform
         # If this is the first, create list
         if key_transform not in data:
             data[key_transform] = []
@@ -99,18 +89,18 @@ class InvertibleTransform(Transform):
 
     def check_transforms_match(self, transform: dict) -> None:
         """Check transforms are of same instance."""
-        if transform[self.Keys.id.value] != id(self):
+        if transform[InverseKeys.ID.value] != id(self):
             raise RuntimeError("Should inverse most recently applied invertible transform first")
 
     def get_most_recent_transform(self, data: dict, key: Hashable) -> dict:
         """Get most recent transform."""
-        transform = dict(data[str(key) + self.Keys.key_suffix.value][-1])
+        transform = dict(data[str(key) + InverseKeys.KEY_SUFFIX.value][-1])
         self.check_transforms_match(transform)
         return transform
 
     def pop_transform(self, data: dict, key: Hashable) -> None:
         """Remove most recent transform."""
-        data[str(key) + self.Keys.key_suffix.value].pop()
+        data[str(key) + InverseKeys.KEY_SUFFIX.value].pop()
 
     def inverse(self, data: dict) -> Dict[Hashable, np.ndarray]:
         """

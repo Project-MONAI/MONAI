@@ -41,6 +41,7 @@ from monai.transforms.utils import (
     weighted_patch_samples,
 )
 from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
+from monai.utils.enums import InverseKeys
 
 __all__ = [
     "NumpyPadModeSequence",
@@ -131,7 +132,7 @@ class SpatialPadd(MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            orig_size = transform[self.Keys.orig_size.value]
+            orig_size = transform[InverseKeys.ORIG_SIZE.value]
             if self.padder.method == Method.SYMMETRIC:
                 current_size = d[key].shape[1:]
                 roi_center = [floor(i / 2) if r % 2 == 0 else (i - 1) // 2 for r, i in zip(orig_size, current_size)]
