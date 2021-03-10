@@ -114,21 +114,20 @@ class ModelWithHooks:
         return logits[:, class_idx].squeeze()
 
     def __call__(self, x, class_idx=None, retain_graph=False):
-        with eval_mode(self.model):
-            logits = self.model(x)
-            if class_idx is None:
-                class_idx = logits.max(1)[-1]
-            acti, grad = None, None
-            if self.register_forward:
-                acti = tuple(self.activations[layer] for layer in self.target_layers)
-            if self.register_backward:
-                # here we need train mode to get the gradient
-                with train_mode(self.model):
-                    self.score = self.class_score(self.model(x), class_idx)
-                    self.model.zero_grad()
-                    self.score.sum().backward(retain_graph=retain_graph)
-                grad = tuple(self.gradients[layer] for layer in self.target_layers)
-        self.class_idx = class_idx
+        train = self.model.training
+        self.model.eval()
+        logits = self.model(x)
+        self.class_idx = logits.max(1)[-1] if class_idx is None else class_idx
+        acti, grad = None, None
+        if self.register_forward:
+            acti = tuple(self.activations[layer] for layer in self.target_layers)
+        if self.register_backward:
+            self.score = self.class_score(logits, self.class_idx)
+            self.model.zero_grad()
+            self.score.sum().backward(retain_graph=retain_graph)
+            grad = tuple(self.gradients[layer] for layer in self.target_layers)
+        if train:
+            self.model.train()
         return logits, acti, grad
 
     def get_wrapped_net(self):
