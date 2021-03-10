@@ -23,10 +23,17 @@ from monai.networks.nets import UNet
 from monai.transforms import (
     AddChannel,
     AddChanneld,
+    BorderPadd,
+    CenterSpatialCropd,
     Compose,
+    CropForegroundd,
+    DivisiblePadd,
     InvertibleTransform,
     LoadImaged,
+    RandSpatialCropd,
     ResizeWithPadOrCrop,
+    ResizeWithPadOrCropd,
+    SpatialCropd,
     SpatialPadd,
     allow_missing_keys_mode,
 )
@@ -63,6 +70,100 @@ TESTS.append(
     )
 )
 
+
+TESTS.append(
+    (
+        "SpatialCropd 2d",
+        "2D",
+        3e-2,
+        SpatialCropd(KEYS, [49, 51], [90, 89]),
+    )
+)
+
+TESTS.append(
+    (
+        "SpatialCropd 3d",
+        "3D",
+        4e-2,
+        SpatialCropd(KEYS, [49, 51, 44], [90, 89, 93]),
+    )
+)
+
+TESTS.append(("RandSpatialCropd 2d", "2D", 5e-2, RandSpatialCropd(KEYS, [96, 93], True, False)))
+
+TESTS.append(("RandSpatialCropd 3d", "3D", 2e-2, RandSpatialCropd(KEYS, [96, 93, 92], False, False)))
+
+TESTS.append(
+    (
+        "BorderPadd 2d",
+        "2D",
+        0,
+        BorderPadd(KEYS, [3, 7, 2, 5]),
+    )
+)
+
+TESTS.append(
+    (
+        "BorderPadd 2d",
+        "2D",
+        0,
+        BorderPadd(KEYS, [3, 7]),
+    )
+)
+
+TESTS.append(
+    (
+        "BorderPadd 3d",
+        "3D",
+        0,
+        BorderPadd(KEYS, [4]),
+    )
+)
+
+TESTS.append(
+    (
+        "DivisiblePadd 2d",
+        "2D",
+        0,
+        DivisiblePadd(KEYS, k=4),
+    )
+)
+
+TESTS.append(
+    (
+        "DivisiblePadd 3d",
+        "3D",
+        0,
+        DivisiblePadd(KEYS, k=[4, 8, 11]),
+    )
+)
+
+
+TESTS.append(
+    (
+        "CenterSpatialCropd 2d",
+        "2D",
+        0,
+        CenterSpatialCropd(KEYS, roi_size=95),
+    )
+)
+
+TESTS.append(
+    (
+        "CenterSpatialCropd 3d",
+        "3D",
+        0,
+        CenterSpatialCropd(KEYS, roi_size=[95, 97, 98]),
+    )
+)
+
+TESTS.append(("CropForegroundd 2d", "2D", 0, CropForegroundd(KEYS, source_key="label", margin=2)))
+
+TESTS.append(("CropForegroundd 3d", "3D", 0, CropForegroundd(KEYS, source_key="label")))
+
+
+TESTS.append(("ResizeWithPadOrCropd 3d", "3D", 3e-2, ResizeWithPadOrCropd(KEYS, [201, 150, 78])))
+
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
 
 TESTS = TESTS + TESTS_COMPOSE_X2  # type: ignore
@@ -94,11 +195,8 @@ class TestInverse(unittest.TestCase):
                 ax.axis("off")
                 fig.colorbar(im_show, ax=ax)
             plt.show()
-
     This can then be added to the exception:
-
     .. code-block:: python
-
         except AssertionError:
             print(
                 f"Failed: {name}. Mean diff = {mean_diff} (expected <= {acceptable_diff}), unmodified diff: {unmodded_diff}"
@@ -183,7 +281,7 @@ class TestInverse(unittest.TestCase):
         batch_size = 10
         # num workers = 0 for mac
         num_workers = 2 if sys.platform != "darwin" else 0
-        transforms = Compose([AddChanneld(KEYS), SpatialPadd(KEYS, (150, 153))])
+        transforms = Compose([AddChanneld(KEYS), SpatialPadd(KEYS, (150, 153)), CenterSpatialCropd(KEYS, (110, 99))])
         num_invertible_transforms = sum(1 for i in transforms.transforms if isinstance(i, InvertibleTransform))
 
         dataset = CacheDataset(test_data, transform=transforms, progress=False)
@@ -203,6 +301,7 @@ class TestInverse(unittest.TestCase):
         segs = model(labels).detach().cpu()
         label_transform_key = "label" + InverseKeys.KEY_SUFFIX.value
         segs_dict = {"label": segs, label_transform_key: data[label_transform_key]}
+
         segs_dict_decollated = decollate_batch(segs_dict)
 
         # inverse of individual segmentation
