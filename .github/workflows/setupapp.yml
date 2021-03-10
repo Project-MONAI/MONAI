@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - master
-      - update-runtests-sh
 
 jobs:
   # caching of these jobs:

@@ -514,7 +514,7 @@ if [ $doUnitTests = true ]
 then
     echo "${separator}${blue}unittests${noColor}"
     torch_validate
-    ${cmdPrefix}${cmd} ./tests/runner.py -p "test_[\!integration]*py"
+    ${cmdPrefix}${cmd} ./tests/runner.py -p "test_[!integration]*py"
 fi
 
 # network training/inference/eval integration tests
