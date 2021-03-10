@@ -35,12 +35,9 @@ from monai.utils.enums import InverseKeys
 from tests.utils import make_nifti_image, make_rand_affine
 
 if TYPE_CHECKING:
-    import matplotlib.pyplot as plt
 
-    has_matplotlib = True
     has_nib = True
 else:
-    plt, has_matplotlib = optional_import("matplotlib.pyplot")
     _, has_nib = optional_import("nibabel")
 
 KEYS = ["image", "label"]
@@ -71,26 +68,45 @@ TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for
 TESTS = TESTS + TESTS_COMPOSE_X2  # type: ignore
 
 
-def plot_im(orig, fwd_bck, fwd):
-    diff_orig_fwd_bck = orig - fwd_bck
-    ims_to_show = [orig, fwd, fwd_bck, diff_orig_fwd_bck]
-    titles = ["x", "fx", "f⁻¹fx", "x - f⁻¹fx"]
-    fig, axes = plt.subplots(1, 4, gridspec_kw={"width_ratios": [i.shape[1] for i in ims_to_show]})
-    vmin = min(np.array(i).min() for i in [orig, fwd_bck, fwd])
-    vmax = max(np.array(i).max() for i in [orig, fwd_bck, fwd])
-    for im, title, ax in zip(ims_to_show, titles, axes):
-        _vmin, _vmax = (vmin, vmax) if id(im) != id(diff_orig_fwd_bck) else (None, None)
-        im = np.squeeze(np.array(im))
-        while im.ndim > 2:
-            im = im[..., im.shape[-1] // 2]
-        im_show = ax.imshow(np.squeeze(im), vmin=_vmin, vmax=_vmax)
-        ax.set_title(title, fontsize=25)
-        ax.axis("off")
-        fig.colorbar(im_show, ax=ax)
-    plt.show()
-
-
 class TestInverse(unittest.TestCase):
+    """Test inverse methods.
+
+    If tests are failing, the following function might be useful for displaying
+    `x`, `fx`, `f⁻¹fx` and `x - f⁻¹fx`.
+
+    .. code-block:: python
+
+        def plot_im(orig, fwd_bck, fwd):
+            import matplotlib.pyplot as plt
+            diff_orig_fwd_bck = orig - fwd_bck
+            ims_to_show = [orig, fwd, fwd_bck, diff_orig_fwd_bck]
+            titles = ["x", "fx", "f⁻¹fx", "x - f⁻¹fx"]
+            fig, axes = plt.subplots(1, 4, gridspec_kw={"width_ratios": [i.shape[1] for i in ims_to_show]})
+            vmin = min(np.array(i).min() for i in [orig, fwd_bck, fwd])
+            vmax = max(np.array(i).max() for i in [orig, fwd_bck, fwd])
+            for im, title, ax in zip(ims_to_show, titles, axes):
+                _vmin, _vmax = (vmin, vmax) if id(im) != id(diff_orig_fwd_bck) else (None, None)
+                im = np.squeeze(np.array(im))
+                while im.ndim > 2:
+                    im = im[..., im.shape[-1] // 2]
+                im_show = ax.imshow(np.squeeze(im), vmin=_vmin, vmax=_vmax)
+                ax.set_title(title, fontsize=25)
+                ax.axis("off")
+                fig.colorbar(im_show, ax=ax)
+            plt.show()
+
+    This can then be added to the exception:
+
+    .. code-block:: python
+
+        except AssertionError:
+            print(
+                f"Failed: {name}. Mean diff = {mean_diff} (expected <= {acceptable_diff}), unmodified diff: {unmodded_diff}"
+            )
+            if orig[0].ndim > 1:
+                plot_im(orig, fwd_bck, unmodified)
+    """
+
     def setUp(self):
         if not has_nib:
             self.skipTest("nibabel required for test_inverse")
@@ -131,11 +147,6 @@ class TestInverse(unittest.TestCase):
                     print(
                         f"Failed: {name}. Mean diff = {mean_diff} (expected <= {acceptable_diff}), unmodified diff: {unmodded_diff}"
                     )
-                    if has_matplotlib and orig[0].ndim > 1:
-                        plot_im(orig, fwd_bck, unmodified)
-                    elif orig[0].ndim == 1:
-                        print(orig)
-                        print(fwd_bck)
                     raise
 
     @parameterized.expand(TESTS)
