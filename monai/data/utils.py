@@ -174,7 +174,7 @@ def iter_patch(
     copy_back: bool = True,
     mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
     **pad_opts: Dict,
-) -> Generator[np.ndarray, None, None]:
+):
     """
     Yield successive patches from `arr` of size `patch_size`. The iteration can start from position `start_pos` in `arr`
     but drawing from a padded array extended by the `patch_size` in each dimension (so these coordinates can be negative
@@ -194,6 +194,15 @@ def iter_patch(
     Yields:
         Patches of array data from `arr` which are views into a padded array which can be modified, if `copy_back` is
         True these changes will be reflected in `arr` once the iteration completes.
+
+    Note:
+        coordinate format is:
+
+            [1st_dim_start, 1st_dim_end,
+             2nd_dim_start, 2nd_dim_end,
+             ...,
+             Nth_dim_start, Nth_dim_end]]
+
     """
     # ensure patchSize and startPos are the right length
     patch_size_ = get_valid_patch_size(arr.shape, patch_size)
@@ -210,7 +219,9 @@ def iter_patch(
     iter_size = tuple(s + p for s, p in zip(arr.shape, patch_size_))
 
     for slices in iter_patch_slices(iter_size, patch_size_, start_pos_padded):
-        yield arrpad[slices]
+        # compensate original image padding
+        coords_no_pad = tuple((coord.start - p, coord.stop - p) for coord, p in zip(slices, patch_size_))
+        yield arrpad[slices], np.asarray(coords_no_pad)  # data and coords (in numpy; works with torch loader)
 
     # copy back data from the padded image if required
     if copy_back:
@@ -411,6 +422,8 @@ def set_rnd(obj, seed: int) -> int:
         obj.set_random_state(seed=seed % MAX_SEED)
         return seed + 1  # a different seed for the next component
     for key in obj.__dict__:
+        if key.startswith("__"):  # skip the private methods
+            continue
         seed = set_rnd(obj.__dict__[key], seed=seed)
     return seed
 

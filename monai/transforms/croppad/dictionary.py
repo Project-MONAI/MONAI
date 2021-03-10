@@ -41,6 +41,7 @@ from monai.transforms.utils import (
     weighted_patch_samples,
 )
 from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
+from monai.utils.enums import InverseKeys
 
 __all__ = [
     "NumpyPadModeSequence",

@@ -9,21 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
-from enum import Enum
 from typing import Dict, Hashable, Optional, Tuple
 
 import numpy as np
-import torch
 
 from monai.transforms.transform import RandomizableTransform, Transform
-from monai.utils import optional_import
+from monai.utils.enums import InverseKeys
 
-sitk, has_sitk = optional_import("SimpleITK")
-vtk, has_vtk = optional_import("vtk")
-vtk_numpy_support, _ = optional_import("vtk.util.numpy_support")
-
-__all__ = ["InvertibleTransform", "NonRigidTransform"]
+__all__ = ["InvertibleTransform"]
 
 
 class InvertibleTransform(Transform):
@@ -34,7 +27,7 @@ class InvertibleTransform(Transform):
     and after be returned to their original size before saving to file for comparison in
     an external viewer.
 
-    When the `__call__` method is called, the transformation information for each key is
+    When the ``__call__`` method is called, the transformation information for each key is
     stored. If the transforms were applied to keys "image" and "label", there will be two
     extra keys in the dictionary: "image_transforms" and "label_transforms". Each list
     contains a list of the transforms applied to that key. When the ``inverse`` method is
@@ -48,35 +41,27 @@ class InvertibleTransform(Transform):
     the list of applied transforms grows, and then during the inverse it shrinks back
     down to an empty list.
 
-    The information in data[key_transform] will be compatible with the default collate
+    The information in ``data[key_transform]`` will be compatible with the default collate
     since it only stores strings, numbers and arrays.
 
-    We currently check that the id() of the transform is the same in the forward and
+    We currently check that the ``id()`` of the transform is the same in the forward and
     inverse directions. This is a useful check to ensure that the inverses are being
-    processed in the correct order. However, this may cause issues if the id() of the
+    processed in the correct order. However, this may cause issues if the ``id()`` of the
     object changes (such as multiprocessing on Windows). If you feel this issue affects
     you, please raise a GitHub issue.
 
     Note to developers: When converting a transform to an invertible transform, you need to:
-        1. Inherit from this class.
-        2. In `__call__`, add a call to `push_transform`.
-        3. Any extra information that might be needed for the inverse can be included with the
-            dictionary `extra_info`. This dictionary should have the same keys regardless of
-            whether `do_transform` was True or False and can only contain objects that are
-            accepted in pytorch's batch (e.g., `None` is not allowed).
-        4. Implement an `inverse` method. Make sure that after performing the inverse,
-            `remove_most_recent_transform` is called.
+
+        #. Inherit from this class.
+        #. In ``__call__``, add a call to ``push_transform``.
+        #. Any extra information that might be needed for the inverse can be included with the
+           dictionary ``extra_info``. This dictionary should have the same keys regardless of
+           whether ``do_transform`` was `True` or `False` and can only contain objects that are
+           accepted in pytorch data loader's collate function (e.g., `None` is not allowed).
+        #. Implement an ``inverse`` method. Make sure that after performing the inverse,
+           ``pop_transform`` is called.
+
     """
-
-    class Keys(Enum):
-        """Extra meta data keys used for inverse transforms."""
-
-        class_name = "class"
-        id = "id"
-        orig_size = "orig_size"
-        extra_info = "extra_info"
-        do_transform = "do_transforms"
-        key_suffix = "_transform"
 
     def push_transform(
         self,
@@ -86,36 +71,36 @@ class InvertibleTransform(Transform):
         orig_size: Optional[Tuple] = None,
     ) -> None:
         """Append to list of applied transforms for that key."""
-        key_transform = str(key) + str(self.Keys.key_suffix)
+        key_transform = str(key) + InverseKeys.KEY_SUFFIX.value
         info = {
-            self.Keys.class_name: self.__class__.__name__,
-            self.Keys.id: id(self),
-            self.Keys.orig_size: orig_size or data[key].shape[1:],
+            InverseKeys.CLASS_NAME.value: self.__class__.__name__,
+            InverseKeys.ID.value: id(self),
+            InverseKeys.ORIG_SIZE.value: orig_size or data[key].shape[1:],
         }
         if extra_info is not None:
-            info[self.Keys.extra_info] = extra_info
+            info[InverseKeys.EXTRA_INFO.value] = extra_info
         # If class is randomizable transform, store whether the transform was actually performed (based on `prob`)
         if isinstance(self, RandomizableTransform):
-            info[self.Keys.do_transform] = self._do_transform
+            info[InverseKeys.DO_TRANSFORM.value] = self._do_transform
         # If this is the first, create list
         if key_transform not in data:
             data[key_transform] = []
         data[key_transform].append(info)
 
     def check_transforms_match(self, transform: dict) -> None:
-        # Check transorms are of same type.
-        if transform[self.Keys.id] != id(self):
+        """Check transforms are of same instance."""
+        if transform[InverseKeys.ID.value] != id(self):
             raise RuntimeError("Should inverse most recently applied invertible transform first")
 
     def get_most_recent_transform(self, data: dict, key: Hashable) -> dict:
         """Get most recent transform."""
-        transform = dict(data[str(key) + str(self.Keys.key_suffix)][-1])
+        transform = dict(data[str(key) + InverseKeys.KEY_SUFFIX.value][-1])
         self.check_transforms_match(transform)
         return transform
 
     def pop_transform(self, data: dict, key: Hashable) -> None:
         """Remove most recent transform."""
-        data[str(key) + str(self.Keys.key_suffix)].pop()
+        data[str(key) + InverseKeys.KEY_SUFFIX.value].pop()
 
     def inverse(self, data: dict) -> Dict[Hashable, np.ndarray]:
         """
