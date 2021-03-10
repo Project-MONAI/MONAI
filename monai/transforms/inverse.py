@@ -9,12 +9,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from typing import Dict, Hashable, Optional, Tuple
 
 import numpy as np
+import torch
 
 from monai.transforms.transform import RandomizableTransform, Transform
 from monai.utils.enums import InverseKeys
+from monai.utils.module import optional_import
+
+sitk, has_sitk = optional_import("SimpleITK")
+vtk, has_vtk = optional_import("vtk")
+vtk_numpy_support, _ = optional_import("vtk.util.numpy_support")
 
 __all__ = ["InvertibleTransform"]
 

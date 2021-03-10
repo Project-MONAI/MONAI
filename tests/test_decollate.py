@@ -19,7 +19,6 @@ import torch
 from monai.data import CacheDataset, DataLoader, create_test_image_2d
 from monai.data.utils import decollate_batch
 from monai.transforms import AddChanneld, Compose, LoadImaged, RandFlipd, SpatialPadd, ToTensord
-from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.post.dictionary import Decollated
 from monai.utils import optional_import, set_determinism
 from monai.utils.enums import InverseKeys
