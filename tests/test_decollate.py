@@ -54,7 +54,7 @@ class TestDeCollate(unittest.TestCase):
                     k1, k2 = k1.value, k2.value
                 self.check_match(k1, k2)
                 # Transform ids won't match for windows with multiprocessing, so don't check values
-                if k1 == InverseKeys.ID.value and sys.platform == "win32":
+                if k1 == InverseKeys.ID.value and sys.platform in ["darwin", "win32"]:
                     continue
                 self.check_match(v1, v2)
             self.check_match(list(in1.values()), list(in2.values()))
