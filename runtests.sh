@@ -60,11 +60,14 @@ function print_usage {
     echo "MONAI unit testing utilities."
     echo ""
     echo "Examples:"
-    echo "./runtests.sh --codeformat --coverage     # run full tests (${green}recommended before making pull requests${noColor})."
-    echo "./runtests.sh --codeformat --nounittests  # run coding style and static type checking."
-    echo "./runtests.sh --quick                     # run minimal unit tests, for quick verification during code developments."
-    echo "./runtests.sh --autofix --nounittests     # run automatic code formatting using \"isort\" and \"black\"."
-    echo "./runtests.sh --clean                     # clean up temporary files and run \"${PY_EXE} setup.py develop --uninstall\"."
+    echo "./runtests.sh --f --coverage            # run style checks and unit tests (${green}recommended for pull requests${noColor})."
+    echo "./runtests.sh --f --net                 # run full tests, including style checks, unit tests and integration tests."
+    echo "./runtests.sh --coverage --net          # run unit tests, integration tests and report code coverage."
+    echo "./runtests.sh --nounittests --net       # skip unit tests and run integration tests."
+    echo "./runtests.sh --f --nounittests         # run coding style and static type checking."
+    echo "./runtests.sh --quick                   # run minimal unit tests, for quick verification during code developments."
+    echo "./runtests.sh --autofix --nounittests   # run automatic code formatting using \"isort\" and \"black\"."
+    echo "./runtests.sh --clean                   # clean up temporary files and run \"${PY_EXE} setup.py develop --uninstall\"."
     echo ""
     echo "Code style check options:"
     echo "    --black           : perform \"black\" code format checks"
@@ -80,7 +83,7 @@ function print_usage {
     echo ""
     echo "MONAI unit testing options:"
     echo "    --nounittests     : skip doing unit testing (i.e. only format lint testers)"
-    echo "    --coverage        : peforms coverage analysis of code for tests run"
+    echo "    --coverage        : performs coverage analysis of code for tests run"
     echo "    -q, --quick       : disable long running tests"
     echo "    --net             : perform training/inference/eval integration testing"
     echo "    --list_tests      : list tests and exit"
@@ -511,7 +514,7 @@ if [ $doUnitTests = true ]
 then
     echo "${separator}${blue}unittests${noColor}"
     torch_validate
-    ${cmdPrefix}${cmd} ./tests/runner.py
+    ${cmdPrefix}${cmd} ./tests/runner.py -p "test_[\!integration]*py"
 fi
 
 # network training/inference/eval integration tests
