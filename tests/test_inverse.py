@@ -195,8 +195,11 @@ class TestInverse(unittest.TestCase):
                 ax.axis("off")
                 fig.colorbar(im_show, ax=ax)
             plt.show()
+
     This can then be added to the exception:
+
     .. code-block:: python
+
         except AssertionError:
             print(
                 f"Failed: {name}. Mean diff = {mean_diff} (expected <= {acceptable_diff}), unmodified diff: {unmodded_diff}"
