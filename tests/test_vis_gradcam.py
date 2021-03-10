@@ -64,7 +64,6 @@ TEST_CASE_3 = [
 class TestGradientClassActivationMap(unittest.TestCase):
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_shape(self, input_data, expected_shape):
-        device = "cuda:0" if torch.cuda.is_available() else "cpu"
         if input_data["model"] == "densenet2d":
             model = densenet121(spatial_dims=2, in_channels=1, out_channels=3)
         if input_data["model"] == "densenet3d":
@@ -75,7 +74,8 @@ class TestGradientClassActivationMap(unittest.TestCase):
             model = se_resnet50(spatial_dims=2, in_channels=3, num_classes=4)
         if input_data["model"] == "senet3d":
             model = se_resnet50(spatial_dims=3, in_channels=3, num_classes=4)
-        model = model.to(device)
+        device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        model.to(device)
         model.eval()
         cam = GradCAM(nn_module=model, target_layers=input_data["target_layers"])
         image = torch.rand(input_data["shape"], device=device)
