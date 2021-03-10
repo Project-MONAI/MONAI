@@ -36,9 +36,7 @@ doQuickTests=false
 doNetTests=false
 doDryRun=false
 doZooTests=false
-
-doUnitTests=true
-
+doUnitTests=false
 doBlackFormat=false
 doBlackFix=false
 doIsortFormat=false
@@ -55,19 +53,17 @@ PY_EXE=${MONAI_PY_EXE:-$(which python)}
 
 function print_usage {
     echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--flake8] [--clangformat] [--pytype] [--mypy]"
-    echo "            [--nounittests] [--coverage] [--quick] [--net] [--dryrun] [-j number] [--clean] [--help] [--version]"
+    echo "            [--unittests] [--coverage] [--quick] [--net] [--dryrun] [-j number] [--clean] [--help] [--version]"
     echo ""
     echo "MONAI unit testing utilities."
     echo ""
     echo "Examples:"
-    echo "./runtests.sh --f --coverage            # run style checks and unit tests (${green}recommended for pull requests${noColor})."
-    echo "./runtests.sh --f --net                 # run full tests, including style checks, unit tests and integration tests."
-    echo "./runtests.sh --coverage --net          # run unit tests, integration tests and report code coverage."
-    echo "./runtests.sh --nounittests --net       # skip unit tests and run integration tests."
-    echo "./runtests.sh --f --nounittests         # run coding style and static type checking."
-    echo "./runtests.sh --quick                   # run minimal unit tests, for quick verification during code developments."
-    echo "./runtests.sh --autofix --nounittests   # run automatic code formatting using \"isort\" and \"black\"."
-    echo "./runtests.sh --clean                   # clean up temporary files and run \"${PY_EXE} setup.py develop --uninstall\"."
+    echo "./runtests.sh -f -u --net --coverage  # run style checks, full tests, print code coverage (${green}recommended for pull requests${noColor})."
+    echo "./runtests.sh -f -u                   # run style checks and unit tests."
+    echo "./runtests.sh -f                      # run coding style and static type checking."
+    echo "./runtests.sh --quick --unittests     # run minimal unit tests, for quick verification during code developments."
+    echo "./runtests.sh --autofix               # run automatic code formatting using \"isort\" and \"black\"."
+    echo "./runtests.sh --clean                 # clean up temporary files and run \"${PY_EXE} setup.py develop --uninstall\"."
     echo ""
     echo "Code style check options:"
     echo "    --black           : perform \"black\" code format checks"
@@ -82,10 +78,10 @@ function print_usage {
     echo "    -j, --jobs        : number of parallel jobs to run \"pytype\" (default $NUM_PARALLEL)"
     echo ""
     echo "MONAI unit testing options:"
-    echo "    --nounittests     : skip doing unit testing (i.e. only format lint testers)"
-    echo "    --coverage        : performs coverage analysis of code for tests run"
-    echo "    -q, --quick       : disable long running tests"
-    echo "    --net             : perform training/inference/eval integration testing"
+    echo "    -u, --unittests   : perform unit testing (i.e. only format lint testers)"
+    echo "    --coverage        : perform coverage analysis of code for tests run"
+    echo "    -q, --quick       : skip long running unit tests and integration tests"
+    echo "    --net             : perform integration testing"
     echo "    --list_tests      : list tests and exit"
     echo ""
     echo "Misc. options:"
@@ -223,8 +219,8 @@ do
         --dryrun)
             doDryRun=true
         ;;
-        --nou*)  # allow --nounittest | --nounittests | --nounittesting  etc.
-            doUnitTests=false
+        -u|--u*)  # allow --unittest | --unittests | --unittesting  etc.
+            doUnitTests=true
         ;;
         -f|--codeformat)
             doBlackFormat=true
@@ -270,6 +266,10 @@ do
         -v|--version)
             print_version
             exit 1
+        ;;
+        --nou*)  # allow --nounittest | --nounittests | --nounittesting  etc.
+            print_error_msg "nounittest option is deprecated, no unit tests is the default setting"
+            print_usage
         ;;
         *)
             print_error_msg "Incorrect commandline provided, invalid key: $key"

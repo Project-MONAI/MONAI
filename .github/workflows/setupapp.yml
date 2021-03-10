@@ -47,7 +47,7 @@ jobs:
         echo $CUDA_VISIBLE_DEVICES
         python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
         python -c 'import torch; print(torch.rand(5,3, device=torch.device("cuda:0")))'
-        BUILD_MONAI=1 ./runtests.sh --coverage  # unit tests with coverage report
+        BUILD_MONAI=1 ./runtests.sh --coverage --unittests  # unit tests with coverage report
         export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
         echo $CUDA_VISIBLE_DEVICES
         BUILD_MONAI=1 ./runtests.sh --coverage --net  # integration tests with coverage report
@@ -92,7 +92,7 @@ jobs:
       run: |
         python -m pip list
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
-        BUILD_MONAI=1 ./runtests.sh --quick
+        BUILD_MONAI=1 ./runtests.sh --quick --unittests
         coverage xml
     - name: Upload coverage
       uses: codecov/codecov-action@v1
