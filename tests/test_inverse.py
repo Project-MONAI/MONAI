@@ -55,7 +55,7 @@ TESTS.append(
     (
         "SpatialPadd (x2) 2d",
         "2D",
-        0.0,
+        0,
         SpatialPadd(KEYS, spatial_size=[111, 113], method="end"),
         SpatialPadd(KEYS, spatial_size=[118, 117]),
     )
@@ -65,7 +65,7 @@ TESTS.append(
     (
         "SpatialPadd 3d",
         "3D",
-        0.0,
+        0,
         SpatialPadd(KEYS, spatial_size=[112, 113, 116]),
     )
 )
@@ -75,7 +75,7 @@ TESTS.append(
     (
         "SpatialCropd 2d",
         "2D",
-        3e-2,
+        0,
         SpatialCropd(KEYS, [49, 51], [90, 89]),
     )
 )
@@ -84,14 +84,14 @@ TESTS.append(
     (
         "SpatialCropd 3d",
         "3D",
-        4e-2,
+        0,
         SpatialCropd(KEYS, [49, 51, 44], [90, 89, 93]),
     )
 )
 
-TESTS.append(("RandSpatialCropd 2d", "2D", 5e-2, RandSpatialCropd(KEYS, [96, 93], True, False)))
+TESTS.append(("RandSpatialCropd 2d", "2D", 0, RandSpatialCropd(KEYS, [96, 93], True, False)))
 
-TESTS.append(("RandSpatialCropd 3d", "3D", 2e-2, RandSpatialCropd(KEYS, [96, 93, 92], False, False)))
+TESTS.append(("RandSpatialCropd 3d", "3D", 0, RandSpatialCropd(KEYS, [96, 93, 92], False, False)))
 
 TESTS.append(
     (
@@ -162,7 +162,7 @@ TESTS.append(("CropForegroundd 2d", "2D", 0, CropForegroundd(KEYS, source_key="l
 TESTS.append(("CropForegroundd 3d", "3D", 0, CropForegroundd(KEYS, source_key="label")))
 
 
-TESTS.append(("ResizeWithPadOrCropd 3d", "3D", 3e-2, ResizeWithPadOrCropd(KEYS, [201, 150, 78])))
+TESTS.append(("ResizeWithPadOrCropd 3d", "3D", 0, ResizeWithPadOrCropd(KEYS, [201, 150, 105])))
 
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
 
