@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
 import unittest
+from enum import Enum
 
 import numpy as np
 import torch
@@ -20,6 +22,7 @@ from monai.data.utils import decollate_batch
 from monai.transforms import AddChanneld, Compose, LoadImaged, RandFlipd, SpatialPadd, ToTensord
 from monai.transforms.post.dictionary import Decollated
 from monai.utils import optional_import, set_determinism
+from monai.utils.enums import InverseKeys
 from tests.utils import make_nifti_image
 
 _, has_nib = optional_import("nibabel")
@@ -46,14 +49,20 @@ class TestDeCollate(unittest.TestCase):
     def check_match(self, in1, in2):
         if isinstance(in1, dict):
             self.assertTrue(isinstance(in2, dict))
-            self.check_match(list(in1.keys()), list(in2.keys()))
-            self.check_match(list(in1.values()), list(in2.values()))
-        elif any(isinstance(in1, i) for i in [list, tuple]):
+            for (k1, v1), (k2, v2) in zip(in1.items(), in2.items()):
+                if isinstance(k1, Enum) and isinstance(k2, Enum):
+                    k1, k2 = k1.value, k2.value
+                self.check_match(k1, k2)
+                # Transform ids won't match for windows with multiprocessing, so don't check values
+                if k1 == InverseKeys.ID.value and sys.platform in ["darwin", "win32"]:
+                    continue
+                self.check_match(v1, v2)
+        elif isinstance(in1, (list, tuple)):
             for l1, l2 in zip(in1, in2):
                 self.check_match(l1, l2)
-        elif any(isinstance(in1, i) for i in [str, int]):
+        elif isinstance(in1, (str, int)):
             self.assertEqual(in1, in2)
-        elif any(isinstance(in1, i) for i in [torch.Tensor, np.ndarray]):
+        elif isinstance(in1, (torch.Tensor, np.ndarray)):
             np.testing.assert_array_equal(in1, in2)
         else:
             raise RuntimeError(f"Not sure how to compare types. type(in1): {type(in1)}, type(in2): {type(in2)}")
