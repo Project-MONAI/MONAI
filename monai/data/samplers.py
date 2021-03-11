@@ -12,6 +12,7 @@
 from typing import Optional, Sequence
 
 import torch
+from torch.utils.data import Dataset
 from torch.utils.data import DistributedSampler as _TorchDistributedSampler
 
 __all__ = ["DistributedSampler", "DistributedWeightedRandomSampler"]
@@ -22,21 +23,34 @@ class DistributedSampler(_TorchDistributedSampler):
     Enhance PyTorch DistributedSampler to support non-evenly divisible sampling.
 
     Args:
+        dataset: Dataset used for sampling.
         even_divisible: if False, different ranks can have different data length.
-        for example, input data: [1, 2, 3, 4, 5], rank 0: [1, 3, 5], rank 1: [2, 4].
-        args: additional arguments for `DistributedSampler` super class.
-        kwargs: additional arguments for `DistributedSampler` super class.
+            for example, input data: [1, 2, 3, 4, 5], rank 0: [1, 3, 5], rank 1: [2, 4].
+        num_replicas: number of processes participating in distributed training.
+            by default, `world_size` is retrieved from the current distributed group.
+        rank: rank of the current process within `num_replicas`. by default,
+            `rank` is retrieved from the current distributed group.
+        shuffle: if `True`, sampler will shuffle the indices, default to True.
+        kwargs: additional arguments for `DistributedSampler` super class, can be `seed` and `drop_last`.
 
     More information about DistributedSampler, please check:
     https://github.com/pytorch/pytorch/blob/master/torch/utils/data/distributed.py
 
     """
 
-    def __init__(self, even_divisible: bool = True, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        dataset: Dataset,
+        even_divisible: bool = True,
+        num_replicas: Optional[int] = None,
+        rank: Optional[int] = None,
+        shuffle: bool = True,
+        **kwargs,
+    ):
+        super().__init__(dataset=dataset, num_replicas=num_replicas, rank=rank, shuffle=shuffle, **kwargs)
 
         if not even_divisible:
-            data_len = len(kwargs["dataset"])
+            data_len = len(dataset)
             extra_size = self.total_size - data_len
             if self.rank + extra_size >= self.num_replicas:
                 self.num_samples -= 1
@@ -50,6 +64,7 @@ class DistributedWeightedRandomSampler(DistributedSampler):
     https://github.com/pytorch/pytorch/blob/master/torch/utils/data/sampler.py#L150
 
     Args:
+        dataset: Dataset used for sampling.
         weights: a sequence of weights, not necessary summing up to one, length should exactly
             match the full dataset.
         num_samples_per_rank: number of samples to draw for every rank, sample from
@@ -61,22 +76,36 @@ class DistributedWeightedRandomSampler(DistributedSampler):
         generator: PyTorch Generator used in sampling.
         even_divisible: if False, different ranks can have different data length.
             for example, input data: [1, 2, 3, 4, 5], rank 0: [1, 3, 5], rank 1: [2, 4].'
-        args: additional arguments for `DistributedSampler` super class.
-        kwargs: additional arguments for `DistributedSampler` super class.
+        num_replicas: number of processes participating in distributed training.
+            by default, `world_size` is retrieved from the current distributed group.
+        rank: rank of the current process within `num_replicas`. by default,
+            `rank` is retrieved from the current distributed group.
+        shuffle: if `True`, sampler will shuffle the indices, default to True.
+        kwargs: additional arguments for `DistributedSampler` super class, can be `seed` and `drop_last`.
 
     """
 
     def __init__(
         self,
+        dataset: Dataset,
         weights: Sequence[float],
         num_samples_per_rank: Optional[int] = None,
         replacement: bool = True,
         generator: Optional[torch.Generator] = None,
         even_divisible: bool = True,
-        *args,
+        num_replicas: Optional[int] = None,
+        rank: Optional[int] = None,
+        shuffle: bool = True,
         **kwargs,
     ):
-        super().__init__(even_divisible, *args, **kwargs)
+        super().__init__(
+            dataset=dataset,
+            even_divisible=even_divisible,
+            num_replicas=num_replicas,
+            rank=rank,
+            shuffle=shuffle,
+            **kwargs,
+        )
         self.weights = weights
         self.num_samples_per_rank = num_samples_per_rank
         self.replacement = replacement
