@@ -37,6 +37,7 @@ from monai.transforms import (
     SpatialPadd,
     allow_missing_keys_mode,
 )
+from functools import partial
 from monai.utils import first, optional_import, set_determinism
 from monai.utils.enums import InverseKeys
 from tests.utils import make_nifti_image, make_rand_affine
@@ -50,6 +51,26 @@ else:
 KEYS = ["image", "label"]
 
 TESTS: List[Tuple] = []
+
+# For pad, start with odd/even images and add odd/even amounts
+for name in ("1D even", "1D odd"):
+    for val in (3, 4):
+        for t in (
+            partial(SpatialPadd, spatial_size=val, method="symmetric"),
+            partial(SpatialPadd, spatial_size=val, method="end"),
+            partial(BorderPadd, spatial_border=[val, val + 1]),
+            partial(DivisiblePadd, k=val),
+            partial(ResizeWithPadOrCropd, spatial_size=20 + val),
+            partial(CenterSpatialCropd, roi_size=10 + val),
+            partial(CropForegroundd, source_key="label"),
+            partial(SpatialCropd, roi_center=10, roi_size=10 + val),
+            partial(SpatialCropd, roi_center=11, roi_size=10 + val),
+            partial(SpatialCropd, roi_start=val, roi_end=17),
+            partial(SpatialCropd, roi_start=val, roi_end=16),
+            partial(RandSpatialCropd, roi_size=10 + val),
+            partial(ResizeWithPadOrCropd, spatial_size=21 - val),
+        ):
+            TESTS.append((t.func.__name__ + name, name, 0, t(KEYS)))
 
 TESTS.append(
     (
@@ -219,8 +240,11 @@ class TestInverse(unittest.TestCase):
         affine = make_rand_affine()
         affine[0] *= 2
 
-        im_1d = AddChannel()(np.arange(0, 10))
-        self.all_data["1D"] = {"image": im_1d, "label": im_1d, "other": im_1d}
+        for size in [10, 11]:
+            # pad 5 onto both ends so that cropping can be lossless
+            im_1d = np.pad(np.arange(size), 5)[None]
+            name = "1D even" if size % 2 == 0 else "1D odd"
+            self.all_data[name] = {"image": im_1d, "label": im_1d, "other": im_1d}
 
         im_2d_fname, seg_2d_fname = [make_nifti_image(i) for i in create_test_image_2d(101, 100)]
         im_3d_fname, seg_3d_fname = [make_nifti_image(i, affine) for i in create_test_image_3d(100, 101, 107)]
@@ -248,6 +272,10 @@ class TestInverse(unittest.TestCase):
                     print(
                         f"Failed: {name}. Mean diff = {mean_diff} (expected <= {acceptable_diff}), unmodified diff: {unmodded_diff}"
                     )
+                    if orig[0].ndim == 1:
+                        print("orig", orig[0])
+                        print("fwd_bck", fwd_bck[0])
+                        print("unmod", unmodified[0])
                     raise
 
     @parameterized.expand(TESTS)

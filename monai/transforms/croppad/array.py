@@ -242,13 +242,16 @@ class SpatialCrop(Transform):
                 raise ValueError("Please specify either roi_center, roi_size or roi_start, roi_end.")
             self.roi_start = np.maximum(np.asarray(roi_start, dtype=np.int16), 0)
             self.roi_end = np.maximum(np.asarray(roi_end, dtype=np.int16), self.roi_start)
+        # Allow for 1D by converting back to np.array (since np.maximum will convert to int)
+        self.roi_start = self.roi_start if isinstance(self.roi_start, np.ndarray) else np.array([self.roi_start])
+        self.roi_end = self.roi_end if isinstance(self.roi_end, np.ndarray) else np.array([self.roi_end])
 
     def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> np.ndarray:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
         """
-        sd = min(len(self.roi_start), len(self.roi_end), len(img.shape[1:]))  # spatial dims
+        sd = min(self.roi_start.size, self.roi_end.size, len(img.shape[1:]))  # spatial dims
         slices = [slice(None)] + [slice(s, e) for s, e in zip(self.roi_start[:sd], self.roi_end[:sd])]
         return np.asarray(img[tuple(slices)])
 
