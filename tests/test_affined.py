@@ -94,10 +94,7 @@ class TestAffined(unittest.TestCase):
         g = Affined(**input_param)
         result = g(input_data)["img"]
         self.assertEqual(isinstance(result, torch.Tensor), isinstance(expected_val, torch.Tensor))
-        if isinstance(result, torch.Tensor):
-            np.testing.assert_allclose(result.cpu().numpy(), expected_val.cpu().numpy(), rtol=1e-4, atol=1e-4)
-        else:
-            np.testing.assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
+        np.testing.assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
 
 
 if __name__ == "__main__":
