@@ -126,6 +126,7 @@ if __name__ == "__main__":
         tests = loader.discover(args.path, args.pattern)
     discovery_time = pc.total_time
     print(f"time to discover tests: {discovery_time}s")
+    print(tests)
 
     test_runner = unittest.runner.TextTestRunner(
         resultclass=TimeLoggingTestResult, verbosity=args.verbosity, failfast=args.failfast
