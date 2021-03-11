@@ -40,25 +40,6 @@ class DistributedWeightedRandomSamplerTest(DistTestCase):
             np.testing.assert_allclose(samples, np.array([1, 4, 4]))
 
     @DistCall(nnodes=1, nproc_per_node=2)
-    def test_no_replacement(self):
-        data = [1, 2, 3, 4, 5]
-        weights = [1, 2, 3, 4, 5]
-        sampler = DistributedWeightedRandomSampler(
-            weights=weights,
-            replacement=False,
-            dataset=data,
-            shuffle=False,
-            generator=torch.Generator().manual_seed(0),
-        )
-        samples = np.array([data[i] for i in list(sampler)])
-
-        if dist.get_rank() == 0:
-            np.testing.assert_allclose(samples, np.array([1, 3, 5]))
-
-        if dist.get_rank() == 1:
-            np.testing.assert_allclose(samples, np.array([2, 4, 1]))
-
-    @DistCall(nnodes=1, nproc_per_node=2)
     def test_num_samples(self):
         data = [1, 2, 3, 4, 5]
         weights = [1, 2, 3, 4, 5]
