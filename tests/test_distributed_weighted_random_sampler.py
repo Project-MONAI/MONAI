@@ -45,10 +45,10 @@ class DistributedWeightedRandomSamplerTest(DistTestCase):
         set_determinism(seed=None)
 
         if dist.get_rank() == 0:
-            np.testing.assert_allclose(samples, np.array([1, 5, 3]))
+            np.testing.assert_allclose(samples, np.array([5, 3, 1]))
 
         if dist.get_rank() == 1:
-            np.testing.assert_allclose(samples, np.array([2, 4, 1]))
+            np.testing.assert_allclose(samples, np.array([4, 1, 2]))
 
     @DistCall(nnodes=1, nproc_per_node=2)
     def test_num_samples(self):
