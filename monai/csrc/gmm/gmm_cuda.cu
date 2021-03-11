@@ -84,30 +84,50 @@ __device__ __forceinline__ float get_constant(float *gmm, int i)
     return 0.0f;
 }
 
-template<int block_size>
+template<int warp_count, int load_count>
 __global__ void CovarianceReductionKernel(int gaussian_index, const float* g_image, const int* g_alpha, float* g_matrices, int element_count, int channel_count, int component_count, int mixture_count)
 {
-    __shared__ float s_matrix_component[block_size];
+    __shared__ volatile float s_matrix_component[warp_count];
+
+    const int block_size = warp_count << 5;
 
     int local_index = threadIdx.x;
     int block_index = blockIdx.x;
-    int global_index = local_index + block_index * block_size;
-    int matrix_offset = (gaussian_index * gridDim.x + block_index) * 11;
+    int warp_index = local_index >> 5;
+    int lane_index = local_index & 31;
+    int global_index = local_index + block_index * block_size * load_count;
+    int matrix_offset = (gaussian_index * gridDim.x + block_index) * component_count;
 
-    float pixel[3];
-    bool home_active = false;
+    float matrix[10];
 
-    if (global_index < element_count)
+    for (int i = 0; i < 10; i++)
+    {
+        matrix[i] = 0;
+    }
+
+    for (int load = 0; load < load_count; load++)
     { 
-        int my_alpha = g_alpha[global_index];
+        global_index += load * block_size;
 
-        if (gaussian_index == (my_alpha & 15) + (my_alpha >> 4) * mixture_count)
-        {
-            pixel[0] = g_image[global_index + 0 * element_count] * 255;
-            pixel[1] = g_image[global_index + 1 * element_count] * 255;
-            pixel[2] = g_image[global_index + 2 * element_count] * 255;
-
-            home_active = true;
+        if (global_index < element_count)
+        { 
+            int my_alpha = g_alpha[global_index];
+    
+            if (my_alpha != -1)
+            {
+                if (gaussian_index == (my_alpha & 15) + (my_alpha >> 4) * mixture_count)
+                {
+                    float pixel[3];
+                    pixel[0] = g_image[global_index + 0 * element_count] * 255;
+                    pixel[1] = g_image[global_index + 1 * element_count] * 255;
+                    pixel[2] = g_image[global_index + 2 * element_count] * 255;
+    
+                    for (int i = 0; i < 10; i++)
+                    {
+                        matrix[i] += get_component(pixel, i);
+                    }
+                }
+            }
         }
     }
 
@@ -115,25 +135,28 @@ __global__ void CovarianceReductionKernel(int gaussian_index, const float* g_ima
 
     for (int i = 0; i < 10; i++)
     {
-        s_matrix_component[local_index] = home_active ? get_component(pixel, i) : 0.0f; __syncthreads();
+        float matrix_component = matrix[i];
 
-        if (local_index < 256) { s_matrix_component[local_index] += s_matrix_component[local_index + 256]; } __syncthreads();
-        if (local_index < 128) { s_matrix_component[local_index] += s_matrix_component[local_index + 128]; } __syncthreads(); 
-        if (local_index <  64) { s_matrix_component[local_index] += s_matrix_component[local_index +  64]; } __syncthreads(); 
+        matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 16);
+        matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  8);
+        matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  4);
+        matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  2);
+        matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  1);
 
-        if (local_index <  32) 
+        if (lane_index == 0) { s_matrix_component[warp_index] = matrix_component; } __syncthreads();
+
+        if (warp_index == 0) 
         { 
-            s_matrix_component[local_index] += s_matrix_component[local_index + 32];
-            s_matrix_component[local_index] += s_matrix_component[local_index + 16];
-            s_matrix_component[local_index] += s_matrix_component[local_index +  8];
-            s_matrix_component[local_index] += s_matrix_component[local_index +  4];
-            s_matrix_component[local_index] += s_matrix_component[local_index +  2];
-            s_matrix_component[local_index] += s_matrix_component[local_index +  1];
-        }
+            if (warp_count >= 32) { s_matrix_component[lane_index] += s_matrix_component[lane_index + 16]; }
+            if (warp_count >= 16) { s_matrix_component[lane_index] += s_matrix_component[lane_index +  8]; }
+            if (warp_count >=  8) { s_matrix_component[lane_index] += s_matrix_component[lane_index +  4]; }
+            if (warp_count >=  4) { s_matrix_component[lane_index] += s_matrix_component[lane_index +  2]; }
+            if (warp_count >=  2) { s_matrix_component[lane_index] += s_matrix_component[lane_index +  1]; }
 
-        if (local_index == 0)
-        {
-            g_matrices[matrix_offset + i] = s_matrix_component[0];
+            if (lane_index == 0)
+            {
+                g_matrices[matrix_offset + i] = s_matrix_component[0];
+            }
         }
 
         __syncthreads();
@@ -143,16 +166,17 @@ __global__ void CovarianceReductionKernel(int gaussian_index, const float* g_ima
 template<int block_size, bool invert_sigma>
 __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_gmm, int matrix_count, int component_count)
 {
+    __shared__ volatile float s_matrix_component[block_size];
+    __shared__ float s_gmm[15];
+
     int local_index = threadIdx.x;
     int gmm_index = blockIdx.x;
+    int matrix_offset = gmm_index * matrix_count;
     
     int load_count = TILE(matrix_count, block_size);
 
-    __shared__ float s_matrix_component[block_size];
-    __shared__ float s_gmm[15];
-
     float matrix_component = 0.0f;
-    float norm_factor = 0.0f;
+    float norm_factor = 1.0f;
 
     for (int i = 0; i < 10; i++)
     {
@@ -160,15 +184,19 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
 
         for(int j = 0; j < load_count; j++)
         {
-            int matrix_index = gmm_index * matrix_count + local_index + j * block_size;
-            matrix_component += g_matrices[matrix_index * component_count + i];
+            int matrix_index = local_index + j * block_size;
+
+            if(matrix_index < matrix_count)
+            {
+                matrix_component += g_matrices[(matrix_offset + matrix_index) * component_count + i];
+            }
         }
 
         s_matrix_component[local_index] = matrix_component; __syncthreads();
 
-        if (local_index < 256) { s_matrix_component[local_index] += s_matrix_component[local_index + 256]; } __syncthreads();
-        if (local_index < 128) { s_matrix_component[local_index] += s_matrix_component[local_index + 128]; } __syncthreads(); 
-        if (local_index <  64) { s_matrix_component[local_index] += s_matrix_component[local_index +  64]; } __syncthreads(); 
+        if (block_size >= 512) { if (local_index < 256) { s_matrix_component[local_index] += s_matrix_component[local_index + 256]; } __syncthreads(); }
+        if (block_size >= 256) { if (local_index < 128) { s_matrix_component[local_index] += s_matrix_component[local_index + 128]; } __syncthreads(); }
+        if (block_size >= 128) { if (local_index <  64) { s_matrix_component[local_index] += s_matrix_component[local_index +  64]; } __syncthreads(); }
 
         if (local_index <  32) 
         { 
@@ -180,17 +208,19 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
             s_matrix_component[local_index] += s_matrix_component[local_index +  1];
         }
 
+        __syncthreads();
+
         if (local_index == 0)
         {
-            s_gmm[i] = norm_factor * s_matrix_component[0] - get_constant(s_gmm, i);
+            matrix_component = s_matrix_component[0];
 
-            if (i == 0 && s_matrix_component[0] > 0)
+            s_gmm[i] = norm_factor * matrix_component - get_constant(s_gmm, i);
+
+            if (i == 0 && matrix_component > 0)
             {
-                norm_factor = 1.0f / s_matrix_component[0];
+                norm_factor = 1.0f / matrix_component;
             }
         }
-
-        __syncthreads();
     }
 
     if (local_index < 5)
@@ -201,10 +231,7 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
 
         s_gmm[10 + local_index] = s_gmm[idx0] * s_gmm[idx1] * s_gmm[idx2];
 
-        if(local_index == 0)
-        {
-            s_gmm[10] = s_gmm[10] + 2.0f * s_gmm[11] - s_gmm[12] - s_gmm[13] - s_gmm[14];
-        }
+        s_gmm[10] = s_gmm[10] + 2.0f * s_gmm[11] - s_gmm[12] - s_gmm[13] - s_gmm[14];
     }
 
     if (invert_sigma && local_index < 6)
@@ -227,231 +254,6 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
     if (local_index < 11)
     {
         g_gmm[gmm_index * 11 + local_index] = s_gmm[local_index];
-    }
-}
-
-// Tile Size: 32x32, Block Size 32xwarp_N
-template<int warp_N>
-__global__ void GMMReductionKernel(int gmm_idx, const float* image, const int* alpha, float* gmm, int element_count, int channel_count, int component_count, int mixture_count)
-{
-    __shared__ float s_lists[32 * 32 * CHANNELS];
-    __shared__ volatile float s_gmm[32 * warp_N];
-    __shared__ float s_final[warp_N];
-
-    int warp_idx = threadIdx.x >> 5;
-    int thread_idx = threadIdx.x;
-    int lane_idx = threadIdx.x & 31;
-
-    int block_idx = blockIdx.x;
-
-    float *block_gmm = &gmm[(gridDim.x * gmm_idx + block_idx) * component_count];
-    volatile float *warp_gmm = &s_gmm[warp_idx * 32];
-
-    int list_idx = 0;
-
-    int index = block_idx * 32 * 32 + warp_idx * 32 + lane_idx;
-
-    // Build lists of pixels that belong to this GMM
-
-    for (int k=0; k < (32/warp_N); ++k)
-    {
-        if (index < element_count)
-        {
-            int my_alpha = alpha[index];
-
-            if (my_alpha != -1)
-            {
-                int my_gmm_idx = (my_alpha & 15) + (my_alpha >> 4) * mixture_count;
-    
-                if (my_gmm_idx == gmm_idx)
-                {
-                    s_lists[(thread_idx + list_idx * (32*warp_N)) * CHANNELS + 0] = image[index + 0 * element_count] * 255;
-                    s_lists[(thread_idx + list_idx * (32*warp_N)) * CHANNELS + 1] = image[index + 1 * element_count] * 255;
-                    s_lists[(thread_idx + list_idx * (32*warp_N)) * CHANNELS + 2] = image[index + 2 * element_count] * 255;
-                    ++list_idx;
-                }
-            }
-        }
-
-        index += warp_N * 32;
-    }
-
-    __syncthreads();
-
-    // Reduce for each global GMM element
-
-    for (int i=0; i<10; ++i)
-    {
-        float thread_gmm;
-
-        if (i == 0)
-        {
-            // thread_gmm = list_idx for first component
-            thread_gmm = list_idx;
-        }
-        else
-        {
-            float temp_array[CHANNELS];
-            temp_array[0] = s_lists[thread_idx * CHANNELS + 0];
-            temp_array[1] = s_lists[thread_idx * CHANNELS + 1];
-            temp_array[2] = s_lists[thread_idx * CHANNELS + 2];
-
-            thread_gmm = list_idx > 0 ? get_component(temp_array, i) : 0.0f;
-
-            for (int k=1; k<(32/warp_N) && k < list_idx; ++k)
-            {
-                temp_array[0] = s_lists[(thread_idx + k * (32*warp_N)) * CHANNELS + 0];
-                temp_array[1] = s_lists[(thread_idx + k * (32*warp_N)) * CHANNELS + 1];
-                temp_array[2] = s_lists[(thread_idx + k * (32*warp_N)) * CHANNELS + 2];
-
-                thread_gmm += get_component(temp_array, i);
-            }
-        }
-
-        warp_gmm[lane_idx] = thread_gmm;
-
-        // Warp Reductions
-        thread_gmm += warp_gmm[(lane_idx + 16) & 31];
-        warp_gmm[lane_idx] = thread_gmm;
-
-        thread_gmm += warp_gmm[(lane_idx + 8) & 31];
-        warp_gmm[lane_idx] = thread_gmm;
-
-        thread_gmm += warp_gmm[(lane_idx + 4) & 31];
-        warp_gmm[lane_idx] = thread_gmm;
-
-        thread_gmm += warp_gmm[(lane_idx + 2) & 31];
-        warp_gmm[lane_idx] = thread_gmm;
-
-        thread_gmm += warp_gmm[(lane_idx + 1) & 31];
-        s_final[warp_idx] = thread_gmm;
-
-        __syncthreads();
-
-        // Final Reduction
-        if (warp_idx == 0 && lane_idx == 0)
-        {
-            for (int j=1; j<warp_N; ++j)
-            {
-                thread_gmm += s_final[j];
-            }
-
-            block_gmm[i] = thread_gmm;
-        }
-    }
-}
-
-// One block per GMM, 32*warp_N threads (1-dim)
-template <int warp_N, bool invertSigma>
-__global__ void GMMFinalizeKernel(const float *gmm_scratch, float *gmm, int gmm_stride, int component_count)
-{
-    __shared__ volatile float s_gmm[warp_N*32];
-    __shared__ float s_final[warp_N];
-    __shared__ float final_gmm[15];
-
-    const int thread_N = warp_N * 32;
-
-    const float *gmm_partial = &gmm_scratch[blockIdx.x * gmm_stride * component_count];
-
-    volatile float *warp_gmm = &s_gmm[threadIdx.x & 0x0ffe0];
-
-    int thread_idx = threadIdx.x;
-    int lane_idx = threadIdx.x & 31;
-    int warp_idx = threadIdx.x >> 5;
-
-    float norm_factor = 1.0f;
-
-    for (int i=0; i<10; ++i)
-    {
-        float thread_gmm = 0.0f;
-
-        for (int j=thread_idx; j < gmm_stride; j+= thread_N)
-        {
-            thread_gmm += gmm_partial[j * component_count + i];
-        }
-
-        warp_gmm[lane_idx] = thread_gmm;
-
-        // Warp Reduction
-        thread_gmm += warp_gmm[(lane_idx + 16) & 31];
-        warp_gmm[lane_idx] = thread_gmm;
-
-        thread_gmm += warp_gmm[(lane_idx + 8) & 31];
-        warp_gmm[lane_idx] = thread_gmm;
-
-        thread_gmm += warp_gmm[(lane_idx + 4) & 31];
-        warp_gmm[lane_idx] = thread_gmm;
-
-        thread_gmm += warp_gmm[(lane_idx + 2) & 31];
-        warp_gmm[lane_idx] = thread_gmm;
-
-        thread_gmm += warp_gmm[(lane_idx + 1) & 31];
-
-        s_final[warp_idx] = thread_gmm;
-
-        __syncthreads();
-
-        // Final Reduction
-        if (warp_idx == 0 && lane_idx == 0)
-        {
-            for (int j=1; j<warp_N; ++j)
-            {
-                thread_gmm += s_final[j];
-            }
-
-            final_gmm[i] = norm_factor * thread_gmm - get_constant(final_gmm, i);
-
-            if (i == 0)
-            {
-                if (thread_gmm > 0)
-                {
-                    norm_factor = 1.0f / thread_gmm;
-                }
-            }
-        }
-    }
-
-    if (threadIdx.y == 0)
-    {
-        // Compute det(Sigma) using final_gmm [10-14] as scratch mem
-
-        if (threadIdx.x < 5)
-        {
-
-            int idx0 = (det_indices[0] & (15 << (threadIdx.x * 4))) >> (threadIdx.x * 4);
-            int idx1 = (det_indices[1] & (15 << (threadIdx.x * 4))) >> (threadIdx.x * 4);
-            int idx2 = (det_indices[2] & (15 << (threadIdx.x * 4))) >> (threadIdx.x * 4);
-
-            final_gmm[10 + threadIdx.x] = final_gmm[idx0] * final_gmm[idx1] * final_gmm[idx2];
-
-            float det = final_gmm[10] + 2.0f * final_gmm[11] - final_gmm[12] - final_gmm[13] - final_gmm[14];
-            final_gmm[10] = det;
-        }
-
-        // Compute inv(Sigma)
-        if (invertSigma && threadIdx.x < 6)
-        {
-            int idx0 = (inv_indices[0] & (15 << (threadIdx.x * 4))) >> (threadIdx.x * 4);
-            int idx1 = (inv_indices[1] & (15 << (threadIdx.x * 4))) >> (threadIdx.x * 4);
-            int idx2 = (inv_indices[2] & (15 << (threadIdx.x * 4))) >> (threadIdx.x * 4);
-            int idx3 = (inv_indices[3] & (15 << (threadIdx.x * 4))) >> (threadIdx.x * 4);
-
-            float temp = final_gmm[idx0] * final_gmm[idx1] - final_gmm[idx2] * final_gmm[idx3];
-
-            if (final_gmm[10] > 0.0f)
-            {
-                final_gmm[4+threadIdx.x] = temp / final_gmm[10];
-            }
-            else
-            {
-                final_gmm[4+threadIdx.x] = 0.0f;
-            }
-        }
-
-        if (threadIdx.x < 11)
-        {
-            gmm[blockIdx.x * component_count + threadIdx.x] = final_gmm[threadIdx.x];
-        }
     }
 }
 
@@ -750,13 +552,16 @@ __global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, int co
     }
 }
 
+#define THREADS 512
+#define WARPS 16
+#define BLOCK (WARPS << 5)
+#define LOAD 4
+
 void GMMInitialize(const float *image, int *alpha, float *gmm, float *scratch_mem, int element_count, int mixture_count, int mixture_size, int channel_count, int component_count)
 {
-    dim3 grid(TILE(element_count, BLOCK_SIZE * BLOCK_SIZE));
-    dim3 block(BLOCK_SIZE * 4);
+    int block_count = TILE(element_count, BLOCK * LOAD);
     
-    float* block_gmm_scratch = &scratch_mem[TILE(element_count, 512)];
-    unsigned int* block_active_scratch = (unsigned int*)scratch_mem;
+    float* block_gmm_scratch = scratch_mem;
     GMMSplit_t* gmm_split_scratch = (GMMSplit_t*) scratch_mem;
 
     int gmm_N = mixture_count * mixture_size;
@@ -765,12 +570,10 @@ void GMMInitialize(const float *image, int *alpha, float *gmm, float *scratch_me
     {
         for (int i = 0; i < k; ++i)
         {
-            //CovarianceReductionKernel<512><<<TILE(element_count, 512), 512>>>(i, image, alpha, block_gmm_scratch, element_count, channel_count, component_count, mixture_count);
-            GMMReductionKernel<4><<<grid, block>>>(i, image, alpha, block_gmm_scratch, element_count, channel_count, component_count, mixture_count);
+            CovarianceReductionKernel<WARPS, LOAD><<<block_count, BLOCK>>>(i, image, alpha, block_gmm_scratch, element_count, channel_count, component_count, mixture_count);
         }
 
-        //CovarianceFinalizationKernel<512, false><<<k, 512>>>(block_gmm_scratch, gmm, TILE(element_count, 512), component_count);
-        GMMFinalizeKernel<4, true><<<k, block>>>(block_gmm_scratch, gmm, grid.x, component_count);
+        CovarianceFinalizationKernel<THREADS, false><<<k, THREADS>>>(block_gmm_scratch, gmm, block_count, component_count);
 
         GMMFindSplit<<<1, dim3(BLOCK_SIZE, mixture_count)>>>(gmm_split_scratch, k / mixture_count, gmm, component_count, mixture_count);
         GMMDoSplit<<<TILE(element_count, BLOCK_SIZE * DO_SPLIT_DEGENERACY), BLOCK_SIZE>>>(gmm_split_scratch, (k / mixture_count) << 4, gmm, component_count, image, alpha, element_count);
@@ -779,22 +582,18 @@ void GMMInitialize(const float *image, int *alpha, float *gmm, float *scratch_me
 
 void GMMUpdate(const float *image, int *alpha, float *gmm, float *scratch_mem, int element_count, int mixture_count, int mixture_size, int channel_count, int component_count)
 {
-    dim3 grid(TILE(element_count, BLOCK_SIZE * BLOCK_SIZE));
-    dim3 block(BLOCK_SIZE * 4);
+    int block_count = TILE(element_count, BLOCK * LOAD);
 
-    float* block_gmm_scratch = &scratch_mem[grid.x];
-    unsigned int* block_active_scratch = (unsigned int*)scratch_mem;
+    float* block_gmm_scratch = scratch_mem;
 
     int gmm_N = mixture_count * mixture_size;
 
     for (int i = 0; i < gmm_N; ++i)
     {
-        //CovarianceReductionKernel<512><<<TILE(element_count, 512), 512>>>(i, image, alpha, block_gmm_scratch, element_count, channel_count, component_count, mixture_count);
-        GMMReductionKernel<4><<<grid, block>>>(i, image, alpha, block_gmm_scratch, element_count, channel_count, component_count, mixture_count);
+        CovarianceReductionKernel<WARPS, LOAD><<<block_count, BLOCK>>>(i, image, alpha, block_gmm_scratch, element_count, channel_count, component_count, mixture_count);
     }
 
-    //CovarianceFinalizationKernel<512, false><<<gmm_N, 512>>>(block_gmm_scratch, gmm, TILE(element_count, 512), component_count);
-    GMMFinalizeKernel<4, true><<<gmm_N, block>>>(block_gmm_scratch, gmm, grid.x, component_count);
+    CovarianceFinalizationKernel<THREADS, true><<<gmm_N, THREADS>>>(block_gmm_scratch, gmm, block_count, component_count);
 
     GMMcommonTerm<<<1, dim3(BLOCK_SIZE, mixture_count)>>>(gmm, mixture_count, mixture_size, component_count);
 }
