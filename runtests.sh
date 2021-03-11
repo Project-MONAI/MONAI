@@ -138,6 +138,9 @@ function clang_format {
 }
 
 function clean_py {
+    # remove coverage history
+    ${cmdPrefix}${PY_EXE} -m coverage erase
+
     # uninstall the development package
     echo "Uninstalling MONAI development files..."
     ${cmdPrefix}${PY_EXE} setup.py develop --user --uninstall
@@ -149,7 +152,7 @@ function clean_py {
     find ${TO_CLEAN}/monai -type f -name "*.py[co]" -delete
     find ${TO_CLEAN}/monai -type f -name "*.so" -delete
     find ${TO_CLEAN}/monai -type d -name "__pycache__" -delete
-    find ${TO_CLEAN} -maxdepth 1 -type f -name ".coverage" -delete
+    find ${TO_CLEAN} -maxdepth 1 -type f -name ".coverage.*" -delete
 
     find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".eggs" -exec rm -r "{}" +
     find ${TO_CLEAN} -depth -maxdepth 1 -type d -name "monai.egg-info" -exec rm -r "{}" +
@@ -496,12 +499,11 @@ then
     export QUICKTEST=True
 fi
 
-# set command and clear previous coverage data
+# set coverage command
 if [ $doCoverage = true ]
 then
     echo "${separator}${blue}coverage${noColor}"
-    cmd="${PY_EXE} -m coverage run -a --source ."
-    ${cmdPrefix}${PY_EXE} -m coverage erase
+    cmd="${PY_EXE} -m coverage run --append"
 fi
 
 # # download test data if needed
@@ -514,7 +516,7 @@ if [ $doUnitTests = true ]
 then
     echo "${separator}${blue}unittests${noColor}"
     torch_validate
-    ${cmdPrefix}${cmd} ./tests/runner.py -p "test_[!integration]*py"
+    ${cmdPrefix}${cmd} ./tests/runner.py -p "test_((?!integration).)"
 fi
 
 # network training/inference/eval integration tests
@@ -540,5 +542,6 @@ fi
 if [ $doCoverage = true ]
 then
     echo "${separator}${blue}coverage${noColor}"
-    ${cmdPrefix}${PY_EXE} -m coverage report --skip-covered -m
+    ${cmdPrefix}${PY_EXE} -m coverage combine --append .coverage/
+    ${cmdPrefix}${PY_EXE} -m coverage report
 fi
