@@ -4,7 +4,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets.localnet import LocalNet
+from monai.networks.nets.regunet import LocalNet
 from tests.utils import test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
