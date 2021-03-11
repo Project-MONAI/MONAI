@@ -52,10 +52,10 @@ Before submitting a pull request, we recommend that all linting should pass, by 
 
 ```bash
 pip install -U -r requirements-dev.txt  # install the latest tools
-./runtests.sh --codeformat --nounittests  # runs the linting tools only
+./runtests.sh --codeformat  # runs the linting tools
 
 # try to fix the coding style errors automatically
-./runtests.sh --autofix --nounittests
+./runtests.sh --autofix
 ```
 
 License information: all source code files should start with this paragraph:
@@ -98,12 +98,12 @@ Before submitting a pull request, we recommend that all linting and unit tests
 should pass, by running the following command locally:
 
 ```bash
-./runtests.sh --codeformat --coverage
+./runtests.sh --codeformat --coverage --unittests
 ```
 or (for new features that would not break existing functionality):
 
 ```bash
-./runtests.sh --quick
+./runtests.sh --quick --unittests
 ```
 
 It is recommended that the new test `test_[module_name].py` is constructed by using only

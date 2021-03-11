@@ -17,15 +17,22 @@ from typing import Any, Callable, Optional, Sequence, Union
 
 import numpy as np
 
+from monai.transforms.inverse import InvertibleTransform
+
 # For backwards compatiblity (so this still works: from monai.transforms.compose import MapTransform)
-from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform, Transform  # noqa: F401
-from monai.transforms.utils import apply_transform
+from monai.transforms.transform import (  # noqa: F401
+    MapTransform,
+    Randomizable,
+    RandomizableTransform,
+    Transform,
+    apply_transform,
+)
 from monai.utils import MAX_SEED, ensure_tuple, get_seed
 
 __all__ = ["Compose"]
 
 
-class Compose(RandomizableTransform):
+class Compose(RandomizableTransform, InvertibleTransform):
     """
     ``Compose`` provides the ability to chain a series of calls together in a
     sequence. Each transform in the sequence must take a single argument and
@@ -136,3 +143,13 @@ class Compose(RandomizableTransform):
         for _transform in self.transforms:
             input_ = apply_transform(_transform, input_)
         return input_
+
+    def inverse(self, data):
+        invertible_transforms = [t for t in self.flatten().transforms if isinstance(t, InvertibleTransform)]
+        if len(invertible_transforms) == 0:
+            warnings.warn("inverse has been called but no invertible transforms have been supplied")
+
+        # loop backwards over transforms
+        for t in reversed(invertible_transforms):
+            data = apply_transform(t.inverse, data)
+        return data

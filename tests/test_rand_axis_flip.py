@@ -12,22 +12,20 @@
 import unittest
 
 import numpy as np
-from parameterized import parameterized
 
-from monai.transforms import ConvertToMultiChannelBasedOnBratsClasses
-
-TEST_CASE = [
-    np.array([[0, 1, 2], [1, 2, 4], [0, 1, 4]]),
-    np.array([[[0, 1, 0], [1, 0, 1], [0, 1, 1]], [[0, 1, 1], [1, 1, 1], [0, 1, 1]], [[0, 0, 0], [0, 0, 1], [0, 0, 1]]]),
-]
+from monai.transforms import RandAxisFlip
+from tests.utils import NumpyImageTestCase2D
 
 
-class TestConvertToMultiChannel(unittest.TestCase):
-    @parameterized.expand([TEST_CASE])
-    def test_type_shape(self, data, expected_result):
-        result = ConvertToMultiChannelBasedOnBratsClasses()(data)
-        np.testing.assert_equal(result, expected_result)
-        self.assertEqual(f"{result.dtype}", "bool")
+class TestRandAxisFlip(NumpyImageTestCase2D):
+    def test_correct_results(self):
+        flip = RandAxisFlip(prob=1.0)
+        result = flip(self.imt[0])
+
+        expected = []
+        for channel in self.imt[0]:
+            expected.append(np.flip(channel, flip._axis))
+        self.assertTrue(np.allclose(np.stack(expected), result))
 
 
 if __name__ == "__main__":

@@ -14,8 +14,9 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 import logging
+import sys
 import time
-from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -39,6 +40,7 @@ __all__ = [
     "AsChannelFirst",
     "AsChannelLast",
     "AddChannel",
+    "EnsureChannelFirst",
     "RepeatChannel",
     "RemoveRepeatedChannel",
     "SplitChannel",
@@ -147,6 +149,32 @@ class AddChannel(Transform):
         Apply the transform to `img`.
         """
         return img[None]
+
+
+class EnsureChannelFirst(Transform):
+    """
+    Automatically adjust or add the channel dimension of input data to ensure `channel_first` shape.
+    It extracts the `original_channel_dim` info from provided meta_data dictionary.
+    Typical values of `original_channel_dim` can be: "no_channel", 0, -1.
+    Convert the data to `channel_first` based on the `original_channel_dim` information.
+
+    """
+
+    def __call__(self, img: np.ndarray, meta_dict: Optional[Dict] = None):
+        """
+        Apply the transform to `img`.
+        """
+        if not isinstance(meta_dict, dict):
+            raise ValueError("meta_dict must be a dictionay data.")
+
+        channel_dim = meta_dict.get("original_channel_dim", None)
+
+        if channel_dim is None:
+            raise ValueError("meta_dict must contain `original_channel_dim` information.")
+        elif channel_dim == "no_channel":
+            return AddChannel()(img)
+        else:
+            return AsChannelFirst(channel_dim=channel_dim)(img)
 
 
 class RepeatChannel(Transform):
@@ -382,6 +410,7 @@ class DataStats(Transform):
             additional_info: user can define callable function to extract additional info from input data.
             logger_handler: add additional handler to output data: save to file, etc.
                 add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
+                the handler should have a logging level of at least `INFO`.
 
         Raises:
             TypeError: When ``additional_info`` is not an ``Optional[Callable]``.
@@ -397,8 +426,11 @@ class DataStats(Transform):
             raise TypeError(f"additional_info must be None or callable but is {type(additional_info).__name__}.")
         self.additional_info = additional_info
         self.output: Optional[str] = None
-        logging.basicConfig(level=logging.NOTSET)
         self._logger = logging.getLogger("DataStats")
+        self._logger.setLevel(logging.INFO)
+        console = logging.StreamHandler(sys.stdout)  # always stdout
+        console.setLevel(logging.INFO)
+        self._logger.addHandler(console)
         if logger_handler is not None:
             self._logger.addHandler(logger_handler)
 
@@ -432,7 +464,7 @@ class DataStats(Transform):
             lines.append(f"Additional info: {additional_info(img)}")
         separator = "\n"
         self.output = f"{separator.join(lines)}"
-        self._logger.debug(self.output)
+        self._logger.info(self.output)
 
         return img
 
@@ -628,7 +660,7 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
         result.append(np.logical_or(np.logical_or(img == 1, img == 4), img == 2))
         # label 4 is ET
         result.append(img == 4)
-        return np.stack(result, axis=0).astype(np.float32)
+        return np.stack(result, axis=0)
 
 
 class AddExtremePointsChannel(RandomizableTransform):

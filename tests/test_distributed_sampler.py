@@ -24,6 +24,7 @@ class DistributedSamplerTest(DistTestCase):
         data = [1, 2, 3, 4, 5]
         sampler = DistributedSampler(dataset=data, shuffle=False)
         samples = np.array([data[i] for i in list(sampler)])
+        self.assertEqual(dist.get_rank(), sampler.rank)
         if dist.get_rank() == 0:
             np.testing.assert_allclose(samples, np.array([1, 3, 5]))
 
@@ -35,6 +36,7 @@ class DistributedSamplerTest(DistTestCase):
         data = [1, 2, 3, 4, 5]
         sampler = DistributedSampler(dataset=data, shuffle=False, even_divisible=False)
         samples = np.array([data[i] for i in list(sampler)])
+        self.assertEqual(dist.get_rank(), sampler.rank)
         if dist.get_rank() == 0:
             np.testing.assert_allclose(samples, np.array([1, 3, 5]))
 

@@ -38,6 +38,12 @@ Generic Interfaces
     :members:
     :special-members: __call__
 
+`InvertibleTransform`
+^^^^^^^^^^^^^^^^^^^^^
+.. autoclass:: InvertibleTransform
+    :members:
+
+
 Vanilla Transforms
 ------------------
 
@@ -314,6 +320,12 @@ Spatial
     :members:
     :special-members: __call__
 
+`RandAxisFlip`
+""""""""""""""
+.. autoclass:: RandAxisFlip
+    :members:
+    :special-members: __call__
+
 `RandZoom`
 """"""""""
 .. autoclass:: RandZoom
@@ -428,6 +440,12 @@ Utility
 `AddChannel`
 """"""""""""
 .. autoclass:: AddChannel
+    :members:
+    :special-members: __call__
+
+`EnsureChannelFirst`
+""""""""""""""""""""
+.. autoclass:: EnsureChannelFirst
     :members:
     :special-members: __call__
 
@@ -791,6 +809,12 @@ Spatial (Dict)
     :members:
     :special-members: __call__
 
+`RandAxisFlipd`
+"""""""""""""""
+.. autoclass:: RandAxisFlipd
+    :members:
+    :special-members: __call__
+
 `Rotated`
 """""""""
 .. autoclass:: Rotated
@@ -830,6 +854,12 @@ Spatial (Dict)
 `Resized`
 """""""""
 .. autoclass:: Resized
+    :members:
+    :special-members: __call__
+
+`Affined`
+"""""""""
+.. autoclass:: Affined
     :members:
     :special-members: __call__
 
@@ -875,6 +905,12 @@ Utility (Dict)
 `AddChanneld`
 """""""""""""
 .. autoclass:: AddChanneld
+    :members:
+    :special-members: __call__
+
+`EnsureChannelFirstd`
+"""""""""""""""""""""
+.. autoclass:: EnsureChannelFirstd
     :members:
     :special-members: __call__
 
