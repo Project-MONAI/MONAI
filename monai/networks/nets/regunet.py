@@ -291,10 +291,10 @@ class AffineHead(nn.Module):
         return grid_warped
 
     def forward(self, x: List[torch.Tensor], image_size: List[int]) -> torch.Tensor:
-        x = x[0]
-        self.grid.to(x)
-        theta = self.fc(x.reshape(x.shape[0], -1))
-        out = self.affine_transform(theta) - self.grid
+        f = x[0]
+        self.grid.to(device=f.device)
+        theta = self.fc(f.reshape(f.shape[0], -1))
+        out: torch.Tensor = self.affine_transform(theta) - self.grid
         return out
 
 
@@ -311,7 +311,7 @@ class GlobalNet(RegUNet):
 
     def __init__(
         self,
-        image_size: Union[Tuple[int], List[int]],
+        image_size: List[int],
         spatial_dims: int,
         in_channels: int,
         num_channel_initial: int,
@@ -330,7 +330,7 @@ class GlobalNet(RegUNet):
                     f"got input of size {image_size}"
                 )
         self.image_size = image_size
-        self.decode_size = [int(size / (2 ** depth)) for size in image_size]
+        self.decode_size = [size // (2 ** depth) for size in image_size]
         super().__init__(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
