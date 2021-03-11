@@ -125,6 +125,7 @@ temp/
 # temporary testing data MedNIST
 tests/testing_data/MedNIST*
 tests/testing_data/*Hippocampus*
+tests/testing_data/CMU-1.tiff
 
 # clang format tool
 .clang-format-bin/
