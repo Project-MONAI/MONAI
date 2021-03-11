@@ -34,6 +34,7 @@ from .synthetic import create_test_image_2d, create_test_image_3d
 from .thread_buffer import ThreadBuffer
 from .utils import (
     DistributedSampler,
+    DistributedWeightedRandomSampler,
     compute_importance_map,
     compute_shape_offset,
     correct_nifti_header_if_necessary,

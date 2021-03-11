@@ -62,6 +62,7 @@ __all__ = [
     "partition_dataset_classes",
     "select_cross_validation_folds",
     "DistributedSampler",
+    "DistributedWeightedRandomSampler",
     "json_hashing",
     "pickle_hashing",
     "sorted_dict",
@@ -928,6 +929,8 @@ class DistributedSampler(_TorchDistributedSampler):
     Args:
         even_divisible: if False, different ranks can have different data length.
         for example, input data: [1, 2, 3, 4, 5], rank 0: [1, 3, 5], rank 1: [2, 4].
+        args: additional arguments for `DistributedSampler` super class.
+        kwargs: additional arguments for `DistributedSampler` super class.
 
     More information about DistributedSampler, please check:
     https://github.com/pytorch/pytorch/blob/master/torch/utils/data/distributed.py
@@ -943,6 +946,50 @@ class DistributedSampler(_TorchDistributedSampler):
             if self.rank + extra_size >= self.num_replicas:
                 self.num_samples -= 1
             self.total_size = data_len
+
+
+class DistributedWeightedRandomSampler(DistributedSampler):
+    """
+    Extend the `DistributedSampler` to support weighted sampling.
+    Refer to `torch.utils.data.WeightedRandomSampler`, for more details please check:
+    https://github.com/pytorch/pytorch/blob/master/torch/utils/data/sampler.py#L150
+
+    Args:
+        weights: a sequence of weights, not necessary summing up to one, length should exactly
+            match the full dataset.
+        num_samples_per_rank: number of samples to draw for every rank, sample from
+            the distributed subset of dataset.
+        replacement: if ``True``, samples are drawn with replacement, otherwise, they are
+            drawn without replacement, which means that when a sample index is drawn for a row,
+            it cannot be drawn again for that row, default to True.
+        even_divisible: if False, different ranks can have different data length.
+            for example, input data: [1, 2, 3, 4, 5], rank 0: [1, 3, 5], rank 1: [2, 4].'
+        args: additional arguments for `DistributedSampler` super class.
+        kwargs: additional arguments for `DistributedSampler` super class.
+
+    """
+    def __init__(
+        self,
+        weights: Sequence[float],
+        num_samples_per_rank: Optional[int] = None,
+        replacement: bool = True,
+        even_divisible: bool = True,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(even_divisible=even_divisible, *args, **kwargs)
+        self.weights = weights
+        self.num_samples_per_rank = num_samples_per_rank
+        self.replacement = replacement
+
+    def __iter__(self):
+        indices = list(super().__iter__())
+        num_samples = self.num_samples_per_rank if self.num_samples_per_rank is not None else self.num_samples
+        weights = torch.as_tensor([self.weights[i] for i in indices], dtype=torch.double)
+        # sample based on the provided weights
+        rand_tensor = torch.multinomial(weights, num_samples, self.replacement)
+
+        return iter([indices[i] for i in rand_tensor.tolist()])
 
 
 def json_hashing(item) -> bytes:
