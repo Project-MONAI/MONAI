@@ -11,6 +11,7 @@
 
 import sys
 import unittest
+from functools import partial
 from typing import TYPE_CHECKING, List, Tuple
 
 import numpy as np
@@ -21,7 +22,6 @@ from monai.data import CacheDataset, DataLoader, create_test_image_2d, create_te
 from monai.data.utils import decollate_batch
 from monai.networks.nets import UNet
 from monai.transforms import (
-    AddChannel,
     AddChanneld,
     BorderPadd,
     CenterSpatialCropd,
@@ -37,7 +37,6 @@ from monai.transforms import (
     SpatialPadd,
     allow_missing_keys_mode,
 )
-from functools import partial
 from monai.utils import first, optional_import, set_determinism
 from monai.utils.enums import InverseKeys
 from tests.utils import make_nifti_image, make_rand_affine
@@ -70,7 +69,7 @@ for name in ("1D even", "1D odd"):
             partial(RandSpatialCropd, roi_size=10 + val),
             partial(ResizeWithPadOrCropd, spatial_size=21 - val),
         ):
-            TESTS.append((t.func.__name__ + name, name, 0, t(KEYS)))
+            TESTS.append((t.func.__name__ + name, name, 0, t(KEYS)))  # type: ignore
 
 TESTS.append(
     (
