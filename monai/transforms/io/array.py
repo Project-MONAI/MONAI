@@ -19,7 +19,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike
-from monai.data.image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader
+from monai.data.image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader, WSIReader
 from monai.data.nifti_saver import NiftiSaver
 from monai.data.png_saver import PNGSaver
 from monai.transforms.transform import Transform
@@ -42,7 +42,7 @@ def switch_endianness(data, old, new):
         if data.dtype.byteorder == old:
             data = data.newbyteorder(new)
     elif isinstance(data, tuple):
-        data = (switch_endianness(x, old, new) for x in data)
+        data = tuple(switch_endianness(x, old, new) for x in data)
     elif isinstance(data, list):
         data = [switch_endianness(x, old, new) for x in data]
     elif isinstance(data, dict):
@@ -78,7 +78,7 @@ class LoadImage(Transform):
             reader: register reader to load image file and meta data, if None, still can register readers
                 at runtime or use the default readers. If a string of reader name provided, will construct
                 a reader object with the `*args` and `**kwargs` parameters, supported reader name: "NibabelReader",
-                "PILReader", "ITKReader", "NumpyReader"
+                "PILReader", "ITKReader", "NumpyReader", "WSIReader".
             image_only: if True return only the image volume, otherwise return image data array and header dict.
             dtype: if not None convert the loaded image to this data type.
             args: additional parameters for reader if providing a reader name.
@@ -90,7 +90,7 @@ class LoadImage(Transform):
 
         """
         # set predefined readers as default
-        self.readers: List[ImageReader] = [ITKReader(), NumpyReader(), PILReader(), NibabelReader()]
+        self.readers: List[ImageReader] = [ITKReader(), NumpyReader(), PILReader(), NibabelReader(), WSIReader()]
         if reader is not None:
             if isinstance(reader, str):
                 supported_readers = {
@@ -98,6 +98,7 @@ class LoadImage(Transform):
                     "pilreader": PILReader,
                     "itkreader": ITKReader,
                     "numpyreader": NumpyReader,
+                    "wsireader": WSIReader,
                 }
                 reader = reader.lower()
                 if reader not in supported_readers:

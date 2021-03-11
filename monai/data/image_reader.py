@@ -19,26 +19,31 @@ from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
 from monai.config import DtypeLike, KeysCollection
 from monai.data.utils import correct_nifti_header_if_necessary
+from monai.transforms.utility.array import EnsureChannelFirst
 from monai.utils import ensure_tuple, optional_import
 
 from .utils import is_supported_format
 
 if TYPE_CHECKING:
+    import cuimage
     import itk  # type: ignore
     import nibabel as nib
+    import openslide
     from itk import Image  # type: ignore
     from nibabel.nifti1 import Nifti1Image
     from PIL import Image as PILImage
 
-    has_itk = has_nib = has_pil = True
+    has_itk = has_nib = has_pil = has_cux = has_osl = True
 else:
     itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
     Image, _ = optional_import("itk", allow_namespace_pkg=True, name="Image")
     nib, has_nib = optional_import("nibabel")
     Nifti1Image, _ = optional_import("nibabel.nifti1", name="Nifti1Image")
     PILImage, has_pil = optional_import("PIL.Image")
+    cuimage, has_cux = optional_import("cuimage")
+    openslide, has_osl = optional_import("openslide")
 
-__all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReader"]
+__all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReader", "WSIReader"]
 
 
 class ImageReader(ABC):
@@ -264,10 +269,10 @@ class ITKReader(ImageReader):
         origin = np.asarray(img.GetOrigin())
 
         direction = np.asarray(direction)
-        affine = np.eye(direction.shape[0] + 1)
+        affine: np.ndarray = np.eye(direction.shape[0] + 1)
         affine[(slice(-1), slice(-1))] = direction @ np.diag(spacing)
         affine[(slice(-1), -1)] = origin
-        return np.asarray(affine)
+        return affine
 
     def _get_spatial_shape(self, img) -> np.ndarray:
         """
@@ -626,3 +631,156 @@ class PILReader(ImageReader):
         """
         # the img data should have no channel dim or the last dim is channel
         return np.asarray((img.width, img.height))
+
+
+class WSIReader(ImageReader):
+    """
+    Read whole slide imaging and extract patches
+
+    """
+
+    def __init__(self, reader_lib: str = "OpenSlide"):
+        super().__init__()
+        self.reader_lib = reader_lib.lower()
+        if self.reader_lib == "openslide":
+            if has_osl:
+                self.wsi_reader = openslide.OpenSlide
+        elif self.reader_lib == "cuclaraimage":
+            if has_cux:
+                self.wsi_reader = cuimage.CuImage
+        else:
+            raise ValueError('`reader_lib` should be either "cuClaraImage" or "OpenSlide"')
+
+    def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
+        """
+        Verify whether the specified file or files format is supported by WSI reader.
+
+        Args:
+            filename: file name or a list of file names to read.
+                if a list of files, verify all the suffixes.
+        """
+        return is_supported_format(filename, ["tif", "tiff"])
+
+    def read(self, data: Union[Sequence[str], str, np.ndarray], **kwargs):
+        """
+        Read image data from specified file or files.
+        Note that the returned object is CuImage or list of CuImage objects.
+
+        Args:
+            data: file name or a list of file names to read.
+
+        """
+        if (self.reader_lib == "openslide") and (not has_osl):
+            raise ImportError("No module named 'openslide'")
+        elif (self.reader_lib == "cuclaraimage") and (not has_cux):
+            raise ImportError("No module named 'cuimage'")
+
+        img_: List = []
+
+        filenames: Sequence[str] = ensure_tuple(data)
+        for name in filenames:
+            img = self.wsi_reader(name)
+            if self.reader_lib == "openslide":
+                img.shape = (img.dimensions[1], img.dimensions[0], 3)
+            img_.append(img)
+
+        return img_ if len(filenames) > 1 else img_[0]
+
+    def get_data(
+        self,
+        img,
+        location: Tuple[int, int] = (0, 0),
+        size: Optional[Tuple[int, int]] = None,
+        level: int = 0,
+        dtype: DtypeLike = np.uint8,
+        grid_shape: Tuple[int, int] = (1, 1),
+        patch_size: Optional[int] = None,
+    ):
+        """
+        Extract regions as numpy array from WSI image and return them.
+
+        Args:
+            img: a WSIReader image object loaded from a file, or list of CuImage objects
+            location: (x_min, y_min) tuple giving the top left pixel in the level 0 reference frame,
+            or list of tuples (default=(0, 0))
+            size: (height, width) tuple giving the region size, or list of tuples (default to full image size)
+            This is the size of image at the given level (`level`)
+            level: the level number, or list of level numbers (default=0)
+            dtype: the data type of output image
+            grid_shape: (row, columns) tuple define a grid to extract patches on that
+            patch_size: (heigsht, width) the size of extracted patches at the given level
+        """
+        if size is None:
+            if location == (0, 0):
+                # the maximum size is set to WxH
+                size = (img.shape[0] // (2 ** level), img.shape[1] // (2 ** level))
+                print(f"Reading the whole image at level={level} with shape={size}")
+            else:
+                raise ValueError("Size need to be provided to extract the region!")
+
+        region = self._extract_region(img, location=location, size=size, level=level, dtype=dtype)
+
+        metadata: Dict = {}
+        metadata["spatial_shape"] = size
+        metadata["original_channel_dim"] = -1
+        region = EnsureChannelFirst()(region, metadata)
+
+        if patch_size is None:
+            patches = region
+        else:
+            patches = self._extract_patches(
+                region, patch_size=(patch_size, patch_size), grid_shape=grid_shape, dtype=dtype
+            )
+
+        return patches, metadata
+
+    def _extract_region(
+        self,
+        img_obj,
+        size: Tuple[int, int],
+        location: Tuple[int, int] = (0, 0),
+        level: int = 0,
+        dtype: DtypeLike = np.uint8,
+    ):
+        # reverse the order of dimensions for size and location to be compatible with image shape
+        size = size[::-1]
+        location = location[::-1]
+        region = img_obj.read_region(location=location, size=size, level=level)
+        if self.reader_lib == "openslide":
+            region = region.convert("RGB")
+        # convert to numpy
+        region = np.asarray(region, dtype=dtype)
+
+        return region
+
+    def _extract_patches(
+        self,
+        region: np.ndarray,
+        grid_shape: Tuple[int, int] = (1, 1),
+        patch_size: Optional[Tuple[int, int]] = None,
+        dtype: DtypeLike = np.uint8,
+    ):
+        if patch_size is None and grid_shape == (1, 1):
+            return region
+
+        n_patches = grid_shape[0] * grid_shape[1]
+        region_size = region.shape[1:]
+
+        if patch_size is None:
+            patch_size = (region_size[0] // grid_shape[0], region_size[1] // grid_shape[1])
+
+        # split the region into patches on the grid and center crop them to patch size
+        flat_patch_grid = np.zeros((n_patches, 3, patch_size[0], patch_size[1]), dtype=dtype)
+        start_points = [
+            np.round(region_size[i] * (0.5 + np.arange(grid_shape[i])) / grid_shape[i] - patch_size[i] / 2).astype(int)
+            for i in range(2)
+        ]
+        idx = 0
+        for y_start in start_points[1]:
+            for x_start in start_points[0]:
+                x_end = x_start + patch_size[0]
+                y_end = y_start + patch_size[1]
+                flat_patch_grid[idx] = region[:, x_start:x_end, y_start:y_end]
+                idx += 1
+
+        return flat_patch_grid
