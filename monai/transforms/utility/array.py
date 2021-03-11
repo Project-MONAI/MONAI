@@ -14,6 +14,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 import logging
+import sys
 import time
 from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
@@ -409,6 +410,7 @@ class DataStats(Transform):
             additional_info: user can define callable function to extract additional info from input data.
             logger_handler: add additional handler to output data: save to file, etc.
                 add existing python logging handlers: https://docs.python.org/3/library/logging.handlers.html
+                the handler should have a logging level of at least `INFO`.
 
         Raises:
             TypeError: When ``additional_info`` is not an ``Optional[Callable]``.
@@ -424,8 +426,11 @@ class DataStats(Transform):
             raise TypeError(f"additional_info must be None or callable but is {type(additional_info).__name__}.")
         self.additional_info = additional_info
         self.output: Optional[str] = None
-        logging.basicConfig(level=logging.NOTSET)
         self._logger = logging.getLogger("DataStats")
+        self._logger.setLevel(logging.INFO)
+        console = logging.StreamHandler(sys.stdout)  # always stdout
+        console.setLevel(logging.INFO)
+        self._logger.addHandler(console)
         if logger_handler is not None:
             self._logger.addHandler(logger_handler)
 
@@ -459,7 +464,7 @@ class DataStats(Transform):
             lines.append(f"Additional info: {additional_info(img)}")
         separator = "\n"
         self.output = f"{separator.join(lines)}"
-        self._logger.debug(self.output)
+        self._logger.info(self.output)
 
         return img
 
