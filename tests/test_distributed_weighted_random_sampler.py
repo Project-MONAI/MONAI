@@ -12,10 +12,10 @@
 import unittest
 
 import numpy as np
+import torch
 import torch.distributed as dist
 
 from monai.data import DistributedWeightedRandomSampler
-from monai.utils import set_determinism
 from tests.utils import DistCall, DistTestCase
 
 
@@ -24,10 +24,14 @@ class DistributedWeightedRandomSamplerTest(DistTestCase):
     def test_replacement(self):
         data = [1, 2, 3, 4, 5]
         weights = [1, 2, 3, 4, 5]
-        set_determinism(seed=0)
-        sampler = DistributedWeightedRandomSampler(weights=weights, replacement=True, dataset=data, shuffle=False)
+        sampler = DistributedWeightedRandomSampler(
+            weights=weights,
+            replacement=True,
+            dataset=data,
+            shuffle=False,
+            generator=torch.Generator().manual_seed(0),
+        )
         samples = np.array([data[i] for i in list(sampler)])
-        set_determinism(seed=None)
 
         if dist.get_rank() == 0:
             np.testing.assert_allclose(samples, np.array([5, 5, 5]))
@@ -39,10 +43,14 @@ class DistributedWeightedRandomSamplerTest(DistTestCase):
     def test_no_replacement(self):
         data = [1, 2, 3, 4, 5]
         weights = [1, 2, 3, 4, 5]
-        set_determinism(seed=0)
-        sampler = DistributedWeightedRandomSampler(weights=weights, replacement=False, dataset=data, shuffle=False)
+        sampler = DistributedWeightedRandomSampler(
+            weights=weights,
+            replacement=False,
+            dataset=data,
+            shuffle=False,
+            generator=torch.Generator().manual_seed(0),
+        )
         samples = np.array([data[i] for i in list(sampler)])
-        set_determinism(seed=None)
 
         if dist.get_rank() == 0:
             np.testing.assert_allclose(samples, np.array([1, 3, 5]))
@@ -54,16 +62,15 @@ class DistributedWeightedRandomSamplerTest(DistTestCase):
     def test_num_samples(self):
         data = [1, 2, 3, 4, 5]
         weights = [1, 2, 3, 4, 5]
-        set_determinism(seed=123)
         sampler = DistributedWeightedRandomSampler(
             weights=weights,
             num_samples_per_rank=5,
             replacement=True,
             dataset=data,
             shuffle=False,
+            generator=torch.Generator().manual_seed(123),
         )
         samples = np.array([data[i] for i in list(sampler)])
-        set_determinism(seed=None)
 
         if dist.get_rank() == 0:
             np.testing.assert_allclose(samples, np.array([3, 1, 5, 1, 5]))
