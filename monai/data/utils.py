@@ -959,9 +959,11 @@ class DistributedWeightedRandomSampler(DistributedSampler):
             match the full dataset.
         num_samples_per_rank: number of samples to draw for every rank, sample from
             the distributed subset of dataset.
+            if None, default to the length of dataset split by DistributedSampler.
         replacement: if ``True``, samples are drawn with replacement, otherwise, they are
             drawn without replacement, which means that when a sample index is drawn for a row,
             it cannot be drawn again for that row, default to True.
+        generator: PyTorch Generator used in sampling.
         even_divisible: if False, different ranks can have different data length.
             for example, input data: [1, 2, 3, 4, 5], rank 0: [1, 3, 5], rank 1: [2, 4].'
         args: additional arguments for `DistributedSampler` super class.
@@ -973,6 +975,7 @@ class DistributedWeightedRandomSampler(DistributedSampler):
         weights: Sequence[float],
         num_samples_per_rank: Optional[int] = None,
         replacement: bool = True,
+        generator: Optional[torch.Generator] = None,
         even_divisible: bool = True,
         *args,
         **kwargs,
@@ -981,13 +984,14 @@ class DistributedWeightedRandomSampler(DistributedSampler):
         self.weights = weights
         self.num_samples_per_rank = num_samples_per_rank
         self.replacement = replacement
+        self.generator = generator
 
     def __iter__(self):
         indices = list(super().__iter__())
         num_samples = self.num_samples_per_rank if self.num_samples_per_rank is not None else self.num_samples
         weights = torch.as_tensor([self.weights[i] for i in indices], dtype=torch.double)
         # sample based on the provided weights
-        rand_tensor = torch.multinomial(weights, num_samples, self.replacement)
+        rand_tensor = torch.multinomial(weights, num_samples, self.replacement, generator=self.generator)
 
         return iter([indices[i] for i in rand_tensor.tolist()])
 
