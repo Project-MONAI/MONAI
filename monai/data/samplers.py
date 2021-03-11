@@ -76,7 +76,7 @@ class DistributedWeightedRandomSampler(DistributedSampler):
         *args,
         **kwargs,
     ):
-        super().__init__(even_divisible=even_divisible, *args, **kwargs)
+        super().__init__(even_divisible, *args, **kwargs)
         self.weights = weights
         self.num_samples_per_rank = num_samples_per_rank
         self.replacement = replacement
