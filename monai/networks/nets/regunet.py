@@ -12,6 +12,7 @@ from typing import List, Optional, Tuple, Union
 
 import torch
 from torch import nn
+from torch.nn import functional as F
 
 from monai.networks.blocks.regunet_block import (
     RegistrationDownSampleBlock,
