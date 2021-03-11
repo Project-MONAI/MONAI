@@ -970,6 +970,7 @@ class DistributedWeightedRandomSampler(DistributedSampler):
         kwargs: additional arguments for `DistributedSampler` super class.
 
     """
+
     def __init__(
         self,
         weights: Sequence[float],
