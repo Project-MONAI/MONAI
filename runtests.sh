@@ -36,9 +36,7 @@ doQuickTests=false
 doNetTests=false
 doDryRun=false
 doZooTests=false
-
-doUnitTests=true
-
+doUnitTests=false
 doBlackFormat=false
 doBlackFix=false
 doIsortFormat=false
@@ -55,16 +53,17 @@ PY_EXE=${MONAI_PY_EXE:-$(which python)}
 
 function print_usage {
     echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--flake8] [--clangformat] [--pytype] [--mypy]"
-    echo "            [--nounittests] [--coverage] [--quick] [--net] [--dryrun] [-j number] [--clean] [--help] [--version]"
+    echo "            [--unittests] [--coverage] [--quick] [--net] [--dryrun] [-j number] [--clean] [--help] [--version]"
     echo ""
     echo "MONAI unit testing utilities."
     echo ""
     echo "Examples:"
-    echo "./runtests.sh --codeformat --coverage     # run full tests (${green}recommended before making pull requests${noColor})."
-    echo "./runtests.sh --codeformat --nounittests  # run coding style and static type checking."
-    echo "./runtests.sh --quick                     # run minimal unit tests, for quick verification during code developments."
-    echo "./runtests.sh --autofix --nounittests     # run automatic code formatting using \"isort\" and \"black\"."
-    echo "./runtests.sh --clean                     # clean up temporary files and run \"${PY_EXE} setup.py develop --uninstall\"."
+    echo "./runtests.sh -f -u --net --coverage  # run style checks, full tests, print code coverage (${green}recommended for pull requests${noColor})."
+    echo "./runtests.sh -f -u                   # run style checks and unit tests."
+    echo "./runtests.sh -f                      # run coding style and static type checking."
+    echo "./runtests.sh --quick --unittests     # run minimal unit tests, for quick verification during code developments."
+    echo "./runtests.sh --autofix               # run automatic code formatting using \"isort\" and \"black\"."
+    echo "./runtests.sh --clean                 # clean up temporary files and run \"${PY_EXE} setup.py develop --uninstall\"."
     echo ""
     echo "Code style check options:"
     echo "    --black           : perform \"black\" code format checks"
@@ -79,11 +78,11 @@ function print_usage {
     echo "    -j, --jobs        : number of parallel jobs to run \"pytype\" (default $NUM_PARALLEL)"
     echo ""
     echo "MONAI unit testing options:"
-    echo "    --nounittests     : skip doing unit testing (i.e. only format lint testers)"
-    echo "    --coverage        : peforms coverage analysis of code for tests run"
-    echo "    -q, --quick       : disable long running tests"
-    echo "    --net             : perform training/inference/eval integration testing"
-    echo "    --list_tests      : list tests and exit"
+    echo "    -u, --unittests   : perform unit testing"
+    echo "    --coverage        : report testing code coverage, to be used with \"--net\", \"--unittests\""
+    echo "    -q, --quick       : skip long running unit tests and integration tests"
+    echo "    --net             : perform integration testing"
+    echo "    --list_tests      : list unit tests and exit"
     echo ""
     echo "Misc. options:"
     echo "    --dryrun          : display the commands to the screen without running"
@@ -92,7 +91,7 @@ function print_usage {
     echo "    -h, --help        : show this help message and exit"
     echo "    -v, --version     : show MONAI and system version information and exit"
     echo ""
-    echo "${separator}For bug reports, questions, and discussions, please file an issue at:"
+    echo "${separator}For bug reports and feature requests, please file an issue at:"
     echo "    https://github.com/Project-MONAI/MONAI/issues/new/choose"
     echo ""
     echo "To choose an alternative python executable, set the environmental variable, \"MONAI_PY_EXE\"."
@@ -159,6 +158,7 @@ function clean_py {
     find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".mypy_cache" -exec rm -r "{}" +
     find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".pytype" -exec rm -r "{}" +
     find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".coverage" -exec rm -r "{}" +
+    find ${TO_CLEAN} -depth -maxdepth 1 -type d -name "__pycache__" -exec rm -r "{}" +
 }
 
 function torch_validate {
@@ -219,8 +219,8 @@ do
         --dryrun)
             doDryRun=true
         ;;
-        --nou*)  # allow --nounittest | --nounittests | --nounittesting  etc.
-            doUnitTests=false
+        -u|--u*)  # allow --unittest | --unittests | --unittesting  etc.
+            doUnitTests=true
         ;;
         -f|--codeformat)
             doBlackFormat=true
@@ -266,6 +266,10 @@ do
         -v|--version)
             print_version
             exit 1
+        ;;
+        --nou*)  # allow --nounittest | --nounittests | --nounittesting  etc.
+            print_error_msg "nounittest option is deprecated, no unit tests is the default setting"
+            print_usage
         ;;
         *)
             print_error_msg "Incorrect commandline provided, invalid key: $key"
@@ -510,7 +514,7 @@ if [ $doUnitTests = true ]
 then
     echo "${separator}${blue}unittests${noColor}"
     torch_validate
-    ${cmdPrefix}${cmd} ./tests/runner.py
+    ${cmdPrefix}${cmd} ./tests/runner.py -p "test_[!integration]*py"
 fi
 
 # network training/inference/eval integration tests

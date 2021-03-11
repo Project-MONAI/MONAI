@@ -15,22 +15,33 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 import logging
 import time
-from typing import Callable, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
 from monai.config import DtypeLike, NdarrayTensor
-from monai.transforms.compose import Randomizable, Transform
+from monai.transforms.transform import RandomizableTransform, Transform
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points, map_binary_to_indices
 from monai.utils import ensure_tuple, min_version, optional_import
+
+if TYPE_CHECKING:
+    from PIL.Image import Image as PILImageImage
+    from PIL.Image import fromarray as pil_image_fromarray
+
+    has_pil = True
+else:
+    PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
+    pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
 
 __all__ = [
     "Identity",
     "AsChannelFirst",
     "AsChannelLast",
     "AddChannel",
+    "EnsureChannelFirst",
     "RepeatChannel",
+    "RemoveRepeatedChannel",
     "SplitChannel",
     "CastToType",
     "ToTensor",
@@ -139,6 +150,32 @@ class AddChannel(Transform):
         return img[None]
 
 
+class EnsureChannelFirst(Transform):
+    """
+    Automatically adjust or add the channel dimension of input data to ensure `channel_first` shape.
+    It extracts the `original_channel_dim` info from provided meta_data dictionary.
+    Typical values of `original_channel_dim` can be: "no_channel", 0, -1.
+    Convert the data to `channel_first` based on the `original_channel_dim` information.
+
+    """
+
+    def __call__(self, img: np.ndarray, meta_dict: Optional[Dict] = None):
+        """
+        Apply the transform to `img`.
+        """
+        if not isinstance(meta_dict, dict):
+            raise ValueError("meta_dict must be a dictionay data.")
+
+        channel_dim = meta_dict.get("original_channel_dim", None)
+
+        if channel_dim is None:
+            raise ValueError("meta_dict must contain `original_channel_dim` information.")
+        elif channel_dim == "no_channel":
+            return AddChannel()(img)
+        else:
+            return AsChannelFirst(channel_dim=channel_dim)(img)
+
+
 class RepeatChannel(Transform):
     """
     Repeat channel data to construct expected input shape for models.
@@ -159,6 +196,32 @@ class RepeatChannel(Transform):
         Apply the transform to `img`, assuming `img` is a "channel-first" array.
         """
         return np.repeat(img, self.repeats, 0)
+
+
+class RemoveRepeatedChannel(Transform):
+    """
+    RemoveRepeatedChannel data to undo RepeatChannel
+    The `repeats` count specifies the deletion of the origin data, for example:
+    ``RemoveRepeatedChannel(repeats=2)([[1, 2], [1, 2], [3, 4], [3, 4]])`` generates: ``[[1, 2], [3, 4]]``
+
+    Args:
+        repeats: the number of repetitions to be deleted for each element.
+    """
+
+    def __init__(self, repeats: int) -> None:
+        if repeats <= 0:
+            raise AssertionError("repeats count must be greater than 0.")
+
+        self.repeats = repeats
+
+    def __call__(self, img: np.ndarray) -> np.ndarray:
+        """
+        Apply the transform to `img`, assuming `img` is a "channel-first" array.
+        """
+        if np.shape(img)[0] < 2:
+            raise AssertionError("Image must have more than one channel")
+
+        return np.array(img[:: self.repeats, :])
 
 
 class SplitChannel(Transform):
@@ -238,7 +301,7 @@ class ToTensor(Transform):
     Converts the input image to a tensor without applying any other transformations.
     """
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> torch.Tensor:
+    def __call__(self, img: Union[np.ndarray, torch.Tensor, PILImageImage]) -> torch.Tensor:
         """
         Apply the transform to `img` and make it contiguous.
         """
@@ -252,13 +315,29 @@ class ToNumpy(Transform):
     Converts the input data to numpy array, can support list or tuple of numbers and PyTorch Tensor.
     """
 
-    def __call__(self, img: Union[List, Tuple, np.ndarray, torch.Tensor]) -> np.ndarray:
+    def __call__(self, img: Union[List, Tuple, np.ndarray, torch.Tensor, PILImageImage]) -> np.ndarray:
         """
         Apply the transform to `img` and make it contiguous.
         """
         if isinstance(img, torch.Tensor):
             img = img.detach().cpu().numpy()  # type: ignore
         return np.ascontiguousarray(img)
+
+
+class ToPIL(Transform):
+    """
+    Converts the input image (in the form of NumPy array or PyTorch Tensor) to PIL image
+    """
+
+    def __call__(self, img: Union[np.ndarray, torch.Tensor, PILImageImage]) -> PILImageImage:
+        """
+        Apply the transform to `img` and make it contiguous.
+        """
+        if isinstance(img, PILImageImage):
+            return img
+        if isinstance(img, torch.Tensor):
+            img = img.detach().cpu().numpy()
+        return pil_image_fromarray(img)
 
 
 class Transpose(Transform):
@@ -576,10 +655,10 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
         result.append(np.logical_or(np.logical_or(img == 1, img == 4), img == 2))
         # label 4 is ET
         result.append(img == 4)
-        return np.stack(result, axis=0).astype(np.float32)
+        return np.stack(result, axis=0)
 
 
-class AddExtremePointsChannel(Transform, Randomizable):
+class AddExtremePointsChannel(RandomizableTransform):
     """
     Add extreme points of label to the image as a new channel. This transform generates extreme
     point from label and applies a gaussian filter. The pixel values in points image are rescaled
