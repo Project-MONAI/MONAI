@@ -38,6 +38,12 @@ Generic Interfaces
     :members:
     :special-members: __call__
 
+`InvertibleTransform`
+^^^^^^^^^^^^^^^^^^^^^
+.. autoclass:: InvertibleTransform
+    :members:
+
+
 Vanilla Transforms
 ------------------
 

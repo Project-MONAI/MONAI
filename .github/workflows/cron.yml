@@ -40,9 +40,16 @@ jobs:
         nvidia-smi
         export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
         echo $CUDA_VISIBLE_DEVICES
+        stop_time=$((LAUNCH_DELAY + $(date +%s)))
+        while [ $(date +%s) -lt $stop_time ]; do
+          python -c 'import torch; torch.rand(5, 3, device=torch.device("cuda:0"))';
+        done
         python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
-        python -c 'import torch; print(torch.rand(5,3, device=torch.device("cuda:0")))'
-        BUILD_MONAI=1 ./runtests.sh --coverage
+        python -c 'import torch; print(torch.rand(5, 3, device=torch.device("cuda:0")))'
+        BUILD_MONAI=1 ./runtests.sh --coverage --unittests  # unit tests with coverage report
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        echo $CUDA_VISIBLE_DEVICES
+        BUILD_MONAI=1 ./runtests.sh --coverage --net  # integration tests with coverage report
         coverage xml
     - name: Upload coverage
       uses: codecov/codecov-action@v1
@@ -58,7 +65,11 @@ jobs:
     runs-on: [self-hosted, linux, x64, common]
     steps:
     - uses: actions/checkout@v2
-    - name: Install the dependencies
+    - name: Install APT dependencies
+      run: |
+        apt-get update
+        DEBIAN_FRONTEND="noninteractive" apt-get install -y libopenslide0
+    - name: Install Python dependencies
       run: |
         which python
         python -m pip install --upgrade pip wheel
@@ -72,9 +83,16 @@ jobs:
         nvidia-smi
         export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
         echo $CUDA_VISIBLE_DEVICES
+        stop_time=$((LAUNCH_DELAY + $(date +%s)))
+        while [ $(date +%s) -lt $stop_time ]; do
+          python -c 'import torch; torch.rand(5, 3, device=torch.device("cuda:0"))';
+        done
         python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
-        python -c 'import torch; print(torch.rand(5,3, device=torch.device("cuda:0")))'
-        BUILD_MONAI=1 ./runtests.sh --coverage
+        python -c 'import torch; print(torch.rand(5, 3, device=torch.device("cuda:0")))'
+        BUILD_MONAI=1 ./runtests.sh --coverage --unittests  # unit tests with coverage report
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        echo $CUDA_VISIBLE_DEVICES
+        BUILD_MONAI=1 ./runtests.sh --coverage --net  # integration tests with coverage report
         coverage xml
     - name: Upload coverage
       uses: codecov/codecov-action@v1
@@ -100,7 +118,10 @@ jobs:
         python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
         python -c 'import torch; print(torch.rand(5,3, device=torch.device("cuda:0")))'
         ngc --version
-        BUILD_MONAI=1 ./runtests.sh --coverage --pytype
+        BUILD_MONAI=1 ./runtests.sh --coverage --pytype --unittests  # unit tests with pytype checks, coverage report
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        echo $CUDA_VISIBLE_DEVICES
+        BUILD_MONAI=1 ./runtests.sh --coverage --net  # integration tests with coverage report
         coverage xml
     - name: Upload coverage
       uses: codecov/codecov-action@v1

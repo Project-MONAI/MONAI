@@ -52,7 +52,8 @@ class TestRotated2D(NumpyImageTestCase2D):
         expected = scipy.ndimage.rotate(
             self.imt[0, 0], -np.rad2deg(angle), (0, 1), not keep_size, order=_order, mode=_mode, prefilter=False
         )
-        np.testing.assert_allclose(expected, rotated["img"][0], atol=1e-3)
+        good = np.sum(np.isclose(expected, rotated["img"][0], atol=1e-3))
+        self.assertLessEqual(np.abs(good - expected.size), 5, "diff at most 5 pixels")
 
         expected = scipy.ndimage.rotate(
             self.segn[0, 0], -np.rad2deg(angle), (0, 1), not keep_size, order=0, mode=_mode, prefilter=False
@@ -104,7 +105,8 @@ class TestRotated3DXY(NumpyImageTestCase3D):
         expected = scipy.ndimage.rotate(
             self.imt[0, 0], -np.rad2deg(angle), (0, 1), not keep_size, order=_order, mode=_mode, prefilter=False
         )
-        np.testing.assert_allclose(expected, rotated["img"][0], atol=1e-3)
+        good = np.sum(np.isclose(expected, rotated["img"][0], atol=1e-3))
+        self.assertLessEqual(np.abs(good - expected.size), 5, "diff at most 5 voxels")
 
         expected = scipy.ndimage.rotate(
             self.segn[0, 0], -np.rad2deg(angle), (0, 1), not keep_size, order=0, mode=_mode, prefilter=False
