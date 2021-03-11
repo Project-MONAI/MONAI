@@ -50,7 +50,7 @@ class DistributedSampler(_TorchDistributedSampler):
         super().__init__(dataset=dataset, num_replicas=num_replicas, rank=rank, shuffle=shuffle, **kwargs)
 
         if not even_divisible:
-            data_len = len(dataset)
+            data_len = len(dataset)  # type: ignore
             extra_size = self.total_size - data_len
             if self.rank + extra_size >= self.num_replicas:
                 self.num_samples -= 1
