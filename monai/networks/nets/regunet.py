@@ -253,8 +253,8 @@ class AffineHead(nn.Module):
     def __init__(
         self,
         spatial_dims: int,
-        image_size: Union[Tuple[int], List[int]],
-        decode_size: Union[Tuple[int], List[int]],
+        image_size: List[int],
+        decode_size: List[int],
         in_channels: int,
     ):
         super(AffineHead, self).__init__()
@@ -325,8 +325,8 @@ class GlobalNet(RegUNet):
         for size in image_size:
             if size % (2 ** depth) != 0:
                 raise ValueError(
-                    f"given extract_max_level {self.extract_max_level}, "
-                    f"all input spatial dimension must be divisible by {2 ** self.extract_max_level}, "
+                    f"given depth {depth}, "
+                    f"all input spatial dimension must be divisible by {2 ** depth}, "
                     f"got input of size {image_size}"
                 )
         self.image_size = image_size

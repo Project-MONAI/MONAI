@@ -351,7 +351,7 @@ Nets
   :members:
 
 `GlobalNet`
-~~~~~~~~~~
+~~~~~~~~~~~~
 .. autoclass:: GlobalNet
   :members:
 
