@@ -143,7 +143,7 @@ class TestDataStatsd(unittest.TestCase):
             }
             transform = DataStatsd(**input_param)
             _ = transform(input_data)
-            handler.stream.close()
+            handler.close()
             transform.printer._logger.removeHandler(handler)
             with open(filename, "r") as f:
                 content = f.read()
