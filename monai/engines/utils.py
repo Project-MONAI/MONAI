@@ -18,7 +18,7 @@ from monai.utils import exact_version, optional_import
 if TYPE_CHECKING:
     from ignite.engine import EventEnum
 else:
-    EventEnum, _ = optional_import("ignite.engine", "0.4.2", exact_version, "EventEnum")
+    EventEnum, _ = optional_import("ignite.engine", "0.4.4", exact_version, "EventEnum")
 
 __all__ = [
     "IterationEvents",

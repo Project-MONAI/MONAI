@@ -17,8 +17,8 @@ from monai.handlers.utils import evenly_divisible_all_gather
 from monai.metrics import compute_roc_auc
 from monai.utils import Average, exact_version, optional_import
 
-idist, _ = optional_import("ignite", "0.4.2", exact_version, "distributed")
-EpochMetric, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "EpochMetric")
+idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
+EpochMetric, _ = optional_import("ignite.metrics", "0.4.4", exact_version, "EpochMetric")
 
 
 class ROCAUC(EpochMetric):  # type: ignore[valid-type, misc]  # due to optional_import
