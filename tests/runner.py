@@ -10,8 +10,10 @@
 # limitations under the License.
 
 import argparse
+import glob
 import inspect
 import os
+import re
 import sys
 import time
 import unittest
@@ -62,7 +64,7 @@ def print_results(results, discovery_time, thresh, status):
     print("Remember to check above times for any errors!")
 
 
-def parse_args(default_pattern):
+def parse_args():
     parser = argparse.ArgumentParser(description="Runner for MONAI unittests with timing.")
     parser.add_argument(
         "-s", action="store", dest="path", default=".", help="Directory to start discovery (default: '%(default)s')"
@@ -71,7 +73,7 @@ def parse_args(default_pattern):
         "-p",
         action="store",
         dest="pattern",
-        default=default_pattern,
+        default="test_*.py",
         help="Pattern to match tests (default: '%(default)s')",
     )
     parser.add_argument(
@@ -111,11 +113,8 @@ def get_default_pattern(loader):
 
 if __name__ == "__main__":
 
-    loader = unittest.TestLoader()
-    default_pattern = get_default_pattern(loader)
-
     # Parse input arguments
-    args = parse_args(default_pattern)
+    args = parse_args()
 
     # If quick is desired, set environment variable
     if args.quick:
@@ -123,10 +122,17 @@ if __name__ == "__main__":
 
     # Get all test names (optionally from some path with some pattern)
     with PerfContext() as pc:
-        tests = loader.discover(args.path, args.pattern)
+        # the files are searched from `tests/` folder, starting with `test_`
+        files = glob.glob(os.path.join(os.path.dirname(__file__), "test_*.py"))
+        cases = []
+        for test_module in {os.path.basename(f)[:-3] for f in files}:
+            if re.match(args.pattern, test_module):
+                cases.append(f"tests.{test_module}")
+            else:
+                print(f"monai test runner: excluding tests.{test_module}")
+        tests = unittest.TestLoader().loadTestsFromNames(cases)
     discovery_time = pc.total_time
-    print(f"time to discover tests: {discovery_time}s")
-    print(tests)
+    print(f"time to discover tests: {discovery_time}s, total cases: {tests.countTestCases()}.")
 
     test_runner = unittest.runner.TextTestRunner(
         resultclass=TimeLoggingTestResult, verbosity=args.verbosity, failfast=args.failfast
