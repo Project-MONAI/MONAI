@@ -10,7 +10,7 @@ from parameterized import parameterized
 from monai.data.image_reader import WSIReader
 from monai.utils import optional_import
 
-_, has_cui = optional_import("cuclaraimage")
+_, has_cui = optional_import("cuimage")
 
 
 FILE_URL = "http://openslide.cs.cmu.edu/download/openslide-testdata/Generic-TIFF/CMU-1.tiff"

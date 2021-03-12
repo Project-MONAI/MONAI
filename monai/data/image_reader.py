@@ -40,7 +40,7 @@ else:
     nib, has_nib = optional_import("nibabel")
     Nifti1Image, _ = optional_import("nibabel.nifti1", name="Nifti1Image")
     PILImage, has_pil = optional_import("PIL.Image")
-    cuimage, has_cux = optional_import("cuclaraimage")
+    cuimage, has_cux = optional_import("cuimage")
     openslide, has_osl = optional_import("openslide")
 
 __all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReader", "WSIReader"]
