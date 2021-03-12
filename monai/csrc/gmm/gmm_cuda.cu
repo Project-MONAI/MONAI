@@ -257,31 +257,20 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
     }
 }
 
-// Single block, 32x2
+// Single block, 32xmixture_count
 __global__ void GMMcommonTerm(float *gmm, int mixture_count, int mixture_size, int component_count)
 {
-    __shared__ volatile float s_n[MAX_MIXTURES][32];
-
     int gmm_idx = (threadIdx.x * mixture_count) + threadIdx.y;
 
     float gmm_n = threadIdx.x < mixture_size ? gmm[gmm_idx * component_count] : 0.0f;
+
     float sum = gmm_n;
-    s_n[threadIdx.y][threadIdx.x] = sum;
 
-    // Warp Reduction
-    sum += s_n[threadIdx.y][(threadIdx.x + 16) & 31];
-    s_n[threadIdx.y][threadIdx.x] = sum;
-
-    sum += s_n[threadIdx.y][(threadIdx.x + 8) & 31];
-    s_n[threadIdx.y][threadIdx.x] = sum;
-
-    sum += s_n[threadIdx.y][(threadIdx.x + 4) & 31];
-    s_n[threadIdx.y][threadIdx.x] = sum;
-
-    sum += s_n[threadIdx.y][(threadIdx.x + 2) & 31];
-    s_n[threadIdx.y][threadIdx.x] = sum;
-
-    sum += s_n[threadIdx.y][(threadIdx.x + 1) & 31];
+    sum += __shfl_down_sync(0xffffffff, sum, 16);
+    sum += __shfl_down_sync(0xffffffff, sum,  8);
+    sum += __shfl_down_sync(0xffffffff, sum,  4);
+    sum += __shfl_down_sync(0xffffffff, sum,  2);
+    sum += __shfl_down_sync(0xffffffff, sum,  1);
 
     if (threadIdx.x < mixture_size)
     {
