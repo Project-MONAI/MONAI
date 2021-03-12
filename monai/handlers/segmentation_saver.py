@@ -41,6 +41,7 @@ class SegmentationSaver:
         scale: Optional[int] = None,
         dtype: DtypeLike = np.float64,
         output_dtype: DtypeLike = np.float32,
+        squeeze_end_dims: bool = True,
         batch_transform: Callable = lambda x: x,
         output_transform: Callable = lambda x: x,
         name: Optional[str] = None,
@@ -77,6 +78,11 @@ class SegmentationSaver:
                 If None, use the data type of input data.
                 It's used for Nifti format only.
             output_dtype: data type for saving data. Defaults to ``np.float32``, it's used for Nifti format only.
+            squeeze_end_dims: if True, any trailing singleton dimensions will be removed (after the channel
+                has been moved to the end). So if input is (C,H,W,D), this will be altered to (H,W,D,C), and
+                then if C==1, it will be saved as (H,W,D). If D also ==1, it will be saved as (H,W). If false,
+                image will always be saved as (H,W,D,C).
+                it's used for NIfTI format only.
             batch_transform: a callable that is used to transform the
                 ignite.engine.batch into expected format to extract the meta_data dictionary.
             output_transform: a callable that is used to transform the
@@ -96,6 +102,7 @@ class SegmentationSaver:
             scale=scale,
             dtype=dtype,
             output_dtype=output_dtype,
+            squeeze_end_dims=squeeze_end_dims,
             save_batch=True,
         )
         self.batch_transform = batch_transform
