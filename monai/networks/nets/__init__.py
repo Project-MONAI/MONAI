@@ -18,9 +18,8 @@ from .dynunet import DynUNet, DynUnet, Dynunet
 from .fullyconnectednet import FullyConnectedNet, VarFullyConnectedNet
 from .generator import Generator
 from .highresnet import HighResBlock, HighResNet
-from .localnet import LocalNet
 from .regressor import Regressor
-from .regunet import GlobalNet, RegUNet
+from .regunet import GlobalNet, LocalNet, RegUNet
 from .segresnet import SegResNet, SegResNetVAE
 from .senet import SENet, se_resnet50, se_resnet101, se_resnet152, se_resnext50_32x4d, se_resnext101_32x4d, senet154
 from .unet import UNet, Unet, unet
