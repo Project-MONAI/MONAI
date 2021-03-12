@@ -635,7 +635,11 @@ class PILReader(ImageReader):
 
 class WSIReader(ImageReader):
     """
-    Read whole slide imaging and extract patches
+    Read whole slide imaging and extract patches.
+
+    Args:
+        reader_lib: backend library to load the images, available options: "OpenSlide" or "cuClaraImage".
+            TODO: `cuClaraImage` package is unavailable so far, will enable the support later.
 
     """
 
