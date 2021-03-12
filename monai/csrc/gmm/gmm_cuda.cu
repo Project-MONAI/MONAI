@@ -87,7 +87,7 @@ __device__ __forceinline__ float get_constant(float *gmm, int i)
 template<int warp_count, int load_count>
 __global__ void CovarianceReductionKernel(int gaussian_index, const float* g_image, const int* g_alpha, float* g_matrices, int element_count, int channel_count, int component_count, int mixture_count)
 {
-    __shared__ volatile float s_matrix_component[warp_count];
+    __shared__ float s_matrix_component[warp_count];
 
     const int block_size = warp_count << 5;
 
@@ -143,19 +143,26 @@ __global__ void CovarianceReductionKernel(int gaussian_index, const float* g_ima
         matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  2);
         matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  1);
 
-        if (lane_index == 0) { s_matrix_component[warp_index] = matrix_component; } __syncthreads();
+        if (lane_index == 0)
+        {
+            s_matrix_component[warp_index] = matrix_component;
+        }
+
+        __syncthreads();
 
         if (warp_index == 0) 
         { 
-            if (warp_count >= 32) { s_matrix_component[lane_index] += s_matrix_component[lane_index + 16]; }
-            if (warp_count >= 16) { s_matrix_component[lane_index] += s_matrix_component[lane_index +  8]; }
-            if (warp_count >=  8) { s_matrix_component[lane_index] += s_matrix_component[lane_index +  4]; }
-            if (warp_count >=  4) { s_matrix_component[lane_index] += s_matrix_component[lane_index +  2]; }
-            if (warp_count >=  2) { s_matrix_component[lane_index] += s_matrix_component[lane_index +  1]; }
+            matrix_component = s_matrix_component[lane_index];
+
+            if (warp_count >= 32) { matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 16); }
+            if (warp_count >= 16) { matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  8); }
+            if (warp_count >=  8) { matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  4); }
+            if (warp_count >=  4) { matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  2); }
+            if (warp_count >=  2) { matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  1); }
 
             if (lane_index == 0)
             {
-                g_matrices[matrix_offset + i] = s_matrix_component[0];
+                g_matrices[matrix_offset + i] = matrix_component;
             }
         }
 
@@ -166,7 +173,7 @@ __global__ void CovarianceReductionKernel(int gaussian_index, const float* g_ima
 template<int block_size, bool invert_sigma>
 __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_gmm, int matrix_count, int component_count)
 {
-    __shared__ volatile float s_matrix_component[block_size];
+    __shared__ float s_matrix_component[block_size];
     __shared__ float s_gmm[15];
 
     int local_index = threadIdx.x;
@@ -175,12 +182,11 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
     
     int load_count = TILE(matrix_count, block_size);
 
-    float matrix_component = 0.0f;
     float norm_factor = 1.0f;
 
     for (int i = 0; i < 10; i++)
     {
-        matrix_component = 0.0f;
+        float matrix_component = 0.0f;
 
         for(int j = 0; j < load_count; j++)
         {
@@ -200,27 +206,26 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
 
         if (local_index <  32) 
         { 
-            s_matrix_component[local_index] += s_matrix_component[local_index + 32];
-            s_matrix_component[local_index] += s_matrix_component[local_index + 16];
-            s_matrix_component[local_index] += s_matrix_component[local_index +  8];
-            s_matrix_component[local_index] += s_matrix_component[local_index +  4];
-            s_matrix_component[local_index] += s_matrix_component[local_index +  2];
-            s_matrix_component[local_index] += s_matrix_component[local_index +  1];
+            matrix_component = s_matrix_component[local_index];
+
+            matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 16);
+            matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  8);
+            matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  4);
+            matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  2);
+            matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  1);
+
+            if (local_index == 0)
+            {
+                s_gmm[i] = norm_factor * matrix_component - get_constant(s_gmm, i);
+
+                if (i == 0 && matrix_component > 0)
+                {
+                    norm_factor = 1.0f / matrix_component;
+                }
+            }
         }
 
         __syncthreads();
-
-        if (local_index == 0)
-        {
-            matrix_component = s_matrix_component[0];
-
-            s_gmm[i] = norm_factor * matrix_component - get_constant(s_gmm, i);
-
-            if (i == 0 && matrix_component > 0)
-            {
-                norm_factor = 1.0f / matrix_component;
-            }
-        }
     }
 
     if (local_index < 5)
