@@ -160,6 +160,9 @@ DistributedSampler
 ~~~~~~~~~~~~~~~~~~
 .. autoclass:: monai.data.DistributedSampler
 
+DistributedWeightedRandomSampler
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.DistributedWeightedRandomSampler
 
 Decathlon Datalist
 ~~~~~~~~~~~~~~~~~~
