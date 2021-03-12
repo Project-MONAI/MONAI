@@ -40,7 +40,7 @@ else:
     nib, has_nib = optional_import("nibabel")
     Nifti1Image, _ = optional_import("nibabel.nifti1", name="Nifti1Image")
     PILImage, has_pil = optional_import("PIL.Image")
-    cuimage, has_cux = optional_import("cuimage")
+    cuimage, has_cux = optional_import("cuclaraimage")
     openslide, has_osl = optional_import("openslide")
 
 __all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReader", "WSIReader"]
@@ -635,17 +635,21 @@ class PILReader(ImageReader):
 
 class WSIReader(ImageReader):
     """
-    Read whole slide imaging and extract patches
+    Read whole slide imaging and extract patches.
+
+    Args:
+        reader_lib: backend library to load the images, available options: "OpenSlide" or "cuClaraImage".
+            TODO: `cuClaraImage` package is unavailable so far, will enable the support later.
 
     """
 
     def __init__(self, reader_lib: str = "OpenSlide"):
         super().__init__()
         self.reader_lib = reader_lib.lower()
-        if self.reader_lib == "openslide":
+        if self.reader_lib == "OpenSlide":
             if has_osl:
                 self.wsi_reader = openslide.OpenSlide
-        elif self.reader_lib == "cuclaraimage":
+        elif self.reader_lib == "cuClaraImage":
             if has_cux:
                 self.wsi_reader = cuimage.CuImage
         else:
