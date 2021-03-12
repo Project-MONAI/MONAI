@@ -68,6 +68,7 @@ for name in ("1D even", "1D odd"):
             partial(SpatialCropd, roi_start=val, roi_end=16),
             partial(RandSpatialCropd, roi_size=12 + val),
             partial(ResizeWithPadOrCropd, spatial_size=21 - val),
+            # non-sensical tests: crop bigger or pad smaller
             partial(SpatialCropd, roi_center=10, roi_size=100 + val),
         ):
             TESTS.append((t.func.__name__ + name, name, 0, t(KEYS)))  # type: ignore
