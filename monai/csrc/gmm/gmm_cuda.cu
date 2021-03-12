@@ -444,11 +444,8 @@ struct GMMSplit_t
 };
 
 // 1 Block, 32xmixture_count
-__global__ void GMMFindSplit(GMMSplit_t *gmmSplit, int gmmK, float *gmm, int component_count, int mixture_count)
+__global__ void GMMFindSplit(GMMSplit_t *gmmSplit, int gmmK, float *gmm, int channel_count, int component_count, int mixture_count)
 {
-    __shared__ float s_eigenvalues[MAX_MIXTURES][32];
-
-    // int gmm_idx = (threadIdx.x << 1) + threadIdx.y;
     int gmm_idx = threadIdx.x * mixture_count + threadIdx.y;
 
     float eigenvalue = 0;
@@ -456,28 +453,18 @@ __global__ void GMMFindSplit(GMMSplit_t *gmmSplit, int gmmK, float *gmm, int com
 
     if (threadIdx.x < gmmK)
     {
-        largest_eigenvalue_eigenvector(&gmm[gmm_idx * component_count + 4], eigenvector, eigenvalue);
+        largest_eigenvalue_eigenvector(&gmm[gmm_idx * component_count + (channel_count + 1)], eigenvector, eigenvalue);
     }
 
-    // Warp Reduction
-    float maxvalue = eigenvalue;
-    s_eigenvalues[threadIdx.y][threadIdx.x] = maxvalue;
+    float max_value = eigenvalue;
 
-    maxvalue = max(maxvalue, s_eigenvalues[threadIdx.y][(threadIdx.x+16) & 31]);
-    s_eigenvalues[threadIdx.y][threadIdx.x] = maxvalue;
+    max_value = max(max_value, __shfl_xor_sync(0xffffffff, max_value, 16));
+    max_value = max(max_value, __shfl_xor_sync(0xffffffff, max_value,  8));
+    max_value = max(max_value, __shfl_xor_sync(0xffffffff, max_value,  4));
+    max_value = max(max_value, __shfl_xor_sync(0xffffffff, max_value,  2));
+    max_value = max(max_value, __shfl_xor_sync(0xffffffff, max_value,  1));
 
-    maxvalue = max(maxvalue, s_eigenvalues[threadIdx.y][(threadIdx.x+8) & 31]);
-    s_eigenvalues[threadIdx.y][threadIdx.x] = maxvalue;
-
-    maxvalue = max(maxvalue, s_eigenvalues[threadIdx.y][(threadIdx.x+4) & 31]);
-    s_eigenvalues[threadIdx.y][threadIdx.x] = maxvalue;
-
-    maxvalue = max(maxvalue, s_eigenvalues[threadIdx.y][(threadIdx.x+2) & 31]);
-    s_eigenvalues[threadIdx.y][threadIdx.x] = maxvalue;
-
-    maxvalue = max(maxvalue, s_eigenvalues[threadIdx.y][(threadIdx.x+1) & 31]);
-
-    if (maxvalue == eigenvalue)
+    if (max_value == eigenvalue)
     {
         GMMSplit_t split;
 
@@ -564,7 +551,7 @@ void GMMInitialize(const float *image, int *alpha, float *gmm, float *scratch_me
 
         CovarianceFinalizationKernel<THREADS, false><<<k, THREADS>>>(block_gmm_scratch, gmm, block_count, component_count);
 
-        GMMFindSplit<<<1, dim3(BLOCK_SIZE, mixture_count)>>>(gmm_split_scratch, k / mixture_count, gmm, component_count, mixture_count);
+        GMMFindSplit<<<1, dim3(BLOCK_SIZE, mixture_count)>>>(gmm_split_scratch, k / mixture_count, gmm, channel_count, component_count, mixture_count);
         GMMDoSplit<<<TILE(element_count, BLOCK_SIZE * DO_SPLIT_DEGENERACY), BLOCK_SIZE>>>(gmm_split_scratch, (k / mixture_count) << 4, gmm, component_count, image, alpha, element_count);
     }
 }
