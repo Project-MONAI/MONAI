@@ -44,25 +44,6 @@ __device__ __forceinline__ void self_outer_product_triangle(int length, float* v
     }
 }
 
-__device__ __forceinline__ float get_component(float* pixel, int i)
-{
-    switch (i)
-    {
-        case 0 : return 1.0f;
-        case 1 : return pixel[0];
-        case 2 : return pixel[1];
-        case 3 : return pixel[2];
-        case 4 : return pixel[0] * pixel[0];
-        case 5 : return pixel[0] * pixel[1];
-        case 6 : return pixel[0] * pixel[2];
-        case 7 : return pixel[1] * pixel[1];
-        case 8 : return pixel[1] * pixel[2];
-        case 9 : return pixel[2] * pixel[2];
-    };
-
-    return 0.0f;
-}
-
 __device__ __forceinline__ float get_constant(float *gmm, int i)
 {
     const float epsilon = 1.0e-3f;
@@ -98,9 +79,9 @@ __global__ void CovarianceReductionKernel(int gaussian_index, const float* g_ima
     int global_index = local_index + block_index * block_size * load_count;
     int matrix_offset = (gaussian_index * gridDim.x + block_index) * GMM_COMPONENT_COUNT;
 
-    float matrix[10];
+    float matrix[MATRIX_COMPONENT_COUNT];
 
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < MATRIX_COMPONENT_COUNT; i++)
     {
         matrix[i] = 0;
     }
@@ -117,14 +98,21 @@ __global__ void CovarianceReductionKernel(int gaussian_index, const float* g_ima
             {
                 if (gaussian_index == (my_alpha & 15) + (my_alpha >> 4) * MIXTURE_COUNT)
                 {
-                    float pixel[3];
-                    pixel[0] = g_image[global_index + 0 * element_count] * 255;
-                    pixel[1] = g_image[global_index + 1 * element_count] * 255;
-                    pixel[2] = g_image[global_index + 2 * element_count] * 255;
-    
-                    for (int i = 0; i < 10; i++)
+                    float feature[CHANNEL_COUNT + 1];
+
+                    feature[0] = 1;
+
+                    for (int i = 0; i < CHANNEL_COUNT; i++)
                     {
-                        matrix[i] += get_component(pixel, i);
+                        feature[i + 1] = g_image[global_index + i * element_count] * 255;
+                    }
+
+                    for (int index = 0, i = 0; i < CHANNEL_COUNT + 1; i++)
+                    {
+                        for (int j = i; j < CHANNEL_COUNT + 1; j++, index++)
+                        {
+                            matrix[index] += feature[i] * feature[j];
+                        }
                     }
                 }
             }
@@ -133,7 +121,7 @@ __global__ void CovarianceReductionKernel(int gaussian_index, const float* g_ima
 
     __syncthreads();
 
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < MATRIX_COMPONENT_COUNT; i++)
     {
         float matrix_component = matrix[i];
 
@@ -184,7 +172,7 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
 
     float norm_factor = 1.0f;
 
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < MATRIX_COMPONENT_COUNT; i++)
     {
         float matrix_component = 0.0f;
 
