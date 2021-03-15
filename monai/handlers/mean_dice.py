@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional
+from typing import Callable, Union
 
 import torch
 
@@ -27,7 +27,7 @@ class MeanDice(IterationMetric):
         self,
         include_background: bool = True,
         output_transform: Callable = lambda x: x,
-        device: Optional[torch.device] = None,
+        device: Union[str, torch.device] = torch.device("cpu"),
         save_details: bool = True,
     ) -> None:
         """

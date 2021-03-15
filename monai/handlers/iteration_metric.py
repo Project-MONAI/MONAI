@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence, Union
 
 import torch
 
@@ -46,7 +46,7 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
         self,
         metric_fn: Callable,
         output_transform: Callable = lambda x: x,
-        device: Optional[torch.device] = None,
+        device: Union[str, torch.device] = torch.device("cpu"),
         save_details: bool = True,
     ) -> None:
         self._is_reduced: bool = False
@@ -77,7 +77,7 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
         score = self.metric_fn(y_pred, y)
         if isinstance(score, (tuple, list)):
             score = score[0]
-        self._scores.append(score)
+        self._scores.append(score.clone().to(self._device))
 
     def compute(self) -> Any:
         """
