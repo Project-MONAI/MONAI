@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from monai.transforms.transform import RandomizableTransform
 import sys
 import unittest
 from functools import partial
@@ -256,12 +255,7 @@ class TestInverse(unittest.TestCase):
         if not has_nib:
             self.skipTest("nibabel required for test_inverse")
 
-        # set determinism
-        seed = 0
-        set_determinism(seed)
-        for t in TESTS:
-            if isinstance(t, RandomizableTransform):
-                t.set_random_state(seed=seed)
+        set_determinism(seed=0)
 
         self.all_data = {}
 
@@ -320,6 +314,8 @@ class TestInverse(unittest.TestCase):
 
         # Apply forwards
         for t in transforms:
+            if isinstance(t, Randomizable):
+                t.set_random_state(seed=get_seed())
             forwards.append(t(forwards[-1]))
 
         # Check that error is thrown when inverse are used out of order.
