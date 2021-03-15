@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import random
 import sys
 import unittest
 from functools import partial
@@ -36,7 +35,6 @@ from monai.transforms import (
     RandAxisFlipd,
     RandFlipd,
     RandRotate90d,
-    RandRotated,
     RandSpatialCropd,
     ResizeWithPadOrCrop,
     ResizeWithPadOrCropd,
@@ -216,15 +214,6 @@ TESTS.append(("ResizeWithPadOrCropd 3d", "3D", 0, ResizeWithPadOrCropd(KEYS, [20
 
 TESTS.append(
     (
-        "RandRotated, prob 0",
-        "2D",
-        0,
-        RandRotated(KEYS, prob=0),
-    )
-)
-
-TESTS.append(
-    (
         "Flipd 3d",
         "3D",
         0,
@@ -256,15 +245,6 @@ TESTS.append(
         "3D",
         0,
         RandAxisFlipd(KEYS, 1),
-    )
-)
-
-TESTS.append(
-    (
-        "RandRotated 3d",
-        "3D",
-        1e-1,
-        RandRotated(KEYS, *[random.uniform(np.pi / 6, np.pi) for _ in range(3)], 1),  # type: ignore
     )
 )
 
