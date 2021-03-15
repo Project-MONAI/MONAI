@@ -22,7 +22,7 @@ from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
 class TestFocalLoss(unittest.TestCase):
     def test_consistency_with_cross_entropy_2d(self):
         # For gamma=0 the focal loss reduces to the cross entropy loss
-        focal_loss = FocalLoss(to_onehot_y=True, softmax=True, gamma=0.0, reduction="mean")
+        focal_loss = FocalLoss(to_onehot_y=True, softmax=True, gamma=0.0, reduction="mean", weight=1.0)
         ce = nn.CrossEntropyLoss(reduction="mean")
         max_error = 0
         class_num = 10

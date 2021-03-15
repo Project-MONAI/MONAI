@@ -10,16 +10,16 @@
 # limitations under the License.
 
 import warnings
-from typing import Callable, Optional, Union
+from typing import Callable, Optional, Sequence, Union
 
 import torch
-from torch.nn.modules.loss import _WeightedLoss
+from torch.nn.modules.loss import _Loss
 
 from monai.networks import one_hot
 from monai.utils import LossReduction
 
 
-class FocalLoss(_WeightedLoss):
+class FocalLoss(_Loss):
     """
     Reimplementation of the Focal Loss described in:
 
@@ -37,7 +37,7 @@ class FocalLoss(_WeightedLoss):
         other_act: Optional[Callable] = None,
         smooth_log: float = 1e-8,
         gamma: float = 2.0,
-        weight: Optional[torch.Tensor] = None,
+        weight: Optional[Union[Sequence[int], int]] = None,
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
     ) -> None:
         """
@@ -53,6 +53,8 @@ class FocalLoss(_WeightedLoss):
             gamma: value of the exponent gamma in the definition of the Focal loss.
             weight: weights to apply to the voxels of each class. If None no weights are applied.
                 This corresponds to the weights `\alpha` in [1].
+                The input can be a single value (same weight for all classes), a sequence of values (the length
+                of the sequence should be the same as the number of classes).
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
                 Specifies the reduction to apply to the output. Defaults to ``"mean"``.
 
@@ -72,7 +74,7 @@ class FocalLoss(_WeightedLoss):
                 fl(pred, grnd)
 
         """
-        super(FocalLoss, self).__init__(weight=weight, reduction=LossReduction(reduction).value)
+        super(FocalLoss, self).__init__(reduction=LossReduction(reduction).value)
         if other_act is not None and not callable(other_act):
             raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
         if int(sigmoid) + int(softmax) + int(other_act is not None) > 1:
@@ -84,7 +86,7 @@ class FocalLoss(_WeightedLoss):
         self.other_act = other_act
         self.smooth_log = smooth_log
         self.gamma = gamma
-        self.weight: Optional[torch.Tensor] = None
+        self.weight: Optional[Union[Sequence[int], int]] = weight
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -142,11 +144,16 @@ class FocalLoss(_WeightedLoss):
         pt = torch.exp(logpt)  # B,H*W or B,N,H*W
 
         if self.weight is not None:
-            self.weight = self.weight.to(i)
+            class_weight: Optional[torch.Tensor] = None
+            if isinstance(self.weight, float):
+                class_weight = torch.as_tensor([self.weight] * i.size(1))
+            else:
+                class_weight = torch.as_tensor(self.weight)
+            class_weight = class_weight.to(i)
             # Convert the weight to a map in which each voxel
             # has the weight associated with the ground-truth label
             # associated with this voxel in target.
-            at = self.weight[None, :, None]  # N => 1,N,1
+            at = class_weight[None, :, None]  # N => 1,N,1
             at = at.expand((t.size(0), -1, t.size(2)))  # 1,N,1 => B,N,H*W
             # Multiply the log proba by their weights.
             logpt = logpt * at
