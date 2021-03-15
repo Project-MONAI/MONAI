@@ -22,7 +22,7 @@ from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
 class TestFocalLoss(unittest.TestCase):
     def test_consistency_with_cross_entropy_2d(self):
         # For gamma=0 the focal loss reduces to the cross entropy loss
-        focal_loss = FocalLoss(to_onehot_y=True, gamma=0.0, reduction="mean")
+        focal_loss = FocalLoss(to_onehot_y=True, softmax=True, gamma=0.0, reduction="mean")
         ce = nn.CrossEntropyLoss(reduction="mean")
         max_error = 0
         class_num = 10
@@ -45,7 +45,7 @@ class TestFocalLoss(unittest.TestCase):
 
     def test_consistency_with_cross_entropy_classification(self):
         # for gamma=0 the focal loss reduces to the cross entropy loss
-        focal_loss = FocalLoss(to_onehot_y=True, gamma=0.0, reduction="mean")
+        focal_loss = FocalLoss(to_onehot_y=True, softmax=True, gamma=0.0, reduction="mean")
         ce = nn.CrossEntropyLoss(reduction="mean")
         max_error = 0
         class_num = 10
@@ -75,7 +75,7 @@ class TestFocalLoss(unittest.TestCase):
         pred_very_good = 1000 * F.one_hot(target, num_classes=2).permute(0, 3, 1, 2).float()
 
         # initialize the mean dice loss
-        loss = FocalLoss(to_onehot_y=True)
+        loss = FocalLoss(to_onehot_y=True, softmax=True)
 
         # focal loss for pred_very_good should be close to 0
         target = target.unsqueeze(1)  # shape (1, 1, H, W)
@@ -91,7 +91,7 @@ class TestFocalLoss(unittest.TestCase):
         pred_very_good = 1000 * F.one_hot(target, num_classes=num_classes).permute(0, 3, 1, 2).float()
 
         # initialize the mean dice loss
-        loss = FocalLoss(to_onehot_y=True)
+        loss = FocalLoss(to_onehot_y=True, softmax=True)
 
         # focal loss for pred_very_good should be close to 0
         target = target.unsqueeze(1)  # shape (1, 1, H, W)
@@ -106,8 +106,8 @@ class TestFocalLoss(unittest.TestCase):
         target = target.unsqueeze(0)  # shape (1, H, W)
         pred_very_good = 1000 * F.one_hot(target, num_classes=num_classes).permute(0, 3, 1, 2).float()
         # initialize the mean dice loss
-        loss = FocalLoss(to_onehot_y=True)
-        loss_onehot = FocalLoss(to_onehot_y=False)
+        loss = FocalLoss(to_onehot_y=True, softmax=True)
+        loss_onehot = FocalLoss(to_onehot_y=False, softmax=True)
 
         # focal loss for pred_very_good should be close to 0
         target_one_hot = F.one_hot(target, num_classes=num_classes).permute(0, 3, 1, 2)  # test one hot
@@ -138,8 +138,8 @@ class TestFocalLoss(unittest.TestCase):
         pred_very_good = 1000 * F.one_hot(target, num_classes=num_classes).permute(0, 4, 1, 2, 3).float()
 
         # initialize the mean dice loss
-        loss = FocalLoss(to_onehot_y=True)
-        loss_onehot = FocalLoss(to_onehot_y=False)
+        loss = FocalLoss(to_onehot_y=True, softmax=True)
+        loss_onehot = FocalLoss(to_onehot_y=False, softmax=True)
 
         # focal loss for pred_very_good should be close to 0
         target = target.unsqueeze(1)  # shape (1, 1, H, W)
