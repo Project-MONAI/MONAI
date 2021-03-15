@@ -73,7 +73,7 @@ class TestDeCollate(unittest.TestCase):
             transforms = Compose([LoadImaged("image"), transforms])
 
         dataset = CacheDataset(data, transforms, progress=False)
-        loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0)
+        loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
         for b, batch_data in enumerate(loader):
             decollated_1 = decollate_batch(batch_data)
