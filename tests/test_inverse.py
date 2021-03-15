@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import random
 import sys
 import unittest
 from functools import partial
@@ -28,11 +29,18 @@ from monai.transforms import (
     Compose,
     CropForegroundd,
     DivisiblePadd,
+    Flipd,
     InvertibleTransform,
     LoadImaged,
+    Orientationd,
+    RandAxisFlipd,
+    RandFlipd,
+    RandRotate90d,
+    RandRotated,
     RandSpatialCropd,
     ResizeWithPadOrCrop,
     ResizeWithPadOrCropd,
+    Rotate90d,
     SpatialCropd,
     SpatialPadd,
     allow_missing_keys_mode,
@@ -205,6 +213,100 @@ TESTS.append(("CropForegroundd 3d", "3D", 0, CropForegroundd(KEYS, source_key="l
 
 
 TESTS.append(("ResizeWithPadOrCropd 3d", "3D", 0, ResizeWithPadOrCropd(KEYS, [201, 150, 105])))
+
+TESTS.append(
+    (
+        "RandRotated, prob 0",
+        "2D",
+        0,
+        RandRotated(KEYS, prob=0),
+    )
+)
+
+TESTS.append(
+    (
+        "Flipd 3d",
+        "3D",
+        0,
+        Flipd(KEYS, [1, 2]),
+    )
+)
+
+TESTS.append(
+    (
+        "Flipd 3d",
+        "3D",
+        0,
+        Flipd(KEYS, [1, 2]),
+    )
+)
+
+TESTS.append(
+    (
+        "RandFlipd 3d",
+        "3D",
+        0,
+        RandFlipd(KEYS, 1, [1, 2]),
+    )
+)
+
+TESTS.append(
+    (
+        "RandAxisFlipd 3d",
+        "3D",
+        0,
+        RandAxisFlipd(KEYS, 1),
+    )
+)
+
+TESTS.append(
+    (
+        "RandRotated 3d",
+        "3D",
+        1e-1,
+        RandRotated(KEYS, *[random.uniform(np.pi / 6, np.pi) for _ in range(3)], 1),  # type: ignore
+    )
+)
+
+TESTS.append(
+    (
+        "Orientationd 3d",
+        "3D",
+        0,
+        # For data loader, output needs to be same size, so input must be square/cubic
+        SpatialPadd(KEYS, 110),
+        Orientationd(KEYS, "RAS"),
+    )
+)
+
+TESTS.append(
+    (
+        "Rotate90d 2d",
+        "2D",
+        0,
+        Rotate90d(KEYS),
+    )
+)
+
+TESTS.append(
+    (
+        "Rotate90d 3d",
+        "3D",
+        0,
+        Rotate90d(KEYS, k=2, spatial_axes=(1, 2)),
+    )
+)
+
+TESTS.append(
+    (
+        "RandRotate90d 3d",
+        "3D",
+        0,
+        # For data loader, output needs to be same size, so input must be square/cubic
+        SpatialPadd(KEYS, 110),
+        RandRotate90d(KEYS, prob=1, spatial_axes=(1, 2)),
+    )
+)
 
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
 
