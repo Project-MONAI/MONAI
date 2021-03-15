@@ -22,13 +22,11 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike, KeysCollection
-from monai.networks.layers import AffineTransform
 from monai.networks.layers.simplelayers import GaussianFilter
-from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
-from monai.transforms.inverse import InvertibleTransform, NonRigidTransform
+from monai.transforms.croppad.array import CenterSpatialCrop
+from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.array import (
     Affine,
-    AffineGrid,
     Flip,
     Orientation,
     Rand2DElastic,
@@ -52,6 +50,9 @@ from monai.utils import (
     fall_back_tuple,
 )
 from monai.utils.enums import InverseKeys
+from monai.utils.module import optional_import
+
+nib, _ = optional_import("nibabel")
 
 __all__ = [
     "Spacingd",
