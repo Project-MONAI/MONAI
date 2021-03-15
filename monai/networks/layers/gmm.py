@@ -42,5 +42,5 @@ class GaussianMixtureModel(torch.nn.Module):
         self.mixture_size = mixture_size
 
     def forward(self, input_tensor, label_tensor):
-        output = self.compiled_extention.gmm(input_tensor, label_tensor, self.mixture_count, self.mixture_size)
+        output = self.compiled_extention.gmm(input_tensor, label_tensor)
         return output

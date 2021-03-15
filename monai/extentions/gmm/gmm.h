@@ -15,8 +15,9 @@ limitations under the License.
 #error definition of CHANNEL_COUNT, MIXTURE_COUNT, and MIXTURE_SIZE required
 #endif
 
-#define COMPONENT_COUNT ((CHANNEL_COUNT + 1) * (CHANNEL_COUNT + 2) / 2)
-#define GMM_SIZE (MIXTURE_COUNT * MIXTURE_SIZE)
+#define MATRIX_COMPONENT_COUNT ((CHANNEL_COUNT + 1) * (CHANNEL_COUNT + 2) / 2)
+#define GMM_COMPONENT_COUNT (MATRIX_COMPONENT_COUNT + 1)
+#define GMM_COUNT (MIXTURE_COUNT * MIXTURE_SIZE)
 
-void GMM_Cuda(const float* input, const int* labels, float* output, int batch_count, int channel_count, int element_count, int mixture_count, int gaussians_per_mixture);
-void GMM_Cpu(const float* input, const int* labels, float* output, int batch_count, int channel_count, int element_count, int mixture_count, int gaussians_per_mixture);
+void GMM_Cuda(const float* input, const int* labels, float* output, int batch_count, int element_count);
+void GMM_Cpu(const float* input, const int* labels, float* output, int batch_count, int element_count);

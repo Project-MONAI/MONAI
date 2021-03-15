@@ -16,7 +16,7 @@ limitations under the License.
 
 #include "gmm.h"
 
-void GMM_Cpu(const float* input, const int* labels, float* output, int batch_count, int channel_count, int element_count, int mixture_count, int mixture_size)
+void GMM_Cpu(const float* input, const int* labels, float* output, int batch_count, int element_count)
 {
 
 }

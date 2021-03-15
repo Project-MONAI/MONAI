@@ -15,20 +15,18 @@ limitations under the License.
 
 #include "gmm.h"
 
-torch::Tensor GMM(torch::Tensor input_tensor, torch::Tensor label_tensor, int mixture_count, int gaussians_per_mixture)
+torch::Tensor GMM(torch::Tensor input_tensor, torch::Tensor label_tensor)
 {
     c10::DeviceType device_type = input_tensor.device().type();
 
     int dim = input_tensor.dim();
+    int batch_count = input_tensor.size(0);
+    int element_count = input_tensor.stride(1);
 
     long int* output_size = new long int[dim];
+    memcpy(output_size, input_tensor.sizes().data(), dim * sizeof(long int));
 
-    for (int i = 0; i < dim; i++)
-    {
-        output_size[i] = input_tensor.size(i);
-    }
-
-    output_size[1] = mixture_count;
+    output_size[1] = MIXTURE_COUNT;
 
     torch::Tensor output_tensor = torch::empty(c10::IntArrayRef(output_size, dim), torch::dtype(torch::kFloat32).device(device_type));
     
@@ -40,11 +38,11 @@ torch::Tensor GMM(torch::Tensor input_tensor, torch::Tensor label_tensor, int mi
 
     if(device_type == torch::kCUDA)
     {
-        GMM_Cuda(input, labels, output, input_tensor.size(0), input_tensor.size(1), input_tensor.stride(1), mixture_count, gaussians_per_mixture);
+        GMM_Cuda(input, labels, output, batch_count, element_count);
     }
     else
     {
-        GMM_Cpu(input, labels, output, input_tensor.size(0), input_tensor.size(1), input_tensor.stride(1), mixture_count, gaussians_per_mixture);
+        GMM_Cpu(input, labels, output, batch_count, element_count);
     }
 
     return output_tensor;
