@@ -30,10 +30,10 @@ from .nifti_saver import NiftiSaver
 from .nifti_writer import write_nifti
 from .png_saver import PNGSaver
 from .png_writer import write_png
+from .samplers import DistributedSampler, DistributedWeightedRandomSampler
 from .synthetic import create_test_image_2d, create_test_image_3d
 from .thread_buffer import ThreadBuffer
 from .utils import (
-    DistributedSampler,
     compute_importance_map,
     compute_shape_offset,
     correct_nifti_header_if_necessary,

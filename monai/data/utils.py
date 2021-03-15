@@ -22,7 +22,6 @@ from typing import Any, Dict, Generator, Iterable, List, Optional, Sequence, Tup
 
 import numpy as np
 import torch
-from torch.utils.data import DistributedSampler as _TorchDistributedSampler
 from torch.utils.data._utils.collate import default_collate
 
 from monai.networks.layers.simplelayers import GaussianFilter
@@ -61,7 +60,6 @@ __all__ = [
     "partition_dataset",
     "partition_dataset_classes",
     "select_cross_validation_folds",
-    "DistributedSampler",
     "json_hashing",
     "pickle_hashing",
     "sorted_dict",
@@ -919,30 +917,6 @@ def select_cross_validation_folds(partitions: Sequence[Iterable], folds: Union[S
         [9, 10, 5, 6]
     """
     return [data_item for fold_id in ensure_tuple(folds) for data_item in partitions[fold_id]]
-
-
-class DistributedSampler(_TorchDistributedSampler):
-    """
-    Enhance PyTorch DistributedSampler to support non-evenly divisible sampling.
-
-    Args:
-        even_divisible: if False, different ranks can have different data length.
-        for example, input data: [1, 2, 3, 4, 5], rank 0: [1, 3, 5], rank 1: [2, 4].
-
-    More information about DistributedSampler, please check:
-    https://github.com/pytorch/pytorch/blob/master/torch/utils/data/distributed.py
-
-    """
-
-    def __init__(self, even_divisible: bool = True, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        if not even_divisible:
-            data_len = len(kwargs["dataset"])
-            extra_size = self.total_size - data_len
-            if self.rank + extra_size >= self.num_replicas:
-                self.num_samples -= 1
-            self.total_size = data_len
 
 
 def json_hashing(item) -> bytes:
