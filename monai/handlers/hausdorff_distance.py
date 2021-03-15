@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 
 import torch
 
@@ -30,7 +30,7 @@ class HausdorffDistance(IterationMetric):
         percentile: Optional[float] = None,
         directed: bool = False,
         output_transform: Callable = lambda x: x,
-        device: Optional[torch.device] = None,
+        device: Union[str, torch.device] = "cpu",
         save_details: bool = True,
     ) -> None:
         """
