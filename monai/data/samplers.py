@@ -107,16 +107,18 @@ class DistributedWeightedRandomSampler(DistributedSampler):
             **kwargs,
         )
         self.weights = weights
-        self.num_samples_per_rank = num_samples_per_rank
+        self.num_samples_per_rank = num_samples_per_rank if num_samples_per_rank is not None else self.num_samples
         self.replacement = replacement
         self.generator = generator
 
     def __iter__(self):
         indices = list(super().__iter__())
-        num_samples = self.num_samples_per_rank if self.num_samples_per_rank is not None else self.num_samples
         weights = torch.as_tensor([self.weights[i] for i in indices], dtype=torch.double)
         # sample based on the provided weights
-        rand_tensor = torch.multinomial(weights, num_samples, self.replacement, generator=self.generator)
+        rand_tensor = torch.multinomial(weights, self.num_samples_per_rank, self.replacement, generator=self.generator)
 
         for i in rand_tensor:
             yield indices[i]
+
+    def __len__(self):
+        return self.num_samples_per_rank
