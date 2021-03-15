@@ -13,11 +13,12 @@ import sys
 import unittest
 
 from monai.data import DataLoader, Dataset
-from monai.transforms import AddChannel, Compose, Randomizable
+from monai.transforms import AddChannel, Compose
+from monai.transforms.transform import RandomizableTransform
 from monai.utils import set_determinism
 
 
-class _RandXform(Randomizable):
+class _RandXform(RandomizableTransform):
     def randomize(self):
         self.val = self.R.random_sample()
 
@@ -79,7 +80,7 @@ class TestCompose(unittest.TestCase):
             self.assertDictEqual(item, {"a": 2, "b": 1, "c": 2})
 
     def test_random_compose(self):
-        class _Acc(Randomizable):
+        class _Acc(RandomizableTransform):
             self.rand = 0.0
 
             def randomize(self, data=None):
@@ -98,8 +99,11 @@ class TestCompose(unittest.TestCase):
         self.assertAlmostEqual(c(1), 1.90734751)
 
     def test_randomize_warn(self):
-        class _RandomClass(Randomizable):
+        class _RandomClass(RandomizableTransform):
             def randomize(self, foo1, foo2):
+                pass
+
+            def __call__(self, data):
                 pass
 
         c = Compose([_RandomClass(), _RandomClass()])
@@ -166,6 +170,9 @@ class TestCompose(unittest.TestCase):
 
         # test len
         self.assertEqual(len(t1), 8)
+
+    def test_backwards_compatible_imports(self):
+        from monai.transforms.compose import MapTransform, RandomizableTransform, Transform  # noqa: F401
 
 
 if __name__ == "__main__":
