@@ -412,9 +412,8 @@ class RandSpatialCropd(RandomizableTransform, MapTransform, InvertibleTransform)
         random_size: bool = True,
         allow_missing_keys: bool = False,
     ) -> None:
-        RandomizableTransform.__init__(self)
+        RandomizableTransform.__init__(self, prob=1.0, do_transform=True)
         MapTransform.__init__(self, keys, allow_missing_keys)
-        self._do_transform = True
         self.roi_size = roi_size
         self.random_center = random_center
         self.random_size = random_size
@@ -511,7 +510,7 @@ class RandSpatialCropSamplesd(RandomizableTransform, MapTransform):
         random_size: bool = True,
         allow_missing_keys: bool = False,
     ) -> None:
-        RandomizableTransform.__init__(self)
+        RandomizableTransform.__init__(self, prob=1.0, do_transform=True)
         MapTransform.__init__(self, keys, allow_missing_keys)
         if num_samples < 1:
             raise ValueError(f"num_samples must be positive, got {num_samples}.")
@@ -638,7 +637,7 @@ class RandWeightedCropd(RandomizableTransform, MapTransform):
         center_coord_key: Optional[str] = None,
         allow_missing_keys: bool = False,
     ):
-        RandomizableTransform.__init__(self)
+        RandomizableTransform.__init__(self, prob=1.0, do_transform=True)
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.spatial_size = ensure_tuple(spatial_size)
         self.w_key = w_key
