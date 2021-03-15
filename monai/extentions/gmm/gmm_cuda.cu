@@ -19,51 +19,18 @@ limitations under the License.
 #define BLOCK_SIZE 32
 #define TILE(SIZE, STRIDE) ((((SIZE) - 1)/(STRIDE)) + 1)
 
-__constant__ int det_indices[] = { (9 << (4*4)) + (4 << (3*4)) + (6 << (2*4)) + (5 << (1*4)) + (4 << (0*4)),
+__constant__ int det_indices[] = {
+    (9 << (4*4)) + (4 << (3*4)) + (6 << (2*4)) + (5 << (1*4)) + (4 << (0*4)),
     (5 << (4*4)) + (8 << (3*4)) + (6 << (2*4)) + (6 << (1*4)) + (7 << (0*4)),
     (5 << (4*4)) + (8 << (3*4)) + (7 << (2*4)) + (8 << (1*4)) + (9 << (0*4))
-  };
+};
 
-__constant__ int inv_indices[] = { (4 << (5*4)) + (5 << (4*4)) + (4 << (3*4)) + (5 << (2*4)) + (6 << (1*4)) + (7 << (0*4)),
+__constant__ int inv_indices[] = {
+    (4 << (5*4)) + (5 << (4*4)) + (4 << (3*4)) + (5 << (2*4)) + (6 << (1*4)) + (7 << (0*4)),
     (7 << (5*4)) + (6 << (4*4)) + (9 << (3*4)) + (8 << (2*4)) + (8 << (1*4)) + (9 << (0*4)),
     (5 << (5*4)) + (4 << (4*4)) + (6 << (3*4)) + (6 << (2*4)) + (5 << (1*4)) + (8 << (0*4)),
     (5 << (5*4)) + (8 << (4*4)) + (6 << (3*4)) + (7 << (2*4)) + (9 << (1*4)) + (8 << (0*4))
-  };
-
-__device__ __forceinline__ void self_outer_product_triangle(int length, float* vector, float* output, float diag_epsilon)
-{
-    for (int i = 0, x = 0; x < length; x++)
-    {
-        output[i] = vector[x] * vector[x] + diag_epsilon;
-        i++;
-
-        for (int y = x + 1; y < length; y++, i++)
-        {
-            output[i] = vector[x] * vector[y];
-        }
-    }
-}
-
-__device__ __forceinline__ float get_constant(float *gmm, int i)
-{
-    const float epsilon = 1.0e-3f;
-
-    switch (i)
-    {
-        case 0 : return 0.0f;
-        case 1 : return 0.0f;
-        case 2 : return 0.0f;
-        case 3 : return 0.0f;
-        case 4 : return gmm[1] * gmm[1] + epsilon;
-        case 5 : return gmm[1] * gmm[2];
-        case 6 : return gmm[1] * gmm[3];
-        case 7 : return gmm[2] * gmm[2] + epsilon;
-        case 8 : return gmm[2] * gmm[3];
-        case 9 : return gmm[3] * gmm[3] + epsilon;
-    };
-
-    return 0.0f;
-}
+};
 
 template<int warp_count, int load_count>
 __global__ void CovarianceReductionKernel(int gaussian_index, const float* g_image, const int* g_alpha, float* g_matrices, int element_count)
@@ -172,48 +139,58 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
 
     float norm_factor = 1.0f;
 
-    for (int i = 0; i < MATRIX_COMPONENT_COUNT; i++)
+    for (int index = 0, i = 0; i < CHANNEL_COUNT + 1; i++)
     {
-        float matrix_component = 0.0f;
-
-        for(int j = 0; j < load_count; j++)
+        for (int j = i; j < CHANNEL_COUNT + 1; j++, index++)
         {
-            int matrix_index = local_index + j * block_size;
+            float matrix_component = 0.0f;
 
-            if(matrix_index < matrix_count)
+            for(int load = 0; load < load_count; load++)
             {
-                matrix_component += g_matrices[(matrix_offset + matrix_index) * GMM_COMPONENT_COUNT + i];
-            }
-        }
+                int matrix_index = local_index + load * block_size;
 
-        s_matrix_component[local_index] = matrix_component; __syncthreads();
-
-        if (block_size >= 512) { if (local_index < 256) { s_matrix_component[local_index] += s_matrix_component[local_index + 256]; } __syncthreads(); }
-        if (block_size >= 256) { if (local_index < 128) { s_matrix_component[local_index] += s_matrix_component[local_index + 128]; } __syncthreads(); }
-        if (block_size >= 128) { if (local_index <  64) { s_matrix_component[local_index] += s_matrix_component[local_index +  64]; } __syncthreads(); }
-
-        if (local_index <  32) 
-        { 
-            matrix_component = s_matrix_component[local_index];
-
-            matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 16);
-            matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  8);
-            matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  4);
-            matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  2);
-            matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  1);
-
-            if (local_index == 0)
-            {
-                s_gmm[i] = norm_factor * matrix_component - get_constant(s_gmm, i);
-
-                if (i == 0 && matrix_component > 0)
+                if(matrix_index < matrix_count)
                 {
-                    norm_factor = 1.0f / matrix_component;
+                    matrix_component += g_matrices[(matrix_offset + matrix_index) * GMM_COMPONENT_COUNT + index];
                 }
             }
-        }
 
-        __syncthreads();
+            s_matrix_component[local_index] = matrix_component; __syncthreads();
+
+            if (block_size >= 512) { if (local_index < 256) { s_matrix_component[local_index] += s_matrix_component[local_index + 256]; } __syncthreads(); }
+            if (block_size >= 256) { if (local_index < 128) { s_matrix_component[local_index] += s_matrix_component[local_index + 128]; } __syncthreads(); }
+            if (block_size >= 128) { if (local_index <  64) { s_matrix_component[local_index] += s_matrix_component[local_index +  64]; } __syncthreads(); }
+
+            if (local_index <  32)
+            { 
+                matrix_component = s_matrix_component[local_index];
+
+                matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 16);
+                matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  8);
+                matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  4);
+                matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  2);
+                matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  1);
+
+                if (local_index == 0)
+                {
+                    float constant = i == 0 ? 0.0f : s_gmm[i] * s_gmm[j];
+
+                    if (i != 0 && i == j)
+                    {
+                        constant += 1.0e-3f;
+                    }
+
+                    s_gmm[index] = norm_factor * matrix_component - constant;
+
+                    if (index == 0 && matrix_component > 0)
+                    {
+                        norm_factor = 1.0f / matrix_component;
+                    }
+                }
+            }
+
+            __syncthreads();
+        }
     }
 
     if (local_index < 5)
