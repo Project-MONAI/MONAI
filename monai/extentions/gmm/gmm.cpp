@@ -11,14 +11,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#include <cuda.h>
-#include <cuda_runtime.h>
 #include <torch/extension.h>
 
-void GMM_Cuda(const float* input, const int* labels, float* output, int batch_count, int channel_count, int element_count, int mixture_count, int gaussians_per_mixture);
+#include "gmm.h"
 
-torch::Tensor GMM_Cuda(torch::Tensor input_tensor, torch::Tensor label_tensor, int mixture_count, int gaussians_per_mixture)
+torch::Tensor GMM(torch::Tensor input_tensor, torch::Tensor label_tensor, int mixture_count, int gaussians_per_mixture)
 {
+    c10::DeviceType device_type = input_tensor.device().type();
+
     int dim = input_tensor.dim();
 
     long int* output_size = new long int[dim];
@@ -30,7 +30,7 @@ torch::Tensor GMM_Cuda(torch::Tensor input_tensor, torch::Tensor label_tensor, i
 
     output_size[1] = mixture_count;
 
-    torch::Tensor output_tensor = torch::empty(c10::IntArrayRef(output_size, dim), torch::dtype(torch::kFloat32).device(torch::kCUDA));
+    torch::Tensor output_tensor = torch::empty(c10::IntArrayRef(output_size, dim), torch::dtype(torch::kFloat32).device(device_type));
     
     delete output_size;
 
@@ -38,7 +38,19 @@ torch::Tensor GMM_Cuda(torch::Tensor input_tensor, torch::Tensor label_tensor, i
     int* labels = label_tensor.data_ptr<int>();
     float* output = output_tensor.data_ptr<float>();
 
-    GMM_Cuda(input, labels, output, input_tensor.size(0), input_tensor.size(1), input_tensor.stride(1), mixture_count, gaussians_per_mixture);
+    if(device_type == torch::kCUDA)
+    {
+        GMM_Cuda(input, labels, output, input_tensor.size(0), input_tensor.size(1), input_tensor.stride(1), mixture_count, gaussians_per_mixture);
+    }
+    else
+    {
+        GMM_Cpu(input, labels, output, input_tensor.size(0), input_tensor.size(1), input_tensor.stride(1), mixture_count, gaussians_per_mixture);
+    }
 
     return output_tensor;
+}
+
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) 
+{
+    m.def("gmm", torch::wrap_pybind_function(GMM), "gmm");
 }

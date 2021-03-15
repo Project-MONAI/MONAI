@@ -11,10 +11,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#include <torch/extension.h>
-#include "gmm_cuda.h"
+#include <cuda.h>
+#include <cuda_runtime.h>
 
-torch::Tensor GMM(torch::Tensor input_tensor, torch::Tensor label_tensor, int mixture_count, int gaussians_per_mixture)
+#include "gmm.h"
+
+void GMM_Cpu(const float* input, const int* labels, float* output, int batch_count, int channel_count, int element_count, int mixture_count, int mixture_size)
 {
-    return GMM_Cuda(input_tensor, label_tensor, mixture_count, gaussians_per_mixture);
+
 }

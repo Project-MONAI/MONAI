@@ -11,13 +11,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+#include <cuda.h>
+#include <cuda_runtime.h>
+
+#include "gmm.h"
+
 #define BLOCK_SIZE 32
 #define TILE(SIZE, STRIDE) ((((SIZE) - 1)/(STRIDE)) + 1)
 
 #define CHANNELS 3
 #define MAX_CHANNELS 16
 #define MAX_MIXTURES 16
-
 
 __constant__ int det_indices[] = { (9 << (4*4)) + (4 << (3*4)) + (6 << (2*4)) + (5 << (1*4)) + (4 << (0*4)),
     (5 << (4*4)) + (8 << (3*4)) + (6 << (2*4)) + (6 << (1*4)) + (7 << (0*4)),
