@@ -66,7 +66,7 @@ for name in ("1D even", "1D odd"):
             partial(SpatialCropd, roi_center=11, roi_size=10 + val),
             partial(SpatialCropd, roi_start=val, roi_end=17),
             partial(SpatialCropd, roi_start=val, roi_end=16),
-            partial(RandSpatialCropd, roi_size=12 + val),
+            partial(RandSpatialCropd, roi_size=14 + val),
             partial(ResizeWithPadOrCropd, spatial_size=21 - val),
         ):
             TESTS.append((t.func.__name__ + name, name, 0, t(KEYS)))  # type: ignore
