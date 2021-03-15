@@ -21,12 +21,11 @@ from tests.utils import DistCall, DistTestCase
 
 class DistributedWeightedRandomSamplerTest(DistTestCase):
     @DistCall(nnodes=1, nproc_per_node=2)
-    def test_replacement(self):
+    def test_sampling(self):
         data = [1, 2, 3, 4, 5]
         weights = [1, 2, 3, 4, 5]
         sampler = DistributedWeightedRandomSampler(
             weights=weights,
-            replacement=True,
             dataset=data,
             shuffle=False,
             generator=torch.Generator().manual_seed(0),
@@ -46,7 +45,6 @@ class DistributedWeightedRandomSamplerTest(DistTestCase):
         sampler = DistributedWeightedRandomSampler(
             weights=weights,
             num_samples_per_rank=5,
-            replacement=True,
             dataset=data,
             shuffle=False,
             generator=torch.Generator().manual_seed(123),
