@@ -29,7 +29,7 @@ class SurfaceDistance(IterationMetric):
         symmetric: bool = False,
         distance_metric: str = "euclidean",
         output_transform: Callable = lambda x: x,
-        device: Union[str, torch.device] = torch.device("cpu"),
+        device: Union[str, torch.device] = "cpu",
         save_details: bool = True,
     ) -> None:
         """

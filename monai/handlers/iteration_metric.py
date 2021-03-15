@@ -46,7 +46,7 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
         self,
         metric_fn: Callable,
         output_transform: Callable = lambda x: x,
-        device: Union[str, torch.device] = torch.device("cpu"),
+        device: Union[str, torch.device] = "cpu",
         save_details: bool = True,
     ) -> None:
         self._is_reduced: bool = False

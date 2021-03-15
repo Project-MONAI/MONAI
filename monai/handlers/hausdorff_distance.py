@@ -30,7 +30,7 @@ class HausdorffDistance(IterationMetric):
         percentile: Optional[float] = None,
         directed: bool = False,
         output_transform: Callable = lambda x: x,
-        device: Union[str, torch.device] = torch.device("cpu"),
+        device: Union[str, torch.device] = "cpu",
         save_details: bool = True,
     ) -> None:
         """

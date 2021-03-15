@@ -61,7 +61,7 @@ class ROCAUC(EpochMetric):  # type: ignore[valid-type, misc]  # due to optional_
         other_act: Optional[Callable] = None,
         average: Union[Average, str] = Average.MACRO,
         output_transform: Callable = lambda x: x,
-        device: Union[str, torch.device] = torch.device("cpu"),
+        device: Union[str, torch.device] = "cpu",
     ) -> None:
         def _compute_fn(pred, label):
             return compute_roc_auc(
