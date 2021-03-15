@@ -59,7 +59,7 @@ class TestRotated2D(NumpyImageTestCase2D):
             self.segn[0, 0], -np.rad2deg(angle), (0, 1), not keep_size, order=0, mode=_mode, prefilter=False
         )
         expected = np.stack(expected).astype(int)
-        self.assertLessEqual(np.count_nonzero(expected != rotated["seg"][0]), 20)
+        self.assertLessEqual(np.count_nonzero(expected != rotated["seg"][0]), 30)
 
 
 class TestRotated3D(NumpyImageTestCase3D):
@@ -86,7 +86,7 @@ class TestRotated3D(NumpyImageTestCase3D):
             self.segn[0, 0], np.rad2deg(angle), (0, 2), not keep_size, order=0, mode=_mode, prefilter=False
         )
         expected = np.stack(expected).astype(int)
-        self.assertLessEqual(np.count_nonzero(expected != rotated["seg"][0]), 105)
+        self.assertLessEqual(np.count_nonzero(expected != rotated["seg"][0]), 110)
 
 
 class TestRotated3DXY(NumpyImageTestCase3D):
@@ -113,7 +113,7 @@ class TestRotated3DXY(NumpyImageTestCase3D):
             self.segn[0, 0], -np.rad2deg(angle), (0, 1), not keep_size, order=0, mode=_mode, prefilter=False
         )
         expected = np.stack(expected).astype(int)
-        self.assertLessEqual(np.count_nonzero(expected != rotated["seg"][0]), 100)
+        self.assertLessEqual(np.count_nonzero(expected != rotated["seg"][0]), 110)
 
 
 if __name__ == "__main__":
