@@ -34,6 +34,7 @@ from monai.transforms import (
     Orientationd,
     RandAxisFlipd,
     RandFlipd,
+    Randomizable,
     RandRotate90d,
     RandSpatialCropd,
     ResizeWithPadOrCrop,
@@ -43,7 +44,7 @@ from monai.transforms import (
     SpatialPadd,
     allow_missing_keys_mode,
 )
-from monai.utils import first, optional_import, set_determinism
+from monai.utils import first, get_seed, optional_import, set_determinism
 from monai.utils.enums import InverseKeys
 from tests.utils import make_nifti_image, make_rand_affine
 
@@ -347,7 +348,11 @@ class TestInverse(unittest.TestCase):
             # pad 5 onto both ends so that cropping can be lossless
             im_1d = np.pad(np.arange(size), 5)[None]
             name = "1D even" if size % 2 == 0 else "1D odd"
-            self.all_data[name] = {"image": im_1d, "label": im_1d, "other": im_1d}
+            self.all_data[name] = {
+                "image": np.array(im_1d, copy=True),
+                "label": np.array(im_1d, copy=True),
+                "other": np.array(im_1d, copy=True),
+            }
 
         im_2d_fname, seg_2d_fname = [make_nifti_image(i) for i in create_test_image_2d(101, 100)]
         im_3d_fname, seg_3d_fname = [make_nifti_image(i, affine) for i in create_test_image_3d(100, 101, 107)]
@@ -391,6 +396,8 @@ class TestInverse(unittest.TestCase):
 
         # Apply forwards
         for t in transforms:
+            if isinstance(t, Randomizable):
+                t.set_random_state(seed=get_seed())
             forwards.append(t(forwards[-1]))
 
         # Check that error is thrown when inverse are used out of order.
