@@ -239,73 +239,6 @@ TESTS.append(
 
 TESTS.append(
     (
-        "SpatialCropd 2d",
-        "2D",
-        3e-2,
-        SpatialCropd(KEYS, [49, 51], [90, 89]),
-    )
-)
-
-TESTS.append(
-    (
-        "SpatialCropd 3d",
-        "3D",
-        4e-2,
-        SpatialCropd(KEYS, [49, 51, 44], [90, 89, 93]),
-    )
-)
-
-TESTS.append(("RandSpatialCropd 2d", "2D", 5e-2, RandSpatialCropd(KEYS, [96, 93], True, False)))
-
-TESTS.append(("RandSpatialCropd 3d", "3D", 2e-2, RandSpatialCropd(KEYS, [96, 93, 92], False, False)))
-
-TESTS.append(
-    (
-        "BorderPadd 2d",
-        "2D",
-        0,
-        BorderPadd(KEYS, [3, 7, 2, 5]),
-    )
-)
-
-TESTS.append(
-    (
-        "BorderPadd 2d",
-        "2D",
-        0,
-        BorderPadd(KEYS, [3, 7]),
-    )
-)
-
-TESTS.append(
-    (
-        "BorderPadd 3d",
-        "3D",
-        0,
-        BorderPadd(KEYS, [4]),
-    )
-)
-
-TESTS.append(
-    (
-        "DivisiblePadd 2d",
-        "2D",
-        0,
-        DivisiblePadd(KEYS, k=4),
-    )
-)
-
-TESTS.append(
-    (
-        "DivisiblePadd 3d",
-        "3D",
-        0,
-        DivisiblePadd(KEYS, k=[4, 8, 11]),
-    )
-)
-
-TESTS.append(
-    (
         "Flipd 3d",
         "3D",
         0,
@@ -437,35 +370,11 @@ TESTS.append(
 
 TESTS.append(("RandZoom 3d", "3D", 9e-2, RandZoomd(KEYS, 1, [0.5, 0.6, 0.9], [1.1, 1, 1.05], keep_size=True)))
 
-TESTS.append(
-    (
-        "CenterSpatialCropd 2d",
-        "2D",
-        0,
-        CenterSpatialCropd(KEYS, roi_size=95),
-    )
-)
-
-TESTS.append(
-    (
-        "CenterSpatialCropd 3d",
-        "3D",
-        0,
-        CenterSpatialCropd(KEYS, roi_size=[95, 97, 98]),
-    )
-)
-
-TESTS.append(("CropForegroundd 2d", "2D", 0, CropForegroundd(KEYS, source_key="label", margin=2)))
-
-TESTS.append(("CropForegroundd 3d", "3D", 0, CropForegroundd(KEYS, source_key="label")))
-
 TESTS.append(("Spacingd 3d", "3D", 3e-2, Spacingd(KEYS, [0.5, 0.7, 0.9], diagonal=False)))
 
 TESTS.append(("Resized 2d", "2D", 2e-1, Resized(KEYS, [50, 47])))
 
 TESTS.append(("Resized 3d", "3D", 5e-2, Resized(KEYS, [201, 150, 78])))
-
-TESTS.append(("ResizeWithPadOrCropd 3d", "3D", 3e-2, ResizeWithPadOrCropd(KEYS, [201, 150, 78])))
 
 TESTS.append(
     (
