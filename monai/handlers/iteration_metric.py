@@ -77,7 +77,7 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
         score = self.metric_fn(y_pred, y)
         if isinstance(score, (tuple, list)):
             score = score[0]
-        self._scores.append(score.clone().to(self._device))
+        self._scores.append(score.to(self._device))
 
     def compute(self) -> Any:
         """
