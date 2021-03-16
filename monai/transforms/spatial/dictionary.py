@@ -23,7 +23,7 @@ import torch
 
 from monai.config import DtypeLike, KeysCollection
 from monai.networks.layers.simplelayers import GaussianFilter
-from monai.transforms.croppad.array import CenterSpatialCrop
+from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.array import (
     Affine,
