@@ -35,7 +35,8 @@ class GaussianMixtureModel(torch.nn.Module):
         self.compiled_extention = load_module(
             'gmm', 
             {'CHANNEL_COUNT': channel_count, 'MIXTURE_COUNT': mixture_count, 'MIXTURE_SIZE': mixture_size}, 
-            verbose_build=True
+            verbose_build=True,
+            force_build=True
         )
         self.channel_count = channel_count
         self.mixture_count = mixture_count 
