@@ -53,7 +53,6 @@ from monai.utils import (
     optional_import,
 )
 from monai.utils.enums import InverseKeys
-from monai.utils.module import optional_import
 
 nib, _ = optional_import("nibabel")
 

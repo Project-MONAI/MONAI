@@ -30,8 +30,6 @@ from monai.transforms import (
     CropForegroundd,
     DivisiblePadd,
     Flipd,
-    CropForegroundd,
-    DivisiblePadd,
     InvertibleTransform,
     LoadImaged,
     Orientationd,
@@ -45,19 +43,17 @@ from monai.transforms import (
     RandSpatialCropd,
     RandZoomd,
     Resized,
-    RandSpatialCropd,
     ResizeWithPadOrCrop,
     ResizeWithPadOrCropd,
     Rotate90d,
     Rotated,
     Spacingd,
     SpatialCropd,
-    ResizeWithPadOrCropd,
-    SpatialCropd,
     SpatialPadd,
     Zoomd,
     allow_missing_keys_mode,
 )
+from monai.transforms.transform import Randomizable
 from monai.utils import first, get_seed, optional_import, set_determinism
 from monai.utils.enums import InverseKeys
 from tests.utils import make_nifti_image, make_rand_affine, test_is_quick
@@ -417,7 +413,7 @@ TESTS.append(
 TESTS.append(
     (
         "Zoomd 1d",
-        "1D",
+        "1D odd",
         0,
         Zoomd(KEYS, zoom=2, keep_size=False),
     )
