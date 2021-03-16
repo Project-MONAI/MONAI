@@ -282,7 +282,7 @@ class Orientationd(MapTransform, InvertibleTransform):
             orig_axcodes = nib.orientations.aff2axcodes(orig_affine)
             inverse_transform = Orientation(
                 axcodes=orig_axcodes,
-                as_closest_canonical=self.ornt_transform.as_closest_canonical,
+                as_closest_canonical=False,
                 labels=self.ornt_transform.labels,
             )
             # Apply inverse

@@ -249,16 +249,15 @@ TESTS.append(
     )
 )
 
-TESTS.append(
-    (
-        "Orientationd 3d",
-        "3D",
-        0,
-        # For data loader, output needs to be same size, so input must be square/cubic
-        SpatialPadd(KEYS, 110),
-        Orientationd(KEYS, "RAS"),
+for acc in [True, False]:
+    TESTS.append(
+        (
+            "Orientationd 3d",
+            "3D",
+            0,
+            Orientationd(KEYS, "RAS", as_closest_canonical=acc),
+        )
     )
-)
 
 TESTS.append(
     (
@@ -283,8 +282,6 @@ TESTS.append(
         "RandRotate90d 3d",
         "3D",
         0,
-        # For data loader, output needs to be same size, so input must be square/cubic
-        SpatialPadd(KEYS, 110),
         RandRotate90d(KEYS, prob=1, spatial_axes=(1, 2)),
     )
 )
