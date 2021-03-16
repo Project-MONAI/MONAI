@@ -145,7 +145,12 @@ class LoadImage(Transform):
                     break
 
         if reader is None:
-            raise RuntimeError(f"can not find suitable reader for this file: {filename}.")
+            raise RuntimeError(
+                f"can not find suitable reader for this file: {filename}. \
+                Please install dependency libraries: (nii, nii.gz) -> Nibabel, (png, jpg, bmp) -> PIL, \
+                (npz, npy) -> Numpy, others -> ITK. Refer to the installation instruction: \
+                https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies."
+            )
 
         img = reader.read(filename)
         img_array, meta_data = reader.get_data(img)

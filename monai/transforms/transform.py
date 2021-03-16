@@ -171,7 +171,7 @@ class RandomizableTransform(Randomizable, Transform):
 
     """
 
-    def __init__(self, prob=1.0, do_transform=False):
+    def __init__(self, prob: float = 1.0, do_transform: bool = True):
         self._do_transform = do_transform
         self.prob = min(max(prob, 0.0), 1.0)
 

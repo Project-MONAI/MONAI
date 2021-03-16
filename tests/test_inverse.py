@@ -58,7 +58,7 @@ from monai.transforms import (
     Zoomd,
     allow_missing_keys_mode,
 )
-from monai.utils import first, optional_import, set_determinism
+from monai.utils import first, get_seed, optional_import, set_determinism
 from monai.utils.enums import InverseKeys
 from tests.utils import make_nifti_image, make_rand_affine, test_is_quick
 
@@ -227,6 +227,79 @@ TESTS.append(("CropForegroundd 3d", "3D", 0, CropForegroundd(KEYS, source_key="l
 
 
 TESTS.append(("ResizeWithPadOrCropd 3d", "3D", 0, ResizeWithPadOrCropd(KEYS, [201, 150, 105])))
+
+TESTS.append(
+    (
+        "Flipd 3d",
+        "3D",
+        0,
+        Flipd(KEYS, [1, 2]),
+    )
+)
+
+TESTS.append(
+    (
+        "Flipd 3d",
+        "3D",
+        0,
+        Flipd(KEYS, [1, 2]),
+    )
+)
+
+TESTS.append(
+    (
+        "RandFlipd 3d",
+        "3D",
+        0,
+        RandFlipd(KEYS, 1, [1, 2]),
+    )
+)
+
+TESTS.append(
+    (
+        "RandAxisFlipd 3d",
+        "3D",
+        0,
+        RandAxisFlipd(KEYS, 1),
+    )
+)
+
+for acc in [True, False]:
+    TESTS.append(
+        (
+            "Orientationd 3d",
+            "3D",
+            0,
+            Orientationd(KEYS, "RAS", as_closest_canonical=acc),
+        )
+    )
+
+TESTS.append(
+    (
+        "Rotate90d 2d",
+        "2D",
+        0,
+        Rotate90d(KEYS),
+    )
+)
+
+TESTS.append(
+    (
+        "Rotate90d 3d",
+        "3D",
+        0,
+        Rotate90d(KEYS, k=2, spatial_axes=(1, 2)),
+    )
+)
+
+TESTS.append(
+    (
+        "RandRotate90d 3d",
+        "3D",
+        0,
+        RandRotate90d(KEYS, prob=1, spatial_axes=(1, 2)),
+    )
+)
 
 TESTS.append(
     (
@@ -488,7 +561,11 @@ class TestInverse(unittest.TestCase):
             # pad 5 onto both ends so that cropping can be lossless
             im_1d = np.pad(np.arange(size), 5)[None]
             name = "1D even" if size % 2 == 0 else "1D odd"
-            self.all_data[name] = {"image": im_1d, "label": im_1d, "other": im_1d}
+            self.all_data[name] = {
+                "image": np.array(im_1d, copy=True),
+                "label": np.array(im_1d, copy=True),
+                "other": np.array(im_1d, copy=True),
+            }
 
         im_2d_fname, seg_2d_fname = [make_nifti_image(i) for i in create_test_image_2d(101, 100)]
         im_3d_fname, seg_3d_fname = [make_nifti_image(i, affine) for i in create_test_image_3d(100, 101, 107)]
@@ -532,6 +609,8 @@ class TestInverse(unittest.TestCase):
 
         # Apply forwards
         for t in transforms:
+            if isinstance(t, Randomizable):
+                t.set_random_state(seed=get_seed())
             forwards.append(t(forwards[-1]))
 
         # Check that error is thrown when inverse are used out of order.

@@ -18,11 +18,11 @@ import torch
 
 from monai.utils import ensure_tuple, exact_version, get_torch_version_tuple, optional_import
 
-idist, _ = optional_import("ignite", "0.4.2", exact_version, "distributed")
+idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
 
 __all__ = [
     "stopping_fn_from_metric",
@@ -75,7 +75,7 @@ def evenly_divisible_all_gather(data: torch.Tensor) -> torch.Tensor:
     # make sure the data is evenly-divisible on multi-GPUs
     length = data.shape[0]
     all_lens = idist.all_gather(length)
-    max_len = max(all_lens).item()
+    max_len = max(all_lens)
     if length < max_len:
         size = [max_len - length] + list(data.shape[1:])
         data = torch.cat([data, data.new_full(size, 0)], dim=0)
@@ -103,7 +103,7 @@ def string_list_all_gather(strings: List[str]) -> List[str]:
     # get length of strings
     length = len(strings)
     all_lens = idist.all_gather(length)
-    max_len = max(all_lens).item()
+    max_len = max(all_lens)
     # pad the item to make sure the same length
     if length < max_len:
         strings = strings + ["" for _ in range(max_len - length)]
