@@ -20,13 +20,6 @@ limitations under the License.
 #define BLOCK_SIZE 32
 #define TILE(SIZE, STRIDE) ((((SIZE) - 1)/(STRIDE)) + 1)
 
-__constant__ int inv_indices[] = {
-    (4 << (5*4)) + (5 << (4*4)) + (4 << (3*4)) + (5 << (2*4)) + (6 << (1*4)) + (7 << (0*4)),
-    (7 << (5*4)) + (6 << (4*4)) + (9 << (3*4)) + (8 << (2*4)) + (8 << (1*4)) + (9 << (0*4)),
-    (5 << (5*4)) + (4 << (4*4)) + (6 << (3*4)) + (6 << (2*4)) + (5 << (1*4)) + (8 << (0*4)),
-    (5 << (5*4)) + (8 << (4*4)) + (6 << (3*4)) + (7 << (2*4)) + (9 << (1*4)) + (8 << (0*4))
-};
-
 template<int warp_count, int load_count>
 __global__ void CovarianceReductionKernel(int gaussian_index, const float* g_image, const int* g_alpha, float* g_matrices, int element_count)
 {
@@ -120,7 +113,7 @@ __global__ void CovarianceReductionKernel(int gaussian_index, const float* g_ima
     }
 }
 
-template<int block_size, bool invert_sigma>
+template<int block_size, bool invert_matrix>
 __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_gmm, int matrix_count)
 {
     __shared__ float s_matrix_component[block_size];
@@ -193,26 +186,14 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
 
     CalculateDeterminant(matrix, det_ptr, local_index);
 
-    if (invert_sigma && local_index < 6)
+    if (invert_matrix)
     {
-        int idx0 = (inv_indices[0] & (15 << (local_index * 4))) >> (local_index * 4);
-        int idx1 = (inv_indices[1] & (15 << (local_index * 4))) >> (local_index * 4);
-        int idx2 = (inv_indices[2] & (15 << (local_index * 4))) >> (local_index * 4);
-        int idx3 = (inv_indices[3] & (15 << (local_index * 4))) >> (local_index * 4);
-
-        if (s_gmm[10] > 0.0f)
-        {
-            s_gmm[4 + local_index] = (s_gmm[idx0] * s_gmm[idx1] - s_gmm[idx2] * s_gmm[idx3]) / s_gmm[10];
-        }
-        else
-        {
-            s_gmm[4 + local_index] = 0.0f;
-        }
+        InvertMatrix(matrix, *det_ptr, local_index);
     }
 
-    if (local_index < 11)
+    if (local_index < MATRIX_COMPONENT_COUNT + 1)
     {
-        g_gmm[gmm_index * 11 + local_index] = s_gmm[local_index];
+        g_gmm[gmm_index * (MATRIX_COMPONENT_COUNT + 1) + local_index] = s_gmm[local_index];
     }
 }
 
