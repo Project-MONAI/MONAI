@@ -188,7 +188,10 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
         }
     }
 
-    CalculateDeterminant(s_gmm, local_index);
+    float* matrix = s_gmm + (CHANNEL_COUNT + 1);
+    float* det_ptr = s_gmm + MATRIX_COMPONENT_COUNT;
+
+    CalculateDeterminant(matrix, det_ptr, local_index);
 
     if (invert_sigma && local_index < 6)
     {

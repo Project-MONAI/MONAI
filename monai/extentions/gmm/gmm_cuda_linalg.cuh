@@ -16,6 +16,8 @@ limitations under the License.
     #define DET_FACTORS 1
     #define DET_TERMS 1
     #define DET_REDUCTIONS 0
+    #define DET_SHFL_MASK 0x0
+    #define DET_SHFL_WIDTH 0
 
     __constant__ int c_det_indices[2] {
         1,
@@ -27,6 +29,8 @@ limitations under the License.
     #define DET_FACTORS 2
     #define DET_TERMS 2
     #define DET_REDUCTIONS 1
+    #define DET_SHFL_MASK 0x1
+    #define DET_SHFL_WIDTH 2
 
     __constant__ int c_det_indices[6] {
         1, -1,
@@ -39,6 +43,8 @@ limitations under the License.
     #define DET_FACTORS 3
     #define DET_TERMS 5
     #define DET_REDUCTIONS 3
+    #define DET_SHFL_MASK 0x1f
+    #define DET_SHFL_WIDTH 8
 
     __constant__ int c_det_indices[20] {
         1, -1, -1,  2, -1,
@@ -52,6 +58,8 @@ limitations under the License.
     #define DET_FACTORS 4
     #define DET_TERMS 17
     #define DET_REDUCTIONS 5
+    #define DET_SHFL_MASK 0x1ffff
+    #define DET_SHFL_WIDTH 32
 
     __constant__ int c_det_indices[85] {
         1, -1, -1,  2, -1, -1,  1,  2, -2, -2,  2, -1,  1,  2, -2, -1,  1,
@@ -63,7 +71,7 @@ limitations under the License.
 
 #endif 
 
-__device__ __forceinline__ void CalculateDeterminant(float* s_gmm, int thread_index)
+__device__ __forceinline__ void CalculateDeterminant(float* matrix, float* determinant, int thread_index)
 {    
     if (thread_index < DET_TERMS)
     {
@@ -72,17 +80,17 @@ __device__ __forceinline__ void CalculateDeterminant(float* s_gmm, int thread_in
         for (int i = 0; i < DET_FACTORS; i++)
         {
             int index = c_det_indices[thread_index + (i + 1) * DET_TERMS];
-            det_term *= s_gmm[CHANNEL_COUNT + 1 + index];
+            det_term *= matrix[index];
         }
 
         for (int i = DET_REDUCTIONS - 1; i >= 0; i--)
         {
-            det_term += __shfl_down_sync(0xffffffff, det_term, 1 << i);
-        }       
-        
+            det_term += __shfl_down_sync(DET_SHFL_MASK, det_term, 1 << i, DET_SHFL_WIDTH);
+        }
+
         if(thread_index == 0)
         {
-            s_gmm[MATRIX_COMPONENT_COUNT] = det_term;
+            *determinant = det_term;
         }
     }
 }
