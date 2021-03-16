@@ -22,7 +22,20 @@ from parameterized import parameterized
 
 from monai.handlers import CheckpointLoader, CheckpointSaver
 
-TEST_CASE_1 = [True, None, False, None, 1, None, False, True, 0, None, ["test_checkpoint_final_iteration=40.pt"]]
+TEST_CASE_1 = [
+    True,
+    None,
+    False,
+    None,
+    1,
+    None,
+    False,
+    False,
+    True,
+    0,
+    None,
+    ["test_checkpoint_final_iteration=40.pt"],
+]
 
 TEST_CASE_2 = [
     False,
@@ -33,6 +46,7 @@ TEST_CASE_2 = [
     None,
     False,
     True,
+    False,
     0,
     None,
     ["test_checkpoint_key_metric=32.pt", "test_checkpoint_key_metric=40.pt"],
@@ -46,6 +60,7 @@ TEST_CASE_3 = [
     1,
     None,
     False,
+    True,
     True,
     2,
     2,
@@ -61,20 +76,46 @@ TEST_CASE_4 = [
     None,
     False,
     False,
+    False,
     10,
     2,
     ["test_checkpoint_iteration=30.pt", "test_checkpoint_iteration=40.pt"],
 ]
 
-TEST_CASE_5 = [True, None, False, None, 1, None, False, True, 0, None, ["test_checkpoint_final_iteration=40.pt"], True]
+TEST_CASE_5 = [
+    True,
+    None,
+    False,
+    None,
+    1,
+    None,
+    False,
+    False,
+    True,
+    0,
+    None,
+    ["test_checkpoint_final_iteration=40.pt"],
+    True,
+]
 
-TEST_CASE_6 = [True, "final_model.pt", False, None, 1, None, False, True, 0, None, ["final_model.pt"]]
+TEST_CASE_6 = [True, "final_model.pt", False, None, 1, None, False, False, True, 0, None, ["final_model.pt"]]
 
-TEST_CASE_7 = [False, None, True, "val_loss", 1, "model.pt", False, True, 0, None, ["model.pt"]]
+TEST_CASE_7 = [False, None, True, "val_loss", 1, "model.pt", False, False, True, 0, None, ["model.pt"]]
+
+TEST_CASE_8 = [False, None, True, "val_loss", 1, "model.pt", False, True, True, 0, None, ["model.pt"]]
 
 
 class TestHandlerCheckpointSaver(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7])
+    @parameterized.expand([
+        TEST_CASE_1,
+        TEST_CASE_2,
+        TEST_CASE_3,
+        TEST_CASE_4,
+        TEST_CASE_5,
+        TEST_CASE_6,
+        TEST_CASE_7,
+        TEST_CASE_8,
+    ])
     def test_file(
         self,
         save_final,
@@ -84,6 +125,7 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
         key_metric_n_saved,
         key_metric_filename,
         key_metric_save_state,
+        key_metric_greater_or_equal,
         epoch_level,
         save_interval,
         n_saved,
@@ -117,6 +159,7 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
                 key_metric_n_saved,
                 key_metric_filename,
                 key_metric_save_state,
+                key_metric_greater_or_equal,
                 epoch_level,
                 save_interval,
                 n_saved,
