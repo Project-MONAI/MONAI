@@ -42,10 +42,20 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
 
             @engine2.on(Events.STARTED)
             def check_epoch(engine: Engine):
-                self.assertEqual(engine2.state.epoch, 5)
+                self.assertEqual(engine.state.epoch, 5)
 
             engine2.run([0] * 8, max_epochs=8)
             torch.testing.assert_allclose(net2.state_dict()["weight"], torch.tensor([0.1]))
+
+            # test bad case with max_epochs smaller than current epoch
+            engine3 = Engine(lambda e, b: None)
+            CheckpointLoader(load_path=path, load_dict={"net": net2, "eng": engine3}).attach(engine3)
+
+            try:
+                engine3.run([0] * 8, max_epochs=3)
+            except ValueError:
+                self.assertEqual(engine3.state.epoch, 5)
+                self.assertEqual(engine3.state.max_epochs, 5)
 
     def test_two_save_one_load(self):
         logging.basicConfig(stream=sys.stdout, level=logging.INFO)
