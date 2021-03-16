@@ -150,4 +150,4 @@ jobs:
         python -m pip install -r requirements.txt
     - name: Run tutorial notebooks
       run: |
-        sh ./runtests.sh
+        $(pwd)/runner.sh
