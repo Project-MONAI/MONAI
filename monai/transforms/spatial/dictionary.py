@@ -1066,7 +1066,7 @@ class Rotated(MapTransform, InvertibleTransform):
                 padding_mode=padding_mode,
                 align_corners=align_corners,
                 dtype=dtype,
-                return_rotationinver_matrix=True,
+                return_rotation_matrix=True,
             )
             self.push_transform(d, key, orig_size=orig_size, extra_info={"rot_mat": rot_mat})
         return d
