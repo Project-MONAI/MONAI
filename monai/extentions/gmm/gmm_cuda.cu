@@ -15,15 +15,10 @@ limitations under the License.
 #include <cuda_runtime.h>
 
 #include "gmm.h"
+#include "gmm_cuda_linalg.cuh"
 
 #define BLOCK_SIZE 32
 #define TILE(SIZE, STRIDE) ((((SIZE) - 1)/(STRIDE)) + 1)
-
-__constant__ int det_indices[] = {
-    (9 << (4*4)) + (4 << (3*4)) + (6 << (2*4)) + (5 << (1*4)) + (4 << (0*4)),
-    (5 << (4*4)) + (8 << (3*4)) + (6 << (2*4)) + (6 << (1*4)) + (7 << (0*4)),
-    (5 << (4*4)) + (8 << (3*4)) + (7 << (2*4)) + (8 << (1*4)) + (9 << (0*4))
-};
 
 __constant__ int inv_indices[] = {
     (4 << (5*4)) + (5 << (4*4)) + (4 << (3*4)) + (5 << (2*4)) + (6 << (1*4)) + (7 << (0*4)),
@@ -193,16 +188,7 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
         }
     }
 
-    if (local_index < 5)
-    { 
-        int idx0 = (det_indices[0] & (15 << (local_index * 4))) >> (local_index * 4);
-        int idx1 = (det_indices[1] & (15 << (local_index * 4))) >> (local_index * 4);
-        int idx2 = (det_indices[2] & (15 << (local_index * 4))) >> (local_index * 4);
-
-        s_gmm[10 + local_index] = s_gmm[idx0] * s_gmm[idx1] * s_gmm[idx2];
-
-        s_gmm[10] = s_gmm[10] + 2.0f * s_gmm[11] - s_gmm[12] - s_gmm[13] - s_gmm[14];
-    }
+    CalculateDeterminant(s_gmm, local_index);
 
     if (invert_sigma && local_index < 6)
     {
