@@ -1301,7 +1301,7 @@ class Affine(Transform):
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         return_affine: bool = False,
-    ) -> Union[np.ndarray, torch.Tensor]:
+    ) -> Union[np.ndarray, torch.Tensor, Tuple[Union[np.ndarray, torch.Tensor], torch.Tensor]]:
         """
         Args:
             img: shape must be (num_channels, H, W[, D]),
