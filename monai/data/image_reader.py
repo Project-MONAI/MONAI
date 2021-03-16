@@ -639,7 +639,6 @@ class WSIReader(ImageReader):
 
     Args:
         reader_lib: backend library to load the images, available options: "OpenSlide" or "cuCIM".
-            TODO: `cuCIM` package is unavailable so far, will enable the support later.
 
     """
 
