@@ -36,10 +36,12 @@ from monai.transforms import (
     RandFlipd,
     Randomizable,
     RandRotate90d,
+    RandRotated,
     RandSpatialCropd,
     ResizeWithPadOrCrop,
     ResizeWithPadOrCropd,
     Rotate90d,
+    Rotated,
     SpatialCropd,
     SpatialPadd,
     allow_missing_keys_mode,
@@ -283,6 +285,42 @@ TESTS.append(
         "3D",
         0,
         RandRotate90d(KEYS, prob=1, spatial_axes=(1, 2)),
+    )
+)
+
+TESTS.append(
+    (
+        "RandRotated, prob 0",
+        "2D",
+        0,
+        RandRotated(KEYS, prob=0),
+    )
+)
+
+TESTS.append(
+    (
+        "Rotated 2d",
+        "2D",
+        8e-2,
+        Rotated(KEYS, random.uniform(np.pi / 6, np.pi), keep_size=True, align_corners=False),
+    )
+)
+
+TESTS.append(
+    (
+        "Rotated 3d",
+        "3D",
+        1e-1,
+        Rotated(KEYS, [random.uniform(np.pi / 6, np.pi) for _ in range(3)], True),  # type: ignore
+    )
+)
+
+TESTS.append(
+    (
+        "RandRotated 3d",
+        "3D",
+        1e-1,
+        RandRotated(KEYS, *[random.uniform(np.pi / 6, np.pi) for _ in range(3)], 1),  # type: ignore
     )
 )
 

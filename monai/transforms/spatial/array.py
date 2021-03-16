@@ -743,7 +743,7 @@ class RandRotate(RandomizableTransform):
             align_corners=self.align_corners if align_corners is None else align_corners,
             dtype=dtype or self.dtype or img.dtype,
         )
-        return rotator(img)
+        return np.array(rotator(img))
 
 
 class RandFlip(RandomizableTransform):
