@@ -23,6 +23,7 @@ from monai.data.utils import decollate_batch
 from monai.networks.nets import UNet
 from monai.transforms import (
     AddChanneld,
+    Affined,
     BorderPadd,
     CenterSpatialCropd,
     Compose,
@@ -287,6 +288,21 @@ TESTS.append(
     )
 )
 
+TESTS.append(
+    (
+        "Affine 3d",
+        "3D",
+        1e-1,
+        Affined(
+            KEYS,
+            spatial_size=[155, 179, 192],
+            rotate_params=[np.pi / 6, -np.pi / 5, np.pi / 7],
+            shear_params=[0.5, 0.5],
+            translate_params=[10, 5, -4],
+            scale_params=[0.8, 1.3],
+        ),
+    )
+)
 
 TESTS.append(
     (

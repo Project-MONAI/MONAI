@@ -1300,6 +1300,7 @@ class Affine(Transform):
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+        return_affine: bool = False,
     ) -> Union[np.ndarray, torch.Tensor]:
         """
         Args:
@@ -1315,12 +1316,20 @@ class Affine(Transform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            return_affine: boolean as to whether to return the generated affine matrix or not.
         """
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
-        grid: torch.Tensor = self.affine_grid(spatial_size=sp_size)  # type: ignore
-        return self.resampler(
+        out = self.affine_grid(spatial_size=sp_size, return_affine=return_affine)
+        if return_affine:
+            grid, affine = out
+        else:
+            grid = out
+        resampled = self.resampler(
             img=img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
         )
+        if return_affine:
+            return resampled, affine
+        return resampled
 
 
 class RandAffine(RandomizableTransform):
