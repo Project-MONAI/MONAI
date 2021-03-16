@@ -10,7 +10,7 @@ from parameterized import parameterized
 from monai.data.image_reader import WSIReader
 from monai.utils import optional_import
 
-_, has_cui = optional_import("cuimage")
+_, has_cim = optional_import("cucim")
 
 
 FILE_URL = "http://openslide.cs.cmu.edu/download/openslide-testdata/Generic-TIFF/CMU-1.tiff"
@@ -61,31 +61,31 @@ TEST_CASE_4 = [
 ]
 
 
-class TestCuClaraImageReader(unittest.TestCase):
+class TestCuCIMReader(unittest.TestCase):
     @parameterized.expand([TEST_CASE_0])
-    @skipUnless(has_cui, "Requires CuClaraImage")
+    @skipUnless(has_cim, "Requires CuCIM")
     def test_read_whole_image(self, file_url, expected_shape):
         filename = self.camelyon_data_download(file_url)
-        reader = WSIReader("CuClaraImage")
+        reader = WSIReader("cuCIM")
         img_obj = reader.read(filename)
         img = reader.get_data(img_obj)[0]
         self.assertTupleEqual(img.shape, expected_shape)
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
-    @skipUnless(has_cui, "Requires CuClaraImage")
+    @skipUnless(has_cim, "Requires cuCIM")
     def test_read_region(self, file_url, patch_info, expected_img):
         filename = self.camelyon_data_download(file_url)
-        reader = WSIReader("CuClaraImage")
+        reader = WSIReader("cuCIM")
         img_obj = reader.read(filename)
         img = reader.get_data(img_obj, **patch_info)[0]
         self.assertTupleEqual(img.shape, expected_img.shape)
         self.assertIsNone(assert_array_equal(img, expected_img))
 
     @parameterized.expand([TEST_CASE_3, TEST_CASE_4])
-    @skipUnless(has_cui, "Requires CuClaraImage")
+    @skipUnless(has_cim, "Requires cuCIM")
     def test_read_patches(self, file_url, patch_info, expected_img):
         filename = self.camelyon_data_download(file_url)
-        reader = WSIReader("CuClaraImage")
+        reader = WSIReader("cuCIM")
         img_obj = reader.read(filename)
         img = reader.get_data(img_obj, **patch_info)[0]
         self.assertTupleEqual(img.shape, expected_img.shape)
