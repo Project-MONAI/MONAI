@@ -137,17 +137,22 @@ jobs:
     runs-on: [self-hosted, linux, x64, common]
     steps:
     - uses: actions/checkout@v2
-    - name: Install dependencies
+    - name: Install MONAI
       run: |
         which python
         python -m pip install --upgrade pip wheel
-        python -m pip install ${{ matrix.pytorch }}
         python -m pip install -r requirements-dev.txt
+        BUILD_MONAI=0 python setup.py develop  # install monai
     - name: Checkout tutorials and install their requirements
       run: |
-        git clone https://github.com/Project-MONAI/tutorials.git
+        nvidia-smi
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        echo $CUDA_VISIBLE_DEVICES
+        cd /opt
+        git clone --depth 1 https://github.com/Project-MONAI/tutorials.git  # latest commit
         cd tutorials
         python -m pip install -r requirements.txt
     - name: Run tutorial notebooks
       run: |
+        cd /opt/tutorials
         $(pwd)/runner.sh
