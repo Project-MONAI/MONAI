@@ -37,6 +37,7 @@ from monai.transforms import (
     Randomizable,
     RandRotate90d,
     RandSpatialCropd,
+    Resized,
     ResizeWithPadOrCrop,
     ResizeWithPadOrCropd,
     Rotate90d,
@@ -285,6 +286,10 @@ TESTS.append(
         RandRotate90d(KEYS, prob=1, spatial_axes=(1, 2)),
     )
 )
+
+TESTS.append(("Resized 2d", "2D", 2e-1, Resized(KEYS, [50, 47])))
+
+TESTS.append(("Resized 3d", "3D", 5e-2, Resized(KEYS, [201, 150, 78])))
 
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
 
