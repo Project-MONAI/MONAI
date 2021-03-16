@@ -110,5 +110,11 @@ class TestLocalNormalizedCrossCorrelationLoss(unittest.TestCase):
             LocalNormalizedCrossCorrelationLoss(in_channels=3, reduction=None)(pred, target)
 
 
+#     def test_script(self):
+#         input_param, input_data, _ = TEST_CASES[0]
+#         loss = LocalNormalizedCrossCorrelationLoss(**input_param)
+#         test_script_save(loss, input_data["pred"], input_data["target"])
+
+
 if __name__ == "__main__":
     unittest.main()

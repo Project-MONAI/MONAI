@@ -10,6 +10,8 @@
 # limitations under the License.
 
 import unittest
+from typing import TYPE_CHECKING
+from unittest import skipUnless
 
 import torch
 from parameterized import parameterized
@@ -23,7 +25,16 @@ from monai.networks.nets import (
     se_resnext101_32x4d,
     senet154,
 )
+from monai.utils import optional_import
 from tests.utils import test_pretrained_networks, test_script_save
+
+if TYPE_CHECKING:
+    import pretrainedmodels
+
+    has_cadene_pretrain = True
+else:
+    pretrainedmodels, has_cadene_pretrain = optional_import("pretrainedmodels")
+
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -56,11 +67,7 @@ class TestSENET(unittest.TestCase):
 
 
 class TestPretrainedSENET(unittest.TestCase):
-    @parameterized.expand(
-        [
-            TEST_CASE_PRETRAINED,
-        ]
-    )
+    @parameterized.expand([TEST_CASE_PRETRAINED])
     def test_senet_shape(self, model, input_param):
         net = test_pretrained_networks(model, input_param, device)
         input_data = torch.randn(3, 3, 64, 64).to(device)
@@ -69,6 +76,21 @@ class TestPretrainedSENET(unittest.TestCase):
         with eval_mode(net):
             result = net(input_data)
             self.assertEqual(result.shape, expected_shape)
+
+    @parameterized.expand([TEST_CASE_PRETRAINED])
+    @skipUnless(has_cadene_pretrain, "Requires `pretrainedmodels` package.")
+    def test_pretrain_consistency(self, model, input_param):
+        input_data = torch.randn(1, 3, 64, 64).to(device)
+        net = test_pretrained_networks(model, input_param, device)
+        with eval_mode(net):
+            result = net.features(input_data)
+        cadene_net = pretrainedmodels.se_resnet50().to(device)
+        with eval_mode(cadene_net):
+            expected_result = cadene_net.features(input_data)
+        # The difference between Cadene's senet and our version is that
+        # we use nn.Linear as the FC layer, but Cadene's version uses
+        # a conv layer with kernel size equals to 1. It may bring a little difference.
+        self.assertTrue(torch.allclose(result, expected_result, rtol=1e-5, atol=1e-5))
 
 
 if __name__ == "__main__":
