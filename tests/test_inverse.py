@@ -236,15 +236,6 @@ TESTS.append(
 
 TESTS.append(
     (
-        "Flipd 3d",
-        "3D",
-        0,
-        Flipd(KEYS, [1, 2]),
-    )
-)
-
-TESTS.append(
-    (
         "RandFlipd 3d",
         "3D",
         0,
@@ -309,42 +300,6 @@ TESTS.append(
 
 TESTS.append(
     (
-        "Flipd 3d",
-        "3D",
-        0,
-        Flipd(KEYS, [1, 2]),
-    )
-)
-
-TESTS.append(
-    (
-        "Flipd 3d",
-        "3D",
-        0,
-        Flipd(KEYS, [1, 2]),
-    )
-)
-
-TESTS.append(
-    (
-        "RandFlipd 3d",
-        "3D",
-        0,
-        RandFlipd(KEYS, 1, [1, 2]),
-    )
-)
-
-TESTS.append(
-    (
-        "RandAxisFlipd 3d",
-        "3D",
-        0,
-        RandAxisFlipd(KEYS, 1),
-    )
-)
-
-TESTS.append(
-    (
         "Rotated 2d",
         "2D",
         8e-2,
@@ -367,46 +322,6 @@ TESTS.append(
         "3D",
         1e-1,
         RandRotated(KEYS, *[random.uniform(np.pi / 6, np.pi) for _ in range(3)], 1),  # type: ignore
-    )
-)
-
-TESTS.append(
-    (
-        "Orientationd 3d",
-        "3D",
-        0,
-        # For data loader, output needs to be same size, so input must be square/cubic
-        SpatialPadd(KEYS, 110),
-        Orientationd(KEYS, "RAS"),
-    )
-)
-
-TESTS.append(
-    (
-        "Rotate90d 2d",
-        "2D",
-        0,
-        Rotate90d(KEYS),
-    )
-)
-
-TESTS.append(
-    (
-        "Rotate90d 3d",
-        "3D",
-        0,
-        Rotate90d(KEYS, k=2, spatial_axes=(1, 2)),
-    )
-)
-
-TESTS.append(
-    (
-        "RandRotate90d 3d",
-        "3D",
-        0,
-        # For data loader, output needs to be same size, so input must be square/cubic
-        SpatialPadd(KEYS, 110),
-        RandRotate90d(KEYS, prob=1, spatial_axes=(1, 2)),
     )
 )
 
