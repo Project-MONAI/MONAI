@@ -15,16 +15,16 @@ from typing import TYPE_CHECKING, Dict, Optional
 
 from monai.utils import exact_version, optional_import
 
-Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
-Checkpoint, _ = optional_import("ignite.handlers", "0.4.2", exact_version, "Checkpoint")
-BaseSaveHandler, _ = optional_import("ignite.handlers.checkpoint", "0.4.2", exact_version, "BaseSaveHandler")
+Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
+Checkpoint, _ = optional_import("ignite.handlers", "0.4.4", exact_version, "Checkpoint")
+BaseSaveHandler, _ = optional_import("ignite.handlers.checkpoint", "0.4.4", exact_version, "BaseSaveHandler")
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
     from ignite.handlers import DiskSaver
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
-    DiskSaver, _ = optional_import("ignite.handlers", "0.4.2", exact_version, "DiskSaver")
+    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
+    DiskSaver, _ = optional_import("ignite.handlers", "0.4.4", exact_version, "DiskSaver")
 
 
 class CheckpointSaver:
