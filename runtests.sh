@@ -175,7 +175,7 @@ function print_error_msg() {
 
 function print_style_fail_msg() {
     echo "${red}Check failed!${noColor}"
-    echo "Please run auto style fixes: ${green}./runtests.sh --autofix --nounittests${noColor}"
+    echo "Please run auto style fixes: ${green}./runtests.sh --autofix${noColor}"
 }
 
 function is_pip_installed() {
