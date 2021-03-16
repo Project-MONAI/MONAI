@@ -502,7 +502,7 @@ class Resized(MapTransform, InvertibleTransform):
         return d
 
 
-class Affined(RandomizableTransform, MapTransform):
+class Affined(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Affine`.
     """
@@ -571,7 +571,33 @@ class Affined(RandomizableTransform, MapTransform):
     ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
         d = dict(data)
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
-            d[key] = self.affine(d[key], mode=mode, padding_mode=padding_mode)
+            orig_size = d[key].shape[1:]
+            d[key], affine = self.affine(d[key], mode=mode, padding_mode=padding_mode, return_affine=True)
+            self.push_transform(d, key, orig_size=orig_size, extra_info={"affine": affine})
+        return d
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+
+        for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
+            transform = self.get_most_recent_transform(d, key)
+            orig_size = transform[InverseKeys.ORIG_SIZE.value]
+            # Create inverse transform
+            fwd_affine = transform[InverseKeys.EXTRA_INFO.value]["affine"]
+            inv_affine = np.linalg.inv(fwd_affine)
+
+            affine_grid = AffineGrid(affine=inv_affine)
+            grid: torch.Tensor = affine_grid(orig_size)  # type: ignore
+
+            # Apply inverse transform
+            out = self.affine.resampler(d[key], grid, mode, padding_mode)
+
+            # Convert to numpy
+            d[key] = out if isinstance(out, np.ndarray) else out.cpu().numpy()
+
+            # Remove the applied transform
+            self.pop_transform(d, key)
+
         return d
 
 
