@@ -653,7 +653,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
 
         return d
 
-
+class Rand2DElasticd(RandomizableTransform, MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Rand2DElastic`.
     """
