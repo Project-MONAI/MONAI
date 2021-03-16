@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Callable, Dict, Iterable, Optional, Sequence, Tuple, Union
 
 import torch
 from torch.utils.data import DataLoader
@@ -26,8 +26,8 @@ if TYPE_CHECKING:
     from ignite.engine import Engine
     from ignite.metrics import Metric
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
-    Metric, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "Metric")
+    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
+    Metric, _ = optional_import("ignite.metrics", "0.4.4", exact_version, "Metric")
 
 __all__ = ["Evaluator", "SupervisedEvaluator", "EnsembleEvaluator"]
 
@@ -38,7 +38,7 @@ class Evaluator(Workflow):
 
     Args:
         device: an object representing the device on which to run.
-        val_data_loader: Ignite engine use data_loader to run, must be torch.DataLoader.
+        val_data_loader: Ignite engine use data_loader to run, must be Iterable or torch.DataLoader.
         epoch_length: number of iterations for one epoch, default to `len(val_data_loader)`.
         non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
             with respect to the host. For other cases, this argument has no effect.
@@ -60,7 +60,7 @@ class Evaluator(Workflow):
     def __init__(
         self,
         device: torch.device,
-        val_data_loader: DataLoader,
+        val_data_loader: Union[Iterable, DataLoader],
         epoch_length: Optional[int] = None,
         non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
@@ -110,7 +110,7 @@ class SupervisedEvaluator(Evaluator):
 
     Args:
         device: an object representing the device on which to run.
-        val_data_loader: Ignite engine use data_loader to run, must be torch.DataLoader.
+        val_data_loader: Ignite engine use data_loader to run, must be Iterable, typically be torch.DataLoader.
         network: use the network to run model forward.
         epoch_length: number of iterations for one epoch, default to `len(val_data_loader)`.
         non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
@@ -134,7 +134,7 @@ class SupervisedEvaluator(Evaluator):
     def __init__(
         self,
         device: torch.device,
-        val_data_loader: DataLoader,
+        val_data_loader: Union[Iterable, DataLoader],
         network: torch.nn.Module,
         epoch_length: Optional[int] = None,
         non_blocking: bool = False,
@@ -215,7 +215,7 @@ class EnsembleEvaluator(Evaluator):
 
     Args:
         device: an object representing the device on which to run.
-        val_data_loader: Ignite engine use data_loader to run, must be torch.DataLoader.
+        val_data_loader: Ignite engine use data_loader to run, must be Iterable, typically be torch.DataLoader.
         epoch_length: number of iterations for one epoch, default to `len(val_data_loader)`.
         networks: use the networks to run model forward in order.
         pred_keys: the keys to store every prediction data.
@@ -241,7 +241,7 @@ class EnsembleEvaluator(Evaluator):
     def __init__(
         self,
         device: torch.device,
-        val_data_loader: DataLoader,
+        val_data_loader: Union[Iterable, DataLoader],
         networks: Sequence[torch.nn.Module],
         pred_keys: Sequence[str],
         epoch_length: Optional[int] = None,

@@ -20,6 +20,7 @@ from .enums import (
     GridSampleMode,
     GridSamplePadMode,
     InterpolateMode,
+    InverseKeys,
     LossReduction,
     Method,
     MetricReduction,

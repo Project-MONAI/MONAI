@@ -17,7 +17,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from monai.networks.utils import eval_mode, train_mode
 from monai.transforms import ScaleIntensity
 from monai.utils import ensure_tuple
 from monai.visualize.visualizer import default_upsampler
@@ -110,26 +109,24 @@ class ModelWithHooks:
                     return mod
         raise NotImplementedError(f"Could not find {layer_id}.")
 
-    def class_score(self, logits, class_idx=None):
-        if class_idx is not None:
-            return logits[:, class_idx].squeeze(), class_idx
-        class_idx = logits.max(1)[-1]
-        return logits[:, class_idx].squeeze(), class_idx
+    def class_score(self, logits, class_idx):
+        return logits[:, class_idx].squeeze()
 
     def __call__(self, x, class_idx=None, retain_graph=False):
-        # Use train_mode if grad is required, else eval_mode
-        mode = train_mode if self.register_backward else eval_mode
-        with mode(self.model):
-            logits = self.model(x)
-            acti, grad = None, None
-            if self.register_forward:
-                acti = tuple(self.activations[layer] for layer in self.target_layers)
-            if self.register_backward:
-                score, class_idx = self.class_score(logits, class_idx)
-                self.model.zero_grad()
-                self.score, self.class_idx = score, class_idx
-                score.sum().backward(retain_graph=retain_graph)
-                grad = tuple(self.gradients[layer] for layer in self.target_layers)
+        train = self.model.training
+        self.model.eval()
+        logits = self.model(x)
+        self.class_idx = logits.max(1)[-1] if class_idx is None else class_idx
+        acti, grad = None, None
+        if self.register_forward:
+            acti = tuple(self.activations[layer] for layer in self.target_layers)
+        if self.register_backward:
+            self.score = self.class_score(logits, self.class_idx)
+            self.model.zero_grad()
+            self.score.sum().backward(retain_graph=retain_graph)
+            grad = tuple(self.gradients[layer] for layer in self.target_layers)
+        if train:
+            self.model.train()
         return logits, acti, grad
 
     def get_wrapped_net(self):
@@ -173,6 +170,17 @@ class CAMBase:
         return self.compute_map(torch.zeros(*input_size, device=device), layer_idx=layer_idx).shape
 
     def compute_map(self, x, class_idx=None, layer_idx=-1):
+        """
+        Compute the actual feature map with input tensor `x`.
+
+        Args:
+            x: input to `nn_module`.
+            class_idx: index of the class to be visualized. Default to `None` (computing `class_idx` from `argmax`)
+            layer_idx: index of the target layer if there are multiple target layers. Defaults to -1.
+
+        Returns:
+            activation maps (raw outputs without upsampling/post-processing.)
+        """
         raise NotImplementedError()
 
     def _upsample_and_post_process(self, acti_map, x):
@@ -191,6 +199,10 @@ class CAMBase:
 class CAM(CAMBase):
     """
     Compute class activation map from the last fully-connected layers before the spatial pooling.
+    This implementation is based on:
+
+        Zhou et al., Learning Deep Features for Discriminative Localization. CVPR '16,
+        https://arxiv.org/abs/1512.04150
 
     Examples
 
@@ -255,9 +267,6 @@ class CAM(CAMBase):
         self.fc_layers = fc_layers
 
     def compute_map(self, x, class_idx=None, layer_idx=-1):
-        """
-        Compute the actual feature map with input tensor `x`.
-        """
         logits, acti, _ = self.nn_module(x)
         acti = acti[layer_idx]
         if class_idx is None:
@@ -326,9 +335,6 @@ class GradCAM(CAMBase):
     """
 
     def compute_map(self, x, class_idx=None, retain_graph=False, layer_idx=-1):
-        """
-        Compute the actual feature map with input tensor `x`.
-        """
         _, acti, grad = self.nn_module(x, class_idx=class_idx, retain_graph=retain_graph)
         acti, grad = acti[layer_idx], grad[layer_idx]
         b, c, *spatial = grad.shape
@@ -368,9 +374,6 @@ class GradCAMpp(GradCAM):
     """
 
     def compute_map(self, x, class_idx=None, retain_graph=False, layer_idx=-1):
-        """
-        Compute the actual feature map with input tensor `x`.
-        """
         _, acti, grad = self.nn_module(x, class_idx=class_idx, retain_graph=retain_graph)
         acti, grad = acti[layer_idx], grad[layer_idx]
         b, c, *spatial = grad.shape

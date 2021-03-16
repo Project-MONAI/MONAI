@@ -15,6 +15,7 @@ defined in :py:class:`monai.transforms.spatial.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
+from copy import deepcopy
 from typing import Any, Dict, Hashable, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -23,7 +24,9 @@ import torch
 from monai.config import DtypeLike, KeysCollection
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.croppad.array import CenterSpatialCrop
+from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.array import (
+    Affine,
     Flip,
     Orientation,
     Rand2DElastic,
@@ -46,6 +49,10 @@ from monai.utils import (
     ensure_tuple_rep,
     fall_back_tuple,
 )
+from monai.utils.enums import InverseKeys
+from monai.utils.module import optional_import
+
+nib, _ = optional_import("nibabel")
 
 __all__ = [
     "Spacingd",
@@ -53,6 +60,7 @@ __all__ = [
     "Rotate90d",
     "RandRotate90d",
     "Resized",
+    "Affined",
     "RandAffined",
     "Rand2DElasticd",
     "Rand3DElasticd",
@@ -73,6 +81,8 @@ __all__ = [
     "RandRotate90Dict",
     "ResizeD",
     "ResizeDict",
+    "AffineD",
+    "AffineDict",
     "RandAffineD",
     "RandAffineDict",
     "Rand2DElasticD",
@@ -200,7 +210,7 @@ class Spacingd(MapTransform):
         return d
 
 
-class Orientationd(MapTransform):
+class Orientationd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Orientation`.
 
@@ -255,13 +265,36 @@ class Orientationd(MapTransform):
     ) -> Dict[Union[Hashable, str], Union[np.ndarray, Dict[str, np.ndarray]]]:
         d: Dict = dict(data)
         for key in self.key_iterator(d):
-            meta_data = d[f"{key}_{self.meta_key_postfix}"]
-            d[key], _, new_affine = self.ornt_transform(d[key], affine=meta_data["affine"])
+            meta_data_key = f"{key}_{self.meta_key_postfix}"
+            meta_data = d[meta_data_key]
+            d[key], old_affine, new_affine = self.ornt_transform(d[key], affine=meta_data["affine"])
+            self.push_transform(d, key, extra_info={"meta_data_key": meta_data_key, "old_affine": old_affine})
+            d[meta_data_key]["affine"] = new_affine
+        return d
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            meta_data = d[transform[InverseKeys.EXTRA_INFO.value]["meta_data_key"]]
+            orig_affine = transform[InverseKeys.EXTRA_INFO.value]["old_affine"]
+            orig_axcodes = nib.orientations.aff2axcodes(orig_affine)
+            inverse_transform = Orientation(
+                axcodes=orig_axcodes,
+                as_closest_canonical=False,
+                labels=self.ornt_transform.labels,
+            )
+            # Apply inverse
+            d[key], _, new_affine = inverse_transform(d[key], affine=meta_data["affine"])
             meta_data["affine"] = new_affine
+            # Remove the applied transform
+            self.pop_transform(d, key)
+
         return d
 
 
-class Rotate90d(MapTransform):
+class Rotate90d(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Rotate90`.
     """
@@ -282,11 +315,31 @@ class Rotate90d(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.key_iterator(d):
+            self.push_transform(d, key)
             d[key] = self.rotator(d[key])
         return d
 
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            _ = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            spatial_axes = self.rotator.spatial_axes
+            num_times_rotated = self.rotator.k
+            num_times_to_rotate = 4 - num_times_rotated
+            inverse_transform = Rotate90(num_times_to_rotate, spatial_axes)
+            # Might need to convert to numpy
+            if isinstance(d[key], torch.Tensor):
+                d[key] = torch.Tensor(d[key]).cpu().numpy()
+            # Apply inverse
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.pop_transform(d, key)
 
-class RandRotate90d(RandomizableTransform, MapTransform):
+        return d
+
+
+class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandRotate90`.
     With probability `prob`, input arrays are rotated by 90 degrees
@@ -333,6 +386,27 @@ class RandRotate90d(RandomizableTransform, MapTransform):
         for key in self.key_iterator(d):
             if self._do_transform:
                 d[key] = rotator(d[key])
+            self.push_transform(d, key, extra_info={"rand_k": self._rand_k})
+        return d
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            transform = self.get_most_recent_transform(d, key)
+            # Check if random transform was actually performed (based on `prob`)
+            if transform[InverseKeys.DO_TRANSFORM.value]:
+                # Create inverse transform
+                num_times_rotated = transform[InverseKeys.EXTRA_INFO.value]["rand_k"]
+                num_times_to_rotate = 4 - num_times_rotated
+                inverse_transform = Rotate90(num_times_to_rotate, self.spatial_axes)
+                # Might need to convert to numpy
+                if isinstance(d[key], torch.Tensor):
+                    d[key] = torch.Tensor(d[key]).cpu().numpy()
+                # Apply inverse
+                d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.pop_transform(d, key)
+
         return d
 
 
@@ -375,6 +449,79 @@ class Resized(MapTransform):
         d = dict(data)
         for key, mode, align_corners in self.key_iterator(d, self.mode, self.align_corners):
             d[key] = self.resizer(d[key], mode=mode, align_corners=align_corners)
+        return d
+
+
+class Affined(RandomizableTransform, MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.Affine`.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        rotate_params: Optional[Union[Sequence[float], float]] = None,
+        shear_params: Optional[Union[Sequence[float], float]] = None,
+        translate_params: Optional[Union[Sequence[float], float]] = None,
+        scale_params: Optional[Union[Sequence[float], float]] = None,
+        spatial_size: Optional[Union[Sequence[int], int]] = None,
+        mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
+        padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
+        as_tensor_output: bool = False,
+        device: Optional[torch.device] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+            rotate_params: a rotation angle in radians, a scalar for 2D image, a tuple of 3 floats for 3D.
+                Defaults to no rotation.
+            shear_params: a tuple of 2 floats for 2D, a tuple of 6 floats for 3D. Defaults to no shearing.
+            translate_params: a tuple of 2 floats for 2D, a tuple of 3 floats for 3D. Translation is in
+                pixel/voxel relative to the center of the input image. Defaults to no translation.
+            scale_params: a tuple of 2 floats for 2D, a tuple of 3 floats for 3D. Defaults to no scaling.
+            spatial_size: output image spatial size.
+                if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
+                the transform will use the spatial size of `img`.
+                if the components of the `spatial_size` are non-positive values, the transform will use the
+                corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
+                to `(32, 64)` if the second spatial dimension size of img is `64`.
+            mode: {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``"reflection"``.
+                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+            as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
+                whether to convert it back to numpy arrays.
+            device: device on which the tensor will be allocated.
+            allow_missing_keys: don't raise exception if key is missing.
+
+        See also:
+            - :py:class:`monai.transforms.compose.MapTransform`
+            - :py:class:`RandAffineGrid` for the random affine parameters configurations.
+        """
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        self.affine = Affine(
+            rotate_params=rotate_params,
+            shear_params=shear_params,
+            translate_params=translate_params,
+            scale_params=scale_params,
+            spatial_size=spatial_size,
+            as_tensor_output=as_tensor_output,
+            device=device,
+        )
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
+
+    def __call__(
+        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
+    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+        d = dict(data)
+        for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
+            d[key] = self.affine(d[key], mode=mode, padding_mode=padding_mode)
         return d
 
 
@@ -712,7 +859,7 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
         return d
 
 
-class Flipd(MapTransform):
+class Flipd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Flip`.
 
@@ -737,11 +884,26 @@ class Flipd(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.key_iterator(d):
+            self.push_transform(d, key)
             d[key] = self.flipper(d[key])
         return d
 
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            _ = self.get_most_recent_transform(d, key)
+            # Might need to convert to numpy
+            if isinstance(d[key], torch.Tensor):
+                d[key] = torch.Tensor(d[key]).cpu().numpy()
+            # Inverse is same as forward
+            d[key] = self.flipper(d[key])
+            # Remove the applied transform
+            self.pop_transform(d, key)
 
-class RandFlipd(RandomizableTransform, MapTransform):
+        return d
+
+
+class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandFlip`.
 
@@ -774,10 +936,26 @@ class RandFlipd(RandomizableTransform, MapTransform):
         for key in self.key_iterator(d):
             if self._do_transform:
                 d[key] = self.flipper(d[key])
+            self.push_transform(d, key)
+        return d
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            transform = self.get_most_recent_transform(d, key)
+            # Check if random transform was actually performed (based on `prob`)
+            if transform[InverseKeys.DO_TRANSFORM.value]:
+                # Might need to convert to numpy
+                if isinstance(d[key], torch.Tensor):
+                    d[key] = torch.Tensor(d[key]).cpu().numpy()
+                # Inverse is same as forward
+                d[key] = self.flipper(d[key])
+            # Remove the applied transform
+            self.pop_transform(d, key)
         return d
 
 
-class RandAxisFlipd(RandomizableTransform, MapTransform):
+class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandAxisFlip`.
 
@@ -808,6 +986,23 @@ class RandAxisFlipd(RandomizableTransform, MapTransform):
         for key in self.key_iterator(d):
             if self._do_transform:
                 d[key] = flipper(d[key])
+                self.push_transform(d, key, extra_info={"axis": self._axis})
+        return d
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            transform = self.get_most_recent_transform(d, key)
+            # Check if random transform was actually performed (based on `prob`)
+            if transform[InverseKeys.DO_TRANSFORM.value]:
+                flipper = Flip(spatial_axis=transform[InverseKeys.EXTRA_INFO.value]["axis"])
+                # Might need to convert to numpy
+                if isinstance(d[key], torch.Tensor):
+                    d[key] = torch.Tensor(d[key]).cpu().numpy()
+                # Inverse is same as forward
+                d[key] = flipper(d[key])
+            # Remove the applied transform
+            self.pop_transform(d, key)
         return d
 
 
@@ -1122,6 +1317,7 @@ OrientationD = OrientationDict = Orientationd
 Rotate90D = Rotate90Dict = Rotate90d
 RandRotate90D = RandRotate90Dict = RandRotate90d
 ResizeD = ResizeDict = Resized
+AffineD = AffineDict = Affined
 RandAffineD = RandAffineDict = RandAffined
 Rand2DElasticD = Rand2DElasticDict = Rand2DElasticd
 Rand3DElasticD = Rand3DElasticDict = Rand3DElasticd
