@@ -342,7 +342,6 @@ TESTS.append(
     )
 )
 
-
 TESTS.append(
     (
         "Rotated 2d",
@@ -484,7 +483,7 @@ if has_vtk:
         )
     )
 
-if not test_is_quick and has_vtk:
+if not test_is_quick() and has_vtk:
     TESTS.append(
         (
             "Rand3DElasticd 3d",
