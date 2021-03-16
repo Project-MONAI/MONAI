@@ -22,11 +22,13 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike, KeysCollection
+from monai.networks.layers import AffineTransform
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.croppad.array import CenterSpatialCrop
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.array import (
     Affine,
+    AffineGrid,
     Flip,
     Orientation,
     Rand2DElastic,
@@ -525,7 +527,7 @@ class Affined(RandomizableTransform, MapTransform):
         return d
 
 
-class RandAffined(RandomizableTransform, MapTransform):
+class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.RandAffine`.
     """
@@ -617,16 +619,41 @@ class RandAffined(RandomizableTransform, MapTransform):
 
         sp_size = fall_back_tuple(self.rand_affine.spatial_size, data[self.keys[0]].shape[1:])
         if self._do_transform:
-            grid = self.rand_affine.rand_affine_grid(spatial_size=sp_size)
+            grid, affine = self.rand_affine.rand_affine_grid(spatial_size=sp_size, return_affine=True)
         else:
             grid = create_grid(spatial_size=sp_size)
+            affine = np.eye(len(sp_size) + 1)
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
+            self.push_transform(d, key, extra_info={"affine": affine})
             d[key] = self.rand_affine.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)
         return d
 
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
 
-class Rand2DElasticd(RandomizableTransform, MapTransform):
+        for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
+            transform = self.get_most_recent_transform(d, key)
+            orig_size = transform[InverseKeys.ORIG_SIZE.value]
+            # Create inverse transform
+            fwd_affine = transform[InverseKeys.EXTRA_INFO.value]["affine"]
+            inv_affine = np.linalg.inv(fwd_affine)
+
+            affine_grid = AffineGrid(affine=inv_affine)
+            grid: torch.Tensor = affine_grid(orig_size)  # type: ignore
+
+            # Apply inverse transform
+            out = self.rand_affine.resampler(d[key], grid, mode, padding_mode)
+
+            # Convert to numpy
+            d[key] = out if isinstance(out, np.ndarray) else out.cpu().numpy()
+
+            # Remove the applied transform
+            self.pop_transform(d, key)
+
+        return d
+
+
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Rand2DElastic`.
     """

@@ -32,6 +32,7 @@ from monai.transforms import (
     InvertibleTransform,
     LoadImaged,
     Orientationd,
+    RandAffined,
     RandAxisFlipd,
     RandFlipd,
     Randomizable,
@@ -286,6 +287,24 @@ TESTS.append(
     )
 )
 
+
+TESTS.append(
+    (
+        "RandAffine 3d",
+        "3D",
+        1e-1,
+        RandAffined(
+            KEYS,
+            [155, 179, 192],
+            prob=1,
+            padding_mode="zeros",
+            rotate_range=[np.pi / 6, -np.pi / 5, np.pi / 7],
+            shear_range=[(0.5, 0.5)],
+            translate_range=[10, 5, -4],
+            scale_range=[(0.8, 1.2), (0.9, 1.3)],
+        ),
+    )
+)
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
 
 TESTS = TESTS + TESTS_COMPOSE_X2  # type: ignore
