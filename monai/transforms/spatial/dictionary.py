@@ -15,6 +15,7 @@ defined in :py:class:`monai.transforms.spatial.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
+from copy import deepcopy
 from typing import Any, Dict, Hashable, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -23,6 +24,7 @@ import torch
 from monai.config import DtypeLike, KeysCollection
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.croppad.array import CenterSpatialCrop
+from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.array import (
     Affine,
     Flip,
@@ -47,6 +49,10 @@ from monai.utils import (
     ensure_tuple_rep,
     fall_back_tuple,
 )
+from monai.utils.enums import InverseKeys
+from monai.utils.module import optional_import
+
+nib, _ = optional_import("nibabel")
 
 __all__ = [
     "Spacingd",
@@ -204,7 +210,7 @@ class Spacingd(MapTransform):
         return d
 
 
-class Orientationd(MapTransform):
+class Orientationd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Orientation`.
 
@@ -259,13 +265,36 @@ class Orientationd(MapTransform):
     ) -> Dict[Union[Hashable, str], Union[np.ndarray, Dict[str, np.ndarray]]]:
         d: Dict = dict(data)
         for key in self.key_iterator(d):
-            meta_data = d[f"{key}_{self.meta_key_postfix}"]
-            d[key], _, new_affine = self.ornt_transform(d[key], affine=meta_data["affine"])
+            meta_data_key = f"{key}_{self.meta_key_postfix}"
+            meta_data = d[meta_data_key]
+            d[key], old_affine, new_affine = self.ornt_transform(d[key], affine=meta_data["affine"])
+            self.push_transform(d, key, extra_info={"meta_data_key": meta_data_key, "old_affine": old_affine})
+            d[meta_data_key]["affine"] = new_affine
+        return d
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            meta_data = d[transform[InverseKeys.EXTRA_INFO.value]["meta_data_key"]]
+            orig_affine = transform[InverseKeys.EXTRA_INFO.value]["old_affine"]
+            orig_axcodes = nib.orientations.aff2axcodes(orig_affine)
+            inverse_transform = Orientation(
+                axcodes=orig_axcodes,
+                as_closest_canonical=False,
+                labels=self.ornt_transform.labels,
+            )
+            # Apply inverse
+            d[key], _, new_affine = inverse_transform(d[key], affine=meta_data["affine"])
             meta_data["affine"] = new_affine
+            # Remove the applied transform
+            self.pop_transform(d, key)
+
         return d
 
 
-class Rotate90d(MapTransform):
+class Rotate90d(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Rotate90`.
     """
@@ -286,11 +315,31 @@ class Rotate90d(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.key_iterator(d):
+            self.push_transform(d, key)
             d[key] = self.rotator(d[key])
         return d
 
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            _ = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            spatial_axes = self.rotator.spatial_axes
+            num_times_rotated = self.rotator.k
+            num_times_to_rotate = 4 - num_times_rotated
+            inverse_transform = Rotate90(num_times_to_rotate, spatial_axes)
+            # Might need to convert to numpy
+            if isinstance(d[key], torch.Tensor):
+                d[key] = torch.Tensor(d[key]).cpu().numpy()
+            # Apply inverse
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.pop_transform(d, key)
 
-class RandRotate90d(RandomizableTransform, MapTransform):
+        return d
+
+
+class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandRotate90`.
     With probability `prob`, input arrays are rotated by 90 degrees
@@ -337,6 +386,27 @@ class RandRotate90d(RandomizableTransform, MapTransform):
         for key in self.key_iterator(d):
             if self._do_transform:
                 d[key] = rotator(d[key])
+            self.push_transform(d, key, extra_info={"rand_k": self._rand_k})
+        return d
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            transform = self.get_most_recent_transform(d, key)
+            # Check if random transform was actually performed (based on `prob`)
+            if transform[InverseKeys.DO_TRANSFORM.value]:
+                # Create inverse transform
+                num_times_rotated = transform[InverseKeys.EXTRA_INFO.value]["rand_k"]
+                num_times_to_rotate = 4 - num_times_rotated
+                inverse_transform = Rotate90(num_times_to_rotate, self.spatial_axes)
+                # Might need to convert to numpy
+                if isinstance(d[key], torch.Tensor):
+                    d[key] = torch.Tensor(d[key]).cpu().numpy()
+                # Apply inverse
+                d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.pop_transform(d, key)
+
         return d
 
 
@@ -789,7 +859,7 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
         return d
 
 
-class Flipd(MapTransform):
+class Flipd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Flip`.
 
@@ -814,11 +884,26 @@ class Flipd(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.key_iterator(d):
+            self.push_transform(d, key)
             d[key] = self.flipper(d[key])
         return d
 
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            _ = self.get_most_recent_transform(d, key)
+            # Might need to convert to numpy
+            if isinstance(d[key], torch.Tensor):
+                d[key] = torch.Tensor(d[key]).cpu().numpy()
+            # Inverse is same as forward
+            d[key] = self.flipper(d[key])
+            # Remove the applied transform
+            self.pop_transform(d, key)
 
-class RandFlipd(RandomizableTransform, MapTransform):
+        return d
+
+
+class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandFlip`.
 
@@ -851,10 +936,26 @@ class RandFlipd(RandomizableTransform, MapTransform):
         for key in self.key_iterator(d):
             if self._do_transform:
                 d[key] = self.flipper(d[key])
+            self.push_transform(d, key)
+        return d
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            transform = self.get_most_recent_transform(d, key)
+            # Check if random transform was actually performed (based on `prob`)
+            if transform[InverseKeys.DO_TRANSFORM.value]:
+                # Might need to convert to numpy
+                if isinstance(d[key], torch.Tensor):
+                    d[key] = torch.Tensor(d[key]).cpu().numpy()
+                # Inverse is same as forward
+                d[key] = self.flipper(d[key])
+            # Remove the applied transform
+            self.pop_transform(d, key)
         return d
 
 
-class RandAxisFlipd(RandomizableTransform, MapTransform):
+class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandAxisFlip`.
 
@@ -885,6 +986,23 @@ class RandAxisFlipd(RandomizableTransform, MapTransform):
         for key in self.key_iterator(d):
             if self._do_transform:
                 d[key] = flipper(d[key])
+                self.push_transform(d, key, extra_info={"axis": self._axis})
+        return d
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            transform = self.get_most_recent_transform(d, key)
+            # Check if random transform was actually performed (based on `prob`)
+            if transform[InverseKeys.DO_TRANSFORM.value]:
+                flipper = Flip(spatial_axis=transform[InverseKeys.EXTRA_INFO.value]["axis"])
+                # Might need to convert to numpy
+                if isinstance(d[key], torch.Tensor):
+                    d[key] = torch.Tensor(d[key]).cpu().numpy()
+                # Inverse is same as forward
+                d[key] = flipper(d[key])
+            # Remove the applied transform
+            self.pop_transform(d, key)
         return d
 
 
