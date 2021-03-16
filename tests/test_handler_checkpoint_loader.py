@@ -16,7 +16,7 @@ import unittest
 
 import torch
 import torch.optim as optim
-from ignite.engine import Engine
+from ignite.engine import Engine, Events
 
 from monai.handlers import CheckpointLoader, CheckpointSaver
 
@@ -33,13 +33,18 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
         data2["weight"] = torch.tensor([0.2])
         net2.load_state_dict(data2)
         with tempfile.TemporaryDirectory() as tempdir:
-            engine = Engine(lambda e, b: None)
-            CheckpointSaver(save_dir=tempdir, save_dict={"net": net1}, save_final=True).attach(engine)
-            engine.run([0] * 8, max_epochs=5)
-            path = tempdir + "/net_final_iteration=40.pt"
-            engine = Engine(lambda e, b: None)
-            CheckpointLoader(load_path=path, load_dict={"net": net2}).attach(engine)
-            engine.run([0] * 8, max_epochs=1)
+            engine1 = Engine(lambda e, b: None)
+            CheckpointSaver(save_dir=tempdir, save_dict={"net": net1, "eng": engine1}, save_final=True).attach(engine1)
+            engine1.run([0] * 8, max_epochs=5)
+            path = tempdir + "/checkpoint_final_iteration=40.pt"
+            engine2 = Engine(lambda e, b: None)
+            CheckpointLoader(load_path=path, load_dict={"net": net2, "eng": engine2}).attach(engine2)
+
+            @engine2.on(Events.STARTED)
+            def check_epoch(engine: Engine):
+                self.assertEqual(engine2.state.epoch, 5)
+
+            engine2.run([0] * 8, max_epochs=8)
             torch.testing.assert_allclose(net2.state_dict()["weight"], torch.tensor([0.1]))
 
     def test_two_save_one_load(self):
