@@ -16,6 +16,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from monai.losses import FocalLoss
+from monai.networks import one_hot
 from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
 
 
@@ -36,6 +37,29 @@ class TestFocalLoss(unittest.TestCase):
                 x = x.cuda()
                 l = l.cuda()
             output0 = focal_loss(x, l)
+            output1 = ce(x, l[:, 0]) / class_num
+            a = float(output0.cpu().detach())
+            b = float(output1.cpu().detach())
+            if abs(a - b) > max_error:
+                max_error = abs(a - b)
+        self.assertAlmostEqual(max_error, 0.0, places=3)
+
+    def test_consistency_with_cross_entropy_2d_onehot_label(self):
+        # For gamma=0 the focal loss reduces to the cross entropy loss
+        focal_loss = FocalLoss(to_onehot_y=False, gamma=0.0, reduction="mean")
+        ce = nn.CrossEntropyLoss(reduction="mean")
+        max_error = 0
+        class_num = 10
+        batch_size = 128
+        for _ in range(100):
+            # Create a random tensor of shape (batch_size, class_num, 8, 4)
+            x = torch.rand(batch_size, class_num, 8, 4, requires_grad=True)
+            # Create a random batch of classes
+            l = torch.randint(low=0, high=class_num, size=(batch_size, 1, 8, 4))
+            if torch.cuda.is_available():
+                x = x.cuda()
+                l = l.cuda()
+            output0 = focal_loss(x, one_hot(l, num_classes=class_num))
             output1 = ce(x, l[:, 0]) / class_num
             a = float(output0.cpu().detach())
             b = float(output1.cpu().detach())

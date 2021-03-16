@@ -34,7 +34,7 @@ class FocalLoss(_Loss):
         include_background: bool = True,
         to_onehot_y: bool = False,
         gamma: float = 2.0,
-        weight: Optional[Union[Sequence[int], int]] = None,
+        weight: Optional[Union[Sequence[float], float, int, torch.Tensor]] = None,
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
     ) -> None:
         """
@@ -69,12 +69,14 @@ class FocalLoss(_Loss):
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         self.gamma = gamma
-        self.weight: Optional[Union[Sequence[int], int]] = weight
+        self.weight: Optional[Union[Sequence[float], float, int, torch.Tensor]] = weight
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Args:
             input: the shape should be BNH[WD], where N is the number of classes.
+                The input should be the original logits since it will be transferred by
+                `F.log_softmax` in the forward function.
             target: the shape should be BNH[WD] or B1H[WD], where N is the number of classes.
 
         Raises:
@@ -116,7 +118,7 @@ class FocalLoss(_Loss):
 
         if self.weight is not None:
             class_weight: Optional[torch.Tensor] = None
-            if isinstance(self.weight, float):
+            if isinstance(self.weight, (float, int)):
                 class_weight = torch.as_tensor([self.weight] * i.size(1))
             else:
                 class_weight = torch.as_tensor(self.weight)

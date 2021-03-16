@@ -18,23 +18,29 @@ import torch.optim as optim
 from parameterized import parameterized
 
 from monai.losses import DiceLoss, FocalLoss, GeneralizedDiceLoss, TverskyLoss
+from monai.networks import one_hot
 
 TEST_CASES = [
     [DiceLoss, {"to_onehot_y": True, "squared_pred": True, "smooth_nr": 1e-4, "smooth_dr": 1e-4}, {}],
     [DiceLoss, {"to_onehot_y": True, "squared_pred": True, "smooth_nr": 0, "smooth_dr": 1e-3}, {}],
+    [DiceLoss, {"to_onehot_y": False, "squared_pred": True, "smooth_nr": 0, "smooth_dr": 1e-3}, {}],
     [DiceLoss, {"to_onehot_y": True, "squared_pred": True, "batch": True}, {}],
     [DiceLoss, {"to_onehot_y": True, "sigmoid": True}, {}],
     [DiceLoss, {"to_onehot_y": True, "softmax": True}, {}],
     [FocalLoss, {"to_onehot_y": True, "gamma": 1.5, "weight": torch.tensor([1, 2])}, {}],
+    [FocalLoss, {"to_onehot_y": False, "gamma": 1.5, "weight": [1, 2]}, {}],
+    [FocalLoss, {"to_onehot_y": False, "gamma": 1.5, "weight": 1.0}, {}],
     [FocalLoss, {"to_onehot_y": True, "gamma": 1.5}, {}],
     [GeneralizedDiceLoss, {"to_onehot_y": True, "softmax": True}, {}],
     [GeneralizedDiceLoss, {"to_onehot_y": True, "sigmoid": True}, {}],
     [GeneralizedDiceLoss, {"to_onehot_y": True, "sigmoid": True, "w_type": "simple"}, {}],
     [GeneralizedDiceLoss, {"to_onehot_y": True, "sigmoid": True, "w_type": "uniform"}, {}],
     [GeneralizedDiceLoss, {"to_onehot_y": True, "sigmoid": True, "w_type": "uniform", "batch": True}, {}],
+    [GeneralizedDiceLoss, {"to_onehot_y": False, "sigmoid": True, "w_type": "uniform", "batch": True}, {}],
     [TverskyLoss, {"to_onehot_y": True, "softmax": True, "alpha": 0.8, "beta": 0.2}, {}],
     [TverskyLoss, {"to_onehot_y": True, "softmax": True, "alpha": 0.8, "beta": 0.2, "batch": True}, {}],
     [TverskyLoss, {"to_onehot_y": True, "softmax": True, "alpha": 1.0, "beta": 0.0}, {}],
+    [TverskyLoss, {"to_onehot_y": False, "softmax": True, "alpha": 1.0, "beta": 0.0}, {}],
 ]
 
 
@@ -80,6 +86,8 @@ class TestSegLossIntegration(unittest.TestCase):
         num_classes = 2
         num_voxels = 3 * 4 * 4
 
+        target_onehot = one_hot(target_seg, num_classes=num_classes)
+
         # define a one layer model
         class OnelayerNet(nn.Module):
             def __init__(self):
@@ -118,7 +126,10 @@ class TestSegLossIntegration(unittest.TestCase):
             if init_output is None:
                 init_output = torch.argmax(output, 1).detach().cpu().numpy()
 
-            loss_val = loss(output, target_seg, **forward_args)
+            if loss_args["to_onehot_y"] is False:
+                loss_val = loss(output, target_onehot, **forward_args)
+            else:
+                loss_val = loss(output, target_seg, **forward_args)
 
             if iter_i % 10 == 0:
                 pred = torch.argmax(output, 1).detach().cpu().numpy()
