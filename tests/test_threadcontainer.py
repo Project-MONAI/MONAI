@@ -28,7 +28,7 @@ from monai.data import DataLoader
 
 
 class TestThreadContainer(unittest.TestCase):
-    @unittest.skipIf(not has_ignite)
+    @unittest.skipIf(not has_ignite, "Ignite needed for this test")
     def test_container(self):
         net = torch.nn.Conv2d(1, 1, 3, padding=1)
 
