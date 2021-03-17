@@ -36,9 +36,7 @@ doQuickTests=false
 doNetTests=false
 doDryRun=false
 doZooTests=false
-
-doUnitTests=true
-
+doUnitTests=false
 doBlackFormat=false
 doBlackFix=false
 doIsortFormat=false
@@ -55,16 +53,17 @@ PY_EXE=${MONAI_PY_EXE:-$(which python)}
 
 function print_usage {
     echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--flake8] [--clangformat] [--pytype] [--mypy]"
-    echo "            [--nounittests] [--coverage] [--quick] [--net] [--dryrun] [-j number] [--clean] [--help] [--version]"
+    echo "            [--unittests] [--coverage] [--quick] [--net] [--dryrun] [-j number] [--clean] [--help] [--version]"
     echo ""
     echo "MONAI unit testing utilities."
     echo ""
     echo "Examples:"
-    echo "./runtests.sh --codeformat --coverage     # run full tests (${green}recommended before making pull requests${noColor})."
-    echo "./runtests.sh --codeformat --nounittests  # run coding style and static type checking."
-    echo "./runtests.sh --quick                     # run minimal unit tests, for quick verification during code developments."
-    echo "./runtests.sh --autofix --nounittests     # run automatic code formatting using \"isort\" and \"black\"."
-    echo "./runtests.sh --clean                     # clean up temporary files and run \"${PY_EXE} setup.py develop --uninstall\"."
+    echo "./runtests.sh -f -u --net --coverage  # run style checks, full tests, print code coverage (${green}recommended for pull requests${noColor})."
+    echo "./runtests.sh -f -u                   # run style checks and unit tests."
+    echo "./runtests.sh -f                      # run coding style and static type checking."
+    echo "./runtests.sh --quick --unittests     # run minimal unit tests, for quick verification during code developments."
+    echo "./runtests.sh --autofix               # run automatic code formatting using \"isort\" and \"black\"."
+    echo "./runtests.sh --clean                 # clean up temporary files and run \"${PY_EXE} setup.py develop --uninstall\"."
     echo ""
     echo "Code style check options:"
     echo "    --black           : perform \"black\" code format checks"
@@ -79,11 +78,11 @@ function print_usage {
     echo "    -j, --jobs        : number of parallel jobs to run \"pytype\" (default $NUM_PARALLEL)"
     echo ""
     echo "MONAI unit testing options:"
-    echo "    --nounittests     : skip doing unit testing (i.e. only format lint testers)"
-    echo "    --coverage        : peforms coverage analysis of code for tests run"
-    echo "    -q, --quick       : disable long running tests"
-    echo "    --net             : perform training/inference/eval integration testing"
-    echo "    --list_tests      : list tests and exit"
+    echo "    -u, --unittests   : perform unit testing"
+    echo "    --coverage        : report testing code coverage, to be used with \"--net\", \"--unittests\""
+    echo "    -q, --quick       : skip long running unit tests and integration tests"
+    echo "    --net             : perform integration testing"
+    echo "    --list_tests      : list unit tests and exit"
     echo ""
     echo "Misc. options:"
     echo "    --dryrun          : display the commands to the screen without running"
@@ -92,7 +91,7 @@ function print_usage {
     echo "    -h, --help        : show this help message and exit"
     echo "    -v, --version     : show MONAI and system version information and exit"
     echo ""
-    echo "${separator}For bug reports, questions, and discussions, please file an issue at:"
+    echo "${separator}For bug reports and feature requests, please file an issue at:"
     echo "    https://github.com/Project-MONAI/MONAI/issues/new/choose"
     echo ""
     echo "To choose an alternative python executable, set the environmental variable, \"MONAI_PY_EXE\"."
@@ -139,6 +138,9 @@ function clang_format {
 }
 
 function clean_py {
+    # remove coverage history
+    ${cmdPrefix}${PY_EXE} -m coverage erase
+
     # uninstall the development package
     echo "Uninstalling MONAI development files..."
     ${cmdPrefix}${PY_EXE} setup.py develop --user --uninstall
@@ -150,7 +152,7 @@ function clean_py {
     find ${TO_CLEAN}/monai -type f -name "*.py[co]" -delete
     find ${TO_CLEAN}/monai -type f -name "*.so" -delete
     find ${TO_CLEAN}/monai -type d -name "__pycache__" -delete
-    find ${TO_CLEAN} -maxdepth 1 -type f -name ".coverage" -delete
+    find ${TO_CLEAN} -maxdepth 1 -type f -name ".coverage.*" -delete
 
     find ${TO_CLEAN} -depth -maxdepth 1 -type d -name ".eggs" -exec rm -r "{}" +
     find ${TO_CLEAN} -depth -maxdepth 1 -type d -name "monai.egg-info" -exec rm -r "{}" +
@@ -173,7 +175,7 @@ function print_error_msg() {
 
 function print_style_fail_msg() {
     echo "${red}Check failed!${noColor}"
-    echo "Please run auto style fixes: ${green}./runtests.sh --autofix --nounittests${noColor}"
+    echo "Please run auto style fixes: ${green}./runtests.sh --autofix${noColor}"
 }
 
 function is_pip_installed() {
@@ -220,8 +222,8 @@ do
         --dryrun)
             doDryRun=true
         ;;
-        --nou*)  # allow --nounittest | --nounittests | --nounittesting  etc.
-            doUnitTests=false
+        -u|--u*)  # allow --unittest | --unittests | --unittesting  etc.
+            doUnitTests=true
         ;;
         -f|--codeformat)
             doBlackFormat=true
@@ -267,6 +269,10 @@ do
         -v|--version)
             print_version
             exit 1
+        ;;
+        --nou*)  # allow --nounittest | --nounittests | --nounittesting  etc.
+            print_error_msg "nounittest option is deprecated, no unit tests is the default setting"
+            print_usage
         ;;
         *)
             print_error_msg "Incorrect commandline provided, invalid key: $key"
@@ -493,12 +499,11 @@ then
     export QUICKTEST=True
 fi
 
-# set command and clear previous coverage data
+# set coverage command
 if [ $doCoverage = true ]
 then
     echo "${separator}${blue}coverage${noColor}"
-    cmd="${PY_EXE} -m coverage run -a --source ."
-    ${cmdPrefix}${PY_EXE} -m coverage erase
+    cmd="${PY_EXE} -m coverage run --append"
 fi
 
 # # download test data if needed
@@ -511,7 +516,7 @@ if [ $doUnitTests = true ]
 then
     echo "${separator}${blue}unittests${noColor}"
     torch_validate
-    ${cmdPrefix}${cmd} ./tests/runner.py
+    ${cmdPrefix}${cmd} ./tests/runner.py -p "test_((?!integration).)"
 fi
 
 # network training/inference/eval integration tests
@@ -537,5 +542,6 @@ fi
 if [ $doCoverage = true ]
 then
     echo "${separator}${blue}coverage${noColor}"
-    ${cmdPrefix}${PY_EXE} -m coverage report --skip-covered -m
+    ${cmdPrefix}${PY_EXE} -m coverage combine --append .coverage/
+    ${cmdPrefix}${PY_EXE} -m coverage report
 fi

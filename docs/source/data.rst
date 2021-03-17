@@ -77,6 +77,11 @@ Patch-based dataset
 .. autoclass:: GridPatchDataset
   :members:
 
+`PatchIter`
+~~~~~~~~~~~
+.. autoclass:: PatchIter
+  :members:
+
 `PatchDataset`
 ~~~~~~~~~~~~~~
 .. autoclass:: PatchDataset
@@ -105,6 +110,10 @@ PILReader
 .. autoclass:: PILReader
   :members:
 
+WSIReader
+~~~~~~~~~
+.. autoclass:: WSIReader
+  :members:
 
 Nifti format handling
 ---------------------
@@ -151,6 +160,9 @@ DistributedSampler
 ~~~~~~~~~~~~~~~~~~
 .. autoclass:: monai.data.DistributedSampler
 
+DistributedWeightedRandomSampler
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.DistributedWeightedRandomSampler
 
 Decathlon Datalist
 ~~~~~~~~~~~~~~~~~~

@@ -16,12 +16,12 @@ import torch
 
 from monai.utils import exact_version, optional_import
 
-Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
-Checkpoint, _ = optional_import("ignite.handlers", "0.4.2", exact_version, "Checkpoint")
+Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
+Checkpoint, _ = optional_import("ignite.handlers", "0.4.4", exact_version, "Checkpoint")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
 
 
 class CheckpointLoader:
@@ -80,5 +80,16 @@ class CheckpointLoader:
         """
         checkpoint = torch.load(self.load_path, map_location=self.map_location)
 
+        # save current max epochs setting in the engine, don't overwrite it if larger than max_epochs in checkpoint
+        prior_max_epochs = engine.state.max_epochs
         Checkpoint.load_objects(to_load=self.load_dict, checkpoint=checkpoint)
+        if engine.state.epoch > prior_max_epochs:
+            raise ValueError(
+                f"Epoch count ({engine.state.epoch}) in checkpoint is larger than "
+                f"the `engine.state.max_epochs` ({prior_max_epochs}) of engine. To further train from checkpoint, "
+                "construct trainer with `max_epochs` larger than checkpoint's epoch count. "
+                "To use checkpoint for inference, no need to load state_dict for the engine."
+            )
+        engine.state.max_epochs = prior_max_epochs
+
         self.logger.info(f"Restored all variables from {self.load_path}")
