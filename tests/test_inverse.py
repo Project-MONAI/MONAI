@@ -41,6 +41,7 @@ from monai.transforms import (
     ResizeWithPadOrCrop,
     ResizeWithPadOrCropd,
     Rotate90d,
+    Spacingd,
     SpatialCropd,
     SpatialPadd,
     Zoomd,
@@ -287,6 +288,8 @@ TESTS.append(
         RandRotate90d(KEYS, prob=1, spatial_axes=(1, 2)),
     )
 )
+
+TESTS.append(("Spacingd 3d", "3D", 3e-2, Spacingd(KEYS, [0.5, 0.7, 0.9], diagonal=False)))
 
 
 TESTS.append(
