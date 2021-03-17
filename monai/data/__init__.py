@@ -17,6 +17,7 @@ from .dataset import (
     CacheNTransDataset,
     Dataset,
     LMDBDataset,
+    NPZDictItemDataset,
     PersistentDataset,
     SmartCacheDataset,
     ZipDataset,
