@@ -24,7 +24,7 @@ import torch
 from monai.config import DtypeLike, KeysCollection
 from monai.networks.layers import AffineTransform
 from monai.networks.layers.simplelayers import GaussianFilter
-from monai.transforms.croppad.array import CenterSpatialCrop
+from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.array import (
     Affine,
@@ -112,7 +112,7 @@ InterpolateModeSequence = Union[Sequence[Union[InterpolateMode, str]], Interpola
 NumpyPadModeSequence = Union[Sequence[Union[NumpyPadMode, str]], NumpyPadMode, str]
 
 
-class Spacingd(MapTransform):
+class Spacingd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Spacing`.
 
@@ -195,10 +195,11 @@ class Spacingd(MapTransform):
         for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
-            meta_data = d[f"{key}_{self.meta_key_postfix}"]
+            meta_data_key = f"{key}_{self.meta_key_postfix}"
+            meta_data = d[meta_data_key]
             # resample array of each corresponding key
             # using affine fetched from d[affine_key]
-            d[key], _, new_affine = self.spacing_transform(
+            d[key], old_affine, new_affine = self.spacing_transform(
                 data_array=np.asarray(d[key]),
                 affine=meta_data["affine"],
                 mode=mode,
@@ -206,8 +207,40 @@ class Spacingd(MapTransform):
                 align_corners=align_corners,
                 dtype=dtype,
             )
+            self.push_transform(d, key, extra_info={"meta_data_key": meta_data_key, "old_affine": old_affine})
             # set the 'affine' key
             meta_data["affine"] = new_affine
+        return d
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
+            d, self.mode, self.padding_mode, self.align_corners, self.dtype
+        ):
+            transform = self.get_most_recent_transform(d, key)
+            if self.spacing_transform.diagonal:
+                raise RuntimeError(
+                    "Spacingd:inverse not yet implemented for diagonal=True. "
+                    + "Please raise a github issue if you need this feature"
+                )
+            # Create inverse transform
+            meta_data = d[transform[InverseKeys.EXTRA_INFO.value]["meta_data_key"]]
+            old_affine = np.array(transform[InverseKeys.EXTRA_INFO.value]["old_affine"])
+            orig_pixdim = np.sqrt(np.sum(np.square(old_affine), 0))[:-1]
+            inverse_transform = Spacing(orig_pixdim, diagonal=self.spacing_transform.diagonal)
+            # Apply inverse
+            d[key], _, new_affine = inverse_transform(
+                data_array=np.asarray(d[key]),
+                affine=meta_data["affine"],
+                mode=mode,
+                padding_mode=padding_mode,
+                align_corners=align_corners,
+                dtype=dtype,
+            )
+            meta_data["affine"] = new_affine
+            # Remove the applied transform
+            self.pop_transform(d, key)
+
         return d
 
 
@@ -411,7 +444,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
 
-class Resized(MapTransform):
+class Resized(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Resize`.
 
@@ -449,7 +482,22 @@ class Resized(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key, mode, align_corners in self.key_iterator(d, self.mode, self.align_corners):
+            self.push_transform(d, key)
             d[key] = self.resizer(d[key], mode=mode, align_corners=align_corners)
+        return d
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key, mode, align_corners in self.key_iterator(d, self.mode, self.align_corners):
+            transform = self.get_most_recent_transform(d, key)
+            orig_size = transform[InverseKeys.ORIG_SIZE.value]
+            # Create inverse transform
+            inverse_transform = Resize(orig_size, mode, align_corners)
+            # Apply inverse transform
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.pop_transform(d, key)
+
         return d
 
 
@@ -1235,7 +1283,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
 
-class Zoomd(MapTransform):
+class Zoomd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Zoom`.
 
@@ -1281,6 +1329,7 @@ class Zoomd(MapTransform):
         for key, mode, padding_mode, align_corners in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners
         ):
+            self.push_transform(d, key)
             d[key] = self.zoomer(
                 d[key],
                 mode=mode,
@@ -1289,8 +1338,31 @@ class Zoomd(MapTransform):
             )
         return d
 
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key, mode, padding_mode, align_corners in self.key_iterator(
+            d, self.mode, self.padding_mode, self.align_corners
+        ):
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            zoom = np.array(self.zoomer.zoom)
+            inverse_transform = Zoom(zoom=1 / zoom, keep_size=self.zoomer.keep_size)
+            # Apply inverse
+            d[key] = inverse_transform(
+                d[key],
+                mode=mode,
+                padding_mode=padding_mode,
+                align_corners=align_corners,
+            )
+            # Size might be out by 1 voxel so pad
+            d[key] = SpatialPad(transform[InverseKeys.ORIG_SIZE.value])(d[key])
+            # Remove the applied transform
+            self.pop_transform(d, key)
 
-class RandZoomd(RandomizableTransform, MapTransform):
+        return d
+
+
+class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
     """
     Dict-based version :py:class:`monai.transforms.RandZoom`.
 
@@ -1358,6 +1430,8 @@ class RandZoomd(RandomizableTransform, MapTransform):
         self.randomize()
         d = dict(data)
         if not self._do_transform:
+            for key in self.keys:
+                self.push_transform(d, key, extra_info={"zoom": self._zoom})
             return d
 
         img_dims = data[self.keys[0]].ndim
@@ -1371,12 +1445,38 @@ class RandZoomd(RandomizableTransform, MapTransform):
         for key, mode, padding_mode, align_corners in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners
         ):
+            self.push_transform(d, key, extra_info={"zoom": self._zoom})
             d[key] = zoomer(
                 d[key],
                 mode=mode,
                 padding_mode=padding_mode,
                 align_corners=align_corners,
             )
+        return d
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key, mode, padding_mode, align_corners in self.key_iterator(
+            d, self.mode, self.padding_mode, self.align_corners
+        ):
+            transform = self.get_most_recent_transform(d, key)
+            # Check if random transform was actually performed (based on `prob`)
+            if transform[InverseKeys.DO_TRANSFORM.value]:
+                # Create inverse transform
+                zoom = np.array(transform[InverseKeys.EXTRA_INFO.value]["zoom"])
+                inverse_transform = Zoom(zoom=1 / zoom, keep_size=self.keep_size)
+                # Apply inverse
+                d[key] = inverse_transform(
+                    d[key],
+                    mode=mode,
+                    padding_mode=padding_mode,
+                    align_corners=align_corners,
+                )
+                # Size might be out by 1 voxel so pad
+                d[key] = SpatialPad(transform[InverseKeys.ORIG_SIZE.value])(d[key])
+            # Remove the applied transform
+            self.pop_transform(d, key)
+
         return d
 
 

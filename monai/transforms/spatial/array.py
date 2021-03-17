@@ -151,7 +151,7 @@ class Spacing(Transform):
             ValueError: When ``pixdim`` is nonpositive.
 
         Returns:
-            data_array (resampled into `self.pixdim`), original pixdim, current pixdim.
+            data_array (resampled into `self.pixdim`), original affine, current affine.
 
         """
         _dtype = dtype or self.dtype or data_array.dtype
@@ -317,7 +317,7 @@ class Flip(Transform):
 
 class Resize(Transform):
     """
-    Resize the input image to given spatial size.
+    Resize the input image to given spatial size (with scaling, not cropping/padding).
     Implemented using :py:class:`torch.nn.functional.interpolate`.
 
     Args:
