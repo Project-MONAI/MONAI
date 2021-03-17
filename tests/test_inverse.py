@@ -289,6 +289,42 @@ TESTS.append(
     )
 )
 
+TESTS.append(("Spacingd 3d", "3D", 3e-2, Spacingd(KEYS, [0.5, 0.7, 0.9], diagonal=False)))
+
+TESTS.append(("Resized 2d", "2D", 2e-1, Resized(KEYS, [50, 47])))
+
+TESTS.append(("Resized 3d", "3D", 5e-2, Resized(KEYS, [201, 150, 78])))
+
+
+TESTS.append(
+    (
+        "Zoomd 1d",
+        "1D odd",
+        0,
+        Zoomd(KEYS, zoom=2, keep_size=False),
+    )
+)
+
+TESTS.append(
+    (
+        "Zoomd 2d",
+        "2D",
+        2e-1,
+        Zoomd(KEYS, zoom=0.9),
+    )
+)
+
+TESTS.append(
+    (
+        "Zoomd 3d",
+        "3D",
+        3e-2,
+        Zoomd(KEYS, zoom=[2.5, 1, 3], keep_size=False),
+    )
+)
+
+TESTS.append(("RandZoom 3d", "3D", 9e-2, RandZoomd(KEYS, 1, [0.5, 0.6, 0.9], [1.1, 1, 1.05], keep_size=True)))
+
 TESTS.append(
     (
         "RandRotated, prob 0",
@@ -324,41 +360,6 @@ TESTS.append(
         RandRotated(KEYS, *[random.uniform(np.pi / 6, np.pi) for _ in range(3)], 1),  # type: ignore
     )
 )
-
-TESTS.append(
-    (
-        "Zoomd 1d",
-        "1D odd",
-        0,
-        Zoomd(KEYS, zoom=2, keep_size=False),
-    )
-)
-
-TESTS.append(
-    (
-        "Zoomd 2d",
-        "2D",
-        2e-1,
-        Zoomd(KEYS, zoom=0.9),
-    )
-)
-
-TESTS.append(
-    (
-        "Zoomd 3d",
-        "3D",
-        3e-2,
-        Zoomd(KEYS, zoom=[2.5, 1, 3], keep_size=False),
-    )
-)
-
-TESTS.append(("RandZoom 3d", "3D", 9e-2, RandZoomd(KEYS, 1, [0.5, 0.6, 0.9], [1.1, 1, 1.05], keep_size=True)))
-
-TESTS.append(("Spacingd 3d", "3D", 3e-2, Spacingd(KEYS, [0.5, 0.7, 0.9], diagonal=False)))
-
-TESTS.append(("Resized 2d", "2D", 2e-1, Resized(KEYS, [50, 47])))
-
-TESTS.append(("Resized 3d", "3D", 5e-2, Resized(KEYS, [201, 150, 78])))
 
 TESTS.append(
     (

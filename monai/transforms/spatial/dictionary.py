@@ -572,7 +572,8 @@ class Affined(MapTransform, InvertibleTransform):
         d = dict(data)
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             orig_size = d[key].shape[1:]
-            d[key], affine = self.affine(d[key], mode=mode, padding_mode=padding_mode, return_affine=True)
+            d[key] = self.affine(d[key], mode=mode, padding_mode=padding_mode)
+            affine = self.affine.affine_grid.get_transformation_matrix()
             self.push_transform(d, key, orig_size=orig_size, extra_info={"affine": affine})
         return d
 
@@ -693,7 +694,8 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
 
         sp_size = fall_back_tuple(self.rand_affine.spatial_size, data[self.keys[0]].shape[1:])
         if self._do_transform:
-            grid, affine = self.rand_affine.rand_affine_grid(spatial_size=sp_size, return_affine=True)
+            grid = self.rand_affine.rand_affine_grid(spatial_size=sp_size)
+            affine = self.rand_affine.rand_affine_grid.get_transformation_matrix()
         else:
             grid = create_grid(spatial_size=sp_size)
             affine = np.eye(len(sp_size) + 1)
@@ -1247,7 +1249,7 @@ class Rotated(MapTransform, InvertibleTransform):
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
             orig_size = d[key].shape[1:]
-            d[key], rot_mat = self.rotator(
+            d[key] = self.rotator(
                 d[key],
                 mode=mode,
                 padding_mode=padding_mode,
@@ -1255,6 +1257,7 @@ class Rotated(MapTransform, InvertibleTransform):
                 dtype=dtype,
                 return_rotation_matrix=True,
             )
+            rot_mat = self.rotator.get_rotation_matrix()
             self.push_transform(d, key, orig_size=orig_size, extra_info={"rot_mat": rot_mat})
         return d
 
@@ -1380,7 +1383,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
             orig_size = d[key].shape[1:]
-            d[key], rot_mat = rotator(
+            d[key] = rotator(
                 d[key],
                 mode=mode,
                 padding_mode=padding_mode,
@@ -1388,6 +1391,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
                 dtype=dtype,
                 return_rotation_matrix=True,
             )
+            rot_mat = rotator.get_rotation_matrix()
             self.push_transform(d, key, orig_size=orig_size, extra_info={"rot_mat": rot_mat})
         return d
 
@@ -1599,18 +1603,20 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
             d, self.mode, self.padding_mode, self.align_corners
         ):
             transform = self.get_most_recent_transform(d, key)
-            # Create inverse transform
-            zoom = np.array(transform[InverseKeys.EXTRA_INFO.value]["zoom"])
-            inverse_transform = Zoom(zoom=1 / zoom, keep_size=self.keep_size)
-            # Apply inverse
-            d[key] = inverse_transform(
-                d[key],
-                mode=mode,
-                padding_mode=padding_mode,
-                align_corners=align_corners,
-            )
-            # Size might be out by 1 voxel so pad
-            d[key] = SpatialPad(transform[InverseKeys.ORIG_SIZE.value])(d[key])
+            # Check if random transform was actually performed (based on `prob`)
+            if transform[InverseKeys.DO_TRANSFORM.value]:
+                # Create inverse transform
+                zoom = np.array(transform[InverseKeys.EXTRA_INFO.value]["zoom"])
+                inverse_transform = Zoom(zoom=1 / zoom, keep_size=self.keep_size)
+                # Apply inverse
+                d[key] = inverse_transform(
+                    d[key],
+                    mode=mode,
+                    padding_mode=padding_mode,
+                    align_corners=align_corners,
+                )
+                # Size might be out by 1 voxel so pad
+                d[key] = SpatialPad(transform[InverseKeys.ORIG_SIZE.value])(d[key])
             # Remove the applied transform
             self.pop_transform(d, key)
 

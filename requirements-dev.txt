@@ -30,5 +30,6 @@ Sphinx==3.3.0
 recommonmark==0.6.0
 sphinx-autodoc-typehints==1.11.1
 sphinx-rtd-theme==0.5.0
+cucim==0.18.0
 openslide-python==1.1.2
 vtk

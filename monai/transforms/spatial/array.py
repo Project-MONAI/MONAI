@@ -421,6 +421,7 @@ class Rotate(Transform):
         self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.align_corners = align_corners
         self.dtype = dtype
+        self.rotation_matrix: Optional[np.ndarray] = None
 
     def __call__(
         self,
@@ -484,10 +485,12 @@ class Rotate(Transform):
             torch.as_tensor(np.ascontiguousarray(transform).astype(_dtype)),
             spatial_size=output_shape,
         )
-        output_np = np.asarray(output.squeeze(0).detach().cpu().numpy(), dtype=np.float32)
-        if return_rotation_matrix:
-            return output_np, transform
-        return output_np
+        self.rotation_matrix = transform
+        return np.asarray(output.squeeze(0).detach().cpu().numpy(), dtype=np.float32)
+
+    def get_rotation_matrix(self) -> Optional[np.ndarray]:
+        """Get the most recently applied rotation matrix"""
+        return self.rotation_matrix
 
 
 class Zoom(Transform):
@@ -960,13 +963,11 @@ class AffineGrid(Transform):
         self,
         spatial_size: Optional[Sequence[int]] = None,
         grid: Optional[Union[np.ndarray, torch.Tensor]] = None,
-        return_affine: bool = False,
-    ) -> Union[np.ndarray, torch.Tensor, Tuple[Union[np.ndarray, torch.Tensor], torch.Tensor]]:
+    ) -> Union[np.ndarray, torch.Tensor]:
         """
         Args:
             spatial_size: output grid size.
             grid: grid to be transformed. Shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
-            return_affine: boolean as to whether to return the generated affine matrix or not.
 
         Raises:
             ValueError: When ``grid=None`` and ``spatial_size=None``. Incompatible values.
@@ -978,7 +979,6 @@ class AffineGrid(Transform):
             else:
                 raise ValueError("Incompatible values: grid=None and spatial_size=None.")
 
-        affine: Union[np.ndarray, torch.Tensor]
         if self.affine is None:
             spatial_dims = len(grid.shape) - 1
             affine = np.eye(spatial_dims + 1)
@@ -990,20 +990,21 @@ class AffineGrid(Transform):
                 affine = affine @ create_translate(spatial_dims, self.translate_params)
             if self.scale_params:
                 affine = affine @ create_scale(spatial_dims, self.scale_params)
-        else:
-            affine = self.affine
-        affine = torch.as_tensor(np.ascontiguousarray(affine), device=self.device)
+            self.affine = affine
+
+        self.affine = torch.as_tensor(np.ascontiguousarray(self.affine), device=self.device)
 
         grid = torch.tensor(grid) if not isinstance(grid, torch.Tensor) else grid.detach().clone()
         if self.device:
             grid = grid.to(self.device)
-        grid = (affine.float() @ grid.reshape((grid.shape[0], -1)).float()).reshape([-1] + list(grid.shape[1:]))
+        grid = (self.affine.float() @ grid.reshape((grid.shape[0], -1)).float()).reshape([-1] + list(grid.shape[1:]))
         if grid is None or not isinstance(grid, torch.Tensor):
             raise ValueError("Unknown grid.")
-        output: Union[np.ndarray, torch.Tensor] = grid if self.as_tensor_output else np.asarray(grid.cpu().numpy())
-        if return_affine:
-            return output, affine
-        return output
+        return grid if self.as_tensor_output else np.asarray(grid.cpu().numpy())
+
+    def get_transformation_matrix(self) -> Optional[Union[np.ndarray, torch.Tensor]]:
+        """Get the most recently applied transformation matrix"""
+        return self.affine
 
 
 class RandAffineGrid(RandomizableTransform):
@@ -1054,6 +1055,7 @@ class RandAffineGrid(RandomizableTransform):
 
         self.as_tensor_output = as_tensor_output
         self.device = device
+        self.affine: Optional[Union[np.ndarray, torch.Tensor]] = None
 
     def _get_rand_param(self, param_range, add_scalar: float = 0.0):
         out_param = []
@@ -1076,13 +1078,11 @@ class RandAffineGrid(RandomizableTransform):
         self,
         spatial_size: Optional[Sequence[int]] = None,
         grid: Optional[Union[np.ndarray, torch.Tensor]] = None,
-        return_affine: bool = False,
-    ) -> Union[np.ndarray, torch.Tensor, Tuple[Union[np.ndarray, torch.Tensor], torch.Tensor]]:
+    ) -> Union[np.ndarray, torch.Tensor]:
         """
         Args:
             spatial_size: output grid size.
             grid: grid to be transformed. Shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
-            return_affine: boolean as to whether to return the generated affine matrix or not.
 
         Returns:
             a 2D (3xHxW) or 3D (4xHxWxD) grid.
@@ -1096,7 +1096,13 @@ class RandAffineGrid(RandomizableTransform):
             as_tensor_output=self.as_tensor_output,
             device=self.device,
         )
-        return affine_grid(spatial_size, grid, return_affine)
+        grid = affine_grid(spatial_size, grid)
+        self.affine = affine_grid.get_transformation_matrix()
+        return grid
+
+    def get_transformation_matrix(self) -> Optional[Union[np.ndarray, torch.Tensor]]:
+        """Get the most recently applied transformation matrix"""
+        return self.affine
 
 
 class RandDeformGrid(RandomizableTransform):
@@ -1305,8 +1311,7 @@ class Affine(Transform):
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-        return_affine: bool = False,
-    ) -> Union[np.ndarray, torch.Tensor, Tuple[Union[np.ndarray, torch.Tensor], torch.Tensor]]:
+    ) -> Union[np.ndarray, torch.Tensor]:
         """
         Args:
             img: shape must be (num_channels, H, W[, D]),
@@ -1321,20 +1326,12 @@ class Affine(Transform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-            return_affine: boolean as to whether to return the generated affine matrix or not.
         """
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
-        out = self.affine_grid(spatial_size=sp_size, return_affine=return_affine)
-        if return_affine:
-            grid, affine = out
-        else:
-            grid = out
-        resampled = self.resampler(
+        grid = self.affine_grid(spatial_size=sp_size)
+        return self.resampler(
             img=img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
         )
-        if return_affine:
-            return resampled, affine
-        return resampled
 
 
 class RandAffine(RandomizableTransform):
@@ -1422,8 +1419,7 @@ class RandAffine(RandomizableTransform):
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-        return_affine: bool = False,
-    ) -> Union[np.ndarray, torch.Tensor, Tuple[Union[np.ndarray, torch.Tensor], torch.Tensor]]:
+    ) -> Union[np.ndarray, torch.Tensor]:
         """
         Args:
             img: shape must be (num_channels, H, W[, D]),
@@ -1438,26 +1434,17 @@ class RandAffine(RandomizableTransform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-            return_affine: boolean as to whether to return the generated affine matrix or not.
         """
         self.randomize()
 
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
-        affine = np.eye(len(sp_size) + 1)
         if self._do_transform:
-            out = self.rand_affine_grid(spatial_size=sp_size)
-            if return_affine:
-                grid, affine = out
-            else:
-                grid = out
+            grid = self.rand_affine_grid(spatial_size=sp_size)
         else:
             grid = create_grid(spatial_size=sp_size)
-        resampled = self.resampler(
+        return self.resampler(
             img=img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
         )
-        if return_affine:
-            return resampled, affine
-        return resampled
 
 
 class Rand2DElastic(RandomizableTransform):
