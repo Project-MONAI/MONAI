@@ -931,6 +931,9 @@ class AffineGrid(Transform):
         as_tensor_output: whether to output tensor instead of numpy array.
             defaults to True.
         device: device to store the output grid data.
+        affine: If applied, ignore the params (`rotate_params`, etc.) and use the
+            supplied matrix. Should be square with each side = num of image spatial
+            dimensions + 1.
 
     """
 
@@ -942,6 +945,7 @@ class AffineGrid(Transform):
         scale_params: Optional[Union[Sequence[float], float]] = None,
         as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
+        affine: Optional[Union[np.ndarray, torch.Tensor]] = None,
     ) -> None:
         self.rotate_params = rotate_params
         self.shear_params = shear_params
@@ -951,8 +955,12 @@ class AffineGrid(Transform):
         self.as_tensor_output = as_tensor_output
         self.device = device
 
+        self.affine = affine
+
     def __call__(
-        self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[Union[np.ndarray, torch.Tensor]] = None
+        self,
+        spatial_size: Optional[Sequence[int]] = None,
+        grid: Optional[Union[np.ndarray, torch.Tensor]] = None,
     ) -> Union[np.ndarray, torch.Tensor]:
         """
         Args:
@@ -969,27 +977,32 @@ class AffineGrid(Transform):
             else:
                 raise ValueError("Incompatible values: grid=None and spatial_size=None.")
 
-        spatial_dims = len(grid.shape) - 1
-        affine = np.eye(spatial_dims + 1)
-        if self.rotate_params:
-            affine = affine @ create_rotate(spatial_dims, self.rotate_params)
-        if self.shear_params:
-            affine = affine @ create_shear(spatial_dims, self.shear_params)
-        if self.translate_params:
-            affine = affine @ create_translate(spatial_dims, self.translate_params)
-        if self.scale_params:
-            affine = affine @ create_scale(spatial_dims, self.scale_params)
-        affine = torch.as_tensor(np.ascontiguousarray(affine), device=self.device)
+        if self.affine is None:
+            spatial_dims = len(grid.shape) - 1
+            affine = np.eye(spatial_dims + 1)
+            if self.rotate_params:
+                affine = affine @ create_rotate(spatial_dims, self.rotate_params)
+            if self.shear_params:
+                affine = affine @ create_shear(spatial_dims, self.shear_params)
+            if self.translate_params:
+                affine = affine @ create_translate(spatial_dims, self.translate_params)
+            if self.scale_params:
+                affine = affine @ create_scale(spatial_dims, self.scale_params)
+            self.affine = affine
+
+        self.affine = torch.as_tensor(np.ascontiguousarray(self.affine), device=self.device)
 
         grid = torch.tensor(grid) if not isinstance(grid, torch.Tensor) else grid.detach().clone()
         if self.device:
             grid = grid.to(self.device)
-        grid = (affine.float() @ grid.reshape((grid.shape[0], -1)).float()).reshape([-1] + list(grid.shape[1:]))
+        grid = (self.affine.float() @ grid.reshape((grid.shape[0], -1)).float()).reshape([-1] + list(grid.shape[1:]))
         if grid is None or not isinstance(grid, torch.Tensor):
             raise ValueError("Unknown grid.")
-        if self.as_tensor_output:
-            return grid
-        return np.asarray(grid.cpu().numpy())
+        return grid if self.as_tensor_output else np.asarray(grid.cpu().numpy())
+
+    def get_transformation_matrix(self) -> Optional[Union[np.ndarray, torch.Tensor]]:
+        """Get the most recently applied transformation matrix"""
+        return self.affine
 
 
 class RandAffineGrid(RandomizableTransform):
@@ -1040,6 +1053,7 @@ class RandAffineGrid(RandomizableTransform):
 
         self.as_tensor_output = as_tensor_output
         self.device = device
+        self.affine: Optional[Union[np.ndarray, torch.Tensor]] = None
 
     def _get_rand_param(self, param_range, add_scalar: float = 0.0):
         out_param = []
@@ -1059,7 +1073,9 @@ class RandAffineGrid(RandomizableTransform):
         self.scale_params = self._get_rand_param(self.scale_range, 1.0)
 
     def __call__(
-        self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[Union[np.ndarray, torch.Tensor]] = None
+        self,
+        spatial_size: Optional[Sequence[int]] = None,
+        grid: Optional[Union[np.ndarray, torch.Tensor]] = None,
     ) -> Union[np.ndarray, torch.Tensor]:
         """
         Args:
@@ -1078,7 +1094,13 @@ class RandAffineGrid(RandomizableTransform):
             as_tensor_output=self.as_tensor_output,
             device=self.device,
         )
-        return affine_grid(spatial_size, grid)
+        grid = affine_grid(spatial_size, grid)
+        self.affine = affine_grid.get_transformation_matrix()
+        return grid
+
+    def get_transformation_matrix(self) -> Optional[Union[np.ndarray, torch.Tensor]]:
+        """Get the most recently applied transformation matrix"""
+        return self.affine
 
 
 class RandDeformGrid(RandomizableTransform):
