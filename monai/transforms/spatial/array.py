@@ -421,6 +421,7 @@ class Rotate(Transform):
         self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.align_corners = align_corners
         self.dtype = dtype
+        self.rotation_matrix: Optional[np.ndarray] = None
 
     def __call__(
         self,
@@ -482,7 +483,12 @@ class Rotate(Transform):
             torch.as_tensor(np.ascontiguousarray(transform).astype(_dtype)),
             spatial_size=output_shape,
         )
+        self.rotation_matrix = transform
         return np.asarray(output.squeeze(0).detach().cpu().numpy(), dtype=np.float32)
+
+    def get_rotation_matrix(self) -> Optional[np.ndarray]:
+        """Get the most recently applied rotation matrix"""
+        return self.rotation_matrix
 
 
 class Zoom(Transform):
@@ -743,7 +749,7 @@ class RandRotate(RandomizableTransform):
             align_corners=self.align_corners if align_corners is None else align_corners,
             dtype=dtype or self.dtype or img.dtype,
         )
-        return rotator(img)
+        return np.array(rotator(img))
 
 
 class RandFlip(RandomizableTransform):
