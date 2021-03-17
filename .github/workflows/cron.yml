@@ -155,7 +155,7 @@ jobs:
     - name: Checkout tutorials and install their requirements
       run: |
         cd /opt
-        git clone --depth 1 https://github.com/Project-MONAI/tutorials.git  # latest commit
+        git clone --depth 1 --branch master --single-branch https://github.com/Project-MONAI/tutorials.git  # latest commit of master branch
         cd tutorials
         python -m pip install -r requirements.txt
     - name: Run tutorial notebooks
