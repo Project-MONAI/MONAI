@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import random
 import sys
 import unittest
 from functools import partial
@@ -36,12 +37,14 @@ from monai.transforms import (
     RandFlipd,
     Randomizable,
     RandRotate90d,
+    RandRotated,
     RandSpatialCropd,
     RandZoomd,
     Resized,
     ResizeWithPadOrCrop,
     ResizeWithPadOrCropd,
     Rotate90d,
+    Rotated,
     Spacingd,
     SpatialCropd,
     SpatialPadd,
@@ -325,6 +328,42 @@ TESTS.append(
 )
 
 TESTS.append(("RandZoom 3d", "3D", 9e-2, RandZoomd(KEYS, 1, [0.5, 0.6, 0.9], [1.1, 1, 1.05], keep_size=True)))
+
+TESTS.append(
+    (
+        "RandRotated, prob 0",
+        "2D",
+        0,
+        RandRotated(KEYS, prob=0),
+    )
+)
+
+TESTS.append(
+    (
+        "Rotated 2d",
+        "2D",
+        8e-2,
+        Rotated(KEYS, random.uniform(np.pi / 6, np.pi), keep_size=True, align_corners=False),
+    )
+)
+
+TESTS.append(
+    (
+        "Rotated 3d",
+        "3D",
+        1e-1,
+        Rotated(KEYS, [random.uniform(np.pi / 6, np.pi) for _ in range(3)], True),  # type: ignore
+    )
+)
+
+TESTS.append(
+    (
+        "RandRotated 3d",
+        "3D",
+        1e-1,
+        RandRotated(KEYS, *[random.uniform(np.pi / 6, np.pi) for _ in range(3)], 1),  # type: ignore
+    )
+)
 
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
 
