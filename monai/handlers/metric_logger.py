@@ -35,10 +35,10 @@ class MetricLoggerKeys(Enum):
 class MetricLogger:
     """
     Collect per-iteration metrics and loss value from the attached trainer. This will also collect metric values from
-    a given evaluator object which is expected to perform evaluation at the end of training epochs. This class is 
+    a given evaluator object which is expected to perform evaluation at the end of training epochs. This class is
     useful for collecting loss and metric values in one place for storage with checkpoint savers (`state_dict` and
     `load_state_dict` methods provided as expected by Pytorch and Ignite) and for graphing during training.
-    
+
     Args:
         loss_transform: Converts the `output` value from the trainer's state into a loss value
         metric_transform: Converts the metric value coming from the trainer/evaluator's state into a storable value
@@ -71,7 +71,7 @@ class MetricLogger:
     def attach_evaluator(self, evaluator: Engine) -> None:
         """
         Attach event  handlers to the given evaluator to log metric values from it.
-        
+
         Args:
             evaluator: Ignite Engine implementing network evaluation
         """
@@ -92,7 +92,7 @@ class MetricLogger:
     def log_metrics(self, engine: Engine) -> None:
         """
         Log metrics from the given Engine's state member.
-        
+
         Args:
             engine: Ignite Engine to log from
         """
@@ -102,12 +102,12 @@ class MetricLogger:
                 self.metrics[m].append((self.iteration, v))
 
     def state_dict(self):
-        return {MetricLoggerKeys.LOSS.value: self.loss, MetricLoggerKeys.METRICS: self.metrics.value}
+        return {MetricLoggerKeys.LOSS: self.loss, MetricLoggerKeys.METRICS: self.metrics}
 
     def load_state_dict(self, state_dict):
-        self.loss[:] = state_dict[MetricLoggerKeys.LOSS.value]
+        self.loss[:] = state_dict[MetricLoggerKeys.LOSS]
         self.metrics.clear()
-        self.metrics.update(state_dict[MetricLoggerKeys.METRICS.value])
+        self.metrics.update(state_dict[MetricLoggerKeys.METRICS])
 
 
 metriclogger = MetricLogger
