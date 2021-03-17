@@ -572,7 +572,8 @@ class Affined(MapTransform, InvertibleTransform):
         d = dict(data)
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             orig_size = d[key].shape[1:]
-            d[key], affine = self.affine(d[key], mode=mode, padding_mode=padding_mode, return_affine=True)
+            d[key] = self.affine(d[key], mode=mode, padding_mode=padding_mode)
+            affine = self.affine.affine_grid.get_transformation_matrix()
             self.push_transform(d, key, orig_size=orig_size, extra_info={"affine": affine})
         return d
 
@@ -693,7 +694,8 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
 
         sp_size = fall_back_tuple(self.rand_affine.spatial_size, data[self.keys[0]].shape[1:])
         if self._do_transform:
-            grid, affine = self.rand_affine.rand_affine_grid(spatial_size=sp_size, return_affine=True)
+            grid = self.rand_affine.rand_affine_grid(spatial_size=sp_size)
+            affine = self.rand_affine.rand_affine_grid.get_transformation_matrix()
         else:
             grid = create_grid(spatial_size=sp_size)
             affine = np.eye(len(sp_size) + 1)
