@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from monai.data.inverse_batch_transform import BatchInverseTransform
 import random
 import sys
 import unittest
@@ -531,7 +532,8 @@ class TestInverse(unittest.TestCase):
 
         # Inverse of batch
         batch_inverter = BatchInverseTransform(transforms, loader, collate_fn=lambda x: x)
-        inv_batch = batch_inverter(segs_dict, "label")
+        with allow_missing_keys_mode(transforms):
+            inv_batch = batch_inverter(segs_dict)
         self.assertEqual(inv_batch[0]["label"].shape[1:], test_data[0]["label"].shape)
 
 
