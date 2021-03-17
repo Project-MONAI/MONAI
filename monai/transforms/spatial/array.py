@@ -151,7 +151,7 @@ class Spacing(Transform):
             ValueError: When ``pixdim`` is nonpositive.
 
         Returns:
-            data_array (resampled into `self.pixdim`), original pixdim, current pixdim.
+            data_array (resampled into `self.pixdim`), original affine, current affine.
 
         """
         _dtype = dtype or self.dtype or data_array.dtype
@@ -281,7 +281,7 @@ class Orientation(Transform):
         ornt[:, 0] += 1  # skip channel dim
         ornt = np.concatenate([np.array([[0, 1]]), ornt])
         shape = data_array.shape[1:]
-        data_array = nib.orientations.apply_orientation(data_array, ornt)
+        data_array = np.ascontiguousarray(nib.orientations.apply_orientation(data_array, ornt))
         new_affine = affine_ @ nib.orientations.inv_ornt_aff(spatial_ornt, shape)
         new_affine = to_affine_nd(affine, new_affine)
         return data_array, affine, new_affine
@@ -317,7 +317,7 @@ class Flip(Transform):
 
 class Resize(Transform):
     """
-    Resize the input image to given spatial size.
+    Resize the input image to given spatial size (with scaling, not cropping/padding).
     Implemented using :py:class:`torch.nn.functional.interpolate`.
 
     Args:
@@ -421,6 +421,7 @@ class Rotate(Transform):
         self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.align_corners = align_corners
         self.dtype = dtype
+        self.rotation_matrix: Optional[np.ndarray] = None
 
     def __call__(
         self,
@@ -482,7 +483,12 @@ class Rotate(Transform):
             torch.as_tensor(np.ascontiguousarray(transform).astype(_dtype)),
             spatial_size=output_shape,
         )
+        self.rotation_matrix = transform
         return np.asarray(output.squeeze(0).detach().cpu().numpy(), dtype=np.float32)
+
+    def get_rotation_matrix(self) -> Optional[np.ndarray]:
+        """Get the most recently applied rotation matrix"""
+        return self.rotation_matrix
 
 
 class Zoom(Transform):
@@ -590,7 +596,7 @@ class Rotate90(Transform):
                 If axis is negative it counts from the last to the first axis.
         """
         self.k = k
-        spatial_axes_ = ensure_tuple(spatial_axes)
+        spatial_axes_: Tuple[int, int] = ensure_tuple(spatial_axes)  # type: ignore
         if len(spatial_axes_) != 2:
             raise ValueError("spatial_axes must be 2 int numbers to indicate the axes to rotate 90 degrees.")
         self.spatial_axes = spatial_axes_
@@ -620,7 +626,7 @@ class RandRotate90(RandomizableTransform):
             spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
                 Default: (0, 1), this is the first two axis in spatial dimensions.
         """
-        RandomizableTransform.__init__(self, min(max(prob, 0.0), 1.0))
+        RandomizableTransform.__init__(self, prob)
         self.max_k = max_k
         self.spatial_axes = spatial_axes
 
@@ -743,7 +749,7 @@ class RandRotate(RandomizableTransform):
             align_corners=self.align_corners if align_corners is None else align_corners,
             dtype=dtype or self.dtype or img.dtype,
         )
-        return rotator(img)
+        return np.array(rotator(img))
 
 
 class RandFlip(RandomizableTransform):
@@ -758,7 +764,7 @@ class RandFlip(RandomizableTransform):
     """
 
     def __init__(self, prob: float = 0.1, spatial_axis: Optional[Union[Sequence[int], int]] = None) -> None:
-        RandomizableTransform.__init__(self, min(max(prob, 0.0), 1.0))
+        RandomizableTransform.__init__(self, prob)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
     def __call__(self, img: np.ndarray) -> np.ndarray:

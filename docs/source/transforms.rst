@@ -38,6 +38,12 @@ Generic Interfaces
     :members:
     :special-members: __call__
 
+`InvertibleTransform`
+^^^^^^^^^^^^^^^^^^^^^
+.. autoclass:: InvertibleTransform
+    :members:
+
+
 Vanilla Transforms
 ------------------
 
@@ -848,6 +854,12 @@ Spatial (Dict)
 `Resized`
 """""""""
 .. autoclass:: Resized
+    :members:
+    :special-members: __call__
+
+`Affined`
+"""""""""
+.. autoclass:: Affined
     :members:
     :special-members: __call__
 
