@@ -11,9 +11,10 @@
 
 import torch
 
-from monai.extentions.loader import load_module
+from monai._extentions.loader import load_module
 
 __all__ = ["GaussianMixtureModel"]
+
 
 class GaussianMixtureModel(torch.nn.Module):
     """
@@ -33,13 +34,13 @@ class GaussianMixtureModel(torch.nn.Module):
     def __init__(self, channel_count, mixture_count, mixture_size):
         super(GaussianMixtureModel, self).__init__()
         self.compiled_extention = load_module(
-            'gmm', 
-            {'CHANNEL_COUNT': channel_count, 'MIXTURE_COUNT': mixture_count, 'MIXTURE_SIZE': mixture_size}, 
+            "gmm",
+            {"CHANNEL_COUNT": channel_count, "MIXTURE_COUNT": mixture_count, "MIXTURE_SIZE": mixture_size},
             verbose_build=True,
-            force_build=True
+            force_build=True,
         )
         self.channel_count = channel_count
-        self.mixture_count = mixture_count 
+        self.mixture_count = mixture_count
         self.mixture_size = mixture_size
 
     def forward(self, input_tensor, label_tensor):
