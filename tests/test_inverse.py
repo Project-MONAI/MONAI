@@ -37,6 +37,7 @@ from monai.transforms import (
     Randomizable,
     RandRotate90d,
     RandSpatialCropd,
+    RandZoomd,
     Resized,
     ResizeWithPadOrCrop,
     ResizeWithPadOrCropd,
@@ -44,6 +45,7 @@ from monai.transforms import (
     Spacingd,
     SpatialCropd,
     SpatialPadd,
+    Zoomd,
     allow_missing_keys_mode,
 )
 from monai.utils import first, get_seed, optional_import, set_determinism
@@ -293,6 +295,36 @@ TESTS.append(("Spacingd 3d", "3D", 3e-2, Spacingd(KEYS, [0.5, 0.7, 0.9], diagona
 TESTS.append(("Resized 2d", "2D", 2e-1, Resized(KEYS, [50, 47])))
 
 TESTS.append(("Resized 3d", "3D", 5e-2, Resized(KEYS, [201, 150, 78])))
+
+
+TESTS.append(
+    (
+        "Zoomd 1d",
+        "1D odd",
+        0,
+        Zoomd(KEYS, zoom=2, keep_size=False),
+    )
+)
+
+TESTS.append(
+    (
+        "Zoomd 2d",
+        "2D",
+        2e-1,
+        Zoomd(KEYS, zoom=0.9),
+    )
+)
+
+TESTS.append(
+    (
+        "Zoomd 3d",
+        "3D",
+        3e-2,
+        Zoomd(KEYS, zoom=[2.5, 1, 3], keep_size=False),
+    )
+)
+
+TESTS.append(("RandZoom 3d", "3D", 9e-2, RandZoomd(KEYS, 1, [0.5, 0.6, 0.9], [1.1, 1, 1.05], keep_size=True)))
 
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
 
