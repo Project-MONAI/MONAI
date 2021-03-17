@@ -37,7 +37,7 @@ limitations under the License.
     #define DET_FACTORS 2
     #define DET_TERMS 2
     #define DET_REDUCTIONS 1
-    #define DET_SHFL_MASK 0x1
+    #define DET_SHFL_MASK 0x3
     #define DET_SHFL_WIDTH 2
 
     __constant__ int c_det_indices[6] {
@@ -100,17 +100,12 @@ limitations under the License.
     #define INV_TERMS 6
     #define INV_FACTORS 3
 
-    //to do
-    __constant__ int c_inv_indices[180] {
-        1, -1,  1, -1,  1, -1,  1, -1,  1, -1,  1, -1, 
-        3,  4,  2,  1,  1,  2,  0,  2,  1,  0,  0,  1, 
-        5,  4,  4,  5,  4,  3,  5,  2,  2,  4,  3,  1, 
+    __constant__ int c_inv_indices[240] {
+        1, -1, -1, +1, +1, -1, -1, +1, +1, -1, -1, +1, +1, -1, -1, +1, +1, -1, -1, +1, +1, -1, -1, +1, +1, -1, -1, +1, +1, -1, +1, -1, -1, +1, +1, -1, -1, +1, +1, -1, -1, +1, +1, -1, -1, +1, +1, -1, -1, +1, +1, -1, -1, +1, +1, -1, -1, +1, +1, -1,
+        4,  4,  5,  5,  5,  6,  1,  1,  2,  2,  3,  3,  1,  1,  2,  2,  3,  3,  1,  1,  2,  2,  3,  3,  0,  0,  2,  2,  2,  3,  0,  0,  1,  1,  2,  3,  0,  0,  1,  1,  2,  2,  0,  0,  1,  1,  1,  3,  0,  0,  1,  1,  1,  2,  0,  0,  1,  1,  1,  2,
+        7,  8,  5,  6,  6,  6,  7,  8,  5,  6,  5,  6,  5,  6,  4,  6,  4,  5,  5,  6,  4,  5,  4,  5,  7,  8,  2,  3,  3,  3,  5,  6,  2,  3,  3,  3,  5,  6,  2,  3,  2,  3,  4,  6,  1,  3,  3,  3,  4,  5,  1,  2,  3,  3,  4,  5,  1,  2,  2,  2,
+        9,  8,  9,  8,  8,  7,  9,  8,  9,  8,  8,  7,  9,  8,  9,  6,  8,  6,  8,  7,  8,  6,  7,  5,  9,  8,  9,  8,  8,  7,  9,  8,  9,  8,  6,  5,  8,  7,  8,  7,  6,  5,  9,  6,  9,  6,  6,  4,  8,  6,  8,  6,  5,  4,  7,  5,  7,  5,  5,  4,
     };
-
-// +ehJ -eoo -ffJ +2fgo -ggh | -bhJ +boo +cfJ -cgo -dfo +dgh    | bfJ -bgo -ceJ +cgg +deo -dfg  | -bfo +bgh +ceo -cfg -deh +dff
-//                           | ahJ -aoo -ccJ +2cd0 -ddh         | -afJ +ago +bcj -bdo -cdg +ddf | afo -agh -bco +bdh +ccg -cdf
-//                                                              | aeJ -agg -bbJ +2bdg -dde      | -aeo + afg +bbo -bcg -bdf +cde
-//                                                                                              | aeh -aff -bbh +2bcf -cce
 
 #endif 
 
