@@ -443,7 +443,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
 
-class Resized(MapTransform):
+class Resized(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Resize`.
 
@@ -481,7 +481,22 @@ class Resized(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key, mode, align_corners in self.key_iterator(d, self.mode, self.align_corners):
+            self.push_transform(d, key)
             d[key] = self.resizer(d[key], mode=mode, align_corners=align_corners)
+        return d
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key, mode, align_corners in self.key_iterator(d, self.mode, self.align_corners):
+            transform = self.get_most_recent_transform(d, key)
+            orig_size = transform[InverseKeys.ORIG_SIZE.value]
+            # Create inverse transform
+            inverse_transform = Resize(orig_size, mode, align_corners)
+            # Apply inverse transform
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.pop_transform(d, key)
+
         return d
 
 
