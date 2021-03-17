@@ -283,123 +283,6 @@ __global__ void GMMDataTermKernel(const float *image, const float *gmm, float* o
     }
 }
 
-
-//################################################################################
-//################################################################################
-//################################################################################
-//################################################################################
-
-__device__ float3 normalize(float3 v)
-{
-    float norm = 1.0f / sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
-
-    return make_float3(v.x * norm, v.y * norm, v.z * norm);
-}
-
-__device__ float largest_eigenvalue(const float *M)
-{
-    float norm = M[0] > M[3] ? M[0] : M[3];
-    norm = M[0] > M[5] ? M[0] : M[5];
-    norm = 1.0f / norm;
-
-    float a00 = norm * M[0];
-    float a01 = norm * M[1];
-    float a02 = norm * M[2];
-    float a11 = norm * M[3];
-    float a12 = norm * M[4];
-    float a22 = norm * M[5];
-
-    float c0 = a00*a11*a22 + 2.0f*a01*a02*a12 - a00*a12*a12 - a11*a02*a02 - a22*a01*a01;
-    float c1 = a00*a11 - a01*a01 + a00*a22 - a02*a02 + a11*a22 - a12*a12;
-    float c2 = a00 + a11 + a22;
-
-    const float inv3 = 1.0f / 3.0f;
-    const float root3 = sqrtf(3.0f);
-
-    float c2Div3 = c2*inv3;
-    float aDiv3 = (c1 - c2*c2Div3)*inv3;
-
-    if (aDiv3 > 0.0f)
-    {
-        aDiv3 = 0.0f;
-    }
-
-    float mbDiv2 = 0.5f*(c0 + c2Div3*(2.0f*c2Div3*c2Div3 - c1));
-    float q = mbDiv2*mbDiv2 + aDiv3*aDiv3*aDiv3;
-
-    if (q > 0.0f)
-    {
-        q = 0.0f;
-    }
-
-    float magnitude = sqrtf(-aDiv3);
-    float angle = atan2(sqrtf(-q),mbDiv2)*inv3;
-    float cs = cos(angle);
-    float sn = sin(angle);
-
-    float largest_eigenvalue = c2Div3 + 2.0f*magnitude*cs;
-
-    float eigenvalue = c2Div3 - magnitude*(cs + root3*sn);
-
-    if (eigenvalue > largest_eigenvalue)
-    {
-        largest_eigenvalue = eigenvalue;
-    }
-
-    eigenvalue = c2Div3 - magnitude*(cs - root3*sn);
-
-    if (eigenvalue > largest_eigenvalue)
-    {
-        largest_eigenvalue = eigenvalue;
-    }
-
-    return largest_eigenvalue / norm;
-}
-
-__device__ float3 cross_prod(float3 a, float3 b)
-{
-    return make_float3((a.y*b.z)-(a.z*b.y), (a.z*b.x)-(a.x*b.z), (a.x*b.y)-(a.y*b.x));
-}
-
-__device__ void compute_eigenvector(const float *M, float eigenvalue, float* evec)
-{
-    float3 r0 = make_float3(M[0] - eigenvalue, M[1], M[2]);
-    float3 r1 = make_float3(M[2] , M[3]- eigenvalue, M[4]);
-
-    float3 eigenvector = cross_prod(r0,r1);
-    normalize(eigenvector);
-
-    float* evec_ptr = &(eigenvector.x);
-
-    for (int i = 0; i < CHANNEL_COUNT; i++)
-    {
-        evec[i] = evec_ptr[i];
-    }
-}
-
-//################################################################################
-//################################################################################
-//################################################################################
-//################################################################################
-
-__device__ void largest_eigenvalue_eigenvector(const float *M, float* evec, float* eval)
-{
-    *eval = largest_eigenvalue(M);
-    compute_eigenvector(M, *eval, evec);
-}
-
-__device__ float scalar_prod(float* a, float* b)
-{
-    float product = 0.0f;
-
-    for (int i = 0; i < CHANNEL_COUNT; i++)
-    {
-        product += a[i] * b[i];
-    }
-
-    return product;
-}
-
 struct GMMSplit_t
 {
     int idx;
@@ -418,7 +301,7 @@ __global__ void GMMFindSplit(GMMSplit_t *gmmSplit, int gmmK, float *gmm)
     if (threadIdx.x < gmmK)
     {
         float* matrix = gmm + gmm_idx * GMM_COMPONENT_COUNT + (CHANNEL_COUNT + 1);
-        largest_eigenvalue_eigenvector(matrix, eigenvector, &eigenvalue);
+        largest_eigenpair(matrix, eigenvector, &eigenvalue);
     }
 
     float max_value = eigenvalue;

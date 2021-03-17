@@ -167,3 +167,76 @@ __device__ __forceinline__ void InvertMatrix(float* matrix, float determinant, i
         }
     }
 }
+
+__device__ void normalize(float* v)
+{
+    float norm = 0.0f;
+
+    for (int i = 0; i < CHANNEL_COUNT; i++)
+    {
+        norm += v[i] * v[i];
+    }
+
+    norm = 1.0f / sqrtf(norm);
+
+    for (int i = 0; i < CHANNEL_COUNT; i++)
+    {
+        v[i] *= norm;
+    }
+}
+
+__device__ float scalar_prod(float* a, float* b)
+{
+    float product = 0.0f;
+
+    for (int i = 0; i < CHANNEL_COUNT; i++)
+    {
+        product += a[i] * b[i];
+    }
+
+    return product;
+}
+
+__device__ void largest_eigenpair(const float *M, float* evec, float* eval)
+{
+    float scratch[CHANNEL_COUNT];
+
+    for(int i = 0; i < CHANNEL_COUNT; i++)
+    {
+        scratch[i] = i;
+    }
+
+    for (int itr = 0; itr < 10; itr++)
+    {
+        *eval = 0.0f;
+
+        for (int i = 0; i < CHANNEL_COUNT; i++)
+        {
+            int index = i;
+
+            for (int j = 0; j < CHANNEL_COUNT; j++)
+            {
+                evec[i] += M[index] * scratch[j];
+
+                if (j < i)
+                {
+                    index += CHANNEL_COUNT - (j + 1);
+                }
+                else
+                {
+                    index += 1;
+                }
+            }
+
+            *eval += evec[i] * evec[i];
+        }
+
+        *eval = sqrtf(*eval);
+
+        for (int i = 0; i < CHANNEL_COUNT; i++)
+        {
+            evec[i] /= *eval;
+            scratch[i] = evec[i];
+        }
+    }
+}
