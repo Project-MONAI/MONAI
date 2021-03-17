@@ -421,7 +421,7 @@ class Rotate(Transform):
         self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.align_corners = align_corners
         self.dtype = dtype
-        self.rotation_matrix = None
+        self.rotation_matrix: Optional[np.ndarray] = None
 
     def __call__(
         self,
