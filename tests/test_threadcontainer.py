@@ -14,14 +14,21 @@ import unittest
 
 import torch
 
+try:
+    import ignite
+
+    from monai.engines import CommonKeys, SupervisedTrainer
+    from monai.utils import ThreadContainer
+
+    has_ignite = True
+except ImportError:
+    has_ignite = False
+
 from monai.data import DataLoader
-from monai.engines import CommonKeys, SupervisedTrainer
-from monai.utils import ThreadContainer
-from tests.utils import skip_if_quick
 
 
 class TestThreadContainer(unittest.TestCase):
-    @skip_if_quick
+    @unittest.skipIf(not has_ignite)
     def test_container(self):
         net = torch.nn.Conv2d(1, 1, 3, padding=1)
 
