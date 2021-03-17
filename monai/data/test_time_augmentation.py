@@ -19,7 +19,7 @@ from monai.data.dataset import Dataset
 from monai.data.inverse_batch_transform import BatchInverseTransform
 from monai.data.utils import pad_list_data_collate
 from monai.transforms.compose import Compose
-from monai.transforms.inverse_transform import InvertibleTransform
+from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import Randomizable
 
 __all__ = ["TestTimeAugmentation"]
