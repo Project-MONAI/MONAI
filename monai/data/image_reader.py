@@ -25,7 +25,7 @@ from monai.utils import ensure_tuple, optional_import
 from .utils import is_supported_format
 
 if TYPE_CHECKING:
-    import cuimage
+    import cucim
     import itk  # type: ignore
     import nibabel as nib
     import openslide
@@ -33,14 +33,14 @@ if TYPE_CHECKING:
     from nibabel.nifti1 import Nifti1Image
     from PIL import Image as PILImage
 
-    has_itk = has_nib = has_pil = has_cux = has_osl = True
+    has_itk = has_nib = has_pil = has_cim = has_osl = True
 else:
     itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
     Image, _ = optional_import("itk", allow_namespace_pkg=True, name="Image")
     nib, has_nib = optional_import("nibabel")
     Nifti1Image, _ = optional_import("nibabel.nifti1", name="Nifti1Image")
     PILImage, has_pil = optional_import("PIL.Image")
-    cuimage, has_cux = optional_import("cuimage")
+    cucim, has_cim = optional_import("cucim")
     openslide, has_osl = optional_import("openslide")
 
 __all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReader", "WSIReader"]
@@ -638,8 +638,7 @@ class WSIReader(ImageReader):
     Read whole slide imaging and extract patches.
 
     Args:
-        reader_lib: backend library to load the images, available options: "OpenSlide" or "cuClaraImage".
-            TODO: `cuClaraImage` package is unavailable so far, will enable the support later.
+        reader_lib: backend library to load the images, available options: "OpenSlide" or "cuCIM".
 
     """
 
@@ -649,11 +648,11 @@ class WSIReader(ImageReader):
         if self.reader_lib == "openslide":
             if has_osl:
                 self.wsi_reader = openslide.OpenSlide
-        elif self.reader_lib == "cuclaraimage":
-            if has_cux:
-                self.wsi_reader = cuimage.CuImage
+        elif self.reader_lib == "cucim":
+            if has_cim:
+                self.wsi_reader = cucim.CuImage
         else:
-            raise ValueError('`reader_lib` should be either "cuClaraImage" or "OpenSlide"')
+            raise ValueError('`reader_lib` should be either "cuCIM" or "OpenSlide"')
 
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
         """
@@ -676,8 +675,8 @@ class WSIReader(ImageReader):
         """
         if (self.reader_lib == "openslide") and (not has_osl):
             raise ImportError("No module named 'openslide'")
-        elif (self.reader_lib == "cuclaraimage") and (not has_cux):
-            raise ImportError("No module named 'cuimage'")
+        elif (self.reader_lib == "cucim") and (not has_cim):
+            raise ImportError("No module named 'cucim'")
 
         img_: List = []
 
