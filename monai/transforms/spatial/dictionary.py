@@ -1060,14 +1060,14 @@ class Rotated(MapTransform, InvertibleTransform):
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
             orig_size = d[key].shape[1:]
-            d[key], rot_mat = self.rotator(
+            d[key] = self.rotator(
                 d[key],
                 mode=mode,
                 padding_mode=padding_mode,
                 align_corners=align_corners,
                 dtype=dtype,
-                return_rotation_matrix=True,
             )
+            rot_mat = self.rotator.get_rotation_matrix()
             self.push_transform(d, key, orig_size=orig_size, extra_info={"rot_mat": rot_mat})
         return d
 
@@ -1193,14 +1193,14 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
             orig_size = d[key].shape[1:]
-            d[key], rot_mat = rotator(
+            d[key] = rotator(
                 d[key],
                 mode=mode,
                 padding_mode=padding_mode,
                 align_corners=align_corners,
                 dtype=dtype,
-                return_rotation_matrix=True,
             )
+            rot_mat = rotator.get_rotation_matrix()
             self.push_transform(d, key, orig_size=orig_size, extra_info={"rot_mat": rot_mat})
         return d
 

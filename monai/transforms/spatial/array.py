@@ -421,6 +421,7 @@ class Rotate(Transform):
         self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.align_corners = align_corners
         self.dtype = dtype
+        self.rotation_matrix = None
 
     def __call__(
         self,
@@ -429,8 +430,7 @@ class Rotate(Transform):
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
         dtype: DtypeLike = None,
-        return_rotation_matrix: bool = False,
-    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+    ) -> np.ndarray:
         """
         Args:
             img: channel first array, must have shape: [chns, H, W] or [chns, H, W, D].
@@ -447,7 +447,6 @@ class Rotate(Transform):
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
-            return_rotation_matrix: whether or not to return the applied rotation matrix.
 
         Raises:
             ValueError: When ``img`` spatially is not one of [2D, 3D].
@@ -484,10 +483,12 @@ class Rotate(Transform):
             torch.as_tensor(np.ascontiguousarray(transform).astype(_dtype)),
             spatial_size=output_shape,
         )
-        output_np = np.asarray(output.squeeze(0).detach().cpu().numpy(), dtype=np.float32)
-        if return_rotation_matrix:
-            return output_np, transform
-        return output_np
+        self.rotation_matrix = transform
+        return np.asarray(output.squeeze(0).detach().cpu().numpy(), dtype=np.float32)
+
+    def get_rotation_matrix(self) -> Optional[np.ndarray]:
+        """Get the most recently applied rotation matrix"""
+        return self.rotation_matrix
 
 
 class Zoom(Transform):
