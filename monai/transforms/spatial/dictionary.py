@@ -1344,18 +1344,20 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
             d, self.mode, self.padding_mode, self.align_corners
         ):
             transform = self.get_most_recent_transform(d, key)
-            # Create inverse transform
-            zoom = np.array(transform[InverseKeys.EXTRA_INFO.value]["zoom"])
-            inverse_transform = Zoom(zoom=1 / zoom, keep_size=self.keep_size)
-            # Apply inverse
-            d[key] = inverse_transform(
-                d[key],
-                mode=mode,
-                padding_mode=padding_mode,
-                align_corners=align_corners,
-            )
-            # Size might be out by 1 voxel so pad
-            d[key] = SpatialPad(transform[InverseKeys.ORIG_SIZE.value])(d[key])
+            # Check if random transform was actually performed (based on `prob`)
+            if transform[InverseKeys.DO_TRANSFORM.value]:
+                # Create inverse transform
+                zoom = np.array(transform[InverseKeys.EXTRA_INFO.value]["zoom"])
+                inverse_transform = Zoom(zoom=1 / zoom, keep_size=self.keep_size)
+                # Apply inverse
+                d[key] = inverse_transform(
+                    d[key],
+                    mode=mode,
+                    padding_mode=padding_mode,
+                    align_corners=align_corners,
+                )
+                # Size might be out by 1 voxel so pad
+                d[key] = SpatialPad(transform[InverseKeys.ORIG_SIZE.value])(d[key])
             # Remove the applied transform
             self.pop_transform(d, key)
 
