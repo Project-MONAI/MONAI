@@ -39,11 +39,16 @@ import torch
 
 try:
     import matplotlib.pyplot as plt
-    from ignite.engine import Engine, Events
 
     has_matplotlib = True
 except ImportError:
     has_matplotlib = False
+    
+try:
+    from ignite.engine import Engine, Events
+    has_ignite = True
+except ImportError:
+    has_ignite = False
 
 LOSS_NAME = "loss"
 
