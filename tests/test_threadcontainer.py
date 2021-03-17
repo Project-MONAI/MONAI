@@ -14,13 +14,13 @@ import unittest
 
 import torch
 
+from monai.utils import optional_import
+
 try:
-    import ignite
+    _, has_ignite = optional_import("ignite")
 
     from monai.engines import CommonKeys, SupervisedTrainer
     from monai.utils import ThreadContainer
-
-    has_ignite = True
 except ImportError:
     has_ignite = False
 
