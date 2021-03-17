@@ -70,7 +70,7 @@ Generic Interfaces
   :special-members: __getitem__
   
 `NPZDictItemDataset`
-~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: NPZDictItemDataset
   :members:
   :special-members: __getitem__
