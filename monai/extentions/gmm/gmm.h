@@ -12,7 +12,15 @@ limitations under the License.
 */
 
 #if !defined(CHANNEL_COUNT) || !defined(MIXTURE_COUNT) || !defined(MIXTURE_SIZE)
-#error definition of CHANNEL_COUNT, MIXTURE_COUNT, and MIXTURE_SIZE required
+#error Definition of CHANNEL_COUNT, MIXTURE_COUNT, and MIXTURE_SIZE required
+#endif
+
+#if CHANNEL_COUNT < 1 || MIXTURE_COUNT < 1 || MIXTURE_SIZE < 1
+#error CHANNEL_COUNT, MIXTURE_COUNT, and MIXTURE_SIZE must be positive
+#endif
+
+#if CHANNEL_COUNT > 4
+#error Not implemented for CHANNEL_COUNT > 4
 #endif
 
 #define MATRIX_COMPONENT_COUNT ((CHANNEL_COUNT + 1) * (CHANNEL_COUNT + 2) / 2)

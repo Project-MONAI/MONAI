@@ -191,9 +191,9 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
         InvertMatrix(matrix, *det_ptr, local_index);
     }
 
-    if (local_index < MATRIX_COMPONENT_COUNT + 1)
+    if (local_index < GMM_COMPONENT_COUNT)
     {
-        g_gmm[gmm_index * (MATRIX_COMPONENT_COUNT + 1) + local_index] = s_gmm[local_index];
+        g_gmm[gmm_index * GMM_COMPONENT_COUNT + local_index] = s_gmm[local_index];
     }
 }
 
@@ -214,26 +214,38 @@ __global__ void GMMcommonTerm(float *gmm)
 
     if (threadIdx.x < MIXTURE_SIZE)
     {
-        float det = gmm[gmm_idx * GMM_COMPONENT_COUNT + 10];
+        float det = gmm[gmm_idx * GMM_COMPONENT_COUNT + MATRIX_COMPONENT_COUNT];
         float commonTerm =  gmm_n / (sqrtf(det) * sum);
 
-        gmm[gmm_idx * GMM_COMPONENT_COUNT + 10] = commonTerm;
+        gmm[gmm_idx * GMM_COMPONENT_COUNT + MATRIX_COMPONENT_COUNT] = commonTerm;
     }
 }
 
-__device__ float GMMTerm(float* pixel, const float *gmm)
+__device__ float GMMTerm(float* feature, const float *gmm)
 {
-    float3 v = make_float3(pixel[0] - gmm[1], pixel[1] - gmm[2], pixel[2] - gmm[3]);
+    const float* average_feature = gmm + 1;
+    const float* matrix = gmm + CHANNEL_COUNT + 1;
 
-    float xxa = v.x * v.x * gmm[4];
-    float yyd = v.y * v.y * gmm[7];
-    float zzf = v.z * v.z * gmm[9];
+    float diff[CHANNEL_COUNT];
 
-    float yxb = v.x * v.y * gmm[5];
-    float zxc = v.z * v.x * gmm[6];
-    float zye = v.z * v.y * gmm[8];
+    for (int i = 0; i < CHANNEL_COUNT; i++)
+    {
+        diff[i] = feature[i] - average_feature[i];
+    }
 
-    return gmm[10] * expf(-0.5f * (xxa + yyd + zzf + 2.0f * (yxb + zxc + zye)));
+    float value = 0.0f;
+
+    for (int index = 0, i = 0; i < CHANNEL_COUNT; i++)
+    {
+        for (int j = i; j < CHANNEL_COUNT; j++, index++)
+        {
+            float term = diff[i] * diff[j] * matrix[index];
+
+            value += i == j ? term : 2 * term;
+        }
+    }
+
+    return gmm[MATRIX_COMPONENT_COUNT] * expf(-0.5f * value);
 }
 
 __global__ void GMMDataTermKernel(const float *image, const float *gmm, float* output, int element_count)
@@ -242,10 +254,12 @@ __global__ void GMMDataTermKernel(const float *image, const float *gmm, float* o
 
     if (index >= element_count) return;
 
-    float temp_array[CHANNEL_COUNT];
-    temp_array[0] = image[index + 0 * element_count] * 255;
-    temp_array[1] = image[index + 1 * element_count] * 255;
-    temp_array[2] = image[index + 2 * element_count] * 255;
+    float feature[CHANNEL_COUNT];
+
+    for (int i = 0; i < CHANNEL_COUNT; i++)
+    {
+        feature[i] = image[index + i * element_count] * 255;
+    }
 
     float weights[MIXTURE_COUNT];
     float weight_total = 0.0f;
@@ -256,7 +270,7 @@ __global__ void GMMDataTermKernel(const float *image, const float *gmm, float* o
 
         for(int j = 0; j < MIXTURE_SIZE; j++)
         {
-            mixture_weight += GMMTerm(temp_array, &gmm[(MIXTURE_COUNT * j + i) * GMM_COMPONENT_COUNT]);
+            mixture_weight += GMMTerm(feature, &gmm[(MIXTURE_COUNT * j + i) * GMM_COMPONENT_COUNT]);
         }
 
         weights[i] = mixture_weight;
@@ -269,25 +283,20 @@ __global__ void GMMDataTermKernel(const float *image, const float *gmm, float* o
     }
 }
 
-__device__
-float3 normalize(float3 v)
+
+//################################################################################
+//################################################################################
+//################################################################################
+//################################################################################
+
+__device__ float3 normalize(float3 v)
 {
     float norm = 1.0f / sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
 
     return make_float3(v.x * norm, v.y * norm, v.z * norm);
 }
 
-__device__
-float3 mul_right(const float *M, float3 v)
-{
-    return make_float3(
-               M[0] * v.x + M[1] * v.y + M[2] * v.z,
-               M[1] * v.x + M[3] * v.y + M[4] * v.z,
-               M[2] * v.x + M[4] * v.y + M[5] * v.z);
-}
-
-__device__
-float largest_eigenvalue(const float *M)
+__device__ float largest_eigenvalue(const float *M)
 {
     float norm = M[0] > M[3] ? M[0] : M[3];
     norm = M[0] > M[5] ? M[0] : M[5];
@@ -347,40 +356,55 @@ float largest_eigenvalue(const float *M)
     return largest_eigenvalue / norm;
 }
 
-__device__
-float3 cross_prod(float3 a, float3 b)
+__device__ float3 cross_prod(float3 a, float3 b)
 {
     return make_float3((a.y*b.z)-(a.z*b.y), (a.z*b.x)-(a.x*b.z), (a.x*b.y)-(a.y*b.x));
 }
 
-__device__
-float3 compute_eigenvector(const float *M, float eigenvalue)
+__device__ void compute_eigenvector(const float *M, float eigenvalue, float* evec)
 {
     float3 r0 = make_float3(M[0] - eigenvalue, M[1], M[2]);
     float3 r1 = make_float3(M[2] , M[3]- eigenvalue, M[4]);
 
     float3 eigenvector = cross_prod(r0,r1);
-    return normalize(eigenvector);
+    normalize(eigenvector);
+
+    float* evec_ptr = &(eigenvector.x);
+
+    for (int i = 0; i < CHANNEL_COUNT; i++)
+    {
+        evec[i] = evec_ptr[i];
+    }
 }
 
-__device__
-void largest_eigenvalue_eigenvector(const float *M, float3 &evec, float &eval)
+//################################################################################
+//################################################################################
+//################################################################################
+//################################################################################
+
+__device__ void largest_eigenvalue_eigenvector(const float *M, float* evec, float* eval)
 {
-    eval = largest_eigenvalue(M);
-    evec = compute_eigenvector(M, eval);
+    *eval = largest_eigenvalue(M);
+    compute_eigenvector(M, *eval, evec);
 }
 
-__device__
-float scalar_prod(float3 a, float3 b)
+__device__ float scalar_prod(float* a, float* b)
 {
-    return a.x * b.x + a.y * b.y + a.z * b.z;
+    float product = 0.0f;
+
+    for (int i = 0; i < CHANNEL_COUNT; i++)
+    {
+        product += a[i] * b[i];
+    }
+
+    return product;
 }
 
 struct GMMSplit_t
 {
     int idx;
     float threshold;
-    float3 eigenvector;
+    float eigenvector[CHANNEL_COUNT];
 };
 
 // 1 Block, 32xMIXTURE_COUNT
@@ -389,11 +413,12 @@ __global__ void GMMFindSplit(GMMSplit_t *gmmSplit, int gmmK, float *gmm)
     int gmm_idx = threadIdx.x * MIXTURE_COUNT + threadIdx.y;
 
     float eigenvalue = 0;
-    float3 eigenvector;
+    float eigenvector[CHANNEL_COUNT];
 
     if (threadIdx.x < gmmK)
     {
-        largest_eigenvalue_eigenvector(&gmm[gmm_idx * GMM_COMPONENT_COUNT + (CHANNEL_COUNT + 1)], eigenvector, eigenvalue);
+        float* matrix = gmm + gmm_idx * GMM_COMPONENT_COUNT + (CHANNEL_COUNT + 1);
+        largest_eigenvalue_eigenvector(matrix, eigenvector, &eigenvalue);
     }
 
     float max_value = eigenvalue;
@@ -408,9 +433,15 @@ __global__ void GMMFindSplit(GMMSplit_t *gmmSplit, int gmmK, float *gmm)
     {
         GMMSplit_t split;
 
+        float* average_feature = gmm + gmm_idx * GMM_COMPONENT_COUNT + 1;
+
         split.idx = threadIdx.x;
-        split.threshold = scalar_prod(make_float3(gmm[gmm_idx * GMM_COMPONENT_COUNT + 1], gmm[gmm_idx * GMM_COMPONENT_COUNT + 2], gmm[gmm_idx * GMM_COMPONENT_COUNT + 3]), eigenvector);
-        split.eigenvector = eigenvector;
+        split.threshold = scalar_prod(average_feature, eigenvector);
+
+        for (int i = 0; i < CHANNEL_COUNT; i++)
+        {
+            split.eigenvector[i] = eigenvector[i];
+        }
 
         gmmSplit[threadIdx.y] = split;
     }
@@ -425,7 +456,7 @@ __global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, const 
     int *s_linear = (int *) s_gmmSplit;
     int *g_linear = (int *) gmmSplit;
 
-    if (threadIdx.x < 10)
+    if (threadIdx.x < MIXTURE_COUNT * sizeof(GMMSplit_t))
     {
         s_linear[threadIdx.x] = g_linear[threadIdx.x];
     }
@@ -450,12 +481,14 @@ __global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, const 
                 if (gmm_idx == s_gmmSplit[select].idx)
                 {
                     // in the split cluster now
-                    float temp_array[CHANNEL_COUNT];
-                    temp_array[0] = image[index + 0 * element_count] * 255;
-                    temp_array[1] = image[index + 1 * element_count] * 255;
-                    temp_array[2] = image[index + 2 * element_count] * 255;
-    
-                    float value = scalar_prod(s_gmmSplit[select].eigenvector, make_float3(temp_array[0], temp_array[1], temp_array[2]));
+                    float feature[CHANNEL_COUNT];
+
+                    for (int i = 0; i < CHANNEL_COUNT; i++)
+                    {
+                        feature[i] = image[index + i * element_count] * 255;
+                    }
+                    
+                    float value = scalar_prod(s_gmmSplit[select].eigenvector, feature);
     
                     if (value > s_gmmSplit[select].threshold)
                     {
