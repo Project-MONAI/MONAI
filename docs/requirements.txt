@@ -4,6 +4,7 @@ pytorch-ignite==0.4.4
 numpy>=1.17
 itk>=5.0
 nibabel
+cucim==0.18.0
 openslide-python==1.1.2
 parameterized
 scikit-image>=0.14.2
