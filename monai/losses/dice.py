@@ -54,7 +54,7 @@ class DiceLoss(_Loss):
     ) -> None:
         """
         Args:
-            include_background: if False channel index 0 (background category) is excluded from the calculation.
+            include_background: if False, channel index 0 (background category) is excluded from the calculation.
             to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
             sigmoid: if True, apply a sigmoid function to the prediction.
             softmax: if True, apply a softmax function to the prediction.
@@ -101,10 +101,12 @@ class DiceLoss(_Loss):
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            input: the shape should be BNH[WD].
-            target: the shape should be BNH[WD].
+            input: the shape should be BNH[WD], where N is the number of classes.
+            target: the shape should be BNH[WD] or B1H[WD], where N is the number of classes.
 
         Raises:
+            AssertionError: When input and target (after one hot transform if setted)
+                have different shapes.
             ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
 
         """
@@ -136,7 +138,7 @@ class DiceLoss(_Loss):
                 input = input[:, 1:]
 
         if target.shape != input.shape:
-            raise AssertionError(f"ground truth has differing shape ({target.shape}) from input ({input.shape})")
+            raise AssertionError(f"ground truth has different shape ({target.shape}) from input ({input.shape})")
 
         # reducing only spatial dimensions (not batch nor channels)
         reduce_axis: List[int] = torch.arange(2, len(input.shape)).tolist()
