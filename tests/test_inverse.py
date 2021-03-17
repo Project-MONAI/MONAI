@@ -24,6 +24,7 @@ from monai.data.utils import decollate_batch
 from monai.networks.nets import UNet
 from monai.transforms import (
     AddChanneld,
+    Affined,
     BorderPadd,
     CenterSpatialCropd,
     Compose,
@@ -33,6 +34,7 @@ from monai.transforms import (
     InvertibleTransform,
     LoadImaged,
     Orientationd,
+    RandAffined,
     RandAxisFlipd,
     RandFlipd,
     Randomizable,
@@ -362,6 +364,40 @@ TESTS.append(
         "3D",
         1e-1,
         RandRotated(KEYS, *[random.uniform(np.pi / 6, np.pi) for _ in range(3)], 1),  # type: ignore
+    )
+)
+
+TESTS.append(
+    (
+        "Affine 3d",
+        "3D",
+        1e-1,
+        Affined(
+            KEYS,
+            spatial_size=[155, 179, 192],
+            rotate_params=[np.pi / 6, -np.pi / 5, np.pi / 7],
+            shear_params=[0.5, 0.5],
+            translate_params=[10, 5, -4],
+            scale_params=[0.8, 1.3],
+        ),
+    )
+)
+
+TESTS.append(
+    (
+        "RandAffine 3d",
+        "3D",
+        1e-1,
+        RandAffined(
+            KEYS,
+            [155, 179, 192],
+            prob=1,
+            padding_mode="zeros",
+            rotate_range=[np.pi / 6, -np.pi / 5, np.pi / 7],
+            shear_range=[(0.5, 0.5)],
+            translate_range=[10, 5, -4],
+            scale_range=[(0.8, 1.2), (0.9, 1.3)],
+        ),
     )
 )
 
