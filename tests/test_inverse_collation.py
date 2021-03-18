@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from parameterized import parameterized
 
-from monai.data import CacheDataset, DataLoader, create_test_image_3d
+from monai.data import CacheDataset, DataLoader, create_test_image_3d, pad_list_data_collate
 from monai.transforms import (
     AddChanneld,
     Compose,
@@ -27,6 +27,7 @@ from monai.transforms import (
     RandRotate90d,
     RandRotated,
     RandZoomd,
+    ResizeWithPadOrCropd,
 )
 from monai.utils import optional_import, set_determinism
 from tests.utils import make_nifti_image
@@ -40,12 +41,16 @@ else:
 KEYS = ["image", "label"]
 
 TESTS = [
-    [RandFlipd(keys=KEYS, spatial_axis=[1, 2])],
-    [RandAxisFlipd(keys=KEYS)],
-    [RandRotate90d(keys=KEYS, spatial_axes=(1, 2))],
-    [RandZoomd(keys=KEYS, prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True)],
-    [RandRotated(keys=KEYS, range_x=np.pi)],
-    [RandAffined(keys=KEYS, rotate_range=np.pi)],
+    (t.__class__.__name__ + (" pad_list_data_collate" if collate_fn else " default_collate"), t, collate_fn)
+    for collate_fn in [None, pad_list_data_collate]
+    for t in [
+        RandFlipd(keys=KEYS, spatial_axis=[1, 2]),
+        RandAxisFlipd(keys=KEYS),
+        RandRotate90d(keys=KEYS, spatial_axes=(1, 2)),
+        RandZoomd(keys=KEYS, prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True),
+        RandRotated(keys=KEYS, range_x=np.pi),
+        RandAffined(keys=KEYS, rotate_range=np.pi),
+    ]
 ]
 
 
@@ -58,7 +63,7 @@ class TestInverseCollation(unittest.TestCase):
 
         set_determinism(seed=0)
 
-        im_fname, seg_fname = [make_nifti_image(i) for i in create_test_image_3d(100, 100, 100)]
+        im_fname, seg_fname = [make_nifti_image(i) for i in create_test_image_3d(101, 100, 107)]
         load_ims = Compose([LoadImaged(KEYS), AddChanneld(KEYS)])
         self.batch_size = 10
         self.data = [load_ims({"image": im_fname, "label": seg_fname}) for _ in range(self.batch_size)]
@@ -67,12 +72,18 @@ class TestInverseCollation(unittest.TestCase):
         set_determinism(seed=None)
 
     @parameterized.expand(TESTS)
-    def test_inverse(self, transform):
+    def test_collation(self, _, transform, collate_fn):
+
+        if collate_fn:
+            modified_transform = transform
+        else:
+            modified_transform = Compose([transform, ResizeWithPadOrCropd(KEYS, [100, 100, 100])])
+
         # num workers = 0 for mac
         num_workers = 2 if sys.platform != "darwin" else 0
 
-        dataset = CacheDataset(self.data, transform=transform, progress=False)
-        loader = DataLoader(dataset, num_workers, batch_size=self.batch_size)
+        dataset = CacheDataset(self.data, transform=modified_transform, progress=False)
+        loader = DataLoader(dataset, num_workers, batch_size=self.batch_size, collate_fn=collate_fn)
 
         for _ in loader:
             pass
