@@ -93,9 +93,11 @@ class InvertibleTransform(Transform):
         if transform[InverseKeys.ID.value] == id(self):
             return
         # basic check if multiprocessing uses 'spawn' (objects get recreated so don't have same ID)
-        if torch.multiprocessing.get_start_method(allow_none=True) == "spawn":
-            if transform[InverseKeys.CLASS_NAME.value] == self.__class__.__name__:
-                return
+        if (
+            torch.multiprocessing.get_start_method(allow_none=False) == "spawn"
+            and transform[InverseKeys.CLASS_NAME.value] == self.__class__.__name__
+        ):
+            return
         raise RuntimeError("Should inverse most recently applied invertible transform first")
 
     def get_most_recent_transform(self, data: dict, key: Hashable) -> dict:
