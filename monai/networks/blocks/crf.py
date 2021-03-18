@@ -36,17 +36,19 @@ class CRF(torch.nn.Module):
 
         referenece_tensor: the reference tensor used to guide the message passing.
 
-        bilateral_weight: the weighting of the bilateral term in the message passing step
+        bilateral_weight: the weighting of the bilateral term in the message passing step.
 
-        gaussian_weight: the weighting of the gaussian term in the message passing step
+        gaussian_weight: the weighting of the gaussian term in the message passing step.
 
-        bilateral_spatial_sigma: standard deviation in spatial coordinates for the bilateral term
+        bilateral_spatial_sigma: standard deviation in spatial coordinates for the bilateral term.
 
-        bilateral_color_sigma: standard deviation in color space for the bilateral term
+        bilateral_color_sigma: standard deviation in color space for the bilateral term.
 
-        gaussian_spatial_sigma: standard deviation in spatial coordinates for the gaussian term
+        gaussian_spatial_sigma: standard deviation in spatial coordinates for the gaussian term.
 
-        compatability_kernel_range: the range of the kernel used in the compatability convolution
+        update_factor: determines the magnitude of each update.
+
+        compatability_kernel_range: the range of the kernel used in the compatability convolution.
 
         iterations: the number of iterations.
 
@@ -61,6 +63,7 @@ class CRF(torch.nn.Module):
         bilateral_spatial_sigma: [float] = 5.0,
         bilateral_color_sigma: [float] = 0.5,
         gaussian_spatial_sigma: [float] = 5.0,
+        update_factor : [float] = 3.0,
         compatability_kernel_range: [int] = 1,
         iterations: [int] = 5,
     ):
@@ -70,6 +73,7 @@ class CRF(torch.nn.Module):
         self.bilateral_spatial_sigma = bilateral_spatial_sigma
         self.bilateral_color_sigma = bilateral_color_sigma
         self.gaussian_spatial_sigma = gaussian_spatial_sigma
+        self.update_factor = update_factor
         self.compatability_kernel_range = compatability_kernel_range
         self.iterations = iterations
 
@@ -112,14 +116,13 @@ class CRF(torch.nn.Module):
 
             # combining filter outputs
             combined_output = self.bilateral_weight * bliateral_output + self.gaussian_weight * gaussian_output
-            combined_output /= self.bilateral_weight + self.gaussian_weight
 
             # compatibility convolution
             combined_output = pad(combined_output, 2 * spatial_dim * [padding], mode="replicate")
             compatibility_update = conv(combined_output, compatability_kernel)
 
             # update and normalize
-            output_tensor = softmax(input_tensor - compatibility_update, dim=1)
+            output_tensor = softmax(input_tensor - self.update_factor * compatibility_update, dim=1)
 
         return output_tensor
 
