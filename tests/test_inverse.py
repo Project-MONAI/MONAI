@@ -407,6 +407,10 @@ TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for
 TESTS = TESTS + TESTS_COMPOSE_X2  # type: ignore
 
 
+def no_collation(x):
+    return x
+
+
 class TestInverse(unittest.TestCase):
     """Test inverse methods.
 
@@ -567,7 +571,7 @@ class TestInverse(unittest.TestCase):
         self.assertEqual(inv_seg.shape[1:], test_data[0]["label"].shape)
 
         # Inverse of batch
-        batch_inverter = BatchInverseTransform(transforms, loader, collate_fn=lambda x: x)
+        batch_inverter = BatchInverseTransform(transforms, loader, collate_fn=no_collation)
         with allow_missing_keys_mode(transforms):
             inv_batch = batch_inverter(segs_dict)
         self.assertEqual(inv_batch[0]["label"].shape[1:], test_data[0]["label"].shape)
