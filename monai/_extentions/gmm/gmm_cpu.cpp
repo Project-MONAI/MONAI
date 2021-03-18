@@ -11,6 +11,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+#include <stdexcept>
+
 #include <cuda.h>
 #include <cuda_runtime.h>
 
@@ -18,5 +20,5 @@ limitations under the License.
 
 void GMM_Cpu(const float* input, const int* labels, float* output, int batch_count, int element_count)
 {
-
+    throw std::invalid_argument("GMM recieved a cpu tensor but is not yet implemented for the cpu");
 }
