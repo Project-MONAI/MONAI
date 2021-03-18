@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
+import torch
 from typing import Dict, Hashable, Optional, Tuple
 
 import numpy as np
@@ -92,8 +92,11 @@ class InvertibleTransform(Transform):
         """Check transforms are of same instance."""
         if transform[InverseKeys.ID.value] == id(self):
             return
-        # basic check if windows because of multiprocessing differences (objects get recreated so don't have same ID)
-        if sys.platform == "win32" and transform[InverseKeys.CLASS_NAME.value] == self.__class__.__name__:
+        # basic check if multiprocessing uses 'spawn' (objects get recreated so don't have same ID)
+        if (
+            torch.multiprocessing.get_start_method(allow_none=True) == "spawn"
+            and transform[InverseKeys.CLASS_NAME.value] == self.__class__.__name__
+        ):
             return
         raise RuntimeError("Should inverse most recently applied invertible transform first")
 
