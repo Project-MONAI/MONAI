@@ -93,7 +93,7 @@ class InvertibleTransform(Transform):
         if transform[InverseKeys.ID.value] == id(self):
             return
         # basic check if windows because of multiprocessing differences (objects get recreated so don't have same ID)
-        elif sys.platform == "win32" and transform[InverseKeys.CLASS_NAME.value] == self.__class__.__name__:
+        if sys.platform == "win32" and transform[InverseKeys.CLASS_NAME.value] == self.__class__.__name__:
             return
         raise RuntimeError("Should inverse most recently applied invertible transform first")
 
