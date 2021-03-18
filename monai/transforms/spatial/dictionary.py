@@ -1090,7 +1090,7 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             if self._do_transform:
                 d[key] = flipper(d[key])
-                self.push_transform(d, key, extra_info={"axis": self._axis})
+            self.push_transform(d, key, extra_info={"axis": self._axis})
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
