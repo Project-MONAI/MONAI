@@ -142,6 +142,8 @@ class TestRand2DElasticd(unittest.TestCase):
         g.set_random_state(123)
         res = g(input_data)
         for key in res:
+            if "_transforms" in key:
+                continue
             result = res[key]
             expected = expected_val[key] if isinstance(expected_val, dict) else expected_val
             self.assertEqual(isinstance(result, torch.Tensor), isinstance(expected, torch.Tensor))
