@@ -513,7 +513,7 @@ class TestInverse(unittest.TestCase):
             forwards.append(t(forwards[-1]))
 
         # skip this test if multiprocessing uses 'spawn', as the check is only basic anyway
-        if torch.multiprocessing.get_start_method(allow_none=True) == "spawn":
+        if torch.multiprocessing.get_start_method(allow_none=False) == "spawn":
             # Check that error is thrown when inverse are used out of order.
             t = SpatialPadd("image", [10, 5])
             with self.assertRaises(RuntimeError):

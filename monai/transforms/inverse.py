@@ -94,7 +94,7 @@ class InvertibleTransform(Transform):
             return
         # basic check if multiprocessing uses 'spawn' (objects get recreated so don't have same ID)
         if (
-            torch.multiprocessing.get_start_method(allow_none=True) == "spawn"
+            torch.multiprocessing.get_start_method(allow_none=False) == "spawn"
             and transform[InverseKeys.CLASS_NAME.value] == self.__class__.__name__
         ):
             return
