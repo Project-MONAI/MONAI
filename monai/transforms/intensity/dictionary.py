@@ -221,8 +221,8 @@ class ScaleIntensityd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        minv: float = 0.0,
-        maxv: float = 1.0,
+        minv: Optional[float] = 0.0,
+        maxv: Optional[float] = 1.0,
         factor: Optional[float] = None,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -232,7 +232,8 @@ class ScaleIntensityd(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             minv: minimum value of output data.
             maxv: maximum value of output data.
-            factor: factor scale by ``v = v * (1 + factor)``.
+            factor: factor scale by ``v = v * (1 + factor)``. In order to use
+                this parameter, please set `minv` and `maxv` into None.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
