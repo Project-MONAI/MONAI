@@ -14,6 +14,7 @@ import sys
 import unittest
 from functools import partial
 from typing import TYPE_CHECKING, List, Tuple
+from unittest.case import skipUnless
 
 import numpy as np
 import torch
@@ -512,19 +513,24 @@ class TestInverse(unittest.TestCase):
                 t.set_random_state(seed=get_seed())
             forwards.append(t(forwards[-1]))
 
-        # skip this test if multiprocessing uses 'spawn', as the check is only basic anyway
-        if torch.multiprocessing.get_start_method(allow_none=False) == "spawn":
-            # Check that error is thrown when inverse are used out of order.
-            t = SpatialPadd("image", [10, 5])
-            with self.assertRaises(RuntimeError):
-                t.inverse(forwards[-1])
-
         # Apply inverses
         fwd_bck = forwards[-1].copy()
         for i, t in enumerate(reversed(transforms)):
             if isinstance(t, InvertibleTransform):
                 fwd_bck = t.inverse(fwd_bck)
                 self.check_inverse(name, data.keys(), forwards[-i - 2], fwd_bck, forwards[-1], acceptable_diff)
+
+    # skip this test if multiprocessing uses 'spawn', as the check is only basic anyway
+    @skipUnless(torch.multiprocessing.get_start_method(allow_none=False) == "spawn")
+    def test_fail(self):
+
+        t1 = SpatialPadd("image", [10, 5])
+        data = t1(self.all_data["2D"])
+
+        # Check that error is thrown when inverse are used out of order.
+        t2 = ResizeWithPadOrCropd("image", [10, 5])
+        with self.assertRaises(RuntimeError):
+            t2.inverse(data)
 
     def test_inverse_inferred_seg(self):
 
