@@ -514,8 +514,8 @@ class TestInverse(unittest.TestCase):
 
         # Check that error is thrown when inverse are used out of order.
         t = SpatialPadd("image", [10, 5])
-        # on windows we only check the name, so in this case we need to use a different transform
-        if sys.platform == "win32" and isinstance(transforms[-1], SpatialPadd):
+        # if multiprocessing uses 'spawn', only name is checked, so we need to use a different transform
+        if torch.multiprocessing.get_start_method(allow_none=True) == "spawn" and isinstance(transforms[-1], SpatialPadd):
             t = ResizeWithPadOrCropd("image", [10, 5])
         with self.assertRaises(RuntimeError):
             t.inverse(forwards[-1])
