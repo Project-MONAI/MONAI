@@ -148,6 +148,7 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
             if (block_size >= 512) { if (local_index < 256) { s_matrix_component[local_index] += s_matrix_component[local_index + 256]; } __syncthreads(); }
             if (block_size >= 256) { if (local_index < 128) { s_matrix_component[local_index] += s_matrix_component[local_index + 128]; } __syncthreads(); }
             if (block_size >= 128) { if (local_index <  64) { s_matrix_component[local_index] += s_matrix_component[local_index +  64]; } __syncthreads(); }
+            if (block_size >=  64) { if (local_index <  32) { s_matrix_component[local_index] += s_matrix_component[local_index +  32]; } __syncthreads(); }
 
             if (local_index <  32)
             { 
