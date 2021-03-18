@@ -1178,7 +1178,7 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             if self._do_transform:
                 d[key] = flipper(d[key])
-                self.push_transform(d, key, extra_info={"axis": self._axis})
+            self.push_transform(d, key, extra_info={"axis": self._axis})
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
@@ -1572,10 +1572,6 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         # match the spatial dim of first item
         self.randomize()
         d = dict(data)
-        if not self._do_transform:
-            for key in self.keys:
-                self.push_transform(d, key, extra_info={"zoom": self._zoom})
-            return d
 
         img_dims = data[self.keys[0]].ndim
         if len(self._zoom) == 1:
@@ -1589,12 +1585,13 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
             d, self.mode, self.padding_mode, self.align_corners
         ):
             self.push_transform(d, key, extra_info={"zoom": self._zoom})
-            d[key] = zoomer(
-                d[key],
-                mode=mode,
-                padding_mode=padding_mode,
-                align_corners=align_corners,
-            )
+            if self._do_transform:
+                d[key] = zoomer(
+                    d[key],
+                    mode=mode,
+                    padding_mode=padding_mode,
+                    align_corners=align_corners,
+                )
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
