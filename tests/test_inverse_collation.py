@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from parameterized import parameterized
 
-from monai.data import CacheDataset, DataLoader, create_test_image_3d, pad_list_data_collate
+from monai.data import CacheDataset, DataLoader, create_test_image_3d
 from monai.transforms import (
     AddChanneld,
     Compose,
