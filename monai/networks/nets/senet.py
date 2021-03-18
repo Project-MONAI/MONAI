@@ -66,7 +66,11 @@ class SENet(nn.Module):
             - For SE-ResNeXt models: False
         num_classes: number of outputs in `last_linear` layer.
             for all models: 1000
-
+        pretrained: whether to load ImageNet pretrained weights when `spatial_dims == 2`.
+            In order to load weights correctly, Please ensure that the `block_config`
+            is consistent with the corresponding arch.
+        pretrained_arch: the arch name for pretrained weights.
+        progress: If True, displays a progress bar of the download to stderr.
     """
 
     def __init__(
@@ -83,6 +87,9 @@ class SENet(nn.Module):
         downsample_kernel_size: int = 3,
         input_3x3: bool = True,
         num_classes: int = 1000,
+        pretrained: bool = False,
+        pretrained_arch: str = "se_resnet50",
+        progress: bool = True,
     ) -> None:
 
         super(SENet, self).__init__()
@@ -176,6 +183,65 @@ class SENet(nn.Module):
             elif isinstance(m, nn.Linear):
                 nn.init.constant_(torch.as_tensor(m.bias), 0)
 
+        if pretrained:
+            self._load_state_dict(pretrained_arch, progress)
+
+    def _load_state_dict(self, arch, progress):
+        """
+        This function is used to load pretrained models.
+        """
+        model_urls = {
+            "senet154": "http://data.lip6.fr/cadene/pretrainedmodels/senet154-c7b49a05.pth",
+            "se_resnet50": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnet50-ce0d4300.pth",
+            "se_resnet101": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnet101-7e38fcc6.pth",
+            "se_resnet152": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnet152-d17c99b7.pth",
+            "se_resnext50_32x4d": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnext50_32x4d-a260b3a4.pth",
+            "se_resnext101_32x4d": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnext101_32x4d-3b2fe3d8.pth",
+        }
+        if arch in model_urls.keys():
+            model_url = model_urls[arch]
+        else:
+            error_msg = (
+                "only senet154, se_resnet50, se_resnet101,  se_resnet152, se_resnext50_32x4d "
+                + "and se_resnext101_32x4d are supported to load pretrained weights."
+            )
+            raise AssertionError(error_msg)
+
+        pattern_conv = re.compile(r"^(layer[1-4]\.\d\.(?:conv)\d\.)(\w*)$")
+        pattern_bn = re.compile(r"^(layer[1-4]\.\d\.)(?:bn)(\d\.)(\w*)$")
+        pattern_se = re.compile(r"^(layer[1-4]\.\d\.)(?:se_module.fc1.)(\w*)$")
+        pattern_se2 = re.compile(r"^(layer[1-4]\.\d\.)(?:se_module.fc2.)(\w*)$")
+        pattern_down_conv = re.compile(r"^(layer[1-4]\.\d\.)(?:downsample.0.)(\w*)$")
+        pattern_down_bn = re.compile(r"^(layer[1-4]\.\d\.)(?:downsample.1.)(\w*)$")
+
+        state_dict = load_state_dict_from_url(model_url, progress=progress)
+        for key in list(state_dict.keys()):
+            new_key = None
+            if pattern_conv.match(key):
+                new_key = re.sub(pattern_conv, r"\1conv.\2", key)
+            elif pattern_bn.match(key):
+                new_key = re.sub(pattern_bn, r"\1conv\2adn.N.\3", key)
+            elif pattern_se.match(key):
+                state_dict[key] = state_dict[key].squeeze()
+                new_key = re.sub(pattern_se, r"\1se_layer.fc.0.\2", key)
+            elif pattern_se2.match(key):
+                state_dict[key] = state_dict[key].squeeze()
+                new_key = re.sub(pattern_se2, r"\1se_layer.fc.2.\2", key)
+            elif pattern_down_conv.match(key):
+                new_key = re.sub(pattern_down_conv, r"\1project.conv.\2", key)
+            elif pattern_down_bn.match(key):
+                new_key = re.sub(pattern_down_bn, r"\1project.adn.N.\2", key)
+            if new_key:
+                state_dict[new_key] = state_dict[key]
+                del state_dict[key]
+
+        model_dict = self.state_dict()
+        state_dict = {
+            k: v for k, v in state_dict.items() if (k in model_dict) and (model_dict[k].shape == state_dict[k].shape)
+        }
+        model_dict.update(state_dict)
+        self.load_state_dict(model_dict)
+
     def _make_layer(
         self,
         block: Type[Union[SEBottleneck, SEResNetBottleneck, SEResNeXtBottleneck]],
@@ -248,56 +314,6 @@ class SENet(nn.Module):
         return x
 
 
-model_urls = {
-    "senet154": "http://data.lip6.fr/cadene/pretrainedmodels/senet154-c7b49a05.pth",
-    "se_resnet50": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnet50-ce0d4300.pth",
-    "se_resnet101": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnet101-7e38fcc6.pth",
-    "se_resnet152": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnet152-d17c99b7.pth",
-    "se_resnext50_32x4d": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnext50_32x4d-a260b3a4.pth",
-    "se_resnext101_32x4d": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnext101_32x4d-3b2fe3d8.pth",
-}
-
-
-def _load_state_dict(model, model_url, progress):
-    """
-    This function is used to load pretrained models.
-    """
-    pattern_conv = re.compile(r"^(layer[1-4]\.\d\.(?:conv)\d\.)(\w*)$")
-    pattern_bn = re.compile(r"^(layer[1-4]\.\d\.)(?:bn)(\d\.)(\w*)$")
-    pattern_se = re.compile(r"^(layer[1-4]\.\d\.)(?:se_module.fc1.)(\w*)$")
-    pattern_se2 = re.compile(r"^(layer[1-4]\.\d\.)(?:se_module.fc2.)(\w*)$")
-    pattern_down_conv = re.compile(r"^(layer[1-4]\.\d\.)(?:downsample.0.)(\w*)$")
-    pattern_down_bn = re.compile(r"^(layer[1-4]\.\d\.)(?:downsample.1.)(\w*)$")
-
-    state_dict = load_state_dict_from_url(model_url, progress=progress)
-    for key in list(state_dict.keys()):
-        new_key = None
-        if pattern_conv.match(key):
-            new_key = re.sub(pattern_conv, r"\1conv.\2", key)
-        elif pattern_bn.match(key):
-            new_key = re.sub(pattern_bn, r"\1conv\2adn.N.\3", key)
-        elif pattern_se.match(key):
-            state_dict[key] = state_dict[key].squeeze()
-            new_key = re.sub(pattern_se, r"\1se_layer.fc.0.\2", key)
-        elif pattern_se2.match(key):
-            state_dict[key] = state_dict[key].squeeze()
-            new_key = re.sub(pattern_se2, r"\1se_layer.fc.2.\2", key)
-        elif pattern_down_conv.match(key):
-            new_key = re.sub(pattern_down_conv, r"\1project.conv.\2", key)
-        elif pattern_down_bn.match(key):
-            new_key = re.sub(pattern_down_bn, r"\1project.adn.N.\2", key)
-        if new_key:
-            state_dict[new_key] = state_dict[key]
-            del state_dict[key]
-
-    model_dict = model.state_dict()
-    state_dict = {
-        k: v for k, v in state_dict.items() if (k in model_dict) and (model_dict[k].shape == state_dict[k].shape)
-    }
-    model_dict.update(state_dict)
-    model.load_state_dict(model_dict)
-
-
 def senet154(
     spatial_dims: int,
     in_channels: int,
@@ -320,10 +336,10 @@ def senet154(
         dropout_prob=0.2,
         dropout_dim=1,
         num_classes=num_classes,
+        pretrained=pretrained,
+        pretrained_arch="senet154",
+        progress=progress,
     )
-    if pretrained:
-        arch = "senet154"
-        _load_state_dict(model, model_urls[arch], progress)
     return model
 
 
@@ -347,10 +363,10 @@ def se_resnet50(
         input_3x3=False,
         downsample_kernel_size=1,
         num_classes=num_classes,
+        pretrained=pretrained,
+        pretrained_arch="se_resnet50",
+        progress=progress,
     )
-    if pretrained:
-        arch = "se_resnet50"
-        _load_state_dict(model, model_urls[arch], progress)
     return model
 
 
@@ -375,10 +391,10 @@ def se_resnet101(
         input_3x3=False,
         downsample_kernel_size=1,
         num_classes=num_classes,
+        pretrained=pretrained,
+        pretrained_arch="se_resnet101",
+        progress=progress,
     )
-    if pretrained:
-        arch = "se_resnet101"
-        _load_state_dict(model, model_urls[arch], progress)
     return model
 
 
@@ -403,10 +419,10 @@ def se_resnet152(
         input_3x3=False,
         downsample_kernel_size=1,
         num_classes=num_classes,
+        pretrained=pretrained,
+        pretrained_arch="se_resnet152",
+        progress=progress,
     )
-    if pretrained:
-        arch = "se_resnet152"
-        _load_state_dict(model, model_urls[arch], progress)
     return model
 
 
@@ -430,10 +446,10 @@ def se_resnext50_32x4d(
         input_3x3=False,
         downsample_kernel_size=1,
         num_classes=num_classes,
+        pretrained=pretrained,
+        pretrained_arch="se_resnext50_32x4d",
+        progress=progress,
     )
-    if pretrained:
-        arch = "se_resnext50_32x4d"
-        _load_state_dict(model, model_urls[arch], progress)
     return model
 
 
@@ -457,8 +473,8 @@ def se_resnext101_32x4d(
         input_3x3=False,
         downsample_kernel_size=1,
         num_classes=num_classes,
+        pretrained=pretrained,
+        pretrained_arch="se_resnext101_32x4d",
+        progress=progress,
     )
-    if pretrained:
-        arch = "se_resnext101_32x4d"
-        _load_state_dict(model, model_urls[arch], progress)
     return model
