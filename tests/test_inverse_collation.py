@@ -58,7 +58,7 @@ class TestInverseCollation(unittest.TestCase):
 
         set_determinism(seed=0)
 
-        im_fname, seg_fname = [make_nifti_image(i) for i in create_test_image_3d(100, 101, 107)]
+        im_fname, seg_fname = [make_nifti_image(i) for i in create_test_image_3d(100, 100, 100)]
         load_ims = Compose([LoadImaged(KEYS), AddChanneld(KEYS)])
         self.batch_size = 10
         self.data = [load_ims({"image": im_fname, "label": seg_fname}) for _ in range(self.batch_size)]
@@ -72,19 +72,10 @@ class TestInverseCollation(unittest.TestCase):
         num_workers = 2 if sys.platform != "darwin" else 0
 
         dataset = CacheDataset(self.data, transform=transform, progress=False)
-        loader = DataLoader(
-            dataset,
-            batch_size=self.batch_size,
-            shuffle=False,
-            num_workers=num_workers,
-            collate_fn=pad_list_data_collate,
-        )
+        loader = DataLoader(dataset, num_workers, batch_size=self.batch_size)
 
-        try:
-            for _ in loader:
-                pass
-        except RuntimeError:
-            print("here")
+        for _ in loader:
+            pass
 
 
 if __name__ == "__main__":
