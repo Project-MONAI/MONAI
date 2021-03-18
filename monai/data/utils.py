@@ -257,7 +257,7 @@ def list_data_collate(batch: Sequence):
         return default_collate(data)
     except RuntimeError as re:
         re_str = str(re)
-        if "stack expects each tensor to be equal size" in re_str:
+        if "equal size" in re_str:
             re_str += (
                 "\nMONAI hint: if your transforms intentionally create images of different shapes, creating your "
                 + "`DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem (check its "
