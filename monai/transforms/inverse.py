@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
 from typing import Dict, Hashable, Optional, Tuple
 
 import numpy as np
@@ -89,8 +90,12 @@ class InvertibleTransform(Transform):
 
     def check_transforms_match(self, transform: dict) -> None:
         """Check transforms are of same instance."""
-        if transform[InverseKeys.ID.value] != id(self):
-            raise RuntimeError("Should inverse most recently applied invertible transform first")
+        if transform[InverseKeys.ID.value] == id(self):
+            return
+        # basic check if windows because of multiprocessing differences (objects get recreated so don't have same ID)
+        if sys.platform == "win32" and transform[InverseKeys.CLASS_NAME.value] == self.__class__.__name__:
+            return
+        raise RuntimeError("Should inverse most recently applied invertible transform first")
 
     def get_most_recent_transform(self, data: dict, key: Hashable) -> dict:
         """Get most recent transform."""
