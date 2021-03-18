@@ -63,7 +63,7 @@ class CRF(torch.nn.Module):
         bilateral_spatial_sigma: [float] = 5.0,
         bilateral_color_sigma: [float] = 0.5,
         gaussian_spatial_sigma: [float] = 5.0,
-        update_factor : [float] = 3.0,
+        update_factor: [float] = 3.0,
         compatability_kernel_range: [int] = 1,
         iterations: [int] = 5,
     ):
