@@ -18,31 +18,37 @@ __all__ = ["GaussianMixtureModel"]
 
 class GaussianMixtureModel(torch.nn.Module):
     """
-    Fits data using a mixture of gaussians using expectation maximization.
+    Takes an initial labeling and uses a mixture of gaussians to approximate each classes
+    distribution in the feature space. Each unlabled element is then asigned a probability
+    of belonging to each class based on it's fit to each classes approximate distribution.
 
     See:
         https://en.wikipedia.org/wiki/Mixture_model
 
     Args:
-        input_tensor (torch.Tensor): input tensor.
-        label_tensor (torch.Tensor): initial pixel-wise labeling
+        channel_count (int): The number of features per element.
+        mixture_count (int): The number of class distibutions.
+        mixture_size (int): The number gaussian components per class distribution.
+        features (torch.Tensor): features for each element.
+        initial_labels (torch.Tensor): initial labeling for each element.
 
     Returns:
-        output (torch.Tensor): output tensor.
+        output_logits (torch.Tensor): class assignment probabilities for each element.
     """
 
     def __init__(self, channel_count, mixture_count, mixture_size):
         super(GaussianMixtureModel, self).__init__()
         self.compiled_extention = load_module(
-            "gmm",
-            {"CHANNEL_COUNT": channel_count, "MIXTURE_COUNT": mixture_count, "MIXTURE_SIZE": mixture_size},
-            verbose_build=True,
-            force_build=True,
+            "gmm", {"CHANNEL_COUNT": channel_count, "MIXTURE_COUNT": mixture_count, "MIXTURE_SIZE": mixture_size}
         )
         self.channel_count = channel_count
         self.mixture_count = mixture_count
         self.mixture_size = mixture_size
 
-    def forward(self, input_tensor, label_tensor):
-        output = self.compiled_extention.gmm(input_tensor, label_tensor)
-        return output
+    def forward(self, features, initial_labels):
+
+        assert features.size(1) == self.channel_count
+
+        output_logits = self.compiled_extention.gmm(features, initial_labels)
+
+        return output_logits
