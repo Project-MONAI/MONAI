@@ -512,14 +512,12 @@ class TestInverse(unittest.TestCase):
                 t.set_random_state(seed=get_seed())
             forwards.append(t(forwards[-1]))
 
-        # Check that error is thrown when inverse are used out of order.
-        t = SpatialPadd("image", [10, 5])
-        # if multiprocessing uses 'spawn', only name is checked, so we need to use a different transform
+        # skip this test if multiprocessing uses 'spawn', as the check is only basic anyway
         if torch.multiprocessing.get_start_method(allow_none=True) == "spawn":
-            if isinstance(transforms[-1], SpatialPadd):
-                t = ResizeWithPadOrCropd("image", [10, 5])
-        with self.assertRaises(RuntimeError):
-            t.inverse(forwards[-1])
+            # Check that error is thrown when inverse are used out of order.
+            t = SpatialPadd("image", [10, 5])
+            with self.assertRaises(RuntimeError):
+                t.inverse(forwards[-1])
 
         # Apply inverses
         fwd_bck = forwards[-1].copy()
