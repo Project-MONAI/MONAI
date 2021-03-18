@@ -10,6 +10,7 @@
 # limitations under the License.
 
 from .confusion_matrix import ConfusionMatrixMetric, compute_confusion_matrix_metric, get_confusion_matrix
+from .froc import compute_fp_tp_probs, compute_froc_curve_data, compute_froc_score
 from .hausdorff_distance import HausdorffDistanceMetric, compute_hausdorff_distance, compute_percent_hausdorff_distance
 from .meandice import DiceMetric, compute_meandice
 from .rocauc import compute_roc_auc
