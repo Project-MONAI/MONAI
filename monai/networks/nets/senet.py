@@ -275,7 +275,7 @@ def _load_state_dict(model, model_url, progress):
         if pattern_conv.match(key):
             new_key = re.sub(pattern_conv, r"\1conv.\2", key)
         elif pattern_bn.match(key):
-            new_key = re.sub(pattern_bn, r"\1conv\2norm.\3", key)
+            new_key = re.sub(pattern_bn, r"\1conv\2adn.N.\3", key)
         elif pattern_se.match(key):
             state_dict[key] = state_dict[key].squeeze()
             new_key = re.sub(pattern_se, r"\1se_layer.fc.0.\2", key)
@@ -285,7 +285,7 @@ def _load_state_dict(model, model_url, progress):
         elif pattern_down_conv.match(key):
             new_key = re.sub(pattern_down_conv, r"\1project.conv.\2", key)
         elif pattern_down_bn.match(key):
-            new_key = re.sub(pattern_down_bn, r"\1project.norm.\2", key)
+            new_key = re.sub(pattern_down_bn, r"\1project.adn.N.\2", key)
         if new_key:
             state_dict[new_key] = state_dict[key]
             del state_dict[key]

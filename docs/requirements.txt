@@ -1,9 +1,11 @@
 -f https://download.pytorch.org/whl/cpu/torch-1.6.0%2Bcpu-cp37-cp37m-linux_x86_64.whl
 torch>=1.5
-pytorch-ignite==0.4.2
+pytorch-ignite==0.4.4
 numpy>=1.17
-itk
+itk>=5.0
 nibabel
+cucim==0.18.1
+openslide-python==1.1.2
 parameterized
 scikit-image>=0.14.2
 tensorboard

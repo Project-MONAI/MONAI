@@ -26,6 +26,7 @@ from torch.utils.data import Dataset as _TorchDataset
 
 from monai.data.utils import pickle_hashing
 from monai.transforms import Compose, Randomizable, Transform, apply_transform
+from monai.transforms.transform import RandomizableTransform
 from monai.utils import MAX_SEED, get_seed, min_version, optional_import
 
 if TYPE_CHECKING:
@@ -56,6 +57,7 @@ class Dataset(_TorchDataset):
         Args:
             data: input data to load and transform to generate dataset for model.
             transform: a callable data transform on input data.
+
         """
         self.data = data
         self.transform = transform
@@ -129,6 +131,7 @@ class PersistentDataset(Dataset):
                 If the cache_dir doesn't exist, will automatically create it.
             hash_func: a callable to compute hash from data items to be cached.
                 defaults to `monai.data.utils.pickle_hashing`.
+
         """
         if not isinstance(transform, Compose):
             transform = Compose(transform)
@@ -157,7 +160,7 @@ class PersistentDataset(Dataset):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
         for _transform in self.transform.transforms:
             # execute all the deterministic transforms
-            if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
+            if isinstance(_transform, RandomizableTransform) or not isinstance(_transform, Transform):
                 break
             item_transformed = apply_transform(_transform, item_transformed)
         return item_transformed
@@ -179,7 +182,7 @@ class PersistentDataset(Dataset):
         for _transform in self.transform.transforms:
             if (
                 start_post_randomize_run
-                or isinstance(_transform, Randomizable)
+                or isinstance(_transform, RandomizableTransform)
                 or not isinstance(_transform, Transform)
             ):
                 start_post_randomize_run = True
@@ -346,6 +349,7 @@ class LMDBDataset(PersistentDataset):
                 for more details please visit: https://lmdb.readthedocs.io/en/release/#environment-class
         """
         super().__init__(data=data, transform=transform, cache_dir=cache_dir, hash_func=hash_func)
+        self.progress = progress
         if not self.cache_dir:
             raise ValueError("cache_dir must be specified.")
         self.db_file = self.cache_dir / f"{db_name}.lmdb"
@@ -354,14 +358,13 @@ class LMDBDataset(PersistentDataset):
         if not self.lmdb_kwargs.get("map_size", 0):
             self.lmdb_kwargs["map_size"] = 1024 ** 4  # default map_size
         self._read_env = None
-        self.progress = progress
         print(f"Accessing lmdb file: {self.db_file.absolute()}.")
 
     def _fill_cache_start_reader(self):
         # create cache
         self.lmdb_kwargs["readonly"] = False
         env = lmdb.open(path=f"{self.db_file}", subdir=False, **self.lmdb_kwargs)
-        if not has_tqdm:
+        if self.progress and not has_tqdm:
             warnings.warn("LMDBDataset: tqdm is not installed. not displaying the caching progress.")
         for item in tqdm(self.data) if has_tqdm and self.progress else self.data:
             key = self.hash_func(item)
@@ -470,6 +473,7 @@ class CacheDataset(Dataset):
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_workers: Optional[int] = None,
+        progress: bool = True,
     ) -> None:
         """
         Args:
@@ -481,10 +485,12 @@ class CacheDataset(Dataset):
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
             num_workers: the number of worker processes to use.
                 If num_workers is None then the number returned by os.cpu_count() is used.
+            progress: whether to display a progress bar.
         """
         if not isinstance(transform, Compose):
             transform = Compose(transform)
         super().__init__(data=data, transform=transform)
+        self.progress = progress
         self.cache_num = min(int(cache_num), int(len(data) * cache_rate), len(data))
         self.num_workers = num_workers
         if self.num_workers is not None:
@@ -494,10 +500,10 @@ class CacheDataset(Dataset):
     def _fill_cache(self) -> List:
         if self.cache_num <= 0:
             return []
-        if not has_tqdm:
+        if self.progress and not has_tqdm:
             warnings.warn("tqdm is not installed, will not show the caching progress bar.")
         with ThreadPool(self.num_workers) as p:
-            if has_tqdm:
+            if self.progress and has_tqdm:
                 return list(
                     tqdm(
                         p.imap(self._load_cache_item, range(self.cache_num)),
@@ -517,7 +523,7 @@ class CacheDataset(Dataset):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
         for _transform in self.transform.transforms:
             # execute all the deterministic transforms
-            if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
+            if isinstance(_transform, RandomizableTransform) or not isinstance(_transform, Transform):
                 break
             item = apply_transform(_transform, item)
         return item
@@ -534,7 +540,7 @@ class CacheDataset(Dataset):
         if not isinstance(self.transform, Compose):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
         for _transform in self.transform.transforms:
-            if start_run or isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
+            if start_run or isinstance(_transform, RandomizableTransform) or not isinstance(_transform, Transform):
                 start_run = True
                 data = apply_transform(_transform, data)
         return data
@@ -585,7 +591,8 @@ class SmartCacheDataset(CacheDataset):
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_init_workers: Optional[int] = None,
-        num_replace_workers: int = 0,
+        num_replace_workers: Optional[int] = None,
+        progress: bool = True,
     ) -> None:
         """
         Args:
@@ -599,16 +606,21 @@ class SmartCacheDataset(CacheDataset):
             num_init_workers: the number of worker threads to initialize the cache for first epoch.
                 If num_init_workers is None then the number returned by os.cpu_count() is used.
             num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
-                if 0, run in main thread, no separate thread will open.
+                If num_replace_workers is None then the number returned by os.cpu_count() is used.
+            progress: whether to display a progress bar when caching for the first epoch.
+
         """
-        super().__init__(data, transform, cache_num, cache_rate, num_init_workers)
+        super().__init__(data, transform, cache_num, cache_rate, num_init_workers, progress)
         if self._cache is None:
             self._cache = self._fill_cache()
         if self.cache_num >= len(data):
             warnings.warn("cache_num is greater or equal than dataset length, fall back to regular CacheDataset.")
         if replace_rate <= 0:
             raise ValueError("replace_rate must be greater than 0, otherwise, please use CacheDataset.")
-        self.num_replace_workers: int = num_replace_workers
+
+        self.num_replace_workers: Optional[int] = num_replace_workers
+        if self.num_replace_workers is not None:
+            self.num_replace_workers = max(int(self.num_replace_workers), 1)
 
         self._total_num: int = len(data)
         self._replace_num: int = min(math.ceil(self.cache_num * replace_rate), len(data) - self.cache_num)
@@ -738,12 +750,9 @@ class SmartCacheDataset(CacheDataset):
         It can support multi-threads to accelerate the computation progress.
 
         """
-        if self.num_replace_workers > 0:
-            with ThreadPool(self.num_replace_workers) as p:
-                p.map(self._replace_cache_thread, list(range(self._replace_num)))
-        else:
-            for i in range(self._replace_num):
-                self._replace_cache_thread(i)
+        with ThreadPool(self.num_replace_workers) as p:
+            p.map(self._replace_cache_thread, list(range(self._replace_num)))
+
         self._replace_done = True
 
     def _try_manage_replacement(self, check_round):
@@ -916,9 +925,9 @@ class ArrayDataset(Randomizable, _TorchDataset):
             # set transforms of each zip component
             for dataset in self.dataset.data:
                 transform = getattr(dataset, "transform", None)
-                if isinstance(transform, Randomizable):
+                if isinstance(transform, RandomizableTransform):
                     transform.set_random_state(seed=self._seed)
         transform = getattr(self.dataset, "transform", None)
-        if isinstance(transform, Randomizable):
+        if isinstance(transform, RandomizableTransform):
             transform.set_random_state(seed=self._seed)
         return self.dataset[index]
