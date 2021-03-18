@@ -18,11 +18,11 @@ import torch
 
 def compute_fp_tp_probs(
     probs: Union[np.ndarray, torch.Tensor],
-    ycorr: Union[np.ndarray, torch.Tensor],
-    xcorr: Union[np.ndarray, torch.Tensor],
+    y_coord: Union[np.ndarray, torch.Tensor],
+    x_coord: Union[np.ndarray, torch.Tensor],
     evaluation_mask: Union[np.ndarray, torch.Tensor],
-    isolated_tumor_cells: Optional[List] = None,
-    image_level: int = 0,
+    labels_to_exclude: Optional[List] = None,
+    resolution_level: int = 0,
 ):
     """
     This function is modified from the official evaluation code of
@@ -33,54 +33,55 @@ def compute_fp_tp_probs(
     Args:
         probs: an array with shape (n,) that represents the probabilities of the detections.
             Where, n is the number of predicted detections.
-        ycorr: an array with shape (n,) that represents the Y-coordinates of the detections.
-        xcorr: an array with shape (n,) that represents the X-coordinates of the detections.
+        y_coord: an array with shape (n,) that represents the Y-coordinates of the detections.
+        x_coord: an array with shape (n,) that represents the X-coordinates of the detections.
         evaluation_mask: the ground truth mask for evaluation.
-        isolated_tumor_cells: a list of labels (of the evaluation mask)
-            that contains Isolated Tumor Cells.
-        image_level: the level at which the evaluation mask is made.
+        labels_to_exclude: labels in this list will not be counted for metric calculation.
+        resolution_level: the level at which the evaluation mask is made.
 
     Returns:
         fp_probs: an array that contains the probabilities of the false positive detections.
         tp_probs: an array that contains the probabilities of the True positive detections.
-        num_of_tumors: number of tumors in the image (excluding Isolate Tumor Cells).
+        num_targets: the total number of targets (excluding `labels_to_exclude`) for all images under evaluation.
 
     """
-    assert probs.shape == ycorr.shape == xcorr.shape, "the shapes for coordinates and probabilities should be the same."
+    assert (
+        probs.shape == y_coord.shape == x_coord.shape
+    ), "the shapes for coordinates and probabilities should be the same."
 
     if isinstance(probs, torch.Tensor):
         probs = probs.detach().cpu().numpy()
-    if isinstance(ycorr, torch.Tensor):
-        ycorr = ycorr.detach().cpu().numpy()
-    if isinstance(xcorr, torch.Tensor):
-        xcorr = xcorr.detach().cpu().numpy()
+    if isinstance(y_coord, torch.Tensor):
+        y_coord = y_coord.detach().cpu().numpy()
+    if isinstance(x_coord, torch.Tensor):
+        x_coord = x_coord.detach().cpu().numpy()
     if isinstance(evaluation_mask, torch.Tensor):
         evaluation_mask = evaluation_mask.detach().cpu().numpy()
 
-    if isolated_tumor_cells is None:
-        isolated_tumor_cells = []
+    if labels_to_exclude is None:
+        labels_to_exclude = []
 
     max_label = np.max(evaluation_mask)
     tp_probs = np.zeros((max_label,), dtype=np.float32)
 
-    ycorr = (ycorr / pow(2, image_level)).astype(int)
-    xcorr = (xcorr / pow(2, image_level)).astype(int)
+    y_coord = (y_coord / pow(2, resolution_level)).astype(int)
+    x_coord = (x_coord / pow(2, resolution_level)).astype(int)
 
-    hittedlabel = evaluation_mask[ycorr, xcorr]
+    hittedlabel = evaluation_mask[y_coord, x_coord]
     fp_probs = probs[np.where(hittedlabel == 0)]
     for i in range(1, max_label + 1):
-        if i not in isolated_tumor_cells and i in hittedlabel:
+        if i not in labels_to_exclude and i in hittedlabel:
             tp_probs[i - 1] = probs[np.where(hittedlabel == i)].max()
 
-    num_of_tumors = max_label - len(isolated_tumor_cells)
-    return fp_probs, tp_probs, num_of_tumors
+    num_targets = max_label - len(labels_to_exclude)
+    return fp_probs, tp_probs, num_targets
 
 
 def compute_froc_curve_data(
     fp_probs: Union[np.ndarray, torch.Tensor],
     tp_probs: Union[np.ndarray, torch.Tensor],
-    num_of_tumors: int,
-    num_of_samples: int,
+    num_targets: int,
+    num_images: int,
 ):
     """
     This function is modified from the official evaluation code of
@@ -89,12 +90,11 @@ def compute_froc_curve_data(
 
     Args:
         fp_probs: an array that contains the probabilities of the false positive detections for all
-            samples that to be computed.
+            images under evaluation.
         tp_probs: an array that contains the probabilities of the True positive detections for all
-            samples that to be computed.
-        num_of_tumors: the total number of tumors (excluding Isolate Tumor Cells) for all samples
-            that to be computed.
-        num_of_samples: the number of samples that to be computed.
+            images under evaluation.
+        num_targets: the total number of targets (excluding `labels_to_exclude`) for all images under evaluation.
+        num_images: the number of images under evaluation.
 
     """
     assert type(fp_probs) == type(tp_probs), "fp and tp probs should have same type."
@@ -110,8 +110,8 @@ def compute_froc_curve_data(
         total_tps.append((tp_probs >= thresh).sum())
     total_fps.append(0)
     total_tps.append(0)
-    fps_per_image = np.asarray(total_fps) / float(num_of_samples)
-    total_sensitivity = np.asarray(total_tps) / float(num_of_tumors)
+    fps_per_image = np.asarray(total_fps) / float(num_images)
+    total_sensitivity = np.asarray(total_tps) / float(num_targets)
     return fps_per_image, total_sensitivity
 
 

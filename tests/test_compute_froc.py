@@ -20,11 +20,11 @@ from monai.metrics import compute_fp_tp_probs, compute_froc_curve_data, compute_
 TEST_CASE_1 = [
     {
         "probs": torch.tensor([1, 0.6, 0.8]),
-        "ycorr": torch.tensor([0, 2, 3]),
-        "xcorr": torch.tensor([3, 0, 1]),
+        "y_coord": torch.tensor([0, 2, 3]),
+        "x_coord": torch.tensor([3, 0, 1]),
         "evaluation_mask": np.array([[0, 0, 1, 1], [2, 2, 0, 0], [0, 3, 3, 0], [0, 3, 3, 3]]),
-        "isolated_tumor_cells": [2],
-        "image_level": 0,
+        "labels_to_exclude": [2],
+        "resolution_level": 0,
     },
     np.array([0.6]),
     np.array([1, 0, 0.8]),
@@ -34,10 +34,10 @@ TEST_CASE_1 = [
 TEST_CASE_2 = [
     {
         "probs": torch.tensor([1, 0.6, 0.8]),
-        "ycorr": torch.tensor([0, 2, 3]),
-        "xcorr": torch.tensor([3, 0, 1]),
+        "y_coord": torch.tensor([0, 2, 3]),
+        "x_coord": torch.tensor([3, 0, 1]),
         "evaluation_mask": np.array([[0, 0, 1, 1], [2, 2, 0, 0], [0, 3, 3, 0], [0, 3, 3, 3]]),
-        "image_level": 0,
+        "resolution_level": 0,
     },
     np.array([0.6]),
     np.array([1, 0, 0.8]),
@@ -47,10 +47,10 @@ TEST_CASE_2 = [
 TEST_CASE_3 = [
     {
         "probs": torch.tensor([1, 0.6, 0.8]),
-        "ycorr": torch.tensor([0, 4, 6]),
-        "xcorr": torch.tensor([6, 0, 2]),
+        "y_coord": torch.tensor([0, 4, 6]),
+        "x_coord": torch.tensor([6, 0, 2]),
         "evaluation_mask": np.array([[0, 0, 1, 1], [2, 2, 0, 0], [0, 3, 3, 0], [0, 3, 3, 3]]),
-        "image_level": 1,
+        "resolution_level": 1,
     },
     np.array([0.6]),
     np.array([1, 0, 0.8]),
@@ -61,8 +61,8 @@ TEST_CASE_4 = [
     {
         "fp_probs": np.array([0.8, 0.6]),
         "tp_probs": np.array([1, 1, 0, 0, 0.8, 0.8, 0]),
-        "num_of_tumors": 4,
-        "num_of_samples": 2,
+        "num_targets": 4,
+        "num_images": 2,
     },
     (0.25, 0.5, 1, 2, 4, 8),
     0.95833333,
@@ -72,8 +72,8 @@ TEST_CASE_5 = [
     {
         "fp_probs": torch.tensor([0.8, 0.6]),
         "tp_probs": torch.tensor([1, 1, 0, 0, 0.8, 0.8, 0]),
-        "num_of_tumors": 4,
-        "num_of_samples": 2,
+        "num_targets": 4,
+        "num_images": 2,
     },
     (0.25),
     0.75,
