@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from monai.transforms.croppad.array import RandSpatialCropSamples
 import random
 import sys
 import unittest
@@ -55,6 +54,7 @@ from monai.transforms import (
     Zoomd,
     allow_missing_keys_mode,
 )
+from monai.transforms.croppad.array import RandSpatialCropSamples
 from monai.utils import first, get_seed, optional_import, set_determinism
 from monai.utils.enums import InverseKeys
 from tests.utils import make_nifti_image, make_rand_affine
