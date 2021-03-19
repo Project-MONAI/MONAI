@@ -117,7 +117,7 @@ template<int block_size, bool invert_matrix>
 __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_gmm, int matrix_count)
 {
     __shared__ float s_matrix_component[block_size];
-    __shared__ float s_gmm[15];
+    __shared__ float s_gmm[GMM_COMPONENT_COUNT];
 
     int local_index = threadIdx.x;
     int gmm_index = blockIdx.x;
