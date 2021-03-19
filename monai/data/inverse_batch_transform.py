@@ -45,20 +45,22 @@ class _BatchInverseDataset(Dataset):
         return self.invertible_transform.inverse(data)
 
 
+def no_collation(x):
+    return x
+
+
 class BatchInverseTransform(Transform):
     """Perform inverse on a batch of data. This is useful if you have inferred a batch of images and want to invert them all."""
 
     def __init__(
-        self, transform: InvertibleTransform, loader: TorchDataLoader, collate_fn: Optional[Callable] = None
+        self, transform: InvertibleTransform, loader: TorchDataLoader, collate_fn: Optional[Callable] = no_collation
     ) -> None:
         """
         Args:
             transform: a callable data transform on input data.
             loader: data loader used to generate the batch of data.
-            collate_fn: how to collate data after inverse transformations. Default will use the DataLoader's default
-                collation method. If returning images of different sizes, this will likely create an error (since the
-                collation will concatenate arrays, requiring them to be the same size). In this case, using
-                `collate_fn=lambda x: x` might solve the problem.
+            collate_fn: how to collate data after inverse transformations. Default won't do any collation, so the output will be a
+                list of size batch size.
         """
         self.transform = transform
         self.batch_size = loader.batch_size
