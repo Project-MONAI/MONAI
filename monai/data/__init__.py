@@ -17,6 +17,7 @@ from .dataset import (
     CacheNTransDataset,
     Dataset,
     LMDBDataset,
+    NPZDictItemDataset,
     PersistentDataset,
     SmartCacheDataset,
     ZipDataset,
@@ -32,7 +33,7 @@ from .png_saver import PNGSaver
 from .png_writer import write_png
 from .samplers import DistributedSampler, DistributedWeightedRandomSampler
 from .synthetic import create_test_image_2d, create_test_image_3d
-from .thread_buffer import ThreadBuffer
+from .thread_buffer import ThreadBuffer, ThreadDataLoader
 from .utils import (
     compute_importance_map,
     compute_shape_offset,
