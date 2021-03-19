@@ -71,7 +71,7 @@ class LoadImaged(MapTransform):
             reader: register reader to load image file and meta data, if None, still can register readers
                 at runtime or use the default readers. If a string of reader name provided, will construct
                 a reader object with the `*args` and `**kwargs` parameters, supported reader name: "NibabelReader",
-                "PILReader", "ITKReader", "NumpyReader", "WSIReader".
+                "PILReader", "ITKReader", "NumpyReader".
             dtype: if not None convert the loaded image data to this data type.
             meta_key_postfix: use `key_{postfix}` to store the metadata of the nifti image,
                 default is `meta_dict`. The meta data is a dictionary object.
