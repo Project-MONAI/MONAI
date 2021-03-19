@@ -19,6 +19,7 @@ from monai.data.dataset import Dataset
 from monai.data.utils import decollate_batch, pad_list_data_collate
 from monai.transforms.croppad.batch import PadListDataCollate
 from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.transform import Transform
 from monai.utils import first
 
 __all__ = ["BatchInverseTransform"]
@@ -44,7 +45,7 @@ class _BatchInverseDataset(Dataset):
         return self.invertible_transform.inverse(data)
 
 
-class BatchInverseTransform:
+class BatchInverseTransform(Transform):
     """Perform inverse on a batch of data. This is useful if you have inferred a batch of images and want to invert them all."""
 
     def __init__(
