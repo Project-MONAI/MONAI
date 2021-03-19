@@ -26,7 +26,7 @@ class TestRandStdShiftIntensityd(NumpyImageTestCase2D):
         np.random.seed(0)
         factor = np.random.uniform(low=-1.0, high=1.0)
         expected = self.imt + factor * np.std(self.imt)
-        np.testing.assert_allclose(result[key], expected)
+        np.testing.assert_allclose(result[key], expected, rtol=1e-5)
 
 
 if __name__ == "__main__":
