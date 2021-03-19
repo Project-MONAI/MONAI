@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets import densenet121, densenet169, densenet201, densenet264
+from monai.networks.nets import DenseNet, densenet121, densenet169, densenet201, densenet264
 from monai.utils import optional_import
 from tests.utils import skip_if_quick, test_pretrained_networks, test_script_save
 
@@ -78,6 +78,17 @@ TEST_PRETRAINED_2D_CASE_3 = [
     (1, 3, 32, 32),
 ]
 
+TEST_PRETRAINED_2D_CASE_4 = [
+    {
+        "pretrained": True,
+        "pretrained_arch": "densenet264",
+        "progress": False,
+        "spatial_dims": 2,
+        "in_channels": 3,
+        "out_channels": 1,
+    },
+]
+
 
 class TestPretrainedDENSENET(unittest.TestCase):
     @parameterized.expand([TEST_PRETRAINED_2D_CASE_1, TEST_PRETRAINED_2D_CASE_2])
@@ -99,6 +110,11 @@ class TestPretrainedDENSENET(unittest.TestCase):
         with eval_mode(torchvision_net):
             expected_result = torchvision_net.features.forward(example)
         self.assertTrue(torch.all(result == expected_result))
+
+    @parameterized.expand([TEST_PRETRAINED_2D_CASE_4])
+    def test_ill_pretrain(self, input_param):
+        with self.assertRaisesRegex(ValueError, ""):
+            net = DenseNet(**input_param)
 
 
 class TestDENSENET(unittest.TestCase):
