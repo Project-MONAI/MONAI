@@ -198,7 +198,7 @@ __device__ void largest_eigenpair(const float *M, float* evec, float* eval)
 
     for(int i = 0; i < CHANNEL_COUNT; i++)
     {
-        scratch[i] = i;
+        scratch[i] = i + 1;
     }
 
     for (int itr = 0; itr < 10; itr++)
@@ -208,6 +208,8 @@ __device__ void largest_eigenpair(const float *M, float* evec, float* eval)
         for (int i = 0; i < CHANNEL_COUNT; i++)
         {
             int index = i;
+
+            evec[i] = 0.0f;
 
             for (int j = 0; j < CHANNEL_COUNT; j++)
             {
@@ -223,10 +225,8 @@ __device__ void largest_eigenpair(const float *M, float* evec, float* eval)
                 }
             }
 
-            *eval += evec[i] * evec[i];
+            *eval = max(*eval, evec[i]);
         }
-
-        *eval = sqrtf(*eval);
 
         for (int i = 0; i < CHANNEL_COUNT; i++)
         {
