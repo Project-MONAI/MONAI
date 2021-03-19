@@ -13,7 +13,7 @@ from .ahnet import AHNet
 from .autoencoder import AutoEncoder
 from .basic_unet import BasicUNet, BasicUnet, Basicunet
 from .classifier import Classifier, Critic, Discriminator
-from .densenet import DenseNet, densenet121, densenet169, densenet201, densenet264
+from .densenet import DenseNet, DenseNet121, DenseNet169, DenseNet201, DenseNet264
 from .dynunet import DynUNet, DynUnet, Dynunet
 from .fullyconnectednet import FullyConnectedNet, VarFullyConnectedNet
 from .generator import Generator
