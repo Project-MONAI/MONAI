@@ -148,7 +148,8 @@ class ScaleIntensity(Transform):
         Args:
             minv: minimum value of output data.
             maxv: maximum value of output data.
-            factor: factor scale by ``v = v * (1 + factor)``.
+            factor: factor scale by ``v = v * (1 + factor)``. In order to use
+                this parameter, please set `minv` and `maxv` into None.
         """
         self.minv = minv
         self.maxv = maxv

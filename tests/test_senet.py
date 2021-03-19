@@ -17,7 +17,9 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
+from monai.networks.blocks.squeeze_and_excitation import SEBottleneck
 from monai.networks.nets import (
+    SENet,
     se_resnet50,
     se_resnet101,
     se_resnet152,
@@ -46,7 +48,20 @@ TEST_CASE_4 = [se_resnet152, NET_ARGS]
 TEST_CASE_5 = [se_resnext50_32x4d, NET_ARGS]
 TEST_CASE_6 = [se_resnext101_32x4d, NET_ARGS]
 
-TEST_CASE_PRETRAINED = [se_resnet50, {"spatial_dims": 2, "in_channels": 3, "num_classes": 2, "pretrained": True}]
+TEST_CASE_PRETRAINED_1 = [se_resnet50, {"spatial_dims": 2, "in_channels": 3, "num_classes": 2, "pretrained": True}]
+TEST_CASE_PRETRAINED_2 = [
+    {
+        "spatial_dims": 2,
+        "in_channels": 3,
+        "block": SEBottleneck,
+        "layers": [3, 8, 36, 3],
+        "groups": 64,
+        "reduction": 16,
+        "num_classes": 2,
+        "pretrained": True,
+        "pretrained_arch": "resnet50",
+    }
+]
 
 
 class TestSENET(unittest.TestCase):
@@ -67,7 +82,7 @@ class TestSENET(unittest.TestCase):
 
 
 class TestPretrainedSENET(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_PRETRAINED])
+    @parameterized.expand([TEST_CASE_PRETRAINED_1])
     def test_senet_shape(self, model, input_param):
         net = test_pretrained_networks(model, input_param, device)
         input_data = torch.randn(3, 3, 64, 64).to(device)
@@ -77,7 +92,7 @@ class TestPretrainedSENET(unittest.TestCase):
             result = net(input_data)
             self.assertEqual(result.shape, expected_shape)
 
-    @parameterized.expand([TEST_CASE_PRETRAINED])
+    @parameterized.expand([TEST_CASE_PRETRAINED_1])
     @skipUnless(has_cadene_pretrain, "Requires `pretrainedmodels` package.")
     def test_pretrain_consistency(self, model, input_param):
         input_data = torch.randn(1, 3, 64, 64).to(device)
@@ -91,6 +106,11 @@ class TestPretrainedSENET(unittest.TestCase):
         # we use nn.Linear as the FC layer, but Cadene's version uses
         # a conv layer with kernel size equals to 1. It may bring a little difference.
         self.assertTrue(torch.allclose(result, expected_result, rtol=1e-5, atol=1e-5))
+
+    @parameterized.expand([TEST_CASE_PRETRAINED_2])
+    def test_ill_pretrain(self, input_param):
+        with self.assertRaisesRegex(ValueError, ""):
+            net = SENet(**input_param)
 
 
 if __name__ == "__main__":
