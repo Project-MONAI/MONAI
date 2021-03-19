@@ -220,8 +220,9 @@ class DenseNet(nn.Module):
         if arch in model_urls.keys():
             model_url = model_urls[arch]
         else:
-            error_msg = "only densenet121, densenet169 and densenet201 are supported to load pretrained weights."
-            raise AssertionError(error_msg)
+            raise ValueError(
+                "only 'densenet121', 'densenet169' and 'densenet201' are supported to load pretrained weights."
+            )
         pattern = re.compile(
             r"^(.*denselayer\d+)(\.(?:norm|relu|conv))\.((?:[12])\.(?:weight|bias|running_mean|running_var))$"
         )

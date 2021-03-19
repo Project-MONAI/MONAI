@@ -201,11 +201,10 @@ class SENet(nn.Module):
         if arch in model_urls.keys():
             model_url = model_urls[arch]
         else:
-            error_msg = (
-                "only senet154, se_resnet50, se_resnet101,  se_resnet152, se_resnext50_32x4d "
-                + "and se_resnext101_32x4d are supported to load pretrained weights."
+            raise ValueError(
+                "only 'senet154', 'se_resnet50', 'se_resnet101',  'se_resnet152', 'se_resnext50_32x4d', \
+                and se_resnext101_32x4d are supported to load pretrained weights."
             )
-            raise AssertionError(error_msg)
 
         pattern_conv = re.compile(r"^(layer[1-4]\.\d\.(?:conv)\d\.)(\w*)$")
         pattern_bn = re.compile(r"^(layer[1-4]\.\d\.)(?:bn)(\d\.)(\w*)$")
