@@ -143,6 +143,18 @@ Intensity
     :members:
     :special-members: __call__
 
+`StdShiftIntensity`
+"""""""""""""""""""
+.. autoclass:: StdShiftIntensity
+    :members:
+    :special-members: __call__
+
+`RandStdShiftIntensity`
+"""""""""""""""""""""""
+.. autoclass:: RandStdShiftIntensity
+    :members:
+    :special-members: __call__
+
 `ScaleIntensity`
 """"""""""""""""
 .. autoclass:: ScaleIntensity
@@ -635,6 +647,18 @@ Instensity (Dict)
 `RandShiftIntensityd`
 """""""""""""""""""""
 .. autoclass:: RandShiftIntensityd
+    :members:
+    :special-members: __call__
+
+`StdShiftIntensityd`
+""""""""""""""""""""
+.. autoclass:: StdShiftIntensityd
+    :members:
+    :special-members: __call__
+
+`RandStdShiftIntensityd`
+""""""""""""""""""""""""
+.. autoclass:: RandStdShiftIntensityd
     :members:
     :special-members: __call__
 
