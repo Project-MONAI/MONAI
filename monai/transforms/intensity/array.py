@@ -30,6 +30,8 @@ __all__ = [
     "RandGaussianNoise",
     "ShiftIntensity",
     "RandShiftIntensity",
+    "StdShiftIntensity",
+    "RandStdShiftIntensity",
     "ScaleIntensity",
     "RandScaleIntensity",
     "NormalizeIntensity",
@@ -135,6 +137,94 @@ class RandShiftIntensity(RandomizableTransform):
         return shifter(img)
 
 
+class StdShiftIntensity(Transform):
+    """
+    Shift intensity for the image with a factor and the standard deviation of the image
+    by: ``v = v + factor * std(v)``.
+    This transform can focus on only non-zero values or the entire image,
+    and can also calculate the std on each channel separately.
+
+    Args:
+        factor: factor shift by ``v = v + factor * std(v)``.
+        nonzero: whether only count non-zero values.
+        channel_wise: if True, calculate on each channel separately. Please ensure
+            that the first dimension represents the channel of the image if True.
+    """
+
+    def __init__(self, factor: float, nonzero: bool = False, channel_wise: bool = False) -> None:
+        self.factor = factor
+        self.nonzero = nonzero
+        self.channel_wise = channel_wise
+
+    def _stdshift(self, img: np.ndarray) -> np.ndarray:
+        slices = (img != 0) if self.nonzero else np.ones(img.shape, dtype=bool)
+        if not np.any(slices):
+            return img
+        offset = self.factor * np.std(img[slices])
+        img[slices] = img[slices] + offset
+        return img
+
+    def __call__(self, img: np.ndarray) -> np.ndarray:
+        """
+        Apply the transform to `img`.
+        """
+        if img.dtype != float:
+            img = img.astype(float)
+        if self.channel_wise:
+            for i, d in enumerate(img):
+                img[i] = self._stdshift(d)
+        else:
+            img = self._stdshift(img)
+        return img
+
+
+class RandStdShiftIntensity(RandomizableTransform):
+    """
+    Shift intensity for the image with a factor and the standard deviation of the image
+    by: ``v = v + factor * std(v)`` where the `factor` is randomly picked.
+    """
+
+    def __init__(
+        self,
+        factors: Union[Tuple[float, float], float],
+        prob: float = 0.1,
+        nonzero: bool = False,
+        channel_wise: bool = False,
+    ) -> None:
+        """
+        Args:
+            factors: if tuple, the randomly picked range is (min(factors), max(factors)).
+                If single number, the range is (-factors, factors).
+            prob: probability of std shift.
+            nonzero: whether only count non-zero values.
+            channel_wise: if True, calculate on each channel separately.
+
+        """
+        RandomizableTransform.__init__(self, prob)
+        if isinstance(factors, (int, float)):
+            self.factors = (min(-factors, factors), max(-factors, factors))
+        else:
+            if len(factors) != 2:
+                raise AssertionError("factors should be a number or pair of numbers.")
+            self.factors = (min(factors), max(factors))
+        self.nonzero = nonzero
+        self.channel_wise = channel_wise
+
+    def randomize(self, data: Optional[Any] = None) -> None:
+        self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
+        super().randomize(None)
+
+    def __call__(self, img: np.ndarray) -> np.ndarray:
+        """
+        Apply the transform to `img`.
+        """
+        self.randomize()
+        if not self._do_transform:
+            return img
+        shifter = StdShiftIntensity(factor=self.factor, nonzero=self.nonzero, channel_wise=self.channel_wise)
+        return shifter(img)
+
+
 class ScaleIntensity(Transform):
     """
     Scale the intensity of input image to the given value range (minv, maxv).
@@ -173,7 +263,7 @@ class ScaleIntensity(Transform):
 class RandScaleIntensity(RandomizableTransform):
     """
     Randomly scale the intensity of input image by ``v = v * (1 + factor)`` where the `factor`
-    is randomly picked from (-factors[0], factors[0]).
+    is randomly picked.
     """
 
     def __init__(self, factors: Union[Tuple[float, float], float], prob: float = 0.1) -> None:
