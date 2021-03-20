@@ -11,7 +11,7 @@
 
 import re
 from collections import OrderedDict
-from typing import Any, List, Optional, Tuple, Type, Union
+from typing import Any, List, Optional, Sequence, Tuple, Type, Union
 
 import torch
 import torch.nn as nn
@@ -73,7 +73,7 @@ class SENet(nn.Module):
         spatial_dims: int,
         in_channels: int,
         block: Type[Union[SEBottleneck, SEResNetBottleneck, SEResNeXtBottleneck]],
-        layers: List[int],
+        layers: Sequence[int],
         groups: int,
         reduction: int,
         dropout_prob: Optional[float] = 0.2,
@@ -306,7 +306,7 @@ def _load_state_dict(model, arch, progress):
 class SENet154(SENet):
     def __init__(
         self,
-        layers: List[int] = [3, 8, 36, 3],
+        layers: Sequence[int] = (3, 8, 36, 3),
         groups: int = 64,
         reduction: int = 16,
         pretrained: bool = False,
@@ -328,7 +328,7 @@ class SENet154(SENet):
 class SEResNet50(SENet):
     def __init__(
         self,
-        layers: List[int] = [3, 4, 6, 3],
+        layers: Sequence[int] = (3, 4, 6, 3),
         groups: int = 1,
         reduction: int = 16,
         dropout_prob: Optional[float] = None,
@@ -358,7 +358,7 @@ class SEResNet50(SENet):
 class SEResNet101(SENet):
     def __init__(
         self,
-        layers: List[int] = [3, 4, 23, 3],
+        layers: Sequence[int] = (3, 4, 23, 3),
         groups: int = 1,
         reduction: int = 16,
         inplanes: int = 64,
@@ -386,7 +386,7 @@ class SEResNet101(SENet):
 class SEResNet152(SENet):
     def __init__(
         self,
-        layers: List[int] = [3, 8, 36, 3],
+        layers: Sequence[int] = (3, 8, 36, 3),
         groups: int = 1,
         reduction: int = 16,
         inplanes: int = 64,
@@ -414,7 +414,7 @@ class SEResNet152(SENet):
 class SEResNext50(SENet):
     def __init__(
         self,
-        layers: List[int] = [3, 4, 6, 3],
+        layers: Sequence[int] = (3, 4, 6, 3),
         groups: int = 32,
         reduction: int = 16,
         dropout_prob: Optional[float] = None,
@@ -444,7 +444,7 @@ class SEResNext50(SENet):
 class SEResNext101(SENet):
     def __init__(
         self,
-        layers: List[int] = [3, 4, 23, 3],
+        layers: Sequence[int] = (3, 4, 23, 3),
         groups: int = 32,
         reduction: int = 16,
         dropout_prob: Optional[float] = None,
