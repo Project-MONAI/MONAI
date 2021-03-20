@@ -28,6 +28,7 @@ from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.array import (
     Affine,
+    AffineGrid,
     Flip,
     Orientation,
     Rand2DElastic,
@@ -501,7 +502,7 @@ class Resized(MapTransform, InvertibleTransform):
         return d
 
 
-class Affined(RandomizableTransform, MapTransform):
+class Affined(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Affine`.
     """
@@ -570,11 +571,38 @@ class Affined(RandomizableTransform, MapTransform):
     ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
         d = dict(data)
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
+            orig_size = d[key].shape[1:]
             d[key] = self.affine(d[key], mode=mode, padding_mode=padding_mode)
+            affine = self.affine.affine_grid.get_transformation_matrix()
+            self.push_transform(d, key, orig_size=orig_size, extra_info={"affine": affine})
+        return d
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+
+        for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
+            transform = self.get_most_recent_transform(d, key)
+            orig_size = transform[InverseKeys.ORIG_SIZE.value]
+            # Create inverse transform
+            fwd_affine = transform[InverseKeys.EXTRA_INFO.value]["affine"]
+            inv_affine = np.linalg.inv(fwd_affine)
+
+            affine_grid = AffineGrid(affine=inv_affine)
+            grid: torch.Tensor = affine_grid(orig_size)  # type: ignore
+
+            # Apply inverse transform
+            out = self.affine.resampler(d[key], grid, mode, padding_mode)
+
+            # Convert to numpy
+            d[key] = out if isinstance(out, np.ndarray) else out.cpu().numpy()
+
+            # Remove the applied transform
+            self.pop_transform(d, key)
+
         return d
 
 
-class RandAffined(RandomizableTransform, MapTransform):
+class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.RandAffine`.
     """
@@ -667,11 +695,38 @@ class RandAffined(RandomizableTransform, MapTransform):
         sp_size = fall_back_tuple(self.rand_affine.spatial_size, data[self.keys[0]].shape[1:])
         if self._do_transform:
             grid = self.rand_affine.rand_affine_grid(spatial_size=sp_size)
+            affine = self.rand_affine.rand_affine_grid.get_transformation_matrix()
         else:
             grid = create_grid(spatial_size=sp_size)
+            affine = np.eye(len(sp_size) + 1)
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
+            self.push_transform(d, key, extra_info={"affine": affine})
             d[key] = self.rand_affine.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)
+        return d
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+
+        for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
+            transform = self.get_most_recent_transform(d, key)
+            orig_size = transform[InverseKeys.ORIG_SIZE.value]
+            # Create inverse transform
+            fwd_affine = transform[InverseKeys.EXTRA_INFO.value]["affine"]
+            inv_affine = np.linalg.inv(fwd_affine)
+
+            affine_grid = AffineGrid(affine=inv_affine)
+            grid: torch.Tensor = affine_grid(orig_size)  # type: ignore
+
+            # Apply inverse transform
+            out = self.rand_affine.resampler(d[key], grid, mode, padding_mode)
+
+            # Convert to numpy
+            d[key] = out if isinstance(out, np.ndarray) else out.cpu().numpy()
+
+            # Remove the applied transform
+            self.pop_transform(d, key)
+
         return d
 
 
@@ -1035,7 +1090,7 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             if self._do_transform:
                 d[key] = flipper(d[key])
-                self.push_transform(d, key, extra_info={"axis": self._axis})
+            self.push_transform(d, key, extra_info={"axis": self._axis})
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
@@ -1429,10 +1484,6 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         # match the spatial dim of first item
         self.randomize()
         d = dict(data)
-        if not self._do_transform:
-            for key in self.keys:
-                self.push_transform(d, key, extra_info={"zoom": self._zoom})
-            return d
 
         img_dims = data[self.keys[0]].ndim
         if len(self._zoom) == 1:
@@ -1446,12 +1497,13 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
             d, self.mode, self.padding_mode, self.align_corners
         ):
             self.push_transform(d, key, extra_info={"zoom": self._zoom})
-            d[key] = zoomer(
-                d[key],
-                mode=mode,
-                padding_mode=padding_mode,
-                align_corners=align_corners,
-            )
+            if self._do_transform:
+                d[key] = zoomer(
+                    d[key],
+                    mode=mode,
+                    padding_mode=padding_mode,
+                    align_corners=align_corners,
+                )
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
