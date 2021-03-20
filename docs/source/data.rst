@@ -185,6 +185,6 @@ ThreadBuffer
 .. autoclass:: monai.data.ThreadBuffer
 
 
-`BatchInverseTransform`
-~~~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: BatchInverseTransform
+BatchInverseTransform
+~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.BatchInverseTransform
