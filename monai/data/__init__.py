@@ -26,6 +26,7 @@ from .decathlon_datalist import load_decathlon_datalist, load_decathlon_properti
 from .grid_dataset import GridPatchDataset, PatchDataset, PatchIter
 from .image_dataset import ImageDataset
 from .image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader, WSIReader
+from .inverse_batch_transform import BatchInverseTransform
 from .iterable_dataset import IterableDataset
 from .nifti_saver import NiftiSaver
 from .nifti_writer import write_nifti
