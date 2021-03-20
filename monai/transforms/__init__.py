@@ -25,6 +25,7 @@ from .croppad.array import (
     SpatialCrop,
     SpatialPad,
 )
+from .croppad.batch import PadListDataCollate
 from .croppad.dictionary import (
     BorderPadd,
     BorderPadD,
@@ -78,11 +79,13 @@ from .intensity.array import (
     RandHistogramShift,
     RandScaleIntensity,
     RandShiftIntensity,
+    RandStdShiftIntensity,
     SavitzkyGolaySmooth,
     ScaleIntensity,
     ScaleIntensityRange,
     ScaleIntensityRangePercentiles,
     ShiftIntensity,
+    StdShiftIntensity,
     ThresholdIntensity,
 )
 from .intensity.dictionary import (
@@ -122,6 +125,9 @@ from .intensity.dictionary import (
     RandShiftIntensityd,
     RandShiftIntensityD,
     RandShiftIntensityDict,
+    RandStdShiftIntensityd,
+    RandStdShiftIntensityD,
+    RandStdShiftIntensityDict,
     ScaleIntensityd,
     ScaleIntensityD,
     ScaleIntensityDict,
@@ -134,6 +140,9 @@ from .intensity.dictionary import (
     ShiftIntensityd,
     ShiftIntensityD,
     ShiftIntensityDict,
+    StdShiftIntensityd,
+    StdShiftIntensityD,
+    StdShiftIntensityDict,
     ThresholdIntensityd,
     ThresholdIntensityD,
     ThresholdIntensityDict,

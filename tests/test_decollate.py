@@ -12,24 +12,37 @@
 import sys
 import unittest
 from enum import Enum
+from typing import List, Tuple
 
 import numpy as np
 import torch
+from parameterized import parameterized
 
 from monai.data import CacheDataset, DataLoader, create_test_image_2d
 from monai.data.utils import decollate_batch
 from monai.transforms import AddChanneld, Compose, LoadImaged, RandFlipd, SpatialPadd, ToTensord
 from monai.transforms.post.dictionary import Decollated
+from monai.transforms.spatial.dictionary import RandAffined, RandRotate90d
 from monai.utils import optional_import, set_determinism
 from monai.utils.enums import InverseKeys
 from tests.utils import make_nifti_image
 
 _, has_nib = optional_import("nibabel")
 
+KEYS = ["image"]
+
+TESTS: List[Tuple] = []
+TESTS.append((SpatialPadd(KEYS, 150), RandFlipd(KEYS, prob=1.0, spatial_axis=1)))
+TESTS.append((RandRotate90d(KEYS, prob=0.0, max_k=1),))
+TESTS.append((RandAffined(KEYS, prob=0.0, translate_range=10),))
+
 
 class TestDeCollate(unittest.TestCase):
     def setUp(self) -> None:
         set_determinism(seed=0)
+
+        im = create_test_image_2d(100, 101)[0]
+        self.data = [{"image": make_nifti_image(im) if has_nib else im} for _ in range(6)]
 
     def tearDown(self) -> None:
         set_determinism(None)
@@ -55,24 +68,18 @@ class TestDeCollate(unittest.TestCase):
         else:
             raise RuntimeError(f"Not sure how to compare types. type(in1): {type(in1)}, type(in2): {type(in2)}")
 
-    def test_decollation(self, batch_size=2, num_workers=2):
+    @parameterized.expand(TESTS)
+    def test_decollation(self, *transforms):
 
-        im = create_test_image_2d(100, 101)[0]
-        data = [{"image": make_nifti_image(im) if has_nib else im} for _ in range(6)]
+        batch_size = 2
+        num_workers = 2
 
-        transforms = Compose(
-            [
-                AddChanneld("image"),
-                SpatialPadd("image", 150),
-                RandFlipd("image", prob=1.0, spatial_axis=1),
-                ToTensord("image"),
-            ]
-        )
+        t_compose = Compose([AddChanneld(KEYS), Compose(transforms), ToTensord(KEYS)])
         # If nibabel present, read from disk
         if has_nib:
-            transforms = Compose([LoadImaged("image"), transforms])
+            t_compose = Compose([LoadImaged("image"), t_compose])
 
-        dataset = CacheDataset(data, transforms, progress=False)
+        dataset = CacheDataset(self.data, t_compose, progress=False)
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
         for b, batch_data in enumerate(loader):
