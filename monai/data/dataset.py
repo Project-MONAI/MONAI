@@ -19,12 +19,13 @@ import warnings
 from copy import deepcopy
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence, Union
+from typing import IO, TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Union
 
+import numpy as np
 import torch
 from torch.utils.data import Dataset as _TorchDataset
 
-from monai.data.utils import pickle_hashing
+from monai.data.utils import first, pickle_hashing
 from monai.transforms import Compose, Randomizable, Transform, apply_transform
 from monai.transforms.transform import RandomizableTransform
 from monai.utils import MAX_SEED, get_seed, min_version, optional_import
@@ -931,3 +932,53 @@ class ArrayDataset(Randomizable, _TorchDataset):
         if isinstance(transform, RandomizableTransform):
             transform.set_random_state(seed=self._seed)
         return self.dataset[index]
+
+
+class NPZDictItemDataset(Dataset):
+    """
+    Represents a dataset from a loaded NPZ file. The members of the file to load are named in the keys of `keys` and
+    stored under the keyed name. All loaded arrays must have the same 0-dimension (batch) size. Items are always dicts
+    mapping names to an item extracted from the loaded arrays.
+
+    Args:
+        npzfile: Path to .npz file or stream containing .npz file data
+        keys: Maps keys to load from file to name to store in dataset
+        transform: Transform to apply to batch dict
+        other_keys: secondary data to load from file and store in dict `other_keys`, not returned by __getitem__
+    """
+
+    def __init__(
+        self,
+        npzfile: Union[str, IO],
+        keys: Dict[str, str],
+        transform: Optional[Callable] = None,
+        other_keys: Optional[Sequence[str]] = (),
+    ):
+        self.npzfile: Union[str, IO] = npzfile if isinstance(npzfile, str) else "STREAM"
+        self.keys: Dict[str, str] = dict(keys)
+        dat = np.load(npzfile)
+
+        self.arrays = {storedk: dat[datak] for datak, storedk in self.keys.items()}
+        self.length = self.arrays[first(self.keys.values())].shape[0]
+
+        self.other_keys = {} if other_keys is None else {k: dat[k] for k in other_keys}
+
+        for k, v in self.arrays.items():
+            if v.shape[0] != self.length:
+                raise ValueError(
+                    "All loaded arrays must have the same first dimension "
+                    f"size {self.length}, array `{k}` has size {v.shape[0]}"
+                )
+
+        super().__init__([], transform)
+
+    def __len__(self):
+        return self.length
+
+    def __getitem__(self, index: int):
+        data = {k: v[index] for k, v in self.arrays.items()}
+
+        if self.transform is not None:
+            data = apply_transform(self.transform, data)
+
+        return data
