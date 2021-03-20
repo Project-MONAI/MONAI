@@ -183,3 +183,8 @@ DataLoader
 ThreadBuffer
 ~~~~~~~~~~~~
 .. autoclass:: monai.data.ThreadBuffer
+
+
+BatchInverseTransform
+~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.BatchInverseTransform
