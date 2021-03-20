@@ -32,6 +32,7 @@ from monai.transforms.intensity.array import (
     ScaleIntensityRange,
     ScaleIntensityRangePercentiles,
     ShiftIntensity,
+    StdShiftIntensity,
     ThresholdIntensity,
 )
 from monai.transforms.transform import MapTransform, RandomizableTransform
@@ -206,6 +207,91 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
         if not self._do_transform:
             return d
         shifter = ShiftIntensity(self._offset)
+        for key in self.key_iterator(d):
+            d[key] = shifter(d[key])
+        return d
+
+
+class StdShiftIntensityd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.StdShiftIntensity`.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        factor: float,
+        nonzero: bool = False,
+        channel_wise: bool = False,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            factor: factor shift by ``v = v + factor * std(v)``.
+            nonzero: whether only count non-zero values.
+            channel_wise: if True, calculate on each channel separately. Please ensure
+                that the first dimension represents the channel of the image if True.
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.shifter = StdShiftIntensity(factor, nonzero, channel_wise)
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.shifter(d[key])
+        return d
+
+
+class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
+    """
+    Dictionary-based version :py:class:`monai.transforms.RandStdShiftIntensity`.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        factors: Union[Tuple[float, float], float],
+        prob: float = 0.1,
+        nonzero: bool = False,
+        channel_wise: bool = False,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            factors: if tuple, the randomly picked range is (min(factors), max(factors)).
+                If single number, the range is (-factors, factors).
+            prob: probability of std shift.
+            nonzero: whether only count non-zero values.
+            channel_wise: if True, calculate on each channel separately.
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+
+        if isinstance(factors, (int, float)):
+            self.factors = (min(-factors, factors), max(-factors, factors))
+        else:
+            if len(factors) != 2:
+                raise AssertionError("factors should be a number or pair of numbers.")
+            self.factors = (min(factors), max(factors))
+        self.nonzero = nonzero
+        self.channel_wise = channel_wise
+
+    def randomize(self, data: Optional[Any] = None) -> None:
+        self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
+        super().randomize(None)
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = dict(data)
+        self.randomize()
+        if not self._do_transform:
+            return d
+        shifter = StdShiftIntensity(self.factor, self.nonzero, self.channel_wise)
         for key in self.key_iterator(d):
             d[key] = shifter(d[key])
         return d
@@ -812,6 +898,8 @@ class RandHistogramShiftd(RandomizableTransform, MapTransform):
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
 ShiftIntensityD = ShiftIntensityDict = ShiftIntensityd
 RandShiftIntensityD = RandShiftIntensityDict = RandShiftIntensityd
+StdShiftIntensityD = StdShiftIntensityDict = StdShiftIntensityd
+RandStdShiftIntensityD = RandStdShiftIntensityDict = RandStdShiftIntensityd
 ScaleIntensityD = ScaleIntensityDict = ScaleIntensityd
 RandScaleIntensityD = RandScaleIntensityDict = RandScaleIntensityd
 NormalizeIntensityD = NormalizeIntensityDict = NormalizeIntensityd

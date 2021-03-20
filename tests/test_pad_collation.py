@@ -18,8 +18,9 @@ import torch
 from parameterized import parameterized
 
 from monai.data import CacheDataset, DataLoader
-from monai.data.utils import pad_list_data_collate
+from monai.data.utils import decollate_batch, pad_list_data_collate
 from monai.transforms import (
+    PadListDataCollate,
     RandRotate,
     RandRotate90,
     RandRotate90d,
@@ -33,16 +34,16 @@ from monai.utils import set_determinism
 
 TESTS: List[Tuple] = []
 
+for pad_collate in [pad_list_data_collate, PadListDataCollate()]:
+    TESTS.append((dict, pad_collate, RandSpatialCropd("image", roi_size=[8, 7], random_size=True)))
+    TESTS.append((dict, pad_collate, RandRotated("image", prob=1, range_x=np.pi, keep_size=False)))
+    TESTS.append((dict, pad_collate, RandZoomd("image", prob=1, min_zoom=1.1, max_zoom=2.0, keep_size=False)))
+    TESTS.append((dict, pad_collate, RandRotate90d("image", prob=1, max_k=2)))
 
-TESTS.append((dict, RandSpatialCropd("image", roi_size=[8, 7], random_size=True)))
-TESTS.append((dict, RandRotated("image", prob=1, range_x=np.pi, keep_size=False)))
-TESTS.append((dict, RandZoomd("image", prob=1, min_zoom=1.1, max_zoom=2.0, keep_size=False)))
-TESTS.append((dict, RandRotate90d("image", prob=1, max_k=2)))
-
-TESTS.append((list, RandSpatialCrop(roi_size=[8, 7], random_size=True)))
-TESTS.append((list, RandRotate(prob=1, range_x=np.pi, keep_size=False)))
-TESTS.append((list, RandZoom(prob=1, min_zoom=1.1, max_zoom=2.0, keep_size=False)))
-TESTS.append((list, RandRotate90(prob=1, max_k=2)))
+    TESTS.append((list, pad_collate, RandSpatialCrop(roi_size=[8, 7], random_size=True)))
+    TESTS.append((list, pad_collate, RandRotate(prob=1, range_x=np.pi, keep_size=False)))
+    TESTS.append((list, pad_collate, RandZoom(prob=1, min_zoom=1.1, max_zoom=2.0, keep_size=False)))
+    TESTS.append((list, pad_collate, RandRotate90(prob=1, max_k=2)))
 
 
 class _Dataset(torch.utils.data.Dataset):
@@ -72,7 +73,7 @@ class TestPadCollation(unittest.TestCase):
         set_determinism(None)
 
     @parameterized.expand(TESTS)
-    def test_pad_collation(self, t_type, transform):
+    def test_pad_collation(self, t_type, collate_method, transform):
 
         if t_type == dict:
             dataset = CacheDataset(self.dict_data, transform, progress=False)
@@ -86,9 +87,13 @@ class TestPadCollation(unittest.TestCase):
                 pass
 
         # Padded collation shouldn't
-        loader = DataLoader(dataset, batch_size=2, collate_fn=pad_list_data_collate)
-        for _ in loader:
-            pass
+        loader = DataLoader(dataset, batch_size=10, collate_fn=collate_method)
+        # check collation in forward direction
+        for data in loader:
+            if t_type == dict:
+                decollated_data = decollate_batch(data)
+                for d in decollated_data:
+                    PadListDataCollate.inverse(d)
 
 
 if __name__ == "__main__":
