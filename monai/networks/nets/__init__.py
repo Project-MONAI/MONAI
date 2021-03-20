@@ -21,7 +21,7 @@ from .highresnet import HighResBlock, HighResNet
 from .regressor import Regressor
 from .regunet import GlobalNet, LocalNet, RegUNet
 from .segresnet import SegResNet, SegResNetVAE
-from .senet import SENet, se_resnet50, se_resnet101, se_resnet152, se_resnext50_32x4d, se_resnext101_32x4d, senet154
+from .senet import SENet, SENet154, SEResNet50, SEResNet101, SEResNet152, SEResNext50, SEResNext101
 from .unet import UNet, Unet, unet
 from .varautoencoder import VarAutoEncoder
 from .vnet import VNet

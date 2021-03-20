@@ -17,16 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.blocks.squeeze_and_excitation import SEBottleneck
-from monai.networks.nets import (
-    SENet,
-    se_resnet50,
-    se_resnet101,
-    se_resnet152,
-    se_resnext50_32x4d,
-    se_resnext101_32x4d,
-    senet154,
-)
+from monai.networks.nets import SENet154, SEResNet50, SEResNet101, SEResNet152, SEResNext50, SEResNext101
 from monai.utils import optional_import
 from tests.utils import test_pretrained_networks, test_script_save
 
@@ -41,27 +32,14 @@ else:
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 NET_ARGS = {"spatial_dims": 3, "in_channels": 2, "num_classes": 2}
-TEST_CASE_1 = [senet154, NET_ARGS]
-TEST_CASE_2 = [se_resnet50, NET_ARGS]
-TEST_CASE_3 = [se_resnet101, NET_ARGS]
-TEST_CASE_4 = [se_resnet152, NET_ARGS]
-TEST_CASE_5 = [se_resnext50_32x4d, NET_ARGS]
-TEST_CASE_6 = [se_resnext101_32x4d, NET_ARGS]
+TEST_CASE_1 = [SENet154, NET_ARGS]
+TEST_CASE_2 = [SEResNet50, NET_ARGS]
+TEST_CASE_3 = [SEResNet101, NET_ARGS]
+TEST_CASE_4 = [SEResNet152, NET_ARGS]
+TEST_CASE_5 = [SEResNext50, NET_ARGS]
+TEST_CASE_6 = [SEResNext101, NET_ARGS]
 
-TEST_CASE_PRETRAINED_1 = [se_resnet50, {"spatial_dims": 2, "in_channels": 3, "num_classes": 2, "pretrained": True}]
-TEST_CASE_PRETRAINED_2 = [
-    {
-        "spatial_dims": 2,
-        "in_channels": 3,
-        "block": SEBottleneck,
-        "layers": [3, 8, 36, 3],
-        "groups": 64,
-        "reduction": 16,
-        "num_classes": 2,
-        "pretrained": True,
-        "pretrained_arch": "resnet50",
-    }
-]
+TEST_CASE_PRETRAINED_1 = [SEResNet50, {"spatial_dims": 2, "in_channels": 3, "num_classes": 2, "pretrained": True}]
 
 
 class TestSENET(unittest.TestCase):
@@ -106,11 +84,6 @@ class TestPretrainedSENET(unittest.TestCase):
         # we use nn.Linear as the FC layer, but Cadene's version uses
         # a conv layer with kernel size equals to 1. It may bring a little difference.
         self.assertTrue(torch.allclose(result, expected_result, rtol=1e-5, atol=1e-5))
-
-    @parameterized.expand([TEST_CASE_PRETRAINED_2])
-    def test_ill_pretrain(self, input_param):
-        with self.assertRaisesRegex(ValueError, ""):
-            net = SENet(**input_param)
 
 
 if __name__ == "__main__":
