@@ -13,7 +13,7 @@ import sys
 import time
 import unittest
 
-from monai.data import DataLoader, Dataset, ThreadBuffer
+from monai.data import DataLoader, Dataset, ThreadBuffer, ThreadDataLoader
 from monai.transforms import Compose, SimulateDelayd
 from monai.utils import PerfContext
 
@@ -36,6 +36,16 @@ class TestDataLoader(unittest.TestCase):
         tbuffer = ThreadBuffer(dataloader)
 
         for d in tbuffer:
+            self.assertEqual(d["image"][0], "spleen_19.nii.gz")
+            self.assertEqual(d["image"][1], "spleen_31.nii.gz")
+            self.assertEqual(d["label"][0], "spleen_label_19.nii.gz")
+            self.assertEqual(d["label"][1], "spleen_label_31.nii.gz")
+
+    def test_dataloader(self):
+        dataset = Dataset(data=self.datalist, transform=self.transform)
+        dataloader = ThreadDataLoader(dataset=dataset, batch_size=2, num_workers=0)
+
+        for d in dataloader:
             self.assertEqual(d["image"][0], "spleen_19.nii.gz")
             self.assertEqual(d["image"][1], "spleen_31.nii.gz")
             self.assertEqual(d["label"][0], "spleen_label_19.nii.gz")
