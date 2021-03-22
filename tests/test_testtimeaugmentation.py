@@ -33,6 +33,7 @@ from monai.transforms import (
     RandAffined,
 )
 from monai.transforms.croppad.dictionary import SpatialPadd
+from monai.transforms.spatial.dictionary import Rand2DElasticd
 from monai.utils import optional_import, set_determinism
 
 if TYPE_CHECKING:
@@ -44,10 +45,14 @@ else:
 
 trange = partial(tqdm.trange, desc="training") if has_tqdm else range
 
-set_determinism(seed=0)
-
 
 class TestTestTimeAugmentation(unittest.TestCase):
+    def setUp(self) -> None:
+        set_determinism(seed=0)
+
+    def tearDown(self) -> None:
+        set_determinism(None)
+
     def test_test_time_augmentation(self):
         input_size = (20, 20)
         device = "cuda" if has_cuda else "cpu"
@@ -119,15 +124,23 @@ class TestTestTimeAugmentation(unittest.TestCase):
             return post_trans(model(x))
 
         tt_aug = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=inferrer_fn, device=device)
-        mean, std = tt_aug(test_data)
+        mode, mean, std, vvc = tt_aug(test_data)
+        self.assertEqual(mode.shape, (1,) + input_size)
         self.assertEqual(mean.shape, (1,) + input_size)
+        self.assertTrue(all(np.unique(mode) == (0, 1)))
         self.assertEqual((mean.min(), mean.max()), (0.0, 1.0))
         self.assertEqual(std.shape, (1,) + input_size)
+        self.assertIsInstance(vvc, float)
 
     def test_fail_non_random(self):
         transforms = Compose([AddChanneld("im"), SpatialPadd("im", 1)])
         with self.assertRaises(RuntimeError):
-            TestTimeAugmentation(transforms, None, None, None, None)
+            TestTimeAugmentation(transforms, None, None, None)
+
+    def test_fail_random_but_not_invertible(self):
+        transforms = Compose([AddChanneld("im"), Rand2DElasticd("im", None, None)])
+        with self.assertRaises(RuntimeError):
+            TestTimeAugmentation(transforms, None, None, None)
 
 
 if __name__ == "__main__":

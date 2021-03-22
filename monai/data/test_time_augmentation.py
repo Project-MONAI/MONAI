@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -17,38 +17,95 @@ import torch
 from monai.data.dataloader import DataLoader
 from monai.data.dataset import Dataset
 from monai.data.inverse_batch_transform import BatchInverseTransform
-from monai.data.utils import pad_list_data_collate
+from monai.data.utils import list_data_collate, pad_list_data_collate
+from monai.engines.utils import CommonKeys
 from monai.transforms.compose import Compose
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.transform import Randomizable
+from monai.transforms.transform import RandomizableTransform
+from monai.transforms.utils import allow_missing_keys_mode
+from monai.utils.enums import InverseKeys
 
 __all__ = ["TestTimeAugmentation"]
 
 
-def is_transform_rand(transform):
-    if not isinstance(transform, Compose):
-        return isinstance(transform, Randomizable)
-    # call recursively for each sub-transform
-    return any(is_transform_rand(t) for t in transform.transforms)
+def is_transform_rand_invertible(transform):
+    if isinstance(transform, Compose):
+        # call recursively for each sub-transform
+        return any(is_transform_rand_invertible(t) for t in transform.transforms)
+    is_random = isinstance(transform, RandomizableTransform)
+    is_invertible = isinstance(transform, InvertibleTransform)
+    if is_random and not is_invertible:
+        raise RuntimeError(
+            f"All applied random transform(s) must be invertible. Problematic transform: {type(transform).__name__}"
+        )
+    return is_random
 
 
 class TestTimeAugmentation:
+    """
+    Class for performing test time augmentations. This will pass the same image through the network multiple times.
+
+    The user passes transform(s) to be applied to each realisation, and provided that at least one of those transforms
+    is random, the network's output will vary. Provided that inverse transformations exist for all supplied spatial
+    transforms, the inverse can be applied to each realisation of the network's output. Once in the same spatial
+    reference, the results can then be combined and metrics computed.
+
+    Test time augmentations are a useful feature for computing network uncertainty, as well as observing the network's
+    dependency on the applied random transforms.
+
+    Reference:
+        Wang et al.,
+        Aleatoric uncertainty estimation with test-time augmentation for medical image segmentation with convolutional
+        neural networks,
+        https://doi.org/10.1016/j.neucom.2019.01.103
+
+    Args:
+        transform: transform (or composed) to be applied to each realisation. At least one transform must be of type
+            `RandomizableTransform`. All random transforms must be of type `InvertibleTransform`.
+        batch_size: number of realisations to infer at once.
+        num_workers: how many subprocesses to use for data.
+        inferrer_fn: function to use to perform inference.
+        device: device on which to perform inference.
+        image_key: key used to extract image from input dictionary.
+        label_key: key used to extract label from input dictionary.
+        return_full_data: normally, metrics are returned (mode, mean, std, vvc). Setting this flag to `True` will return the
+            full data. Dimensions will be same size as when passing a single image through `inferrer_fn`, with a dimension appended
+            equal in size to `num_examples` (N), i.e., `[N,C,H,W,[D]]`.
+
+    Example:
+        .. code-block:: python
+
+            transform = RandAffined(keys, ...)
+            post_trans = Compose([Activations(sigmoid=True), AsDiscrete(threshold_values=True)])
+
+            tt_aug = TestTimeAugmentation(
+                transform, batch_size=5, num_workers=0, inferrer_fn=lambda x: post_trans(model(x)), device=device
+            )
+            mode, mean, std, vvc = tt_aug(test_data)
+    """
+
     def __init__(
         self,
         transform: InvertibleTransform,
-        batch_size,
-        num_workers,
-        inferrer_fn,
-        device,
+        batch_size: int,
+        num_workers: int,
+        inferrer_fn: Callable,
+        device: Optional[Union[str, torch.device]] = "cuda" if torch.cuda.is_available() else "cpu",
+        image_key=CommonKeys.IMAGE,
+        label_key=CommonKeys.LABEL,
+        return_full_data: bool = False,
     ) -> None:
         self.transform = transform
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.inferrer_fn = inferrer_fn
         self.device = device
+        self.image_key = image_key
+        self.label_key = label_key
+        self.return_full_data = return_full_data
 
-        # check that the transform has at least one random component
-        if not is_transform_rand(self.transform):
+        # check that the transform has at least one random component, and that all random transforms are invertible
+        if not is_transform_rand_invertible(self.transform):
             raise RuntimeError(
                 type(self).__name__
                 + " requires a `Randomizable` transform or a"
@@ -56,8 +113,20 @@ class TestTimeAugmentation:
             )
 
     def __call__(
-        self, data: Dict[str, Any], num_examples=10, image_key="image", label_key="label", return_full_data=False
-    ):
+        self, data: Dict[str, Any], num_examples: int = 10
+    ) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray, float], np.ndarray]:
+        """
+        Args:
+            data: dictionary data to be processed.
+            num_examples: number of realisations to be processed and results combined.
+
+        Returns:
+            - if `return_full_data==False`: mode, mean, std, vvc. The mode, mean and standard deviation are calculated across
+                `num_examples` outputs at each voxel. The volume variation coefficient (VVC) is `std/mean` across the whole output,
+                including `num_examples`. See original paper for clarification.
+            - if `return_full_data==False`: data is returned as-is after applying the `inferrer_fn` and then concatenating across
+                the first dimension containing `num_examples`. This allows the user to perform their own analysis if desired.
+        """
         d = dict(data)
 
         # check num examples is multiple of batch size
@@ -65,20 +134,20 @@ class TestTimeAugmentation:
             raise ValueError("num_examples should be multiple of batch size.")
 
         # generate batch of data of size == batch_size, dataset and dataloader
-        data_in = [d for _ in range(num_examples)]
+        data_in = [d] * num_examples
         ds = Dataset(data_in, self.transform)
         dl = DataLoader(ds, self.num_workers, batch_size=self.batch_size, collate_fn=pad_list_data_collate)
 
-        label_transform_key = label_key + "_transforms"
+        label_transform_key = self.label_key + InverseKeys.KEY_SUFFIX.value
 
         # create inverter
-        inverter = BatchInverseTransform(self.transform, dl)
+        inverter = BatchInverseTransform(self.transform, dl, collate_fn=list_data_collate)
 
-        outputs = []
+        outputs: List[np.ndarray] = []
 
         for batch_data in dl:
 
-            batch_images = batch_data[image_key].to(self.device)
+            batch_images = batch_data[self.image_key].to(self.device)
 
             # do model forward pass
             batch_output = self.inferrer_fn(batch_images)
@@ -95,22 +164,23 @@ class TestTimeAugmentation:
                 )
 
             # create a dictionary containing the inferred batch and their transforms
-            inferred_dict = {label_key: batch_output, label_transform_key: batch_data[label_transform_key]}
+            inferred_dict = {self.label_key: batch_output, label_transform_key: batch_data[label_transform_key]}
 
-            # do inverse transformation (only for the label key)
-            inv_batch = inverter(inferred_dict, label_key)
+            # do inverse transformation (allow missing keys as only inverting label)
+            with allow_missing_keys_mode(self.transform):  # type: ignore
+                inv_batch = inverter(inferred_dict)
 
             # append
-            outputs.append(inv_batch)
+            outputs.append(inv_batch[self.label_key])
 
         # calculate mean and standard deviation
-        output = np.concatenate(outputs)
+        output: np.ndarray = np.concatenate(outputs)
 
-        if return_full_data:
+        if self.return_full_data:
             return output
 
-        mode = np.apply_along_axis(lambda x: np.bincount(x).argmax(), axis=0, arr=output.astype(np.int64))
-        mean = np.mean(output, axis=0)
-        std = np.std(output, axis=0)
-        vvc = np.std(output) / np.mean(output)
+        mode: np.ndarray = np.apply_along_axis(lambda x: np.bincount(x).argmax(), axis=0, arr=output.astype(np.int64))
+        mean: np.ndarray = np.mean(output, axis=0)  # type: ignore
+        std: np.ndarray = np.std(output, axis=0)  # type: ignore
+        vvc: float = (np.std(output) / np.mean(output)).item()
         return mode, mean, std, vvc
