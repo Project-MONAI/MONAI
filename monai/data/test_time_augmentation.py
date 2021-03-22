@@ -30,8 +30,8 @@ __all__ = ["TestTimeAugmentation"]
 
 def is_transform_rand_invertible(transform):
     if isinstance(transform, Compose):
-        # call recursively for each sub-transform
-        return any(is_transform_rand_invertible(t) for t in transform.transforms)
+        # call recursively for each sub-transform. cast to Compose shouldn't be necessary
+        return any(is_transform_rand_invertible(t) for t in Compose(transform).transforms)
     is_random = isinstance(transform, RandomizableTransform)
     is_invertible = isinstance(transform, InvertibleTransform)
     if is_random and not is_invertible:
