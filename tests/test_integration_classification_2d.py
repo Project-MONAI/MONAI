@@ -22,7 +22,7 @@ import monai
 from monai.apps import download_and_extract
 from monai.metrics import compute_roc_auc
 from monai.networks import eval_mode
-from monai.networks.nets import densenet121
+from monai.networks.nets import DenseNet121
 from monai.transforms import AddChannel, Compose, LoadImage, RandFlip, RandRotate, RandZoom, ScaleIntensity, ToTensor
 from monai.utils import set_determinism
 from tests.testing_data.integration_answers import test_integration_value
@@ -71,7 +71,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
     val_ds = MedNISTDataset(val_x, val_y, val_transforms)
     val_loader = DataLoader(val_ds, batch_size=300, num_workers=num_workers)
 
-    model = densenet121(spatial_dims=2, in_channels=1, out_channels=len(np.unique(train_y))).to(device)
+    model = DenseNet121(spatial_dims=2, in_channels=1, out_channels=len(np.unique(train_y))).to(device)
     loss_function = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), 1e-5)
     epoch_num = 4
@@ -133,7 +133,7 @@ def run_inference_test(root_dir, test_x, test_y, device="cuda:0", num_workers=10
     val_ds = MedNISTDataset(test_x, test_y, val_transforms)
     val_loader = DataLoader(val_ds, batch_size=300, num_workers=num_workers)
 
-    model = densenet121(spatial_dims=2, in_channels=1, out_channels=len(np.unique(test_y))).to(device)
+    model = DenseNet121(spatial_dims=2, in_channels=1, out_channels=len(np.unique(test_y))).to(device)
 
     model_filename = os.path.join(root_dir, "best_metric_model.pth")
     model.load_state_dict(torch.load(model_filename))
