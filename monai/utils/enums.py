@@ -217,7 +217,7 @@ class Method(Enum):
     END = "end"
 
 
-class InverseKeys(Enum):
+class InverseKeys:
     """Extra meta data keys used for inverse transforms."""
 
     CLASS_NAME = "class"

@@ -68,6 +68,12 @@ Generic Interfaces
 .. autoclass:: ImageDataset
   :members:
   :special-members: __getitem__
+  
+`NPZDictItemDataset`
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: NPZDictItemDataset
+  :members:
+  :special-members: __getitem__
 
 Patch-based dataset
 -------------------
@@ -177,3 +183,8 @@ DataLoader
 ThreadBuffer
 ~~~~~~~~~~~~
 .. autoclass:: monai.data.ThreadBuffer
+
+
+BatchInverseTransform
+~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.BatchInverseTransform

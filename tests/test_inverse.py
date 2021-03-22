@@ -21,6 +21,7 @@ import torch
 from parameterized import parameterized
 
 from monai.data import CacheDataset, DataLoader, create_test_image_2d, create_test_image_3d
+from monai.data.inverse_batch_transform import BatchInverseTransform
 from monai.data.utils import decollate_batch
 from monai.networks.nets import UNet
 from monai.transforms import (
@@ -407,6 +408,10 @@ TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for
 TESTS = TESTS + TESTS_COMPOSE_X2  # type: ignore
 
 
+def no_collation(x):
+    return x
+
+
 class TestInverse(unittest.TestCase):
     """Test inverse methods.
 
@@ -560,7 +565,7 @@ class TestInverse(unittest.TestCase):
         data = first(loader)
         labels = data["label"].to(device)
         segs = model(labels).detach().cpu()
-        label_transform_key = "label" + InverseKeys.KEY_SUFFIX.value
+        label_transform_key = "label" + InverseKeys.KEY_SUFFIX
         segs_dict = {"label": segs, label_transform_key: data[label_transform_key]}
 
         segs_dict_decollated = decollate_batch(segs_dict)
@@ -572,6 +577,12 @@ class TestInverse(unittest.TestCase):
         self.assertEqual(len(data["label_transforms"]), num_invertible_transforms)
         self.assertEqual(len(seg_dict["label_transforms"]), num_invertible_transforms)
         self.assertEqual(inv_seg.shape[1:], test_data[0]["label"].shape)
+
+        # Inverse of batch
+        batch_inverter = BatchInverseTransform(transforms, loader, collate_fn=no_collation)
+        with allow_missing_keys_mode(transforms):
+            inv_batch = batch_inverter(segs_dict)
+        self.assertEqual(inv_batch[0]["label"].shape[1:], test_data[0]["label"].shape)
 
 
 if __name__ == "__main__":
