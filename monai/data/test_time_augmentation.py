@@ -18,12 +18,11 @@ from monai.data.dataloader import DataLoader
 from monai.data.dataset import Dataset
 from monai.data.inverse_batch_transform import BatchInverseTransform
 from monai.data.utils import list_data_collate, pad_list_data_collate
-from monai.engines.utils import CommonKeys
 from monai.transforms.compose import Compose
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import RandomizableTransform
 from monai.transforms.utils import allow_missing_keys_mode
-from monai.utils.enums import InverseKeys
+from monai.utils.enums import CommonKeys, InverseKeys
 
 __all__ = ["TestTimeAugmentation"]
 
