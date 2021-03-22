@@ -138,7 +138,7 @@ class TestTimeAugmentation:
         ds = Dataset(data_in, self.transform)
         dl = DataLoader(ds, self.num_workers, batch_size=self.batch_size, collate_fn=pad_list_data_collate)
 
-        label_transform_key = self.label_key + InverseKeys.KEY_SUFFIX.value
+        label_transform_key = self.label_key + InverseKeys.KEY_SUFFIX
 
         # create inverter
         inverter = BatchInverseTransform(self.transform, dl, collate_fn=list_data_collate)
