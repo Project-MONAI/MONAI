@@ -15,7 +15,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
-from torch._C import has_cuda
 
 from monai.data import CacheDataset, DataLoader, create_test_image_2d
 from monai.data.test_time_augmentation import TestTimeAugmentation
@@ -55,7 +54,7 @@ class TestTestTimeAugmentation(unittest.TestCase):
 
     def test_test_time_augmentation(self):
         input_size = (20, 20)
-        device = "cuda" if has_cuda else "cpu"
+        device = "cuda" if torch.cuda.is_available() else "cpu"
         num_training_ims = 10
         data = []
         custom_create_test_image_2d = partial(
