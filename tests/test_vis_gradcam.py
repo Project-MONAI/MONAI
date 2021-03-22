@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.networks.nets import DenseNet, densenet121, se_resnet50
+from monai.networks.nets import DenseNet, DenseNet121, SEResNet50
 from monai.visualize import GradCAM
 
 # 2D
@@ -65,15 +65,15 @@ class TestGradientClassActivationMap(unittest.TestCase):
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_shape(self, input_data, expected_shape):
         if input_data["model"] == "densenet2d":
-            model = densenet121(spatial_dims=2, in_channels=1, out_channels=3)
+            model = DenseNet121(spatial_dims=2, in_channels=1, out_channels=3)
         if input_data["model"] == "densenet3d":
             model = DenseNet(
                 spatial_dims=3, in_channels=1, out_channels=3, init_features=2, growth_rate=2, block_config=(6,)
             )
         if input_data["model"] == "senet2d":
-            model = se_resnet50(spatial_dims=2, in_channels=3, num_classes=4)
+            model = SEResNet50(spatial_dims=2, in_channels=3, num_classes=4)
         if input_data["model"] == "senet3d":
-            model = se_resnet50(spatial_dims=3, in_channels=3, num_classes=4)
+            model = SEResNet50(spatial_dims=3, in_channels=3, num_classes=4)
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
         model.to(device)
         model.eval()
