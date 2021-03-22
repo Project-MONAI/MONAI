@@ -54,6 +54,7 @@ class TestNiftiEndianness(unittest.TestCase):
             output = switch_endianness(data, ">", "<")
             self.assertEqual(type(data), type(output))
 
+    @skipUnless(has_pil, "Requires PIL")
     def test_pil(self):
         tempdir = tempfile.mkdtemp()
         test_image = np.random.randint(0, 256, size=[128, 256])
