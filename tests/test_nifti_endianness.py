@@ -1,4 +1,3 @@
-from monai.data.image_reader import PILReader
 import os
 import tempfile
 import unittest
@@ -9,6 +8,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.data import DataLoader, Dataset, create_test_image_2d
+from monai.data.image_reader import PILReader
 from monai.transforms import LoadImage, LoadImaged
 from monai.transforms.io.array import switch_endianness
 from monai.utils.module import optional_import
