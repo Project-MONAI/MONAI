@@ -17,9 +17,9 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets import densenet121, densenet169, densenet201, densenet264
+from monai.networks.nets import DenseNet121, DenseNet169, DenseNet201, DenseNet264
 from monai.utils import optional_import
-from tests.utils import skip_if_quick, test_pretrained_networks, test_script_save
+from tests.utils import skip_if_quick, test_script_save
 
 if TYPE_CHECKING:
     import torchvision
@@ -51,29 +51,29 @@ TEST_CASE_3 = [  # 4-channel 1D, batch 1
 
 TEST_CASES = []
 for case in [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3]:
-    for model in [densenet121, densenet169, densenet201, densenet264]:
+    for model in [DenseNet121, DenseNet169, DenseNet201, DenseNet264]:
         TEST_CASES.append([model, *case])
 
 
-TEST_SCRIPT_CASES = [[model, *TEST_CASE_1] for model in [densenet121, densenet169, densenet201, densenet264]]
+TEST_SCRIPT_CASES = [[model, *TEST_CASE_1] for model in [DenseNet121, DenseNet169, DenseNet201, DenseNet264]]
 
 
 TEST_PRETRAINED_2D_CASE_1 = [  # 4-channel 2D, batch 2
-    densenet121,
+    DenseNet121,
     {"pretrained": True, "progress": True, "spatial_dims": 2, "in_channels": 2, "out_channels": 3},
     (1, 2, 32, 64),
     (1, 3),
 ]
 
 TEST_PRETRAINED_2D_CASE_2 = [  # 4-channel 2D, batch 2
-    densenet121,
+    DenseNet121,
     {"pretrained": True, "progress": False, "spatial_dims": 2, "in_channels": 2, "out_channels": 1},
     (1, 2, 32, 64),
     (1, 1),
 ]
 
 TEST_PRETRAINED_2D_CASE_3 = [
-    densenet121,
+    DenseNet121,
     {"pretrained": True, "progress": False, "spatial_dims": 2, "in_channels": 3, "out_channels": 1},
     (1, 3, 32, 32),
 ]
@@ -83,7 +83,7 @@ class TestPretrainedDENSENET(unittest.TestCase):
     @parameterized.expand([TEST_PRETRAINED_2D_CASE_1, TEST_PRETRAINED_2D_CASE_2])
     @skip_if_quick
     def test_121_2d_shape_pretrain(self, model, input_param, input_shape, expected_shape):
-        net = test_pretrained_networks(model, input_param, device)
+        net = model(**input_param).to(device)
         with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
@@ -92,7 +92,7 @@ class TestPretrainedDENSENET(unittest.TestCase):
     @skipUnless(has_torchvision, "Requires `torchvision` package.")
     def test_pretrain_consistency(self, model, input_param, input_shape):
         example = torch.randn(input_shape).to(device)
-        net = test_pretrained_networks(model, input_param, device)
+        net = model(**input_param).to(device)
         with eval_mode(net):
             result = net.features.forward(example)
         torchvision_net = torchvision.models.densenet121(pretrained=True).to(device)

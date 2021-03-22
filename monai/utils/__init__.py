@@ -31,6 +31,7 @@ from .enums import (
     UpsampleMode,
     Weight,
 )
+from .jupyter_utils import StatusMembers, ThreadContainer
 from .misc import (
     MAX_SEED,
     ImageMetaKey,
