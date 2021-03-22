@@ -209,10 +209,10 @@ class CAM(CAMBase):
     .. code-block:: python
 
         # densenet 2d
-        from monai.networks.nets import densenet121
+        from monai.networks.nets import DenseNet121
         from monai.visualize import CAM
 
-        model_2d = densenet121(spatial_dims=2, in_channels=1, out_channels=3)
+        model_2d = DenseNet121(spatial_dims=2, in_channels=1, out_channels=3)
         cam = CAM(nn_module=model_2d, target_layers="class_layers.relu", fc_layers="class_layers.out")
         result = cam(x=torch.rand((1, 1, 48, 64)))
 
@@ -307,10 +307,10 @@ class GradCAM(CAMBase):
     .. code-block:: python
 
         # densenet 2d
-        from monai.networks.nets import densenet121
+        from monai.networks.nets import DenseNet121
         from monai.visualize import GradCAM
 
-        model_2d = densenet121(spatial_dims=2, in_channels=1, out_channels=3)
+        model_2d = DenseNet121(spatial_dims=2, in_channels=1, out_channels=3)
         cam = GradCAM(nn_module=model_2d, target_layers="class_layers.relu")
         result = cam(x=torch.rand((1, 1, 48, 64)))
 

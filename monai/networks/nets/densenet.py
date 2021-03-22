@@ -207,7 +207,7 @@ def _load_state_dict(model, arch, progress):
         "densenet169": "https://download.pytorch.org/models/densenet169-b2777c0a.pth",
         "densenet201": "https://download.pytorch.org/models/densenet201-c1103571.pth",
     }
-    if arch in model_urls.keys():
+    if arch in model_urls:
         model_url = model_urls[arch]
     else:
         raise ValueError(

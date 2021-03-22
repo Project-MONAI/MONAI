@@ -259,7 +259,7 @@ def _load_state_dict(model, arch, progress):
         "se_resnext50_32x4d": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnext50_32x4d-a260b3a4.pth",
         "se_resnext101_32x4d": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnext101_32x4d-3b2fe3d8.pth",
     }
-    if arch in model_urls.keys():
+    if arch in model_urls:
         model_url = model_urls[arch]
     else:
         raise ValueError(
