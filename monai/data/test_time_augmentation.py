@@ -156,13 +156,6 @@ class TestTimeAugmentation:
             if isinstance(batch_output, np.ndarray):
                 batch_output = torch.Tensor(batch_output)
 
-            # check binary labels are extracted
-            if not all(torch.unique(batch_output.int()) == torch.Tensor([0, 1])):
-                raise RuntimeError(
-                    "Test-time augmentation requires binary channels. If this is "
-                    "not binary segmentation, then you should one-hot your output."
-                )
-
             # create a dictionary containing the inferred batch and their transforms
             inferred_dict = {self.label_key: batch_output, label_transform_key: batch_data[label_transform_key]}
 
@@ -173,12 +166,13 @@ class TestTimeAugmentation:
             # append
             outputs.append(inv_batch[self.label_key])
 
-        # calculate mean and standard deviation
+        # output
         output: np.ndarray = np.concatenate(outputs)
 
         if self.return_full_data:
             return output
 
+        # calculate metrics
         mode: np.ndarray = np.apply_along_axis(lambda x: np.bincount(x).argmax(), axis=0, arr=output.astype(np.int64))
         mean: np.ndarray = np.mean(output, axis=0)  # type: ignore
         std: np.ndarray = np.std(output, axis=0)  # type: ignore
