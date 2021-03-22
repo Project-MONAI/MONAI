@@ -119,10 +119,10 @@ class PadListDataCollate(InvertibleTransform):
 
         d = deepcopy(data)
         for key in d.keys():
-            transform_key = str(key) + InverseKeys.KEY_SUFFIX.value
+            transform_key = str(key) + InverseKeys.KEY_SUFFIX
             if transform_key in d.keys():
                 transform = d[transform_key][-1]
-                if transform[InverseKeys.CLASS_NAME.value] == PadListDataCollate.__name__:
+                if transform[InverseKeys.CLASS_NAME] == PadListDataCollate.__name__:
                     d[key] = CenterSpatialCrop(transform["orig_size"])(d[key])
                     # remove transform
                     d[transform_key].pop()
