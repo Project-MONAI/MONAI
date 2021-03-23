@@ -56,7 +56,7 @@ def apply_transform(transform: Callable, data, map_items: bool = True):
                 data = data[0]
 
             def _log_stats(data, prefix: Optional[str] = "Data"):
-                if isinstance(data, (np.ndarray, torch.Tensor)):
+                if isinstance(data, np.ndarray) or isinstance(data, torch.Tensor):
                     # log data type, shape, range for array
                     datastats(img=data, data_shape=True, value_range=True, prefix=prefix)
                 else:
