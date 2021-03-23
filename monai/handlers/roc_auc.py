@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Union
 
 import torch
 
@@ -27,10 +27,6 @@ class ROCAUC(EpochMetric):  # type: ignore[valid-type, misc]  # due to optional_
     accumulating predictions and the ground-truth during an epoch and applying `compute_roc_auc`.
 
     Args:
-        to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
-        softmax: whether to add softmax function to `y_pred` before computation. Defaults to False.
-        other_act: callable function to replace `softmax` as activation layer if needed, Defaults to ``None``.
-            for example: `other_act = lambda x: torch.log_softmax(x)`.
         average: {``"macro"``, ``"weighted"``, ``"micro"``, ``"none"``}
             Type of averaging performed if not binary classification. Defaults to ``"macro"``.
 
@@ -56,9 +52,6 @@ class ROCAUC(EpochMetric):  # type: ignore[valid-type, misc]  # due to optional_
 
     def __init__(
         self,
-        to_onehot_y: bool = False,
-        softmax: bool = False,
-        other_act: Optional[Callable] = None,
         average: Union[Average, str] = Average.MACRO,
         output_transform: Callable = lambda x: x,
         device: Union[str, torch.device] = "cpu",
@@ -67,9 +60,6 @@ class ROCAUC(EpochMetric):  # type: ignore[valid-type, misc]  # due to optional_
             return compute_roc_auc(
                 y_pred=pred,
                 y=label,
-                to_onehot_y=to_onehot_y,
-                softmax=softmax,
-                other_act=other_act,
                 average=Average(average),
             )
 
