@@ -188,3 +188,7 @@ ThreadBuffer
 BatchInverseTransform
 ~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: monai.data.BatchInverseTransform
+
+TestTimeAugmentation
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.TestTimeAugmentation
