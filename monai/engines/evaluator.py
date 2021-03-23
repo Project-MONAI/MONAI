@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader
 from monai.engines.utils import IterationEvents, default_prepare_batch
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
-from monai.networks.utils import train_mode, eval_mode
+from monai.networks.utils import eval_mode, train_mode
 from monai.transforms import Transform
 from monai.utils import ensure_tuple, exact_version, optional_import
 from monai.utils.enums import CommonKeys as Keys
