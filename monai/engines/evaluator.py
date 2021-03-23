@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader
 from monai.engines.utils import IterationEvents, default_prepare_batch
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
-from monai.networks.utils import eval_mode
+from monai.networks.utils import train_mode, eval_mode
 from monai.transforms import Transform
 from monai.utils import ensure_tuple, exact_version, optional_import
 from monai.utils.enums import CommonKeys as Keys
@@ -54,6 +54,8 @@ class Evaluator(Workflow):
         val_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
         amp: whether to enable auto-mixed-precision evaluation, default is False.
+        mode: model forward mode during evaluation, should be 'eval' or 'train',
+            which maps to `model.eval()` or `model.train()`, default to 'eval'.
 
     """
 
@@ -70,6 +72,7 @@ class Evaluator(Workflow):
         additional_metrics: Optional[Dict[str, Metric]] = None,
         val_handlers: Optional[Sequence] = None,
         amp: bool = False,
+        mode: str = "eval",
     ) -> None:
         super().__init__(
             device=device,
@@ -85,6 +88,12 @@ class Evaluator(Workflow):
             handlers=val_handlers,
             amp=amp,
         )
+        if mode == "eval":
+            self.mode = eval_mode
+        elif mode == "train":
+            self.mode = train_mode
+        else:
+            raise ValueError(f"unsupported mode: {mode}, should be 'eval' or 'train'.")
 
     def run(self, global_epoch: int = 1) -> None:
         """
@@ -128,6 +137,8 @@ class SupervisedEvaluator(Evaluator):
         val_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
         amp: whether to enable auto-mixed-precision evaluation, default is False.
+        mode: model forward mode during evaluation, should be 'eval' or 'train',
+            which maps to `model.eval()` or `model.train()`, default to 'eval'.
 
     """
 
@@ -146,6 +157,7 @@ class SupervisedEvaluator(Evaluator):
         additional_metrics: Optional[Dict[str, Metric]] = None,
         val_handlers: Optional[Sequence] = None,
         amp: bool = False,
+        mode: str = "eval",
     ) -> None:
         super().__init__(
             device=device,
@@ -159,6 +171,7 @@ class SupervisedEvaluator(Evaluator):
             additional_metrics=additional_metrics,
             val_handlers=val_handlers,
             amp=amp,
+            mode=mode,
         )
 
         self.network = network
@@ -197,7 +210,7 @@ class SupervisedEvaluator(Evaluator):
         # put iteration outputs into engine.state
         engine.state.output = output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
         # execute forward computation
-        with eval_mode(self.network):
+        with self.mode(self.network):
             if self.amp:
                 with torch.cuda.amp.autocast():
                     output[Keys.PRED] = self.inferer(inputs, self.network, *args, **kwargs)
@@ -235,6 +248,8 @@ class EnsembleEvaluator(Evaluator):
         val_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
         amp: whether to enable auto-mixed-precision evaluation, default is False.
+        mode: model forward mode during evaluation, should be 'eval' or 'train',
+            which maps to `model.eval()` or `model.train()`, default to 'eval'.
 
     """
 
@@ -254,6 +269,7 @@ class EnsembleEvaluator(Evaluator):
         additional_metrics: Optional[Dict[str, Metric]] = None,
         val_handlers: Optional[Sequence] = None,
         amp: bool = False,
+        mode: str = "eval",
     ) -> None:
         super().__init__(
             device=device,
@@ -267,6 +283,7 @@ class EnsembleEvaluator(Evaluator):
             additional_metrics=additional_metrics,
             val_handlers=val_handlers,
             amp=amp,
+            mode=mode,
         )
 
         self.networks = ensure_tuple(networks)
@@ -309,7 +326,7 @@ class EnsembleEvaluator(Evaluator):
         # put iteration outputs into engine.state
         engine.state.output = output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
         for idx, network in enumerate(self.networks):
-            with eval_mode(network):
+            with self.mode(network):
                 if self.amp:
                     with torch.cuda.amp.autocast():
                         output.update({self.pred_keys[idx]: self.inferer(inputs, network, *args, **kwargs)})
