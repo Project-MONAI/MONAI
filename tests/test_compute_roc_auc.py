@@ -16,71 +16,80 @@ import torch
 from parameterized import parameterized
 
 from monai.metrics import compute_roc_auc
+from monai.transforms import Activations, AsDiscrete
 
 TEST_CASE_1 = [
-    {
-        "y_pred": torch.tensor([[0.1, 0.9], [0.3, 1.4], [0.2, 0.1], [0.1, 0.5]]),
-        "y": torch.tensor([[0], [1], [0], [1]]),
-        "to_onehot_y": True,
-        "softmax": True,
-    },
+    torch.tensor([[0.1, 0.9], [0.3, 1.4], [0.2, 0.1], [0.1, 0.5]]),
+    torch.tensor([[0], [1], [0], [1]]),
+    True,
+    True,
+    "macro",
     0.75,
 ]
 
-TEST_CASE_2 = [{"y_pred": torch.tensor([[0.5], [0.5], [0.2], [8.3]]), "y": torch.tensor([[0], [1], [0], [1]])}, 0.875]
+TEST_CASE_2 = [
+    torch.tensor([[0.5], [0.5], [0.2], [8.3]]),
+    torch.tensor([[0], [1], [0], [1]]),
+    False,
+    False,
+    "macro",
+    0.875,
+]
 
-TEST_CASE_3 = [{"y_pred": torch.tensor([[0.5], [0.5], [0.2], [8.3]]), "y": torch.tensor([0, 1, 0, 1])}, 0.875]
+TEST_CASE_3 = [
+    torch.tensor([[0.5], [0.5], [0.2], [8.3]]),
+    torch.tensor([0, 1, 0, 1]),
+    False,
+    False,
+    "macro",
+    0.875,
+]
 
-TEST_CASE_4 = [{"y_pred": torch.tensor([0.5, 0.5, 0.2, 8.3]), "y": torch.tensor([0, 1, 0, 1])}, 0.875]
+TEST_CASE_4 = [
+    torch.tensor([0.5, 0.5, 0.2, 8.3]),
+    torch.tensor([0, 1, 0, 1]),
+    False,
+    False,
+    "macro",
+    0.875,
+]
 
 TEST_CASE_5 = [
-    {
-        "y_pred": torch.tensor([[0.1, 0.9], [0.3, 1.4], [0.2, 0.1], [0.1, 0.5]]),
-        "y": torch.tensor([[0], [1], [0], [1]]),
-        "to_onehot_y": True,
-        "softmax": True,
-        "average": "none",
-    },
+    torch.tensor([[0.1, 0.9], [0.3, 1.4], [0.2, 0.1], [0.1, 0.5]]),
+    torch.tensor([[0], [1], [0], [1]]),
+    True,
+    True,
+    "none",
     [0.75, 0.75],
 ]
 
 TEST_CASE_6 = [
-    {
-        "y_pred": torch.tensor([[0.1, 0.9], [0.3, 1.4], [0.2, 0.1], [0.1, 0.5], [0.1, 0.5]]),
-        "y": torch.tensor([[1, 0], [0, 1], [0, 0], [1, 1], [0, 1]]),
-        "softmax": True,
-        "average": "weighted",
-    },
+    torch.tensor([[0.1, 0.9], [0.3, 1.4], [0.2, 0.1], [0.1, 0.5], [0.1, 0.5]]),
+    torch.tensor([[1, 0], [0, 1], [0, 0], [1, 1], [0, 1]]),
+    True,
+    False,
+    "weighted",
     0.56667,
 ]
 
 TEST_CASE_7 = [
-    {
-        "y_pred": torch.tensor([[0.1, 0.9], [0.3, 1.4], [0.2, 0.1], [0.1, 0.5], [0.1, 0.5]]),
-        "y": torch.tensor([[1, 0], [0, 1], [0, 0], [1, 1], [0, 1]]),
-        "softmax": True,
-        "average": "micro",
-    },
+    torch.tensor([[0.1, 0.9], [0.3, 1.4], [0.2, 0.1], [0.1, 0.5], [0.1, 0.5]]),
+    torch.tensor([[1, 0], [0, 1], [0, 0], [1, 1], [0, 1]]),
+    True,
+    False,
+    "micro",
     0.62,
-]
-
-TEST_CASE_8 = [
-    {
-        "y_pred": torch.tensor([[0.1, 0.9], [0.3, 1.4], [0.2, 0.1], [0.1, 0.5]]),
-        "y": torch.tensor([[0], [1], [0], [1]]),
-        "to_onehot_y": True,
-        "other_act": lambda x: torch.log_softmax(x, dim=1),
-    },
-    0.75,
 ]
 
 
 class TestComputeROCAUC(unittest.TestCase):
     @parameterized.expand(
-        [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8]
+        [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7]
     )
-    def test_value(self, input_data, expected_value):
-        result = compute_roc_auc(**input_data)
+    def test_value(self, y_pred, y, softmax, to_onehot, average, expected_value):
+        y_pred = Activations(softmax=softmax)(y_pred)
+        y = AsDiscrete(to_onehot=to_onehot, n_classes=2)(y)
+        result = compute_roc_auc(y_pred=y_pred, y=y, average=average)
         np.testing.assert_allclose(expected_value, result, rtol=1e-5)
 
 
