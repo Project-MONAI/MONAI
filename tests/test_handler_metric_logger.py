@@ -12,12 +12,20 @@
 import unittest
 
 import torch
-from ignite.engine import Engine, Events
 
-from monai.handlers import MetricLogger
+from tests.utils import SkipIfNoModule
+
+try:
+    _, has_ignite = optional_import("ignite")
+    from ignite.engine import Engine, Events
+
+    from monai.handlers import MetricLogger
+except ImportError:
+    has_ignite = False
 
 
 class TestHandlerMetricLogger(unittest.TestCase):
+    @SkipIfNoModule("ignite")
     def test_metric_logging(self):
         dummy_name = "dummy"
 

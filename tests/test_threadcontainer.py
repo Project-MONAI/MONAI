@@ -17,7 +17,6 @@ import unittest
 import torch
 
 from monai.data import DataLoader
-from monai.handlers import MetricLogger
 from monai.utils import optional_import, set_determinism
 from monai.utils.enums import CommonKeys
 from tests.utils import SkipIfNoModule
@@ -26,6 +25,7 @@ try:
     _, has_ignite = optional_import("ignite")
 
     from monai.engines import SupervisedTrainer
+    from monai.handlers import MetricLogger
     from monai.utils import ThreadContainer
 except ImportError:
     has_ignite = False
