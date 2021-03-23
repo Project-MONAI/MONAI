@@ -218,6 +218,15 @@ class Method(Enum):
     END = "end"
 
 
+class ForwardMode(Enum):
+    """
+    See also: :py:class:`monai.transforms.engines.evaluator.Evaluator`
+    """
+
+    TRAIN = "train"
+    EVAL = "eval"
+
+
 class InverseKeys:
     """Extra meta data keys used for inverse transforms."""
 

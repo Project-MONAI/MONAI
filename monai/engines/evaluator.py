@@ -19,7 +19,7 @@ from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.networks.utils import eval_mode, train_mode
 from monai.transforms import Transform
-from monai.utils import ensure_tuple, exact_version, optional_import
+from monai.utils import ForwardMode, ensure_tuple, exact_version, optional_import
 from monai.utils.enums import CommonKeys as Keys
 
 if TYPE_CHECKING:
@@ -72,7 +72,7 @@ class Evaluator(Workflow):
         additional_metrics: Optional[Dict[str, Metric]] = None,
         val_handlers: Optional[Sequence] = None,
         amp: bool = False,
-        mode: str = "eval",
+        mode: Union[ForwardMode, str] = ForwardMode.EVAL,
     ) -> None:
         super().__init__(
             device=device,
@@ -88,9 +88,10 @@ class Evaluator(Workflow):
             handlers=val_handlers,
             amp=amp,
         )
-        if mode == "eval":
+        mode = ForwardMode(mode)
+        if mode == ForwardMode.EVAL:
             self.mode = eval_mode
-        elif mode == "train":
+        elif mode == ForwardMode.TRAIN:
             self.mode = train_mode
         else:
             raise ValueError(f"unsupported mode: {mode}, should be 'eval' or 'train'.")
@@ -157,7 +158,7 @@ class SupervisedEvaluator(Evaluator):
         additional_metrics: Optional[Dict[str, Metric]] = None,
         val_handlers: Optional[Sequence] = None,
         amp: bool = False,
-        mode: str = "eval",
+        mode: Union[ForwardMode, str] = ForwardMode.EVAL,
     ) -> None:
         super().__init__(
             device=device,
@@ -269,7 +270,7 @@ class EnsembleEvaluator(Evaluator):
         additional_metrics: Optional[Dict[str, Metric]] = None,
         val_handlers: Optional[Sequence] = None,
         amp: bool = False,
-        mode: str = "eval",
+        mode: Union[ForwardMode, str] = ForwardMode.EVAL,
     ) -> None:
         super().__init__(
             device=device,
