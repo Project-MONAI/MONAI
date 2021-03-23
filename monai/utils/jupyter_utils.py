@@ -10,8 +10,8 @@
 # limitations under the License.
 
 """
-This set of utility function is meant to make using Jupyter notebooks easier with MONAI. Plotting functions using 
-Matplotlib produce common plots for metrics and images. 
+This set of utility function is meant to make using Jupyter notebooks easier with MONAI. Plotting functions using
+Matplotlib produce common plots for metrics and images.
 """
 
 from enum import Enum

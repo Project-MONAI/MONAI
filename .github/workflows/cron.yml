@@ -128,3 +128,36 @@ jobs:
       with:
         fail_ci_if_error: false
         file: ./coverage.xml
+
+  cron-tutorial-notebooks:
+    if: github.repository == 'Project-MONAI/MONAI'
+    needs: cron-gpu  # so that monai itself is verified first
+    container:
+      image: nvcr.io/nvidia/pytorch:21.02-py3  # testing with the latest pytorch base image
+      options: "--gpus all --ipc=host"
+    runs-on: [self-hosted, linux, x64, common]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install MONAI
+      id: monai-install
+      run: |
+        which python
+        python -m pip install --upgrade pip wheel
+        python -m pip install -r requirements-dev.txt
+        BUILD_MONAI=0 python setup.py develop  # install monai
+        nvidia-smi
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        echo $CUDA_VISIBLE_DEVICES
+        echo "::set-output name=devices::$CUDA_VISIBLE_DEVICES"
+    - name: Checkout tutorials and install their requirements
+      run: |
+        cd /opt
+        git clone --depth 1 --branch master --single-branch https://github.com/Project-MONAI/tutorials.git  # latest commit of master branch
+        cd tutorials
+        python -m pip install -r requirements.txt
+    - name: Run tutorial notebooks
+      run: |
+        export CUDA_VISIBLE_DEVICES=${{ steps.monai-install.outputs.devices }}
+        echo $CUDA_VISIBLE_DEVICES
+        cd /opt/tutorials
+        $(pwd)/runner.sh

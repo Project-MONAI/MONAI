@@ -14,13 +14,13 @@ from typing import TYPE_CHECKING, Callable, Dict, Iterable, Optional, Sequence, 
 import torch
 from torch.utils.data import DataLoader
 
-from monai.engines.utils import CommonKeys as Keys
 from monai.engines.utils import IterationEvents, default_prepare_batch
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.networks.utils import eval_mode
 from monai.transforms import Transform
 from monai.utils import ensure_tuple, exact_version, optional_import
+from monai.utils.enums import CommonKeys as Keys
 
 if TYPE_CHECKING:
     from ignite.engine import Engine

@@ -14,8 +14,8 @@ from enum import Enum
 from threading import RLock
 from typing import TYPE_CHECKING, Callable, DefaultDict, List, Optional
 
-from monai.engines.utils import CommonKeys
 from monai.utils import exact_version, optional_import
+from monai.utils.enums import CommonKeys
 
 Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
 if TYPE_CHECKING:

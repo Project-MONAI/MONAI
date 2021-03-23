@@ -19,13 +19,12 @@ import torch
 from monai.data import DataLoader
 from monai.handlers import MetricLogger
 from monai.utils import optional_import, set_determinism
-
-from .utils import SkipIfNoModule
+from monai.utils.enums import CommonKeys
 
 try:
     _, has_ignite = optional_import("ignite")
 
-    from monai.engines import CommonKeys, SupervisedTrainer
+    from monai.engines import SupervisedTrainer
     from monai.utils import ThreadContainer
 except ImportError:
     has_ignite = False
