@@ -14,8 +14,8 @@ import unittest
 import numpy as np
 import torch
 
-from monai.transforms import Activations, AsDiscrete
 from monai.handlers import ROCAUC
+from monai.transforms import Activations, AsDiscrete
 
 
 class TestHandlerROCAUC(unittest.TestCase):

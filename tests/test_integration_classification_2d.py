@@ -24,7 +24,9 @@ from monai.metrics import compute_roc_auc
 from monai.networks import eval_mode
 from monai.networks.nets import DenseNet121
 from monai.transforms import (
+    Activations,
     AddChannel,
+    AsDiscrete,
     Compose,
     LoadImage,
     RandFlip,
@@ -32,8 +34,6 @@ from monai.transforms import (
     RandZoom,
     ScaleIntensity,
     ToTensor,
-    Activations,
-    AsDiscrete,
 )
 from monai.utils import set_determinism
 from tests.testing_data.integration_answers import test_integration_value
