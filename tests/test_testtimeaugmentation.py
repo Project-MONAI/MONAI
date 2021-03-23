@@ -21,15 +21,7 @@ from monai.data.test_time_augmentation import TestTimeAugmentation
 from monai.data.utils import pad_list_data_collate
 from monai.losses import DiceLoss
 from monai.networks.nets import UNet
-from monai.transforms import (
-    Activations,
-    AddChanneld,
-    AsDiscrete,
-    Compose,
-    CropForegroundd,
-    DivisiblePadd,
-    RandAffined,
-)
+from monai.transforms import Activations, AddChanneld, AsDiscrete, Compose, CropForegroundd, DivisiblePadd, RandAffined
 from monai.transforms.croppad.dictionary import SpatialPadd
 from monai.transforms.spatial.dictionary import Rand2DElasticd, RandFlipd
 from monai.utils import optional_import, set_determinism
@@ -145,7 +137,6 @@ class TestTestTimeAugmentation(unittest.TestCase):
         transforms = RandFlipd(["image", "label"])
         tta = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x)
         tta(self.get_data(1, (20, 20)))
-
 
 
 if __name__ == "__main__":
