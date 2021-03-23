@@ -698,7 +698,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             affine = self.rand_affine.rand_affine_grid.get_transformation_matrix()
         else:
             grid = create_grid(spatial_size=sp_size)
-            affine = np.eye(len(sp_size) + 1)
+            affine = torch.eye(len(sp_size) + 1)
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             self.push_transform(d, key, extra_info={"affine": affine})
