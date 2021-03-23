@@ -11,6 +11,7 @@
 
 import os
 import sys
+import json
 from typing import Callable, Dict, List, Optional, Sequence, Union, Tuple
 
 import numpy as np
@@ -28,7 +29,7 @@ class PatchWSIDataset(Dataset):
 
     Args:
         data: The input image directory and the label file
-        [{"image": "path/to/image/directory", "label": "path/to/label/file.txt"}]
+        [{"image": "path/to/image1", "label": [0,0,0,1,0,1,0,0,1]}, "location": [200, 500]]
         region_size: the region to be extracted from the whole slide image
         grid_size: the grid size on which the patches should be extracted
         patch_size: the patches extracted from the region on the grid
@@ -60,36 +61,19 @@ class PatchWSIDataset(Dataset):
         self.sub_region_size = (self.region_size[0] / self.grid_size[0], self.region_size[1] / self.grid_size[1])
 
         self.transform = transform
-        self.image_base_path = data[0]["image"]
-        self.samples = self.load_samples(data[0]["label"])
-        self.image_path_list = {x[0] for x in self.samples}
+        self.samples = data
         self.num_samples = len(self.samples)
+        self.image_path_list = list({x['image'] for x in self.samples})
 
         self.image_reader_name = image_reader_name
         self.image_reader = WSIReader(image_reader_name)
-        self.wsi_object_dict = {}
+        self.wsi_object_dict = None
         self._fetch_wsi_objects()
 
     def _fetch_wsi_objects(self):
+        self.wsi_object_dict = {}
         for image_path in self.image_path_list:
             self.wsi_object_dict[image_path] = self.image_reader.read(image_path)
-
-    def process_label_row(self, row):
-        row = row.strip("\n").split(",")
-        # create full image path
-        image_name = row[0] + ".tif"
-        image_path = os.path.join(self.image_base_path, image_name)
-        # change center locations to upper left location
-        location = (int(row[2]) - self.region_size[1] // 2, int(row[1]) - self.region_size[0] // 2)
-        # convert labels to float32 and add empty HxW channel to label
-        labels = tuple(int(lbl) for lbl in row[3:])
-        labels = np.array(labels, dtype=np.float32)[:, np.newaxis, np.newaxis]
-        return image_path, location, labels
-
-    def load_samples(self, loc_path):
-        with open(loc_path) as label_file:
-            rows = [self.process_label_row(row) for row in label_file.readlines()]
-        return rows
 
     def __len__(self):
         return self.num_samples
@@ -130,7 +114,7 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
         cache_num,
         cache_rate=1.0,
         num_init_workers=None,
-        num_replace_workers=0,
+        num_replace_workers=None,
         image_reader_name="cuCIM",
     ):
         extractor = PatchWSIDataset(data, region_size, grid_size, patch_size, image_reader_name)
