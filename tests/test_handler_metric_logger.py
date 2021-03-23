@@ -13,6 +13,7 @@ import unittest
 
 import torch
 
+from monai.utils import optional_import
 from tests.utils import SkipIfNoModule
 
 try:
