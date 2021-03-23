@@ -1285,7 +1285,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         d = dict(data)
         if not self._do_transform:
             for key in self.keys:
-                self.push_transform(d, key, extra_info={"rot_mat": np.eye(4)})
+                self.push_transform(d, key, extra_info={"rot_mat": np.eye(d[key].ndim)})
             return d
         angle: Union[Sequence[float], float] = self.x if d[self.keys[0]].ndim == 3 else (self.x, self.y, self.z)
         rotator = Rotate(
