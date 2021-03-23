@@ -27,19 +27,6 @@ from monai.utils.enums import CommonKeys, InverseKeys
 __all__ = ["TestTimeAugmentation"]
 
 
-def is_transform_rand_invertible(transform):
-    if isinstance(transform, Compose):
-        # call recursively for each sub-transform. cast to Compose shouldn't be necessary
-        return any(is_transform_rand_invertible(t) for t in Compose(transform).transforms)
-    is_random = isinstance(transform, RandomizableTransform)
-    is_invertible = isinstance(transform, InvertibleTransform)
-    if is_random and not is_invertible:
-        raise RuntimeError(
-            f"All applied random transform(s) must be invertible. Problematic transform: {type(transform).__name__}"
-        )
-    return is_random
-
-
 class TestTimeAugmentation:
     """
     Class for performing test time augmentations. This will pass the same image through the network multiple times.
@@ -104,12 +91,24 @@ class TestTimeAugmentation:
         self.return_full_data = return_full_data
 
         # check that the transform has at least one random component, and that all random transforms are invertible
-        if not is_transform_rand_invertible(self.transform):
+        self.check_transforms()
+
+    def check_transforms(self):
+        """Should be at least 1 random transform, and all random transforms should be invertible."""
+        ts = self.transform if not isinstance(self.transform, Compose) else self.transform.transforms
+        randoms = np.array([isinstance(t, RandomizableTransform) for t in ts])
+        invertibles = np.array([isinstance(t, InvertibleTransform) for t in ts])
+        # check at least 1 random
+        if sum(randoms) == 0:
             raise RuntimeError(
-                type(self).__name__
-                + " requires a `Randomizable` transform or a"
-                + " `Compose` containing at least one `Randomizable` transform."
+                "Requires a `Randomizable` transform or a `Compose` containing at least one `Randomizable` transform."
             )
+        # check that whenever randoms is True, invertibles is also true
+        for r, i in zip(randoms, invertibles):
+            if r and not i:
+                raise RuntimeError(
+                    f"All applied random transform(s) must be invertible. Problematic transform: {type(r).__name__}"
+                )
 
     def __call__(
         self, data: Dict[str, Any], num_examples: int = 10
