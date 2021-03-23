@@ -68,6 +68,12 @@ Generic Interfaces
 .. autoclass:: ImageDataset
   :members:
   :special-members: __getitem__
+  
+`NPZDictItemDataset`
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: NPZDictItemDataset
+  :members:
+  :special-members: __getitem__
 
 Patch-based dataset
 -------------------
@@ -75,6 +81,11 @@ Patch-based dataset
 `GridPatchDataset`
 ~~~~~~~~~~~~~~~~~~
 .. autoclass:: GridPatchDataset
+  :members:
+
+`PatchIter`
+~~~~~~~~~~~
+.. autoclass:: PatchIter
   :members:
 
 `PatchDataset`
@@ -105,6 +116,10 @@ PILReader
 .. autoclass:: PILReader
   :members:
 
+WSIReader
+~~~~~~~~~
+.. autoclass:: WSIReader
+  :members:
 
 Nifti format handling
 ---------------------
@@ -151,6 +166,9 @@ DistributedSampler
 ~~~~~~~~~~~~~~~~~~
 .. autoclass:: monai.data.DistributedSampler
 
+DistributedWeightedRandomSampler
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.DistributedWeightedRandomSampler
 
 Decathlon Datalist
 ~~~~~~~~~~~~~~~~~~
@@ -165,3 +183,8 @@ DataLoader
 ThreadBuffer
 ~~~~~~~~~~~~
 .. autoclass:: monai.data.ThreadBuffer
+
+
+BatchInverseTransform
+~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.BatchInverseTransform
