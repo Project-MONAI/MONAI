@@ -18,9 +18,9 @@ from typing import Any, Callable, Dict, Generator, Hashable, Iterable, List, Opt
 import numpy as np
 import torch
 
+from monai import transforms
 from monai.config import KeysCollection
 from monai.utils import MAX_SEED, ensure_tuple
-from monai import transforms
 
 __all__ = ["apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
 

@@ -153,16 +153,18 @@ TEST_CASE_9 = [
 
 
 class TestDataStatsd(unittest.TestCase):
-    @parameterized.expand([
-        TEST_CASE_1,
-        TEST_CASE_2,
-        TEST_CASE_3,
-        TEST_CASE_4,
-        TEST_CASE_5,
-        TEST_CASE_6,
-        TEST_CASE_7,
-        TEST_CASE_8,
-    ])
+    @parameterized.expand(
+        [
+            TEST_CASE_1,
+            TEST_CASE_2,
+            TEST_CASE_3,
+            TEST_CASE_4,
+            TEST_CASE_5,
+            TEST_CASE_6,
+            TEST_CASE_7,
+            TEST_CASE_8,
+        ]
+    )
     def test_value(self, input_param, input_data, expected_print):
         transform = DataStatsd(**input_param)
         _ = transform(input_data)
