@@ -90,7 +90,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0):
     else:
         train_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
     # use batch_size=2 to load images and use RandCropByPosNegLabeld to generate 2 x 4 images for network training
-    train_loader = monai.data.DataLoader(train_ds, batch_size=2, shuffle=True, num_workers=4)
+    train_loader = monai.data.DataLoader(train_ds, batch_size=2, shuffle=True, num_workers=0)
     # create a validation data loader
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
     val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
