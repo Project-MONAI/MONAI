@@ -22,7 +22,7 @@ from monai.config import DtypeLike
 from monai.data.image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader
 from monai.data.nifti_saver import NiftiSaver
 from monai.data.png_saver import PNGSaver
-from monai.transforms.compose import Transform
+from monai.transforms.transform import Transform
 from monai.utils import GridSampleMode, GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
 from monai.utils import InterpolateMode, ensure_tuple, optional_import
@@ -31,6 +31,27 @@ nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
 
 __all__ = ["LoadImage", "SaveImage"]
+
+
+def switch_endianness(data, old, new):
+    """
+    If any numpy arrays have `old` (e.g., ">"),
+    replace with `new` (e.g., "<").
+    """
+    if isinstance(data, np.ndarray):
+        if data.dtype.byteorder == old:
+            data = data.newbyteorder(new)
+    elif isinstance(data, tuple):
+        data = tuple(switch_endianness(x, old, new) for x in data)
+    elif isinstance(data, list):
+        data = [switch_endianness(x, old, new) for x in data]
+    elif isinstance(data, dict):
+        data = {k: switch_endianness(v, old, new) for k, v in data.items()}
+    elif isinstance(data, (bool, str, float, int, type(None))):
+        pass
+    else:
+        raise AssertionError(f"Unknown type: {type(data).__name__}")
+    return data
 
 
 class LoadImage(Transform):
@@ -57,7 +78,7 @@ class LoadImage(Transform):
             reader: register reader to load image file and meta data, if None, still can register readers
                 at runtime or use the default readers. If a string of reader name provided, will construct
                 a reader object with the `*args` and `**kwargs` parameters, supported reader name: "NibabelReader",
-                "PILReader", "ITKReader", "NumpyReader"
+                "PILReader", "ITKReader", "NumpyReader".
             image_only: if True return only the image volume, otherwise return image data array and header dict.
             dtype: if not None convert the loaded image to this data type.
             args: additional parameters for reader if providing a reader name.
@@ -123,7 +144,12 @@ class LoadImage(Transform):
                     break
 
         if reader is None:
-            raise RuntimeError(f"can not find suitable reader for this file: {filename}.")
+            raise RuntimeError(
+                f"can not find suitable reader for this file: {filename}. \
+                Please install dependency libraries: (nii, nii.gz) -> Nibabel, (png, jpg, bmp) -> PIL, \
+                (npz, npy) -> Numpy, others -> ITK. Refer to the installation instruction: \
+                https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies."
+            )
 
         img = reader.read(filename)
         img_array, meta_data = reader.get_data(img)
@@ -132,6 +158,9 @@ class LoadImage(Transform):
         if self.image_only:
             return img_array
         meta_data[Key.FILENAME_OR_OBJ] = ensure_tuple(filename)[0]
+        # make sure all elements in metadata are little endian
+        meta_data = switch_endianness(meta_data, ">", "<")
+
         return img_array, meta_data
 
 
@@ -140,6 +169,8 @@ class SaveImage(Transform):
     Save transformed data into files, support NIfTI and PNG formats.
     It can work for both numpy array and PyTorch Tensor in both pre-transform chain
     and post transform chain.
+
+    NB: image should include channel dimension: [B],C,H,W,[D].
 
     Args:
         output_dir: output image directory.
@@ -176,6 +207,11 @@ class SaveImage(Transform):
             it's used for NIfTI format only.
         save_batch: whether the import image is a batch data, default to `False`.
             usually pre-transforms run for channel first data, while post-transforms run for batch data.
+        squeeze_end_dims: if True, any trailing singleton dimensions will be removed (after the channel
+            has been moved to the end). So if input is (C,H,W,D), this will be altered to (H,W,D,C), and
+            then if C==1, it will be saved as (H,W,D). If D also ==1, it will be saved as (H,W). If false,
+            image will always be saved as (H,W,D,C).
+            it's used for NIfTI format only.
 
     """
 
@@ -191,6 +227,7 @@ class SaveImage(Transform):
         dtype: DtypeLike = np.float64,
         output_dtype: DtypeLike = np.float32,
         save_batch: bool = False,
+        squeeze_end_dims: bool = True,
     ) -> None:
         self.saver: Union[NiftiSaver, PNGSaver]
         if output_ext in (".nii.gz", ".nii"):
@@ -203,6 +240,7 @@ class SaveImage(Transform):
                 padding_mode=padding_mode,
                 dtype=dtype,
                 output_dtype=output_dtype,
+                squeeze_end_dims=squeeze_end_dims,
             )
         elif output_ext == ".png":
             self.saver = PNGSaver(
