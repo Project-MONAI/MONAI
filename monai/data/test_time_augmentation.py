@@ -91,11 +91,11 @@ class TestTimeAugmentation:
         self.return_full_data = return_full_data
 
         # check that the transform has at least one random component, and that all random transforms are invertible
-        self.check_transforms()
+        self._check_transforms()
 
-    def check_transforms(self):
+    def _check_transforms(self):
         """Should be at least 1 random transform, and all random transforms should be invertible."""
-        ts = self.transform if not isinstance(self.transform, Compose) else self.transform.transforms
+        ts = [self.transform] if not isinstance(self.transform, Compose) else self.transform.transforms
         randoms = np.array([isinstance(t, RandomizableTransform) for t in ts])
         invertibles = np.array([isinstance(t, InvertibleTransform) for t in ts])
         # check at least 1 random

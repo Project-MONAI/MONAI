@@ -28,11 +28,10 @@ from monai.transforms import (
     Compose,
     CropForegroundd,
     DivisiblePadd,
-    KeepLargestConnectedComponent,
     RandAffined,
 )
 from monai.transforms.croppad.dictionary import SpatialPadd
-from monai.transforms.spatial.dictionary import Rand2DElasticd
+from monai.transforms.spatial.dictionary import Rand2DElasticd, RandFlipd
 from monai.utils import optional_import, set_determinism
 
 if TYPE_CHECKING:
@@ -46,6 +45,17 @@ trange = partial(tqdm.trange, desc="training") if has_tqdm else range
 
 
 class TestTestTimeAugmentation(unittest.TestCase):
+    @staticmethod
+    def get_data(num_examples, input_size):
+        custom_create_test_image_2d = partial(
+            create_test_image_2d, *input_size, rad_max=7, num_seg_classes=1, num_objs=1
+        )
+        data = []
+        for _ in range(num_examples):
+            im, label = custom_create_test_image_2d()
+            data.append({"image": im, "label": label})
+        return data[0] if num_examples == 1 else data
+
     def setUp(self) -> None:
         set_determinism(seed=0)
 
@@ -55,16 +65,10 @@ class TestTestTimeAugmentation(unittest.TestCase):
     def test_test_time_augmentation(self):
         input_size = (20, 20)
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        num_training_ims = 10
-        data = []
-        custom_create_test_image_2d = partial(
-            create_test_image_2d, *input_size, rad_max=7, num_seg_classes=1, num_objs=1
-        )
         keys = ["image", "label"]
-
-        for _ in range(num_training_ims):
-            im, label = custom_create_test_image_2d()
-            data.append({"image": im, "label": label})
+        num_training_ims = 10
+        train_data = self.get_data(num_training_ims, input_size)
+        test_data = self.get_data(1, input_size)
 
         transforms = Compose(
             [
@@ -85,7 +89,7 @@ class TestTestTimeAugmentation(unittest.TestCase):
             ]
         )
 
-        train_ds = CacheDataset(data, transforms)
+        train_ds = CacheDataset(train_data, transforms)
         # output might be different size, so pad so that they match
         train_loader = DataLoader(train_ds, batch_size=2, collate_fn=pad_list_data_collate)
 
@@ -108,14 +112,10 @@ class TestTestTimeAugmentation(unittest.TestCase):
 
             epoch_loss /= len(train_loader)
 
-        image, label = custom_create_test_image_2d()
-        test_data = {"image": image, "label": label}
-
         post_trans = Compose(
             [
                 Activations(sigmoid=True),
                 AsDiscrete(threshold_values=True),
-                KeepLargestConnectedComponent(applied_labels=1),
             ]
         )
 
@@ -140,6 +140,12 @@ class TestTestTimeAugmentation(unittest.TestCase):
         transforms = Compose([AddChanneld("im"), Rand2DElasticd("im", None, None)])
         with self.assertRaises(RuntimeError):
             TestTimeAugmentation(transforms, None, None, None)
+
+    def test_single_transform(self):
+        transforms = RandFlipd(["image", "label"])
+        tta = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x)
+        tta(self.get_data(1, (20, 20)))
+
 
 
 if __name__ == "__main__":
