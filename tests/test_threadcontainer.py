@@ -20,6 +20,7 @@ from monai.data import DataLoader
 from monai.handlers import MetricLogger
 from monai.utils import optional_import, set_determinism
 from monai.utils.enums import CommonKeys
+from tests.utils import SkipIfNoModule
 
 try:
     _, has_ignite = optional_import("ignite")
