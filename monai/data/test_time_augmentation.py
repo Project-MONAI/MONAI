@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -101,13 +100,13 @@ class TestTimeAugmentation:
         invertibles = np.array([isinstance(t, InvertibleTransform) for t in ts])
         # check at least 1 random
         if sum(randoms) == 0:
-            warnings.warn(
+            raise RuntimeError(
                 "Requires a `Randomizable` transform or a `Compose` containing at least one `Randomizable` transform."
             )
         # check that whenever randoms is True, invertibles is also true
         for r, i in zip(randoms, invertibles):
             if r and not i:
-                warnings.warn(
+                raise RuntimeError(
                     f"All applied random transform(s) must be invertible. Problematic transform: {type(r).__name__}"
                 )
 
