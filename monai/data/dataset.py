@@ -644,8 +644,11 @@ class SmartCacheDataset(Randomizable, CacheDataset):
 
         self._compute_data_idx()
 
-    def randomize(self, data: List[int]) -> None:
-        self.R.shuffle(data)
+    def randomize(self, data: Sequence) -> None:
+        try:
+            self.R.shuffle(data)
+        except TypeError as e:
+            warnings.warn(f"input data can't be shuffled in SmartCacheDataset with numpy.random.shuffle(): {e}.")
 
     def _compute_data_idx(self):
         """
