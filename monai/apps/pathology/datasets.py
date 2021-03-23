@@ -9,12 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import sys
-import json
-from typing import Callable, Dict, List, Optional, Sequence, Union, Tuple
-
-import numpy as np
+from typing import Callable, List, Optional, Sequence, Tuple, Union
 
 from monai.data import Dataset, SmartCacheDataset
 from monai.data.image_reader import WSIReader
@@ -40,12 +36,12 @@ class PatchWSIDataset(Dataset):
 
     def __init__(
         self,
-        data: dict,
+        data: List,
         region_size: Union[int, Tuple[int, int]],
         grid_size: Union[int, Tuple[int, int]],
         patch_size: Union[int, Tuple[int, int]],
-        image_reader_name="cuCIM",
-        transform=None,
+        image_reader_name: str = "cuCIM",
+        transform: Union[Sequence[Callable], Callable] = None,
     ):
         if type(region_size) == int:
             self.region_size = (region_size, region_size)
@@ -63,7 +59,7 @@ class PatchWSIDataset(Dataset):
         self.transform = transform
         self.samples = data
         self.num_samples = len(self.samples)
-        self.image_path_list = list({x['image'] for x in self.samples})
+        self.image_path_list = list({x["image"] for x in self.samples})
 
         self.image_reader_name = image_reader_name
         self.image_reader = WSIReader(image_reader_name)
@@ -105,17 +101,17 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
 
     def __init__(
         self,
-        data,
-        region_size,
-        grid_size,
-        patch_size,
-        transform,
-        replace_rate,
-        cache_num,
-        cache_rate=1.0,
-        num_init_workers=None,
-        num_replace_workers=None,
-        image_reader_name="cuCIM",
+        data: List,
+        region_size: Union[int, Tuple[int, int]],
+        grid_size: Union[int, Tuple[int, int]],
+        patch_size: Union[int, Tuple[int, int]],
+        image_reader_name: str = "cuCIM",
+        transform: Union[Sequence[Callable], Callable] = None,
+        replace_rate: float = 0.5,
+        cache_num: int = sys.maxsize,
+        cache_rate: float = 1.0,
+        num_init_workers: Optional[int] = None,
+        num_replace_workers: Optional[int] = None,
     ):
         extractor = PatchWSIDataset(data, region_size, grid_size, patch_size, image_reader_name)
         super().__init__(
