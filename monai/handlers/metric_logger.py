@@ -40,6 +40,20 @@ class MetricLogger:
     useful for collecting loss and metric values in one place for storage with checkpoint savers (`state_dict` and
     `load_state_dict` methods provided as expected by Pytorch and Ignite) and for graphing during training.
 
+    Example::
+        # construct an evaluator saving mean dice metric values in the key "val_mean_dice"
+        evaluator = SupervisedEvaluator(..., key_val_metric={"val_mean_dice": MeanDice(...)})
+
+        # construct the logger and associate with evaluator to extract metric values from
+        logger = MetricLogger(evaluator=evaluator)
+
+        # construct the trainer with the logger passed in as a handler so that it logs loss values
+        trainer = SupervisedTrainer(..., train_handlers=[logger, ValidationHandler(evaluator, 1)])
+
+        # run training, logger.loss will be a list of (iteration, loss) values, logger.metrics a dict with key
+        # "val_mean_dice" storing a list of (iteration, metric) values
+        trainer.run()
+
     Args:
         loss_transform: Converts the `output` value from the trainer's state into a loss value
         metric_transform: Converts the metric value coming from the trainer/evaluator's state into a storable value
