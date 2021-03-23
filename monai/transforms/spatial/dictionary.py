@@ -698,7 +698,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             affine = self.rand_affine.rand_affine_grid.get_transformation_matrix()
         else:
             grid = create_grid(spatial_size=sp_size)
-            affine = np.eye(len(sp_size) + 1)
+            affine = torch.eye(len(sp_size) + 1)
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             self.push_transform(d, key, extra_info={"affine": affine})
@@ -1285,7 +1285,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         d = dict(data)
         if not self._do_transform:
             for key in self.keys:
-                self.push_transform(d, key, extra_info={"rot_mat": np.eye(4)})
+                self.push_transform(d, key, extra_info={"rot_mat": np.eye(d[key].ndim)})
             return d
         angle: Union[Sequence[float], float] = self.x if d[self.keys[0]].ndim == 3 else (self.x, self.y, self.z)
         rotator = Rotate(

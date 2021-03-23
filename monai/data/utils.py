@@ -259,11 +259,20 @@ def list_data_collate(batch: Sequence):
         re_str = str(re)
         if "equal size" in re_str:
             re_str += (
-                "\nMONAI hint: if your transforms intentionally create images of different shapes, creating your "
+                "\n\nMONAI hint: if your transforms intentionally create images of different shapes, creating your "
                 + "`DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem (check its "
                 + "documentation)."
             )
         raise RuntimeError(re_str)
+    except TypeError as re:
+        re_str = str(re)
+        if "numpy" in re_str and "Tensor" in re_str:
+            re_str += (
+                "\n\nMONAI hint: if your transforms intentionally create mixtures of torch Tensor and numpy ndarray, "
+                + "creating your `DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem "
+                + "(check its documentation)."
+            )
+        raise TypeError(re_str)
 
 
 def decollate_batch(data: dict, batch_size: Optional[int] = None) -> List[dict]:
