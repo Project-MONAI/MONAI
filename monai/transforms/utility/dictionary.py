@@ -507,6 +507,7 @@ class DataStatsd(MapTransform):
         self,
         keys: KeysCollection,
         prefix: Union[Sequence[str], str] = "Data",
+        data_type: Union[Sequence[bool], bool] = True,
         data_shape: Union[Sequence[bool], bool] = True,
         value_range: Union[Sequence[bool], bool] = True,
         data_value: Union[Sequence[bool], bool] = False,
@@ -520,6 +521,8 @@ class DataStatsd(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             prefix: will be printed in format: "{prefix} statistics".
                 it also can be a sequence of string, each element corresponds to a key in ``keys``.
+            data_type: whether to show the type of input data.
+                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
             data_shape: whether to show the shape of input data.
                 it also can be a sequence of bool, each element corresponds to a key in ``keys``.
             value_range: whether to show the value range of input data.
@@ -538,6 +541,7 @@ class DataStatsd(MapTransform):
         """
         super().__init__(keys, allow_missing_keys)
         self.prefix = ensure_tuple_rep(prefix, len(self.keys))
+        self.data_type = ensure_tuple_rep(data_type, len(self.keys))
         self.data_shape = ensure_tuple_rep(data_shape, len(self.keys))
         self.value_range = ensure_tuple_rep(value_range, len(self.keys))
         self.data_value = ensure_tuple_rep(data_value, len(self.keys))
@@ -547,12 +551,13 @@ class DataStatsd(MapTransform):
 
     def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
         d = dict(data)
-        for key, prefix, data_shape, value_range, data_value, additional_info in self.key_iterator(
-            d, self.prefix, self.data_shape, self.value_range, self.data_value, self.additional_info
+        for key, prefix, data_type, data_shape, value_range, data_value, additional_info in self.key_iterator(
+            d, self.prefix, self.data_type, self.data_shape, self.value_range, self.data_value, self.additional_info
         ):
             d[key] = self.printer(
                 d[key],
                 prefix,
+                data_type,
                 data_shape,
                 value_range,
                 data_value,

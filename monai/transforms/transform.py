@@ -16,7 +16,9 @@ from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, Generator, Hashable, Iterable, List, Optional, Tuple
 
 import numpy as np
+import torch
 
+from monai import transforms
 from monai.config import KeysCollection
 from monai.utils import MAX_SEED, ensure_tuple
 
@@ -45,6 +47,27 @@ def apply_transform(transform: Callable, data, map_items: bool = True):
             return [transform(item) for item in data]
         return transform(data)
     except Exception as e:
+
+        if not isinstance(transform, transforms.compose.Compose):
+            # log the input data information of exact transform in the transform chain
+            datastats = transforms.utility.array.DataStats(data_shape=False, value_range=False)
+            datastats._logger.info("input data information of the runtime error transform:")
+            if isinstance(data, (list, tuple)):
+                data = data[0]
+
+            def _log_stats(data, prefix: Optional[str] = "Data"):
+                if isinstance(data, (np.ndarray, torch.Tensor)):
+                    # log data type, shape, range for array
+                    datastats(img=data, data_shape=True, value_range=True, prefix=prefix)  # type: ignore
+                else:
+                    # log data type and value for other meta data
+                    datastats(img=data, data_value=True, prefix=prefix)
+
+            if isinstance(data, dict):
+                for k, v in data.items():
+                    _log_stats(data=v, prefix=k)
+            else:
+                _log_stats(data=data)
         raise RuntimeError(f"applying transform {transform}") from e
 
 
