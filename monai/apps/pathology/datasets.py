@@ -27,7 +27,7 @@ class PatchWSIDataset(Dataset):
         data: The input image directory and the label file
         [{"image": "path/to/image1", "label": [0,0,0,1,0,1,0,0,1]}, "location": [200, 500]]
         region_size: the region to be extracted from the whole slide image
-        grid_size: the grid size on which the patches should be extracted
+        grid_shape: the grid shape on which the patches should be extracted
         patch_size: the patches extracted from the region on the grid
         image_reader_name: (cuCIM is default)
         transform:
@@ -38,7 +38,7 @@ class PatchWSIDataset(Dataset):
         self,
         data: List,
         region_size: Union[int, Tuple[int, int]],
-        grid_size: Union[int, Tuple[int, int]],
+        grid_shape: Union[int, Tuple[int, int]],
         patch_size: Union[int, Tuple[int, int]],
         image_reader_name: str = "cuCIM",
         transform: Union[Sequence[Callable], Callable] = None,
@@ -48,13 +48,13 @@ class PatchWSIDataset(Dataset):
         else:
             self.region_size = region_size
 
-        if type(grid_size) == int:
-            self.grid_size = (grid_size, grid_size)
+        if type(grid_shape) == int:
+            self.grid_shape = (grid_shape, grid_shape)
         else:
-            self.grid_size = grid_size
+            self.grid_shape = grid_shape
 
         self.patch_size = patch_size
-        self.sub_region_size = (self.region_size[0] / self.grid_size[0], self.region_size[1] / self.grid_size[1])
+        self.sub_region_size = (self.region_size[0] / self.grid_shape[0], self.region_size[1] / self.grid_shape[1])
 
         self.transform = transform
         self.samples = data
@@ -75,20 +75,20 @@ class PatchWSIDataset(Dataset):
         return self.num_samples
 
     def __getitem__(self, index):
-        image_path, location, labels = self.samples[index]
+        data = self.samples[index]
         # OpenSlide causes issue if using the stored image objects
         if self.image_reader_name == "openslide":
-            img_obj = self.image_reader.read(image_path)
+            img_obj = self.image_reader.read(data["image"])
         else:
-            img_obj = self.wsi_object_dict[image_path]
+            img_obj = self.wsi_object_dict[data["image"]]
         images, _ = self.image_reader.get_data(
             img=img_obj,
-            location=location,
+            location=data["location"],
             size=self.region_size,
-            grid_shape=self.grid_size,
+            grid_shape=self.grid_shape,
             patch_size=self.patch_size,
         )
-        samples = [{"image": images[i], "label": labels[i]} for i in range(labels.shape[0])]
+        samples = [{"image": images[i], "label": data["label"][i]} for i in range(len(data["label"]))]
         if self.transform:
             samples = self.transform(samples)
         return samples
@@ -103,7 +103,7 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
         self,
         data: List,
         region_size: Union[int, Tuple[int, int]],
-        grid_size: Union[int, Tuple[int, int]],
+        grid_shape: Union[int, Tuple[int, int]],
         patch_size: Union[int, Tuple[int, int]],
         image_reader_name: str = "cuCIM",
         transform: Union[Sequence[Callable], Callable] = None,
@@ -113,7 +113,7 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
         num_init_workers: Optional[int] = None,
         num_replace_workers: Optional[int] = None,
     ):
-        extractor = PatchWSIDataset(data, region_size, grid_size, patch_size, image_reader_name)
+        extractor = PatchWSIDataset(data, region_size, grid_shape, patch_size, image_reader_name)
         super().__init__(
             data=extractor,
             transform=transform,
