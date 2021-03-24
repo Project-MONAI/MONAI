@@ -990,8 +990,7 @@ class AffineGrid(Transform):
                 affine = affine @ create_scale(spatial_dims, self.scale_params)
             self.affine = affine
 
-        if not isinstance(self.affine, torch.Tensor):
-            self.affine = torch.as_tensor(np.ascontiguousarray(self.affine), device=self.device)
+        self.affine = torch.as_tensor(np.ascontiguousarray(self.affine), device=self.device)
 
         grid = torch.tensor(grid) if not isinstance(grid, torch.Tensor) else grid.detach().clone()
         if self.device:
