@@ -394,6 +394,7 @@ class DataStats(Transform):
     def __init__(
         self,
         prefix: str = "Data",
+        data_type: bool = True,
         data_shape: bool = True,
         value_range: bool = True,
         data_value: bool = False,
@@ -403,6 +404,7 @@ class DataStats(Transform):
         """
         Args:
             prefix: will be printed in format: "{prefix} statistics".
+            data_type: whether to show the type of input data.
             data_shape: whether to show the shape of input data.
             value_range: whether to show the value range of input data.
             data_value: whether to show the raw value of input data.
@@ -419,6 +421,7 @@ class DataStats(Transform):
         if not isinstance(prefix, str):
             raise AssertionError("prefix must be a string.")
         self.prefix = prefix
+        self.data_type = data_type
         self.data_shape = data_shape
         self.value_range = value_range
         self.data_value = data_value
@@ -438,6 +441,7 @@ class DataStats(Transform):
         self,
         img: NdarrayTensor,
         prefix: Optional[str] = None,
+        data_type: Optional[bool] = None,
         data_shape: Optional[bool] = None,
         value_range: Optional[bool] = None,
         data_value: Optional[bool] = None,
@@ -448,6 +452,8 @@ class DataStats(Transform):
         """
         lines = [f"{prefix or self.prefix} statistics:"]
 
+        if self.data_type if data_type is None else data_type:
+            lines.append(f"Type: {type(img)}")
         if self.data_shape if data_shape is None else data_shape:
             lines.append(f"Shape: {img.shape}")
         if self.value_range if value_range is None else value_range:

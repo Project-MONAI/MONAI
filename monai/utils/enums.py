@@ -29,6 +29,7 @@ __all__ = [
     "SkipMode",
     "Method",
     "InverseKeys",
+    "CommonKeys",
 ]
 
 
@@ -217,6 +218,15 @@ class Method(Enum):
     END = "end"
 
 
+class ForwardMode(Enum):
+    """
+    See also: :py:class:`monai.transforms.engines.evaluator.Evaluator`
+    """
+
+    TRAIN = "train"
+    EVAL = "eval"
+
+
 class InverseKeys:
     """Extra meta data keys used for inverse transforms."""
 
@@ -226,3 +236,20 @@ class InverseKeys:
     EXTRA_INFO = "extra_info"
     DO_TRANSFORM = "do_transforms"
     KEY_SUFFIX = "_transforms"
+
+
+class CommonKeys:
+    """
+    A set of common keys for dictionary based supervised training process.
+    `IMAGE` is the input image data.
+    `LABEL` is the training or evaluation label of segmentation or classification task.
+    `PRED` is the prediction data of model output.
+    `LOSS` is the loss value of current iteration.
+    `INFO` is some useful information during training or evaluation, like loss value, etc.
+
+    """
+
+    IMAGE = "image"
+    LABEL = "label"
+    PRED = "pred"
+    LOSS = "loss"
