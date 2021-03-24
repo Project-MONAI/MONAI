@@ -299,9 +299,9 @@ In 2017, NVIDIA researchers developed a methodology for mixed-precision training
 
 For the PyTorch 1.6 release, developers at NVIDIA and Facebook moved mixed precision functionality into PyTorch core as the AMP package, `torch.cuda.amp`.
 
-MONAI workflows can easily set `amp=True/False` in `SupervisedTrainer` or `SupervisedEvaluator` during training or evaluation to enable/disable AMP. And we tried to compare the training speed if AMP ON/OFF on Tesla V100 GPU with CUDA 11 and PyTorch 1.6, got some benchmark for reference:
+MONAI workflows can easily set `amp=True/False` in `SupervisedTrainer` or `SupervisedEvaluator` during training or evaluation to enable/disable AMP. And we tried to compare the training speed if AMP ON/OFF on NVIDIA V100 GPU with CUDA 11 and PyTorch 1.6, got some benchmark for reference:
 ![image](../images/amp_training_v100.png)
-We also executed the same test program on Testa A100 GPU with the same software environment, got much faster benchmark for reference:
+We also executed the same test program on NVIDIA A100 GPU with the same software environment, got much faster benchmark for reference:
 ![image](../images/amp_training_a100.png)
 More details is available at [AMP training tutorial](https://github.com/Project-MONAI/tutorials/blob/master/acceleration/automatic_mixed_precision.ipynb).
 We also tried to combine AMP with `CacheDataset` and `Novograd` optimizer to achieve the fast training in MONAI, able to obtain approximately 12x speedup compared with a Pytorch native implementation when the training converges at a validation mean dice of 0.93. Benchmark for reference:
@@ -310,7 +310,7 @@ More details is available at [Fast training tutorial](https://github.com/Project
 
 ### 2. Distributed data parallel
 Distributed data parallel is an important feature of PyTorch to connect multiple GPU devices on single or multiple nodes to train or evaluate models. MONAI provides demos for reference: train/evaluate with PyTorch DDP, train/evaluate with Horovod, train/evaluate with Ignite DDP, partition dataset and train with SmartCacheDataset, as well as a real world training example based on Decathlon challenge Task01 - Brain Tumor segmentation.
-The demo contains distributed caching, training, and validation. We tried to train this example on NVIDIA NGC server, got some performance benchmarks for reference(PyTorch 1.6, CUDA 11, Tesla V100 GPUs):
+The demo contains distributed caching, training, and validation. We tried to train this example on NVIDIA NGC server, got some performance benchmarks for reference(PyTorch 1.6, CUDA 11, NVIDIA V100 GPUs):
 ![image](../images/distributed_training.png)
 
 ### 3. C++/CUDA optimized modules
