@@ -26,31 +26,23 @@ class PatchWSIDataset(Dataset):
     It also reads labels for each patch and privide each patch with its associated class labels.
 
     Args:
-        data: the list of input samples including image, location, and label (see below for more details)
-        region_size: the region to be extracted from the whole slide image
-        grid_shape: the grid shape on which the patches should be extracted
-        patch_size: the patches extracted from the region on the grid
-        image_reader_name: the name of library to be used for loading whole slide imaging,
-            either CuCIM or OpenSlide (the default is CuCIM)
+        data: the list of input samples including image, location, and label (see below for more details).
+        region_size: the region to be extracted from the whole slide image.
+        grid_shape: the grid shape on which the patches should be extracted.
+        patch_size: the patches extracted from the region on the grid.
+        image_reader_name: the name of library to be used for loading whole slide imaging, either CuCIM or OpenSlide.
+            Defaults to CuCIM.
         transform: transforms to be executed on input data.
 
     Note:
-
         The input data has the following form as an example:
-        [{"image": "path/to/image1.tiff", "location": [200, 500], "label": [0,0,0,1]}].
+        `[{"image": "path/to/image1.tiff", "location": [200, 500], "label": [0,0,0,1]}]`.
 
-        This means from "image1.tiff" extract a region at "location" with the side of "region_size", and
-        then extract patches with the size of "patch_size" from a square grid with the shape of "grid_shape".
-        Be aware the the "grid_shape" should construct a grid with the same number of element as "labels", so
-        for this example the "grid_size" should be (2, 2).
-
-        The output will look like the following:
-        [
-            {"image": np.array([...], dtype=np.uint8), "label": 0},
-            {"image": np.array([...], dtype=np.uint8), "label": 0},
-            {"image": np.array([...], dtype=np.uint8), "label": 0},
-            {"image": np.array([...], dtype=np.uint8), "label": 1},
-        ]
+        This means from "image1.tiff" extract a region centered at the given location `location`
+        with the size of `region_size`, and then extract patches with the size of `patch_size`
+        from a square grid with the shape of `grid_shape`.
+        Be aware the the `grid_shape` should construct a grid with the same number of element as `labels`,
+        so for this example the `grid_shape` should be (2, 2).
 
     """
 
@@ -66,7 +58,7 @@ class PatchWSIDataset(Dataset):
         if isinstance(region_size, int):
             self.region_size = (region_size, region_size)
         else:
-            self.region_size  = region_size
+            self.region_size = region_size
 
         if isinstance(grid_shape, int):
             self.grid_shape = (grid_shape, grid_shape)
@@ -88,6 +80,8 @@ class PatchWSIDataset(Dataset):
             self._fetch_wsi_objects()
 
     def _fetch_wsi_objects(self):
+        """Load all the image objects and reuse them when asked for an item.
+        """
         self.wsi_object_dict = {}
         for image_path in self.image_path_list:
             self.wsi_object_dict[image_path] = self.image_reader.read(image_path)
@@ -117,7 +111,29 @@ class PatchWSIDataset(Dataset):
 
 
 class SmartCachePatchWSIDataset(SmartCacheDataset):
-    """Add SmartCache functionality to PatchWSIDataset."""
+    """Add SmartCache functionality to `PatchWSIDataset`.
+
+    Args:
+        data: the list of input samples including image, location, and label (see `PatchWSIDataset` for more details)
+        region_size: the region to be extracted from the whole slide image.
+        grid_shape: the grid shape on which the patches should be extracted.
+        patch_size: the patches extracted from the region on the grid.
+        image_reader_name: the name of library to be used for loading whole slide imaging, either CuCIM or OpenSlide.
+            Defaults to CuCIM.
+        transform: transforms to be executed on input data.
+        replace_rate: percentage of the cached items to be replaced in every epoch.
+        cache_num: number of items to be cached. Default is `sys.maxsize`.
+            will take the minimum of (cache_num, data_length x cache_rate, data_length).
+        cache_rate: percentage of cached data in total, default is 1.0 (cache all).
+            will take the minimum of (cache_num, data_length x cache_rate, data_length).
+        num_init_workers: the number of worker threads to initialize the cache for first epoch.
+            If num_init_workers is None then the number returned by os.cpu_count() is used.
+        num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
+            If num_replace_workers is None then the number returned by os.cpu_count() is used.
+        progress: whether to display a progress bar when caching for the first epoch.
+
+
+    """
 
     def __init__(
         self,
@@ -135,7 +151,7 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
     ):
         extractor = PatchWSIDataset(data, region_size, grid_shape, patch_size, image_reader_name)
         super().__init__(
-            data=extractor,
+            data=extractor,  # type: ignore
             transform=transform,
             replace_rate=replace_rate,
             cache_num=cache_num,
