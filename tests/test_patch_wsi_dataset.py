@@ -33,7 +33,7 @@ TEST_CASE_0 = [
 TEST_CASE_1 = [
     FILE_URL,
     {
-        "data": [{"image": "./CMU-1.tiff", "location": [10000, 20000], "label": [0, 0, 0, 1]}],
+        "data": [{"image": "./CMU-1.tiff", "location": [10004, 20004], "label": [0, 0, 0, 1]}],
         "region_size": (8, 8),
         "grid_shape": (2, 2),
         "patch_size": 1,
