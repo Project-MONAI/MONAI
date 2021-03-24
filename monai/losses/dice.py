@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Callable, Optional, Union
+from typing import Callable, List, Optional, Union
 
 import numpy as np
 import torch
@@ -54,7 +54,7 @@ class DiceLoss(_Loss):
     ) -> None:
         """
         Args:
-            include_background: if False channel index 0 (background category) is excluded from the calculation.
+            include_background: if False, channel index 0 (background category) is excluded from the calculation.
             to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
             sigmoid: if True, apply a sigmoid function to the prediction.
             softmax: if True, apply a softmax function to the prediction.
@@ -101,10 +101,12 @@ class DiceLoss(_Loss):
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            input: the shape should be BNH[WD].
-            target: the shape should be BNH[WD].
+            input: the shape should be BNH[WD], where N is the number of classes.
+            target: the shape should be BNH[WD] or B1H[WD], where N is the number of classes.
 
         Raises:
+            AssertionError: When input and target (after one hot transform if setted)
+                have different shapes.
             ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
 
         """
@@ -136,10 +138,10 @@ class DiceLoss(_Loss):
                 input = input[:, 1:]
 
         if target.shape != input.shape:
-            raise AssertionError(f"ground truth has differing shape ({target.shape}) from input ({input.shape})")
+            raise AssertionError(f"ground truth has different shape ({target.shape}) from input ({input.shape})")
 
         # reducing only spatial dimensions (not batch nor channels)
-        reduce_axis = list(range(2, len(input.shape)))
+        reduce_axis: List[int] = torch.arange(2, len(input.shape)).tolist()
         if self.batch:
             # reducing spatial dimensions and batch
             reduce_axis = [0] + reduce_axis
@@ -268,22 +270,26 @@ class GeneralizedDiceLoss(_Loss):
             raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
         if int(sigmoid) + int(softmax) + int(other_act is not None) > 1:
             raise ValueError("Incompatible values: more than 1 of [sigmoid=True, softmax=True, other_act is not None].")
+
         self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         self.sigmoid = sigmoid
         self.softmax = softmax
         self.other_act = other_act
 
-        w_type = Weight(w_type)
-        self.w_func: Callable = torch.ones_like
-        if w_type == Weight.SIMPLE:
-            self.w_func = torch.reciprocal
-        elif w_type == Weight.SQUARE:
-            self.w_func = lambda x: torch.reciprocal(x * x)
+        self.w_type = Weight(w_type)
 
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
         self.batch = batch
+
+    def w_func(self, grnd):
+        if self.w_type == Weight.SIMPLE:
+            return torch.reciprocal(grnd)
+        elif self.w_type == Weight.SQUARE:
+            return torch.reciprocal(grnd * grnd)
+        else:
+            return torch.ones_like(grnd)
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -325,7 +331,7 @@ class GeneralizedDiceLoss(_Loss):
             raise AssertionError(f"ground truth has differing shape ({target.shape}) from input ({input.shape})")
 
         # reducing only spatial dimensions (not batch nor channels)
-        reduce_axis = list(range(2, len(input.shape)))
+        reduce_axis: List[int] = torch.arange(2, len(input.shape)).tolist()
         if self.batch:
             reduce_axis = [0] + reduce_axis
         intersection = torch.sum(target * input, reduce_axis)
@@ -508,7 +514,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
             flat_target: the target tensor.
         """
         # Turn the distance matrix to a map of identical matrix
-        m = torch.clone(self.m).to(flat_proba.device)
+        m = torch.clone(torch.as_tensor(self.m)).to(flat_proba.device)
         m_extended = torch.unsqueeze(m, dim=0)
         m_extended = torch.unsqueeze(m_extended, dim=3)
         m_extended = m_extended.expand((flat_proba.size(0), m_extended.size(1), m_extended.size(2), flat_proba.size(2)))
@@ -593,7 +599,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         return alpha
 
 
-class DiceCELoss:
+class DiceCELoss(_Loss):
     """
     Compute both Dice loss and Cross Entropy Loss, and return the sum of these two losses.
     Input logits `input` (BNHW[D] where N is number of classes) is compared with ground truth `target` (BNHW[D]).

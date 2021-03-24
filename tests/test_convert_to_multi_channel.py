@@ -27,6 +27,7 @@ class TestConvertToMultiChannel(unittest.TestCase):
     def test_type_shape(self, data, expected_result):
         result = ConvertToMultiChannelBasedOnBratsClasses()(data)
         np.testing.assert_equal(result, expected_result)
+        self.assertEqual(f"{result.dtype}", "bool")
 
 
 if __name__ == "__main__":

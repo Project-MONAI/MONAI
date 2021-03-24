@@ -12,14 +12,18 @@
 import itertools
 import random
 import warnings
+from contextlib import contextmanager
 from typing import Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
-from monai.config import IndexSelection
+from monai.config import DtypeLike, IndexSelection
 from monai.networks.layers import GaussianFilter
+from monai.transforms.compose import Compose
+from monai.transforms.transform import MapTransform
 from monai.utils import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple, min_version, optional_import
+from monai.utils.misc import issequenceiterable
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 
@@ -37,7 +41,6 @@ __all__ = [
     "map_binary_to_indices",
     "weighted_patch_samples",
     "generate_pos_neg_label_crop_centers",
-    "apply_transform",
     "create_grid",
     "create_control_grid",
     "create_rotate",
@@ -48,6 +51,8 @@ __all__ = [
     "get_largest_connected_component_mask",
     "get_extreme_points",
     "extreme_points_to_image",
+    "map_spatial_axes",
+    "allow_missing_keys_mode",
 ]
 
 
@@ -58,7 +63,7 @@ def rand_choice(prob: float = 0.5) -> bool:
     return bool(random.random() <= prob)
 
 
-def img_bounds(img: np.ndarray) -> np.ndarray:
+def img_bounds(img: np.ndarray):
     """
     Returns the minimum and maximum indices of non-zero lines in axis 0 of `img`, followed by that for axis 1.
     """
@@ -91,9 +96,7 @@ def zero_margins(img: np.ndarray, margin: int) -> bool:
     return not np.any(img[:, :margin, :]) and not np.any(img[:, -margin:, :])
 
 
-def rescale_array(
-    arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0, dtype: Optional[np.dtype] = np.float32
-) -> np.ndarray:
+def rescale_array(arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0, dtype: DtypeLike = np.float32):
     """
     Rescale the values of numpy array `arr` to be from `minv` to `maxv`.
     """
@@ -111,7 +114,7 @@ def rescale_array(
 
 
 def rescale_instance_array(
-    arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0, dtype: np.dtype = np.float32
+    arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0, dtype: DtypeLike = np.float32
 ) -> np.ndarray:
     """
     Rescale each array slice along the first dimension of `arr` independently.
@@ -123,12 +126,12 @@ def rescale_instance_array(
     return out
 
 
-def rescale_array_int_max(arr: np.ndarray, dtype: np.dtype = np.uint16) -> np.ndarray:
+def rescale_array_int_max(arr: np.ndarray, dtype: DtypeLike = np.uint16) -> np.ndarray:
     """
     Rescale the array `arr` to be between the minimum and maximum values of the type `dtype`.
     """
     info: np.iinfo = np.iinfo(dtype)
-    return rescale_array(arr, info.min, info.max).astype(dtype)
+    return np.asarray(rescale_array(arr, info.min, info.max), dtype=dtype)
 
 
 def copypaste_arrays(
@@ -191,9 +194,7 @@ def copypaste_arrays(
     return tuple(srcslices), tuple(destslices)
 
 
-def resize_center(
-    img: np.ndarray, *resize_dims: Optional[int], fill_value: float = 0.0, inplace: bool = True
-) -> np.ndarray:
+def resize_center(img: np.ndarray, *resize_dims: Optional[int], fill_value: float = 0.0, inplace: bool = True):
     """
     Resize `img` by cropping or expanding the image from the center. The `resize_dims` values are the output dimensions
     (or None to use original dimension of `img`). If a dimension is smaller than that of `img` then the result will be
@@ -208,7 +209,7 @@ def resize_center(
     srcslices, destslices = copypaste_arrays(img.shape, resize_dims, half_img_shape, half_dest_shape, resize_dims)
 
     if not inplace:
-        dest = np.full(resize_dims, fill_value, img.dtype)
+        dest = np.full(resize_dims, fill_value, img.dtype)  # type: ignore
         dest[destslices] = img[srcslices]
         return dest
     return img[srcslices]
@@ -271,8 +272,8 @@ def weighted_patch_samples(
         raise ValueError("w must be an ND array.")
     if r_state is None:
         r_state = np.random.RandomState()
-    img_size = np.asarray(w.shape, dtype=np.int)
-    win_size = np.asarray(fall_back_tuple(spatial_size, img_size), dtype=np.int)
+    img_size = np.asarray(w.shape, dtype=int)
+    win_size = np.asarray(fall_back_tuple(spatial_size, img_size), dtype=int)
 
     s = tuple(slice(w // 2, m - w + w // 2) if m > w else slice(m // 2, m // 2 + 1) for w, m in zip(win_size, img_size))
     v = w[s]  # weight map in the 'valid' mode
@@ -287,7 +288,7 @@ def weighted_patch_samples(
         idx = v.searchsorted(r_state.random(n_samples) * v[-1], side="right")
     # compensate 'valid' mode
     diff = np.minimum(win_size, img_size) // 2
-    return [np.unravel_index(i, v_size) + diff for i in np.asarray(idx, dtype=np.int)]
+    return [np.unravel_index(i, v_size) + diff for i in np.asarray(idx, dtype=int)]
 
 
 def generate_pos_neg_label_crop_centers(
@@ -366,37 +367,12 @@ def generate_pos_neg_label_crop_centers(
     return centers
 
 
-def apply_transform(transform: Callable, data, map_items: bool = True):
-    """
-    Transform `data` with `transform`.
-    If `data` is a list or tuple and `map_data` is True, each item of `data` will be transformed
-    and this method returns a list of outcomes.
-    otherwise transform will be applied once with `data` as the argument.
-
-    Args:
-        transform: a callable to be used to transform `data`
-        data: an object to be transformed.
-        map_items: whether to apply transform to each item in `data`,
-            if `data` is a list or tuple. Defaults to True.
-
-    Raises:
-        Exception: When ``transform`` raises an exception.
-
-    """
-    try:
-        if isinstance(data, (list, tuple)) and map_items:
-            return [transform(item) for item in data]
-        return transform(data)
-    except Exception as e:
-        raise RuntimeError(f"applying transform {transform}") from e
-
-
 def create_grid(
     spatial_size: Sequence[int],
     spacing: Optional[Sequence[float]] = None,
     homogeneous: bool = True,
-    dtype: np.dtype = float,
-) -> np.ndarray:
+    dtype: DtypeLike = float,
+):
     """
     compute a `spatial_size` mesh.
 
@@ -415,8 +391,8 @@ def create_grid(
 
 
 def create_control_grid(
-    spatial_shape: Sequence[int], spacing: Sequence[float], homogeneous: bool = True, dtype: np.dtype = float
-) -> np.ndarray:
+    spatial_shape: Sequence[int], spacing: Sequence[float], homogeneous: bool = True, dtype: DtypeLike = float
+):
     """
     control grid with two additional point in each direction
     """
@@ -461,11 +437,15 @@ def create_rotate(spatial_dims: int, radians: Union[Sequence[float], float]) -> 
             )
         if len(radians) >= 2:
             sin_, cos_ = np.sin(radians[1]), np.cos(radians[1])
+            if affine is None:
+                raise ValueError("Affine should be a matrix.")
             affine = affine @ np.array(
                 [[cos_, 0.0, sin_, 0.0], [0.0, 1.0, 0.0, 0.0], [-sin_, 0.0, cos_, 0.0], [0.0, 0.0, 0.0, 1.0]]
             )
         if len(radians) >= 3:
             sin_, cos_ = np.sin(radians[2]), np.cos(radians[2])
+            if affine is None:
+                raise ValueError("Affine should be a matrix.")
             affine = affine @ np.array(
                 [[cos_, -sin_, 0.0, 0.0], [sin_, cos_, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
             )
@@ -504,7 +484,7 @@ def create_shear(spatial_dims: int, coefs: Union[Sequence[float], float]) -> np.
     raise NotImplementedError("Currently only spatial_dims in [2, 3] are supported.")
 
 
-def create_scale(spatial_dims: int, scaling_factor: Union[Sequence[float], float]) -> np.ndarray:
+def create_scale(spatial_dims: int, scaling_factor: Union[Sequence[float], float]):
     """
     create a scaling matrix
 
@@ -528,7 +508,7 @@ def create_translate(spatial_dims: int, shift: Union[Sequence[float], float]) ->
     affine = np.eye(spatial_dims + 1)
     for i, a in enumerate(shift[:spatial_dims]):
         affine[i, spatial_dims] = a
-    return affine
+    return np.asarray(affine)
 
 
 def generate_spatial_bounding_box(
@@ -690,3 +670,89 @@ def extreme_points_to_image(
     points_image = (points_image - min_intensity) / (max_intensity - min_intensity)
     points_image = points_image * (rescale_max - rescale_min) + rescale_min
     return points_image
+
+
+def map_spatial_axes(
+    img_ndim: int,
+    spatial_axes: Optional[Union[Sequence[int], int]] = None,
+    channel_first: bool = True,
+) -> List[int]:
+    """
+    Utility to map the spatial axes to real axes in channel first/last shape.
+    For example:
+    If `channel_first` is True, and `img` has 3 spatial dims, map spatial axes to real axes as below:
+    None -> [1, 2, 3]
+    [0, 1] -> [1, 2]
+    [0, -1] -> [1, -1]
+    If `channel_first` is False, and `img` has 3 spatial dims, map spatial axes to real axes as below:
+    None -> [0, 1, 2]
+    [0, 1] -> [0, 1]
+    [0, -1] -> [0, -2]
+
+    Args:
+        img_ndim: dimension number of the target image.
+        spatial_axes: spatial axes to be converted, default is None.
+            The default `None` will convert to all the spatial axes of the image.
+            If axis is negative it counts from the last to the first axis.
+            If axis is a tuple of ints.
+        channel_first: the image data is channel first or channel last, defaut to channel first.
+
+    """
+    if spatial_axes is None:
+        spatial_axes_ = list(range(1, img_ndim) if channel_first else range(0, img_ndim - 1))
+    else:
+        spatial_axes_ = []
+        for a in ensure_tuple(spatial_axes):
+            if channel_first:
+                spatial_axes_.append(a if a < 0 else a + 1)
+            else:
+                spatial_axes_.append(a - 1 if a < 0 else a)
+
+    return spatial_axes_
+
+
+@contextmanager
+def allow_missing_keys_mode(transform: Union[MapTransform, Compose, Tuple[MapTransform], Tuple[Compose]]):
+    """Temporarily set all MapTransforms to not throw an error if keys are missing. After, revert to original states.
+
+    Args:
+        transform: either MapTransform or a Compose
+
+    Example:
+
+    .. code-block:: python
+
+        data = {"image": np.arange(16, dtype=float).reshape(1, 4, 4)}
+        t = SpatialPadd(["image", "label"], 10, allow_missing_keys=False)
+        _ = t(data)  # would raise exception
+        with allow_missing_keys_mode(t):
+            _ = t(data)  # OK!
+    """
+    # If given a sequence of transforms, Compose them to get a single list
+    if issequenceiterable(transform):
+        transform = Compose(transform)
+
+    # Get list of MapTransforms
+    transforms = []
+    if isinstance(transform, MapTransform):
+        transforms = [transform]
+    elif isinstance(transform, Compose):
+        # Only keep contained MapTransforms
+        transforms = [t for t in transform.flatten().transforms if isinstance(t, MapTransform)]
+    if len(transforms) == 0:
+        raise TypeError(
+            "allow_missing_keys_mode expects either MapTransform(s) or Compose(s) containing MapTransform(s)"
+        )
+
+    # Get the state of each `allow_missing_keys`
+    orig_states = [t.allow_missing_keys for t in transforms]
+
+    try:
+        # Set all to True
+        for t in transforms:
+            t.allow_missing_keys = True
+        yield
+    finally:
+        # Revert
+        for t, o_s in zip(transforms, orig_states):
+            t.allow_missing_keys = o_s

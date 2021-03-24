@@ -129,11 +129,11 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         t2, p2, tp = target ** 2, pred ** 2, target * pred
         kernel, kernel_vol = self.kernel.to(pred), self.kernel_vol.to(pred)
         # sum over kernel
-        t_sum = separable_filtering(target, kernels=[kernel] * self.ndim)
-        p_sum = separable_filtering(pred, kernels=[kernel] * self.ndim)
-        t2_sum = separable_filtering(t2, kernels=[kernel] * self.ndim)
-        p2_sum = separable_filtering(p2, kernels=[kernel] * self.ndim)
-        tp_sum = separable_filtering(tp, kernels=[kernel] * self.ndim)
+        t_sum = separable_filtering(target, kernels=[kernel.to(pred)] * self.ndim)
+        p_sum = separable_filtering(pred, kernels=[kernel.to(pred)] * self.ndim)
+        t2_sum = separable_filtering(t2, kernels=[kernel.to(pred)] * self.ndim)
+        p2_sum = separable_filtering(p2, kernels=[kernel.to(pred)] * self.ndim)
+        tp_sum = separable_filtering(tp, kernels=[kernel.to(pred)] * self.ndim)
 
         # average over kernel
         t_avg = t_sum / kernel_vol

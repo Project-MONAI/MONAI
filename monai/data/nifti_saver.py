@@ -14,9 +14,11 @@ from typing import Dict, Optional, Union
 import numpy as np
 import torch
 
+from monai.config import DtypeLike
 from monai.data.nifti_writer import write_nifti
 from monai.data.utils import create_file_basename
 from monai.utils import GridSampleMode, GridSamplePadMode
+from monai.utils import ImageMetaKey as Key
 
 
 class NiftiSaver:
@@ -25,6 +27,8 @@ class NiftiSaver:
     Typically, the data can be segmentation predictions, call `save` for single data
     or call `save_batch` to save a batch of data together. If no meta data provided,
     use index from 0 as the filename prefix.
+
+    NB: image should include channel dimension: [B],C,H,W,[D].
     """
 
     def __init__(
@@ -36,8 +40,9 @@ class NiftiSaver:
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
-        dtype: Optional[np.dtype] = np.float64,
-        output_dtype: Optional[np.dtype] = np.float32,
+        dtype: DtypeLike = np.float64,
+        output_dtype: DtypeLike = np.float32,
+        squeeze_end_dims: bool = True,
     ) -> None:
         """
         Args:
@@ -56,9 +61,12 @@ class NiftiSaver:
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
-                If None, use the data type of input data. To be compatible with other modules,
-                the output data type is always ``np.float32``.
+                If None, use the data type of input data.
             output_dtype: data type for saving data. Defaults to ``np.float32``.
+            squeeze_end_dims: if True, any trailing singleton dimensions will be removed (after the channel
+                has been moved to the end). So if input is (C,H,W,D), this will be altered to (H,W,D,C), and
+                then if C==1, it will be saved as (H,W,D). If D also ==1, it will be saved as (H,W). If false,
+                image will always be saved as (H,W,D,C).
         """
         self.output_dir = output_dir
         self.output_postfix = output_postfix
@@ -70,6 +78,7 @@ class NiftiSaver:
         self.dtype = dtype
         self.output_dtype = output_dtype
         self._data_index = 0
+        self.squeeze_end_dims = squeeze_end_dims
 
     def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
         """
@@ -94,13 +103,13 @@ class NiftiSaver:
         See Also
             :py:meth:`monai.data.nifti_writer.write_nifti`
         """
-        filename = meta_data["filename_or_obj"] if meta_data else str(self._data_index)
+        filename = meta_data[Key.FILENAME_OR_OBJ] if meta_data else str(self._data_index)
         self._data_index += 1
         original_affine = meta_data.get("original_affine", None) if meta_data else None
         affine = meta_data.get("affine", None) if meta_data else None
         spatial_shape = meta_data.get("spatial_shape", None) if meta_data else None
 
-        if torch.is_tensor(data):
+        if isinstance(data, torch.Tensor):
             data = data.detach().cpu().numpy()
 
         filename = create_file_basename(self.output_postfix, filename, self.output_dir)
@@ -109,7 +118,13 @@ class NiftiSaver:
         while len(data.shape) < 4:
             data = np.expand_dims(data, -1)
         # change data to "channel last" format and write to nifti format file
-        data = np.moveaxis(data, 0, -1)
+        data = np.moveaxis(np.asarray(data), 0, -1)
+
+        # if desired, remove trailing singleton dimensions
+        if self.squeeze_end_dims:
+            while data.shape[-1] == 1:
+                data = np.squeeze(data, -1)
+
         write_nifti(
             data,
             file_name=filename,
