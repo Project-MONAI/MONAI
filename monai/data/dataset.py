@@ -547,7 +547,7 @@ class CacheDataset(Dataset):
         return data
 
 
-class SmartCacheDataset(CacheDataset):
+class SmartCacheDataset(Randomizable, CacheDataset):
     """
     Re-implementation of the SmartCache mechanism in NVIDIA Clara-train SDK.
     At any time, the cache pool only keeps a subset of the whole dataset. In each epoch, only the items
@@ -594,6 +594,8 @@ class SmartCacheDataset(CacheDataset):
         num_init_workers: Optional[int] = None,
         num_replace_workers: Optional[int] = None,
         progress: bool = True,
+        shuffle: bool = True,
+        seed: int = 0,
     ) -> None:
         """
         Args:
@@ -609,8 +611,14 @@ class SmartCacheDataset(CacheDataset):
             num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
                 If num_replace_workers is None then the number returned by os.cpu_count() is used.
             progress: whether to display a progress bar when caching for the first epoch.
+            shuffle: whether to shuffle the whole data list before preparing the cache content for first epoch.
+            seed: random seed if shuffle is `True`, default to `0`.
 
         """
+        if shuffle:
+            self.set_random_state(seed=seed)
+            self.randomize(data)
+
         super().__init__(data, transform, cache_num, cache_rate, num_init_workers, progress)
         if self._cache is None:
             self._cache = self._fill_cache()
@@ -635,6 +643,12 @@ class SmartCacheDataset(CacheDataset):
         self._replace_mgr: Optional[threading.Thread] = None
 
         self._compute_data_idx()
+
+    def randomize(self, data: Sequence) -> None:
+        try:
+            self.R.shuffle(data)
+        except TypeError as e:
+            warnings.warn(f"input data can't be shuffled in SmartCacheDataset with numpy.random.shuffle(): {e}.")
 
     def _compute_data_idx(self):
         """
@@ -788,6 +802,18 @@ class SmartCacheDataset(CacheDataset):
 
         """
         return self.cache_num
+
+    def __getitem__(self, index):
+        """
+        Raise exception if didn't call the expected APIs in SmartCacheDataset.
+
+        """
+        if not self.is_started():
+            raise RuntimeError(
+                "if using MONAI workflows, please add `SmartCacheHandler` to the handler list of trainer,"
+                "otherwise, please make sure to call `start()`, `update_cache()`, `shutdown()` during training."
+            )
+        return super().__getitem__(index)
 
 
 class ZipDataset(Dataset):
