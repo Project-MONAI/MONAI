@@ -51,7 +51,11 @@ TESTS_3D = [
         RandZoomd(keys=KEYS, prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True),
         RandRotated(keys=KEYS, prob=0.5, range_x=np.pi),
         RandAffined(
-            keys=KEYS, prob=0.5, rotate_range=np.pi, device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            keys=KEYS,
+            prob=0.5,
+            rotate_range=np.pi,
+            device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+            as_tensor_output=False,
         ),
     ]
 ]
@@ -66,7 +70,11 @@ TESTS_2D = [
         RandZoomd(keys=KEYS, prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True),
         RandRotated(keys=KEYS, prob=0.5, range_x=np.pi),
         RandAffined(
-            keys=KEYS, prob=0.5, rotate_range=np.pi, device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            keys=KEYS,
+            prob=0.5,
+            rotate_range=np.pi,
+            device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+            as_tensor_output=False,
         ),
     ]
 ]
