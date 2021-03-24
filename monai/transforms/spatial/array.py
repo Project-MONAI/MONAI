@@ -1319,9 +1319,10 @@ class Affine(Transform):
         """
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
         grid, affine = self.affine_grid(spatial_size=sp_size)
-        return self.resampler(
-            img=img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
-        ), affine
+        return (
+            self.resampler(img=img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode),
+            affine,
+        )
 
 
 class RandAffine(RandomizableTransform):
@@ -1433,9 +1434,10 @@ class RandAffine(RandomizableTransform):
         else:
             grid = create_grid(spatial_size=sp_size)
             affine = None
-        return self.resampler(
-            img=img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
-        ), affine
+        return (
+            self.resampler(img=img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode),
+            affine,
+        )
 
 
 class Rand2DElastic(RandomizableTransform):
@@ -1562,9 +1564,7 @@ class Rand2DElastic(RandomizableTransform):
         else:
             grid = create_grid(spatial_size=sp_size)
             affine = None
-        return self.resampler(
-            img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
-        ), affine
+        return self.resampler(img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode), affine
 
 
 class Rand3DElastic(RandomizableTransform):
@@ -1688,6 +1688,4 @@ class Rand3DElastic(RandomizableTransform):
             offset = torch.as_tensor(self.rand_offset, device=self.device).unsqueeze(0)
             grid[:3] += gaussian(offset)[0] * self.magnitude
             grid, affine = self.rand_affine_grid(grid=grid)
-        return self.resampler(
-            img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
-        ), affine
+        return self.resampler(img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode), affine
