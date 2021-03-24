@@ -42,14 +42,21 @@ TEST_CASE_PRETRAINED_0 = [
     {"model_name": "resnet18", "n_classes": 1, "pretrained": True},
     (2, 3, 224, 224),
     (2, 1, 1),
-    -0.010419349186122417
+    -0.010419349186122417,
 ]
 
 TEST_CASE_PRETRAINED_1 = [
     {"model_name": "resnet18", "n_classes": 1, "pretrained": True},
     (2, 3, 256, 256),
     (2, 2, 2),
-    -0.010419349186122417
+    -0.010419349186122417,
+]
+
+TEST_CASE_PRETRAINED_3 = [
+    {"model_name": "resnet18", "n_classes": 5, "pretrained": True},
+    (2, 3, 256, 256),
+    (2, 5, 2, 2),
+    -0.010419349186122417,
 ]
 
 
@@ -71,6 +78,7 @@ class TestTorchVisionFullyConvModel(unittest.TestCase):
         [
             TEST_CASE_PRETRAINED_0,
             TEST_CASE_PRETRAINED_1,
+            TEST_CASE_PRETRAINED_3,
         ]
     )
     def test_with_pretrained(self, input_param, input_shape, expected_shape, expected_value):
@@ -80,6 +88,7 @@ class TestTorchVisionFullyConvModel(unittest.TestCase):
             value = next(net.parameters())[0, 0, 0, 0].item()
             self.assertEqual(value, expected_value)
             self.assertEqual(result.shape, expected_shape)
+
 
 if __name__ == "__main__":
     unittest.main()
