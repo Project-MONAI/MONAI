@@ -20,7 +20,7 @@ dir_path = path.dirname(path.realpath(__file__))
 
 def load_module(module_name, defines=None, verbose_build=False, force_build=False):
 
-    if defines == None:
+    if defines is None:
         define_args = []
     else:
         define_args = [f"-D {key}={defines[key]}" for key in defines]
