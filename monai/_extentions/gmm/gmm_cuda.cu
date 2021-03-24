@@ -27,12 +27,13 @@ __global__ void CovarianceReductionKernel(int gaussian_index, const float* g_ima
 
     const int block_size = warp_count << 5;
 
+    int batch_index = blockIdx.z;
     int local_index = threadIdx.x;
     int block_index = blockIdx.x;
     int warp_index = local_index >> 5;
     int lane_index = local_index & 31;
     int global_index = local_index + block_index * block_size * load_count;
-    int matrix_offset = (gaussian_index * gridDim.x + block_index) * GMM_COMPONENT_COUNT;
+    int matrix_offset = (batch_index * GMM_COUNT * gridDim.x + gaussian_index * gridDim.x + block_index) * GMM_COMPONENT_COUNT;
 
     float matrix[MATRIX_COMPONENT_COUNT];
 
@@ -47,7 +48,7 @@ __global__ void CovarianceReductionKernel(int gaussian_index, const float* g_ima
 
         if (global_index < element_count)
         { 
-            int my_alpha = g_alpha[global_index];
+            int my_alpha = g_alpha[batch_index * element_count + global_index];
     
             if (my_alpha != -1)
             {
@@ -59,7 +60,7 @@ __global__ void CovarianceReductionKernel(int gaussian_index, const float* g_ima
 
                     for (int i = 0; i < CHANNEL_COUNT; i++)
                     {
-                        feature[i + 1] = g_image[global_index + i * element_count] * 255;
+                        feature[i + 1] = g_image[batch_index * element_count * CHANNEL_COUNT + global_index + i * element_count] * 255;
                     }
 
                     for (int index = 0, i = 0; i < CHANNEL_COUNT + 1; i++)
@@ -119,6 +120,7 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
     __shared__ float s_matrix_component[block_size];
     __shared__ float s_gmm[GMM_COMPONENT_COUNT];
 
+    int batch_index = blockIdx.z;
     int local_index = threadIdx.x;
     int gmm_index = blockIdx.x;
     int matrix_offset = gmm_index * matrix_count;
@@ -139,7 +141,7 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
 
                 if(matrix_index < matrix_count)
                 {
-                    matrix_component += g_matrices[(matrix_offset + matrix_index) * GMM_COMPONENT_COUNT + index];
+                    matrix_component += g_matrices[(batch_index * GMM_COUNT * matrix_count + matrix_offset + matrix_index) * GMM_COMPONENT_COUNT + index];
                 }
             }
 
@@ -194,16 +196,17 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
 
     if (local_index < GMM_COMPONENT_COUNT)
     {
-        g_gmm[gmm_index * GMM_COMPONENT_COUNT + local_index] = s_gmm[local_index];
+        g_gmm[(batch_index * GMM_COUNT + gmm_index) * GMM_COMPONENT_COUNT + local_index] = s_gmm[local_index];
     }
 }
 
 // Single block, 32xMIXTURE_COUNT
 __global__ void GMMcommonTerm(float *gmm)
 {
-    int gmm_idx = (threadIdx.x * MIXTURE_COUNT) + threadIdx.y;
+    int batch_index = blockIdx.z;
+    int gmm_index = (threadIdx.x * MIXTURE_COUNT) + threadIdx.y;
 
-    float gmm_n = threadIdx.x < MIXTURE_SIZE ? gmm[gmm_idx * GMM_COMPONENT_COUNT] : 0.0f;
+    float gmm_n = threadIdx.x < MIXTURE_SIZE ? gmm[(batch_index * GMM_COUNT + gmm_index) * GMM_COMPONENT_COUNT] : 0.0f;
 
     float sum = gmm_n;
 
@@ -215,10 +218,10 @@ __global__ void GMMcommonTerm(float *gmm)
 
     if (threadIdx.x < MIXTURE_SIZE)
     {
-        float det = gmm[gmm_idx * GMM_COMPONENT_COUNT + MATRIX_COMPONENT_COUNT];
+        float det = gmm[(batch_index * GMM_COUNT + gmm_index) * GMM_COMPONENT_COUNT + MATRIX_COMPONENT_COUNT];
         float commonTerm =  gmm_n / (sqrtf(det) * sum);
 
-        gmm[gmm_idx * GMM_COMPONENT_COUNT + MATRIX_COMPONENT_COUNT] = commonTerm;
+        gmm[(batch_index * GMM_COUNT + gmm_index) * GMM_COMPONENT_COUNT + MATRIX_COMPONENT_COUNT] = commonTerm;
     }
 }
 
@@ -251,6 +254,7 @@ __device__ float GMMTerm(float* feature, const float *gmm)
 
 __global__ void GMMDataTermKernel(const float *image, const float *gmm, float* output, int element_count)
 {
+    int batch_index = blockIdx.z;
     int index = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (index >= element_count) return;
@@ -259,7 +263,7 @@ __global__ void GMMDataTermKernel(const float *image, const float *gmm, float* o
 
     for (int i = 0; i < CHANNEL_COUNT; i++)
     {
-        feature[i] = image[index + i * element_count] * 255;
+        feature[i] = image[batch_index * element_count * CHANNEL_COUNT + index + i * element_count] * 255;
     }
 
     float weights[MIXTURE_COUNT];
@@ -271,7 +275,7 @@ __global__ void GMMDataTermKernel(const float *image, const float *gmm, float* o
 
         for(int j = 0; j < MIXTURE_SIZE; j++)
         {
-            mixture_weight += GMMTerm(feature, &gmm[(MIXTURE_COUNT * j + i) * GMM_COMPONENT_COUNT]);
+            mixture_weight += GMMTerm(feature, &gmm[(batch_index * GMM_COUNT + MIXTURE_COUNT * j + i) * GMM_COMPONENT_COUNT]);
         }
 
         weights[i] = mixture_weight;
@@ -280,7 +284,7 @@ __global__ void GMMDataTermKernel(const float *image, const float *gmm, float* o
 
     for(int i = 0; i < MIXTURE_COUNT; i++)
     {
-        output[index + i * element_count] = weights[i] / weight_total;
+        output[batch_index * element_count * CHANNEL_COUNT + index + i * element_count] = weights[i] / weight_total;
     }
 }
 
@@ -294,6 +298,7 @@ struct GMMSplit_t
 // 1 Block, 32xMIXTURE_COUNT
 __global__ void GMMFindSplit(GMMSplit_t *gmmSplit, int gmmK, float *gmm)
 {
+    int batch_index = blockIdx.z;
     int gmm_idx = threadIdx.x * MIXTURE_COUNT + threadIdx.y;
 
     float eigenvalue = 0;
@@ -301,7 +306,7 @@ __global__ void GMMFindSplit(GMMSplit_t *gmmSplit, int gmmK, float *gmm)
 
     if (threadIdx.x < gmmK)
     {
-        float* matrix = gmm + gmm_idx * GMM_COMPONENT_COUNT + (CHANNEL_COUNT + 1);
+        float* matrix = gmm + (batch_index * GMM_COUNT + gmm_idx) * GMM_COMPONENT_COUNT + (CHANNEL_COUNT + 1);
         largest_eigenpair(matrix, eigenvector, &eigenvalue);
     }
 
@@ -327,7 +332,7 @@ __global__ void GMMFindSplit(GMMSplit_t *gmmSplit, int gmmK, float *gmm)
             split.eigenvector[i] = eigenvector[i];
         }
 
-        gmmSplit[threadIdx.y] = split;
+        gmmSplit[batch_index * GMM_COUNT + threadIdx.y] = split;
     }
 }
 
@@ -337,12 +342,14 @@ __global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, const 
 {
     __shared__ GMMSplit_t s_gmmSplit[MIXTURE_COUNT];
 
+    int batch_index = blockIdx.z;
+
     int *s_linear = (int *) s_gmmSplit;
     int *g_linear = (int *) gmmSplit;
 
     if (threadIdx.x < MIXTURE_COUNT * sizeof(GMMSplit_t))
     {
-        s_linear[threadIdx.x] = g_linear[threadIdx.x];
+        s_linear[threadIdx.x] = g_linear[batch_index * GMM_COUNT * sizeof(GMMSplit_t) + threadIdx.x];
     }
 
     __syncthreads();
@@ -355,7 +362,7 @@ __global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, const 
 
         if (index < element_count)
         {
-            int my_alpha = alpha[index];
+            int my_alpha = alpha[batch_index * element_count + index];
 
             if(my_alpha != -1)
             {
@@ -369,7 +376,7 @@ __global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, const 
 
                     for (int i = 0; i < CHANNEL_COUNT; i++)
                     {
-                        feature[i] = image[index + i * element_count] * 255;
+                        feature[i] = image[batch_index * element_count * CHANNEL_COUNT + index + i * element_count] * 255;
                     }
                     
                     float value = scalar_prod(s_gmmSplit[select].eigenvector, feature);
@@ -377,7 +384,7 @@ __global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, const 
                     if (value > s_gmmSplit[select].threshold)
                     {
                         // assign pixel to new cluster
-                        alpha[index] =  k + select;
+                        alpha[batch_index * element_count + index] =  k + select;
                     }
                 }
             }
@@ -390,10 +397,10 @@ __global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, float *gmm, const 
 #define BLOCK (WARPS << 5)
 #define LOAD 4
 
-void GMMInitialize(const float *image, int *alpha, float *gmm, float *scratch_mem, int element_count)
+void GMMInitialize(const float *image, int *alpha, float *gmm, float *scratch_mem, int batch_count, int element_count)
 {
     int block_count = TILE(element_count, BLOCK * LOAD);
-    
+
     float* block_gmm_scratch = scratch_mem;
     GMMSplit_t* gmm_split_scratch = (GMMSplit_t*) scratch_mem;
 
@@ -403,17 +410,17 @@ void GMMInitialize(const float *image, int *alpha, float *gmm, float *scratch_me
     {
         for (int i = 0; i < k; ++i)
         {
-            CovarianceReductionKernel<WARPS, LOAD><<<block_count, BLOCK>>>(i, image, alpha, block_gmm_scratch, element_count);
+            CovarianceReductionKernel<WARPS, LOAD><<<{block_count, 1, batch_count}, BLOCK>>>(i, image, alpha, block_gmm_scratch, element_count);
         }
 
-        CovarianceFinalizationKernel<THREADS, false><<<k, THREADS>>>(block_gmm_scratch, gmm, block_count);
+        CovarianceFinalizationKernel<THREADS, false><<<{k, 1, batch_count}, THREADS>>>(block_gmm_scratch, gmm, block_count);
 
-        GMMFindSplit<<<1, dim3(BLOCK_SIZE, MIXTURE_COUNT)>>>(gmm_split_scratch, k / MIXTURE_COUNT, gmm);
-        GMMDoSplit<<<TILE(element_count, BLOCK_SIZE * DO_SPLIT_DEGENERACY), BLOCK_SIZE>>>(gmm_split_scratch, (k / MIXTURE_COUNT) << 4, gmm, image, alpha, element_count);
+        GMMFindSplit<<<{1, 1, batch_count}, dim3(BLOCK_SIZE, MIXTURE_COUNT)>>>(gmm_split_scratch, k / MIXTURE_COUNT, gmm);
+        GMMDoSplit<<<{TILE(element_count, BLOCK_SIZE * DO_SPLIT_DEGENERACY), 1, batch_count}, BLOCK_SIZE>>>(gmm_split_scratch, (k / MIXTURE_COUNT) << 4, gmm, image, alpha, element_count);
     }
 }
 
-void GMMUpdate(const float *image, int *alpha, float *gmm, float *scratch_mem, int element_count)
+void GMMUpdate(const float *image, int *alpha, float *gmm, float *scratch_mem, int batch_count, int element_count)
 {
     int block_count = TILE(element_count, BLOCK * LOAD);
 
@@ -423,18 +430,18 @@ void GMMUpdate(const float *image, int *alpha, float *gmm, float *scratch_mem, i
 
     for (int i = 0; i < gmm_N; ++i)
     {
-        CovarianceReductionKernel<WARPS, LOAD><<<block_count, BLOCK>>>(i, image, alpha, block_gmm_scratch, element_count);
+        CovarianceReductionKernel<WARPS, LOAD><<<{block_count, 1, batch_count}, BLOCK>>>(i, image, alpha, block_gmm_scratch, element_count);
     }
 
-    CovarianceFinalizationKernel<THREADS, true><<<gmm_N, THREADS>>>(block_gmm_scratch, gmm, block_count);
+    CovarianceFinalizationKernel<THREADS, true><<<{gmm_N, 1, batch_count}, THREADS>>>(block_gmm_scratch, gmm, block_count);
 
-    GMMcommonTerm<<<1, dim3(BLOCK_SIZE, MIXTURE_COUNT)>>>(gmm);
+    GMMcommonTerm<<<{1, 1, batch_count}, dim3(BLOCK_SIZE, MIXTURE_COUNT)>>>(gmm);
 }
 
-void GMMDataTerm(const float *image, const float *gmm, float* output, int element_count)
+void GMMDataTerm(const float *image, const float *gmm, float* output, int batch_count, int element_count)
 {
     dim3 block(BLOCK_SIZE, 1);
-    dim3 grid(TILE(element_count, BLOCK_SIZE), 1);
+    dim3 grid(TILE(element_count, BLOCK_SIZE), 1, batch_count);
 
     GMMDataTermKernel<<<grid, block>>>(image, gmm, output, element_count);
 }
@@ -445,14 +452,14 @@ void GMM_Cuda(const float* input, const int* labels, float* output, int batch_co
     float* gmm; 
     int* alpha;
 
-    cudaMalloc(&gmm, GMM_COUNT * GMM_COMPONENT_COUNT * sizeof(float));
-    cudaMalloc(&alpha, element_count * sizeof(int));
+    cudaMalloc(&gmm, batch_count * GMM_COUNT * GMM_COMPONENT_COUNT * sizeof(float));
+    cudaMalloc(&alpha, batch_count * element_count * sizeof(int));
 
-    cudaMemcpyAsync(alpha, labels, element_count * sizeof(int), cudaMemcpyDeviceToDevice);
+    cudaMemcpyAsync(alpha, labels, batch_count * element_count * sizeof(int), cudaMemcpyDeviceToDevice);
     
-    GMMInitialize(input, alpha, gmm, scratch_mem, element_count);
-    GMMUpdate(input, alpha, gmm, scratch_mem, element_count);
-    GMMDataTerm(input, gmm, output, element_count);
+    GMMInitialize(input, alpha, gmm, scratch_mem, batch_count, element_count);
+    GMMUpdate(input, alpha, gmm, scratch_mem, batch_count, element_count);
+    GMMDataTerm(input, gmm, output, batch_count, element_count);
 
     cudaFree(alpha);
     cudaFree(gmm);
