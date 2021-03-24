@@ -1052,7 +1052,6 @@ class RandAffineGrid(RandomizableTransform):
 
         self.as_tensor_output = as_tensor_output
         self.device = device
-        self.affine: Optional[Union[np.ndarray, torch.Tensor]] = None
 
     def _get_rand_param(self, param_range, add_scalar: float = 0.0):
         out_param = []
@@ -1319,10 +1318,10 @@ class Affine(Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
-        grid, _ = self.affine_grid(spatial_size=sp_size)
+        grid, affine = self.affine_grid(spatial_size=sp_size)
         return self.resampler(
             img=img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
-        )
+        ), affine
 
 
 class RandAffine(RandomizableTransform):
@@ -1430,12 +1429,13 @@ class RandAffine(RandomizableTransform):
 
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
         if self._do_transform:
-            grid, _ = self.rand_affine_grid(spatial_size=sp_size)
+            grid, affine = self.rand_affine_grid(spatial_size=sp_size)
         else:
             grid = create_grid(spatial_size=sp_size)
+            affine = None
         return self.resampler(
             img=img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
-        )
+        ), affine
 
 
 class Rand2DElastic(RandomizableTransform):
@@ -1550,7 +1550,7 @@ class Rand2DElastic(RandomizableTransform):
         self.randomize(spatial_size=sp_size)
         if self._do_transform:
             grid = self.deform_grid(spatial_size=sp_size)
-            grid, _ = self.rand_affine_grid(grid=grid)
+            grid, affine = self.rand_affine_grid(grid=grid)
             grid = torch.nn.functional.interpolate(  # type: ignore
                 recompute_scale_factor=True,
                 input=torch.as_tensor(grid).unsqueeze(0),
@@ -1561,7 +1561,10 @@ class Rand2DElastic(RandomizableTransform):
             grid = CenterSpatialCrop(roi_size=sp_size)(np.asarray(grid[0]))
         else:
             grid = create_grid(spatial_size=sp_size)
-        return self.resampler(img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode)
+            affine = None
+        return self.resampler(
+            img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
+        ), affine
 
 
 class Rand3DElastic(RandomizableTransform):
@@ -1676,6 +1679,7 @@ class Rand3DElastic(RandomizableTransform):
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
         self.randomize(grid_size=sp_size)
         grid = create_grid(spatial_size=sp_size)
+        affine = None
         if self._do_transform:
             if self.rand_offset is None:
                 raise AssertionError
@@ -1683,5 +1687,7 @@ class Rand3DElastic(RandomizableTransform):
             gaussian = GaussianFilter(3, self.sigma, 3.0).to(device=self.device)
             offset = torch.as_tensor(self.rand_offset, device=self.device).unsqueeze(0)
             grid[:3] += gaussian(offset)[0] * self.magnitude
-            grid, _ = self.rand_affine_grid(grid=grid)
-        return self.resampler(img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode)
+            grid, affine = self.rand_affine_grid(grid=grid)
+        return self.resampler(
+            img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
+        ), affine

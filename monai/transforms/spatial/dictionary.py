@@ -572,8 +572,7 @@ class Affined(MapTransform, InvertibleTransform):
         d = dict(data)
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             orig_size = d[key].shape[1:]
-            d[key] = self.affine(d[key], mode=mode, padding_mode=padding_mode)
-            affine = self.affine.affine_grid.get_transformation_matrix()
+            d[key], affine = self.affine(d[key], mode=mode, padding_mode=padding_mode)
             self.push_transform(d, key, orig_size=orig_size, extra_info={"affine": affine})
         return d
 
