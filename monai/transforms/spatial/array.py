@@ -1427,13 +1427,12 @@ class RandAffine(RandomizableTransform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
         self.randomize()
-
+        affine = None
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
         if self._do_transform:
             grid, affine = self.rand_affine_grid(spatial_size=sp_size)
         else:
             grid = create_grid(spatial_size=sp_size)
-            affine = None
         return (
             self.resampler(img=img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode),
             affine,
@@ -1550,6 +1549,7 @@ class Rand2DElastic(RandomizableTransform):
         """
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
         self.randomize(spatial_size=sp_size)
+        affine = None
         if self._do_transform:
             grid = self.deform_grid(spatial_size=sp_size)
             grid, affine = self.rand_affine_grid(grid=grid)
@@ -1563,7 +1563,6 @@ class Rand2DElastic(RandomizableTransform):
             grid = CenterSpatialCrop(roi_size=sp_size)(np.asarray(grid[0]))
         else:
             grid = create_grid(spatial_size=sp_size)
-            affine = None
         return self.resampler(img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode), affine
 
 
