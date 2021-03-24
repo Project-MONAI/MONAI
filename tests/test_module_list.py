@@ -20,12 +20,12 @@ class TestAllImport(unittest.TestCase):
     def test_public_api(self):
         """
         This is to check "monai.__all__" should be consistent with
-        the top-level folders except for "__pycache__" and "csrc" (cpp/cuda src)
+        the top-level folders except for "__pycache__", "_extensions" and "csrc" (cpp/cuda src)
         """
         base_folder = os.path.dirname(monai.__file__)
         to_search = os.path.join(base_folder, "*", "")
         subfolders = [os.path.basename(x[:-1]) for x in glob.glob(to_search)]
-        to_exclude = ("__pycache__", "csrc")
+        to_exclude = ("__pycache__", "_extensions", "csrc")
         mod = []
         for code_folder in subfolders:
             if code_folder in to_exclude:
