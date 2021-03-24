@@ -7,7 +7,6 @@ from monai.networks.layers import GaussianFilter
 
 
 class RadialNMS:
-
     def __init__(self, spatial_dims: int, sigma: float = 0.0, prob_threshold: float = 0.5, radius: int = 24):
         self.sigma = sigma
         self.spatial_dims = spatial_dims
