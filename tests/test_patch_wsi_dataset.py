@@ -18,8 +18,7 @@ TEST_CASE_0 = [
     FILE_URL,
     {
         "data": [
-            {"image": "./CMU-1.tiff", "location": [10000, 20000], "label": [1]},
-            {"image": "./CMU-1.tiff", "location": [0, 0], "label": [0]},
+            {"image": "./CMU-1.tiff", "location": [0, 0], "label": [1]},
         ],
         "region_size": (1, 1),
         "grid_shape": (1, 1),
@@ -27,8 +26,7 @@ TEST_CASE_0 = [
         "image_reader_name": "cuCIM",
     },
     [
-        {"image": np.array([[[246]], [[245]], [[250]]], dtype=np.uint8), "label": 1},
-        {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": 0},
+        {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[1]])},
     ],
 ]
 
@@ -41,10 +39,10 @@ TEST_CASE_1 = [
         "patch_size": 1,
     },
     [
-        {"image": np.array([[[247]], [[245]], [[248]]], dtype=np.uint8), "label": 0},
-        {"image": np.array([[[245]], [[247]], [[244]]], dtype=np.uint8), "label": 0},
-        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": 0},
-        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": 1},
+        {"image": np.array([[[247]], [[245]], [[248]]], dtype=np.uint8), "label": np.array([[0]])},
+        {"image": np.array([[[245]], [[247]], [[244]]], dtype=np.uint8), "label": np.array([[0]])},
+        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[0]])},
+        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[1]])},
     ],
 ]
 
@@ -56,13 +54,11 @@ class TestPatchWSIDataset(unittest.TestCase):
         self.camelyon_data_download(file_url)
         dataset = PatchWSIDataset(**input_parameters)
         samples = dataset[0]
-        image_compare = [
-            assert_array_equal(samples[i]["image"], expected[i]["image"]) is None for i in range(len(samples))
-        ]
-        label_compare = [
-            assert_array_equal(samples[i]["label"], expected[i]["label"]) is None for i in range(len(samples))
-        ]
-        self.assertTrue(all(image_compare) and all(label_compare))
+        for i in range(len(samples)):
+            self.assertTupleEqual(samples[i]["label"].shape, expected[i]["label"].shape)
+            self.assertTupleEqual(samples[i]["image"].shape, expected[i]["image"].shape)
+            self.assertIsNone(assert_array_equal(samples[i]["label"], expected[i]["label"]))
+            self.assertIsNone(assert_array_equal(samples[i]["image"], expected[i]["image"]))
 
     def camelyon_data_download(self, file_url):
         filename = os.path.basename(file_url)
