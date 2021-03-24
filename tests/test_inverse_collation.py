@@ -14,6 +14,7 @@ import unittest
 from typing import TYPE_CHECKING
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.data import CacheDataset, DataLoader, create_test_image_2d, create_test_image_3d, pad_list_data_collate
@@ -49,7 +50,13 @@ TESTS_3D = [
         RandRotate90d(keys=KEYS, spatial_axes=(1, 2)),
         RandZoomd(keys=KEYS, prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True),
         RandRotated(keys=KEYS, prob=0.5, range_x=np.pi),
-        RandAffined(keys=KEYS, prob=0.5, rotate_range=np.pi),
+        RandAffined(
+            keys=KEYS,
+            prob=0.5,
+            rotate_range=np.pi,
+            device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+            as_tensor_output=False,
+        ),
     ]
 ]
 
@@ -62,7 +69,13 @@ TESTS_2D = [
         RandRotate90d(keys=KEYS, prob=0.5, spatial_axes=(0, 1)),
         RandZoomd(keys=KEYS, prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True),
         RandRotated(keys=KEYS, prob=0.5, range_x=np.pi),
-        RandAffined(keys=KEYS, prob=0.5, rotate_range=np.pi),
+        RandAffined(
+            keys=KEYS,
+            prob=0.5,
+            rotate_range=np.pi,
+            device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+            as_tensor_output=False,
+        ),
     ]
 ]
 
@@ -102,8 +115,8 @@ class TestInverseCollation(unittest.TestCase):
         else:
             modified_transform = Compose([transform, ResizeWithPadOrCropd(KEYS, 100)])
 
-        # num workers = 0 for mac
-        num_workers = 2 if sys.platform != "darwin" else 0
+        # num workers = 0 for mac or gpu transforms
+        num_workers = 0 if sys.platform == "darwin" or torch.cuda.is_available() else 2
 
         dataset = CacheDataset(data, transform=modified_transform, progress=False)
         loader = DataLoader(dataset, num_workers, batch_size=self.batch_size, collate_fn=collate_fn)
