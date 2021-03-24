@@ -100,9 +100,10 @@ class PatchWSIDataset(Dataset):
             img_obj = self.image_reader.read(sample["image"])
         else:
             img_obj = self.wsi_object_dict[sample["image"]]
+        location = [sample["location"][i] - self.region_size[i] // 2 for i in range(len(self.region_size))]
         images, _ = self.image_reader.get_data(
             img=img_obj,
-            location=sample["location"],
+            location=location,
             size=self.region_size,
             grid_shape=self.grid_shape,
             patch_size=self.patch_size,
