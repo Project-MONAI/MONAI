@@ -10,8 +10,8 @@
 # limitations under the License.
 
 """
-This set of utility function is meant to make using Jupyter notebooks easier with MONAI. Plotting functions using 
-Matplotlib produce common plots for metrics and images. 
+This set of utility function is meant to make using Jupyter notebooks easier with MONAI. Plotting functions using
+Matplotlib produce common plots for metrics and images.
 """
 
 from enum import Enum
@@ -20,22 +20,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
-
-# from monai.utils import exact_version, optional_import
-
-# if TYPE_CHECKING:
-#     import matplotlib.pyplot as plt
-#     from ignite.engine import Engine, Events
-
-#     Figure = plt.Figure
-#     Axes = plt.Axes
-#     has_matplotlib = True
-# else:
-#     Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
-#     Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
-#     plt, has_matplotlib = optional_import("matplotlib.pyplot")
-#     Figure, _ = optional_import("matplotlib.pyplot", name="Figure")
-#     Axes, _ = optional_import("matplotlib.pyplot", name="Axes")
 
 try:
     import matplotlib.pyplot as plt

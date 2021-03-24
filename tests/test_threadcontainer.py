@@ -9,26 +9,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+import tempfile
 import time
 import unittest
 
 import torch
 
-from monai.utils import optional_import
+from monai.data import DataLoader
+from monai.utils import optional_import, set_determinism
+from monai.utils.enums import CommonKeys
+from tests.utils import SkipIfNoModule
 
 try:
     _, has_ignite = optional_import("ignite")
 
-    from monai.engines import CommonKeys, SupervisedTrainer
+    from monai.engines import SupervisedTrainer
+    from monai.handlers import MetricLogger
     from monai.utils import ThreadContainer
 except ImportError:
     has_ignite = False
 
-from monai.data import DataLoader
+compare_images, _ = optional_import("matplotlib.testing.compare", name="compare_images")
 
 
 class TestThreadContainer(unittest.TestCase):
-    @unittest.skipIf(not has_ignite, "Ignite needed for this test")
+    @SkipIfNoModule("ignite")
     def test_container(self):
         net = torch.nn.Conv2d(1, 1, 3, padding=1)
 
@@ -56,3 +62,43 @@ class TestThreadContainer(unittest.TestCase):
         self.assertTrue(len(con.status_dict) > 0)
 
         con.join()
+
+    @SkipIfNoModule("ignite")
+    @SkipIfNoModule("matplotlib")
+    def test_plot(self):
+        set_determinism(0)
+
+        testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
+
+        net = torch.nn.Conv2d(1, 1, 3, padding=1)
+
+        opt = torch.optim.Adam(net.parameters())
+
+        img = torch.rand(1, 16, 16)
+        data = {CommonKeys.IMAGE: img, CommonKeys.LABEL: img}
+        loader = DataLoader([data for _ in range(10)])
+
+        trainer = SupervisedTrainer(
+            device=torch.device("cpu"),
+            max_epochs=1,
+            train_data_loader=loader,
+            network=net,
+            optimizer=opt,
+            loss_function=torch.nn.L1Loss(),
+        )
+
+        logger = MetricLogger()
+        logger.attach(trainer)
+
+        con = ThreadContainer(trainer)
+        con.start()
+        con.join()
+
+        fig = con.plot_status(logger)
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            tempimg = f"{tempdir}/threadcontainer_plot_test.png"
+            fig.savefig(tempimg)
+            comp = compare_images(tempimg, f"{testing_dir}/threadcontainer_plot_test.png", 1e-3)
+
+            self.assertIsNone(comp, comp)  # None indicates test passed
