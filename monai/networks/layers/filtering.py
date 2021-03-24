@@ -94,5 +94,5 @@ class PHLFilter(torch.autograd.Function):
     @staticmethod
     def backward(ctx, grad_output):
         scaled_features = ctx.saved_variables
-        grad_input = PHLFilter.scale(grad_output, scaled_features)
+        grad_input = _C.phl_filter(grad_output, scaled_features)
         return grad_input
