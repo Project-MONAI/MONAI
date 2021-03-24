@@ -35,6 +35,7 @@ class PatchWSIDataset(Dataset):
         transform: transforms to be executed on input data.
 
     Note:
+
         The input data has the following form as an example:
         [{"image": "path/to/image1.tiff", "location": [200, 500], "label": [0,0,0,1]}].
 
@@ -60,14 +61,14 @@ class PatchWSIDataset(Dataset):
         grid_shape: Union[int, Tuple[int, int]],
         patch_size: int,
         image_reader_name: str = "cuCIM",
-        transform: Union[Sequence[Callable], Callable] = None,
+        transform: Optional[Callable] = None,
     ):
-        if type(region_size) == int:
+        if isinstance(region_size, int):
             self.region_size = (region_size, region_size)
         else:
-            self.region_size = region_size
+            self.region_size  = region_size
 
-        if type(grid_shape) == int:
+        if isinstance(grid_shape, int):
             self.grid_shape = (grid_shape, grid_shape)
         else:
             self.grid_shape = grid_shape
@@ -116,9 +117,7 @@ class PatchWSIDataset(Dataset):
 
 
 class SmartCachePatchWSIDataset(SmartCacheDataset):
-    """
-    Add SmartCache functionality to PatchWSIDataset
-    """
+    """Add SmartCache functionality to PatchWSIDataset."""
 
     def __init__(
         self,
@@ -126,8 +125,8 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
         region_size: Union[int, Tuple[int, int]],
         grid_shape: Union[int, Tuple[int, int]],
         patch_size: int,
+        transform: Union[Sequence[Callable], Callable],
         image_reader_name: str = "cuCIM",
-        transform: Union[Sequence[Callable], Callable] = None,
         replace_rate: float = 0.5,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
