@@ -693,7 +693,8 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
 
         sp_size = fall_back_tuple(self.rand_affine.spatial_size, data[self.keys[0]].shape[1:])
         if self._do_transform:
-            grid, affine = self.rand_affine.rand_affine_grid(spatial_size=sp_size)
+            grid = self.rand_affine.rand_affine_grid(spatial_size=sp_size)
+            affine = self.rand_affine.rand_affine_grid.get_transformation_matrix()
         else:
             grid = create_grid(spatial_size=sp_size)
             affine = torch.eye(len(sp_size) + 1)
@@ -830,7 +831,7 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
 
         if self._do_transform:
             grid = self.rand_2d_elastic.deform_grid(spatial_size=sp_size)
-            grid, _ = self.rand_2d_elastic.rand_affine_grid(grid=grid)
+            grid = self.rand_2d_elastic.rand_affine_grid(grid=grid)
             grid = torch.nn.functional.interpolate(  # type: ignore
                 recompute_scale_factor=True,
                 input=grid.unsqueeze(0),
@@ -954,7 +955,7 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
             gaussian = GaussianFilter(spatial_dims=3, sigma=self.rand_3d_elastic.sigma, truncated=3.0).to(device)
             offset = torch.tensor(self.rand_3d_elastic.rand_offset, device=device).unsqueeze(0)
             grid[:3] += gaussian(offset)[0] * self.rand_3d_elastic.magnitude
-            grid, _ = self.rand_3d_elastic.rand_affine_grid(grid=grid)
+            grid = self.rand_3d_elastic.rand_affine_grid(grid=grid)
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             d[key] = self.rand_3d_elastic.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)

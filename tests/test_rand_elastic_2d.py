@@ -94,7 +94,7 @@ class TestRand2DElastic(unittest.TestCase):
     def test_rand_2d_elastic(self, input_param, input_data, expected_val):
         g = Rand2DElastic(**input_param)
         g.set_random_state(123)
-        result, _ = g(**input_data)
+        result = g(**input_data)
         self.assertEqual(isinstance(result, torch.Tensor), isinstance(expected_val, torch.Tensor))
         if isinstance(result, torch.Tensor):
             np.testing.assert_allclose(result.cpu().numpy(), expected_val.cpu().numpy(), rtol=1e-4, atol=1e-4)
