@@ -131,7 +131,6 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
             If num_replace_workers is None then the number returned by os.cpu_count() is used.
         progress: whether to display a progress bar when caching for the first epoch.
 
-
     """
 
     def __init__(
@@ -148,9 +147,10 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
         num_init_workers: Optional[int] = None,
         num_replace_workers: Optional[int] = None,
     ):
-        extractor = PatchWSIDataset(data, region_size, grid_shape, patch_size, image_reader_name)
+        patch_wsi_dataset = PatchWSIDataset(data, region_size, grid_shape, patch_size, image_reader_name)
+        self.len_dataset = len(patch_wsi_dataset)
         super().__init__(
-            data=extractor,  # type: ignore
+            data=patch_wsi_dataset,  # type: ignore
             transform=transform,
             replace_rate=replace_rate,
             cache_num=cache_num,
@@ -158,3 +158,6 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
             num_init_workers=num_init_workers,
             num_replace_workers=num_replace_workers,
         )
+
+    def __len__(self):
+        return self.len_dataset
