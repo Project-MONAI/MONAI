@@ -43,17 +43,17 @@ class CRF(torch.nn.Module):
         compatability_kernel_range: int = 1,
         iterations: int = 5,
     ):
-    """
-      Args:        
-        bilateral_weight: the weighting of the bilateral term in the message passing step.
-        gaussian_weight: the weighting of the gaussian term in the message passing step.
-        bilateral_spatial_sigma: standard deviation in spatial coordinates for the bilateral term.
-        bilateral_color_sigma: standard deviation in color space for the bilateral term.
-        gaussian_spatial_sigma: standard deviation in spatial coordinates for the gaussian term.
-        update_factor: determines the magnitude of each update.
-        compatability_kernel_range: the range of the kernel used in the compatability convolution.
-        iterations: the number of iterations.
-    """
+        """
+        Args:
+            bilateral_weight: the weighting of the bilateral term in the message passing step.
+            gaussian_weight: the weighting of the gaussian term in the message passing step.
+            bilateral_spatial_sigma: standard deviation in spatial coordinates for the bilateral term.
+            bilateral_color_sigma: standard deviation in color space for the bilateral term.
+            gaussian_spatial_sigma: standard deviation in spatial coordinates for the gaussian term.
+            update_factor: determines the magnitude of each update.
+            compatability_kernel_range: the range of the kernel used in the compatability convolution.
+            iterations: the number of iterations.
+        """
         super(CRF, self).__init__()
         self.bilateral_weight = bilateral_weight
         self.gaussian_weight = gaussian_weight
@@ -65,14 +65,14 @@ class CRF(torch.nn.Module):
         self.iterations = iterations
 
     def forward(self, input_tensor: torch.Tensor, reference_tensor: torch.Tensor):
-    """
-    Args:
-        input_tensor: tensor containing initial class logits.
-        referenece_tensor: the reference tensor used to guide the message passing.
+        """
+        Args:
+            input_tensor: tensor containing initial class logits.
+            referenece_tensor: the reference tensor used to guide the message passing.
 
-    Returns:
-        output (torch.Tensor): output tensor.
-    """
+        Returns:
+            output (torch.Tensor): output tensor.
+        """
 
         # useful values
         spatial_dim = input_tensor.dim() - 2
