@@ -10,20 +10,21 @@
 # limitations under the License.
 
 import logging
+import warnings
 from typing import TYPE_CHECKING, Dict, Optional
 
 from monai.utils import exact_version, optional_import
 
-Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
-Checkpoint, _ = optional_import("ignite.handlers", "0.4.2", exact_version, "Checkpoint")
-BaseSaveHandler, _ = optional_import("ignite.handlers.checkpoint", "0.4.2", exact_version, "BaseSaveHandler")
+Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
+Checkpoint, _ = optional_import("ignite.handlers", "0.4.4", exact_version, "Checkpoint")
+BaseSaveHandler, _ = optional_import("ignite.handlers.checkpoint", "0.4.4", exact_version, "BaseSaveHandler")
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
     from ignite.handlers import DiskSaver
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
-    DiskSaver, _ = optional_import("ignite.handlers", "0.4.2", exact_version, "DiskSaver")
+    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
+    DiskSaver, _ = optional_import("ignite.handlers", "0.4.4", exact_version, "DiskSaver")
 
 
 class CheckpointSaver:
@@ -55,6 +56,12 @@ class CheckpointSaver:
             metric in descending order.
         key_metric_filename: set a fixed filename to set the best metric model, if not None,
             `key_metric_n_saved` should be 1 and only keep the best metric model.
+        key_metric_save_state: whether to save the tracking list of key metric in the checkpoint file.
+            if `True`, then will save an object in the checkpoint file with key `checkpointer` to be consistent
+            with ignite: https://github.com/pytorch/ignite/blob/master/ignite/handlers/checkpoint.py#L99.
+            typically, it's used to resume training and compare current metric with previous N values.
+        key_metric_greater_or_equal: if `True`, the latest equally scored model is stored. Otherwise,
+            save the the first equally scored model. default to `False`.
         epoch_level: save checkpoint during training for every N epochs or every N iterations.
             `True` is epoch level, `False` is iteration level.
         save_interval: save checkpoint every N epochs, default is 0 to save no checkpoint.
@@ -84,6 +91,8 @@ class CheckpointSaver:
         key_metric_name: Optional[str] = None,
         key_metric_n_saved: int = 1,
         key_metric_filename: Optional[str] = None,
+        key_metric_save_state: bool = False,
+        key_metric_greater_or_equal: bool = False,
         epoch_level: bool = True,
         save_interval: int = 0,
         n_saved: Optional[int] = None,
@@ -156,6 +165,8 @@ class CheckpointSaver:
                 score_function=_score_func,
                 score_name="key_metric",
                 n_saved=key_metric_n_saved,
+                include_self=key_metric_save_state,
+                greater_or_equal=key_metric_greater_or_equal,
             )
 
         if save_interval > 0:
@@ -171,6 +182,32 @@ class CheckpointSaver:
                 score_name="epoch" if self.epoch_level else "iteration",
                 n_saved=n_saved,
             )
+
+    def load_state_dict(self, state_dict: Dict) -> None:
+        """
+        Utility to resume the internal state of key metric tracking list if configured to save
+        checkpoints based on the key metric value.
+        Note to set `key_metric_save_state=True` when saving the previous checkpoint.
+
+        Example::
+
+            CheckpointSaver(
+                ...
+                save_key_metric=True,
+                key_metric_save_state=True,  # config to also save the state of this saver
+            ).attach(engine)
+            engine.run(...)
+
+            # resumed training with a new CheckpointSaver
+            saver = CheckpointSaver(save_key_metric=True, ...)
+            # load the previous key metric tracking list into saver
+            CheckpointLoader("/test/model.pt"), {"checkpointer": saver}).attach(engine)
+
+        """
+        if self._key_metric_checkpoint is not None:
+            self._key_metric_checkpoint.load_state_dict(state_dict)
+        else:
+            warnings.warn("no key metric checkpoint saver to resume the key metric tracking list.")
 
     def attach(self, engine: Engine) -> None:
         """

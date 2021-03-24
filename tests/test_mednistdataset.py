@@ -18,6 +18,8 @@ from monai.apps import MedNISTDataset
 from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
 from tests.utils import skip_if_quick
 
+MEDNIST_FULL_DATASET_LENGTH = 58954
+
 
 class TestMedNISTDataset(unittest.TestCase):
     @skip_if_quick
@@ -33,7 +35,7 @@ class TestMedNISTDataset(unittest.TestCase):
         )
 
         def _test_dataset(dataset):
-            self.assertEqual(len(dataset), 5986)
+            self.assertEqual(len(dataset), int(MEDNIST_FULL_DATASET_LENGTH * dataset.test_frac))
             self.assertTrue("image" in dataset[0])
             self.assertTrue("label" in dataset[0])
             self.assertTrue("image_meta_dict" in dataset[0])
@@ -52,9 +54,13 @@ class TestMedNISTDataset(unittest.TestCase):
 
         # testing from
         data = MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=False)
+        data.get_num_classes()
         _test_dataset(data)
         data = MedNISTDataset(root_dir=testing_dir, section="test", download=False)
         self.assertTupleEqual(data[0]["image"].shape, (64, 64))
+        # test same dataset length with different random seed
+        data = MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=False, seed=42)
+        _test_dataset(data)
         shutil.rmtree(os.path.join(testing_dir, "MedNIST"))
         try:
             data = MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=False)

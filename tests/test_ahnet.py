@@ -191,8 +191,13 @@ class TestAHNET(unittest.TestCase):
 
     @skip_if_quick
     def test_script(self):
+        # test 2D network
         net = AHNet(spatial_dims=2, out_channels=2)
         test_data = torch.randn(1, 1, 128, 64)
+        test_script_save(net, test_data)
+        # test 3D network
+        net = AHNet(spatial_dims=3, out_channels=2, psp_block_num=0, upsample_mode="nearest")
+        test_data = torch.randn(1, 1, 32, 32, 64)
         test_script_save(net, test_data)
 
 

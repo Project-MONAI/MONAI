@@ -34,9 +34,18 @@ TEST_CASE_3 = [
     np.array([[[0, 0, 0], [0, 2, 0], [0, 0, 0]], [[0, 4, 0], [0, 5, 0], [0, 6, 0]]]),
 ]
 
+TEST_CASE_4 = [
+    {"keys": "img", "mask_key": "mask"},
+    {
+        "img": np.array([[[1, 1, 1], [2, 2, 2], [3, 3, 3]], [[4, 4, 4], [5, 5, 5], [6, 6, 6]]]),
+        "mask": np.array([[[0, 0, 0], [0, 1, 0], [0, 0, 0]], [[0, 1, 0], [0, 1, 0], [0, 1, 0]]]),
+    },
+    np.array([[[0, 0, 0], [0, 2, 0], [0, 0, 0]], [[0, 4, 0], [0, 5, 0], [0, 6, 0]]]),
+]
+
 
 class TestMaskIntensityd(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_value(self, argments, image, expected_data):
         result = MaskIntensityd(**argments)(image)
         np.testing.assert_allclose(result["img"], expected_data)

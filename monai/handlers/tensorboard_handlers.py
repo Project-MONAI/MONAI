@@ -18,18 +18,49 @@ import torch
 from monai.utils import exact_version, is_scalar, optional_import
 from monai.visualize import plot_2d_or_3d_image
 
-Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
+Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
 if TYPE_CHECKING:
     from ignite.engine import Engine
     from torch.utils.tensorboard import SummaryWriter
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
     SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
 DEFAULT_TAG = "Loss"
 
 
-class TensorBoardStatsHandler(object):
+class TensorBoardHandler:
+    """
+    Base class for the handlers to write data into TensorBoard.
+
+    Args:
+        summary_writer: user can specify TensorBoard SummaryWriter,
+            default to create a new writer.
+        log_dir: if using default SummaryWriter, write logs to this directory, default is `./runs`.
+
+    """
+
+    def __init__(self, summary_writer: Optional[SummaryWriter] = None, log_dir: str = "./runs"):
+        if summary_writer is None:
+            self._writer = SummaryWriter(log_dir=log_dir)
+            self.internal_writer = True
+        else:
+            self._writer = summary_writer
+            self.internal_writer = False
+
+    def attach(self, engine: Engine) -> None:
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+
+    def close(self):
+        """
+        Close the summary writer if created in this TensorBoard handler.
+
+        """
+        if self.internal_writer:
+            self._writer.close()
+
+
+class TensorBoardStatsHandler(TensorBoardHandler):
     """
     TensorBoardStatsHandler defines a set of Ignite Event-handlers for all the TensorBoard logics.
     It's can be used for any Ignite Engine(trainer, validator and evaluator).
@@ -71,7 +102,7 @@ class TensorBoardStatsHandler(object):
                 when plotting epoch vs metric curves.
             tag_name: when iteration output is a scalar, tag_name is used to plot, defaults to ``'Loss'``.
         """
-        self._writer = SummaryWriter(log_dir=log_dir) if summary_writer is None else summary_writer
+        super().__init__(summary_writer=summary_writer, log_dir=log_dir)
         self.epoch_event_writer = epoch_event_writer
         self.iteration_event_writer = iteration_event_writer
         self.output_transform = output_transform
@@ -159,9 +190,13 @@ class TensorBoardStatsHandler(object):
                         " {}:{}".format(name, type(value))
                     )
                     continue  # not plot multi dimensional output
-                writer.add_scalar(name, value.item() if torch.is_tensor(value) else value, engine.state.iteration)
+                writer.add_scalar(
+                    name, value.item() if isinstance(value, torch.Tensor) else value, engine.state.iteration
+                )
         elif is_scalar(loss):  # not printing multi dimensional output
-            writer.add_scalar(self.tag_name, loss.item() if torch.is_tensor(loss) else loss, engine.state.iteration)
+            writer.add_scalar(
+                self.tag_name, loss.item() if isinstance(loss, torch.Tensor) else loss, engine.state.iteration
+            )
         else:
             warnings.warn(
                 "ignoring non-scalar output in TensorBoardStatsHandler,"
@@ -172,7 +207,7 @@ class TensorBoardStatsHandler(object):
         writer.flush()
 
 
-class TensorBoardImageHandler(object):
+class TensorBoardImageHandler(TensorBoardHandler):
     """
     TensorBoardImageHandler is an Ignite Event handler that can visualize images, labels and outputs as 2D/3D images.
     2D output (shape in Batch, channel, H, W) will be shown as simple image using the first element in the batch,
@@ -225,7 +260,7 @@ class TensorBoardImageHandler(object):
             max_channels: number of channels to plot.
             max_frames: number of frames for 2D-t plot.
         """
-        self._writer = SummaryWriter(log_dir=log_dir) if summary_writer is None else summary_writer
+        super().__init__(summary_writer=summary_writer, log_dir=log_dir)
         self.interval = interval
         self.epoch_level = epoch_level
         self.batch_transform = batch_transform
@@ -261,7 +296,7 @@ class TensorBoardImageHandler(object):
         """
         step = self.global_iter_transform(engine.state.epoch if self.epoch_level else engine.state.iteration)
         show_images = self.batch_transform(engine.state.batch)[0]
-        if torch.is_tensor(show_images):
+        if isinstance(show_images, torch.Tensor):
             show_images = show_images.detach().cpu().numpy()
         if show_images is not None:
             if not isinstance(show_images, np.ndarray):
@@ -274,7 +309,7 @@ class TensorBoardImageHandler(object):
             )
 
         show_labels = self.batch_transform(engine.state.batch)[1]
-        if torch.is_tensor(show_labels):
+        if isinstance(show_labels, torch.Tensor):
             show_labels = show_labels.detach().cpu().numpy()
         if show_labels is not None:
             if not isinstance(show_labels, np.ndarray):
@@ -287,7 +322,7 @@ class TensorBoardImageHandler(object):
             )
 
         show_outputs = self.output_transform(engine.state.output)
-        if torch.is_tensor(show_outputs):
+        if isinstance(show_outputs, torch.Tensor):
             show_outputs = show_outputs.detach().cpu().numpy()
         if show_outputs is not None:
             if not isinstance(show_outputs, np.ndarray):

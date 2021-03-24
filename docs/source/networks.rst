@@ -124,13 +124,28 @@ Blocks
 .. autoclass:: Subpixelupsample
 .. autoclass:: SubpixelUpSample
 
+`Registration Residual Conv Block`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: RegistrationResidualConvBlock
+    :members:
+
+`Registration Down Sample Block`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: RegistrationDownSampleBlock
+    :members:
+
+`Registration Extraction Block`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: RegistrationExtractionBlock
+    :members:
+
 `LocalNet DownSample Block`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: LocalNetDownSampleBlock
     :members:
 
 `LocalNet UpSample Block`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: LocalNetUpSampleBlock
     :members:
 
@@ -139,6 +154,15 @@ Blocks
 .. autoclass:: LocalNetFeatureExtractorBlock
     :members:
 
+`Warp`
+~~~~~~
+.. autoclass:: Warp
+    :members:
+
+`DVF2DDF`
+~~~~~~~~~
+.. autoclass:: DVF2DDF
+    :members:
 
 Layers
 ------
@@ -202,7 +226,7 @@ Layers
 ~~~~~~~~~~~~~~~~
 .. autoclass:: GaussianFilter
     :members:
-    
+
 `BilateralFilter`
 ~~~~~~~~~~~~~~~~~
 .. autoclass:: BilateralFilter
@@ -267,10 +291,6 @@ Nets
 ~~~~~~~~~~
 .. autoclass:: DenseNet
   :members:
-.. autofunction:: densenet121
-.. autofunction:: densenet169
-.. autofunction:: densenet201
-.. autofunction:: densenet264
 
 `SegResNet`
 ~~~~~~~~~~~
@@ -286,12 +306,6 @@ Nets
 ~~~~~~~
 .. autoclass:: SENet
   :members:
-.. autofunction:: senet154
-.. autofunction:: se_resnet50
-.. autofunction:: se_resnet101
-.. autofunction:: se_resnet152
-.. autofunction:: se_resnext50_32x4d
-.. autofunction:: se_resnext101_32x4d
 
 `HighResNet`
 ~~~~~~~~~~~~
@@ -324,6 +338,16 @@ Nets
 `VNet`
 ~~~~~~
 .. autoclass:: VNet
+  :members:
+
+`RegUNet`
+~~~~~~~~~~
+.. autoclass:: RegUNet
+  :members:
+
+`GlobalNet`
+~~~~~~~~~~~~
+.. autoclass:: GlobalNet
   :members:
 
 `LocalNet`

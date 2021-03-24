@@ -14,6 +14,7 @@ from typing import List, Optional, Sequence, Union
 
 import torch
 import torch.nn as nn
+from torch.nn.functional import interpolate
 
 from monai.networks.blocks.dynunet_block import UnetBasicBlock, UnetOutBlock, UnetResBlock, UnetUpBlock
 
@@ -80,8 +81,22 @@ class DynUNet(nn.Module):
         upsample_kernel_size: convolution kernel size for transposed convolution layers.
         norm_name: [``"batch"``, ``"instance"``, ``"group"``]
             feature normalization type and arguments.
+        deep_supervision: whether to add deep supervision head before output. Defaults to ``False``.
+            If ``True``, in training mode, the forward function will output not only the last feature
+            map, but also the previous feature maps that come from the intermediate up sample layers.
+            In order to unify the return type (the restriction of TorchScript), all intermediate
+            feature maps are interpolated into the same size as the last feature map and stacked together
+            (with a new dimension in the first axis)into one single tensor.
+            For instance, if there are three feature maps with shapes: (1, 2, 32, 24), (1, 2, 16, 12) and
+            (1, 2, 8, 6). The last two will be interpolated into (1, 2, 32, 24), and the stacked tensor
+            will has the shape (1, 3, 2, 8, 6).
+            When calculating the loss, you can use torch.unbind to get all feature maps can compute the loss
+            one by one with the groud truth, then do a weighted average for all losses to achieve the final loss.
+            (To be added: a corresponding tutorial link)
+
         deep_supr_num: number of feature maps that will output during deep supervision head. The
-            value should be less than the number of up sample layers. Defaults to 1.
+            value should be larger than 0 and less than the number of up sample layers.
+            Defaults to 1.
         res_block: whether to use residual connection based convolution blocks during the network.
             Defaults to ``True``.
     """
@@ -95,6 +110,7 @@ class DynUNet(nn.Module):
         strides: Sequence[Union[Sequence[int], int]],
         upsample_kernel_size: Sequence[Union[Sequence[int], int]],
         norm_name: str = "instance",
+        deep_supervision: bool = False,
         deep_supr_num: int = 1,
         res_block: bool = False,
     ):
@@ -113,6 +129,7 @@ class DynUNet(nn.Module):
         self.bottleneck = self.get_bottleneck()
         self.upsamples = self.get_upsamples()
         self.output_block = self.get_output_block(0)
+        self.deep_supervision = deep_supervision
         self.deep_supervision_heads = self.get_deep_supervision_heads()
         self.deep_supr_num = deep_supr_num
         self.apply(self.initialize_weights)
@@ -140,6 +157,8 @@ class DynUNet(nn.Module):
                 return bottleneck
             if index == 0:  # don't associate a supervision head with self.input_block
                 current_head, rest_heads = nn.Identity(), superheads
+            elif not self.deep_supervision:  # bypass supervision heads by passing nn.Identity in place of a real one
+                current_head, rest_heads = nn.Identity(), superheads[1:]
             else:
                 current_head, rest_heads = superheads[0], superheads[1:]
 
@@ -176,19 +195,21 @@ class DynUNet(nn.Module):
     def check_deep_supr_num(self):
         deep_supr_num, strides = self.deep_supr_num, self.strides
         num_up_layers = len(strides) - 1
-        if deep_supr_num < 1 or deep_supr_num >= num_up_layers:
+        if deep_supr_num >= num_up_layers:
             raise AssertionError("deep_supr_num should be less than the number of up sample layers.")
+        if deep_supr_num < 1:
+            raise AssertionError("deep_supr_num should be larger than 0.")
 
     def forward(self, x):
         out = self.skip_layers(x)
-        return self.output_block(out)
-
-    def get_feature_maps(self):
-        """
-        Return the feature maps.
-
-        """
-        return self.heads[1 : self.deep_supr_num + 1]
+        out = self.output_block(out)
+        if self.training and self.deep_supervision:
+            out_all = [out]
+            feature_maps = self.heads[1 : self.deep_supr_num + 1]
+            for feature_map in feature_maps:
+                out_all.append(interpolate(feature_map, out.shape[2:]))
+            return torch.stack(out_all, dim=1)
+        return out
 
     def get_input_block(self):
         return self.conv_block(

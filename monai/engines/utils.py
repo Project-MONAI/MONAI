@@ -9,33 +9,48 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
 
-__all__ = ["CommonKeys", "GanKeys", "get_devices_spec", "default_prepare_batch", "default_make_latent"]
+from monai.utils import exact_version, optional_import
+from monai.utils.enums import CommonKeys
+
+if TYPE_CHECKING:
+    from ignite.engine import EventEnum
+else:
+    EventEnum, _ = optional_import("ignite.engine", "0.4.4", exact_version, "EventEnum")
+
+__all__ = [
+    "IterationEvents",
+    "GanKeys",
+    "get_devices_spec",
+    "default_prepare_batch",
+    "default_make_latent",
+]
 
 
-class CommonKeys:
+class IterationEvents(EventEnum):
     """
-    A set of common keys for dictionary based supervised training process.
-    `IMAGE` is the input image data.
-    `LABEL` is the training or evaluation label of segmentation or classification task.
-    `PRED` is the prediction data of model output.
-    `LOSS` is the loss value of current iteration.
-    `INFO` is some useful information during training or evaluation, like loss value, etc.
+    Additional Events engine can register and trigger in the iteration process.
+    Refer to the example in ignite: https://github.com/pytorch/ignite/blob/master/ignite/engine/events.py#L146
+    These Events can be triggered during training iteration:
+    `FORWARD_COMPLETED` is the Event when `network(image, label)` completed.
+    `LOSS_COMPLETED` is the Event when `loss(pred, label)` completed.
+    `BACKWARD_COMPLETED` is the Event when `loss.backward()` completed.
 
     """
 
-    IMAGE = "image"
-    LABEL = "label"
-    PRED = "pred"
-    LOSS = "loss"
+    FORWARD_COMPLETED = "forward_completed"
+    LOSS_COMPLETED = "loss_completed"
+    BACKWARD_COMPLETED = "backward_completed"
+    OPTIMIZER_COMPLETED = "optimizer_completed"
 
 
 class GanKeys:
     """
     A set of common keys for generative adversarial networks.
+
     """
 
     REALS = "reals"
