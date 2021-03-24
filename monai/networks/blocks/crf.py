@@ -46,19 +46,12 @@ class CRF(torch.nn.Module):
     """
       Args:        
         bilateral_weight: the weighting of the bilateral term in the message passing step.
-
         gaussian_weight: the weighting of the gaussian term in the message passing step.
-
         bilateral_spatial_sigma: standard deviation in spatial coordinates for the bilateral term.
-
         bilateral_color_sigma: standard deviation in color space for the bilateral term.
-
         gaussian_spatial_sigma: standard deviation in spatial coordinates for the gaussian term.
-
         update_factor: determines the magnitude of each update.
-
         compatability_kernel_range: the range of the kernel used in the compatability convolution.
-
         iterations: the number of iterations.
     """
         super(CRF, self).__init__()
