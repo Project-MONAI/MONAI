@@ -16,7 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.blocks import CRF
-from tests.utils import skip_if_no_cpp_extention
+from tests.utils import skip_if_no_cpp_extension
 
 TEST_CASES = [
     [
@@ -429,7 +429,7 @@ TEST_CASES = [
 ]
 
 
-@skip_if_no_cpp_extention
+@skip_if_no_cpp_extension
 class CRFTestCaseCpu(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test(self, test_case_description, params, input, features, expected):
