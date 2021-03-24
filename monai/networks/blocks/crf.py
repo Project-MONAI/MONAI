@@ -30,12 +30,21 @@ class CRF(torch.nn.Module):
 
     See:
         https://arxiv.org/abs/1502.03240
+    """
 
-    Args:
-        input_tensor: tensor containing initial class logits.
-
-        referenece_tensor: the reference tensor used to guide the message passing.
-
+    def __init__(
+        self,
+        bilateral_weight: float = 1.0,
+        gaussian_weight: float = 1.0,
+        bilateral_spatial_sigma: float = 5.0,
+        bilateral_color_sigma: float = 0.5,
+        gaussian_spatial_sigma: float = 5.0,
+        update_factor: float = 3.0,
+        compatability_kernel_range: int = 1,
+        iterations: int = 5,
+    ):
+    """
+      Args:        
         bilateral_weight: the weighting of the bilateral term in the message passing step.
 
         gaussian_weight: the weighting of the gaussian term in the message passing step.
@@ -51,22 +60,7 @@ class CRF(torch.nn.Module):
         compatability_kernel_range: the range of the kernel used in the compatability convolution.
 
         iterations: the number of iterations.
-
-    Returns:
-        output (torch.Tensor): output tensor.
     """
-
-    def __init__(
-        self,
-        bilateral_weight: float = 1.0,
-        gaussian_weight: float = 1.0,
-        bilateral_spatial_sigma: float = 5.0,
-        bilateral_color_sigma: float = 0.5,
-        gaussian_spatial_sigma: float = 5.0,
-        update_factor: float = 3.0,
-        compatability_kernel_range: int = 1,
-        iterations: int = 5,
-    ):
         super(CRF, self).__init__()
         self.bilateral_weight = bilateral_weight
         self.gaussian_weight = gaussian_weight
@@ -78,6 +72,14 @@ class CRF(torch.nn.Module):
         self.iterations = iterations
 
     def forward(self, input_tensor: torch.Tensor, reference_tensor: torch.Tensor):
+    """
+    Args:
+        input_tensor: tensor containing initial class logits.
+        referenece_tensor: the reference tensor used to guide the message passing.
+
+    Returns:
+        output (torch.Tensor): output tensor.
+    """
 
         # useful values
         spatial_dim = input_tensor.dim() - 2
