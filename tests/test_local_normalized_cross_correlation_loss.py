@@ -17,60 +17,89 @@ from parameterized import parameterized
 
 from monai.losses.image_dissimilarity import LocalNormalizedCrossCorrelationLoss
 
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
 TEST_CASES = [
     [
         {"in_channels": 1, "ndim": 1, "kernel_type": "rectangular", "reduction": "sum"},
         {
-            "pred": torch.arange(0, 3).reshape(1, 1, -1).to(torch.float),
-            "target": torch.arange(0, 3).reshape(1, 1, -1).to(torch.float),
+            "pred": torch.arange(0, 3).reshape(1, 1, -1).to(dtype=torch.float, device=device),
+            "target": torch.arange(0, 3).reshape(1, 1, -1).to(dtype=torch.float, device=device),
         },
         -1.0 * 3,
     ],
     [
         {"in_channels": 1, "ndim": 1, "kernel_type": "rectangular"},
         {
-            "pred": torch.arange(0, 3).reshape(1, 1, -1).to(torch.float),
-            "target": torch.arange(0, 3).reshape(1, 1, -1).to(torch.float),
+            "pred": torch.arange(0, 3).reshape(1, 1, -1).to(dtype=torch.float, device=device),
+            "target": torch.arange(0, 3).reshape(1, 1, -1).to(dtype=torch.float, device=device),
         },
         -1.0,
     ],
     [
         {"in_channels": 1, "ndim": 2, "kernel_type": "rectangular"},
         {
-            "pred": torch.arange(0, 3).reshape(1, 1, -1, 1).expand(1, 1, 3, 3).to(torch.float),
-            "target": torch.arange(0, 3).reshape(1, 1, -1, 1).expand(1, 1, 3, 3).to(torch.float),
+            "pred": torch.arange(0, 3).reshape(1, 1, -1, 1).expand(1, 1, 3, 3).to(dtype=torch.float, device=device),
+            "target": torch.arange(0, 3).reshape(1, 1, -1, 1).expand(1, 1, 3, 3).to(dtype=torch.float, device=device),
         },
         -1.0,
     ],
     [
         {"in_channels": 1, "ndim": 3, "kernel_type": "rectangular"},
         {
-            "pred": torch.arange(0, 3).reshape(1, 1, -1, 1, 1).expand(1, 1, 3, 3, 3).to(torch.float),
-            "target": torch.arange(0, 3).reshape(1, 1, -1, 1, 1).expand(1, 1, 3, 3, 3).to(torch.float),
+            "pred": torch.arange(0, 3)
+            .reshape(1, 1, -1, 1, 1)
+            .expand(1, 1, 3, 3, 3)
+            .to(dtype=torch.float, device=device),
+            "target": torch.arange(0, 3)
+            .reshape(1, 1, -1, 1, 1)
+            .expand(1, 1, 3, 3, 3)
+            .to(dtype=torch.float, device=device),
         },
         -1.0,
     ],
     [
         {"in_channels": 3, "ndim": 3, "kernel_type": "rectangular"},
         {
-            "pred": torch.arange(0, 3).reshape(1, 1, -1, 1, 1).expand(1, 3, 3, 3, 3).to(torch.float),
-            "target": torch.arange(0, 3).reshape(1, 1, -1, 1, 1).expand(1, 3, 3, 3, 3).to(torch.float) ** 2,
+            "pred": torch.arange(0, 3)
+            .reshape(1, 1, -1, 1, 1)
+            .expand(1, 3, 3, 3, 3)
+            .to(dtype=torch.float, device=device),
+            "target": torch.arange(0, 3)
+            .reshape(1, 1, -1, 1, 1)
+            .expand(1, 3, 3, 3, 3)
+            .to(dtype=torch.float, device=device)
+            ** 2,
         },
         -0.95801723,
     ],
     [
         {"in_channels": 3, "ndim": 3, "kernel_type": "triangular", "kernel_size": 5},
         {
-            "pred": torch.arange(0, 5).reshape(1, 1, -1, 1, 1).expand(1, 3, 5, 5, 5).to(torch.float),
-            "target": torch.arange(0, 5).reshape(1, 1, -1, 1, 1).expand(1, 3, 5, 5, 5).to(torch.float) ** 2,
+            "pred": torch.arange(0, 5)
+            .reshape(1, 1, -1, 1, 1)
+            .expand(1, 3, 5, 5, 5)
+            .to(dtype=torch.float, device=device),
+            "target": torch.arange(0, 5)
+            .reshape(1, 1, -1, 1, 1)
+            .expand(1, 3, 5, 5, 5)
+            .to(dtype=torch.float, device=device)
+            ** 2,
         },
         -0.918672,
     ],
     [
         {"in_channels": 3, "ndim": 3, "kernel_type": "gaussian"},
         {
-            "pred": torch.arange(0, 3).reshape(1, 1, -1, 1, 1).expand(1, 3, 3, 3, 3).to(torch.float),
-            "target": torch.arange(0, 3).reshape(1, 1, -1, 1, 1).expand(1, 3, 3, 3, 3).to(torch.float) ** 2,
+            "pred": torch.arange(0, 3)
+            .reshape(1, 1, -1, 1, 1)
+            .expand(1, 3, 3, 3, 3)
+            .to(dtype=torch.float, device=device),
+            "target": torch.arange(0, 3)
+            .reshape(1, 1, -1, 1, 1)
+            .expand(1, 3, 3, 3, 3)
+            .to(dtype=torch.float, device=device)
+            ** 2,
         },
         -0.95406944,
     ],
@@ -87,13 +116,22 @@ class TestLocalNormalizedCrossCorrelationLoss(unittest.TestCase):
         loss = LocalNormalizedCrossCorrelationLoss(in_channels=3, ndim=3)
         # in_channel unmatch
         with self.assertRaisesRegex(ValueError, ""):
-            loss.forward(torch.ones((1, 2, 3, 3, 3), dtype=torch.float), torch.ones((1, 2, 3, 3, 3), dtype=torch.float))
+            loss.forward(
+                torch.ones((1, 2, 3, 3, 3), dtype=torch.float, device=device),
+                torch.ones((1, 2, 3, 3, 3), dtype=torch.float, device=device),
+            )
         # ndim unmatch
         with self.assertRaisesRegex(ValueError, ""):
-            loss.forward(torch.ones((1, 3, 3, 3), dtype=torch.float), torch.ones((1, 3, 3, 3), dtype=torch.float))
+            loss.forward(
+                torch.ones((1, 3, 3, 3), dtype=torch.float, device=device),
+                torch.ones((1, 3, 3, 3), dtype=torch.float, device=device),
+            )
         # pred, target shape unmatch
         with self.assertRaisesRegex(ValueError, ""):
-            loss.forward(torch.ones((1, 3, 3, 3, 3), dtype=torch.float), torch.ones((1, 3, 4, 4, 4), dtype=torch.float))
+            loss.forward(
+                torch.ones((1, 3, 3, 3, 3), dtype=torch.float, device=device),
+                torch.ones((1, 3, 4, 4, 4), dtype=torch.float, device=device),
+            )
 
     def test_ill_opts(self):
         pred = torch.ones((1, 3, 3, 3, 3), dtype=torch.float)
