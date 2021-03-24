@@ -89,14 +89,8 @@ class InvertibleTransform(Transform):
         data[key_transform].append(info)
 
     def check_transforms_match(self, transform: dict) -> None:
-        """Check transforms are of same instance."""
-        if transform[InverseKeys.ID] == id(self):
-            return
-        # basic check if multiprocessing uses 'spawn' (objects get recreated so don't have same ID)
-        if (
-            torch.multiprocessing.get_start_method(allow_none=False) == "spawn"
-            and transform[InverseKeys.CLASS_NAME] == self.__class__.__name__
-        ):
+        """Check whether match the transform class."""
+        if transform[InverseKeys.CLASS_NAME] == self.__class__.__name__:
             return
         raise RuntimeError("Should inverse most recently applied invertible transform first")
 
