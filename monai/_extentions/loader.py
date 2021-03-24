@@ -18,9 +18,12 @@ from torch.utils.cpp_extension import load
 dir_path = path.dirname(path.realpath(__file__))
 
 
-def load_module(module_name, defines={}, verbose_build=False, force_build=False):
+def load_module(module_name, defines=None, verbose_build=False, force_build=False):
 
-    define_args = [f"-D {key}={defines[key]}" for key in defines]
+    if defines == None:
+        define_args = []
+    else:
+        define_args = [f"-D {key}={defines[key]}" for key in defines]
 
     module_dir = path.join(dir_path, module_name)
 
