@@ -80,8 +80,7 @@ class PatchWSIDataset(Dataset):
             self._fetch_wsi_objects()
 
     def _fetch_wsi_objects(self):
-        """Load all the image objects and reuse them when asked for an item.
-        """
+        """Load all the image objects and reuse them when asked for an item."""
         self.wsi_object_dict = {}
         for image_path in self.image_path_list:
             self.wsi_object_dict[image_path] = self.image_reader.read(image_path)
