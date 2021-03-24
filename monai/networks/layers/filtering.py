@@ -93,6 +93,7 @@ class PHLFilter(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_output):
-        scaled_features = ctx.saved_variables
-        grad_input = _C.phl_filter(grad_output, scaled_features)
-        return grad_input
+        raise NotImplementedError("PHLFilter does not currently support backpropergation")
+        # scaled_features, = ctx.saved_variables
+        # grad_input = _C.phl_filter(grad_output, scaled_features)
+        # return grad_input
