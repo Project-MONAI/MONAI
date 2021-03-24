@@ -11,7 +11,9 @@
 
 import torch
 
-from monai._extentions.loader import load_module
+from monai._
+
+from monai._extensions.loader import load_module
 
 __all__ = ["GaussianMixtureModel"]
 
