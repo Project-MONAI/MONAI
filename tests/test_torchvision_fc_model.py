@@ -10,13 +10,16 @@
 # limitations under the License.
 
 import unittest
+from unittest import skipUnless
 
 import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import TorchVisionFullyConvModel
-from tests.utils import skip_if_quick, test_pretrained_networks, test_script_save
+from monai.utils import optional_import
+
+_, has_tv = optional_import("torchvision")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -68,6 +71,7 @@ class TestTorchVisionFullyConvModel(unittest.TestCase):
             TEST_CASE_2,
         ]
     )
+    @skipUnless(has_tv, "Requires TorchVision.")
     def test_without_pretrained(self, input_param, input_shape, expected_shape):
         net = TorchVisionFullyConvModel(**input_param).to(device)
         with eval_mode(net):
@@ -81,6 +85,7 @@ class TestTorchVisionFullyConvModel(unittest.TestCase):
             TEST_CASE_PRETRAINED_3,
         ]
     )
+    @skipUnless(has_tv, "Requires TorchVision.")
     def test_with_pretrained(self, input_param, input_shape, expected_shape, expected_value):
         net = TorchVisionFullyConvModel(**input_param).to(device)
         with eval_mode(net):
