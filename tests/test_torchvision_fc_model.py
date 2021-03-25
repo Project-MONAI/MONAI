@@ -26,36 +26,42 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 TEST_CASE_0 = [
     {"model_name": "resnet18", "n_classes": 1, "pretrained": False},
     (2, 3, 224, 224),
-    (2, 1, 1),
+    (2, 1, 1, 1),
 ]
 
 TEST_CASE_1 = [
     {"model_name": "resnet18", "n_classes": 1, "pretrained": False},
     (2, 3, 256, 256),
-    (2, 2, 2),
+    (2, 1, 2, 2),
 ]
 
 TEST_CASE_2 = [
-    {"model_name": "resnet18", "n_classes": 5, "pretrained": False},
+    {"model_name": "resnet101", "n_classes": 5, "pretrained": False},
     (2, 3, 256, 256),
+    (2, 5, 2, 2),
+]
+
+TEST_CASE_3 = [
+    {"model_name": "resnet101", "n_classes": 5, "pool_size": 6, "pretrained": False},
+    (2, 3, 224, 224),
     (2, 5, 2, 2),
 ]
 
 TEST_CASE_PRETRAINED_0 = [
     {"model_name": "resnet18", "n_classes": 1, "pretrained": True},
     (2, 3, 224, 224),
-    (2, 1, 1),
+    (2, 1, 1, 1),
     -0.010419349186122417,
 ]
 
 TEST_CASE_PRETRAINED_1 = [
     {"model_name": "resnet18", "n_classes": 1, "pretrained": True},
     (2, 3, 256, 256),
-    (2, 2, 2),
+    (2, 1, 2, 2),
     -0.010419349186122417,
 ]
 
-TEST_CASE_PRETRAINED_3 = [
+TEST_CASE_PRETRAINED_2 = [
     {"model_name": "resnet18", "n_classes": 5, "pretrained": True},
     (2, 3, 256, 256),
     (2, 5, 2, 2),
@@ -69,6 +75,7 @@ class TestTorchVisionFullyConvModel(unittest.TestCase):
             TEST_CASE_0,
             TEST_CASE_1,
             TEST_CASE_2,
+            TEST_CASE_3,
         ]
     )
     @skipUnless(has_tv, "Requires TorchVision.")
@@ -82,7 +89,7 @@ class TestTorchVisionFullyConvModel(unittest.TestCase):
         [
             TEST_CASE_PRETRAINED_0,
             TEST_CASE_PRETRAINED_1,
-            TEST_CASE_PRETRAINED_3,
+            TEST_CASE_PRETRAINED_2,
         ]
     )
     @skipUnless(has_tv, "Requires TorchVision.")
