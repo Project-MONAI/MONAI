@@ -520,15 +520,13 @@ class CacheDataset(Dataset):
             idx: the index of the input data sequence.
         """
         item = self.data[idx]
-        # copy to make sure thread-safe
-        transform_ = deepcopy(self.transform)
-        if not isinstance(transform_, Compose):
+        if not isinstance(self.transform, Compose):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
-        for _trans in transform_.transforms:
+        for _transform in self.transform.transforms:
             # execute all the deterministic transforms
-            if isinstance(_trans, RandomizableTransform) or not isinstance(_trans, Transform):
+            if isinstance(_transform, RandomizableTransform) or not isinstance(_transform, Transform):
                 break
-            item = apply_transform(_trans, item)
+            item = apply_transform(_transform, item)
         return item
 
     def __getitem__(self, index):
