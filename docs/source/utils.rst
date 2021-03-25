@@ -27,6 +27,11 @@ Misc
 .. automodule:: monai.utils.misc
   :members:
 
+Pixel NMS
+---------
+.. autoclass:: monai.utils.PixelNMS
+  :members:
+
 Profiling
 ---------
 .. automodule:: monai.utils.profiling
