@@ -22,8 +22,8 @@ __all__ = ["PatchWSIDataset", "SmartCachePatchWSIDataset"]
 
 class PatchWSIDataset(Dataset):
     """
-    This dataset read whole slide images, extract regions, and crate patches.
-    It also reads labels for each patch and privide each patch with its associated class labels.
+    This dataset reads whole slide images, extracts regions, and creates patches.
+    It also reads labels for each patch and provides each patch with its associated class labels.
 
     Args:
         data: the list of input samples including image, location, and label (see below for more details).
@@ -55,6 +55,8 @@ class PatchWSIDataset(Dataset):
         image_reader_name: str = "cuCIM",
         transform: Optional[Callable] = None,
     ):
+        super().__init__(data, transform)
+
         if isinstance(region_size, int):
             self.region_size = (region_size, region_size)
         else:
@@ -68,15 +70,13 @@ class PatchWSIDataset(Dataset):
         self.patch_size = patch_size
         self.sub_region_size = (self.region_size[0] / self.grid_shape[0], self.region_size[1] / self.grid_shape[1])
 
-        self.transform = transform
-        self.samples = data
-        self.image_path_list = list({x["image"] for x in self.samples})
+        self.image_path_list = list({x["image"] for x in self.data})
 
         self.image_reader_name = image_reader_name
         self.image_reader = WSIReader(image_reader_name)
         self.wsi_object_dict = None
         if self.image_reader_name != "openslide":
-            # OpenSlide causes memeory issue if we prefetch image objects
+            # OpenSlide causes memory issue if we prefetch image objects
             self._fetch_wsi_objects()
 
     def _fetch_wsi_objects(self):
@@ -85,11 +85,8 @@ class PatchWSIDataset(Dataset):
         for image_path in self.image_path_list:
             self.wsi_object_dict[image_path] = self.image_reader.read(image_path)
 
-    def __len__(self):
-        return len(self.samples)
-
     def __getitem__(self, index):
-        sample = self.samples[index]
+        sample = self.data[index]
         if self.image_reader_name == "openslide":
             img_obj = self.image_reader.read(sample["image"])
         else:
@@ -146,6 +143,7 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
         cache_rate: float = 1.0,
         num_init_workers: Optional[int] = None,
         num_replace_workers: Optional[int] = None,
+        progress: bool = True,
     ):
         patch_wsi_dataset = PatchWSIDataset(data, region_size, grid_shape, patch_size, image_reader_name)
         self.len_dataset = len(patch_wsi_dataset)
@@ -157,6 +155,7 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
             cache_rate=cache_rate,
             num_init_workers=num_init_workers,
             num_replace_workers=num_replace_workers,
+            progress=progress,
         )
 
     def __len__(self):
