@@ -27,7 +27,7 @@ TEST_CASE_0 = [
         "image_reader_name": "cuCIM",
     },
     [
-        {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[1]])},
+        {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[1]]])},
     ],
 ]
 
@@ -41,10 +41,10 @@ TEST_CASE_1 = [
         "image_reader_name": "cuCIM",
     },
     [
-        {"image": np.array([[[247]], [[245]], [[248]]], dtype=np.uint8), "label": np.array([[0]])},
-        {"image": np.array([[[245]], [[247]], [[244]]], dtype=np.uint8), "label": np.array([[0]])},
-        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[0]])},
-        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[1]])},
+        {"image": np.array([[[247]], [[245]], [[248]]], dtype=np.uint8), "label": np.array([[[0]]])},
+        {"image": np.array([[[245]], [[247]], [[244]]], dtype=np.uint8), "label": np.array([[[0]]])},
+        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[[0]]])},
+        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[[1]]])},
     ],
 ]
 
@@ -60,10 +60,25 @@ TEST_CASE_2 = [
         "image_reader_name": "cuCIM",
     },
     [
-        {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[1]])},
+        {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[1]]])},
     ],
 ]
 
+TEST_CASE_3 = [
+    FILE_URL,
+    {
+        "data": [
+            {"image": "./CMU-1.tiff", "location": [0, 0], "label": [[[0, 1], [1, 0]]]},
+        ],
+        "region_size": 1,
+        "grid_shape": 1,
+        "patch_size": 1,
+        "image_reader_name": "cuCIM",
+    },
+    [
+        {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[0, 1], [1, 0]]])},
+    ],
+]
 
 TEST_CASE_OPENSLIDE_0 = [
     FILE_URL,
@@ -77,7 +92,7 @@ TEST_CASE_OPENSLIDE_0 = [
         "image_reader_name": "OpenSlide",
     },
     [
-        {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[1]])},
+        {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[1]]])},
     ],
 ]
 
@@ -91,16 +106,23 @@ TEST_CASE_OPENSLIDE_1 = [
         "image_reader_name": "OpenSlide",
     },
     [
-        {"image": np.array([[[247]], [[245]], [[248]]], dtype=np.uint8), "label": np.array([[0]])},
-        {"image": np.array([[[245]], [[247]], [[244]]], dtype=np.uint8), "label": np.array([[0]])},
-        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[0]])},
-        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[1]])},
+        {"image": np.array([[[247]], [[245]], [[248]]], dtype=np.uint8), "label": np.array([[[0]]])},
+        {"image": np.array([[[245]], [[247]], [[244]]], dtype=np.uint8), "label": np.array([[[0]]])},
+        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[[0]]])},
+        {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[[1]]])},
     ],
 ]
 
 
 class TestPatchWSIDataset(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2])
+    @parameterized.expand(
+        [
+            TEST_CASE_0,
+            TEST_CASE_1,
+            TEST_CASE_2,
+            TEST_CASE_3,
+        ]
+    )
     @skipUnless(has_cim, "Requires CuCIM")
     def test_read_patches_cucim(self, file_url, input_parameters, expected):
         self.camelyon_data_download(file_url)
@@ -112,7 +134,12 @@ class TestPatchWSIDataset(unittest.TestCase):
             self.assertIsNone(assert_array_equal(samples[i]["label"], expected[i]["label"]))
             self.assertIsNone(assert_array_equal(samples[i]["image"], expected[i]["image"]))
 
-    @parameterized.expand([TEST_CASE_OPENSLIDE_0, TEST_CASE_OPENSLIDE_1])
+    @parameterized.expand(
+        [
+            TEST_CASE_OPENSLIDE_0,
+            TEST_CASE_OPENSLIDE_1,
+        ]
+    )
     @skipUnless(has_osl, "Requires OpenSlide")
     def test_read_patches_openslide(self, file_url, input_parameters, expected):
         self.camelyon_data_download(file_url)
