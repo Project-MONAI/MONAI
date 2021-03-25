@@ -69,7 +69,7 @@ class TestGlobalNet(unittest.TestCase):
         with eval_mode(net):
             img = torch.randn(input_shape)
             result = net(img.to(device))
-            warped = warp_layer(img, result)
+            warped = warp_layer(img.to(device), result)
             self.assertEqual(result.shape, expected_shape)
             # testing initial pred identity
             np.testing.assert_allclose(warped.detach().cpu().numpy(), img.detach().cpu().numpy(), rtol=1e-4, atol=1e-4)
