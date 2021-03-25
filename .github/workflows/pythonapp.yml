@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - 1848-pt-1-8-1
   pull_request:
 
 jobs:
