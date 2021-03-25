@@ -582,6 +582,21 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         This replacement will not work if setting the `multiprocessing_context` of DataLoader to `spawn`
         or on windows(the default multiprocessing method is `spawn`) and setting `num_workers` greater than 0.
 
+    Args:
+        data: input data to load and transform to generate dataset for model.
+        transform: transforms to execute operations on input data.
+        replace_rate: percentage of the cached items to be replaced in every epoch.
+        cache_num: number of items to be cached. Default is `sys.maxsize`.
+            will take the minimum of (cache_num, data_length x cache_rate, data_length).
+        cache_rate: percentage of cached data in total, default is 1.0 (cache all).
+            will take the minimum of (cache_num, data_length x cache_rate, data_length).
+        num_init_workers: the number of worker threads to initialize the cache for first epoch.
+            If num_init_workers is None then the number returned by os.cpu_count() is used.
+        num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
+            If num_replace_workers is None then the number returned by os.cpu_count() is used.
+        progress: whether to display a progress bar when caching for the first epoch.
+        shuffle: whether to shuffle the whole data list before preparing the cache content for first epoch.
+        seed: random seed if shuffle is `True`, default to `0`.
     """
 
     def __init__(
@@ -597,24 +612,6 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         shuffle: bool = True,
         seed: int = 0,
     ) -> None:
-        """
-        Args:
-            data: input data to load and transform to generate dataset for model.
-            transform: transforms to execute operations on input data.
-            replace_rate: percentage of the cached items to be replaced in every epoch.
-            cache_num: number of items to be cached. Default is `sys.maxsize`.
-                will take the minimum of (cache_num, data_length x cache_rate, data_length).
-            cache_rate: percentage of cached data in total, default is 1.0 (cache all).
-                will take the minimum of (cache_num, data_length x cache_rate, data_length).
-            num_init_workers: the number of worker threads to initialize the cache for first epoch.
-                If num_init_workers is None then the number returned by os.cpu_count() is used.
-            num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
-                If num_replace_workers is None then the number returned by os.cpu_count() is used.
-            progress: whether to display a progress bar when caching for the first epoch.
-            shuffle: whether to shuffle the whole data list before preparing the cache content for first epoch.
-            seed: random seed if shuffle is `True`, default to `0`.
-
-        """
         if shuffle:
             self.set_random_state(seed=seed)
             self.randomize(data)
