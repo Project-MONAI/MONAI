@@ -146,7 +146,6 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
         progress: bool = True,
     ):
         patch_wsi_dataset = PatchWSIDataset(data, region_size, grid_shape, patch_size, image_reader_name)
-        self.len_dataset = len(patch_wsi_dataset)
         super().__init__(
             data=patch_wsi_dataset,  # type: ignore
             transform=transform,
@@ -157,6 +156,3 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
             num_replace_workers=num_replace_workers,
             progress=progress,
         )
-
-    def __len__(self):
-        return self.len_dataset
