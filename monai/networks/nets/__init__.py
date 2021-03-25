@@ -22,6 +22,7 @@ from .regressor import Regressor
 from .regunet import GlobalNet, LocalNet, RegUNet
 from .segresnet import SegResNet, SegResNetVAE
 from .senet import SENet, SENet154, SEResNet50, SEResNet101, SEResNet152, SEResNext50, SEResNext101
+from .torchvision_fc import TorchVisionFullyConvModel
 from .unet import UNet, Unet, unet
 from .varautoencoder import VarAutoEncoder
 from .vnet import VNet
