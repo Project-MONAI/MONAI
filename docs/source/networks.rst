@@ -395,6 +395,11 @@ Nets
 .. autoclass:: Critic
   :members:
 
+`TorchVisionFullyConvModel`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TorchVisionFullyConvModel
+  :members:
+
 Utilities
 ---------
 .. automodule:: monai.networks.utils
