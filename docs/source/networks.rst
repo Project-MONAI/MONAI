@@ -20,6 +20,11 @@ Blocks
 .. autoclass:: Convolution
     :members:
 
+`CRF`
+~~~~~~~~~~~~~
+.. autoclass:: CRF
+    :members:
+
 `ResidualUnit`
 ~~~~~~~~~~~~~~
 .. autoclass:: ResidualUnit
