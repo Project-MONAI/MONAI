@@ -27,9 +27,9 @@ Misc
 .. automodule:: monai.utils.misc
   :members:
 
-Pixel NMS
----------
-.. autoclass:: monai.utils.PixelNMS
+Prob NMS
+--------
+.. autoclass:: monai.utils.ProbNMS
   :members:
 
 Profiling
