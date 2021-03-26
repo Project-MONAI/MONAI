@@ -982,6 +982,7 @@ class MapLabelValued(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             orig_labels: original labels that map to others.
             target_labels: expected label values, 1: 1 map to the `orig_labels`.
+            allow_missing_keys: don't raise exception if key is missing.
 
         """
         super().__init__(keys, allow_missing_keys)
