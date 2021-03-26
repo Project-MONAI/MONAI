@@ -26,13 +26,12 @@ from monai.utils import optional_import, set_determinism
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt
-    import PIL.Image as PILImage
 
     has_matplotlib = True
     has_pil = True
 else:
     plt, has_matplotlib = optional_import("matplotlib.pyplot")
-    PILImage, has_pil = optional_import("PIL.Image")
+    _, has_pil = optional_import("PIL.Image")
 
 RAND_SEED = 42
 random.seed(RAND_SEED)
