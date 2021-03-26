@@ -972,8 +972,9 @@ class MapLabelValued(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        orig_labels: Sequence[str],
-        target_labels: Sequence[str],
+        orig_labels: Sequence,
+        target_labels: Sequence,
+        dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -982,11 +983,12 @@ class MapLabelValued(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             orig_labels: original labels that map to others.
             target_labels: expected label values, 1: 1 map to the `orig_labels`.
+            dtype: convert the output data to dtype, default to float32.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
         super().__init__(keys, allow_missing_keys)
-        self.mapper = MapLabelValue(orig_labels=orig_labels, target_labels=target_labels)
+        self.mapper = MapLabelValue(orig_labels=orig_labels, target_labels=target_labels, dtype=dtype)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
