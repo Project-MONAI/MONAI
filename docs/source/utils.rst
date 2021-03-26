@@ -27,6 +27,12 @@ Misc
 .. automodule:: monai.utils.misc
   :members:
 
+Prob NMS
+--------
+.. automodule:: monai.utils.prob_nms
+.. autoclass:: ProbNMS
+  :members:
+
 Profiling
 ---------
 .. automodule:: monai.utils.profiling
