@@ -29,7 +29,8 @@ Misc
 
 Prob NMS
 --------
-.. autoclass:: monai.utils.ProbNMS
+.. automodule:: monai.utils.prob_nms
+.. autoclass:: ProbNMS
   :members:
 
 Profiling
