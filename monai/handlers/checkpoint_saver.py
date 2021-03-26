@@ -117,7 +117,7 @@ class CheckpointSaver:
 
             def __init__(self, dirname: str, filename: Optional[str] = None):
                 # set `atomic=False` as `atomic=True` may save files without read permission for non-root users
-                super().__init__(dirname=dirname, require_empty=False, atomic=True)
+                super().__init__(dirname=dirname, require_empty=False, atomic=False)
                 self.filename = filename
 
             def __call__(self, checkpoint: Dict, filename: str, metadata: Optional[Dict] = None) -> None:
