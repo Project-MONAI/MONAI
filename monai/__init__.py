@@ -44,3 +44,19 @@ load_submodules(sys.modules[__name__], False, exclude_pattern=excludes)
 
 # load all modules, this will trigger all export decorations
 load_submodules(sys.modules[__name__], True, exclude_pattern=excludes)
+
+__all__ = [
+    "apps",
+    "config",
+    "data",
+    "engines",
+    "handlers",
+    "inferers",
+    "losses",
+    "metrics",
+    "networks",
+    "optimizers",
+    "transforms",
+    "utils",
+    "visualize",
+]

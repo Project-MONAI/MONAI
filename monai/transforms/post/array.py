@@ -21,7 +21,7 @@ import torch
 import torch.nn.functional as F
 
 from monai.networks import one_hot
-from monai.transforms.compose import Transform
+from monai.transforms.transform import Transform
 from monai.transforms.utils import get_largest_connected_component_mask
 from monai.utils import ensure_tuple
 
@@ -86,9 +86,14 @@ class Activations(Transform):
         if other is not None and not callable(other):
             raise TypeError(f"other must be None or callable but is {type(other).__name__}.")
 
+        # convert to float as activation must operate on float tensor
+        img = img.float()
         if sigmoid or self.sigmoid:
             img = torch.sigmoid(img)
         if softmax or self.softmax:
+            # add channel dim if not existing
+            if img.ndimension() == 1:
+                img = img.unsqueeze(-1)
             img = torch.softmax(img, dim=1)
 
         act_func = self.other if other is None else other
