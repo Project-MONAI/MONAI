@@ -582,6 +582,9 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         This replacement will not work if setting the `multiprocessing_context` of DataLoader to `spawn`
         or on windows(the default multiprocessing method is `spawn`) and setting `num_workers` greater than 0.
 
+        If using MONAI workflows, please add `SmartCacheHandler` to the handler list of trainer,
+        otherwise, please make sure to call `start()`, `update_cache()`, `shutdown()` during training.
+
     Args:
         data: input data to load and transform to generate dataset for model.
         transform: transforms to execute operations on input data.
@@ -799,18 +802,6 @@ class SmartCacheDataset(Randomizable, CacheDataset):
 
         """
         return self.cache_num
-
-    def __getitem__(self, index):
-        """
-        Raise exception if didn't call the expected APIs in SmartCacheDataset.
-
-        """
-        if not self.is_started():
-            raise RuntimeError(
-                "if using MONAI workflows, please add `SmartCacheHandler` to the handler list of trainer,"
-                "otherwise, please make sure to call `start()`, `update_cache()`, `shutdown()` during training."
-            )
-        return super().__getitem__(index)
 
 
 class ZipDataset(Dataset):
