@@ -16,6 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.losses import DiceCELoss
+from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
 
 TEST_CASES = [
     [  # shape: (2, 2, 3), (2, 1, 3)
@@ -63,6 +64,12 @@ class TestDiceCELoss(unittest.TestCase):
         loss = DiceCELoss()
         with self.assertRaisesRegex(ValueError, ""):
             loss(torch.ones((1, 2, 3)), torch.ones((1, 1, 2, 3)))
+
+    @SkipIfBeforePyTorchVersion((1, 7, 0))
+    def test_script(self):
+        loss = DiceCELoss()
+        test_input = torch.ones(2, 1, 8, 8)
+        test_script_save(loss, test_input, test_input)
 
 
 if __name__ == "__main__":

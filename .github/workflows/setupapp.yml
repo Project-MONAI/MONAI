@@ -8,7 +8,7 @@ on:
 
 jobs:
   # caching of these jobs:
-  #   - docker-20-03-py3-pip- (shared)
+  #   - docker-py3-pip- (shared)
   #   - ubuntu py36 37 38-pip-
   #   - os-latest-pip (shared)
   coverage-py3:
@@ -30,7 +30,7 @@ jobs:
         path: |
           ~/.cache/pip
           ~/.cache/torch
-        key: docker-20-03-py3-pip-${{ steps.pip-cache.outputs.datew }}
+        key: docker-py3-pip-${{ steps.pip-cache.outputs.datew }}
     - name: Install the dependencies
       run: |
         which python
@@ -41,17 +41,27 @@ jobs:
     - name: Run unit tests report coverage
       run: |
         python -m pip list
+        export LAUNCH_DELAY=$[ $RANDOM % 16 * 60 ]
+        echo "Sleep $LAUNCH_DELAY"
+        sleep $LAUNCH_DELAY
         nvidia-smi
         export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
         echo $CUDA_VISIBLE_DEVICES
+        stop_time=$((LAUNCH_DELAY + $(date +%s)))
+        while [ $(date +%s) -lt $stop_time ]; do
+          python -c 'import torch; torch.rand(5, 3, device=torch.device("cuda:0"))';
+        done
         python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
-        python -c 'import torch; print(torch.rand(5,3, device=torch.device("cuda:0")))'
-        BUILD_MONAI=1 ./runtests.sh --coverage
+        python -c 'import torch; print(torch.rand(5, 3, device=torch.device("cuda:0")))'
+        BUILD_MONAI=1 ./runtests.sh --coverage --unittests  # unit tests with coverage report
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        echo $CUDA_VISIBLE_DEVICES
+        BUILD_MONAI=1 ./runtests.sh --coverage --net  # integration tests with coverage report
         coverage xml
     - name: Upload coverage
       uses: codecov/codecov-action@v1
       with:
-        fail_ci_if_error: true
+        fail_ci_if_error: false
         file: ./coverage.xml
 
   test-py3x:
@@ -88,7 +98,7 @@ jobs:
       run: |
         python -m pip list
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
-        BUILD_MONAI=1 ./runtests.sh --quick
+        BUILD_MONAI=1 ./runtests.sh --quick --unittests
         coverage xml
     - name: Upload coverage
       uses: codecov/codecov-action@v1
