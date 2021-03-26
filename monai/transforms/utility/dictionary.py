@@ -36,6 +36,7 @@ from monai.transforms.utility.array import (
     Identity,
     LabelToMask,
     Lambda,
+    MapLabelValue,
     RemoveRepeatedChannel,
     RepeatChannel,
     SimulateDelay,
@@ -83,6 +84,7 @@ __all__ = [
     "ConvertToMultiChannelBasedOnBratsClassesd",
     "AddExtremePointsChanneld",
     "TorchVisiond",
+    "MapLabelValued",
     "IdentityD",
     "IdentityDict",
     "AsChannelFirstD",
@@ -129,6 +131,8 @@ __all__ = [
     "AddExtremePointsChannelDict",
     "TorchVisionD",
     "TorchVisionDict",
+    "MapLabelValueD",
+    "MapLabelValueDict",
 ]
 
 
@@ -960,6 +964,36 @@ class TorchVisiond(MapTransform):
         return d
 
 
+class MapLabelValued(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.MapLabelValue`.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        orig_labels: Sequence[str],
+        target_labels: Sequence[str],
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            orig_labels: original labels that map to others.
+            target_labels: expected label values, 1: 1 map to the `orig_labels`.
+
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.mapper = MapLabelValue(orig_labels=orig_labels, target_labels=target_labels)
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.mapper(d[key])
+        return d
+
+
 IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
@@ -987,3 +1021,4 @@ ConvertToMultiChannelBasedOnBratsClassesD = (
 AddExtremePointsChannelD = AddExtremePointsChannelDict = AddExtremePointsChanneld
 TorchVisionD = TorchVisionDict = TorchVisiond
 RandLambdaD = RandLambdaDict = RandLambdad
+MapLabelValueD = MapLabelValueDict = MapLabelValued

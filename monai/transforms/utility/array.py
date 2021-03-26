@@ -57,6 +57,7 @@ __all__ = [
     "ConvertToMultiChannelBasedOnBratsClasses",
     "AddExtremePointsChannel",
     "TorchVision",
+    "MapLabelValue",
 ]
 
 
@@ -762,28 +763,30 @@ class TorchVision:
 
 class MapLabelValue:
     """
-    This is a wrapper transform for PyTorch TorchVision transform based on the specified transform name and args.
-    As most of the TorchVision transforms only work for PIL image and PyTorch Tensor, this transform expects input
-    data to be PyTorch Tensor, users can easily call `ToTensor` transform to convert a Numpy array to Tensor.
+    Utility to map label values to another set of values.
+    For example, map [3, 2, 1] to [0, 1, 2], [3, 5, 8] -> [1, 2, 3], etc.
 
     """
 
-    def __init__(self, name: str, *args, **kwargs) -> None:
+    def __init__(self, orig_labels: Sequence[str], target_labels: Sequence[str]) -> None:
         """
         Args:
-            name: The transform name in TorchVision package.
-            args: parameters for the TorchVision transform.
-            kwargs: parameters for the TorchVision transform.
+            orig_labels: original labels that map to others.
+            target_labels: expected label values, 1: 1 map to the `orig_labels`.
 
         """
-        super().__init__()
-        transform, _ = optional_import("torchvision.transforms", "0.8.0", min_version, name=name)
-        self.trans = transform(*args, **kwargs)
+        if len(orig_labels) != len(target_labels):
+            raise ValueError("orig_labels and target_labels must have the same length.")
+        self.orig_labels = orig_labels
+        self.target_labels = target_labels
 
-    def __call__(self, img: torch.Tensor):
-        """
-        Args:
-            img: PyTorch Tensor data for the TorchVision transform.
+    def __call__(self, img: np.ndarray):
+        img_flat = img.flatten()
+        out_flat = np.copy(img_flat)
 
-        """
-        return self.trans(img)
+        for o, t in zip(self.orig_labels, self.target_labels):
+            if o == t:
+                continue
+            np.place(out_flat, img_flat == o, t)
+
+        return out_flat.reshape(img.shape)
