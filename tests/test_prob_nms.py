@@ -80,7 +80,7 @@ TEST_CASES_3D = [
 ]
 
 
-class TestPixelNMS(unittest.TestCase):
+class TestProbNMS(unittest.TestCase):
     @parameterized.expand(
         [
             TEST_CASES_2D_1,

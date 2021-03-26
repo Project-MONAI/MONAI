@@ -10,3 +10,4 @@
 # limitations under the License.
 
 from .datasets import PatchWSIDataset, SmartCacheDataset
+from .utils import ProbNMS
