@@ -1563,7 +1563,7 @@ class Rand2DElastic(RandomizableTransform):
                 mode=InterpolateMode.BICUBIC.value,
                 align_corners=False,
             )
-            grid = CenterSpatialCrop(roi_size=sp_size)(np.asarray(grid[0]))
+            grid = CenterSpatialCrop(roi_size=sp_size)(grid[0])
         else:
             grid = create_grid(spatial_size=sp_size)
         return self.resampler(img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode)
