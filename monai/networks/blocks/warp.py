@@ -9,18 +9,16 @@ from monai.utils import GridSamplePadMode
 
 class Warp(nn.Module):
     """
-    Warp an image with given DDF.
+    Warp an image with given dense displacement field (DDF).
     """
 
     def __init__(
         self,
-        spatial_dims: int,
         mode: int = 1,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = GridSamplePadMode.ZEROS,
     ):
         """
         Args:
-            spatial_dims: {2, 3}. number of spatial dimensions
             mode: interpolation mode to calculate output values, defaults to 1.
                 Possible values are::
 
@@ -35,9 +33,6 @@ class Warp(nn.Module):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
         super(Warp, self).__init__()
-        if spatial_dims not in [2, 3]:
-            raise ValueError(f"got unsupported spatial_dims={spatial_dims}, only support 2-d and 3-d input")
-        self.spatial_dims = spatial_dims
         if mode < 0:
             raise ValueError(f"do not support negative mode, got mode={mode}")
         self.mode = mode
@@ -53,7 +48,7 @@ class Warp(nn.Module):
 
     @staticmethod
     def normalize_grid(grid: torch.Tensor) -> torch.Tensor:
-        # (batch, ..., self.spatial_dims)
+        # (batch, ..., spatial_dims)
         for i, dim in enumerate(grid.shape[1:-1]):
             grid[..., i] = grid[..., i] * 2 / (dim - 1) - 1
         return grid
@@ -67,21 +62,16 @@ class Warp(nn.Module):
         Returns:
             warped_image in the same shape as image (batch, num_channels, H, W[, D])
         """
-        if len(image.shape) != 2 + self.spatial_dims:
-            raise ValueError(f"expecting {self.spatial_dims + 2}-d input, " f"got input in shape {image.shape}")
-        if len(ddf.shape) != 2 + self.spatial_dims or ddf.shape[1] != self.spatial_dims:
+        spatial_dims = len(image.shape) - 2
+        if spatial_dims not in (2, 3):
+            raise NotImplementedError(f"got unsupported spatial_dims={spatial_dims}, currently support 2 or 3.")
+        ddf_shape = (image.shape[0], spatial_dims) + tuple(image.shape[2:])
+        if ddf.shape != ddf_shape:
             raise ValueError(
-                f"expecting {self.spatial_dims + 2}-d ddf with {self.spatial_dims} channels, "
-                f"got ddf in shape {ddf.shape}"
+                f"Given input {spatial_dims}-d image shape {image.shape}, " f"the input DDF shape must be {ddf_shape}."
             )
-        if image.shape[0] != ddf.shape[0] or image.shape[2:] != ddf.shape[2:]:
-            raise ValueError(
-                "expecting image and ddf of same batch size and spatial size, "
-                f"got image of shape {image.shape}, ddf of shape {ddf.shape}"
-            )
-
         grid = self.get_reference_grid(ddf) + ddf
-        grid = grid.permute([0] + list(range(2, 2 + self.spatial_dims)) + [1])  # (batch, ..., self.spatial_dims)
+        grid = grid.permute([0] + list(range(2, 2 + spatial_dims)) + [1])  # (batch, ..., spatial_dims)
 
         if self.mode > 1:
             raise ValueError(f"{self.mode}-order interpolation not yet implemented.")
@@ -103,7 +93,7 @@ class Warp(nn.Module):
             # )
         else:
             grid = self.normalize_grid(grid)
-            index_ordering: List[int] = list(range(self.spatial_dims - 1, -1, -1))
+            index_ordering: List[int] = list(range(spatial_dims - 1, -1, -1))
             grid = grid[..., index_ordering]  # z, y, x -> x, y, z
             _interp_mode = "bilinear" if self.mode == 1 else "nearest"
             warped_image = F.grid_sample(
@@ -125,7 +115,6 @@ class DVF2DDF(nn.Module):
 
     def __init__(
         self,
-        spatial_dims: int,
         num_steps: int = 7,
         mode: int = 1,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = GridSamplePadMode.ZEROS,
@@ -134,7 +123,7 @@ class DVF2DDF(nn.Module):
         if num_steps <= 0:
             raise ValueError(f"expecting positive num_steps, got {num_steps}")
         self.num_steps = num_steps
-        self.warp_layer = Warp(spatial_dims=spatial_dims, mode=mode, padding_mode=padding_mode)
+        self.warp_layer = Warp(mode=mode, padding_mode=padding_mode)
 
     def forward(self, dvf):
         """
@@ -142,7 +131,7 @@ class DVF2DDF(nn.Module):
             dvf: dvf to be transformed, in shape (batch, ``spatial_dims``, H, W[,D])
 
         Returns:
-
+            a dense displacement field
         """
         ddf: torch.Tensor = dvf / (2 ** self.num_steps)
         for _ in range(self.num_steps):
