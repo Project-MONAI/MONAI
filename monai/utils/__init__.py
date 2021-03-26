@@ -69,5 +69,6 @@ from .module import (
     min_version,
     optional_import,
 )
+from .prob_nms import ProbNMS
 from .profiling import PerfContext, torch_profiler_full, torch_profiler_time_cpu_gpu, torch_profiler_time_end_to_end
 from .state_cacher import StateCacher

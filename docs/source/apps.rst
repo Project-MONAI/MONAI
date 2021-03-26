@@ -71,3 +71,7 @@ Applications
     :members:
 .. autoclass:: SmartCachePatchWSIDataset
     :members:
+
+.. automodule:: monai.apps.pathology.utils
+.. autoclass:: PathologyProbNMS
+    :members:
