@@ -65,7 +65,7 @@ class TestGlobalNet(unittest.TestCase):
     @parameterized.expand(TEST_CASES_GLOBAL_NET)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = GlobalNet(**input_param).to(device)
-        warp_layer = Warp(spatial_dims=input_param.get("spatial_dims", 2))
+        warp_layer = Warp()
         with eval_mode(net):
             img = torch.randn(input_shape)
             result = net(img.to(device))
