@@ -572,8 +572,7 @@ class Affined(MapTransform, InvertibleTransform):
         d = dict(data)
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             orig_size = d[key].shape[1:]
-            d[key] = self.affine(d[key], mode=mode, padding_mode=padding_mode)
-            affine = self.affine.affine_grid.get_transformation_matrix()
+            d[key], affine = self.affine(d[key], mode=mode, padding_mode=padding_mode)
             self.push_transform(d, key, orig_size=orig_size, extra_info={"affine": affine})
         return d
 
@@ -588,7 +587,7 @@ class Affined(MapTransform, InvertibleTransform):
             inv_affine = np.linalg.inv(fwd_affine)
 
             affine_grid = AffineGrid(affine=inv_affine)
-            grid: torch.Tensor = affine_grid(orig_size)  # type: ignore
+            grid, _ = affine_grid(orig_size)  # type: ignore
 
             # Apply inverse transform
             out = self.affine.resampler(d[key], grid, mode, padding_mode)
@@ -698,7 +697,8 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             affine = self.rand_affine.rand_affine_grid.get_transformation_matrix()
         else:
             grid = create_grid(spatial_size=sp_size)
-            affine = torch.eye(len(sp_size) + 1)
+            # to be consistent with the self._do_transform case (dtype and device)
+            affine = torch.as_tensor(np.eye(len(sp_size) + 1), device=self.rand_affine.rand_affine_grid.device)
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             self.push_transform(d, key, extra_info={"affine": affine})
@@ -716,7 +716,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             inv_affine = np.linalg.inv(fwd_affine)
 
             affine_grid = AffineGrid(affine=inv_affine)
-            grid: torch.Tensor = affine_grid(orig_size)  # type: ignore
+            grid, _ = affine_grid(orig_size)  # type: ignore
 
             # Apply inverse transform
             out = self.rand_affine.resampler(d[key], grid, mode, padding_mode)

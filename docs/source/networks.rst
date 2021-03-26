@@ -20,6 +20,11 @@ Blocks
 .. autoclass:: Convolution
     :members:
 
+`CRF`
+~~~~~~~~~~~~~
+.. autoclass:: CRF
+    :members:
+
 `ResidualUnit`
 ~~~~~~~~~~~~~~
 .. autoclass:: ResidualUnit
@@ -388,6 +393,11 @@ Nets
 `Critic`
 ~~~~~~~~
 .. autoclass:: Critic
+  :members:
+
+`TorchVisionFullyConvModel`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TorchVisionFullyConvModel
   :members:
 
 Utilities
