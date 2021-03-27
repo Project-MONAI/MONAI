@@ -713,14 +713,6 @@ class WSIReader(ImageReader):
             grid_shape: (row, columns) tuple define a grid to extract patches on that
             patch_size: (heigsht, width) the size of extracted patches at the given level
         """
-        if size is None:
-            if location == (0, 0):
-                # the maximum size is set to WxH
-                size = (img.shape[0] // (2 ** level), img.shape[1] // (2 ** level))
-                print(f"Reading the whole image at level={level} with shape={size}")
-            else:
-                raise ValueError("Size need to be provided to extract the region!")
-
         region = self._extract_region(img, location=location, size=size, level=level, dtype=dtype)
 
         metadata: Dict = {}
@@ -740,19 +732,36 @@ class WSIReader(ImageReader):
     def _extract_region(
         self,
         img_obj,
-        size: Tuple[int, int],
+        size: Optional[Tuple[int, int]],
         location: Tuple[int, int] = (0, 0),
         level: int = 0,
         dtype: DtypeLike = np.uint8,
     ):
         # reverse the order of dimensions for size and location to be compatible with image shape
-        size = size[::-1]
         location = location[::-1]
-        region = img_obj.read_region(location=location, size=size, level=level)
+        if size is None:
+            region = img_obj.read_region(location=location, level=level)
+        else:
+            size = size[::-1]
+            region = img_obj.read_region(location=location, size=size, level=level)
+
+        region = self.convert_to_rgb_array(region, dtype)
+        return region
+
+    def convert_to_rgb_array(self, region, dtype):
+        """Convert to RGB mode and numpy array"""
         if self.reader_lib == "openslide":
+            # convert to RGB
             region = region.convert("RGB")
-        # convert to numpy
-        region = np.asarray(region, dtype=dtype)
+            # convert to numpy
+            region = np.asarray(region, dtype=dtype)
+        elif self.reader_lib == "cucim":
+            num_channels = len(region.channel_names)
+            # convert to numpy
+            region = np.asarray(region, dtype=dtype)
+            # remove alpha channel if exist (RGBA)
+            if num_channels > 3:
+                region = region[:, :, :3]
 
         return region
 
