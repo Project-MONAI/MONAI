@@ -266,7 +266,7 @@ class MaskedInferenceWSIDataset(Dataset):
             )
         return level_x, ratio_x
 
-    def _load_a_sample(self, index: int) -> Dict:
+    def _load_a_sample(self, index):
         """
         Load sample given the index
 
@@ -290,7 +290,7 @@ class MaskedInferenceWSIDataset(Dataset):
     def __len__(self):
         return self.total_num_patches
 
-    def __getitem__(self, index: int) -> List[Dict]:
+    def __getitem__(self, index):
         sample = [self._load_a_sample(index)]
         if self.transform:
             sample = self.transform(sample)
