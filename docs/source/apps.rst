@@ -72,6 +72,10 @@ Applications
 .. autoclass:: SmartCachePatchWSIDataset
     :members:
 
+.. automodule:: monai.apps.pathology.evaluate_froc
+.. autoclass:: PathologyEvalFROC
+    :members:
+
 .. automodule:: monai.apps.pathology.utils
 .. autoclass:: PathologyProbNMS
     :members:

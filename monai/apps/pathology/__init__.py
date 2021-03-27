@@ -10,4 +10,5 @@
 # limitations under the License.
 
 from .datasets import PatchWSIDataset, SmartCacheDataset
+from .evaluate_froc import PathologyEvalFROC
 from .utils import ProbNMS
