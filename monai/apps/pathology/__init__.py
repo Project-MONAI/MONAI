@@ -9,5 +9,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .datasets import PatchWSIDataset, SmartCacheDataset, MaskedInferenceWSIDataset
+from .datasets import MaskedInferenceWSIDataset, PatchWSIDataset, SmartCacheDataset
 from .utils import ProbNMS
