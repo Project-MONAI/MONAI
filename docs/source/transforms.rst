@@ -551,6 +551,12 @@ Utility
     :members:
     :special-members: __call__
 
+`MapLabelValue`
+"""""""""""""""
+.. autoclass:: MapLabelValue
+    :members:
+    :special-members: __call__
+
 Dictionary Transforms
 ---------------------
 
@@ -1049,6 +1055,12 @@ Utility (Dict)
 `TorchVisiond`
 """"""""""""""
 .. autoclass:: TorchVisiond
+    :members:
+    :special-members: __call__
+
+`MapLabelValued`
+""""""""""""""""
+.. autoclass:: MapLabelValued
     :members:
     :special-members: __call__
 
