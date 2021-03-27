@@ -99,7 +99,10 @@ class PatchWSIDataset(Dataset):
             grid_shape=self.grid_shape,
             patch_size=self.patch_size,
         )
-        labels = np.array(sample["label"], dtype=np.float32)[:, np.newaxis, np.newaxis]
+        labels = np.array(sample["label"], dtype=np.float32)
+        # expand dimensions to have 4 dimension as batch, class, height, and width.
+        for _ in range(4 - labels.ndim):
+            labels = np.expand_dims(labels, 1)
         patches = [{"image": images[i], "label": labels[i]} for i in range(len(sample["label"]))]
         if self.transform:
             patches = self.transform(patches)
@@ -155,4 +158,5 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
             num_init_workers=num_init_workers,
             num_replace_workers=num_replace_workers,
             progress=progress,
+            shuffle=False,
         )

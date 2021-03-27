@@ -246,14 +246,14 @@ class SpatialCrop(Transform):
         self.roi_start = self.roi_start if isinstance(self.roi_start, np.ndarray) else np.array([self.roi_start])
         self.roi_end = self.roi_end if isinstance(self.roi_end, np.ndarray) else np.array([self.roi_end])
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> np.ndarray:
+    def __call__(self, img: Union[np.ndarray, torch.Tensor]):
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
         """
         sd = min(self.roi_start.size, self.roi_end.size, len(img.shape[1:]))  # spatial dims
         slices = [slice(None)] + [slice(s, e) for s, e in zip(self.roi_start[:sd], self.roi_end[:sd])]
-        return np.asarray(img[tuple(slices)])
+        return img[tuple(slices)]
 
 
 class CenterSpatialCrop(Transform):
