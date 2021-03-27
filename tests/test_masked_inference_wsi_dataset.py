@@ -207,8 +207,7 @@ class TestMaskedInferenceWSIDataset(unittest.TestCase):
     def test_read_patches_cucim(self, file_url, input_parameters, expected):
         self.camelyon_data_download(file_url)
         dataset = MaskedInferenceWSIDataset(**input_parameters)
-        samples = list(dataset)
-        self.compare_samples_expected(samples, expected)
+        self.compare_samples_expected(dataset, expected)
 
     @parameterized.expand(
         [
@@ -221,8 +220,7 @@ class TestMaskedInferenceWSIDataset(unittest.TestCase):
     def test_read_patches_openslide(self, file_url, input_parameters, expected):
         self.camelyon_data_download(file_url)
         dataset = MaskedInferenceWSIDataset(**input_parameters)
-        samples = list(dataset)
-        self.compare_samples_expected(samples, expected)
+        self.compare_samples_expected(dataset, expected)
 
     def camelyon_data_download(self, file_url):
         filename = os.path.basename(file_url)
@@ -231,12 +229,12 @@ class TestMaskedInferenceWSIDataset(unittest.TestCase):
             request.urlretrieve(file_url, filename)
         return filename
 
-    def compare_samples_expected(self, samples, expected):
-        for i in range(len(samples)):
-            self.assertTupleEqual(samples[i]["image"].shape, expected[i]["image"].shape)
-            self.assertIsNone(assert_array_equal(samples[i]["image"], expected[i]["image"]))
-            self.assertEqual(samples[i]["name"], expected[i]["name"])
-            self.assertListEqual(samples[i]["mask_location"], expected[i]["mask_location"])
+    def compare_samples_expected(self, dataset, expected):
+        for i in range(len(dataset)):
+            self.assertTupleEqual(dataset[i]["image"].shape, expected[i]["image"].shape)
+            self.assertIsNone(assert_array_equal(dataset[i]["image"], expected[i]["image"]))
+            self.assertEqual(dataset[i]["name"], expected[i]["name"])
+            self.assertListEqual(dataset[i]["mask_location"], expected[i]["mask_location"])
 
 
 if __name__ == "__main__":
