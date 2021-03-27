@@ -57,6 +57,7 @@ __all__ = [
     "ConvertToMultiChannelBasedOnBratsClasses",
     "AddExtremePointsChannel",
     "TorchVision",
+    "MapLabelValue",
 ]
 
 
@@ -758,3 +759,43 @@ class TorchVision:
 
         """
         return self.trans(img)
+
+
+class MapLabelValue:
+    """
+    Utility to map label values to another set of values.
+    For example, map [3, 2, 1] to [0, 1, 2], [1, 2, 3] -> [0.5, 1.5, 2.5], ["label3", "label2", "label1"] -> [0, 1, 2],
+    [3.5, 2.5, 1.5] -> ["label0", "label1", "label2"], etc.
+    The label data must be numpy array or array-like data and the output data will be numpy array.
+
+    """
+
+    def __init__(self, orig_labels: Sequence, target_labels: Sequence, dtype: DtypeLike = np.float32) -> None:
+        """
+        Args:
+            orig_labels: original labels that map to others.
+            target_labels: expected label values, 1: 1 map to the `orig_labels`.
+            dtype: convert the output data to dtype, default to float32.
+
+        """
+        if len(orig_labels) != len(target_labels):
+            raise ValueError("orig_labels and target_labels must have the same length.")
+        self.orig_labels = orig_labels
+        self.target_labels = target_labels
+        self.dtype = dtype
+
+    def __call__(self, img: np.ndarray):
+        img = np.asarray(img)
+        img_flat = img.flatten()
+        try:
+            out_flat = np.copy(img_flat).astype(self.dtype)
+        except ValueError:
+            # can't copy unchanged labels as the expected dtype is not supported, must map all the label values
+            out_flat = np.zeros(shape=img_flat.shape, dtype=self.dtype)
+
+        for o, t in zip(self.orig_labels, self.target_labels):
+            if o == t:
+                continue
+            np.place(out_flat, img_flat == o, t)
+
+        return out_flat.reshape(img.shape)
