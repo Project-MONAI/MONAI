@@ -164,6 +164,7 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
             num_init_workers=num_init_workers,
             num_replace_workers=num_replace_workers,
             progress=progress,
+            shuffle=False,
         )
 
 
