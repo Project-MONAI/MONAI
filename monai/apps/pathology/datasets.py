@@ -204,6 +204,7 @@ class MaskedInferenceWSIDataset(Dataset):
         # calculate cummulative number of patches for all whole slide images
         self.cum_num_patches = np.cumsum([0] + [len(d["image_locations"]) for d in self.data_list])
         self.total_num_patches = self.cum_num_patches[-1]
+        self.cum_num_patches = self.cum_num_patches[:-1]
 
     def _create_data_list(self, data: List[Dict]) -> List[Dict]:
         data_list = []
@@ -276,6 +277,7 @@ class MaskedInferenceWSIDataset(Dataset):
         patch_num = index - self.cum_num_patches[sample_num]
         image_location = sample["image_locations"][patch_num]
         mask_location = sample["mask_locations"][patch_num]
+
         image, _ = self.image_reader.get_data(
             img=sample["image"],
             location=image_location,
