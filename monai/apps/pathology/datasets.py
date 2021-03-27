@@ -290,11 +290,8 @@ class MaskedInferenceWSIDataset(Dataset):
     def __len__(self):
         return self.total_num_patches
 
-    def __getitem__(self, index):
-        try:
-            sample = self._load_a_sample(index)
-        except IndexError:
-            raise
+    def __getitem__(self, index: int) -> Dict:
+        sample = self._load_a_sample(index)
         if self.transform:
             sample = self.transform(sample)
         return sample
