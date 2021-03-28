@@ -11,14 +11,14 @@
 
 import json
 import os
-from typing import Optional, Tuple, List, Dict
+from typing import Union, Dict, List, Optional, Tuple
 
 import numpy as np
 
+from monai.apps.pathology.utils import PathologyProbNMS
 from monai.data.image_reader import WSIReader
 from monai.metrics import compute_fp_tp_probs, compute_froc_curve_data, compute_froc_score
 from monai.utils import optional_import
-from monai.apps.pathology.utils import PathologyProbNMS
 
 measure, _ = optional_import("skimage.measure")
 ndimage, _ = optional_import("scipy.ndimage")
@@ -29,13 +29,13 @@ class EvaluateTumorFROC:
     Evaluate with Free Response Operating Characteristic (FROC) score.
 
     Args:
-        data: either the list of dictionaries containg probability maps (inference result) and 
+        data: either the list of dictionaries containg probability maps (inference result) and
             tumor mask (ground truth), as below, or the path to a json file containing such list.
             ```
             [
                 {
-                    "prob_map": "path/to/prob1.npy",
-                    "tumor_mask": "path/to/image1.tiff",
+                    "prob_map": "path/to/prob_map_1.npy",
+                    "tumor_mask": "path/to/ground_truth_1.tiff",
                     "level": 6,
                     "pixel_spacing": 0.243
                 },
@@ -54,7 +54,7 @@ class EvaluateTumorFROC:
 
     def __init__(
         self,
-        data: Union(List[Dict], str),
+        data: Union[List[Dict], str],
         grow_distance: int = 75,
         itc_diameter: int = 200,
         eval_thresholds: Tuple = (0.25, 0.5, 1, 2, 4, 8),
@@ -92,7 +92,10 @@ class EvaluateTumorFROC:
         nms_outputs = self.nms(probs_map=prob_map, resolution_level=sample["level"])
 
         # separate nms outputs
-        probs, x_coord, y_coord = zip(*nms_outputs)
+        if nms_outputs:
+            probs, x_coord, y_coord = zip(*nms_outputs)
+        else:
+            probs, x_coord, y_coord = [], [], []
 
         return np.array(probs), np.array(x_coord), np.array(y_coord)
 
@@ -103,20 +106,21 @@ class EvaluateTumorFROC:
         """
         # load binary tumor masks
         img_obj = self.image_reader.read(sample["tumor_mask"])
-        tumor_mask = img_obj.get_data(level=sample["level"])[:, :, 0]
-
+        
+        tumor_mask = self.image_reader.get_data(img_obj, level=sample["level"])[0][0]
+        print('> ', tumor_mask.shape, '|', tumor_mask.min(), '|', tumor_mask.max())
         # calcualte pixel spacing at the mask level
         mask_pixel_spacing = sample["pixel_spacing"] * pow(2, sample["level"])
 
         # compute multi-instance mask from a binary mask
-        fill_hole_threshold = self.grow_distance / (mask_pixel_spacing * 2)
-        tumor_mask = self.compute_multi_instance_mask(mask=tumor_mask, threshold=fill_hole_threshold)
+        grow_pixel_threshold = self.grow_distance / (mask_pixel_spacing * 2)
+        tumor_mask = self.compute_multi_instance_mask(mask=tumor_mask, threshold=grow_pixel_threshold)
 
         # identify isolated tumor cells
         itc_threshold = (self.itc_diameter + self.grow_distance) / mask_pixel_spacing
         itc_labels = self.compute_isolated_tumor_cells(tumor_mask=tumor_mask, threshold=itc_threshold)
 
-        return ground_truth, itc_labels
+        return tumor_mask, itc_labels
 
     def compute_fp_tp(self):
         """
@@ -129,9 +133,8 @@ class EvaluateTumorFROC:
         num_images = len(self.data)
 
         for sample in self.data:
-            probs, x_coord, y_coord = self.prepare_inference_result(sample)
+            probs, y_coord, x_coord = self.prepare_inference_result(sample)
             ground_truth, itc_labels = self.prepare_ground_truth(sample)
-
             # compute FP and TP probabilities for a pair of an image and an ground truth mask
             fp_probs, tp_probs, num_targets = compute_fp_tp_probs(
                 probs=probs,
@@ -185,7 +188,8 @@ class EvaluateTumorFROC:
             mask: the binary mask array
             threshold: the threashold to fill holes
         """
-        assert 0.0 <= ms.max() <= 1.0
+        # make sure it is between 0 and 1
+        assert 0 <= mask.max() <= 1, "The input mask should be a binary mask!"
         neg = 255 - mask * 255
         distance = ndimage.morphology.distance_transform_edt(neg)
         binary = distance < threshold
