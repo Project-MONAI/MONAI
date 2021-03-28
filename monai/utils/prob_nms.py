@@ -23,7 +23,7 @@ class ProbNMS:
             the highest probability is no larger than the threshold. The value should be
             no less than 0.0. Defaults to 0.5.
         box_size: the box size (in pixel) to be removed around the the pixel with the maximum probability.
-            It can an integer that defines the size of a square or cube, 
+            It can an integer that defines the size of a square or cube,
             or a list containing different values for each dimensions. Defaults to 48.
 
     Return:
