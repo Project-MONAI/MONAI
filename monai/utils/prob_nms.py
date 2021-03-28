@@ -22,8 +22,9 @@ class ProbNMS:
         prob_threshold: the probability threshold, the function will stop searching if
             the highest probability is no larger than the threshold. The value should be
             no less than 0.0. Defaults to 0.5.
-        box_size: determines the sizes of the removing area of the selected coordinates for
-            each dimensions. Defaults to 48.
+        box_size: the box size (in pixel) to be removed around the the pixel with the maximum probability.
+            It can an integer that defines the size of a square or cube, 
+            or a list containing different values for each dimensions. Defaults to 48.
 
     Return:
         a list of selected lists, where inner lists contain probability and coordinates.
