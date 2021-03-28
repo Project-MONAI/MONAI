@@ -10,4 +10,5 @@
 # limitations under the License.
 
 from .datasets import MaskedInferenceWSIDataset, PatchWSIDataset, SmartCacheDataset
+from .evaluators import EvaluateTumorFROC
 from .utils import ProbNMS

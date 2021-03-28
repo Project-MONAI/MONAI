@@ -77,3 +77,7 @@ Applications
 .. automodule:: monai.apps.pathology.utils
 .. autoclass:: PathologyProbNMS
     :members:
+
+.. automodule:: monai.apps.pathology.evaluators
+.. autoclass:: EvaluateTumorFROC
+    :members:

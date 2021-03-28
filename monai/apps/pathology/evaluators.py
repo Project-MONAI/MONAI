@@ -24,7 +24,7 @@ measure, _ = optional_import("skimage.measure")
 ndimage, _ = optional_import("scipy.ndimage")
 
 
-class PathologyEvalFROC:
+class EvaluateTumorFROC:
     """
     Evaluate with Free Response Operating Characteristic (FROC) score.
 
