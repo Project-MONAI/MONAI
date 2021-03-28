@@ -10,8 +10,7 @@
 # limitations under the License.
 
 import json
-import os
-from typing import Union, Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple, Union
 
 import numpy as np
 
@@ -106,9 +105,8 @@ class EvaluateTumorFROC:
         """
         # load binary tumor masks
         img_obj = self.image_reader.read(sample["tumor_mask"])
-        
         tumor_mask = self.image_reader.get_data(img_obj, level=sample["level"])[0][0]
-        print('> ', tumor_mask.shape, '|', tumor_mask.min(), '|', tumor_mask.max())
+
         # calcualte pixel spacing at the mask level
         mask_pixel_spacing = sample["pixel_spacing"] * pow(2, sample["level"])
 
