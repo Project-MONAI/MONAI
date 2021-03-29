@@ -206,7 +206,7 @@ class EvaluateTumorFROC:
             threshold: the threshold (at the mask level) to define an isolated tumor cell (ITC).
                 A region with the longest diameter less than this threshold is considered as an ITC.
         """
-        max_label: int = np.amax(tumor_mask)
+        max_label = np.amax(tumor_mask) # type: ignore
         properties = measure.regionprops(tumor_mask, coordinates="rc")
         itc_list = []
         for i in range(max_label):
