@@ -98,7 +98,7 @@ class TestDataset(unittest.TestCase):
             dataset_postcached = PersistentDataset(data=test_data, transform=transform, cache_dir=cache_dir)
             data1_postcached = dataset_postcached[0]
             data2_postcached = dataset_postcached[1]
-            data3_postcached = dataset_postcached[0: 2]
+            data3_postcached = dataset_postcached[0:2]
 
             if transform is None:
                 self.assertEqual(data1_precached["image"], os.path.join(tempdir, "test_image1.nii.gz"))
