@@ -19,13 +19,15 @@ import warnings
 from copy import deepcopy
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence, Union
+from typing import IO, TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Union
 
+import numpy as np
 import torch
 from torch.utils.data import Dataset as _TorchDataset
 
-from monai.data.utils import pickle_hashing
+from monai.data.utils import first, pickle_hashing
 from monai.transforms import Compose, Randomizable, Transform, apply_transform
+from monai.transforms.transform import RandomizableTransform
 from monai.utils import MAX_SEED, get_seed, min_version, optional_import
 
 if TYPE_CHECKING:
@@ -51,16 +53,15 @@ class Dataset(_TorchDataset):
          },                           },                           }]
     """
 
-    def __init__(self, data: Sequence, transform: Optional[Callable] = None, progress: bool = True) -> None:
+    def __init__(self, data: Sequence, transform: Optional[Callable] = None) -> None:
         """
         Args:
             data: input data to load and transform to generate dataset for model.
             transform: a callable data transform on input data.
-            progress: whether to display a progress bar.
+
         """
         self.data = data
         self.transform = transform
-        self.progress = progress
 
     def __len__(self) -> int:
         return len(self.data)
@@ -117,7 +118,6 @@ class PersistentDataset(Dataset):
         transform: Union[Sequence[Callable], Callable],
         cache_dir: Optional[Union[Path, str]] = None,
         hash_func: Callable[..., bytes] = pickle_hashing,
-        progress: bool = True,
     ) -> None:
         """
         Args:
@@ -132,11 +132,11 @@ class PersistentDataset(Dataset):
                 If the cache_dir doesn't exist, will automatically create it.
             hash_func: a callable to compute hash from data items to be cached.
                 defaults to `monai.data.utils.pickle_hashing`.
-            progress: whether to display a progress bar.
+
         """
         if not isinstance(transform, Compose):
             transform = Compose(transform)
-        super().__init__(data=data, transform=transform, progress=progress)
+        super().__init__(data=data, transform=transform)
         self.cache_dir = Path(cache_dir) if cache_dir is not None else None
         self.hash_func = hash_func
         if self.cache_dir is not None:
@@ -161,7 +161,7 @@ class PersistentDataset(Dataset):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
         for _transform in self.transform.transforms:
             # execute all the deterministic transforms
-            if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
+            if isinstance(_transform, RandomizableTransform) or not isinstance(_transform, Transform):
                 break
             item_transformed = apply_transform(_transform, item_transformed)
         return item_transformed
@@ -183,7 +183,7 @@ class PersistentDataset(Dataset):
         for _transform in self.transform.transforms:
             if (
                 start_post_randomize_run
-                or isinstance(_transform, Randomizable)
+                or isinstance(_transform, RandomizableTransform)
                 or not isinstance(_transform, Transform)
             ):
                 start_post_randomize_run = True
@@ -349,7 +349,8 @@ class LMDBDataset(PersistentDataset):
             lmdb_kwargs: additional keyword arguments to the lmdb environment.
                 for more details please visit: https://lmdb.readthedocs.io/en/release/#environment-class
         """
-        super().__init__(data=data, transform=transform, cache_dir=cache_dir, hash_func=hash_func, progress=progress)
+        super().__init__(data=data, transform=transform, cache_dir=cache_dir, hash_func=hash_func)
+        self.progress = progress
         if not self.cache_dir:
             raise ValueError("cache_dir must be specified.")
         self.db_file = self.cache_dir / f"{db_name}.lmdb"
@@ -489,7 +490,8 @@ class CacheDataset(Dataset):
         """
         if not isinstance(transform, Compose):
             transform = Compose(transform)
-        super().__init__(data=data, transform=transform, progress=progress)
+        super().__init__(data=data, transform=transform)
+        self.progress = progress
         self.cache_num = min(int(cache_num), int(len(data) * cache_rate), len(data))
         self.num_workers = num_workers
         if self.num_workers is not None:
@@ -522,7 +524,7 @@ class CacheDataset(Dataset):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
         for _transform in self.transform.transforms:
             # execute all the deterministic transforms
-            if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
+            if isinstance(_transform, RandomizableTransform) or not isinstance(_transform, Transform):
                 break
             item = apply_transform(_transform, item)
         return item
@@ -539,13 +541,13 @@ class CacheDataset(Dataset):
         if not isinstance(self.transform, Compose):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
         for _transform in self.transform.transforms:
-            if start_run or isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
+            if start_run or isinstance(_transform, RandomizableTransform) or not isinstance(_transform, Transform):
                 start_run = True
                 data = apply_transform(_transform, data)
         return data
 
 
-class SmartCacheDataset(CacheDataset):
+class SmartCacheDataset(Randomizable, CacheDataset):
     """
     Re-implementation of the SmartCache mechanism in NVIDIA Clara-train SDK.
     At any time, the cache pool only keeps a subset of the whole dataset. In each epoch, only the items
@@ -580,6 +582,24 @@ class SmartCacheDataset(CacheDataset):
         This replacement will not work if setting the `multiprocessing_context` of DataLoader to `spawn`
         or on windows(the default multiprocessing method is `spawn`) and setting `num_workers` greater than 0.
 
+        If using MONAI workflows, please add `SmartCacheHandler` to the handler list of trainer,
+        otherwise, please make sure to call `start()`, `update_cache()`, `shutdown()` during training.
+
+    Args:
+        data: input data to load and transform to generate dataset for model.
+        transform: transforms to execute operations on input data.
+        replace_rate: percentage of the cached items to be replaced in every epoch.
+        cache_num: number of items to be cached. Default is `sys.maxsize`.
+            will take the minimum of (cache_num, data_length x cache_rate, data_length).
+        cache_rate: percentage of cached data in total, default is 1.0 (cache all).
+            will take the minimum of (cache_num, data_length x cache_rate, data_length).
+        num_init_workers: the number of worker threads to initialize the cache for first epoch.
+            If num_init_workers is None then the number returned by os.cpu_count() is used.
+        num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
+            If num_replace_workers is None then the number returned by os.cpu_count() is used.
+        progress: whether to display a progress bar when caching for the first epoch.
+        shuffle: whether to shuffle the whole data list before preparing the cache content for first epoch.
+        seed: random seed if shuffle is `True`, default to `0`.
     """
 
     def __init__(
@@ -590,30 +610,26 @@ class SmartCacheDataset(CacheDataset):
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_init_workers: Optional[int] = None,
-        num_replace_workers: int = 0,
+        num_replace_workers: Optional[int] = None,
+        progress: bool = True,
+        shuffle: bool = True,
+        seed: int = 0,
     ) -> None:
-        """
-        Args:
-            data: input data to load and transform to generate dataset for model.
-            transform: transforms to execute operations on input data.
-            replace_rate: percentage of the cached items to be replaced in every epoch.
-            cache_num: number of items to be cached. Default is `sys.maxsize`.
-                will take the minimum of (cache_num, data_length x cache_rate, data_length).
-            cache_rate: percentage of cached data in total, default is 1.0 (cache all).
-                will take the minimum of (cache_num, data_length x cache_rate, data_length).
-            num_init_workers: the number of worker threads to initialize the cache for first epoch.
-                If num_init_workers is None then the number returned by os.cpu_count() is used.
-            num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
-                if 0, run in main thread, no separate thread will open.
-        """
-        super().__init__(data, transform, cache_num, cache_rate, num_init_workers)
+        if shuffle:
+            self.set_random_state(seed=seed)
+            self.randomize(data)
+
+        super().__init__(data, transform, cache_num, cache_rate, num_init_workers, progress)
         if self._cache is None:
             self._cache = self._fill_cache()
         if self.cache_num >= len(data):
             warnings.warn("cache_num is greater or equal than dataset length, fall back to regular CacheDataset.")
         if replace_rate <= 0:
             raise ValueError("replace_rate must be greater than 0, otherwise, please use CacheDataset.")
-        self.num_replace_workers: int = num_replace_workers
+
+        self.num_replace_workers: Optional[int] = num_replace_workers
+        if self.num_replace_workers is not None:
+            self.num_replace_workers = max(int(self.num_replace_workers), 1)
 
         self._total_num: int = len(data)
         self._replace_num: int = min(math.ceil(self.cache_num * replace_rate), len(data) - self.cache_num)
@@ -627,6 +643,12 @@ class SmartCacheDataset(CacheDataset):
         self._replace_mgr: Optional[threading.Thread] = None
 
         self._compute_data_idx()
+
+    def randomize(self, data: Sequence) -> None:
+        try:
+            self.R.shuffle(data)
+        except TypeError as e:
+            warnings.warn(f"input data can't be shuffled in SmartCacheDataset with numpy.random.shuffle(): {e}.")
 
     def _compute_data_idx(self):
         """
@@ -743,12 +765,9 @@ class SmartCacheDataset(CacheDataset):
         It can support multi-threads to accelerate the computation progress.
 
         """
-        if self.num_replace_workers > 0:
-            with ThreadPool(self.num_replace_workers) as p:
-                p.map(self._replace_cache_thread, list(range(self._replace_num)))
-        else:
-            for i in range(self._replace_num):
-                self._replace_cache_thread(i)
+        with ThreadPool(self.num_replace_workers) as p:
+            p.map(self._replace_cache_thread, list(range(self._replace_num)))
+
         self._replace_done = True
 
     def _try_manage_replacement(self, check_round):
@@ -921,9 +940,59 @@ class ArrayDataset(Randomizable, _TorchDataset):
             # set transforms of each zip component
             for dataset in self.dataset.data:
                 transform = getattr(dataset, "transform", None)
-                if isinstance(transform, Randomizable):
+                if isinstance(transform, RandomizableTransform):
                     transform.set_random_state(seed=self._seed)
         transform = getattr(self.dataset, "transform", None)
-        if isinstance(transform, Randomizable):
+        if isinstance(transform, RandomizableTransform):
             transform.set_random_state(seed=self._seed)
         return self.dataset[index]
+
+
+class NPZDictItemDataset(Dataset):
+    """
+    Represents a dataset from a loaded NPZ file. The members of the file to load are named in the keys of `keys` and
+    stored under the keyed name. All loaded arrays must have the same 0-dimension (batch) size. Items are always dicts
+    mapping names to an item extracted from the loaded arrays.
+
+    Args:
+        npzfile: Path to .npz file or stream containing .npz file data
+        keys: Maps keys to load from file to name to store in dataset
+        transform: Transform to apply to batch dict
+        other_keys: secondary data to load from file and store in dict `other_keys`, not returned by __getitem__
+    """
+
+    def __init__(
+        self,
+        npzfile: Union[str, IO],
+        keys: Dict[str, str],
+        transform: Optional[Callable] = None,
+        other_keys: Optional[Sequence[str]] = (),
+    ):
+        self.npzfile: Union[str, IO] = npzfile if isinstance(npzfile, str) else "STREAM"
+        self.keys: Dict[str, str] = dict(keys)
+        dat = np.load(npzfile)
+
+        self.arrays = {storedk: dat[datak] for datak, storedk in self.keys.items()}
+        self.length = self.arrays[first(self.keys.values())].shape[0]
+
+        self.other_keys = {} if other_keys is None else {k: dat[k] for k in other_keys}
+
+        for k, v in self.arrays.items():
+            if v.shape[0] != self.length:
+                raise ValueError(
+                    "All loaded arrays must have the same first dimension "
+                    f"size {self.length}, array `{k}` has size {v.shape[0]}"
+                )
+
+        super().__init__([], transform)
+
+    def __len__(self):
+        return self.length
+
+    def __getitem__(self, index: int):
+        data = {k: v[index] for k, v in self.arrays.items()}
+
+        if self.transform is not None:
+            data = apply_transform(self.transform, data)
+
+        return data
