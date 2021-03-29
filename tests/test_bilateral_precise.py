@@ -376,7 +376,7 @@ class BilateralFilterTestCaseCpuPrecise(unittest.TestCase):
 
         # Ensure result are as expected
         np.testing.assert_allclose(output, expected, atol=1e-5)
-        
+
     @parameterized.expand(TEST_CASES)
     def test_cpu_precise_backwards(self, test_case_description, sigmas, input, expected):
 
