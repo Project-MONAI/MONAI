@@ -42,7 +42,7 @@ class PatchWSIDataset(Dataset):
 
         This means from "image1.tiff" extract a region centered at the given location `location`
         with the size of `region_size`, and then extract patches with the size of `patch_size`
-        from a square grid with the shape of `grid_shape`.
+        from a grid with the shape of `grid_shape`.
         Be aware the the `grid_shape` should construct a grid with the same number of element as `labels`,
         so for this example the `grid_shape` should be (2, 2).
 
@@ -53,7 +53,7 @@ class PatchWSIDataset(Dataset):
         data: List,
         region_size: Union[int, Tuple[int, int]],
         grid_shape: Union[int, Tuple[int, int]],
-        patch_size: int,
+        patch_size: Union[int, Tuple[int]],
         transform: Optional[Callable] = None,
         image_reader_name: str = "cuCIM",
     ):
@@ -61,7 +61,7 @@ class PatchWSIDataset(Dataset):
 
         self.region_size = ensure_tuple_rep(region_size, 2)
         self.grid_shape = ensure_tuple_rep(grid_shape, 2)
-        self.patch_size = patch_size
+        self.patch_size = ensure_tuple_rep(patch_size, 2)
 
         self.image_path_list = list({x["image"] for x in self.data})
         self.image_reader_name = image_reader_name
@@ -191,7 +191,7 @@ class MaskedInferenceWSIDataset(Dataset):
         # process data and create a list of dictionaries containing all required data and metadata
         self.data_list = self._create_data_list(data)
 
-        # calculate cummulative number of patches for all whole slide images
+        # calculate cumulative number of patches for all whole slide images
         self.cum_num_patches = np.cumsum([0] + [len(d["image_locations"]) for d in self.data_list])
         self.total_num_patches = self.cum_num_patches[-1]
         self.cum_num_patches = self.cum_num_patches[:-1]
