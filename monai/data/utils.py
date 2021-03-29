@@ -15,7 +15,7 @@ import math
 import os
 import pickle
 import warnings
-from collections import defaultdict
+from collections import defaultdict, abc
 from itertools import product, starmap
 from pathlib import PurePath
 from typing import Any, Dict, Generator, Iterable, List, Optional, Sequence, Tuple, Union
@@ -254,10 +254,20 @@ def list_data_collate(batch: Sequence):
     elem = batch[0]
     data = [i for k in batch for i in k] if isinstance(elem, list) else batch
     try:
+        elem = batch[0]
+        key = None
+        if isinstance(elem, abc.Mapping):
+            ret = {}
+            for k in elem:
+                key = k
+                ret[k] = default_collate([d[k] for d in data])
+            return ret
         return default_collate(data)
     except RuntimeError as re:
         re_str = str(re)
         if "equal size" in re_str:
+            if key is not None:
+                re_str += f"\nCollate error on the key '{key}' of dictionary data."
             re_str += (
                 "\n\nMONAI hint: if your transforms intentionally create images of different shapes, creating your "
                 + "`DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem (check its "
@@ -267,6 +277,8 @@ def list_data_collate(batch: Sequence):
     except TypeError as re:
         re_str = str(re)
         if "numpy" in re_str and "Tensor" in re_str:
+            if key is not None:
+                re_str += f"\nCollate error on the key '{key}' of dictionary data."
             re_str += (
                 "\n\nMONAI hint: if your transforms intentionally create mixtures of torch Tensor and numpy ndarray, "
                 + "creating your `DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem "
