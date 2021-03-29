@@ -7,8 +7,8 @@ from numpy.testing import assert_array_equal
 from parameterized import parameterized
 
 from monai.apps.pathology.datasets import PatchWSIDataset
+from monai.apps.utils import download_url
 from monai.utils import optional_import
-from tests.utils import download_if_not_exist
 
 _, has_cim = optional_import("cucim")
 _, has_osl = optional_import("openslide")
@@ -111,7 +111,7 @@ TEST_CASE_OPENSLIDE_1 = [
 
 class TestPatchWSIDataset(unittest.TestCase):
     def setUp(self):
-        download_if_not_exist(FILE_URL, FILE_PATH)
+        download_url(FILE_URL, FILE_PATH, '5a3cfd4fd725c50578ddb80b517b759f')
 
     @parameterized.expand(
         [

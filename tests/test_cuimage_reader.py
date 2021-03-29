@@ -6,9 +6,9 @@ import numpy as np
 from numpy.testing import assert_array_equal
 from parameterized import parameterized
 
+from monai.apps.utils import download_url
 from monai.data.image_reader import WSIReader
 from monai.utils import optional_import
-from tests.utils import download_if_not_exist
 
 _, has_cim = optional_import("cucim")
 
@@ -66,7 +66,7 @@ TEST_CASE_4 = [
 class TestCuCIMReader(unittest.TestCase):
     @skipUnless(has_cim, "Requires CuCIM")
     def setUp(self):
-        download_if_not_exist(FILE_URL, FILE_PATH)
+        download_url(FILE_URL, FILE_PATH, '5a3cfd4fd725c50578ddb80b517b759f')
 
     @parameterized.expand([TEST_CASE_0])
     def test_read_whole_image(self, file_path, expected_shape):
