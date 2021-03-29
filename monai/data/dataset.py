@@ -71,7 +71,7 @@ class Dataset(_TorchDataset):
     def _transform(self, index: int):
         return apply_transform(self.transform, self.data[index]) if self.transform is not None else self.data[index]
 
-    def __getitem__(self, index: Union[int, slice]):
+    def __getitem__(self, index: int):
         if isinstance(index, slice):
             start, stop, step = index.indices(len(self))
             index_list = list(range(start, stop, step))
