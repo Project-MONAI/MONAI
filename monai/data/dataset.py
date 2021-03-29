@@ -10,6 +10,7 @@
 # limitations under the License.
 
 
+import collections.abc
 import math
 import pickle
 import sys
@@ -71,15 +72,24 @@ class Dataset(_TorchDataset):
         return len(self.data)
 
     def _transform(self, index: int):
+        """
+        Fetch single data item from `self.data`.
+        """
         return apply_transform(self.transform, self.data[index]) if self.transform is not None else self.data[index]
 
-    def __getitem__(self, index: Union[int, slice]):
+    def __getitem__(self, index: Union[int, slice, Sequence[int]]):
+        """
+        Returns a `Subset` if `index` is a slice or Sequence, a data item otherwise.
+        """
         if isinstance(index, slice):
+            # dataset[:42]
             start, stop, step = index.indices(len(self))
-            indices = list(range(start, stop, step))
+            indices = range(start, stop, step)
             return Subset(dataset=self, indices=indices)
-        else:
-            return self._transform(index)
+        if isinstance(index, collections.abc.Sequence):
+            # dataset[[1, 3, 4]]
+            return Subset(dataset=self, indices=index)
+        return self._transform(index)
 
 
 class PersistentDataset(Dataset):

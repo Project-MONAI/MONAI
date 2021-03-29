@@ -67,6 +67,7 @@ class TestDataset(unittest.TestCase):
             data1_simple = dataset[0]
             data2_simple = dataset[1]
             data3_simple = dataset[-1]
+            data4_simple = dataset[[0, 1]]
 
             self.assertTupleEqual(data1_simple["image"].shape, expected_shape)
             self.assertTupleEqual(data1_simple["label"].shape, expected_shape)
@@ -77,6 +78,9 @@ class TestDataset(unittest.TestCase):
             self.assertTupleEqual(data3_simple["image"].shape, expected_shape)
             self.assertTupleEqual(data3_simple["label"].shape, expected_shape)
             self.assertTupleEqual(data3_simple["extra"].shape, expected_shape)
+            self.assertTupleEqual(data4_simple[0]["image"].shape, expected_shape)
+            self.assertTupleEqual(data4_simple[1]["label"].shape, expected_shape)
+            self.assertTupleEqual(data4_simple[-1]["extra"].shape, expected_shape)
 
             data4_list = dataset[0:1]
             self.assertEqual(len(data4_list), 1)
