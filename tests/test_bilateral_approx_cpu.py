@@ -17,7 +17,7 @@ from parameterized import parameterized
 from torch.autograd import gradcheck
 
 from monai.networks.layers.filtering import BilateralFilter
-from tests.utils import skip_if_no_cpp_extention
+from tests.utils import skip_if_no_cpp_extension
 
 TEST_CASES = [
     [
@@ -361,7 +361,7 @@ TEST_CASES = [
 ]
 
 
-@skip_if_no_cpp_extention
+@skip_if_no_cpp_extension
 class BilateralFilterTestCaseCpuApprox(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_cpu_approx(self, test_case_description, sigmas, input, expected):

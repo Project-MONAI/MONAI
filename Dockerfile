@@ -9,11 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:20.10-py3
-
+# To build with a different base image
+# please run `docker build` using the `--build-arg PYTORCH_IMAGE=...` flag.
+ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:21.02-py3
 FROM ${PYTORCH_IMAGE}
 
-LABEL maintainer="monai.miccai2019@gmail.com"
+LABEL maintainer="monai.contact@gmail.com"
 
 WORKDIR /opt/monai
 
@@ -21,7 +22,8 @@ WORKDIR /opt/monai
 COPY requirements.txt requirements-min.txt requirements-dev.txt /tmp/
 RUN cp /tmp/requirements.txt /tmp/req.bak \
   && awk '!/torch/' /tmp/requirements.txt > /tmp/tmp && mv /tmp/tmp /tmp/requirements.txt \
-  && python -m pip install --no-cache-dir --use-feature=2020-resolver -r /tmp/requirements-dev.txt
+  && python -m pip install --upgrade --no-cache-dir pip \
+  && python -m pip install --no-cache-dir -r /tmp/requirements-dev.txt
 
 # compile ext and remove temp files
 # TODO: remark for issue [revise the dockerfile #1276](https://github.com/Project-MONAI/MONAI/issues/1276)
@@ -42,6 +44,9 @@ RUN wget -q ${NGC_CLI_URI} && \
     unzip ngccli_cat_linux.zip && chmod u+x ngc && \
     md5sum -c ngc.md5 && \
     rm -rf ngccli_cat_linux.zip ngc.md5
+RUN apt-get update \
+  && DEBIAN_FRONTEND="noninteractive" apt-get install -y libopenslide0  \
+  && rm -rf /var/lib/apt/lists/*
 # append /opt/tools to runtime path for NGC CLI to be accessible from all file system locations
 ENV PATH=${PATH}:/opt/tools
 WORKDIR /opt/monai

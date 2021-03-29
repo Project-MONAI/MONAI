@@ -14,6 +14,7 @@ from typing import Tuple
 
 import numpy as np
 import torch
+from ignite.engine import Engine
 
 from monai.handlers import HausdorffDistance
 
@@ -62,6 +63,13 @@ class TestHandlerHausdorffDistance(unittest.TestCase):
 
     def test_compute(self):
         hd_metric = HausdorffDistance(include_background=True)
+
+        def _val_func(engine, batch):
+            pass
+
+        engine = Engine(_val_func)
+        hd_metric.attach(engine, "hausdorff_distance")
+
         y_pred, y = TEST_SAMPLE_1
         hd_metric.update([y_pred, y])
         self.assertEqual(hd_metric.compute(), 10)
@@ -71,10 +79,9 @@ class TestHandlerHausdorffDistance(unittest.TestCase):
         y_pred, y = TEST_SAMPLE_3
         hd_metric.update([y_pred, y])
         self.assertEqual(hd_metric.compute(), float("inf"))
-        self.assertEqual(hd_metric._num_examples, 3)
         y_pred, y = TEST_SAMPLE_4
         hd_metric.update([y_pred, y])
-        self.assertEqual(hd_metric._num_examples, 3)
+        self.assertEqual(hd_metric.compute(), float("inf"))
 
     def test_shape_mismatch(self):
         hd_metric = HausdorffDistance(include_background=True)

@@ -27,11 +27,22 @@ Generic Interfaces
 .. autoclass:: Randomizable
     :members:
 
+`RandomizableTransform`
+^^^^^^^^^^^^^^^^^^^^^^^
+.. autoclass:: RandomizableTransform
+    :members:
+
 `Compose`
 ^^^^^^^^^
 .. autoclass:: Compose
     :members:
     :special-members: __call__
+
+`InvertibleTransform`
+^^^^^^^^^^^^^^^^^^^^^
+.. autoclass:: InvertibleTransform
+    :members:
+
 
 Vanilla Transforms
 ------------------
@@ -129,6 +140,18 @@ Intensity
 `RandShiftIntensity`
 """"""""""""""""""""
 .. autoclass:: RandShiftIntensity
+    :members:
+    :special-members: __call__
+
+`StdShiftIntensity`
+"""""""""""""""""""
+.. autoclass:: StdShiftIntensity
+    :members:
+    :special-members: __call__
+
+`RandStdShiftIntensity`
+"""""""""""""""""""""""
+.. autoclass:: RandStdShiftIntensity
     :members:
     :special-members: __call__
 
@@ -237,6 +260,12 @@ IO
     :members:
     :special-members: __call__
 
+`SaveImage`
+"""""""""""
+.. autoclass:: SaveImage
+    :members:
+    :special-members: __call__
+
 Post-processing
 ^^^^^^^^^^^^^^^
 
@@ -300,6 +329,12 @@ Spatial
 `RandFlip`
 """"""""""
 .. autoclass:: RandFlip
+    :members:
+    :special-members: __call__
+
+`RandAxisFlip`
+""""""""""""""
+.. autoclass:: RandAxisFlip
     :members:
     :special-members: __call__
 
@@ -420,6 +455,12 @@ Utility
     :members:
     :special-members: __call__
 
+`EnsureChannelFirst`
+""""""""""""""""""""
+.. autoclass:: EnsureChannelFirst
+    :members:
+    :special-members: __call__
+
 `RepeatChannel`
 """""""""""""""
 .. autoclass:: RepeatChannel
@@ -507,6 +548,12 @@ Utility
 `TorchVision`
 """""""""""""
 .. autoclass:: TorchVision
+    :members:
+    :special-members: __call__
+
+`MapLabelValue`
+"""""""""""""""
+.. autoclass:: MapLabelValue
     :members:
     :special-members: __call__
 
@@ -609,6 +656,18 @@ Instensity (Dict)
     :members:
     :special-members: __call__
 
+`StdShiftIntensityd`
+""""""""""""""""""""
+.. autoclass:: StdShiftIntensityd
+    :members:
+    :special-members: __call__
+
+`RandStdShiftIntensityd`
+""""""""""""""""""""""""
+.. autoclass:: RandStdShiftIntensityd
+    :members:
+    :special-members: __call__
+
 `ScaleIntensityd`
 """""""""""""""""
 .. autoclass:: ScaleIntensityd
@@ -702,6 +761,12 @@ IO (Dict)
     :members:
     :special-members: __call__
 
+`SaveImaged`
+""""""""""""
+.. autoclass:: SaveImaged
+    :members:
+    :special-members: __call__
+
 Post-processing (Dict)
 ^^^^^^^^^^^^^^^^^^^^^^
 
@@ -774,6 +839,12 @@ Spatial (Dict)
     :members:
     :special-members: __call__
 
+`RandAxisFlipd`
+"""""""""""""""
+.. autoclass:: RandAxisFlipd
+    :members:
+    :special-members: __call__
+
 `Rotated`
 """""""""
 .. autoclass:: Rotated
@@ -813,6 +884,12 @@ Spatial (Dict)
 `Resized`
 """""""""
 .. autoclass:: Resized
+    :members:
+    :special-members: __call__
+
+`Affined`
+"""""""""
+.. autoclass:: Affined
     :members:
     :special-members: __call__
 
@@ -858,6 +935,12 @@ Utility (Dict)
 `AddChanneld`
 """""""""""""
 .. autoclass:: AddChanneld
+    :members:
+    :special-members: __call__
+
+`EnsureChannelFirstd`
+"""""""""""""""""""""
+.. autoclass:: EnsureChannelFirstd
     :members:
     :special-members: __call__
 
@@ -939,6 +1022,12 @@ Utility (Dict)
     :members:
     :special-members: __call__
 
+`RandLambdad`
+"""""""""""""
+.. autoclass:: RandLambdad
+    :members:
+    :special-members: __call__
+
 `LabelToMaskd`
 """"""""""""""
 .. autoclass:: LabelToMaskd
@@ -966,6 +1055,12 @@ Utility (Dict)
 `TorchVisiond`
 """"""""""""""
 .. autoclass:: TorchVisiond
+    :members:
+    :special-members: __call__
+
+`MapLabelValued`
+""""""""""""""""
+.. autoclass:: MapLabelValued
     :members:
     :special-members: __call__
 

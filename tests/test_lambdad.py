@@ -20,16 +20,15 @@ from tests.utils import NumpyImageTestCase2D
 class TestLambdad(NumpyImageTestCase2D):
     def test_lambdad_identity(self):
         img = self.imt
-        data = {}
-        data["img"] = img
+        data = {"img": img, "prop": 1.0}
 
-        def identity_func(x):
-            return x
+        def noise_func(x):
+            return x + 1.0
 
-        lambd = Lambdad(keys=data.keys(), func=identity_func)
-        expected = data
-        expected["img"] = identity_func(data["img"])
-        self.assertTrue(np.allclose(expected["img"], lambd(data)["img"]))
+        expected = {"img": noise_func(data["img"]), "prop": 1.0}
+        ret = Lambdad(keys=["img", "prop"], func=noise_func, overwrite=[True, False])(data)
+        self.assertTrue(np.allclose(expected["img"], ret["img"]))
+        self.assertTrue(np.allclose(expected["prop"], ret["prop"]))
 
     def test_lambdad_slicing(self):
         img = self.imt

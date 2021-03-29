@@ -43,6 +43,7 @@ for kernel_size in [(3, 3, 3, 1), ((3, 1), 1, (3, 3), (1, 1))]:
                         "strides": strides,
                         "upsample_kernel_size": strides[1:],
                         "norm_name": "batch",
+                        "deep_supervision": False,
                         "res_block": res_block,
                     },
                     (1, in_channels, in_size, in_size),
@@ -65,6 +66,7 @@ for out_channels in [2, 3]:
                 "strides": ((1, 2, 1), 2, 2, 1),
                 "upsample_kernel_size": (2, 2, 1),
                 "norm_name": "instance",
+                "deep_supervision": False,
                 "res_block": res_block,
             },
             (1, in_channels, in_size, in_size, in_size),
@@ -77,6 +79,7 @@ for spatial_dims in [2, 3]:
     for res_block in [True, False]:
         for deep_supr_num in [1, 2]:
             for strides in [(1, 2, 1, 2, 1), (2, 2, 2, 1), (2, 1, 1, 2, 2)]:
+                scale = strides[0]
                 test_case = [
                     {
                         "spatial_dims": spatial_dims,
@@ -86,18 +89,13 @@ for spatial_dims in [2, 3]:
                         "strides": strides,
                         "upsample_kernel_size": strides[1:],
                         "norm_name": "group",
+                        "deep_supervision": True,
                         "deep_supr_num": deep_supr_num,
                         "res_block": res_block,
                     },
                     (1, 1, *[in_size] * spatial_dims),
+                    (1, 1 + deep_supr_num, 2, *[in_size // scale] * spatial_dims),
                 ]
-                scale = 1
-                all_expected_shapes = []
-                for stride in strides[: 1 + deep_supr_num]:
-                    scale *= stride
-                    deep_out_shape = (1, 2, *[in_size // scale] * spatial_dims)
-                    all_expected_shapes.append(deep_out_shape)
-                test_case.append(all_expected_shapes)
                 TEST_CASE_DEEP_SUPERVISION.append(test_case)
 
 
@@ -121,11 +119,8 @@ class TestDynUNetDeepSupervision(unittest.TestCase):
     def test_shape(self, input_param, input_shape, expected_shape):
         net = DynUNet(**input_param).to(device)
         with torch.no_grad():
-            results = [net(torch.randn(input_shape).to(device))] + net.get_feature_maps()
-            self.assertEqual(len(results), len(expected_shape))
-            for idx in range(len(results)):
-                result, sub_expected_shape = results[idx], expected_shape[idx]
-                self.assertEqual(result.shape, sub_expected_shape)
+            results = net(torch.randn(input_shape).to(device))
+            self.assertEqual(results.shape, expected_shape)
 
 
 if __name__ == "__main__":

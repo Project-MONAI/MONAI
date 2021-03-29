@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence
+from typing import TYPE_CHECKING, Callable, Dict, Iterable, Optional, Sequence, Union
 
 import torch
 import torch.distributed as dist
@@ -20,15 +20,15 @@ from monai.engines.utils import default_prepare_batch
 from monai.transforms import apply_transform
 from monai.utils import ensure_tuple, exact_version, optional_import
 
-IgniteEngine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
-State, _ = optional_import("ignite.engine", "0.4.2", exact_version, "State")
-Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
+IgniteEngine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
+State, _ = optional_import("ignite.engine", "0.4.4", exact_version, "State")
+Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
 if TYPE_CHECKING:
     from ignite.engine import Engine
     from ignite.metrics import Metric
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
-    Metric, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "Metric")
+    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
+    Metric, _ = optional_import("ignite.metrics", "0.4.4", exact_version, "Metric")
 
 
 class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optional_import
@@ -44,7 +44,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
     Args:
         device: an object representing the device on which to run.
         max_epochs: the total epoch number for engine to run, validator and evaluator have only 1 epoch.
-        data_loader: Ignite engine use data_loader to run, must be torch.DataLoader.
+        data_loader: Ignite engine use data_loader to run, must be Iterable or torch.DataLoader.
         epoch_length: number of iterations for one epoch, default to `len(data_loader)`.
         non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
             with respect to the host. For other cases, this argument has no effect.
@@ -73,7 +73,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         self,
         device: torch.device,
         max_epochs: int,
-        data_loader: DataLoader,
+        data_loader: Union[Iterable, DataLoader],
         epoch_length: Optional[int] = None,
         non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
@@ -90,14 +90,20 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             super().__init__(self._iteration)
         if not isinstance(device, torch.device):
             raise TypeError(f"device must be a torch.device but is {type(device).__name__}.")
-        if not isinstance(data_loader, DataLoader):
-            raise TypeError(f"data_loader must be a torch.utils.data.DataLoader but is {type(data_loader).__name__}.")
-        sampler = data_loader.__dict__["sampler"]
-        if isinstance(sampler, DistributedSampler):
 
-            @self.on(Events.EPOCH_STARTED)
-            def set_sampler_epoch(engine: Engine):
-                sampler.set_epoch(engine.state.epoch)
+        if isinstance(data_loader, DataLoader):
+            sampler = data_loader.__dict__["sampler"]
+            if isinstance(sampler, DistributedSampler):
+
+                @self.on(Events.EPOCH_STARTED)
+                def set_sampler_epoch(engine: Engine):
+                    sampler.set_epoch(engine.state.epoch)
+
+            if epoch_length is None:
+                epoch_length = len(data_loader)
+        else:
+            if epoch_length is None:
+                raise ValueError("if data_loader is not PyTorch DataLoader, must specify the epoch_length.")
 
         # set all sharable data for the workflow based on Ignite engine.state
         self.state = State(
@@ -106,10 +112,11 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             iteration=0,
             epoch=0,
             max_epochs=max_epochs,
-            epoch_length=len(data_loader) if epoch_length is None else epoch_length,
+            epoch_length=epoch_length,
             output=None,
             batch=None,
             metrics={},
+            metric_details={},
             dataloader=None,
             device=device,
             key_metric_name=None,  # we can set many metrics, only use key_metric to compare and save the best model
@@ -119,44 +126,68 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         self.data_loader = data_loader
         self.non_blocking = non_blocking
         self.prepare_batch = prepare_batch
-
-        if post_transform is not None:
-
-            @self.on(Events.ITERATION_COMPLETED)
-            def run_post_transform(engine: Engine) -> None:
-                if post_transform is None:
-                    raise AssertionError
-                engine.state.output = apply_transform(post_transform, engine.state.output)
-
-        if key_metric is not None:
-
-            if not isinstance(key_metric, dict):
-                raise TypeError(f"key_metric must be None or a dict but is {type(key_metric).__name__}.")
-            self.state.key_metric_name = list(key_metric.keys())[0]
-            metrics = key_metric
-            if additional_metrics is not None and len(additional_metrics) > 0:
-                if not isinstance(additional_metrics, dict):
-                    raise TypeError(
-                        f"additional_metrics must be None or a dict but is {type(additional_metrics).__name__}."
-                    )
-                metrics.update(additional_metrics)
-            for name, metric in metrics.items():
-                metric.attach(self, name)
-
-            @self.on(Events.EPOCH_COMPLETED)
-            def _compare_metrics(engine: Engine) -> None:
-                if engine.state.key_metric_name is not None:
-                    current_val_metric = engine.state.metrics[engine.state.key_metric_name]
-                    if current_val_metric > engine.state.best_metric:
-                        self.logger.info(f"Got new best metric of {engine.state.key_metric_name}: {current_val_metric}")
-                        engine.state.best_metric = current_val_metric
-                        engine.state.best_metric_epoch = engine.state.epoch
-
-        if handlers is not None:
-            handlers_ = ensure_tuple(handlers)
-            for handler in handlers_:
-                handler.attach(self)
         self.amp = amp
+
+        self._register_additional_events()
+        if post_transform is not None:
+            self._register_post_transforms(post_transform)
+        if key_metric is not None:
+            self._register_metrics(key_metric, additional_metrics)
+        if handlers is not None:
+            self._register_handlers(handlers)
+
+    def _register_additional_events(self):
+        """
+        Register more ignite Events to the engine.
+
+        """
+        pass
+
+    def _register_post_transforms(self, posttrans):
+        """
+        Register the post transforms to the engine, will execute them as a chain when iteration completed.
+
+        """
+
+        @self.on(Events.ITERATION_COMPLETED)
+        def run_post_transform(engine: Engine) -> None:
+            if posttrans is None:
+                raise AssertionError
+            engine.state.output = apply_transform(posttrans, engine.state.output)
+
+    def _register_metrics(self, k_metric, add_metrics):
+        """
+        Register the key metric and additional metrics to the engine, supports ignite Metrics.
+
+        """
+        if not isinstance(k_metric, dict):
+            raise TypeError(f"key_metric must be None or a dict but is {type(k_metric).__name__}.")
+        self.state.key_metric_name = list(k_metric.keys())[0]
+        metrics = k_metric
+        if add_metrics is not None and len(add_metrics) > 0:
+            if not isinstance(add_metrics, dict):
+                raise TypeError(f"additional metrics must be None or a dict but is {type(add_metrics).__name__}.")
+            metrics.update(add_metrics)
+        for name, metric in metrics.items():
+            metric.attach(self, name)
+
+        @self.on(Events.EPOCH_COMPLETED)
+        def _compare_metrics(engine: Engine) -> None:
+            if engine.state.key_metric_name is not None:
+                current_val_metric = engine.state.metrics[engine.state.key_metric_name]
+                if current_val_metric > engine.state.best_metric:
+                    self.logger.info(f"Got new best metric of {engine.state.key_metric_name}: {current_val_metric}")
+                    engine.state.best_metric = current_val_metric
+                    engine.state.best_metric_epoch = engine.state.epoch
+
+    def _register_handlers(self, handlers):
+        """
+        Register the handlers to the engine, supports ignite Handlers with `attach` API.
+
+        """
+        handlers_ = ensure_tuple(handlers)
+        for handler in handlers_:
+            handler.attach(self)
 
     def run(self) -> None:
         """

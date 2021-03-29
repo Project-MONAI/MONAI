@@ -145,9 +145,11 @@ class TestRandAffined(unittest.TestCase):
         res = g(input_data)
         for key in res:
             result = res[key]
+            if "_transforms" in key:
+                continue
             expected = expected_val[key] if isinstance(expected_val, dict) else expected_val
-            self.assertEqual(torch.is_tensor(result), torch.is_tensor(expected))
-            if torch.is_tensor(result):
+            self.assertEqual(isinstance(result, torch.Tensor), isinstance(expected, torch.Tensor))
+            if isinstance(result, torch.Tensor):
                 np.testing.assert_allclose(result.cpu().numpy(), expected.cpu().numpy(), rtol=1e-4, atol=1e-4)
             else:
                 np.testing.assert_allclose(result, expected, rtol=1e-4, atol=1e-4)

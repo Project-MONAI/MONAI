@@ -42,7 +42,7 @@ class TestPatchDataset(unittest.TestCase):
     def test_loading_array(self):
         set_determinism(seed=1234)
         # image dataset
-        images = [np.arange(16, dtype=np.float).reshape(1, 4, 4), np.arange(16, dtype=np.float).reshape(1, 4, 4)]
+        images = [np.arange(16, dtype=float).reshape(1, 4, 4), np.arange(16, dtype=float).reshape(1, 4, 4)]
         # image patch sampler
         n_samples = 8
         sampler = RandSpatialCropSamples(roi_size=(3, 3), num_samples=n_samples, random_center=True, random_size=False)

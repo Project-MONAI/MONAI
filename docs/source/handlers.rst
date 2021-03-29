@@ -16,9 +16,22 @@ Model checkpoint saver
 .. autoclass:: CheckpointSaver
   :members:
 
+
+Metrics saver
+-------------
+.. autoclass:: MetricsSaver
+    :members:
+
+
 CSV saver
 ---------
 .. autoclass:: ClassificationSaver
+    :members:
+
+
+Iteration Metric
+----------------
+.. autoclass:: IterationMetric
     :members:
 
 
@@ -72,6 +85,9 @@ Training stats handler
 
 Tensorboard handlers
 --------------------
+.. autoclass:: TensorBoardHandler
+    :members:
+
 .. autoclass:: TensorBoardStatsHandler
     :members:
 

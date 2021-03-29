@@ -11,7 +11,7 @@
 
 import re
 from collections import OrderedDict
-from typing import Any, List, Optional, Tuple, Type, Union
+from typing import Any, List, Optional, Sequence, Tuple, Type, Union
 
 import torch
 import torch.nn as nn
@@ -66,7 +66,6 @@ class SENet(nn.Module):
             - For SE-ResNeXt models: False
         num_classes: number of outputs in `last_linear` layer.
             for all models: 1000
-
     """
 
     def __init__(
@@ -74,7 +73,7 @@ class SENet(nn.Module):
         spatial_dims: int,
         in_channels: int,
         block: Type[Union[SEBottleneck, SEResNetBottleneck, SEResNeXtBottleneck]],
-        layers: List[int],
+        layers: Sequence[int],
         groups: int,
         reduction: int,
         dropout_prob: Optional[float] = 0.2,
@@ -248,20 +247,26 @@ class SENet(nn.Module):
         return x
 
 
-model_urls = {
-    "senet154": "http://data.lip6.fr/cadene/pretrainedmodels/senet154-c7b49a05.pth",
-    "se_resnet50": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnet50-ce0d4300.pth",
-    "se_resnet101": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnet101-7e38fcc6.pth",
-    "se_resnet152": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnet152-d17c99b7.pth",
-    "se_resnext50_32x4d": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnext50_32x4d-a260b3a4.pth",
-    "se_resnext101_32x4d": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnext101_32x4d-3b2fe3d8.pth",
-}
-
-
-def _load_state_dict(model, model_url, progress):
+def _load_state_dict(model, arch, progress):
     """
     This function is used to load pretrained models.
     """
+    model_urls = {
+        "senet154": "http://data.lip6.fr/cadene/pretrainedmodels/senet154-c7b49a05.pth",
+        "se_resnet50": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnet50-ce0d4300.pth",
+        "se_resnet101": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnet101-7e38fcc6.pth",
+        "se_resnet152": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnet152-d17c99b7.pth",
+        "se_resnext50_32x4d": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnext50_32x4d-a260b3a4.pth",
+        "se_resnext101_32x4d": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnext101_32x4d-3b2fe3d8.pth",
+    }
+    if arch in model_urls:
+        model_url = model_urls[arch]
+    else:
+        raise ValueError(
+            "only 'senet154', 'se_resnet50', 'se_resnet101',  'se_resnet152', 'se_resnext50_32x4d', \
+            and se_resnext101_32x4d are supported to load pretrained weights."
+        )
+
     pattern_conv = re.compile(r"^(layer[1-4]\.\d\.(?:conv)\d\.)(\w*)$")
     pattern_bn = re.compile(r"^(layer[1-4]\.\d\.)(?:bn)(\d\.)(\w*)$")
     pattern_se = re.compile(r"^(layer[1-4]\.\d\.)(?:se_module.fc1.)(\w*)$")
@@ -275,7 +280,7 @@ def _load_state_dict(model, model_url, progress):
         if pattern_conv.match(key):
             new_key = re.sub(pattern_conv, r"\1conv.\2", key)
         elif pattern_bn.match(key):
-            new_key = re.sub(pattern_bn, r"\1conv\2norm.\3", key)
+            new_key = re.sub(pattern_bn, r"\1conv\2adn.N.\3", key)
         elif pattern_se.match(key):
             state_dict[key] = state_dict[key].squeeze()
             new_key = re.sub(pattern_se, r"\1se_layer.fc.0.\2", key)
@@ -285,7 +290,7 @@ def _load_state_dict(model, model_url, progress):
         elif pattern_down_conv.match(key):
             new_key = re.sub(pattern_down_conv, r"\1project.conv.\2", key)
         elif pattern_down_bn.match(key):
-            new_key = re.sub(pattern_down_bn, r"\1project.norm.\2", key)
+            new_key = re.sub(pattern_down_bn, r"\1project.adn.N.\2", key)
         if new_key:
             state_dict[new_key] = state_dict[key]
             del state_dict[key]
@@ -298,167 +303,169 @@ def _load_state_dict(model, model_url, progress):
     model.load_state_dict(model_dict)
 
 
-def senet154(
-    spatial_dims: int,
-    in_channels: int,
-    num_classes: int,
-    pretrained: bool = False,
-    progress: bool = True,
-) -> SENet:
-    """
-    when `spatial_dims = 2`, specify `pretrained = True` can load Imagenet pretrained weights achieved
-    from `Cadene Hub 2D version
-    <https://github.com/Cadene/pretrained-models.pytorch/blob/master/pretrainedmodels/models/senet.py>`_.
-    """
-    model = SENet(
-        spatial_dims=spatial_dims,
-        in_channels=in_channels,
-        block=SEBottleneck,
-        layers=[3, 8, 36, 3],
-        groups=64,
-        reduction=16,
-        dropout_prob=0.2,
-        dropout_dim=1,
-        num_classes=num_classes,
-    )
-    if pretrained:
-        arch = "senet154"
-        _load_state_dict(model, model_urls[arch], progress)
-    return model
+class SENet154(SENet):
+    def __init__(
+        self,
+        layers: Sequence[int] = (3, 8, 36, 3),
+        groups: int = 64,
+        reduction: int = 16,
+        pretrained: bool = False,
+        progress: bool = True,
+        **kwargs,
+    ) -> None:
+        super(SENet154, self).__init__(
+            block=SEBottleneck,
+            layers=layers,
+            groups=groups,
+            reduction=reduction,
+            **kwargs,
+        )
+        if pretrained:
+            # it only worked when `spatial_dims` is 2
+            _load_state_dict(self, "senet154", progress)
 
 
-def se_resnet50(
-    spatial_dims: int, in_channels: int, num_classes: int, pretrained: bool = False, progress: bool = True
-) -> SENet:
-    """
-    when `spatial_dims = 2`, specify `pretrained = True` can load Imagenet pretrained weights achieved
-    from `Cadene Hub 2D version
-    <https://github.com/Cadene/pretrained-models.pytorch/blob/master/pretrainedmodels/models/senet.py>`_.
-    """
-    model = SENet(
-        spatial_dims=spatial_dims,
-        in_channels=in_channels,
-        block=SEResNetBottleneck,
-        layers=[3, 4, 6, 3],
-        groups=1,
-        reduction=16,
-        dropout_prob=None,
-        inplanes=64,
-        input_3x3=False,
-        downsample_kernel_size=1,
-        num_classes=num_classes,
-    )
-    if pretrained:
-        arch = "se_resnet50"
-        _load_state_dict(model, model_urls[arch], progress)
-    return model
+class SEResNet50(SENet):
+    def __init__(
+        self,
+        layers: Sequence[int] = (3, 4, 6, 3),
+        groups: int = 1,
+        reduction: int = 16,
+        dropout_prob: Optional[float] = None,
+        inplanes: int = 64,
+        downsample_kernel_size: int = 1,
+        input_3x3: bool = False,
+        pretrained: bool = False,
+        progress: bool = True,
+        **kwargs,
+    ) -> None:
+        super(SEResNet50, self).__init__(
+            block=SEResNetBottleneck,
+            layers=layers,
+            groups=groups,
+            reduction=reduction,
+            dropout_prob=dropout_prob,
+            inplanes=inplanes,
+            downsample_kernel_size=downsample_kernel_size,
+            input_3x3=input_3x3,
+            **kwargs,
+        )
+        if pretrained:
+            # it only worked when `spatial_dims` is 2
+            _load_state_dict(self, "se_resnet50", progress)
 
 
-def se_resnet101(
-    spatial_dims: int, in_channels: int, num_classes: int, pretrained: bool = False, progress: bool = True
-) -> SENet:
-    """
-    when `spatial_dims = 2`, specify `pretrained = True` can load Imagenet pretrained weights achieved
-    from `Cadene Hub 2D version
-    <https://github.com/Cadene/pretrained-models.pytorch/blob/master/pretrainedmodels/models/senet.py>`_.
-    """
-    model = SENet(
-        spatial_dims=spatial_dims,
-        in_channels=in_channels,
-        block=SEResNetBottleneck,
-        layers=[3, 4, 23, 3],
-        groups=1,
-        reduction=16,
-        dropout_prob=0.2,
-        dropout_dim=1,
-        inplanes=64,
-        input_3x3=False,
-        downsample_kernel_size=1,
-        num_classes=num_classes,
-    )
-    if pretrained:
-        arch = "se_resnet101"
-        _load_state_dict(model, model_urls[arch], progress)
-    return model
+class SEResNet101(SENet):
+    def __init__(
+        self,
+        layers: Sequence[int] = (3, 4, 23, 3),
+        groups: int = 1,
+        reduction: int = 16,
+        inplanes: int = 64,
+        downsample_kernel_size: int = 1,
+        input_3x3: bool = False,
+        pretrained: bool = False,
+        progress: bool = True,
+        **kwargs,
+    ) -> None:
+        super(SEResNet101, self).__init__(
+            block=SEResNetBottleneck,
+            layers=layers,
+            groups=groups,
+            reduction=reduction,
+            inplanes=inplanes,
+            downsample_kernel_size=downsample_kernel_size,
+            input_3x3=input_3x3,
+            **kwargs,
+        )
+        if pretrained:
+            # it only worked when `spatial_dims` is 2
+            _load_state_dict(self, "se_resnet101", progress)
 
 
-def se_resnet152(
-    spatial_dims: int, in_channels: int, num_classes: int, pretrained: bool = False, progress: bool = True
-) -> SENet:
-    """
-    when `spatial_dims = 2`, specify `pretrained = True` can load Imagenet pretrained weights achieved
-    from `Cadene Hub 2D version
-    <https://github.com/Cadene/pretrained-models.pytorch/blob/master/pretrainedmodels/models/senet.py>`_.
-    """
-    model = SENet(
-        spatial_dims=spatial_dims,
-        in_channels=in_channels,
-        block=SEResNetBottleneck,
-        layers=[3, 8, 36, 3],
-        groups=1,
-        reduction=16,
-        dropout_prob=0.2,
-        dropout_dim=1,
-        inplanes=64,
-        input_3x3=False,
-        downsample_kernel_size=1,
-        num_classes=num_classes,
-    )
-    if pretrained:
-        arch = "se_resnet152"
-        _load_state_dict(model, model_urls[arch], progress)
-    return model
+class SEResNet152(SENet):
+    def __init__(
+        self,
+        layers: Sequence[int] = (3, 8, 36, 3),
+        groups: int = 1,
+        reduction: int = 16,
+        inplanes: int = 64,
+        downsample_kernel_size: int = 1,
+        input_3x3: bool = False,
+        pretrained: bool = False,
+        progress: bool = True,
+        **kwargs,
+    ) -> None:
+        super(SEResNet152, self).__init__(
+            block=SEResNetBottleneck,
+            layers=layers,
+            groups=groups,
+            reduction=reduction,
+            inplanes=inplanes,
+            downsample_kernel_size=downsample_kernel_size,
+            input_3x3=input_3x3,
+            **kwargs,
+        )
+        if pretrained:
+            # it only worked when `spatial_dims` is 2
+            _load_state_dict(self, "se_resnet152", progress)
 
 
-def se_resnext50_32x4d(
-    spatial_dims: int, in_channels: int, num_classes: int, pretrained: bool = False, progress: bool = True
-) -> SENet:
-    """
-    when `spatial_dims = 2`, specify `pretrained = True` can load Imagenet pretrained weights achieved
-    from `Cadene Hub 2D version
-    <https://github.com/Cadene/pretrained-models.pytorch/blob/master/pretrainedmodels/models/senet.py>`_.
-    """
-    model = SENet(
-        spatial_dims=spatial_dims,
-        in_channels=in_channels,
-        block=SEResNeXtBottleneck,
-        layers=[3, 4, 6, 3],
-        groups=32,
-        reduction=16,
-        dropout_prob=None,
-        inplanes=64,
-        input_3x3=False,
-        downsample_kernel_size=1,
-        num_classes=num_classes,
-    )
-    if pretrained:
-        arch = "se_resnext50_32x4d"
-        _load_state_dict(model, model_urls[arch], progress)
-    return model
+class SEResNext50(SENet):
+    def __init__(
+        self,
+        layers: Sequence[int] = (3, 4, 6, 3),
+        groups: int = 32,
+        reduction: int = 16,
+        dropout_prob: Optional[float] = None,
+        inplanes: int = 64,
+        downsample_kernel_size: int = 1,
+        input_3x3: bool = False,
+        pretrained: bool = False,
+        progress: bool = True,
+        **kwargs,
+    ) -> None:
+        super(SEResNext50, self).__init__(
+            block=SEResNeXtBottleneck,
+            layers=layers,
+            groups=groups,
+            dropout_prob=dropout_prob,
+            reduction=reduction,
+            inplanes=inplanes,
+            downsample_kernel_size=downsample_kernel_size,
+            input_3x3=input_3x3,
+            **kwargs,
+        )
+        if pretrained:
+            # it only worked when `spatial_dims` is 2
+            _load_state_dict(self, "se_resnext50_32x4d", progress)
 
 
-def se_resnext101_32x4d(
-    spatial_dims: int, in_channels: int, num_classes: int, pretrained: bool = False, progress: bool = True
-) -> SENet:
-    """
-    when `spatial_dims = 2`, specify `pretrained = True` can load Imagenet pretrained weights achieved
-    from `Cadene Hub 2D version
-    <https://github.com/Cadene/pretrained-models.pytorch/blob/master/pretrainedmodels/models/senet.py>`_.
-    """
-    model = SENet(
-        spatial_dims=spatial_dims,
-        in_channels=in_channels,
-        block=SEResNeXtBottleneck,
-        layers=[3, 4, 23, 3],
-        groups=32,
-        reduction=16,
-        dropout_prob=None,
-        inplanes=64,
-        input_3x3=False,
-        downsample_kernel_size=1,
-        num_classes=num_classes,
-    )
-    if pretrained:
-        arch = "se_resnext101_32x4d"
-        _load_state_dict(model, model_urls[arch], progress)
-    return model
+class SEResNext101(SENet):
+    def __init__(
+        self,
+        layers: Sequence[int] = (3, 4, 23, 3),
+        groups: int = 32,
+        reduction: int = 16,
+        dropout_prob: Optional[float] = None,
+        inplanes: int = 64,
+        downsample_kernel_size: int = 1,
+        input_3x3: bool = False,
+        pretrained: bool = False,
+        progress: bool = True,
+        **kwargs,
+    ) -> None:
+        super(SEResNext101, self).__init__(
+            block=SEResNeXtBottleneck,
+            layers=layers,
+            groups=groups,
+            dropout_prob=dropout_prob,
+            reduction=reduction,
+            inplanes=inplanes,
+            downsample_kernel_size=downsample_kernel_size,
+            input_3x3=input_3x3,
+            **kwargs,
+        )
+        if pretrained:
+            # it only worked when `spatial_dims` is 2
+            _load_state_dict(self, "se_resnext101_32x4d", progress)

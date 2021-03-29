@@ -17,7 +17,7 @@ from parameterized import parameterized
 from torch.autograd import gradcheck
 
 from monai.networks.layers.filtering import BilateralFilter
-from tests.utils import skip_if_no_cpp_extention, skip_if_no_cuda
+from tests.utils import skip_if_no_cpp_extension, skip_if_no_cuda
 
 TEST_CASES = [
     [
@@ -376,7 +376,7 @@ class BilateralFilterTestCaseCpuPrecise(unittest.TestCase):
 
         # Ensure result are as expected
         np.testing.assert_allclose(output, expected, atol=1e-5)
-git
+        
     @parameterized.expand(TEST_CASES)
     def test_cpu_precise_backwards(self, test_case_description, sigmas, input, expected):
 

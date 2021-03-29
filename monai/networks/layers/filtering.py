@@ -64,7 +64,7 @@ class PHLFilter(torch.autograd.Function):
     """
     Filters input based on arbitrary feature vectors. Uses a permutohedral
     lattice data structure to efficiently approximate n-dimensional gaussian
-    filtering. Complexity is broadly independant of kernel size. Most applicable
+    filtering. Complexity is broadly independent of kernel size. Most applicable
     to higher filter dimensions and larger kernel sizes.
 
     See:
@@ -95,6 +95,7 @@ class PHLFilter(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_output):
-        scaled_features = ctx.saved_variables
-        grad_input = PHLFilter.scale(grad_output, scaled_features)
-        return grad_input
+        raise NotImplementedError("PHLFilter does not currently support backpropergation")
+        # scaled_features, = ctx.saved_variables
+        # grad_input = _C.phl_filter(grad_output, scaled_features)
+        # return grad_input

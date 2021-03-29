@@ -74,7 +74,7 @@ TEST_CASES = [
             "scale_range": [0.01, 0.02],
             "prob": 0.9,
             "as_tensor_output": False,
-            "device": None,
+            "device": "cuda" if torch.cuda.is_available() else "cpu",
             "spatial_size": (2, 2),
         },
         {"img": torch.arange(27).reshape((3, 3, 3))},
@@ -95,8 +95,8 @@ class TestRand2DElastic(unittest.TestCase):
         g = Rand2DElastic(**input_param)
         g.set_random_state(123)
         result = g(**input_data)
-        self.assertEqual(torch.is_tensor(result), torch.is_tensor(expected_val))
-        if torch.is_tensor(result):
+        self.assertEqual(isinstance(result, torch.Tensor), isinstance(expected_val, torch.Tensor))
+        if isinstance(result, torch.Tensor):
             np.testing.assert_allclose(result.cpu().numpy(), expected_val.cpu().numpy(), rtol=1e-4, atol=1e-4)
         else:
             np.testing.assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)

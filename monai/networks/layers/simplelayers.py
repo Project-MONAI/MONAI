@@ -10,14 +10,14 @@
 # limitations under the License.
 
 import math
-from typing import Sequence, Union, cast
+from typing import List, Sequence, Union
 
 import torch
 import torch.nn.functional as F
 from torch import nn
 from torch.autograd import Function
 
-from monai.networks.layers.convutils import gaussian_1d, same_padding
+from monai.networks.layers.convutils import gaussian_1d
 from monai.networks.layers.factories import Conv
 from monai.utils import (
     PT_BEFORE_1_7,
@@ -164,9 +164,45 @@ class Reshape(nn.Module):
         return x.reshape(shape)
 
 
-def separable_filtering(
-    x: torch.Tensor, kernels: Union[Sequence[torch.Tensor], torch.Tensor], mode: str = "zeros"
+def _separable_filtering_conv(
+    input_: torch.Tensor,
+    kernels: List[torch.Tensor],
+    pad_mode: str,
+    d: int,
+    spatial_dims: int,
+    paddings: List[int],
+    num_channels: int,
 ) -> torch.Tensor:
+
+    if d < 0:
+        return input_
+
+    s = [1] * len(input_.shape)
+    s[d + 2] = -1
+    _kernel = kernels[d].reshape(s)
+
+    # if filter kernel is unity, don't convolve
+    if _kernel.numel() == 1 and _kernel[0] == 1:
+        return _separable_filtering_conv(input_, kernels, pad_mode, d - 1, spatial_dims, paddings, num_channels)
+
+    _kernel = _kernel.repeat([num_channels, 1] + [1] * spatial_dims)
+    _padding = [0] * spatial_dims
+    _padding[d] = paddings[d]
+    conv_type = [F.conv1d, F.conv2d, F.conv3d][spatial_dims - 1]
+
+    # translate padding for input to torch.nn.functional.pad
+    _reversed_padding_repeated_twice: List[List[int]] = [[p, p] for p in reversed(_padding)]
+    _sum_reversed_padding_repeated_twice: List[int] = sum(_reversed_padding_repeated_twice, [])
+    padded_input = F.pad(input_, _sum_reversed_padding_repeated_twice, mode=pad_mode)
+
+    return conv_type(
+        input=_separable_filtering_conv(padded_input, kernels, pad_mode, d - 1, spatial_dims, paddings, num_channels),
+        weight=_kernel,
+        groups=num_channels,
+    )
+
+
+def separable_filtering(x: torch.Tensor, kernels: List[torch.Tensor], mode: str = "zeros") -> torch.Tensor:
     """
     Apply 1-D convolutions along each spatial dimension of `x`.
 
@@ -182,40 +218,16 @@ def separable_filtering(
         TypeError: When ``x`` is not a ``torch.Tensor``.
     """
 
-    if not torch.is_tensor(x):
+    if not isinstance(x, torch.Tensor):
         raise TypeError(f"x must be a torch.Tensor but is {type(x).__name__}.")
 
     spatial_dims = len(x.shape) - 2
-    _kernels = [
-        torch.as_tensor(s, dtype=torch.float, device=s.device if torch.is_tensor(s) else None)
-        for s in ensure_tuple_rep(kernels, spatial_dims)
-    ]
-    _paddings = [cast(int, (same_padding(k.shape[0]))) for k in _kernels]
+    _kernels = [s.float() for s in kernels]
+    _paddings = [(k.shape[0] - 1) // 2 for k in _kernels]
     n_chs = x.shape[1]
+    pad_mode = "constant" if mode == "zeros" else mode
 
-    def _conv(input_: torch.Tensor, d: int) -> torch.Tensor:
-        if d < 0:
-            return input_
-        s = [1] * len(input_.shape)
-        s[d + 2] = -1
-        _kernel = kernels[d].reshape(s)
-        # if filter kernel is unity, don't convolve
-        if _kernel.numel() == 1 and _kernel[0] == 1:
-            return _conv(input_, d - 1)
-        _kernel = _kernel.repeat([n_chs, 1] + [1] * spatial_dims)
-        _padding = [0] * spatial_dims
-        _padding[d] = _paddings[d]
-        conv_type = [F.conv1d, F.conv2d, F.conv3d][spatial_dims - 1]
-        # translate padding for input to torch.nn.functional.pad
-        _reversed_padding_repeated_twice = [p for p in reversed(_padding) for _ in range(2)]
-        pad_mode = "constant" if mode == "zeros" else mode
-        return conv_type(
-            input=_conv(F.pad(input_, _reversed_padding_repeated_twice, mode=pad_mode), d - 1),
-            weight=_kernel,
-            groups=n_chs,
-        )
-
-    return _conv(x, spatial_dims - 1)
+    return _separable_filtering_conv(x, kernels, pad_mode, spatial_dims - 1, spatial_dims, _paddings, n_chs)
 
 
 class SavitzkyGolayFilter(nn.Module):
@@ -251,7 +263,7 @@ class SavitzkyGolayFilter(nn.Module):
         """
 
         # Make input a real tensor on the CPU
-        x = torch.as_tensor(x, device=x.device if torch.is_tensor(x) else None)
+        x = torch.as_tensor(x, device=x.device if isinstance(x, torch.Tensor) else None)
         if torch.is_complex(x):
             raise ValueError("x must be real.")
         else:
@@ -317,7 +329,7 @@ class HilbertTransform(nn.Module):
         """
 
         # Make input a real tensor
-        x = torch.as_tensor(x, device=x.device if torch.is_tensor(x) else None)
+        x = torch.as_tensor(x, device=x.device if isinstance(x, torch.Tensor) else None)
         if torch.is_complex(x):
             raise ValueError("x must be real.")
         x = x.to(dtype=torch.float)
@@ -384,7 +396,7 @@ class GaussianFilter(nn.Module):
         super().__init__()
         self.sigma = [
             torch.nn.Parameter(
-                torch.as_tensor(s, dtype=torch.float, device=s.device if torch.is_tensor(s) else None),
+                torch.as_tensor(s, dtype=torch.float, device=s.device if isinstance(s, torch.Tensor) else None),
                 requires_grad=requires_grad,
             )
             for s in ensure_tuple_rep(sigma, int(spatial_dims))

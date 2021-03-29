@@ -371,6 +371,7 @@ class AHNet(nn.Module):
         self.pool_type = pool_type
         self.spatial_dims = spatial_dims
         self.psp_block_num = psp_block_num
+        self.psp = None
 
         if spatial_dims not in [2, 3]:
             raise AssertionError("spatial_dims can only be 2 or 3.")
@@ -433,8 +434,7 @@ class AHNet(nn.Module):
         self.dense4 = DenseBlock(spatial_dims, ndenselayer, num_init_features, densebn, densegrowth, 0.0)
         noutdense4 = num_init_features + densegrowth * ndenselayer
 
-        if psp_block_num > 0:
-            self.psp = PSP(spatial_dims, psp_block_num, noutdense4, upsample_mode)
+        self.psp = PSP(spatial_dims, psp_block_num, noutdense4, upsample_mode)
         self.final = Final(spatial_dims, psp_block_num + noutdense4, out_channels, upsample_mode)
 
         # Initialise parameters

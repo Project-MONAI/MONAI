@@ -100,6 +100,17 @@ def run_testsuit():
         "test_occlusion_sensitivity",
         "test_torchvision",
         "test_torchvisiond",
+        "test_handler_metrics_saver",
+        "test_handler_metrics_saver_dist",
+        "test_evenly_divisible_all_gather_dist",
+        "test_handler_classification_saver_dist",
+        "test_deepgrow_transforms",
+        "test_deepgrow_interaction",
+        "test_deepgrow_dataset",
+        "test_save_image",
+        "test_save_imaged",
+        "test_ensure_channel_first",
+        "test_ensure_channel_firstd",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
