@@ -10,6 +10,7 @@
 # limitations under the License.
 
 
+import collections.abc
 import math
 import pickle
 import sys
@@ -24,6 +25,7 @@ from typing import IO, TYPE_CHECKING, Any, Callable, Dict, List, Optional, Seque
 import numpy as np
 import torch
 from torch.utils.data import Dataset as _TorchDataset
+from torch.utils.data import Subset
 
 from monai.data.utils import first, pickle_hashing
 from monai.transforms import Compose, Randomizable, Transform, apply_transform
@@ -44,6 +46,9 @@ class Dataset(_TorchDataset):
     """
     A generic dataset with a length property and an optional callable data transform
     when fetching a data sample.
+    If passing slicing indices, will return a PyTorch Subset, for example: `data: Subset = dataset[1:4]`,
+    for more details, please check: https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset
+
     For example, typical input data can be a list of dictionaries::
 
         [{                            {                            {
@@ -66,12 +71,26 @@ class Dataset(_TorchDataset):
     def __len__(self) -> int:
         return len(self.data)
 
-    def __getitem__(self, index: int):
-        data = self.data[index]
-        if self.transform is not None:
-            data = apply_transform(self.transform, data)
+    def _transform(self, index: int):
+        """
+        Fetch single data item from `self.data`.
+        """
+        data_i = self.data[index]
+        return apply_transform(self.transform, data_i) if self.transform is not None else data_i
 
-        return data
+    def __getitem__(self, index: Union[int, slice, Sequence[int]]):
+        """
+        Returns a `Subset` if `index` is a slice or Sequence, a data item otherwise.
+        """
+        if isinstance(index, slice):
+            # dataset[:42]
+            start, stop, step = index.indices(len(self))
+            indices = range(start, stop, step)
+            return Subset(dataset=self, indices=indices)
+        if isinstance(index, collections.abc.Sequence):
+            # dataset[[1, 3, 4]]
+            return Subset(dataset=self, indices=index)
+        return self._transform(index)
 
 
 class PersistentDataset(Dataset):
@@ -79,6 +98,8 @@ class PersistentDataset(Dataset):
     Persistent storage of pre-computed values to efficiently manage larger than memory dictionary format data,
     it can operate transforms for specific fields.  Results from the non-random transform components are computed
     when first used, and stored in the `cache_dir` for rapid retrieval on subsequent uses.
+    If passing slicing indices, will return a PyTorch Subset, for example: `data: Subset = dataset[1:4]`,
+    for more details, please check: https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset
 
     For example, typical input data can be a list of dictionaries::
 
@@ -228,7 +249,7 @@ class PersistentDataset(Dataset):
             temp_hash_file.rename(hashfile)
         return _item_transformed
 
-    def __getitem__(self, index: int):
+    def _transform(self, index: int):
         pre_random_item = self._cachecheck(self.data[index])
         return self._post_transform(pre_random_item)
 
@@ -446,6 +467,8 @@ class CacheDataset(Dataset):
 
     To improve the caching efficiency, please always put as many as possible non-random transforms
     before the randomized ones when composing the chain of transforms.
+    If passing slicing indices, will return a PyTorch Subset, for example: `data: Subset = dataset[1:4]`,
+    for more details, please check: https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset
 
     For example, if the transform is a `Compose` of::
 
@@ -529,10 +552,10 @@ class CacheDataset(Dataset):
             item = apply_transform(_transform, item)
         return item
 
-    def __getitem__(self, index):
-        if index >= self.cache_num:
+    def _transform(self, index: int):
+        if index % len(self) >= self.cache_num:  # support negative index
             # no cache for this index, execute all the transforms directly
-            return super(CacheDataset, self).__getitem__(index)
+            return super()._transform(index)
         # load data from cache and execute from the first random transform
         start_run = False
         if self._cache is None:
@@ -561,6 +584,8 @@ class SmartCacheDataset(Randomizable, CacheDataset):
     where r is the configured replace rate).
     For more details, please refer to:
     https://docs.nvidia.com/clara/tlt-mi/clara-train-sdk-v3.0/nvmidl/additional_features/smart_cache.html#smart-cache
+    If passing slicing indices, will return a PyTorch Subset, for example: `data: Subset = dataset[1:4]`,
+    for more details, please check: https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset
 
     For example, if we have 5 images: `[image1, image2, image3, image4, image5]`, and `cache_num=4`, `replace_rate=0.25`.
     so the actual training images cached and replaced for every epoch are as below::
@@ -812,6 +837,8 @@ class ZipDataset(Dataset):
     finally return (img, imgmeta, seg, segmeta).
     And if the datasets don't have same length, use the minimum length of them as the length
     of ZipDataset.
+    If passing slicing indices, will return a PyTorch Subset, for example: `data: Subset = dataset[1:4]`,
+    for more details, please check: https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset
 
     Examples::
 
@@ -836,7 +863,7 @@ class ZipDataset(Dataset):
     def __len__(self) -> int:
         return min((len(dataset) for dataset in self.data))
 
-    def __getitem__(self, index: int):
+    def _transform(self, index: int):
         def to_list(x):
             return list(x) if isinstance(x, (tuple, list)) else [x]
 
@@ -953,6 +980,8 @@ class NPZDictItemDataset(Dataset):
     Represents a dataset from a loaded NPZ file. The members of the file to load are named in the keys of `keys` and
     stored under the keyed name. All loaded arrays must have the same 0-dimension (batch) size. Items are always dicts
     mapping names to an item extracted from the loaded arrays.
+    If passing slicing indices, will return a PyTorch Subset, for example: `data: Subset = dataset[1:4]`,
+    for more details, please check: https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset
 
     Args:
         npzfile: Path to .npz file or stream containing .npz file data
@@ -989,7 +1018,7 @@ class NPZDictItemDataset(Dataset):
     def __len__(self):
         return self.length
 
-    def __getitem__(self, index: int):
+    def _transform(self, index: int):
         data = {k: v[index] for k, v in self.arrays.items()}
 
         if self.transform is not None:
