@@ -62,3 +62,16 @@ Applications
     :members:
 .. autoclass:: Fetch2DSliced
     :members:
+
+`Pathology`
+-----------
+
+.. automodule:: monai.apps.pathology.datasets
+.. autoclass:: PatchWSIDataset
+    :members:
+.. autoclass:: SmartCachePatchWSIDataset
+    :members:
+
+.. automodule:: monai.apps.pathology.utils
+.. autoclass:: PathologyProbNMS
+    :members:

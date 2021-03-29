@@ -78,17 +78,17 @@ class InvertibleTransform(Transform):
         orig_size: Optional[Tuple] = None,
     ) -> None:
         """Append to list of applied transforms for that key."""
-        key_transform = str(key) + InverseKeys.KEY_SUFFIX.value
+        key_transform = str(key) + InverseKeys.KEY_SUFFIX
         info = {
-            InverseKeys.CLASS_NAME.value: self.__class__.__name__,
-            InverseKeys.ID.value: id(self),
-            InverseKeys.ORIG_SIZE.value: orig_size or data[key].shape[1:],
+            InverseKeys.CLASS_NAME: self.__class__.__name__,
+            InverseKeys.ID: id(self),
+            InverseKeys.ORIG_SIZE: orig_size or data[key].shape[1:],
         }
         if extra_info is not None:
-            info[InverseKeys.EXTRA_INFO.value] = extra_info
+            info[InverseKeys.EXTRA_INFO] = extra_info
         # If class is randomizable transform, store whether the transform was actually performed (based on `prob`)
         if isinstance(self, RandomizableTransform):
-            info[InverseKeys.DO_TRANSFORM.value] = self._do_transform
+            info[InverseKeys.DO_TRANSFORM] = self._do_transform
         # If this is the first, create list
         if key_transform not in data:
             data[key_transform] = []
@@ -96,25 +96,25 @@ class InvertibleTransform(Transform):
 
     def check_transforms_match(self, transform: dict) -> None:
         """Check transforms are of same instance."""
-        if transform[InverseKeys.ID.value] == id(self):
+        if transform[InverseKeys.ID] == id(self):
             return
         # basic check if multiprocessing uses 'spawn' (objects get recreated so don't have same ID)
         if (
             torch.multiprocessing.get_start_method(allow_none=False) == "spawn"
-            and transform[InverseKeys.CLASS_NAME.value] == self.__class__.__name__
+            and transform[InverseKeys.CLASS_NAME] == self.__class__.__name__
         ):
             return
         raise RuntimeError("Should inverse most recently applied invertible transform first")
 
     def get_most_recent_transform(self, data: dict, key: Hashable) -> dict:
         """Get most recent transform."""
-        transform = dict(data[str(key) + InverseKeys.KEY_SUFFIX.value][-1])
+        transform = dict(data[str(key) + InverseKeys.KEY_SUFFIX][-1])
         self.check_transforms_match(transform)
         return transform
 
     def pop_transform(self, data: dict, key: Hashable) -> None:
         """Remove most recent transform."""
-        data[str(key) + InverseKeys.KEY_SUFFIX.value].pop()
+        data[str(key) + InverseKeys.KEY_SUFFIX].pop()
 
     def inverse(self, data: dict) -> Dict[Hashable, np.ndarray]:
         """

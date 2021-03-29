@@ -17,6 +17,7 @@ from .dataset import (
     CacheNTransDataset,
     Dataset,
     LMDBDataset,
+    NPZDictItemDataset,
     PersistentDataset,
     SmartCacheDataset,
     ZipDataset,
@@ -25,6 +26,7 @@ from .decathlon_datalist import load_decathlon_datalist, load_decathlon_properti
 from .grid_dataset import GridPatchDataset, PatchDataset, PatchIter
 from .image_dataset import ImageDataset
 from .image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader, WSIReader
+from .inverse_batch_transform import BatchInverseTransform
 from .iterable_dataset import IterableDataset
 from .nifti_saver import NiftiSaver
 from .nifti_writer import write_nifti
@@ -32,7 +34,8 @@ from .png_saver import PNGSaver
 from .png_writer import write_png
 from .samplers import DistributedSampler, DistributedWeightedRandomSampler
 from .synthetic import create_test_image_2d, create_test_image_3d
-from .thread_buffer import ThreadBuffer
+from .test_time_augmentation import TestTimeAugmentation
+from .thread_buffer import ThreadBuffer, ThreadDataLoader
 from .utils import (
     compute_importance_map,
     compute_shape_offset,

@@ -36,6 +36,7 @@ from monai.transforms.utility.array import (
     Identity,
     LabelToMask,
     Lambda,
+    MapLabelValue,
     RemoveRepeatedChannel,
     RepeatChannel,
     SimulateDelay,
@@ -83,6 +84,7 @@ __all__ = [
     "ConvertToMultiChannelBasedOnBratsClassesd",
     "AddExtremePointsChanneld",
     "TorchVisiond",
+    "MapLabelValued",
     "IdentityD",
     "IdentityDict",
     "AsChannelFirstD",
@@ -129,6 +131,8 @@ __all__ = [
     "AddExtremePointsChannelDict",
     "TorchVisionD",
     "TorchVisionDict",
+    "MapLabelValueD",
+    "MapLabelValueDict",
 ]
 
 
@@ -507,6 +511,7 @@ class DataStatsd(MapTransform):
         self,
         keys: KeysCollection,
         prefix: Union[Sequence[str], str] = "Data",
+        data_type: Union[Sequence[bool], bool] = True,
         data_shape: Union[Sequence[bool], bool] = True,
         value_range: Union[Sequence[bool], bool] = True,
         data_value: Union[Sequence[bool], bool] = False,
@@ -520,6 +525,8 @@ class DataStatsd(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             prefix: will be printed in format: "{prefix} statistics".
                 it also can be a sequence of string, each element corresponds to a key in ``keys``.
+            data_type: whether to show the type of input data.
+                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
             data_shape: whether to show the shape of input data.
                 it also can be a sequence of bool, each element corresponds to a key in ``keys``.
             value_range: whether to show the value range of input data.
@@ -538,6 +545,7 @@ class DataStatsd(MapTransform):
         """
         super().__init__(keys, allow_missing_keys)
         self.prefix = ensure_tuple_rep(prefix, len(self.keys))
+        self.data_type = ensure_tuple_rep(data_type, len(self.keys))
         self.data_shape = ensure_tuple_rep(data_shape, len(self.keys))
         self.value_range = ensure_tuple_rep(value_range, len(self.keys))
         self.data_value = ensure_tuple_rep(data_value, len(self.keys))
@@ -547,12 +555,13 @@ class DataStatsd(MapTransform):
 
     def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
         d = dict(data)
-        for key, prefix, data_shape, value_range, data_value, additional_info in self.key_iterator(
-            d, self.prefix, self.data_shape, self.value_range, self.data_value, self.additional_info
+        for key, prefix, data_type, data_shape, value_range, data_value, additional_info in self.key_iterator(
+            d, self.prefix, self.data_type, self.data_shape, self.value_range, self.data_value, self.additional_info
         ):
             d[key] = self.printer(
                 d[key],
                 prefix,
+                data_type,
                 data_shape,
                 value_range,
                 data_value,
@@ -666,8 +675,6 @@ class ConcatItemsd(MapTransform):
 
         """
         super().__init__(keys, allow_missing_keys)
-        if len(self.keys) < 2:
-            raise ValueError("Concatenation requires at least 2 keys.")
         self.name = name
         self.dim = dim
 
@@ -955,6 +962,39 @@ class TorchVisiond(MapTransform):
         return d
 
 
+class MapLabelValued(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.MapLabelValue`.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        orig_labels: Sequence,
+        target_labels: Sequence,
+        dtype: DtypeLike = np.float32,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            orig_labels: original labels that map to others.
+            target_labels: expected label values, 1: 1 map to the `orig_labels`.
+            dtype: convert the output data to dtype, default to float32.
+            allow_missing_keys: don't raise exception if key is missing.
+
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.mapper = MapLabelValue(orig_labels=orig_labels, target_labels=target_labels, dtype=dtype)
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.mapper(d[key])
+        return d
+
+
 IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
@@ -982,3 +1022,4 @@ ConvertToMultiChannelBasedOnBratsClassesD = (
 AddExtremePointsChannelD = AddExtremePointsChannelDict = AddExtremePointsChanneld
 TorchVisionD = TorchVisionDict = TorchVisiond
 RandLambdaD = RandLambdaDict = RandLambdad
+MapLabelValueD = MapLabelValueDict = MapLabelValued

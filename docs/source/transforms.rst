@@ -143,6 +143,18 @@ Intensity
     :members:
     :special-members: __call__
 
+`StdShiftIntensity`
+"""""""""""""""""""
+.. autoclass:: StdShiftIntensity
+    :members:
+    :special-members: __call__
+
+`RandStdShiftIntensity`
+"""""""""""""""""""""""
+.. autoclass:: RandStdShiftIntensity
+    :members:
+    :special-members: __call__
+
 `ScaleIntensity`
 """"""""""""""""
 .. autoclass:: ScaleIntensity
@@ -539,6 +551,12 @@ Utility
     :members:
     :special-members: __call__
 
+`MapLabelValue`
+"""""""""""""""
+.. autoclass:: MapLabelValue
+    :members:
+    :special-members: __call__
+
 Dictionary Transforms
 ---------------------
 
@@ -635,6 +653,18 @@ Instensity (Dict)
 `RandShiftIntensityd`
 """""""""""""""""""""
 .. autoclass:: RandShiftIntensityd
+    :members:
+    :special-members: __call__
+
+`StdShiftIntensityd`
+""""""""""""""""""""
+.. autoclass:: StdShiftIntensityd
+    :members:
+    :special-members: __call__
+
+`RandStdShiftIntensityd`
+""""""""""""""""""""""""
+.. autoclass:: RandStdShiftIntensityd
     :members:
     :special-members: __call__
 
@@ -1025,6 +1055,12 @@ Utility (Dict)
 `TorchVisiond`
 """"""""""""""
 .. autoclass:: TorchVisiond
+    :members:
+    :special-members: __call__
+
+`MapLabelValued`
+""""""""""""""""
+.. autoclass:: MapLabelValued
     :members:
     :special-members: __call__
 

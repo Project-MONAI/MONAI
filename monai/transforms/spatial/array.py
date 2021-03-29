@@ -961,7 +961,7 @@ class AffineGrid(Transform):
         self,
         spatial_size: Optional[Sequence[int]] = None,
         grid: Optional[Union[np.ndarray, torch.Tensor]] = None,
-    ) -> Union[np.ndarray, torch.Tensor]:
+    ) -> Tuple[Union[np.ndarray, torch.Tensor], Union[np.ndarray, torch.Tensor]]:
         """
         Args:
             spatial_size: output grid size.
@@ -988,21 +988,20 @@ class AffineGrid(Transform):
                 affine = affine @ create_translate(spatial_dims, self.translate_params)
             if self.scale_params:
                 affine = affine @ create_scale(spatial_dims, self.scale_params)
-            self.affine = affine
+        else:
+            affine = self.affine
 
-        self.affine = torch.as_tensor(np.ascontiguousarray(self.affine), device=self.device)
+        if isinstance(affine, np.ndarray):
+            affine = torch.as_tensor(np.ascontiguousarray(affine))
 
         grid = torch.tensor(grid) if not isinstance(grid, torch.Tensor) else grid.detach().clone()
         if self.device:
+            affine = affine.to(self.device)
             grid = grid.to(self.device)
-        grid = (self.affine.float() @ grid.reshape((grid.shape[0], -1)).float()).reshape([-1] + list(grid.shape[1:]))
+        grid = (affine.float() @ grid.reshape((grid.shape[0], -1)).float()).reshape([-1] + list(grid.shape[1:]))
         if grid is None or not isinstance(grid, torch.Tensor):
             raise ValueError("Unknown grid.")
-        return grid if self.as_tensor_output else np.asarray(grid.cpu().numpy())
-
-    def get_transformation_matrix(self) -> Optional[Union[np.ndarray, torch.Tensor]]:
-        """Get the most recently applied transformation matrix"""
-        return self.affine
+        return grid if self.as_tensor_output else np.asarray(grid.cpu().numpy()), affine
 
 
 class RandAffineGrid(RandomizableTransform):
@@ -1094,8 +1093,7 @@ class RandAffineGrid(RandomizableTransform):
             as_tensor_output=self.as_tensor_output,
             device=self.device,
         )
-        grid = affine_grid(spatial_size, grid)
-        self.affine = affine_grid.get_transformation_matrix()
+        grid, self.affine = affine_grid(spatial_size, grid)
         return grid
 
     def get_transformation_matrix(self) -> Optional[Union[np.ndarray, torch.Tensor]]:
@@ -1309,7 +1307,7 @@ class Affine(Transform):
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-    ) -> Union[np.ndarray, torch.Tensor]:
+    ) -> Tuple[Union[np.ndarray, torch.Tensor], Union[np.ndarray, torch.Tensor]]:
         """
         Args:
             img: shape must be (num_channels, H, W[, D]),
@@ -1326,9 +1324,10 @@ class Affine(Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
-        grid = self.affine_grid(spatial_size=sp_size)
-        return self.resampler(
-            img=img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
+        grid, affine = self.affine_grid(spatial_size=sp_size)
+        return (
+            self.resampler(img=img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode),
+            affine,
         )
 
 
@@ -1434,7 +1433,6 @@ class RandAffine(RandomizableTransform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
         self.randomize()
-
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
         if self._do_transform:
             grid = self.rand_affine_grid(spatial_size=sp_size)
@@ -1565,7 +1563,7 @@ class Rand2DElastic(RandomizableTransform):
                 mode=InterpolateMode.BICUBIC.value,
                 align_corners=False,
             )
-            grid = CenterSpatialCrop(roi_size=sp_size)(np.asarray(grid[0]))
+            grid = CenterSpatialCrop(roi_size=sp_size)(grid[0])
         else:
             grid = create_grid(spatial_size=sp_size)
         return self.resampler(img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode)
