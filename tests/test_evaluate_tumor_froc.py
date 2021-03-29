@@ -11,7 +11,6 @@ from monai.utils import optional_import
 _, has_cucim = optional_import("cucim")
 _, has_skimage = optional_import("skimage.measure")
 _, has_sp = optional_import("scipy.ndimage")
-
 PILImage, has_pil = optional_import("PIL.Image")
 
 
@@ -303,6 +302,7 @@ class TestEvaluateTumorFROC(unittest.TestCase):
     @skipUnless(has_cucim, "Requires cucim")
     @skipUnless(has_skimage, "Requires skimage")
     @skipUnless(has_sp, "Requires scipy")
+    @skipUnless(has_pil, "Requires PIL")
     def test_read_patches_cucim(self, input_parameters, expected):
         froc = EvaluateTumorFROC(**input_parameters)
         froc_score = froc.evaluate()
