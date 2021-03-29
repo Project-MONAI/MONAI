@@ -51,10 +51,13 @@ class TestCacheDataset(unittest.TestCase):
             dataset = CacheDataset(data=test_data, transform=transform, cache_rate=0.5)
             data1 = dataset[0]
             data2 = dataset[1]
+            data3 = dataset[0:-1]
+            data4 = dataset[-1]
 
         if transform is None:
             self.assertEqual(data1["image"], os.path.join(tempdir, "test_image1.nii.gz"))
             self.assertEqual(data2["label"], os.path.join(tempdir, "test_label2.nii.gz"))
+            self.assertEqual(data4["image"], os.path.join(tempdir, "test_image2.nii.gz"))
         else:
             self.assertTupleEqual(data1["image"].shape, expected_shape)
             self.assertTupleEqual(data1["label"].shape, expected_shape)
@@ -62,6 +65,8 @@ class TestCacheDataset(unittest.TestCase):
             self.assertTupleEqual(data2["image"].shape, expected_shape)
             self.assertTupleEqual(data2["label"].shape, expected_shape)
             self.assertTupleEqual(data2["extra"].shape, expected_shape)
+            for d in data3:
+                self.assertTupleEqual(d["image"].shape, expected_shape)
 
 
 if __name__ == "__main__":

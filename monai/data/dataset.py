@@ -44,6 +44,8 @@ class Dataset(_TorchDataset):
     """
     A generic dataset with a length property and an optional callable data transform
     when fetching a data sample.
+    It can support slicing index: data = dataset[1:4].
+
     For example, typical input data can be a list of dictionaries::
 
         [{                            {                            {
@@ -66,16 +68,16 @@ class Dataset(_TorchDataset):
     def __len__(self) -> int:
         return len(self.data)
 
-    def _transform(self, data: Any):
-        return apply_transform(self.transform, data) if self.transform is not None else data
+    def _transform(self, index: int):
+        return apply_transform(self.transform, self.data[index]) if self.transform is not None else self.data[index]
 
     def __getitem__(self, index: Union[int, slice]):
         if isinstance(index, slice):
             start, stop, step = index.indices(len(self))
             index_list = list(range(start, stop, step))
-            return [self._transform(self.data[i]) for i in index_list]
+            return [self._transform(i) for i in index_list]
         else:
-            return self._transform(self.data[index])
+            return self._transform(index)
 
 
 class PersistentDataset(Dataset):
@@ -83,6 +85,7 @@ class PersistentDataset(Dataset):
     Persistent storage of pre-computed values to efficiently manage larger than memory dictionary format data,
     it can operate transforms for specific fields.  Results from the non-random transform components are computed
     when first used, and stored in the `cache_dir` for rapid retrieval on subsequent uses.
+    It can support slicing index: data = dataset[1:4].
 
     For example, typical input data can be a list of dictionaries::
 
@@ -232,7 +235,7 @@ class PersistentDataset(Dataset):
             temp_hash_file.rename(hashfile)
         return _item_transformed
 
-    def __getitem__(self, index: int):
+    def _transform(self, index: int):
         pre_random_item = self._cachecheck(self.data[index])
         return self._post_transform(pre_random_item)
 
@@ -450,6 +453,7 @@ class CacheDataset(Dataset):
 
     To improve the caching efficiency, please always put as many as possible non-random transforms
     before the randomized ones when composing the chain of transforms.
+    It can support slicing index: data = dataset[1:4].
 
     For example, if the transform is a `Compose` of::
 
@@ -533,10 +537,10 @@ class CacheDataset(Dataset):
             item = apply_transform(_transform, item)
         return item
 
-    def __getitem__(self, index):
-        if index >= self.cache_num:
+    def _transform(self, index: int):
+        if index % len(self) >= self.cache_num:  # support negative index
             # no cache for this index, execute all the transforms directly
-            return super(CacheDataset, self).__getitem__(index)
+            return super()._transform(index)
         # load data from cache and execute from the first random transform
         start_run = False
         if self._cache is None:
@@ -565,6 +569,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
     where r is the configured replace rate).
     For more details, please refer to:
     https://docs.nvidia.com/clara/tlt-mi/clara-train-sdk-v3.0/nvmidl/additional_features/smart_cache.html#smart-cache
+    It can support slicing index: data = dataset[1:4].
 
     For example, if we have 5 images: `[image1, image2, image3, image4, image5]`, and `cache_num=4`, `replace_rate=0.25`.
     so the actual training images cached and replaced for every epoch are as below::
@@ -816,6 +821,7 @@ class ZipDataset(Dataset):
     finally return (img, imgmeta, seg, segmeta).
     And if the datasets don't have same length, use the minimum length of them as the length
     of ZipDataset.
+    It can support slicing index: data = dataset[1:4].
 
     Examples::
 
@@ -840,7 +846,7 @@ class ZipDataset(Dataset):
     def __len__(self) -> int:
         return min((len(dataset) for dataset in self.data))
 
-    def __getitem__(self, index: int):
+    def _transform(self, index: int):
         def to_list(x):
             return list(x) if isinstance(x, (tuple, list)) else [x]
 
@@ -957,6 +963,7 @@ class NPZDictItemDataset(Dataset):
     Represents a dataset from a loaded NPZ file. The members of the file to load are named in the keys of `keys` and
     stored under the keyed name. All loaded arrays must have the same 0-dimension (batch) size. Items are always dicts
     mapping names to an item extracted from the loaded arrays.
+    It can support slicing index: data = dataset[1:4].
 
     Args:
         npzfile: Path to .npz file or stream containing .npz file data
@@ -993,7 +1000,7 @@ class NPZDictItemDataset(Dataset):
     def __len__(self):
         return self.length
 
-    def __getitem__(self, index: int):
+    def _transform(self, index: int):
         data = {k: v[index] for k, v in self.arrays.items()}
 
         if self.transform is not None:
