@@ -66,12 +66,16 @@ class Dataset(_TorchDataset):
     def __len__(self) -> int:
         return len(self.data)
 
-    def __getitem__(self, index: int):
-        data = self.data[index]
-        if self.transform is not None:
-            data = apply_transform(self.transform, data)
+    def _transform(self, data: Any):
+        return apply_transform(self.transform, data) if self.transform is not None else data
 
-        return data
+    def __getitem__(self, index: Union[int, slice]):
+        if isinstance(index, slice):
+            start, stop, step = index.indices(len(self))
+            index_list = list(range(start, stop, step))
+            return [self._transform(self.data[i]) for i in index_list]
+        else:
+            return self._transform(self.data[index])
 
 
 class PersistentDataset(Dataset):
