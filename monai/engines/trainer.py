@@ -9,25 +9,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Callable, Dict, Iterable, Optional, Sequence, Tuple, Union
 
 import torch
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 
-from monai.engines.utils import CommonKeys as Keys
 from monai.engines.utils import GanKeys, IterationEvents, default_make_latent, default_prepare_batch
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import Transform
 from monai.utils import exact_version, optional_import
+from monai.utils.enums import CommonKeys as Keys
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
     from ignite.metrics import Metric
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
-    Metric, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "Metric")
+    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
+    Metric, _ = optional_import("ignite.metrics", "0.4.4", exact_version, "Metric")
 
 __all__ = ["Trainer", "SupervisedTrainer", "GanTrainer"]
 
@@ -58,7 +58,7 @@ class SupervisedTrainer(Trainer):
     Args:
         device: an object representing the device on which to run.
         max_epochs: the total epoch number for trainer to run.
-        train_data_loader: Ignite engine use data_loader to run, must be torch.DataLoader.
+        train_data_loader: Ignite engine use data_loader to run, must be Iterable or torch.DataLoader.
         network: to train with this network.
         optimizer: the optimizer associated to the network.
         loss_function: the loss function associated to the optimizer.
@@ -85,7 +85,7 @@ class SupervisedTrainer(Trainer):
         self,
         device: torch.device,
         max_epochs: int,
-        train_data_loader: DataLoader,
+        train_data_loader: Union[Iterable, DataLoader],
         network: torch.nn.Module,
         optimizer: Optimizer,
         loss_function: Callable,
@@ -251,6 +251,9 @@ class GanTrainer(Trainer):
         additional_metrics: Optional[Dict[str, Metric]] = None,
         train_handlers: Optional[Sequence] = None,
     ):
+        if not isinstance(train_data_loader, DataLoader):
+            raise ValueError("train_data_loader must be PyTorch DataLoader.")
+
         # set up Ignite engine and environments
         super().__init__(
             device=device,
@@ -296,7 +299,7 @@ class GanTrainer(Trainer):
             raise ValueError("must provide batch data for current iteration.")
 
         d_input = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)
-        batch_size = self.data_loader.batch_size
+        batch_size = self.data_loader.batch_size  # type: ignore
         g_input = self.g_prepare_batch(batch_size, self.latent_shape, engine.state.device, engine.non_blocking)
         g_output = self.g_inferer(g_input, self.g_network)
 

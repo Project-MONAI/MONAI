@@ -10,16 +10,16 @@ from monai.networks.blocks.warp import DVF2DDF
 from monai.utils import set_determinism
 
 TEST_CASES = [
-    [{"spatial_dims": 2, "num_steps": 1}, {"dvf": torch.zeros(1, 2, 2, 2)}, torch.zeros(1, 2, 2, 2)],
+    [{"num_steps": 1}, {"dvf": torch.zeros(1, 2, 2, 2)}, torch.zeros(1, 2, 2, 2)],
     [
-        {"spatial_dims": 3, "num_steps": 1},
+        {"num_steps": 1},
         {"dvf": torch.ones(1, 3, 2, 2, 2)},
         torch.tensor([[[1.0000, 0.7500], [0.7500, 0.6250]], [[0.7500, 0.6250], [0.6250, 0.5625]]])
         .reshape(1, 1, 2, 2, 2)
         .expand(-1, 3, -1, -1, -1),
     ],
     [
-        {"spatial_dims": 3, "num_steps": 2},
+        {"num_steps": 2},
         {"dvf": torch.ones(1, 3, 2, 2, 2)},
         torch.tensor([[[0.9175, 0.6618], [0.6618, 0.5306]], [[0.6618, 0.5306], [0.5306, 0.4506]]])
         .reshape(1, 1, 2, 2, 2)
@@ -43,7 +43,7 @@ class TestDVF2DDF(unittest.TestCase):
 
     def test_gradient(self):
         network = nn.Conv2d(in_channels=1, out_channels=2, kernel_size=1)
-        dvf2ddf = DVF2DDF(spatial_dims=2, num_steps=1)
+        dvf2ddf = DVF2DDF(num_steps=1)
         optimizer = SGD(network.parameters(), lr=0.01)
         x = torch.ones((1, 1, 5, 5))
         x = network(x)
