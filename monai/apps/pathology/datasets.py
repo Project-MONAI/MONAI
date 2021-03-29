@@ -209,7 +209,6 @@ class MaskedInferenceWSIDataset(Dataset):
 
     def _create_data_list(self, data: List[Dict]) -> List[Dict]:
         data_list = []
-        print("Number of whole slide images: ", len(data))
         for sample in data:
             processed_data = self._preprocess_sample(sample)
             data_list.append(processed_data)
@@ -227,7 +226,6 @@ class MaskedInferenceWSIDataset(Dataset):
         except ValueError as err:
             err.args = (sample["label"],) + err.args
             raise
-        print(f"Mask ({sample['label']}) at level {int(level)}, with ratio {int(ratio)}")
 
         # get all indices for tissue region from the foreground mask
         # note: output same size as the foreground mask and not original wsi image size
