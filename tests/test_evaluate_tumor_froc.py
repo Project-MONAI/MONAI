@@ -30,59 +30,60 @@ def around(val, interval=3):
 HEIGHT = 101
 WIDTH = 800
 
-# -------------------------------------
-# Ground Truth - Binary Masks
-# -------------------------------------
+if has_pil:
+    # -------------------------------------
+    # Ground Truth - Binary Masks
+    # -------------------------------------
 
-# ground truth with no tumor
-ground_truth = np.zeros((HEIGHT, WIDTH), dtype=np.uint8)
-save_as_tif("ground_truth_0", ground_truth)
+    # ground truth with no tumor
+    ground_truth = np.zeros((HEIGHT, WIDTH), dtype=np.uint8)
+    save_as_tif("ground_truth_0", ground_truth)
 
-# ground truth with one tumor
-ground_truth[around(HEIGHT // 2), around(1 * WIDTH // 7)] = 1
-save_as_tif("ground_truth_1", ground_truth)
+    # ground truth with one tumor
+    ground_truth[around(HEIGHT // 2), around(1 * WIDTH // 7)] = 1
+    save_as_tif("ground_truth_1", ground_truth)
 
-# ground truth with two tumors
-ground_truth[around(HEIGHT // 2), around(2 * WIDTH // 7)] = 1
-save_as_tif("ground_truth_2", ground_truth)
+    # ground truth with two tumors
+    ground_truth[around(HEIGHT // 2), around(2 * WIDTH // 7)] = 1
+    save_as_tif("ground_truth_2", ground_truth)
 
-# ground truth with three tumors
-ground_truth[around(HEIGHT // 2), around(3 * WIDTH // 7)] = 1
-save_as_tif("ground_truth_3", ground_truth)
+    # ground truth with three tumors
+    ground_truth[around(HEIGHT // 2), around(3 * WIDTH // 7)] = 1
+    save_as_tif("ground_truth_3", ground_truth)
 
-# ground truth with four tumors
-ground_truth[around(HEIGHT // 2), around(4 * WIDTH // 7)] = 1
-save_as_tif("ground_truth_4", ground_truth)
+    # ground truth with four tumors
+    ground_truth[around(HEIGHT // 2), around(4 * WIDTH // 7)] = 1
+    save_as_tif("ground_truth_4", ground_truth)
 
-# -------------------------------------
-# predictions - Probability Maps
-# -------------------------------------
+    # -------------------------------------
+    # predictions - Probability Maps
+    # -------------------------------------
 
-# prediction with no tumor
-prob_map = np.zeros((HEIGHT, WIDTH))
-np.save("./tests/testing_data/prob_map_0_0.npy", prob_map)
+    # prediction with no tumor
+    prob_map = np.zeros((HEIGHT, WIDTH))
+    np.save("./tests/testing_data/prob_map_0_0.npy", prob_map)
 
-# prediction with one incorrect tumor
-prob_map[HEIGHT // 2, 5 * WIDTH // 7] = 0.6
-np.save("./tests/testing_data/prob_map_0_1.npy", prob_map)
+    # prediction with one incorrect tumor
+    prob_map[HEIGHT // 2, 5 * WIDTH // 7] = 0.6
+    np.save("./tests/testing_data/prob_map_0_1.npy", prob_map)
 
-# prediction with correct first tumors and an incorrect tumor
-prob_map[HEIGHT // 2, 1 * WIDTH // 7] = 0.8
-np.save("./tests/testing_data/prob_map_1_1.npy", prob_map)
+    # prediction with correct first tumors and an incorrect tumor
+    prob_map[HEIGHT // 2, 1 * WIDTH // 7] = 0.8
+    np.save("./tests/testing_data/prob_map_1_1.npy", prob_map)
 
-# prediction with correct firt two tumors and an incorrect tumor
-prob_map[HEIGHT // 2, 2 * WIDTH // 7] = 0.8
-np.save("./tests/testing_data/prob_map_2_1.npy", prob_map)
+    # prediction with correct firt two tumors and an incorrect tumor
+    prob_map[HEIGHT // 2, 2 * WIDTH // 7] = 0.8
+    np.save("./tests/testing_data/prob_map_2_1.npy", prob_map)
 
-# prediction with two incorrect tumors
-prob_map = np.zeros((HEIGHT, WIDTH))
-prob_map[HEIGHT // 2, 5 * WIDTH // 7] = 0.6
-prob_map[HEIGHT // 2, 6 * WIDTH // 7] = 0.4
-np.save("./tests/testing_data/prob_map_0_2.npy", prob_map)
+    # prediction with two incorrect tumors
+    prob_map = np.zeros((HEIGHT, WIDTH))
+    prob_map[HEIGHT // 2, 5 * WIDTH // 7] = 0.6
+    prob_map[HEIGHT // 2, 6 * WIDTH // 7] = 0.4
+    np.save("./tests/testing_data/prob_map_0_2.npy", prob_map)
 
-# prediction with correct first tumors and two incorrect tumors
-prob_map[HEIGHT // 2, 1 * WIDTH // 7] = 0.8
-np.save("./tests/testing_data/prob_map_1_2.npy", prob_map)
+    # prediction with correct first tumors and two incorrect tumors
+    prob_map[HEIGHT // 2, 1 * WIDTH // 7] = 0.8
+    np.save("./tests/testing_data/prob_map_1_2.npy", prob_map)
 
 
 TEST_CASE_0 = [
