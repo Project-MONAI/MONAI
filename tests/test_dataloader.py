@@ -59,22 +59,9 @@ class TestDataLoader(unittest.TestCase):
     def test_exception(self, datalist):
         dataset = Dataset(data=datalist, transform=None)
         dataloader = DataLoader(dataset=dataset, batch_size=2, num_workers=0)
-        try:
+        with self.assertRaisesRegex((TypeError, RuntimeError), "Collate error on the key"):
             for _ in dataloader:
                 pass
-
-        except RuntimeError as re:
-            re_str = str(re)
-            if "Collate error on the key" not in re_str:
-                raise RuntimeError(re_str)
-            else:
-                print(f"expected RuntimeError: {re_str}")
-        except TypeError as re:
-            re_str = str(re)
-            if "Collate error on the key" not in re_str:
-                raise TypeError(re_str)
-            else:
-                print(f"expected TypeError: {re_str}")
 
 
 if __name__ == "__main__":
