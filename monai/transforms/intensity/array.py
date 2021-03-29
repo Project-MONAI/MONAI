@@ -14,7 +14,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 from collections.abc import Iterable
-from typing import Any, Optional, Sequence, Tuple, Union
+from typing import Any, List, Optional, Sequence, Tuple, Union
 from warnings import warn
 
 import numpy as np
@@ -32,6 +32,7 @@ __all__ = [
     "RandShiftIntensity",
     "StdShiftIntensity",
     "RandStdShiftIntensity",
+    "RandBiasField",
     "ScaleIntensity",
     "RandScaleIntensity",
     "NormalizeIntensity",
@@ -295,6 +296,78 @@ class RandScaleIntensity(RandomizableTransform):
             return img
         scaler = ScaleIntensity(minv=None, maxv=None, factor=self.factor)
         return scaler(img)
+
+
+class RandBiasField(Transform):
+    """
+    Random bias field augmentation for MR images.
+    The bias field is considered as a linear combination of smoothly varying basis (polynomial)
+    functions, as described in `Automated Model-Based Tissue Classification of MR Images of the Brain
+    <https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=811270>`_.
+    This implementation adapted from `NiftyNet
+    <https://github.com/NifTK/NiftyNet>`_.
+    Referred to `Longitudinal segmentation of age-related white matter hyperintensities
+    <https://www.sciencedirect.com/science/article/pii/S1361841517300257?via%3Dihub>`_.
+
+    Args:
+        degree: degree of freedom of the polynomials. Defaults to 3.
+        coeff_range: range of the random coefficients. Defaults to (0.0, 0.1).
+        dtype: output data type, defaut to float32.
+
+    """
+
+    def __init__(
+        self,
+        degree: int = 3,
+        coeff_range: Tuple[float, float] = (0.0, 0.1),
+        dtype: DtypeLike = np.float32,
+    ) -> None:
+        self.degree = degree
+        self.coeff_range = coeff_range
+        self.dtype = dtype
+
+    def _generate_random_field(
+        self,
+        image_shape: Tuple[int],
+        degree: int,
+        coeff_range: Tuple[float, float] = (0.0, 0.1),
+    ) -> np.ndarray:
+        """
+        products of polynomials as bias field estimations
+        """
+        rank = len(image_shape)
+        coeff_mat = np.zeros((degree + 1,) * rank)
+        n_coeff = int(np.prod([(degree + k) / k for k in range(1, rank + 1)]))
+        coeff = np.random.uniform(*coeff_range, n_coeff)
+        if rank == 2:
+            coeff_mat[np.tril_indices(degree + 1)] = coeff
+            poly_func = np.polynomial.legendre.leggrid2d
+        elif rank == 3:
+            pts: List[Optional[List[int]]] = []
+            for i in range(degree + 1):
+                for j in range(degree + 1 - i):
+                    for k in range(degree + 1 - i - j):
+                        pts.append([i, j, k])
+            np_pts = np.stack(pts)
+            coeff_mat[np_pts[:, 0], np_pts[:, 1], np_pts[:, 2]] = coeff
+            poly_func = np.polynomial.legendre.leggrid3d
+        else:
+            raise NotImplementedError("only supoprts 2D or 3D fields")
+        coords = (np.linspace(-1.0, 1.0, dim, dtype=np.float32) for dim in image_shape)
+        field = poly_func(*coords, coeff_mat)
+        return field
+
+    def __call__(self, img: np.ndarray) -> np.ndarray:
+        """
+        Apply the transform to `img`.
+        """
+        num_channels = img.shape[0]
+        image_shape = img.shape[1:]
+        _bias_fields = np.stack(
+            [self._generate_random_field(image_shape, self.degree, self.coeff_range) for _ in range(num_channels)],
+            axis=0,
+        )
+        return (img * _bias_fields).astype(self.dtype)
 
 
 class NormalizeIntensity(Transform):

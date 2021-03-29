@@ -28,6 +28,7 @@ from monai.transforms.intensity.array import (
     GaussianSmooth,
     MaskIntensity,
     NormalizeIntensity,
+    RandBiasField,
     ScaleIntensity,
     ScaleIntensityRange,
     ScaleIntensityRangePercentiles,
@@ -44,6 +45,9 @@ __all__ = [
     "RandShiftIntensityd",
     "ScaleIntensityd",
     "RandScaleIntensityd",
+    "StdShiftIntensityd",
+    "RandStdShiftIntensityd",
+    "RandBiasFieldd",
     "NormalizeIntensityd",
     "ThresholdIntensityd",
     "ScaleIntensityRanged",
@@ -64,8 +68,14 @@ __all__ = [
     "RandShiftIntensityDict",
     "ScaleIntensityD",
     "ScaleIntensityDict",
+    "StdShiftIntensityD",
+    "StdShiftIntensityDict",
     "RandScaleIntensityD",
     "RandScaleIntensityDict",
+    "RandStdShiftIntensityD",
+    "RandStdShiftIntensityDict",
+    "RandBiasFieldD",
+    "RandBiasFieldDict",
     "NormalizeIntensityD",
     "NormalizeIntensityDict",
     "ThresholdIntensityD",
@@ -378,6 +388,39 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
         scaler = ScaleIntensity(minv=None, maxv=None, factor=self.factor)
         for key in self.key_iterator(d):
             d[key] = scaler(d[key])
+        return d
+
+
+class RandBiasFieldd(MapTransform):
+    """
+    Dictionary-based version :py:class:`monai.transforms.RandBiasField`.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        degree: int = 3,
+        coeff_range: Tuple[float, float] = (0.0, 0.1),
+        dtype: DtypeLike = np.float32,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            degree: degree of freedom of the polynomials. Defaults to 3.
+            coeff_range: range of the random coefficients. Defaults to (0.0, 0.1).
+            dtype: output data type, defaut to float32.
+            allow_missing_keys: don't raise exception if key is missing.
+
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.rand_bias_field = RandBiasField(degree, coeff_range, dtype)
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.rand_bias_field(d[key])
         return d
 
 
@@ -900,6 +943,7 @@ ShiftIntensityD = ShiftIntensityDict = ShiftIntensityd
 RandShiftIntensityD = RandShiftIntensityDict = RandShiftIntensityd
 StdShiftIntensityD = StdShiftIntensityDict = StdShiftIntensityd
 RandStdShiftIntensityD = RandStdShiftIntensityDict = RandStdShiftIntensityd
+RandBiasFieldD = RandBiasFieldDict = RandBiasFieldd
 ScaleIntensityD = ScaleIntensityDict = ScaleIntensityd
 RandScaleIntensityD = RandScaleIntensityDict = RandScaleIntensityd
 NormalizeIntensityD = NormalizeIntensityDict = NormalizeIntensityd

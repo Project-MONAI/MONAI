@@ -86,6 +86,7 @@ from .intensity.array import (
     ScaleIntensityRangePercentiles,
     ShiftIntensity,
     StdShiftIntensity,
+    RandBiasField,
     ThresholdIntensity,
 )
 from .intensity.dictionary import (
@@ -128,6 +129,9 @@ from .intensity.dictionary import (
     RandStdShiftIntensityd,
     RandStdShiftIntensityD,
     RandStdShiftIntensityDict,
+    RandBiasFieldd,
+    RandBiasFieldD,
+    RandBiasFieldDict,
     ScaleIntensityd,
     ScaleIntensityD,
     ScaleIntensityDict,
