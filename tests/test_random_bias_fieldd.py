@@ -53,6 +53,13 @@ class TestRandBiasFieldd(unittest.TestCase):
         output = bias_field({key: img})
         np.testing.assert_equal(output[key], expected.astype(bias_field.rand_bias_field.dtype))
 
+    def test_zero_prob(self):
+        key = "img"
+        bias_field = RandBiasFieldd(keys=[key], prob=0.0)
+        img = np.random.rand(3, 32, 32)
+        output = bias_field({key: img})
+        np.testing.assert_equal(output[key], img)
+
 
 if __name__ == "__main__":
     unittest.main()

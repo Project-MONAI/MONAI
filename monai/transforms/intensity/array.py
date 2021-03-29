@@ -326,26 +326,24 @@ class RandBiasField(RandomizableTransform):
         prob: float = 1.0,
     ) -> None:
         RandomizableTransform.__init__(self, prob)
+        if degree < 1:
+            raise ValueError("degree should be no less than 1.")
         self.degree = degree
         self.coeff_range = coeff_range
         self.dtype = dtype
 
     def _generate_random_field(
         self,
-        spatial_dims: Tuple[int, ...],
+        spatial_shape: Tuple[int, ...],
+        rank: int,
         degree: int,
-        coeff_range: Tuple[float, float] = (0.0, 0.1),
+        coeff: Tuple[int, ...],
     ):
         """
         products of polynomials as bias field estimations
         """
-        if degree < 1:
-            raise ValueError("degree should be no less than 1.")
-        rank = len(spatial_dims)
         coeff_mat = np.zeros((degree + 1,) * rank)
-        n_coeff = int(np.prod([(degree + k) / k for k in range(1, rank + 1)]))
-        coeff = self.R.uniform(*coeff_range, n_coeff)
-        coords = [np.linspace(-1.0, 1.0, dim, dtype=np.float32) for dim in spatial_dims]
+        coords = [np.linspace(-1.0, 1.0, dim, dtype=np.float32) for dim in spatial_shape]
         if rank == 2:
             coeff_mat[np.tril_indices(degree + 1)] = coeff
             field = np.polynomial.legendre.leggrid2d(coords[0], coords[1], coeff_mat)
@@ -364,20 +362,28 @@ class RandBiasField(RandomizableTransform):
             raise NotImplementedError("only supoprts 2D or 3D fields")
         return field
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, data: np.ndarray) -> None:
         super().randomize(None)
+        self.spatial_shape = data.shape[1:]
+        self.rank = len(self.spatial_shape)
+        n_coeff = int(np.prod([(self.degree + k) / k for k in range(1, self.rank + 1)]))
+        self._coeff = self.R.uniform(*self.coeff_range, n_coeff)
 
     def __call__(self, img: np.ndarray):
         """
         Apply the transform to `img`.
         """
-        self.randomize()
+        self.randomize(data=img)
         if not self._do_transform:
             return img
         num_channels = img.shape[0]
-        spatial_dims = img.shape[1:]
         _bias_fields = np.stack(
-            [self._generate_random_field(spatial_dims, self.degree, self.coeff_range) for _ in range(num_channels)],
+            [
+                self._generate_random_field(
+                    spatial_shape=self.spatial_shape, rank=self.rank, degree=self.degree, coeff=self._coeff
+                )
+                for _ in range(num_channels)
+            ],
             axis=0,
         )
         return (img * _bias_fields).astype(self.dtype)
