@@ -30,11 +30,11 @@ def around(val, interval=3):
 HEIGHT = 101
 WIDTH = 800
 
+
 def prepare_test_data():
     # -------------------------------------
     # Ground Truth - Binary Masks
     # -------------------------------------
-    print('*' * 69)
     # ground truth with no tumor
     ground_truth = np.zeros((HEIGHT, WIDTH), dtype=np.uint8)
     save_as_tif("ground_truth_0", ground_truth)
