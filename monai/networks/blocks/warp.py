@@ -1,10 +1,15 @@
+import warnings
 from typing import List, Optional, Union
 
 import torch
 from torch import nn
 from torch.nn import functional as F
 
+from monai.config.deviceconfig import USE_COMPILED
+from monai.networks.layers.spatial_transforms import grid_pull
 from monai.utils import GridSamplePadMode
+
+__all__ = ["Warp", "DVF2DDF"]
 
 
 class Warp(nn.Module):
@@ -33,10 +38,32 @@ class Warp(nn.Module):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
         super(Warp, self).__init__()
-        if mode < 0:
-            raise ValueError(f"do not support negative mode, got mode={mode}")
-        self.mode = mode
-        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        # resolves _interp_mode for different methods
+        if USE_COMPILED:
+            self._interp_mode = mode
+        else:
+            warnings.warn("monai.networks.blocks.Warp: Using PyTorch native grid_sample.")
+            self._interp_mode = "bilinear"
+            if mode == 0:
+                self._interp_mode = "nearest"
+            elif mode == 1:
+                self._interp_mode = "bilinear"
+            elif mode == 3:
+                self._interp_mode = "bicubic"  # torch.functional.grid_sample only supports 4D
+            else:
+                warnings.warn(f"{mode}-order interpolation is not supported, using linear interpolation.")
+
+        # resolves _padding_mode for different methods
+        padding_mode = GridSamplePadMode(padding_mode).value
+        if USE_COMPILED:
+            if padding_mode == "zeros":
+                self._padding_mode = 7
+            elif padding_mode == "border":
+                self._padding_mode = 0
+            else:
+                self._padding_mode = 1  # reflection
+        else:
+            self._padding_mode = padding_mode
 
     @staticmethod
     def get_reference_grid(ddf: torch.Tensor) -> torch.Tensor:
@@ -44,13 +71,6 @@ class Warp(nn.Module):
         grid = torch.stack(torch.meshgrid(*mesh_points), dim=0)  # (spatial_dims, ...)
         grid = torch.stack([grid] * ddf.shape[0], dim=0)  # (batch, spatial_dims, ...)
         grid = grid.to(ddf)
-        return grid
-
-    @staticmethod
-    def normalize_grid(grid: torch.Tensor) -> torch.Tensor:
-        # (batch, ..., spatial_dims)
-        for i, dim in enumerate(grid.shape[1:-1]):
-            grid[..., i] = grid[..., i] * 2 / (dim - 1) - 1
         return grid
 
     def forward(self, image: torch.Tensor, ddf: torch.Tensor) -> torch.Tensor:
@@ -73,34 +93,23 @@ class Warp(nn.Module):
         grid = self.get_reference_grid(ddf) + ddf
         grid = grid.permute([0] + list(range(2, 2 + spatial_dims)) + [1])  # (batch, ..., spatial_dims)
 
-        if self.mode > 1:
-            raise ValueError(f"{self.mode}-order interpolation not yet implemented.")
-            # if not USE_COMPILED:
-            #     raise ValueError(f"cannot perform {self.mode}-order interpolation without C compile.")
-            # _padding_mode = self.padding_mode.value
-            # if _padding_mode == "zeros":
-            #     bound = 7
-            # elif _padding_mode == "border":
-            #     bound = 0
-            # else:
-            #     bound = 1
-            # warped_image: torch.Tensor = grid_pull(
-            #     image,
-            #     grid,
-            #     bound=bound,
-            #     extrapolate=True,
-            #     interpolation=self.mode,
-            # )
-        else:
-            grid = self.normalize_grid(grid)
+        if not USE_COMPILED:  # pytorch native grid_sample
+            for i, dim in enumerate(grid.shape[1:-1]):
+                grid[..., i] = grid[..., i] * 2 / (dim - 1) - 1
             index_ordering: List[int] = list(range(spatial_dims - 1, -1, -1))
             grid = grid[..., index_ordering]  # z, y, x -> x, y, z
-            _interp_mode = "bilinear" if self.mode == 1 else "nearest"
-            warped_image = F.grid_sample(
-                image, grid, mode=_interp_mode, padding_mode=self.padding_mode.value, align_corners=True
+            return F.grid_sample(
+                image, grid, mode=self._interp_mode, padding_mode=self._padding_mode, align_corners=True
             )
 
-        return warped_image
+        # using csrc resampling
+        return grid_pull(
+            image,
+            grid,
+            bound=self._padding_mode,
+            extrapolate=True,
+            interpolation=self._interp_mode,
+        )
 
 
 class DVF2DDF(nn.Module):
