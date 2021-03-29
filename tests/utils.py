@@ -23,7 +23,6 @@ import warnings
 from io import BytesIO
 from subprocess import PIPE, Popen
 from typing import Optional
-from urllib import request
 from urllib.error import ContentTooShortError, HTTPError, URLError
 
 import numpy as np
@@ -581,25 +580,6 @@ def query_memory(n=2):
     except (FileNotFoundError, TypeError, IndexError):
         ids = range(n) if isinstance(n, int) else []
     return ",".join([f"{int(x)}" for x in ids])
-
-
-def download_if_not_exist(file_url, file_path=None):
-    """
-    Download a file form it URL if it does not exists on the given path
-
-    Args:
-        file_url: full URL of the file to be downloaded
-        file_path: the location of the file to be saved.
-            If not provided, it saves it in `tests/testing_data` under the same base name as URL
-    """
-    if file_path is None:
-        filename = os.path.basename(file_url)
-        file_path = os.path.join("tests", "testing_data", filename)
-    if not os.path.exists(file_path):
-        print(f"Downloading '{file_url}'...")
-        request.urlretrieve(file_url, file_path)
-        print(f"'{file_url}' is downloaded at '{file_path}'.")
-    return file_path
 
 
 if __name__ == "__main__":
