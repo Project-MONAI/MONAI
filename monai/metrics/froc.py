@@ -98,7 +98,7 @@ def compute_froc_curve_data(
         num_images: the number of images under evaluation.
 
     """
-    if type(fp_probs) != type(tp_probs):
+    if type(fp_probs) is type(tp_probs):
         raise AssertionError("fp and tp probs should have same type.")
     if isinstance(fp_probs, torch.Tensor):
         fp_probs = fp_probs.detach().cpu().numpy()
