@@ -15,7 +15,7 @@ import math
 import os
 import pickle
 import warnings
-from collections import defaultdict, abc
+from collections import abc, defaultdict
 from itertools import product, starmap
 from pathlib import PurePath
 from typing import Any, Dict, Generator, Iterable, List, Optional, Sequence, Tuple, Union

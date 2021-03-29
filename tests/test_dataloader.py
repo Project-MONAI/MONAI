@@ -11,10 +11,12 @@
 
 import sys
 import unittest
+
 import numpy as np
 import torch
 from parameterized import parameterized
-from monai.data import Dataset, CacheDataset, DataLoader
+
+from monai.data import CacheDataset, DataLoader, Dataset
 from monai.transforms import Compose, DataStatsd, SimulateDelayd
 
 TEST_CASE_1 = [
