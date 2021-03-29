@@ -19,7 +19,7 @@ class Warp(nn.Module):
 
     def __init__(
         self,
-        mode: int = 1,
+        mode=1,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = GridSamplePadMode.ZEROS,
     ):
         """
@@ -63,7 +63,7 @@ class Warp(nn.Module):
             else:
                 self._padding_mode = 1  # reflection
         else:
-            self._padding_mode = padding_mode
+            self._padding_mode = padding_mode  # type: ignore
 
     @staticmethod
     def get_reference_grid(ddf: torch.Tensor) -> torch.Tensor:
@@ -73,7 +73,7 @@ class Warp(nn.Module):
         grid = grid.to(ddf)
         return grid
 
-    def forward(self, image: torch.Tensor, ddf: torch.Tensor) -> torch.Tensor:
+    def forward(self, image: torch.Tensor, ddf: torch.Tensor):
         """
         Args:
             image: Tensor in shape (batch, num_channels, H, W[, D])
@@ -99,7 +99,7 @@ class Warp(nn.Module):
             index_ordering: List[int] = list(range(spatial_dims - 1, -1, -1))
             grid = grid[..., index_ordering]  # z, y, x -> x, y, z
             return F.grid_sample(
-                image, grid, mode=self._interp_mode, padding_mode=self._padding_mode, align_corners=True
+                image, grid, mode=self._interp_mode, padding_mode=f"{self._padding_mode}", align_corners=True
             )
 
         # using csrc resampling
