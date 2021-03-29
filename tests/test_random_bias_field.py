@@ -30,15 +30,16 @@ class TestRandBiasField(unittest.TestCase):
         ]
     )
     def test_output_shape(self, class_args, img_shape):
-        bias_field = RandBiasField(**class_args)
-        img = np.random.rand(*img_shape)
-        output = bias_field(img)
-        np.testing.assert_equal(output.shape, img_shape)
-        np.testing.assert_equal(output.dtype, bias_field.dtype)
+        for degree in [1, 2, 3]:
+            bias_field = RandBiasField(degree=degree, **class_args)
+            img = np.random.rand(*img_shape)
+            output = bias_field(img)
+            np.testing.assert_equal(output.shape, img_shape)
+            np.testing.assert_equal(output.dtype, bias_field.dtype)
 
-        img_zero = np.zeros([*img_shape])
-        output_zero = bias_field(img_zero)
-        np.testing.assert_equal(output_zero, img_zero)
+            img_zero = np.zeros([*img_shape])
+            output_zero = bias_field(img_zero)
+            np.testing.assert_equal(output_zero, img_zero)
 
     @parameterized.expand([TEST_CASES_2D_ZERO_RANGE])
     def test_zero_range(self, class_args, img_shape):

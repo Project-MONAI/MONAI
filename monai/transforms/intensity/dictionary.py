@@ -391,7 +391,7 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
         return d
 
 
-class RandBiasFieldd(MapTransform):
+class RandBiasFieldd(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandBiasField`.
     """
@@ -402,23 +402,34 @@ class RandBiasFieldd(MapTransform):
         degree: int = 3,
         coeff_range: Tuple[float, float] = (0.0, 0.1),
         dtype: DtypeLike = np.float32,
+        prob: float = 1.0,
         allow_missing_keys: bool = False,
     ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            degree: degree of freedom of the polynomials. Defaults to 3.
+            degree: degree of freedom of the polynomials. The value should be no less than 1.
+                Defaults to 3.
             coeff_range: range of the random coefficients. Defaults to (0.0, 0.1).
             dtype: output data type, defaut to float32.
+            prob: probability to do random bias field.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
-        super().__init__(keys, allow_missing_keys)
-        self.rand_bias_field = RandBiasField(degree, coeff_range, dtype)
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+
+        self.rand_bias_field = RandBiasField(degree, coeff_range, dtype, prob)
+
+    def randomize(self, data: Optional[Any] = None) -> None:
+        super().randomize(None)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
+        self.randomize()
+        if not self._do_transform:
+            return d
         for key in self.key_iterator(d):
             d[key] = self.rand_bias_field(d[key])
         return d

@@ -298,7 +298,7 @@ class RandScaleIntensity(RandomizableTransform):
         return scaler(img)
 
 
-class RandBiasField(Transform):
+class RandBiasField(RandomizableTransform):
     """
     Random bias field augmentation for MR images.
     The bias field is considered as a linear combination of smoothly varying basis (polynomial)
@@ -310,9 +310,11 @@ class RandBiasField(Transform):
     <https://www.sciencedirect.com/science/article/pii/S1361841517300257?via%3Dihub>`_.
 
     Args:
-        degree: degree of freedom of the polynomials. Defaults to 3.
+        degree: degree of freedom of the polynomials. The value should be no less than 1.
+            Defaults to 3.
         coeff_range: range of the random coefficients. Defaults to (0.0, 0.1).
         dtype: output data type, defaut to float32.
+        prob: probability to do random bias field.
 
     """
 
@@ -321,50 +323,61 @@ class RandBiasField(Transform):
         degree: int = 3,
         coeff_range: Tuple[float, float] = (0.0, 0.1),
         dtype: DtypeLike = np.float32,
+        prob: float = 1.0,
     ) -> None:
+        RandomizableTransform.__init__(self, prob)
         self.degree = degree
         self.coeff_range = coeff_range
         self.dtype = dtype
 
     def _generate_random_field(
         self,
-        image_shape: Tuple[int],
+        spatial_dims: Tuple[int, ...],
         degree: int,
         coeff_range: Tuple[float, float] = (0.0, 0.1),
-    ) -> np.ndarray:
+    ):
         """
         products of polynomials as bias field estimations
         """
-        rank = len(image_shape)
+        if degree < 1:
+            raise ValueError("degree should be no less than 1.")
+        rank = len(spatial_dims)
         coeff_mat = np.zeros((degree + 1,) * rank)
         n_coeff = int(np.prod([(degree + k) / k for k in range(1, rank + 1)]))
-        coeff = np.random.uniform(*coeff_range, n_coeff)
+        coeff = self.R.uniform(*coeff_range, n_coeff)
+        coords = [np.linspace(-1.0, 1.0, dim, dtype=np.float32) for dim in spatial_dims]
         if rank == 2:
             coeff_mat[np.tril_indices(degree + 1)] = coeff
-            poly_func = np.polynomial.legendre.leggrid2d
+            field = np.polynomial.legendre.leggrid2d(coords[0], coords[1], coeff_mat)
         elif rank == 3:
-            pts: List[Optional[List[int]]] = []
+            pts: List[List[int]] = [[0, 0, 0]]
             for i in range(degree + 1):
                 for j in range(degree + 1 - i):
                     for k in range(degree + 1 - i - j):
                         pts.append([i, j, k])
+            if len(pts) > 1:
+                pts = pts[1:]
             np_pts = np.stack(pts)
             coeff_mat[np_pts[:, 0], np_pts[:, 1], np_pts[:, 2]] = coeff
-            poly_func = np.polynomial.legendre.leggrid3d
+            field = np.polynomial.legendre.leggrid3d(coords[0], coords[1], coords[2], coeff_mat)
         else:
             raise NotImplementedError("only supoprts 2D or 3D fields")
-        coords = (np.linspace(-1.0, 1.0, dim, dtype=np.float32) for dim in image_shape)
-        field = poly_func(*coords, coeff_mat)
         return field
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def randomize(self, data: Optional[Any] = None) -> None:
+        super().randomize(None)
+
+    def __call__(self, img: np.ndarray):
         """
         Apply the transform to `img`.
         """
+        self.randomize()
+        if not self._do_transform:
+            return img
         num_channels = img.shape[0]
-        image_shape = img.shape[1:]
+        spatial_dims = img.shape[1:]
         _bias_fields = np.stack(
-            [self._generate_random_field(image_shape, self.degree, self.coeff_range) for _ in range(num_channels)],
+            [self._generate_random_field(spatial_dims, self.degree, self.coeff_range) for _ in range(num_channels)],
             axis=0,
         )
         return (img * _bias_fields).astype(self.dtype)
