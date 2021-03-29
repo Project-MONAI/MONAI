@@ -75,3 +75,7 @@ Applications
 .. automodule:: monai.apps.pathology.utils
 .. autoclass:: PathologyProbNMS
     :members:
+
+.. automodule:: monai.apps.pathology.handlers
+.. autoclass:: ProbMapGenerator
+    :members:
