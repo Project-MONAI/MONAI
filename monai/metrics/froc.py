@@ -45,9 +45,10 @@ def compute_fp_tp_probs(
         num_targets: the total number of targets (excluding `labels_to_exclude`) for all images under evaluation.
 
     """
-    assert (
+    if not (
         probs.shape == y_coord.shape == x_coord.shape
-    ), "the shapes for coordinates and probabilities should be the same."
+    ):
+        raise AssertionError("the shapes for coordinates and probabilities should be the same.")
 
     if isinstance(probs, torch.Tensor):
         probs = probs.detach().cpu().numpy()
@@ -97,7 +98,8 @@ def compute_froc_curve_data(
         num_images: the number of images under evaluation.
 
     """
-    assert type(fp_probs) == type(tp_probs), "fp and tp probs should have same type."
+    if type(fp_probs) != type(tp_probs):
+        raise AssertionError("fp and tp probs should have same type.")
     if isinstance(fp_probs, torch.Tensor):
         fp_probs = fp_probs.detach().cpu().numpy()
     if isinstance(tp_probs, torch.Tensor):

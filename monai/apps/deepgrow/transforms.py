@@ -115,7 +115,8 @@ class AddInitialSeedPointd(RandomizableTransform):
 
         label = (label > 0.5).astype(np.float32)
         blobs_labels = measure.label(label.astype(int), background=0) if dims == 2 else label
-        assert np.max(blobs_labels) > 0, "Not a valid Label"
+        if np.max(blobs_labels) <= 0:
+            raise AssertionError("Not a valid Label")
 
         pos_guidance = []
         for ridx in range(1, 2 if dims == 3 else self.connected_regions + 1):
