@@ -36,6 +36,7 @@ class PNGSaver:
         resample: bool = True,
         mode: Union[InterpolateMode, str] = InterpolateMode.NEAREST,
         scale: Optional[int] = None,
+        data_root_dir: str = "",
     ) -> None:
         """
         Args:
@@ -48,6 +49,16 @@ class PNGSaver:
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             scale: {``255``, ``65535``} postprocess data by clipping to [0, 1] and scaling
                 [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
+            data_root_dir: if not empty, it specifies the beginning parts of the input file's
+                absolute path. it's used to compute `input_file_rel_path`, the relative path to the file from
+                `data_root_dir` to preserve folder structure when saving in case there are files in different
+                folders with the same file names. for example:
+                input_file_name: /foo/bar/test1/image.png,
+                postfix: seg
+                output_ext: png
+                output_dir: /output,
+                data_root_dir: /foo/bar,
+                output will be: /output/test1/image/image_seg.png
 
         """
         self.output_dir = output_dir
@@ -56,6 +67,7 @@ class PNGSaver:
         self.resample = resample
         self.mode: InterpolateMode = InterpolateMode(mode)
         self.scale = scale
+        self.data_root_dir = data_root_dir
 
         self._data_index = 0
 
@@ -90,7 +102,7 @@ class PNGSaver:
         if isinstance(data, torch.Tensor):
             data = data.detach().cpu().numpy()
 
-        filename = create_file_basename(self.output_postfix, filename, self.output_dir)
+        filename = create_file_basename(self.output_postfix, filename, self.output_dir, self.data_root_dir)
         filename = f"{filename}{self.output_ext}"
 
         if data.shape[0] == 1:
