@@ -1,3 +1,4 @@
+import os
 import unittest
 from unittest import skipUnless
 
@@ -13,7 +14,7 @@ _, has_cim = optional_import("cucim")
 
 
 FILE_URL = "http://openslide.cs.cmu.edu/download/openslide-testdata/Generic-TIFF/CMU-1.tiff"
-FILE_PATH = "tests/testing_data/CMU-1.tiff"
+FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", os.path.basename(FILE_URL))
 
 HEIGHT = 32914
 WIDTH = 46000
