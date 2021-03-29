@@ -30,17 +30,12 @@ class EvaluateTumorFROC:
     Args:
         data: either the list of dictionaries containg probability maps (inference result) and
             tumor mask (ground truth), as below, or the path to a json file containing such list.
-            ```
-            [
-                {
-                    "prob_map": "path/to/prob_map_1.npy",
-                    "tumor_mask": "path/to/ground_truth_1.tiff",
-                    "level": 6,
-                    "pixel_spacing": 0.243
-                },
-                ...
-            ]
-            ```.
+            `{
+            "prob_map": "path/to/prob_map_1.npy",
+            "tumor_mask": "path/to/ground_truth_1.tiff",
+            "level": 6,
+            "pixel_spacing": 0.243
+            }`
         grow_distance: Euclidean distance (in micrometer) by which to grow the label the ground truth's tumors.
             Defaults to 75, which is the equivalent size of 5 tumor cells.
         itc_diameter: the maximum diameter of a region (in micrometer) to be considered as an isolated tumor cell.
@@ -49,6 +44,7 @@ class EvaluateTumorFROC:
             Defaults to (0.25, 0.5, 1, 2, 4, 8) which is the same as the CAMELYON 16 Challenge.
         image_reader_name: the name of library to be used for loading whole slide imaging, either CuCIM or OpenSlide.
             Defaults to CuCIM.
+
     """
 
     def __init__(
@@ -206,7 +202,7 @@ class EvaluateTumorFROC:
             threshold: the threshold (at the mask level) to define an isolated tumor cell (ITC).
                 A region with the longest diameter less than this threshold is considered as an ITC.
         """
-        max_label = np.amax(tumor_mask)  # type: ignore
+        max_label = np.amax(tumor_mask)
         properties = measure.regionprops(tumor_mask, coordinates="rc")
         itc_list = []
         for i in range(max_label):  # type: ignore
