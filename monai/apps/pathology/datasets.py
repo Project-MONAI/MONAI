@@ -17,6 +17,7 @@ import numpy as np
 
 from monai.data import Dataset, SmartCacheDataset
 from monai.data.image_reader import WSIReader
+from monai.utils import ensure_tuple_rep
 
 __all__ = ["PatchWSIDataset", "SmartCachePatchWSIDataset", "MaskedInferenceWSIDataset"]
 
@@ -58,18 +59,9 @@ class PatchWSIDataset(Dataset):
     ):
         super().__init__(data, transform)
 
-        if isinstance(region_size, int):
-            self.region_size = (region_size, region_size)
-        else:
-            self.region_size = region_size
-
-        if isinstance(grid_shape, int):
-            self.grid_shape = (grid_shape, grid_shape)
-        else:
-            self.grid_shape = grid_shape
-
+        self.region_size = ensure_tuple_rep(region_size, 2)
+        self.grid_shape = ensure_tuple_rep(grid_shape, 2)
         self.patch_size = patch_size
-        self.sub_region_size = (self.region_size[0] / self.grid_shape[0], self.region_size[1] / self.grid_shape[1])
 
         self.image_path_list = list({x["image"] for x in self.data})
         self.image_reader_name = image_reader_name
@@ -116,7 +108,7 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
         data: the list of input samples including image, location, and label (see `PatchWSIDataset` for more details)
         region_size: the region to be extracted from the whole slide image.
         grid_shape: the grid shape on which the patches should be extracted.
-        patch_size: the patches extracted from the region on the grid.
+        patch_size: the size of patches extracted from the region on the grid.
         image_reader_name: the name of library to be used for loading whole slide imaging, either CuCIM or OpenSlide.
             Defaults to CuCIM.
         transform: transforms to be executed on input data.
@@ -186,16 +178,13 @@ class MaskedInferenceWSIDataset(Dataset):
     def __init__(
         self,
         data: List,
-        patch_size: Union[int, Tuple[int, int]],
+        patch_size: int,
         transform: Optional[Callable] = None,
         image_reader_name: str = "cuCIM",
     ) -> None:
         super().__init__(data, transform)
 
-        if isinstance(patch_size, int):
-            self.patch_size = np.array((patch_size, patch_size))
-        else:
-            self.patch_size = np.array(patch_size)
+        self.patch_size = np.array(ensure_tuple_rep(patch_size, 2))
         self.image_reader_name = image_reader_name
         self.image_reader = WSIReader(image_reader_name)
 
@@ -268,8 +257,9 @@ class MaskedInferenceWSIDataset(Dataset):
         """
         Load sample given the index
 
-        This method first, find the right patch to be extracted from the right whole slide image, and
-        then load this patch and provide it with its image name and the corrsponding mask location.
+        Since index is sequential and the patches are comming in an stream from different images, 
+        this method, first, finds the whole slide image and the patch that should be extracted,
+        then it loads the patch and provide it with its image name and the corresponding mask location.
         """
         sample_num = np.argmax(self.cum_num_patches > index) - 1
         sample = self.data_list[sample_num]

@@ -19,13 +19,16 @@ FILE_URL = "http://openslide.cs.cmu.edu/download/openslide-testdata/Generic-TIFF
 HEIGHT = 32914
 WIDTH = 46000
 
-mask = np.zeros((WIDTH // 2, HEIGHT // 2))
-mask[100, 100] = 1
-np.save("./tests/testing_data/mask1.npy", mask)
-mask[100, 100:102] = 1
-np.save("./tests/testing_data/mask2.npy", mask)
-mask[100:102, 100:102] = 1
-np.save("./tests/testing_data/mask4.npy", mask)
+
+def prepare_data():
+    mask = np.zeros((WIDTH // 2, HEIGHT // 2))
+    mask[100, 100] = 1
+    np.save("./tests/testing_data/mask1.npy", mask)
+    mask[100, 100:102] = 1
+    np.save("./tests/testing_data/mask2.npy", mask)
+    mask[100:102, 100:102] = 1
+    np.save("./tests/testing_data/mask4.npy", mask)
+
 
 TEST_CASE_0 = [
     FILE_URL,
@@ -193,6 +196,9 @@ TEST_CASE_OPENSLIDE_1 = [
 
 
 class TestMaskedInferenceWSIDataset(unittest.TestCase):
+    def setUp(self):
+        prepare_data()
+
     @parameterized.expand(
         [
             TEST_CASE_0,
