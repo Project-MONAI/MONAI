@@ -120,7 +120,7 @@ TEST_CASE_2 = [
 
 class TestSmartCachePatchWSIDataset(unittest.TestCase):
     def setUp(self):
-        download_url(FILE_URL, FILE_PATH, '5a3cfd4fd725c50578ddb80b517b759f')
+        download_url(FILE_URL, FILE_PATH, "5a3cfd4fd725c50578ddb80b517b759f")
 
     @parameterized.expand(
         [

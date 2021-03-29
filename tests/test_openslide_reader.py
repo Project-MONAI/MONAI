@@ -66,7 +66,7 @@ TEST_CASE_4 = [
 class TestOpenSlideReader(unittest.TestCase):
     @skipUnless(has_osl, "Requires OpenSlide")
     def setUp(self):
-        download_url(FILE_URL, FILE_PATH, '5a3cfd4fd725c50578ddb80b517b759f')
+        download_url(FILE_URL, FILE_PATH, "5a3cfd4fd725c50578ddb80b517b759f")
 
     @parameterized.expand([TEST_CASE_0])
     def test_read_whole_image(self, file_path, expected_shape):
