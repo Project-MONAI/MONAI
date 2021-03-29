@@ -24,6 +24,7 @@ from typing import IO, TYPE_CHECKING, Any, Callable, Dict, List, Optional, Seque
 import numpy as np
 import torch
 from torch.utils.data import Dataset as _TorchDataset
+from torch.utils.data import Subset
 
 from monai.data.utils import first, pickle_hashing
 from monai.transforms import Compose, Randomizable, Transform, apply_transform
@@ -44,7 +45,8 @@ class Dataset(_TorchDataset):
     """
     A generic dataset with a length property and an optional callable data transform
     when fetching a data sample.
-    It can support slicing index: data = dataset[1:4].
+    If passing slicing indices, will return a PyTorch Subset: data: Subset = dataset[1:4], for more details:
+    https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset
 
     For example, typical input data can be a list of dictionaries::
 
@@ -74,8 +76,8 @@ class Dataset(_TorchDataset):
     def __getitem__(self, index: int):
         if isinstance(index, slice):
             start, stop, step = index.indices(len(self))
-            index_list = list(range(start, stop, step))
-            return [self._transform(i) for i in index_list]
+            indices = list(range(start, stop, step))
+            return Subset(dataset=self, indices=indices)
         else:
             return self._transform(index)
 
@@ -85,7 +87,8 @@ class PersistentDataset(Dataset):
     Persistent storage of pre-computed values to efficiently manage larger than memory dictionary format data,
     it can operate transforms for specific fields.  Results from the non-random transform components are computed
     when first used, and stored in the `cache_dir` for rapid retrieval on subsequent uses.
-    It can support slicing index: data = dataset[1:4].
+    If passing slicing indices, will return a PyTorch Subset: data: Subset = dataset[1:4], for more details:
+    https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset
 
     For example, typical input data can be a list of dictionaries::
 
@@ -453,7 +456,8 @@ class CacheDataset(Dataset):
 
     To improve the caching efficiency, please always put as many as possible non-random transforms
     before the randomized ones when composing the chain of transforms.
-    It can support slicing index: data = dataset[1:4].
+    If passing slicing indices, will return a PyTorch Subset: data: Subset = dataset[1:4], for more details:
+    https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset
 
     For example, if the transform is a `Compose` of::
 
@@ -569,7 +573,8 @@ class SmartCacheDataset(Randomizable, CacheDataset):
     where r is the configured replace rate).
     For more details, please refer to:
     https://docs.nvidia.com/clara/tlt-mi/clara-train-sdk-v3.0/nvmidl/additional_features/smart_cache.html#smart-cache
-    It can support slicing index: data = dataset[1:4].
+    If passing slicing indices, will return a PyTorch Subset: data: Subset = dataset[1:4], for more details:
+    https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset
 
     For example, if we have 5 images: `[image1, image2, image3, image4, image5]`, and `cache_num=4`, `replace_rate=0.25`.
     so the actual training images cached and replaced for every epoch are as below::
@@ -821,7 +826,8 @@ class ZipDataset(Dataset):
     finally return (img, imgmeta, seg, segmeta).
     And if the datasets don't have same length, use the minimum length of them as the length
     of ZipDataset.
-    It can support slicing index: data = dataset[1:4].
+    If passing slicing indices, will return a PyTorch Subset: data: Subset = dataset[1:4], for more details:
+    https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset
 
     Examples::
 
@@ -963,7 +969,8 @@ class NPZDictItemDataset(Dataset):
     Represents a dataset from a loaded NPZ file. The members of the file to load are named in the keys of `keys` and
     stored under the keyed name. All loaded arrays must have the same 0-dimension (batch) size. Items are always dicts
     mapping names to an item extracted from the loaded arrays.
-    It can support slicing index: data = dataset[1:4].
+    If passing slicing indices, will return a PyTorch Subset: data: Subset = dataset[1:4], for more details:
+    https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset
 
     Args:
         npzfile: Path to .npz file or stream containing .npz file data

@@ -53,6 +53,7 @@ class TestCacheDataset(unittest.TestCase):
             data2 = dataset[1]
             data3 = dataset[0:-1]
             data4 = dataset[-1]
+            self.assertEqual(len(data3), 1)
 
         if transform is None:
             self.assertEqual(data1["image"], os.path.join(tempdir, "test_image1.nii.gz"))

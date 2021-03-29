@@ -52,6 +52,12 @@ class TestZipDataset(unittest.TestCase):
         self.assertEqual(test_dataset[0], expected_output)
         self.assertEqual(len(test_dataset), expected_length)
 
+    def test_slicing(self):
+        test_dataset = ZipDataset(datasets=[Dataset_(5), Dataset_(5), Dataset_(5)], transform=None)
+        subset = test_dataset[0:2]
+        self.assertEqual(subset[-1], (1, 1, 1))
+        self.assertEqual(len(subset), 2)
+
 
 if __name__ == "__main__":
     unittest.main()
