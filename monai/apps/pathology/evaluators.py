@@ -209,7 +209,7 @@ class EvaluateTumorFROC:
         max_label = np.amax(tumor_mask)  # type: ignore
         properties = measure.regionprops(tumor_mask, coordinates="rc")
         itc_list = []
-        for i in range(max_label):
+        for i in range(max_label):  # type: ignore
             if properties[i].major_axis_length < threshold:
                 itc_list.append(i + 1)
 
