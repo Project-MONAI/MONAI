@@ -43,6 +43,7 @@ class NiftiSaver:
         dtype: DtypeLike = np.float64,
         output_dtype: DtypeLike = np.float32,
         squeeze_end_dims: bool = True,
+        data_root_dir: str = "",
     ) -> None:
         """
         Args:
@@ -67,6 +68,17 @@ class NiftiSaver:
                 has been moved to the end). So if input is (C,H,W,D), this will be altered to (H,W,D,C), and
                 then if C==1, it will be saved as (H,W,D). If D also ==1, it will be saved as (H,W). If false,
                 image will always be saved as (H,W,D,C).
+            data_root_dir: if not empty, it specifies the beginning parts of the input file's
+                absolute path. it's used to compute `input_file_rel_path`, the relative path to the file from
+                `data_root_dir` to preserve folder structure when saving in case there are files in different
+                folders with the same file names. for example:
+                input_file_name: /foo/bar/test1/image.nii,
+                postfix: seg
+                output_ext: nii.gz
+                output_dir: /output,
+                data_root_dir: /foo/bar,
+                output will be: /output/test1/image/image_seg.nii.gz
+
         """
         self.output_dir = output_dir
         self.output_postfix = output_postfix
@@ -79,6 +91,7 @@ class NiftiSaver:
         self.output_dtype = output_dtype
         self._data_index = 0
         self.squeeze_end_dims = squeeze_end_dims
+        self.data_root_dir = data_root_dir
 
     def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
         """
@@ -112,7 +125,7 @@ class NiftiSaver:
         if isinstance(data, torch.Tensor):
             data = data.detach().cpu().numpy()
 
-        filename = create_file_basename(self.output_postfix, filename, self.output_dir)
+        filename = create_file_basename(self.output_postfix, filename, self.output_dir, self.data_root_dir)
         filename = f"{filename}{self.output_ext}"
         # change data shape to be (channel, h, w, d)
         while len(data.shape) < 4:
