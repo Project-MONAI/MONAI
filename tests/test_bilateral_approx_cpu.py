@@ -14,6 +14,7 @@ import unittest
 import numpy as np
 import torch
 from parameterized import parameterized
+from torch.autograd import gradcheck
 
 from monai.networks.layers.filtering import BilateralFilter
 from tests.utils import skip_if_no_cpp_extention
@@ -375,6 +376,23 @@ class BilateralFilterTestCaseCpuApprox(unittest.TestCase):
 
         # Ensure result are as expected
         np.testing.assert_allclose(output, expected, atol=1e-5)
+
+    @parameterized.expand(TEST_CASES)
+    def test_cpu_approx_backwards(self, test_case_description, sigmas, input, expected):
+
+        # Params to determine the implementation to test
+        device = torch.device("cpu")
+        fast_approx = True
+
+        # Prepare input tensor
+        input_tensor = torch.from_numpy(np.array(input)).to(dtype=torch.float, device=device)
+        input_tensor.requires_grad = True
+
+        # Prepare args
+        args = (input_tensor, *sigmas, fast_approx)
+
+        # Run grad check
+        gradcheck(BilateralFilter.apply, args, raise_exception=False)
 
 
 if __name__ == "__main__":
