@@ -608,7 +608,12 @@ def create_file_basename(
 
         `folder_path/input_file_name (no ext.) /input_file_name (no ext.)[_postfix]`
 
-    otherwise the relative path with respect to `data_root_dir` will be inserted.
+    otherwise the relative path with respect to `data_root_dir` will be inserted, for example:
+    input_file_name: /foo/bar/test1/image.png,
+    postfix: seg
+    folder_path: /output,
+    data_root_dir: /foo/bar,
+    output will be: /output/test1/image/image_seg
 
     Args:
         postfix: output name's postfix
