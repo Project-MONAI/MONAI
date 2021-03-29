@@ -212,6 +212,16 @@ class SaveImage(Transform):
             then if C==1, it will be saved as (H,W,D). If D also ==1, it will be saved as (H,W). If false,
             image will always be saved as (H,W,D,C).
             it's used for NIfTI format only.
+        data_root_dir: if not empty, it specifies the beginning parts of the input file's
+            absolute path. it's used to compute `input_file_rel_path`, the relative path to the file from
+            `data_root_dir` to preserve folder structure when saving in case there are files in different
+            folders with the same file names. for example:
+            input_file_name: /foo/bar/test1/image.nii,
+            output_postfix: seg
+            output_ext: nii.gz
+            output_dir: /output,
+            data_root_dir: /foo/bar,
+            output will be: /output/test1/image/image_seg.nii.gz
 
     """
 
@@ -228,6 +238,7 @@ class SaveImage(Transform):
         output_dtype: DtypeLike = np.float32,
         save_batch: bool = False,
         squeeze_end_dims: bool = True,
+        data_root_dir: str = "",
     ) -> None:
         self.saver: Union[NiftiSaver, PNGSaver]
         if output_ext in (".nii.gz", ".nii"):
@@ -241,6 +252,7 @@ class SaveImage(Transform):
                 dtype=dtype,
                 output_dtype=output_dtype,
                 squeeze_end_dims=squeeze_end_dims,
+                data_root_dir=data_root_dir,
             )
         elif output_ext == ".png":
             self.saver = PNGSaver(
@@ -250,6 +262,7 @@ class SaveImage(Transform):
                 resample=resample,
                 mode=InterpolateMode(mode),
                 scale=scale,
+                data_root_dir=data_root_dir,
             )
         else:
             raise ValueError(f"unsupported output extension: {output_ext}.")

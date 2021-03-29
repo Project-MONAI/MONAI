@@ -36,6 +36,15 @@ class TestFilename(unittest.TestCase):
             expected = os.path.join(output_tmp, "bar", "test", "test")
             self.assertEqual(result, expected)
 
+            result = create_file_basename(
+                postfix="",
+                input_file_name=os.path.join("foo", "bar", "data", "test.txt"),
+                folder_path=output_tmp,
+                data_root_dir=os.path.join("foo", "bar"),
+            )
+            expected = os.path.join(output_tmp, "data", "test", "test")
+            self.assertEqual(result, expected)
+
             result = create_file_basename("", os.path.join("foo", "bar", "test.txt"), output_tmp, "bar")
             expected = os.path.join(tempdir, "foo", "bar", "test", "test")
             self.assertEqual(result, expected)
