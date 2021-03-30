@@ -94,7 +94,7 @@ class ProbNMS:
             idx_min_range = (max_idx_arr - self.box_lower_bd).clip(0, None)
             idx_max_range = (max_idx_arr + self.box_upper_bd).clip(None, probs_map_shape)
             # for each dimension, set values during index ranges to 0
-            slices = tuple([slice(idx_min_range[i], idx_max_range[i]) for i in range(self.spatial_dims)])
+            slices = tuple(slice(idx_min_range[i], idx_max_range[i]) for i in range(self.spatial_dims))
             probs_map[slices] = 0
 
         return outputs
