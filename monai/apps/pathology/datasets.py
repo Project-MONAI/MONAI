@@ -177,7 +177,7 @@ class MaskedInferenceWSIDataset(Dataset):
 
     def __init__(
         self,
-        data: List,
+        data: List[Dict["str", "str"]],
         patch_size: int,
         transform: Optional[Callable] = None,
         image_reader_name: str = "cuCIM",
@@ -196,14 +196,14 @@ class MaskedInferenceWSIDataset(Dataset):
         self.total_num_patches = self.cum_num_patches[-1]
         self.cum_num_patches = self.cum_num_patches[:-1]
 
-    def _create_data_list(self, data: List[Dict]) -> List[Dict]:
+    def _create_data_list(self, data: List[Dict["str", "str"]]) -> List[Dict]:
         data_list = []
         for sample in data:
             processed_data = self._preprocess_sample(sample)
             data_list.append(processed_data)
         return data_list
 
-    def _preprocess_sample(self, sample: Dict) -> Dict:
+    def _preprocess_sample(self, sample: Dict["str", "str"]) -> Dict:
         """
         Preprocess input data to load WSIReader object and the foreground mask,
         and define the locations where patches need to be extracted.
@@ -257,7 +257,7 @@ class MaskedInferenceWSIDataset(Dataset):
         """
         Load sample given the index
 
-        Since index is sequential and the patches are comming in an stream from different images, 
+        Since index is sequential and the patches are comming in an stream from different images,
         this method, first, finds the whole slide image and the patch that should be extracted,
         then it loads the patch and provide it with its image name and the corresponding mask location.
         """
