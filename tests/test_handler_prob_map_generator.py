@@ -11,10 +11,10 @@
 
 import os
 import unittest
+from unittest import skipUnless
 
 import numpy as np
 import torch
-from ignite.engine import Engine
 from parameterized import parameterized
 from torch.utils.data import DataLoader
 
@@ -22,6 +22,8 @@ from monai.apps.pathology.handlers import ProbMapGenerator
 from monai.data.dataset import Dataset
 from monai.engines import Evaluator
 from monai.handlers import ValidationHandler
+
+Events, has_ignite = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
 
 TEST_CASE_0 = ["image_inference_output_1", 2]
 TEST_CASE_1 = ["image_inference_output_2", 9]
@@ -64,6 +66,7 @@ class TestHandlerProbMapGenerator(unittest.TestCase):
             TEST_CASE_2,
         ]
     )
+    @skipUnless(has_ignite, "Requires pytorch-ignite.")
     def test_prob_map_generator(self, name, size):
         # set up dataset
         dataset = TestDataset(name, size)
