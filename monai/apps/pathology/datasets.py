@@ -250,24 +250,34 @@ class MaskedInferenceWSIDataset(Dataset):
             "level": level,
         }
 
-    def _calculate_mask_level(self, image: np.ndarray, mask: np.ndarray) -> Tuple[int, int]:
-        """Calculate level of the mask and its ratio with respect to the whole slide image"""
-        dim_y_img, dim_x_img, _ = image.shape
-        dim_y_msk, dim_x_msk = mask.shape
+    def _calculate_mask_level(self, image: np.ndarray, mask: np.ndarray) -> Tuple[int, float]:
+        """
+        Calculate level of the mask and its ratio with respect to the whole slide image
 
-        ratio_x = dim_x_img / dim_x_msk
-        ratio_y = dim_y_img / dim_y_msk
-        level_x = np.log2(ratio_x)
+        Args:
+            image: the original whole slide image
+            mask: a mask, that can be down-sampled at an arbitrary level.
+                Note that down-sampling ratio should be 2^N and equal in all dimension.
 
-        if ratio_x != ratio_y:
+        Return:
+            tuple: (level, ratio) where ratio is 2^level
+
+        """
+        image_shape = image.shape
+        mask_shape = mask.shape
+        ratios = [image_shape[i] / mask_shape[i] for i in range(2)]
+        level = np.log2(ratios[0])
+
+        if ratios[0] != ratios[1]:
             raise ValueError(
                 "Image/Mask ratio across dimensions does not match!"
-                f"ratio 0: {ratio_x} ({dim_x_img} / {dim_x_msk}),"
-                f"ratio 1: {ratio_y} ({dim_y_img} / {dim_y_msk}),"
+                f"ratio 0: {ratios[0]} ({image_shape[0]} / {mask_shape[0]}),"
+                f"ratio 1: {ratios[1]} ({image_shape[1]} / {mask_shape[1]}),"
             )
-        elif not level_x.is_integer():
-            raise ValueError(f"Mask is not at a regular level (ratio not power of 2), image / mask ratio: {ratio_x}")
-        return int(level_x), int(ratio_x)
+        elif not level.is_integer():
+            raise ValueError(f"Mask is not at a regular level (ratio not power of 2), image / mask ratio: {ratios[0]}")
+
+        return int(level), ratios[0]
 
     def _load_a_patch(self, index):
         """
