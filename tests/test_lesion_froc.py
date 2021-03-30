@@ -30,11 +30,11 @@ def around(val, interval=3):
 HEIGHT = 101
 WIDTH = 800
 
-if has_pil:
+
+def prepare_test_data():
     # -------------------------------------
     # Ground Truth - Binary Masks
     # -------------------------------------
-
     # ground truth with no tumor
     ground_truth = np.zeros((HEIGHT, WIDTH), dtype=np.uint8)
     save_as_tif("ground_truth_0", ground_truth)
@@ -287,6 +287,13 @@ TEST_CASE_8 = [
 
 
 class TestEvaluateTumorFROC(unittest.TestCase):
+    @skipUnless(has_cucim, "Requires cucim")
+    @skipUnless(has_skimage, "Requires skimage")
+    @skipUnless(has_sp, "Requires scipy")
+    @skipUnless(has_pil, "Requires PIL")
+    def setUp(self):
+        prepare_test_data()
+
     @parameterized.expand(
         [
             TEST_CASE_0,
@@ -300,10 +307,6 @@ class TestEvaluateTumorFROC(unittest.TestCase):
             TEST_CASE_8,
         ]
     )
-    @skipUnless(has_cucim, "Requires cucim")
-    @skipUnless(has_skimage, "Requires skimage")
-    @skipUnless(has_sp, "Requires scipy")
-    @skipUnless(has_pil, "Requires PIL")
     def test_read_patches_cucim(self, input_parameters, expected):
         froc = LesionFROC(**input_parameters)
         froc_score = froc.evaluate()
