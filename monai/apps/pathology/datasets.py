@@ -53,7 +53,7 @@ class PatchWSIDataset(Dataset):
         data: List,
         region_size: Union[int, Tuple[int, int]],
         grid_shape: Union[int, Tuple[int, int]],
-        patch_size: Union[int, Tuple[int]],
+        patch_size: Union[int, Tuple[int, int]],
         transform: Optional[Callable] = None,
         image_reader_name: str = "cuCIM",
     ):
@@ -130,7 +130,7 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
         data: List,
         region_size: Union[int, Tuple[int, int]],
         grid_shape: Union[int, Tuple[int, int]],
-        patch_size: int,
+        patch_size: Union[int, Tuple[int, int]],
         transform: Union[Sequence[Callable], Callable],
         image_reader_name: str = "cuCIM",
         replace_rate: float = 0.5,
@@ -178,7 +178,7 @@ class MaskedInferenceWSIDataset(Dataset):
     def __init__(
         self,
         data: List[Dict["str", "str"]],
-        patch_size: int,
+        patch_size: Union[int, Tuple[int, int]],
         transform: Optional[Callable] = None,
         image_reader_name: str = "cuCIM",
     ) -> None:
