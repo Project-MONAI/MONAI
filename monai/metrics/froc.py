@@ -45,9 +45,7 @@ def compute_fp_tp_probs(
         num_targets: the total number of targets (excluding `labels_to_exclude`) for all images under evaluation.
 
     """
-    if not (
-        probs.shape == y_coord.shape == x_coord.shape
-    ):
+    if not (probs.shape == y_coord.shape == x_coord.shape):
         raise AssertionError("the shapes for coordinates and probabilities should be the same.")
 
     if isinstance(probs, torch.Tensor):
