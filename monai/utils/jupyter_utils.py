@@ -145,7 +145,7 @@ def tensor_to_images(name: str, tensor: torch.Tensor):
     """
     if tensor.ndim == 4 and tensor.shape[2] > 2 and tensor.shape[3] > 2:
         return tuple(tensor[0].cpu().data.numpy())
-    elif tensor.ndim == 5 and tensor.shape[3] > 2 and tensor.shape[4] > 2:
+    if tensor.ndim == 5 and tensor.shape[3] > 2 and tensor.shape[4] > 2:
         dmid = tensor.shape[2] // 2
         return tuple(tensor[0, :, dmid].cpu().data.numpy())
 
@@ -217,8 +217,7 @@ def _get_loss_from_output(output: Union[Dict[str, torch.Tensor], torch.Tensor]) 
     """Returns a single value from the network output, which is a dict or tensor."""
     if isinstance(output, dict):
         return output["loss"].item()
-    else:
-        return output.item()
+    return output.item()
 
 
 class StatusMembers(Enum):
