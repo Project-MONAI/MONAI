@@ -1,13 +1,13 @@
 import os
 import unittest
 from unittest import skipUnless
-from urllib import request
 
 import numpy as np
 from numpy.testing import assert_array_equal
 from parameterized import parameterized
 
 from monai.apps.pathology.datasets import MaskedInferenceWSIDataset
+from monai.apps.utils import download_url
 from monai.utils import optional_import
 from tests.utils import skip_if_quick
 
@@ -15,26 +15,31 @@ _, has_cim = optional_import("cucim")
 _, has_osl = optional_import("openslide")
 
 FILE_URL = "http://openslide.cs.cmu.edu/download/openslide-testdata/Generic-TIFF/CMU-1.tiff"
+FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", os.path.basename(FILE_URL))
+
+MASK1 = save_dir = os.path.join(os.path.dirname(__file__), "testing_data", "tissue_mask1.npy")
+MASK2 = save_dir = os.path.join(os.path.dirname(__file__), "testing_data", "tissue_mask2.npy")
+MASK4 = save_dir = os.path.join(os.path.dirname(__file__), "testing_data", "tissue_mask4.npy")
 
 HEIGHT = 32914
 WIDTH = 46000
 
 
 def prepare_data():
+
     mask = np.zeros((WIDTH // 2, HEIGHT // 2))
     mask[100, 100] = 1
-    np.save("./tests/testing_data/mask1.npy", mask)
+    np.save(MASK1, mask)
     mask[100, 100:102] = 1
-    np.save("./tests/testing_data/mask2.npy", mask)
+    np.save(MASK2, mask)
     mask[100:102, 100:102] = 1
-    np.save("./tests/testing_data/mask4.npy", mask)
+    np.save(MASK4, mask)
 
 
 TEST_CASE_0 = [
-    FILE_URL,
     {
         "data": [
-            {"image": "./CMU-1.tiff", "label": "./tests/testing_data/mask1.npy"},
+            {"image": FILE_PATH, "label": MASK1},
         ],
         "patch_size": 1,
         "image_reader_name": "cuCIM",
@@ -49,9 +54,8 @@ TEST_CASE_0 = [
 ]
 
 TEST_CASE_1 = [
-    FILE_URL,
     {
-        "data": [{"image": "./CMU-1.tiff", "label": "./tests/testing_data/mask2.npy"}],
+        "data": [{"image": FILE_PATH, "label": MASK2}],
         "patch_size": 1,
         "image_reader_name": "cuCIM",
     },
@@ -70,9 +74,8 @@ TEST_CASE_1 = [
 ]
 
 TEST_CASE_2 = [
-    FILE_URL,
     {
-        "data": [{"image": "./CMU-1.tiff", "label": "./tests/testing_data/mask4.npy"}],
+        "data": [{"image": FILE_PATH, "label": MASK4}],
         "patch_size": 1,
         "image_reader_name": "cuCIM",
     },
@@ -101,10 +104,9 @@ TEST_CASE_2 = [
 ]
 
 TEST_CASE_3 = [
-    FILE_URL,
     {
         "data": [
-            {"image": "./CMU-1.tiff", "label": "./tests/testing_data/mask1.npy"},
+            {"image": FILE_PATH, "label": MASK1},
         ],
         "patch_size": 2,
         "image_reader_name": "cuCIM",
@@ -126,11 +128,10 @@ TEST_CASE_3 = [
 ]
 
 TEST_CASE_4 = [
-    FILE_URL,
     {
         "data": [
-            {"image": "./CMU-1.tiff", "label": "./tests/testing_data/mask1.npy"},
-            {"image": "./CMU-1.tiff", "label": "./tests/testing_data/mask2.npy"},
+            {"image": FILE_PATH, "label": MASK1},
+            {"image": FILE_PATH, "label": MASK2},
         ],
         "patch_size": 1,
         "image_reader_name": "cuCIM",
@@ -156,10 +157,9 @@ TEST_CASE_4 = [
 
 
 TEST_CASE_OPENSLIDE_0 = [
-    FILE_URL,
     {
         "data": [
-            {"image": "./CMU-1.tiff", "label": "./tests/testing_data/mask1.npy"},
+            {"image": FILE_PATH, "label": MASK1},
         ],
         "patch_size": 1,
         "image_reader_name": "OpenSlide",
@@ -174,9 +174,8 @@ TEST_CASE_OPENSLIDE_0 = [
 ]
 
 TEST_CASE_OPENSLIDE_1 = [
-    FILE_URL,
     {
-        "data": [{"image": "./CMU-1.tiff", "label": "./tests/testing_data/mask2.npy"}],
+        "data": [{"image": FILE_PATH, "label": MASK2}],
         "patch_size": 1,
         "image_reader_name": "OpenSlide",
     },
@@ -198,6 +197,7 @@ TEST_CASE_OPENSLIDE_1 = [
 class TestMaskedInferenceWSIDataset(unittest.TestCase):
     def setUp(self):
         prepare_data()
+        download_url(FILE_URL, FILE_PATH, "5a3cfd4fd725c50578ddb80b517b759f")
 
     @parameterized.expand(
         [
@@ -210,8 +210,7 @@ class TestMaskedInferenceWSIDataset(unittest.TestCase):
     )
     @skipUnless(has_cim, "Requires CuCIM")
     @skip_if_quick
-    def test_read_patches_cucim(self, file_url, input_parameters, expected):
-        self.camelyon_data_download(file_url)
+    def test_read_patches_cucim(self, input_parameters, expected):
         dataset = MaskedInferenceWSIDataset(**input_parameters)
         self.compare_samples_expected(dataset, expected)
 
@@ -223,17 +222,9 @@ class TestMaskedInferenceWSIDataset(unittest.TestCase):
     )
     @skipUnless(has_osl, "Requires OpenSlide")
     @skip_if_quick
-    def test_read_patches_openslide(self, file_url, input_parameters, expected):
-        self.camelyon_data_download(file_url)
+    def test_read_patches_openslide(self, input_parameters, expected):
         dataset = MaskedInferenceWSIDataset(**input_parameters)
         self.compare_samples_expected(dataset, expected)
-
-    def camelyon_data_download(self, file_url):
-        filename = os.path.basename(file_url)
-        if not os.path.exists(filename):
-            print(f"Test image [{filename}] does not exist. Downloading...")
-            request.urlretrieve(file_url, filename)
-        return filename
 
     def compare_samples_expected(self, dataset, expected):
         for i in range(len(dataset)):
