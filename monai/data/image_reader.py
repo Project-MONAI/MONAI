@@ -20,7 +20,7 @@ from torch.utils.data._utils.collate import np_str_obj_array_pattern
 from monai.config import DtypeLike, KeysCollection
 from monai.data.utils import correct_nifti_header_if_necessary
 from monai.transforms.utility.array import EnsureChannelFirst
-from monai.utils import ensure_tuple, optional_import
+from monai.utils import ensure_tuple, ensure_tuple_rep, optional_import
 
 from .utils import is_supported_format
 
@@ -697,7 +697,7 @@ class WSIReader(ImageReader):
         level: int = 0,
         dtype: DtypeLike = np.uint8,
         grid_shape: Tuple[int, int] = (1, 1),
-        patch_size: Optional[int] = None,
+        patch_size: Optional[Union[int, Tuple[int, int]]] = None,
     ):
         """
         Extract regions as numpy array from WSI image and return them.
@@ -711,8 +711,16 @@ class WSIReader(ImageReader):
             level: the level number, or list of level numbers (default=0)
             dtype: the data type of output image
             grid_shape: (row, columns) tuple define a grid to extract patches on that
-            patch_size: (heigsht, width) the size of extracted patches at the given level
+            patch_size: (height, width) the size of extracted patches at the given level
         """
+
+        if self.reader_lib == "openslide" and size is None:
+            # the maximum size is set to WxH
+            size = (
+                img.shape[0] // (2 ** level) - location[0],
+                img.shape[1] // (2 ** level) - location[1],
+            )
+
         region = self._extract_region(img, location=location, size=size, level=level, dtype=dtype)
 
         metadata: Dict = {}
@@ -723,8 +731,12 @@ class WSIReader(ImageReader):
         if patch_size is None:
             patches = region
         else:
+            tuple_patch_size = ensure_tuple_rep(patch_size, 2)
             patches = self._extract_patches(
-                region, patch_size=(patch_size, patch_size), grid_shape=grid_shape, dtype=dtype
+                region,
+                patch_size=tuple_patch_size,  # type: ignore
+                grid_shape=grid_shape,
+                dtype=dtype,
             )
 
         return patches, metadata
@@ -736,7 +748,7 @@ class WSIReader(ImageReader):
         location: Tuple[int, int] = (0, 0),
         level: int = 0,
         dtype: DtypeLike = np.uint8,
-    ):
+    ) -> np.ndarray:
         # reverse the order of dimensions for size and location to be compatible with image shape
         location = location[::-1]
         if size is None:
@@ -748,22 +760,26 @@ class WSIReader(ImageReader):
         region = self.convert_to_rgb_array(region, dtype)
         return region
 
-    def convert_to_rgb_array(self, region, dtype):
+    def convert_to_rgb_array(
+        self,
+        raw_region,
+        dtype: DtypeLike = np.uint8,
+    ) -> np.ndarray:
         """Convert to RGB mode and numpy array"""
         if self.reader_lib == "openslide":
             # convert to RGB
-            region = region.convert("RGB")
+            raw_region = raw_region.convert("RGB")
             # convert to numpy
-            region = np.asarray(region, dtype=dtype)
+            raw_region = np.asarray(raw_region, dtype=dtype)
         elif self.reader_lib == "cucim":
-            num_channels = len(region.channel_names)
+            num_channels = len(raw_region.channel_names)
             # convert to numpy
-            region = np.asarray(region, dtype=dtype)
+            raw_region = np.asarray(raw_region, dtype=dtype)
             # remove alpha channel if exist (RGBA)
             if num_channels > 3:
-                region = region[:, :, :3]
+                raw_region = raw_region[:, :, :3]
 
-        return region
+        return raw_region
 
     def _extract_patches(
         self,
