@@ -20,7 +20,7 @@ from torch.utils.data._utils.collate import np_str_obj_array_pattern
 from monai.config import DtypeLike, KeysCollection
 from monai.data.utils import correct_nifti_header_if_necessary
 from monai.transforms.utility.array import EnsureChannelFirst
-from monai.utils import ensure_tuple, ensure_tuple_rep, optional_import
+from monai.utils import ensure_tuple, optional_import
 
 from .utils import is_supported_format
 
