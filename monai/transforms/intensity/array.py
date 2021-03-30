@@ -14,7 +14,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 from collections.abc import Iterable
-from typing import Any, Optional, Sequence, Tuple, Union
+from typing import Any, List, Optional, Sequence, Tuple, Union
 from warnings import warn
 
 import numpy as np
@@ -32,6 +32,7 @@ __all__ = [
     "RandShiftIntensity",
     "StdShiftIntensity",
     "RandStdShiftIntensity",
+    "RandBiasField",
     "ScaleIntensity",
     "RandScaleIntensity",
     "NormalizeIntensity",
@@ -295,6 +296,97 @@ class RandScaleIntensity(RandomizableTransform):
             return img
         scaler = ScaleIntensity(minv=None, maxv=None, factor=self.factor)
         return scaler(img)
+
+
+class RandBiasField(RandomizableTransform):
+    """
+    Random bias field augmentation for MR images.
+    The bias field is considered as a linear combination of smoothly varying basis (polynomial)
+    functions, as described in `Automated Model-Based Tissue Classification of MR Images of the Brain
+    <https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=811270>`_.
+    This implementation adapted from `NiftyNet
+    <https://github.com/NifTK/NiftyNet>`_.
+    Referred to `Longitudinal segmentation of age-related white matter hyperintensities
+    <https://www.sciencedirect.com/science/article/pii/S1361841517300257?via%3Dihub>`_.
+
+    Args:
+        degree: degree of freedom of the polynomials. The value should be no less than 1.
+            Defaults to 3.
+        coeff_range: range of the random coefficients. Defaults to (0.0, 0.1).
+        dtype: output data type, defaut to float32.
+        prob: probability to do random bias field.
+
+    """
+
+    def __init__(
+        self,
+        degree: int = 3,
+        coeff_range: Tuple[float, float] = (0.0, 0.1),
+        dtype: DtypeLike = np.float32,
+        prob: float = 1.0,
+    ) -> None:
+        RandomizableTransform.__init__(self, prob)
+        if degree < 1:
+            raise ValueError("degree should be no less than 1.")
+        self.degree = degree
+        self.coeff_range = coeff_range
+        self.dtype = dtype
+
+    def _generate_random_field(
+        self,
+        spatial_shape: Tuple[int, ...],
+        rank: int,
+        degree: int,
+        coeff: Tuple[int, ...],
+    ):
+        """
+        products of polynomials as bias field estimations
+        """
+        coeff_mat = np.zeros((degree + 1,) * rank)
+        coords = [np.linspace(-1.0, 1.0, dim, dtype=np.float32) for dim in spatial_shape]
+        if rank == 2:
+            coeff_mat[np.tril_indices(degree + 1)] = coeff
+            field = np.polynomial.legendre.leggrid2d(coords[0], coords[1], coeff_mat)
+        elif rank == 3:
+            pts: List[List[int]] = [[0, 0, 0]]
+            for i in range(degree + 1):
+                for j in range(degree + 1 - i):
+                    for k in range(degree + 1 - i - j):
+                        pts.append([i, j, k])
+            if len(pts) > 1:
+                pts = pts[1:]
+            np_pts = np.stack(pts)
+            coeff_mat[np_pts[:, 0], np_pts[:, 1], np_pts[:, 2]] = coeff
+            field = np.polynomial.legendre.leggrid3d(coords[0], coords[1], coords[2], coeff_mat)
+        else:
+            raise NotImplementedError("only supoprts 2D or 3D fields")
+        return field
+
+    def randomize(self, data: np.ndarray) -> None:
+        super().randomize(None)
+        self.spatial_shape = data.shape[1:]
+        self.rank = len(self.spatial_shape)
+        n_coeff = int(np.prod([(self.degree + k) / k for k in range(1, self.rank + 1)]))
+        self._coeff = self.R.uniform(*self.coeff_range, n_coeff)
+
+    def __call__(self, img: np.ndarray):
+        """
+        Apply the transform to `img`.
+        """
+        self.randomize(data=img)
+        if not self._do_transform:
+            return img
+        num_channels = img.shape[0]
+        _bias_fields = np.stack(
+            [
+                self._generate_random_field(
+                    spatial_shape=self.spatial_shape, rank=self.rank, degree=self.degree, coeff=self._coeff
+                )
+                for _ in range(num_channels)
+            ],
+            axis=0,
+        )
+        return (img * _bias_fields).astype(self.dtype)
 
 
 class NormalizeIntensity(Transform):
