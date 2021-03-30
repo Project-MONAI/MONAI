@@ -19,7 +19,7 @@ PY_REQUIRED_MINOR = 6
 
 version_dict = get_versions()
 __version__ = version_dict.get("version", "0+unknown")
-__revision_id__ = version_dict.get("full-revisionid", None)
+__revision_id__ = version_dict.get("full-revisionid")
 del get_versions, version_dict
 
 __copyright__ = "(c) 2020 - 2021 MONAI Consortium"
