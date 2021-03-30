@@ -71,13 +71,11 @@ Applications
     :members:
 .. autoclass:: SmartCachePatchWSIDataset
     :members:
-.. autoclass:: MaskedInferenceWSIDataset
-    :members:
 
 .. automodule:: monai.apps.pathology.utils
 .. autoclass:: PathologyProbNMS
     :members:
 
-.. automodule:: monai.apps.pathology.evaluators
-.. autoclass:: EvaluateTumorFROC
+.. automodule:: monai.apps.pathology.metrics
+.. autoclass:: LesionFROC
     :members:

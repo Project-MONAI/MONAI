@@ -5,7 +5,7 @@ from unittest import skipUnless
 import numpy as np
 from parameterized import parameterized
 
-from monai.apps.pathology.evaluators import TumorFROC
+from monai.apps.pathology.metrics import LesionFROC
 from monai.utils import optional_import
 
 _, has_cucim = optional_import("cucim")
@@ -305,7 +305,7 @@ class TestEvaluateTumorFROC(unittest.TestCase):
     @skipUnless(has_sp, "Requires scipy")
     @skipUnless(has_pil, "Requires PIL")
     def test_read_patches_cucim(self, input_parameters, expected):
-        froc = TumorFROC(**input_parameters)
+        froc = LesionFROC(**input_parameters)
         froc_score = froc.evaluate()
         if np.isnan(expected):
             self.assertTrue(np.isnan(froc_score))

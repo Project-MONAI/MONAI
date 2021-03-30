@@ -10,4 +10,5 @@
 # limitations under the License.
 
 from .datasets import PatchWSIDataset, SmartCacheDataset
+from .metrics import LesionFROC
 from .utils import ProbNMS

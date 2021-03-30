@@ -23,7 +23,7 @@ measure, _ = optional_import("skimage.measure")
 ndimage, _ = optional_import("scipy.ndimage")
 
 
-class TumorFROC:
+class LesionFROC:
     """
     Evaluate with Free Response Operating Characteristic (FROC) score.
 
@@ -70,12 +70,12 @@ class TumorFROC:
             box_size=48,
         )
 
-    def _load_data(self, file_path: str) -> Dict:
+    def _load_data(self, file_path: str) -> List[Dict]:
         with open(file_path, "r") as f:
-            data: Dict = json.load(f)
+            data: List[Dict] = json.load(f)
         return data
 
-    def prepare_inference_result(self, sample):
+    def prepare_inference_result(self, sample: Dict):
         """
         Prepare the probability map for detection evaluation.
 
