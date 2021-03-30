@@ -23,7 +23,7 @@ measure, _ = optional_import("skimage.measure")
 ndimage, _ = optional_import("scipy.ndimage")
 
 
-class EvaluateTumorFROC:
+class TumorFROC:
     """
     Evaluate with Free Response Operating Characteristic (FROC) score.
 
@@ -70,9 +70,9 @@ class EvaluateTumorFROC:
             box_size=48,
         )
 
-    def _load_data(self, file_path):
+    def _load_data(self, file_path: str) -> Dict:
         with open(file_path, "r") as f:
-            data = json.load(f)
+            data: Dict = json.load(f)
         return data
 
     def prepare_inference_result(self, sample):
@@ -96,14 +96,14 @@ class EvaluateTumorFROC:
 
     def prepare_ground_truth(self, sample):
         """
-        Prapare the ground truth for evalution based on the binary tumor mask
+        Prepare the ground truth for evaluation based on the binary tumor mask
 
         """
         # load binary tumor masks
         img_obj = self.image_reader.read(sample["tumor_mask"])
         tumor_mask = self.image_reader.get_data(img_obj, level=sample["level"])[0][0]
 
-        # calcualte pixel spacing at the mask level
+        # calculate pixel spacing at the mask level
         mask_pixel_spacing = sample["pixel_spacing"] * pow(2, sample["level"])
 
         # compute multi-instance mask from a binary mask
