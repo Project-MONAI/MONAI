@@ -172,10 +172,9 @@ class EnsureChannelFirst(Transform):
 
         if channel_dim is None:
             raise ValueError("meta_dict must contain `original_channel_dim` information.")
-        elif channel_dim == "no_channel":
+        if channel_dim == "no_channel":
             return AddChannel()(img)
-        else:
-            return AsChannelFirst(channel_dim=channel_dim)(img)
+        return AsChannelFirst(channel_dim=channel_dim)(img)
 
 
 class RepeatChannel(Transform):
