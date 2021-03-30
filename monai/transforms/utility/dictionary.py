@@ -675,8 +675,6 @@ class ConcatItemsd(MapTransform):
 
         """
         super().__init__(keys, allow_missing_keys)
-        if len(self.keys) < 2:
-            raise ValueError("Concatenation requires at least 2 keys.")
         self.name = name
         self.dim = dim
 

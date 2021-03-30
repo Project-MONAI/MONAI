@@ -227,7 +227,7 @@ class PatchDataset(Dataset):
     def __len__(self) -> int:
         return len(self.data) * self.samples_per_image
 
-    def __getitem__(self, index: int):
+    def _transform(self, index: int):
         image_id = int(index / self.samples_per_image)
         image = self.data[image_id]
         patches = self.patch_func(image)
