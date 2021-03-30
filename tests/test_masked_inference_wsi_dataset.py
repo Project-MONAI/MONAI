@@ -17,9 +17,9 @@ _, has_osl = optional_import("openslide")
 FILE_URL = "http://openslide.cs.cmu.edu/download/openslide-testdata/Generic-TIFF/CMU-1.tiff"
 FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", os.path.basename(FILE_URL))
 
-MASK1 = save_dir = os.path.join(os.path.dirname(__file__), "testing_data", "tissue_mask1.npy")
-MASK2 = save_dir = os.path.join(os.path.dirname(__file__), "testing_data", "tissue_mask2.npy")
-MASK4 = save_dir = os.path.join(os.path.dirname(__file__), "testing_data", "tissue_mask4.npy")
+MASK1 = os.path.join(os.path.dirname(__file__), "testing_data", "tissue_mask1.npy")
+MASK2 = os.path.join(os.path.dirname(__file__), "testing_data", "tissue_mask2.npy")
+MASK4 = os.path.join(os.path.dirname(__file__), "testing_data", "tissue_mask4.npy")
 
 HEIGHT = 32914
 WIDTH = 46000
