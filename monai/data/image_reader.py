@@ -778,7 +778,7 @@ class WSIReader(ImageReader):
             # remove alpha channel if exist (RGBA)
             if num_channels > 3:
                 raw_region = raw_region[:, :, :3]
-        
+
         return raw_region
 
     def _extract_patches(
