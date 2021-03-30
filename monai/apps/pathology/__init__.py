@@ -10,5 +10,5 @@
 # limitations under the License.
 
 from .datasets import PatchWSIDataset, SmartCacheDataset
-from .handlers import ProbMapGenerator
+from .handlers import ProbMapProducer
 from .utils import ProbNMS

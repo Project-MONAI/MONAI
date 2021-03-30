@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Dict, Optional
 
 import numpy as np
 
+from monai.config import DtypeLike
 from monai.utils import exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
@@ -13,7 +14,7 @@ else:
     Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
 
 
-class ProbMapGenerator:
+class ProbMapProducer:
     """
     Event handler triggered on completing every iteration to save the probability map
     """
@@ -21,11 +22,15 @@ class ProbMapGenerator:
     def __init__(
         self,
         output_dir: str = "./",
+        output_postfix: str = "",
+        dtype: DtypeLike = np.float64,
         name: Optional[str] = None,
     ) -> None:
         """
         Args:
             output_dir: output directory to save probability maps.
+            output_postfix: a string appended to all output file names.
+            dtype: the data type in which the probability map is stored. Default np.float64.
             name: identifier of logging.logger to use, defaulting to `engine.logger`.
 
         """
@@ -44,9 +49,9 @@ class ProbMapGenerator:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
 
-        self.num_images = len(engine.data_loader.dataset.data_list)
+        self.num_images = len(engine.data_loader.dataset.data)
 
-        for sample in engine.data_loader.dataset.data_list:
+        for sample in engine.data_loader.dataset.data:
             name = sample["name"]
             self.prob_map[name] = np.zeros(sample["mask_shape"])
             self.counter[name] = len(sample["mask_locations"])
@@ -93,7 +98,4 @@ class ProbMapGenerator:
         del self.level[name]
 
     def finalize(self, engine: Engine):
-        if self.counter:
-            raise RuntimeError(f"Counter: {self.counter}")
-        else:
-            self.logger.info(f"Probability map is created for {self.num_done_images}/{self.num_images} images!")
+        self.logger.info(f"Probability map is created for {self.num_done_images}/{self.num_images} images!")

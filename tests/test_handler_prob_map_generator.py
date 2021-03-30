@@ -18,7 +18,7 @@ from ignite.engine import Engine
 from parameterized import parameterized
 from torch.utils.data import DataLoader
 
-from monai.apps.pathology.handlers import ProbMapGenerator
+from monai.apps.pathology.handlers import ProbMapProducer
 from monai.data.dataset import Dataset
 from monai.engines import Evaluator
 from monai.handlers import ValidationHandler
@@ -30,7 +30,7 @@ TEST_CASE_2 = ["image_inference_output_3", 1000]
 
 class TestDataset(Dataset):
     def __init__(self, name, size):
-        self.data_list = [
+        self.data = [
             {
                 "name": name,
                 "mask_shape": (size, size),
@@ -45,8 +45,8 @@ class TestDataset(Dataset):
 
     def __getitem__(self, index):
         return {
-            "name": self.data_list[0]["name"],
-            "mask_location": self.data_list[0]["mask_locations"][index],
+            "name": self.data[0]["name"],
+            "mask_location": self.data[0]["mask_locations"][index],
             "pred": index + 1,
         }
 
@@ -77,7 +77,7 @@ class TestHandlerProbMapGenerator(unittest.TestCase):
 
         # add ProbMapGenerator() to evaluator
         output_dir = os.path.join(os.path.dirname(__file__), "testing_data")
-        prob_map_gen = ProbMapGenerator(output_dir=output_dir)
+        prob_map_gen = ProbMapProducer(output_dir=output_dir)
 
         evaluator = TestEvaluator(torch.device("cpu:0"), data_loader, size, val_handlers=[prob_map_gen])
 
