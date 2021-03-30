@@ -155,6 +155,12 @@ Intensity
     :members:
     :special-members: __call__
 
+`RandBiasField`
+"""""""""""""""
+.. autoclass:: RandBiasField
+    :members:
+    :special-members: __call__
+
 `ScaleIntensity`
 """"""""""""""""
 .. autoclass:: ScaleIntensity
@@ -665,6 +671,12 @@ Instensity (Dict)
 `RandStdShiftIntensityd`
 """"""""""""""""""""""""
 .. autoclass:: RandStdShiftIntensityd
+    :members:
+    :special-members: __call__
+
+`RandBiasFieldd`
+""""""""""""""""
+.. autoclass:: RandBiasFieldd
     :members:
     :special-members: __call__
 
