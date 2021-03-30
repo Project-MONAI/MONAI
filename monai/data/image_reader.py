@@ -253,7 +253,7 @@ class ITKReader(ImageReader):
         meta_dict["direction"] = itk.array_from_matrix(img.GetDirection())
         return meta_dict
 
-    def _get_affine(self, img) -> np.ndarray:
+    def _get_affine(self, img):
         """
         Get or construct the affine matrix of the image, it can be used to correct
         spacing, orientation or execute spatial transforms.
@@ -274,7 +274,7 @@ class ITKReader(ImageReader):
         affine[(slice(-1), -1)] = origin
         return affine
 
-    def _get_spatial_shape(self, img) -> np.ndarray:
+    def _get_spatial_shape(self, img):
         """
         Get the spatial shape of image data, it doesn't contain the channel dim.
 
@@ -406,7 +406,7 @@ class NibabelReader(ImageReader):
         """
         return dict(img.header)
 
-    def _get_affine(self, img) -> np.ndarray:
+    def _get_affine(self, img):
         """
         Get the affine matrix of the image, it can be used to correct
         spacing, orientation or execute spatial transforms.
@@ -417,7 +417,7 @@ class NibabelReader(ImageReader):
         """
         return np.array(img.affine, copy=True)
 
-    def _get_spatial_shape(self, img) -> np.ndarray:
+    def _get_spatial_shape(self, img):
         """
         Get the spatial shape of image data, it doesn't contain the channel dim.
 
@@ -430,7 +430,7 @@ class NibabelReader(ImageReader):
         # the img data should have no channel dim or the last dim is channel
         return np.asarray(img.header["dim"][1 : spatial_rank + 1])
 
-    def _get_array_data(self, img) -> np.ndarray:
+    def _get_array_data(self, img):
         """
         Get the raw array data of the image, converted to Numpy array.
 
@@ -623,7 +623,7 @@ class PILReader(ImageReader):
             "height": img.height,
         }
 
-    def _get_spatial_shape(self, img) -> np.ndarray:
+    def _get_spatial_shape(self, img):
         """
         Get the spatial shape of image data, it doesn't contain the channel dim.
         Args:
@@ -748,7 +748,7 @@ class WSIReader(ImageReader):
         location: Tuple[int, int] = (0, 0),
         level: int = 0,
         dtype: DtypeLike = np.uint8,
-    ) -> np.ndarray:
+    ):
         # reverse the order of dimensions for size and location to be compatible with image shape
         location = location[::-1]
         if size is None:
@@ -764,7 +764,7 @@ class WSIReader(ImageReader):
         self,
         raw_region,
         dtype: DtypeLike = np.uint8,
-    ) -> np.ndarray:
+    ):
         """Convert to RGB mode and numpy array"""
         if self.reader_lib == "openslide":
             # convert to RGB
