@@ -22,8 +22,9 @@ from monai.apps.pathology.handlers import ProbMapGenerator
 from monai.data.dataset import Dataset
 from monai.engines import Evaluator
 from monai.handlers import ValidationHandler
+from monai.utils import exact_version, optional_import
 
-Events, has_ignite = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
+Engine, has_ignite = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
 
 TEST_CASE_0 = ["image_inference_output_1", 2]
 TEST_CASE_1 = ["image_inference_output_2", 9]
