@@ -267,7 +267,7 @@ class MaskedInferenceWSIDataset(Dataset):
             )
         elif not level_x.is_integer():
             raise ValueError(f"Mask is not at a regular level (ratio not power of 2), image / mask ratio: {ratio_x}")
-        return level_x, ratio_x
+        return int(level_x), int(ratio_x)
 
     def _load_a_patch(self, index):
         """
