@@ -162,17 +162,20 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
 
 class MaskedInferenceWSIDataset(Dataset):
     """
-    This dataset load the provided tissue masks at an arbitrary resolution level,
+    This dataset load the provided foreground masks at an arbitrary resolution level,
     and extract patches based on that mask from the associated whole slide image.
 
     Args:
-        data: a list of sample including path to the mask and path to the whole slide image
-            `[{"image": "path/to/image1.tiff", "label": "path/to/mask.npy}, ...]"`.
+        data: a list of sample including the path to the whole slide image and the path to the mask.
+            Like this: `[{"image": "path/to/image1.tiff", "mask": "path/to/mask1.npy}, ...]"`.
         patch_size: the size of patches to be extracted from the whole slide image for inference.
         transform: transforms to be executed on extracted patches.
         image_reader_name: the name of library to be used for loading whole slide imaging, either CuCIM or OpenSlide.
-            Defaults to CuCIM.
+        Defaults to CuCIM.
 
+    Note:
+        The resulting output (probability maps) after performing inference using this dataset is
+            supposed to be the same size as the foreground mask and not the original wsi image size.
     """
 
     def __init__(
@@ -184,44 +187,59 @@ class MaskedInferenceWSIDataset(Dataset):
     ) -> None:
         super().__init__(data, transform)
 
-        self.patch_size = np.array(ensure_tuple_rep(patch_size, 2))
+        self.patch_size = ensure_tuple_rep(patch_size, 2)
+
+        # set up whole slide image reader
         self.image_reader_name = image_reader_name
         self.image_reader = WSIReader(image_reader_name)
 
         # process data and create a list of dictionaries containing all required data and metadata
-        self.data_list = self._create_data_list(data)
+        self.data = self._prepare_data(data)
 
-        # calculate cumulative number of patches for all whole slide images
-        self.cum_num_patches = np.cumsum([0] + [len(d["image_locations"]) for d in self.data_list])
-        self.total_num_patches = self.cum_num_patches[-1]
-        self.cum_num_patches = self.cum_num_patches[:-1]
+        # calculate cumulative number of patches for all the samples
+        self.num_patches_per_sample = [len(d["image_locations"]) for d in self.data]
+        self.num_patches = sum(self.num_patches_per_sample)
+        self.cum_num_patches = np.cumsum([0] + self.num_patches_per_sample[:-1])
 
-    def _create_data_list(self, data: List[Dict["str", "str"]]) -> List[Dict]:
-        data_list = []
-        for sample in data:
-            processed_data = self._preprocess_sample(sample)
-            data_list.append(processed_data)
-        return data_list
+    def _prepare_data(self, input_data: List[Dict["str", "str"]]) -> List[Dict]:
+        prepared_data = []
+        for sample in input_data:
+            prepared_sample = self._prepare_a_sample(sample)
+            prepared_data.append(prepared_sample)
+        return prepared_data
 
-    def _preprocess_sample(self, sample: Dict["str", "str"]) -> Dict:
+    def _prepare_a_sample(self, sample: Dict["str", "str"]) -> Dict:
         """
         Preprocess input data to load WSIReader object and the foreground mask,
         and define the locations where patches need to be extracted.
+
+        Args:
+            sample: one sample, a dictionary containing path to the whole slide image and the foreground mask.
+                For example: `{"image": "path/to/image1.tiff", "mask": "path/to/mask1.npy}`
+
+        Return:
+            A dictionary containing:
+                "name": the base name of the whole slide image,
+                "image": the WSIReader image object,
+                "mask_shape": the size of the foreground mask,
+                "mask_locations": the non-zero pixel locations on the foreground mask,
+                "image_locations": the locations on the whole slide image where patches are extracted, and
+                "level": the resolution level of the mask with respect to the whole slide image.
+        }
         """
         image = self.image_reader.read(sample["image"])
-        mask = np.load(sample["label"]).T
+        mask = np.load(sample["mask"]).T
         try:
             level, ratio = self._calculate_mask_level(image, mask)
         except ValueError as err:
-            err.args = (sample["label"],) + err.args
+            err.args = (sample["mask"],) + err.args
             raise
 
-        # get all indices for tissue region from the foreground mask
-        # note: output same size as the foreground mask and not original wsi image size
+        # get all indices for non-zero pixels of the foreground mask
         mask_locations = np.vstack(mask.nonzero()).T
 
         # convert mask locations to image locations to extract patches
-        image_locations = (mask_locations + 0.5) * ratio - self.patch_size // 2
+        image_locations = (mask_locations + 0.5) * ratio - np.array(self.patch_size) // 2
 
         return {
             "name": os.path.splitext(os.path.basename(sample["image"]))[0],
@@ -232,7 +250,7 @@ class MaskedInferenceWSIDataset(Dataset):
             "level": level,
         }
 
-    def _calculate_mask_level(self, image, mask) -> Tuple[int, int]:
+    def _calculate_mask_level(self, image: np.ndarray, mask: np.ndarray) -> Tuple[int, int]:
         """Calculate level of the mask and its ratio with respect to the whole slide image"""
         dim_y_img, dim_x_img, _ = image.shape
         dim_y_msk, dim_x_msk = mask.shape
@@ -243,17 +261,15 @@ class MaskedInferenceWSIDataset(Dataset):
 
         if ratio_x != ratio_y:
             raise ValueError(
-                "Image/Mask dimension does not match!"
-                " dim_x_img / dim_x_msk : {} / {},"
-                " dim_y_img / dim_y_msk : {} / {}".format(dim_x_img, dim_x_msk, dim_y_img, dim_y_msk)
+                "Image/Mask ratio across dimensions does not match!"
+                f"ratio 0: {ratio_x} ({dim_x_img} / {dim_x_msk}),"
+                f"ratio 1: {ratio_y} ({dim_y_img} / {dim_y_msk}),"
             )
         elif not level_x.is_integer():
-            raise ValueError(
-                "Mask not at regular level (ratio not power of 2)," " image / mask ratio: {},".format(ratio_x)
-            )
+            raise ValueError(f"Mask is not at a regular level (ratio not power of 2), image / mask ratio: {ratio_x}")
         return level_x, ratio_x
 
-    def _load_a_sample(self, index):
+    def _load_a_patch(self, index):
         """
         Load sample given the index
 
@@ -262,24 +278,24 @@ class MaskedInferenceWSIDataset(Dataset):
         then it loads the patch and provide it with its image name and the corresponding mask location.
         """
         sample_num = np.argmax(self.cum_num_patches > index) - 1
-        sample = self.data_list[sample_num]
+        sample = self.data[sample_num]
         patch_num = index - self.cum_num_patches[sample_num]
-        image_location = sample["image_locations"][patch_num]
-        mask_location = sample["mask_locations"][patch_num]
+        location_on_image = sample["image_locations"][patch_num]
+        location_on_mask = sample["mask_locations"][patch_num]
 
         image, _ = self.image_reader.get_data(
             img=sample["image"],
-            location=image_location,
-            size=self.patch_size.tolist(),
+            location=location_on_image,
+            size=self.patch_size,
         )
-        processed_sample = {"image": image, "name": sample["name"], "mask_location": mask_location}
+        processed_sample = {"image": image, "name": sample["name"], "mask_location": location_on_mask}
         return processed_sample
 
     def __len__(self):
-        return self.total_num_patches
+        return self.num_patches
 
     def __getitem__(self, index):
-        sample = [self._load_a_sample(index)]
+        patch = [self._load_a_patch(index)]
         if self.transform:
-            sample = self.transform(sample)
-        return sample
+            patch = self.transform(patch)
+        return patch

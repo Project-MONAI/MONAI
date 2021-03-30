@@ -39,7 +39,7 @@ def prepare_data():
 TEST_CASE_0 = [
     {
         "data": [
-            {"image": FILE_PATH, "label": MASK1},
+            {"image": FILE_PATH, "mask": MASK1},
         ],
         "patch_size": 1,
         "image_reader_name": "cuCIM",
@@ -55,7 +55,7 @@ TEST_CASE_0 = [
 
 TEST_CASE_1 = [
     {
-        "data": [{"image": FILE_PATH, "label": MASK2}],
+        "data": [{"image": FILE_PATH, "mask": MASK2}],
         "patch_size": 1,
         "image_reader_name": "cuCIM",
     },
@@ -75,7 +75,7 @@ TEST_CASE_1 = [
 
 TEST_CASE_2 = [
     {
-        "data": [{"image": FILE_PATH, "label": MASK4}],
+        "data": [{"image": FILE_PATH, "mask": MASK4}],
         "patch_size": 1,
         "image_reader_name": "cuCIM",
     },
@@ -106,7 +106,7 @@ TEST_CASE_2 = [
 TEST_CASE_3 = [
     {
         "data": [
-            {"image": FILE_PATH, "label": MASK1},
+            {"image": FILE_PATH, "mask": MASK1},
         ],
         "patch_size": 2,
         "image_reader_name": "cuCIM",
@@ -130,8 +130,8 @@ TEST_CASE_3 = [
 TEST_CASE_4 = [
     {
         "data": [
-            {"image": FILE_PATH, "label": MASK1},
-            {"image": FILE_PATH, "label": MASK2},
+            {"image": FILE_PATH, "mask": MASK1},
+            {"image": FILE_PATH, "mask": MASK2},
         ],
         "patch_size": 1,
         "image_reader_name": "cuCIM",
@@ -159,7 +159,7 @@ TEST_CASE_4 = [
 TEST_CASE_OPENSLIDE_0 = [
     {
         "data": [
-            {"image": FILE_PATH, "label": MASK1},
+            {"image": FILE_PATH, "mask": MASK1},
         ],
         "patch_size": 1,
         "image_reader_name": "OpenSlide",
@@ -175,7 +175,7 @@ TEST_CASE_OPENSLIDE_0 = [
 
 TEST_CASE_OPENSLIDE_1 = [
     {
-        "data": [{"image": FILE_PATH, "label": MASK2}],
+        "data": [{"image": FILE_PATH, "mask": MASK2}],
         "patch_size": 1,
         "image_reader_name": "OpenSlide",
     },
