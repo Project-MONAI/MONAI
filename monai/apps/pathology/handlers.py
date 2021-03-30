@@ -37,6 +37,8 @@ class ProbMapProducer:
         self.logger = logging.getLogger(name)
         self._name = name
         self.output_dir = output_dir
+        self.output_postfix = output_postfix
+        self.dtype = dtype
         self.prob_map: Dict[str, np.ndarray] = {}
         self.level: Dict[str, int] = {}
         self.counter: Dict[str, int] = {}
@@ -53,7 +55,7 @@ class ProbMapProducer:
 
         for sample in engine.data_loader.dataset.data:
             name = sample["name"]
-            self.prob_map[name] = np.zeros(sample["mask_shape"])
+            self.prob_map[name] = np.zeros(sample["mask_shape"], dtype=self.dtype)
             self.counter[name] = len(sample["mask_locations"])
             self.level[name] = sample["level"]
 
@@ -89,7 +91,7 @@ class ProbMapProducer:
             name: the name of image to be saved.
         """
         file_path = os.path.join(self.output_dir, name)
-        np.save(file_path + ".npy", self.prob_map[name])
+        np.save(file_path + self.output_postfix + ".npy", self.prob_map[name])
 
         self.num_done_images += 1
         self.logger.info(f"Inference of '{name}' is done [{self.num_done_images}/{self.num_images}]!")
