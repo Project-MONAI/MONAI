@@ -42,6 +42,7 @@ class SegmentationSaver:
         dtype: DtypeLike = np.float64,
         output_dtype: DtypeLike = np.float32,
         squeeze_end_dims: bool = True,
+        data_root_dir: str = "",
         batch_transform: Callable = lambda x: x,
         output_transform: Callable = lambda x: x,
         name: Optional[str] = None,
@@ -83,6 +84,16 @@ class SegmentationSaver:
                 then if C==1, it will be saved as (H,W,D). If D also ==1, it will be saved as (H,W). If false,
                 image will always be saved as (H,W,D,C).
                 it's used for NIfTI format only.
+            data_root_dir: if not empty, it specifies the beginning parts of the input file's
+                absolute path. it's used to compute `input_file_rel_path`, the relative path to the file from
+                `data_root_dir` to preserve folder structure when saving in case there are files in different
+                folders with the same file names. for example:
+                input_file_name: /foo/bar/test1/image.nii,
+                output_postfix: seg
+                output_ext: nii.gz
+                output_dir: /output,
+                data_root_dir: /foo/bar,
+                output will be: /output/test1/image/image_seg.nii.gz
             batch_transform: a callable that is used to transform the
                 ignite.engine.batch into expected format to extract the meta_data dictionary.
             output_transform: a callable that is used to transform the
@@ -103,6 +114,7 @@ class SegmentationSaver:
             dtype=dtype,
             output_dtype=output_dtype,
             squeeze_end_dims=squeeze_end_dims,
+            data_root_dir=data_root_dir,
             save_batch=True,
         )
         self.batch_transform = batch_transform
