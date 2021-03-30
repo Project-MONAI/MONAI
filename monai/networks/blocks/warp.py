@@ -7,7 +7,7 @@ from torch.nn import functional as F
 
 from monai.config.deviceconfig import USE_COMPILED
 from monai.networks.layers.spatial_transforms import grid_pull
-from monai.utils import GridSamplePadMode
+from monai.utils import GridSampleMode, GridSamplePadMode
 
 __all__ = ["Warp", "DVF2DDF"]
 
@@ -43,22 +43,22 @@ class Warp(nn.Module):
             self._interp_mode = mode
         else:
             warnings.warn("monai.networks.blocks.Warp: Using PyTorch native grid_sample.")
-            self._interp_mode = "bilinear"
+            self._interp_mode = GridSampleMode.BILINEAR.value  # works for both 4D and 5D tensors
             if mode == 0:
-                self._interp_mode = "nearest"
+                self._interp_mode = GridSampleMode.NEAREST.value
             elif mode == 1:
-                self._interp_mode = "bilinear"
+                self._interp_mode = GridSampleMode.BILINEAR.value
             elif mode == 3:
-                self._interp_mode = "bicubic"  # torch.functional.grid_sample only supports 4D
+                self._interp_mode = GridSampleMode.BICUBIC.value  # torch.functional.grid_sample only supports 4D
             else:
-                warnings.warn(f"{mode}-order interpolation is not supported, using linear interpolation.")
+                warnings.warn(f"Order-{mode} interpolation is not supported, using linear interpolation.")
 
         # resolves _padding_mode for different methods
         padding_mode = GridSamplePadMode(padding_mode).value
         if USE_COMPILED:
-            if padding_mode == "zeros":
+            if padding_mode == GridSamplePadMode.ZEROS.value:
                 self._padding_mode = 7
-            elif padding_mode == "border":
+            elif padding_mode == GridSamplePadMode.BORDER.value:
                 self._padding_mode = 0
             else:
                 self._padding_mode = 1  # reflection
