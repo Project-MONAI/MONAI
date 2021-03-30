@@ -222,8 +222,8 @@ class MaskedInferenceWSIDataset(Dataset):
                 "name": the base name of the whole slide image,
                 "image": the WSIReader image object,
                 "mask_shape": the size of the foreground mask,
-                "mask_locations": the non-zero pixel locations on the foreground mask,
-                "image_locations": the locations on the whole slide image where patches are extracted, and
+                "mask_locations": the list of non-zero pixel locations (x, y) on the foreground mask,
+                "image_locations": the list of pixel locations (x, y) on the whole slide image where patches are extracted, and
                 "level": the resolution level of the mask with respect to the whole slide image.
         }
         """
