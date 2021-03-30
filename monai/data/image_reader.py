@@ -771,14 +771,14 @@ class WSIReader(ImageReader):
             raw_region = raw_region.convert("RGB")
             # convert to numpy
             raw_region = np.asarray(raw_region, dtype=dtype)
-        elif self.reader_lib == "cucim":
+        else:
             num_channels = len(raw_region.channel_names)
             # convert to numpy
             raw_region = np.asarray(raw_region, dtype=dtype)
             # remove alpha channel if exist (RGBA)
             if num_channels > 3:
                 raw_region = raw_region[:, :, :3]
-
+        
         return raw_region
 
     def _extract_patches(
