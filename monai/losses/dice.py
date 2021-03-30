@@ -286,10 +286,9 @@ class GeneralizedDiceLoss(_Loss):
     def w_func(self, grnd):
         if self.w_type == Weight.SIMPLE:
             return torch.reciprocal(grnd)
-        elif self.w_type == Weight.SQUARE:
+        if self.w_type == Weight.SQUARE:
             return torch.reciprocal(grnd * grnd)
-        else:
-            return torch.ones_like(grnd)
+        return torch.ones_like(grnd)
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """

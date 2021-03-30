@@ -675,7 +675,7 @@ class WSIReader(ImageReader):
         """
         if (self.reader_lib == "openslide") and (not has_osl):
             raise ImportError("No module named 'openslide'")
-        elif (self.reader_lib == "cucim") and (not has_cim):
+        if (self.reader_lib == "cucim") and (not has_cim):
             raise ImportError("No module named 'cucim'")
 
         img_: List = []
