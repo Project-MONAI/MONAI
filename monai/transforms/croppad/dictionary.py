@@ -765,8 +765,8 @@ class RandCropByPosNegLabeld(RandomizableTransform, MapTransform):
         d = dict(data)
         label = d[self.label_key]
         image = d[self.image_key] if self.image_key else None
-        fg_indices = d.get(self.fg_indices_key, None) if self.fg_indices_key is not None else None
-        bg_indices = d.get(self.bg_indices_key, None) if self.bg_indices_key is not None else None
+        fg_indices = d.get(self.fg_indices_key) if self.fg_indices_key is not None else None
+        bg_indices = d.get(self.bg_indices_key) if self.bg_indices_key is not None else None
 
         self.randomize(label, fg_indices, bg_indices, image)
         if not isinstance(self.spatial_size, tuple):
