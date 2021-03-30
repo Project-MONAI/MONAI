@@ -339,13 +339,13 @@ def copy_to_device(
 
     if hasattr(obj, "to"):
         return obj.to(device, non_blocking=non_blocking)
-    elif isinstance(obj, tuple):
+    if isinstance(obj, tuple):
         return tuple(copy_to_device(o, device, non_blocking) for o in obj)
-    elif isinstance(obj, list):
+    if isinstance(obj, list):
         return [copy_to_device(o, device, non_blocking) for o in obj]
-    elif isinstance(obj, dict):
+    if isinstance(obj, dict):
         return {k: copy_to_device(o, device, non_blocking) for k, o in obj.items()}
-    elif verbose:
+    if verbose:
         fn_name = cast(types.FrameType, inspect.currentframe()).f_code.co_name
         warnings.warn(f"{fn_name} called with incompatible type: " + f"{type(obj)}. Data will be returned unchanged.")
 
