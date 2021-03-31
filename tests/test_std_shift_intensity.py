@@ -52,6 +52,15 @@ class TestStdShiftIntensity(NumpyImageTestCase2D):
         expected = np.stack((np.asarray([1 + 0.5 * factor, 2 + 0.5 * factor]), np.asarray([1, 1])))
         np.testing.assert_allclose(result, expected, rtol=1e-5)
 
+    def test_dtype(self):
+        trans_dtype = np.float32
+        for dtype in [int, np.float32, np.float64]:
+            image = np.random.rand(2, 2, 2).astype(dtype)
+            factor = np.random.rand()
+            std_shifter = StdShiftIntensity(factor=factor, dtype=trans_dtype)
+            result = std_shifter(image)
+            np.testing.assert_equal(result.dtype, trans_dtype)
+
 
 if __name__ == "__main__":
     unittest.main()
