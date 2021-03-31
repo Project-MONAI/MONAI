@@ -14,7 +14,7 @@ _, has_cim = optional_import("cucim")
 PILImage, has_pil = optional_import("PIL.Image")
 
 FILE_URL = "http://openslide.cs.cmu.edu/download/openslide-testdata/Generic-TIFF/CMU-1.tiff"
-FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", os.path.basename(FILE_URL))
+FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + os.path.basename(FILE_URL))
 
 HEIGHT = 32914
 WIDTH = 46000
@@ -105,7 +105,7 @@ class TestCuCIMReader(unittest.TestCase):
         image = {}
         reader = WSIReader("cuCIM")
         for mode in ["RGB", "RGBA"]:
-            file_path = self.create_rgba_image(img_expected, "test_cu_tiff_image", mode=mode)
+            file_path = self.create_rgba_image(img_expected, "temp_cu_tiff_image", mode=mode)
             img_obj = reader.read(file_path)
             image[mode], _ = reader.get_data(img_obj)
 
