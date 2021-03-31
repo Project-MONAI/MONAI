@@ -9,6 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .datasets import PatchWSIDataset, SmartCacheDataset
+from .datasets import MaskedInferenceWSIDataset, PatchWSIDataset, SmartCacheDataset
 from .handlers import ProbMapProducer
 from .utils import ProbNMS

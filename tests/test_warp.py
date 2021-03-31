@@ -7,20 +7,21 @@ from torch.autograd import gradcheck
 
 from monai.config.deviceconfig import USE_COMPILED
 from monai.networks.blocks.warp import Warp
+from monai.utils import GridSampleMode, GridSamplePadMode
 
 LOW_POWER_TEST_CASES = [  # run with BUILD_MONAI=1 to test csrc/resample, BUILD_MONAI=0 to test native grid_sample
     [
-        {"mode": 0, "padding_mode": "zeros"},
+        {"mode": "nearest", "padding_mode": "zeros"},
         {"image": torch.arange(4).reshape((1, 1, 2, 2)).to(dtype=torch.float), "ddf": torch.zeros(1, 2, 2, 2)},
         torch.arange(4).reshape((1, 1, 2, 2)),
     ],
     [
-        {"mode": 1, "padding_mode": "zeros"},
+        {"mode": "bilinear", "padding_mode": "zeros"},
         {"image": torch.arange(4).reshape((1, 1, 2, 2)).to(dtype=torch.float), "ddf": torch.ones(1, 2, 2, 2)},
         torch.tensor([[[[3, 0], [0, 0]]]]),
     ],
     [
-        {"mode": 1, "padding_mode": "border"},
+        {"mode": "bilinear", "padding_mode": "border"},
         {
             "image": torch.arange(8).reshape((1, 1, 2, 2, 2)).to(dtype=torch.float),
             "ddf": torch.ones(1, 3, 2, 2, 2) * -1,
@@ -28,7 +29,7 @@ LOW_POWER_TEST_CASES = [  # run with BUILD_MONAI=1 to test csrc/resample, BUILD_
         torch.tensor([[[[[0, 0], [0, 0]], [[0, 0], [0, 0]]]]]),
     ],
     [
-        {"mode": 1, "padding_mode": "reflection"},
+        {"mode": "bilinear", "padding_mode": "reflection"},
         {
             "image": torch.arange(8).reshape((1, 1, 2, 2, 2)).to(dtype=torch.float),
             "ddf": torch.ones(1, 3, 2, 2, 2) * -1,
@@ -56,6 +57,14 @@ CPP_TEST_CASES = [  # high order, BUILD_MONAI=1 to test csrc/resample
     ],
     [
         {"mode": 2, "padding_mode": "zeros"},
+        {
+            "image": torch.arange(8).reshape((1, 1, 2, 2, 2)).to(dtype=torch.float),
+            "ddf": torch.ones(1, 3, 2, 2, 2) * -1,
+        },
+        torch.tensor([[[[[0.0000, 0.0020], [0.0039, 0.0410]], [[0.0078, 0.0684], [0.0820, 0.6699]]]]]),
+    ],
+    [
+        {"mode": 2, "padding_mode": 7},
         {
             "image": torch.arange(8).reshape((1, 1, 2, 2, 2)).to(dtype=torch.float),
             "ddf": torch.ones(1, 3, 2, 2, 2) * -1,
@@ -95,9 +104,9 @@ class TestWarp(unittest.TestCase):
             warp_layer(image=torch.arange(4).reshape((1, 1, 2, 2)).to(dtype=torch.float), ddf=torch.zeros(1, 2, 3, 3))
 
     def test_grad(self):
-        for m in [0, 1, 2, 3]:
-            for p in ["zeros", "border"]:
-                warp_layer = Warp(mode=m, padding_mode=p)
+        for b in GridSampleMode:
+            for p in GridSamplePadMode:
+                warp_layer = Warp(mode=b.value, padding_mode=p.value)
                 input_image = torch.rand((2, 3, 20, 20), dtype=torch.float64) * 10.0
                 ddf = torch.rand((2, 2, 20, 20), dtype=torch.float64) * 2.0
                 input_image.requires_grad = True
