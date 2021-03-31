@@ -43,6 +43,7 @@ def run_testsuit():
         "test_handler_confusion_matrix_dist",
         "test_handler_hausdorff_distance",
         "test_handler_mean_dice",
+        "test_handler_prob_map_generator",
         "test_handler_rocauc",
         "test_handler_rocauc_dist",
         "test_handler_segmentation_saver",
