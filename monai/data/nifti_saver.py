@@ -27,6 +27,8 @@ class NiftiSaver:
     Typically, the data can be segmentation predictions, call `save` for single data
     or call `save_batch` to save a batch of data together. If no meta data provided,
     use index from 0 as the filename prefix.
+
+    NB: image should include channel dimension: [B],C,H,W,[D].
     """
 
     def __init__(
@@ -40,6 +42,8 @@ class NiftiSaver:
         align_corners: bool = False,
         dtype: DtypeLike = np.float64,
         output_dtype: DtypeLike = np.float32,
+        squeeze_end_dims: bool = True,
+        data_root_dir: str = "",
     ) -> None:
         """
         Args:
@@ -60,6 +64,21 @@ class NiftiSaver:
             dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
                 If None, use the data type of input data.
             output_dtype: data type for saving data. Defaults to ``np.float32``.
+            squeeze_end_dims: if True, any trailing singleton dimensions will be removed (after the channel
+                has been moved to the end). So if input is (C,H,W,D), this will be altered to (H,W,D,C), and
+                then if C==1, it will be saved as (H,W,D). If D also ==1, it will be saved as (H,W). If false,
+                image will always be saved as (H,W,D,C).
+            data_root_dir: if not empty, it specifies the beginning parts of the input file's
+                absolute path. it's used to compute `input_file_rel_path`, the relative path to the file from
+                `data_root_dir` to preserve folder structure when saving in case there are files in different
+                folders with the same file names. for example:
+                input_file_name: /foo/bar/test1/image.nii,
+                postfix: seg
+                output_ext: nii.gz
+                output_dir: /output,
+                data_root_dir: /foo/bar,
+                output will be: /output/test1/image/image_seg.nii.gz
+
         """
         self.output_dir = output_dir
         self.output_postfix = output_postfix
@@ -71,6 +90,8 @@ class NiftiSaver:
         self.dtype = dtype
         self.output_dtype = output_dtype
         self._data_index = 0
+        self.squeeze_end_dims = squeeze_end_dims
+        self.data_root_dir = data_root_dir
 
     def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
         """
@@ -104,13 +125,19 @@ class NiftiSaver:
         if isinstance(data, torch.Tensor):
             data = data.detach().cpu().numpy()
 
-        filename = create_file_basename(self.output_postfix, filename, self.output_dir)
+        filename = create_file_basename(self.output_postfix, filename, self.output_dir, self.data_root_dir)
         filename = f"{filename}{self.output_ext}"
         # change data shape to be (channel, h, w, d)
         while len(data.shape) < 4:
             data = np.expand_dims(data, -1)
         # change data to "channel last" format and write to nifti format file
         data = np.moveaxis(np.asarray(data), 0, -1)
+
+        # if desired, remove trailing singleton dimensions
+        if self.squeeze_end_dims:
+            while data.shape[-1] == 1:
+                data = np.squeeze(data, -1)
+
         write_nifti(
             data,
             file_name=filename,

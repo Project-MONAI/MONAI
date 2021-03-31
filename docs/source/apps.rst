@@ -46,9 +46,34 @@ Applications
     :members:
 .. autoclass:: AddRandomGuidanced
     :members:
+.. autoclass:: AddGuidanceFromPointsd
+    :members:
 .. autoclass:: SpatialCropForegroundd
+    :members:
+.. autoclass:: SpatialCropGuidanced
+    :members:
+.. autoclass:: RestoreLabeld
+    :members:
+.. autoclass:: ResizeGuidanced
     :members:
 .. autoclass:: FindDiscrepancyRegionsd
     :members:
 .. autoclass:: FindAllValidSlicesd
+    :members:
+.. autoclass:: Fetch2DSliced
+    :members:
+
+`Pathology`
+-----------
+
+.. automodule:: monai.apps.pathology.datasets
+.. autoclass:: PatchWSIDataset
+    :members:
+.. autoclass:: SmartCachePatchWSIDataset
+    :members:
+.. autoclass:: MaskedInferenceWSIDataset
+    :members:
+
+.. automodule:: monai.apps.pathology.utils
+.. autoclass:: PathologyProbNMS
     :members:
