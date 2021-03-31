@@ -15,11 +15,13 @@ _, has_cim = optional_import("cucim")
 _, has_osl = optional_import("openslide")
 
 FILE_URL = "http://openslide.cs.cmu.edu/download/openslide-testdata/Generic-TIFF/CMU-1.tiff"
-FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", os.path.basename(FILE_URL))
+base_name, extension = os.path.splitext(os.path.basename(FILE_URL))
+FILE_NAME = "temp_" + base_name
+FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", FILE_NAME + extension)
 
-MASK1 = os.path.join(os.path.dirname(__file__), "testing_data", "tissue_mask1.npy")
-MASK2 = os.path.join(os.path.dirname(__file__), "testing_data", "tissue_mask2.npy")
-MASK4 = os.path.join(os.path.dirname(__file__), "testing_data", "tissue_mask4.npy")
+MASK1 = os.path.join(os.path.dirname(__file__), "testing_data", "temp_tissue_mask1.npy")
+MASK2 = os.path.join(os.path.dirname(__file__), "testing_data", "temp_tissue_mask2.npy")
+MASK4 = os.path.join(os.path.dirname(__file__), "testing_data", "temp_tissue_mask4.npy")
 
 HEIGHT = 32914
 WIDTH = 46000
@@ -47,7 +49,7 @@ TEST_CASE_0 = [
     [
         {
             "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
-            "name": "CMU-1",
+            "name": FILE_NAME,
             "mask_location": [100, 100],
         },
     ],
@@ -62,12 +64,12 @@ TEST_CASE_1 = [
     [
         {
             "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
-            "name": "CMU-1",
+            "name": FILE_NAME,
             "mask_location": [100, 100],
         },
         {
             "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
-            "name": "CMU-1",
+            "name": FILE_NAME,
             "mask_location": [101, 100],
         },
     ],
@@ -82,22 +84,22 @@ TEST_CASE_2 = [
     [
         {
             "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
-            "name": "CMU-1",
+            "name": FILE_NAME,
             "mask_location": [100, 100],
         },
         {
             "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
-            "name": "CMU-1",
+            "name": FILE_NAME,
             "mask_location": [100, 101],
         },
         {
             "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
-            "name": "CMU-1",
+            "name": FILE_NAME,
             "mask_location": [101, 100],
         },
         {
             "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
-            "name": "CMU-1",
+            "name": FILE_NAME,
             "mask_location": [101, 101],
         },
     ],
@@ -121,7 +123,7 @@ TEST_CASE_3 = [
                 ],
                 dtype=np.uint8,
             ),
-            "name": "CMU-1",
+            "name": FILE_NAME,
             "mask_location": [100, 100],
         },
     ],
@@ -139,17 +141,17 @@ TEST_CASE_4 = [
     [
         {
             "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
-            "name": "CMU-1",
+            "name": FILE_NAME,
             "mask_location": [100, 100],
         },
         {
             "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
-            "name": "CMU-1",
+            "name": FILE_NAME,
             "mask_location": [100, 100],
         },
         {
             "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
-            "name": "CMU-1",
+            "name": FILE_NAME,
             "mask_location": [101, 100],
         },
     ],
@@ -167,7 +169,7 @@ TEST_CASE_OPENSLIDE_0 = [
     [
         {
             "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
-            "name": "CMU-1",
+            "name": FILE_NAME,
             "mask_location": [100, 100],
         },
     ],
@@ -182,12 +184,12 @@ TEST_CASE_OPENSLIDE_1 = [
     [
         {
             "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
-            "name": "CMU-1",
+            "name": FILE_NAME,
             "mask_location": [100, 100],
         },
         {
             "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
-            "name": "CMU-1",
+            "name": FILE_NAME,
             "mask_location": [101, 100],
         },
     ],
