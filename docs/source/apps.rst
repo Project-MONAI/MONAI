@@ -74,12 +74,16 @@ Applications
 .. autoclass:: MaskedInferenceWSIDataset
     :members:
 
-.. automodule:: monai.apps.pathology.utils
-.. autofunction:: compute_multi_instance_mask
-.. autofunction:: compute_isolated_tumor_cells
-.. autoclass:: PathologyProbNMS
+.. automodule:: monai.apps.pathology.handlers
+.. autoclass:: ProbMapProducer
     :members:
 
 .. automodule:: monai.apps.pathology.metrics
 .. autoclass:: LesionFROC
+    :members:
+
+.. automodule:: monai.apps.pathology.utils
+.. autofunction:: compute_multi_instance_mask
+.. autofunction:: compute_isolated_tumor_cells
+.. autoclass:: PathologyProbNMS
     :members:
