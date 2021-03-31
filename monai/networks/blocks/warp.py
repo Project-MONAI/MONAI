@@ -1,5 +1,5 @@
 import warnings
-from typing import List, Optional, Union
+from typing import List
 
 import torch
 from torch import nn
@@ -7,7 +7,9 @@ from torch.nn import functional as F
 
 from monai.config.deviceconfig import USE_COMPILED
 from monai.networks.layers.spatial_transforms import grid_pull
-from monai.utils import GridSampleMode, GridSamplePadMode
+from monai.utils import GridSampleMode, GridSamplePadMode, optional_import
+
+_C, _ = optional_import("monai._C")
 
 __all__ = ["Warp", "DVF2DDF"]
 
@@ -19,51 +21,58 @@ class Warp(nn.Module):
 
     def __init__(
         self,
-        mode=1,
-        padding_mode: Optional[Union[GridSamplePadMode, str]] = GridSamplePadMode.ZEROS,
+        mode=GridSampleMode.BILINEAR.value,
+        padding_mode=GridSamplePadMode.BORDER.value,
     ):
         """
-        Args:
-            mode: interpolation mode to calculate output values, defaults to 1.
-                Possible values are::
+        For pytorch native APIs, the possible values are:
 
-                    - 0 or 'nearest'    or InterpolationType.nearest
-                    - 1 or 'linear'     or InterpolationType.linear
-                    - 2 or 'quadratic'  or InterpolationType.quadratic
-                    - 3 or 'cubic'      or InterpolationType.cubic
-                    - 4 or 'fourth'     or InterpolationType.fourth
-                    - etc.
-            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-                Padding mode for outside grid values. Defaults to ``"border"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            - mode: ``"nearest"``, ``"bilinear"``, ``"bicubic"``.
+            - padding_mode: ``"zeros"``, ``"border"``, ``"reflection"``
+
+        See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+
+        For MONAI C++/CUDA extensions, the possible values are:
+
+            - mode: ``"nearest"``, ``"bilinear"``, ``"bicubic"``, 0, 1, ...
+            - padding_mode: ``"zeros"``, ``"border"``, ``"reflection"``, 0, 1, ...
+
+        See also: :py:class:`monai.networks.layers.grid_pull`
         """
         super(Warp, self).__init__()
         # resolves _interp_mode for different methods
+
         if USE_COMPILED:
+            if mode in (inter.value for inter in GridSampleMode):
+                mode = GridSampleMode(mode)
+                if mode == GridSampleMode.BILINEAR:
+                    mode = 1
+                elif mode == GridSampleMode.NEAREST:
+                    mode = 0
+                elif mode == GridSampleMode.BICUBIC:
+                    mode = 3
+                else:
+                    mode = 1  # default to linear
             self._interp_mode = mode
         else:
             warnings.warn("monai.networks.blocks.Warp: Using PyTorch native grid_sample.")
-            self._interp_mode = GridSampleMode.BILINEAR.value  # works for both 4D and 5D tensors
-            if mode == 0:
-                self._interp_mode = GridSampleMode.NEAREST.value
-            elif mode == 1:
-                self._interp_mode = GridSampleMode.BILINEAR.value
-            elif mode == 3:
-                self._interp_mode = GridSampleMode.BICUBIC.value  # torch.functional.grid_sample only supports 4D
-            else:
-                warnings.warn(f"Order-{mode} interpolation is not supported, using linear interpolation.")
+            self._interp_mode = GridSampleMode(mode).value
 
         # resolves _padding_mode for different methods
-        padding_mode = GridSamplePadMode(padding_mode).value
         if USE_COMPILED:
-            if padding_mode == GridSamplePadMode.ZEROS.value:
-                self._padding_mode = 7
-            elif padding_mode == GridSamplePadMode.BORDER.value:
-                self._padding_mode = 0
-            else:
-                self._padding_mode = 1  # reflection
+            if padding_mode in (pad.value for pad in GridSamplePadMode):
+                padding_mode = GridSamplePadMode(padding_mode)
+                if padding_mode == GridSamplePadMode.ZEROS:
+                    padding_mode = 7
+                elif padding_mode == GridSamplePadMode.BORDER:
+                    padding_mode = 0
+                elif padding_mode == GridSamplePadMode.REFLECTION:
+                    padding_mode = 1
+                else:
+                    padding_mode = 0  # default to nearest
+            self._padding_mode = padding_mode
         else:
-            self._padding_mode = padding_mode  # type: ignore
+            self._padding_mode = GridSamplePadMode(padding_mode).value
 
     @staticmethod
     def get_reference_grid(ddf: torch.Tensor) -> torch.Tensor:
@@ -125,8 +134,8 @@ class DVF2DDF(nn.Module):
     def __init__(
         self,
         num_steps: int = 7,
-        mode: int = 1,
-        padding_mode: Optional[Union[GridSamplePadMode, str]] = GridSamplePadMode.ZEROS,
+        mode=GridSampleMode.BILINEAR.value,
+        padding_mode=GridSamplePadMode.ZEROS.value,
     ):
         super(DVF2DDF, self).__init__()
         if num_steps <= 0:
