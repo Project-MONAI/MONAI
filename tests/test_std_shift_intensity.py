@@ -34,7 +34,7 @@ class TestStdShiftIntensity(NumpyImageTestCase2D):
                 factor = np.random.rand()
                 std_shifter = StdShiftIntensity(factor=factor, nonzero=nonzero, channel_wise=channel_wise)
                 result = std_shifter(image)
-                np.testing.assert_equal(result, image)
+                np.testing.assert_allclose(result, image, rtol=1e-5)
 
     def test_nonzero(self):
         image = np.asarray([[4.0, 0.0, 2.0], [0, 2, 4]])  # std = 1
@@ -42,7 +42,7 @@ class TestStdShiftIntensity(NumpyImageTestCase2D):
         std_shifter = StdShiftIntensity(factor=factor, nonzero=True)
         result = std_shifter(image)
         expected = np.asarray([[4 + factor, 0, 2 + factor], [0, 2 + factor, 4 + factor]])
-        np.testing.assert_equal(result, expected)
+        np.testing.assert_allclose(result, expected, rtol=1e-5)
 
     def test_channel_wise(self):
         image = np.stack((np.asarray([1.0, 2.0]), np.asarray([1.0, 1.0])))  # std: 0.5, 0
@@ -50,7 +50,7 @@ class TestStdShiftIntensity(NumpyImageTestCase2D):
         std_shifter = StdShiftIntensity(factor=factor, channel_wise=True)
         result = std_shifter(image)
         expected = np.stack((np.asarray([1 + 0.5 * factor, 2 + 0.5 * factor]), np.asarray([1, 1])))
-        np.testing.assert_equal(result, expected)
+        np.testing.assert_allclose(result, expected, rtol=1e-5)
 
 
 if __name__ == "__main__":
