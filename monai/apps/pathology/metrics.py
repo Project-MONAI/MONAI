@@ -70,9 +70,9 @@ class LesionFROC:
         self.eval_thresholds = eval_thresholds
         self.image_reader = WSIReader(image_reader_name)
         self.nms = PathologyProbNMS(
-            sigma=0.0,
-            prob_threshold=0.5,
-            box_size=48,
+            sigma=nms_sigma,
+            prob_threshold=nms_prob_threshold,
+            box_size=nms_box_size,
         )
 
     def _load_data(self, file_path: str) -> List[Dict]:
