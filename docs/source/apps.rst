@@ -75,7 +75,8 @@ Applications
     :members:
 
 .. automodule:: monai.apps.pathology.utils
-    :members:
+.. autofunction:: compute_multi_instance_mask
+.. autofunction:: compute_isolated_tumor_cells
 .. autoclass:: PathologyProbNMS
     :members:
 
