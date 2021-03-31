@@ -1,5 +1,5 @@
 import warnings
-from typing import List, Union
+from typing import List
 
 import torch
 from torch import nn
@@ -21,8 +21,8 @@ class Warp(nn.Module):
 
     def __init__(
         self,
-        mode: Union[str, int] = GridSampleMode.BILINEAR.value,
-        padding_mode: Union[str, int] = GridSamplePadMode.BORDER.value,
+        mode=GridSampleMode.BILINEAR.value,
+        padding_mode=GridSamplePadMode.BORDER.value,
     ):
         """
         For pytorch native APIs, the possible values are:
@@ -134,8 +134,8 @@ class DVF2DDF(nn.Module):
     def __init__(
         self,
         num_steps: int = 7,
-        mode: Union[str, int] = GridSampleMode.BILINEAR.value,
-        padding_mode: Union[str, int] = GridSamplePadMode.ZEROS.value,
+        mode=GridSampleMode.BILINEAR.value,
+        padding_mode=GridSamplePadMode.ZEROS.value,
     ):
         super(DVF2DDF, self).__init__()
         if num_steps <= 0:
