@@ -14,13 +14,9 @@ from typing import Dict, List, Tuple, Union
 
 import numpy as np
 
-from monai.apps.pathology.utils import PathologyProbNMS
+from monai.apps.pathology.utils import PathologyProbNMS, compute_isolated_tumor_cells, compute_multi_instance_mask
 from monai.data.image_reader import WSIReader
 from monai.metrics import compute_fp_tp_probs, compute_froc_curve_data, compute_froc_score
-from monai.utils import optional_import
-
-measure, _ = optional_import("skimage.measure")
-ndimage, _ = optional_import("scipy.ndimage")
 
 
 class LesionFROC:
@@ -28,7 +24,7 @@ class LesionFROC:
     Evaluate with Free Response Operating Characteristic (FROC) score.
 
     Args:
-        data: either the list of dictionaries containg probability maps (inference result) and
+        data: either the list of dictionaries containing probability maps (inference result) and
             tumor mask (ground truth), as below, or the path to a json file containing such list.
             `{
             "prob_map": "path/to/prob_map_1.npy",
@@ -42,8 +38,14 @@ class LesionFROC:
             Defaults to 200.
         eval_thresholds: the false positive rates for calculating the average sensitivity.
             Defaults to (0.25, 0.5, 1, 2, 4, 8) which is the same as the CAMELYON 16 Challenge.
+        nms_sigma: the standard deviation for gaussian filter of non-maximal suppression. Defaults to 0.0.
+        nms_prob_threshold: the probability threshold of non-maximal suppression. Defaults to 0.5.
+        nms_box_size: the box size (in pixel) to be removed around the the pixel for non-maximal suppression.
         image_reader_name: the name of library to be used for loading whole slide imaging, either CuCIM or OpenSlide.
             Defaults to CuCIM.
+
+    Note:
+        For more info on `nms_*` parameters look at monai.utils.prob_nms.ProbNMS`.
 
     """
 
@@ -53,6 +55,9 @@ class LesionFROC:
         grow_distance: int = 75,
         itc_diameter: int = 200,
         eval_thresholds: Tuple = (0.25, 0.5, 1, 2, 4, 8),
+        nms_sigma: float = 0.0,
+        nms_prob_threshold: float = 0.5,
+        nms_box_size: int = 48,
         image_reader_name: str = "cuCIM",
     ) -> None:
 
@@ -108,11 +113,11 @@ class LesionFROC:
 
         # compute multi-instance mask from a binary mask
         grow_pixel_threshold = self.grow_distance / (mask_pixel_spacing * 2)
-        tumor_mask = self.compute_multi_instance_mask(mask=tumor_mask, threshold=grow_pixel_threshold)
+        tumor_mask = compute_multi_instance_mask(mask=tumor_mask, threshold=grow_pixel_threshold)
 
         # identify isolated tumor cells
         itc_threshold = (self.itc_diameter + self.grow_distance) / mask_pixel_spacing
-        itc_labels = self.compute_isolated_tumor_cells(tumor_mask=tumor_mask, threshold=itc_threshold)
+        itc_labels = compute_isolated_tumor_cells(tumor_mask=tumor_mask, threshold=itc_threshold)
 
         return tumor_mask, itc_labels
 
@@ -151,7 +156,7 @@ class LesionFROC:
 
     def evaluate(self):
         """
-        Evalaute the detection performance of a model based on the model probability map output,
+        Evaluate the detection performance of a model based on the model probability map output,
         the ground truth tumor mask, and their associated metadata (e.g., pixel_spacing, level)
         """
         # compute false positive (FP) and true positive (TP) probabilities for all images
@@ -173,40 +178,3 @@ class LesionFROC:
         )
 
         return froc_score
-
-    def compute_multi_instance_mask(self, mask: np.ndarray, threshold: float):
-        """
-        This method computes the segmentation mask according to the binary tumor mask.
-
-        Args:
-            mask: the binary mask array
-            threshold: the threashold to fill holes
-        """
-        # make sure it is between 0 and 1
-        assert 0 <= mask.max() <= 1, "The input mask should be a binary mask!"
-        neg = 255 - mask * 255
-        distance = ndimage.morphology.distance_transform_edt(neg)
-        binary = distance < threshold
-
-        filled_image = ndimage.morphology.binary_fill_holes(binary)
-        multi_instance_mask = measure.label(filled_image, connectivity=2)
-
-        return multi_instance_mask
-
-    def compute_isolated_tumor_cells(self, tumor_mask: np.ndarray, threshold: float) -> List[int]:
-        """
-        This method computes identifies Isolated Tumor Cells (ITC) and return their labels.
-
-        Args:
-            tumor_mask: the tumor mask.
-            threshold: the threshold (at the mask level) to define an isolated tumor cell (ITC).
-                A region with the longest diameter less than this threshold is considered as an ITC.
-        """
-        max_label = np.amax(tumor_mask)
-        properties = measure.regionprops(tumor_mask, coordinates="rc")
-        itc_list = []
-        for i in range(max_label):  # type: ignore
-            if properties[i].major_axis_length < threshold:
-                itc_list.append(i + 1)
-
-        return itc_list

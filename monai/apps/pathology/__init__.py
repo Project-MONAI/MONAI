@@ -11,4 +11,4 @@
 
 from .datasets import MaskedInferenceWSIDataset, PatchWSIDataset, SmartCacheDataset
 from .metrics import LesionFROC
-from .utils import ProbNMS
+from .utils import PathologyProbNMS, compute_isolated_tumor_cells, compute_multi_instance_mask

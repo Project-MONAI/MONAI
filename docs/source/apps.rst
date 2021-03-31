@@ -75,6 +75,7 @@ Applications
     :members:
 
 .. automodule:: monai.apps.pathology.utils
+    :members:
 .. autoclass:: PathologyProbNMS
     :members:
 
