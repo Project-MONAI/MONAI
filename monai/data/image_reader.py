@@ -727,7 +727,6 @@ class WSIReader(ImageReader):
         metadata["spatial_shape"] = size
         metadata["original_channel_dim"] = -1
         region = EnsureChannelFirst()(region, metadata)
-
         if patch_size is None:
             patches = region
         else:
