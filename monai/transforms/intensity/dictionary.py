@@ -233,6 +233,7 @@ class StdShiftIntensityd(MapTransform):
         factor: float,
         nonzero: bool = False,
         channel_wise: bool = False,
+        dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -243,10 +244,11 @@ class StdShiftIntensityd(MapTransform):
             nonzero: whether only count non-zero values.
             channel_wise: if True, calculate on each channel separately. Please ensure
                 that the first dimension represents the channel of the image if True.
+            dtype: output data type, defaults to float32.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
-        self.shifter = StdShiftIntensity(factor, nonzero, channel_wise)
+        self.shifter = StdShiftIntensity(factor, nonzero, channel_wise, dtype)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
@@ -267,6 +269,7 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
         prob: float = 0.1,
         nonzero: bool = False,
         channel_wise: bool = False,
+        dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -278,6 +281,7 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
             prob: probability of std shift.
             nonzero: whether only count non-zero values.
             channel_wise: if True, calculate on each channel separately.
+            dtype: output data type, defaults to float32.
             allow_missing_keys: don't raise exception if key is missing.
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -291,6 +295,7 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
             self.factors = (min(factors), max(factors))
         self.nonzero = nonzero
         self.channel_wise = channel_wise
+        self.dtype = dtype
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
@@ -301,7 +306,7 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
         self.randomize()
         if not self._do_transform:
             return d
-        shifter = StdShiftIntensity(self.factor, self.nonzero, self.channel_wise)
+        shifter = StdShiftIntensity(self.factor, self.nonzero, self.channel_wise, self.dtype)
         for key in self.key_iterator(d):
             d[key] = shifter(d[key])
         return d
@@ -412,7 +417,7 @@ class RandBiasFieldd(RandomizableTransform, MapTransform):
             degree: degree of freedom of the polynomials. The value should be no less than 1.
                 Defaults to 3.
             coeff_range: range of the random coefficients. Defaults to (0.0, 0.1).
-            dtype: output data type, defaut to float32.
+            dtype: output data type, defaults to float32.
             prob: probability to do random bias field.
             allow_missing_keys: don't raise exception if key is missing.
 
@@ -449,7 +454,7 @@ class NormalizeIntensityd(MapTransform):
         nonzero: whether only normalize non-zero values.
         channel_wise: if using calculated mean and std, calculate on each channel separately
             or calculate on the entire image directly.
-        dtype: output data type, defaut to float32.
+        dtype: output data type, defaults to float32.
         allow_missing_keys: don't raise exception if key is missing.
     """
 

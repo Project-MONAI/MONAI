@@ -150,12 +150,20 @@ class StdShiftIntensity(Transform):
         nonzero: whether only count non-zero values.
         channel_wise: if True, calculate on each channel separately. Please ensure
             that the first dimension represents the channel of the image if True.
+        dtype: output data type, defaults to float32.
     """
 
-    def __init__(self, factor: float, nonzero: bool = False, channel_wise: bool = False) -> None:
+    def __init__(
+        self,
+        factor: float,
+        nonzero: bool = False,
+        channel_wise: bool = False,
+        dtype: DtypeLike = np.float32,
+    ) -> None:
         self.factor = factor
         self.nonzero = nonzero
         self.channel_wise = channel_wise
+        self.dtype = dtype
 
     def _stdshift(self, img: np.ndarray) -> np.ndarray:
         slices = (img != 0) if self.nonzero else np.ones(img.shape, dtype=bool)
@@ -169,8 +177,7 @@ class StdShiftIntensity(Transform):
         """
         Apply the transform to `img`.
         """
-        if img.dtype != float:
-            img = img.astype(float)
+        img = img.astype(self.dtype)
         if self.channel_wise:
             for i, d in enumerate(img):
                 img[i] = self._stdshift(d)
@@ -191,6 +198,7 @@ class RandStdShiftIntensity(RandomizableTransform):
         prob: float = 0.1,
         nonzero: bool = False,
         channel_wise: bool = False,
+        dtype: DtypeLike = np.float32,
     ) -> None:
         """
         Args:
@@ -199,6 +207,7 @@ class RandStdShiftIntensity(RandomizableTransform):
             prob: probability of std shift.
             nonzero: whether only count non-zero values.
             channel_wise: if True, calculate on each channel separately.
+            dtype: output data type, defaults to float32.
 
         """
         RandomizableTransform.__init__(self, prob)
@@ -210,6 +219,7 @@ class RandStdShiftIntensity(RandomizableTransform):
             self.factors = (min(factors), max(factors))
         self.nonzero = nonzero
         self.channel_wise = channel_wise
+        self.dtype = dtype
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
@@ -222,7 +232,9 @@ class RandStdShiftIntensity(RandomizableTransform):
         self.randomize()
         if not self._do_transform:
             return img
-        shifter = StdShiftIntensity(factor=self.factor, nonzero=self.nonzero, channel_wise=self.channel_wise)
+        shifter = StdShiftIntensity(
+            factor=self.factor, nonzero=self.nonzero, channel_wise=self.channel_wise, dtype=self.dtype
+        )
         return shifter(img)
 
 
@@ -313,7 +325,7 @@ class RandBiasField(RandomizableTransform):
         degree: degree of freedom of the polynomials. The value should be no less than 1.
             Defaults to 3.
         coeff_range: range of the random coefficients. Defaults to (0.0, 0.1).
-        dtype: output data type, defaut to float32.
+        dtype: output data type, defaults to float32.
         prob: probability to do random bias field.
 
     """
@@ -403,7 +415,7 @@ class NormalizeIntensity(Transform):
         nonzero: whether only normalize non-zero values.
         channel_wise: if using calculated mean and std, calculate on each channel separately
             or calculate on the entire image directly.
-        dtype: output data type, defaut to float32.
+        dtype: output data type, defaults to float32.
     """
 
     def __init__(
