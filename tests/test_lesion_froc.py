@@ -185,7 +185,7 @@ TEST_CASE_5 = [
 ]
 
 
-TEST_CASE_5_1 = [
+TEST_CASE_6 = [
     {
         "data": [
             {
@@ -207,7 +207,7 @@ TEST_CASE_5_1 = [
     2.0 / 3.0,
 ]
 
-TEST_CASE_6 = [
+TEST_CASE_7 = [
     {
         "data": [
             {
@@ -229,7 +229,7 @@ TEST_CASE_6 = [
     0.4,
 ]
 
-TEST_CASE_7 = [
+TEST_CASE_8 = [
     {
         "data": [
             {
@@ -257,7 +257,7 @@ TEST_CASE_7 = [
     1.0 / 3.0,
 ]
 
-TEST_CASE_8 = [
+TEST_CASE_9 = [
     {
         "data": [
             {
@@ -302,10 +302,10 @@ class TestEvaluateTumorFROC(unittest.TestCase):
             TEST_CASE_3,
             TEST_CASE_4,
             TEST_CASE_5,
-            TEST_CASE_5_1,
             TEST_CASE_6,
             TEST_CASE_7,
             TEST_CASE_8,
+            TEST_CASE_9,
         ]
     )
     def test_read_patches_cucim(self, input_parameters, expected):
