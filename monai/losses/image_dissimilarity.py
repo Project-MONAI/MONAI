@@ -146,8 +146,8 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         cross = tp_sum - p_avg * t_sum
         t_var = t2_sum - t_avg * t_sum  # std[t] ** 2
         p_var = p2_sum - p_avg * p_sum  # std[p] ** 2
-        t_var = torch.maximum(t_var, torch.zeros_like(t_var))
-        p_var = torch.maximum(p_var, torch.zeros_like(p_var))
+        t_var = torch.max(t_var, torch.zeros_like(t_var))
+        p_var = torch.max(p_var, torch.zeros_like(p_var))
         ncc: torch.Tensor = (cross * cross + self.smooth_nr) / (t_var * p_var + self.smooth_dr)
         # shape = (batch, 1, D, H, W)
 
