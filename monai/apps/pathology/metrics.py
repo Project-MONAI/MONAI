@@ -9,8 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple
 
 import numpy as np
 
@@ -51,7 +50,7 @@ class LesionFROC:
 
     def __init__(
         self,
-        data: Union[List[Dict], str],
+        data: List[Dict],
         grow_distance: int = 75,
         itc_diameter: int = 200,
         eval_thresholds: Tuple = (0.25, 0.5, 1, 2, 4, 8),
@@ -61,10 +60,7 @@ class LesionFROC:
         image_reader_name: str = "cuCIM",
     ) -> None:
 
-        if isinstance(data, str):
-            self.data = self._load_data(data)
-        else:
-            self.data = data
+        self.data = data
         self.grow_distance = grow_distance
         self.itc_diameter = itc_diameter
         self.eval_thresholds = eval_thresholds
@@ -74,11 +70,6 @@ class LesionFROC:
             prob_threshold=nms_prob_threshold,
             box_size=nms_box_size,
         )
-
-    def _load_data(self, file_path: str) -> List[Dict]:
-        with open(file_path, "r") as f:
-            data: List[Dict] = json.load(f)
-        return data
 
     def prepare_inference_result(self, sample: Dict):
         """
