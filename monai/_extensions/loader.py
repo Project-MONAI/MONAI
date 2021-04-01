@@ -14,7 +14,6 @@ from glob import glob
 from os import makedirs, path
 from shutil import rmtree
 from sys import platform
-from time import sleep
 
 from torch import cuda
 from torch.utils.cpp_extension import load
