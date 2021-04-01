@@ -23,9 +23,9 @@ from monai.data.dataset import Dataset
 from monai.engines import Evaluator
 from monai.handlers import ValidationHandler
 
-TEST_CASE_0 = ["image_inference_output_1", 2]
-TEST_CASE_1 = ["image_inference_output_2", 9]
-TEST_CASE_2 = ["image_inference_output_3", 1000]
+TEST_CASE_0 = ["temp_image_inference_output_1", 2]
+TEST_CASE_1 = ["temp_image_inference_output_2", 9]
+TEST_CASE_2 = ["temp_image_inference_output_3", 1000]
 
 
 class TestDataset(Dataset):
