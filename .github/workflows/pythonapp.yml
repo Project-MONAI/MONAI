@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - test-pt-2103
   pull_request:
 
 jobs:

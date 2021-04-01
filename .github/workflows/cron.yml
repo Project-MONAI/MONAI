@@ -1,8 +1,9 @@
 name: crons
 
 on:
-  schedule:
-    - cron: "0 2 * * *"  # at 02:00 UTC
+  push:
+    branches:
+      - test-pt-2103
 
 jobs:
   cron-gpu:
