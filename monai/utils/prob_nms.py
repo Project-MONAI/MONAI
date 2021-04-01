@@ -22,8 +22,9 @@ class ProbNMS:
         prob_threshold: the probability threshold, the function will stop searching if
             the highest probability is no larger than the threshold. The value should be
             no less than 0.0. Defaults to 0.5.
-        box_size: determines the sizes of the removing area of the selected coordinates for
-            each dimensions. Defaults to 48.
+        box_size: the box size (in pixel) to be removed around the the pixel with the maximum probability.
+            It can be an integer that defines the size of a square or cube,
+            or a list containing different values for each dimensions. Defaults to 48.
 
     Return:
         a list of selected lists, where inner lists contain probability and coordinates.
@@ -64,36 +65,36 @@ class ProbNMS:
 
     def __call__(
         self,
-        probs_map: Union[np.ndarray, torch.Tensor],
+        prob_map: Union[np.ndarray, torch.Tensor],
     ):
         """
-        probs_map: the input probabilities map, it must have shape (H[, W, ...]).
+        prob_map: the input probabilities map, it must have shape (H[, W, ...]).
         """
         if self.sigma != 0:
-            if not isinstance(probs_map, torch.Tensor):
-                probs_map = torch.as_tensor(probs_map, dtype=torch.float)
-            self.filter.to(probs_map)
-            probs_map = self.filter(probs_map)
+            if not isinstance(prob_map, torch.Tensor):
+                prob_map = torch.as_tensor(prob_map, dtype=torch.float)
+            self.filter.to(prob_map)
+            prob_map = self.filter(prob_map)
         else:
-            if not isinstance(probs_map, torch.Tensor):
-                probs_map = probs_map.copy()
+            if not isinstance(prob_map, torch.Tensor):
+                prob_map = prob_map.copy()
 
-        if isinstance(probs_map, torch.Tensor):
-            probs_map = probs_map.detach().cpu().numpy()
+        if isinstance(prob_map, torch.Tensor):
+            prob_map = prob_map.detach().cpu().numpy()
 
-        probs_map_shape = probs_map.shape
+        prob_map_shape = prob_map.shape
 
         outputs = []
-        while np.max(probs_map) > self.prob_threshold:
-            max_idx = np.unravel_index(probs_map.argmax(), probs_map_shape)
-            prob_max = probs_map[max_idx]
+        while np.max(prob_map) > self.prob_threshold:
+            max_idx = np.unravel_index(prob_map.argmax(), prob_map_shape)
+            prob_max = prob_map[max_idx]
             max_idx_arr = np.asarray(max_idx)
             outputs.append([prob_max] + list(max_idx_arr))
 
             idx_min_range = (max_idx_arr - self.box_lower_bd).clip(0, None)
-            idx_max_range = (max_idx_arr + self.box_upper_bd).clip(None, probs_map_shape)
+            idx_max_range = (max_idx_arr + self.box_upper_bd).clip(None, prob_map_shape)
             # for each dimension, set values during index ranges to 0
             slices = tuple(slice(idx_min_range[i], idx_max_range[i]) for i in range(self.spatial_dims))
-            probs_map[slices] = 0
+            prob_map[slices] = 0
 
         return outputs
