@@ -263,8 +263,8 @@ def _load_state_dict(model, arch, progress):
         model_url = model_urls[arch]
     else:
         raise ValueError(
-            "only 'senet154', 'se_resnet50', 'se_resnet101',  'se_resnet152', 'se_resnext50_32x4d', \
-            and se_resnext101_32x4d are supported to load pretrained weights."
+            "only 'senet154', 'se_resnet50', 'se_resnet101',  'se_resnet152', 'se_resnext50_32x4d', "
+            + "and se_resnext101_32x4d are supported to load pretrained weights."
         )
 
     pattern_conv = re.compile(r"^(layer[1-4]\.\d\.(?:conv)\d\.)(\w*)$")
