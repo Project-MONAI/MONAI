@@ -27,7 +27,9 @@ def load_module(module_name, defines=None, verbose_build=False):
     Handles the loading of c++ extention modules.
 
     Args:
-    module_name: name of the mdule to load. Must match the name of the relevant source directory in the _extensions directory
+    module_name: Name of the module to load. Must match the name of the relevant source directory in the _extensions directory.
+    defines: Dictionary containing names and values of compilation defines
+    verbose_build: Set to true to enable build logging.
     """
 
     # Ensuring named module exists in _extensions directory.
