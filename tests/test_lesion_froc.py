@@ -185,7 +185,7 @@ TEST_CASE_5 = [
 ]
 
 
-TEST_CASE_5 = [
+TEST_CASE_5_1 = [
     {
         "data": [
             {
@@ -302,6 +302,7 @@ class TestEvaluateTumorFROC(unittest.TestCase):
             TEST_CASE_3,
             TEST_CASE_4,
             TEST_CASE_5,
+            TEST_CASE_5_1,
             TEST_CASE_6,
             TEST_CASE_7,
             TEST_CASE_8,
