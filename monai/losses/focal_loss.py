@@ -45,7 +45,9 @@ class FocalLoss(_Loss):
             weight: weights to apply to the voxels of each class. If None no weights are applied.
                 This corresponds to the weights `\alpha` in [1].
                 The input can be a single value (same weight for all classes), a sequence of values (the length
-                of the sequence should be the same as the number of classes).
+                of the sequence should be the same as the number of classes, if not ``include_background``, the
+                number should not include class 0).
+                The value/values should be no less than 0. Defaults to None.
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
                 Specifies the reduction to apply to the output. Defaults to ``"mean"``.
 
@@ -83,6 +85,9 @@ class FocalLoss(_Loss):
             AssertionError: When input and target (after one hot transform if setted)
                 have different shapes.
             ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
+            ValueError: When ``self.weight`` is a sequence and the length is not equal to the
+                number of classes.
+            ValueError: When ``self.weight`` is/contains a value that is less than 0.
 
         """
         n_pred_ch = input.shape[1]
@@ -122,6 +127,13 @@ class FocalLoss(_Loss):
                 class_weight = torch.as_tensor([self.weight] * i.size(1))
             else:
                 class_weight = torch.as_tensor(self.weight)
+                if class_weight.size(0) != i.size(1):
+                    raise ValueError(
+                        "the length of the weight sequence should be the same as the number of classes. "
+                        + "If `include_background=False`, the number should not include class 0."
+                    )
+            if class_weight.min() < 0:
+                raise ValueError("the value/values of weights should be no less than 0.")
             class_weight = class_weight.to(i)
             # Convert the weight to a map in which each voxel
             # has the weight associated with the ground-truth label
