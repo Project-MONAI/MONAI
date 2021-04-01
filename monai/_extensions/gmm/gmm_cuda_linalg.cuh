@@ -11,154 +11,97 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#if CHANNEL_COUNT == 1
-
-    #define DET_FACTORS 1
-    #define DET_TERMS 1
-    #define DET_REDUCTIONS 0
-    #define DET_SHFL_MASK 0x0
-    #define DET_SHFL_WIDTH 0
-
-    __constant__ int c_det_indices[2] {
-        1,
-        0,
-    };
-
-    #define INV_COMPONENTS 1
-    #define INV_TERMS 1
-    #define INV_FACTORS 0
-
-    __constant__ int c_inv_indices[1] {
-        1
-    };
-
-#elif CHANNEL_COUNT == 2
-
-    #define DET_FACTORS 2
-    #define DET_TERMS 2
-    #define DET_REDUCTIONS 1
-    #define DET_SHFL_MASK 0x3
-    #define DET_SHFL_WIDTH 2
-
-    __constant__ int c_det_indices[6] {
-        1, -1,
-        0,  1,
-        2,  1,
-    };
-
-    #define INV_COMPONENTS 3
-    #define INV_TERMS 1
-    #define INV_FACTORS 1
-
-    __constant__ int c_inv_indices[6] {
-        1, -1,  1,
-        2,  1,  0,
-    };
-
-#elif CHANNEL_COUNT == 3
-
-    #define DET_FACTORS 3
-    #define DET_TERMS 5
-    #define DET_REDUCTIONS 3
-    #define DET_SHFL_MASK 0x1f
-    #define DET_SHFL_WIDTH 8
-
-    __constant__ int c_det_indices[20] {
-        1, -1, -1,  2, -1,
-        0,  0,  1,  1,  2,
-        3,  4,  1,  2,  2,
-        5,  4,  5,  4,  3,
-    };
-
-    #define INV_COMPONENTS 6
-    #define INV_TERMS 2
-    #define INV_FACTORS 2
-
-    __constant__ int c_inv_indices[36] {
-        1, -1,  1, -1,  1, -1,  1, -1,  1, -1,  1, -1, 
-        3,  4,  2,  1,  1,  2,  0,  2,  1,  0,  0,  1, 
-        5,  4,  4,  5,  4,  3,  5,  2,  2,  4,  3,  1, 
-    };
-
-#elif CHANNEL_COUNT == 4
-
-    #define DET_FACTORS 4
-    #define DET_TERMS 17
-    #define DET_REDUCTIONS 5
-    #define DET_SHFL_MASK 0x1ffff
-    #define DET_SHFL_WIDTH 32
-
-    __constant__ int c_det_indices[85] {
-        1, -1, -1,  2, -1, -1,  1,  2, -2, -2,  2, -1,  1,  2, -2, -1,  1,
-        0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  3,  3, 
-        4,  4,  5,  5,  6,  1,  1,  2,  2,  3,  3,  2,  2,  3,  3,  3,  3, 
-        7,  8,  5,  6,  6,  7,  8,  5,  6,  5,  6,  4,  6,  4,  5,  4,  5, 
-        9,  8,  9,  8,  7,  9,  8,  9,  8,  8,  7,  9,  6,  8,  6,  7,  5, 
-    };
-    
-    #define INV_COMPONENTS 10
-    #define INV_TERMS 6
-    #define INV_FACTORS 3
-
-    __constant__ int c_inv_indices[240] {
-        1, -1, -1, +1, +1, -1, -1, +1, +1, -1, -1, +1, +1, -1, -1, +1, +1, -1, -1, +1, +1, -1, -1, +1, +1, -1, -1, +1, +1, -1, -1, +1, +1, -1, -1, +1, +1, -1, -1, +1, +1, -1, +1, -1, -1, +1, +1, -1, -1, +1, +1, -1, -1, +1, +1, -1, -1, +1, +1, -1,
-        4,  4,  5,  5,  5,  6,  1,  1,  2,  2,  3,  3,  1,  1,  2,  2,  3,  3,  1,  1,  2,  2,  3,  3,  0,  0,  2,  2,  2,  3,  0,  0,  1,  1,  2,  3,  0,  0,  1,  1,  2,  2,  0,  0,  1,  1,  1,  3,  0,  0,  1,  1,  1,  2,  0,  0,  1,  1,  1,  2,
-        7,  8,  5,  6,  6,  6,  7,  8,  5,  6,  5,  6,  5,  6,  4,  6,  4,  5,  5,  6,  4,  5,  4,  5,  7,  8,  2,  3,  3,  3,  5,  6,  2,  3,  3,  3,  5,  6,  2,  3,  2,  3,  4,  6,  1,  3,  3,  3,  4,  5,  1,  2,  3,  3,  4,  5,  1,  2,  2,  2,
-        9,  8,  9,  8,  8,  7,  9,  8,  9,  8,  8,  7,  9,  8,  9,  6,  8,  6,  8,  7,  8,  6,  7,  5,  9,  8,  9,  8,  8,  7,  9,  8,  9,  8,  6,  5,  8,  7,  8,  7,  6,  5,  9,  6,  9,  6,  6,  4,  8,  6,  8,  6,  5,  4,  7,  5,  7,  5,  5,  4,
-    };
-
-#endif 
-
-__device__ __forceinline__ void CalculateDeterminant(float* matrix, float* determinant, int thread_index)
-{    
-    if (thread_index < DET_TERMS)
+__device__ void to_square(float in[SUB_MATRIX_COMPONENT_COUNT], float out[CHANNEL_COUNT][CHANNEL_COUNT])
+{
+    for (int index = 0, i = 0; i < CHANNEL_COUNT; i++)
     {
-        float det_term = c_det_indices[thread_index];
-
-        for (int i = 0; i < DET_FACTORS; i++)
+        for (int j = i; j < CHANNEL_COUNT; j++, index++)
         {
-            int index = c_det_indices[thread_index + (i + 1) * DET_TERMS];
-            det_term *= matrix[index];
-        }
-
-        for (int i = DET_REDUCTIONS - 1; i >= 0; i--)
-        {
-            det_term += __shfl_down_sync(DET_SHFL_MASK, det_term, 1 << i, DET_SHFL_WIDTH);
-        }
-
-        if(thread_index == 0)
-        {
-            *determinant = det_term;
+            out[i][j] = in[index];
+            out[j][i] = in[index];
         }
     }
 }
 
-__device__ __forceinline__ void InvertMatrix(float* matrix, float determinant, int thread_index)
+__device__ void to_triangle(float in[CHANNEL_COUNT][CHANNEL_COUNT], float out[SUB_MATRIX_COMPONENT_COUNT])
 {
-    if (thread_index < INV_COMPONENTS)
+    for (int index = 0, i = 0; i < CHANNEL_COUNT; i++)
     {
-        if (determinant > 0.0f)
+        for (int j = i; j < CHANNEL_COUNT; j++, index++)
         {
-            float inverse_element = 0.0f;
+            out[index] = in[j][i];
+        }
+    }
+}
 
-            for (int i = 0; i < INV_TERMS; i++)
+__device__ void cholesky(float in[CHANNEL_COUNT][CHANNEL_COUNT], float out[CHANNEL_COUNT][CHANNEL_COUNT])
+{
+    for (int i = 0; i < CHANNEL_COUNT; i++)
+    {
+        for (int j = 0; j < i+1; j++)
+        {
+            float sum = 0.0f;
+
+            for (int k = 0; k < j; k++)
             {
-                float term = c_inv_indices[thread_index * INV_TERMS + i + 0 * INV_TERMS * INV_COMPONENTS];
-
-                for (int j = 0; j < INV_FACTORS; j++)
-                {
-                    int index = c_inv_indices[thread_index * INV_TERMS + i + (j+1) * INV_TERMS * INV_COMPONENTS];
-                    term *= matrix[index];
-                }
-
-                inverse_element += term;
+                sum += out[i][k] * out[j][k];
             }
 
-            matrix[thread_index] = inverse_element / determinant;
+            if (i == j)
+            {
+                out[i][j] = sqrtf(in[i][i] - sum);
+            }
+            else
+            {
+                out[i][j] = (in[i][j] - sum) / out[j][j];
+            }
         }
-        else
+    }
+}
+
+__device__ float chol_det(float in[CHANNEL_COUNT][CHANNEL_COUNT])
+{
+    float det = 1.0f;
+
+    for (int i = 0; i < CHANNEL_COUNT; i++)
+    {
+        det *= in[i][i];
+    }
+
+    return det * det;
+}
+
+__device__ void chol_inv(float in[CHANNEL_COUNT][CHANNEL_COUNT], float out[CHANNEL_COUNT][CHANNEL_COUNT])
+{
+    // Invert cholesky matrix
+    for (int i = 0; i < CHANNEL_COUNT; i++)
+    {
+        in[i][i] = 1.0f / (in[i][i] + 0.0001f);
+
+        for (int j = 0; j < i; j++)
         {
-            matrix[thread_index] = 0.0f;
+            float sum = 0.0f;
+
+            for (int k = j; k < i; k++)
+            {
+                sum += in[i][k] * in[k][j];
+            }
+
+            in[i][j] = -in[i][i] * sum;
+        }
+    }
+
+    // Dot with transpose of self
+    for (int i = 0; i < CHANNEL_COUNT; i++)
+    {
+        for (int j = 0; j < CHANNEL_COUNT; j++)
+        {
+            out[i][j] = 0.0f;
+            
+            for (int k = max(i, j); k < CHANNEL_COUNT; k++)
+            {
+                out[i][j] += in[k][i] * in[k][j];
+            }
         }
     }
 }

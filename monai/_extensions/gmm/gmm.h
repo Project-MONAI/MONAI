@@ -19,11 +19,8 @@ limitations under the License.
 #error CHANNEL_COUNT, MIXTURE_COUNT, and MIXTURE_SIZE must be positive
 #endif
 
-#if CHANNEL_COUNT > 4
-#error Not implemented for CHANNEL_COUNT > 4
-#endif
-
 #define MATRIX_COMPONENT_COUNT ((CHANNEL_COUNT + 1) * (CHANNEL_COUNT + 2) / 2)
+#define SUB_MATRIX_COMPONENT_COUNT (CHANNEL_COUNT * (CHANNEL_COUNT + 1) / 2)
 #define GMM_COMPONENT_COUNT (MATRIX_COMPONENT_COUNT + 1)
 #define GMM_COUNT (MIXTURE_COUNT * MIXTURE_SIZE)
 

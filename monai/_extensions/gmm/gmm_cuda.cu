@@ -15,6 +15,7 @@ limitations under the License.
 #include <cuda_runtime.h>
 
 #include "gmm.h"
+
 #include "gmm_cuda_linalg.cuh"
 
 #define BLOCK_SIZE 32
@@ -196,11 +197,30 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
     float* matrix = s_gmm + (CHANNEL_COUNT + 1);
     float* det_ptr = s_gmm + MATRIX_COMPONENT_COUNT;
 
-    CalculateDeterminant(matrix, det_ptr, local_index);
-
-    if (invert_matrix)
+    if (local_index == 0)
     {
-        InvertMatrix(matrix, *det_ptr, local_index);
+        float square_mat[CHANNEL_COUNT][CHANNEL_COUNT];
+        float cholesky_mat[CHANNEL_COUNT][CHANNEL_COUNT];
+
+        for(int i = 0; i < CHANNEL_COUNT; i++)
+        {
+            for(int j = 0; j < CHANNEL_COUNT; j++)
+            {
+                square_mat[i][j] = 0.0f;
+                cholesky_mat[i][j] = 0.0f;
+            }
+        }
+
+        to_square(matrix, square_mat);
+        cholesky(square_mat, cholesky_mat);
+
+        *det_ptr = chol_det(cholesky_mat);
+
+        if (invert_matrix)
+        {
+            chol_inv(cholesky_mat, square_mat);
+            to_triangle(square_mat, matrix);
+        }
     }
 
     if (local_index < GMM_COMPONENT_COUNT)
@@ -301,7 +321,9 @@ __global__ void GMMDataTermKernel(const float *image, const float *gmm, float* o
 
     for(int i = 0; i < MIXTURE_COUNT; i++)
     {
-        g_batch_output[index + i * element_count] = weights[i] / weight_total;
+        // protecting against pixels with 0 in all mixtures
+        float final_weight = weight_total > 0.0f ? weights[i] / weight_total : 0.0f;
+        g_batch_output[index + i * element_count] = final_weight;
     }
 }
 
