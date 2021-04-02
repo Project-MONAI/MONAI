@@ -79,4 +79,6 @@ class EarlyStopHandler(EarlyStopping):
         """
         set trainer to execute early stop if not setting properly in `__init__()`.
         """
+        if not isinstance(trainer, Engine):
+            raise TypeError("trainer must be an instance of Engine.")
         self.trainer = trainer
