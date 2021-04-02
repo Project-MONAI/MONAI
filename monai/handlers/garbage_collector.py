@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from ignite.engine import Engine, Events
 else:
     Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
-    Event, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
+    Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
 
 
 class GarbageCollector:
@@ -41,9 +41,9 @@ class GarbageCollector:
     """
 
     def __init__(self, trigger_event: str = "epoch", log_level: int = 10):
-        if trigger_event == "epoch":
+        if trigger_event.lower() == "epoch":
             self.trigger_event = Events.EPOCH_COMPLETED
-        elif trigger_event == "iteration":
+        elif trigger_event.lower() == "iteration":
             self.trigger_event = Events.ITERATION_COMPLETED
         elif isinstance(trigger_event, Events):
             self.trigger_event = trigger_event
