@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, Optional
 
 from monai.utils import exact_version, optional_import
 
@@ -23,17 +23,17 @@ else:
     EarlyStopping, _ = optional_import("ignite.handlers", "0.4.4", exact_version, "EarlyStopping")
 
 
-class EarlyStopHandler(EarlyStopping):
+class EarlyStopHandler:
     """
     EarlyStopHandler acts as an Ignite handler to stop training if no improvement after a given number of events.
-    It inherits the `EarlyStopping` handler in ignite.
+    It‘s based on the `EarlyStopping` handler in ignite.
 
     Args:
         patience: number of events to wait if no improvement and then stop the training.
         score_function: It should be a function taking a single argument, an :class:`~ignite.engine.engine.Engine`
             object that the handler attached, can be a trainer or validator, and return a score `float`.
             an improvement is considered if the score is higher.
-        trainer: trainer engine to stop the run if no improvement.
+        trainer: trainer engine to stop the run if no improvement, if None, must call `set_trainer()` before training.
         min_delta: a minimum increase in the score to qualify as an improvement,
             i.e. an increase of less than or equal to `min_delta`, will count as no improvement.
         cumulative_delta: if True, `min_delta` defines an increase since the last `patience` reset, otherwise,
@@ -53,19 +53,20 @@ class EarlyStopHandler(EarlyStopping):
         self,
         patience: int,
         score_function: Callable,
-        trainer: Engine,
+        trainer: Optional[Engine] = None,
         min_delta: float = 0.0,
         cumulative_delta: bool = False,
         epoch_level: bool = True,
     ) -> None:
-        super().__init__(
-            patience=patience,
-            score_function=score_function,
-            trainer=trainer,
-            min_delta=min_delta,
-            cumulative_delta=cumulative_delta,
-        )
+        self.patience = patience
+        self.score_function = score_function
+        self.min_delta = min_delta
+        self.cumulative_delta = cumulative_delta
         self.epoch_level = epoch_level
+        self._handler = None
+
+        if trainer is not None:
+            self.set_trainer(trainer=trainer)
 
     def attach(self, engine: Engine) -> None:
         """
@@ -79,8 +80,17 @@ class EarlyStopHandler(EarlyStopping):
 
     def set_trainer(self, trainer: Engine):
         """
-        set trainer to execute early stop if not setting properly in `__init__()`.
+        Set trainer to execute early stop if not setting properly in `__init__()`.
         """
-        if not isinstance(trainer, Engine):
-            raise TypeError("trainer must be an instance of Engine.")
-        self.trainer = trainer
+        self._handler = EarlyStopping(
+            patience=self.patience,
+            score_function=self.score_function,
+            trainer=trainer,
+            min_delta=self.min_delta,
+            cumulative_delta=self.cumulative_delta,
+        )
+
+    def __call__(self, engine: Engine) -> None:
+        if self._handler is None:
+            raise RuntimeError("please set trainer in __init__() or call set_trainer() before training.")
+        self._handler(engine)

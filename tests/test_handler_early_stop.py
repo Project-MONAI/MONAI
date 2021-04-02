@@ -46,14 +46,16 @@ class TestHandlerEarlyStop(unittest.TestCase):
             validator.state.metrics["val_acc"] += 0.01
             validator.run(range(3))
 
-        EarlyStopHandler(
+        handler = EarlyStopHandler(
             patience=3,
             score_function=lambda x: x.state.metrics["val_acc"],
-            trainer=trainer,
+            trainer=None,
             min_delta=0.1,
             cumulative_delta=True,
             epoch_level=True,
-        ).attach(validator)
+        )
+        handler.attach(validator)
+        handler.set_trainer(trainer=trainer)
 
         trainer.run(range(3), max_epochs=5)
         self.assertEqual(trainer.state.iteration, 12)
