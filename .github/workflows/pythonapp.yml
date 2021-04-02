@@ -186,7 +186,7 @@ jobs:
           - environment: PT18+CUDA112
             # we explicitly set pytorch to -h to avoid pip install error
             pytorch: "-h"
-            base: "nvcr.io/nvidia/pytorch:21.02-py3"
+            base: "nvcr.io/nvidia/pytorch:21.03-py3"
     container:
       image: ${{ matrix.base }}
       options: --gpus all
