@@ -14,11 +14,13 @@ from typing import TYPE_CHECKING, Callable
 from monai.utils import exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
-EarlyStopping, _ = optional_import("ignite.handlers", "0.4.4", exact_version, "EarlyStopping")
+
 if TYPE_CHECKING:
     from ignite.engine import Engine
+    from ignite.handlers import EarlyStopping
 else:
     Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
+    EarlyStopping, _ = optional_import("ignite.handlers", "0.4.4", exact_version, "EarlyStopping")
 
 
 class EarlyStopHandler(EarlyStopping):

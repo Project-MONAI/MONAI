@@ -70,4 +70,6 @@ class ValidationHandler:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
+        if self.validator is None:
+            raise RuntimeError("please set validator in __init__() or call `set_validator()` before training.")
         self.validator.run(engine.state.epoch)
