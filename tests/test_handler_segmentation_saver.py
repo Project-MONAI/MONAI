@@ -43,7 +43,7 @@ class TestHandlerSegmentationSaver(unittest.TestCase):
             data = [
                 {
                     "filename_or_obj": ["testfile" + str(i) + ".nii.gz" for i in range(8)],
-                    "patch_index": [i for i in range(8)],
+                    "patch_index": list(range(8)),
                 }
             ]
             engine.run(data, max_epochs=1)
