@@ -47,15 +47,17 @@ class BilateralFilter(torch.autograd.Function):
 
     @staticmethod
     def forward(ctx, input, spatial_sigma=5, color_sigma=0.5, fast_approx=True):
-        ctx.save_for_backward(spatial_sigma, color_sigma, fast_approx)
+        ctx.ss = spatial_sigma
+        ctx.cs = color_sigma
+        ctx.fa = fast_approx
         output_data = _C.bilateral_filter(input, spatial_sigma, color_sigma, fast_approx)
         return output_data
 
     @staticmethod
     def backward(ctx, grad_output):
-        spatial_sigma, color_sigma, fast_approx = ctx.saved_variables
+        spatial_sigma, color_sigma, fast_approx = ctx.ss, ctx.cs, ctx.fa
         grad_input = _C.bilateral_filter(grad_output, spatial_sigma, color_sigma, fast_approx)
-        return grad_input
+        return grad_input, None, None, None
 
 
 class PHLFilter(torch.autograd.Function):
@@ -93,6 +95,7 @@ class PHLFilter(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_output):
-        scaled_features = ctx.saved_variables
-        grad_input = PHLFilter.scale(grad_output, scaled_features)
-        return grad_input
+        raise NotImplementedError("PHLFilter does not currently support backpropergation")
+        # scaled_features, = ctx.saved_variables
+        # grad_input = _C.phl_filter(grad_output, scaled_features)
+        # return grad_input

@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:20.12-py3
-
+# To build with a different base image
+# please run `docker build` using the `--build-arg PYTORCH_IMAGE=...` flag.
+ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:21.03-py3
 FROM ${PYTORCH_IMAGE}
 
 LABEL maintainer="monai.contact@gmail.com"
@@ -43,6 +44,9 @@ RUN wget -q ${NGC_CLI_URI} && \
     unzip ngccli_cat_linux.zip && chmod u+x ngc && \
     md5sum -c ngc.md5 && \
     rm -rf ngccli_cat_linux.zip ngc.md5
+RUN apt-get update \
+  && DEBIAN_FRONTEND="noninteractive" apt-get install -y libopenslide0  \
+  && rm -rf /var/lib/apt/lists/*
 # append /opt/tools to runtime path for NGC CLI to be accessible from all file system locations
 ENV PATH=${PATH}:/opt/tools
 WORKDIR /opt/monai
