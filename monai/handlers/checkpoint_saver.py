@@ -17,7 +17,6 @@ from monai.utils import exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
 Checkpoint, _ = optional_import("ignite.handlers", "0.4.4", exact_version, "Checkpoint")
-BaseSaveHandler, _ = optional_import("ignite.handlers.checkpoint", "0.4.4", exact_version, "BaseSaveHandler")
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
