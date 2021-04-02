@@ -532,7 +532,7 @@ class RandSpatialCropSamplesd(RandomizableTransform, MapTransform):
         ret = []
         for i in range(self.num_samples):
             cropped = self.cropper(data)
-            cropped[Key.PATCH_INDEX] = i
+            cropped[Key.PATCH_INDEX] = i  # type: ignore
             ret.append(cropped)
         return ret
 
@@ -790,7 +790,7 @@ class RandCropByPosNegLabeld(RandomizableTransform, MapTransform):
             for key in set(data.keys()).difference(set(self.keys)):
                 results[i][key] = data[key]
             # add patch index in the meta data
-            results[i][Key.PATCH_INDEX] = i
+            results[i][Key.PATCH_INDEX] = i  # type: ignore
 
         return results
 
