@@ -11,7 +11,7 @@ scikit-image>=0.14.2
 tqdm>=4.47.0
 lmdb
 flake8>=3.8.1
-flake8-bugbear==21.3.2
+flake8-bugbear
 flake8-comprehensions
 flake8-executable
 flake8-pyi
