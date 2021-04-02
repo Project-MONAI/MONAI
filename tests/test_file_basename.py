@@ -57,8 +57,16 @@ class TestFilename(unittest.TestCase):
             expected = os.path.join(output_tmp, "test", "test")
             self.assertEqual(result, expected)
 
+            result = create_file_basename("", "test.txt", output_tmp, "foo", 5)
+            expected = os.path.join(output_tmp, "test", "test_5")
+            self.assertEqual(result, expected)
+
             result = create_file_basename("post", "test.tar.gz", output_tmp, "foo")
             expected = os.path.join(output_tmp, "test", "test_post")
+            self.assertEqual(result, expected)
+
+            result = create_file_basename("post", "test.tar.gz", output_tmp, "foo", 8)
+            expected = os.path.join(output_tmp, "test", "test_post_8")
             self.assertEqual(result, expected)
 
 

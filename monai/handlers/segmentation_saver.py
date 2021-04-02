@@ -17,6 +17,7 @@ import numpy as np
 from monai.config import DtypeLike
 from monai.transforms import SaveImage
 from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, exact_version, optional_import
+from monai.utils import ImageMetaKey as Key
 
 Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
 if TYPE_CHECKING:
@@ -143,5 +144,6 @@ class SegmentationSaver:
         """
         meta_data = self.batch_transform(engine.state.batch)
         engine_output = self.output_transform(engine.state.output)
-        self._saver(engine_output, meta_data)
+        patch_indice = engine.state.batch.get(Key.PATCH_INDEX, None)
+        self._saver(engine_output, meta_data, patch_indice)
         self.logger.info("saved all the model outputs into files.")

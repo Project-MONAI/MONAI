@@ -43,6 +43,7 @@ from monai.transforms.utils import (
 )
 from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
 from monai.utils.enums import InverseKeys
+from monai.utils import ImageMetaKey as Key
 
 __all__ = [
     "NumpyPadModeSequence",
@@ -528,7 +529,12 @@ class RandSpatialCropSamplesd(RandomizableTransform, MapTransform):
         pass
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> List[Dict[Hashable, np.ndarray]]:
-        return [self.cropper(data) for _ in range(self.num_samples)]
+        ret = []
+        for i in range(self.num_samples):
+            cropped = self.cropper(data)
+            cropped[Key.PATCH_INDEX] = i
+            ret.append(cropped)
+        return ret
 
 
 class CropForegroundd(MapTransform, InvertibleTransform):
@@ -783,6 +789,8 @@ class RandCropByPosNegLabeld(RandomizableTransform, MapTransform):
             # fill in the extra keys with unmodified data
             for key in set(data.keys()).difference(set(self.keys)):
                 results[i][key] = data[key]
+            # add patch index in the meta data
+            results[i][Key.PATCH_INDEX] = i
 
         return results
 
