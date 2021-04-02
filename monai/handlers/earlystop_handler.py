@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Callable
 
 from monai.utils import exact_version, optional_import
 
@@ -74,3 +74,9 @@ class EarlyStopHandler(EarlyStopping):
             engine.add_event_handler(Events.EPOCH_COMPLETED, self)
         else:
             engine.add_event_handler(Events.ITERATION_COMPLETED, self)
+
+    def set_trainer(self, trainer: Engine):
+        """
+        set trainer to execute early stop if not setting properly in `__init__()`.
+        """
+        self.trainer = trainer
