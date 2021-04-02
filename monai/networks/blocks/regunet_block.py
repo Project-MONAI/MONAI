@@ -227,7 +227,7 @@ class RegistrationExtractionBlock(nn.Module):
             spatial_dims: number of spatial dimensions
             extract_levels: spatial levels to extract feature from, 0 refers to the input scale
             num_channels: number of channels at each scale level,
-                List or Tuple of lenth equals to `depth` of the RegNet
+                List or Tuple of length equals to `depth` of the RegNet
             out_channels: number of output channels
             kernel_initializer: kernel initializer
             activation: kernel activation function

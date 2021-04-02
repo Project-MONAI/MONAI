@@ -283,7 +283,7 @@ class MaskedInferenceWSIDataset(Dataset):
         """
         Load sample given the index
 
-        Since index is sequential and the patches are comming in an stream from different images,
+        Since index is sequential and the patches are coming in an stream from different images,
         this method, first, finds the whole slide image and the patch that should be extracted,
         then it loads the patch and provide it with its image name and the corresponding mask location.
         """
