@@ -273,7 +273,7 @@ class SaveImage(Transform):
         self,
         img: Union[torch.Tensor, np.ndarray],
         meta_data: Optional[Dict] = None,
-        patch_index: Optional[Union[Sequence[int], int]] = None,
+        patch_index=None,  # type is Union[Sequence[int], int, None], can't be compatible with save and save_batch
     ):
         """
         Args:

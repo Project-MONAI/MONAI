@@ -41,9 +41,9 @@ from monai.transforms.utils import (
     map_binary_to_indices,
     weighted_patch_samples,
 )
+from monai.utils import ImageMetaKey as Key
 from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
 from monai.utils.enums import InverseKeys
-from monai.utils import ImageMetaKey as Key
 
 __all__ = [
     "NumpyPadModeSequence",
