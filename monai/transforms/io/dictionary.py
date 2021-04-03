@@ -23,8 +23,7 @@ from monai.config import DtypeLike, KeysCollection
 from monai.data.image_reader import ImageReader
 from monai.transforms.io.array import LoadImage, SaveImage
 from monai.transforms.transform import MapTransform
-from monai.utils import GridSampleMode, GridSamplePadMode
-from monai.utils import InterpolateMode
+from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode
 
 __all__ = [
     "LoadImaged",
