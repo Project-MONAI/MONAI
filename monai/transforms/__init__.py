@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from .adaptors import FunctionSignature, adaptor, apply_alias, to_kwargs
-from .compose import Compose, MapTransform, Randomizable, Transform
+from .compose import Compose
 from .croppad.array import (
     BorderPad,
     BoundingRect,
@@ -25,6 +25,7 @@ from .croppad.array import (
     SpatialCrop,
     SpatialPad,
 )
+from .croppad.batch import PadListDataCollate
 from .croppad.dictionary import (
     BorderPadd,
     BorderPadD,
@@ -72,17 +73,20 @@ from .intensity.array import (
     MaskIntensity,
     NormalizeIntensity,
     RandAdjustContrast,
+    RandBiasField,
     RandGaussianNoise,
     RandGaussianSharpen,
     RandGaussianSmooth,
     RandHistogramShift,
     RandScaleIntensity,
     RandShiftIntensity,
+    RandStdShiftIntensity,
     SavitzkyGolaySmooth,
     ScaleIntensity,
     ScaleIntensityRange,
     ScaleIntensityRangePercentiles,
     ShiftIntensity,
+    StdShiftIntensity,
     ThresholdIntensity,
 )
 from .intensity.dictionary import (
@@ -104,6 +108,9 @@ from .intensity.dictionary import (
     RandAdjustContrastd,
     RandAdjustContrastD,
     RandAdjustContrastDict,
+    RandBiasFieldd,
+    RandBiasFieldD,
+    RandBiasFieldDict,
     RandGaussianNoised,
     RandGaussianNoiseD,
     RandGaussianNoiseDict,
@@ -122,6 +129,9 @@ from .intensity.dictionary import (
     RandShiftIntensityd,
     RandShiftIntensityD,
     RandShiftIntensityDict,
+    RandStdShiftIntensityd,
+    RandStdShiftIntensityD,
+    RandStdShiftIntensityDict,
     ScaleIntensityd,
     ScaleIntensityD,
     ScaleIntensityDict,
@@ -134,10 +144,14 @@ from .intensity.dictionary import (
     ShiftIntensityd,
     ShiftIntensityD,
     ShiftIntensityDict,
+    StdShiftIntensityd,
+    StdShiftIntensityD,
+    StdShiftIntensityDict,
     ThresholdIntensityd,
     ThresholdIntensityD,
     ThresholdIntensityDict,
 )
+from .inverse import InvertibleTransform
 from .io.array import LoadImage, SaveImage
 from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict
 from .post.array import (
@@ -155,6 +169,9 @@ from .post.dictionary import (
     AsDiscreted,
     AsDiscreteD,
     AsDiscreteDict,
+    Decollated,
+    DecollateD,
+    DecollateDict,
     Ensembled,
     KeepLargestConnectedComponentd,
     KeepLargestConnectedComponentD,
@@ -178,6 +195,7 @@ from .spatial.array import (
     Rand3DElastic,
     RandAffine,
     RandAffineGrid,
+    RandAxisFlip,
     RandDeformGrid,
     RandFlip,
     RandRotate,
@@ -191,6 +209,9 @@ from .spatial.array import (
     Zoom,
 )
 from .spatial.dictionary import (
+    Affined,
+    AffineD,
+    AffineDict,
     Flipd,
     FlipD,
     FlipDict,
@@ -206,6 +227,9 @@ from .spatial.dictionary import (
     RandAffined,
     RandAffineD,
     RandAffineDict,
+    RandAxisFlipd,
+    RandAxisFlipD,
+    RandAxisFlipDict,
     RandFlipd,
     RandFlipD,
     RandFlipDict,
@@ -234,6 +258,7 @@ from .spatial.dictionary import (
     ZoomD,
     ZoomDict,
 )
+from .transform import MapTransform, Randomizable, RandomizableTransform, Transform, apply_transform
 from .utility.array import (
     AddChannel,
     AddExtremePointsChannel,
@@ -242,15 +267,19 @@ from .utility.array import (
     CastToType,
     ConvertToMultiChannelBasedOnBratsClasses,
     DataStats,
+    EnsureChannelFirst,
     FgBgToIndices,
     Identity,
     LabelToMask,
     Lambda,
+    MapLabelValue,
+    RemoveRepeatedChannel,
     RepeatChannel,
     SimulateDelay,
     SplitChannel,
     SqueezeDim,
     ToNumpy,
+    ToPIL,
     TorchVision,
     ToTensor,
     Transpose,
@@ -286,6 +315,9 @@ from .utility.dictionary import (
     DeleteItemsd,
     DeleteItemsD,
     DeleteItemsDict,
+    EnsureChannelFirstd,
+    EnsureChannelFirstD,
+    EnsureChannelFirstDict,
     FgBgToIndicesd,
     FgBgToIndicesD,
     FgBgToIndicesDict,
@@ -298,9 +330,15 @@ from .utility.dictionary import (
     Lambdad,
     LambdaD,
     LambdaDict,
+    MapLabelValued,
+    MapLabelValueD,
+    MapLabelValueDict,
     RandLambdad,
     RandLambdaD,
     RandLambdaDict,
+    RemoveRepeatedChanneld,
+    RemoveRepeatedChannelD,
+    RemoveRepeatedChannelDict,
     RepeatChanneld,
     RepeatChannelD,
     RepeatChannelDict,
@@ -315,13 +353,20 @@ from .utility.dictionary import (
     SqueezeDimD,
     SqueezeDimDict,
     ToNumpyd,
+    ToNumpyD,
+    ToNumpyDict,
+    ToPILd,
+    ToPILD,
+    ToPILDict,
     TorchVisiond,
+    TorchVisionD,
+    TorchVisionDict,
     ToTensord,
     ToTensorD,
     ToTensorDict,
 )
 from .utils import (
-    apply_transform,
+    allow_missing_keys_mode,
     copypaste_arrays,
     create_control_grid,
     create_grid,

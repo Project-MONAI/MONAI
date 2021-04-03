@@ -20,7 +20,7 @@ import torch
 
 from monai.config import IndexSelection
 from monai.data.utils import get_random_patch, get_valid_patch_size
-from monai.transforms.compose import Randomizable, Transform
+from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (
     generate_pos_neg_label_crop_centers,
     generate_spatial_bounding_box,
@@ -106,7 +106,7 @@ class BorderPad(Transform):
     Pad the input data by adding specified borders to every dimension.
 
     Args:
-        spatial_border: specified size for every spatial border. it can be 3 shapes:
+        spatial_border: specified size for every spatial border. Any -ve values will be set to 0. It can be 3 shapes:
 
             - single int number, pad all the borders with the same size.
             - length equals the length of image shape, pad every spatial dimension separately.
@@ -140,16 +140,16 @@ class BorderPad(Transform):
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
 
         Raises:
-            ValueError: When ``self.spatial_border`` contains a nonnegative int.
+            ValueError: When ``self.spatial_border`` does not contain ints.
             ValueError: When ``self.spatial_border`` length is not one of
                 [1, len(spatial_shape), 2*len(spatial_shape)].
 
         """
         spatial_shape = img.shape[1:]
         spatial_border = ensure_tuple(self.spatial_border)
-        for b in spatial_border:
-            if not isinstance(b, int) or b < 0:
-                raise ValueError(f"self.spatial_border must contain only nonnegative ints, got {spatial_border}.")
+        if not all(isinstance(b, int) for b in spatial_border):
+            raise ValueError(f"self.spatial_border must contain only ints, got {spatial_border}.")
+        spatial_border = tuple(max(0, b) for b in spatial_border)
 
         if len(spatial_border) == 1:
             data_pad_width = [(spatial_border[0], spatial_border[0]) for _ in range(len(spatial_shape))]
@@ -242,15 +242,18 @@ class SpatialCrop(Transform):
                 raise ValueError("Please specify either roi_center, roi_size or roi_start, roi_end.")
             self.roi_start = np.maximum(np.asarray(roi_start, dtype=np.int16), 0)
             self.roi_end = np.maximum(np.asarray(roi_end, dtype=np.int16), self.roi_start)
+        # Allow for 1D by converting back to np.array (since np.maximum will convert to int)
+        self.roi_start = self.roi_start if isinstance(self.roi_start, np.ndarray) else np.array([self.roi_start])
+        self.roi_end = self.roi_end if isinstance(self.roi_end, np.ndarray) else np.array([self.roi_end])
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> np.ndarray:
+    def __call__(self, img: Union[np.ndarray, torch.Tensor]):
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
         """
-        sd = min(len(self.roi_start), len(self.roi_end), len(img.shape[1:]))  # spatial dims
+        sd = min(self.roi_start.size, self.roi_end.size, len(img.shape[1:]))  # spatial dims
         slices = [slice(None)] + [slice(s, e) for s, e in zip(self.roi_start[:sd], self.roi_end[:sd])]
-        return np.asarray(img[tuple(slices)])
+        return img[tuple(slices)]
 
 
 class CenterSpatialCrop(Transform):
@@ -276,7 +279,7 @@ class CenterSpatialCrop(Transform):
         return cropper(img)
 
 
-class RandSpatialCrop(Randomizable, Transform):
+class RandSpatialCrop(RandomizableTransform):
     """
     Crop image with random size or specific size ROI. It can crop at a random position as center
     or at the image center. And allows to set the minimum size to limit the randomly generated ROI.
@@ -321,7 +324,7 @@ class RandSpatialCrop(Randomizable, Transform):
         return cropper(img)
 
 
-class RandSpatialCropSamples(Randomizable, Transform):
+class RandSpatialCropSamples(RandomizableTransform):
     """
     Crop image with random size or specific size ROI to generate a list of N samples.
     It can crop at a random position as center or at the image center. And allows to set
@@ -429,7 +432,7 @@ class CropForeground(Transform):
         return cropped
 
 
-class RandWeightedCrop(Randomizable, Transform):
+class RandWeightedCrop(RandomizableTransform):
     """
     Samples a list of `num_samples` image patches according to the provided `weight_map`.
 
@@ -481,7 +484,7 @@ class RandWeightedCrop(Randomizable, Transform):
         return results
 
 
-class RandCropByPosNegLabel(Randomizable, Transform):
+class RandCropByPosNegLabel(RandomizableTransform):
     """
     Crop random fixed sized regions with the center being a foreground or background voxel
     based on the Pos Neg Ratio.

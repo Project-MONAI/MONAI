@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -36,6 +36,7 @@ class PNGSaver:
         resample: bool = True,
         mode: Union[InterpolateMode, str] = InterpolateMode.NEAREST,
         scale: Optional[int] = None,
+        data_root_dir: str = "",
     ) -> None:
         """
         Args:
@@ -48,6 +49,16 @@ class PNGSaver:
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
             scale: {``255``, ``65535``} postprocess data by clipping to [0, 1] and scaling
                 [0, 255] (uint8) or [0, 65535] (uint16). Default is None to disable scaling.
+            data_root_dir: if not empty, it specifies the beginning parts of the input file's
+                absolute path. it's used to compute `input_file_rel_path`, the relative path to the file from
+                `data_root_dir` to preserve folder structure when saving in case there are files in different
+                folders with the same file names. for example:
+                input_file_name: /foo/bar/test1/image.png,
+                postfix: seg
+                output_ext: png
+                output_dir: /output,
+                data_root_dir: /foo/bar,
+                output will be: /output/test1/image/image_seg.png
 
         """
         self.output_dir = output_dir
@@ -56,10 +67,16 @@ class PNGSaver:
         self.resample = resample
         self.mode: InterpolateMode = InterpolateMode(mode)
         self.scale = scale
+        self.data_root_dir = data_root_dir
 
         self._data_index = 0
 
-    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
+    def save(
+        self,
+        data: Union[torch.Tensor, np.ndarray],
+        meta_data: Optional[Dict] = None,
+        patch_index: Optional[int] = None,
+    ) -> None:
         """
         Save data into a png file.
         The meta_data could optionally have the following keys:
@@ -75,6 +92,7 @@ class PNGSaver:
                 Shape of the spatial dimensions (C,H,W).
                 C should be 1, 3 or 4
             meta_data: the meta data information corresponding to the data.
+            patch_index: if the data is a patch of big image, need to append the patch index to filename.
 
         Raises:
             ValueError: When ``data`` channels is not one of [1, 3, 4].
@@ -90,8 +108,8 @@ class PNGSaver:
         if isinstance(data, torch.Tensor):
             data = data.detach().cpu().numpy()
 
-        filename = create_file_basename(self.output_postfix, filename, self.output_dir)
-        filename = f"{filename}{self.output_ext}"
+        path = create_file_basename(self.output_postfix, filename, self.output_dir, self.data_root_dir, patch_index)
+        path = f"{path}{self.output_ext}"
 
         if data.shape[0] == 1:
             data = data.squeeze(0)
@@ -102,18 +120,28 @@ class PNGSaver:
 
         write_png(
             np.asarray(data),
-            file_name=filename,
+            file_name=path,
             output_spatial_shape=spatial_shape,
             mode=self.mode,
             scale=self.scale,
         )
 
-    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
+    def save_batch(
+        self,
+        batch_data: Union[torch.Tensor, np.ndarray],
+        meta_data: Optional[Dict] = None,
+        patch_indice: Optional[Sequence[int]] = None,
+    ) -> None:
         """Save a batch of data into png format files.
 
         Args:
             batch_data: target batch data content that save into png format.
             meta_data: every key-value in the meta_data is corresponding to a batch of data.
+            patch_indice: if the data is a patch of big image, need to append the patch index to filename.
         """
         for i, data in enumerate(batch_data):  # save a batch of files
-            self.save(data, {k: meta_data[k][i] for k in meta_data} if meta_data else None)
+            self.save(
+                data=data,
+                meta_data={k: meta_data[k][i] for k in meta_data} if meta_data is not None else None,
+                patch_index=patch_indice[i] if patch_indice is not None else None,
+            )

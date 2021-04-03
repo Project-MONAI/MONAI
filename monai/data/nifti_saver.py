@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -27,6 +27,8 @@ class NiftiSaver:
     Typically, the data can be segmentation predictions, call `save` for single data
     or call `save_batch` to save a batch of data together. If no meta data provided,
     use index from 0 as the filename prefix.
+
+    NB: image should include channel dimension: [B],C,H,W,[D].
     """
 
     def __init__(
@@ -40,6 +42,8 @@ class NiftiSaver:
         align_corners: bool = False,
         dtype: DtypeLike = np.float64,
         output_dtype: DtypeLike = np.float32,
+        squeeze_end_dims: bool = True,
+        data_root_dir: str = "",
     ) -> None:
         """
         Args:
@@ -60,6 +64,21 @@ class NiftiSaver:
             dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
                 If None, use the data type of input data.
             output_dtype: data type for saving data. Defaults to ``np.float32``.
+            squeeze_end_dims: if True, any trailing singleton dimensions will be removed (after the channel
+                has been moved to the end). So if input is (C,H,W,D), this will be altered to (H,W,D,C), and
+                then if C==1, it will be saved as (H,W,D). If D also ==1, it will be saved as (H,W). If false,
+                image will always be saved as (H,W,D,C).
+            data_root_dir: if not empty, it specifies the beginning parts of the input file's
+                absolute path. it's used to compute `input_file_rel_path`, the relative path to the file from
+                `data_root_dir` to preserve folder structure when saving in case there are files in different
+                folders with the same file names. for example:
+                input_file_name: /foo/bar/test1/image.nii,
+                postfix: seg
+                output_ext: nii.gz
+                output_dir: /output,
+                data_root_dir: /foo/bar,
+                output will be: /output/test1/image/image_seg.nii.gz
+
         """
         self.output_dir = output_dir
         self.output_postfix = output_postfix
@@ -71,8 +90,15 @@ class NiftiSaver:
         self.dtype = dtype
         self.output_dtype = output_dtype
         self._data_index = 0
+        self.squeeze_end_dims = squeeze_end_dims
+        self.data_root_dir = data_root_dir
 
-    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
+    def save(
+        self,
+        data: Union[torch.Tensor, np.ndarray],
+        meta_data: Optional[Dict] = None,
+        patch_index: Optional[int] = None,
+    ) -> None:
         """
         Save data into a Nifti file.
         The meta_data could optionally have the following keys:
@@ -91,6 +117,7 @@ class NiftiSaver:
             data: target data content that to be saved as a NIfTI format file.
                 Assuming the data shape starts with a channel dimension and followed by spatial dimensions.
             meta_data: the meta data information corresponding to the data.
+            patch_index: if the data is a patch of big image, need to append the patch index to filename.
 
         See Also
             :py:meth:`monai.data.nifti_writer.write_nifti`
@@ -104,16 +131,22 @@ class NiftiSaver:
         if isinstance(data, torch.Tensor):
             data = data.detach().cpu().numpy()
 
-        filename = create_file_basename(self.output_postfix, filename, self.output_dir)
-        filename = f"{filename}{self.output_ext}"
+        path = create_file_basename(self.output_postfix, filename, self.output_dir, self.data_root_dir, patch_index)
+        path = f"{path}{self.output_ext}"
         # change data shape to be (channel, h, w, d)
         while len(data.shape) < 4:
             data = np.expand_dims(data, -1)
         # change data to "channel last" format and write to nifti format file
         data = np.moveaxis(np.asarray(data), 0, -1)
+
+        # if desired, remove trailing singleton dimensions
+        if self.squeeze_end_dims:
+            while data.shape[-1] == 1:
+                data = np.squeeze(data, -1)
+
         write_nifti(
             data,
-            file_name=filename,
+            file_name=path,
             affine=affine,
             target_affine=original_affine,
             resample=self.resample,
@@ -125,7 +158,12 @@ class NiftiSaver:
             output_dtype=self.output_dtype,
         )
 
-    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
+    def save_batch(
+        self,
+        batch_data: Union[torch.Tensor, np.ndarray],
+        meta_data: Optional[Dict] = None,
+        patch_indice: Optional[Sequence[int]] = None,
+    ) -> None:
         """
         Save a batch of data into Nifti format files.
 
@@ -142,6 +180,11 @@ class NiftiSaver:
         Args:
             batch_data: target batch data content that save into NIfTI format.
             meta_data: every key-value in the meta_data is corresponding to a batch of data.
+            patch_indice: if the data is a patch of big image, need to append the patch index to filename.
         """
         for i, data in enumerate(batch_data):  # save a batch of files
-            self.save(data, {k: meta_data[k][i] for k in meta_data} if meta_data else None)
+            self.save(
+                data=data,
+                meta_data={k: meta_data[k][i] for k in meta_data} if meta_data is not None else None,
+                patch_index=patch_indice[i] if patch_indice is not None else None,
+            )
