@@ -542,7 +542,7 @@ class RandSpatialCropSamplesd(RandomizableTransform, MapTransform):
             for key in self.key_iterator(d):
                 meta_data_key = f"{key}_{self.meta_key_postfix}"
                 if meta_data_key not in cropped:
-                    cropped[meta_data_key] = {}
+                    cropped[meta_data_key] = {}  # type: ignore
                 cropped[meta_data_key][Key.PATCH_INDEX] = i
             ret.append(cropped)
         return ret
@@ -811,7 +811,7 @@ class RandCropByPosNegLabeld(RandomizableTransform, MapTransform):
             for key in self.key_iterator(d):
                 meta_data_key = f"{key}_{self.meta_key_postfix}"
                 if meta_data_key not in results[i]:
-                    results[i][meta_data_key] = {}
+                    results[i][meta_data_key] = {}  # type: ignore
                 results[i][meta_data_key][Key.PATCH_INDEX] = i
 
         return results
