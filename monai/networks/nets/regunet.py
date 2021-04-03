@@ -68,7 +68,8 @@ class RegUNet(nn.Module):
         super(RegUNet, self).__init__()
         if not extract_levels:
             extract_levels = (depth,)
-        assert max(extract_levels) == depth
+        if max(extract_levels) != depth:
+            raise AssertionError
 
         # save parameters
         self.spatial_dims = spatial_dims
@@ -84,7 +85,8 @@ class RegUNet(nn.Module):
 
         if isinstance(encode_kernel_sizes, int):
             encode_kernel_sizes = [encode_kernel_sizes] * (self.depth + 1)
-        assert len(encode_kernel_sizes) == self.depth + 1
+        if len(encode_kernel_sizes) != self.depth + 1:
+            raise AssertionError
         self.encode_kernel_sizes: List[int] = encode_kernel_sizes
 
         self.num_channels = [self.num_channel_initial * (2 ** d) for d in range(self.depth + 1)]

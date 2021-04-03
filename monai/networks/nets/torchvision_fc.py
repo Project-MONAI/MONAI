@@ -1,3 +1,14 @@
+# Copyright 2020 - 2021 MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from typing import Tuple, Union
 
 import torch
@@ -13,15 +24,8 @@ class TorchVisionFullyConvModel(torch.nn.Module):
 
     Args:
         model_name: name of any torchvision with adaptive avg pooling and fully connected layer at the end.
-            - resnet18 (default)
-            - resnet34
-            - resnet50
-            - resnet101
-            - resnet152
-            - resnext50_32x4d
-            - resnext101_32x8d
-            - wide_resnet50_2
-            - wide_resnet101_2
+            ``resnet18`` (default), ``resnet34m``, ``resnet50``, ``resnet101``, ``resnet152``,
+            ``resnext50_32x4d``, ``resnext101_32x8d``, ``wide_resnet50_2``, ``wide_resnet101_2``.
         n_classes: number of classes for the last classification layer. Default to 1.
         pool_size: the kernel size for `AvgPool2d` to replace `AdaptiveAvgPool2d`. Default to (7, 7).
         pool_stride: the stride for `AvgPool2d` to replace `AdaptiveAvgPool2d`. Default to 1.

@@ -1,27 +1,38 @@
+# Copyright 2020 - 2021 MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import os
 import unittest
 from unittest import skipUnless
-from urllib import request
 
 import numpy as np
 from numpy.testing import assert_array_equal
 from parameterized import parameterized
 
 from monai.apps.pathology.datasets import SmartCachePatchWSIDataset
+from monai.apps.utils import download_url
 from monai.utils import optional_import
 
 _, has_cim = optional_import("cucim")
 
 FILE_URL = "http://openslide.cs.cmu.edu/download/openslide-testdata/Generic-TIFF/CMU-1.tiff"
+FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + os.path.basename(FILE_URL))
 
 TEST_CASE_0 = [
-    FILE_URL,
     {
         "data": [
-            {"image": "./CMU-1.tiff", "location": [0, 0], "label": [0]},
-            {"image": "./CMU-1.tiff", "location": [0, 0], "label": [1]},
-            {"image": "./CMU-1.tiff", "location": [0, 0], "label": [2]},
-            {"image": "./CMU-1.tiff", "location": [0, 0], "label": [3]},
+            {"image": FILE_PATH, "location": [0, 0], "label": [0]},
+            {"image": FILE_PATH, "location": [0, 0], "label": [1]},
+            {"image": FILE_PATH, "location": [0, 0], "label": [2]},
+            {"image": FILE_PATH, "location": [0, 0], "label": [3]},
         ],
         "region_size": (1, 1),
         "grid_shape": (1, 1),
@@ -46,12 +57,11 @@ TEST_CASE_0 = [
 ]
 
 TEST_CASE_1 = [
-    FILE_URL,
     {
         "data": [
-            {"image": "./CMU-1.tiff", "location": [0, 0], "label": [[0, 0]]},
-            {"image": "./CMU-1.tiff", "location": [0, 0], "label": [[1, 1]]},
-            {"image": "./CMU-1.tiff", "location": [0, 0], "label": [[2, 2]]},
+            {"image": FILE_PATH, "location": [0, 0], "label": [[0, 0]]},
+            {"image": FILE_PATH, "location": [0, 0], "label": [[1, 1]]},
+            {"image": FILE_PATH, "location": [0, 0], "label": [[2, 2]]},
         ],
         "region_size": (1, 1),
         "grid_shape": (1, 1),
@@ -74,12 +84,11 @@ TEST_CASE_1 = [
 ]
 
 TEST_CASE_2 = [
-    FILE_URL,
     {
         "data": [
-            {"image": "./CMU-1.tiff", "location": [10004, 20004], "label": [0, 0, 0, 0]},
-            {"image": "./CMU-1.tiff", "location": [10004, 20004], "label": [1, 1, 1, 1]},
-            {"image": "./CMU-1.tiff", "location": [10004, 20004], "label": [2, 2, 2, 2]},
+            {"image": FILE_PATH, "location": [10004, 20004], "label": [0, 0, 0, 0]},
+            {"image": FILE_PATH, "location": [10004, 20004], "label": [1, 1, 1, 1]},
+            {"image": FILE_PATH, "location": [10004, 20004], "label": [2, 2, 2, 2]},
         ],
         "region_size": (8, 8),
         "grid_shape": (2, 2),
@@ -121,6 +130,9 @@ TEST_CASE_2 = [
 
 
 class TestSmartCachePatchWSIDataset(unittest.TestCase):
+    def setUp(self):
+        download_url(FILE_URL, FILE_PATH, "5a3cfd4fd725c50578ddb80b517b759f")
+
     @parameterized.expand(
         [
             TEST_CASE_0,
@@ -129,8 +141,7 @@ class TestSmartCachePatchWSIDataset(unittest.TestCase):
         ]
     )
     @skipUnless(has_cim, "Requires CuCIM")
-    def test_read_patches(self, file_url, input_parameters, expected):
-        self.camelyon_data_download(file_url)
+    def test_read_patches(self, input_parameters, expected):
         dataset = SmartCachePatchWSIDataset(**input_parameters)
         self.assertEqual(len(dataset), input_parameters["cache_num"])
         total_num_samples = len(input_parameters["data"])
@@ -148,13 +159,6 @@ class TestSmartCachePatchWSIDataset(unittest.TestCase):
                 i += n_patches
             dataset.update_cache()
         dataset.shutdown()
-
-    def camelyon_data_download(self, file_url):
-        filename = os.path.basename(file_url)
-        if not os.path.exists(filename):
-            print(f"Test image [{filename}] does not exist. Downloading...")
-            request.urlretrieve(file_url, filename)
-        return filename
 
     def assert_samples_expected(self, samples, expected):
         for i in range(len(samples)):

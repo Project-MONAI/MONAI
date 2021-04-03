@@ -99,7 +99,7 @@ Blocks
 .. autoclass:: SEResNetBottleneck
     :members:
 
-`Squeeze-and-Excitation ResneXt Bottleneck`
+`Squeeze-and-Excitation ResNeXt Bottleneck`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: SEResNeXtBottleneck
     :members:

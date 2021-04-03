@@ -172,10 +172,9 @@ class EnsureChannelFirst(Transform):
 
         if channel_dim is None:
             raise ValueError("meta_dict must contain `original_channel_dim` information.")
-        elif channel_dim == "no_channel":
+        if channel_dim == "no_channel":
             return AddChannel()(img)
-        else:
-            return AsChannelFirst(channel_dim=channel_dim)(img)
+        return AsChannelFirst(channel_dim=channel_dim)(img)
 
 
 class RepeatChannel(Transform):
@@ -660,6 +659,10 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
     """
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
+        # if img has channel dim, squeeze it
+        if img.ndim == 4 and img.shape[0] == 1:
+            img = np.squeeze(img, axis=0)
+
         result = []
         # merge labels 1 (tumor non-enh) and 4 (tumor enh) to TC
         result.append(np.logical_or(img == 1, img == 4))
