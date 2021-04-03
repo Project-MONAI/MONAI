@@ -117,7 +117,7 @@ class TestSaveImaged(unittest.TestCase):
                     filepath = os.path.join("testfile" + str(i), "testfile" + str(i) + "_trans" + output_ext)
                     self.assertTrue(os.path.exists(os.path.join(tempdir, filepath)))
             else:
-                patch_index = test_data.get("patch_index", None)
+                patch_index = test_data["img_meta_dict"].get("patch_index", None)
                 patch_index = f"_{patch_index}" if patch_index is not None else ""
                 filepath = os.path.join("testfile0", "testfile0" + "_trans" + patch_index + output_ext)
                 self.assertTrue(os.path.exists(os.path.join(tempdir, filepath)))

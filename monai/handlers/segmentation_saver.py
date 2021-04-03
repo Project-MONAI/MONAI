@@ -145,6 +145,5 @@ class SegmentationSaver:
         """
         meta_data = self.batch_transform(engine.state.batch)
         engine_output = self.output_transform(engine.state.output)
-        patch_indice = engine.state.batch.get(Key.PATCH_INDEX, None)
-        self._saver(engine_output, meta_data, patch_indice)
+        self._saver(engine_output, meta_data)
         self.logger.info("saved all the model outputs into files.")

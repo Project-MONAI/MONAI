@@ -71,18 +71,14 @@ class PNGSaver:
 
         self._data_index = 0
 
-    def save(
-        self,
-        data: Union[torch.Tensor, np.ndarray],
-        meta_data: Optional[Dict] = None,
-        patch_index: Optional[int] = None,
-    ) -> None:
+    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
         """
         Save data into a png file.
         The meta_data could optionally have the following keys:
 
             - ``'filename_or_obj'`` -- for output file name creation, corresponding to filename or object.
             - ``'spatial_shape'`` -- for data output shape.
+            - ``'patch_index'`` -- if the data is a patch of big image, append the patch index to filename.
 
         If meta_data is None, use the default index (starting from 0) as the filename.
 
@@ -92,7 +88,6 @@ class PNGSaver:
                 Shape of the spatial dimensions (C,H,W).
                 C should be 1, 3 or 4
             meta_data: the meta data information corresponding to the data.
-            patch_index: if the data is a patch of big image, need to append the patch index to filename.
 
         Raises:
             ValueError: When ``data`` channels is not one of [1, 3, 4].
@@ -104,6 +99,7 @@ class PNGSaver:
         filename = meta_data[Key.FILENAME_OR_OBJ] if meta_data else str(self._data_index)
         self._data_index += 1
         spatial_shape = meta_data.get("spatial_shape", None) if meta_data and self.resample else None
+        patch_index = meta_data.get(Key.PATCH_INDEX, None) if meta_data else None
 
         if isinstance(data, torch.Tensor):
             data = data.detach().cpu().numpy()
@@ -126,22 +122,13 @@ class PNGSaver:
             scale=self.scale,
         )
 
-    def save_batch(
-        self,
-        batch_data: Union[torch.Tensor, np.ndarray],
-        meta_data: Optional[Dict] = None,
-        patch_indice: Optional[Sequence[int]] = None,
-    ) -> None:
+    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
         """Save a batch of data into png format files.
 
         Args:
             batch_data: target batch data content that save into png format.
             meta_data: every key-value in the meta_data is corresponding to a batch of data.
-            patch_indice: if the data is a patch of big image, need to append the patch index to filename.
+
         """
         for i, data in enumerate(batch_data):  # save a batch of files
-            self.save(
-                data=data,
-                meta_data={k: meta_data[k][i] for k in meta_data} if meta_data is not None else None,
-                patch_index=patch_indice[i] if patch_indice is not None else None,
-            )
+            self.save(data=data, meta_data={k: meta_data[k][i] for k in meta_data} if meta_data is not None else None)
