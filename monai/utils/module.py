@@ -250,21 +250,11 @@ def has_option(obj, keywords: Union[str, Sequence[str]]) -> bool:
 def get_package_version(dep_name, default="NOT INSTALLED or UNKNOWN VERSION."):
     """
     Try to load package and get version. If not found, return `default`.
-
-    If the package was already loaded, leave it. If wasn't previously loaded, unload it.
     """
-    dep_ver = default
-    dep_already_loaded = dep_name not in sys.modules
-
     dep, has_dep = optional_import(dep_name)
-    if has_dep:
-        if hasattr(dep, "__version__"):
-            dep_ver = dep.__version__
-        # if not previously loaded, unload it
-        if not dep_already_loaded:
-            del dep
-            del sys.modules[dep_name]
-    return dep_ver
+    if has_dep and hasattr(dep, "__version__"):
+        return dep.__version__
+    return default
 
 
 def get_torch_version_tuple():
