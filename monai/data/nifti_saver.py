@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, Optional, Sequence, Union
+from typing import Dict, Optional, Union
 
 import numpy as np
 import torch
@@ -93,12 +93,7 @@ class NiftiSaver:
         self.squeeze_end_dims = squeeze_end_dims
         self.data_root_dir = data_root_dir
 
-    def save(
-        self,
-        data: Union[torch.Tensor, np.ndarray],
-        meta_data: Optional[Dict] = None,
-        patch_index: Optional[int] = None,
-    ) -> None:
+    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
         """
         Save data into a Nifti file.
         The meta_data could optionally have the following keys:
@@ -107,6 +102,7 @@ class NiftiSaver:
             - ``'original_affine'`` -- for data orientation handling, defaulting to an identity matrix.
             - ``'affine'`` -- for data output affine, defaulting to an identity matrix.
             - ``'spatial_shape'`` -- for data output shape.
+            - ``'patch_index'`` -- if the data is a patch of big image, append the patch index to filename.
 
         When meta_data is specified, the saver will try to resample batch data from the space
         defined by "affine" to the space defined by "original_affine".
@@ -117,7 +113,6 @@ class NiftiSaver:
             data: target data content that to be saved as a NIfTI format file.
                 Assuming the data shape starts with a channel dimension and followed by spatial dimensions.
             meta_data: the meta data information corresponding to the data.
-            patch_index: if the data is a patch of big image, need to append the patch index to filename.
 
         See Also
             :py:meth:`monai.data.nifti_writer.write_nifti`
@@ -127,6 +122,7 @@ class NiftiSaver:
         original_affine = meta_data.get("original_affine", None) if meta_data else None
         affine = meta_data.get("affine", None) if meta_data else None
         spatial_shape = meta_data.get("spatial_shape", None) if meta_data else None
+        patch_index = meta_data.get(Key.PATCH_INDEX, None) if meta_data else None
 
         if isinstance(data, torch.Tensor):
             data = data.detach().cpu().numpy()
@@ -158,12 +154,7 @@ class NiftiSaver:
             output_dtype=self.output_dtype,
         )
 
-    def save_batch(
-        self,
-        batch_data: Union[torch.Tensor, np.ndarray],
-        meta_data: Optional[Dict] = None,
-        patch_indice: Optional[Sequence[int]] = None,
-    ) -> None:
+    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
         """
         Save a batch of data into Nifti format files.
 
@@ -180,11 +171,7 @@ class NiftiSaver:
         Args:
             batch_data: target batch data content that save into NIfTI format.
             meta_data: every key-value in the meta_data is corresponding to a batch of data.
-            patch_indice: if the data is a patch of big image, need to append the patch index to filename.
+
         """
         for i, data in enumerate(batch_data):  # save a batch of files
-            self.save(
-                data=data,
-                meta_data={k: meta_data[k][i] for k in meta_data} if meta_data is not None else None,
-                patch_index=patch_indice[i] if patch_indice is not None else None,
-            )
+            self.save(data=data, meta_data={k: meta_data[k][i] for k in meta_data} if meta_data is not None else None)
