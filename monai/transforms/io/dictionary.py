@@ -24,7 +24,6 @@ from monai.data.image_reader import ImageReader
 from monai.transforms.io.array import LoadImage, SaveImage
 from monai.transforms.transform import MapTransform
 from monai.utils import GridSampleMode, GridSamplePadMode
-from monai.utils import ImageMetaKey as Key
 from monai.utils import InterpolateMode
 
 __all__ = [
