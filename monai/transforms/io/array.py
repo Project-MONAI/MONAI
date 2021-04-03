@@ -269,19 +269,14 @@ class SaveImage(Transform):
 
         self.save_batch = save_batch
 
-    def __call__(
-        self,
-        img: Union[torch.Tensor, np.ndarray],
-        meta_data: Optional[Dict] = None,
-        patch_index=None,  # type is Union[Sequence[int], int, None], can't be compatible with save and save_batch
-    ):
+    def __call__(self, img: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None):
         """
         Args:
             img: target data content that save into file.
             meta_data: key-value pairs of meta_data corresponding to the data.
-            patch_index: if the data is a patch of big image, need to append the patch index to filename.
+
         """
         if self.save_batch:
-            self.saver.save_batch(img, meta_data, patch_index)
+            self.saver.save_batch(img, meta_data)
         else:
-            self.saver.save(img, meta_data, patch_index)
+            self.saver.save(img, meta_data)

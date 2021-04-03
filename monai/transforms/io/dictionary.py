@@ -23,9 +23,7 @@ from monai.config import DtypeLike, KeysCollection
 from monai.data.image_reader import ImageReader
 from monai.transforms.io.array import LoadImage, SaveImage
 from monai.transforms.transform import MapTransform
-from monai.utils import GridSampleMode, GridSamplePadMode
-from monai.utils import ImageMetaKey as Key
-from monai.utils import InterpolateMode
+from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode
 
 __all__ = [
     "LoadImaged",
@@ -229,7 +227,7 @@ class SaveImaged(MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             meta_data = d[f"{key}_{self.meta_key_postfix}"] if self.meta_key_postfix is not None else None
-            self._saver(img=d[key], meta_data=meta_data, patch_index=d.get(Key.PATCH_INDEX, None))
+            self._saver(img=d[key], meta_data=meta_data)
         return d
 
 
