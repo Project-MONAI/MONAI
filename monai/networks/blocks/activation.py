@@ -43,6 +43,56 @@ class Swish(nn.Module):
         return input * torch.sigmoid(self.alpha * input)
 
 
+class SwishImplementation(torch.autograd.Function):
+    r"""Memory efficient implementation for training 
+    Follows recommendation from: 
+    https://github.com/lukemelas/EfficientNet-PyTorch/issues/18#issuecomment-511677853
+
+    Results in ~ 30% memory saving during training as compared to Swish()
+    """
+    @staticmethod
+    def forward(ctx: torch.autograd.Function, input: torch.Tensor):
+        result = input * torch.sigmoid(input)
+        ctx.save_for_backward(input)
+        return result
+
+    @staticmethod
+    def backward(ctx: torch.autograd.Function, grad_output: torch.Tensor):
+        input = ctx.saved_tensors[0]
+        sigmoid_input = torch.sigmoid(input)
+        return grad_output * (sigmoid_input * (1 + input * (1 - sigmoid_input)))
+
+
+class MemoryEfficientSwish(nn.Module):
+    r"""Applies the element-wise function:
+
+    .. math::
+        \text{Swish}(x) = x * \text{Sigmoid}(\alpha * x) for constant value alpha=1.
+
+    Citation: Searching for Activation Functions, Ramachandran et al., 2017, https://arxiv.org/abs/1710.05941.
+
+    Memory efficient implementation for training following recommendation from: 
+    https://github.com/lukemelas/EfficientNet-PyTorch/issues/18#issuecomment-511677853
+
+    Results in ~ 30% memory saving during training as compared to Swish()
+
+    Shape:
+        - Input: :math:`(N, *)` where `*` means, any number of additional
+          dimensions
+        - Output: :math:`(N, *)`, same shape as the input
+
+
+    Examples::
+
+        >>> m = Act['memswish']()
+        >>> input = torch.randn(2)
+        >>> output = m(input)
+    """
+
+    def forward(self, input: torch.Tensor):
+        return SwishImplementation.apply(input)
+
+
 class Mish(nn.Module):
     r"""Applies the element-wise function:
 
