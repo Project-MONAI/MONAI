@@ -146,5 +146,6 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
             engine.run([0] * 8, max_epochs=1)
             torch.testing.assert_allclose(net2.state_dict()["0.weight"].cpu(), torch.tensor([0.1]))
 
+
 if __name__ == "__main__":
     unittest.main()
