@@ -358,3 +358,4 @@ class ImageMetaKey:
     """
 
     FILENAME_OR_OBJ = "filename_or_obj"
+    PATCH_INDEX = "patch_index"
