@@ -600,6 +600,7 @@ def create_file_basename(
     input_file_name: str,
     folder_path: str,
     data_root_dir: str = "",
+    patch_index: Optional[int] = None,
 ) -> str:
     """
     Utility function to create the path to the output file based on the input
@@ -623,6 +624,7 @@ def create_file_basename(
             absolute path. This is used to compute `input_file_rel_path`, the relative path to the file from
             `data_root_dir` to preserve folder structure when saving in case there are files in different
             folders with the same file names.
+        patch_index: if not None, append the patch index to filename.
     """
 
     # get the filename and directory
@@ -641,11 +643,15 @@ def create_file_basename(
     if not os.path.exists(subfolder_path):
         os.makedirs(subfolder_path)
 
-    if postfix:
+    if len(postfix) > 0:
         # add the sub-folder plus the postfix name to become the file basename in the output path
         output = os.path.join(subfolder_path, filename + "_" + postfix)
     else:
         output = os.path.join(subfolder_path, filename)
+
+    if patch_index is not None:
+        output += f"_{patch_index}"
+
     return os.path.abspath(output)
 
 

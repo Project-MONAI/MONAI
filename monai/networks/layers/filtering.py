@@ -32,7 +32,7 @@ class BilateralFilter(torch.autograd.Function):
         input: input tensor.
 
         spatial sigma: the standard deviation of the spatial blur. Higher values can
-            hurt performace when not using the approximate method (see fast approx).
+            hurt performance when not using the approximate method (see fast approx).
 
         color sigma: the standard deviation of the color blur. Lower values preserve
             edges better whilst higher values tend to a simple gaussian spatial blur.
@@ -95,7 +95,7 @@ class PHLFilter(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_output):
-        raise NotImplementedError("PHLFilter does not currently support backpropergation")
+        raise NotImplementedError("PHLFilter does not currently support Backpropagation")
         # scaled_features, = ctx.saved_variables
         # grad_input = _C.phl_filter(grad_output, scaled_features)
         # return grad_input
