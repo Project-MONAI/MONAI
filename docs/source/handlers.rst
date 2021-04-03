@@ -110,3 +110,8 @@ SmartCache handler
 ------------------
 .. autoclass:: SmartCacheHandler
     :members:
+
+EarlyStop handler
+-----------------
+.. autoclass:: EarlyStopHandler
+    :members:

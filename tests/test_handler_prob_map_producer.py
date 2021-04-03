@@ -82,8 +82,9 @@ class TestHandlerProbMapGenerator(unittest.TestCase):
         evaluator = TestEvaluator(torch.device("cpu:0"), data_loader, size, val_handlers=[prob_map_gen])
 
         # set up validation handler
-        validation = ValidationHandler(evaluator, interval=1)
+        validation = ValidationHandler(interval=1, validator=None)
         validation.attach(engine)
+        validation.set_validator(validator=evaluator)
 
         engine.run(data_loader)
 

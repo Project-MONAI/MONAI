@@ -48,7 +48,7 @@ class MetricLogger:
         logger = MetricLogger(evaluator=evaluator)
 
         # construct the trainer with the logger passed in as a handler so that it logs loss values
-        trainer = SupervisedTrainer(..., train_handlers=[logger, ValidationHandler(evaluator, 1)])
+        trainer = SupervisedTrainer(..., train_handlers=[logger, ValidationHandler(1, evaluator)])
 
         # run training, logger.loss will be a list of (iteration, loss) values, logger.metrics a dict with key
         # "val_mean_dice" storing a list of (iteration, metric) values
