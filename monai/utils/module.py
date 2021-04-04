@@ -11,6 +11,7 @@
 
 import inspect
 import sys
+import warnings
 from importlib import import_module
 from pkgutil import walk_packages
 from re import match
@@ -95,6 +96,9 @@ def min_version(the_module, min_version_str: str = "") -> bool:
     Returns True if the module's version is greater or equal to the 'min_version'.
     When min_version_str is not provided, it always returns True.
     """
+    if not hasattr(the_module, "__version__"):
+        warnings.warn(f"{the_module} has no attribute __version__ in min_version check.")
+        return True  # min_version is the default, shouldn't be noisy
     if min_version_str:
         mod_version = tuple(int(x) for x in the_module.__version__.split(".")[:2])
         required = tuple(int(x) for x in min_version_str.split(".")[:2])
@@ -106,6 +110,9 @@ def exact_version(the_module, version_str: str = "") -> bool:
     """
     Returns True if the module's __version__ matches version_str
     """
+    if not hasattr(the_module, "__version__"):
+        warnings.warn(f"{the_module} has no attribute __version__ in exact_version check.")
+        return False
     return bool(the_module.__version__ == version_str)
 
 
