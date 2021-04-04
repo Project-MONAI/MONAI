@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.utils import ProbNMS
+from monai.transforms.post.array import ProbNMS
 
 probs_map_1 = np.random.rand(100, 100).clip(0, 0.5)
 TEST_CASES_2D_1 = [{"spatial_dims": 2, "prob_threshold": 0.5, "box_size": 10}, probs_map_1, []]
