@@ -44,12 +44,13 @@ class Swish(nn.Module):
 
 
 class SwishImplementation(torch.autograd.Function):
-    r"""Memory efficient implementation for training 
-    Follows recommendation from: 
+    r"""Memory efficient implementation for training
+    Follows recommendation from:
     https://github.com/lukemelas/EfficientNet-PyTorch/issues/18#issuecomment-511677853
 
     Results in ~ 30% memory saving during training as compared to Swish()
     """
+
     @staticmethod
     def forward(ctx: torch.autograd.Function, input: torch.Tensor):
         result = input * torch.sigmoid(input)
@@ -71,7 +72,7 @@ class MemoryEfficientSwish(nn.Module):
 
     Citation: Searching for Activation Functions, Ramachandran et al., 2017, https://arxiv.org/abs/1710.05941.
 
-    Memory efficient implementation for training following recommendation from: 
+    Memory efficient implementation for training following recommendation from:
     https://github.com/lukemelas/EfficientNet-PyTorch/issues/18#issuecomment-511677853
 
     Results in ~ 30% memory saving during training as compared to Swish()
