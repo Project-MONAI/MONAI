@@ -124,7 +124,9 @@ class SaveImaged(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SaveImage`.
 
-    NB: image should include channel dimension: [B],C,H,W,[D].
+    Note:
+        Image should include channel dimension: [B],C,H,W,[D].
+        If the data is a patch of big image, will append the patch index to filename.
 
     Args:
         keys: keys of the corresponding items to be transformed.
