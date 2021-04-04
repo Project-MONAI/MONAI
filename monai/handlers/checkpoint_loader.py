@@ -86,7 +86,7 @@ class CheckpointLoader:
 
         # save current max epochs setting in the engine, don't overwrite it if larger than max_epochs in checkpoint
         prior_max_epochs = engine.state.max_epochs
-        Checkpoint.load_objects(to_load=self.load_dict, checkpoint=checkpoint, **{"strict": self.strict})
+        Checkpoint.load_objects(to_load=self.load_dict, checkpoint=checkpoint, strict=self.strict)
         if engine.state.epoch > prior_max_epochs:
             raise ValueError(
                 f"Epoch count ({engine.state.epoch}) in checkpoint is larger than "
