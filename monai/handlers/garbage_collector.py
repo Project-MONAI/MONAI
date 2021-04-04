@@ -41,12 +41,12 @@ class GarbageCollector:
     """
 
     def __init__(self, trigger_event: str = "epoch", log_level: int = 10):
-        if trigger_event.lower() == "epoch":
+        if isinstance(trigger_event, Events):
+            self.trigger_event = trigger_event
+        elif trigger_event.lower() == "epoch":
             self.trigger_event = Events.EPOCH_COMPLETED
         elif trigger_event.lower() == "iteration":
             self.trigger_event = Events.ITERATION_COMPLETED
-        elif isinstance(trigger_event, Events):
-            self.trigger_event = trigger_event
         else:
             raise ValueError(
                 f"'trigger_event' should be either epoch, iteration, or an ignite built-in event from"
@@ -66,7 +66,6 @@ class GarbageCollector:
         Args:
             engine: Ignite Engine, it should be either a trainer or validator.
         """
-        engine.logger.log(self.log_level, "Collecting garbages....")
         pre_count = gc.get_count()
         unreachable = gc.collect()
         after_count = gc.get_count()
