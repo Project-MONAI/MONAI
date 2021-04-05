@@ -14,7 +14,8 @@ from typing import List, Union
 import numpy as np
 import torch
 
-from monai.utils import ProbNMS, optional_import
+from monai.transforms.post.array import ProbNMS
+from monai.utils import optional_import
 
 measure, _ = optional_import("skimage.measure")
 ndimage, _ = optional_import("scipy.ndimage")
