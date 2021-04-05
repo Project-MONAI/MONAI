@@ -21,6 +21,7 @@ from .metric_logger import MetricLogger, MetricLoggerKeys
 from .metrics_saver import MetricsSaver
 from .roc_auc import ROCAUC
 from .segmentation_saver import SegmentationSaver
+from .parameter_scheduler import ParamSchedulerHandler
 from .smartcache_handler import SmartCacheHandler
 from .stats_handler import StatsHandler
 from .surface_distance import SurfaceDistance

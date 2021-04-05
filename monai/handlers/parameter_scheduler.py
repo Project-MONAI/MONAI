@@ -93,7 +93,7 @@ class ParamSchedulerHandler:
             float: new parameter value
         """
         if current_step <= step_constant:
-            delta = 0
+            delta = 0.0
         elif current_step > step_max_value:
             delta = max_value - initial_value
         else:
