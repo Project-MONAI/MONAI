@@ -1,133 +1,182 @@
-# modified from sources: 
+# modified from sources:
 # - Original implementation from Macenko paper in Matlab: https://github.com/mitkovetta/staining-normalization
 # - Implementation in Python: https://github.com/schaugf/HEnorm_python
-import openslide
+# - Link to Macenko et al., 2009 paper: http://wwwx.cs.unc.edu/~mn/sites/default/files/macenko2009.pdf
 import cupy as cp
-from PIL import Image
-from typing import Tuple
+
 from monai.transforms.transform import Transform
 
 
-class StainNormalizer(Transform):
-    """
-    Stain Normalize patches of a digital pathology image. Performs Stain Deconvolution using the Macenko method.
-    A source patch can be normalized using a reference stain matrix, or using a target image from
-    which a target stain is extracted. For using the reference stain, run only the normalize_patch function.
-    To use the stain from a target image, run extract_stain first to modify the target stain matrix used, then
-    run normalize_patch on each patch to be stain normalized.
-    
+class ExtractStainsMacenko(Transform):
+    """Class to extract a target stain from an image, using the Macenko method for stain deconvolution.
+
     Args:
-        Io: (optional) transmitted light intensity
+        tli: (optional) transmitted light intensity
         alpha: (optional) tolerance for the pseudo-min and pseudo-max
-        beta: (optional) OD threshold for transparent pixels
-        target_image: (optional) OpenSlide image to perform stain deconvolution of,
-            to obtain target stain matrix
-        
+        beta: (optional) Optical Density (OD) threshold for transparent pixels
+        max_cref: (optional) reference maximum stain concentrations for Hematoxylin & Eosin (H&E)
     """
-    def __init__(self, Io: float=240, alpha: float=1, beta: float=0.15, target_image: openslide.OpenSlide=None) -> None:
-        self.Io = Io
+
+    def __init__(self, tli: float = 240, alpha: float = 1, beta: float = 0.15, max_cref: cp.ndarray = None) -> None:
+        self.tli = tli
         self.alpha = alpha
         self.beta = beta
-        
-        # reference maximum stain concentrations for H&E
-        self.maxCRef = cp.array([1.9705, 1.0308])
-        
-        # target H&E stain is set to reference H&E OD matrix 
-        self.target_HE = cp.array([[0.5626, 0.2159],
-                    [0.7201, 0.8012],
-                    [0.4062, 0.5581]])
-        if target_image!=None:
-            self._extract_stain(target_image)
-    
-    def _stain_deconvolution(self, img: cp.ndarray) -> Tuple[cp.ndarray, cp.ndarray]:
-        """Perform Stain Deconvolution using the Macenko Method.
-        
-        Args:
-            img: image to perform stain deconvolution of
-            
-        Return:
-            HE: H&E OD matrix for the image (first column is H, second column is E)
-            C2: stain concentration matrix for the input image 
-        """
-        # define height and width of image
-        h, w, c = img.shape
-        
-        # RGBA to RGB
-        img = img[:, :, :-1]
-        
-        # reshape image
-        img = img.reshape((-1,3))
-        
-        # calculate optical density
-        OD = -cp.log((img.astype(cp.float)+1)/self.Io)
-        
-        # remove transparent pixels
-        ODhat = OD[~cp.any(OD<self.beta, axis=1)]
-        
-        # compute eigenvectors
-        eigvals, eigvecs = cp.linalg.eigh(cp.cov(ODhat.T))
-        
-        # project on the plane spanned by the eigenvectors corresponding to the two largest eigenvalues    
-        That = ODhat.dot(eigvecs[:,1:3])
-        
-        # find the min and max vectors and project back to OD space
-        phi = cp.arctan2(That[:,1],That[:,0])
-        minPhi = cp.percentile(phi, self.alpha)
-        maxPhi = cp.percentile(phi, 100-self.alpha)
-        vMin = eigvecs[:,1:3].dot(cp.array([(cp.cos(minPhi), cp.sin(minPhi))]).T)
-        vMax = eigvecs[:,1:3].dot(cp.array([(cp.cos(maxPhi), cp.sin(maxPhi))]).T)
-        
-        # a heuristic to make the vector corresponding to hematoxylin first and the one corresponding to eosin second
-        if vMin[0] > vMax[0]:
-            HE = cp.array((vMin[:,0], vMax[:,0])).T
-        else:
-            HE = cp.array((vMax[:,0], vMin[:,0])).T
-        
-        # rows correspond to channels (RGB), columns to OD values
-        Y = cp.reshape(OD, (-1, 3)).T
-        
-        # determine concentrations of the individual stains
-        C = cp.linalg.lstsq(HE,Y, rcond=None)[0]
-        
-        # normalize stain concentrations
-        maxC = cp.array([cp.percentile(C[0,:], 99), cp.percentile(C[1,:],99)])
-        tmp = cp.divide(maxC,self.maxCRef)
-        C2 = cp.divide(C,tmp[:, cp.newaxis])
-        return HE, C2
-    
-    def _extract_stain(self, target_image: openslide.OpenSlide) -> None:
-        """Extract a reference stain from a target image.
-        
-        To extract reference stain, the image at the highest level (the level with
-        lowest resolution) is used. Then, stain deconvolution provides the stain matrix.
-        
-        Args:
-            target_image: (optional) OpenSlide image to perform stain deconvolution of,
-                to obtain target stain matrix
-        """
-        highest_level = target_image.level_count - 1
-        dims = target_image.level_dimensions[highest_level]
-        target_image_at_level = target_image.read_region((0,0), highest_level, dims)
-        target_img = cp.array(target_image_at_level)
-        self.target_HE, _ = self._stain_deconvolution(target_img)
 
-    def __call__(self, data: cp.ndarray) -> cp.ndarray:
-        """Normalize a patch to a reference / target image stain.
-        
-        Performs stain deconvolution of the patch to obtain the stain concentration matrix
-        for the patch. Then, performs the inverse Beer-Lambert transform to recreate the 
-        patch using the target H&E stain. 
-        
+        self.max_cref = max_cref
+        if self.max_cref is None:
+            self.max_cref = cp.array([1.9705, 1.0308])
+
+    def _deconvolution_extract_stain(self, img: cp.ndarray) -> cp.ndarray:
+        """Perform Stain Deconvolution using the Macenko Method, and return stain matrix for the image.
+
         Args:
-            patch: image patch to stain normalize
-            
+            img: RGB image to perform stain deconvolution of
+
         Return:
-            patch_norm: normalized patch
+            he: H&E OD matrix for the image (first column is H, second column is E, rows are RGB values)
         """
-        h, w, _ = data.shape
-        _, patch_C = self._stain_deconvolution(data)
-        
-        patch_norm = cp.multiply(self.Io, cp.exp(-self.target_HE.dot(patch_C)))
-        patch_norm[patch_norm>255] = 254
-        patch_norm = cp.reshape(patch_norm.T, (h, w, 3)).astype(cp.uint8)
-        return patch_norm
+        # reshape image
+        img = img.reshape((-1, 3))
+
+        # calculate optical density
+        od = -cp.log((img.astype(cp.float) + 1) / self.tli)
+
+        # remove transparent pixels
+        od_hat = od[~cp.any(od < self.beta, axis=1)]
+
+        # compute eigenvectors
+        _, eigvecs = cp.linalg.eigh(cp.cov(od_hat.T))
+
+        # project on the plane spanned by the eigenvectors corresponding to the two largest eigenvalues
+        t_hat = od_hat.dot(eigvecs[:, 1:3])
+
+        # find the min and max vectors and project back to OD space
+        phi = cp.arctan2(t_hat[:, 1], t_hat[:, 0])
+        min_phi = cp.percentile(phi, self.alpha)
+        max_phi = cp.percentile(phi, 100 - self.alpha)
+        v_min = eigvecs[:, 1:3].dot(cp.array([(cp.cos(min_phi), cp.sin(min_phi))]).T)
+        v_max = eigvecs[:, 1:3].dot(cp.array([(cp.cos(max_phi), cp.sin(max_phi))]).T)
+
+        # a heuristic to make the vector corresponding to hematoxylin first and the one corresponding to eosin second
+        if v_min[0] > v_max[0]:
+            he = cp.array((v_min[:, 0], v_max[:, 0])).T
+        else:
+            he = cp.array((v_max[:, 0], v_min[:, 0])).T
+
+        return he
+
+    def __call__(self, image: cp.ndarray) -> cp.ndarray:
+        """Perform stain extraction.
+
+        Args:
+            image: RGB image to extract stain from
+
+        return:
+            target_he: H&E OD matrix for the image (first column is H, second column is E, rows are RGB values)
+        """
+        target_he = self._deconvolution_extract_stain(image)
+        return target_he
+
+
+class NormalizeStainsMacenko(Transform):
+    """Class to normalize patches/images to a reference or target image stain, using the Macenko method.
+
+    Performs stain deconvolution of the source image to obtain the stain concentration matrix
+    for the image. Then, performs the inverse Beer-Lambert transform to recreate the
+    patch using the target H&E stain matrix provided. If no target stain provided, a default
+    reference stain is used. Similarly, if no maximum stain concentrations are provided, a
+    reference maximum stain concentrations matrix is used.
+
+    Args:
+        tli: (optional) transmitted light intensity
+        alpha: (optional) tolerance for the pseudo-min and pseudo-max
+        beta: (optional) Optical Density (OD) threshold for transparent pixels
+        target_he: (optional) target stain matrix
+        max_cref: (optional) reference maximum stain concentrations for Hematoxylin & Eosin (H&E)
+    """
+
+    def __init__(
+        self,
+        tli: float = 240,
+        alpha: float = 1,
+        beta: float = 0.15,
+        target_he: cp.ndarray = None,
+        max_cref: cp.ndarray = None,
+    ) -> None:
+        self.tli = tli
+        self.alpha = alpha
+        self.beta = beta
+
+        self.target_he = target_he
+        if self.target_he is None:
+            self.target_he = cp.array([[0.5626, 0.2159], [0.7201, 0.8012], [0.4062, 0.5581]])
+
+        self.max_cref = max_cref
+        if self.max_cref is None:
+            self.max_cref = cp.array([1.9705, 1.0308])
+
+    def _deconvolution_extract_conc(self, img: cp.ndarray) -> cp.ndarray:
+        """Perform Stain Deconvolution using the Macenko Method, and return stain concentration.
+
+        Args:
+            img: RGB image to perform stain deconvolution of
+
+        Return:
+            conc_norm: stain concentration matrix for the input image
+        """
+        # reshape image
+        img = img.reshape((-1, 3))
+
+        # calculate optical density
+        od = -cp.log((img.astype(cp.float) + 1) / self.tli)
+
+        # remove transparent pixels
+        od_hat = od[~cp.any(od < self.beta, axis=1)]
+
+        # compute eigenvectors
+        _, eigvecs = cp.linalg.eigh(cp.cov(od_hat.T))
+
+        # project on the plane spanned by the eigenvectors corresponding to the two largest eigenvalues
+        t_hat = od_hat.dot(eigvecs[:, 1:3])
+
+        # find the min and max vectors and project back to OD space
+        phi = cp.arctan2(t_hat[:, 1], t_hat[:, 0])
+        min_phi = cp.percentile(phi, self.alpha)
+        max_phi = cp.percentile(phi, 100 - self.alpha)
+        v_min = eigvecs[:, 1:3].dot(cp.array([(cp.cos(min_phi), cp.sin(min_phi))]).T)
+        v_max = eigvecs[:, 1:3].dot(cp.array([(cp.cos(max_phi), cp.sin(max_phi))]).T)
+
+        # a heuristic to make the vector corresponding to hematoxylin first and the one corresponding to eosin second
+        if v_min[0] > v_max[0]:
+            he = cp.array((v_min[:, 0], v_max[:, 0])).T
+        else:
+            he = cp.array((v_max[:, 0], v_min[:, 0])).T
+
+        # rows correspond to channels (RGB), columns to OD values
+        y = cp.reshape(od, (-1, 3)).T
+
+        # determine concentrations of the individual stains
+        conc = cp.linalg.lstsq(he, y, rcond=None)[0]
+
+        # normalize stain concentrations
+        max_conc = cp.array([cp.percentile(conc[0, :], 99), cp.percentile(conc[1, :], 99)])
+        tmp = cp.divide(max_conc, self.max_cref)
+        conc_norm = cp.divide(conc, tmp[:, cp.newaxis])
+        return conc_norm
+
+    def __call__(self, image: cp.ndarray) -> cp.ndarray:
+        """Perform stain normalization.
+
+        Args:
+            image: RGB image/patch to stain normalize
+
+        Return:
+            image_norm: stain normalized image/patch
+        """
+        h, w, _ = image.shape
+        image_c = self._deconvolution_extract_conc(image)
+
+        image_norm = cp.multiply(self.tli, cp.exp(-self.target_he.dot(image_c)))
+        image_norm[image_norm > 255] = 254
+        image_norm = cp.reshape(image_norm.T, (h, w, 3)).astype(cp.uint8)
+        return image_norm
