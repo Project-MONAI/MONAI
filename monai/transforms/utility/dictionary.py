@@ -656,10 +656,6 @@ class ConcatItemsd(MapTransform):
             name: the name corresponding to the key to store the concatenated data.
             dim: on which dimension to concatenate the items, default is 0.
             allow_missing_keys: don't raise exception if key is missing.
-
-        Raises:
-            ValueError: When insufficient keys are given (``len(self.keys) < 2``).
-
         """
         super().__init__(keys, allow_missing_keys)
         self.name = name
