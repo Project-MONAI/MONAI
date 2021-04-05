@@ -42,7 +42,7 @@ def run_testsuit():
         "test_handler_confusion_matrix",
         "test_handler_confusion_matrix_dist",
         "test_handler_hausdorff_distance",
-        "test_handler_hausdorff_garbage_collector",
+        "test_handler_garbage_collector",
         "test_handler_mean_dice",
         "test_handler_prob_map_producer",
         "test_handler_rocauc",
