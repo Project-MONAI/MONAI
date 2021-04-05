@@ -13,11 +13,12 @@ from .checkpoint_loader import CheckpointLoader
 from .checkpoint_saver import CheckpointSaver
 from .classification_saver import ClassificationSaver
 from .confusion_matrix import ConfusionMatrix
+from .earlystop_handler import EarlyStopHandler
 from .hausdorff_distance import HausdorffDistance
 from .iteration_metric import IterationMetric
 from .lr_schedule_handler import LrScheduleHandler
 from .mean_dice import MeanDice
-from .metric_logger import MetricLogger
+from .metric_logger import MetricLogger, MetricLoggerKeys
 from .metrics_saver import MetricsSaver
 from .roc_auc import ROCAUC
 from .segmentation_saver import SegmentationSaver

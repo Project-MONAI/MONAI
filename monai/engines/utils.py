@@ -14,15 +14,15 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
 import torch
 
 from monai.utils import exact_version, optional_import
+from monai.utils.enums import CommonKeys
 
 if TYPE_CHECKING:
     from ignite.engine import EventEnum
 else:
-    EventEnum, _ = optional_import("ignite.engine", "0.4.2", exact_version, "EventEnum")
+    EventEnum, _ = optional_import("ignite.engine", "0.4.4", exact_version, "EventEnum")
 
 __all__ = [
     "IterationEvents",
-    "CommonKeys",
     "GanKeys",
     "get_devices_spec",
     "default_prepare_batch",
@@ -45,23 +45,6 @@ class IterationEvents(EventEnum):
     LOSS_COMPLETED = "loss_completed"
     BACKWARD_COMPLETED = "backward_completed"
     OPTIMIZER_COMPLETED = "optimizer_completed"
-
-
-class CommonKeys:
-    """
-    A set of common keys for dictionary based supervised training process.
-    `IMAGE` is the input image data.
-    `LABEL` is the training or evaluation label of segmentation or classification task.
-    `PRED` is the prediction data of model output.
-    `LOSS` is the loss value of current iteration.
-    `INFO` is some useful information during training or evaluation, like loss value, etc.
-
-    """
-
-    IMAGE = "image"
-    LABEL = "label"
-    PRED = "pred"
-    LOSS = "loss"
 
 
 class GanKeys:

@@ -16,12 +16,12 @@ import torch
 
 from monai.utils import exact_version, optional_import
 
-Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
-Checkpoint, _ = optional_import("ignite.handlers", "0.4.2", exact_version, "Checkpoint")
+Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
+Checkpoint, _ = optional_import("ignite.handlers", "0.4.4", exact_version, "Checkpoint")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
 
 
 class CheckpointLoader:
@@ -44,6 +44,8 @@ class CheckpointLoader:
             first load the module to CPU and then copy each parameter to where it was
             saved, which would result in all processes on the same machine using the
             same set of devices.
+        strict: whether to strictly enforce that the keys in :attr:`state_dict` match the keys
+            returned by this module's :meth:`~torch.nn.Module.state_dict` function. Default: ``True``
 
     """
 
@@ -53,6 +55,7 @@ class CheckpointLoader:
         load_dict: Dict,
         name: Optional[str] = None,
         map_location: Optional[Dict] = None,
+        strict: bool = True,
     ) -> None:
         if load_path is None:
             raise AssertionError("must provide clear path to load checkpoint.")
@@ -63,6 +66,7 @@ class CheckpointLoader:
         self.load_dict = load_dict
         self._name = name
         self.map_location = map_location
+        self.strict = strict
 
     def attach(self, engine: Engine) -> None:
         """
@@ -80,5 +84,16 @@ class CheckpointLoader:
         """
         checkpoint = torch.load(self.load_path, map_location=self.map_location)
 
-        Checkpoint.load_objects(to_load=self.load_dict, checkpoint=checkpoint)
+        # save current max epochs setting in the engine, don't overwrite it if larger than max_epochs in checkpoint
+        prior_max_epochs = engine.state.max_epochs
+        Checkpoint.load_objects(to_load=self.load_dict, checkpoint=checkpoint, strict=self.strict)
+        if engine.state.epoch > prior_max_epochs:
+            raise ValueError(
+                f"Epoch count ({engine.state.epoch}) in checkpoint is larger than "
+                f"the `engine.state.max_epochs` ({prior_max_epochs}) of engine. To further train from checkpoint, "
+                "construct trainer with `max_epochs` larger than checkpoint's epoch count. "
+                "To use checkpoint for inference, no need to load state_dict for the engine."
+            )
+        engine.state.max_epochs = prior_max_epochs
+
         self.logger.info(f"Restored all variables from {self.load_path}")
