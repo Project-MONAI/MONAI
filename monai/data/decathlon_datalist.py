@@ -38,6 +38,7 @@ def _compute_path(base_dir, element, check_path=False):
         TypeError: When ``element`` type is not in ``Union[list, str]``.
 
     """
+
     def _join_path(base_dir: str, item: str):
         result = os.path.normpath(os.path.join(base_dir, element))
         if check_path and not os.path.exists(result):
