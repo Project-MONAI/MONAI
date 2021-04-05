@@ -17,7 +17,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 import copy
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -48,14 +48,7 @@ from monai.transforms.utility.array import (
     ToTensor,
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
-from monai.utils import ensure_tuple, ensure_tuple_rep, optional_import
-
-if TYPE_CHECKING:
-    from PIL.Image import Image as PILImageImage
-
-    has_pil = True
-else:
-    PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
+from monai.utils import ensure_tuple, ensure_tuple_rep
 
 __all__ = [
     "Identityd",
@@ -401,9 +394,7 @@ class ToTensord(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = ToTensor()
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor, PILImageImage]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor, PILImageImage]]:
+    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -425,9 +416,7 @@ class ToNumpyd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = ToNumpy()
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor, PILImageImage]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor, PILImageImage]]:
+    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -449,9 +438,7 @@ class ToPILd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = ToPIL()
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor, PILImageImage]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor, PILImageImage]]:
+    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
