@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import unittest
 from typing import TYPE_CHECKING
 from unittest import skipUnless
@@ -113,7 +114,7 @@ CASES_KITTY_TRAINED = [
             "in_channels": 3,
             "num_classes": 1000,
         },
-        "testing_data/kitty_test.jpg",
+        os.path.join(os.path.dirname(__file__), "testing_data/kitty_test.jpg"),
         285,  # ~ Egyptian cat
     ),
     (
@@ -125,7 +126,7 @@ CASES_KITTY_TRAINED = [
             "in_channels": 3,
             "num_classes": 1000,
         },
-        "testing_data/kitty_test.jpg",
+        os.path.join(os.path.dirname(__file__), "testing_data/kitty_test.jpg"),
         285,  # ~ Egyptian cat
     ),
 ]
@@ -188,7 +189,7 @@ class TestEFFICIENTNET(unittest.TestCase):
         device = "cuda" if torch.cuda.is_available() else "cpu"
         # Open image
         image_size = get_efficientnet_image_size(input_param["model_name"])
-        img = PIL.Image.open("testdata/cat.jpeg")
+        img = PIL.Image.open(image_path)
         tfms = torchvision.transforms.Compose(
             [
                 torchvision.transforms.Resize(image_size),
