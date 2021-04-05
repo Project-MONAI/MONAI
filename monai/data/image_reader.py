@@ -20,7 +20,7 @@ from torch.utils.data._utils.collate import np_str_obj_array_pattern
 from monai.config import DtypeLike, KeysCollection
 from monai.data.utils import correct_nifti_header_if_necessary
 from monai.transforms.utility.array import EnsureChannelFirst
-from monai.utils import ensure_tuple, optional_import
+from monai.utils import ensure_tuple, ensure_tuple_rep, optional_import
 
 from .utils import is_supported_format
 
@@ -253,7 +253,7 @@ class ITKReader(ImageReader):
         meta_dict["direction"] = itk.array_from_matrix(img.GetDirection())
         return meta_dict
 
-    def _get_affine(self, img) -> np.ndarray:
+    def _get_affine(self, img):
         """
         Get or construct the affine matrix of the image, it can be used to correct
         spacing, orientation or execute spatial transforms.
@@ -274,7 +274,7 @@ class ITKReader(ImageReader):
         affine[(slice(-1), -1)] = origin
         return affine
 
-    def _get_spatial_shape(self, img) -> np.ndarray:
+    def _get_spatial_shape(self, img):
         """
         Get the spatial shape of image data, it doesn't contain the channel dim.
 
@@ -406,7 +406,7 @@ class NibabelReader(ImageReader):
         """
         return dict(img.header)
 
-    def _get_affine(self, img) -> np.ndarray:
+    def _get_affine(self, img):
         """
         Get the affine matrix of the image, it can be used to correct
         spacing, orientation or execute spatial transforms.
@@ -417,7 +417,7 @@ class NibabelReader(ImageReader):
         """
         return np.array(img.affine, copy=True)
 
-    def _get_spatial_shape(self, img) -> np.ndarray:
+    def _get_spatial_shape(self, img):
         """
         Get the spatial shape of image data, it doesn't contain the channel dim.
 
@@ -430,7 +430,7 @@ class NibabelReader(ImageReader):
         # the img data should have no channel dim or the last dim is channel
         return np.asarray(img.header["dim"][1 : spatial_rank + 1])
 
-    def _get_array_data(self, img) -> np.ndarray:
+    def _get_array_data(self, img):
         """
         Get the raw array data of the image, converted to Numpy array.
 
@@ -623,7 +623,7 @@ class PILReader(ImageReader):
             "height": img.height,
         }
 
-    def _get_spatial_shape(self, img) -> np.ndarray:
+    def _get_spatial_shape(self, img):
         """
         Get the spatial shape of image data, it doesn't contain the channel dim.
         Args:
@@ -675,7 +675,7 @@ class WSIReader(ImageReader):
         """
         if (self.reader_lib == "openslide") and (not has_osl):
             raise ImportError("No module named 'openslide'")
-        elif (self.reader_lib == "cucim") and (not has_cim):
+        if (self.reader_lib == "cucim") and (not has_cim):
             raise ImportError("No module named 'cucim'")
 
         img_: List = []
@@ -697,7 +697,7 @@ class WSIReader(ImageReader):
         level: int = 0,
         dtype: DtypeLike = np.uint8,
         grid_shape: Tuple[int, int] = (1, 1),
-        patch_size: Optional[int] = None,
+        patch_size: Optional[Union[int, Tuple[int, int]]] = None,
     ):
         """
         Extract regions as numpy array from WSI image and return them.
@@ -711,15 +711,15 @@ class WSIReader(ImageReader):
             level: the level number, or list of level numbers (default=0)
             dtype: the data type of output image
             grid_shape: (row, columns) tuple define a grid to extract patches on that
-            patch_size: (heigsht, width) the size of extracted patches at the given level
+            patch_size: (height, width) the size of extracted patches at the given level
         """
-        if size is None:
-            if location == (0, 0):
-                # the maximum size is set to WxH
-                size = (img.shape[0] // (2 ** level), img.shape[1] // (2 ** level))
-                print(f"Reading the whole image at level={level} with shape={size}")
-            else:
-                raise ValueError("Size need to be provided to extract the region!")
+
+        if self.reader_lib == "openslide" and size is None:
+            # the maximum size is set to WxH
+            size = (
+                img.shape[0] // (2 ** level) - location[0],
+                img.shape[1] // (2 ** level) - location[1],
+            )
 
         region = self._extract_region(img, location=location, size=size, level=level, dtype=dtype)
 
@@ -727,12 +727,15 @@ class WSIReader(ImageReader):
         metadata["spatial_shape"] = size
         metadata["original_channel_dim"] = -1
         region = EnsureChannelFirst()(region, metadata)
-
         if patch_size is None:
             patches = region
         else:
+            tuple_patch_size = ensure_tuple_rep(patch_size, 2)
             patches = self._extract_patches(
-                region, patch_size=(patch_size, patch_size), grid_shape=grid_shape, dtype=dtype
+                region,
+                patch_size=tuple_patch_size,  # type: ignore
+                grid_shape=grid_shape,
+                dtype=dtype,
             )
 
         return patches, metadata
@@ -740,21 +743,42 @@ class WSIReader(ImageReader):
     def _extract_region(
         self,
         img_obj,
-        size: Tuple[int, int],
+        size: Optional[Tuple[int, int]],
         location: Tuple[int, int] = (0, 0),
         level: int = 0,
         dtype: DtypeLike = np.uint8,
     ):
         # reverse the order of dimensions for size and location to be compatible with image shape
-        size = size[::-1]
         location = location[::-1]
-        region = img_obj.read_region(location=location, size=size, level=level)
-        if self.reader_lib == "openslide":
-            region = region.convert("RGB")
-        # convert to numpy
-        region = np.asarray(region, dtype=dtype)
+        if size is None:
+            region = img_obj.read_region(location=location, level=level)
+        else:
+            size = size[::-1]
+            region = img_obj.read_region(location=location, size=size, level=level)
 
+        region = self.convert_to_rgb_array(region, dtype)
         return region
+
+    def convert_to_rgb_array(
+        self,
+        raw_region,
+        dtype: DtypeLike = np.uint8,
+    ):
+        """Convert to RGB mode and numpy array"""
+        if self.reader_lib == "openslide":
+            # convert to RGB
+            raw_region = raw_region.convert("RGB")
+            # convert to numpy
+            raw_region = np.asarray(raw_region, dtype=dtype)
+        else:
+            num_channels = len(raw_region.channel_names)
+            # convert to numpy
+            raw_region = np.asarray(raw_region, dtype=dtype)
+            # remove alpha channel if exist (RGBA)
+            if num_channels > 3:
+                raw_region = raw_region[:, :, :3]
+
+        return raw_region
 
     def _extract_patches(
         self,

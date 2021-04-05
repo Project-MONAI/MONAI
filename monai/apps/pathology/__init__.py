@@ -9,5 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .datasets import PatchWSIDataset, SmartCacheDataset
-from .utils import ProbNMS
+from .datasets import MaskedInferenceWSIDataset, PatchWSIDataset, SmartCacheDataset
+from .handlers import ProbMapProducer
+from .metrics import LesionFROC
+from .utils import PathologyProbNMS, compute_isolated_tumor_cells, compute_multi_instance_mask
