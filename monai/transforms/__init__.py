@@ -160,6 +160,7 @@ from .post.array import (
     KeepLargestConnectedComponent,
     LabelToContour,
     MeanEnsemble,
+    ProbNMS,
     VoteEnsemble,
 )
 from .post.dictionary import (
@@ -182,6 +183,9 @@ from .post.dictionary import (
     MeanEnsembled,
     MeanEnsembleD,
     MeanEnsembleDict,
+    ProbNMSd,
+    ProbNMSD,
+    ProbNMSDict,
     VoteEnsembled,
     VoteEnsembleD,
     VoteEnsembleDict,
