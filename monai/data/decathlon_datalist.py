@@ -52,6 +52,7 @@ def _compute_path(base_dir, element, check_path=False):
             if not isinstance(e, str):
                 return element
         return [_join_path(base_dir, e) for e in element]
+    return element
 
 
 def _append_paths(base_dir: str, is_segmentation: bool, items: List[Dict]) -> List[Dict]:
