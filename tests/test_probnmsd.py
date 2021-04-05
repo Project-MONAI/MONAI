@@ -75,7 +75,7 @@ probs_map_3d[45, 45, 45] = 0.9
 expected_3d = [[0.9, 45, 45, 45], [0.7, 25, 25, 25]]
 TEST_CASES_3D = [
     {"spatial_dims": 3, "prob_threshold": 0.5, "box_size": (10, 10, 10)},
-    probs_map_3d,
+    {"prob_map": probs_map_3d},
     expected_3d,
 ]
 
