@@ -49,7 +49,7 @@ class CheckpointLoader:
             returned by `torch.nn.Module.state_dict` function. default to `True`.
         strict_shape: whether to enforce the data shape of the matched layers in the checkpoint,
             `if `False`, it will skip the layers that have different data shape with checkpoint content.
-            This can be useful advance feature for transfer learning. users should totally
+            This can be useful advanced feature for transfer learning. users should totally
             understand which layers will have different shape. default to `True`.
 
     """
@@ -92,23 +92,18 @@ class CheckpointLoader:
         checkpoint = torch.load(self.load_path, map_location=self.map_location)
 
         if not self.strict_shape:
-            def _skip_mismatch_shape_keys(obj_state_dict, ckpt_state_dict):
-                return {
-                    k: v for k, v in ckpt_state_dict.items()
-                    if k in obj_state_dict and v.shape == obj_state_dict[k].shape
-                }
-            if len(self.load_dict) == 1:
-                key, obj = list(self.load_dict.items())[0]
-                # single object and checkpoint is directly a state_dict
-                if key not in checkpoint:
-                    checkpoint = {key: checkpoint}
+            k, _ = list(self.load_dict.items())[0]
+            # single object and checkpoint is directly a state_dict
+            if len(self.load_dict) == 1 and k not in checkpoint:
+                checkpoint = {k: checkpoint}
 
-            # multiple objects to load
+            # skip items that don't match data shape
             for k, obj in self.load_dict.items():
                 if isinstance(obj, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
                     obj = obj.module
                 if isinstance(obj, torch.nn.Module):
-                    checkpoint[k] = _skip_mismatch_shape_keys(obj.state_dict(), checkpoint[k])
+                    d = obj.state_dict()
+                    checkpoint[k] = {k: v for k, v in checkpoint[k].items() if k in d and v.shape == d[k].shape}
 
         # save current max epochs setting in the engine, don't overwrite it if larger than max_epochs in checkpoint
         prior_max_epochs = engine.state.max_epochs
