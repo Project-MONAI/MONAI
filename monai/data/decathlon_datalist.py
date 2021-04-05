@@ -40,10 +40,10 @@ def _compute_path(base_dir, element, check_path=False):
     """
 
     def _join_path(base_dir: str, item: str):
-        result = os.path.normpath(os.path.join(base_dir, element))
+        result = os.path.normpath(os.path.join(base_dir, item))
         if check_path and not os.path.exists(result):
             # if not an existing path, don't join with base dir
-            result = item
+            return item
         return result
 
     if isinstance(element, str):
