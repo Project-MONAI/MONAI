@@ -41,7 +41,7 @@ jobs:
         # Git hub actions have 2 cores, so parallize pytype
         $(pwd)/runtests.sh --codeformat -j 2
 
-  quick-py3:  # full dependencies installed
+  quick-py3:  # full dependencies installed tests for different OS
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -105,7 +105,7 @@ jobs:
       env:
         QUICKTEST: True
 
-  min-dep-os:  # min dependencies installed
+  min-dep-os:  # min dependencies installed tests for different OS
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -154,7 +154,7 @@ jobs:
       env:
         QUICKTEST: True
 
-  min-dep-py3:  # min dependencies installed
+  min-dep-py3:  # min dependencies installed tests for different python
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
