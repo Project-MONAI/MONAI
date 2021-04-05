@@ -122,6 +122,7 @@ class RandShiftIntensity(RandomizableTransform):
             if len(offsets) != 2:
                 raise AssertionError("offsets should be a number or pair of numbers.")
             self.offsets = (min(offsets), max(offsets))
+        self._offset = self.offsets[0]
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
@@ -217,6 +218,7 @@ class RandStdShiftIntensity(RandomizableTransform):
             if len(factors) != 2:
                 raise AssertionError("factors should be a number or pair of numbers.")
             self.factors = (min(factors), max(factors))
+        self.factor = self.factors[0]
         self.nonzero = nonzero
         self.channel_wise = channel_wise
         self.dtype = dtype
@@ -294,6 +296,7 @@ class RandScaleIntensity(RandomizableTransform):
             if len(factors) != 2:
                 raise AssertionError("factors should be a number or pair of numbers.")
             self.factors = (min(factors), max(factors))
+        self.factor = self.factors[0]
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
@@ -873,6 +876,10 @@ class RandGaussianSmooth(RandomizableTransform):
         self.sigma_y = sigma_y
         self.sigma_z = sigma_z
         self.approx = approx
+
+        self.x = self.sigma_x[0]
+        self.y = self.sigma_y[0]
+        self.z = self.sigma_z[0]
 
     def randomize(self, data: Optional[Any] = None) -> None:
         super().randomize(None)
