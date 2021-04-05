@@ -13,6 +13,7 @@ import logging
 from typing import TYPE_CHECKING, Dict, Optional
 
 import torch
+import torch.nn as nn
 
 from monai.utils import exact_version, optional_import
 
@@ -44,8 +45,12 @@ class CheckpointLoader:
             first load the module to CPU and then copy each parameter to where it was
             saved, which would result in all processes on the same machine using the
             same set of devices.
-        strict: whether to strictly enforce that the keys in :attr:`state_dict` match the keys
-            returned by this module's :meth:`~torch.nn.Module.state_dict` function. Default: ``True``
+        strict: whether to strictly enforce that the keys in `state_dict` match the keys
+            returned by `torch.nn.Module.state_dict` function. default to `True`.
+        strict_shape: whether to enforce the data shape of the matched layers in the checkpoint,
+            `if `False`, it will skip the layers that have different data shape with checkpoint content.
+            This can be useful advance feature for transfer learning. users should totally
+            understand which layers will have different shape. default to `True`.
 
     """
 
@@ -56,6 +61,7 @@ class CheckpointLoader:
         name: Optional[str] = None,
         map_location: Optional[Dict] = None,
         strict: bool = True,
+        strict_shape: bool = True,
     ) -> None:
         if load_path is None:
             raise AssertionError("must provide clear path to load checkpoint.")
@@ -67,6 +73,7 @@ class CheckpointLoader:
         self._name = name
         self.map_location = map_location
         self.strict = strict
+        self.strict_shape = strict_shape
 
     def attach(self, engine: Engine) -> None:
         """
@@ -83,6 +90,25 @@ class CheckpointLoader:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
         checkpoint = torch.load(self.load_path, map_location=self.map_location)
+
+        if not self.strict_shape:
+            def _skip_mismatch_shape_keys(obj_state_dict, ckpt_state_dict):
+                return {
+                    k: v for k, v in ckpt_state_dict.items()
+                    if k in obj_state_dict and v.shape == obj_state_dict[k].shape
+                }
+            if len(self.load_dict) == 1:
+                key, obj = list(self.load_dict.items())[0]
+                # single object and checkpoint is directly a state_dict
+                if key not in checkpoint:
+                    checkpoint = {key: checkpoint}
+
+            # multiple objects to load
+            for k, obj in self.load_dict.items():
+                if isinstance(obj, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
+                    obj = obj.module
+                if isinstance(obj, torch.nn.Module):
+                    checkpoint[k] = _skip_mismatch_shape_keys(obj.state_dict(), checkpoint[k])
 
         # save current max epochs setting in the engine, don't overwrite it if larger than max_epochs in checkpoint
         prior_max_epochs = engine.state.max_epochs
