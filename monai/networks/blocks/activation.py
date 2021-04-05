@@ -52,13 +52,13 @@ class SwishImplementation(torch.autograd.Function):
     """
 
     @staticmethod
-    def forward(ctx: torch.autograd.Function, input: torch.Tensor):
+    def forward(ctx, input):
         result = input * torch.sigmoid(input)
         ctx.save_for_backward(input)
         return result
 
     @staticmethod
-    def backward(ctx: torch.autograd.Function, grad_output: torch.Tensor):
+    def backward(ctx, grad_output):
         input = ctx.saved_tensors[0]
         sigmoid_input = torch.sigmoid(input)
         return grad_output * (sigmoid_input * (1 + input * (1 - sigmoid_input)))

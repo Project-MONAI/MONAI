@@ -26,7 +26,7 @@ from monai.networks.layers.factories import Act, Conv, Norm, Pad, Pool
 __all__ = ["EfficientNetBN", "get_efficientnet_image_size"]
 
 efficientnet_params = {
-    # Coefficients:   width,depth,res,dropout
+    # Coefficients:   width_mult, depth_mult, image_size, dropout_rate
     "efficientnet-b0": (1.0, 1.0, 224, 0.2),
     "efficientnet-b1": (1.0, 1.1, 240, 0.2),
     "efficientnet-b2": (1.1, 1.2, 260, 0.3),
@@ -69,15 +69,15 @@ class MBConvBlock(nn.Module):
         in_channels: int,
         out_channels: int,
         kernel_size: int,
-        stride: int,
+        stride: List[int],
         image_size: List[int],
-        expand_ratio: float = 1.0,
-        se_ratio: float = 0.25,
+        expand_ratio: int,
+        se_ratio: float,
         id_skip: bool = True,
         batch_norm_momentum: float = 0.99,
         batch_norm_epsilon: float = 1e-3,
         drop_connect_rate: float = 0.2,
-    ):
+    ) -> None:
         super().__init__()
         self.spatial_dims = spatial_dims
         self.in_channels = in_channels
@@ -98,11 +98,19 @@ class MBConvBlock(nn.Module):
         # Expansion phase (Inverted Bottleneck)
         inp = in_channels  # number of input channels
         oup = in_channels * expand_ratio  # number of output channels
-        if expand_ratio != 1:
+        if self.expand_ratio != 1:
             self._expand_conv = nd_conv(in_channels=inp, out_channels=oup, kernel_size=1, bias=False)
             self._expand_conv_padding = _make_same_padder(self._expand_conv, image_size)
 
             self._bn0 = nd_batchnorm(num_features=oup, momentum=bn_mom, eps=bn_eps)
+        else:
+            # need to have the following to fix JIT error:
+            # Module 'MBConvBlock' has no attribute '_expand_conv'
+
+            # FIXME: find a better way to bypass JIT error
+            self._expand_conv = nn.Identity()
+            self._expand_conv_padding = nn.Identity()
+            self._bn0 = nn.Identity()
 
         # Depthwise convolution phase
         self._depthwise_conv = nd_conv(
@@ -134,7 +142,7 @@ class MBConvBlock(nn.Module):
         # self._swish = MemoryEfficientSwish()
         self._swish = Act["memswish"]()
 
-    def forward(self, inputs):
+    def forward(self, inputs: torch.Tensor):
         """MBConvBlock"s forward function.
 
         Args:
@@ -148,7 +156,7 @@ class MBConvBlock(nn.Module):
         # Expansion and Depthwise Convolution
         x = inputs
         if self.expand_ratio != 1:
-            x = self._expand_conv(self._expand_conv_padding(inputs))
+            x = self._expand_conv(self._expand_conv_padding(x))
             x = self._bn0(x)
             x = self._swish(x)
 
@@ -172,7 +180,6 @@ class MBConvBlock(nn.Module):
         input_filters, output_filters = self.in_channels, self.out_channels
 
         # stride needs to be a list
-        assert isinstance(self.stride, list)
         is_stride_one = all([s == 1 for s in self.stride])
 
         if self.id_skip and is_stride_one and input_filters == output_filters:
@@ -182,7 +189,7 @@ class MBConvBlock(nn.Module):
             x = x + inputs  # skip connection
         return x
 
-    def set_swish(self, memory_efficient=True):
+    def set_swish(self, memory_efficient: bool = True) -> None:
         """Sets swish function as memory efficient (for training) or standard (for export).
 
         Args:
@@ -216,7 +223,7 @@ class EfficientNet(nn.Module):
 
     def __init__(
         self,
-        blocks_args: List[str],
+        blocks_args_str: List[str],
         spatial_dims: int = 2,
         in_channels: int = 3,
         num_classes: int = 1000,
@@ -228,10 +235,13 @@ class EfficientNet(nn.Module):
         batch_norm_epsilon: float = 1e-3,
         drop_connect_rate: float = 0.2,
         depth_divisor=8,
-    ):
+    ) -> None:
         super().__init__()
 
-        blocks_args = _decode_block_list(blocks_args)
+        if spatial_dims not in (1, 2, 3):
+            raise AssertionError("spatial_dims can only be 1, 2 or 3.")
+
+        blocks_args = _decode_block_list(blocks_args_str)
 
         assert isinstance(blocks_args, list), "blocks_args should be a list"
         assert len(blocks_args) > 0, "block args must be greater than 0"
@@ -242,12 +252,11 @@ class EfficientNet(nn.Module):
         self.num_classes = num_classes
         self.in_channels = in_channels
 
+        current_image_size = [image_size] * self.spatial_dims
+
         # Batch norm parameters
         bn_mom = 1 - batch_norm_momentum
         bn_eps = batch_norm_epsilon
-
-        if isinstance(image_size, int):
-            image_size = [image_size] * self.spatial_dims
 
         # select the type of N-Dimensional layers to use
         # these are based on spatial dims and selected from MONAI factories
@@ -259,12 +268,12 @@ class EfficientNet(nn.Module):
         stride = [2]
         out_channels = _round_filters(32, width_coefficient, depth_divisor)  # number of output channels
         self._conv_stem = nd_conv(self.in_channels, out_channels, kernel_size=3, stride=stride, bias=False)
-        self._conv_stem_padding = _make_same_padder(self._conv_stem, image_size)
+        self._conv_stem_padding = _make_same_padder(self._conv_stem, current_image_size)
         self._bn0 = nd_batchnorm(num_features=out_channels, momentum=bn_mom, eps=bn_eps)
-        image_size = _calculate_output_image_size(image_size, stride)
+        current_image_size = _calculate_output_image_size(current_image_size, stride)
 
         # Build blocks
-        self._blocks = []
+        self._blocks = nn.Sequential()
         num_blocks = 0
 
         # Update block input and output filters based on depth multiplier.
@@ -287,56 +296,58 @@ class EfficientNet(nn.Module):
                 drop_connect_rate *= float(idx) / num_blocks  # scale drop connect_rate
 
             # The first block needs to take care of stride and filter size increase.
-            self._blocks.append(
+            self._blocks.add_module(
+                str(idx),
                 MBConvBlock(
                     self.spatial_dims,
                     block_args.input_filters,
                     block_args.output_filters,
                     block_args.kernel_size,
                     block_args.stride,
-                    image_size,
+                    current_image_size,
                     block_args.expand_ratio,
                     block_args.se_ratio,
                     block_args.id_skip,
                     batch_norm_momentum,
                     batch_norm_epsilon,
                     drop_connect_rate=drop_connect_rate,
-                )
+                ),
             )
             idx += 1
 
-            image_size = _calculate_output_image_size(image_size, block_args.stride)
+            current_image_size = _calculate_output_image_size(current_image_size, block_args.stride)
             if block_args.num_repeat > 1:  # modify block_args to keep same output size
                 block_args = block_args._replace(input_filters=block_args.output_filters, stride=[1])
             for _ in range(block_args.num_repeat - 1):
                 drop_connect_rate = drop_connect_rate
                 if drop_connect_rate:
                     drop_connect_rate *= float(idx) / num_blocks  # scale drop connect_rate
-                self._blocks.append(
+                self._blocks.add_module(
+                    str(idx),
                     MBConvBlock(
                         self.spatial_dims,
                         block_args.input_filters,
                         block_args.output_filters,
                         block_args.kernel_size,
                         block_args.stride,
-                        image_size,
+                        current_image_size,
                         block_args.expand_ratio,
                         block_args.se_ratio,
                         block_args.id_skip,
                         batch_norm_momentum,
                         batch_norm_epsilon,
                         drop_connect_rate=drop_connect_rate,
-                    )
+                    ),
                 )
                 idx += 1
-        self._blocks = nn.Sequential(*self._blocks)
+        # self._blocks = nn.Sequential(* self._blocks)
         assert len(self._blocks) == num_blocks
 
         # Head
         head_in_channels = block_args.output_filters
         out_channels = _round_filters(1280, width_coefficient, depth_divisor)
         self._conv_head = nd_conv(head_in_channels, out_channels, kernel_size=1, bias=False)
-        self._conv_head_padding = _make_same_padder(self._conv_head, image_size)
+        self._conv_head_padding = _make_same_padder(self._conv_head, current_image_size)
         self._bn1 = nd_batchnorm(num_features=out_channels, momentum=bn_mom, eps=bn_eps)
 
         # Final linear layer
@@ -345,10 +356,13 @@ class EfficientNet(nn.Module):
         self._fc = nn.Linear(out_channels, self.num_classes)
 
         # swish activation to use - using memory efficient swish by default
-        # can be switched to normal swish using set_swish function call
+        # can be switched to normal swish using self.set_swish() function call
         self._swish = Act["memswish"]()
 
-    def set_swish(self, memory_efficient=True):
+        # initialize weights
+        self._initialize_weights()
+
+    def set_swish(self, memory_efficient: bool = True) -> None:
         """Sets swish function as memory efficient (for training) or standard (for export).
 
         Args:
@@ -359,7 +373,7 @@ class EfficientNet(nn.Module):
         for block in self._blocks:
             block.set_swish(memory_efficient)
 
-    def forward(self, inputs):
+    def forward(self, inputs: torch.Tensor):
         """EfficientNet"s forward function.
            Calls extract_features to extract features, applies final linear layer, and returns logits.
 
@@ -387,7 +401,7 @@ class EfficientNet(nn.Module):
         x = self._fc(x)
         return x
 
-    def _initialize_weight(self):
+    def _initialize_weights(self) -> None:
         # weight init as per Tensorflow Official impl
         # https://github.com/tensorflow/tpu/blob/master/models/official/efficientnet/efficientnet_model.py#L61
         # code based on: https://github.com/rwightman/gen-efficientnet-pytorch/blob/master/geffnet/efficientnet_builder.py
@@ -409,9 +423,18 @@ class EfficientNet(nn.Module):
 
 
 class EfficientNetBN(EfficientNet):
-    # model_name mandatory as there is is EfficientNetBN itself, it needs the N \in [0, 1, 2, 3, 4, 5, 6, 7, 8] to be a model
-    def __init__(self, model_name, pretrained=True, progress=True, spatial_dims=2, in_channels=3, num_classes=1000):
-        block_args = [
+    # model_name mandatory as there is no EfficientNetBN itself, it needs the N \in [0, 1, 2, 3, 4, 5, 6, 7] to be a model
+    def __init__(
+        self,
+        model_name: str,
+        pretrained: bool = True,
+        progress: bool = True,
+        spatial_dims: int = 2,
+        in_channels: int = 3,
+        num_classes: int = 1000,
+    ) -> None:
+
+        blocks_args_str = [
             "r1_k3_s11_e1_i32_o16_se0.25",
             "r2_k3_s22_e6_i16_o24_se0.25",
             "r2_k5_s22_e6_i24_o40_se0.25",
@@ -426,7 +449,7 @@ class EfficientNetBN(EfficientNet):
 
         wc, dc, isize, dr = efficientnet_params[model_name]
         model = super(EfficientNetBN, self).__init__(
-            block_args,
+            blocks_args_str=blocks_args_str,
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             num_classes=num_classes,
@@ -454,11 +477,9 @@ class EfficientNetBN(EfficientNet):
                     model_name, pretrained, is_default_model
                 )
             )
-            print("Initializing weights for {}".format(model_name))
-            self._initialize_weight()
 
 
-def _load_state_dict(model: nn.Module, model_url: str, progress: bool, load_fc: bool) -> bool:
+def _load_state_dict(model: nn.Module, model_url: str, progress: bool, load_fc: bool) -> None:
     state_dict = model_zoo.load_url(model_url, progress=progress)
     if load_fc:
         ret = model.load_state_dict(state_dict, strict=False)
@@ -467,14 +488,15 @@ def _load_state_dict(model: nn.Module, model_url: str, progress: bool, load_fc: 
         state_dict.pop("_fc.weight")
         state_dict.pop("_fc.bias")
         ret = model.load_state_dict(state_dict, strict=False)
-        assert set(ret.missing_keys) == set(
-            "_fc.weight", "_fc.bias"
-        ), "Missing keys when loading pretrained weights: {}".format(ret.missing_keys)
+        assert set(ret.missing_keys) == {
+            "_fc.weight",
+            "_fc.bias",
+        }, "Missing keys when loading pretrained weights: {}".format(ret.missing_keys)
 
     assert not ret.unexpected_keys, "Missing keys when loading pretrained weights: {}".format(ret.unexpected_keys)
 
 
-def get_efficientnet_image_size(model_name):
+def get_efficientnet_image_size(model_name: str) -> int:
     """Get the input image size for a given efficientnet model."""
     assert model_name in efficientnet_params.keys(), "model_name should be one of {} ".format(
         ", ".join(efficientnet_params.keys())
@@ -525,7 +547,7 @@ def _round_repeats(repeats, depth_coefficient=None):
     return int(math.ceil(multiplier * repeats))
 
 
-def drop_connect(inputs, p, training):
+def drop_connect(inputs: torch.Tensor, p: float, training: bool) -> torch.Tensor:
     """Drop connect.
 
     Args:
@@ -541,15 +563,17 @@ def drop_connect(inputs, p, training):
     if not training:
         return inputs
 
-    batch_size = inputs.shape[0]
-    keep_prob = 1 - p
+    batch_size: int = inputs.shape[0]
+    keep_prob: float = 1 - p
 
     # generate binary_tensor mask according to probability (p for 0, 1-p for 1)
-    random_tensor = keep_prob
-    random_tensor += torch.rand([batch_size, 1, 1, 1], dtype=inputs.dtype, device=inputs.device)
-    binary_tensor = torch.floor(random_tensor)
+    # random_tensor = keep_prob
+    random_tensor: torch.Tensor = torch.rand([batch_size, 1, 1, 1], dtype=inputs.dtype, device=inputs.device)
+    random_tensor += keep_prob
 
-    output = inputs / keep_prob * binary_tensor
+    binary_tensor: torch.Tensor = torch.floor(random_tensor)
+
+    output: torch.Tensor = inputs / keep_prob * binary_tensor
     return output
 
 
@@ -607,7 +631,7 @@ def _make_same_padder(conv_op, image_size):
     padding = _get_same_padding_conv2d(image_size, conv_op.kernel_size, conv_op.dilation, conv_op.stride)
     padder = Pad["constantpad", len(padding) // 2]
     if sum(padding) > 0:
-        return padder(padding=padding, value=0)
+        return padder(padding=padding, value=0.0)
     else:
         return nn.Identity()
 
