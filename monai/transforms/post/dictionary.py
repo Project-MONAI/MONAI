@@ -28,6 +28,7 @@ from monai.transforms.post.array import (
     KeepLargestConnectedComponent,
     LabelToContour,
     MeanEnsemble,
+    ProbNMS,
     VoteEnsemble,
 )
 from monai.transforms.transform import MapTransform
@@ -340,10 +341,66 @@ class Decollated(MapTransform):
         return monai.data.decollate_batch(data, self.batch_size)
 
 
+class ProbNMSd(MapTransform):
+    """
+    Performs probability based non-maximum suppression (NMS) on the probabilities map via
+    iteratively selecting the coordinate with highest probability and then move it as well
+    as its surrounding values. The remove range is determined by the parameter `box_size`.
+    If multiple coordinates have the same highest probability, only one of them will be
+    selected.
+
+    Args:
+        spatial_dims: number of spatial dimensions of the input probabilities map.
+            Defaults to 2.
+        sigma: the standard deviation for gaussian filter.
+            It could be a single value, or `spatial_dims` number of values. Defaults to 0.0.
+        prob_threshold: the probability threshold, the function will stop searching if
+            the highest probability is no larger than the threshold. The value should be
+            no less than 0.0. Defaults to 0.5.
+        box_size: the box size (in pixel) to be removed around the the pixel with the maximum probability.
+            It can be an integer that defines the size of a square or cube,
+            or a list containing different values for each dimensions. Defaults to 48.
+
+    Return:
+        a list of selected lists, where inner lists contain probability and coordinates.
+        For example, for 3D input, the inner lists are in the form of [probability, x, y, z].
+
+    Raises:
+        ValueError: When ``prob_threshold`` is less than 0.0.
+        ValueError: When ``box_size`` is a list or tuple, and its length is not equal to `spatial_dims`.
+        ValueError: When ``box_size`` has a less than 1 value.
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        spatial_dims: int = 2,
+        sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 0.0,
+        prob_threshold: float = 0.5,
+        box_size: Union[int, Sequence[int]] = 48,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.prob_nms = ProbNMS(
+            spatial_dims=spatial_dims,
+            sigma=sigma,
+            prob_threshold=prob_threshold,
+            box_size=box_size,
+        )
+
+    def __call__(self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]):
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.prob_nms(d[key])
+        return d
+
+
 ActivationsD = ActivationsDict = Activationsd
 AsDiscreteD = AsDiscreteDict = AsDiscreted
 KeepLargestConnectedComponentD = KeepLargestConnectedComponentDict = KeepLargestConnectedComponentd
 LabelToContourD = LabelToContourDict = LabelToContourd
 MeanEnsembleD = MeanEnsembleDict = MeanEnsembled
+ProbNMSD = ProbNMSDict = ProbNMSd
 VoteEnsembleD = VoteEnsembleDict = VoteEnsembled
 DecollateD = DecollateDict = Decollated
