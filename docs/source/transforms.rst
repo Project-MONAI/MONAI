@@ -305,8 +305,8 @@ Post-processing
     :members:
     :special-members: __call__
 
-Prob NMS
---------
+`Prob NMS`
+""""""""""
 .. autoclass:: ProbNMS
   :members:
 
