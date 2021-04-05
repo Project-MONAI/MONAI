@@ -94,6 +94,7 @@ def run_testsuit():
         "test_smartcachedataset",
         "test_spacing",
         "test_spacingd",
+        "test_senet",
         "test_surface_distance",
         "test_zoom",
         "test_zoom_affine",

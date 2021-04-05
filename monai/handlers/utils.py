@@ -11,7 +11,7 @@
 
 import os
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -33,7 +33,7 @@ __all__ = [
 ]
 
 
-def stopping_fn_from_metric(metric_name: str) -> Callable[[Engine], Any]:
+def stopping_fn_from_metric(metric_name: str):
     """
     Returns a stopping function for ignite.handlers.EarlyStopping using the given metric name.
     """
@@ -44,7 +44,7 @@ def stopping_fn_from_metric(metric_name: str) -> Callable[[Engine], Any]:
     return stopping_fn
 
 
-def stopping_fn_from_loss() -> Callable[[Engine], Any]:
+def stopping_fn_from_loss():
     """
     Returns a stopping function for ignite.handlers.EarlyStopping using the loss value.
     """
