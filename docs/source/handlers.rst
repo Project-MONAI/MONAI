@@ -115,3 +115,8 @@ EarlyStop handler
 -----------------
 .. autoclass:: EarlyStopHandler
     :members:
+
+GarbageCollector handler
+------------------------
+.. autoclass:: GarbageCollector
+    :members:
