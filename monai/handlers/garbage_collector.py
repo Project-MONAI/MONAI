@@ -50,7 +50,7 @@ class GarbageCollector:
         else:
             raise ValueError(
                 f"'trigger_event' should be either epoch, iteration, or an ignite built-in event from"
-                f" ignite.engine.Events, '{self.trigger_event}' was given."
+                f" ignite.engine.Events, '{trigger_event}' was given."
             )
 
         self.log_level = log_level
