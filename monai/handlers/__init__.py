@@ -14,6 +14,7 @@ from .checkpoint_saver import CheckpointSaver
 from .classification_saver import ClassificationSaver
 from .confusion_matrix import ConfusionMatrix
 from .earlystop_handler import EarlyStopHandler
+from .garbage_collector import GarbageCollector
 from .hausdorff_distance import HausdorffDistance
 from .iteration_metric import IterationMetric
 from .lr_schedule_handler import LrScheduleHandler
