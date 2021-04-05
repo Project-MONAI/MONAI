@@ -146,6 +146,30 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
             engine.run([0] * 8, max_epochs=1)
             torch.testing.assert_allclose(net2.state_dict()["0.weight"].cpu(), torch.tensor([0.1]))
 
+    def test_strict_shape(self):
+        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+        net1 = torch.nn.Sequential(*[torch.nn.PReLU(num_parameters=5)])
+        data1 = net1.state_dict()
+        data1["0.weight"] = torch.tensor([1, 2, 3, 4, 5])
+        data1["new"] = torch.tensor(0.1)
+        net1.load_state_dict(data1, strict=False)
+
+        net2 = torch.nn.Sequential(*[torch.nn.PReLU(), torch.nn.PReLU()])
+        data2 = net2.state_dict()
+        data2["0.weight"] = torch.tensor([0.2])
+        data2["1.weight"] = torch.tensor([0.3])
+        net2.load_state_dict(data2)
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            engine = Engine(lambda e, b: None)
+            CheckpointSaver(save_dir=tempdir, save_dict={"net": net1}, save_final=True).attach(engine)
+            engine.run([0] * 8, max_epochs=5)
+            path = tempdir + "/net_final_iteration=40.pt"
+            engine = Engine(lambda e, b: None)
+            CheckpointLoader(load_path=path, load_dict={"net": net2}, strict=False, strict_shape=False).attach(engine)
+            engine.run([0] * 8, max_epochs=1)
+            torch.testing.assert_allclose(net2.state_dict()["0.weight"].cpu(), torch.tensor([0.2]))
+
 
 if __name__ == "__main__":
     unittest.main()
