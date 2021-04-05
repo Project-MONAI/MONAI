@@ -54,13 +54,19 @@ class NumpyPadMode(Enum):
 class GridSampleMode(Enum):
     """
     See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+
+    interpolation mode of `torch.nn.functional.grid_sample`
+
+    Note:
+        (documentation from `torch.nn.functional.grid_sample`)
+        `mode='bicubic'` supports only 4-D input.
+        When `mode='bilinear'` and the input is 5-D, the interpolation mode used internally will actually be trilinear.
+        However, when the input is 4-D, the interpolation mode will legitimately be bilinear.
     """
 
     NEAREST = "nearest"
     BILINEAR = "bilinear"
-    QUADRATIC = "quadratic"
-    CUBIC = "cubic"
-    FOURTH = "fourth"
+    BICUBIC = "bicubic"
 
 
 class InterpolateMode(Enum):

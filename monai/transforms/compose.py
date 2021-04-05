@@ -19,7 +19,7 @@ import numpy as np
 
 from monai.transforms.inverse import InvertibleTransform
 
-# For backwards compatiblity (so this still works: from monai.transforms.compose import MapTransform)
+# For backwards compatibility (so this still works: from monai.transforms.compose import MapTransform)
 from monai.transforms.transform import (  # noqa: F401
     MapTransform,
     Randomizable,

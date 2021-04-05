@@ -30,7 +30,7 @@ TEST_CASES = [
             0.5,  # bilateral_color_sigma
             5.0,  # gaussian_spatial_sigma
             1.0,  # update_factor
-            1,  # compatability_kernel_range
+            1,  # compatibility_kernel_range
             5,  # iterations
         ],
         # Input
@@ -92,7 +92,7 @@ TEST_CASES = [
             0.5,  # bilateral_color_sigma
             5.0,  # gaussian_spatial_sigma
             1.0,  # update_factor
-            1,  # compatability_kernel_range
+            1,  # compatibility_kernel_range
             5,  # iterations
         ],
         # Input
@@ -189,7 +189,7 @@ TEST_CASES = [
             0.1,  # bilateral_color_sigma
             5.0,  # gaussian_spatial_sigma
             1.0,  # update_factor
-            1,  # compatability_kernel_range
+            1,  # compatibility_kernel_range
             2,  # iterations
         ],
         # Input
@@ -444,7 +444,7 @@ class CRFTestCaseCuda(unittest.TestCase):
         output = crf(input_tensor, feature_tensor).cpu().numpy()
 
         # Ensure result are as expected
-        np.testing.assert_allclose(output, expected, atol=1e-4)
+        np.testing.assert_allclose(output, expected, atol=1e-4, rtol=1e-4)
 
 
 if __name__ == "__main__":
