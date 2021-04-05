@@ -48,7 +48,7 @@ from monai.transforms.utility.array import (
     ToTensor,
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
-from monai.utils import ensure_tuple, ensure_tuple_rep, optional_import
+from monai.utils import ensure_tuple, ensure_tuple_rep
 
 __all__ = [
     "Identityd",
@@ -394,9 +394,7 @@ class ToTensord(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = ToTensor()
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
