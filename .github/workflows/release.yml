@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'releases/*'
+      - debug-release-rc
     tags:
       - '*'
 
