@@ -13,6 +13,7 @@ import logging
 from typing import TYPE_CHECKING, Dict, Optional
 
 import torch
+import torch.nn as nn
 
 from monai.utils import exact_version, optional_import
 
@@ -44,6 +45,12 @@ class CheckpointLoader:
             first load the module to CPU and then copy each parameter to where it was
             saved, which would result in all processes on the same machine using the
             same set of devices.
+        strict: whether to strictly enforce that the keys in `state_dict` match the keys
+            returned by `torch.nn.Module.state_dict` function. default to `True`.
+        strict_shape: whether to enforce the data shape of the matched layers in the checkpoint,
+            `if `False`, it will skip the layers that have different data shape with checkpoint content.
+            This can be useful advanced feature for transfer learning. users should totally
+            understand which layers will have different shape. default to `True`.
 
     """
 
@@ -53,6 +60,8 @@ class CheckpointLoader:
         load_dict: Dict,
         name: Optional[str] = None,
         map_location: Optional[Dict] = None,
+        strict: bool = True,
+        strict_shape: bool = True,
     ) -> None:
         if load_path is None:
             raise AssertionError("must provide clear path to load checkpoint.")
@@ -63,6 +72,8 @@ class CheckpointLoader:
         self.load_dict = load_dict
         self._name = name
         self.map_location = map_location
+        self.strict = strict
+        self.strict_shape = strict_shape
 
     def attach(self, engine: Engine) -> None:
         """
@@ -80,9 +91,23 @@ class CheckpointLoader:
         """
         checkpoint = torch.load(self.load_path, map_location=self.map_location)
 
+        if not self.strict_shape:
+            k, _ = list(self.load_dict.items())[0]
+            # single object and checkpoint is directly a state_dict
+            if len(self.load_dict) == 1 and k not in checkpoint:
+                checkpoint = {k: checkpoint}
+
+            # skip items that don't match data shape
+            for k, obj in self.load_dict.items():
+                if isinstance(obj, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
+                    obj = obj.module
+                if isinstance(obj, torch.nn.Module):
+                    d = obj.state_dict()
+                    checkpoint[k] = {k: v for k, v in checkpoint[k].items() if k in d and v.shape == d[k].shape}
+
         # save current max epochs setting in the engine, don't overwrite it if larger than max_epochs in checkpoint
         prior_max_epochs = engine.state.max_epochs
-        Checkpoint.load_objects(to_load=self.load_dict, checkpoint=checkpoint)
+        Checkpoint.load_objects(to_load=self.load_dict, checkpoint=checkpoint, strict=self.strict)
         if engine.state.epoch > prior_max_epochs:
             raise ValueError(
                 f"Epoch count ({engine.state.epoch}) in checkpoint is larger than "

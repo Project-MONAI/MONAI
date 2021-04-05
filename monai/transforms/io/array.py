@@ -270,6 +270,12 @@ class SaveImage(Transform):
         self.save_batch = save_batch
 
     def __call__(self, img: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None):
+        """
+        Args:
+            img: target data content that save into file.
+            meta_data: key-value pairs of meta_data corresponding to the data.
+
+        """
         if self.save_batch:
             self.saver.save_batch(img, meta_data)
         else:

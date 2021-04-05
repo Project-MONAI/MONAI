@@ -42,6 +42,7 @@ def run_testsuit():
         "test_handler_confusion_matrix",
         "test_handler_confusion_matrix_dist",
         "test_handler_hausdorff_distance",
+        "test_handler_garbage_collector",
         "test_handler_mean_dice",
         "test_handler_prob_map_producer",
         "test_handler_rocauc",
@@ -94,6 +95,7 @@ def run_testsuit():
         "test_smartcachedataset",
         "test_spacing",
         "test_spacingd",
+        "test_senet",
         "test_surface_distance",
         "test_zoom",
         "test_zoom_affine",
@@ -112,6 +114,7 @@ def run_testsuit():
         "test_save_imaged",
         "test_ensure_channel_first",
         "test_ensure_channel_firstd",
+        "test_handler_early_stop",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
