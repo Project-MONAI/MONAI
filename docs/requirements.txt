@@ -2,7 +2,7 @@
 torch>=1.5
 pytorch-ignite==0.4.4
 numpy>=1.17
-itk>=5.0
+itk>=5.0, <=5.1.2
 nibabel
 cucim==0.18.2
 openslide-python==1.1.2
