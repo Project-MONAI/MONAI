@@ -9,13 +9,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, List, Tuple
+from typing import TYPE_CHECKING, Dict, List, Tuple
 
 import numpy as np
 
 from monai.apps.pathology.utils import PathologyProbNMS, compute_isolated_tumor_cells, compute_multi_instance_mask
 from monai.data.image_reader import WSIReader
 from monai.metrics import compute_fp_tp_probs, compute_froc_curve_data, compute_froc_score
+from monai.utils import min_version, optional_import
+
+if TYPE_CHECKING:
+    from tqdm import tqdm
+
+    has_tqdm = True
+else:
+    tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
+
+if not has_tqdm:
+
+    def tqdm(x):
+        return x
 
 
 class LesionFROC:
@@ -122,7 +135,7 @@ class LesionFROC:
         total_num_targets = 0
         num_images = len(self.data)
 
-        for sample in self.data:
+        for sample in tqdm(self.data):
             probs, y_coord, x_coord = self.prepare_inference_result(sample)
             ground_truth, itc_labels = self.prepare_ground_truth(sample)
             # compute FP and TP probabilities for a pair of an image and an ground truth mask
