@@ -151,7 +151,8 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
         net1 = torch.nn.Sequential(*[torch.nn.PReLU(num_parameters=5)])
         data1 = net1.state_dict()
         data1["0.weight"] = torch.tensor([1, 2, 3, 4, 5])
-        net1.load_state_dict(data1)
+        data1["new"] = torch.tensor(0.1)
+        net1.load_state_dict(data1, strict=False)
 
         net2 = torch.nn.Sequential(*[torch.nn.PReLU(), torch.nn.PReLU()])
         data2 = net2.state_dict()
