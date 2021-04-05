@@ -66,8 +66,13 @@ class GarbageCollector:
         Args:
             engine: Ignite Engine, it should be either a trainer or validator.
         """
+        # get count before garbage collection
         pre_count = gc.get_count()
+        # fits call to garbage collector
+        gc.collect()
+        # second call to garbage collector
         unreachable = gc.collect()
+        # get count after garbage collection
         after_count = gc.get_count()
         engine.logger.log(
             self.log_level,
