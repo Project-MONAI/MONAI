@@ -281,12 +281,19 @@ jobs:
         python -m pip install --upgrade pip wheel
         python -m pip install ${{ matrix.pytorch }}
         python -m pip install -r requirements-dev.txt
+        python -m pip list
     - name: Run quick tests (GPU)
       run: |
-        python -m pip list
         nvidia-smi
+        export LAUNCH_DELAY=$(( RANDOM % 30 * 5 ))
+        echo "Sleep $LAUNCH_DELAY"
+        sleep $LAUNCH_DELAY
         export CUDA_VISIBLE_DEVICES=$(coverage run -m tests.utils)
         echo $CUDA_VISIBLE_DEVICES
+        stop_time=$((LAUNCH_DELAY + $(date +%s)))
+        while [ $(date +%s) -lt $stop_time ]; do
+          python -c 'import torch; torch.rand(5, 3, device=torch.device("cuda:0"))';
+        done
         python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
         python -c 'import torch; print(torch.rand(5, 3, device=torch.device("cuda:0")))'
         python -c "import monai; monai.config.print_config()"
