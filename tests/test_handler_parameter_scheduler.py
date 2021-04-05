@@ -1,10 +1,10 @@
 import unittest
+
 import torch
-from torch.nn import Module
 from ignite.engine import Engine, Events
+from torch.nn import Module
 
 from monai.handlers.parameter_scheduler import ParamSchedulerHandler
-from ignite.engine import Events
 
 
 class ToyNet(Module):

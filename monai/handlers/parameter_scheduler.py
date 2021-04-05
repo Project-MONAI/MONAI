@@ -1,8 +1,8 @@
 import logging
 from bisect import bisect_right
-from typing import Callable, Union, Dict, Optional, List
+from typing import Callable, Dict, List, Optional, Union
 
-from ignite.engine import Engine, Events, EventEnum
+from ignite.engine import Engine, EventEnum, Events
 
 
 class ParamSchedulerHandler:
@@ -97,11 +97,7 @@ class ParamSchedulerHandler:
         elif current_step > step_max_value:
             delta = max_value - initial_value
         else:
-            delta = (
-                (max_value - initial_value)
-                / (step_max_value - step_constant)
-                * (current_step - step_constant)
-            )
+            delta = (max_value - initial_value) / (step_max_value - step_constant) * (current_step - step_constant)
 
         return initial_value + delta
 
