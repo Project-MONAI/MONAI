@@ -305,6 +305,11 @@ Post-processing
     :members:
     :special-members: __call__
 
+Prob NMS
+--------
+.. autoclass:: ProbNMS
+  :members:
+
 `VoteEnsemble`
 """"""""""""""
 .. autoclass:: VoteEnsemble
