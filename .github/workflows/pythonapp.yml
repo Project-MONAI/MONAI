@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - master
-      - debug-release-rc
   pull_request:
 
 jobs:
