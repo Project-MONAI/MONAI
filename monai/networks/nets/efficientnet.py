@@ -14,7 +14,9 @@
 """
 import collections
 import math
+import operator
 import re
+from functools import reduce
 from typing import List
 
 import torch
@@ -407,7 +409,7 @@ class EfficientNet(nn.Module):
         # code based on: https://github.com/rwightman/gen-efficientnet-pytorch/blob/master/geffnet/efficientnet_builder.py
         for _, m in self.named_modules():
             if isinstance(m, (nn.Conv1d, nn.Conv2d, nn.Conv3d)):
-                fan_out = math.prod(m.kernel_size) * m.out_channels
+                fan_out = reduce(operator.mul, m.kernel_size, 1) * m.out_channels
                 m.weight.data.normal_(0, math.sqrt(2.0 / fan_out))
                 if m.bias is not None:
                     m.bias.data.zero_()
