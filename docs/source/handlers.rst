@@ -112,7 +112,7 @@ SmartCache handler
     :members:
 
 Parameter Scheduler handler
-------------------------
+---------------------------
 .. autoclass:: ParamSchedulerHandler
     :members:
 
