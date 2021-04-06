@@ -47,7 +47,7 @@ class TestHandlerParameterScheduler(unittest.TestCase):
             epoch_level=True,
             event=Events.EPOCH_COMPLETED,
         ).attach(engine)
-        engine.run([0] * 8, max_epochs=2)
+        engine.run([0] * 8, max_epochs=3)
         torch.testing.assert_allclose(net.get_value(), 3.33, atol=0.001, rtol=0.0)
 
         # Testing max_value
@@ -117,3 +117,7 @@ class TestHandlerParameterScheduler(unittest.TestCase):
         ).attach(engine)
         engine.run([0] * 8, max_epochs=2)
         torch.testing.assert_allclose(net.get_value(), 10 * 0.99 * 0.99)
+
+
+if __name__ == "__main__":
+    unittest.main()
