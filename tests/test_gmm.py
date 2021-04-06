@@ -15,8 +15,8 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.networks.layers import GaussianMixtureModel as GMM
-from tests.utils import skip_if_no_cpp_extension, skip_if_no_cuda
+from monai.networks.layers import GaussianMixtureModel
+from tests.utils import skip_if_no_cuda
 
 TEST_CASES = [
     [
@@ -308,7 +308,6 @@ TEST_CASES = [
 
 
 @skip_if_no_cuda
-@skip_if_no_cpp_extension
 class GMMTestCase(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_cuda(self, test_case_description, mixture_count, class_count, features, labels, expected):
@@ -321,7 +320,7 @@ class GMMTestCase(unittest.TestCase):
         labels_tensor = torch.tensor(labels, dtype=torch.int32, device=device)
 
         # Create GMM
-        gmm = GMM(features_tensor.size(1), mixture_count, class_count)
+        gmm = GaussianMixtureModel(features_tensor.size(1), mixture_count, class_count)
 
         # Apply GMM
         results_tensor = gmm(features_tensor, labels_tensor)
