@@ -333,10 +333,8 @@ class SpatialCropd(MapTransform, InvertibleTransform):
             # Create inverse transform
             orig_size = np.array(transform[InverseKeys.ORIG_SIZE])
             current_size = np.array(d[key].shape[1:])
-            # get start of crop (and if None, nothing was cropped so nothing to be padded)
-            pad_to_start = np.array([0 if s.start is None else s.start for s in self.cropper.slices])
-            # if any are -ve, then use orig_size + val
-            pad_to_start[pad_to_start < 0] += orig_size[pad_to_start < 0]
+            # get required pad to start and end
+            pad_to_start = np.array([s.indices(o)[0] for s, o in zip(self.cropper.slices, orig_size)])
             pad_to_end = orig_size - current_size - pad_to_start
             # interleave mins and maxes
             pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
