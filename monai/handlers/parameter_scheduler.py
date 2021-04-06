@@ -1,8 +1,14 @@
 import logging
 from bisect import bisect_right
-from typing import Callable, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Union
 
-from ignite.engine import Engine, EventEnum, Events
+from monai.utils import exact_version, optional_import
+
+if TYPE_CHECKING:
+    from ignite.engine import Engine, Events
+else:
+    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
+    Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
 
 
 class ParamSchedulerHandler:
@@ -27,7 +33,7 @@ class ParamSchedulerHandler:
         vc_kwargs: Dict,
         epoch_level: bool = False,
         name: Optional[str] = None,
-        event: EventEnum = Events.ITERATION_COMPLETED,
+        event=Events.ITERATION_COMPLETED,
     ):
         self.epoch_level = epoch_level
         self.event = event
@@ -46,15 +52,14 @@ class ParamSchedulerHandler:
         self.logger = logging.getLogger(name)
         self._name = name
 
-    def _get_value_calculator(self, value_calculator: Union[str, Callable]):
+    def _get_value_calculator(self, value_calculator):
         if isinstance(value_calculator, str):
             return self._calculators[value_calculator]
-        elif isinstance(value_calculator, Callable):
+        if callable(value_calculator):
             return value_calculator
-        else:
-            raise ValueError(
-                f"value_calculator must be either a string from {list(self._calculators.keys())} or a Callable."
-            )
+        raise ValueError(
+            f"value_calculator must be either a string from {list(self._calculators.keys())} or a Callable."
+        )
 
     def __call__(self, engine: Engine):
         if self.epoch_level:
