@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v2
         # full history so that we can git describe
         with:
-          ref: master
+          ref: fixes-dockerfile
           fetch-depth: 0
       - shell: bash
         run: |
@@ -53,7 +53,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       with:
-        ref: master
+        ref: fixes-dockerfile
     - name: Download version
       uses: actions/download-artifact@v2
       with:
