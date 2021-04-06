@@ -177,6 +177,11 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
                 {
                     float constant = i == 0 ? 0.0f : s_gmm[i] * s_gmm[j];
 
+                    if (i != 0 && i == j)
+                    {
+                        constant -= EPSILON;
+                    }
+
                     s_gmm[index] = norm_factor * matrix_component - constant;
 
                     if (index == 0 && matrix_component > 0)
