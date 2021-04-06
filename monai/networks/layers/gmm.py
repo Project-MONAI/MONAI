@@ -51,7 +51,7 @@ class GaussianMixtureModel(torch.nn.Module):
             output_logits (torch.Tensor): class assignment probabilities for each element.
         """
         assert features.size(1) == self.channel_count
-        return _GMM_func.apply(features, initial_labels, self.compiled_extention)
+        return _GmmFunc.apply(features, initial_labels, self.compiled_extention)
 
 
 class _GmmFunc(torch.autograd.Function):
