@@ -56,7 +56,7 @@ def get_expected_model_shape(model_name):
 
 
 def make_shape_cases(models, spatial_dims, batches, pretrained, in_channels=3, num_classes=1000):
-    ret_test = []
+    ret_tests = []
     for spatial_dim in spatial_dims:  # selected spatial_dims
         for batch in batches:  # check single batch as well as multiple batch input
             for model in models:  # selected models
@@ -69,7 +69,7 @@ def make_shape_cases(models, spatial_dims, batches, pretrained, in_channels=3, n
                         "in_channels": in_channels,
                         "num_classes": num_classes,
                     }
-                    ret_test.append(
+                    ret_tests.append(
                         [
                             kwargs,
                             (
@@ -80,11 +80,11 @@ def make_shape_cases(models, spatial_dims, batches, pretrained, in_channels=3, n
                             (batch, num_classes),
                         ]
                     )
-    return ret_test
+    return ret_tests
 
 
 # create list of selected models to speed up redundant tests
-# only test the models B0, B3
+# only test the models B0, B3, B7
 SEL_MODELS = [get_model_names()[i] for i in [0, 3, 7]]
 
 # pretrained=False cases
@@ -132,18 +132,18 @@ CASES_KITTY_TRAINED = [
 ]
 
 # varying num_classes and in_channels
-CASES_VARITAIONS = []
+CASES_VARIATIONS = []
 
 # change num_classes test
 # 10 classes
 # 2D
-CASES_VARITAIONS.extend(
+CASES_VARIATIONS.extend(
     make_shape_cases(
         models=SEL_MODELS, spatial_dims=[2], batches=[1], pretrained=[False, True], in_channels=3, num_classes=10
     )
 )
 # 3D
-# CASES_VARITAIONS.extend(
+# CASES_VARIATIONS.extend(
 #     make_shape_cases(
 #         models=[SEL_MODELS[0]], spatial_dims=[3], batches=[1], pretrained=[False], in_channels=3, num_classes=10
 #         )
@@ -152,20 +152,20 @@ CASES_VARITAIONS.extend(
 # change in_channels test
 # 1 channel
 # 2D
-CASES_VARITAIONS.extend(
+CASES_VARIATIONS.extend(
     make_shape_cases(
         models=SEL_MODELS, spatial_dims=[2], batches=[1], pretrained=[False, True], in_channels=1, num_classes=1000
     )
 )
 # 8 channel
 # 2D
-CASES_VARITAIONS.extend(
+CASES_VARIATIONS.extend(
     make_shape_cases(
         models=SEL_MODELS, spatial_dims=[2], batches=[1], pretrained=[False, True], in_channels=8, num_classes=1000
     )
 )
 # 3D
-# CASES_VARITAIONS.extend(
+# CASES_VARIATIONS.extend(
 #     make_shape_cases(
 #         models=[SEL_MODELS[0]], spatial_dims=[3], batches=[1], pretrained=[False], in_channels=1, num_classes=1000
 #         )
@@ -173,7 +173,7 @@ CASES_VARITAIONS.extend(
 
 
 class TestEFFICIENTNET(unittest.TestCase):
-    @parameterized.expand(CASES_1D + CASES_2D + CASES_3D + CASES_VARITAIONS)
+    @parameterized.expand(CASES_1D + CASES_2D + CASES_3D + CASES_VARIATIONS)
     def test_shape(self, input_param, input_shape, expected_shape):
         device = "cuda" if torch.cuda.is_available() else "cpu"
         print(input_param)
