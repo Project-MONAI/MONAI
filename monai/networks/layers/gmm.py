@@ -54,7 +54,7 @@ class GaussianMixtureModel(torch.nn.Module):
         return _GMM_func.apply(features, initial_labels, self.compiled_extention)
 
 
-class _GMM_func(torch.autograd.Function):
+class _GmmFunc(torch.autograd.Function):
     @staticmethod
     def forward(ctx, features, initial_labels, compiled_extention):
         return compiled_extention.gmm(features, initial_labels)
