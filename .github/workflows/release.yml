@@ -104,6 +104,7 @@ jobs:
         env:
           RELEASE_VERSION: ${{ steps.versioning.outputs.tag }}
         run: |
+          git fetch --depth=1 origin +refs/tags/*:refs/tags/*
           # remove flake package as it is not needed on hub.docker.com
           sed -i '/flake/d' requirements-dev.txt
           docker build -t projectmonai/monai:"$RELEASE_VERSION" -f Dockerfile .
