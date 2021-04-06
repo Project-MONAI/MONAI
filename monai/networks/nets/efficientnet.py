@@ -14,7 +14,7 @@ import math
 import operator
 import re
 from functools import reduce
-from typing import List
+from typing import List, Type, Union
 
 import torch
 from torch import nn
@@ -429,8 +429,11 @@ class EfficientNet(nn.Module):
         """
         Args:
             None, initializes weights for conv/linear/batchnorm layers
-            following weight init methods from `official Tensorflow EfficientNet implementation <https://github.com/tensorflow/tpu/blob/master/models/official/efficientnet/efficientnet_model.py#L61>`_.
-            Adapted from `EfficientNet-PyTorch's init method <https://github.com/rwightman/gen-efficientnet-pytorch/blob/master/geffnet/efficientnet_builder.py>`_.
+            following weight init methods from
+            `official Tensorflow EfficientNet implementation
+            <https://github.com/tensorflow/tpu/blob/master/models/official/efficientnet/efficientnet_model.py#L61>`_.
+            Adapted from `EfficientNet-PyTorch's init method
+            <https://github.com/rwightman/gen-efficientnet-pytorch/blob/master/geffnet/efficientnet_builder.py>`_.
         """
         for _, m in self.named_modules():
             if isinstance(m, (nn.Conv1d, nn.Conv2d, nn.Conv3d)):
@@ -461,7 +464,8 @@ class EfficientNetBN(EfficientNet):
     ) -> None:
         """
         Generic wrapper around EfficientNet, used to initialize EfficientNet-B0 to EfficientNet-B7 models
-        model_name is mandatory argument as there is no EfficientNetBN itself, it needs the N \in [0, 1, 2, 3, 4, 5, 6, 7] to be a model
+        model_name is mandatory argument as there is no EfficientNetBN itself,
+        it needs the N in [0, 1, 2, 3, 4, 5, 6, 7] to be a model
 
         Args:
             model_name: name of model to initialize, can be from [efficientnet-b0, ..., efficientnet-b7].
@@ -614,7 +618,8 @@ def drop_connect(inputs: torch.Tensor, p: float, training: bool) -> torch.Tensor
     Drop connect layer that drops individual connections.
     Differs from dropout as dropconnect drops connections instead of whole neurons as in dropout.
     Based on `Deep Networks with Stochastic Depth <https://arxiv.org/pdf/1603.09382.pdf>`_.
-    Adapted from `Official Tensorflow EfficientNet utils <https://github.com/tensorflow/tpu/blob/master/models/official/efficientnet/utils.py>`_.
+    Adapted from `Official Tensorflow EfficientNet utils
+    <https://github.com/tensorflow/tpu/blob/master/models/official/efficientnet/utils.py>`_.
 
     Args:
         input: input tensor with [B, C, dim_1, dim_2, ..., dim_N] where N=spatial_dims.
@@ -667,7 +672,7 @@ def _calculate_output_image_size(input_image_size, stride):
     return [int(math.ceil(im_sz / st)) for im_sz, st in zip(input_image_size, stride)]
 
 
-def _get_same_padding_convNd(image_size, kernel_size, dilation, stride):
+def _get_same_padding_conv_nd(image_size, kernel_size, dilation, stride):
     """
     Helper for getting padding (nn.ConstantPadNd) to be used to get SAME padding
     conv operations similar to Tensorflow's SAME padding.
@@ -709,7 +714,7 @@ def _get_same_padding_convNd(image_size, kernel_size, dilation, stride):
 def _make_same_padder(conv_op, image_size):
     """
     Helper for initializing ConstantPadNd with SAME padding similar to Tensorflow.
-    Uses output of _get_same_padding_convNd() to get the padding size.
+    Uses output of _get_same_padding_conv_nd() to get the padding size.
     Generalized for N-Dimensional spatial operatoins e.g. Conv1D, Conv2D, Conv3D
 
     Args:
@@ -720,7 +725,7 @@ def _make_same_padder(conv_op, image_size):
         If padding required then nn.ConstandNd() padder initialized to paddings otherwise nn.Identity()
     """
     # calculate padding required
-    padding = _get_same_padding_convNd(image_size, conv_op.kernel_size, conv_op.dilation, conv_op.stride)
+    padding = _get_same_padding_conv_nd(image_size, conv_op.kernel_size, conv_op.dilation, conv_op.stride)
 
     # initialize and return padder
     padder = Pad["constantpad", len(padding) // 2]
