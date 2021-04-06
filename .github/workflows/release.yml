@@ -83,3 +83,31 @@ jobs:
         password: ${{ secrets.TEST_PYPI }}
         repository_url: https://test.pypi.org/legacy/
 
+  release_docker:
+    if: github.repository == 'Project-MONAI/MONAI'
+    needs: packaging
+    runs-on: [ self-hosted, linux, x64, build_only ]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: master
+      - name: Set tag
+        id: versioning
+        run: echo ::set-output name=tag::${GITHUB_REF#refs/*/}
+      - name: Check tag
+        env:
+          RELEASE_VERSION: ${{ steps.versioning.outputs.tag }}
+        run: |
+          echo "$RELEASE_VERSION"
+      - if: startsWith(github.ref, 'refs/tags/')
+        name: build with the tag
+        env:
+          RELEASE_VERSION: ${{ steps.versioning.outputs.tag }}
+        run: |
+          # remove flake package as it is not needed on hub.docker.com
+          sed -i '/flake/d' requirements-dev.txt
+          docker build -t projectmonai/monai:"$RELEASE_VERSION" -f Dockerfile .
+          # distribute with a tag to hub.docker.com
+          echo "${{ secrets.DOCKER_PW }}" | docker login -u projectmonai --password-stdin
+          docker push projectmonai/monai:"$RELEASE_VERSION"
+          docker logout
