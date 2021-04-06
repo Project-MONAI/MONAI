@@ -17,13 +17,13 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 import copy
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
 from monai.config import DtypeLike, KeysCollection, NdarrayTensor
-from monai.transforms.transform import MapTransform, RandomizableTransform
+from monai.transforms.transform import MapTransform, Randomizable
 from monai.transforms.utility.array import (
     AddChannel,
     AsChannelFirst,
@@ -36,6 +36,7 @@ from monai.transforms.utility.array import (
     Identity,
     LabelToMask,
     Lambda,
+    MapLabelValue,
     RemoveRepeatedChannel,
     RepeatChannel,
     SimulateDelay,
@@ -47,14 +48,7 @@ from monai.transforms.utility.array import (
     ToTensor,
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
-from monai.utils import ensure_tuple, ensure_tuple_rep, optional_import
-
-if TYPE_CHECKING:
-    from PIL.Image import Image as PILImageImage
-
-    has_pil = True
-else:
-    PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
+from monai.utils import ensure_tuple, ensure_tuple_rep
 
 __all__ = [
     "Identityd",
@@ -83,6 +77,7 @@ __all__ = [
     "ConvertToMultiChannelBasedOnBratsClassesd",
     "AddExtremePointsChanneld",
     "TorchVisiond",
+    "MapLabelValued",
     "IdentityD",
     "IdentityDict",
     "AsChannelFirstD",
@@ -129,6 +124,8 @@ __all__ = [
     "AddExtremePointsChannelDict",
     "TorchVisionD",
     "TorchVisionDict",
+    "MapLabelValueD",
+    "MapLabelValueDict",
 ]
 
 
@@ -397,9 +394,7 @@ class ToTensord(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = ToTensor()
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor, PILImageImage]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor, PILImageImage]]:
+    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -421,9 +416,7 @@ class ToNumpyd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = ToNumpy()
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor, PILImageImage]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor, PILImageImage]]:
+    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -445,9 +438,7 @@ class ToPILd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = ToPIL()
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor, PILImageImage]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor, PILImageImage]]:
+    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -665,14 +656,8 @@ class ConcatItemsd(MapTransform):
             name: the name corresponding to the key to store the concatenated data.
             dim: on which dimension to concatenate the items, default is 0.
             allow_missing_keys: don't raise exception if key is missing.
-
-        Raises:
-            ValueError: When insufficient keys are given (``len(self.keys) < 2``).
-
         """
         super().__init__(keys, allow_missing_keys)
-        if len(self.keys) < 2:
-            raise ValueError("Concatenation requires at least 2 keys.")
         self.name = name
         self.dim = dim
 
@@ -746,9 +731,9 @@ class Lambdad(MapTransform):
         return d
 
 
-class RandLambdad(Lambdad, RandomizableTransform):
+class RandLambdad(Lambdad, Randomizable):
     """
-    RandomizableTransform version :py:class:`monai.transforms.Lambdad`, the input `func` contains random logic.
+    Randomizable version :py:class:`monai.transforms.Lambdad`, the input `func` contains random logic.
     It's a randomizable transform so `CacheDataset` will not execute it and cache the results.
 
     Args:
@@ -868,7 +853,7 @@ class ConvertToMultiChannelBasedOnBratsClassesd(MapTransform):
         return d
 
 
-class AddExtremePointsChanneld(RandomizableTransform, MapTransform):
+class AddExtremePointsChanneld(Randomizable, MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.AddExtremePointsChannel`.
 
@@ -960,6 +945,39 @@ class TorchVisiond(MapTransform):
         return d
 
 
+class MapLabelValued(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.MapLabelValue`.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        orig_labels: Sequence,
+        target_labels: Sequence,
+        dtype: DtypeLike = np.float32,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            orig_labels: original labels that map to others.
+            target_labels: expected label values, 1: 1 map to the `orig_labels`.
+            dtype: convert the output data to dtype, default to float32.
+            allow_missing_keys: don't raise exception if key is missing.
+
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.mapper = MapLabelValue(orig_labels=orig_labels, target_labels=target_labels, dtype=dtype)
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.mapper(d[key])
+        return d
+
+
 IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
@@ -987,3 +1005,4 @@ ConvertToMultiChannelBasedOnBratsClassesD = (
 AddExtremePointsChannelD = AddExtremePointsChannelDict = AddExtremePointsChanneld
 TorchVisionD = TorchVisionDict = TorchVisiond
 RandLambdaD = RandLambdaDict = RandLambdad
+MapLabelValueD = MapLabelValueDict = MapLabelValued

@@ -20,6 +20,11 @@ Blocks
 .. autoclass:: Convolution
     :members:
 
+`CRF`
+~~~~~~~~~~~~~
+.. autoclass:: CRF
+    :members:
+
 `ResidualUnit`
 ~~~~~~~~~~~~~~
 .. autoclass:: ResidualUnit
@@ -94,7 +99,7 @@ Blocks
 .. autoclass:: SEResNetBottleneck
     :members:
 
-`Squeeze-and-Excitation ResneXt Bottleneck`
+`Squeeze-and-Excitation ResNeXt Bottleneck`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: SEResNeXtBottleneck
     :members:
@@ -388,6 +393,11 @@ Nets
 `Critic`
 ~~~~~~~~
 .. autoclass:: Critic
+  :members:
+
+`TorchVisionFullyConvModel`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TorchVisionFullyConvModel
   :members:
 
 Utilities

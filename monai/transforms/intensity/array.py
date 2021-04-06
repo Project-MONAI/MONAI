@@ -14,7 +14,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 from collections.abc import Iterable
-from typing import Any, Optional, Sequence, Tuple, Union
+from typing import Any, List, Optional, Sequence, Tuple, Union
 from warnings import warn
 
 import numpy as np
@@ -32,6 +32,7 @@ __all__ = [
     "RandShiftIntensity",
     "StdShiftIntensity",
     "RandStdShiftIntensity",
+    "RandBiasField",
     "ScaleIntensity",
     "RandScaleIntensity",
     "NormalizeIntensity",
@@ -121,6 +122,7 @@ class RandShiftIntensity(RandomizableTransform):
             if len(offsets) != 2:
                 raise AssertionError("offsets should be a number or pair of numbers.")
             self.offsets = (min(offsets), max(offsets))
+        self._offset = self.offsets[0]
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
@@ -149,12 +151,20 @@ class StdShiftIntensity(Transform):
         nonzero: whether only count non-zero values.
         channel_wise: if True, calculate on each channel separately. Please ensure
             that the first dimension represents the channel of the image if True.
+        dtype: output data type, defaults to float32.
     """
 
-    def __init__(self, factor: float, nonzero: bool = False, channel_wise: bool = False) -> None:
+    def __init__(
+        self,
+        factor: float,
+        nonzero: bool = False,
+        channel_wise: bool = False,
+        dtype: DtypeLike = np.float32,
+    ) -> None:
         self.factor = factor
         self.nonzero = nonzero
         self.channel_wise = channel_wise
+        self.dtype = dtype
 
     def _stdshift(self, img: np.ndarray) -> np.ndarray:
         slices = (img != 0) if self.nonzero else np.ones(img.shape, dtype=bool)
@@ -168,8 +178,7 @@ class StdShiftIntensity(Transform):
         """
         Apply the transform to `img`.
         """
-        if img.dtype != float:
-            img = img.astype(float)
+        img = img.astype(self.dtype)
         if self.channel_wise:
             for i, d in enumerate(img):
                 img[i] = self._stdshift(d)
@@ -190,6 +199,7 @@ class RandStdShiftIntensity(RandomizableTransform):
         prob: float = 0.1,
         nonzero: bool = False,
         channel_wise: bool = False,
+        dtype: DtypeLike = np.float32,
     ) -> None:
         """
         Args:
@@ -198,6 +208,7 @@ class RandStdShiftIntensity(RandomizableTransform):
             prob: probability of std shift.
             nonzero: whether only count non-zero values.
             channel_wise: if True, calculate on each channel separately.
+            dtype: output data type, defaults to float32.
 
         """
         RandomizableTransform.__init__(self, prob)
@@ -207,8 +218,10 @@ class RandStdShiftIntensity(RandomizableTransform):
             if len(factors) != 2:
                 raise AssertionError("factors should be a number or pair of numbers.")
             self.factors = (min(factors), max(factors))
+        self.factor = self.factors[0]
         self.nonzero = nonzero
         self.channel_wise = channel_wise
+        self.dtype = dtype
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
@@ -221,7 +234,9 @@ class RandStdShiftIntensity(RandomizableTransform):
         self.randomize()
         if not self._do_transform:
             return img
-        shifter = StdShiftIntensity(factor=self.factor, nonzero=self.nonzero, channel_wise=self.channel_wise)
+        shifter = StdShiftIntensity(
+            factor=self.factor, nonzero=self.nonzero, channel_wise=self.channel_wise, dtype=self.dtype
+        )
         return shifter(img)
 
 
@@ -281,6 +296,7 @@ class RandScaleIntensity(RandomizableTransform):
             if len(factors) != 2:
                 raise AssertionError("factors should be a number or pair of numbers.")
             self.factors = (min(factors), max(factors))
+        self.factor = self.factors[0]
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
@@ -297,6 +313,97 @@ class RandScaleIntensity(RandomizableTransform):
         return scaler(img)
 
 
+class RandBiasField(RandomizableTransform):
+    """
+    Random bias field augmentation for MR images.
+    The bias field is considered as a linear combination of smoothly varying basis (polynomial)
+    functions, as described in `Automated Model-Based Tissue Classification of MR Images of the Brain
+    <https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=811270>`_.
+    This implementation adapted from `NiftyNet
+    <https://github.com/NifTK/NiftyNet>`_.
+    Referred to `Longitudinal segmentation of age-related white matter hyperintensities
+    <https://www.sciencedirect.com/science/article/pii/S1361841517300257?via%3Dihub>`_.
+
+    Args:
+        degree: degree of freedom of the polynomials. The value should be no less than 1.
+            Defaults to 3.
+        coeff_range: range of the random coefficients. Defaults to (0.0, 0.1).
+        dtype: output data type, defaults to float32.
+        prob: probability to do random bias field.
+
+    """
+
+    def __init__(
+        self,
+        degree: int = 3,
+        coeff_range: Tuple[float, float] = (0.0, 0.1),
+        dtype: DtypeLike = np.float32,
+        prob: float = 1.0,
+    ) -> None:
+        RandomizableTransform.__init__(self, prob)
+        if degree < 1:
+            raise ValueError("degree should be no less than 1.")
+        self.degree = degree
+        self.coeff_range = coeff_range
+        self.dtype = dtype
+
+    def _generate_random_field(
+        self,
+        spatial_shape: Tuple[int, ...],
+        rank: int,
+        degree: int,
+        coeff: Tuple[int, ...],
+    ):
+        """
+        products of polynomials as bias field estimations
+        """
+        coeff_mat = np.zeros((degree + 1,) * rank)
+        coords = [np.linspace(-1.0, 1.0, dim, dtype=np.float32) for dim in spatial_shape]
+        if rank == 2:
+            coeff_mat[np.tril_indices(degree + 1)] = coeff
+            field = np.polynomial.legendre.leggrid2d(coords[0], coords[1], coeff_mat)
+        elif rank == 3:
+            pts: List[List[int]] = [[0, 0, 0]]
+            for i in range(degree + 1):
+                for j in range(degree + 1 - i):
+                    for k in range(degree + 1 - i - j):
+                        pts.append([i, j, k])
+            if len(pts) > 1:
+                pts = pts[1:]
+            np_pts = np.stack(pts)
+            coeff_mat[np_pts[:, 0], np_pts[:, 1], np_pts[:, 2]] = coeff
+            field = np.polynomial.legendre.leggrid3d(coords[0], coords[1], coords[2], coeff_mat)
+        else:
+            raise NotImplementedError("only supoprts 2D or 3D fields")
+        return field
+
+    def randomize(self, data: np.ndarray) -> None:
+        super().randomize(None)
+        self.spatial_shape = data.shape[1:]
+        self.rank = len(self.spatial_shape)
+        n_coeff = int(np.prod([(self.degree + k) / k for k in range(1, self.rank + 1)]))
+        self._coeff = self.R.uniform(*self.coeff_range, n_coeff)
+
+    def __call__(self, img: np.ndarray):
+        """
+        Apply the transform to `img`.
+        """
+        self.randomize(data=img)
+        if not self._do_transform:
+            return img
+        num_channels = img.shape[0]
+        _bias_fields = np.stack(
+            [
+                self._generate_random_field(
+                    spatial_shape=self.spatial_shape, rank=self.rank, degree=self.degree, coeff=self._coeff
+                )
+                for _ in range(num_channels)
+            ],
+            axis=0,
+        )
+        return (img * _bias_fields).astype(self.dtype)
+
+
 class NormalizeIntensity(Transform):
     """
     Normalize input based on provided args, using calculated mean and std if not provided.
@@ -311,7 +418,7 @@ class NormalizeIntensity(Transform):
         nonzero: whether only normalize non-zero values.
         channel_wise: if using calculated mean and std, calculate on each channel separately
             or calculate on the entire image directly.
-        dtype: output data type, defaut to float32.
+        dtype: output data type, defaults to float32.
     """
 
     def __init__(
@@ -769,6 +876,10 @@ class RandGaussianSmooth(RandomizableTransform):
         self.sigma_y = sigma_y
         self.sigma_z = sigma_z
         self.approx = approx
+
+        self.x = self.sigma_x[0]
+        self.y = self.sigma_y[0]
+        self.z = self.sigma_z[0]
 
     def randomize(self, data: Optional[Any] = None) -> None:
         super().randomize(None)

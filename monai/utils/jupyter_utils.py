@@ -145,7 +145,7 @@ def tensor_to_images(name: str, tensor: torch.Tensor):
     """
     if tensor.ndim == 4 and tensor.shape[2] > 2 and tensor.shape[3] > 2:
         return tuple(tensor[0].cpu().data.numpy())
-    elif tensor.ndim == 5 and tensor.shape[3] > 2 and tensor.shape[4] > 2:
+    if tensor.ndim == 5 and tensor.shape[3] > 2 and tensor.shape[4] > 2:
         dmid = tensor.shape[2] // 2
         return tuple(tensor[0, :, dmid].cpu().data.numpy())
 
@@ -217,8 +217,7 @@ def _get_loss_from_output(output: Union[Dict[str, torch.Tensor], torch.Tensor]) 
     """Returns a single value from the network output, which is a dict or tensor."""
     if isinstance(output, dict):
         return output["loss"].item()
-    else:
-        return output.item()
+    return output.item()
 
 
 class StatusMembers(Enum):
@@ -245,6 +244,7 @@ class ThreadContainer(Thread):
         engine: wrapped `Engine` object, when the container is started its `run` method is called
         loss_transform: callable to convert an output dict into a single numeric value
         metric_transform: callable to convert a named metric value into a single numeric value
+        status_format: format string for status key-value pairs.
     """
 
     def __init__(
@@ -252,6 +252,7 @@ class ThreadContainer(Thread):
         engine: Engine,
         loss_transform: Callable = _get_loss_from_output,
         metric_transform: Callable = lambda name, value: value,
+        status_format: str = "{}: {:.4}",
     ):
         super().__init__()
         self.lock = RLock()
@@ -260,6 +261,7 @@ class ThreadContainer(Thread):
         self.loss_transform = loss_transform
         self.metric_transform = metric_transform
         self.fig = None
+        self.status_format = status_format
 
         self.engine.add_event_handler(Events.ITERATION_COMPLETED, self._update_status)
 
@@ -318,7 +320,7 @@ class ThreadContainer(Thread):
         stats = self.status_dict
 
         msgs = [stats.pop(StatusMembers.STATUS.value), "Iters: " + str(stats.pop(StatusMembers.ITERS.value))]
-        msgs += ["%s: %s" % kv for kv in stats.items()]
+        msgs += [self.status_format.format(key, val) for key, val in stats.items()]
 
         return ", ".join(msgs)
 

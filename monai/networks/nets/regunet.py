@@ -68,7 +68,8 @@ class RegUNet(nn.Module):
         super(RegUNet, self).__init__()
         if not extract_levels:
             extract_levels = (depth,)
-        assert max(extract_levels) == depth
+        if max(extract_levels) != depth:
+            raise AssertionError
 
         # save parameters
         self.spatial_dims = spatial_dims
@@ -84,7 +85,8 @@ class RegUNet(nn.Module):
 
         if isinstance(encode_kernel_sizes, int):
             encode_kernel_sizes = [encode_kernel_sizes] * (self.depth + 1)
-        assert len(encode_kernel_sizes) == self.depth + 1
+        if len(encode_kernel_sizes) != self.depth + 1:
+            raise AssertionError
         self.encode_kernel_sizes: List[int] = encode_kernel_sizes
 
         self.num_channels = [self.num_channel_initial * (2 ** d) for d in range(self.depth + 1)]
@@ -263,14 +265,20 @@ class AffineHead(nn.Module):
         if spatial_dims == 2:
             in_features = in_channels * decode_size[0] * decode_size[1]
             out_features = 6
+            out_init = torch.tensor([1, 0, 0, 0, 1, 0], dtype=torch.float)
         elif spatial_dims == 3:
             in_features = in_channels * decode_size[0] * decode_size[1] * decode_size[2]
             out_features = 12
+            out_init = torch.tensor([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0], dtype=torch.float)
         else:
             raise ValueError(f"only support 2D/3D operation, got spatial_dims={spatial_dims}")
 
         self.fc = nn.Linear(in_features=in_features, out_features=out_features)
         self.grid = self.get_reference_grid(image_size)  # (spatial_dims, ...)
+
+        # init weight/bias
+        self.fc.weight.data.zero_()
+        self.fc.bias.data.copy_(out_init)
 
     @staticmethod
     def get_reference_grid(image_size: Union[Tuple[int], List[int]]) -> torch.Tensor:

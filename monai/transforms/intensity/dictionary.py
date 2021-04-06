@@ -28,6 +28,7 @@ from monai.transforms.intensity.array import (
     GaussianSmooth,
     MaskIntensity,
     NormalizeIntensity,
+    RandBiasField,
     ScaleIntensity,
     ScaleIntensityRange,
     ScaleIntensityRangePercentiles,
@@ -44,6 +45,9 @@ __all__ = [
     "RandShiftIntensityd",
     "ScaleIntensityd",
     "RandScaleIntensityd",
+    "StdShiftIntensityd",
+    "RandStdShiftIntensityd",
+    "RandBiasFieldd",
     "NormalizeIntensityd",
     "ThresholdIntensityd",
     "ScaleIntensityRanged",
@@ -64,8 +68,14 @@ __all__ = [
     "RandShiftIntensityDict",
     "ScaleIntensityD",
     "ScaleIntensityDict",
+    "StdShiftIntensityD",
+    "StdShiftIntensityDict",
     "RandScaleIntensityD",
     "RandScaleIntensityDict",
+    "RandStdShiftIntensityD",
+    "RandStdShiftIntensityDict",
+    "RandBiasFieldD",
+    "RandBiasFieldDict",
     "NormalizeIntensityD",
     "NormalizeIntensityDict",
     "ThresholdIntensityD",
@@ -196,6 +206,7 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
             if len(offsets) != 2:
                 raise AssertionError("offsets should be a number or pair of numbers.")
             self.offsets = (min(offsets), max(offsets))
+        self._offset = self.offsets[0]
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
@@ -223,6 +234,7 @@ class StdShiftIntensityd(MapTransform):
         factor: float,
         nonzero: bool = False,
         channel_wise: bool = False,
+        dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -233,10 +245,11 @@ class StdShiftIntensityd(MapTransform):
             nonzero: whether only count non-zero values.
             channel_wise: if True, calculate on each channel separately. Please ensure
                 that the first dimension represents the channel of the image if True.
+            dtype: output data type, defaults to float32.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
-        self.shifter = StdShiftIntensity(factor, nonzero, channel_wise)
+        self.shifter = StdShiftIntensity(factor, nonzero, channel_wise, dtype)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
@@ -257,6 +270,7 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
         prob: float = 0.1,
         nonzero: bool = False,
         channel_wise: bool = False,
+        dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -268,6 +282,7 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
             prob: probability of std shift.
             nonzero: whether only count non-zero values.
             channel_wise: if True, calculate on each channel separately.
+            dtype: output data type, defaults to float32.
             allow_missing_keys: don't raise exception if key is missing.
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -279,8 +294,10 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
             if len(factors) != 2:
                 raise AssertionError("factors should be a number or pair of numbers.")
             self.factors = (min(factors), max(factors))
+        self.factor = self.factors[0]
         self.nonzero = nonzero
         self.channel_wise = channel_wise
+        self.dtype = dtype
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
@@ -291,7 +308,7 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
         self.randomize()
         if not self._do_transform:
             return d
-        shifter = StdShiftIntensity(self.factor, self.nonzero, self.channel_wise)
+        shifter = StdShiftIntensity(self.factor, self.nonzero, self.channel_wise, self.dtype)
         for key in self.key_iterator(d):
             d[key] = shifter(d[key])
         return d
@@ -365,6 +382,7 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
             if len(factors) != 2:
                 raise AssertionError("factors should be a number or pair of numbers.")
             self.factors = (min(factors), max(factors))
+        self.factor = self.factors[0]
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
@@ -378,6 +396,50 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
         scaler = ScaleIntensity(minv=None, maxv=None, factor=self.factor)
         for key in self.key_iterator(d):
             d[key] = scaler(d[key])
+        return d
+
+
+class RandBiasFieldd(RandomizableTransform, MapTransform):
+    """
+    Dictionary-based version :py:class:`monai.transforms.RandBiasField`.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        degree: int = 3,
+        coeff_range: Tuple[float, float] = (0.0, 0.1),
+        dtype: DtypeLike = np.float32,
+        prob: float = 1.0,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            degree: degree of freedom of the polynomials. The value should be no less than 1.
+                Defaults to 3.
+            coeff_range: range of the random coefficients. Defaults to (0.0, 0.1).
+            dtype: output data type, defaults to float32.
+            prob: probability to do random bias field.
+            allow_missing_keys: don't raise exception if key is missing.
+
+        """
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+
+        self.rand_bias_field = RandBiasField(degree, coeff_range, dtype, prob)
+
+    def randomize(self, data: Optional[Any] = None) -> None:
+        super().randomize(None)
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = dict(data)
+        self.randomize()
+        if not self._do_transform:
+            return d
+        for key in self.key_iterator(d):
+            d[key] = self.rand_bias_field(d[key])
         return d
 
 
@@ -395,7 +457,7 @@ class NormalizeIntensityd(MapTransform):
         nonzero: whether only normalize non-zero values.
         channel_wise: if using calculated mean and std, calculate on each channel separately
             or calculate on the entire image directly.
-        dtype: output data type, defaut to float32.
+        dtype: output data type, defaults to float32.
         allow_missing_keys: don't raise exception if key is missing.
     """
 
@@ -701,10 +763,10 @@ class RandGaussianSmoothd(RandomizableTransform, MapTransform):
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        self.sigma_x = sigma_x
-        self.sigma_y = sigma_y
-        self.sigma_z = sigma_z
+        self.sigma_x, self.sigma_y, self.sigma_z = sigma_x, sigma_y, sigma_z
         self.approx = approx
+
+        self.x, self.y, self.z = self.sigma_x[0], self.sigma_y[0], self.sigma_z[0]
 
     def randomize(self, data: Optional[Any] = None) -> None:
         super().randomize(None)
@@ -900,6 +962,7 @@ ShiftIntensityD = ShiftIntensityDict = ShiftIntensityd
 RandShiftIntensityD = RandShiftIntensityDict = RandShiftIntensityd
 StdShiftIntensityD = StdShiftIntensityDict = StdShiftIntensityd
 RandStdShiftIntensityD = RandStdShiftIntensityDict = RandStdShiftIntensityd
+RandBiasFieldD = RandBiasFieldDict = RandBiasFieldd
 ScaleIntensityD = ScaleIntensityDict = ScaleIntensityd
 RandScaleIntensityD = RandScaleIntensityDict = RandScaleIntensityd
 NormalizeIntensityD = NormalizeIntensityDict = NormalizeIntensityd
