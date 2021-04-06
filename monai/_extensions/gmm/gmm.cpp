@@ -19,9 +19,9 @@ torch::Tensor GMM(torch::Tensor input_tensor, torch::Tensor label_tensor)
 {
     c10::DeviceType device_type = input_tensor.device().type();
 
-    int dim = input_tensor.dim();
-    int batch_count = input_tensor.size(0);
-    int element_count = input_tensor.stride(1);
+    unsigned int dim = input_tensor.dim();
+    unsigned int batch_count = input_tensor.size(0);
+    unsigned int element_count = input_tensor.stride(1);
 
     long int* output_size = new long int[dim];
     memcpy(output_size, input_tensor.sizes().data(), dim * sizeof(long int));

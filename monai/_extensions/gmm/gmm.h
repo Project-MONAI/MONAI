@@ -24,5 +24,5 @@ limitations under the License.
 #define GMM_COMPONENT_COUNT (MATRIX_COMPONENT_COUNT + 1)
 #define GMM_COUNT (MIXTURE_COUNT * MIXTURE_SIZE)
 
-void GMM_Cuda(const float* input, const int* labels, float* output, int batch_count, int element_count);
-void GMM_Cpu(const float* input, const int* labels, float* output, int batch_count, int element_count);
+void GMM_Cuda(const float* input, const int* labels, float* output, unsigned int batch_count, unsigned int element_count);
+void GMM_Cpu(const float* input, const int* labels, float* output, unsigned int batch_count, unsigned int element_count);

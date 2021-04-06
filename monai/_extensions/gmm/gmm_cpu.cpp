@@ -18,7 +18,7 @@ limitations under the License.
 
 #include "gmm.h"
 
-void GMM_Cpu(const float* input, const int* labels, float* output, int batch_count, int element_count)
+void GMM_Cpu(const float* input, const int* labels, float* output, unsigned int batch_count, unsigned int element_count)
 {
     throw std::invalid_argument("GMM recieved a cpu tensor but is not yet implemented for the cpu");
 }

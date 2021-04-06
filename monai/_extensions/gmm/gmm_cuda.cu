@@ -445,18 +445,18 @@ __global__ void GMMDataTermKernel(const float *image, const float *gmm, float* o
 #define BLOCK (WARPS << 5)
 #define LOAD 4
 
-void GMMInitialize(const float *image, int *alpha, float *gmm, float *scratch_mem, int batch_count, int element_count)
+void GMMInitialize(const float *image, int *alpha, float *gmm, float *scratch_mem, unsigned int batch_count, unsigned int element_count)
 {
-    int block_count = TILE(element_count, BLOCK * LOAD);
+    unsigned int block_count = TILE(element_count, BLOCK * LOAD);
 
     float* block_gmm_scratch = scratch_mem;
     GMMSplit_t* gmm_split_scratch = (GMMSplit_t*) scratch_mem;
 
     int gmm_N = MIXTURE_COUNT * MIXTURE_SIZE;
 
-    for (int k = MIXTURE_COUNT; k < gmm_N; k+=MIXTURE_COUNT)
+    for (unsigned int k = MIXTURE_COUNT; k < gmm_N; k+=MIXTURE_COUNT)
     {
-        for (int i = 0; i < k; ++i)
+        for (unsigned int i = 0; i < k; ++i)
         {
             CovarianceReductionKernel<WARPS, LOAD><<<{block_count, 1, batch_count}, BLOCK>>>(i, image, alpha, block_gmm_scratch, element_count);
         }
@@ -468,15 +468,15 @@ void GMMInitialize(const float *image, int *alpha, float *gmm, float *scratch_me
     }
 }
 
-void GMMUpdate(const float *image, int *alpha, float *gmm, float *scratch_mem, int batch_count, int element_count)
+void GMMUpdate(const float *image, int *alpha, float *gmm, float *scratch_mem, unsigned int batch_count, unsigned int element_count)
 {
-    int block_count = TILE(element_count, BLOCK * LOAD);
+    unsigned int block_count = TILE(element_count, BLOCK * LOAD);
 
     float* block_gmm_scratch = scratch_mem;
 
-    int gmm_N = MIXTURE_COUNT * MIXTURE_SIZE;
+    unsigned int gmm_N = MIXTURE_COUNT * MIXTURE_SIZE;
 
-    for (int i = 0; i < gmm_N; ++i)
+    for (unsigned int i = 0; i < gmm_N; ++i)
     {
         CovarianceReductionKernel<WARPS, LOAD><<<{block_count, 1, batch_count}, BLOCK>>>(i, image, alpha, block_gmm_scratch, element_count);
     }
@@ -486,7 +486,7 @@ void GMMUpdate(const float *image, int *alpha, float *gmm, float *scratch_mem, i
     GMMcommonTerm<<<{1, 1, batch_count}, dim3(BLOCK_SIZE, MIXTURE_COUNT)>>>(gmm);
 }
 
-void GMMDataTerm(const float *image, const float *gmm, float* output, int batch_count, int element_count)
+void GMMDataTerm(const float *image, const float *gmm, float* output, unsigned int batch_count, unsigned int element_count)
 {
     dim3 block(BLOCK_SIZE, 1);
     dim3 grid(TILE(element_count, BLOCK_SIZE), 1, batch_count);
@@ -494,7 +494,7 @@ void GMMDataTerm(const float *image, const float *gmm, float* output, int batch_
     GMMDataTermKernel<<<grid, block>>>(image, gmm, output, element_count);
 }
 
-void GMM_Cuda(const float* input, const int* labels, float* output, int batch_count, int element_count)
+void GMM_Cuda(const float* input, const int* labels, float* output, unsigned int batch_count, unsigned int element_count)
 {
     float* scratch_mem = output;
     float* gmm; 
