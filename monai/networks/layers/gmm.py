@@ -24,19 +24,15 @@ class GaussianMixtureModel(torch.nn.Module):
 
     See:
         https://en.wikipedia.org/wiki/Mixture_model
-
-    Args:
-        channel_count (int): The number of features per element.
-        mixture_count (int): The number of class distibutions.
-        mixture_size (int): The number gaussian components per class distribution.
-        features (torch.Tensor): features for each element.
-        initial_labels (torch.Tensor): initial labeling for each element.
-
-    Returns:
-        output_logits (torch.Tensor): class assignment probabilities for each element.
     """
 
     def __init__(self, channel_count, mixture_count, mixture_size):
+        """
+        Args:
+            channel_count (int): The number of features per element.
+            mixture_count (int): The number of class distibutions.
+            mixture_size (int): The number gaussian components per class distribution.
+        """
         super(GaussianMixtureModel, self).__init__()
         self.compiled_extention = load_module(
             "gmm", {"CHANNEL_COUNT": channel_count, "MIXTURE_COUNT": mixture_count, "MIXTURE_SIZE": mixture_size}
@@ -46,9 +42,23 @@ class GaussianMixtureModel(torch.nn.Module):
         self.mixture_size = mixture_size
 
     def forward(self, features, initial_labels):
+        """
+        Args:
+            features (torch.Tensor): features for each element.
+            initial_labels (torch.Tensor): initial labeling for each element.
 
+        Returns:
+            output_logits (torch.Tensor): class assignment probabilities for each element.
+        """
         assert features.size(1) == self.channel_count
+        return _GMM_func.apply(features, initial_labels, self.compiled_extention)
 
-        output_logits = self.compiled_extention.gmm(features, initial_labels)
 
-        return output_logits
+class _GMM_func(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, features, initial_labels, compiled_extention):
+        return compiled_extention.gmm(features, initial_labels)
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        raise NotImplementedError("GMM does not currently support backpropagation")
