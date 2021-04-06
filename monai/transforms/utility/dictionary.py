@@ -23,7 +23,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike, KeysCollection, NdarrayTensor
-from monai.transforms.transform import MapTransform, RandomizableTransform
+from monai.transforms.transform import MapTransform, Randomizable
 from monai.transforms.utility.array import (
     AddChannel,
     AsChannelFirst,
@@ -731,9 +731,9 @@ class Lambdad(MapTransform):
         return d
 
 
-class RandLambdad(Lambdad, RandomizableTransform):
+class RandLambdad(Lambdad, Randomizable):
     """
-    RandomizableTransform version :py:class:`monai.transforms.Lambdad`, the input `func` contains random logic.
+    Randomizable version :py:class:`monai.transforms.Lambdad`, the input `func` contains random logic.
     It's a randomizable transform so `CacheDataset` will not execute it and cache the results.
 
     Args:
@@ -853,7 +853,7 @@ class ConvertToMultiChannelBasedOnBratsClassesd(MapTransform):
         return d
 
 
-class AddExtremePointsChanneld(RandomizableTransform, MapTransform):
+class AddExtremePointsChanneld(Randomizable, MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.AddExtremePointsChannel`.
 
