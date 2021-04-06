@@ -34,13 +34,14 @@ from monai.transforms.croppad.array import (
     SpatialPad,
 )
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
+from monai.transforms.transform import MapTransform, Randomizable
 from monai.transforms.utils import (
     generate_pos_neg_label_crop_centers,
     generate_spatial_bounding_box,
     map_binary_to_indices,
     weighted_patch_samples,
 )
+from monai.utils import ImageMetaKey as Key
 from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
 from monai.utils.enums import InverseKeys
 
@@ -385,7 +386,7 @@ class CenterSpatialCropd(MapTransform, InvertibleTransform):
         return d
 
 
-class RandSpatialCropd(RandomizableTransform, MapTransform, InvertibleTransform):
+class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandSpatialCrop`.
     Crop image with random size or specific size ROI. It can crop at a random position as
@@ -412,7 +413,6 @@ class RandSpatialCropd(RandomizableTransform, MapTransform, InvertibleTransform)
         random_size: bool = True,
         allow_missing_keys: bool = False,
     ) -> None:
-        RandomizableTransform.__init__(self, prob=1.0, do_transform=True)
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.roi_size = roi_size
         self.random_center = random_center
@@ -476,13 +476,13 @@ class RandSpatialCropd(RandomizableTransform, MapTransform, InvertibleTransform)
         return d
 
 
-class RandSpatialCropSamplesd(RandomizableTransform, MapTransform):
+class RandSpatialCropSamplesd(Randomizable, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandSpatialCropSamples`.
     Crop image with random size or specific size ROI to generate a list of N samples.
     It can crop at a random position as center or at the image center. And allows to set
     the minimum size to limit the randomly generated ROI. Suppose all the expected fields
-    specified by `keys` have same shape.
+    specified by `keys` have same shape, and add `patch_index` to the corresponding meta data.
     It will return a list of dictionaries for all the cropped images.
 
     Args:
@@ -494,6 +494,9 @@ class RandSpatialCropSamplesd(RandomizableTransform, MapTransform):
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specific size ROI.
             The actual size is sampled from `randint(roi_size, img_size)`.
+        meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
+            default is `meta_dict`, the meta data is a dictionary object.
+            used to add `patch_index` to the meta dict.
         allow_missing_keys: don't raise exception if key is missing.
 
     Raises:
@@ -508,14 +511,15 @@ class RandSpatialCropSamplesd(RandomizableTransform, MapTransform):
         num_samples: int,
         random_center: bool = True,
         random_size: bool = True,
+        meta_key_postfix: str = "meta_dict",
         allow_missing_keys: bool = False,
     ) -> None:
-        RandomizableTransform.__init__(self, prob=1.0, do_transform=True)
         MapTransform.__init__(self, keys, allow_missing_keys)
         if num_samples < 1:
             raise ValueError(f"num_samples must be positive, got {num_samples}.")
         self.num_samples = num_samples
         self.cropper = RandSpatialCropd(keys, roi_size, random_center, random_size, allow_missing_keys)
+        self.meta_key_postfix = meta_key_postfix
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
@@ -528,7 +532,18 @@ class RandSpatialCropSamplesd(RandomizableTransform, MapTransform):
         pass
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> List[Dict[Hashable, np.ndarray]]:
-        return [self.cropper(data) for _ in range(self.num_samples)]
+        ret = []
+        d = dict(data)
+        for i in range(self.num_samples):
+            cropped = self.cropper(d)
+            # add `patch_index` to the meta data
+            for key in self.key_iterator(d):
+                meta_data_key = f"{key}_{self.meta_key_postfix}"
+                if meta_data_key not in cropped:
+                    cropped[meta_data_key] = {}  # type: ignore
+                cropped[meta_data_key][Key.PATCH_INDEX] = i
+            ret.append(cropped)
+        return ret
 
 
 class CropForegroundd(MapTransform, InvertibleTransform):
@@ -609,7 +624,7 @@ class CropForegroundd(MapTransform, InvertibleTransform):
         return d
 
 
-class RandWeightedCropd(RandomizableTransform, MapTransform):
+class RandWeightedCropd(Randomizable, MapTransform):
     """
     Samples a list of `num_samples` image patches according to the provided `weight_map`.
 
@@ -637,7 +652,6 @@ class RandWeightedCropd(RandomizableTransform, MapTransform):
         center_coord_key: Optional[str] = None,
         allow_missing_keys: bool = False,
     ):
-        RandomizableTransform.__init__(self, prob=1.0, do_transform=True)
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.spatial_size = ensure_tuple(spatial_size)
         self.w_key = w_key
@@ -676,11 +690,13 @@ class RandWeightedCropd(RandomizableTransform, MapTransform):
         return results
 
 
-class RandCropByPosNegLabeld(RandomizableTransform, MapTransform):
+class RandCropByPosNegLabeld(Randomizable, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandCropByPosNegLabel`.
     Crop random fixed sized regions with the center being a foreground or background voxel
     based on the Pos Neg Ratio.
+    Suppose all the expected fields specified by `keys` have same shape,
+    and add `patch_index` to the corresponding meta data.
     And will return a list of dictionaries for all the cropped images.
 
     Args:
@@ -706,6 +722,9 @@ class RandCropByPosNegLabeld(RandomizableTransform, MapTransform):
             `image_threshold`, and randomly select crop centers based on them, need to provide `fg_indices_key`
             and `bg_indices_key` together, expect to be 1 dim array of spatial indices after flattening.
             a typical usage is to call `FgBgToIndicesd` transform first and cache the results.
+        meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
+            default is `meta_dict`, the meta data is a dictionary object.
+            used to add `patch_index` to the meta dict.
         allow_missing_keys: don't raise exception if key is missing.
 
     Raises:
@@ -726,9 +745,9 @@ class RandCropByPosNegLabeld(RandomizableTransform, MapTransform):
         image_threshold: float = 0.0,
         fg_indices_key: Optional[str] = None,
         bg_indices_key: Optional[str] = None,
+        meta_key_postfix: str = "meta_dict",
         allow_missing_keys: bool = False,
     ) -> None:
-        RandomizableTransform.__init__(self)
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.label_key = label_key
         self.spatial_size: Union[Tuple[int, ...], Sequence[int], int] = spatial_size
@@ -742,6 +761,7 @@ class RandCropByPosNegLabeld(RandomizableTransform, MapTransform):
         self.image_threshold = image_threshold
         self.fg_indices_key = fg_indices_key
         self.bg_indices_key = bg_indices_key
+        self.meta_key_postfix = meta_key_postfix
         self.centers: Optional[List[List[np.ndarray]]] = None
 
     def randomize(
@@ -765,8 +785,8 @@ class RandCropByPosNegLabeld(RandomizableTransform, MapTransform):
         d = dict(data)
         label = d[self.label_key]
         image = d[self.image_key] if self.image_key else None
-        fg_indices = d.get(self.fg_indices_key, None) if self.fg_indices_key is not None else None
-        bg_indices = d.get(self.bg_indices_key, None) if self.bg_indices_key is not None else None
+        fg_indices = d.get(self.fg_indices_key) if self.fg_indices_key is not None else None
+        bg_indices = d.get(self.bg_indices_key) if self.bg_indices_key is not None else None
 
         self.randomize(label, fg_indices, bg_indices, image)
         if not isinstance(self.spatial_size, tuple):
@@ -783,6 +803,12 @@ class RandCropByPosNegLabeld(RandomizableTransform, MapTransform):
             # fill in the extra keys with unmodified data
             for key in set(data.keys()).difference(set(self.keys)):
                 results[i][key] = data[key]
+            # add `patch_index` to the meta data
+            for key in self.key_iterator(d):
+                meta_data_key = f"{key}_{self.meta_key_postfix}"
+                if meta_data_key not in results[i]:
+                    results[i][meta_data_key] = {}  # type: ignore
+                results[i][meta_data_key][Key.PATCH_INDEX] = i
 
         return results
 

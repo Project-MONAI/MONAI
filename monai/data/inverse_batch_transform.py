@@ -36,7 +36,7 @@ class _BatchInverseDataset(Dataset):
         self.invertible_transform = transform
         self.pad_collation_used = pad_collation_used
 
-    def __getitem__(self, index: int) -> Dict[Hashable, np.ndarray]:
+    def _transform(self, index: int) -> Dict[Hashable, np.ndarray]:
         data = dict(self.data[index])
         # If pad collation was used, then we need to undo this first
         if self.pad_collation_used:

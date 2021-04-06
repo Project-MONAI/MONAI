@@ -10,6 +10,7 @@
 # limitations under the License.
 
 
+import collections.abc
 import math
 import pickle
 import sys
@@ -24,10 +25,10 @@ from typing import IO, TYPE_CHECKING, Any, Callable, Dict, List, Optional, Seque
 import numpy as np
 import torch
 from torch.utils.data import Dataset as _TorchDataset
+from torch.utils.data import Subset
 
 from monai.data.utils import first, pickle_hashing
 from monai.transforms import Compose, Randomizable, Transform, apply_transform
-from monai.transforms.transform import RandomizableTransform
 from monai.utils import MAX_SEED, get_seed, min_version, optional_import
 
 if TYPE_CHECKING:
@@ -44,6 +45,9 @@ class Dataset(_TorchDataset):
     """
     A generic dataset with a length property and an optional callable data transform
     when fetching a data sample.
+    If passing slicing indices, will return a PyTorch Subset, for example: `data: Subset = dataset[1:4]`,
+    for more details, please check: https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset
+
     For example, typical input data can be a list of dictionaries::
 
         [{                            {                            {
@@ -66,12 +70,26 @@ class Dataset(_TorchDataset):
     def __len__(self) -> int:
         return len(self.data)
 
-    def __getitem__(self, index: int):
-        data = self.data[index]
-        if self.transform is not None:
-            data = apply_transform(self.transform, data)
+    def _transform(self, index: int):
+        """
+        Fetch single data item from `self.data`.
+        """
+        data_i = self.data[index]
+        return apply_transform(self.transform, data_i) if self.transform is not None else data_i
 
-        return data
+    def __getitem__(self, index: Union[int, slice, Sequence[int]]):
+        """
+        Returns a `Subset` if `index` is a slice or Sequence, a data item otherwise.
+        """
+        if isinstance(index, slice):
+            # dataset[:42]
+            start, stop, step = index.indices(len(self))
+            indices = range(start, stop, step)
+            return Subset(dataset=self, indices=indices)
+        if isinstance(index, collections.abc.Sequence):
+            # dataset[[1, 3, 4]]
+            return Subset(dataset=self, indices=index)
+        return self._transform(index)
 
 
 class PersistentDataset(Dataset):
@@ -79,6 +97,8 @@ class PersistentDataset(Dataset):
     Persistent storage of pre-computed values to efficiently manage larger than memory dictionary format data,
     it can operate transforms for specific fields.  Results from the non-random transform components are computed
     when first used, and stored in the `cache_dir` for rapid retrieval on subsequent uses.
+    If passing slicing indices, will return a PyTorch Subset, for example: `data: Subset = dataset[1:4]`,
+    for more details, please check: https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset
 
     For example, typical input data can be a list of dictionaries::
 
@@ -161,7 +181,7 @@ class PersistentDataset(Dataset):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
         for _transform in self.transform.transforms:
             # execute all the deterministic transforms
-            if isinstance(_transform, RandomizableTransform) or not isinstance(_transform, Transform):
+            if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
                 break
             item_transformed = apply_transform(_transform, item_transformed)
         return item_transformed
@@ -183,7 +203,7 @@ class PersistentDataset(Dataset):
         for _transform in self.transform.transforms:
             if (
                 start_post_randomize_run
-                or isinstance(_transform, RandomizableTransform)
+                or isinstance(_transform, Randomizable)
                 or not isinstance(_transform, Transform)
             ):
                 start_post_randomize_run = True
@@ -228,7 +248,7 @@ class PersistentDataset(Dataset):
             temp_hash_file.rename(hashfile)
         return _item_transformed
 
-    def __getitem__(self, index: int):
+    def _transform(self, index: int):
         pre_random_item = self._cachecheck(self.data[index])
         return self._post_transform(pre_random_item)
 
@@ -446,6 +466,8 @@ class CacheDataset(Dataset):
 
     To improve the caching efficiency, please always put as many as possible non-random transforms
     before the randomized ones when composing the chain of transforms.
+    If passing slicing indices, will return a PyTorch Subset, for example: `data: Subset = dataset[1:4]`,
+    for more details, please check: https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset
 
     For example, if the transform is a `Compose` of::
 
@@ -524,15 +546,15 @@ class CacheDataset(Dataset):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
         for _transform in self.transform.transforms:
             # execute all the deterministic transforms
-            if isinstance(_transform, RandomizableTransform) or not isinstance(_transform, Transform):
+            if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
                 break
             item = apply_transform(_transform, item)
         return item
 
-    def __getitem__(self, index):
-        if index >= self.cache_num:
+    def _transform(self, index: int):
+        if index % len(self) >= self.cache_num:  # support negative index
             # no cache for this index, execute all the transforms directly
-            return super(CacheDataset, self).__getitem__(index)
+            return super()._transform(index)
         # load data from cache and execute from the first random transform
         start_run = False
         if self._cache is None:
@@ -541,7 +563,7 @@ class CacheDataset(Dataset):
         if not isinstance(self.transform, Compose):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
         for _transform in self.transform.transforms:
-            if start_run or isinstance(_transform, RandomizableTransform) or not isinstance(_transform, Transform):
+            if start_run or isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
                 start_run = True
                 data = apply_transform(_transform, data)
         return data
@@ -561,6 +583,8 @@ class SmartCacheDataset(Randomizable, CacheDataset):
     where r is the configured replace rate).
     For more details, please refer to:
     https://docs.nvidia.com/clara/tlt-mi/clara-train-sdk-v3.0/nvmidl/additional_features/smart_cache.html#smart-cache
+    If passing slicing indices, will return a PyTorch Subset, for example: `data: Subset = dataset[1:4]`,
+    for more details, please check: https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset
 
     For example, if we have 5 images: `[image1, image2, image3, image4, image5]`, and `cache_num=4`, `replace_rate=0.25`.
     so the actual training images cached and replaced for every epoch are as below::
@@ -582,6 +606,24 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         This replacement will not work if setting the `multiprocessing_context` of DataLoader to `spawn`
         or on windows(the default multiprocessing method is `spawn`) and setting `num_workers` greater than 0.
 
+        If using MONAI workflows, please add `SmartCacheHandler` to the handler list of trainer,
+        otherwise, please make sure to call `start()`, `update_cache()`, `shutdown()` during training.
+
+    Args:
+        data: input data to load and transform to generate dataset for model.
+        transform: transforms to execute operations on input data.
+        replace_rate: percentage of the cached items to be replaced in every epoch.
+        cache_num: number of items to be cached. Default is `sys.maxsize`.
+            will take the minimum of (cache_num, data_length x cache_rate, data_length).
+        cache_rate: percentage of cached data in total, default is 1.0 (cache all).
+            will take the minimum of (cache_num, data_length x cache_rate, data_length).
+        num_init_workers: the number of worker threads to initialize the cache for first epoch.
+            If num_init_workers is None then the number returned by os.cpu_count() is used.
+        num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
+            If num_replace_workers is None then the number returned by os.cpu_count() is used.
+        progress: whether to display a progress bar when caching for the first epoch.
+        shuffle: whether to shuffle the whole data list before preparing the cache content for first epoch.
+        seed: random seed if shuffle is `True`, default to `0`.
     """
 
     def __init__(
@@ -597,24 +639,6 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         shuffle: bool = True,
         seed: int = 0,
     ) -> None:
-        """
-        Args:
-            data: input data to load and transform to generate dataset for model.
-            transform: transforms to execute operations on input data.
-            replace_rate: percentage of the cached items to be replaced in every epoch.
-            cache_num: number of items to be cached. Default is `sys.maxsize`.
-                will take the minimum of (cache_num, data_length x cache_rate, data_length).
-            cache_rate: percentage of cached data in total, default is 1.0 (cache all).
-                will take the minimum of (cache_num, data_length x cache_rate, data_length).
-            num_init_workers: the number of worker threads to initialize the cache for first epoch.
-                If num_init_workers is None then the number returned by os.cpu_count() is used.
-            num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
-                If num_replace_workers is None then the number returned by os.cpu_count() is used.
-            progress: whether to display a progress bar when caching for the first epoch.
-            shuffle: whether to shuffle the whole data list before preparing the cache content for first epoch.
-            seed: random seed if shuffle is `True`, default to `0`.
-
-        """
         if shuffle:
             self.set_random_state(seed=seed)
             self.randomize(data)
@@ -803,18 +827,6 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         """
         return self.cache_num
 
-    def __getitem__(self, index):
-        """
-        Raise exception if didn't call the expected APIs in SmartCacheDataset.
-
-        """
-        if not self.is_started():
-            raise RuntimeError(
-                "if using MONAI workflows, please add `SmartCacheHandler` to the handler list of trainer,"
-                "otherwise, please make sure to call `start()`, `update_cache()`, `shutdown()` during training."
-            )
-        return super().__getitem__(index)
-
 
 class ZipDataset(Dataset):
     """
@@ -824,6 +836,8 @@ class ZipDataset(Dataset):
     finally return (img, imgmeta, seg, segmeta).
     And if the datasets don't have same length, use the minimum length of them as the length
     of ZipDataset.
+    If passing slicing indices, will return a PyTorch Subset, for example: `data: Subset = dataset[1:4]`,
+    for more details, please check: https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset
 
     Examples::
 
@@ -848,7 +862,7 @@ class ZipDataset(Dataset):
     def __len__(self) -> int:
         return min((len(dataset) for dataset in self.data))
 
-    def __getitem__(self, index: int):
+    def _transform(self, index: int):
         def to_list(x):
             return list(x) if isinstance(x, (tuple, list)) else [x]
 
@@ -952,10 +966,10 @@ class ArrayDataset(Randomizable, _TorchDataset):
             # set transforms of each zip component
             for dataset in self.dataset.data:
                 transform = getattr(dataset, "transform", None)
-                if isinstance(transform, RandomizableTransform):
+                if isinstance(transform, Randomizable):
                     transform.set_random_state(seed=self._seed)
         transform = getattr(self.dataset, "transform", None)
-        if isinstance(transform, RandomizableTransform):
+        if isinstance(transform, Randomizable):
             transform.set_random_state(seed=self._seed)
         return self.dataset[index]
 
@@ -965,6 +979,8 @@ class NPZDictItemDataset(Dataset):
     Represents a dataset from a loaded NPZ file. The members of the file to load are named in the keys of `keys` and
     stored under the keyed name. All loaded arrays must have the same 0-dimension (batch) size. Items are always dicts
     mapping names to an item extracted from the loaded arrays.
+    If passing slicing indices, will return a PyTorch Subset, for example: `data: Subset = dataset[1:4]`,
+    for more details, please check: https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset
 
     Args:
         npzfile: Path to .npz file or stream containing .npz file data
@@ -1001,7 +1017,7 @@ class NPZDictItemDataset(Dataset):
     def __len__(self):
         return self.length
 
-    def __getitem__(self, index: int):
+    def _transform(self, index: int):
         data = {k: v[index] for k, v in self.arrays.items()}
 
         if self.transform is not None:

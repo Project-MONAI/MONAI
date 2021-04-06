@@ -159,6 +159,8 @@ jobs:
         ref: master
     - name: docker_build
       run: |
+        # get tag info for versioning
+        git fetch --depth=1 origin +refs/tags/*:refs/tags/*
         # build and run original docker image for local registry
         docker build -t localhost:5000/local_monai:latest -f Dockerfile .
         docker push localhost:5000/local_monai:latest

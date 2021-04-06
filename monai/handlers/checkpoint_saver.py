@@ -17,7 +17,6 @@ from monai.utils import exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
 Checkpoint, _ = optional_import("ignite.handlers", "0.4.4", exact_version, "Checkpoint")
-BaseSaveHandler, _ = optional_import("ignite.handlers.checkpoint", "0.4.4", exact_version, "BaseSaveHandler")
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
@@ -116,7 +115,9 @@ class CheckpointSaver:
             """
 
             def __init__(self, dirname: str, filename: Optional[str] = None):
-                super().__init__(dirname=dirname, require_empty=False)
+                # set `atomic=False` as `atomic=True` only gives read/write permission to the user who saved the file,
+                # without group/others read permission
+                super().__init__(dirname=dirname, require_empty=False, atomic=False)
                 self.filename = filename
 
             def __call__(self, checkpoint: Dict, filename: str, metadata: Optional[Dict] = None) -> None:

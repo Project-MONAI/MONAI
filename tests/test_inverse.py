@@ -491,7 +491,10 @@ class TestInverse(unittest.TestCase):
             unmodified = unmodified_d[key]
             if isinstance(orig, np.ndarray):
                 mean_diff = np.mean(np.abs(orig - fwd_bck))
-                unmodded_diff = np.mean(np.abs(orig - ResizeWithPadOrCrop(orig.shape[1:])(unmodified)))
+                resized = ResizeWithPadOrCrop(orig.shape[1:])(unmodified)
+                if isinstance(resized, torch.Tensor):
+                    resized = resized.detach().cpu().numpy()
+                unmodded_diff = np.mean(np.abs(orig - resized))
                 try:
                     self.assertLessEqual(mean_diff, acceptable_diff)
                 except AssertionError:

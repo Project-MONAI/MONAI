@@ -1,3 +1,14 @@
+# Copyright 2020 - 2021 MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import unittest
 
 import numpy as np
@@ -5,6 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
+from monai.networks.blocks import Warp
 from monai.networks.nets import GlobalNet
 from monai.networks.nets.regunet import AffineHead
 from tests.utils import test_script_save
@@ -64,9 +76,14 @@ class TestGlobalNet(unittest.TestCase):
     @parameterized.expand(TEST_CASES_GLOBAL_NET)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = GlobalNet(**input_param).to(device)
+        warp_layer = Warp()
         with eval_mode(net):
-            result = net(torch.randn(input_shape).to(device))
+            img = torch.randn(input_shape)
+            result = net(img.to(device))
+            warped = warp_layer(img.to(device), result)
             self.assertEqual(result.shape, expected_shape)
+            # testing initial pred identity
+            np.testing.assert_allclose(warped.detach().cpu().numpy(), img.detach().cpu().numpy(), rtol=1e-4, atol=1e-4)
 
     def test_script(self):
         input_param, input_shape, _ = TEST_CASES_GLOBAL_NET[0]
