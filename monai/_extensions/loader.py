@@ -27,7 +27,7 @@ def load_module(module_name, defines=None, verbose_build=False):
 
     Args:
     module_name: Name of the module to load. Must match the name of the relevant source directory in the _extensions directory.
-    defines: Dictionary containing names and values of compilation defines
+    defines: Dictionary containing names and values of compilation defines.
     verbose_build: Set to true to enable build logging.
     """
 
@@ -38,6 +38,7 @@ def load_module(module_name, defines=None, verbose_build=False):
     # Naming build.
     build_tag = "" if defines is None else "_".join(str(v) for v in defines.values())
     build_name = "build" if build_tag == "" else f"build_{build_tag}"
+    module_name = module_name if build_tag == "" else f"{module_name}_{build_tag}"
     build_dir = path.join(module_dir, "build", build_name)
 
     # Ensuring build directory exists.
