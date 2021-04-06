@@ -48,7 +48,7 @@ class TestHandlerParameterScheduler(unittest.TestCase):
             event=Events.EPOCH_COMPLETED,
         ).attach(engine)
         engine.run([0] * 8, max_epochs=2)
-        torch.testing.assert_allclose(net.get_value(), 3.33333333)
+        torch.testing.assert_allclose(net.get_value(), 3.33, atol=0.001)
 
         # Testing max_value
         net = ToyNet(value=-1)
