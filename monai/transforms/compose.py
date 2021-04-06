@@ -32,7 +32,7 @@ from monai.utils import MAX_SEED, ensure_tuple, get_seed
 __all__ = ["Compose"]
 
 
-class Compose(RandomizableTransform, InvertibleTransform):
+class Compose(Randomizable, InvertibleTransform):
     """
     ``Compose`` provides the ability to chain a series of calls together in a
     sequence. Each transform in the sequence must take a single argument and
@@ -102,14 +102,14 @@ class Compose(RandomizableTransform, InvertibleTransform):
     def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None) -> "Compose":
         super().set_random_state(seed=seed, state=state)
         for _transform in self.transforms:
-            if not isinstance(_transform, RandomizableTransform):
+            if not isinstance(_transform, Randomizable):
                 continue
             _transform.set_random_state(seed=self.R.randint(MAX_SEED, dtype="uint32"))
         return self
 
     def randomize(self, data: Optional[Any] = None) -> None:
         for _transform in self.transforms:
-            if not isinstance(_transform, RandomizableTransform):
+            if not isinstance(_transform, Randomizable):
                 continue
             try:
                 _transform.randomize(data)

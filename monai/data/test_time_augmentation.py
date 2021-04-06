@@ -20,7 +20,7 @@ from monai.data.inverse_batch_transform import BatchInverseTransform
 from monai.data.utils import list_data_collate, pad_list_data_collate
 from monai.transforms.compose import Compose
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.transform import RandomizableTransform
+from monai.transforms.transform import Randomizable
 from monai.transforms.utils import allow_missing_keys_mode
 from monai.utils.enums import CommonKeys, InverseKeys
 
@@ -47,7 +47,7 @@ class TestTimeAugmentation:
 
     Args:
         transform: transform (or composed) to be applied to each realisation. At least one transform must be of type
-            `RandomizableTransform`. All random transforms must be of type `InvertibleTransform`.
+            `Randomizable`. All random transforms must be of type `InvertibleTransform`.
         batch_size: number of realisations to infer at once.
         num_workers: how many subprocesses to use for data.
         inferrer_fn: function to use to perform inference.
@@ -96,7 +96,7 @@ class TestTimeAugmentation:
     def _check_transforms(self):
         """Should be at least 1 random transform, and all random transforms should be invertible."""
         ts = [self.transform] if not isinstance(self.transform, Compose) else self.transform.transforms
-        randoms = np.array([isinstance(t, RandomizableTransform) for t in ts])
+        randoms = np.array([isinstance(t, Randomizable) for t in ts])
         invertibles = np.array([isinstance(t, InvertibleTransform) for t in ts])
         # check at least 1 random
         if sum(randoms) == 0:
