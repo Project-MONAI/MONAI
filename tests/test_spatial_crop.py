@@ -40,6 +40,15 @@ TEST_CASES = [
         (3, 3, 3, 3),
         (3, 0, 3, 3),
     ],
+    [
+        {"roi_slices": [slice(s, e) for s, e in zip([-1, -2, 0], [None, None, 2])]},
+        (3, 3, 3, 3),
+        (3, 1, 2, 2),
+    ],
+]
+
+TEST_ERRORS = [
+    [{"roi_slices": [slice(s, e, 2) for s, e in zip([-1, -2, 0], [None, None, 2])]}],
 ]
 
 
@@ -55,6 +64,11 @@ class TestSpatialCrop(unittest.TestCase):
         input_data = torch.randint(0, 2, size=input_shape, device="cuda" if torch.cuda.is_available() else "cpu")
         result = SpatialCrop(**input_param)(input_data)
         self.assertTupleEqual(result.shape, expected_shape)
+
+    @parameterized.expand(TEST_ERRORS)
+    def test_error(self, input_param):
+        with self.assertRaises(ValueError):
+            SpatialCrop(**input_param)
 
 
 if __name__ == "__main__":
