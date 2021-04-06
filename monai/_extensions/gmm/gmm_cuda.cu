@@ -18,6 +18,7 @@ limitations under the License.
 
 #include "gmm_cuda_linalg.cuh"
 
+#define EPSILON 1e-5
 #define BLOCK_SIZE 32
 #define TILE(SIZE, STRIDE) ((((SIZE) - 1)/(STRIDE)) + 1)
 
@@ -66,7 +67,7 @@ __global__ void CovarianceReductionKernel(int gaussian_index, const float* g_ima
 
                     for (int i = 0; i < CHANNEL_COUNT; i++)
                     {
-                        feature[i + 1] = g_batch_image[global_index + i * element_count] * 255;
+                        feature[i + 1] = g_batch_image[global_index + i * element_count];
                     }
 
                     for (int index = 0, i = 0; i < CHANNEL_COUNT + 1; i++)
@@ -176,11 +177,6 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
                 {
                     float constant = i == 0 ? 0.0f : s_gmm[i] * s_gmm[j];
 
-                    if (i != 0 && i == j)
-                    {
-                        constant += 1.0e-3f;
-                    }
-
                     s_gmm[index] = norm_factor * matrix_component - constant;
 
                     if (index == 0 && matrix_component > 0)
@@ -250,80 +246,10 @@ __global__ void GMMcommonTerm(float *g_gmm)
 
     if (threadIdx.x < MIXTURE_SIZE)
     {
-        float det = g_batch_gmm[gmm_index * GMM_COMPONENT_COUNT + MATRIX_COMPONENT_COUNT];
-        float commonTerm =  gmm_n / (sqrtf(det) * sum);
+        float det = g_batch_gmm[gmm_index * GMM_COMPONENT_COUNT + MATRIX_COMPONENT_COUNT] + EPSILON;
+        float commonTerm = det > 0.0f ? gmm_n / (sqrtf(det) * sum) : gmm_n / sum;
 
         g_batch_gmm[gmm_index * GMM_COMPONENT_COUNT + MATRIX_COMPONENT_COUNT] = commonTerm;
-    }
-}
-
-__device__ float GMMTerm(float* feature, const float *gmm)
-{
-    const float* average_feature = gmm + 1;
-    const float* matrix = gmm + CHANNEL_COUNT + 1;
-
-    float diff[CHANNEL_COUNT];
-
-    for (int i = 0; i < CHANNEL_COUNT; i++)
-    {
-        diff[i] = feature[i] - average_feature[i];
-    }
-
-    float value = 0.0f;
-
-    for (int index = 0, i = 0; i < CHANNEL_COUNT; i++)
-    {
-        for (int j = i; j < CHANNEL_COUNT; j++, index++)
-        {
-            float term = diff[i] * diff[j] * matrix[index];
-
-            value += i == j ? term : 2 * term;
-        }
-    }
-
-    return gmm[MATRIX_COMPONENT_COUNT] * expf(-0.5f * value);
-}
-
-__global__ void GMMDataTermKernel(const float *image, const float *gmm, float* output, int element_count)
-{
-    int batch_index = blockIdx.z;
-
-    const float* g_batch_image = image + batch_index * element_count * CHANNEL_COUNT;
-    const float* g_batch_gmm = gmm + batch_index * GMM_COUNT * GMM_COMPONENT_COUNT;
-    float* g_batch_output = output + batch_index * element_count * MIXTURE_COUNT;
-
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
-
-    if (index >= element_count) return;
-
-    float feature[CHANNEL_COUNT];
-
-    for (int i = 0; i < CHANNEL_COUNT; i++)
-    {
-        feature[i] = g_batch_image[index + i * element_count] * 255;
-    }
-
-    float weights[MIXTURE_COUNT];
-    float weight_total = 0.0f;
-
-    for(int i = 0; i < MIXTURE_COUNT; i++)
-    {
-        float mixture_weight = 0.0f;
-
-        for(int j = 0; j < MIXTURE_SIZE; j++)
-        {
-            mixture_weight += GMMTerm(feature, &g_batch_gmm[(MIXTURE_COUNT * j + i) * GMM_COMPONENT_COUNT]);
-        }
-
-        weights[i] = mixture_weight;
-        weight_total += mixture_weight;
-    }
-
-    for(int i = 0; i < MIXTURE_COUNT; i++)
-    {
-        // protecting against pixels with 0 in all mixtures
-        float final_weight = weight_total > 0.0f ? weights[i] / weight_total : 0.0f;
-        g_batch_output[index + i * element_count] = final_weight;
     }
 }
 
@@ -423,7 +349,7 @@ __global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, const float *image
 
                     for (int i = 0; i < CHANNEL_COUNT; i++)
                     {
-                        feature[i] = g_batch_image[index + i * element_count] * 255;
+                        feature[i] = g_batch_image[index + i * element_count];
                     }
                     
                     float value = scalar_prod(s_gmmSplit[select].eigenvector, feature);
@@ -436,6 +362,76 @@ __global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, const float *image
                 }
             }
         }
+    }
+}
+
+__device__ float GMMTerm(float* feature, const float *gmm)
+{
+    const float* average_feature = gmm + 1;
+    const float* matrix = gmm + CHANNEL_COUNT + 1;
+
+    float diff[CHANNEL_COUNT];
+
+    for (int i = 0; i < CHANNEL_COUNT; i++)
+    {
+        diff[i] = feature[i] - average_feature[i];
+    }
+
+    float value = 0.0f;
+
+    for (int index = 0, i = 0; i < CHANNEL_COUNT; i++)
+    {
+        for (int j = i; j < CHANNEL_COUNT; j++, index++)
+        {
+            float term = diff[i] * diff[j] * matrix[index];
+
+            value += i == j ? term : 2 * term;
+        }
+    }
+
+    return gmm[MATRIX_COMPONENT_COUNT] * expf(-0.5 * value);
+}
+
+__global__ void GMMDataTermKernel(const float *image, const float *gmm, float* output, int element_count)
+{
+    int batch_index = blockIdx.z;
+
+    const float* g_batch_image = image + batch_index * element_count * CHANNEL_COUNT;
+    const float* g_batch_gmm = gmm + batch_index * GMM_COUNT * GMM_COMPONENT_COUNT;
+    float* g_batch_output = output + batch_index * element_count * MIXTURE_COUNT;
+
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (index >= element_count) return;
+
+    float feature[CHANNEL_COUNT];
+
+    for (int i = 0; i < CHANNEL_COUNT; i++)
+    {
+        feature[i] = g_batch_image[index + i * element_count];
+    }
+
+    float weights[MIXTURE_COUNT];
+    float weight_total = 0.0f;
+
+    for(int i = 0; i < MIXTURE_COUNT; i++)
+    {
+        float mixture_weight = 0.0f;
+
+        for(int j = 0; j < MIXTURE_SIZE; j++)
+        {
+            mixture_weight += GMMTerm(feature, &g_batch_gmm[(MIXTURE_COUNT * j + i) * GMM_COMPONENT_COUNT]);
+        }
+
+        weights[i] = mixture_weight;
+        weight_total += mixture_weight;
+    }
+
+    for(int i = 0; i < MIXTURE_COUNT; i++)
+    {
+        // protecting against pixels with 0 in all mixtures
+        float final_weight = weight_total > 0.0f ? weights[i] / weight_total : 0.0f;
+        g_batch_output[index + i * element_count] = final_weight;
     }
 }
 
