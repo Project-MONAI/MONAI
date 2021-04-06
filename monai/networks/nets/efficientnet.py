@@ -14,7 +14,7 @@ import math
 import operator
 import re
 from functools import reduce
-from typing import List, Type, Union
+from typing import List, Tuple, Type, Union
 
 import torch
 from torch import nn
@@ -22,18 +22,18 @@ from torch.utils import model_zoo
 
 from monai.networks.layers.factories import Act, Conv, Norm, Pad, Pool
 
-__all__ = ["EfficientNetBN", "get_efficientnet_image_size"]
+__all__ = ["EfficientNetBN", "get_efficientnet_image_size", "drop_connect"]
 
 efficientnet_params = {
-    # model_name: (width_mult, depth_mult, image_size, dropout_rate)
-    "efficientnet-b0": (1.0, 1.0, 224, 0.2),
-    "efficientnet-b1": (1.0, 1.1, 240, 0.2),
-    "efficientnet-b2": (1.1, 1.2, 260, 0.3),
-    "efficientnet-b3": (1.2, 1.4, 300, 0.3),
-    "efficientnet-b4": (1.4, 1.8, 380, 0.4),
-    "efficientnet-b5": (1.6, 2.2, 456, 0.4),
-    "efficientnet-b6": (1.8, 2.6, 528, 0.5),
-    "efficientnet-b7": (2.0, 3.1, 600, 0.5),
+    # model_name: (width_mult, depth_mult, image_size, dropout_rate, dropconnect_rate)
+    "efficientnet-b0": (1.0, 1.0, 224, 0.2, 0.2),
+    "efficientnet-b1": (1.0, 1.1, 240, 0.2, 0.2),
+    "efficientnet-b2": (1.1, 1.2, 260, 0.3, 0.2),
+    "efficientnet-b3": (1.2, 1.4, 300, 0.3, 0.2),
+    "efficientnet-b4": (1.4, 1.8, 380, 0.4, 0.2),
+    "efficientnet-b5": (1.6, 2.2, 456, 0.4, 0.2),
+    "efficientnet-b6": (1.8, 2.6, 528, 0.5, 0.2),
+    "efficientnet-b7": (2.0, 3.1, 600, 0.5, 0.2),
 }
 
 
@@ -44,7 +44,7 @@ class MBConvBlock(nn.Module):
         in_channels: int,
         out_channels: int,
         kernel_size: int,
-        stride: List[int],
+        stride: Union[int, Tuple[int]],
         image_size: List[int],
         expand_ratio: int,
         se_ratio: float,
@@ -80,11 +80,9 @@ class MBConvBlock(nn.Module):
 
         # select the type of N-Dimensional layers to use
         # these are based on spatial dims and selected from MONAI factories
-        conv_type: Type[Union[nn.Conv1d, nn.Conv2d, nn.Conv3d]] = Conv["conv", spatial_dims]
-        batchnorm_type: Type[Union[nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d]] = Norm["batch", spatial_dims]
-        adaptivepool_type: Type[Union[nn.AdaptiveAvgPool1d, nn.AdaptiveAvgPool2d, nn.AdaptiveAvgPool3d]] = Pool[
-            "adaptiveavg", spatial_dims
-        ]
+        conv_type = Conv["conv", spatial_dims]
+        batchnorm_type = Norm["batch", spatial_dims]
+        adaptivepool_type = Pool["adaptiveavg", spatial_dims]
 
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -107,7 +105,7 @@ class MBConvBlock(nn.Module):
             self._bn0 = batchnorm_type(num_features=oup, momentum=bn_mom, eps=bn_eps)
         else:
             # need to have the following to fix JIT error:
-            # Module 'MBConvBlock' has no attribute '_expand_conv'
+            #   "Module 'MBConvBlock' has no attribute '_expand_conv'"
 
             # FIXME: find a better way to bypass JIT error
             self._expand_conv = nn.Identity()
@@ -132,9 +130,9 @@ class MBConvBlock(nn.Module):
             self._se_adaptpool = adaptivepool_type(1)
             num_squeezed_channels = max(1, int(in_channels * se_ratio))
             self._se_reduce = conv_type(in_channels=oup, out_channels=num_squeezed_channels, kernel_size=1)
-            self._se_reduce_padding = _make_same_padder(self._se_reduce, (1, 1))
+            self._se_reduce_padding = _make_same_padder(self._se_reduce, [1, 1])
             self._se_expand = conv_type(in_channels=num_squeezed_channels, out_channels=oup, kernel_size=1)
-            self._se_expand_padding = _make_same_padder(self._se_expand, (1, 1))
+            self._se_expand_padding = _make_same_padder(self._se_expand, [1, 1])
 
         # Pointwise convolution phase
         final_oup = out_channels
@@ -180,10 +178,10 @@ class MBConvBlock(nn.Module):
         input_filters, output_filters = self.in_channels, self.out_channels
 
         # stride needs to be a list
-        is_stride_one = all([s == 1 for s in self.stride])
+        is_stride_one = self.stride == 1 if isinstance(self.stride, int) else all([s == 1 for s in self.stride])
 
         if self.id_skip and is_stride_one and input_filters == output_filters:
-            # The combination of skip connection and drop connect brings about stochastic depth.
+            # the combination of skip connection and drop connect brings about stochastic depth.
             if self.drop_connect_rate:
                 x = drop_connect(x, p=self.drop_connect_rate, training=self.training)
             x = x + inputs  # skip connection
@@ -255,7 +253,7 @@ class EfficientNet(nn.Module):
         super().__init__()
 
         if spatial_dims not in (1, 2, 3):
-            raise AssertionError("spatial_dims can only be 1, 2 or 3.")
+            raise ValueError("spatial_dims can only be 1, 2 or 3.")
 
         # select the type of N-Dimensional layers to use
         # these are based on spatial dims and selected from MONAI factories
@@ -269,33 +267,37 @@ class EfficientNet(nn.Module):
         blocks_args = _decode_block_list(blocks_args_str)
 
         # checks for successful decoding of blocks_args_str
-        assert isinstance(blocks_args, list), "blocks_args should be a list"
-        assert len(blocks_args) > 0, "block args must be greater than 0"
+        if not isinstance(blocks_args, list):
+            raise ValueError("blocks_args should be a list")
+
+        if len(blocks_args) < 1:
+            raise ValueError("block args must be greater than 0")
 
         self._blocks_args = blocks_args
         self.num_classes = num_classes
         self.in_channels = in_channels
+        self.drop_connect_rate = drop_connect_rate
 
         # expand input image dimensions to list
         current_image_size = [image_size] * spatial_dims
 
-        # Parameters for batch norm
+        # parameters for batch norm
         bn_mom = 1 - batch_norm_momentum  # 1 - bn_m to convert tensorflow's arg to pytorch bn compatible
         bn_eps = batch_norm_epsilon
 
         # Stem
-        stride = [2]
+        stride = 2
         out_channels = _round_filters(32, width_coefficient, depth_divisor)  # number of output channels
         self._conv_stem = conv_type(self.in_channels, out_channels, kernel_size=3, stride=stride, bias=False)
         self._conv_stem_padding = _make_same_padder(self._conv_stem, current_image_size)
         self._bn0 = batchnorm_type(num_features=out_channels, momentum=bn_mom, eps=bn_eps)
         current_image_size = _calculate_output_image_size(current_image_size, stride)
 
-        # Build MBConv blocks
+        # build MBConv blocks
         self._blocks = nn.Sequential()
         num_blocks = 0
 
-        # Update block input and output filters based on depth multiplier.
+        # update block input and output filters based on depth multiplier.
         for idx, block_args in enumerate(self._blocks_args):
             block_args = block_args._replace(
                 input_filters=_round_filters(block_args.input_filters, width_coefficient, depth_divisor),
@@ -307,15 +309,15 @@ class EfficientNet(nn.Module):
             # calculate the total number of blocks - needed for drop_connect estimation
             num_blocks += block_args.num_repeat
 
-        # Create and add MBConvBlocks to self._blocks
+        # create and add MBConvBlocks to self._blocks
         idx = 0  # block index counter
         for block_args in self._blocks_args:
 
-            drop_connect_rate = drop_connect_rate
-            if drop_connect_rate:
-                drop_connect_rate *= float(idx) / num_blocks  # scale drop connect_rate
+            blk_drop_connect_rate = self.drop_connect_rate
+            if blk_drop_connect_rate:
+                blk_drop_connect_rate *= float(idx) / num_blocks  # scale drop connect_rate
 
-            # The first block needs to take care of stride and filter size increase.
+            # the first block needs to take care of stride and filter size increase.
             self._blocks.add_module(
                 str(idx),
                 MBConvBlock(
@@ -330,20 +332,21 @@ class EfficientNet(nn.Module):
                     block_args.id_skip,
                     batch_norm_momentum,
                     batch_norm_epsilon,
-                    drop_connect_rate=drop_connect_rate,
+                    drop_connect_rate=blk_drop_connect_rate,
                 ),
             )
             idx += 1  # increment blocks index counter
 
             current_image_size = _calculate_output_image_size(current_image_size, block_args.stride)
             if block_args.num_repeat > 1:  # modify block_args to keep same output size
-                block_args = block_args._replace(input_filters=block_args.output_filters, stride=[1])
+                block_args = block_args._replace(input_filters=block_args.output_filters, stride=1)
 
-            # Repeat block for num_repeat required
+            # repeat block for num_repeat required
             for _ in range(block_args.num_repeat - 1):
-                drop_connect_rate = drop_connect_rate
-                if drop_connect_rate:
-                    drop_connect_rate *= float(idx) / num_blocks  # scale drop connect_rate
+                blk_drop_connect_rate = self.drop_connect_rate
+                if blk_drop_connect_rate:
+                    blk_drop_connect_rate *= float(idx) / num_blocks  # scale drop connect_rate
+
                 self._blocks.add_module(
                     str(idx),
                     MBConvBlock(
@@ -358,13 +361,14 @@ class EfficientNet(nn.Module):
                         block_args.id_skip,
                         batch_norm_momentum,
                         batch_norm_epsilon,
-                        drop_connect_rate=drop_connect_rate,
+                        drop_connect_rate=blk_drop_connect_rate,
                     ),
                 )
                 idx += 1  # increment blocks index counter
 
-        # Sanity check to see if len(self._blocks) equal expected num_blocks
-        assert len(self._blocks) == num_blocks
+        # sanity check to see if len(self._blocks) equal expected num_blocks
+        if len(self._blocks) != num_blocks:
+            raise ValueError("number of blocks created != num_blocks")
 
         # Head
         head_in_channels = block_args.output_filters
@@ -373,7 +377,7 @@ class EfficientNet(nn.Module):
         self._conv_head_padding = _make_same_padder(self._conv_head, current_image_size)
         self._bn1 = batchnorm_type(num_features=out_channels, momentum=bn_mom, eps=bn_eps)
 
-        # Final linear layer
+        # final linear layer
         self._avg_pooling = adaptivepool_type(1)
         self._dropout = nn.Dropout(dropout_rate)
         self._fc = nn.Linear(out_channels, self.num_classes)
@@ -407,7 +411,6 @@ class EfficientNet(nn.Module):
             A torch Tensor of classification prediction in shape
             ``(Batch, num_classes)``.
         """
-        # Convolution layers
         # Stem
         x = self._conv_stem(self._conv_stem_padding(inputs))
         x = self._swish(self._bn0(x))
@@ -486,12 +489,15 @@ class EfficientNetBN(EfficientNet):
             "r4_k5_s22_e6_i112_o192_se0.25",
             "r1_k3_s11_e6_i192_o320_se0.25",
         ]
-        assert model_name in efficientnet_params.keys(), "model_name should be one of {} ".format(
-            ", ".join(efficientnet_params.keys())
-        )
+        if model_name not in efficientnet_params.keys():
+            raise ValueError(
+                "invalid model_name {} found, should be one of {} ".format(
+                    model_name, ", ".join(efficientnet_params.keys())
+                )
+            )
 
         # get network parameters
-        wc, dc, isize, dr = efficientnet_params[model_name]
+        wc, dc, isize, dout_r, dconnect_r = efficientnet_params[model_name]
 
         # create model and initialize random weights
         model = super(EfficientNetBN, self).__init__(
@@ -501,8 +507,9 @@ class EfficientNetBN(EfficientNet):
             num_classes=num_classes,
             width_coefficient=wc,
             depth_coefficient=dc,
-            dropout_rate=dr,
+            dropout_rate=dout_r,
             image_size=isize,
+            drop_connect_rate=dconnect_r,
         )
 
         # attempt to load pretrained
@@ -539,17 +546,17 @@ def _load_state_dict(model: nn.Module, model_name: str, progress: bool, load_fc:
 
     if load_fc:
         ret = model.load_state_dict(state_dict, strict=False)
-        assert not ret.missing_keys, "Missing keys when loading pretrained weights: {}".format(ret.missing_keys)
+        if ret.missing_keys:
+            raise ValueError("Found missing keys when loading pretrained weights: {}".format(ret.missing_keys))
     else:
         state_dict.pop("_fc.weight")
         state_dict.pop("_fc.bias")
         ret = model.load_state_dict(state_dict, strict=False)
-        assert set(ret.missing_keys) == {
-            "_fc.weight",
-            "_fc.bias",
-        }, "Missing keys when loading pretrained weights: {}".format(ret.missing_keys)
+        if set(ret.missing_keys) != {"_fc.weight", "_fc.bias"}:
+            raise ValueError("Found missing keys when loading pretrained weights: {}".format(ret.missing_keys))
 
-    assert not ret.unexpected_keys, "Missing keys when loading pretrained weights: {}".format(ret.unexpected_keys)
+    if ret.unexpected_keys:
+        raise ValueError("Missing keys when loading pretrained weights: {}".format(ret.unexpected_keys))
 
 
 def get_efficientnet_image_size(model_name: str) -> int:
@@ -563,10 +570,14 @@ def get_efficientnet_image_size(model_name: str) -> int:
         Image size for single spatial dimension as integer.
 
     """
-    assert model_name in efficientnet_params.keys(), "model_name should be one of {} ".format(
-        ", ".join(efficientnet_params.keys())
-    )
-    _, _, res, _ = efficientnet_params[model_name]
+    if model_name not in efficientnet_params.keys():
+        raise ValueError(
+            "invalid model_name {} found, should be one of {} ".format(
+                model_name, ", ".join(efficientnet_params.keys())
+            )
+        )
+
+    _, _, res, _, _ = efficientnet_params[model_name]
     return res
 
 
@@ -629,17 +640,20 @@ def drop_connect(inputs: torch.Tensor, p: float, training: bool) -> torch.Tensor
     Returns:
         output: output tensor after applying drop connection.
     """
-    assert 0 <= p <= 1, "p must be in range of [0,1]"
+    if p < 0 or p > 1:
+        raise ValueError("p must be in range of [0, 1], found {}".format(p))
 
     if not training:
         return inputs
 
     batch_size: int = inputs.shape[0]
     keep_prob: float = 1 - p
+    num_dims: int = len(inputs.shape) - 2
+
+    random_tensor_shape = [batch_size, 1] + [1] * num_dims
 
     # generate binary_tensor mask according to probability (p for 0, 1-p for 1)
-    # random_tensor = keep_prob
-    random_tensor: torch.Tensor = torch.rand([batch_size, 1, 1, 1], dtype=inputs.dtype, device=inputs.device)
+    random_tensor: torch.Tensor = torch.rand(random_tensor_shape, dtype=inputs.dtype, device=inputs.device)
     random_tensor += keep_prob
 
     binary_tensor: torch.Tensor = torch.floor(random_tensor)
@@ -648,7 +662,7 @@ def drop_connect(inputs: torch.Tensor, p: float, training: bool) -> torch.Tensor
     return output
 
 
-def _calculate_output_image_size(input_image_size, stride):
+def _calculate_output_image_size(input_image_size, stride: Union[int, Tuple[int]]):
     """
     Calculates the output image size when using _make_same_padder with a stride.
     Necessary for static padding.
@@ -664,15 +678,19 @@ def _calculate_output_image_size(input_image_size, stride):
         return None
 
     num_dims = len(input_image_size)
-    assert isinstance(stride, list)
+    if isinstance(stride, tuple):
+        all_strides_equal = all([stride[0] == d for d in stride])
+        if not all_strides_equal:
+            raise ValueError("Unequal strides are not possible, got {}".format(stride))
 
-    if len(stride) != len(input_image_size):
-        stride = stride * num_dims
+        stride = stride[0]
 
-    return [int(math.ceil(im_sz / st)) for im_sz, st in zip(input_image_size, stride)]
+    return [int(math.ceil(im_sz / stride)) for im_sz in input_image_size]
 
 
-def _get_same_padding_conv_nd(image_size, kernel_size, dilation, stride):
+def _get_same_padding_conv_nd(
+    image_size: List[int], kernel_size: Tuple[int, ...], dilation: Tuple[int, ...], stride: Tuple[int, ...]
+) -> List[int]:
     """
     Helper for getting padding (nn.ConstantPadNd) to be used to get SAME padding
     conv operations similar to Tensorflow's SAME padding.
@@ -690,7 +708,7 @@ def _get_same_padding_conv_nd(image_size, kernel_size, dilation, stride):
     """
     num_dims = len(kernel_size)
 
-    # additional checks to populate dilation and stride (in case they are single entry list)
+    # additional checks to populate dilation and stride (in case they are single entry tuple)
     if len(dilation) == 1:
         dilation = dilation * num_dims
 
@@ -698,20 +716,20 @@ def _get_same_padding_conv_nd(image_size, kernel_size, dilation, stride):
         stride = stride * num_dims
 
     # equation to calculate (pad^+ + pad^-) size
-    _pad_size = [
+    _pad_size: List[int] = [
         max((math.ceil(_i_s / _s) - 1) * _s + (_k_s - 1) * _d + 1 - _i_s, 0)
         for _i_s, _k_s, _d, _s in zip(image_size, kernel_size, dilation, stride)
     ]
     # distribute paddings into pad^+ and pad^- following Tensorflow's same padding strategy
-    _paddings = [(_p // 2, _p - _p // 2) for _p in _pad_size]
+    _paddings: List[Tuple[int, int]] = [(_p // 2, _p - _p // 2) for _p in _pad_size]
 
     # unroll list of tuples to tuples,
     # reversed as nn.ConstantPadXd expects paddings starting with last dimenion
-    _paddings = [outer for inner in reversed(_paddings) for outer in inner]
-    return _paddings
+    _paddings_ret: List[int] = [outer for inner in reversed(_paddings) for outer in inner]
+    return _paddings_ret
 
 
-def _make_same_padder(conv_op, image_size):
+def _make_same_padder(conv_op, image_size: List[int]):
     """
     Helper for initializing ConstantPadNd with SAME padding similar to Tensorflow.
     Uses output of _get_same_padding_conv_nd() to get the padding size.
@@ -761,7 +779,7 @@ def _decode_block_list(string_list):
     )
     BlockArgs.__new__.__defaults__ = (None,) * len(BlockArgs._fields)
 
-    def _decode_block_string(block_string):
+    def _decode_block_string(block_string: str):
         """
         Get a block through a string notation of arguments.
 
@@ -772,8 +790,6 @@ def _decode_block_list(string_list):
         Returns:
             BlockArgs: namedtuple defined at the top of this function.
         """
-        assert isinstance(block_string, str)
-
         ops = block_string.split("_")
         options = {}
         for op in ops:
@@ -782,15 +798,19 @@ def _decode_block_list(string_list):
                 key, value = splits[:2]
                 options[key] = value
 
-        # Check stride
-        assert ("s" in options and len(options["s"]) == 1) or (
-            len(options["s"]) == 2 and options["s"][0] == options["s"][1]
+        # check stride
+        stride_check = (
+            ("s" in options and len(options["s"]) == 1)
+            or (len(options["s"]) == 2 and options["s"][0] == options["s"][1])
+            or (len(options["s"]) == 3 and options["s"][0] == options["s"][1] and options["s"][0] == options["s"][2])
         )
+        if not stride_check:
+            raise ValueError("invalid stride option recieved")
 
         return BlockArgs(
             num_repeat=int(options["r"]),
             kernel_size=int(options["k"]),
-            stride=[int(options["s"][0])],
+            stride=int(options["s"][0]),
             expand_ratio=int(options["e"]),
             input_filters=int(options["i"]),
             output_filters=int(options["o"]),
@@ -798,7 +818,9 @@ def _decode_block_list(string_list):
             id_skip=("noskip" not in block_string),
         )
 
-    assert isinstance(string_list, list)
+    if not isinstance(string_list, list):
+        raise ValueError("string_list should be a list")
+
     blocks_args = []
     for b_s in string_list:
         blocks_args.append(_decode_block_string(b_s))

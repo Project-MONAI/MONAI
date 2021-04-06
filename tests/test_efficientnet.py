@@ -18,9 +18,9 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets import EfficientNetBN, get_efficientnet_image_size
+from monai.networks.nets import EfficientNetBN, drop_connect, get_efficientnet_image_size
 from monai.utils import optional_import
-from tests.utils import test_script_save
+from tests.utils import skip_if_quick, test_pretrained_networks, test_script_save
 
 if TYPE_CHECKING:
     import torchvision
@@ -114,7 +114,7 @@ CASES_KITTY_TRAINED = [
             "in_channels": 3,
             "num_classes": 1000,
         },
-        os.path.join(os.path.dirname(__file__), "testing_data/kitty_test.jpg"),
+        os.path.join(os.path.dirname(__file__), "testing_data", "kitty_test.jpg"),
         285,  # ~ Egyptian cat
     ),
     (
@@ -126,7 +126,7 @@ CASES_KITTY_TRAINED = [
             "in_channels": 3,
             "num_classes": 1000,
         },
-        os.path.join(os.path.dirname(__file__), "testing_data/kitty_test.jpg"),
+        os.path.join(os.path.dirname(__file__), "testing_data", "kitty_test.jpg"),
         285,  # ~ Egyptian cat
     ),
 ]
@@ -177,19 +177,29 @@ class TestEFFICIENTNET(unittest.TestCase):
     def test_shape(self, input_param, input_shape, expected_shape):
         device = "cuda" if torch.cuda.is_available() else "cpu"
         print(input_param)
+
+        # initialize model
         net = EfficientNetBN(**input_param).to(device)
+
+        # run inference with random tensor
         with eval_mode(net):
             result = net(torch.randn(input_shape).to(device))
+
+        # check output shape
         self.assertEqual(result.shape, expected_shape)
 
     @parameterized.expand(CASES_KITTY_TRAINED)
+    @skip_if_quick
     @skipUnless(has_torchvision, "Requires `torchvision` package.")
     @skipUnless(has_pil, "Requires `pillow` package.")
     def test_kitty_pretrained(self, input_param, image_path, expected_label):
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        # Open image
+
+        # open image
         image_size = get_efficientnet_image_size(input_param["model_name"])
         img = PIL.Image.open(image_path)
+
+        # defin ImageNet transform
         tfms = torchvision.transforms.Compose(
             [
                 torchvision.transforms.Resize(image_size),
@@ -198,15 +208,47 @@ class TestEFFICIENTNET(unittest.TestCase):
                 torchvision.transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
             ]
         )
+
+        # preprocess and prepare image tensor
         img = tfms(img).unsqueeze(0).to(device)
-        net = EfficientNetBN(**input_param).to(device)
+
+        # initialize a pretrained model
+        net = test_pretrained_networks(EfficientNetBN, input_param, device)
+
+        # run inference
         with eval_mode(net):
             result = net(img)
         pred_label = torch.argmax(result, dim=-1)
+
+        # check output
         self.assertEqual(pred_label, expected_label)
 
+    def test_drop_connect_layer(self):
+        p_list = [float(d + 1) / 10 for d in range(9)]
+
+        # testing 1D, 2D and 3D shape
+        for rand_tensor_shape in [(512, 16, 4), (384, 16, 4, 4), (256, 16, 4, 4, 4)]:
+
+            # test validation mode, out tensor == in tensor
+            training = False
+            for p in p_list:
+                in_tensor = torch.rand(rand_tensor_shape)
+                out_tensor = drop_connect(in_tensor, p, training=training)
+                self.assertTrue(torch.equal(out_tensor, in_tensor))
+
+            # test training mode, sum(out tensor != in tensor)/out_tensor.size() == p
+            training = True
+            for p in p_list:
+                in_tensor = torch.rand(rand_tensor_shape)
+                out_tensor = drop_connect(in_tensor, p, training=training)
+
+                p_calculated = 1 - torch.sum(torch.isclose(in_tensor, out_tensor * (1 - p))) / in_tensor.numel()
+                p_calculated = p_calculated.cpu().numpy()
+                # use rounding to 1 decimal place to account for rounding errors due to finite set in/out
+                self.assertAlmostEqual(p_calculated, p, places=1)
+
     def test_ill_arg(self):
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             # wrong spatial_dims
             EfficientNetBN(model_name="efficientnet-b0", spatial_dims=4)
             # wrong model_name
