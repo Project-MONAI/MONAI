@@ -11,14 +11,17 @@
 
 import signal
 from glob import glob
-from os import makedirs, path
+from os import makedirs, path, remove
 from shutil import rmtree
 from sys import platform
+from time import sleep
 
 from torch import cuda
 from torch.utils.cpp_extension import load
 
 dir_path = path.dirname(path.realpath(__file__))
+lock_max_wait = 30
+lock_check_interval = 5
 
 
 def load_module(module_name, defines=None, verbose_build=False):
@@ -68,6 +71,21 @@ def load_module(module_name, defines=None, verbose_build=False):
 
         # Set handler to our cleanup function.
         signal.signal(signal.SIGTSTP, cleanup_build)
+
+    # There still maybe some situations were Ninja does
+    # not clean up properly. Manually waiting here.
+    lock_file = path.join(build_dir, "lock")
+    timer = 0
+
+    while path.exists(lock_file):
+
+        # Give up if we've waited long enough
+        if timer >= lock_max_wait:
+            remove(lock_file)
+
+        # Wait for lock to be freed
+        sleep(lock_check_interval)
+        timer += lock_check_interval
 
     # This will either run the build or return the existing .so object.
     module = load(
