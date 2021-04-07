@@ -14,12 +14,10 @@ Utilities and types for defining networks, these depend on PyTorch.
 
 import warnings
 from contextlib import contextmanager
-from typing import Any, Callable, Optional, Sequence, cast
+from typing import Any, Callable, Optional, Sequence
 
 import torch
 import torch.nn as nn
-
-from monai.utils import ensure_tuple_size
 
 __all__ = [
     "one_hot",
@@ -50,13 +48,14 @@ def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.f
 
     # if `dim` is bigger, add singleton dim at the end
     if labels.ndim < dim + 1:
-        shape = ensure_tuple_size(labels.shape, dim + 1, 1)
-        labels = labels.reshape(*shape)
+        shape = list(labels.shape) + [1] * (dim + 1 - len(labels.shape))
+        labels = torch.reshape(labels, shape)
 
     sh = list(labels.shape)
 
     if sh[dim] != 1:
-        raise AssertionError("labels should have a channel with length equals to one.")
+        raise AssertionError("labels should have a channel with length equal to one.")
+
     sh[dim] = num_classes
 
     o = torch.zeros(size=sh, dtype=dtype, device=labels.device)
@@ -72,9 +71,7 @@ def slice_channels(tensor: torch.Tensor, *slicevals: Optional[int]) -> torch.Ten
     return tensor[slices]
 
 
-def predict_segmentation(
-    logits: torch.Tensor, mutually_exclusive: bool = False, threshold: float = 0.0
-) -> torch.Tensor:
+def predict_segmentation(logits: torch.Tensor, mutually_exclusive: bool = False, threshold: float = 0.0) -> Any:
     """
     Given the logits from a network, computing the segmentation by thresholding all values above 0
     if multi-labels task, computing the `argmax` along the channel axis if multi-classes task,
@@ -87,10 +84,10 @@ def predict_segmentation(
         threshold: thresholding the prediction values if multi-labels task.
     """
     if not mutually_exclusive:
-        return (cast(torch.Tensor, logits >= threshold)).int()
+        return (logits >= threshold).int()
     if logits.shape[1] == 1:
         warnings.warn("single channel prediction, `mutually_exclusive=True` ignored, use threshold instead.")
-        return (cast(torch.Tensor, logits >= threshold)).int()
+        return (logits >= threshold).int()
     return logits.argmax(1, keepdim=True)
 
 

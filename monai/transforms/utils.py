@@ -12,6 +12,7 @@
 import itertools
 import random
 import warnings
+from contextlib import contextmanager
 from typing import Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -19,7 +20,10 @@ import torch
 
 from monai.config import DtypeLike, IndexSelection
 from monai.networks.layers import GaussianFilter
+from monai.transforms.compose import Compose
+from monai.transforms.transform import MapTransform
 from monai.utils import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple, min_version, optional_import
+from monai.utils.misc import issequenceiterable
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 
@@ -37,7 +41,6 @@ __all__ = [
     "map_binary_to_indices",
     "weighted_patch_samples",
     "generate_pos_neg_label_crop_centers",
-    "apply_transform",
     "create_grid",
     "create_control_grid",
     "create_rotate",
@@ -49,6 +52,7 @@ __all__ = [
     "get_extreme_points",
     "extreme_points_to_image",
     "map_spatial_axes",
+    "allow_missing_keys_mode",
 ]
 
 
@@ -361,31 +365,6 @@ def generate_pos_neg_label_crop_centers(
         centers.append(_correct_centers(center_ori, valid_start, valid_end))
 
     return centers
-
-
-def apply_transform(transform: Callable, data, map_items: bool = True):
-    """
-    Transform `data` with `transform`.
-    If `data` is a list or tuple and `map_data` is True, each item of `data` will be transformed
-    and this method returns a list of outcomes.
-    otherwise transform will be applied once with `data` as the argument.
-
-    Args:
-        transform: a callable to be used to transform `data`
-        data: an object to be transformed.
-        map_items: whether to apply transform to each item in `data`,
-            if `data` is a list or tuple. Defaults to True.
-
-    Raises:
-        Exception: When ``transform`` raises an exception.
-
-    """
-    try:
-        if isinstance(data, (list, tuple)) and map_items:
-            return [transform(item) for item in data]
-        return transform(data)
-    except Exception as e:
-        raise RuntimeError(f"applying transform {transform}") from e
 
 
 def create_grid(
@@ -730,3 +709,50 @@ def map_spatial_axes(
                 spatial_axes_.append(a - 1 if a < 0 else a)
 
     return spatial_axes_
+
+
+@contextmanager
+def allow_missing_keys_mode(transform: Union[MapTransform, Compose, Tuple[MapTransform], Tuple[Compose]]):
+    """Temporarily set all MapTransforms to not throw an error if keys are missing. After, revert to original states.
+
+    Args:
+        transform: either MapTransform or a Compose
+
+    Example:
+
+    .. code-block:: python
+
+        data = {"image": np.arange(16, dtype=float).reshape(1, 4, 4)}
+        t = SpatialPadd(["image", "label"], 10, allow_missing_keys=False)
+        _ = t(data)  # would raise exception
+        with allow_missing_keys_mode(t):
+            _ = t(data)  # OK!
+    """
+    # If given a sequence of transforms, Compose them to get a single list
+    if issequenceiterable(transform):
+        transform = Compose(transform)
+
+    # Get list of MapTransforms
+    transforms = []
+    if isinstance(transform, MapTransform):
+        transforms = [transform]
+    elif isinstance(transform, Compose):
+        # Only keep contained MapTransforms
+        transforms = [t for t in transform.flatten().transforms if isinstance(t, MapTransform)]
+    if len(transforms) == 0:
+        raise TypeError(
+            "allow_missing_keys_mode expects either MapTransform(s) or Compose(s) containing MapTransform(s)"
+        )
+
+    # Get the state of each `allow_missing_keys`
+    orig_states = [t.allow_missing_keys for t in transforms]
+
+    try:
+        # Set all to True
+        for t in transforms:
+            t.allow_missing_keys = True
+        yield
+    finally:
+        # Revert
+        for t, o_s in zip(transforms, orig_states):
+            t.allow_missing_keys = o_s
