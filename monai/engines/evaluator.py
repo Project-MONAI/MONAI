@@ -22,14 +22,13 @@ from monai.transforms import Transform
 from monai.utils import ForwardMode, ensure_tuple, exact_version, optional_import
 from monai.utils.enums import CommonKeys as Keys
 
-EventEnum, _ = optional_import("ignite.engine", "0.4.4", exact_version, "EventEnum")
-
 if TYPE_CHECKING:
-    from ignite.engine import Engine
+    from ignite.engine import Engine, EventEnum
     from ignite.metrics import Metric
 else:
     Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
     Metric, _ = optional_import("ignite.metrics", "0.4.4", exact_version, "Metric")
+    EventEnum, _ = optional_import("ignite.engine", "0.4.4", exact_version, "EventEnum")
 
 __all__ = ["Evaluator", "SupervisedEvaluator", "EnsembleEvaluator"]
 
