@@ -104,6 +104,7 @@ CASES_3D = make_shape_cases(
 # pretrained=True cases
 # tabby kitty test with pretrained model
 # needs 'testing_data/kitty_test.jpg'
+# image from: https://commons.wikimedia.org/wiki/File:Tabby_cat_with_blue_eyes-3336579.jpg
 CASES_KITTY_TRAINED = [
     (
         {
@@ -115,7 +116,19 @@ CASES_KITTY_TRAINED = [
             "num_classes": 1000,
         },
         os.path.join(os.path.dirname(__file__), "testing_data", "kitty_test.jpg"),
-        285,  # ~ Egyptian cat
+        282,  # ~ tiger cat
+    ),
+    (
+        {
+            "model_name": "efficientnet-b3",
+            "pretrained": True,
+            "progress": False,
+            "spatial_dims": 2,
+            "in_channels": 3,
+            "num_classes": 1000,
+        },
+        os.path.join(os.path.dirname(__file__), "testing_data", "kitty_test.jpg"),
+        282,  # ~ tiger cat
     ),
     (
         {
@@ -127,7 +140,7 @@ CASES_KITTY_TRAINED = [
             "num_classes": 1000,
         },
         os.path.join(os.path.dirname(__file__), "testing_data", "kitty_test.jpg"),
-        285,  # ~ Egyptian cat
+        282,  # ~ tiger cat
     ),
 ]
 
@@ -143,11 +156,11 @@ CASES_VARIATIONS.extend(
     )
 )
 # 3D
-# CASES_VARIATIONS.extend(
-#     make_shape_cases(
-#         models=[SEL_MODELS[0]], spatial_dims=[3], batches=[1], pretrained=[False], in_channels=3, num_classes=10
-#         )
-# )
+CASES_VARIATIONS.extend(
+    make_shape_cases(
+        models=[SEL_MODELS[0]], spatial_dims=[3], batches=[1], pretrained=[False], in_channels=3, num_classes=10
+    )
+)
 
 # change in_channels test
 # 1 channel
@@ -165,11 +178,11 @@ CASES_VARIATIONS.extend(
     )
 )
 # 3D
-# CASES_VARIATIONS.extend(
-#     make_shape_cases(
-#         models=[SEL_MODELS[0]], spatial_dims=[3], batches=[1], pretrained=[False], in_channels=1, num_classes=1000
-#         )
-# )
+CASES_VARIATIONS.extend(
+    make_shape_cases(
+        models=[SEL_MODELS[0]], spatial_dims=[3], batches=[1], pretrained=[False], in_channels=1, num_classes=1000
+    )
+)
 
 
 class TestEFFICIENTNET(unittest.TestCase):
@@ -225,27 +238,28 @@ class TestEFFICIENTNET(unittest.TestCase):
 
     def test_drop_connect_layer(self):
         p_list = [float(d + 1) / 10 for d in range(9)]
-
         # testing 1D, 2D and 3D shape
         for rand_tensor_shape in [(512, 16, 4), (384, 16, 4, 4), (256, 16, 4, 4, 4)]:
 
             # test validation mode, out tensor == in tensor
             training = False
             for p in p_list:
-                in_tensor = torch.rand(rand_tensor_shape)
+                in_tensor = torch.rand(rand_tensor_shape) + 0.1
                 out_tensor = drop_connect(in_tensor, p, training=training)
                 self.assertTrue(torch.equal(out_tensor, in_tensor))
 
             # test training mode, sum(out tensor != in tensor)/out_tensor.size() == p
+            # use tolerance of 0.175 to account for rounding errors due to finite set in/out
+            tol = 0.175
             training = True
             for p in p_list:
-                in_tensor = torch.rand(rand_tensor_shape)
+                in_tensor = torch.rand(rand_tensor_shape) + 0.1
                 out_tensor = drop_connect(in_tensor, p, training=training)
 
                 p_calculated = 1 - torch.sum(torch.isclose(in_tensor, out_tensor * (1 - p))) / in_tensor.numel()
                 p_calculated = p_calculated.cpu().numpy()
-                # use rounding to 1 decimal place to account for rounding errors due to finite set in/out
-                self.assertAlmostEqual(p_calculated, p, places=1)
+
+                self.assertTrue(abs(p_calculated - p) < tol)
 
     def test_ill_arg(self):
         with self.assertRaises(ValueError):
