@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Iterable, Optional, Sequence, Tuple, Union, List
+from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import torch
 from torch.optim.optimizer import Optimizer
@@ -80,9 +80,9 @@ class SupervisedTrainer(Trainer):
         train_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
         amp: whether to enable auto-mixed-precision training, default is False.
-        additional_events: addtional custom ignite events that will register to the engine.
-            new events can be a str or an object derived from `ignite.engine.events.EventEnum`.
-        additional_event_to_attr: a dictionary to map an event to a state attribute, then add to `engine.state`.
+        event_names: addtional custom ignite events that will register to the engine.
+            new events can be a list of str or `ignite.engine.events.EventEnum`.
+        event_to_attr: a dictionary to map an event to a state attribute, then add to `engine.state`.
             for more details, check: https://github.com/pytorch/ignite/blob/v0.4.4.post1/ignite/engine/engine.py#L160
 
     """
@@ -105,11 +105,9 @@ class SupervisedTrainer(Trainer):
         additional_metrics: Optional[Dict[str, Metric]] = None,
         train_handlers: Optional[Sequence] = None,
         amp: bool = False,
-        *additional_events: Union[List[str], List[EventEnum]],
-        additional_event_to_attr: Optional[dict] = None,
+        event_names: Optional[List[Union[str, EventEnum]]] = None,
+        event_to_attr: Optional[dict] = None,
     ) -> None:
-        # add the iteration events
-        self.register_events(*IterationEvents)
         super().__init__(
             device=device,
             max_epochs=max_epochs,
@@ -123,8 +121,9 @@ class SupervisedTrainer(Trainer):
             additional_metrics=additional_metrics,
             handlers=train_handlers,
             amp=amp,
-            *additional_events,
-            additional_event_to_attr=additional_event_to_attr,
+            # add the iteration events
+            event_names=[IterationEvents] if event_names is None else event_names + [IterationEvents],
+            event_to_attr=event_to_attr,
         )
 
         self.network = network

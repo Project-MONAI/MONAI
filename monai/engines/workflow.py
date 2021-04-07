@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Iterable, Optional, Sequence, Union, List
+from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Sequence, Union
 
 import torch
 import torch.distributed as dist
@@ -62,9 +62,9 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
         amp: whether to enable auto-mixed-precision training or inference, default is False.
-        additional_events: addtional custom ignite events that will register to the engine.
-            new events can be a str or an object derived from `ignite.engine.events.EventEnum`.
-        additional_event_to_attr: a dictionary to map an event to a state attribute, then add to `engine.state`.
+        event_names: addtional custom ignite events that will register to the engine.
+            new events can be a list of str or `ignite.engine.events.EventEnum`.
+        event_to_attr: a dictionary to map an event to a state attribute, then add to `engine.state`.
             for more details, check: https://github.com/pytorch/ignite/blob/v0.4.4.post1/ignite/engine/engine.py#L160
 
     Raises:
@@ -89,8 +89,8 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         additional_metrics: Optional[Dict[str, Metric]] = None,
         handlers: Optional[Sequence] = None,
         amp: bool = False,
-        *additional_events: Union[List[str], List[EventEnum]],
-        additional_event_to_attr: Optional[dict] = None,
+        event_names: Optional[List[Union[str, EventEnum]]] = None,
+        event_to_attr: Optional[dict] = None,
     ) -> None:
         if iteration_update is not None:
             super().__init__(iteration_update)
@@ -136,7 +136,17 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         self.prepare_batch = prepare_batch
         self.amp = amp
 
-        self.register_events(*additional_events, event_to_attr=additional_event_to_attr)
+        if event_names is not None:
+            if not isinstance(event_names, list):
+                raise ValueError("event_names must be a list or string or EventEnum.")
+            for name in event_names:
+                if isinstance(name, str):
+                    self.register_events(name, event_to_attr=event_to_attr)
+                elif issubclass(name, EventEnum):
+                    self.register_events(*name, event_to_attr=event_to_attr)
+                else:
+                    raise ValueError("event_names must be a list or string or EventEnum.")
+
         if post_transform is not None:
             self._register_post_transforms(post_transform)
         if key_metric is not None:
