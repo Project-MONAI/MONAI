@@ -106,6 +106,9 @@ class SupervisedTrainer(Trainer):
         amp: bool = False,
         event_names: Optional[List[Union[str, EventEnum]]] = None,
         event_to_attr: Optional[dict] = None,
+        gradient_clip_val: Optional[float] = None,
+        gradient_clip_algo: Optional[str] = None,
+        gradient_clip_norm: Optional[Union[float, int, str]] = None,
     ) -> None:
         super().__init__(
             device=device,
@@ -129,6 +132,10 @@ class SupervisedTrainer(Trainer):
         self.optimizer = optimizer
         self.loss_function = loss_function
         self.inferer = SimpleInferer() if inferer is None else inferer
+
+        self.gradient_clip_val = gradient_clip_val
+        self.gradient_clip_algo = gradient_clip_algo
+        self.gradient_clip_norm = gradient_clip_norm
 
     def _iteration(self, engine: Engine, batchdata: Dict[str, torch.Tensor]):
         """
@@ -182,6 +189,24 @@ class SupervisedTrainer(Trainer):
         engine.fire_event(IterationEvents.OPTIMIZER_COMPLETED)
 
         return output
+
+    def _gradient_clipping(self):
+        if self.gradient_clip_algo:
+            if self.amp and self.scaler is not None:
+                self.scaler.unscale_(self.optimizer)
+
+            if self.gradient_clip_algo == "norm":
+                torch.nn.utils.clip_grad_norm_(
+                    parameters=self.network.parameters(),
+                    max_norm=self.gradient_clip_val,
+                    norm_type=self.gradient_clip_norm,
+                )
+            elif self.gradient_clip_algo == "clip":
+                torch.nn.utils.clip_grad_value_(parameters=self.network.parameters(), clip_value=self.gradient_clip_val)
+            else:
+                raise ValueError(
+                    f"gradient_clip_algo can be either 'norm' or 'clip' but received {self.gradient_clip_algo}"
+                )
 
 
 class GanTrainer(Trainer):
@@ -309,9 +334,7 @@ class GanTrainer(Trainer):
         g_output = self.g_inferer(g_input, self.g_network)
 
         # Train Discriminator
-        d_total_loss = torch.zeros(
-            1,
-        )
+        d_total_loss = torch.zeros(1)
         for _ in range(self.d_train_steps):
             self.d_optimizer.zero_grad()
             dloss = self.d_loss_function(g_output, d_input)
