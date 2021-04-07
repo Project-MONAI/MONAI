@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Iterable, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Callable, Dict, Iterable, Optional, Sequence, Tuple, Union, List
 
 import torch
 from torch.utils.data import DataLoader
@@ -21,6 +21,8 @@ from monai.networks.utils import eval_mode, train_mode
 from monai.transforms import Transform
 from monai.utils import ForwardMode, ensure_tuple, exact_version, optional_import
 from monai.utils.enums import CommonKeys as Keys
+
+EventEnum, _ = optional_import("ignite.engine", "0.4.4", exact_version, "EventEnum")
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
@@ -56,6 +58,10 @@ class Evaluator(Workflow):
         amp: whether to enable auto-mixed-precision evaluation, default is False.
         mode: model forward mode during evaluation, should be 'eval' or 'train',
             which maps to `model.eval()` or `model.train()`, default to 'eval'.
+        additional_events: addtional custom ignite events that will register to the engine.
+            new events can be a str or an object derived from `ignite.engine.events.EventEnum`.
+        additional_event_to_attr: a dictionary to map an event to a state attribute, then add to `engine.state`.
+            for more details, check: https://github.com/pytorch/ignite/blob/v0.4.4.post1/ignite/engine/engine.py#L160
 
     """
 
@@ -73,6 +79,8 @@ class Evaluator(Workflow):
         val_handlers: Optional[Sequence] = None,
         amp: bool = False,
         mode: Union[ForwardMode, str] = ForwardMode.EVAL,
+        *additional_events: Union[List[str], List[EventEnum]],
+        additional_event_to_attr: Optional[dict] = None,
     ) -> None:
         super().__init__(
             device=device,
@@ -87,6 +95,8 @@ class Evaluator(Workflow):
             additional_metrics=additional_metrics,
             handlers=val_handlers,
             amp=amp,
+            *additional_events,
+            additional_event_to_attr=additional_event_to_attr,
         )
         mode = ForwardMode(mode)
         if mode == ForwardMode.EVAL:
@@ -140,6 +150,10 @@ class SupervisedEvaluator(Evaluator):
         amp: whether to enable auto-mixed-precision evaluation, default is False.
         mode: model forward mode during evaluation, should be 'eval' or 'train',
             which maps to `model.eval()` or `model.train()`, default to 'eval'.
+        additional_events: addtional custom ignite events that will register to the engine.
+            new events can be a str or an object derived from `ignite.engine.events.EventEnum`.
+        additional_event_to_attr: a dictionary to map an event to a state attribute, then add to `engine.state`.
+            for more details, check: https://github.com/pytorch/ignite/blob/v0.4.4.post1/ignite/engine/engine.py#L160
 
     """
 
@@ -159,7 +173,11 @@ class SupervisedEvaluator(Evaluator):
         val_handlers: Optional[Sequence] = None,
         amp: bool = False,
         mode: Union[ForwardMode, str] = ForwardMode.EVAL,
+        *additional_events: Union[List[str], List[EventEnum]],
+        additional_event_to_attr: Optional[dict] = None,
     ) -> None:
+        # add the iteration events
+        self.register_events(*IterationEvents)
         super().__init__(
             device=device,
             val_data_loader=val_data_loader,
@@ -173,14 +191,11 @@ class SupervisedEvaluator(Evaluator):
             val_handlers=val_handlers,
             amp=amp,
             mode=mode,
+            additional_event_to_attr=additional_event_to_attr,
         )
 
         self.network = network
         self.inferer = SimpleInferer() if inferer is None else inferer
-
-    def _register_additional_events(self):
-        super()._register_additional_events()
-        self.register_events(*IterationEvents)
 
     def _iteration(self, engine: Engine, batchdata: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """
@@ -251,6 +266,10 @@ class EnsembleEvaluator(Evaluator):
         amp: whether to enable auto-mixed-precision evaluation, default is False.
         mode: model forward mode during evaluation, should be 'eval' or 'train',
             which maps to `model.eval()` or `model.train()`, default to 'eval'.
+        additional_events: addtional custom ignite events that will register to the engine.
+            new events can be a str or an object derived from `ignite.engine.events.EventEnum`.
+        additional_event_to_attr: a dictionary to map an event to a state attribute, then add to `engine.state`.
+            for more details, check: https://github.com/pytorch/ignite/blob/v0.4.4.post1/ignite/engine/engine.py#L160
 
     """
 
@@ -271,7 +290,11 @@ class EnsembleEvaluator(Evaluator):
         val_handlers: Optional[Sequence] = None,
         amp: bool = False,
         mode: Union[ForwardMode, str] = ForwardMode.EVAL,
+        *additional_events: Union[List[str], List[EventEnum]],
+        additional_event_to_attr: Optional[dict] = None,
     ) -> None:
+        # add the iteration events
+        self.register_events(*IterationEvents)
         super().__init__(
             device=device,
             val_data_loader=val_data_loader,
@@ -285,15 +308,13 @@ class EnsembleEvaluator(Evaluator):
             val_handlers=val_handlers,
             amp=amp,
             mode=mode,
+            *additional_events,
+            additional_event_to_attr=additional_event_to_attr,
         )
 
         self.networks = ensure_tuple(networks)
         self.pred_keys = ensure_tuple(pred_keys)
         self.inferer = SimpleInferer() if inferer is None else inferer
-
-    def _register_additional_events(self):
-        super()._register_additional_events()
-        self.register_events(*IterationEvents)
 
     def _iteration(self, engine: Engine, batchdata: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """

@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Iterable, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Callable, Dict, Iterable, Optional, Sequence, Tuple, Union, List
 
 import torch
 from torch.optim.optimizer import Optimizer
@@ -21,6 +21,8 @@ from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import Transform
 from monai.utils import exact_version, optional_import
 from monai.utils.enums import CommonKeys as Keys
+
+EventEnum, _ = optional_import("ignite.engine", "0.4.4", exact_version, "EventEnum")
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
@@ -78,6 +80,10 @@ class SupervisedTrainer(Trainer):
         train_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
         amp: whether to enable auto-mixed-precision training, default is False.
+        additional_events: addtional custom ignite events that will register to the engine.
+            new events can be a str or an object derived from `ignite.engine.events.EventEnum`.
+        additional_event_to_attr: a dictionary to map an event to a state attribute, then add to `engine.state`.
+            for more details, check: https://github.com/pytorch/ignite/blob/v0.4.4.post1/ignite/engine/engine.py#L160
 
     """
 
@@ -99,8 +105,11 @@ class SupervisedTrainer(Trainer):
         additional_metrics: Optional[Dict[str, Metric]] = None,
         train_handlers: Optional[Sequence] = None,
         amp: bool = False,
+        *additional_events: Union[List[str], List[EventEnum]],
+        additional_event_to_attr: Optional[dict] = None,
     ) -> None:
-        # set up Ignite engine and environments
+        # add the iteration events
+        self.register_events(*IterationEvents)
         super().__init__(
             device=device,
             max_epochs=max_epochs,
@@ -114,16 +123,14 @@ class SupervisedTrainer(Trainer):
             additional_metrics=additional_metrics,
             handlers=train_handlers,
             amp=amp,
+            *additional_events,
+            additional_event_to_attr=additional_event_to_attr,
         )
 
         self.network = network
         self.optimizer = optimizer
         self.loss_function = loss_function
         self.inferer = SimpleInferer() if inferer is None else inferer
-
-    def _register_additional_events(self):
-        super()._register_additional_events()
-        self.register_events(*IterationEvents)
 
     def _iteration(self, engine: Engine, batchdata: Dict[str, torch.Tensor]):
         """
