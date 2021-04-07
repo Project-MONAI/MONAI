@@ -67,7 +67,8 @@ class TestHandlerGarbageCollector(unittest.TestCase):
             self.assertGreater(gb_count[0], 0)
             if iter > 1:
                 # Since we are collecting all objects from all generations manually at each call,
-                # starting from the second call, there shouldn't be any 1st and 2nd generation objects available to collect.
+                # starting from the second call, there shouldn't be any 1st and 2nd
+                # generation objects available to collect.
                 self.assertEqual(gb_count[1], first_count)
                 self.assertEqual(gb_count[2], first_count)
 
