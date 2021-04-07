@@ -70,6 +70,9 @@ class TestRandSpatialCropSamplesd(unittest.TestCase):
         for item, expected in zip(result, expected_shape):
             self.assertTupleEqual(item["img"].shape, expected)
             self.assertTupleEqual(item["seg"].shape, expected)
+        for i, item in enumerate(result):
+            self.assertEqual(item["img_meta_dict"]["patch_index"], i)
+            self.assertEqual(item["seg_meta_dict"]["patch_index"], i)
         np.testing.assert_allclose(item["img"], expected_last["img"])
         np.testing.assert_allclose(item["seg"], expected_last["seg"])
 

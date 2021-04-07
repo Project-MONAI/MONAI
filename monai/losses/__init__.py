@@ -13,11 +13,14 @@ from .deform import BendingEnergyLoss
 from .dice import (
     Dice,
     DiceCELoss,
+    DiceFocalLoss,
     DiceLoss,
     GeneralizedDiceLoss,
     GeneralizedWassersteinDiceLoss,
     MaskedDiceLoss,
     dice,
+    dice_ce,
+    dice_focal,
     generalized_dice,
     generalized_wasserstein_dice,
 )

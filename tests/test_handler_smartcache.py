@@ -36,7 +36,7 @@ class TestHandlerSmartCache(unittest.TestCase):
         engine = Engine(_train_func)
 
         # set up testing handler
-        dataset = SmartCacheDataset(data, transform=None, replace_rate=0.2, cache_num=5)
+        dataset = SmartCacheDataset(data, transform=None, replace_rate=0.2, cache_num=5, shuffle=False)
         data_loader = torch.utils.data.DataLoader(dataset, batch_size=5)
         SmartCacheHandler(dataset).attach(engine)
 
