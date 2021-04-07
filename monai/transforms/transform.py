@@ -180,17 +180,27 @@ class RandomizableTransform(Randomizable, Transform):
     """
     An interface for handling random state locally, currently based on a class variable `R`,
     which is an instance of `np.random.RandomState`.
-    This is mainly for randomized data augmentation transforms. For example::
+    This class introduces a randomized flag `_do_transform`, is mainly for randomized data augmentation transforms.
+    For example:
 
-        class RandShiftIntensity(RandomizableTransform):
-            def randomize():
+    .. code-block:: python
+
+        from monai.transforms import RandomizableTransform
+
+        class RandShiftIntensity100(RandomizableTransform):
+            def randomize(self):
+                super().randomize(None)
                 self._offset = self.R.uniform(low=0, high=100)
+
             def __call__(self, img):
                 self.randomize()
+                if not self._do_transform:
+                    return img
                 return img + self._offset
 
         transform = RandShiftIntensity()
         transform.set_random_state(seed=0)
+        print(transform(10))
 
     """
 
