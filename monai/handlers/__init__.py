@@ -21,6 +21,7 @@ from .lr_schedule_handler import LrScheduleHandler
 from .mean_dice import MeanDice
 from .metric_logger import MetricLogger, MetricLoggerKeys
 from .metrics_saver import MetricsSaver
+from .parameter_scheduler import ParamSchedulerHandler
 from .roc_auc import ROCAUC
 from .segmentation_saver import SegmentationSaver
 from .smartcache_handler import SmartCacheHandler

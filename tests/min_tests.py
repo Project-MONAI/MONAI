@@ -47,6 +47,7 @@ def run_testsuit():
         "test_handler_prob_map_producer",
         "test_handler_rocauc",
         "test_handler_rocauc_dist",
+        "test_handler_parameter_scheduler",
         "test_handler_segmentation_saver",
         "test_handler_smartcache",
         "test_handler_stats",
