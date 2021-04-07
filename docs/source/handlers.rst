@@ -111,6 +111,11 @@ SmartCache handler
 .. autoclass:: SmartCacheHandler
     :members:
 
+Parameter Scheduler handler
+---------------------------
+.. autoclass:: ParamSchedulerHandler
+    :members:
+
 EarlyStop handler
 -----------------
 .. autoclass:: EarlyStopHandler
