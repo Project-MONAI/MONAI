@@ -60,7 +60,6 @@ class TestHandlerGarbageCollector(unittest.TestCase):
         GarbageCollector(trigger_event=trigger_event, log_level=30).attach(engine)
 
         engine.run(data_loader, max_epochs=5)
-        print(gb_count_dict)
 
         first_count = 0
         for iter, gb_count in gb_count_dict.items():
