@@ -23,7 +23,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike, KeysCollection, NdarrayTensor
-from monai.transforms.transform import MapTransform, RandomizableTransform
+from monai.transforms.transform import MapTransform, Randomizable
 from monai.transforms.utility.array import (
     AddChannel,
     AsChannelFirst,
@@ -656,10 +656,6 @@ class ConcatItemsd(MapTransform):
             name: the name corresponding to the key to store the concatenated data.
             dim: on which dimension to concatenate the items, default is 0.
             allow_missing_keys: don't raise exception if key is missing.
-
-        Raises:
-            ValueError: When insufficient keys are given (``len(self.keys) < 2``).
-
         """
         super().__init__(keys, allow_missing_keys)
         self.name = name
@@ -735,9 +731,9 @@ class Lambdad(MapTransform):
         return d
 
 
-class RandLambdad(Lambdad, RandomizableTransform):
+class RandLambdad(Lambdad, Randomizable):
     """
-    RandomizableTransform version :py:class:`monai.transforms.Lambdad`, the input `func` contains random logic.
+    Randomizable version :py:class:`monai.transforms.Lambdad`, the input `func` contains random logic.
     It's a randomizable transform so `CacheDataset` will not execute it and cache the results.
 
     Args:
@@ -857,7 +853,7 @@ class ConvertToMultiChannelBasedOnBratsClassesd(MapTransform):
         return d
 
 
-class AddExtremePointsChanneld(RandomizableTransform, MapTransform):
+class AddExtremePointsChanneld(Randomizable, MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.AddExtremePointsChannel`.
 
