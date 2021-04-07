@@ -30,10 +30,9 @@ RUN cp /tmp/requirements.txt /tmp/req.bak \
 # please specify exact files and folders to be copied -- else, basically always, the Docker build process cannot cache
 # this or anything below it and always will build from at most here; one file change leads to no caching from here on...
 
-COPY LICENSE setup.py setup.cfg versioneer.py runtests.sh .gitignore .gitattributes README.md MANIFEST.in ./
+COPY LICENSE CHANGELOG.md CODE_OF_CONDUCT.md CONTRIBUTING.md README.md versioneer.py setup.py setup.cfg runtests.sh MANIFEST.in ./
 COPY tests ./tests
 COPY monai ./monai
-COPY .git ./.git
 RUN BUILD_MONAI=1 FORCE_CUDA=1 python setup.py develop \
   && rm -rf build __pycache__
 
