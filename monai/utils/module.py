@@ -96,11 +96,9 @@ def min_version(the_module, min_version_str: str = "") -> bool:
     Returns True if the module's version is greater or equal to the 'min_version'.
     When min_version_str is not provided, it always returns True.
     """
-    if not min_version_str:
+    if not min_version_str or not hasattr(the_module, "__version__"):
         return True  # always valid version
-    if not hasattr(the_module, "__version__"):
-        warnings.warn(f"{the_module} has no attribute __version__ in min_version check.")
-        return True  # min_version is the default, shouldn't be noisy
+
     mod_version = tuple(int(x) for x in the_module.__version__.split(".")[:2])
     required = tuple(int(x) for x in min_version_str.split(".")[:2])
     return mod_version >= required
