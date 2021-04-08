@@ -32,6 +32,7 @@ class SegmentationSaver:
     based on the meta data.
 
     """
+
     def __init__(
         self,
         output_dir: str = "./",
