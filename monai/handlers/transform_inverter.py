@@ -71,7 +71,7 @@ class TransformInverter:
         """
         transform_key = self.batch_key + InverseKeys.KEY_SUFFIX
         if transform_key not in engine.state.batch:
-            warnings.warn("all the pre-transforms doesn't support inverse or no need to inverse.")
+            warnings.warn("all the pre-transforms are not InvertibleTransform or no need to invert.")
             return
 
         segs_dict = {
