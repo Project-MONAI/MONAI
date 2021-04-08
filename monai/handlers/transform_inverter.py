@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Callable, Optional
 from torch.utils.data import DataLoader as TorchDataLoader
 
 from monai.data import BatchInverseTransform
+from monai.data.utils import no_collation
 from monai.engines.utils import CommonKeys
 from monai.transforms import InvertibleTransform, allow_missing_keys_mode
 from monai.utils import InverseKeys, exact_version, optional_import
@@ -31,13 +32,19 @@ class TransformInverter:
     Ignite handler to automatically invert all the pre-transforms that support `inverse`.
     It takes `engine.state.output` as the input data and uses the transforms infomation from `engine.state.batch`.
 
+    Note:
+        This handler is experimental API in v0.5, the interpolation mode in the transforms
+        and inverse transforms are the same, so maybe it's not correct as we may want to use `bilinear`
+        for input image but use `nearest` when inverting transforms for model outout.
+        For this case, a solution is to set `batch_key` to the label field if we have labels.
+
     """
 
     def __init__(
         self,
         transform: InvertibleTransform,
         loader: TorchDataLoader,
-        collate_fn: Optional[Callable] = lambda x: x,
+        collate_fn: Optional[Callable] = no_collation,
         batch_key: str = CommonKeys.IMAGE,
         output_key: str = CommonKeys.PRED,
         postfix: str = "inverted",
@@ -48,8 +55,8 @@ class TransformInverter:
             loader: data loader used to generate the batch of data.
             collate_fn: how to collate data after inverse transformations.
                 default won't do any collation, so the output will be a list of size batch size.
-            batch_key: the key of input image in `ignite.engine.batch`. will get the applied transforms
-                for this input image, then invert them for the model output, default to "image".
+            batch_key: the key of input data in `ignite.engine.batch`. will get the applied transforms
+                for this input data, then invert them for the model output, default to "image".
             output_key: the key of model output in `ignite.engine.output`, invert transforms on it.
             postfix: will save the inverted result into `ignite.engine.output` with key `{ouput_key}_{postfix}`.
 
