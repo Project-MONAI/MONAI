@@ -1,3 +1,2 @@
 torch>=1.5
 numpy>=1.17
-cupy
