@@ -79,4 +79,5 @@ class TransformInverter:
             transform_key: engine.state.batch[transform_key]}
 
         with allow_missing_keys_mode(self.transform):
-            engine.state.output[f"{self.output_key}_{self.postfix}"] = self.inverter(segs_dict)
+            inverted_key = f"{self.output_key}_{self.postfix}"
+            engine.state.output[inverted_key] = [i[self.batch_key] for i in self.inverter(segs_dict)]
