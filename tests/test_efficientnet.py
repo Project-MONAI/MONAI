@@ -256,7 +256,7 @@ class TestEFFICIENTNET(unittest.TestCase):
                 in_tensor = torch.rand(rand_tensor_shape) + 0.1
                 out_tensor = drop_connect(in_tensor, p, training=training)
 
-                p_calculated = 1.0 - torch.sum(torch.isclose(in_tensor, out_tensor * (1.0 - p))) / in_tensor.numel()
+                p_calculated = 1.0 - torch.sum(torch.isclose(in_tensor, out_tensor * (1.0 - p))) / float(in_tensor.numel())
                 p_calculated = p_calculated.cpu().numpy()
 
                 self.assertTrue(abs(p_calculated - p) < tol)
