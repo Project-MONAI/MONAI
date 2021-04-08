@@ -25,7 +25,8 @@ from monai.handlers import StatsHandler
 class TestHandlerStats(unittest.TestCase):
     def test_metrics_print(self):
         log_stream = StringIO()
-        logging.basicConfig(stream=log_stream, level=logging.INFO)
+        log_handler = logging.StreamHandler(log_stream)
+        log_handler.setLevel(logging.INFO)
         key_to_handler = "test_logging"
         key_to_print = "testing_metric"
 
@@ -42,13 +43,14 @@ class TestHandlerStats(unittest.TestCase):
             engine.state.metrics[key_to_print] = current_metric + 0.1
 
         # set up testing handler
-        stats_handler = StatsHandler(name=key_to_handler)
+        stats_handler = StatsHandler(name=key_to_handler, logger_handler=log_handler)
         stats_handler.attach(engine)
 
         engine.run(range(3), max_epochs=2)
 
         # check logging output
         output_str = log_stream.getvalue()
+        log_handler.close()
         grep = re.compile(f".*{key_to_handler}.*")
         has_key_word = re.compile(f".*{key_to_print}.*")
         for idx, line in enumerate(output_str.split("\n")):
@@ -58,7 +60,8 @@ class TestHandlerStats(unittest.TestCase):
 
     def test_loss_print(self):
         log_stream = StringIO()
-        logging.basicConfig(stream=log_stream, level=logging.INFO)
+        log_handler = logging.StreamHandler(log_stream)
+        log_handler.setLevel(logging.INFO)
         key_to_handler = "test_logging"
         key_to_print = "myLoss"
 
@@ -69,13 +72,14 @@ class TestHandlerStats(unittest.TestCase):
         engine = Engine(_train_func)
 
         # set up testing handler
-        stats_handler = StatsHandler(name=key_to_handler, tag_name=key_to_print)
+        stats_handler = StatsHandler(name=key_to_handler, tag_name=key_to_print, logger_handler=log_handler)
         stats_handler.attach(engine)
 
         engine.run(range(3), max_epochs=2)
 
         # check logging output
         output_str = log_stream.getvalue()
+        log_handler.close()
         grep = re.compile(f".*{key_to_handler}.*")
         has_key_word = re.compile(f".*{key_to_print}.*")
         for idx, line in enumerate(output_str.split("\n")):
@@ -85,7 +89,8 @@ class TestHandlerStats(unittest.TestCase):
 
     def test_loss_dict(self):
         log_stream = StringIO()
-        logging.basicConfig(stream=log_stream, level=logging.INFO)
+        log_handler = logging.StreamHandler(log_stream)
+        log_handler.setLevel(logging.INFO)
         key_to_handler = "test_logging"
         key_to_print = "myLoss1"
 
@@ -96,13 +101,16 @@ class TestHandlerStats(unittest.TestCase):
         engine = Engine(_train_func)
 
         # set up testing handler
-        stats_handler = StatsHandler(name=key_to_handler, output_transform=lambda x: {key_to_print: x})
+        stats_handler = StatsHandler(
+            name=key_to_handler, output_transform=lambda x: {key_to_print: x}, logger_handler=log_handler
+        )
         stats_handler.attach(engine)
 
         engine.run(range(3), max_epochs=2)
 
         # check logging output
         output_str = log_stream.getvalue()
+        log_handler.close()
         grep = re.compile(f".*{key_to_handler}.*")
         has_key_word = re.compile(f".*{key_to_print}.*")
         for idx, line in enumerate(output_str.split("\n")):
@@ -111,13 +119,13 @@ class TestHandlerStats(unittest.TestCase):
                     self.assertTrue(has_key_word.match(line))
 
     def test_loss_file(self):
-        logging.basicConfig(level=logging.INFO)
         key_to_handler = "test_logging"
         key_to_print = "myLoss"
 
         with tempfile.TemporaryDirectory() as tempdir:
             filename = os.path.join(tempdir, "test_loss_stats.log")
             handler = logging.FileHandler(filename, mode="w")
+            handler.setLevel(logging.INFO)
 
             # set up engine
             def _train_func(engine, batch):
@@ -130,7 +138,7 @@ class TestHandlerStats(unittest.TestCase):
             stats_handler.attach(engine)
 
             engine.run(range(3), max_epochs=2)
-            handler.stream.close()
+            handler.close()
             stats_handler.logger.removeHandler(handler)
             with open(filename, "r") as f:
                 output_str = f.read()
@@ -142,8 +150,6 @@ class TestHandlerStats(unittest.TestCase):
                             self.assertTrue(has_key_word.match(line))
 
     def test_exception(self):
-        logging.basicConfig(level=logging.INFO)
-
         # set up engine
         def _train_func(engine, batch):
             raise RuntimeError("test exception.")
