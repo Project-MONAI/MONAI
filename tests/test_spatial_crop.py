@@ -12,6 +12,7 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import SpatialCrop
@@ -46,6 +47,12 @@ class TestSpatialCrop(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_shape, expected_shape):
         input_data = np.random.randint(0, 2, size=input_shape)
+        result = SpatialCrop(**input_param)(input_data)
+        self.assertTupleEqual(result.shape, expected_shape)
+
+    @parameterized.expand(TEST_CASES)
+    def test_tensor_shape(self, input_param, input_shape, expected_shape):
+        input_data = torch.randint(0, 2, size=input_shape, device="cuda" if torch.cuda.is_available() else "cpu")
         result = SpatialCrop(**input_param)(input_data)
         self.assertTupleEqual(result.shape, expected_shape)
 

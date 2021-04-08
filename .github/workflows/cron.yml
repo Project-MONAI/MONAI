@@ -13,7 +13,7 @@ jobs:
     runs-on: [self-hosted, linux, x64, common]
     strategy:
       matrix:
-        pytorch-version: [1.5.0, 1.5.1, 1.6.0, latest]
+        pytorch-version: [1.5.1, 1.6.0, 1.7.1, latest]
     steps:
     - uses: actions/checkout@v2
     - name: Install the dependencies
@@ -23,15 +23,12 @@ jobs:
         python -m pip uninstall -y torch torchvision
         if [ ${{ matrix.pytorch-version }} == "latest" ]; then
           python -m pip install torch torchvision
-        elif [ ${{ matrix.pytorch-version }} == "1.5.0" ]; then
-          python -m pip install torch==1.5.0
-          python -m pip install torchvision==0.6.0
         elif [ ${{ matrix.pytorch-version }} == "1.5.1" ]; then
-          python -m pip install torch==1.5.1
-          python -m pip install torchvision==0.6.1
+          python -m pip install torch==1.5.1 torchvision==0.6.1
         elif [ ${{ matrix.pytorch-version }} == "1.6.0" ]; then
-          python -m pip install torch==1.6.0
-          python -m pip install torchvision==0.7.0
+          python -m pip install torch==1.6.0 torchvision==0.7.0
+        elif [ ${{ matrix.pytorch-version }} == "1.7.1" ]; then
+          python -m pip install torch==1.7.1 torchvision==0.8.2
         fi
         python -m pip install -r requirements-dev.txt
         python -m pip list
@@ -43,9 +40,16 @@ jobs:
         nvidia-smi
         export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
         echo $CUDA_VISIBLE_DEVICES
+        stop_time=$((LAUNCH_DELAY + $(date +%s)))
+        while [ $(date +%s) -lt $stop_time ]; do
+          python -c 'import torch; torch.rand(5, 3, device=torch.device("cuda:0"))';
+        done
         python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
-        python -c 'import torch; print(torch.rand(5,3, device=torch.device("cuda:0")))'
-        BUILD_MONAI=1 ./runtests.sh --coverage
+        python -c 'import torch; print(torch.rand(5, 3, device=torch.device("cuda:0")))'
+        BUILD_MONAI=1 ./runtests.sh --coverage --unittests  # unit tests with coverage report
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        echo $CUDA_VISIBLE_DEVICES
+        BUILD_MONAI=1 ./runtests.sh --coverage --net  # integration tests with coverage report
         coverage xml
     - name: Upload coverage
       uses: codecov/codecov-action@v1
@@ -56,12 +60,16 @@ jobs:
   cron-pt-image:
     if: github.repository == 'Project-MONAI/MONAI'
     container:
-      image: nvcr.io/nvidia/pytorch:20.12-py3  # testing with the latest pytorch base image
+      image: nvcr.io/nvidia/pytorch:21.02-py3  # testing with the latest pytorch base image
       options: "--gpus all"
     runs-on: [self-hosted, linux, x64, common]
     steps:
     - uses: actions/checkout@v2
-    - name: Install the dependencies
+    - name: Install APT dependencies
+      run: |
+        apt-get update
+        DEBIAN_FRONTEND="noninteractive" apt-get install -y libopenslide0
+    - name: Install Python dependencies
       run: |
         which python
         python -m pip install --upgrade pip wheel
@@ -75,9 +83,16 @@ jobs:
         nvidia-smi
         export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
         echo $CUDA_VISIBLE_DEVICES
+        stop_time=$((LAUNCH_DELAY + $(date +%s)))
+        while [ $(date +%s) -lt $stop_time ]; do
+          python -c 'import torch; torch.rand(5, 3, device=torch.device("cuda:0"))';
+        done
         python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
-        python -c 'import torch; print(torch.rand(5,3, device=torch.device("cuda:0")))'
-        BUILD_MONAI=1 ./runtests.sh --coverage
+        python -c 'import torch; print(torch.rand(5, 3, device=torch.device("cuda:0")))'
+        BUILD_MONAI=1 ./runtests.sh --coverage --unittests  # unit tests with coverage report
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        echo $CUDA_VISIBLE_DEVICES
+        BUILD_MONAI=1 ./runtests.sh --coverage --net  # integration tests with coverage report
         coverage xml
     - name: Upload coverage
       uses: codecov/codecov-action@v1
@@ -103,10 +118,46 @@ jobs:
         python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
         python -c 'import torch; print(torch.rand(5,3, device=torch.device("cuda:0")))'
         ngc --version
-        BUILD_MONAI=1 ./runtests.sh --coverage --pytype
+        BUILD_MONAI=1 ./runtests.sh --coverage --pytype --unittests  # unit tests with pytype checks, coverage report
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        echo $CUDA_VISIBLE_DEVICES
+        BUILD_MONAI=1 ./runtests.sh --coverage --net  # integration tests with coverage report
         coverage xml
     - name: Upload coverage
       uses: codecov/codecov-action@v1
       with:
         fail_ci_if_error: false
         file: ./coverage.xml
+
+  cron-tutorial-notebooks:
+    if: github.repository == 'Project-MONAI/MONAI'
+    needs: cron-gpu  # so that monai itself is verified first
+    container:
+      image: nvcr.io/nvidia/pytorch:21.02-py3  # testing with the latest pytorch base image
+      options: "--gpus all --ipc=host"
+    runs-on: [self-hosted, linux, x64, common]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install MONAI
+      id: monai-install
+      run: |
+        which python
+        python -m pip install --upgrade pip wheel
+        python -m pip install -r requirements-dev.txt
+        BUILD_MONAI=0 python setup.py develop  # install monai
+        nvidia-smi
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        echo $CUDA_VISIBLE_DEVICES
+        echo "::set-output name=devices::$CUDA_VISIBLE_DEVICES"
+    - name: Checkout tutorials and install their requirements
+      run: |
+        cd /opt
+        git clone --depth 1 --branch master --single-branch https://github.com/Project-MONAI/tutorials.git  # latest commit of master branch
+        cd tutorials
+        python -m pip install -r requirements.txt
+    - name: Run tutorial notebooks
+      run: |
+        export CUDA_VISIBLE_DEVICES=${{ steps.monai-install.outputs.devices }}
+        echo $CUDA_VISIBLE_DEVICES
+        cd /opt/tutorials
+        $(pwd)/runner.sh
