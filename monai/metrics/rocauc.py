@@ -9,13 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
-from typing import Callable, Optional, Union, cast
+from typing import Union, cast
 
 import numpy as np
 import torch
 
-from monai.networks import one_hot
 from monai.utils import Average
 
 
@@ -53,9 +51,6 @@ def _calculate(y: torch.Tensor, y_pred: torch.Tensor) -> float:
 def compute_roc_auc(
     y_pred: torch.Tensor,
     y: torch.Tensor,
-    to_onehot_y: bool = False,
-    softmax: bool = False,
-    other_act: Optional[Callable] = None,
     average: Union[Average, str] = Average.MACRO,
 ):
     """Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC). Referring to:
@@ -67,10 +62,6 @@ def compute_roc_auc(
             it must be One-Hot format and first dim is batch, example shape: [16] or [16, 2].
         y: ground truth to compute ROC AUC metric, the first dim is batch.
             example shape: [16, 1] will be converted into [16, 2] (where `2` is inferred from `y_pred`).
-        to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
-        softmax: whether to add softmax function to `y_pred` before computation. Defaults to False.
-        other_act: callable function to replace `softmax` as activation layer if needed, Defaults to ``None``.
-            for example: `other_act = lambda x: torch.log_softmax(x)`.
         average: {``"macro"``, ``"weighted"``, ``"micro"``, ``"none"``}
             Type of averaging performed if not binary classification.
             Defaults to ``"macro"``.
@@ -86,8 +77,6 @@ def compute_roc_auc(
     Raises:
         ValueError: When ``y_pred`` dimension is not one of [1, 2].
         ValueError: When ``y`` dimension is not one of [1, 2].
-        ValueError: When ``softmax=True`` and ``other_act is not None``. Incompatible values.
-        TypeError: When ``other_act`` is not an ``Optional[Callable]``.
         ValueError: When ``average`` is not one of ["macro", "weighted", "micro", "none"].
 
     Note:
@@ -107,22 +96,7 @@ def compute_roc_auc(
         y = y.squeeze(dim=-1)
 
     if y_pred_ndim == 1:
-        if to_onehot_y:
-            warnings.warn("y_pred has only one channel, to_onehot_y=True ignored.")
-        if softmax:
-            warnings.warn("y_pred has only one channel, softmax=True ignored.")
         return _calculate(y, y_pred)
-    n_classes = y_pred.shape[1]
-    if to_onehot_y:
-        y = one_hot(y, n_classes)
-    if softmax and other_act is not None:
-        raise ValueError("Incompatible values: softmax=True and other_act is not None.")
-    if softmax:
-        y_pred = y_pred.float().softmax(dim=1)
-    if other_act is not None:
-        if not callable(other_act):
-            raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
-        y_pred = other_act(y_pred)
 
     if y.shape != y_pred.shape:
         raise AssertionError("data shapes of y_pred and y do not match.")
