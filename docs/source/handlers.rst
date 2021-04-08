@@ -125,3 +125,8 @@ GarbageCollector handler
 ------------------------
 .. autoclass:: GarbageCollector
     :members:
+
+Transform inverter
+------------------
+.. autoclass:: TransformInverter
+    :members:

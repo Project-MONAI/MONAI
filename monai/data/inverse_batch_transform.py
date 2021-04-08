@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from typing import Any, Callable, Dict, Hashable, Optional, Sequence
-
+import warnings
 import numpy as np
 from torch.utils.data.dataloader import DataLoader as TorchDataLoader
 
@@ -42,6 +42,9 @@ class _BatchInverseDataset(Dataset):
         if self.pad_collation_used:
             data = PadListDataCollate.inverse(data)
 
+        if not isinstance(self.invertible_transform, InvertibleTransform):
+            warnings.warn("transform is not invertible, can't invert transform for the input data.")
+            return data
         return self.invertible_transform.inverse(data)
 
 
