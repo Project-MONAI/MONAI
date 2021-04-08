@@ -848,9 +848,14 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
         for key, m in self.key_iterator(d, self.mode):
             orig_size = d[key].shape[1:]
             d[key] = self.padcropper(d[key], mode=m)
-            self.push_transform(d, key, orig_size=orig_size, extra_info={
-                "mode": m.value if isinstance(m, Enum) else m,
-            })
+            self.push_transform(
+                d,
+                key,
+                orig_size=orig_size,
+                extra_info={
+                    "mode": m.value if isinstance(m, Enum) else m,
+                },
+            )
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
