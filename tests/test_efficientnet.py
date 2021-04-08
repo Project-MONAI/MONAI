@@ -201,6 +201,27 @@ class TestEFFICIENTNET(unittest.TestCase):
         # check output shape
         self.assertEqual(result.shape, expected_shape)
 
+    @parameterized.expand(CASES_1D + CASES_2D + CASES_3D)
+    def test_non_default_shapes(self, input_param, input_shape, expected_shape):
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        print(input_param)
+
+        # initialize model
+        net = EfficientNetBN(**input_param).to(device)
+
+        # override input shape with different variations
+        num_dims = len(input_shape) - 2
+        non_default_sizes = [128, 256, 512]
+        for candidate_size in non_default_sizes:
+            input_shape = input_shape[0:2] + (candidate_size,) * num_dims
+            print(input_shape)
+            # run inference with random tensor
+            with eval_mode(net):
+                result = net(torch.randn(input_shape).to(device))
+
+            # check output shape
+            self.assertEqual(result.shape, expected_shape)
+
     @parameterized.expand(CASES_KITTY_TRAINED)
     @skip_if_quick
     @skipUnless(has_torchvision, "Requires `torchvision` package.")
