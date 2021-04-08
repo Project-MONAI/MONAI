@@ -403,7 +403,7 @@ class ToTensord(MapTransform, InvertibleTransform):
             d[key] = self.converter(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, Any]:
+    def inverse(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)

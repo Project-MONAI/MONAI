@@ -116,6 +116,7 @@ def run_testsuit():
         "test_ensure_channel_first",
         "test_ensure_channel_firstd",
         "test_handler_early_stop",
+        "test_handler_transform_inverter",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
