@@ -16,6 +16,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
 from copy import deepcopy
+from enum import Enum
 from itertools import chain
 from math import floor
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
@@ -125,7 +126,7 @@ class SpatialPadd(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key, m in self.key_iterator(d, self.mode):
-            self.push_transform(d, key)
+            self.push_transform(d, key, extra_info={"mode": m.value if isinstance(m, Enum) else m})
             d[key] = self.padder(d[key], mode=m)
         return d
 
@@ -193,7 +194,7 @@ class BorderPadd(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key, m in self.key_iterator(d, self.mode):
-            self.push_transform(d, key)
+            self.push_transform(d, key, extra_info={"mode": m.value if isinstance(m, Enum) else m})
             d[key] = self.padder(d[key], mode=m)
         return d
 
@@ -259,7 +260,7 @@ class DivisiblePadd(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key, m in self.key_iterator(d, self.mode):
-            self.push_transform(d, key)
+            self.push_transform(d, key, extra_info={"mode": m.value if isinstance(m, Enum) else m})
             d[key] = self.padder(d[key], mode=m)
         return d
 
@@ -826,6 +827,7 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
             ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
             One of the listed string values or a user supplied function for padding. Defaults to ``"constant"``.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            It also can be a sequence of string, each element corresponds to a key in ``keys``.
         allow_missing_keys: don't raise exception if key is missing.
 
     """
@@ -834,18 +836,21 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
         self,
         keys: KeysCollection,
         spatial_size: Union[Sequence[int], int],
-        mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+        mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.padcropper = ResizeWithPadOrCrop(spatial_size=spatial_size, mode=mode)
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.padcropper = ResizeWithPadOrCrop(spatial_size=spatial_size)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        for key in self.key_iterator(d):
+        for key, m in self.key_iterator(d, self.mode):
             orig_size = d[key].shape[1:]
-            d[key] = self.padcropper(d[key])
-            self.push_transform(d, key, orig_size=orig_size)
+            d[key] = self.padcropper(d[key], mode=m)
+            self.push_transform(d, key, orig_size=orig_size, extra_info={
+                "mode": m.value if isinstance(m, Enum) else m,
+            })
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:

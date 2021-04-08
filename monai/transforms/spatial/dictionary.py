@@ -17,7 +17,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 from copy import deepcopy
 from typing import Any, Dict, Hashable, Mapping, Optional, Sequence, Tuple, Union
-
+from enum import Enum
 import numpy as np
 import torch
 
@@ -203,21 +203,25 @@ class Spacingd(MapTransform, InvertibleTransform):
             d[key], old_affine, new_affine = self.spacing_transform(
                 data_array=np.asarray(d[key]),
                 affine=meta_data["affine"],
-                mode=mode,
+                mode=mode.value if isinstance(mode, Enum) else mode,
                 padding_mode=padding_mode,
                 align_corners=align_corners,
                 dtype=dtype,
             )
-            self.push_transform(d, key, extra_info={"meta_data_key": meta_data_key, "old_affine": old_affine})
+            self.push_transform(d, key, extra_info={
+                "meta_data_key": meta_data_key,
+                "old_affine": old_affine,
+                "mode": mode.value if isinstance(mode, Enum) else mode,
+                "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
+                "align_corners": align_corners,
+            })
             # set the 'affine' key
             meta_data["affine"] = new_affine
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
-        for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
-            d, self.mode, self.padding_mode, self.align_corners, self.dtype
-        ):
+        for key, dtype in self.key_iterator(d, self.dtype):
             transform = self.get_most_recent_transform(d, key)
             if self.spacing_transform.diagonal:
                 raise RuntimeError(
@@ -227,6 +231,9 @@ class Spacingd(MapTransform, InvertibleTransform):
             # Create inverse transform
             meta_data = d[transform[InverseKeys.EXTRA_INFO]["meta_data_key"]]
             old_affine = np.array(transform[InverseKeys.EXTRA_INFO]["old_affine"])
+            mode = transform[InverseKeys.EXTRA_INFO]["mode"]
+            padding_mode = transform[InverseKeys.EXTRA_INFO]["padding_mode"]
+            align_corners = transform[InverseKeys.EXTRA_INFO]["align_corners"]
             orig_pixdim = np.sqrt(np.sum(np.square(old_affine), 0))[:-1]
             inverse_transform = Spacing(orig_pixdim, diagonal=self.spacing_transform.diagonal)
             # Apply inverse
@@ -483,15 +490,20 @@ class Resized(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key, mode, align_corners in self.key_iterator(d, self.mode, self.align_corners):
-            self.push_transform(d, key)
+            self.push_transform(d, key, extra_info={
+                "mode": mode.value if isinstance(mode, Enum) else mode,
+                "align_corners": align_corners,
+            })
             d[key] = self.resizer(d[key], mode=mode, align_corners=align_corners)
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
-        for key, mode, align_corners in self.key_iterator(d, self.mode, self.align_corners):
+        for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             orig_size = transform[InverseKeys.ORIG_SIZE]
+            mode = transform[InverseKeys.EXTRA_INFO]["mode"]
+            align_corners = transform[InverseKeys.EXTRA_INFO]["align_corners"]
             # Create inverse transform
             inverse_transform = Resize(orig_size, mode, align_corners)
             # Apply inverse transform
@@ -573,17 +585,23 @@ class Affined(MapTransform, InvertibleTransform):
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             orig_size = d[key].shape[1:]
             d[key], affine = self.affine(d[key], mode=mode, padding_mode=padding_mode)
-            self.push_transform(d, key, orig_size=orig_size, extra_info={"affine": affine})
+            self.push_transform(d, key, orig_size=orig_size, extra_info={
+                "affine": affine,
+                "mode": mode.value if isinstance(mode, Enum) else mode,
+                "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
+            })
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
 
-        for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
+        for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             orig_size = transform[InverseKeys.ORIG_SIZE]
             # Create inverse transform
             fwd_affine = transform[InverseKeys.EXTRA_INFO]["affine"]
+            mode = transform[InverseKeys.EXTRA_INFO]["mode"]
+            padding_mode = transform[InverseKeys.EXTRA_INFO]["padding_mode"]
             inv_affine = np.linalg.inv(fwd_affine)
 
             affine_grid = AffineGrid(affine=inv_affine)
@@ -701,18 +719,24 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             affine = torch.as_tensor(np.eye(len(sp_size) + 1), device=self.rand_affine.rand_affine_grid.device)
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
-            self.push_transform(d, key, extra_info={"affine": affine})
+            self.push_transform(d, key, extra_info={
+                "affine": affine,
+                "mode": mode.value if isinstance(mode, Enum) else mode,
+                "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
+            })
             d[key] = self.rand_affine.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
 
-        for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
+        for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             orig_size = transform[InverseKeys.ORIG_SIZE]
             # Create inverse transform
             fwd_affine = transform[InverseKeys.EXTRA_INFO]["affine"]
+            mode = transform[InverseKeys.EXTRA_INFO]["mode"]
+            padding_mode = transform[InverseKeys.EXTRA_INFO]["padding_mode"]
             inv_affine = np.linalg.inv(fwd_affine)
 
             affine_grid = AffineGrid(affine=inv_affine)
@@ -1171,17 +1195,23 @@ class Rotated(MapTransform, InvertibleTransform):
                 dtype=dtype,
             )
             rot_mat = self.rotator.get_rotation_matrix()
-            self.push_transform(d, key, orig_size=orig_size, extra_info={"rot_mat": rot_mat})
+            self.push_transform(d, key, orig_size=orig_size, extra_info={
+                "rot_mat": rot_mat,
+                "mode": mode.value if isinstance(mode, Enum) else mode,
+                "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
+                "align_corners": align_corners,
+            })
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
-        for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
-            d, self.mode, self.padding_mode, self.align_corners, self.dtype
-        ):
+        for key, dtype in self.key_iterator(d, self.dtype):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
             fwd_rot_mat = transform[InverseKeys.EXTRA_INFO]["rot_mat"]
+            mode = transform[InverseKeys.EXTRA_INFO]["mode"]
+            padding_mode = transform[InverseKeys.EXTRA_INFO]["padding_mode"]
+            align_corners = transform[InverseKeys.EXTRA_INFO]["align_corners"]
             inv_rot_mat = np.linalg.inv(fwd_rot_mat)
 
             xform = AffineTransform(
@@ -1304,19 +1334,25 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
                 dtype=dtype,
             )
             rot_mat = rotator.get_rotation_matrix()
-            self.push_transform(d, key, orig_size=orig_size, extra_info={"rot_mat": rot_mat})
+            self.push_transform(d, key, orig_size=orig_size, extra_info={
+                "rot_mat": rot_mat,
+                "mode": mode.value if isinstance(mode, Enum) else mode,
+                "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
+                "align_corners": align_corners,
+            })
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
-        for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
-            d, self.mode, self.padding_mode, self.align_corners, self.dtype
-        ):
+        for key, dtype in self.key_iterator(d, self.dtype):
             transform = self.get_most_recent_transform(d, key)
             # Check if random transform was actually performed (based on `prob`)
             if transform[InverseKeys.DO_TRANSFORM]:
                 # Create inverse transform
                 fwd_rot_mat = transform[InverseKeys.EXTRA_INFO]["rot_mat"]
+                mode = transform[InverseKeys.EXTRA_INFO]["mode"]
+                padding_mode = transform[InverseKeys.EXTRA_INFO]["padding_mode"]
+                align_corners = transform[InverseKeys.EXTRA_INFO]["align_corners"]
                 inv_rot_mat = np.linalg.inv(fwd_rot_mat)
 
                 xform = AffineTransform(
@@ -1384,7 +1420,11 @@ class Zoomd(MapTransform, InvertibleTransform):
         for key, mode, padding_mode, align_corners in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners
         ):
-            self.push_transform(d, key)
+            self.push_transform(d, key, extra_info={
+                "mode": mode.value if isinstance(mode, Enum) else mode,
+                "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
+                "align_corners": align_corners,
+            })
             d[key] = self.zoomer(
                 d[key],
                 mode=mode,
@@ -1395,13 +1435,14 @@ class Zoomd(MapTransform, InvertibleTransform):
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
-        for key, mode, padding_mode, align_corners in self.key_iterator(
-            d, self.mode, self.padding_mode, self.align_corners
-        ):
+        for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
             zoom = np.array(self.zoomer.zoom)
             inverse_transform = Zoom(zoom=1 / zoom, keep_size=self.zoomer.keep_size)
+            mode = transform[InverseKeys.EXTRA_INFO]["mode"]
+            padding_mode = transform[InverseKeys.EXTRA_INFO]["padding_mode"]
+            align_corners = transform[InverseKeys.EXTRA_INFO]["align_corners"]
             # Apply inverse
             d[key] = inverse_transform(
                 d[key],
@@ -1496,7 +1537,12 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         for key, mode, padding_mode, align_corners in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners
         ):
-            self.push_transform(d, key, extra_info={"zoom": self._zoom})
+            self.push_transform(d, key, extra_info={
+                "zoom": self._zoom,
+                "mode": mode.value if isinstance(mode, Enum) else mode,
+                "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
+                "align_corners": align_corners,
+            })
             if self._do_transform:
                 d[key] = zoomer(
                     d[key],
@@ -1508,14 +1554,15 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = deepcopy(dict(data))
-        for key, mode, padding_mode, align_corners in self.key_iterator(
-            d, self.mode, self.padding_mode, self.align_corners
-        ):
+        for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Check if random transform was actually performed (based on `prob`)
             if transform[InverseKeys.DO_TRANSFORM]:
                 # Create inverse transform
                 zoom = np.array(transform[InverseKeys.EXTRA_INFO]["zoom"])
+                mode = transform[InverseKeys.EXTRA_INFO]["mode"]
+                padding_mode = transform[InverseKeys.EXTRA_INFO]["padding_mode"]
+                align_corners = transform[InverseKeys.EXTRA_INFO]["align_corners"]
                 inverse_transform = Zoom(zoom=1 / zoom, keep_size=self.keep_size)
                 # Apply inverse
                 d[key] = inverse_transform(
