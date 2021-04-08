@@ -17,8 +17,7 @@ from torch.utils.data.dataloader import DataLoader as TorchDataLoader
 
 from monai.data.dataloader import DataLoader
 from monai.data.dataset import Dataset
-from monai.data.utils import no_collation
-from monai.data.utils import decollate_batch, pad_list_data_collate
+from monai.data.utils import decollate_batch, no_collation, pad_list_data_collate
 from monai.transforms.croppad.batch import PadListDataCollate
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import Transform
