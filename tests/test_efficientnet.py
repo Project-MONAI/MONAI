@@ -201,7 +201,7 @@ class TestEFFICIENTNET(unittest.TestCase):
         # check output shape
         self.assertEqual(result.shape, expected_shape)
 
-    @parameterized.expand(CASES_1D + CASES_2D + CASES_3D)
+    @parameterized.expand(CASES_1D + CASES_2D)
     def test_non_default_shapes(self, input_param, input_shape, expected_shape):
         device = "cuda" if torch.cuda.is_available() else "cpu"
         print(input_param)
