@@ -28,8 +28,10 @@ else:
 class SegmentationSaver:
     """
     Event handler triggered on completing every iteration to save the segmentation predictions into files.
-    """
+    It can extract the input image meta data(filename, affine, original_shape, etc.) and resample the predictions
+    based on the meta data.
 
+    """
     def __init__(
         self,
         output_dir: str = "./",
@@ -96,6 +98,7 @@ class SegmentationSaver:
                 output will be: /output/test1/image/image_seg.nii.gz
             batch_transform: a callable that is used to transform the
                 ignite.engine.batch into expected format to extract the meta_data dictionary.
+                it can be used to extract the input image meta data: filename, affine, original_shape, etc.
             output_transform: a callable that is used to transform the
                 ignite.engine.output into the form expected image data.
                 The first dimension of this transform's output will be treated as the
