@@ -17,7 +17,7 @@ class Swish(nn.Module):
     r"""Applies the element-wise function:
 
     .. math::
-        \text{Swish}(x) = x * \text{Sigmoid}(\alpha * x) for constant value alpha.
+        \text{Swish}(x) = x * \text{Sigmoid}(\alpha * x) ~~~~\text{for constant value}~ \alpha.
 
     Citation: Searching for Activation Functions, Ramachandran et al., 2017, https://arxiv.org/abs/1710.05941.
 
@@ -68,14 +68,14 @@ class MemoryEfficientSwish(nn.Module):
     r"""Applies the element-wise function:
 
     .. math::
-        \text{Swish}(x) = x * \text{Sigmoid}(\alpha * x) for constant value alpha=1.
-
-    Citation: Searching for Activation Functions, Ramachandran et al., 2017, https://arxiv.org/abs/1710.05941.
+        \text{Swish}(x) = x * \text{Sigmoid}(\alpha * x) ~~~~\text{for constant value}~ \alpha=1.
 
     Memory efficient implementation for training following recommendation from:
     https://github.com/lukemelas/EfficientNet-PyTorch/issues/18#issuecomment-511677853
 
     Results in ~ 30% memory saving during training as compared to Swish()
+
+    Citation: Searching for Activation Functions, Ramachandran et al., 2017, https://arxiv.org/abs/1710.05941.
 
     Shape:
         - Input: :math:`(N, *)` where `*` means, any number of additional

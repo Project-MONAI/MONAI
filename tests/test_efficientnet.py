@@ -258,7 +258,7 @@ class TestEFFICIENTNET(unittest.TestCase):
         self.assertEqual(pred_label, expected_label)
 
     def test_drop_connect_layer(self):
-        p_list = [float(d + 1) / 10 for d in range(9)]
+        p_list = [float(d + 1) / 10.0 for d in range(9)]
         # testing 1D, 2D and 3D shape
         for rand_tensor_shape in [(512, 16, 4), (384, 16, 4, 4), (256, 16, 4, 4, 4)]:
 
@@ -269,7 +269,7 @@ class TestEFFICIENTNET(unittest.TestCase):
                 out_tensor = drop_connect(in_tensor, p, training=training)
                 self.assertTrue(torch.equal(out_tensor, in_tensor))
 
-            # test training mode, sum(out tensor != in tensor)/out_tensor.size() == p
+            # test training mode, sum((out tensor * (1.0 - p)) != in tensor)/out_tensor.size() == p
             # use tolerance of 0.175 to account for rounding errors due to finite set in/out
             tol = 0.175
             training = True

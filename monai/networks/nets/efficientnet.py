@@ -74,7 +74,6 @@ class MBConvBlock(nn.Module):
             [2] https://arxiv.org/abs/1801.04381 (MobileNet v2)
             [3] https://arxiv.org/abs/1905.02244 (MobileNet v3)
         """
-
         super().__init__()
 
         # select the type of N-Dimensional layers to use
@@ -143,6 +142,9 @@ class MBConvBlock(nn.Module):
         self._project_conv = conv_type(in_channels=oup, out_channels=final_oup, kernel_size=1, bias=False)
         self._project_conv_padding = _make_same_padder(self._project_conv, image_size)
         self._bn2 = batchnorm_type(num_features=final_oup, momentum=bn_mom, eps=bn_eps)
+
+        # swish activation to use - using memory efficient swish by default
+        # can be switched to normal swish using self.set_swish() function call
         self._swish = Act["memswish"]()
 
     def forward(self, inputs: torch.Tensor):
@@ -292,8 +294,8 @@ class EfficientNet(nn.Module):
         current_image_size = _calculate_output_image_size(current_image_size, stride)
 
         # build MBConv blocks
-        self._blocks = nn.Sequential()
         num_blocks = 0
+        self._blocks = nn.Sequential()
 
         # update baseline blocks to input/output filters and number of repeats based on width and depth multipliers.
         for idx, block_args in enumerate(self._blocks_args):
@@ -310,10 +312,11 @@ class EfficientNet(nn.Module):
         # create and add MBConvBlocks to self._blocks
         idx = 0  # block index counter
         for block_args in self._blocks_args:
-
             blk_drop_connect_rate = self.drop_connect_rate
+
+            # scale drop connect_rate
             if blk_drop_connect_rate:
-                blk_drop_connect_rate *= float(idx) / num_blocks  # scale drop connect_rate
+                blk_drop_connect_rate *= float(idx) / num_blocks
 
             # the first block needs to take care of stride and filter size increase.
             self._blocks.add_module(
@@ -339,12 +342,15 @@ class EfficientNet(nn.Module):
             if block_args.num_repeat > 1:  # modify block_args to keep same output size
                 block_args = block_args._replace(input_filters=block_args.output_filters, stride=1)
 
-            # repeat block for num_repeat required
+            # add remaining block repeated num_repeat times
             for _ in range(block_args.num_repeat - 1):
                 blk_drop_connect_rate = self.drop_connect_rate
-                if blk_drop_connect_rate:
-                    blk_drop_connect_rate *= float(idx) / num_blocks  # scale drop connect_rate
 
+                # scale drop connect_rate
+                if blk_drop_connect_rate:
+                    blk_drop_connect_rate *= float(idx) / num_blocks
+
+                # add blocks
                 self._blocks.add_module(
                     str(idx),
                     MBConvBlock(
@@ -384,7 +390,7 @@ class EfficientNet(nn.Module):
         # can be switched to normal swish using self.set_swish() function call
         self._swish = Act["memswish"]()
 
-        # initialize weights
+        # initialize weights using Tensorflow's init method from official impl.
         self._initialize_weights()
 
     def set_swish(self, memory_efficient: bool = True) -> None:
@@ -487,6 +493,8 @@ class EfficientNetBN(EfficientNet):
             "r4_k5_s22_e6_i112_o192_se0.25",
             "r1_k3_s11_e6_i192_o320_se0.25",
         ]
+
+        # check if model_name is valid model
         if model_name not in efficientnet_params.keys():
             raise ValueError(
                 "invalid model_name {} found, must be one of {} ".format(
@@ -495,7 +503,7 @@ class EfficientNetBN(EfficientNet):
             )
 
         # get network parameters
-        wc, dc, isize, dout_r, dconnect_r = efficientnet_params[model_name]
+        weight_coeff, depth_coeff, image_size, drpout_rate, drpconnect_rate = efficientnet_params[model_name]
 
         # create model and initialize random weights
         model = super(EfficientNetBN, self).__init__(
@@ -503,11 +511,11 @@ class EfficientNetBN(EfficientNet):
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             num_classes=num_classes,
-            width_coefficient=wc,
-            depth_coefficient=dc,
-            dropout_rate=dout_r,
-            image_size=isize,
-            drop_connect_rate=dconnect_r,
+            width_coefficient=weight_coeff,
+            depth_coefficient=depth_coeff,
+            dropout_rate=drpout_rate,
+            image_size=image_size,
+            drop_connect_rate=drpconnect_rate,
         )
 
         # attempt to load pretrained
@@ -539,11 +547,13 @@ def get_efficientnet_image_size(model_name: str) -> int:
         Image size for single spatial dimension as integer.
 
     """
+    # check if model_name is valid model
     if model_name not in efficientnet_params.keys():
         raise ValueError(
             "invalid model_name {} found, must be one of {} ".format(model_name, ", ".join(efficientnet_params.keys()))
         )
 
+    # return input image size (all dims equal so only need to return for one dim)
     _, _, res, _, _ = efficientnet_params[model_name]
     return res
 
@@ -571,9 +581,11 @@ def drop_connect(inputs: torch.Tensor, p: float, training: bool) -> torch.Tensor
     if p < 0.0 or p > 1.0:
         raise ValueError("p must be in range of [0, 1], found {}".format(p))
 
+    # eval mode: drop_connect is switched off - so return input without modifying
     if not training:
         return inputs
 
+    # train mode: calculate and apply drop_connect
     batch_size: int = inputs.shape[0]
     keep_prob: float = 1 - p
     num_dims: int = len(inputs.shape) - 2
@@ -604,20 +616,25 @@ def _load_state_dict(model: nn.Module, model_name: str, progress: bool, load_fc:
         "efficientnet-b6": "https://github.com/lukemelas/EfficientNet-PyTorch/releases/download/1.0/efficientnet-b6-c76e70fd.pth",
         "efficientnet-b7": "https://github.com/lukemelas/EfficientNet-PyTorch/releases/download/1.0/efficientnet-b7-dcc49843.pth",
     }
+    # load state dict from url
     model_url = url_map[model_name]
     state_dict = model_zoo.load_url(model_url, progress=progress)
 
-    if load_fc:
+    # load state dict into model parameters
+    if load_fc:  # load everything
         ret = model.load_state_dict(state_dict, strict=False)
         if ret.missing_keys:
             raise ValueError("Found missing keys when loading pretrained weights: {}".format(ret.missing_keys))
-    else:
+    else:  # skip final FC layers, for transfer learning cases
         state_dict.pop("_fc.weight")
         state_dict.pop("_fc.bias")
         ret = model.load_state_dict(state_dict, strict=False)
+
+        # check if no other keys missing except FC layer parameters
         if set(ret.missing_keys) != {"_fc.weight", "_fc.bias"}:
             raise ValueError("Found missing keys when loading pretrained weights: {}".format(ret.missing_keys))
 
+    # check for any unexpected keys
     if ret.unexpected_keys:
         raise ValueError("Missing keys when loading pretrained weights: {}".format(ret.unexpected_keys))
 
@@ -638,11 +655,12 @@ def _get_same_padding_conv_nd(
         stride: stride for conv operation.
 
     Returns:
-        paddings for ConstantPadXd padder to be used on input tensor to conv op.
+        paddings for ConstantPadNd padder to be used on input tensor to conv op.
     """
+    # get number of spatial dimensions, corresponds to kernel size length
     num_dims = len(kernel_size)
 
-    # additional checks to populate dilation and stride (in case they are single entry tuple)
+    # additional checks to populate dilation and stride (in case they are single entry tuples)
     if len(dilation) == 1:
         dilation = dilation * num_dims
 
@@ -658,7 +676,7 @@ def _get_same_padding_conv_nd(
     _paddings: List[Tuple[int, int]] = [(_p // 2, _p - _p // 2) for _p in _pad_size]
 
     # unroll list of tuples to tuples, and then to list
-    # reversed as nn.ConstantPadXd expects paddings starting with last dimension
+    # reversed as nn.ConstantPadNd expects paddings starting with last dimension
     _paddings_ret: List[int] = [outer for inner in reversed(_paddings) for outer in inner]
     return _paddings_ret
 
@@ -729,14 +747,14 @@ def _round_repeats(repeats: int, depth_coefficient: Optional[float]) -> int:
     if not depth_coefficient:
         return repeats
 
-    # follow the formula transferred from official TensorFlow implementation
+    # follow the formula transferred from official TensorFlow impl.
     return int(math.ceil(depth_coefficient * repeats))
 
 
 def _calculate_output_image_size(input_image_size: List[int], stride: Union[int, Tuple[int]]):
     """
     Calculates the output image size when using _make_same_padder with a stride.
-    Necessary for static padding.
+    Required for static padding.
 
     Args:
         input_image_size: input image/feature spatial size.
@@ -745,10 +763,10 @@ def _calculate_output_image_size(input_image_size: List[int], stride: Union[int,
     Returns:
         output_image_size: output image/feature spatial size.
     """
-    if input_image_size is None:
-        return None
-
+    # get number of spatial dimensions, corresponds to image spatial size length
     num_dims = len(input_image_size)
+
+    # checks to extract integer stride in case tuple was received
     if isinstance(stride, tuple):
         all_strides_equal = all([stride[0] == s for s in stride])
         if not all_strides_equal:
@@ -756,6 +774,7 @@ def _calculate_output_image_size(input_image_size: List[int], stride: Union[int,
 
         stride = stride[0]
 
+    # return output image size
     return [int(math.ceil(im_sz / stride)) for im_sz in input_image_size]
 
 
@@ -769,21 +788,6 @@ def _decode_block_list(string_list: List[str]):
     Returns:
         blocks_args: a list of BlockArgs namedtuples of block args.
     """
-    # TODO: remove after different python tests have passed on github
-    # BlockArgs = collections.namedtuple(
-    #     "BlockArgs",
-    #     [
-    #         "num_repeat",
-    #         "kernel_size",
-    #         "stride",
-    #         "expand_ratio",
-    #         "input_filters",
-    #         "output_filters",
-    #         "se_ratio",
-    #         "id_skip",
-    #     ],
-    # )
-    # BlockArgs.__new__.__defaults__ = (None,) * len(BlockArgs._fields) # type: ignore
     # Parameters for an individual model block
     # namedtuple with defaults for mypy help from:
     # https://stackoverflow.com/a/53255358
@@ -836,10 +840,10 @@ def _decode_block_list(string_list: List[str]):
             se_ratio=float(options["se"]) if "se" in options else None,
         )
 
-    if not isinstance(string_list, list):
-        raise ValueError("string_list must be a list")
-
-    blocks_args = []
+    # convert block strings into BlockArgs for each entry in string_list list
+    blocks_args: List[BlockArgs] = []
     for current_string in string_list:
         blocks_args.append(_decode_block_string(current_string))
+
+    # return blocks_args list, to be used for arguments of MBConv layers in EfficientNet
     return blocks_args
