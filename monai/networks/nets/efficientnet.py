@@ -9,12 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import collections
 import math
 import operator
 import re
 from functools import reduce
-from typing import List, Optional, Tuple, Type, Union
+from typing import List, NamedTuple, Optional, Tuple, Type, Union
 
 import torch
 from torch import nn
@@ -47,10 +46,10 @@ class MBConvBlock(nn.Module):
         stride: int,
         image_size: List[int],
         expand_ratio: int,
-        se_ratio: Optional[float] = None,
+        se_ratio: Optional[float],
         id_skip: Optional[bool] = True,
-        batch_norm_momentum: Optional[float] = 0.99,
-        batch_norm_epsilon: Optional[float] = 1e-3,
+        batch_norm_momentum: float = 0.99,
+        batch_norm_epsilon: float = 1e-3,
         drop_connect_rate: Optional[float] = 0.2,
     ) -> None:
         """
@@ -89,10 +88,15 @@ class MBConvBlock(nn.Module):
         self.id_skip = id_skip
         self.stride = stride
         self.expand_ratio = expand_ratio
-        self.has_se = (se_ratio is not None) and (0 < se_ratio <= 1)
         self.drop_connect_rate = drop_connect_rate
 
-        bn_mom = 1 - batch_norm_momentum  # pytorch"s difference from tensorflow
+        if (se_ratio is not None) and (0.0 < se_ratio <= 1.0):
+            self.has_se = True
+            self.se_ratio = se_ratio
+        else:
+            self.has_se = False
+
+        bn_mom = 1.0 - batch_norm_momentum  # pytorch"s difference from tensorflow
         bn_eps = batch_norm_epsilon
 
         # Expansion phase (Inverted Bottleneck)
@@ -128,7 +132,7 @@ class MBConvBlock(nn.Module):
         # Squeeze and Excitation layer, if desired
         if self.has_se:
             self._se_adaptpool = adaptivepool_type(1)
-            num_squeezed_channels = max(1, int(in_channels * se_ratio))
+            num_squeezed_channels = max(1, int(in_channels * self.se_ratio))
             self._se_reduce = conv_type(in_channels=oup, out_channels=num_squeezed_channels, kernel_size=1)
             self._se_reduce_padding = _make_same_padder(self._se_reduce, [1, 1])
             self._se_expand = conv_type(in_channels=num_squeezed_channels, out_channels=oup, kernel_size=1)
@@ -659,7 +663,7 @@ def _get_same_padding_conv_nd(
     return _paddings_ret
 
 
-def _make_same_padder(conv_op: Type[Union[nn.Conv1d, nn.Conv2d, nn.Conv3d]], image_size: List[int]):
+def _make_same_padder(conv_op: Union[nn.Conv1d, nn.Conv2d, nn.Conv3d], image_size: List[int]):
     """
     Helper for initializing ConstantPadNd with SAME padding similar to Tensorflow.
     Uses output of _get_same_padding_conv_nd() to get the padding size.
@@ -684,9 +688,7 @@ def _make_same_padder(conv_op: Type[Union[nn.Conv1d, nn.Conv2d, nn.Conv3d]], ima
         return nn.Identity()
 
 
-def _round_filters(
-    filters: int, width_coefficient: Optional[float] = None, depth_divisor: Optional[float] = None
-) -> int:
+def _round_filters(filters: int, width_coefficient: Optional[float], depth_divisor: float) -> int:
     """
     Calculate and round number of filters based on width coefficient multiplier and depth divisor.
 
@@ -698,20 +700,22 @@ def _round_filters(
     Returns:
         new_filters: new number of filters after calculation.
     """
-    multiplier = width_coefficient
-    if not multiplier:
+
+    if not width_coefficient:
         return filters
-    divisor = depth_divisor
-    filters *= multiplier
+
+    multiplier: float = width_coefficient
+    divisor: float = depth_divisor
+    filters_float: float = filters * multiplier
 
     # follow the formula transferred from official TensorFlow implementation
-    new_filters = max(divisor, int(filters + divisor / 2) // divisor * divisor)
-    if new_filters < 0.9 * filters:  # prevent rounding by more than 10%
+    new_filters: float = max(divisor, int(filters_float + divisor / 2) // divisor * divisor)
+    if new_filters < 0.9 * filters_float:  # prevent rounding by more than 10%
         new_filters += divisor
     return int(new_filters)
 
 
-def _round_repeats(repeats: int, depth_coefficient: Optional[float] = None) -> int:
+def _round_repeats(repeats: int, depth_coefficient: Optional[float]) -> int:
     """
     Re-calculate module's repeat number of a block based on depth coefficient multiplier.
 
@@ -724,6 +728,7 @@ def _round_repeats(repeats: int, depth_coefficient: Optional[float] = None) -> i
     """
     if not depth_coefficient:
         return repeats
+
     # follow the formula transferred from official TensorFlow implementation
     return int(math.ceil(depth_coefficient * repeats))
 
@@ -764,23 +769,35 @@ def _decode_block_list(string_list: List[str]):
     Returns:
         blocks_args: a list of BlockArgs namedtuples of block args.
     """
+    # TODO: remove after different python tests have passed on github
+    # BlockArgs = collections.namedtuple(
+    #     "BlockArgs",
+    #     [
+    #         "num_repeat",
+    #         "kernel_size",
+    #         "stride",
+    #         "expand_ratio",
+    #         "input_filters",
+    #         "output_filters",
+    #         "se_ratio",
+    #         "id_skip",
+    #     ],
+    # )
+    # BlockArgs.__new__.__defaults__ = (None,) * len(BlockArgs._fields) # type: ignore
     # Parameters for an individual model block
-    BlockArgs = collections.namedtuple(
-        "BlockArgs",
-        [
-            "num_repeat",
-            "kernel_size",
-            "stride",
-            "expand_ratio",
-            "input_filters",
-            "output_filters",
-            "se_ratio",
-            "id_skip",
-        ],
-    )
-    BlockArgs.__new__.__defaults__ = (None,) * len(BlockArgs._fields)
+    # namedtuple with defaults for mypy help from:
+    # https://stackoverflow.com/a/53255358
+    class BlockArgs(NamedTuple):
+        num_repeat: int
+        kernel_size: int
+        stride: int
+        expand_ratio: int
+        input_filters: int
+        output_filters: int
+        id_skip: bool
+        se_ratio: Optional[float] = None
 
-    def _decode_block_string(block_string: str) -> BlockArgs:
+    def _decode_block_string(block_string: str):
         """
         Get a block through a string notation of arguments.
 
@@ -815,14 +832,14 @@ def _decode_block_list(string_list: List[str]):
             expand_ratio=int(options["e"]),
             input_filters=int(options["i"]),
             output_filters=int(options["o"]),
-            se_ratio=float(options["se"]) if "se" in options else None,
             id_skip=("noskip" not in block_string),
+            se_ratio=float(options["se"]) if "se" in options else None,
         )
 
     if not isinstance(string_list, list):
         raise ValueError("string_list must be a list")
 
     blocks_args = []
-    for b_s in string_list:
-        blocks_args.append(_decode_block_string(b_s))
+    for current_string in string_list:
+        blocks_args.append(_decode_block_string(current_string))
     return blocks_args
