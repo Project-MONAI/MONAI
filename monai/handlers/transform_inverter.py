@@ -9,13 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Optional
 import warnings
+from typing import TYPE_CHECKING, Callable, Optional
+
 from torch.utils.data import DataLoader as TorchDataLoader
-from monai.transforms import InvertibleTransform, allow_missing_keys_mode
+
 from monai.data import BatchInverseTransform
-from monai.utils import InverseKeys, exact_version, optional_import
 from monai.engines.utils import CommonKeys
+from monai.transforms import InvertibleTransform, allow_missing_keys_mode
+from monai.utils import InverseKeys, exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
 if TYPE_CHECKING:
@@ -30,6 +32,7 @@ class TransformInverter:
     It takes `engine.state.output` as the input data and uses the transforms infomation from `engine.state.batch`.
 
     """
+
     def __init__(
         self,
         transform: InvertibleTransform,
@@ -76,8 +79,9 @@ class TransformInverter:
 
         segs_dict = {
             self.batch_key: engine.state.output[self.output_key].detach().cpu(),
-            transform_key: engine.state.batch[transform_key]}
+            transform_key: engine.state.batch[transform_key],
+        }
 
-        with allow_missing_keys_mode(self.transform):
+        with allow_missing_keys_mode(self.transform):  # type: ignore
             inverted_key = f"{self.output_key}_{self.postfix}"
             engine.state.output[inverted_key] = [i[self.batch_key] for i in self.inverter(segs_dict)]

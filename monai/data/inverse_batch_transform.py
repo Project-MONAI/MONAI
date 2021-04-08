@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable, Dict, Hashable, Optional, Sequence
 import warnings
+from typing import Any, Callable, Dict, Hashable, Optional, Sequence
+
 import numpy as np
 from torch.utils.data.dataloader import DataLoader as TorchDataLoader
 
