@@ -130,18 +130,14 @@ The `ImageReader` API is quite straight-forward, users can easily extend for the
 
 With these pre-defined image readers, MONAI can load images in formats: `NIfTI`, `DICOM`, `PNG`, `JPG`, `BMP`, `NPY/NPZ`, etc.
 
-### 11. Save transform results into NIfTI or PNG files
-To convert some medical image files or debug the transform chain, MONAI provides `SaveImage` transform. Users can put this transform in any place of the transform chain then save the results.
+### 11. Save transform data into NIfTI or PNG files
+To convert images into files or debug the transform chain, MONAI provides `SaveImage` transform. Users can inject this transform into the transform chain to save the results.
 
 ### 12. Automatically ensure `channel-first` data shape
-Medical images have different shape formats, can be `channel-last`, `channel-first` or even `no-channel` dimension for the single channel image. And in some tasks, we need to load several `np-channel` images and stack them together as a `channel-first` data. Users may be not very clear about the input image / label data shape, and hard to set expected tranform to convert data into `channel-first` shape for the following components.
-
-To improve the user experience, MONAI provided `EnsureChannelFirst` transform to automatically detect data shape by the meta information and convert it to `channel-first` shape no matter it's `channel-last`, `no-channel` or already `channel-first`.
+Medical images have different shape formats. They can be `channel-last`, `channel-first` or even `no-channel`. We may, for example, want to load several `no-channel` images and stack them as `channel-first` data. To improve the user experience, MONAI provided an `EnsureChannelFirst` transform to automatically detect data shape according to the meta information and convert it to the `channel-first` format consistently.
 
 ### 13. Invert spatial transforms and test-time augmentations
-During the deep learning validation / inference of medical images, it's important to invert all the spatial pre-transforms(orientation, resize, flip, rotate, zoom, crop, pad, etc.) for the model output data, then save it into files or visualize to compare with the original input images.
-
-We enhanced almost all the spatial transforms with `inverse` operations and introduced the experimental feature in v0.5. Users can easily invert all the spatial pre-transforms for 1 transformed data or 1 batch of data. It also can be achieved in the workflows by `TransformInverter` handler.
+It is often desirable to invert the previously applied spatial transforms (resize, flip, rotate, zoom, crop, pad, etc.) with the deep learning workflows, for example, to resume to the original imaging space after processing the image data in a normalized data space.  We enhance almost all the spatial transforms with an `inverse` operation and release this experimental feature in v0.5.0. Users can easily invert all the spatial transforms for one transformed data item or a batch of data items. It also can be achieved within the workflows by using the `TransformInverter` handler.
 
 If the pipeline includes random transformations, users may want to observe the effect that these transformations have on the output. The typical approach is that we pass the same input through the transforms multiple times with different random realizations. Then use the inverse transforms to move all the results to a common space, and calculate the metrics. MONAI provided `TestTimeAugmentation` for this feature, which by default will calculate the `mode`, `mean`, `standard deviation` and `volume variation coefficient`.
 
@@ -356,7 +352,7 @@ The demo contains distributed caching, training, and validation. We tried to tra
 To accelerate some heavy computation progress, C++/CUDA implementation can be an impressive method, which usually brings even hundreds of times faster performance. MONAI contains some C++/CUDA optimized modules, like `Resampler`, `Conditional random field (CRF)`, `Fast bilateral filtering using the permutohedral lattice`, and fully support C++/CUDA programs in CI/CD and building package.
 
 ## Applications
-The research area of medical image deep learning is expanding fast. To apply the latest achievements into applications, MONAI contains many application components to build end-to-end solutions or prototypes for other similiar use cases.
+The research area of medical image deep learning is expanding fast. To apply the latest achievements into applications, MONAI contains many application components to build end-to-end solutions or prototypes for other similar use cases.
 
 ### 1. DeepGrow modules for interactive segmentation
 [A reimplementation](https://github.com/Project-MONAI/MONAI/tree/master/monai/apps/deepgrow) of the DeepGrow components, which is deep learning based semi-automated segmentation approach that aims to be a "smart" interactive tool for region of interest delineation in medical images, originally proposed by:
@@ -364,9 +360,12 @@ The research area of medical image deep learning is expanding fast. To apply the
 Sakinis, Tomas, et al. "Interactive segmentation of medical images through fully convolutional neural networks." arXiv preprint arXiv:1903.08205 (2019).
 ![image](../images/deepgrow.png)
 
-### 2. Digital pathology detection for lesion
+### 2. Lesion detection in digital pathology
 [Implementation](https://github.com/Project-MONAI/MONAI/tree/master/monai/apps/pathology) of the pathology detection components, which includes efficient whole slide imaging IO and sampling with NVIDIA cuCIM library and SmartCache mechanism, FROC measurements for lesion and probabilistic post-processing for lesion detection.
 ![image](../images/pathology.png)
 
 ### 3. Learning-based image registration
-FIXME: need Wenqi to help describe
+Starting from v0.5.0, MONAI provides experimental features for building learning-based 2D/3D registration workflows.  These include image similarity measures as loss functions, bending energy as model regularization, network architectures, warping modules. The components can be used to build the major unsupervised and weakly-supervised algorithms.
+
+The following figure shows the registration of CT images acquired at different time points for a single patient using MONAI:
+![3dreg](../images/3d_paired.png)
