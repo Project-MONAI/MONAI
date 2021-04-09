@@ -26,6 +26,7 @@ The rest of this page provides more details for each module.
 * [Workflows](#workflows)
 * [Research](#research)
 * [GPU acceleration](#gpu-acceleration)
+* [Applications](#applications)
 
 ## Medical image data I/O, processing and augmentation
 Medical images require highly specialized methods for I/O, preprocessing, and augmentation. Medical images are often in specialized formats with rich meta-information, and the data volumes are often high-dimensional. These require carefully designed manipulation procedures. The medical imaging focus of MONAI is enabled by powerful and flexible image transformations that facilitate user-friendly, reproducible, optimized medical data pre-processing pipelines.
@@ -129,6 +130,29 @@ The `ImageReader` API is quite straight-forward, users can easily extend for the
 
 With these pre-defined image readers, MONAI can load images in formats: `NIfTI`, `DICOM`, `PNG`, `JPG`, `BMP`, `NPY/NPZ`, etc.
 
+### 11. Save transform results into NIfTI or PNG files
+To convert some medical image files or debug the transform chain, MONAI provides `SaveImage` transform. Users can put this transform in any place of the transform chain then save the results.
+
+### 12. Automatically ensure `channel-first` data shape
+Medical images have different shape formats, can be `channel-last`, `channel-first` or even `no-channel` dimension for the single channel image. And in some tasks, we need to load several `np-channel` images and stack them together as a `channel-first` data. Users may be not very clear about the input image / label data shape, and hard to set expected tranform to convert data into `channel-first` shape for the following components.
+
+To improve the user experience, MONAI provided `EnsureChannelFirst` transform to automatically detect data shape by the meta infomation and convert it to `channel-first` shape no matter it's `channel-last`, `no-channel` or already `channel-first`.
+
+### 13. Invert spatial transforms and test-time augmentations
+During the deep learning validation / inference of medical images, it's important to invert all the spatial pre-transforms(orientation, resize, flip, rotate, zoom, crop, pad, etc.) for the model output data, then save it into files or visualize to compare with the original input images.
+
+We enhanced almost all the spatial transforms with `inverse` operations and introduced the experimental feature in v0.5. Users can easily invert all the spatial pre-transforms for 1 transformed data or 1 batch of data. It also can be achieved in the workflows by `TransformInverter` handler.
+
+If the pipeline includes random transformations, users may want to observe the effect that these transformations have on the output. The typical approach is that we pass the same input through the transforms multiple times with different random realizations. Then use the inverse transforms to move all the results to a common space, and calculate the metrics. MONAI provided `TestTimeAugmentation` for this feature, which by default will calculate the `mode`, `mean`, `standard deviation` and `volume variation coefficient`.
+
+[Invert transforms and TTA tutorials](https://github.com/Project-MONAI/tutorials/blob/master/modules/inverse_transforms_and_test_time_augmentations.ipynb) introduce details about the API with usage examples.
+
+(1) The last column is the inverted data of model output:
+![image](../images/invert_transforms.png)
+
+(2) The TTA results of `mode`, `mean` and `standard deviation`:
+![image](../images/tta.png)
+
 ## Datasets
 ### 1. Cache IO and transforms data to accelerate training
 Users often need to train the model with many (potentially thousands of) epochs over the data to achieve the desired model quality. A native PyTorch implementation may repeatedly load data and run the same preprocessing steps for every epoch during training, which can be time-consuming and unnecessary, especially when the medical image volumes are large.
@@ -202,6 +226,7 @@ MONAI provides several advanced features in optimizers to help accelerate the tr
 ## Network architectures
 Some deep neural network architectures have shown to be particularly effective for medical imaging analysis tasks. MONAI implements reference networks with the aims of both flexibility and code readability.
 
+### 1. Predefined layers and blocks
 To leverage the common network layers and blocks, MONAI provides several predefined layers and blocks which are compatible with 1D, 2D and 3D networks. Users can easily integrate the layer factories in their own networks.
 
 For example:
@@ -215,6 +240,8 @@ name, dimension = Conv.CONVTRANS, 3
 conv_type = Conv[name, dimension]
 add_module('conv1', conv_type(in_channels, out_channels, kernel_size=1, bias=False))
 ```
+
+### 2. Implementation of generic 2D/3D networks
 And there are several 1D/2D/3D-compatible implementations of intermediate blocks and generic networks, such as UNet, DynUNet, DenseNet, GAN, AHNet, VNet, SENet(and SEResNet, SEResNeXt), SegResNet, etc. All the networks can support PyTorch serialization pipeline based on `torch.jit.script`.
 
 ## Evaluation
@@ -258,7 +285,7 @@ These features decouple the domain-specific components and the generic machine l
 The trainers and evaluators of the workflows are compatible with pytorch-ignite `Engine` and `Event-Handler` mechanism. There are rich event handlers in MONAI to independently attach to the trainer or evaluator.
 
 ### 1. General workflows pipeline
-The workflow and event handlers are shown as below:
+The workflow and some of MONAI event handlers are shown as below:
 ![image](../images/workflows.png)
 
 The end-to-end training and evaluation examples are available at [Workflow examples](https://github.com/Project-MONAI/tutorials/tree/master/modules/engines).
@@ -315,3 +342,15 @@ The demo contains distributed caching, training, and validation. We tried to tra
 
 ### 3. C++/CUDA optimized modules
 To accelerate some heavy computation progress, C++/CUDA implementation can be an impressive method, which usually brings even hundreds of times faster performance. MONAI contains some C++/CUDA optimized modules, like `Resampler`,and fully support C++/CUDA programs in CI/CD and building package.
+
+## Applications
+The research area of medical image deep learning is expanding fast. To apply the latest achievements into applications, MONAI contains many application components to build end-to-end solutions or prototypes.
+
+### 1. Deepgrow modules for interactive segmentation
+FIXME: describe
+
+### 2. Digital pathology detection for lesion
+FIXME: describe
+
+### 3. Learning-based image registration
+FIXME: need Wenqi to help describe
