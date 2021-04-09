@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader as TorchDataLoader
 from monai.data import BatchInverseTransform
 from monai.data.utils import no_collation
 from monai.engines.utils import CommonKeys
-from monai.transforms import InvertibleTransform, allow_missing_keys_mode
+from monai.transforms import InvertibleTransform, allow_missing_keys_mode, convert_inverse_interp_mode
 from monai.utils import InverseKeys, exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
@@ -32,12 +32,6 @@ class TransformInverter:
     Ignite handler to automatically invert all the pre-transforms that support `inverse`.
     It takes `engine.state.output` as the input data and uses the transforms infomation from `engine.state.batch`.
 
-    Note:
-        This handler is experimental API in v0.5, the interpolation mode in the transforms
-        and inverse transforms are the same, so maybe it's not correct as we may want to use `bilinear`
-        for input image but use `nearest` when inverting transforms for model outout.
-        For this case, a solution is to set `batch_key` to the label field if we have labels.
-
     """
 
     def __init__(
@@ -48,6 +42,7 @@ class TransformInverter:
         batch_key: str = CommonKeys.IMAGE,
         output_key: str = CommonKeys.PRED,
         postfix: str = "inverted",
+        nearest_interp: bool = True,
     ) -> None:
         """
         Args:
@@ -59,6 +54,8 @@ class TransformInverter:
                 for this input data, then invert them for the model output, default to "image".
             output_key: the key of model output in `ignite.engine.output`, invert transforms on it.
             postfix: will save the inverted result into `ignite.engine.output` with key `{ouput_key}_{postfix}`.
+            nearest_interp: whether to use `nearest` interpolation mode when inverting spatial transforms,
+                default to `True`. if `False`, use the same interpolation mode as the original transform.
 
         """
         self.transform = transform
@@ -66,6 +63,7 @@ class TransformInverter:
         self.batch_key = batch_key
         self.output_key = output_key
         self.postfix = postfix
+        self.nearest_interp = nearest_interp
 
     def attach(self, engine: Engine) -> None:
         """
@@ -84,9 +82,13 @@ class TransformInverter:
             warnings.warn("all the pre-transforms are not InvertibleTransform or no need to invert.")
             return
 
+        transform_info = engine.state.batch[transform_key]
+        if self.nearest_interp:
+            convert_inverse_interp_mode(trans_info=transform_info, mode="nearest", align_corners=None)
+
         segs_dict = {
             self.batch_key: engine.state.output[self.output_key].detach().cpu(),
-            transform_key: engine.state.batch[transform_key],
+            transform_key: transform_info,
         }
 
         with allow_missing_keys_mode(self.transform):  # type: ignore
