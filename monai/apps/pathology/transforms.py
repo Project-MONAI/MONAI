@@ -12,10 +12,12 @@ class ExtractStainsMacenko(Transform):
     """Class to extract a target stain from an image, using the Macenko method for stain deconvolution.
 
     Args:
-        tli: (optional) transmitted light intensity
-        alpha: (optional) tolerance for the pseudo-min and pseudo-max
-        beta: (optional) Optical Density (OD) threshold for transparent pixels
-        max_cref: (optional) reference maximum stain concentrations for Hematoxylin & Eosin (H&E)
+        tli: transmitted light intensity. Defaults to 240.
+        alpha: tolerance in percentile for the pseudo-min (alpha percentile) 
+            and pseudo-max (100 - alpha percentile). Defaults to 1.
+        beta: absorbance threshold for transparent pixels. Defaults to 0.15
+        max_cref: reference maximum stain concentrations for Hematoxylin & Eosin (H&E). 
+            Defaults to None.
     """
 
     def __init__(self, tli: float = 240, alpha: float = 1, beta: float = 0.15, max_cref: cp.ndarray = None) -> None:
@@ -34,24 +36,24 @@ class ExtractStainsMacenko(Transform):
             img: RGB image to perform stain deconvolution of
 
         Return:
-            he: H&E OD matrix for the image (first column is H, second column is E, rows are RGB values)
+            he: H&E absorbance matrix for the image (first column is H, second column is E, rows are RGB values)
         """
         # reshape image
         img = img.reshape((-1, 3))
 
-        # calculate optical density
-        od = -cp.log((img.astype(cp.float) + 1) / self.tli)
+        # calculate absorbance 
+        absorbance = -cp.log(cp.clip(img.astype(cp.float)+1, a_max=self.tli)/self.tli)
 
         # remove transparent pixels
-        od_hat = od[~cp.any(od < self.beta, axis=1)]
+        absorbance_hat = absorbance[cp.all(absorbance>self.beta, axis=1)]
 
         # compute eigenvectors
-        _, eigvecs = cp.linalg.eigh(cp.cov(od_hat.T))
+        _, eigvecs = cp.linalg.eigh(cp.cov(absorbance_hat.T))
 
         # project on the plane spanned by the eigenvectors corresponding to the two largest eigenvalues
-        t_hat = od_hat.dot(eigvecs[:, 1:3])
+        t_hat = absorbance_hat.dot(eigvecs[:, 1:3])
 
-        # find the min and max vectors and project back to OD space
+        # find the min and max vectors and project back to absorbance space
         phi = cp.arctan2(t_hat[:, 1], t_hat[:, 0])
         min_phi = cp.percentile(phi, self.alpha)
         max_phi = cp.percentile(phi, 100 - self.alpha)
@@ -73,7 +75,7 @@ class ExtractStainsMacenko(Transform):
             image: RGB image to extract stain from
 
         return:
-            target_he: H&E OD matrix for the image (first column is H, second column is E, rows are RGB values)
+            target_he: H&E absorbance matrix for the image (first column is H, second column is E, rows are RGB values)
         """
         target_he = self._deconvolution_extract_stain(image)
         return target_he
@@ -89,11 +91,13 @@ class NormalizeStainsMacenko(Transform):
     reference maximum stain concentrations matrix is used.
 
     Args:
-        tli: (optional) transmitted light intensity
-        alpha: (optional) tolerance for the pseudo-min and pseudo-max
-        beta: (optional) Optical Density (OD) threshold for transparent pixels
-        target_he: (optional) target stain matrix
-        max_cref: (optional) reference maximum stain concentrations for Hematoxylin & Eosin (H&E)
+        tli: transmitted light intensity. Defaults to 240.
+        alpha: tolerance in percentile for the pseudo-min (alpha percentile) and 
+            pseudo-max (100 - alpha percentile). Defaults to 1.
+        beta: absorbance threshold for transparent pixels. Defaults to 0.15.
+        target_he: target stain matrix. Defaults to None.
+        max_cref: reference maximum stain concentrations for Hematoxylin & Eosin (H&E).
+            Defaults to None. 
     """
 
     def __init__(
@@ -128,19 +132,19 @@ class NormalizeStainsMacenko(Transform):
         # reshape image
         img = img.reshape((-1, 3))
 
-        # calculate optical density
-        od = -cp.log((img.astype(cp.float) + 1) / self.tli)
+        # calculate absorbance
+        absorbance = -cp.log(cp.clip(img.astype(cp.float)+1, a_max=self.tli)/self.tli)
 
         # remove transparent pixels
-        od_hat = od[~cp.any(od < self.beta, axis=1)]
+        absorbance_hat = absorbance[cp.all(absorbance>self.beta, axis=1)]
 
         # compute eigenvectors
-        _, eigvecs = cp.linalg.eigh(cp.cov(od_hat.T))
+        _, eigvecs = cp.linalg.eigh(cp.cov(absorbance_hat.T))
 
         # project on the plane spanned by the eigenvectors corresponding to the two largest eigenvalues
-        t_hat = od_hat.dot(eigvecs[:, 1:3])
+        t_hat = absorbance_hat.dot(eigvecs[:, 1:3])
 
-        # find the min and max vectors and project back to OD space
+        # find the min and max vectors and project back to absorbance space
         phi = cp.arctan2(t_hat[:, 1], t_hat[:, 0])
         min_phi = cp.percentile(phi, self.alpha)
         max_phi = cp.percentile(phi, 100 - self.alpha)
@@ -153,8 +157,8 @@ class NormalizeStainsMacenko(Transform):
         else:
             he = cp.array((v_max[:, 0], v_min[:, 0])).T
 
-        # rows correspond to channels (RGB), columns to OD values
-        y = cp.reshape(od, (-1, 3)).T
+        # rows correspond to channels (RGB), columns to absorbance values
+        y = cp.reshape(absorbance, (-1, 3)).T
 
         # determine concentrations of the individual stains
         conc = cp.linalg.lstsq(he, y, rcond=None)[0]
