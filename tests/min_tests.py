@@ -33,6 +33,7 @@ def run_testsuit():
         "test_cachedataset_parallel",
         "test_dataset",
         "test_detect_envelope",
+        "test_efficientnet",
         "test_iterable_dataset",
         "test_ensemble_evaluator",
         "test_handler_checkpoint_loader",
