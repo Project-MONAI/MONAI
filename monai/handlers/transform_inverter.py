@@ -17,8 +17,8 @@ from torch.utils.data import DataLoader as TorchDataLoader
 from monai.data import BatchInverseTransform
 from monai.data.utils import no_collation
 from monai.engines.utils import CommonKeys
-from monai.transforms import InvertibleTransform, allow_missing_keys_mode
-from monai.utils import GridSampleMode, InterpolateMode, InverseKeys, exact_version, optional_import
+from monai.transforms import InvertibleTransform, allow_missing_keys_mode, convert_inverse_interp_mode
+from monai.utils import InverseKeys, exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
 if TYPE_CHECKING:
@@ -84,14 +84,7 @@ class TransformInverter:
 
         transform_info = engine.state.batch[transform_key]
         if self.nearest_interp:
-            interp_modes = [i.value for i in InterpolateMode] + [i.value for i in GridSampleMode]
-            for item in transform_info:
-                if InverseKeys.EXTRA_INFO in item:
-                    mode = item[InverseKeys.EXTRA_INFO].get("mode", None)
-                    if mode is not None and mode[0] in interp_modes:
-                        item[InverseKeys.EXTRA_INFO]["mode"] = ["nearest" for _ in range(len(mode))]
-                    if "align_corners" in item[InverseKeys.EXTRA_INFO]:
-                        item[InverseKeys.EXTRA_INFO]["align_corners"] = ["none" for _ in range(len(mode))]
+            convert_inverse_interp_mode(trans_info=transform_info, mode="nearest", align_corners=None)
 
         segs_dict = {
             self.batch_key: engine.state.output[self.output_key].detach().cpu(),

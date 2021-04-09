@@ -395,4 +395,5 @@ from .utils import (
     resize_center,
     weighted_patch_samples,
     zero_margins,
+    convert_inverse_interp_mode,
 )
