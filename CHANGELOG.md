@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   * `InvertibleTransform` base APIs
   * Batch inverse and decollating APIs
   * Inverse of `Compose`
+  * Batch inverse event handling
   * Test-time augmentation as an application
 * Initial support of learning-based image registration:
   * Bending energy, LNCC, and global mutual information loss
@@ -26,7 +27,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   * FROC measurements for lesion
   * Probabilistic post-processing for lesion detection
   * TorchVision classification model adaptor for fully convolutional analysis
-* 12 new transforms, grid patch dataset, `ThreadDataLoader`
+* 12 new transforms, grid patch dataset, `ThreadDataLoader`, EfficientNets B0-B7
 * 4 iteration events for the engine for finer control of workflows
 * New C++/CUDA extensions:
   * Conditional random field
@@ -40,6 +41,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Initial Torchscript support for the loss modules
 * Learning rate finder
 * Allow for missing keys in the dictionary-based transforms
+* Support of checkpoint loading for transfer learning
 * Various summary and plotting utilities for Jupyter notebooks
 * Contributor Covenant Code of Conduct
 * Major CI/CD enhancements covering the tutorial repository
@@ -56,6 +58,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Decoupled post-processing steps, e.g. `softmax`, `to_onehot_y`, from the metrics computations
 * Moved the distributed samplers to `monai.data.samplers` from `monai.data.utils`
 * Engine's data loaders now accept generic iterables as input
+* Workflows now accept additional custom events and state properties
 * Various type hints according to Numpy 1.20
 * Refactored testing utility `runtests.sh` to have `--unittest` and `--net` (integration tests) options
 * Base Docker image upgraded to `nvcr.io/nvidia/pytorch:21.03-py3` from `nvcr.io/nvidia/pytorch:20.10-py3`
@@ -77,9 +80,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Checkpoint handler to save with non-root permissions
 * Fixed an issue for exiting the distributed unit tests
 * Unified `DynUNet` to have single tensor output w/o deep supervision
-* `SegmentationSaver` now supports user-specified data types, and a `squeeze_end_dims` flag
+* `SegmentationSaver` now supports user-specified data types and a `squeeze_end_dims` flag
 * Fixed `*Saver` event handlers output filenames with a `data_root_dir` option
-* Load image functions now ensures little-endian
+* Load image functions now ensure little-endian
 * Fixed the test runner to support regex-based test case matching
 * Usability issues in the event handlers
 
