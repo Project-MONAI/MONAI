@@ -20,6 +20,7 @@ from monai.data import CacheDataset, DataLoader, create_test_image_3d
 from monai.handlers import TransformInverter
 from monai.transforms import (
     AddChanneld,
+    CastToTyped,
     Compose,
     LoadImaged,
     RandAffined,
@@ -29,8 +30,10 @@ from monai.transforms import (
     RandRotated,
     RandZoomd,
     ResizeWithPadOrCropd,
+    ScaleIntensityd,
     ToTensord,
 )
+from monai.utils.misc import set_determinism
 from tests.utils import make_nifti_image
 
 KEYS = ["image", "label"]
@@ -38,19 +41,22 @@ KEYS = ["image", "label"]
 
 class TestTransformInverter(unittest.TestCase):
     def test_invert(self):
-        im_fname, seg_fname = [make_nifti_image(i) for i in create_test_image_3d(101, 100, 107)]
+        set_determinism(seed=0)
+        im_fname, seg_fname = [make_nifti_image(i) for i in create_test_image_3d(101, 100, 107, noise_max=100)]
         transform = Compose(
             [
                 LoadImaged(KEYS),
                 AddChanneld(KEYS),
+                ScaleIntensityd(KEYS, minv=1, maxv=10),
                 RandFlipd(KEYS, prob=0.5, spatial_axis=[1, 2]),
                 RandAxisFlipd(KEYS, prob=0.5),
                 RandRotate90d(KEYS, spatial_axes=(1, 2)),
                 RandZoomd(KEYS, prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True),
-                RandRotated(KEYS, prob=0.5, range_x=np.pi),
+                RandRotated(KEYS, prob=0.5, range_x=np.pi, mode="bilinear", align_corners=True),
                 RandAffined(KEYS, prob=0.5, rotate_range=np.pi),
                 ResizeWithPadOrCropd(KEYS, 100),
                 ToTensord(KEYS),
+                CastToTyped(KEYS, dtype=torch.uint8),
             ]
         )
         data = [{"image": im_fname, "label": seg_fname} for _ in range(12)]
@@ -69,11 +75,13 @@ class TestTransformInverter(unittest.TestCase):
         engine = Engine(_train_func)
 
         # set up testing handler
-        TransformInverter(transform=transform, loader=loader, output_key="image").attach(engine)
+        TransformInverter(transform=transform, loader=loader, output_key="image", nearest_interp=True).attach(engine)
 
         engine.run(loader, max_epochs=1)
+        set_determinism(seed=None)
         self.assertTupleEqual(engine.state.output["image"].shape, (2, 1, 100, 100, 100))
         for i in engine.state.output["image_inverted"]:
+            np.testing.assert_allclose(i.astype(np.uint8).astype(np.float32), i, rtol=1e-4)
             self.assertTupleEqual(i.shape, (1, 100, 101, 107))
 
 
