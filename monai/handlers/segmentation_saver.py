@@ -18,16 +18,19 @@ from monai.config import DtypeLike
 from monai.transforms import SaveImage
 from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, exact_version, optional_import
 
-Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
+Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
 
 
 class SegmentationSaver:
     """
     Event handler triggered on completing every iteration to save the segmentation predictions into files.
+    It can extract the input image meta data(filename, affine, original_shape, etc.) and resample the predictions
+    based on the meta data.
+
     """
 
     def __init__(
@@ -41,6 +44,8 @@ class SegmentationSaver:
         scale: Optional[int] = None,
         dtype: DtypeLike = np.float64,
         output_dtype: DtypeLike = np.float32,
+        squeeze_end_dims: bool = True,
+        data_root_dir: str = "",
         batch_transform: Callable = lambda x: x,
         output_transform: Callable = lambda x: x,
         name: Optional[str] = None,
@@ -77,8 +82,24 @@ class SegmentationSaver:
                 If None, use the data type of input data.
                 It's used for Nifti format only.
             output_dtype: data type for saving data. Defaults to ``np.float32``, it's used for Nifti format only.
+            squeeze_end_dims: if True, any trailing singleton dimensions will be removed (after the channel
+                has been moved to the end). So if input is (C,H,W,D), this will be altered to (H,W,D,C), and
+                then if C==1, it will be saved as (H,W,D). If D also ==1, it will be saved as (H,W). If false,
+                image will always be saved as (H,W,D,C).
+                it's used for NIfTI format only.
+            data_root_dir: if not empty, it specifies the beginning parts of the input file's
+                absolute path. it's used to compute `input_file_rel_path`, the relative path to the file from
+                `data_root_dir` to preserve folder structure when saving in case there are files in different
+                folders with the same file names. for example:
+                input_file_name: /foo/bar/test1/image.nii,
+                output_postfix: seg
+                output_ext: nii.gz
+                output_dir: /output,
+                data_root_dir: /foo/bar,
+                output will be: /output/test1/image/image_seg.nii.gz
             batch_transform: a callable that is used to transform the
                 ignite.engine.batch into expected format to extract the meta_data dictionary.
+                it can be used to extract the input image meta data: filename, affine, original_shape, etc.
             output_transform: a callable that is used to transform the
                 ignite.engine.output into the form expected image data.
                 The first dimension of this transform's output will be treated as the
@@ -96,6 +117,8 @@ class SegmentationSaver:
             scale=scale,
             dtype=dtype,
             output_dtype=output_dtype,
+            squeeze_end_dims=squeeze_end_dims,
+            data_root_dir=data_root_dir,
             save_batch=True,
         )
         self.batch_transform = batch_transform

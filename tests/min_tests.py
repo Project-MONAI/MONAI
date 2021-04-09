@@ -42,9 +42,12 @@ def run_testsuit():
         "test_handler_confusion_matrix",
         "test_handler_confusion_matrix_dist",
         "test_handler_hausdorff_distance",
+        "test_handler_garbage_collector",
         "test_handler_mean_dice",
+        "test_handler_prob_map_producer",
         "test_handler_rocauc",
         "test_handler_rocauc_dist",
+        "test_handler_parameter_scheduler",
         "test_handler_segmentation_saver",
         "test_handler_smartcache",
         "test_handler_stats",
@@ -93,6 +96,7 @@ def run_testsuit():
         "test_smartcachedataset",
         "test_spacing",
         "test_spacingd",
+        "test_senet",
         "test_surface_distance",
         "test_zoom",
         "test_zoom_affine",
@@ -109,6 +113,9 @@ def run_testsuit():
         "test_deepgrow_dataset",
         "test_save_image",
         "test_save_imaged",
+        "test_ensure_channel_first",
+        "test_ensure_channel_firstd",
+        "test_handler_early_stop",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 

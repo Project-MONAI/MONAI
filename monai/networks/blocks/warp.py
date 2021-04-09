@@ -1,47 +1,89 @@
-from typing import List, Optional, Union
+# Copyright 2020 - 2021 MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import warnings
+from typing import List
 
 import torch
 from torch import nn
 from torch.nn import functional as F
 
-from monai.utils import GridSamplePadMode
+from monai.config.deviceconfig import USE_COMPILED
+from monai.networks.layers.spatial_transforms import grid_pull
+from monai.utils import GridSampleMode, GridSamplePadMode, optional_import
+
+_C, _ = optional_import("monai._C")
+
+__all__ = ["Warp", "DVF2DDF"]
 
 
 class Warp(nn.Module):
     """
-    Warp an image with given DDF.
+    Warp an image with given dense displacement field (DDF).
     """
 
     def __init__(
         self,
-        spatial_dims: int,
-        mode: int = 1,
-        padding_mode: Optional[Union[GridSamplePadMode, str]] = GridSamplePadMode.ZEROS,
+        mode=GridSampleMode.BILINEAR.value,
+        padding_mode=GridSamplePadMode.BORDER.value,
     ):
         """
-        Args:
-            spatial_dims: {2, 3}. number of spatial dimensions
-            mode: interpolation mode to calculate output values, defaults to 1.
-                Possible values are::
+        For pytorch native APIs, the possible values are:
 
-                    - 0 or 'nearest'    or InterpolationType.nearest
-                    - 1 or 'linear'     or InterpolationType.linear
-                    - 2 or 'quadratic'  or InterpolationType.quadratic
-                    - 3 or 'cubic'      or InterpolationType.cubic
-                    - 4 or 'fourth'     or InterpolationType.fourth
-                    - etc.
-            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-                Padding mode for outside grid values. Defaults to ``"border"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            - mode: ``"nearest"``, ``"bilinear"``, ``"bicubic"``.
+            - padding_mode: ``"zeros"``, ``"border"``, ``"reflection"``
+
+        See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+
+        For MONAI C++/CUDA extensions, the possible values are:
+
+            - mode: ``"nearest"``, ``"bilinear"``, ``"bicubic"``, 0, 1, ...
+            - padding_mode: ``"zeros"``, ``"border"``, ``"reflection"``, 0, 1, ...
+
+        See also: :py:class:`monai.networks.layers.grid_pull`
         """
         super(Warp, self).__init__()
-        if spatial_dims not in [2, 3]:
-            raise ValueError(f"got unsupported spatial_dims={spatial_dims}, only support 2-d and 3-d input")
-        self.spatial_dims = spatial_dims
-        if mode < 0:
-            raise ValueError(f"do not support negative mode, got mode={mode}")
-        self.mode = mode
-        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        # resolves _interp_mode for different methods
+
+        if USE_COMPILED:
+            if mode in (inter.value for inter in GridSampleMode):
+                mode = GridSampleMode(mode)
+                if mode == GridSampleMode.BILINEAR:
+                    mode = 1
+                elif mode == GridSampleMode.NEAREST:
+                    mode = 0
+                elif mode == GridSampleMode.BICUBIC:
+                    mode = 3
+                else:
+                    mode = 1  # default to linear
+            self._interp_mode = mode
+        else:
+            warnings.warn("monai.networks.blocks.Warp: Using PyTorch native grid_sample.")
+            self._interp_mode = GridSampleMode(mode).value
+
+        # resolves _padding_mode for different methods
+        if USE_COMPILED:
+            if padding_mode in (pad.value for pad in GridSamplePadMode):
+                padding_mode = GridSamplePadMode(padding_mode)
+                if padding_mode == GridSamplePadMode.ZEROS:
+                    padding_mode = 7
+                elif padding_mode == GridSamplePadMode.BORDER:
+                    padding_mode = 0
+                elif padding_mode == GridSamplePadMode.REFLECTION:
+                    padding_mode = 1
+                else:
+                    padding_mode = 0  # default to nearest
+            self._padding_mode = padding_mode
+        else:
+            self._padding_mode = GridSamplePadMode(padding_mode).value
 
     @staticmethod
     def get_reference_grid(ddf: torch.Tensor) -> torch.Tensor:
@@ -51,14 +93,7 @@ class Warp(nn.Module):
         grid = grid.to(ddf)
         return grid
 
-    @staticmethod
-    def normalize_grid(grid: torch.Tensor) -> torch.Tensor:
-        # (batch, ..., self.spatial_dims)
-        for i, dim in enumerate(grid.shape[1:-1]):
-            grid[..., i] = grid[..., i] * 2 / (dim - 1) - 1
-        return grid
-
-    def forward(self, image: torch.Tensor, ddf: torch.Tensor) -> torch.Tensor:
+    def forward(self, image: torch.Tensor, ddf: torch.Tensor):
         """
         Args:
             image: Tensor in shape (batch, num_channels, H, W[, D])
@@ -67,50 +102,34 @@ class Warp(nn.Module):
         Returns:
             warped_image in the same shape as image (batch, num_channels, H, W[, D])
         """
-        if len(image.shape) != 2 + self.spatial_dims:
-            raise ValueError(f"expecting {self.spatial_dims + 2}-d input, " f"got input in shape {image.shape}")
-        if len(ddf.shape) != 2 + self.spatial_dims or ddf.shape[1] != self.spatial_dims:
+        spatial_dims = len(image.shape) - 2
+        if spatial_dims not in (2, 3):
+            raise NotImplementedError(f"got unsupported spatial_dims={spatial_dims}, currently support 2 or 3.")
+        ddf_shape = (image.shape[0], spatial_dims) + tuple(image.shape[2:])
+        if ddf.shape != ddf_shape:
             raise ValueError(
-                f"expecting {self.spatial_dims + 2}-d ddf with {self.spatial_dims} channels, "
-                f"got ddf in shape {ddf.shape}"
+                f"Given input {spatial_dims}-d image shape {image.shape}, " f"the input DDF shape must be {ddf_shape}."
             )
-        if image.shape[0] != ddf.shape[0] or image.shape[2:] != ddf.shape[2:]:
-            raise ValueError(
-                "expecting image and ddf of same batch size and spatial size, "
-                f"got image of shape {image.shape}, ddf of shape {ddf.shape}"
-            )
-
         grid = self.get_reference_grid(ddf) + ddf
-        grid = grid.permute([0] + list(range(2, 2 + self.spatial_dims)) + [1])  # (batch, ..., self.spatial_dims)
+        grid = grid.permute([0] + list(range(2, 2 + spatial_dims)) + [1])  # (batch, ..., spatial_dims)
 
-        if self.mode > 1:
-            raise ValueError(f"{self.mode}-order interpolation not yet implemented.")
-            # if not USE_COMPILED:
-            #     raise ValueError(f"cannot perform {self.mode}-order interpolation without C compile.")
-            # _padding_mode = self.padding_mode.value
-            # if _padding_mode == "zeros":
-            #     bound = 7
-            # elif _padding_mode == "border":
-            #     bound = 0
-            # else:
-            #     bound = 1
-            # warped_image: torch.Tensor = grid_pull(
-            #     image,
-            #     grid,
-            #     bound=bound,
-            #     extrapolate=True,
-            #     interpolation=self.mode,
-            # )
-        else:
-            grid = self.normalize_grid(grid)
-            index_ordering: List[int] = list(range(self.spatial_dims - 1, -1, -1))
+        if not USE_COMPILED:  # pytorch native grid_sample
+            for i, dim in enumerate(grid.shape[1:-1]):
+                grid[..., i] = grid[..., i] * 2 / (dim - 1) - 1
+            index_ordering: List[int] = list(range(spatial_dims - 1, -1, -1))
             grid = grid[..., index_ordering]  # z, y, x -> x, y, z
-            _interp_mode = "bilinear" if self.mode == 1 else "nearest"
-            warped_image = F.grid_sample(
-                image, grid, mode=_interp_mode, padding_mode=self.padding_mode.value, align_corners=True
+            return F.grid_sample(
+                image, grid, mode=self._interp_mode, padding_mode=f"{self._padding_mode}", align_corners=True
             )
 
-        return warped_image
+        # using csrc resampling
+        return grid_pull(
+            image,
+            grid,
+            bound=self._padding_mode,
+            extrapolate=True,
+            interpolation=self._interp_mode,
+        )
 
 
 class DVF2DDF(nn.Module):
@@ -125,16 +144,15 @@ class DVF2DDF(nn.Module):
 
     def __init__(
         self,
-        spatial_dims: int,
         num_steps: int = 7,
-        mode: int = 1,
-        padding_mode: Optional[Union[GridSamplePadMode, str]] = GridSamplePadMode.ZEROS,
+        mode=GridSampleMode.BILINEAR.value,
+        padding_mode=GridSamplePadMode.ZEROS.value,
     ):
         super(DVF2DDF, self).__init__()
         if num_steps <= 0:
             raise ValueError(f"expecting positive num_steps, got {num_steps}")
         self.num_steps = num_steps
-        self.warp_layer = Warp(spatial_dims=spatial_dims, mode=mode, padding_mode=padding_mode)
+        self.warp_layer = Warp(mode=mode, padding_mode=padding_mode)
 
     def forward(self, dvf):
         """
@@ -142,7 +160,7 @@ class DVF2DDF(nn.Module):
             dvf: dvf to be transformed, in shape (batch, ``spatial_dims``, H, W[,D])
 
         Returns:
-
+            a dense displacement field
         """
         ddf: torch.Tensor = dvf / (2 ** self.num_steps)
         for _ in range(self.num_steps):
