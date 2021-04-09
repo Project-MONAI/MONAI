@@ -119,7 +119,6 @@ class SegmentationSaver:
             output_dtype=output_dtype,
             squeeze_end_dims=squeeze_end_dims,
             data_root_dir=data_root_dir,
-            save_batch=True,
         )
         self.batch_transform = batch_transform
         self.output_transform = output_transform
@@ -147,5 +146,13 @@ class SegmentationSaver:
         """
         meta_data = self.batch_transform(engine.state.batch)
         engine_output = self.output_transform(engine.state.output)
-        self._saver(engine_output, meta_data)
+        if isinstance(engine_output, (tuple, list)):
+            # if a list of data in shape: [channel, H, W, [D]], save every item separately
+            self._saver.save_batch = False
+            for i, d in enumerate(engine_output):
+                self._saver(d, {k: meta_data[k][i] for k in meta_data} if meta_data is not None else None)
+        else:
+            # if the data is in shape: [batch, channel, H, W, [D]]
+            self._saver.save_batch = True
+            self._saver(engine_output, meta_data)
         self.logger.info("saved all the model outputs into files.")
