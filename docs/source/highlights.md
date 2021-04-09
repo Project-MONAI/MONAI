@@ -346,6 +346,7 @@ More details is available at [Fast training tutorial](https://github.com/Project
 ### 2. Distributed data parallel
 Distributed data parallel is an important feature of PyTorch to connect multiple GPU devices on single or multiple nodes to train or evaluate models. MONAI provides demos for reference: train/evaluate with PyTorch DDP, train/evaluate with Horovod, train/evaluate with Ignite DDP, partition dataset and train with SmartCacheDataset, as well as a real world training example based on Decathlon challenge Task01 - Brain Tumor segmentation.
 The demo contains distributed caching, training, and validation. We tried to train this example on NVIDIA NGC server, got some performance benchmarks for reference(PyTorch 1.6, CUDA 11, NVIDIA V100 GPUs):
+
 ![image](../images/distributed_training.png)
 
 ### 3. C++/CUDA optimized modules
@@ -358,14 +359,17 @@ The research area of medical image deep learning is expanding fast. To apply the
 [A reimplementation](https://github.com/Project-MONAI/MONAI/tree/master/monai/apps/deepgrow) of the DeepGrow components, which is deep learning based semi-automated segmentation approach that aims to be a "smart" interactive tool for region of interest delineation in medical images, originally proposed by:
 
 Sakinis, Tomas, et al. "Interactive segmentation of medical images through fully convolutional neural networks." arXiv preprint arXiv:1903.08205 (2019).
+
 ![image](../images/deepgrow.png)
 
 ### 2. Lesion detection in digital pathology
 [Implementation](https://github.com/Project-MONAI/MONAI/tree/master/monai/apps/pathology) of the pathology detection components, which includes efficient whole slide imaging IO and sampling with NVIDIA cuCIM library and SmartCache mechanism, FROC measurements for lesion and probabilistic post-processing for lesion detection.
+
 ![image](../images/pathology.png)
 
 ### 3. Learning-based image registration
 Starting from v0.5.0, MONAI provides experimental features for building learning-based 2D/3D registration workflows.  These include image similarity measures as loss functions, bending energy as model regularization, network architectures, warping modules. The components can be used to build the major unsupervised and weakly-supervised algorithms.
 
 The following figure shows the registration of CT images acquired at different time points for a single patient using MONAI:
+
 ![3dreg](../images/3d_paired.png)
