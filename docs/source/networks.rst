@@ -35,6 +35,11 @@ Blocks
 .. autoclass:: Swish
     :members:
 
+`MemoryEfficientSwish`
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: MemoryEfficientSwish
+    :members:
+
 `Mish`
 ~~~~~~
 .. autoclass:: Mish
@@ -290,6 +295,11 @@ Nets
 `DenseNet`
 ~~~~~~~~~~
 .. autoclass:: DenseNet
+  :members:
+
+`EfficientNet`
+~~~~~~~~~~~~~~
+.. autoclass:: EfficientNet
   :members:
 
 `SegResNet`
