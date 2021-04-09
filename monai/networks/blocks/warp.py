@@ -134,7 +134,7 @@ class Warp(nn.Module):
 
 class DVF2DDF(nn.Module):
     """
-    Layer calculates a dense velocity field (DVF) from a dense displacement field (DDF)
+    Layer calculates a dense displacement field (DDF) from a dense velocity field (DVF)
     with scaling and squaring.
 
     Adapted from:
