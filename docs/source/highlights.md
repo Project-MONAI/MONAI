@@ -136,7 +136,7 @@ To convert some medical image files or debug the transform chain, MONAI provides
 ### 12. Automatically ensure `channel-first` data shape
 Medical images have different shape formats, can be `channel-last`, `channel-first` or even `no-channel` dimension for the single channel image. And in some tasks, we need to load several `np-channel` images and stack them together as a `channel-first` data. Users may be not very clear about the input image / label data shape, and hard to set expected tranform to convert data into `channel-first` shape for the following components.
 
-To improve the user experience, MONAI provided `EnsureChannelFirst` transform to automatically detect data shape by the meta infomation and convert it to `channel-first` shape no matter it's `channel-last`, `no-channel` or already `channel-first`.
+To improve the user experience, MONAI provided `EnsureChannelFirst` transform to automatically detect data shape by the meta information and convert it to `channel-first` shape no matter it's `channel-last`, `no-channel` or already `channel-first`.
 
 ### 13. Invert spatial transforms and test-time augmentations
 During the deep learning validation / inference of medical images, it's important to invert all the spatial pre-transforms(orientation, resize, flip, rotate, zoom, crop, pad, etc.) for the model output data, then save it into files or visualize to compare with the original input images.
@@ -218,10 +218,13 @@ The common workflow of predefined datasets:
 The `partition_dataset` utility in MONAI can perform several kinds of mechanism to partition dataset for training and validation or cross-validation. It supports shuffling based on a specified random seed, and will return a set of datasets, each dataset contains one partition. And it can split the dataset based on specified ratios or evenly split into `num_partitions`. For given class labels, it can also make sure the same ratio of classes in every partition.
 
 ## Losses
-There are domain-specific loss functions in the medical imaging research which are not typically used in the generic computer vision tasks. As an important module of MONAI, these loss functions are implemented in PyTorch, such as `DiceLoss`, `GeneralizedDiceLoss`, `MaskedDiceLoss`, `TverskyLoss` and `FocalLoss`, etc.
+There are domain-specific loss functions in the medical imaging research which are not typically used in the generic computer vision tasks. As an important module of MONAI, these loss functions are implemented in PyTorch, such as `DiceLoss`, `GeneralizedDiceLoss`, `MaskedDiceLoss`, `TverskyLoss`, `FocalLoss`, `DiceCELoss`, and `DiceFocalLoss`, etc.
 
 ## Optimizers
 MONAI provides several advanced features in optimizers to help accelerate the training or fine-tuning progress. For example, `Novograd` optimizer can be used to converge obviously faster than traditional optimizers. And users can easily define different learning rates for the model layers based [on the `generate_param_groups` utility API](https://github.com/Project-MONAI/tutorials/blob/master/modules/layer_wise_learning_rate.ipynb).
+
+Another important feature is `LearningRateFinder`. The learning rate range test increases the learning rate in a pre-training run between two boundaries in a linear or exponential manner. It provides valuable information on how well the network can be trained over a range of learning rates and what is the optimal learning rate. [LearningRateFinder tutorial](https://github.com/Project-MONAI/tutorials/blob/master/modules/learning_rate.ipynb) indicates the API usage examples.
+![image](../images/lr_finder.png)
 
 ## Network architectures
 Some deep neural network architectures have shown to be particularly effective for medical imaging analysis tasks. MONAI implements reference networks with the aims of both flexibility and code readability.
@@ -264,6 +267,10 @@ Various useful evaluation metrics have been used to measure the quality of medic
 
 For example, `Mean Dice` score can be used for segmentation tasks, and the area under the ROC curve(`ROCAUC`) for classification tasks. We continue to integrate more options.
 
+### 3. Metrics report generation
+During evaluation, users usually save the metrics of every input image, then analyze the bad cases to improve the deep learning pipeline. To save detailed information of metrics, MONAI provided a handler `MetricsSaver`, which can save the final metric values, raw metric of every model output channel of every input image, metrics summary report of operations: `mean`, `median`, `max`, `min`, `90percent`, `std`, etc. The `MeanDice` reports of validation with prostate dataset are as below:
+![image](../images/metrics_report.png)
+
 ## Visualization
 Beyond the simple point and curve plotting, MONAI provides intuitive interfaces to visualize multidimensional data as GIF animations in TensorBoard. This could provide a quick qualitative assessment of the model by visualizing, for example, the volumetric inputs, segmentation maps, and intermediate feature maps. A runnable example with visualization is available at [UNet training example](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/torch/unet_training_dict.py).
 
@@ -282,7 +289,7 @@ A rich set of formats will be supported soon, along with relevant statistics and
 To quickly set up training and evaluation experiments, MONAI provides a set of workflows to significantly simplify the modules and allow for fast prototyping.
 
 These features decouple the domain-specific components and the generic machine learning processes. They also provide a set of unify APIs for higher level applications (such as AutoML, Federated Learning).
-The trainers and evaluators of the workflows are compatible with pytorch-ignite `Engine` and `Event-Handler` mechanism. There are rich event handlers in MONAI to independently attach to the trainer or evaluator.
+The trainers and evaluators of the workflows are compatible with pytorch-ignite `Engine` and `Event-Handler` mechanism. There are rich event handlers in MONAI to independently attach to the trainer or evaluator, and users can register additional `custom events` to workflows.
 
 ### 1. General workflows pipeline
 The workflow and some of MONAI event handlers are shown as below:
@@ -341,16 +348,20 @@ The demo contains distributed caching, training, and validation. We tried to tra
 ![image](../images/distributed_training.png)
 
 ### 3. C++/CUDA optimized modules
-To accelerate some heavy computation progress, C++/CUDA implementation can be an impressive method, which usually brings even hundreds of times faster performance. MONAI contains some C++/CUDA optimized modules, like `Resampler`,and fully support C++/CUDA programs in CI/CD and building package.
+To accelerate some heavy computation progress, C++/CUDA implementation can be an impressive method, which usually brings even hundreds of times faster performance. MONAI contains some C++/CUDA optimized modules, like `Resampler`, `Conditional random field (CRF)`, `Fast bilateral filtering using the permutohedral lattice`, and fully support C++/CUDA programs in CI/CD and building package.
 
 ## Applications
-The research area of medical image deep learning is expanding fast. To apply the latest achievements into applications, MONAI contains many application components to build end-to-end solutions or prototypes.
+The research area of medical image deep learning is expanding fast. To apply the latest achievements into applications, MONAI contains many application components to build end-to-end solutions or prototypes for other similiar use cases.
 
-### 1. Deepgrow modules for interactive segmentation
-FIXME: describe
+### 1. DeepGrow modules for interactive segmentation
+[A reimplementation](https://github.com/Project-MONAI/MONAI/tree/master/monai/apps/deepgrow) of the DeepGrow components, which is deep learning based semi-automated segmentation approach that aims to be a "smart" interactive tool for region of interest delineation in medical images, originally proposed by:
+
+Sakinis, Tomas, et al. "Interactive segmentation of medical images through fully convolutional neural networks." arXiv preprint arXiv:1903.08205 (2019).
+![image](../images/deepgrow.png)
 
 ### 2. Digital pathology detection for lesion
-FIXME: describe
+[Implementation](https://github.com/Project-MONAI/MONAI/tree/master/monai/apps/pathology) of the pathology detection components, which includes efficient whole slide imaging IO and sampling with NVIDIA cuCIM library and SmartCache mechanism, FROC measurements for lesion and probabilistic post-processing for lesion detection.
+![image](../images/pathology.png)
 
 ### 3. Learning-based image registration
 FIXME: need Wenqi to help describe
