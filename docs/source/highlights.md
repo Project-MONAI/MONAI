@@ -307,6 +307,11 @@ Models ensemble is a popular strategy in machine learning and deep learning area
 ![image](../images/models_ensemble.png)
 More details of practice is at [Model ensemble tutorial](https://github.com/Project-MONAI/tutorials/blob/master/modules/models_ensemble.ipynb).
 
+### 3. Transfer learning for different input / output classes
+`Transfer-learning` is a very common and efficient training approach, especially in medical-specific domain as medical datasets usually don't contain rich images for training. So transfer-learning from a pre-trained checkpoint can significantly improve the model metrics and shorten training time.
+
+MONAI provided `CheckpointLoader` to load a checkpoint for the workflow before training, and it allows some `layer names` of current network don't match the checkpoint, or some `layer shapes` don't match the checkpoint, which can be useful if current task has different input image classes or output classes.
+
 ## Research
 There are several research prototypes in MONAI corresponding to the recently published papers that address advanced research problems.
 We always welcome contributions in forms of comments, suggestions, and code implementations.
