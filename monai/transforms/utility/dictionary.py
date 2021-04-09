@@ -17,12 +17,14 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 import copy
 import logging
+from copy import deepcopy
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
 from monai.config import DtypeLike, KeysCollection, NdarrayTensor
+from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable
 from monai.transforms.utility.array import (
     AddChannel,
@@ -379,7 +381,7 @@ class CastToTyped(MapTransform):
         return d
 
 
-class ToTensord(MapTransform):
+class ToTensord(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ToTensor`.
     """
@@ -397,7 +399,20 @@ class ToTensord(MapTransform):
     def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
         d = dict(data)
         for key in self.key_iterator(d):
+            self.push_transform(d, key)
             d[key] = self.converter(d[key])
+        return d
+
+    def inverse(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            inverse_transform = ToNumpy()
+            # Apply inverse
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.pop_transform(d, key)
         return d
 
 

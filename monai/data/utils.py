@@ -65,6 +65,7 @@ __all__ = [
     "sorted_dict",
     "decollate_batch",
     "pad_list_data_collate",
+    "no_collation",
 ]
 
 
@@ -377,6 +378,13 @@ def pad_list_data_collate(
     from monai.transforms.croppad.batch import PadListDataCollate  # needs to be here to avoid circular import
 
     return PadListDataCollate(method, mode)(batch)
+
+
+def no_collation(x):
+    """
+    No any collation operation.
+    """
+    return x
 
 
 def worker_init_fn(worker_id: int) -> None:
