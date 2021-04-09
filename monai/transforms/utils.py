@@ -23,16 +23,16 @@ from monai.networks.layers import GaussianFilter
 from monai.transforms.compose import Compose
 from monai.transforms.transform import MapTransform
 from monai.utils import (
+    GridSampleMode,
+    InterpolateMode,
+    InverseKeys,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
     fall_back_tuple,
+    issequenceiterable,
     min_version,
     optional_import,
-    issequenceiterable,
-    GridSampleMode,
-    InterpolateMode,
-    InverseKeys,
 )
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
@@ -785,7 +785,7 @@ def convert_inverse_interp_mode(trans_info: List, mode: str = "nearest", align_c
         # set to string for DataLoader collation
         align_corners = "none"
 
-    for item in trans_info:
+    for item in ensure_tuple(trans_info):
         if InverseKeys.EXTRA_INFO in item:
             orig_mode = item[InverseKeys.EXTRA_INFO].get("mode", None)
             if orig_mode is not None:
