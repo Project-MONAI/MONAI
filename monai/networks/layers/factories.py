@@ -256,6 +256,13 @@ def swish_factory():
     return Swish
 
 
+@Act.factory_function("memswish")
+def memswish_factory():
+    from monai.networks.blocks.activation import MemoryEfficientSwish
+
+    return MemoryEfficientSwish
+
+
 @Act.factory_function("mish")
 def mish_factory():
     from monai.networks.blocks.activation import Mish

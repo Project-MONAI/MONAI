@@ -28,6 +28,7 @@ from .smartcache_handler import SmartCacheHandler
 from .stats_handler import StatsHandler
 from .surface_distance import SurfaceDistance
 from .tensorboard_handlers import TensorBoardHandler, TensorBoardImageHandler, TensorBoardStatsHandler
+from .transform_inverter import TransformInverter
 from .utils import (
     evenly_divisible_all_gather,
     stopping_fn_from_loss,
