@@ -406,7 +406,6 @@ class ToTensord(MapTransform, InvertibleTransform):
     def inverse(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
             inverse_transform = ToNumpy()
             # Apply inverse
