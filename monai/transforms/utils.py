@@ -781,9 +781,9 @@ def convert_inverse_interp_mode(trans_info: List, mode: str = "nearest", align_c
 
     """
     interp_modes = [i.value for i in InterpolateMode] + [i.value for i in GridSampleMode]
-    if align_corners is None:
-        # set to string for DataLoader collation
-        align_corners = "none"
+    
+    # set to string for DataLoader collation
+    align_corners_ = "none" if align_corners is None else align_corners
 
     for item in ensure_tuple(trans_info):
         if InverseKeys.EXTRA_INFO in item:
@@ -795,6 +795,6 @@ def convert_inverse_interp_mode(trans_info: List, mode: str = "nearest", align_c
                     item[InverseKeys.EXTRA_INFO]["mode"] = mode
             if "align_corners" in item[InverseKeys.EXTRA_INFO]:
                 if issequenceiterable(item[InverseKeys.EXTRA_INFO]["align_corners"]):
-                    item[InverseKeys.EXTRA_INFO]["align_corners"] = [align_corners for _ in range(len(mode))]
+                    item[InverseKeys.EXTRA_INFO]["align_corners"] = [align_corners_ for _ in range(len(mode))]
                 else:
-                    item[InverseKeys.EXTRA_INFO]["align_corners"] = align_corners
+                    item[InverseKeys.EXTRA_INFO]["align_corners"] = align_corners_
