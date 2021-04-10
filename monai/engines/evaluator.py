@@ -232,6 +232,7 @@ class SupervisedEvaluator(Evaluator):
             else:
                 output[Keys.PRED] = self.inferer(inputs, self.network, *args, **kwargs)
         engine.fire_event(IterationEvents.FORWARD_COMPLETED)
+        engine.fire_event(IterationEvents.MODEL_COMPLETED)
 
         return output
 
@@ -353,5 +354,6 @@ class EnsembleEvaluator(Evaluator):
                 else:
                     output.update({self.pred_keys[idx]: self.inferer(inputs, network, *args, **kwargs)})
         engine.fire_event(IterationEvents.FORWARD_COMPLETED)
+        engine.fire_event(IterationEvents.MODEL_COMPLETED)
 
         return output

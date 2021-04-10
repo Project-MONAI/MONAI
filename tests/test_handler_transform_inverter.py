@@ -17,6 +17,7 @@ import torch
 from ignite.engine import Engine
 
 from monai.data import CacheDataset, DataLoader, create_test_image_3d
+from monai.engines.utils import IterationEvents
 from monai.handlers import TransformInverter
 from monai.transforms import (
     AddChanneld,
@@ -70,18 +71,27 @@ class TestTransformInverter(unittest.TestCase):
         # set up engine
         def _train_func(engine, batch):
             self.assertTupleEqual(batch["image"].shape[1:], (1, 100, 100, 100))
-            return batch
+            engine.state.output = batch
+            engine.fire_event(IterationEvents.MODEL_COMPLETED)
+            return engine.state.output
 
         engine = Engine(_train_func)
+        engine.register_events(*IterationEvents)
 
         # set up testing handler
-        TransformInverter(transform=transform, loader=loader, output_key="image", nearest_interp=True).attach(engine)
+        TransformInverter(
+            transform=transform,
+            loader=loader,
+            output_keys=["image", "label"],
+            batch_keys="label",
+            nearest_interp=True,
+        ).attach(engine)
 
         engine.run(loader, max_epochs=1)
         set_determinism(seed=None)
         self.assertTupleEqual(engine.state.output["image"].shape, (2, 1, 100, 100, 100))
-        for i in engine.state.output["image_inverted"]:
-            np.testing.assert_allclose(i.astype(np.uint8).astype(np.float32), i, rtol=1e-4)
+        for i in engine.state.output["image_inverted"] + engine.state.output["label_inverted"]:
+            torch.testing.assert_allclose(i.to(torch.uint8).to(torch.float), i)
             self.assertTupleEqual(i.shape, (1, 100, 101, 107))
 
 

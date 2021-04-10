@@ -179,7 +179,7 @@ class SupervisedTrainer(Trainer):
             output[Keys.LOSS].backward()
             engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
             self.optimizer.step()
-        engine.fire_event(IterationEvents.OPTIMIZER_COMPLETED)
+        engine.fire_event(IterationEvents.MODEL_COMPLETED)
 
         return output
 
