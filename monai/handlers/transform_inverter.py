@@ -29,9 +29,9 @@ else:
 
 class TransformInverter:
     """
-    Ignite handler to automatically invert all the pre-transforms that support `inverse`.
+    Ignite handler to automatically invert `transforms`.
     It takes `engine.state.output` as the input data and uses the transforms information from `engine.state.batch`.
-
+    The outputs are stored in `engine.state.output` with the `output_keys`.
     """
 
     def __init__(
@@ -41,29 +41,28 @@ class TransformInverter:
         output_keys: Union[str, Sequence[str]] = CommonKeys.PRED,
         batch_keys: Union[str, Sequence[str]] = CommonKeys.IMAGE,
         collate_fn: Optional[Callable] = no_collation,
-        postfix: str = "inverted",
+        postfix: str = "_inverted",
         nearest_interp: Union[bool, Sequence[bool]] = True,
         num_workers: Optional[int] = 0,
     ) -> None:
         """
         Args:
             transform: a callable data transform on input data.
-            loader: data loader used to run pre-transforms and generate the batch of data.
+            loader: data loader used to run transforms and generate the batch of data.
             collate_fn: how to collate data after inverse transformations.
                 default won't do any collation, so the output will be a list of size batch size.
             output_keys: the key of expected data in `ignite.engine.output`, invert transforms on it.
-                it also can be a list of keys, will invert transform for each of them. default to "pred".
+                it also can be a list of keys, will invert transform for each of them. Default to "pred".
             batch_keys: the key of input data in `ignite.engine.batch`. will get the applied transforms
                 for this input data, then invert them for the expected data with `output_keys`.
-                it also can be a list of keys, each matches to the `output_keys` data. default to "image".
-            postfix: will save the inverted result into `ignite.engine.output` with key `{ouput_key}_{postfix}`.
-            nearest_interp: whether to use `nearest` interpolation mode when inverting spatial transforms,
-                default to `True`. if `False`, use the same interpolation mode as the original transform.
+                It can also be a list of keys, each matches to the `output_keys` data. default to "image".
+            postfix: will save the inverted result into `ignite.engine.output` with key `{output_key}{postfix}`.
+            nearest_interp: whether to use `nearest` interpolation mode when inverting the spatial transforms,
+                default to `True`. If `False`, use the same interpolation mode as the original transform.
                 it also can be a list of bool, each matches to the `output_keys` data.
-            num_workers: number of workers when run dataloader for inverse transforms,
-                default to 0 as only run 1 iteration and multi-processing may be even slower.
-                if the transforms are really slow, set num_workers for multi-processing.
-                if set to `None`, use the `num_workers` of the pre-transform dataloader.
+            num_workers: number of workers when run data loader for inverse transforms,
+                default to 0 as only run one iteration and multi-processing may be even slower.
+                Set to `None`, to use the `num_workers` of the input transform data loader.
 
         """
         self.transform = transform
@@ -94,7 +93,7 @@ class TransformInverter:
         for output_key, batch_key, nearest_interp in zip(self.output_keys, self.batch_keys, self.nearest_interp):
             transform_key = batch_key + InverseKeys.KEY_SUFFIX
             if transform_key not in engine.state.batch:
-                warnings.warn(f"all the pre-transforms on `{batch_key}` are not InvertibleTransform.")
+                warnings.warn(f"all the transforms on `{batch_key}` are not InvertibleTransform.")
                 continue
 
             transform_info = engine.state.batch[transform_key]
@@ -107,5 +106,5 @@ class TransformInverter:
             }
 
             with allow_missing_keys_mode(self.transform):  # type: ignore
-                inverted_key = f"{output_key}_{self.postfix}"
+                inverted_key = f"{output_key}{self.postfix}"
                 engine.state.output[inverted_key] = [self._totensor(i[batch_key]) for i in self.inverter(segs_dict)]

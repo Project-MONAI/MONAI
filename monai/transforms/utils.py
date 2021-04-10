@@ -772,7 +772,9 @@ def allow_missing_keys_mode(transform: Union[MapTransform, Compose, Tuple[MapTra
 def convert_inverse_interp_mode(trans_info: List, mode: str = "nearest", align_corners: Optional[bool] = None):
     """
     Change the interpolation mode when inverting spatial transforms, default to "nearest".
-    It can support both single data or batch data.
+    This function modifies trans_info's `InverseKeys.EXTRA_INFO`.
+
+    See also: :py:class:`monai.transform.inverse.InvertibleTransform`
 
     Args:
         trans_info: transforms inverse information list, contains context of every invertible transform.
