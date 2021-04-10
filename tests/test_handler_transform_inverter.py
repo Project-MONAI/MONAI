@@ -48,13 +48,13 @@ class TestTransformInverter(unittest.TestCase):
             [
                 LoadImaged(KEYS),
                 AddChanneld(KEYS),
-                ScaleIntensityd(KEYS, minv=1, maxv=10),
+                ScaleIntensityd("image", minv=1, maxv=10),
                 RandFlipd(KEYS, prob=0.5, spatial_axis=[1, 2]),
                 RandAxisFlipd(KEYS, prob=0.5),
                 RandRotate90d(KEYS, spatial_axes=(1, 2)),
                 RandZoomd(KEYS, prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True),
                 RandRotated(KEYS, prob=0.5, range_x=np.pi, mode="bilinear", align_corners=True),
-                RandAffined(KEYS, prob=0.5, rotate_range=np.pi),
+                RandAffined(KEYS, prob=0.5, rotate_range=np.pi, mode="nearest"),
                 ResizeWithPadOrCropd(KEYS, 100),
                 ToTensord(KEYS),
                 CastToTyped(KEYS, dtype=torch.uint8),
@@ -85,15 +85,20 @@ class TestTransformInverter(unittest.TestCase):
             output_keys=["image", "label"],
             batch_keys="label",
             nearest_interp=True,
-            num_workers=2,
+            num_workers=0 if sys.platform == "darwin" or torch.cuda.is_available() else 2,
         ).attach(engine)
 
         engine.run(loader, max_epochs=1)
         set_determinism(seed=None)
         self.assertTupleEqual(engine.state.output["image"].shape, (2, 1, 100, 100, 100))
+        self.assertTupleEqual(engine.state.output["label"].shape, (2, 1, 100, 100, 100))
         for i in engine.state.output["image_inverted"] + engine.state.output["label_inverted"]:
-            torch.testing.assert_allclose(i.to(torch.uint8).to(torch.float), i)
+            torch.testing.assert_allclose(i.to(torch.uint8).to(torch.float), i.to(torch.float))
             self.assertTupleEqual(i.shape, (1, 100, 101, 107))
+        # check labels match
+        reverted = engine.state.output["label_inverted"][-1].detach().cpu().numpy()[0]
+        original = LoadImaged(KEYS)(data[-1])["label"]
+        np.testing.assert_allclose(reverted, original, atol=1e-4)
 
 
 if __name__ == "__main__":
