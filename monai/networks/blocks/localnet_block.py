@@ -260,7 +260,7 @@ class LocalNetUpSampleBlock(nn.Module):
         Args:
             x: feature to be up-sampled, in shape (batch, ``in_channels``, insize_1, insize_2, [insize_3])
             mid: mid-level feature saved during down-sampling,
-                in shape (batch, ``out_channels``, midsize_1, midsize_2, [midnsize_3])
+                in shape (batch, ``out_channels``, midsize_1, midsize_2, [midsize_3])
 
         Raises:
             ValueError: when ``midsize != insize * 2``

@@ -38,10 +38,10 @@ class EarlyStopHandler:
         cumulative_delta: if True, `min_delta` defines an increase since the last `patience` reset, otherwise,
             it defines an increase after the last event, default to False.
         epoch_level: check early stopping for every epoch or every iteration of the attached engine,
-            `True` is epoch level, `False` is iteration level, defaut to epoch level.
+            `True` is epoch level, `False` is iteration level, default to epoch level.
 
     Note:
-        If in distributed training and uses loss value of every iteration to detect earlystopping,
+        If in distributed training and uses loss value of every iteration to detect early stopping,
         the values may be different in different ranks.
         User may attach this handler to validator engine to detect validation metrics and stop the training,
         in this case, the `score_function` is executed on validator engine and `trainer` is the trainer engine.

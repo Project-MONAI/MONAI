@@ -706,7 +706,7 @@ def map_spatial_axes(
             The default `None` will convert to all the spatial axes of the image.
             If axis is negative it counts from the last to the first axis.
             If axis is a tuple of ints.
-        channel_first: the image data is channel first or channel last, defaut to channel first.
+        channel_first: the image data is channel first or channel last, default to channel first.
 
     """
     if spatial_axes is None:
@@ -772,7 +772,9 @@ def allow_missing_keys_mode(transform: Union[MapTransform, Compose, Tuple[MapTra
 def convert_inverse_interp_mode(trans_info: List, mode: str = "nearest", align_corners: Optional[bool] = None):
     """
     Change the interpolation mode when inverting spatial transforms, default to "nearest".
-    It can support both single data or batch data.
+    This function modifies trans_info's `InverseKeys.EXTRA_INFO`.
+
+    See also: :py:class:`monai.transform.inverse.InvertibleTransform`
 
     Args:
         trans_info: transforms inverse information list, contains context of every invertible transform.
