@@ -28,6 +28,9 @@ else:
 class SegmentationSaver:
     """
     Event handler triggered on completing every iteration to save the segmentation predictions into files.
+    It can extract the input image meta data(filename, affine, original_shape, etc.) and resample the predictions
+    based on the meta data.
+
     """
 
     def __init__(
@@ -42,6 +45,7 @@ class SegmentationSaver:
         dtype: DtypeLike = np.float64,
         output_dtype: DtypeLike = np.float32,
         squeeze_end_dims: bool = True,
+        data_root_dir: str = "",
         batch_transform: Callable = lambda x: x,
         output_transform: Callable = lambda x: x,
         name: Optional[str] = None,
@@ -83,8 +87,19 @@ class SegmentationSaver:
                 then if C==1, it will be saved as (H,W,D). If D also ==1, it will be saved as (H,W). If false,
                 image will always be saved as (H,W,D,C).
                 it's used for NIfTI format only.
+            data_root_dir: if not empty, it specifies the beginning parts of the input file's
+                absolute path. it's used to compute `input_file_rel_path`, the relative path to the file from
+                `data_root_dir` to preserve folder structure when saving in case there are files in different
+                folders with the same file names. for example:
+                input_file_name: /foo/bar/test1/image.nii,
+                output_postfix: seg
+                output_ext: nii.gz
+                output_dir: /output,
+                data_root_dir: /foo/bar,
+                output will be: /output/test1/image/image_seg.nii.gz
             batch_transform: a callable that is used to transform the
                 ignite.engine.batch into expected format to extract the meta_data dictionary.
+                it can be used to extract the input image meta data: filename, affine, original_shape, etc.
             output_transform: a callable that is used to transform the
                 ignite.engine.output into the form expected image data.
                 The first dimension of this transform's output will be treated as the
@@ -103,7 +118,7 @@ class SegmentationSaver:
             dtype=dtype,
             output_dtype=output_dtype,
             squeeze_end_dims=squeeze_end_dims,
-            save_batch=True,
+            data_root_dir=data_root_dir,
         )
         self.batch_transform = batch_transform
         self.output_transform = output_transform
@@ -131,5 +146,13 @@ class SegmentationSaver:
         """
         meta_data = self.batch_transform(engine.state.batch)
         engine_output = self.output_transform(engine.state.output)
-        self._saver(engine_output, meta_data)
+        if isinstance(engine_output, (tuple, list)):
+            # if a list of data in shape: [channel, H, W, [D]], save every item separately
+            self._saver.save_batch = False
+            for i, d in enumerate(engine_output):
+                self._saver(d, {k: meta_data[k][i] for k in meta_data} if meta_data is not None else None)
+        else:
+            # if the data is in shape: [batch, channel, H, W, [D]]
+            self._saver.save_batch = True
+            self._saver(engine_output, meta_data)
         self.logger.info("saved all the model outputs into files.")

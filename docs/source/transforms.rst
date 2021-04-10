@@ -155,6 +155,12 @@ Intensity
     :members:
     :special-members: __call__
 
+`RandBiasField`
+"""""""""""""""
+.. autoclass:: RandBiasField
+    :members:
+    :special-members: __call__
+
 `ScaleIntensity`
 """"""""""""""""
 .. autoclass:: ScaleIntensity
@@ -298,6 +304,11 @@ Post-processing
 .. autoclass:: MeanEnsemble
     :members:
     :special-members: __call__
+
+`Prob NMS`
+""""""""""
+.. autoclass:: ProbNMS
+  :members:
 
 `VoteEnsemble`
 """"""""""""""
@@ -551,6 +562,12 @@ Utility
     :members:
     :special-members: __call__
 
+`MapLabelValue`
+"""""""""""""""
+.. autoclass:: MapLabelValue
+    :members:
+    :special-members: __call__
+
 Dictionary Transforms
 ---------------------
 
@@ -659,6 +676,12 @@ Instensity (Dict)
 `RandStdShiftIntensityd`
 """"""""""""""""""""""""
 .. autoclass:: RandStdShiftIntensityd
+    :members:
+    :special-members: __call__
+
+`RandBiasFieldd`
+""""""""""""""""
+.. autoclass:: RandBiasFieldd
     :members:
     :special-members: __call__
 
@@ -1049,6 +1072,12 @@ Utility (Dict)
 `TorchVisiond`
 """"""""""""""
 .. autoclass:: TorchVisiond
+    :members:
+    :special-members: __call__
+
+`MapLabelValued`
+""""""""""""""""
+.. autoclass:: MapLabelValued
     :members:
     :special-members: __call__
 

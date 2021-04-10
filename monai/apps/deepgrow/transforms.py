@@ -16,7 +16,7 @@ import torch
 from monai.config import IndexSelection, KeysCollection
 from monai.networks.layers import GaussianFilter
 from monai.transforms import Resize, SpatialCrop
-from monai.transforms.transform import MapTransform, RandomizableTransform, Transform
+from monai.transforms.transform import MapTransform, Randomizable, Transform
 from monai.transforms.utils import generate_spatial_bounding_box
 from monai.utils import InterpolateMode, ensure_tuple_rep, min_version, optional_import
 
@@ -61,7 +61,7 @@ class FindAllValidSlicesd(Transform):
         return d
 
 
-class AddInitialSeedPointd(RandomizableTransform):
+class AddInitialSeedPointd(Randomizable):
     """
     Add random guidance as initial seed point for a given label.
 
@@ -86,7 +86,6 @@ class AddInitialSeedPointd(RandomizableTransform):
         sid: str = "sid",
         connected_regions: int = 5,
     ):
-        super().__init__(prob=1.0, do_transform=True)
         self.label = label
         self.sids_key = sids
         self.sid_key = sid
@@ -115,7 +114,8 @@ class AddInitialSeedPointd(RandomizableTransform):
 
         label = (label > 0.5).astype(np.float32)
         blobs_labels = measure.label(label.astype(int), background=0) if dims == 2 else label
-        assert np.max(blobs_labels) > 0, "Not a valid Label"
+        if np.max(blobs_labels) <= 0:
+            raise AssertionError("Not a valid Label")
 
         pos_guidance = []
         for ridx in range(1, 2 if dims == 3 else self.connected_regions + 1):
@@ -283,7 +283,7 @@ class FindDiscrepancyRegionsd(Transform):
         return d
 
 
-class AddRandomGuidanced(RandomizableTransform):
+class AddRandomGuidanced(Randomizable):
     """
     Add random guidance based on discrepancies that were found between label and prediction.
 
@@ -319,7 +319,6 @@ class AddRandomGuidanced(RandomizableTransform):
         probability: str = "probability",
         batched: bool = True,
     ):
-        super().__init__(prob=1.0, do_transform=True)
         self.guidance = guidance
         self.discrepancy = discrepancy
         self.probability = probability
@@ -602,7 +601,7 @@ class AddGuidanceFromPointsd(Transform):
                 for i in range(len(clicks)):
                     clicks[i] = list(np.roll(clicks[i], 1))
             fg_bg_clicks.append(clicks)
-        d[self.guidance] = self._apply(fg_bg_clicks[0], fg_bg_clicks[1], factor, d.get(self.slice, None))
+        d[self.guidance] = self._apply(fg_bg_clicks[0], fg_bg_clicks[1], factor, d.get(self.slice))
         return d
 
 

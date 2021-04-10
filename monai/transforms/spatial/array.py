@@ -23,7 +23,7 @@ from monai.config import USE_COMPILED, DtypeLike
 from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.transforms.croppad.array import CenterSpatialCrop
-from monai.transforms.transform import RandomizableTransform, Transform
+from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (
     create_control_grid,
     create_grid,
@@ -790,7 +790,7 @@ class RandAxisFlip(RandomizableTransform):
     """
 
     def __init__(self, prob: float = 0.1) -> None:
-        RandomizableTransform.__init__(self, min(max(prob, 0.0), 1.0))
+        RandomizableTransform.__init__(self, prob)
         self._axis: Optional[int] = None
 
     def randomize(self, data: np.ndarray) -> None:
@@ -1004,7 +1004,7 @@ class AffineGrid(Transform):
         return grid if self.as_tensor_output else np.asarray(grid.cpu().numpy()), affine
 
 
-class RandAffineGrid(RandomizableTransform):
+class RandAffineGrid(Randomizable):
     """
     Generate randomised affine grid.
     """
@@ -1101,7 +1101,7 @@ class RandAffineGrid(RandomizableTransform):
         return self.affine
 
 
-class RandDeformGrid(RandomizableTransform):
+class RandDeformGrid(Randomizable):
     """
     Generate random deformation grid.
     """
@@ -1563,7 +1563,7 @@ class Rand2DElastic(RandomizableTransform):
                 mode=InterpolateMode.BICUBIC.value,
                 align_corners=False,
             )
-            grid = CenterSpatialCrop(roi_size=sp_size)(np.asarray(grid[0]))
+            grid = CenterSpatialCrop(roi_size=sp_size)(grid[0])
         else:
             grid = create_grid(spatial_size=sp_size)
         return self.resampler(img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode)

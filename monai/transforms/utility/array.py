@@ -16,24 +16,18 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 import logging
 import sys
 import time
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
 from monai.config import DtypeLike, NdarrayTensor
-from monai.transforms.transform import RandomizableTransform, Transform
+from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points, map_binary_to_indices
 from monai.utils import ensure_tuple, min_version, optional_import
 
-if TYPE_CHECKING:
-    from PIL.Image import Image as PILImageImage
-    from PIL.Image import fromarray as pil_image_fromarray
-
-    has_pil = True
-else:
-    PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
-    pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
+PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
+pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
 
 __all__ = [
     "Identity",
@@ -57,6 +51,7 @@ __all__ = [
     "ConvertToMultiChannelBasedOnBratsClasses",
     "AddExtremePointsChannel",
     "TorchVision",
+    "MapLabelValue",
 ]
 
 
@@ -171,10 +166,9 @@ class EnsureChannelFirst(Transform):
 
         if channel_dim is None:
             raise ValueError("meta_dict must contain `original_channel_dim` information.")
-        elif channel_dim == "no_channel":
+        if channel_dim == "no_channel":
             return AddChannel()(img)
-        else:
-            return AsChannelFirst(channel_dim=channel_dim)(img)
+        return AsChannelFirst(channel_dim=channel_dim)(img)
 
 
 class RepeatChannel(Transform):
@@ -302,7 +296,7 @@ class ToTensor(Transform):
     Converts the input image to a tensor without applying any other transformations.
     """
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor, PILImageImage]) -> torch.Tensor:
+    def __call__(self, img) -> torch.Tensor:
         """
         Apply the transform to `img` and make it contiguous.
         """
@@ -316,7 +310,7 @@ class ToNumpy(Transform):
     Converts the input data to numpy array, can support list or tuple of numbers and PyTorch Tensor.
     """
 
-    def __call__(self, img: Union[List, Tuple, np.ndarray, torch.Tensor, PILImageImage]) -> np.ndarray:
+    def __call__(self, img) -> np.ndarray:
         """
         Apply the transform to `img` and make it contiguous.
         """
@@ -330,7 +324,7 @@ class ToPIL(Transform):
     Converts the input image (in the form of NumPy array or PyTorch Tensor) to PIL image
     """
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor, PILImageImage]) -> PILImageImage:
+    def __call__(self, img):
         """
         Apply the transform to `img` and make it contiguous.
         """
@@ -659,6 +653,10 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
     """
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
+        # if img has channel dim, squeeze it
+        if img.ndim == 4 and img.shape[0] == 1:
+            img = np.squeeze(img, axis=0)
+
         result = []
         # merge labels 1 (tumor non-enh) and 4 (tumor enh) to TC
         result.append(np.logical_or(img == 1, img == 4))
@@ -669,7 +667,7 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
         return np.stack(result, axis=0)
 
 
-class AddExtremePointsChannel(RandomizableTransform):
+class AddExtremePointsChannel(Randomizable):
     """
     Add extreme points of label to the image as a new channel. This transform generates extreme
     point from label and applies a gaussian filter. The pixel values in points image are rescaled
@@ -758,3 +756,43 @@ class TorchVision:
 
         """
         return self.trans(img)
+
+
+class MapLabelValue:
+    """
+    Utility to map label values to another set of values.
+    For example, map [3, 2, 1] to [0, 1, 2], [1, 2, 3] -> [0.5, 1.5, 2.5], ["label3", "label2", "label1"] -> [0, 1, 2],
+    [3.5, 2.5, 1.5] -> ["label0", "label1", "label2"], etc.
+    The label data must be numpy array or array-like data and the output data will be numpy array.
+
+    """
+
+    def __init__(self, orig_labels: Sequence, target_labels: Sequence, dtype: DtypeLike = np.float32) -> None:
+        """
+        Args:
+            orig_labels: original labels that map to others.
+            target_labels: expected label values, 1: 1 map to the `orig_labels`.
+            dtype: convert the output data to dtype, default to float32.
+
+        """
+        if len(orig_labels) != len(target_labels):
+            raise ValueError("orig_labels and target_labels must have the same length.")
+        self.orig_labels = orig_labels
+        self.target_labels = target_labels
+        self.dtype = dtype
+
+    def __call__(self, img: np.ndarray):
+        img = np.asarray(img)
+        img_flat = img.flatten()
+        try:
+            out_flat = np.copy(img_flat).astype(self.dtype)
+        except ValueError:
+            # can't copy unchanged labels as the expected dtype is not supported, must map all the label values
+            out_flat = np.zeros(shape=img_flat.shape, dtype=self.dtype)
+
+        for o, t in zip(self.orig_labels, self.target_labels):
+            if o == t:
+                continue
+            np.place(out_flat, img_flat == o, t)
+
+        return out_flat.reshape(img.shape)

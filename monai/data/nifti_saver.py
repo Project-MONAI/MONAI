@@ -43,6 +43,7 @@ class NiftiSaver:
         dtype: DtypeLike = np.float64,
         output_dtype: DtypeLike = np.float32,
         squeeze_end_dims: bool = True,
+        data_root_dir: str = "",
     ) -> None:
         """
         Args:
@@ -67,6 +68,17 @@ class NiftiSaver:
                 has been moved to the end). So if input is (C,H,W,D), this will be altered to (H,W,D,C), and
                 then if C==1, it will be saved as (H,W,D). If D also ==1, it will be saved as (H,W). If false,
                 image will always be saved as (H,W,D,C).
+            data_root_dir: if not empty, it specifies the beginning parts of the input file's
+                absolute path. it's used to compute `input_file_rel_path`, the relative path to the file from
+                `data_root_dir` to preserve folder structure when saving in case there are files in different
+                folders with the same file names. for example:
+                input_file_name: /foo/bar/test1/image.nii,
+                postfix: seg
+                output_ext: nii.gz
+                output_dir: /output,
+                data_root_dir: /foo/bar,
+                output will be: /output/test1/image/image_seg.nii.gz
+
         """
         self.output_dir = output_dir
         self.output_postfix = output_postfix
@@ -79,6 +91,7 @@ class NiftiSaver:
         self.output_dtype = output_dtype
         self._data_index = 0
         self.squeeze_end_dims = squeeze_end_dims
+        self.data_root_dir = data_root_dir
 
     def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
         """
@@ -89,6 +102,7 @@ class NiftiSaver:
             - ``'original_affine'`` -- for data orientation handling, defaulting to an identity matrix.
             - ``'affine'`` -- for data output affine, defaulting to an identity matrix.
             - ``'spatial_shape'`` -- for data output shape.
+            - ``'patch_index'`` -- if the data is a patch of big image, append the patch index to filename.
 
         When meta_data is specified, the saver will try to resample batch data from the space
         defined by "affine" to the space defined by "original_affine".
@@ -108,12 +122,13 @@ class NiftiSaver:
         original_affine = meta_data.get("original_affine", None) if meta_data else None
         affine = meta_data.get("affine", None) if meta_data else None
         spatial_shape = meta_data.get("spatial_shape", None) if meta_data else None
+        patch_index = meta_data.get(Key.PATCH_INDEX, None) if meta_data else None
 
         if isinstance(data, torch.Tensor):
             data = data.detach().cpu().numpy()
 
-        filename = create_file_basename(self.output_postfix, filename, self.output_dir)
-        filename = f"{filename}{self.output_ext}"
+        path = create_file_basename(self.output_postfix, filename, self.output_dir, self.data_root_dir, patch_index)
+        path = f"{path}{self.output_ext}"
         # change data shape to be (channel, h, w, d)
         while len(data.shape) < 4:
             data = np.expand_dims(data, -1)
@@ -127,7 +142,7 @@ class NiftiSaver:
 
         write_nifti(
             data,
-            file_name=filename,
+            file_name=path,
             affine=affine,
             target_affine=original_affine,
             resample=self.resample,
@@ -156,6 +171,7 @@ class NiftiSaver:
         Args:
             batch_data: target batch data content that save into NIfTI format.
             meta_data: every key-value in the meta_data is corresponding to a batch of data.
+
         """
         for i, data in enumerate(batch_data):  # save a batch of files
-            self.save(data, {k: meta_data[k][i] for k in meta_data} if meta_data else None)
+            self.save(data=data, meta_data={k: meta_data[k][i] for k in meta_data} if meta_data is not None else None)

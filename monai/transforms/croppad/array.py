@@ -20,7 +20,7 @@ import torch
 
 from monai.config import IndexSelection
 from monai.data.utils import get_random_patch, get_valid_patch_size
-from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
+from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import (
     generate_pos_neg_label_crop_centers,
     generate_spatial_bounding_box,
@@ -246,14 +246,14 @@ class SpatialCrop(Transform):
         self.roi_start = self.roi_start if isinstance(self.roi_start, np.ndarray) else np.array([self.roi_start])
         self.roi_end = self.roi_end if isinstance(self.roi_end, np.ndarray) else np.array([self.roi_end])
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> np.ndarray:
+    def __call__(self, img: Union[np.ndarray, torch.Tensor]):
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
         """
         sd = min(self.roi_start.size, self.roi_end.size, len(img.shape[1:]))  # spatial dims
         slices = [slice(None)] + [slice(s, e) for s, e in zip(self.roi_start[:sd], self.roi_end[:sd])]
-        return np.asarray(img[tuple(slices)])
+        return img[tuple(slices)]
 
 
 class CenterSpatialCrop(Transform):
@@ -279,7 +279,7 @@ class CenterSpatialCrop(Transform):
         return cropper(img)
 
 
-class RandSpatialCrop(RandomizableTransform):
+class RandSpatialCrop(Randomizable):
     """
     Crop image with random size or specific size ROI. It can crop at a random position as center
     or at the image center. And allows to set the minimum size to limit the randomly generated ROI.
@@ -324,7 +324,7 @@ class RandSpatialCrop(RandomizableTransform):
         return cropper(img)
 
 
-class RandSpatialCropSamples(RandomizableTransform):
+class RandSpatialCropSamples(Randomizable):
     """
     Crop image with random size or specific size ROI to generate a list of N samples.
     It can crop at a random position as center or at the image center. And allows to set
@@ -432,7 +432,7 @@ class CropForeground(Transform):
         return cropped
 
 
-class RandWeightedCrop(RandomizableTransform):
+class RandWeightedCrop(Randomizable):
     """
     Samples a list of `num_samples` image patches according to the provided `weight_map`.
 
@@ -484,7 +484,7 @@ class RandWeightedCrop(RandomizableTransform):
         return results
 
 
-class RandCropByPosNegLabel(RandomizableTransform):
+class RandCropByPosNegLabel(Randomizable):
     """
     Crop random fixed sized regions with the center being a foreground or background voxel
     based on the Pos Neg Ratio.

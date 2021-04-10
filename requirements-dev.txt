@@ -3,7 +3,7 @@
 pytorch-ignite==0.4.4
 gdown>=3.6.4
 scipy
-itk>=5.0
+itk>=5.0, <=5.1.2
 nibabel
 pillow
 tensorboard
@@ -26,9 +26,9 @@ mypy>=0.790
 ninja
 torchvision
 psutil
-Sphinx==3.3.0
+Sphinx==3.5.3
 recommonmark==0.6.0
 sphinx-autodoc-typehints==1.11.1
-sphinx-rtd-theme==0.5.0
-cucim==0.18.1
+sphinx-rtd-theme==0.5.2
+cucim==0.18.2
 openslide-python==1.1.2
