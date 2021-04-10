@@ -85,6 +85,7 @@ class TestTransformInverter(unittest.TestCase):
             output_keys=["image", "label"],
             batch_keys="label",
             nearest_interp=True,
+            num_workers=2,
         ).attach(engine)
 
         engine.run(loader, max_epochs=1)

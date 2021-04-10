@@ -43,11 +43,12 @@ class TransformInverter:
         collate_fn: Optional[Callable] = no_collation,
         postfix: str = "inverted",
         nearest_interp: Union[bool, Sequence[bool]] = True,
+        num_workers: Optional[int] = 0,
     ) -> None:
         """
         Args:
             transform: a callable data transform on input data.
-            loader: data loader used to generate the batch of data.
+            loader: data loader used to run pre-transforms and generate the batch of data.
             collate_fn: how to collate data after inverse transformations.
                 default won't do any collation, so the output will be a list of size batch size.
             output_keys: the key of expected data in `ignite.engine.output`, invert transforms on it.
@@ -59,10 +60,19 @@ class TransformInverter:
             nearest_interp: whether to use `nearest` interpolation mode when inverting spatial transforms,
                 default to `True`. if `False`, use the same interpolation mode as the original transform.
                 it also can be a list of bool, each matches to the `output_keys` data.
+            num_workers: number of workers when run dataloader for inverse transforms,
+                default to 0 as only run 1 iteration and multi-processing may be even slower.
+                if the transforms are really slow, set num_workers for multi-processing.
+                if set to `None`, use the `num_workers` of the pre-transform dataloader.
 
         """
         self.transform = transform
-        self.inverter = BatchInverseTransform(transform=transform, loader=loader, collate_fn=collate_fn)
+        self.inverter = BatchInverseTransform(
+            transform=transform,
+            loader=loader,
+            collate_fn=collate_fn,
+            num_workers=num_workers,
+        )
         self.output_keys = ensure_tuple(output_keys)
         self.batch_keys = ensure_tuple_rep(batch_keys, len(self.output_keys))
         self.postfix = postfix
