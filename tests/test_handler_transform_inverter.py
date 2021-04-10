@@ -17,6 +17,7 @@ import torch
 from ignite.engine import Engine
 
 from monai.data import CacheDataset, DataLoader, create_test_image_3d
+from monai.engines.utils import IterationEvents
 from monai.handlers import TransformInverter
 from monai.transforms import (
     AddChanneld,
@@ -47,13 +48,13 @@ class TestTransformInverter(unittest.TestCase):
             [
                 LoadImaged(KEYS),
                 AddChanneld(KEYS),
-                ScaleIntensityd(KEYS, minv=1, maxv=10),
+                ScaleIntensityd("image", minv=1, maxv=10),
                 RandFlipd(KEYS, prob=0.5, spatial_axis=[1, 2]),
                 RandAxisFlipd(KEYS, prob=0.5),
                 RandRotate90d(KEYS, spatial_axes=(1, 2)),
                 RandZoomd(KEYS, prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True),
                 RandRotated(KEYS, prob=0.5, range_x=np.pi, mode="bilinear", align_corners=True),
-                RandAffined(KEYS, prob=0.5, rotate_range=np.pi),
+                RandAffined(KEYS, prob=0.5, rotate_range=np.pi, mode="nearest"),
                 ResizeWithPadOrCropd(KEYS, 100),
                 ToTensord(KEYS),
                 CastToTyped(KEYS, dtype=torch.uint8),
@@ -70,19 +71,38 @@ class TestTransformInverter(unittest.TestCase):
         # set up engine
         def _train_func(engine, batch):
             self.assertTupleEqual(batch["image"].shape[1:], (1, 100, 100, 100))
-            return batch
+            engine.state.output = batch
+            engine.fire_event(IterationEvents.MODEL_COMPLETED)
+            return engine.state.output
 
         engine = Engine(_train_func)
+        engine.register_events(*IterationEvents)
 
         # set up testing handler
-        TransformInverter(transform=transform, loader=loader, output_key="image", nearest_interp=True).attach(engine)
+        TransformInverter(
+            transform=transform,
+            loader=loader,
+            output_keys=["image", "label"],
+            batch_keys="label",
+            nearest_interp=True,
+            num_workers=0 if sys.platform == "darwin" or torch.cuda.is_available() else 2,
+        ).attach(engine)
 
         engine.run(loader, max_epochs=1)
         set_determinism(seed=None)
         self.assertTupleEqual(engine.state.output["image"].shape, (2, 1, 100, 100, 100))
-        for i in engine.state.output["image_inverted"]:
-            np.testing.assert_allclose(i.astype(np.uint8).astype(np.float32), i, rtol=1e-4)
+        self.assertTupleEqual(engine.state.output["label"].shape, (2, 1, 100, 100, 100))
+        for i in engine.state.output["image_inverted"] + engine.state.output["label_inverted"]:
+            torch.testing.assert_allclose(i.to(torch.uint8).to(torch.float), i.to(torch.float))
             self.assertTupleEqual(i.shape, (1, 100, 101, 107))
+        # check labels match
+        reverted = engine.state.output["label_inverted"][-1].detach().cpu().numpy()[0].astype(np.int32)
+        original = LoadImaged(KEYS)(data[-1])["label"]
+        n_good = np.sum(np.isclose(reverted, original, atol=1e-3))
+        reverted_name = engine.state.output["label_meta_dict"]["filename_or_obj"][-1]
+        original_name = data[-1]["label"]
+        self.assertEqual(reverted_name, original_name)
+        self.assertTrue((reverted.size - n_good) in (0, 23641), "diff. in two possible values")
 
 
 if __name__ == "__main__":
