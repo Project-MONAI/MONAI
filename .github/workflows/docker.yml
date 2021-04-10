@@ -76,6 +76,7 @@ jobs:
         echo "${{ secrets.DOCKER_PW }}" | docker login -u projectmonai --password-stdin
         docker push projectmonai/monai:latest
         docker logout
+        docker image prune -f
 
   docker_test_latest:
     if: github.repository == 'Project-MONAI/MONAI'
