@@ -223,17 +223,18 @@ class SupervisedEvaluator(Evaluator):
             inputs, targets, args, kwargs = batch
 
         # put iteration outputs into engine.state
-        engine.state.output = output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
+        engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
         # execute forward computation
         with self.mode(self.network):
             if self.amp:
                 with torch.cuda.amp.autocast():
-                    output[Keys.PRED] = self.inferer(inputs, self.network, *args, **kwargs)
+                    engine.state.output[Keys.PRED] = self.inferer(inputs, self.network, *args, **kwargs)
             else:
-                output[Keys.PRED] = self.inferer(inputs, self.network, *args, **kwargs)
+                engine.state.output[Keys.PRED] = self.inferer(inputs, self.network, *args, **kwargs)
         engine.fire_event(IterationEvents.FORWARD_COMPLETED)
+        engine.fire_event(IterationEvents.MODEL_COMPLETED)
 
-        return output
+        return engine.state.output
 
 
 class EnsembleEvaluator(Evaluator):
@@ -344,14 +345,17 @@ class EnsembleEvaluator(Evaluator):
             inputs, targets, args, kwargs = batch
 
         # put iteration outputs into engine.state
-        engine.state.output = output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
+        engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
         for idx, network in enumerate(self.networks):
             with self.mode(network):
                 if self.amp:
                     with torch.cuda.amp.autocast():
-                        output.update({self.pred_keys[idx]: self.inferer(inputs, network, *args, **kwargs)})
+                        engine.state.output.update(
+                            {self.pred_keys[idx]: self.inferer(inputs, network, *args, **kwargs)}
+                        )
                 else:
-                    output.update({self.pred_keys[idx]: self.inferer(inputs, network, *args, **kwargs)})
+                    engine.state.output.update({self.pred_keys[idx]: self.inferer(inputs, network, *args, **kwargs)})
         engine.fire_event(IterationEvents.FORWARD_COMPLETED)
+        engine.fire_event(IterationEvents.MODEL_COMPLETED)
 
-        return output
+        return engine.state.output

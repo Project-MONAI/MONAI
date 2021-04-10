@@ -50,21 +50,32 @@ class _BatchInverseDataset(Dataset):
 
 
 class BatchInverseTransform(Transform):
-    """Perform inverse on a batch of data. This is useful if you have inferred a batch of images and want to invert them all."""
+    """
+    Perform inverse on a batch of data. This is useful if you have inferred a batch of images and want to invert
+    them all.
+    """
 
     def __init__(
-        self, transform: InvertibleTransform, loader: TorchDataLoader, collate_fn: Optional[Callable] = no_collation
+        self,
+        transform: InvertibleTransform,
+        loader: TorchDataLoader,
+        collate_fn: Optional[Callable] = no_collation,
+        num_workers: Optional[int] = 0,
     ) -> None:
         """
         Args:
             transform: a callable data transform on input data.
-            loader: data loader used to generate the batch of data.
-            collate_fn: how to collate data after inverse transformations. Default won't do any collation, so the output will be a
-                list of size batch size.
+            loader: data loader used to run `transforms` and generate the batch of data.
+            collate_fn: how to collate data after inverse transformations.
+                default won't do any collation, so the output will be a list of size batch size.
+            num_workers: number of workers when run data loader for inverse transforms,
+                default to 0 as only run 1 iteration and multi-processing may be even slower.
+                if the transforms are really slow, set num_workers for multi-processing.
+                if set to `None`, use the `num_workers` of the transform data loader.
         """
         self.transform = transform
         self.batch_size = loader.batch_size
-        self.num_workers = loader.num_workers
+        self.num_workers = loader.num_workers if num_workers is None else num_workers
         self.collate_fn = collate_fn
         self.pad_collation_used = loader.collate_fn == pad_list_data_collate
 
