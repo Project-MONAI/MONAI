@@ -30,7 +30,7 @@ else:
 class TransformInverter:
     """
     Ignite handler to automatically invert all the pre-transforms that support `inverse`.
-    It takes `engine.state.output` as the input data and uses the transforms infomation from `engine.state.batch`.
+    It takes `engine.state.output` as the input data and uses the transforms information from `engine.state.batch`.
 
     """
 

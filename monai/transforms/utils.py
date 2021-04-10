@@ -706,7 +706,7 @@ def map_spatial_axes(
             The default `None` will convert to all the spatial axes of the image.
             If axis is negative it counts from the last to the first axis.
             If axis is a tuple of ints.
-        channel_first: the image data is channel first or channel last, defaut to channel first.
+        channel_first: the image data is channel first or channel last, default to channel first.
 
     """
     if spatial_axes is None:
