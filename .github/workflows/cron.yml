@@ -150,6 +150,7 @@ jobs:
         cd tutorials
         python -m pip install -r requirements.txt
     - name: Run tutorial notebooks
+      timeout-minutes: 150
       run: |
         export CUDA_VISIBLE_DEVICES=${{ steps.monai-install.outputs.devices }}
         echo $CUDA_VISIBLE_DEVICES
