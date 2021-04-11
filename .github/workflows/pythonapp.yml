@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - test-time
   pull_request:
 
 jobs:
