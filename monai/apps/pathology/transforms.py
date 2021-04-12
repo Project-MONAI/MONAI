@@ -2,10 +2,16 @@
 # - Original implementation from Macenko paper in Matlab: https://github.com/mitkovetta/staining-normalization
 # - Implementation in Python: https://github.com/schaugf/HEnorm_python
 # - Link to Macenko et al., 2009 paper: http://wwwx.cs.unc.edu/~mn/sites/default/files/macenko2009.pdf
+
+from typing import TYPE_CHECKING
+
 from monai.transforms.transform import Transform
 from monai.utils import exact_version, optional_import
 
-cp, _ = optional_import("cupy", "8.6.0", exact_version)
+if TYPE_CHECKING:
+    import cupy as cp
+else:
+    cp, _ = optional_import("cupy", "8.6.0", exact_version)
 
 
 class ExtractStainsMacenko(Transform):
