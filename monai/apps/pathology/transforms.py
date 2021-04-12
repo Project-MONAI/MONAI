@@ -13,10 +13,10 @@ class ExtractStainsMacenko(Transform):
 
     Args:
         tli: transmitted light intensity. Defaults to 240.
-        alpha: tolerance in percentile for the pseudo-min (alpha percentile) 
+        alpha: tolerance in percentile for the pseudo-min (alpha percentile)
             and pseudo-max (100 - alpha percentile). Defaults to 1.
         beta: absorbance threshold for transparent pixels. Defaults to 0.15
-        max_cref: reference maximum stain concentrations for Hematoxylin & Eosin (H&E). 
+        max_cref: reference maximum stain concentrations for Hematoxylin & Eosin (H&E).
             Defaults to None.
     """
 
@@ -41,11 +41,11 @@ class ExtractStainsMacenko(Transform):
         # reshape image
         img = img.reshape((-1, 3))
 
-        # calculate absorbance 
-        absorbance = -cp.log(cp.clip(img.astype(cp.float)+1, a_max=self.tli)/self.tli)
+        # calculate absorbance
+        absorbance = -cp.log(cp.clip(img.astype(cp.float) + 1, a_max=self.tli) / self.tli)
 
         # remove transparent pixels
-        absorbance_hat = absorbance[cp.all(absorbance>self.beta, axis=1)]
+        absorbance_hat = absorbance[cp.all(absorbance > self.beta, axis=1)]
 
         # compute eigenvectors
         _, eigvecs = cp.linalg.eigh(cp.cov(absorbance_hat.T))
@@ -92,12 +92,12 @@ class NormalizeStainsMacenko(Transform):
 
     Args:
         tli: transmitted light intensity. Defaults to 240.
-        alpha: tolerance in percentile for the pseudo-min (alpha percentile) and 
+        alpha: tolerance in percentile for the pseudo-min (alpha percentile) and
             pseudo-max (100 - alpha percentile). Defaults to 1.
         beta: absorbance threshold for transparent pixels. Defaults to 0.15.
         target_he: target stain matrix. Defaults to None.
         max_cref: reference maximum stain concentrations for Hematoxylin & Eosin (H&E).
-            Defaults to None. 
+            Defaults to None.
     """
 
     def __init__(
@@ -133,10 +133,10 @@ class NormalizeStainsMacenko(Transform):
         img = img.reshape((-1, 3))
 
         # calculate absorbance
-        absorbance = -cp.log(cp.clip(img.astype(cp.float)+1, a_max=self.tli)/self.tli)
+        absorbance = -cp.log(cp.clip(img.astype(cp.float) + 1, a_max=self.tli) / self.tli)
 
         # remove transparent pixels
-        absorbance_hat = absorbance[cp.all(absorbance>self.beta, axis=1)]
+        absorbance_hat = absorbance[cp.all(absorbance > self.beta, axis=1)]
 
         # compute eigenvectors
         _, eigvecs = cp.linalg.eigh(cp.cov(absorbance_hat.T))
