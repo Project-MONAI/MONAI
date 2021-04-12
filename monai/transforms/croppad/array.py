@@ -240,23 +240,23 @@ class SpatialCrop(Transform):
         if roi_slices:
             if not all(s.step is None or s.step == 1 for s in roi_slices):
                 raise ValueError("Only slice steps of 1/None are currently supported")
-            self.slices = roi_slices
+            self.slices = list(roi_slices)
         else:
             if roi_center is not None and roi_size is not None:
                 roi_center = np.asarray(roi_center, dtype=np.int16)
                 roi_size = np.asarray(roi_size, dtype=np.int16)
-                roi_start = np.maximum(roi_center - np.floor_divide(roi_size, 2), 0)
-                roi_end = np.maximum(roi_start + roi_size, roi_start)
+                roi_start_np = np.maximum(roi_center - np.floor_divide(roi_size, 2), 0)
+                roi_end_np = np.maximum(roi_start_np + roi_size, roi_start_np)
             else:
                 if roi_start is None or roi_end is None:
                     raise ValueError("Please specify either roi_center, roi_size or roi_start, roi_end.")
-                roi_start = np.maximum(np.asarray(roi_start, dtype=np.int16), 0)
-                roi_end = np.maximum(np.asarray(roi_end, dtype=np.int16), roi_start)
+                roi_start_np = np.maximum(np.asarray(roi_start, dtype=np.int16), 0)
+                roi_end_np = np.maximum(np.asarray(roi_end, dtype=np.int16), roi_start_np)
             # Allow for 1D by converting back to np.array (since np.maximum will convert to int)
-            roi_start = roi_start if isinstance(roi_start, np.ndarray) else np.array([roi_start])
-            roi_end = roi_end if isinstance(roi_end, np.ndarray) else np.array([roi_end])
+            roi_start_np = roi_start_np if isinstance(roi_start_np, np.ndarray) else np.array([roi_start_np])
+            roi_end_np = roi_end_np if isinstance(roi_end_np, np.ndarray) else np.array([roi_end_np])
             # convert to slices
-            self.slices = [slice(s, e) for s, e in zip(roi_start, roi_end)]
+            self.slices = [slice(s, e) for s, e in zip(roi_start_np, roi_end_np)]
 
     def __call__(self, img: Union[np.ndarray, torch.Tensor]):
         """
