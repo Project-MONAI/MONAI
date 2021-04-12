@@ -23,29 +23,37 @@ from monai.losses import DiceLoss
 from monai.networks.nets import UNet
 from monai.transforms import Activations, AddChanneld, AsDiscrete, Compose, CropForegroundd, DivisiblePadd, RandAffined
 from monai.transforms.croppad.dictionary import SpatialPadd
-from monai.transforms.spatial.dictionary import Rand2DElasticd, RandFlipd
+from monai.transforms.spatial.dictionary import Rand2DElasticd, RandFlipd, Spacingd
 from monai.utils import optional_import, set_determinism
 
 if TYPE_CHECKING:
     import tqdm
 
     has_tqdm = True
+    has_nib = True
 else:
     tqdm, has_tqdm = optional_import("tqdm")
+    _, has_nib = optional_import("nibabel")
 
 trange = partial(tqdm.trange, desc="training") if has_tqdm else range
 
 
 class TestTestTimeAugmentation(unittest.TestCase):
     @staticmethod
-    def get_data(num_examples, input_size):
+    def get_data(num_examples, input_size, include_label=True):
         custom_create_test_image_2d = partial(
             create_test_image_2d, *input_size, rad_max=7, num_seg_classes=1, num_objs=1
         )
         data = []
         for _ in range(num_examples):
             im, label = custom_create_test_image_2d()
-            data.append({"image": im, "label": label})
+            d = {}
+            d["image"] = im
+            d["image_meta_dict"] = {"affine": np.eye(4)}
+            if include_label:
+                d["label"] = label
+                d["label_meta_dict"] = {"affine": np.eye(4)}
+            data.append(d)
         return data[0] if num_examples == 1 else data
 
     def setUp(self) -> None:
@@ -137,6 +145,17 @@ class TestTestTimeAugmentation(unittest.TestCase):
         transforms = RandFlipd(["image", "label"])
         tta = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x)
         tta(self.get_data(1, (20, 20)))
+
+    def test_image_no_label(self):
+        transforms = RandFlipd(["image"])
+        tta = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x, label_key="image")
+        tta(self.get_data(1, (20, 20), include_label=False))
+
+    @unittest.skipUnless(has_nib, "Requires nibabel")
+    def test_requires_meta_dict(self):
+        transforms = Compose([RandFlipd("image"), Spacingd("image", (1, 1))])
+        tta = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x, label_key="image")
+        tta(self.get_data(1, (20, 20), include_label=False))
 
 
 if __name__ == "__main__":
