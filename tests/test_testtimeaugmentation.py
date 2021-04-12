@@ -151,7 +151,7 @@ class TestTestTimeAugmentation(unittest.TestCase):
         tta = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x, label_key="image")
         tta(self.get_data(1, (20, 20), include_label=False))
 
-    @unittest.skipUnless(has_nib)
+    @unittest.skipUnless(has_nib, "Requires nibabel")
     def test_requires_meta_dict(self):
         transforms = Compose([RandFlipd("image"), Spacingd("image", (1, 1))])
         tta = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x, label_key="image")
