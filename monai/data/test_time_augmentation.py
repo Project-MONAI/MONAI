@@ -9,8 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from monai.utils.module import optional_import
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -24,6 +23,7 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import Randomizable
 from monai.transforms.utils import allow_missing_keys_mode
 from monai.utils.enums import CommonKeys, InverseKeys
+from monai.utils.module import optional_import
 
 if TYPE_CHECKING:
     from tqdm import tqdm
