@@ -23,7 +23,7 @@ from monai.losses import DiceLoss
 from monai.networks.nets import UNet
 from monai.transforms import Activations, AddChanneld, AsDiscrete, Compose, CropForegroundd, DivisiblePadd, RandAffined
 from monai.transforms.croppad.dictionary import SpatialPadd
-from monai.transforms.spatial.dictionary import Rand2DElasticd, RandFlipd
+from monai.transforms.spatial.dictionary import Rand2DElasticd, RandFlipd, Spacingd
 from monai.utils import optional_import, set_determinism
 
 if TYPE_CHECKING:
@@ -47,8 +47,10 @@ class TestTestTimeAugmentation(unittest.TestCase):
             im, label = custom_create_test_image_2d()
             d = {}
             d["image"] = im
+            d["image_meta_dict"] = {"affine": np.eye(4)}
             if include_label:
                 d["label"] = label
+                d["label_meta_dict"] = {"affine": np.eye(4)}
             data.append(d)
         return data[0] if num_examples == 1 else data
 
@@ -144,6 +146,11 @@ class TestTestTimeAugmentation(unittest.TestCase):
 
     def test_image_no_label(self):
         transforms = RandFlipd(["image"])
+        tta = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x, label_key="image")
+        tta(self.get_data(1, (20, 20), include_label=False))
+
+    def test_requires_meta_dict(self):
+        transforms = Compose([RandFlipd("image"), Spacingd("image", (1, 1))])
         tta = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x, label_key="image")
         tta(self.get_data(1, (20, 20), include_label=False))
 
