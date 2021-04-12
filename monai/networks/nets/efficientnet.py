@@ -768,7 +768,7 @@ def _calculate_output_image_size(input_image_size: List[int], stride: Union[int,
 
     # checks to extract integer stride in case tuple was received
     if isinstance(stride, tuple):
-        all_strides_equal = all([stride[0] == s for s in stride])
+        all_strides_equal = all(stride[0] == s for s in stride)
         if not all_strides_equal:
             raise ValueError("unequal strides are not possible, got {}".format(stride))
 
