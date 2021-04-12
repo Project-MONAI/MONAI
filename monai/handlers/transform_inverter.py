@@ -50,8 +50,6 @@ class TransformInverter:
         Args:
             transform: a callable data transform on input data.
             loader: data loader used to run transforms and generate the batch of data.
-            collate_fn: how to collate data after inverse transformations.
-                default won't do any collation, so the output will be a list of size batch size.
             output_keys: the key of expected data in `ignite.engine.output`, invert transforms on it.
                 it also can be a list of keys, will invert transform for each of them. Default to "pred".
             batch_keys: the key of input data in `ignite.engine.batch`. will get the applied transforms
@@ -61,6 +59,8 @@ class TransformInverter:
                 default is `meta_dict`, the meta data is a dictionary object.
                 For example, to handle key `image`,  read/write affine matrices from the
                 metadata `image_meta_dict` dictionary's `affine` field.
+            collate_fn: how to collate data after inverse transformations.
+                default won't do any collation, so the output will be a list of size batch size.
             postfix: will save the inverted result into `ignite.engine.output` with key `{output_key}{postfix}`.
             nearest_interp: whether to use `nearest` interpolation mode when inverting the spatial transforms,
                 default to `True`. If `False`, use the same interpolation mode as the original transform.
@@ -79,7 +79,7 @@ class TransformInverter:
         )
         self.output_keys = ensure_tuple(output_keys)
         self.batch_keys = ensure_tuple_rep(batch_keys, len(self.output_keys))
-        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(output_keys))
+        self.meta_key_postfix = meta_key_postfix
         self.postfix = postfix
         self.nearest_interp = ensure_tuple_rep(nearest_interp, len(self.output_keys))
         self._totensor = ToTensor()
@@ -96,9 +96,7 @@ class TransformInverter:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        for output_key, batch_key, nearest_interp, meta_key in zip(
-            self.output_keys, self.batch_keys, self.nearest_interp, self.meta_key_postfix
-        ):
+        for output_key, batch_key, nearest_interp in zip(self.output_keys, self.batch_keys, self.nearest_interp):
             transform_key = batch_key + InverseKeys.KEY_SUFFIX
             if transform_key not in engine.state.batch:
                 warnings.warn(f"all the transforms on `{batch_key}` are not InvertibleTransform.")
@@ -112,7 +110,7 @@ class TransformInverter:
                 batch_key: engine.state.output[output_key].detach().cpu(),
                 transform_key: transform_info,
             }
-            meta_dict_key = f"{batch_key}_{meta_key}"
+            meta_dict_key = f"{batch_key}_{self.meta_key_postfix}"
             if meta_dict_key in engine.state.batch:
                 segs_dict[meta_dict_key] = engine.state.batch[meta_dict_key]
 

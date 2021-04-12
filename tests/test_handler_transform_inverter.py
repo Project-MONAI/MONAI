@@ -24,6 +24,7 @@ from monai.transforms import (
     CastToTyped,
     Compose,
     LoadImaged,
+    Orientationd,
     RandAffined,
     RandAxisFlipd,
     RandFlipd,
@@ -49,7 +50,8 @@ class TestTransformInverter(unittest.TestCase):
             [
                 LoadImaged(KEYS),
                 AddChanneld(KEYS),
-                Spacingd(KEYS, pixdim=(1.1, 1.01, 0.9), mode=["bilinear", "nearest"], dtype=np.float32),
+                Orientationd(KEYS, "RPS"),
+                Spacingd(KEYS, pixdim=(1.2, 1.01, 0.9), mode=["bilinear", "nearest"], dtype=np.float32),
                 ScaleIntensityd("image", minv=1, maxv=10),
                 RandFlipd(KEYS, prob=0.5, spatial_axis=[1, 2]),
                 RandAxisFlipd(KEYS, prob=0.5),
@@ -105,7 +107,7 @@ class TestTransformInverter(unittest.TestCase):
         original_name = data[-1]["label"]
         self.assertEqual(reverted_name, original_name)
         print("invert diff", reverted.size - n_good)
-        self.assertTrue((reverted.size - n_good) in (0, 981), "diff. in two possible values")
+        self.assertTrue((reverted.size - n_good) in (25300, 1812), "diff. in two possible values")
 
 
 if __name__ == "__main__":
