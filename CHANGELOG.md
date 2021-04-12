@@ -61,7 +61,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Workflows now accept additional custom events and state properties
 * Various type hints according to Numpy 1.20
 * Refactored testing utility `runtests.sh` to have `--unittest` and `--net` (integration tests) options
-* Base Docker image upgraded to `nvcr.io/nvidia/pytorch:21.03-py3` from `nvcr.io/nvidia/pytorch:20.10-py3`
+* Base Docker image upgraded to `nvcr.io/nvidia/pytorch:21.02-py3` from `nvcr.io/nvidia/pytorch:20.10-py3`
 * Docker images are now built with self-hosted environments
 * Primary contact email updated to `monai.contact@gmail.com`
 * Now using GitHub Discussions as the primary communication forum
