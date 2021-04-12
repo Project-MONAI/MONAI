@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Iterable, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import torch
 from torch.optim.optimizer import Optimizer
@@ -23,11 +23,12 @@ from monai.utils import exact_version, optional_import
 from monai.utils.enums import CommonKeys as Keys
 
 if TYPE_CHECKING:
-    from ignite.engine import Engine
+    from ignite.engine import Engine, EventEnum
     from ignite.metrics import Metric
 else:
     Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
     Metric, _ = optional_import("ignite.metrics", "0.4.4", exact_version, "Metric")
+    EventEnum, _ = optional_import("ignite.engine", "0.4.4", exact_version, "EventEnum")
 
 __all__ = ["Trainer", "SupervisedTrainer", "GanTrainer"]
 
@@ -78,6 +79,10 @@ class SupervisedTrainer(Trainer):
         train_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
         amp: whether to enable auto-mixed-precision training, default is False.
+        event_names: additional custom ignite events that will register to the engine.
+            new events can be a list of str or `ignite.engine.events.EventEnum`.
+        event_to_attr: a dictionary to map an event to a state attribute, then add to `engine.state`.
+            for more details, check: https://github.com/pytorch/ignite/blob/v0.4.4.post1/ignite/engine/engine.py#L160
 
     """
 
@@ -99,8 +104,9 @@ class SupervisedTrainer(Trainer):
         additional_metrics: Optional[Dict[str, Metric]] = None,
         train_handlers: Optional[Sequence] = None,
         amp: bool = False,
+        event_names: Optional[List[Union[str, EventEnum]]] = None,
+        event_to_attr: Optional[dict] = None,
     ) -> None:
-        # set up Ignite engine and environments
         super().__init__(
             device=device,
             max_epochs=max_epochs,
@@ -114,16 +120,15 @@ class SupervisedTrainer(Trainer):
             additional_metrics=additional_metrics,
             handlers=train_handlers,
             amp=amp,
+            # add the iteration events
+            event_names=[IterationEvents] if event_names is None else event_names + [IterationEvents],
+            event_to_attr=event_to_attr,
         )
 
         self.network = network
         self.optimizer = optimizer
         self.loss_function = loss_function
         self.inferer = SimpleInferer() if inferer is None else inferer
-
-    def _register_additional_events(self):
-        super()._register_additional_events()
-        self.register_events(*IterationEvents)
 
     def _iteration(self, engine: Engine, batchdata: Dict[str, torch.Tensor]):
         """
@@ -152,12 +157,12 @@ class SupervisedTrainer(Trainer):
         else:
             inputs, targets, args, kwargs = batch
         # put iteration outputs into engine.state
-        engine.state.output = output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
+        engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
 
         def _compute_pred_loss():
-            output[Keys.PRED] = self.inferer(inputs, self.network, *args, **kwargs)
+            engine.state.output[Keys.PRED] = self.inferer(inputs, self.network, *args, **kwargs)
             engine.fire_event(IterationEvents.FORWARD_COMPLETED)
-            output[Keys.LOSS] = self.loss_function(output[Keys.PRED], targets).mean()
+            engine.state.output[Keys.LOSS] = self.loss_function(engine.state.output[Keys.PRED], targets).mean()
             engine.fire_event(IterationEvents.LOSS_COMPLETED)
 
         self.network.train()
@@ -165,18 +170,18 @@ class SupervisedTrainer(Trainer):
         if self.amp and self.scaler is not None:
             with torch.cuda.amp.autocast():
                 _compute_pred_loss()
-            self.scaler.scale(output[Keys.LOSS]).backward()
+            self.scaler.scale(engine.state.output[Keys.LOSS]).backward()
             engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
             self.scaler.step(self.optimizer)
             self.scaler.update()
         else:
             _compute_pred_loss()
-            output[Keys.LOSS].backward()
+            engine.state.output[Keys.LOSS].backward()
             engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
             self.optimizer.step()
-        engine.fire_event(IterationEvents.OPTIMIZER_COMPLETED)
+        engine.fire_event(IterationEvents.MODEL_COMPLETED)
 
-        return output
+        return engine.state.output
 
 
 class GanTrainer(Trainer):

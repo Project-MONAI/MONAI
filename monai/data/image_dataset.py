@@ -17,7 +17,6 @@ from torch.utils.data import Dataset
 from monai.config import DtypeLike
 from monai.data.image_reader import ImageReader
 from monai.transforms import LoadImage, Randomizable, apply_transform
-from monai.transforms.transform import RandomizableTransform
 from monai.utils import MAX_SEED, get_seed
 
 
@@ -107,14 +106,14 @@ class ImageDataset(Dataset, Randomizable):
             label = self.labels[index]
 
         if self.transform is not None:
-            if isinstance(self.transform, RandomizableTransform):
+            if isinstance(self.transform, Randomizable):
                 self.transform.set_random_state(seed=self._seed)
             img = apply_transform(self.transform, img)
 
         data = [img]
 
         if self.seg_transform is not None:
-            if isinstance(self.seg_transform, RandomizableTransform):
+            if isinstance(self.seg_transform, Randomizable):
                 self.seg_transform.set_random_state(seed=self._seed)
             seg = apply_transform(self.seg_transform, seg)
 
