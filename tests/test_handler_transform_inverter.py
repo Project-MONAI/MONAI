@@ -32,6 +32,7 @@ from monai.transforms import (
     RandZoomd,
     ResizeWithPadOrCropd,
     ScaleIntensityd,
+    Spacingd,
     ToTensord,
 )
 from monai.utils.misc import set_determinism
@@ -48,6 +49,7 @@ class TestTransformInverter(unittest.TestCase):
             [
                 LoadImaged(KEYS),
                 AddChanneld(KEYS),
+                Spacingd(KEYS, pixdim=(1.1, 1.01, 0.9), mode=["bilinear", "nearest"], dtype=np.float32),
                 ScaleIntensityd("image", minv=1, maxv=10),
                 RandFlipd(KEYS, prob=0.5, spatial_axis=[1, 2]),
                 RandAxisFlipd(KEYS, prob=0.5),
@@ -102,7 +104,8 @@ class TestTransformInverter(unittest.TestCase):
         reverted_name = engine.state.output["label_meta_dict"]["filename_or_obj"][-1]
         original_name = data[-1]["label"]
         self.assertEqual(reverted_name, original_name)
-        self.assertTrue((reverted.size - n_good) in (0, 23641), "diff. in two possible values")
+        print("invert diff", reverted.size - n_good)
+        self.assertTrue((reverted.size - n_good) in (0, 981), "diff. in two possible values")
 
 
 if __name__ == "__main__":
