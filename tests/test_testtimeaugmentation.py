@@ -30,8 +30,10 @@ if TYPE_CHECKING:
     import tqdm
 
     has_tqdm = True
+    has_nib = True
 else:
     tqdm, has_tqdm = optional_import("tqdm")
+    _, has_nib = optional_import("nibabel")
 
 trange = partial(tqdm.trange, desc="training") if has_tqdm else range
 
@@ -149,6 +151,7 @@ class TestTestTimeAugmentation(unittest.TestCase):
         tta = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x, label_key="image")
         tta(self.get_data(1, (20, 20), include_label=False))
 
+    @unittest.skipUnless(has_nib)
     def test_requires_meta_dict(self):
         transforms = Compose([RandFlipd("image"), Spacingd("image", (1, 1))])
         tta = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x, label_key="image")
