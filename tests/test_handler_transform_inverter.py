@@ -120,7 +120,10 @@ class TestTransformInverter(unittest.TestCase):
         original_name = data[-1]["label"]
         self.assertEqual(reverted_name, original_name)
         print("invert diff", reverted.size - n_good)
-        self.assertTrue((reverted.size - n_good) in (25300, 1812), "diff. in two possible values")
+        # 25300: 2 workers (cpu, non-macos)
+        # 1812: 0 workers (gpu or macos)
+        # 1824: torch 1.5.1
+        self.assertTrue((reverted.size - n_good) in (25300, 1812, 1824), "diff. in 3 possible values")
 
         # check the case that different items use different interpolation mode to invert transforms
         for i in engine.state.output["image_inverted2"]:
