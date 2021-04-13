@@ -17,9 +17,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from monai.networks.utils import eval_mode, train_mode
 from monai.transforms import ScaleIntensity
-from monai.utils import ensure_tuple
+from monai.utils import ensure_tuple, get_torch_version_tuple
 from monai.visualize.visualizer import default_upsampler
 
 __all__ = ["CAM", "GradCAM", "GradCAMpp", "ModelWithHooks", "default_normalizer"]
@@ -74,7 +73,13 @@ class ModelWithHooks:
                 continue
             _registered.append(name)
             if self.register_backward:
-                mod.register_backward_hook(self.backward_hook(name))
+                if get_torch_version_tuple() < (1, 8):
+                    mod.register_backward_hook(self.backward_hook(name))
+                else:
+                    if "inplace" in mod.__dict__ and mod.__dict__["inplace"]:
+                        # inplace=True causes errors for register_full_backward_hook
+                        mod.__dict__["inplace"] = False
+                    mod.register_full_backward_hook(self.backward_hook(name))
             if self.register_forward:
                 mod.register_forward_hook(self.forward_hook(name))
         if len(_registered) != len(self.target_layers):
@@ -110,26 +115,24 @@ class ModelWithHooks:
                     return mod
         raise NotImplementedError(f"Could not find {layer_id}.")
 
-    def class_score(self, logits, class_idx=None):
-        if class_idx is not None:
-            return logits[:, class_idx].squeeze(), class_idx
-        class_idx = logits.max(1)[-1]
-        return logits[:, class_idx].squeeze(), class_idx
+    def class_score(self, logits, class_idx):
+        return logits[:, class_idx].squeeze()
 
     def __call__(self, x, class_idx=None, retain_graph=False):
-        # Use train_mode if grad is required, else eval_mode
-        mode = train_mode if self.register_backward else eval_mode
-        with mode(self.model):
-            logits = self.model(x)
-            acti, grad = None, None
-            if self.register_forward:
-                acti = tuple(self.activations[layer] for layer in self.target_layers)
-            if self.register_backward:
-                score, class_idx = self.class_score(logits, class_idx)
-                self.model.zero_grad()
-                self.score, self.class_idx = score, class_idx
-                score.sum().backward(retain_graph=retain_graph)
-                grad = tuple(self.gradients[layer] for layer in self.target_layers)
+        train = self.model.training
+        self.model.eval()
+        logits = self.model(x)
+        self.class_idx = logits.max(1)[-1] if class_idx is None else class_idx
+        acti, grad = None, None
+        if self.register_forward:
+            acti = tuple(self.activations[layer] for layer in self.target_layers)
+        if self.register_backward:
+            self.score = self.class_score(logits, self.class_idx)
+            self.model.zero_grad()
+            self.score.sum().backward(retain_graph=retain_graph)
+            grad = tuple(self.gradients[layer] for layer in self.target_layers)
+        if train:
+            self.model.train()
         return logits, acti, grad
 
     def get_wrapped_net(self):
@@ -173,6 +176,17 @@ class CAMBase:
         return self.compute_map(torch.zeros(*input_size, device=device), layer_idx=layer_idx).shape
 
     def compute_map(self, x, class_idx=None, layer_idx=-1):
+        """
+        Compute the actual feature map with input tensor `x`.
+
+        Args:
+            x: input to `nn_module`.
+            class_idx: index of the class to be visualized. Default to `None` (computing `class_idx` from `argmax`)
+            layer_idx: index of the target layer if there are multiple target layers. Defaults to -1.
+
+        Returns:
+            activation maps (raw outputs without upsampling/post-processing.)
+        """
         raise NotImplementedError()
 
     def _upsample_and_post_process(self, acti_map, x):
@@ -191,16 +205,20 @@ class CAMBase:
 class CAM(CAMBase):
     """
     Compute class activation map from the last fully-connected layers before the spatial pooling.
+    This implementation is based on:
+
+        Zhou et al., Learning Deep Features for Discriminative Localization. CVPR '16,
+        https://arxiv.org/abs/1512.04150
 
     Examples
 
     .. code-block:: python
 
         # densenet 2d
-        from monai.networks.nets import densenet121
+        from monai.networks.nets import DenseNet121
         from monai.visualize import CAM
 
-        model_2d = densenet121(spatial_dims=2, in_channels=1, out_channels=3)
+        model_2d = DenseNet121(spatial_dims=2, in_channels=1, out_channels=3)
         cam = CAM(nn_module=model_2d, target_layers="class_layers.relu", fc_layers="class_layers.out")
         result = cam(x=torch.rand((1, 1, 48, 64)))
 
@@ -211,6 +229,12 @@ class CAM(CAMBase):
         model_2d = se_resnet50(spatial_dims=2, in_channels=3, num_classes=4)
         cam = CAM(nn_module=model_2d, target_layers="layer4", fc_layers="last_linear")
         result = cam(x=torch.rand((2, 3, 48, 64)))
+
+    N.B.: To help select the target layer, it may be useful to list all layers:
+
+    .. code-block:: python
+
+        for name, _ in model.named_modules(): print(name)
 
     See Also:
 
@@ -249,9 +273,6 @@ class CAM(CAMBase):
         self.fc_layers = fc_layers
 
     def compute_map(self, x, class_idx=None, layer_idx=-1):
-        """
-        Compute the actual feature map with input tensor `x`.
-        """
         logits, acti, _ = self.nn_module(x)
         acti = acti[layer_idx]
         if class_idx is None:
@@ -292,10 +313,10 @@ class GradCAM(CAMBase):
     .. code-block:: python
 
         # densenet 2d
-        from monai.networks.nets import densenet121
+        from monai.networks.nets import DenseNet121
         from monai.visualize import GradCAM
 
-        model_2d = densenet121(spatial_dims=2, in_channels=1, out_channels=3)
+        model_2d = DenseNet121(spatial_dims=2, in_channels=1, out_channels=3)
         cam = GradCAM(nn_module=model_2d, target_layers="class_layers.relu")
         result = cam(x=torch.rand((1, 1, 48, 64)))
 
@@ -307,6 +328,12 @@ class GradCAM(CAMBase):
         cam = GradCAM(nn_module=model_2d, target_layers="layer4")
         result = cam(x=torch.rand((2, 3, 48, 64)))
 
+    N.B.: To help select the target layer, it may be useful to list all layers:
+
+    .. code-block:: python
+
+        for name, _ in model.named_modules(): print(name)
+
     See Also:
 
         - :py:class:`monai.visualize.class_activation_maps.CAM`
@@ -314,9 +341,6 @@ class GradCAM(CAMBase):
     """
 
     def compute_map(self, x, class_idx=None, retain_graph=False, layer_idx=-1):
-        """
-        Compute the actual feature map with input tensor `x`.
-        """
         _, acti, grad = self.nn_module(x, class_idx=class_idx, retain_graph=retain_graph)
         acti, grad = acti[layer_idx], grad[layer_idx]
         b, c, *spatial = grad.shape
@@ -356,9 +380,6 @@ class GradCAMpp(GradCAM):
     """
 
     def compute_map(self, x, class_idx=None, retain_graph=False, layer_idx=-1):
-        """
-        Compute the actual feature map with input tensor `x`.
-        """
         _, acti, grad = self.nn_module(x, class_idx=class_idx, retain_graph=retain_graph)
         acti, grad = acti[layer_idx], grad[layer_idx]
         b, c, *spatial = grad.shape

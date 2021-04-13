@@ -48,6 +48,15 @@ TEST_CASE_4 = [
 ]
 
 TEST_CASE_5 = [
+    "memswish",
+    torch.tensor([[[[-10, -8, -6, -4, -2], [0, 2, 4, 6, 8]]]], dtype=torch.float32),
+    torch.tensor(
+        [[[[-4.54e-04, -2.68e-03, -1.48e-02, -7.19e-02, -2.38e-01], [0.00e00, 1.76e00, 3.93e00, 5.99e00, 8.00e00]]]]
+    ),
+    (1, 1, 2, 5),
+]
+
+TEST_CASE_6 = [
     "mish",
     torch.tensor([[[[-10, -8, -6, -4, -2], [0, 2, 4, 6, 8]]]], dtype=torch.float32),
     torch.tensor(
@@ -64,7 +73,7 @@ class TestActivations(unittest.TestCase):
         torch.testing.assert_allclose(result, out)
         self.assertTupleEqual(result.shape, expected_shape)
 
-    @parameterized.expand([TEST_CASE_4, TEST_CASE_5])
+    @parameterized.expand([TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
     def test_monai_activations_value_shape(self, input_param, img, out, expected_shape):
         act = Act[input_param]()
         result = act(img)
