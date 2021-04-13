@@ -59,7 +59,7 @@ TEST_CASES = [
             "prob": 0.9,
             "rotate_range": [1, 1, 1],
             "as_tensor_output": False,
-            "device": None,
+            "device": "cuda" if torch.cuda.is_available() else "cpu",
             "spatial_size": (2, 2, 2),
         },
         {"img": torch.arange(27).reshape((1, 3, 3, 3)), "mode": "bilinear"},
