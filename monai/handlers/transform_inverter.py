@@ -11,7 +11,7 @@
 
 import warnings
 from typing import TYPE_CHECKING, Callable, Optional, Sequence, Union
-
+from copy import deepcopy
 from torch.utils.data import DataLoader as TorchDataLoader
 
 from monai.data import BatchInverseTransform
@@ -104,7 +104,11 @@ class TransformInverter:
 
             transform_info = engine.state.batch[transform_key]
             if nearest_interp:
-                convert_inverse_interp_mode(trans_info=transform_info, mode="nearest", align_corners=None)
+                transform_info = convert_inverse_interp_mode(
+                    trans_info=deepcopy(transform_info),
+                    mode="nearest",
+                    align_corners=None,
+                )
 
             segs_dict = {
                 batch_key: engine.state.output[output_key].detach().cpu(),
@@ -117,3 +121,4 @@ class TransformInverter:
             with allow_missing_keys_mode(self.transform):  # type: ignore
                 inverted_key = f"{output_key}_{self.postfix}"
                 engine.state.output[inverted_key] = [self._totensor(i[batch_key]) for i in self.inverter(segs_dict)]
+

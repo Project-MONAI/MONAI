@@ -800,3 +800,4 @@ def convert_inverse_interp_mode(trans_info: List, mode: str = "nearest", align_c
                     item[InverseKeys.EXTRA_INFO]["align_corners"] = [align_corners_ for _ in range(len(mode))]
                 else:
                     item[InverseKeys.EXTRA_INFO]["align_corners"] = align_corners_
+    return trans_info
