@@ -108,6 +108,7 @@ class TestTransformInverter(unittest.TestCase):
         set_determinism(seed=None)
         self.assertTupleEqual(engine.state.output["image"].shape, (2, 1, 100, 100, 100))
         self.assertTupleEqual(engine.state.output["label"].shape, (2, 1, 100, 100, 100))
+        # check the nearest inerpolation mode
         for i in engine.state.output["image_inverted1"] + engine.state.output["label_inverted1"]:
             torch.testing.assert_allclose(i.to(torch.uint8).to(torch.float), i.to(torch.float))
             self.assertTupleEqual(i.shape, (1, 100, 101, 107))
@@ -121,9 +122,15 @@ class TestTransformInverter(unittest.TestCase):
         print("invert diff", reverted.size - n_good)
         self.assertTrue((reverted.size - n_good) in (25300, 1812), "diff. in two possible values")
 
+        # check the case that different items use different interpolation mode to invert transforms
+        for i in engine.state.output["image_inverted2"]:
+            # if the interpolation mode is nearest, accumulated diff should be smaller than 1
+            self.assertLess(torch.sum(i.to(torch.float) - i.to(torch.uint8).to(torch.float)).item(), 1.0)
+            self.assertTupleEqual(i.shape, (1, 100, 101, 107))
+
         for i in engine.state.output["label_inverted2"]:
             # if the interpolation mode is not nearest, accumulated diff should be greater than 10000
-            self.assertGreater(torch.sum(i.to(torch.float) - i.to(torch.uint8).to(torch.float)).item(), 10000)
+            self.assertGreater(torch.sum(i.to(torch.float) - i.to(torch.uint8).to(torch.float)).item(), 10000.0)
             self.assertTupleEqual(i.shape, (1, 100, 101, 107))
 
 
