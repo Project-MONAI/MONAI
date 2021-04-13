@@ -102,6 +102,7 @@ class NiftiSaver:
             - ``'original_affine'`` -- for data orientation handling, defaulting to an identity matrix.
             - ``'affine'`` -- for data output affine, defaulting to an identity matrix.
             - ``'spatial_shape'`` -- for data output shape.
+            - ``'patch_index'`` -- if the data is a patch of big image, append the patch index to filename.
 
         When meta_data is specified, the saver will try to resample batch data from the space
         defined by "affine" to the space defined by "original_affine".
@@ -121,12 +122,13 @@ class NiftiSaver:
         original_affine = meta_data.get("original_affine", None) if meta_data else None
         affine = meta_data.get("affine", None) if meta_data else None
         spatial_shape = meta_data.get("spatial_shape", None) if meta_data else None
+        patch_index = meta_data.get(Key.PATCH_INDEX, None) if meta_data else None
 
         if isinstance(data, torch.Tensor):
             data = data.detach().cpu().numpy()
 
-        filename = create_file_basename(self.output_postfix, filename, self.output_dir, self.data_root_dir)
-        filename = f"{filename}{self.output_ext}"
+        path = create_file_basename(self.output_postfix, filename, self.output_dir, self.data_root_dir, patch_index)
+        path = f"{path}{self.output_ext}"
         # change data shape to be (channel, h, w, d)
         while len(data.shape) < 4:
             data = np.expand_dims(data, -1)
@@ -140,7 +142,7 @@ class NiftiSaver:
 
         write_nifti(
             data,
-            file_name=filename,
+            file_name=path,
             affine=affine,
             target_affine=original_affine,
             resample=self.resample,
@@ -169,6 +171,7 @@ class NiftiSaver:
         Args:
             batch_data: target batch data content that save into NIfTI format.
             meta_data: every key-value in the meta_data is corresponding to a batch of data.
+
         """
         for i, data in enumerate(batch_data):  # save a batch of files
-            self.save(data, {k: meta_data[k][i] for k in meta_data} if meta_data else None)
+            self.save(data=data, meta_data={k: meta_data[k][i] for k in meta_data} if meta_data is not None else None)

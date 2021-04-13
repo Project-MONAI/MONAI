@@ -1,4 +1,4 @@
-# Copyright 2020 MONAI Consortium
+# Copyright 2020 - 2021 MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -20,7 +20,7 @@ __all__ = ["CRF"]
 class CRF(torch.nn.Module):
     """
     Conditional Random Field: Combines message passing with a class
-    compatability convolution into an iterative process designed
+    compatibility convolution into an iterative process designed
     to successively minimise the energy of the class labeling.
 
     In this implementation, the message passing step is a weighted
@@ -40,7 +40,7 @@ class CRF(torch.nn.Module):
         bilateral_color_sigma: float = 0.5,
         gaussian_spatial_sigma: float = 5.0,
         update_factor: float = 3.0,
-        compatability_kernel_range: int = 1,
+        compatibility_kernel_range: int = 1,
         iterations: int = 5,
     ):
         """
@@ -51,7 +51,7 @@ class CRF(torch.nn.Module):
             bilateral_color_sigma: standard deviation in color space for the bilateral term.
             gaussian_spatial_sigma: standard deviation in spatial coordinates for the gaussian term.
             update_factor: determines the magnitude of each update.
-            compatability_kernel_range: the range of the kernel used in the compatability convolution.
+            compatibility_kernel_range: the range of the kernel used in the compatibility convolution.
             iterations: the number of iterations.
         """
         super(CRF, self).__init__()
@@ -61,14 +61,14 @@ class CRF(torch.nn.Module):
         self.bilateral_color_sigma = bilateral_color_sigma
         self.gaussian_spatial_sigma = gaussian_spatial_sigma
         self.update_factor = update_factor
-        self.compatability_kernel_range = compatability_kernel_range
+        self.compatibility_kernel_range = compatibility_kernel_range
         self.iterations = iterations
 
     def forward(self, input_tensor: torch.Tensor, reference_tensor: torch.Tensor):
         """
         Args:
             input_tensor: tensor containing initial class logits.
-            referenece_tensor: the reference tensor used to guide the message passing.
+            reference_tensor: the reference tensor used to guide the message passing.
 
         Returns:
             output (torch.Tensor): output tensor.
@@ -77,7 +77,7 @@ class CRF(torch.nn.Module):
         # useful values
         spatial_dim = input_tensor.dim() - 2
         class_count = input_tensor.size(1)
-        padding = self.compatability_kernel_range
+        padding = self.compatibility_kernel_range
 
         # constructing spatial feature tensor
         spatial_features = _create_coordinate_tensor(reference_tensor)
@@ -88,18 +88,18 @@ class CRF(torch.nn.Module):
         )
         gaussian_features = spatial_features / self.gaussian_spatial_sigma
 
-        # compatability matrix (potts model (1 - diag) for now)
-        compatability_matrix = _potts_model_weights(class_count).to(device=input_tensor.device)
+        # compatibility matrix (potts model (1 - diag) for now)
+        compatibility_matrix = _potts_model_weights(class_count).to(device=input_tensor.device)
 
         # expanding matrix to kernel
-        compatability_kernel = _expand_matrix_to_kernel(
-            compatability_matrix, spatial_dim, self.compatability_kernel_range
+        compatibility_kernel = _expand_matrix_to_kernel(
+            compatibility_matrix, spatial_dim, self.compatibility_kernel_range
         )
 
         # choosing convolution function
         conv = [conv1d, conv2d, conv3d][spatial_dim - 1]
 
-        # seting up output tensor
+        # setting up output tensor
         output_tensor = softmax(input_tensor, dim=1)
 
         # mean field loop
@@ -114,7 +114,7 @@ class CRF(torch.nn.Module):
 
             # compatibility convolution
             combined_output = pad(combined_output, 2 * spatial_dim * [padding], mode="replicate")
-            compatibility_update = conv(combined_output, compatability_kernel)
+            compatibility_update = conv(combined_output, compatibility_kernel)
 
             # update and normalize
             output_tensor = softmax(input_tensor - self.update_factor * compatibility_update, dim=1)

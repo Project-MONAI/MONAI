@@ -78,6 +78,7 @@ class PNGSaver:
 
             - ``'filename_or_obj'`` -- for output file name creation, corresponding to filename or object.
             - ``'spatial_shape'`` -- for data output shape.
+            - ``'patch_index'`` -- if the data is a patch of big image, append the patch index to filename.
 
         If meta_data is None, use the default index (starting from 0) as the filename.
 
@@ -98,12 +99,13 @@ class PNGSaver:
         filename = meta_data[Key.FILENAME_OR_OBJ] if meta_data else str(self._data_index)
         self._data_index += 1
         spatial_shape = meta_data.get("spatial_shape", None) if meta_data and self.resample else None
+        patch_index = meta_data.get(Key.PATCH_INDEX, None) if meta_data else None
 
         if isinstance(data, torch.Tensor):
             data = data.detach().cpu().numpy()
 
-        filename = create_file_basename(self.output_postfix, filename, self.output_dir, self.data_root_dir)
-        filename = f"{filename}{self.output_ext}"
+        path = create_file_basename(self.output_postfix, filename, self.output_dir, self.data_root_dir, patch_index)
+        path = f"{path}{self.output_ext}"
 
         if data.shape[0] == 1:
             data = data.squeeze(0)
@@ -114,7 +116,7 @@ class PNGSaver:
 
         write_png(
             np.asarray(data),
-            file_name=filename,
+            file_name=path,
             output_spatial_shape=spatial_shape,
             mode=self.mode,
             scale=self.scale,
@@ -126,6 +128,7 @@ class PNGSaver:
         Args:
             batch_data: target batch data content that save into png format.
             meta_data: every key-value in the meta_data is corresponding to a batch of data.
+
         """
         for i, data in enumerate(batch_data):  # save a batch of files
-            self.save(data, {k: meta_data[k][i] for k in meta_data} if meta_data else None)
+            self.save(data=data, meta_data={k: meta_data[k][i] for k in meta_data} if meta_data is not None else None)

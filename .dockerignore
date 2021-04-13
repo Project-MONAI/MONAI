@@ -8,7 +8,6 @@ docs/
 .coverage/
 coverage.xml
 .readthedocs.yml
-*.md
 *.toml
 
 !README.md

@@ -23,7 +23,7 @@ from monai.config import USE_COMPILED, DtypeLike
 from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.transforms.croppad.array import CenterSpatialCrop
-from monai.transforms.transform import RandomizableTransform, Transform
+from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (
     create_control_grid,
     create_grid,
@@ -129,6 +129,7 @@ class Spacing(Transform):
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
         dtype: DtypeLike = None,
+        output_spatial_shape: Optional[np.ndarray] = None,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Args:
@@ -145,6 +146,9 @@ class Spacing(Transform):
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
+            output_spatial_shape: specify the shape of the output data_array. This is typically useful for
+                the inverse of `Spacingd` where sometimes we could not compute the exact shape due to the quantization
+                error with the affines.
 
         Raises:
             ValueError: When ``data_array`` has no spatial dimensions.
@@ -195,7 +199,7 @@ class Spacing(Transform):
             # AffineTransform requires a batch dim
             torch.as_tensor(np.ascontiguousarray(data_array).astype(_dtype)).unsqueeze(0),
             torch.as_tensor(np.ascontiguousarray(transform).astype(_dtype)),
-            spatial_size=output_shape,
+            spatial_size=output_shape if output_spatial_shape is None else output_spatial_shape,
         )
         output_data = np.asarray(output_data.squeeze(0).detach().cpu().numpy(), dtype=np.float32)  # type: ignore
         new_affine = to_affine_nd(affine, new_affine)
@@ -790,7 +794,7 @@ class RandAxisFlip(RandomizableTransform):
     """
 
     def __init__(self, prob: float = 0.1) -> None:
-        RandomizableTransform.__init__(self, min(max(prob, 0.0), 1.0))
+        RandomizableTransform.__init__(self, prob)
         self._axis: Optional[int] = None
 
     def randomize(self, data: np.ndarray) -> None:
@@ -1004,7 +1008,7 @@ class AffineGrid(Transform):
         return grid if self.as_tensor_output else np.asarray(grid.cpu().numpy()), affine
 
 
-class RandAffineGrid(RandomizableTransform):
+class RandAffineGrid(Randomizable):
     """
     Generate randomised affine grid.
     """
@@ -1101,7 +1105,7 @@ class RandAffineGrid(RandomizableTransform):
         return self.affine
 
 
-class RandDeformGrid(RandomizableTransform):
+class RandDeformGrid(Randomizable):
     """
     Generate random deformation grid.
     """

@@ -29,6 +29,7 @@ from monai.transforms import (
     RandRotated,
     RandZoomd,
     ResizeWithPadOrCropd,
+    ToTensord,
 )
 from monai.utils import optional_import, set_determinism
 from tests.utils import make_nifti_image
@@ -113,7 +114,7 @@ class TestInverseCollation(unittest.TestCase):
         if collate_fn:
             modified_transform = transform
         else:
-            modified_transform = Compose([transform, ResizeWithPadOrCropd(KEYS, 100)])
+            modified_transform = Compose([transform, ResizeWithPadOrCropd(KEYS, 100), ToTensord(KEYS)])
 
         # num workers = 0 for mac or gpu transforms
         num_workers = 0 if sys.platform == "darwin" or torch.cuda.is_available() else 2

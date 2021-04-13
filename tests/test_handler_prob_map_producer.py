@@ -23,9 +23,9 @@ from monai.data.dataset import Dataset
 from monai.engines import Evaluator
 from monai.handlers import ValidationHandler
 
-TEST_CASE_0 = ["image_inference_output_1", 2]
-TEST_CASE_1 = ["image_inference_output_2", 9]
-TEST_CASE_2 = ["image_inference_output_3", 1000]
+TEST_CASE_0 = ["temp_image_inference_output_1", 2]
+TEST_CASE_1 = ["temp_image_inference_output_2", 9]
+TEST_CASE_2 = ["temp_image_inference_output_3", 1000]
 
 
 class TestDataset(Dataset):
@@ -82,8 +82,9 @@ class TestHandlerProbMapGenerator(unittest.TestCase):
         evaluator = TestEvaluator(torch.device("cpu:0"), data_loader, size, val_handlers=[prob_map_gen])
 
         # set up validation handler
-        validation = ValidationHandler(evaluator, interval=1)
+        validation = ValidationHandler(interval=1, validator=None)
         validation.attach(engine)
+        validation.set_validator(validator=evaluator)
 
         engine.run(data_loader)
 

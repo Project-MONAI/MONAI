@@ -22,8 +22,18 @@ from monai.config import DtypeLike, IndexSelection
 from monai.networks.layers import GaussianFilter
 from monai.transforms.compose import Compose
 from monai.transforms.transform import MapTransform
-from monai.utils import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple, min_version, optional_import
-from monai.utils.misc import issequenceiterable
+from monai.utils import (
+    GridSampleMode,
+    InterpolateMode,
+    InverseKeys,
+    ensure_tuple,
+    ensure_tuple_rep,
+    ensure_tuple_size,
+    fall_back_tuple,
+    issequenceiterable,
+    min_version,
+    optional_import,
+)
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 
@@ -53,6 +63,7 @@ __all__ = [
     "extreme_points_to_image",
     "map_spatial_axes",
     "allow_missing_keys_mode",
+    "convert_inverse_interp_mode",
 ]
 
 
@@ -695,7 +706,7 @@ def map_spatial_axes(
             The default `None` will convert to all the spatial axes of the image.
             If axis is negative it counts from the last to the first axis.
             If axis is a tuple of ints.
-        channel_first: the image data is channel first or channel last, defaut to channel first.
+        channel_first: the image data is channel first or channel last, default to channel first.
 
     """
     if spatial_axes is None:
@@ -756,3 +767,36 @@ def allow_missing_keys_mode(transform: Union[MapTransform, Compose, Tuple[MapTra
         # Revert
         for t, o_s in zip(transforms, orig_states):
             t.allow_missing_keys = o_s
+
+
+def convert_inverse_interp_mode(trans_info: List, mode: str = "nearest", align_corners: Optional[bool] = None):
+    """
+    Change the interpolation mode when inverting spatial transforms, default to "nearest".
+    This function modifies trans_info's `InverseKeys.EXTRA_INFO`.
+
+    See also: :py:class:`monai.transform.inverse.InvertibleTransform`
+
+    Args:
+        trans_info: transforms inverse information list, contains context of every invertible transform.
+        mode: target interpolation mode to convert, default to "nearest" as it's usually used to save the mode output.
+        align_corners: target align corner value in PyTorch interpolation API, need to align with the `mode`.
+
+    """
+    interp_modes = [i.value for i in InterpolateMode] + [i.value for i in GridSampleMode]
+
+    # set to string for DataLoader collation
+    align_corners_ = "none" if align_corners is None else align_corners
+
+    for item in ensure_tuple(trans_info):
+        if InverseKeys.EXTRA_INFO in item:
+            orig_mode = item[InverseKeys.EXTRA_INFO].get("mode", None)
+            if orig_mode is not None:
+                if orig_mode[0] in interp_modes:
+                    item[InverseKeys.EXTRA_INFO]["mode"] = [mode for _ in range(len(mode))]
+                elif orig_mode in interp_modes:
+                    item[InverseKeys.EXTRA_INFO]["mode"] = mode
+            if "align_corners" in item[InverseKeys.EXTRA_INFO]:
+                if issequenceiterable(item[InverseKeys.EXTRA_INFO]["align_corners"]):
+                    item[InverseKeys.EXTRA_INFO]["align_corners"] = [align_corners_ for _ in range(len(mode))]
+                else:
+                    item[InverseKeys.EXTRA_INFO]["align_corners"] = align_corners_

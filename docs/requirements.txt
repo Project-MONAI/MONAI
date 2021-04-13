@@ -2,17 +2,15 @@
 torch>=1.5
 pytorch-ignite==0.4.4
 numpy>=1.17
-itk>=5.0
+itk>=5.0, <=5.1.2
 nibabel
-cucim==0.18.2
-openslide-python==1.1.2
 parameterized
 scikit-image>=0.14.2
 tensorboard
 commonmark==0.9.1
 recommonmark==0.6.0
-Sphinx==3.3.0
-sphinx-rtd-theme==0.5.0
+Sphinx==3.5.3
+sphinx-rtd-theme==0.5.2
 sphinxcontrib-applehelp
 sphinxcontrib-devhelp
 sphinxcontrib-htmlhelp

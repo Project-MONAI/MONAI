@@ -15,6 +15,7 @@ from .basic_unet import BasicUNet, BasicUnet, Basicunet
 from .classifier import Classifier, Critic, Discriminator
 from .densenet import DenseNet, DenseNet121, DenseNet169, DenseNet201, DenseNet264
 from .dynunet import DynUNet, DynUnet, Dynunet
+from .efficientnet import EfficientNet, EfficientNetBN, drop_connect, get_efficientnet_image_size
 from .fullyconnectednet import FullyConnectedNet, VarFullyConnectedNet
 from .generator import Generator
 from .highresnet import HighResBlock, HighResNet

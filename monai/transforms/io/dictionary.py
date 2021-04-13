@@ -124,15 +124,18 @@ class SaveImaged(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SaveImage`.
 
-    NB: image should include channel dimension: [B],C,H,W,[D].
+    Note:
+        Image should include channel dimension: [B],C,H,W,[D].
+        If the data is a patch of big image, will append the patch index to filename.
 
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         meta_key_postfix: `key_{postfix}` was used to store the metadata in `LoadImaged`.
-            So need the key to extract metadata to save images, default is `meta_dict`.
-            The meta data is a dictionary object, if no corresponding metadata, set to `None`.
-            For example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+            so need the key to extract metadata to save images, default is `meta_dict`.
+            for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+            the meta data is a dictionary object which contains: filename, affine, original_shape, etc.
+            if no corresponding metadata, set to `None`.
         output_dir: output image directory.
         output_postfix: a string appended to all output file names, default to `trans`.
         output_ext: output file extension name, available extensions: `.nii.gz`, `.nii`, `.png`.

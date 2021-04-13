@@ -16,24 +16,18 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 import logging
 import sys
 import time
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
 from monai.config import DtypeLike, NdarrayTensor
-from monai.transforms.transform import RandomizableTransform, Transform
+from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points, map_binary_to_indices
 from monai.utils import ensure_tuple, min_version, optional_import
 
-if TYPE_CHECKING:
-    from PIL.Image import Image as PILImageImage
-    from PIL.Image import fromarray as pil_image_fromarray
-
-    has_pil = True
-else:
-    PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
-    pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
+PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
+pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
 
 __all__ = [
     "Identity",
@@ -166,7 +160,7 @@ class EnsureChannelFirst(Transform):
         Apply the transform to `img`.
         """
         if not isinstance(meta_dict, dict):
-            raise ValueError("meta_dict must be a dictionay data.")
+            raise ValueError("meta_dict must be a dictionary data.")
 
         channel_dim = meta_dict.get("original_channel_dim", None)
 
@@ -302,7 +296,7 @@ class ToTensor(Transform):
     Converts the input image to a tensor without applying any other transformations.
     """
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor, PILImageImage]) -> torch.Tensor:
+    def __call__(self, img) -> torch.Tensor:
         """
         Apply the transform to `img` and make it contiguous.
         """
@@ -316,7 +310,7 @@ class ToNumpy(Transform):
     Converts the input data to numpy array, can support list or tuple of numbers and PyTorch Tensor.
     """
 
-    def __call__(self, img: Union[List, Tuple, np.ndarray, torch.Tensor, PILImageImage]) -> np.ndarray:
+    def __call__(self, img) -> np.ndarray:
         """
         Apply the transform to `img` and make it contiguous.
         """
@@ -330,7 +324,7 @@ class ToPIL(Transform):
     Converts the input image (in the form of NumPy array or PyTorch Tensor) to PIL image
     """
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor, PILImageImage]) -> PILImageImage:
+    def __call__(self, img):
         """
         Apply the transform to `img` and make it contiguous.
         """
@@ -673,7 +667,7 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
         return np.stack(result, axis=0)
 
 
-class AddExtremePointsChannel(RandomizableTransform):
+class AddExtremePointsChannel(Randomizable):
     """
     Add extreme points of label to the image as a new channel. This transform generates extreme
     point from label and applies a gaussian filter. The pixel values in points image are rescaled
