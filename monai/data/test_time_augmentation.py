@@ -62,6 +62,10 @@ class TestTimeAugmentation:
         device: device on which to perform inference.
         image_key: key used to extract image from input dictionary.
         label_key: key used to extract label from input dictionary.
+        meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
+            default is `meta_dict`, the meta data is a dictionary object.
+            For example, to handle key `image`,  read/write affine matrices from the
+            metadata `image_meta_dict` dictionary's `affine` field.
         return_full_data: normally, metrics are returned (mode, mean, std, vvc). Setting this flag to `True` will return the
             full data. Dimensions will be same size as when passing a single image through `inferrer_fn`, with a dimension appended
             equal in size to `num_examples` (N), i.e., `[N,C,H,W,[D]]`.
@@ -88,6 +92,7 @@ class TestTimeAugmentation:
         device: Optional[Union[str, torch.device]] = "cuda" if torch.cuda.is_available() else "cpu",
         image_key=CommonKeys.IMAGE,
         label_key=CommonKeys.LABEL,
+        meta_key_postfix="meta_dict",
         return_full_data: bool = False,
         progress: bool = True,
     ) -> None:
@@ -98,6 +103,7 @@ class TestTimeAugmentation:
         self.device = device
         self.image_key = image_key
         self.label_key = label_key
+        self.meta_key_postfix = meta_key_postfix
         self.return_full_data = return_full_data
         self.progress = progress
 
@@ -168,7 +174,7 @@ class TestTimeAugmentation:
             # create a dictionary containing the inferred batch and their transforms
             inferred_dict = {self.label_key: batch_output, label_transform_key: batch_data[label_transform_key]}
             # if meta dict is present, add that too (required for some inverse transforms)
-            label_meta_dict_key = self.label_key + "_meta_dict"
+            label_meta_dict_key = f"{self.label_key}_{self.meta_key_postfix}"
             if label_meta_dict_key in batch_data:
                 inferred_dict[label_meta_dict_key] = batch_data[label_meta_dict_key]
 

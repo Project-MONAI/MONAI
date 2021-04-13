@@ -40,6 +40,7 @@ class TransformInverter:
         loader: TorchDataLoader,
         output_keys: Union[str, Sequence[str]] = CommonKeys.PRED,
         batch_keys: Union[str, Sequence[str]] = CommonKeys.IMAGE,
+        meta_key_postfix: str = "meta_dict",
         collate_fn: Optional[Callable] = no_collation,
         postfix: str = "_inverted",
         nearest_interp: Union[bool, Sequence[bool]] = True,
@@ -49,13 +50,17 @@ class TransformInverter:
         Args:
             transform: a callable data transform on input data.
             loader: data loader used to run transforms and generate the batch of data.
-            collate_fn: how to collate data after inverse transformations.
-                default won't do any collation, so the output will be a list of size batch size.
             output_keys: the key of expected data in `ignite.engine.output`, invert transforms on it.
                 it also can be a list of keys, will invert transform for each of them. Default to "pred".
             batch_keys: the key of input data in `ignite.engine.batch`. will get the applied transforms
                 for this input data, then invert them for the expected data with `output_keys`.
                 It can also be a list of keys, each matches to the `output_keys` data. default to "image".
+            meta_key_postfix: use `{batch_key}_{postfix}` to to fetch the meta data according to the key data,
+                default is `meta_dict`, the meta data is a dictionary object.
+                For example, to handle key `image`,  read/write affine matrices from the
+                metadata `image_meta_dict` dictionary's `affine` field.
+            collate_fn: how to collate data after inverse transformations.
+                default won't do any collation, so the output will be a list of size batch size.
             postfix: will save the inverted result into `ignite.engine.output` with key `{output_key}{postfix}`.
             nearest_interp: whether to use `nearest` interpolation mode when inverting the spatial transforms,
                 default to `True`. If `False`, use the same interpolation mode as the original transform.
@@ -74,6 +79,7 @@ class TransformInverter:
         )
         self.output_keys = ensure_tuple(output_keys)
         self.batch_keys = ensure_tuple_rep(batch_keys, len(self.output_keys))
+        self.meta_key_postfix = meta_key_postfix
         self.postfix = postfix
         self.nearest_interp = ensure_tuple_rep(nearest_interp, len(self.output_keys))
         self._totensor = ToTensor()
@@ -104,6 +110,9 @@ class TransformInverter:
                 batch_key: engine.state.output[output_key].detach().cpu(),
                 transform_key: transform_info,
             }
+            meta_dict_key = f"{batch_key}_{self.meta_key_postfix}"
+            if meta_dict_key in engine.state.batch:
+                segs_dict[meta_dict_key] = engine.state.batch[meta_dict_key]
 
             with allow_missing_keys_mode(self.transform):  # type: ignore
                 inverted_key = f"{output_key}{self.postfix}"
