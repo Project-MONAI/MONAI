@@ -89,6 +89,18 @@ class TestTransformInverter(unittest.TestCase):
             output_keys=["image", "label"],
             batch_keys="label",
             nearest_interp=True,
+            postfix="inverted1",
+            num_workers=0 if sys.platform == "darwin" or torch.cuda.is_available() else 2,
+        ).attach(engine)
+
+        # test different nearest interpolation values
+        TransformInverter(
+            transform=transform,
+            loader=loader,
+            output_keys=["image", "label"],
+            batch_keys="image",
+            nearest_interp=[True, False],
+            postfix="inverted2",
             num_workers=0 if sys.platform == "darwin" or torch.cuda.is_available() else 2,
         ).attach(engine)
 
@@ -96,11 +108,11 @@ class TestTransformInverter(unittest.TestCase):
         set_determinism(seed=None)
         self.assertTupleEqual(engine.state.output["image"].shape, (2, 1, 100, 100, 100))
         self.assertTupleEqual(engine.state.output["label"].shape, (2, 1, 100, 100, 100))
-        for i in engine.state.output["image_inverted"] + engine.state.output["label_inverted"]:
+        for i in engine.state.output["image_inverted1"] + engine.state.output["label_inverted1"]:
             torch.testing.assert_allclose(i.to(torch.uint8).to(torch.float), i.to(torch.float))
             self.assertTupleEqual(i.shape, (1, 100, 101, 107))
         # check labels match
-        reverted = engine.state.output["label_inverted"][-1].detach().cpu().numpy()[0].astype(np.int32)
+        reverted = engine.state.output["label_inverted1"][-1].detach().cpu().numpy()[0].astype(np.int32)
         original = LoadImaged(KEYS)(data[-1])["label"]
         n_good = np.sum(np.isclose(reverted, original, atol=1e-3))
         reverted_name = engine.state.output["label_meta_dict"]["filename_or_obj"][-1]
@@ -108,6 +120,11 @@ class TestTransformInverter(unittest.TestCase):
         self.assertEqual(reverted_name, original_name)
         print("invert diff", reverted.size - n_good)
         self.assertTrue((reverted.size - n_good) in (25300, 1812), "diff. in two possible values")
+
+        for i in engine.state.output["label_inverted2"]:
+            # if the interpolation mode is not nearest, accumulated diff should be greater than 10000
+            self.assertGreater(torch.sum(i.to(torch.float) - i.to(torch.uint8).to(torch.float)).item(), 10000)
+            self.assertTupleEqual(i.shape, (1, 100, 101, 107))
 
 
 if __name__ == "__main__":
