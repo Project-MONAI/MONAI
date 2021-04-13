@@ -10,8 +10,9 @@
 # limitations under the License.
 
 import warnings
-from typing import TYPE_CHECKING, Callable, Optional, Sequence, Union
 from copy import deepcopy
+from typing import TYPE_CHECKING, Callable, Optional, Sequence, Union
+
 from torch.utils.data import DataLoader as TorchDataLoader
 
 from monai.data import BatchInverseTransform
@@ -121,4 +122,3 @@ class TransformInverter:
             with allow_missing_keys_mode(self.transform):  # type: ignore
                 inverted_key = f"{output_key}_{self.postfix}"
                 engine.state.output[inverted_key] = [self._totensor(i[batch_key]) for i in self.inverter(segs_dict)]
-
