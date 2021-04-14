@@ -122,10 +122,10 @@ class OcclusionSensitivity:
     .. code-block:: python
 
         # densenet 2d
-        from monai.networks.nets import densenet121
+        from monai.networks.nets import DenseNet121
         from monai.visualize import OcclusionSensitivity
 
-        model_2d = densenet121(spatial_dims=2, in_channels=1, out_channels=3)
+        model_2d = DenseNet121(spatial_dims=2, in_channels=1, out_channels=3)
         occ_sens = OcclusionSensitivity(nn_module=model_2d)
         occ_map, most_probable_class = occ_sens(x=torch.rand((1, 1, 48, 64)), class_idx=None, b_box=[-1, -1, 2, 40, 1, 62])
 
@@ -152,7 +152,7 @@ class OcclusionSensitivity:
         upsampler: Optional[Callable] = default_upsampler,
         verbose: bool = True,
     ) -> None:
-        """Occlusion sensitivitiy constructor.
+        """Occlusion sensitivity constructor.
 
         Args:
             nn_module: Classification model to use for inference

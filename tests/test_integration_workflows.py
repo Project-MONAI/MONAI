@@ -160,7 +160,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
             engine.add_event_handler(IterationEvents.FORWARD_COMPLETED, self._forward_completed)
             engine.add_event_handler(IterationEvents.LOSS_COMPLETED, self._loss_completed)
             engine.add_event_handler(IterationEvents.BACKWARD_COMPLETED, self._backward_completed)
-            engine.add_event_handler(IterationEvents.OPTIMIZER_COMPLETED, self._optimizer_completed)
+            engine.add_event_handler(IterationEvents.MODEL_COMPLETED, self._model_completed)
 
         def _forward_completed(self, engine):
             pass
@@ -171,7 +171,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         def _backward_completed(self, engine):
             pass
 
-        def _optimizer_completed(self, engine):
+        def _model_completed(self, engine):
             pass
 
     train_handlers = [

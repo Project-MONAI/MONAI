@@ -91,6 +91,8 @@ class TestRandCropByPosNegLabeld(unittest.TestCase):
         self.assertTupleEqual(result[0]["image"].shape, expected_shape)
         self.assertTupleEqual(result[0]["extral"].shape, expected_shape)
         self.assertTupleEqual(result[0]["label"].shape, expected_shape)
+        for i, item in enumerate(result):
+            self.assertEqual(item["image_meta_dict"]["patch_index"], i)
 
 
 if __name__ == "__main__":

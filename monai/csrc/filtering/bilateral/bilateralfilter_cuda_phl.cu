@@ -95,7 +95,7 @@ void BilateralFilterPHLCuda(
   cudaMalloc(&data, desc.batchCount * desc.channelStride * desc.channelCount * sizeof(scalar_t));
   cudaMalloc(&features, desc.batchCount * desc.channelStride * featureChannelCount * sizeof(scalar_t));
 
-  // Prparing constant memory
+  // Preparing constant memory
   cudaMemcpyToSymbol(cBatchStride, &desc.batchStride, sizeof(int));
   cudaMemcpyToSymbol(cChannelStride, &desc.channelStride, sizeof(int));
   cudaMemcpyToSymbol(cSpatialStrides, desc.strides, sizeof(int) * desc.dimensions);

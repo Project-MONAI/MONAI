@@ -17,20 +17,30 @@ from parameterized import parameterized
 
 from monai.losses.image_dissimilarity import GlobalMutualInformationLoss
 
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
 TEST_CASES = [
     [
         {},
         {
-            "pred": torch.arange(0, 3, dtype=torch.float)[None, :, None, None, None].expand(1, 3, 3, 3, 3).div(3),
-            "target": torch.arange(0, 3, dtype=torch.float)[None, :, None, None, None].expand(1, 3, 3, 3, 3).div(3),
+            "pred": torch.arange(0, 3, dtype=torch.float, device=device)[None, :, None, None, None]
+            .expand(1, 3, 3, 3, 3)
+            .div(3),
+            "target": torch.arange(0, 3, dtype=torch.float, device=device)[None, :, None, None, None]
+            .expand(1, 3, 3, 3, 3)
+            .div(3),
         },
         -1.0986018,
     ],
     [
         {},
         {
-            "pred": torch.arange(0, 3, dtype=torch.float)[None, :, None, None, None].expand(1, 3, 3, 3, 3).div(3),
-            "target": torch.arange(0, 3, dtype=torch.float)[None, :, None, None, None].expand(1, 3, 3, 3, 3).div(3)
+            "pred": torch.arange(0, 3, dtype=torch.float, device=device)[None, :, None, None, None]
+            .expand(1, 3, 3, 3, 3)
+            .div(3),
+            "target": torch.arange(0, 3, dtype=torch.float, device=device)[None, :, None, None, None]
+            .expand(1, 3, 3, 3, 3)
+            .div(3)
             ** 2,
         },
         -1.083999,
@@ -38,32 +48,35 @@ TEST_CASES = [
     [
         {},
         {
-            "pred": torch.arange(0, 3, dtype=torch.float)[None, :, None, None].expand(1, 3, 3, 3).div(3),
-            "target": torch.arange(0, 3, dtype=torch.float)[None, :, None, None].expand(1, 3, 3, 3).div(3) ** 2,
+            "pred": torch.arange(0, 3, dtype=torch.float, device=device)[None, :, None, None].expand(1, 3, 3, 3).div(3),
+            "target": torch.arange(0, 3, dtype=torch.float, device=device)[None, :, None, None]
+            .expand(1, 3, 3, 3)
+            .div(3)
+            ** 2,
         },
         -1.083999,
     ],
     [
         {},
         {
-            "pred": torch.arange(0, 3, dtype=torch.float)[None, :, None].expand(1, 3, 3).div(3),
-            "target": torch.arange(0, 3, dtype=torch.float)[None, :, None].expand(1, 3, 3).div(3) ** 2,
+            "pred": torch.arange(0, 3, dtype=torch.float, device=device)[None, :, None].expand(1, 3, 3).div(3),
+            "target": torch.arange(0, 3, dtype=torch.float, device=device)[None, :, None].expand(1, 3, 3).div(3) ** 2,
         },
         -1.083999,
     ],
     [
         {},
         {
-            "pred": torch.arange(0, 3, dtype=torch.float)[None, :].div(3),
-            "target": torch.arange(0, 3, dtype=torch.float)[None, :].div(3) ** 2,
+            "pred": torch.arange(0, 3, dtype=torch.float, device=device)[None, :].div(3),
+            "target": torch.arange(0, 3, dtype=torch.float, device=device)[None, :].div(3) ** 2,
         },
         -1.083999,
     ],
     [
         {},
         {
-            "pred": torch.arange(0, 3, dtype=torch.float).div(3),
-            "target": torch.arange(0, 3, dtype=torch.float).div(3) ** 2,
+            "pred": torch.arange(0, 3, dtype=torch.float, device=device).div(3),
+            "target": torch.arange(0, 3, dtype=torch.float, device=device).div(3) ** 2,
         },
         -1.1920927e-07,
     ],
@@ -79,13 +92,13 @@ class TestGlobalMutualInformationLoss(unittest.TestCase):
     def test_ill_shape(self):
         loss = GlobalMutualInformationLoss()
         with self.assertRaisesRegex(ValueError, ""):
-            loss.forward(torch.ones((1, 2), dtype=torch.float), torch.ones((1, 3), dtype=torch.float))
+            loss.forward(torch.ones((1, 2), dtype=torch.float), torch.ones((1, 3), dtype=torch.float, device=device))
         with self.assertRaisesRegex(ValueError, ""):
-            loss.forward(torch.ones((1, 3, 3), dtype=torch.float), torch.ones((1, 3), dtype=torch.float))
+            loss.forward(torch.ones((1, 3, 3), dtype=torch.float), torch.ones((1, 3), dtype=torch.float, device=device))
 
     def test_ill_opts(self):
-        pred = torch.ones((1, 3, 3, 3, 3), dtype=torch.float)
-        target = torch.ones((1, 3, 3, 3, 3), dtype=torch.float)
+        pred = torch.ones((1, 3, 3, 3, 3), dtype=torch.float, device=device)
+        target = torch.ones((1, 3, 3, 3, 3), dtype=torch.float, device=device)
         with self.assertRaisesRegex(ValueError, ""):
             GlobalMutualInformationLoss(num_bins=0)(pred, target)
         with self.assertRaisesRegex(ValueError, ""):

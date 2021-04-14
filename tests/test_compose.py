@@ -13,7 +13,8 @@ import sys
 import unittest
 
 from monai.data import DataLoader, Dataset
-from monai.transforms import AddChannel, Compose, Randomizable
+from monai.transforms import AddChannel, Compose
+from monai.transforms.transform import Randomizable
 from monai.utils import set_determinism
 
 
@@ -102,6 +103,9 @@ class TestCompose(unittest.TestCase):
             def randomize(self, foo1, foo2):
                 pass
 
+            def __call__(self, data):
+                pass
+
         c = Compose([_RandomClass(), _RandomClass()])
         with self.assertWarns(Warning):
             c.randomize()
@@ -166,6 +170,9 @@ class TestCompose(unittest.TestCase):
 
         # test len
         self.assertEqual(len(t1), 8)
+
+    def test_backwards_compatible_imports(self):
+        from monai.transforms.compose import MapTransform, RandomizableTransform, Transform  # noqa: F401
 
 
 if __name__ == "__main__":
