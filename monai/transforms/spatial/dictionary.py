@@ -201,6 +201,7 @@ class Spacingd(MapTransform, InvertibleTransform):
             meta_data = d[meta_data_key]
             # resample array of each corresponding key
             # using affine fetched from d[affine_key]
+            original_spatial_shape = d[key].shape[1:]
             d[key], old_affine, new_affine = self.spacing_transform(
                 data_array=np.asarray(d[key]),
                 affine=meta_data["affine"],
@@ -219,6 +220,7 @@ class Spacingd(MapTransform, InvertibleTransform):
                     "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
                     "align_corners": align_corners if align_corners is not None else "none",
                 },
+                orig_size=original_spatial_shape,
             )
             # set the 'affine' key
             meta_data["affine"] = new_affine
@@ -239,6 +241,7 @@ class Spacingd(MapTransform, InvertibleTransform):
             mode = transform[InverseKeys.EXTRA_INFO]["mode"]
             padding_mode = transform[InverseKeys.EXTRA_INFO]["padding_mode"]
             align_corners = transform[InverseKeys.EXTRA_INFO]["align_corners"]
+            orig_size = transform[InverseKeys.ORIG_SIZE]
             orig_pixdim = np.sqrt(np.sum(np.square(old_affine), 0))[:-1]
             inverse_transform = Spacing(orig_pixdim, diagonal=self.spacing_transform.diagonal)
             # Apply inverse
@@ -249,6 +252,7 @@ class Spacingd(MapTransform, InvertibleTransform):
                 padding_mode=padding_mode,
                 align_corners=False if align_corners == "none" else align_corners,
                 dtype=dtype,
+                output_spatial_shape=orig_size,
             )
             meta_data["affine"] = new_affine
             # Remove the applied transform
@@ -1482,7 +1486,7 @@ class Zoomd(MapTransform, InvertibleTransform):
                 align_corners=None if align_corners == "none" else align_corners,
             )
             # Size might be out by 1 voxel so pad
-            d[key] = SpatialPad(transform[InverseKeys.ORIG_SIZE])(d[key])
+            d[key] = SpatialPad(transform[InverseKeys.ORIG_SIZE], mode="edge")(d[key])
             # Remove the applied transform
             self.pop_transform(d, key)
 
@@ -1607,7 +1611,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
                     align_corners=None if align_corners == "none" else align_corners,
                 )
                 # Size might be out by 1 voxel so pad
-                d[key] = SpatialPad(transform[InverseKeys.ORIG_SIZE])(d[key])
+                d[key] = SpatialPad(transform[InverseKeys.ORIG_SIZE], mode="edge")(d[key])
             # Remove the applied transform
             self.pop_transform(d, key)
 

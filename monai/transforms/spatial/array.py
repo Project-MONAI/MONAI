@@ -129,6 +129,7 @@ class Spacing(Transform):
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
         dtype: DtypeLike = None,
+        output_spatial_shape: Optional[np.ndarray] = None,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Args:
@@ -145,6 +146,9 @@ class Spacing(Transform):
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
+            output_spatial_shape: specify the shape of the output data_array. This is typically useful for
+                the inverse of `Spacingd` where sometimes we could not compute the exact shape due to the quantization
+                error with the affines.
 
         Raises:
             ValueError: When ``data_array`` has no spatial dimensions.
@@ -195,7 +199,7 @@ class Spacing(Transform):
             # AffineTransform requires a batch dim
             torch.as_tensor(np.ascontiguousarray(data_array).astype(_dtype)).unsqueeze(0),
             torch.as_tensor(np.ascontiguousarray(transform).astype(_dtype)),
-            spatial_size=output_shape,
+            spatial_size=output_shape if output_spatial_shape is None else output_spatial_shape,
         )
         output_data = np.asarray(output_data.squeeze(0).detach().cpu().numpy(), dtype=np.float32)  # type: ignore
         new_affine = to_affine_nd(affine, new_affine)

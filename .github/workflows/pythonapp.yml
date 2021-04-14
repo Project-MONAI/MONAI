@@ -285,7 +285,7 @@ jobs:
     - name: Run quick tests (GPU)
       run: |
         nvidia-smi
-        export LAUNCH_DELAY=$(python -c "import numpy; print(numpy.random.randint(30) * 5)")
+        export LAUNCH_DELAY=$(python -c "import numpy; print(numpy.random.randint(30) * 10)")
         echo "Sleep $LAUNCH_DELAY"
         sleep $LAUNCH_DELAY
         export CUDA_VISIBLE_DEVICES=$(coverage run -m tests.utils)
