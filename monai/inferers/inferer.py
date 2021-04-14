@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Sequence, Union, Optional
+from typing import Any, Callable, Optional, Sequence, Union
 
 import torch
 
