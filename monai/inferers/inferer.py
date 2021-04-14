@@ -10,13 +10,13 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Sequence, Union
+from typing import Any, Callable, Sequence, Union, Optional
 
 import torch
 
 from monai.inferers.utils import sliding_window_inference
 from monai.utils import BlendMode, PytorchPadMode
-from monai.visualize import GradCAM
+from monai.visualize import CAM, GradCAM, GradCAMpp
 
 __all__ = ["Inferer", "SimpleInferer", "SlidingWindowInferer", "SaliencyInferer"]
 
@@ -195,16 +195,26 @@ class SlidingWindowInferer(Inferer):
 
 class SaliencyInferer(Inferer):
     """
-    SaliencyInferer is the normal inference method that run model forward() directly.
-    Usage example can be found in the :py:class:`monai.inferers.Inferer` base class.
+    SaliencyInferer is inference with activation maps.
+
+    Args:
+        cam_name: expected CAM method name, hould be: "CAM", "GradCAM" or "GradCAMpp".
+        target_layers: name of the model layer to generate the feature map.
+        class_idx: index of the class to be visualized. if None, default to argmax(logits).
+        args: other optional args to be passed to the `__init__` of cam.
+        kwargs: other optional keyword args to be passed to `__init__` of cam.
 
     """
 
-    def __init__(self, target_layers=None, class_idx=None) -> None:
+    def __init__(self, cam_name: str, target_layers: str, class_idx: Optional[int] = None, *args, **kwargs) -> None:
         Inferer.__init__(self)
-        assert target_layers is not None, "Need to specify 'target_layers' for GradCAM."
+        if cam_name.lower() not in ("cam", "gradcam", "gradcampp"):
+            raise ValueError("cam_name should be: 'CAM', 'GradCAM' or 'GradCAMpp'.")
+        self.cam_name = cam_name.lower()
         self.target_layers = target_layers
         self.class_idx = class_idx
+        self.args = args
+        self.kwargs = kwargs
 
     def __call__(
         self,
@@ -219,11 +229,15 @@ class SaliencyInferer(Inferer):
             inputs: model input data for inference.
             network: target model to execute inference.
                 supports callables such as ``lambda x: my_torch_model(x, additional_config)``
-            args: optional args to be passed to ``network``.
-            kwargs: optional keyword args to be passed to ``network``.
+            args: other optional args to be passed to the `__call__` of cam.
+            kwargs: other optional keyword args to be passed to `__call__` of cam.
 
         """
+        if self.cam_name == "cam":
+            cam = CAM(network, self.target_layers, *self.args, **self.kwargs)
+        elif self.cam_name == "gradcam":
+            cam = GradCAM(network, self.target_layers, *self.args, **self.kwargs)
+        else:
+            cam = GradCAMpp(network, self.target_layers, *self.args, **self.kwargs)
 
-        cam = GradCAM(nn_module=network, target_layers=self.target_layers)
-
-        return cam(x=inputs, class_idx=self.class_idx)
+        return cam(inputs, self.class_idx, *args, **kwargs)
