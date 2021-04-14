@@ -777,6 +777,9 @@ class MapLabelValue:
         """
         if len(orig_labels) != len(target_labels):
             raise ValueError("orig_labels and target_labels must have the same length.")
+        if all([o == z for o, z in zip(orig_labels, target_labels)]):
+            raise ValueError("orig_labels and target_labels are exactly the same, should be different to map.")
+
         self.orig_labels = orig_labels
         self.target_labels = target_labels
         self.dtype = dtype
