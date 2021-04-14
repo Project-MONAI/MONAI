@@ -698,7 +698,6 @@ class SpatialCropGuidanced(MapTransform):
             cropper = SpatialCrop(roi_center=center, roi_size=spatial_size)
         else:
             cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
-        box_start, box_end = cropper.roi_start, cropper.roi_end
 
         for key in self.key_iterator(d):
             if not np.array_equal(d[key].shape[1:], original_spatial_shape):
