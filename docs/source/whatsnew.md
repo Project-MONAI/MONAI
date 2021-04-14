@@ -8,10 +8,10 @@ If the pipeline includes random transformations, users may want to observe the e
 [Invert transforms and TTA tutorials](https://github.com/Project-MONAI/tutorials/blob/master/modules/inverse_transforms_and_test_time_augmentations.ipynb) introduce details about the API with examples.
 
 (1) The last column is the inverted data of model output:
-![image](../images/invert_transforms.png)
+![invert transform](../images/invert_transforms.png)
 
 (2) The TTA results of `mode`, `mean` and `standard deviation`:
-![image](../images/tta.png)
+![test time augmentation](../images/tta.png)
 
 ## Lesion detection in digital pathology
 MONAI starts to support digital pathology deep learning tasks. The initial [implementation](https://github.com/Project-MONAI/MONAI/tree/master/monai/apps/pathology) of the pathology detection components includes:
@@ -20,24 +20,24 @@ MONAI starts to support digital pathology deep learning tasks. The initial [impl
 - FROC measurements for lesion detection
 - Probabilistic post-processing for lesion ROIs.
 
-![image](../images/pathology.png)
+![digital pathology](../images/pathology.png)
 
 ## DeepGrow modules for interactive segmentation
-Towards an interactive workflow with manual input during training and inference, 
+Towards an interactive workflow with manual input during training and inference,
 [a reimplementation](https://github.com/Project-MONAI/MONAI/tree/master/monai/apps/deepgrow) of the DeepGrow components is included in this release.
 DeepGrow is a deep learning based semi-automated segmentation approach that aims to be a "smart" interactive tool for regions of interest delineation in medical images.
 
-![image](../images/deepgrow_scheme.png)
+![deepgrow scheme](../images/deepgrow_scheme.png)
 
 An end-to-end example is presented at [`project-monai/tutorials`](https://github.com/Project-MONAI/tutorials/tree/master/deepgrow/ignite).
-![image](../images/deepgrow.png)
+![deepgrow end-to-end](../images/deepgrow.png)
 
 ## Learning-based image registration
 Starting from v0.5.0, MONAI provides experimental features for building learning-based 2D/3D registration workflows. These include image similarity measures as loss functions, bending energy as model regularization, network architectures, warping modules. The components can be used to build the major unsupervised and weakly-supervised algorithms.
 
 The following figure shows the registration of CT images acquired at different time points for a single patient using MONAI:
 
-![3dreg](../images/3d_paired.png)
+![3d registration](../images/3d_paired.png)
 
 ## Various usability improvements
 ### IO factory for medical image formats
