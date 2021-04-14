@@ -13,6 +13,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Callable, Optional, Sequence, Union
 
 import torch
+import torch.nn as nn
 
 from monai.inferers.utils import sliding_window_inference
 from monai.utils import BlendMode, PytorchPadMode
@@ -219,7 +220,7 @@ class SaliencyInferer(Inferer):
     def __call__(
         self,
         inputs: torch.Tensor,
-        network: Callable[..., torch.Tensor],
+        network: nn.Module,
         *args: Any,
         **kwargs: Any,
     ):
