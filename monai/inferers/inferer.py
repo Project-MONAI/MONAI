@@ -217,7 +217,7 @@ class SaliencyInferer(Inferer):
         self.args = args
         self.kwargs = kwargs
 
-    def __call__(
+    def __call__(  # type: ignore
         self,
         inputs: torch.Tensor,
         network: nn.Module,
@@ -234,6 +234,7 @@ class SaliencyInferer(Inferer):
             kwargs: other optional keyword args to be passed to `__call__` of cam.
 
         """
+        cam: Union[CAM, GradCAM, GradCAMpp]
         if self.cam_name == "cam":
             cam = CAM(network, self.target_layers, *self.args, **self.kwargs)
         elif self.cam_name == "gradcam":
