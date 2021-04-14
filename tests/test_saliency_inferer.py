@@ -25,7 +25,7 @@ TEST_CASE_2 = ["GradCAM"]
 TEST_CASE_3 = ["GradCAMpp"]
 
 
-class TestGradientClassActivationMap(unittest.TestCase):
+class TestSaliencyInferer(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_shape(self, cam_name):
         model = DenseNet(
