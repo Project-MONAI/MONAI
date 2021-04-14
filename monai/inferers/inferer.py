@@ -16,8 +16,9 @@ import torch
 
 from monai.inferers.utils import sliding_window_inference
 from monai.utils import BlendMode, PytorchPadMode
+from monai.visualize import GradCAM
 
-__all__ = ["Inferer", "SimpleInferer", "SlidingWindowInferer"]
+__all__ = ["Inferer", "SimpleInferer", "SlidingWindowInferer", "SaliencyInferer"]
 
 
 class Inferer(ABC):
@@ -190,3 +191,39 @@ class SlidingWindowInferer(Inferer):
             *args,
             **kwargs,
         )
+
+
+class SaliencyInferer(Inferer):
+    """
+    SaliencyInferer is the normal inference method that run model forward() directly.
+    Usage example can be found in the :py:class:`monai.inferers.Inferer` base class.
+
+    """
+
+    def __init__(self, target_layers=None, class_idx=None) -> None:
+        Inferer.__init__(self)
+        assert target_layers is not None, "Need to specify 'target_layers' for GradCAM."
+        self.target_layers = target_layers
+        self.class_idx = class_idx
+
+    def __call__(
+        self,
+        inputs: torch.Tensor,
+        network: Callable[..., torch.Tensor],
+        *args: Any,
+        **kwargs: Any,
+    ):
+        """Unified callable function API of Inferers.
+
+        Args:
+            inputs: model input data for inference.
+            network: target model to execute inference.
+                supports callables such as ``lambda x: my_torch_model(x, additional_config)``
+            args: optional args to be passed to ``network``.
+            kwargs: optional keyword args to be passed to ``network``.
+
+        """
+
+        cam = GradCAM(nn_module=network, target_layers=self.target_layers)
+
+        return cam(x=inputs, class_idx=self.class_idx)
