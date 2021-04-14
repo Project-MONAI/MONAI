@@ -199,7 +199,7 @@ class SaliencyInferer(Inferer):
     SaliencyInferer is inference with activation maps.
 
     Args:
-        cam_name: expected CAM method name, hould be: "CAM", "GradCAM" or "GradCAMpp".
+        cam_name: expected CAM method name, should be: "CAM", "GradCAM" or "GradCAMpp".
         target_layers: name of the model layer to generate the feature map.
         class_idx: index of the class to be visualized. if None, default to argmax(logits).
         args: other optional args to be passed to the `__init__` of cam.
