@@ -59,11 +59,11 @@ for the latest features:
 
 ### Option 1 (as a part of your system-wide module):
 ```bash
-pip install git+https://github.com/Project-MONAI/MONAI#egg=MONAI
+pip install git+https://github.com/Project-MONAI/MONAI#egg=monai
 ```
 or, to build with MONAI Cpp/CUDA extensions:
 ```bash
-BUILD_MONAI=1 pip install git+https://github.com/Project-MONAI/MONAI#egg=MONAI
+BUILD_MONAI=1 pip install git+https://github.com/Project-MONAI/MONAI#egg=monai
 ```
 this command will download and install the current master branch of [MONAI from
 GitHub](https://github.com/Project-MONAI/MONAI).
