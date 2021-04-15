@@ -16,7 +16,7 @@ import torch.distributed as dist
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
-from monai.engines.utils import default_prepare_batch
+from monai.engines.utils import IterationEvents, default_prepare_batch
 from monai.transforms import apply_transform
 from monai.utils import ensure_tuple, exact_version, optional_import
 
@@ -160,7 +160,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
 
         """
 
-        @self.on(Events.ITERATION_COMPLETED)
+        @self.on(IterationEvents.MODEL_COMPLETED)
         def run_post_transform(engine: Engine) -> None:
             engine.state.output = apply_transform(posttrans, engine.state.output)
 

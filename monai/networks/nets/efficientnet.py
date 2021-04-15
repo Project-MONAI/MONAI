@@ -503,19 +503,19 @@ class EfficientNetBN(EfficientNet):
             )
 
         # get network parameters
-        weight_coeff, depth_coeff, image_size, drpout_rate, drpconnect_rate = efficientnet_params[model_name]
+        weight_coeff, depth_coeff, image_size, dropout_rate, dropconnect_rate = efficientnet_params[model_name]
 
         # create model and initialize random weights
-        model = super(EfficientNetBN, self).__init__(
+        super(EfficientNetBN, self).__init__(
             blocks_args_str=blocks_args_str,
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             num_classes=num_classes,
             width_coefficient=weight_coeff,
             depth_coefficient=depth_coeff,
-            dropout_rate=drpout_rate,
+            dropout_rate=dropout_rate,
             image_size=image_size,
-            drop_connect_rate=drpconnect_rate,
+            drop_connect_rate=dropconnect_rate,
         )
 
         # attempt to load pretrained
@@ -768,7 +768,7 @@ def _calculate_output_image_size(input_image_size: List[int], stride: Union[int,
 
     # checks to extract integer stride in case tuple was received
     if isinstance(stride, tuple):
-        all_strides_equal = all([stride[0] == s for s in stride])
+        all_strides_equal = all(stride[0] == s for s in stride)
         if not all_strides_equal:
             raise ValueError("unequal strides are not possible, got {}".format(stride))
 
@@ -827,7 +827,7 @@ def _decode_block_list(string_list: List[str]):
             or (len(options["s"]) == 3 and options["s"][0] == options["s"][1] and options["s"][0] == options["s"][2])
         )
         if not stride_check:
-            raise ValueError("invalid stride option recieved")
+            raise ValueError("invalid stride option received")
 
         return BlockArgs(
             num_repeat=int(options["r"]),

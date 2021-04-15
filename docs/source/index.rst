@@ -45,6 +45,7 @@ Technical documentation is available at `docs.monai.io <https://docs.monai.io>`_
    :maxdepth: 1
    :caption: Feature highlights
 
+   whatsnew.md
    highlights.md
 
 .. toctree::

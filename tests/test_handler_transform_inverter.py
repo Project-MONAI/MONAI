@@ -17,12 +17,14 @@ import torch
 from ignite.engine import Engine
 
 from monai.data import CacheDataset, DataLoader, create_test_image_3d
+from monai.engines.utils import IterationEvents
 from monai.handlers import TransformInverter
 from monai.transforms import (
     AddChanneld,
     CastToTyped,
     Compose,
     LoadImaged,
+    Orientationd,
     RandAffined,
     RandAxisFlipd,
     RandFlipd,
@@ -31,6 +33,7 @@ from monai.transforms import (
     RandZoomd,
     ResizeWithPadOrCropd,
     ScaleIntensityd,
+    Spacingd,
     ToTensord,
 )
 from monai.utils.misc import set_determinism
@@ -47,13 +50,15 @@ class TestTransformInverter(unittest.TestCase):
             [
                 LoadImaged(KEYS),
                 AddChanneld(KEYS),
-                ScaleIntensityd(KEYS, minv=1, maxv=10),
+                Orientationd(KEYS, "RPS"),
+                Spacingd(KEYS, pixdim=(1.2, 1.01, 0.9), mode=["bilinear", "nearest"], dtype=np.float32),
+                ScaleIntensityd("image", minv=1, maxv=10),
                 RandFlipd(KEYS, prob=0.5, spatial_axis=[1, 2]),
                 RandAxisFlipd(KEYS, prob=0.5),
                 RandRotate90d(KEYS, spatial_axes=(1, 2)),
                 RandZoomd(KEYS, prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True),
                 RandRotated(KEYS, prob=0.5, range_x=np.pi, mode="bilinear", align_corners=True),
-                RandAffined(KEYS, prob=0.5, rotate_range=np.pi),
+                RandAffined(KEYS, prob=0.5, rotate_range=np.pi, mode="nearest"),
                 ResizeWithPadOrCropd(KEYS, 100),
                 ToTensord(KEYS),
                 CastToTyped(KEYS, dtype=torch.uint8),
@@ -70,18 +75,65 @@ class TestTransformInverter(unittest.TestCase):
         # set up engine
         def _train_func(engine, batch):
             self.assertTupleEqual(batch["image"].shape[1:], (1, 100, 100, 100))
-            return batch
+            engine.state.output = batch
+            engine.fire_event(IterationEvents.MODEL_COMPLETED)
+            return engine.state.output
 
         engine = Engine(_train_func)
+        engine.register_events(*IterationEvents)
 
         # set up testing handler
-        TransformInverter(transform=transform, loader=loader, output_key="image", nearest_interp=True).attach(engine)
+        TransformInverter(
+            transform=transform,
+            loader=loader,
+            output_keys=["image", "label"],
+            batch_keys="label",
+            nearest_interp=True,
+            postfix="inverted1",
+            num_workers=0 if sys.platform == "darwin" or torch.cuda.is_available() else 2,
+        ).attach(engine)
+
+        # test different nearest interpolation values
+        TransformInverter(
+            transform=transform,
+            loader=loader,
+            output_keys=["image", "label"],
+            batch_keys="image",
+            nearest_interp=[True, False],
+            postfix="inverted2",
+            num_workers=0 if sys.platform == "darwin" or torch.cuda.is_available() else 2,
+        ).attach(engine)
 
         engine.run(loader, max_epochs=1)
         set_determinism(seed=None)
         self.assertTupleEqual(engine.state.output["image"].shape, (2, 1, 100, 100, 100))
-        for i in engine.state.output["image_inverted"]:
-            np.testing.assert_allclose(i.astype(np.uint8).astype(np.float32), i, rtol=1e-4)
+        self.assertTupleEqual(engine.state.output["label"].shape, (2, 1, 100, 100, 100))
+        # check the nearest inerpolation mode
+        for i in engine.state.output["image_inverted1"] + engine.state.output["label_inverted1"]:
+            torch.testing.assert_allclose(i.to(torch.uint8).to(torch.float), i.to(torch.float))
+            self.assertTupleEqual(i.shape, (1, 100, 101, 107))
+        # check labels match
+        reverted = engine.state.output["label_inverted1"][-1].detach().cpu().numpy()[0].astype(np.int32)
+        original = LoadImaged(KEYS)(data[-1])["label"]
+        n_good = np.sum(np.isclose(reverted, original, atol=1e-3))
+        reverted_name = engine.state.output["label_meta_dict"]["filename_or_obj"][-1]
+        original_name = data[-1]["label"]
+        self.assertEqual(reverted_name, original_name)
+        print("invert diff", reverted.size - n_good)
+        # 25300: 2 workers (cpu, non-macos)
+        # 1812: 0 workers (gpu or macos)
+        # 1824: torch 1.5.1
+        self.assertTrue((reverted.size - n_good) in (25300, 1812, 1824), "diff. in 3 possible values")
+
+        # check the case that different items use different interpolation mode to invert transforms
+        for i in engine.state.output["image_inverted2"]:
+            # if the interpolation mode is nearest, accumulated diff should be smaller than 1
+            self.assertLess(torch.sum(i.to(torch.float) - i.to(torch.uint8).to(torch.float)).item(), 1.0)
+            self.assertTupleEqual(i.shape, (1, 100, 101, 107))
+
+        for i in engine.state.output["label_inverted2"]:
+            # if the interpolation mode is not nearest, accumulated diff should be greater than 10000
+            self.assertGreater(torch.sum(i.to(torch.float) - i.to(torch.uint8).to(torch.float)).item(), 10000.0)
             self.assertTupleEqual(i.shape, (1, 100, 101, 107))
 
 

@@ -152,7 +152,7 @@ class OcclusionSensitivity:
         upsampler: Optional[Callable] = default_upsampler,
         verbose: bool = True,
     ) -> None:
-        """Occlusion sensitivitiy constructor.
+        """Occlusion sensitivity constructor.
 
         Args:
             nn_module: Classification model to use for inference
