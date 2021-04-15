@@ -10,17 +10,13 @@
 # limitations under the License.
 
 import unittest
-from typing import TYPE_CHECKING
 
 from parameterized import parameterized
 
 from monai.apps.pathology.transforms import ExtractStainsMacenko
 from monai.utils import exact_version, optional_import
 
-if TYPE_CHECKING:
-    import cupy as cp
-else:
-    cp, _ = optional_import("cupy", "8.6.0", exact_version)
+cp, has_cp = optional_import("cupy", "8.6.0", exact_version)
 
 # input pixels are all transparent and below the beta absorbance threshold
 EXTRACT_STAINS_TEST_CASE_1 = [
@@ -58,6 +54,7 @@ NORMALIZE_STAINS_TEST_CASE_3 = [
 
 class TestExtractStainsMacenko(unittest.TestCase):
     @parameterized.expand([EXTRACT_STAINS_TEST_CASE_1, EXTRACT_STAINS_TEST_CASE_2])
+    @unittests.skipUnless(has_cp, "Requires CuPy")
     def test_value(self, image, expected_data):
         result = ExtractStainsMacenko()(image)
         cp.testing.assert_allclose(result, expected_data)
@@ -65,6 +62,7 @@ class TestExtractStainsMacenko(unittest.TestCase):
 
 class TestNormalizeStainsMacenko(unittest.TestCase):
     @parameterized.expand([NORMALIZE_STAINS_TEST_CASE_1, NORMALIZE_STAINS_TEST_CASE_2, NORMALIZE_STAINS_TEST_CASE_3])
+    @unittests.skipUnless(has_cp, "Requires CuPy")
     def test_value(self, argments, image, expected_data):
         result = NormalizeStainsMacenko(**argments)(image)
         cp.testing.assert_allclose(result, expected_data)
