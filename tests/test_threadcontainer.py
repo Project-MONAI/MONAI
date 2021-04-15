@@ -75,10 +75,10 @@ class TestThreadContainer(unittest.TestCase):
         opt = torch.optim.Adam(net.parameters())
 
         img = torch.rand(1, 16, 16)
-        
+
         # a third non-image key is added to test that this is correctly ignored when plotting
         data = {CommonKeys.IMAGE: img, CommonKeys.LABEL: img, "Not Image Data": ["This isn't an image"]}
-        
+
         loader = DataLoader([data] * 10)
 
         trainer = SupervisedTrainer(

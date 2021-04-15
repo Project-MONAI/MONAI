@@ -321,13 +321,13 @@ class ThreadContainer(Thread):
         stats = self.status_dict
 
         msgs = [stats.pop(StatusMembers.STATUS.value), "Iters: " + str(stats.pop(StatusMembers.ITERS.value))]
-        
+
         for key, val in stats.items():
-            if isinstance(val,float):
-                msg=self.status_format.format(key, val)
+            if isinstance(val, float):
+                msg = self.status_format.format(key, val)
             else:
-                msg=f"{key}: {val}"
-                
+                msg = f"{key}: {val}"
+
             msgs.append(msg)
 
         return ", ".join(msgs)
