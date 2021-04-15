@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import logging
+import warnings
 from typing import TYPE_CHECKING, Callable, Optional, Union
 
 import numpy as np
@@ -120,6 +121,7 @@ class SegmentationSaver:
             squeeze_end_dims=squeeze_end_dims,
             data_root_dir=data_root_dir,
         )
+        self.resample = resample
         self.batch_transform = batch_transform
         self.output_transform = output_transform
 
@@ -148,6 +150,9 @@ class SegmentationSaver:
         engine_output = self.output_transform(engine.state.output)
         if isinstance(engine_output, (tuple, list)):
             # if a list of data in shape: [channel, H, W, [D]], save every item separately
+            if self.resample:
+                warnings.warn("if saving inverted data, please set `resample=False` as it's already resampled.")
+
             self._saver.save_batch = False
             for i, d in enumerate(engine_output):
                 self._saver(d, {k: meta_data[k][i] for k in meta_data} if meta_data is not None else None)
