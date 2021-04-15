@@ -10,8 +10,9 @@
 # limitations under the License.
 
 import logging
-from typing import TYPE_CHECKING, Callable, Optional, Union
 import warnings
+from typing import TYPE_CHECKING, Callable, Optional, Union
+
 import numpy as np
 
 from monai.config import DtypeLike
