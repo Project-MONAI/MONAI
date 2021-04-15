@@ -536,7 +536,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
         ret = []
         d = dict(data)
         for i in range(self.num_samples):
-            cropped = self.cropper(d)
+            cropped = self.cropper(deepcopy(d))
             # add `patch_index` to the meta data
             for key in self.key_iterator(d):
                 meta_data_key = f"{key}_{self.meta_key_postfix}"
