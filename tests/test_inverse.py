@@ -122,13 +122,21 @@ TESTS.append(
     )
 )
 
-
 TESTS.append(
     (
         "SpatialCropd 2d",
         "2D",
         0,
         SpatialCropd(KEYS, [49, 51], [90, 89]),
+    )
+)
+
+TESTS.append(
+    (
+        "SpatialCropd 3d",
+        "3D",
+        0,
+        SpatialCropd(KEYS, roi_slices=[slice(s, e) for s, e in zip([None, None, -99], [None, -2, None])]),
     )
 )
 

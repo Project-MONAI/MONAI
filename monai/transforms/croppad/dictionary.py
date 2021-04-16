@@ -286,8 +286,13 @@ class DivisiblePadd(MapTransform, InvertibleTransform):
 class SpatialCropd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SpatialCrop`.
-    Either a spatial center and size must be provided, or alternatively if center and size
-    are not provided, the start and end coordinates of the ROI must be provided.
+    General purpose cropper to produce sub-volume region of interest (ROI).
+    It can support to crop ND spatial (channel-first) data.
+
+    The cropped region can be parameterised in various ways:
+        - a list of slices for each spatial dimension (allows for use of -ve indexing and `None`)
+        - a spatial center and size
+        - the start and end coordinates of the ROI
     """
 
     def __init__(
@@ -297,6 +302,7 @@ class SpatialCropd(MapTransform, InvertibleTransform):
         roi_size: Optional[Sequence[int]] = None,
         roi_start: Optional[Sequence[int]] = None,
         roi_end: Optional[Sequence[int]] = None,
+        roi_slices: Optional[Sequence[slice]] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -307,10 +313,11 @@ class SpatialCropd(MapTransform, InvertibleTransform):
             roi_size: size of the crop ROI.
             roi_start: voxel coordinates for start of the crop ROI.
             roi_end: voxel coordinates for end of the crop ROI.
+            roi_slices: list of slices for each of the spatial dimensions.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
-        self.cropper = SpatialCrop(roi_center, roi_size, roi_start, roi_end)
+        self.cropper = SpatialCrop(roi_center, roi_size, roi_start, roi_end, roi_slices)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
@@ -325,9 +332,11 @@ class SpatialCropd(MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            orig_size = transform[InverseKeys.ORIG_SIZE]
-            pad_to_start = np.array(self.cropper.roi_start)
-            pad_to_end = orig_size - self.cropper.roi_end
+            orig_size = np.array(transform[InverseKeys.ORIG_SIZE])
+            current_size = np.array(d[key].shape[1:])
+            # get required pad to start and end
+            pad_to_start = np.array([s.indices(o)[0] for s, o in zip(self.cropper.slices, orig_size)])
+            pad_to_end = orig_size - current_size - pad_to_start
             # interleave mins and maxes
             pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
             inverse_transform = BorderPad(pad)
