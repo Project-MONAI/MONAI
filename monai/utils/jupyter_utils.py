@@ -195,10 +195,11 @@ def plot_engine_status(
         for src in (engine.state.batch, engine.state.output):
             if isinstance(src, dict):
                 for k, v in src.items():
-                    images = image_fn(k, v)
+                    if isinstance(v, torch.Tensor):
+                        images = image_fn(k, v)
 
-                    for i, im in enumerate(images):
-                        imagemap[f"{k}_{i}"] = im
+                        for i, im in enumerate(images):
+                            imagemap[f"{k}_{i}"] = im
             else:
                 label = "Batch" if src is engine.state.batch else "Output"
                 images = image_fn(label, src)
@@ -311,7 +312,7 @@ class ThreadContainer(Thread):
     def status_dict(self) -> Dict[str, str]:
         """A dictionary containing status information, current loss, and current metric values."""
         with self.lock:
-            stats = {StatusMembers.STATUS.value: "Running" if self.is_alive else "Stopped"}
+            stats = {StatusMembers.STATUS.value: "Running" if self.is_alive() else "Stopped"}
             stats.update(self._status_dict)
             return stats
 
@@ -320,7 +321,14 @@ class ThreadContainer(Thread):
         stats = self.status_dict
 
         msgs = [stats.pop(StatusMembers.STATUS.value), "Iters: " + str(stats.pop(StatusMembers.ITERS.value))]
-        msgs += [self.status_format.format(key, val) for key, val in stats.items()]
+
+        for key, val in stats.items():
+            if isinstance(val, float):
+                msg = self.status_format.format(key, val)
+            else:
+                msg = f"{key}: {val}"
+
+            msgs.append(msg)
 
         return ", ".join(msgs)
 
