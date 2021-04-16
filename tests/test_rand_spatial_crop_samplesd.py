@@ -93,6 +93,5 @@ class TestRandSpatialCropSamplesd(unittest.TestCase):
             self.assertEqual(len(sample["img_transforms"]), len(transform))
 
 
-
 if __name__ == "__main__":
     unittest.main()
