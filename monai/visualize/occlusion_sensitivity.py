@@ -134,8 +134,8 @@ class OcclusionSensitivity:
         from monai.visualize import OcclusionSensitivity
 
         model_3d = DenseNet(spatial_dims=3, in_channels=1, out_channels=3, init_features=2, growth_rate=2, block_config=(6,))
-        occ_sens = OcclusionSensitivity(nn_module=model_3d, n_batch=10, stride=2)
-        occ_map, most_probable_class = occ_sens(torch.rand(1, 1, 6, 6, 6), b_box=[-1, -1, 2, 3, -1, -1, -1, -1])
+        occ_sens = OcclusionSensitivity(nn_module=model_3d, n_batch=10, stride=3)
+        occ_map, most_probable_class = occ_sens(torch.rand(1, 1, 6, 6, 6), b_box=[-1, -1, 1, 3, -1, -1, -1, -1])
 
     See Also:
 
@@ -187,7 +187,7 @@ class OcclusionSensitivity:
         # Get the number of prediction classes
         num_classes = self.nn_module(x).numel()
 
-        #  If pad val not supplied, get the mean of the image
+        # If pad val not supplied, get the mean of the image
         pad_val = x.mean() if self.pad_val is None else self.pad_val
 
         # List containing a batch of images to be inferred
