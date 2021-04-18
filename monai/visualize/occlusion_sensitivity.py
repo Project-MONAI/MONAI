@@ -127,7 +127,7 @@ class OcclusionSensitivity:
 
         model_2d = DenseNet121(spatial_dims=2, in_channels=1, out_channels=3)
         occ_sens = OcclusionSensitivity(nn_module=model_2d)
-        occ_map, most_probable_class = occ_sens(x=torch.rand((1, 1, 48, 64)), class_idx=None, b_box=[-1, -1, 2, 40, 1, 62])
+        occ_map, most_probable_class = occ_sens(x=torch.rand((1, 1, 48, 64)), b_box=[-1, -1, 2, 40, 1, 62])
 
         # densenet 3d
         from monai.networks.nets import DenseNet
@@ -135,7 +135,7 @@ class OcclusionSensitivity:
 
         model_3d = DenseNet(spatial_dims=3, in_channels=1, out_channels=3, init_features=2, growth_rate=2, block_config=(6,))
         occ_sens = OcclusionSensitivity(nn_module=model_3d, n_batch=10, stride=2)
-        occ_map, most_probable_class = occ_sens(torch.rand(1, 1, 6, 6, 6), class_idx=1, b_box=[-1, -1, 2, 3, -1, -1, -1, -1])
+        occ_map, most_probable_class = occ_sens(torch.rand(1, 1, 6, 6, 6), b_box=[-1, -1, 2, 3, -1, -1, -1, -1])
 
     See Also:
 
