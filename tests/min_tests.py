@@ -105,6 +105,7 @@ def run_testsuit():
         "test_occlusion_sensitivity",
         "test_torchvision",
         "test_torchvisiond",
+        "test_randtorchvisiond",
         "test_handler_metrics_saver",
         "test_handler_metrics_saver_dist",
         "test_evenly_divisible_all_gather_dist",
