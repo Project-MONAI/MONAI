@@ -52,6 +52,8 @@ class ExtractStainsMacenko(Transform):
 
         # remove transparent pixels
         absorbance_hat = absorbance[cp.all(absorbance > self.beta, axis=1)]
+        if len(absorbance_hat) == 0:
+            raise ValueError(f"All pixels of the input image are below the absorbance threshold.")
 
         # compute eigenvectors
         _, eigvecs = cp.linalg.eigh(cp.cov(absorbance_hat.T).astype(cp.float32))
@@ -143,6 +145,8 @@ class NormalizeStainsMacenko(Transform):
 
         # remove transparent pixels
         absorbance_hat = absorbance[cp.all(absorbance > self.beta, axis=1)]
+        if len(absorbance_hat) == 0:
+            raise ValueError(f"All pixels of the input image are below the absorbance threshold.")
 
         # compute eigenvectors
         _, eigvecs = cp.linalg.eigh(cp.cov(absorbance_hat.T).astype(cp.float32))
