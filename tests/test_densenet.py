@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets import DenseNet121, DenseNet169, DenseNet201, DenseNet264
+from monai.networks.nets import DenseNet121, Densenet169, densenet201, DenseNet264
 from monai.utils import optional_import
 from tests.utils import skip_if_quick, test_script_save
 
@@ -51,11 +51,11 @@ TEST_CASE_3 = [  # 4-channel 1D, batch 1
 
 TEST_CASES = []
 for case in [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3]:
-    for model in [DenseNet121, DenseNet169, DenseNet201, DenseNet264]:
+    for model in [DenseNet121, Densenet169, densenet201, DenseNet264]:
         TEST_CASES.append([model, *case])
 
 
-TEST_SCRIPT_CASES = [[model, *TEST_CASE_1] for model in [DenseNet121, DenseNet169, DenseNet201, DenseNet264]]
+TEST_SCRIPT_CASES = [[model, *TEST_CASE_1] for model in [DenseNet121, Densenet169, densenet201, DenseNet264]]
 
 
 TEST_PRETRAINED_2D_CASE_1 = [  # 4-channel 2D, batch 2
