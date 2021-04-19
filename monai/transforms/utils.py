@@ -331,7 +331,7 @@ def generate_pos_neg_label_crop_centers(
     """
     spatial_size = fall_back_tuple(spatial_size, default=label_spatial_shape)
     if not (np.subtract(label_spatial_shape, spatial_size) >= 0).all():
-        raise ValueError("The proposed roi is larger than the image.")
+        raise ValueError("The proposed random crop ROI is larger than the image size.")
 
     # Select subregion to assure valid roi
     valid_start = np.floor_divide(spatial_size, 2)
