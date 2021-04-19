@@ -45,25 +45,30 @@ EXTRACT_STAINS_TEST_CASE_5 = [
     cp.array([[0.70710677, 0.18696113], [0.0, 0.0], [0.70710677, 0.98236734]]),
 ]
 
-# input pixels are all transparent and below the beta absorbance threshold
+# input pixels all transparent and below the beta absorbance threshold
 NORMALIZE_STAINS_TEST_CASE_1 = [
+    cp.full((3, 2, 3), 240),
+]
+
+# input pixels uniformly filled with zeros, and target stain matrix provided
+NORMALIZE_STAINS_TEST_CASE_2 = [
+    {"target_he": cp.full((3, 2), 1)},
+    cp.zeros((3, 2, 3)),
+    cp.full((3, 2, 3), 11),
+]
+
+# input pixels uniformly filled with zeros, and target stain matrix not provided
+NORMALIZE_STAINS_TEST_CASE_3 = [
     {},
     cp.zeros((3, 2, 3)),
     cp.array([[[63, 25, 60], [63, 25, 60]], [[63, 25, 60], [63, 25, 60]], [[63, 25, 60], [63, 25, 60]]]),
 ]
 
-# input pixels are all the same, but above beta absorbance threshold
-NORMALIZE_STAINS_TEST_CASE_2 = [
-    {},
-    cp.full((3, 2, 3), 200),
-    cp.array([[[63, 25, 60], [63, 25, 60]], [[63, 25, 60], [63, 25, 60]], [[63, 25, 60], [63, 25, 60]]]),
-]
-
-# with a custom target_he, which is the same as the image's stain matrix
-NORMALIZE_STAINS_TEST_CASE_3 = [
-    {"target_he": cp.full((3, 2), 0.57735027)},
-    cp.full((3, 2, 3), 200),
-    cp.full((3, 2, 3), 42),
+# input pixels not uniformly filled
+NORMALIZE_STAINS_TEST_CASE_4 = [
+    {"target_he": cp.full((3, 2), 1)},
+    cp.array([[[100, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]]]),
+    cp.array([[[87, 87, 87], [33, 33, 33]], [[33, 33, 33], [33, 33, 33]], [[33, 33, 33], [33, 33, 33]]]),
 ]
 
 
@@ -129,9 +134,66 @@ class TestExtractStainsMacenko(unittest.TestCase):
 
 
 class TestNormalizeStainsMacenko(unittest.TestCase):
-    @parameterized.expand([NORMALIZE_STAINS_TEST_CASE_1, NORMALIZE_STAINS_TEST_CASE_2, NORMALIZE_STAINS_TEST_CASE_3])
+    @parameterized.expand([NORMALIZE_STAINS_TEST_CASE_1])
     @unittest.skipUnless(has_cp, "Requires CuPy")
-    def test_value(self, argments, image, expected_data):
+    def test_transparent_image(self, image):
+        """
+        Test Macenko stain normalization on an image that comprises
+        only transparent pixels - pixels with absorbance below the
+        beta absorbance threshold. A ValueError should be raised,
+        since once the transparent pixels are removed, there are no
+        remaining pixels to compute eigenvectors.
+        """
+        with self.assertRaises(ValueError):
+            NormalizeStainsMacenko()(image)
+
+    @parameterized.expand([NORMALIZE_STAINS_TEST_CASE_2, NORMALIZE_STAINS_TEST_CASE_3, NORMALIZE_STAINS_TEST_CASE_4])
+    @unittest.skipUnless(has_cp, "Requires CuPy")
+    def test_result_value(self, argments, image, expected_data):
+        """
+        Test that an input image returns an expected normalized image.
+
+        For test case 2:
+        - This case tests calling the stain normalizer, after the
+          _deconvolution_extract_conc function. This is because the normalized
+          concentration returned for each pixel is the same as the reference
+          maximum stain concentrations in the case that the image is uniformly
+          filled, as in this test case. This is because the maximum concentration
+          for each stain is the same as each pixel's concentration.
+        - Thus, the normalized concentration matrix should be a (2, 6) matrix
+          with the first row having all values of 1.9705, second row all 1.0308.
+        - Taking the matrix product of the target stain matrix and the concentration
+          matrix, then using the inverse Beer-Lambert transform to obtain the RGB
+          image from the absorbance image, and finally converting to uint8,
+          we get that the stain normalized image should be a matrix of
+          dims (3, 2, 3), with all values 11.
+
+        For test case 3:
+        - This case also tests calling the stain normalizer, after the
+          _deconvolution_extract_conc function returns the image concentration
+          matrix.
+        - As in test case 2, the normalized concentration matrix should be a (2, 6) matrix
+          with the first row having all values of 1.9705, second row all 1.0308.
+        - Taking the matrix product of the target default stain matrix and the concentration
+          matrix, then using the inverse Beer-Lambert transform to obtain the RGB
+          image from the absorbance image, and finally converting to uint8,
+          we get that the stain normalized image should be [[[63, 25, 60], [63, 25, 60]],
+          [[63, 25, 60], [63, 25, 60]], [[63, 25, 60], [63, 25, 60]]]
+
+        For test case 4:
+        - For this non-uniformly filled image, the stain extracted should be
+          [[0.70710677,0.18696113],[0,0],[0.70710677,0.98236734]], as validated for the
+          ExtractStainsMacenko class. Solving the linear least squares problem (since
+          absorbance matrix = stain matrix * concentration matrix), we obtain the concentration
+          matrix that should be [[-0.3101, 7.7508, 7.7508, 7.7508, 7.7508, 7.7508],
+          [5.8022, 0, 0, 0, 0, 0]]
+        - Normalizing the concentration matrix, taking the matrix product of the
+          target stain matrix and the concentration matrix, using the inverse
+          Beer-Lambert transform to obtain the RGB image from the absorbance
+          image, and finally converting to uint8, we get that the stain normalized
+          image should be [[[87, 87, 87], [33, 33, 33]], [[33, 33, 33], [33, 33, 33]],
+          [[33, 33, 33], [33, 33, 33]]]
+        """
         result = NormalizeStainsMacenko(**argments)(image)
         cp.testing.assert_allclose(result, expected_data)
 
