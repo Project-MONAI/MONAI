@@ -48,13 +48,13 @@ class ExtractStainsMacenko(Transform):
         img = img.reshape((-1, 3))
 
         # calculate absorbance
-        absorbance = -cp.log(cp.clip(img.astype(cp.float) + 1, a_max=self.tli) / self.tli)
+        absorbance = -cp.log(cp.clip(img.astype(cp.float32) + 1, a_max=self.tli) / self.tli)
 
         # remove transparent pixels
         absorbance_hat = absorbance[cp.all(absorbance > self.beta, axis=1)]
 
         # compute eigenvectors
-        _, eigvecs = cp.linalg.eigh(cp.cov(absorbance_hat.T))
+        _, eigvecs = cp.linalg.eigh(cp.cov(absorbance_hat.T).astype(cp.float32))
 
         # project on the plane spanned by the eigenvectors corresponding to the two largest eigenvalues
         t_hat = absorbance_hat.dot(eigvecs[:, 1:3])
@@ -63,14 +63,14 @@ class ExtractStainsMacenko(Transform):
         phi = cp.arctan2(t_hat[:, 1], t_hat[:, 0])
         min_phi = cp.percentile(phi, self.alpha)
         max_phi = cp.percentile(phi, 100 - self.alpha)
-        v_min = eigvecs[:, 1:3].dot(cp.array([(cp.cos(min_phi), cp.sin(min_phi))]).T)
-        v_max = eigvecs[:, 1:3].dot(cp.array([(cp.cos(max_phi), cp.sin(max_phi))]).T)
+        v_min = eigvecs[:, 1:3].dot(cp.array([(cp.cos(min_phi), cp.sin(min_phi))], dtype=cp.float32).T)
+        v_max = eigvecs[:, 1:3].dot(cp.array([(cp.cos(max_phi), cp.sin(max_phi))], dtype=cp.float32).T)
 
         # a heuristic to make the vector corresponding to hematoxylin first and the one corresponding to eosin second
         if v_min[0] > v_max[0]:
-            he = cp.array((v_min[:, 0], v_max[:, 0])).T
+            he = cp.array((v_min[:, 0], v_max[:, 0]), dtype=cp.float32).T
         else:
-            he = cp.array((v_max[:, 0], v_min[:, 0])).T
+            he = cp.array((v_max[:, 0], v_min[:, 0]), dtype=cp.float32).T
 
         return he
 
@@ -139,13 +139,13 @@ class NormalizeStainsMacenko(Transform):
         img = img.reshape((-1, 3))
 
         # calculate absorbance
-        absorbance = -cp.log(cp.clip(img.astype(cp.float) + 1, a_max=self.tli) / self.tli)
+        absorbance = -cp.log(cp.clip(img.astype(cp.float32) + 1, a_max=self.tli) / self.tli)
 
         # remove transparent pixels
         absorbance_hat = absorbance[cp.all(absorbance > self.beta, axis=1)]
 
         # compute eigenvectors
-        _, eigvecs = cp.linalg.eigh(cp.cov(absorbance_hat.T))
+        _, eigvecs = cp.linalg.eigh(cp.cov(absorbance_hat.T).astype(cp.float32))
 
         # project on the plane spanned by the eigenvectors corresponding to the two largest eigenvalues
         t_hat = absorbance_hat.dot(eigvecs[:, 1:3])
@@ -154,14 +154,14 @@ class NormalizeStainsMacenko(Transform):
         phi = cp.arctan2(t_hat[:, 1], t_hat[:, 0])
         min_phi = cp.percentile(phi, self.alpha)
         max_phi = cp.percentile(phi, 100 - self.alpha)
-        v_min = eigvecs[:, 1:3].dot(cp.array([(cp.cos(min_phi), cp.sin(min_phi))]).T)
-        v_max = eigvecs[:, 1:3].dot(cp.array([(cp.cos(max_phi), cp.sin(max_phi))]).T)
+        v_min = eigvecs[:, 1:3].dot(cp.array([(cp.cos(min_phi), cp.sin(min_phi))], dtype=cp.float32).T)
+        v_max = eigvecs[:, 1:3].dot(cp.array([(cp.cos(max_phi), cp.sin(max_phi))], dtype=cp.float32).T)
 
         # a heuristic to make the vector corresponding to hematoxylin first and the one corresponding to eosin second
         if v_min[0] > v_max[0]:
-            he = cp.array((v_min[:, 0], v_max[:, 0])).T
+            he = cp.array((v_min[:, 0], v_max[:, 0]), dtype=cp.float32).T
         else:
-            he = cp.array((v_max[:, 0], v_min[:, 0])).T
+            he = cp.array((v_max[:, 0], v_min[:, 0]), dtype=cp.float32).T
 
         # rows correspond to channels (RGB), columns to absorbance values
         y = cp.reshape(absorbance, (-1, 3)).T
@@ -170,9 +170,9 @@ class NormalizeStainsMacenko(Transform):
         conc = cp.linalg.lstsq(he, y, rcond=None)[0]
 
         # normalize stain concentrations
-        max_conc = cp.array([cp.percentile(conc[0, :], 99), cp.percentile(conc[1, :], 99)])
-        tmp = cp.divide(max_conc, self.max_cref)
-        conc_norm = cp.divide(conc, tmp[:, cp.newaxis])
+        max_conc = cp.array([cp.percentile(conc[0, :], 99), cp.percentile(conc[1, :], 99)], dtype=cp.float32)
+        tmp = cp.divide(max_conc, self.max_cref, dtype=cp.float32)
+        conc_norm = cp.divide(conc, tmp[:, cp.newaxis], dtype=cp.float32)
         return conc_norm
 
     def __call__(self, image: cp.ndarray) -> cp.ndarray:
@@ -187,7 +187,7 @@ class NormalizeStainsMacenko(Transform):
         h, w, _ = image.shape
         image_c = self._deconvolution_extract_conc(image)
 
-        image_norm = cp.multiply(self.tli, cp.exp(-self.target_he.dot(image_c)))
+        image_norm = cp.multiply(self.tli, cp.exp(-self.target_he.dot(image_c)), dtype=cp.float32)
         image_norm[image_norm > 255] = 254
         image_norm = cp.reshape(image_norm.T, (h, w, 3)).astype(cp.uint8)
         return image_norm
