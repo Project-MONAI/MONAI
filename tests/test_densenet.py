@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets import DenseNet121, Densenet169, densenet201, DenseNet264
+from monai.networks.nets import DenseNet121, Densenet169, DenseNet264, densenet201
 from monai.utils import optional_import
 from tests.utils import skip_if_quick, test_script_save
 
