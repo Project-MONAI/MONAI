@@ -16,18 +16,18 @@ from .classifier import Classifier, Critic, Discriminator
 from .densenet import (
     DenseNet,
     Densenet,
-    densenet,
     DenseNet121,
     Densenet121,
-    densenet121,
     DenseNet169,
     Densenet169,
-    densenet169,
     DenseNet201,
     Densenet201,
-    densenet201,
     DenseNet264,
     Densenet264,
+    densenet,
+    densenet121,
+    densenet169,
+    densenet201,
     densenet264,
 )
 from .dynunet import DynUNet, DynUnet, Dynunet
