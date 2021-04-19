@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .ahnet import AHnet, Ahnet, ahnet, AHNet
+from .ahnet import AHnet, Ahnet, AHNet, ahnet
 from .autoencoder import AutoEncoder
 from .basic_unet import BasicUNet, BasicUnet, Basicunet, basicunet
 from .classifier import Classifier, Critic, Discriminator
@@ -38,38 +38,37 @@ from .highresnet import HighResBlock, HighResNet
 from .regressor import Regressor
 from .regunet import GlobalNet, LocalNet, RegUNet
 from .segresnet import SegResNet, SegResNetVAE
-from .senet import SENet, SENet154, SEResNet50, SEResNet101, SEResNet152, SEResNext50, SEResNext101
 from .senet import (
+    SENet,
     SEnet,
     Senet,
-    senet,
-    SENet,
+    SENet154,
     SEnet154,
     Senet154,
-    senet154,
-    SENet154,
+    SEResNet50,
     SEresnet50,
     Seresnet50,
-    seresnet50,
-    SEResNet50,
+    SEResNet101,
     SEresnet101,
     Seresnet101,
-    seresnet101,
-    SEResNet101,
+    SEResNet152,
     SEresnet152,
     Seresnet152,
-    seresnet152,
-    SEResNet152,
+    SEResNext50,
     SEResNeXt50,
     SEresnext50,
     Seresnext50,
-    seresnext50,
-    SEResNext50,
+    SEResNext101,
     SEResNeXt101,
     SEresnext101,
     Seresnext101,
+    senet,
+    senet154,
+    seresnet50,
+    seresnet101,
+    seresnet152,
+    seresnext50,
     seresnext101,
-    SEResNext101,
 )
 from .torchvision_fc import TorchVisionFullyConvModel
 from .unet import UNet, Unet, unet
