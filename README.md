@@ -19,7 +19,7 @@ Its ambitions are:
 
 ## Features
 > _The codebase is currently under active development._
-> _Please see [the technical highlights](https://docs.monai.io/en/latest/highlights.html) of the current milestone release._
+> _Please see [the technical highlights](https://docs.monai.io/en/latest/highlights.html) and [What's New](https://docs.monai.io/en/latest/whatsnew.html) of the current milestone release._
 
 - flexible pre-processing for multi-dimensional medical imaging data;
 - compositional & portable APIs for ease of integration in existing workflows;
@@ -62,3 +62,6 @@ Ask and answer questions over on [MONAI's GitHub Discussions tab](https://github
 - Issue tracker: https://github.com/Project-MONAI/MONAI/issues
 - Wiki: https://github.com/Project-MONAI/MONAI/wiki
 - Test status: https://github.com/Project-MONAI/MONAI/actions
+- PyPI package: https://pypi.org/project/monai/
+- Weekly previews: https://pypi.org/project/monai-weekly/
+- Docker Hub: https://hub.docker.com/r/projectmonai/monai

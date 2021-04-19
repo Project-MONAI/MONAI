@@ -13,9 +13,9 @@ from typing import Callable, Dict, Sequence, Union
 import torch
 
 from monai.engines import SupervisedEvaluator, SupervisedTrainer
-from monai.engines.utils import CommonKeys
 from monai.engines.workflow import Events
 from monai.transforms import Compose
+from monai.utils.enums import CommonKeys
 
 
 class Interaction:
