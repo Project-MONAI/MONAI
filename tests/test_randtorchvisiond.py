@@ -84,6 +84,5 @@ class TestRandTorchVisiond(unittest.TestCase):
         torch.testing.assert_allclose(result["img"], expected_value)
 
 
-
 if __name__ == "__main__":
     unittest.main()

@@ -976,7 +976,7 @@ class RandTorchVisiond(RandomizableTransform, MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.TorchVision` for randomized transoforms.
     For deterministic non-randomized transforms of TorchVision use :py:class:`monai.transforms.TorchVisiond`.
-    
+
     Note:
         As most of the TorchVision transforms only work for PIL image and PyTorch Tensor, this transform expects input
         data to be dict of PyTorch Tensors, users can easily call `ToTensord` transform to convert Numpy to Tensor.
