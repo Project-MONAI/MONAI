@@ -39,7 +39,7 @@ class ExtractStainsMacenko(Transform):
         """Perform Stain Deconvolution using the Macenko Method, and return stain matrix for the image.
 
         Args:
-            img: RGB image to perform stain deconvolution of
+            img: uint8 RGB image to perform stain deconvolution of
 
         Return:
             he: H&E absorbance matrix for the image (first column is H, second column is E, rows are RGB values)
@@ -78,7 +78,7 @@ class ExtractStainsMacenko(Transform):
         """Perform stain extraction.
 
         Args:
-            image: RGB image to extract stain from
+            image: uint8 RGB image to extract stain from
 
         return:
             target_he: H&E absorbance matrix for the image (first column is H, second column is E, rows are RGB values)
@@ -130,7 +130,7 @@ class NormalizeStainsMacenko(Transform):
         """Perform Stain Deconvolution using the Macenko Method, and return stain concentration.
 
         Args:
-            img: RGB image to perform stain deconvolution of
+            img: uint8 RGB image to perform stain deconvolution of
 
         Return:
             conc_norm: stain concentration matrix for the input image
@@ -179,7 +179,7 @@ class NormalizeStainsMacenko(Transform):
         """Perform stain normalization.
 
         Args:
-            image: RGB image/patch to stain normalize
+            image: uint8 RGB image/patch to stain normalize
 
         Return:
             image_norm: stain normalized image/patch
