@@ -13,7 +13,23 @@ from .ahnet import AHNet
 from .autoencoder import AutoEncoder
 from .basic_unet import BasicUNet, BasicUnet, Basicunet
 from .classifier import Classifier, Critic, Discriminator
-from .densenet import DenseNet, DenseNet121, DenseNet169, DenseNet201, DenseNet264
+from .densenet import (
+    DenseNet,
+    Densenet,
+    densenet,
+    DenseNet121,
+    Densenet121,
+    densenet121,
+    DenseNet169,
+    Densenet169,
+    densenet169,
+    DenseNet201,
+    Densenet201,
+    densenet201,
+    DenseNet264,
+    Densenet264,
+    densenet264,
+)
 from .dynunet import DynUNet, DynUnet, Dynunet
 from .efficientnet import EfficientNet, EfficientNetBN, drop_connect, get_efficientnet_image_size
 from .fullyconnectednet import FullyConnectedNet, VarFullyConnectedNet
