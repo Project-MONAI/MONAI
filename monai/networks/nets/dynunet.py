@@ -91,7 +91,7 @@ class DynUNet(nn.Module):
             (1, 2, 8, 6). The last two will be interpolated into (1, 2, 32, 24), and the stacked tensor
             will has the shape (1, 3, 2, 8, 6).
             When calculating the loss, you can use torch.unbind to get all feature maps can compute the loss
-            one by one with the groud truth, then do a weighted average for all losses to achieve the final loss.
+            one by one with the ground truth, then do a weighted average for all losses to achieve the final loss.
             (To be added: a corresponding tutorial link)
 
         deep_supr_num: number of feature maps that will output during deep supervision head. The
@@ -303,4 +303,4 @@ class DynUNet(nn.Module):
             nn.init.zeros_(module.bias)
 
 
-DynUnet = Dynunet = DynUNet
+DynUnet = Dynunet = dynunet = DynUNet
