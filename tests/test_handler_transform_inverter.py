@@ -100,6 +100,7 @@ class TestTransformInverter(unittest.TestCase):
             output_keys=["image", "label"],
             batch_keys="image",
             nearest_interp=[True, False],
+            post_func=[lambda x: x + 10, lambda x: x],
             postfix="inverted2",
             num_workers=0 if sys.platform == "darwin" or torch.cuda.is_available() else 2,
         ).attach(engine)
