@@ -25,9 +25,9 @@ limitations under the License.
 template<int warp_count, int load_count>
 __global__ void CovarianceReductionKernel(int gaussian_index, const float* g_image, const int* g_alpha, float* g_matrices, int element_count)
 {
-    __shared__ float s_matrix_component[warp_count];
+    constexpr int block_size = warp_count * 32;
 
-    const int block_size = warp_count << 5;
+    __shared__ float s_matrix_component[warp_count];
 
     int batch_index = blockIdx.z;
 
@@ -121,10 +121,12 @@ __global__ void CovarianceReductionKernel(int gaussian_index, const float* g_ima
     }
 }
 
-template<int block_size, bool invert_matrix>
+template<int warp_count, bool invert_matrix>
 __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_gmm, int matrix_count)
 {
-    __shared__ float s_matrix_component[block_size];
+    constexpr int block_size = warp_count * 32;
+
+    __shared__ float s_matrix_component[warp_count];
     __shared__ float s_gmm[GMM_COMPONENT_COUNT];
 
     int batch_index = blockIdx.z;
@@ -133,6 +135,8 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
     float* g_batch_gmm = g_gmm + batch_index * GMM_COUNT * GMM_COMPONENT_COUNT;
 
     int local_index = threadIdx.x;
+    int warp_index = local_index >> 5;
+    int lane_index = local_index & 31;
     int gmm_index = blockIdx.x;
     int matrix_offset = gmm_index * matrix_count;
     
@@ -156,24 +160,30 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
                 }
             }
 
-            s_matrix_component[local_index] = matrix_component; __syncthreads();
+            matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 16);
+            matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  8);
+            matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  4);
+            matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  2);
+            matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  1);
 
-            if (block_size >= 512) { if (local_index < 256) { s_matrix_component[local_index] += s_matrix_component[local_index + 256]; } __syncthreads(); }
-            if (block_size >= 256) { if (local_index < 128) { s_matrix_component[local_index] += s_matrix_component[local_index + 128]; } __syncthreads(); }
-            if (block_size >= 128) { if (local_index <  64) { s_matrix_component[local_index] += s_matrix_component[local_index +  64]; } __syncthreads(); }
-            if (block_size >=  64) { if (local_index <  32) { s_matrix_component[local_index] += s_matrix_component[local_index +  32]; } __syncthreads(); }
+            if (lane_index == 0)
+            {
+                s_matrix_component[warp_index] = matrix_component;
+            }
 
-            if (local_index <  32)
+            __syncthreads();
+
+            if (warp_index == 0)
             { 
-                matrix_component = s_matrix_component[local_index];
+                matrix_component = s_matrix_component[lane_index];
 
-                matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 16);
-                matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  8);
-                matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  4);
-                matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  2);
-                matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  1);
+                if (warp_count >= 32) { matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 16); }
+                if (warp_count >= 16) { matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  8); }
+                if (warp_count >=  8) { matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  4); }
+                if (warp_count >=  4) { matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  2); }
+                if (warp_count >=  2) { matrix_component += __shfl_down_sync(0xffffffff, matrix_component,  1); }
 
-                if (local_index == 0)
+                if (lane_index == 0)
                 {
                     float constant = i == 0 ? 0.0f : s_gmm[i] * s_gmm[j];
 
@@ -461,7 +471,7 @@ void GMMInitialize(const float *image, int *alpha, float *gmm, float *scratch_me
             CovarianceReductionKernel<WARPS, LOAD><<<{block_count, 1, batch_count}, BLOCK>>>(i, image, alpha, block_gmm_scratch, element_count);
         }
 
-        CovarianceFinalizationKernel<THREADS, false><<<{k, 1, batch_count}, THREADS>>>(block_gmm_scratch, gmm, block_count);
+        CovarianceFinalizationKernel<WARPS, false><<<{k, 1, batch_count}, BLOCK>>>(block_gmm_scratch, gmm, block_count);
 
         GMMFindSplit<<<{1, 1, batch_count}, dim3(BLOCK_SIZE, MIXTURE_COUNT)>>>(gmm_split_scratch, k / MIXTURE_COUNT, gmm);
         GMMDoSplit<<<{TILE(element_count, BLOCK_SIZE * DO_SPLIT_DEGENERACY), 1, batch_count}, BLOCK_SIZE>>>(gmm_split_scratch, (k / MIXTURE_COUNT) << 4, image, alpha, element_count);
@@ -481,7 +491,7 @@ void GMMUpdate(const float *image, int *alpha, float *gmm, float *scratch_mem, u
         CovarianceReductionKernel<WARPS, LOAD><<<{block_count, 1, batch_count}, BLOCK>>>(i, image, alpha, block_gmm_scratch, element_count);
     }
 
-    CovarianceFinalizationKernel<THREADS, true><<<{gmm_N, 1, batch_count}, THREADS>>>(block_gmm_scratch, gmm, block_count);
+    CovarianceFinalizationKernel<WARPS, true><<<{gmm_N, 1, batch_count}, BLOCK>>>(block_gmm_scratch, gmm, block_count);
 
     GMMcommonTerm<<<{1, 1, batch_count}, dim3(BLOCK_SIZE, MIXTURE_COUNT)>>>(gmm);
 }
