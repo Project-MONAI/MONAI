@@ -11,7 +11,7 @@
 
 import os
 import sys
-from typing import Any, Callable, Dict, List, Optional, Sequence, Union
+from typing import Callable, Dict, List, Optional, Sequence, Union
 
 import numpy as np
 
@@ -98,8 +98,8 @@ class MedNISTDataset(Randomizable, CacheDataset):
             self, data, transform, cache_num=cache_num, cache_rate=cache_rate, num_workers=num_workers
         )
 
-    def randomize(self, data: Optional[Any] = None) -> None:
-        self.rann = self.R.random()
+    def randomize(self, data: List[int]) -> None:
+        self.R.shuffle(data)
 
     def get_num_classes(self) -> int:
         """Get number of classes."""
@@ -132,22 +132,26 @@ class MedNISTDataset(Randomizable, CacheDataset):
 
         data = []
 
-        for i in range(num_total):
-            self.randomize()
-            if self.section == "training":
-                if self.rann < self.val_frac + self.test_frac:
-                    continue
-            elif self.section == "validation":
-                if self.rann >= self.val_frac:
-                    continue
-            elif self.section == "test":
-                if self.rann < self.val_frac or self.rann >= self.val_frac + self.test_frac:
-                    continue
-            else:
-                raise ValueError(
-                    f'Unsupported section: {self.section}, available options are ["training", "validation", "test"].'
-                )
+        length = len(image_files_list)
+        indices = np.arange(length)
+        self.randomize(indices)
+
+        test_length = int(length * self.test_frac)
+        val_length = int(length * self.val_frac)
+        if self.section == "test":
+            section_indices = indices[:test_length]
+        elif self.section == "validation":
+            section_indices = indices[test_length : test_length + val_length]
+        elif self.section == "training":
+            section_indices = indices[test_length + val_length :]
+        else:
+            raise ValueError(
+                f'Unsupported section: {self.section}, available options are ["training", "validation", "test"].'
+            )
+
+        for i in section_indices:
             data.append({"image": image_files_list[i], "label": image_class[i], "class_name": class_name[i]})
+
         return data
 
 
