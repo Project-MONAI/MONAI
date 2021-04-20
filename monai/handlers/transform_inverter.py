@@ -45,6 +45,7 @@ class TransformInverter:
         collate_fn: Optional[Callable] = no_collation,
         postfix: str = "inverted",
         nearest_interp: Union[bool, Sequence[bool]] = True,
+        post_func: Union[Callable, Sequence[Callable]] = lambda x: x,
         num_workers: Optional[int] = 0,
     ) -> None:
         """
@@ -66,6 +67,8 @@ class TransformInverter:
             nearest_interp: whether to use `nearest` interpolation mode when inverting the spatial transforms,
                 default to `True`. If `False`, use the same interpolation mode as the original transform.
                 it also can be a list of bool, each matches to the `output_keys` data.
+            post_func: post processing for the inverted data, should be a callable function.
+                it also can be a list of callable, each matches to the `output_keys` data.
             num_workers: number of workers when run data loader for inverse transforms,
                 default to 0 as only run one iteration and multi-processing may be even slower.
                 Set to `None`, to use the `num_workers` of the input transform data loader.
@@ -83,6 +86,7 @@ class TransformInverter:
         self.meta_key_postfix = meta_key_postfix
         self.postfix = postfix
         self.nearest_interp = ensure_tuple_rep(nearest_interp, len(self.output_keys))
+        self.post_func = ensure_tuple_rep(post_func, len(self.output_keys))
         self._totensor = ToTensor()
 
     def attach(self, engine: Engine) -> None:
@@ -97,7 +101,9 @@ class TransformInverter:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        for output_key, batch_key, nearest_interp in zip(self.output_keys, self.batch_keys, self.nearest_interp):
+        for output_key, batch_key, nearest_interp, post_funct in zip(
+            self.output_keys, self.batch_keys, self.nearest_interp, self.post_func
+        ):
             transform_key = batch_key + InverseKeys.KEY_SUFFIX
             if transform_key not in engine.state.batch:
                 warnings.warn(f"all the transforms on `{batch_key}` are not InvertibleTransform.")
@@ -121,4 +127,6 @@ class TransformInverter:
 
             with allow_missing_keys_mode(self.transform):  # type: ignore
                 inverted_key = f"{output_key}_{self.postfix}"
-                engine.state.output[inverted_key] = [self._totensor(i[batch_key]) for i in self.inverter(segs_dict)]
+                engine.state.output[inverted_key] = [
+                    post_funct(self._totensor(i[batch_key])) for i in self.inverter(segs_dict)
+                ]
