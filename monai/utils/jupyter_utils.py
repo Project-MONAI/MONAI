@@ -320,7 +320,7 @@ class ThreadContainer(Thread):
         """Returns a status string for the current state of the engine."""
         stats = self.status_dict
 
-        msgs = [stats.pop(StatusMembers.STATUS.value), "Iters: " + str(stats.pop(StatusMembers.ITERS.value))]
+        msgs = [stats.pop(StatusMembers.STATUS.value), "Iters: " + str(stats.pop(StatusMembers.ITERS.value, 0))]
 
         for key, val in stats.items():
             if isinstance(val, float):
