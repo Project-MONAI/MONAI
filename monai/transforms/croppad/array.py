@@ -214,8 +214,11 @@ class SpatialCrop(Transform):
     """
     General purpose cropper to produce sub-volume region of interest (ROI).
     It can support to crop ND spatial (channel-first) data.
-    Either a spatial center and size must be provided, or alternatively,
-    if center and size are not provided, the start and end coordinates of the ROI must be provided.
+
+    The cropped region can be parameterised in various ways:
+        - a list of slices for each spatial dimension (allows for use of -ve indexing and `None`)
+        - a spatial center and size
+        - the start and end coordinates of the ROI
     """
 
     def __init__(
@@ -224,6 +227,7 @@ class SpatialCrop(Transform):
         roi_size: Union[Sequence[int], np.ndarray, None] = None,
         roi_start: Union[Sequence[int], np.ndarray, None] = None,
         roi_end: Union[Sequence[int], np.ndarray, None] = None,
+        roi_slices: Optional[Sequence[slice]] = None,
     ) -> None:
         """
         Args:
@@ -231,28 +235,36 @@ class SpatialCrop(Transform):
             roi_size: size of the crop ROI.
             roi_start: voxel coordinates for start of the crop ROI.
             roi_end: voxel coordinates for end of the crop ROI.
+            roi_slices: list of slices for each of the spatial dimensions.
         """
-        if roi_center is not None and roi_size is not None:
-            roi_center = np.asarray(roi_center, dtype=np.int16)
-            roi_size = np.asarray(roi_size, dtype=np.int16)
-            self.roi_start = np.maximum(roi_center - np.floor_divide(roi_size, 2), 0)
-            self.roi_end = np.maximum(self.roi_start + roi_size, self.roi_start)
+        if roi_slices:
+            if not all(s.step is None or s.step == 1 for s in roi_slices):
+                raise ValueError("Only slice steps of 1/None are currently supported")
+            self.slices = list(roi_slices)
         else:
-            if roi_start is None or roi_end is None:
-                raise ValueError("Please specify either roi_center, roi_size or roi_start, roi_end.")
-            self.roi_start = np.maximum(np.asarray(roi_start, dtype=np.int16), 0)
-            self.roi_end = np.maximum(np.asarray(roi_end, dtype=np.int16), self.roi_start)
-        # Allow for 1D by converting back to np.array (since np.maximum will convert to int)
-        self.roi_start = self.roi_start if isinstance(self.roi_start, np.ndarray) else np.array([self.roi_start])
-        self.roi_end = self.roi_end if isinstance(self.roi_end, np.ndarray) else np.array([self.roi_end])
+            if roi_center is not None and roi_size is not None:
+                roi_center = np.asarray(roi_center, dtype=np.int16)
+                roi_size = np.asarray(roi_size, dtype=np.int16)
+                roi_start_np = np.maximum(roi_center - np.floor_divide(roi_size, 2), 0)
+                roi_end_np = np.maximum(roi_start_np + roi_size, roi_start_np)
+            else:
+                if roi_start is None or roi_end is None:
+                    raise ValueError("Please specify either roi_center, roi_size or roi_start, roi_end.")
+                roi_start_np = np.maximum(np.asarray(roi_start, dtype=np.int16), 0)
+                roi_end_np = np.maximum(np.asarray(roi_end, dtype=np.int16), roi_start_np)
+            # Allow for 1D by converting back to np.array (since np.maximum will convert to int)
+            roi_start_np = roi_start_np if isinstance(roi_start_np, np.ndarray) else np.array([roi_start_np])
+            roi_end_np = roi_end_np if isinstance(roi_end_np, np.ndarray) else np.array([roi_end_np])
+            # convert to slices
+            self.slices = [slice(s, e) for s, e in zip(roi_start_np, roi_end_np)]
 
     def __call__(self, img: Union[np.ndarray, torch.Tensor]):
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
         """
-        sd = min(self.roi_start.size, self.roi_end.size, len(img.shape[1:]))  # spatial dims
-        slices = [slice(None)] + [slice(s, e) for s, e in zip(self.roi_start[:sd], self.roi_end[:sd])]
+        sd = min(len(self.slices), len(img.shape[1:]))  # spatial dims
+        slices = [slice(None)] + self.slices[:sd]
         return img[tuple(slices)]
 
 

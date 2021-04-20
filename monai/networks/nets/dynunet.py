@@ -303,4 +303,4 @@ class DynUNet(nn.Module):
             nn.init.zeros_(module.bias)
 
 
-DynUnet = Dynunet = DynUNet
+DynUnet = Dynunet = dynunet = DynUNet

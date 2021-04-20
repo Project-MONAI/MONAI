@@ -331,7 +331,7 @@ def generate_pos_neg_label_crop_centers(
     """
     spatial_size = fall_back_tuple(spatial_size, default=label_spatial_shape)
     if not (np.subtract(label_spatial_shape, spatial_size) >= 0).all():
-        raise ValueError("The proposed roi is larger than the image.")
+        raise ValueError("The size of the proposed random crop ROI is larger than the image size.")
 
     # Select subregion to assure valid roi
     valid_start = np.floor_divide(spatial_size, 2)
@@ -800,3 +800,4 @@ def convert_inverse_interp_mode(trans_info: List, mode: str = "nearest", align_c
                     item[InverseKeys.EXTRA_INFO]["align_corners"] = [align_corners_ for _ in range(len(mode))]
                 else:
                     item[InverseKeys.EXTRA_INFO]["align_corners"] = align_corners_
+    return trans_info
