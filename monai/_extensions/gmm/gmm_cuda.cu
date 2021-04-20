@@ -230,34 +230,6 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
     }
 }
 
-// Single block, 32xMIXTURE_COUNT
-__global__ void GMMcommonTerm(float *g_gmm)
-{
-    int batch_index = blockIdx.z;
-
-    float* g_batch_gmm = g_gmm + batch_index * GMM_COUNT * GMM_COMPONENT_COUNT;
-
-    int gmm_index = (threadIdx.x * MIXTURE_COUNT) + threadIdx.y;
-
-    float gmm_n = threadIdx.x < MIXTURE_SIZE ? g_batch_gmm[gmm_index * GMM_COMPONENT_COUNT] : 0.0f;
-
-    float sum = gmm_n;
-
-    sum += __shfl_down_sync(0xffffffff, sum, 16);
-    sum += __shfl_down_sync(0xffffffff, sum,  8);
-    sum += __shfl_down_sync(0xffffffff, sum,  4);
-    sum += __shfl_down_sync(0xffffffff, sum,  2);
-    sum += __shfl_down_sync(0xffffffff, sum,  1);
-
-    if (threadIdx.x < MIXTURE_SIZE)
-    {
-        float det = g_batch_gmm[gmm_index * GMM_COMPONENT_COUNT + MATRIX_COMPONENT_COUNT] + EPSILON;
-        float commonTerm = det > 0.0f ? gmm_n / (sqrtf(det) * sum) : gmm_n / sum;
-
-        g_batch_gmm[gmm_index * GMM_COMPONENT_COUNT + MATRIX_COMPONENT_COUNT] = commonTerm;
-    }
-}
-
 struct GMMSplit_t
 {
     int idx;
@@ -367,6 +339,34 @@ __global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, const float *image
                 }
             }
         }
+    }
+}
+
+// Single block, 32xMIXTURE_COUNT
+__global__ void GMMcommonTerm(float *g_gmm)
+{
+    int batch_index = blockIdx.z;
+
+    float* g_batch_gmm = g_gmm + batch_index * GMM_COUNT * GMM_COMPONENT_COUNT;
+
+    int gmm_index = (threadIdx.x * MIXTURE_COUNT) + threadIdx.y;
+
+    float gmm_n = threadIdx.x < MIXTURE_SIZE ? g_batch_gmm[gmm_index * GMM_COMPONENT_COUNT] : 0.0f;
+
+    float sum = gmm_n;
+
+    sum += __shfl_xor_sync(0xffffffff, sum,  1);
+    sum += __shfl_xor_sync(0xffffffff, sum,  2);
+    sum += __shfl_xor_sync(0xffffffff, sum,  4);
+    sum += __shfl_xor_sync(0xffffffff, sum,  8);
+    sum += __shfl_xor_sync(0xffffffff, sum, 16);
+
+    if (threadIdx.x < MIXTURE_SIZE)
+    {
+        float det = g_batch_gmm[gmm_index * GMM_COMPONENT_COUNT + MATRIX_COMPONENT_COUNT] + EPSILON;
+        float commonTerm = det > 0.0f ? gmm_n / (sqrtf(det) * sum) : gmm_n / sum;
+
+        g_batch_gmm[gmm_index * GMM_COMPONENT_COUNT + MATRIX_COMPONENT_COUNT] = commonTerm;
     }
 }
 
