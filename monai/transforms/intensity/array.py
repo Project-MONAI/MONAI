@@ -28,6 +28,7 @@ from monai.utils import PT_BEFORE_1_7, InvalidPyTorchVersionError, dtype_torch_t
 
 __all__ = [
     "RandGaussianNoise",
+    "RandRicianNoise",
     "ShiftIntensity",
     "RandShiftIntensity",
     "StdShiftIntensity",
@@ -83,6 +84,94 @@ class RandGaussianNoise(RandomizableTransform):
             return img
         dtype = dtype_torch_to_numpy(img.dtype) if isinstance(img, torch.Tensor) else img.dtype
         return img + self._noise.astype(dtype)
+
+
+class RandRicianNoise(RandomizableTransform):
+    """
+    Add Rician noise to image.
+
+    Args:
+        prob: Probability to add Rician noise.
+        mean: Mean or "centre" of the Gaussian distributions sampled to make up
+            the Rician noise.
+        std: Standard deviation (spread) of the Gaussian distributions sampled
+            to make up the Rician noise.
+        channel_wise: If True, treats each channel of the image separately.
+        relative: If True, the spread of the sampled Gaussian distributions will
+            be std times the standard deviation of the image or channel's intensity
+            histogram.
+        sample_std: If True, sample the spread of the Gaussian distributions
+            uniformly from 0 to std.
+    """
+    def __init__(
+        self,
+        prob: float = 0.1,
+        mean: Union[Sequence[float], float] = 0.0,
+        std: Union[Sequence[float], float] = 1.0,
+        channel_wise: bool = False,
+        relative: bool = False,
+        sample_std: bool = True,
+    ) -> None:
+        RandomizableTransform.__init__(self, prob)
+        self.prob = prob
+        self.mean = mean
+        self.std = std
+        self.channel_wise = channel_wise
+        self.relative = relative
+        self.sample_std = sample_std
+        self._noise1 = None
+        self._noise2 = None
+
+    def _add_noise(
+        self,
+        img: Union[torch.Tensor, np.ndarray],
+        mean: float,
+        std: float
+    ) -> Union[torch.Tensor, np.ndarray]:
+        im_shape = img.shape
+        _std = self.R.uniform(0, std) if self.sample_std else std
+        self._noise1 = self.R.normal(mean, _std, size=im_shape)
+        self._noise2 = self.R.normal(mean, _std, size=im_shape)
+        dtype = dtype_torch_to_numpy(img.dtype) if isinstance(img, torch.Tensor) else img.dtype
+        return np.sqrt((img + self._noise1.astype(dtype))**2 + self._noise2.astype(dtype)**2)
+
+    def __call__(self, img: Union[torch.Tensor, np.ndarray]) -> Union[torch.Tensor, np.ndarray]:
+        """
+        Apply the transform to `img`.
+        """
+        super().randomize(None)
+        if not self._do_transform:
+            return img
+        if self.channel_wise:
+            if isinstance(self.mean, Iterable) and len(self.mean) != len(img):
+                raise ValueError(f"img has {len(img)} channels, but mean has {len(self.mean)} components.")
+            elif isinstance(self.mean, (int, float)):
+                _mean = (self.mean,)*len(img)
+            else:
+                _mean = self.mean
+            if isinstance(self.std, Iterable) and len(self.std) != len(img):
+                raise ValueError(f"img has {len(img)} channels, but std has {len(self.std)} components.")
+            elif isinstance(self.std, (int, float)):
+                _std = (self.std,)*len(img)
+            else:
+                _std = self.std
+            for i, d in enumerate(img):
+                img[i] = self._add_noise(
+                    d,
+                    mean=_mean[i],
+                    std=_std[i]*d.std() if self.relative else _std[i]
+                )
+        else:
+            if not isinstance(self.mean, (int, float)):
+                raise AssertionError("If channel_wise is False, mean must be a float or int number.")
+            if not isinstance(self.std, (int, float)):
+                raise AssertionError("If channel_wise is False, std must be a float or int number.")
+            img = self._add_noise(
+                img,
+                mean=self.mean,
+                std=self.std*img.std() if self.relative else self.std
+            )
+        return img
 
 
 class ShiftIntensity(Transform):

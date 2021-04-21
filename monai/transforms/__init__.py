@@ -78,6 +78,7 @@ from .intensity.array import (
     RandGaussianSharpen,
     RandGaussianSmooth,
     RandHistogramShift,
+    RandRicianNoise,
     RandScaleIntensity,
     RandShiftIntensity,
     RandStdShiftIntensity,
