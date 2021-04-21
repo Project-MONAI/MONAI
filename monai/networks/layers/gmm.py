@@ -15,12 +15,11 @@ from monai._extensions.loader import load_module
 
 __all__ = ["GaussianMixtureModel"]
 
-
-class GaussianMixtureModel(torch.nn.Module):
+class GaussianMixtureModel():
     """
     Takes an initial labeling and uses a mixture of gaussians to approximate each classes
     distribution in the feature space. Each unlabled element is then asigned a probability
-    of belonging to each class based on it's fit to each classes approximate distribution.
+    of belonging to each class based on it's fit to each classes approximated distribution.
 
     See:
         https://en.wikipedia.org/wiki/Mixture_model
@@ -33,16 +32,24 @@ class GaussianMixtureModel(torch.nn.Module):
             mixture_count (int): The number of class distibutions.
             mixture_size (int): The number gaussian components per class distribution.
         """
-        super(GaussianMixtureModel, self).__init__()
-        self.compiled_extention = load_module(
-            "gmm", {"CHANNEL_COUNT": channel_count, "MIXTURE_COUNT": mixture_count, "MIXTURE_SIZE": mixture_size}
-        )
         self.channel_count = channel_count
         self.mixture_count = mixture_count
         self.mixture_size = mixture_size
+        self.compiled_extention = load_module(
+            "gmm", {"CHANNEL_COUNT": channel_count, "MIXTURE_COUNT": mixture_count, "MIXTURE_SIZE": mixture_size}
+        )
+        self.params, self.scratch = self.compiled_extention.init()
 
-    def forward(self, features, initial_labels):
+    def reset(self):
         """
+        Resets the parameters of the model.
+        """
+        self.params, self.scratch = self.compiled_extention.init()
+
+    def learn(self, features, labels):
+        """
+        Learns the distribution of each class from provided labels.
+
         Args:
             features (torch.Tensor): features for each element.
             initial_labels (torch.Tensor): initial labeling for each element.
@@ -50,15 +57,34 @@ class GaussianMixtureModel(torch.nn.Module):
         Returns:
             output_logits (torch.Tensor): class assignment probabilities for each element.
         """
-        assert features.size(1) == self.channel_count
-        return _GmmFunc.apply(features, initial_labels, self.compiled_extention)
+        self.compiled_extention.learn(self.params, self.scratch, features, labels)
+
+    def apply(self, features):
+        """
+        Applys the current model to a set of feature vectors.
+
+        Args:
+            features (torch.Tensor): feature vectors for each element.
+
+        Returns:
+            output (torch.Tensor): class assignment probabilities for each element.
+        """
+        return self.compiled_extention.apply(self.params, features)
 
 
-class _GmmFunc(torch.autograd.Function):
+class _LearnFunc(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, compiled_extention, params, scratch, features, labels, learn_rate):
+        return compiled_extention.learn(params, scratch, features, labels, learn_rate)
+    @staticmethod
+    def backward(ctx, grad_output):
+        raise NotImplementedError("GMM does not currently support backpropagation")
+
+
+class _ApplyFunc(torch.autograd.Function):
     @staticmethod
     def forward(ctx, features, initial_labels, compiled_extention):
         return compiled_extention.gmm(features, initial_labels)
-
     @staticmethod
     def backward(ctx, grad_output):
         raise NotImplementedError("GMM does not currently support backpropagation")

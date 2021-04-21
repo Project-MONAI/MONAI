@@ -504,21 +504,18 @@ void GMMDataTerm(const float *image, const float *gmm, float* output, unsigned i
     GMMDataTermKernel<<<grid, block>>>(image, gmm, output, element_count);
 }
 
-void GMM_Cuda(const float* input, const int* labels, float* output, unsigned int batch_count, unsigned int element_count)
+void learn_cuda(const float* input, const int* labels, float* gmm, float* scratch_memory, unsigned int batch_count, unsigned int element_count)
 {
-    float* scratch_mem = output;
-    float* gmm; 
-    int* alpha;
-
-    cudaMalloc(&gmm, batch_count * GMM_COUNT * GMM_COMPONENT_COUNT * sizeof(float));
-    cudaMalloc(&alpha, batch_count * element_count * sizeof(int));
+    int* alpha = (int*)scratch_memory;
+    float* scratch_mem = scratch_memory + batch_count * element_count;
 
     cudaMemcpyAsync(alpha, labels, batch_count * element_count * sizeof(int), cudaMemcpyDeviceToDevice);
     
     GMMInitialize(input, alpha, gmm, scratch_mem, batch_count, element_count);
     GMMUpdate(input, alpha, gmm, scratch_mem, batch_count, element_count);
-    GMMDataTerm(input, gmm, output, batch_count, element_count);
+}
 
-    cudaFree(alpha);
-    cudaFree(gmm);
+void apply_cuda(const float* gmm, const float* input, float* output, unsigned int batch_count, unsigned int element_count)
+{
+    GMMDataTerm(input, gmm, output, batch_count, element_count);
 }
