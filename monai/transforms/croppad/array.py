@@ -446,15 +446,15 @@ class CropForeground(Transform):
 
         """
         box_start, box_end = generate_spatial_bounding_box(img, self.select_fn, self.channel_indices, self.margin)
-        box_start = np.asarray(box_start, dtype=np.int16)
-        box_end = np.asarray(box_end, dtype=np.int16)
-        orig_spatial_size = box_end - box_start  # type: ignore
+        box_start_ = np.asarray(box_start, dtype=np.int16)
+        box_end_ = np.asarray(box_end, dtype=np.int16)
+        orig_spatial_size = box_end_ - box_start_
         # make the spatial size divisible by `k`
         spatial_size = np.asarray(compute_divisible_spatial_size(spatial_shape=orig_spatial_size, k=self.k_divisible))
         # update box_start and box_end
-        box_start = box_start - np.floor_divide(np.asarray(spatial_size) - orig_spatial_size, 2)
-        box_end = box_start + spatial_size
-        return box_start, box_end
+        box_start_ = box_start_ - np.floor_divide(np.asarray(spatial_size) - orig_spatial_size, 2)
+        box_end_ = box_start_ + spatial_size
+        return box_start_, box_end_
 
     def crop_pad(self, img: np.ndarray, box_start: np.ndarray, box_end: np.ndarray):
         """
