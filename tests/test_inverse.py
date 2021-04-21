@@ -228,7 +228,7 @@ TESTS.append(
 
 TESTS.append(("CropForegroundd 2d", "2D", 0, CropForegroundd(KEYS, source_key="label", margin=2)))
 
-TESTS.append(("CropForegroundd 3d", "3D", 0, CropForegroundd(KEYS, source_key="label")))
+TESTS.append(("CropForegroundd 3d", "3D", 0, CropForegroundd(KEYS, source_key="label", k_divisible=[5, 101, 2])))
 
 
 TESTS.append(("ResizeWithPadOrCropd 3d", "3D", 0, ResizeWithPadOrCropd(KEYS, [201, 150, 105])))

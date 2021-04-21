@@ -801,3 +801,23 @@ def convert_inverse_interp_mode(trans_info: List, mode: str = "nearest", align_c
                 else:
                     item[InverseKeys.EXTRA_INFO]["align_corners"] = align_corners_
     return trans_info
+
+
+def compute_divisible_spatial_size(spatial_shape: Sequence[int], k: Union[Sequence[int], int]):
+    """
+    Compute the target spatial size which should be divisible by `k`.
+
+    Args:
+        spatial_shape: original spatial shape.
+        k: the target k for each spatial dimension.
+            if `k` is negative or 0, the original size is preserved.
+            if `k` is an int, the same `k` be applied to all the input spatial dimensions.
+
+    """
+    k = fall_back_tuple(k, (1,) * len(spatial_shape))
+    new_size = []
+    for k_d, dim in zip(k, spatial_shape):
+        new_dim = int(np.ceil(dim / k_d) * k_d) if k_d > 0 else dim
+        new_size.append(new_dim)
+
+    return new_size
