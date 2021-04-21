@@ -20,6 +20,11 @@ Blocks
 .. autoclass:: Convolution
     :members:
 
+`CRF`
+~~~~~~~~~~~~~
+.. autoclass:: CRF
+    :members:
+
 `ResidualUnit`
 ~~~~~~~~~~~~~~
 .. autoclass:: ResidualUnit
@@ -28,6 +33,11 @@ Blocks
 `Swish`
 ~~~~~~~
 .. autoclass:: Swish
+    :members:
+
+`MemoryEfficientSwish`
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: MemoryEfficientSwish
     :members:
 
 `Mish`
@@ -94,7 +104,7 @@ Blocks
 .. autoclass:: SEResNetBottleneck
     :members:
 
-`Squeeze-and-Excitation ResneXt Bottleneck`
+`Squeeze-and-Excitation ResNeXt Bottleneck`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: SEResNeXtBottleneck
     :members:
@@ -118,6 +128,21 @@ Blocks
     :members:
 .. autoclass:: Subpixelupsample
 .. autoclass:: SubpixelUpSample
+
+`Registration Residual Conv Block`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: RegistrationResidualConvBlock
+    :members:
+
+`Registration Down Sample Block`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: RegistrationDownSampleBlock
+    :members:
+
+`Registration Extraction Block`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: RegistrationExtractionBlock
+    :members:
 
 `LocalNet DownSample Block`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -271,10 +296,11 @@ Nets
 ~~~~~~~~~~
 .. autoclass:: DenseNet
   :members:
-.. autofunction:: densenet121
-.. autofunction:: densenet169
-.. autofunction:: densenet201
-.. autofunction:: densenet264
+
+`EfficientNet`
+~~~~~~~~~~~~~~
+.. autoclass:: EfficientNet
+  :members:
 
 `SegResNet`
 ~~~~~~~~~~~
@@ -290,12 +316,6 @@ Nets
 ~~~~~~~
 .. autoclass:: SENet
   :members:
-.. autofunction:: senet154
-.. autofunction:: se_resnet50
-.. autofunction:: se_resnet101
-.. autofunction:: se_resnet152
-.. autofunction:: se_resnext50_32x4d
-.. autofunction:: se_resnext101_32x4d
 
 `HighResNet`
 ~~~~~~~~~~~~
@@ -328,6 +348,16 @@ Nets
 `VNet`
 ~~~~~~
 .. autoclass:: VNet
+  :members:
+
+`RegUNet`
+~~~~~~~~~~
+.. autoclass:: RegUNet
+  :members:
+
+`GlobalNet`
+~~~~~~~~~~~~
+.. autoclass:: GlobalNet
   :members:
 
 `LocalNet`
@@ -373,6 +403,11 @@ Nets
 `Critic`
 ~~~~~~~~
 .. autoclass:: Critic
+  :members:
+
+`TorchVisionFullyConvModel`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TorchVisionFullyConvModel
   :members:
 
 Utilities

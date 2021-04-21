@@ -5,6 +5,87 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.5.0] - 2020-04-09
+### Added
+* Overview document for [feature highlights in v0.5.0](https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md)
+* Invertible spatial transforms
+  * `InvertibleTransform` base APIs
+  * Batch inverse and decollating APIs
+  * Inverse of `Compose`
+  * Batch inverse event handling
+  * Test-time augmentation as an application
+* Initial support of learning-based image registration:
+  * Bending energy, LNCC, and global mutual information loss
+  * Fully convolutional architectures
+  * Dense displacement field, dense velocity field computation
+  * Warping with high-order interpolation with C++/CUDA implementations
+* Deepgrow modules for interactive segmentation:
+  * Workflows with simulations of clicks
+  * Distance-based transforms for guidance signals
+* Digital pathology support:
+  * Efficient whole slide imaging IO and sampling with Nvidia cuCIM and SmartCache
+  * FROC measurements for lesion
+  * Probabilistic post-processing for lesion detection
+  * TorchVision classification model adaptor for fully convolutional analysis
+* 12 new transforms, grid patch dataset, `ThreadDataLoader`, EfficientNets B0-B7
+* 4 iteration events for the engine for finer control of workflows
+* New C++/CUDA extensions:
+  * Conditional random field
+  * Fast bilateral filtering using the permutohedral lattice
+* Metrics summary reporting and saving APIs
+* DiceCELoss, DiceFocalLoss, a multi-scale wrapper for segmentation loss computation
+* Data loading utilities：
+  * `decollate_batch`
+  * `PadListDataCollate` with inverse support
+* Support of slicing syntax for `Dataset`
+* Initial Torchscript support for the loss modules
+* Learning rate finder
+* Allow for missing keys in the dictionary-based transforms
+* Support of checkpoint loading for transfer learning
+* Various summary and plotting utilities for Jupyter notebooks
+* Contributor Covenant Code of Conduct
+* Major CI/CD enhancements covering the tutorial repository
+* Fully compatible with PyTorch 1.8
+* Initial nightly CI/CD pipelines using Nvidia Blossom Infrastructure
+
+### Changed
+* Enhanced `list_data_collate` error handling
+* Unified iteration metric APIs
+* `densenet*` extensions are renamed to `DenseNet*`
+* `se_res*` network extensions are renamed to `SERes*`
+* Transform base APIs are rearranged into `compose`, `inverse`, and `transform`
+* `_do_transform` flag for the random augmentations is unified via `RandomizableTransform`
+* Decoupled post-processing steps, e.g. `softmax`, `to_onehot_y`, from the metrics computations
+* Moved the distributed samplers to `monai.data.samplers` from `monai.data.utils`
+* Engine's data loaders now accept generic iterables as input
+* Workflows now accept additional custom events and state properties
+* Various type hints according to Numpy 1.20
+* Refactored testing utility `runtests.sh` to have `--unittest` and `--net` (integration tests) options
+* Base Docker image upgraded to `nvcr.io/nvidia/pytorch:21.02-py3` from `nvcr.io/nvidia/pytorch:20.10-py3`
+* Docker images are now built with self-hosted environments
+* Primary contact email updated to `monai.contact@gmail.com`
+* Now using GitHub Discussions as the primary communication forum
+
+### Removed
+* Compatibility tests for PyTorch 1.5.x
+* Format specific loaders, e.g. `LoadNifti`, `NiftiDataset`
+* Assert statements from non-test files
+* `from module import *` statements, addressed flake8 F403
+
+### Fixed
+* Uses American English spelling for code, as per PyTorch
+* Code coverage now takes multiprocessing runs into account
+* SmartCache with initial shuffling
+* `ConvertToMultiChannelBasedOnBratsClasses` now supports channel-first inputs
+* Checkpoint handler to save with non-root permissions
+* Fixed an issue for exiting the distributed unit tests
+* Unified `DynUNet` to have single tensor output w/o deep supervision
+* `SegmentationSaver` now supports user-specified data types and a `squeeze_end_dims` flag
+* Fixed `*Saver` event handlers output filenames with a `data_root_dir` option
+* Load image functions now ensure little-endian
+* Fixed the test runner to support regex-based test case matching
+* Usability issues in the event handlers
+
 ## [0.4.0] - 2020-12-15
 ### Added
 * Overview document for [feature highlights in v0.4.0](https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md)
@@ -173,7 +254,8 @@ the postprocessing steps should be used before calling the metrics methods
 
 [highlights]: https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md
 
-[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/0.4.0...HEAD
+[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/0.5.0...HEAD
+[0.5.0]: https://github.com/Project-MONAI/MONAI/compare/0.4.0...0.5.0
 [0.4.0]: https://github.com/Project-MONAI/MONAI/compare/0.3.0...0.4.0
 [0.3.0]: https://github.com/Project-MONAI/MONAI/compare/0.2.0...0.3.0
 [0.2.0]: https://github.com/Project-MONAI/MONAI/compare/0.1.0...0.2.0
