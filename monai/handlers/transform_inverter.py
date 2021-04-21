@@ -33,7 +33,7 @@ class TransformInverter:
     """
     Ignite handler to automatically invert `transforms`.
     It takes `engine.state.output` as the input data and uses the transforms information from `engine.state.batch`.
-    The outputs are stored in `engine.state.output` with key: "{output_key}_{postfix}".
+    The inverted results are stored in `engine.state.output` with key: "{output_key}_{postfix}".
     """
 
     def __init__(
@@ -127,8 +127,9 @@ class TransformInverter:
                     align_corners=None,
                 )
 
+            target_data = engine.state.output[output_key]
             segs_dict = {
-                batch_key: engine.state.output[output_key].detach().cpu(),
+                batch_key: target_data.detach().cpu() if isinstance(target_data, torch.Tensor) else target_data,
                 transform_key: transform_info,
             }
             meta_dict_key = f"{batch_key}_{self.meta_key_postfix}"

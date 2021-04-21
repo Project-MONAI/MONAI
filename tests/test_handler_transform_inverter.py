@@ -60,8 +60,8 @@ class TestTransformInverter(unittest.TestCase):
                 RandRotated(KEYS, prob=0.5, range_x=np.pi, mode="bilinear", align_corners=True),
                 RandAffined(KEYS, prob=0.5, rotate_range=np.pi, mode="nearest"),
                 ResizeWithPadOrCropd(KEYS, 100),
-                ToTensord(KEYS),
-                CastToTyped(KEYS, dtype=torch.uint8),
+                ToTensord("image"),  # test to support both Tensor and Numpy array when inverting
+                CastToTyped(KEYS, dtype=[torch.uint8, np.uint8]),
             ]
         )
         data = [{"image": im_fname, "label": seg_fname} for _ in range(12)]
