@@ -24,7 +24,7 @@ from monai.config import DtypeLike
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
 from monai.transforms.transform import RandomizableTransform, Transform
 from monai.transforms.utils import rescale_array
-from monai.utils import PT_BEFORE_1_7, InvalidPyTorchVersionError, dtype_torch_to_numpy, ensure_tuple_size
+from monai.utils import PT_BEFORE_1_7, InvalidPyTorchVersionError, dtype_torch_to_numpy, ensure_tuple_rep, ensure_tuple_size
 
 __all__ = [
     "RandGaussianNoise",
@@ -143,18 +143,8 @@ class RandRicianNoise(RandomizableTransform):
         if not self._do_transform:
             return img
         if self.channel_wise:
-            if isinstance(self.mean, Iterable) and len(self.mean) != len(img):
-                raise ValueError(f"img has {len(img)} channels, but mean has {len(self.mean)} components.")
-            elif isinstance(self.mean, (int, float)):
-                _mean = (self.mean,)*len(img)
-            else:
-                _mean = self.mean
-            if isinstance(self.std, Iterable) and len(self.std) != len(img):
-                raise ValueError(f"img has {len(img)} channels, but std has {len(self.std)} components.")
-            elif isinstance(self.std, (int, float)):
-                _std = (self.std,)*len(img)
-            else:
-                _std = self.std
+            _mean = ensure_tuple_rep(self.mean, len(img))
+            _std = ensure_tuple_rep(self.std, len(img))
             for i, d in enumerate(img):
                 img[i] = self._add_noise(
                     d,
