@@ -127,9 +127,8 @@ class TransformInverter:
                     align_corners=None,
                 )
 
-            target_data = engine.state.output[output_key]
             segs_dict = {
-                batch_key: target_data.detach().cpu() if isinstance(target_data, torch.Tensor) else target_data,
+                batch_key: engine.state.output[output_key],
                 transform_key: transform_info,
             }
             meta_dict_key = f"{batch_key}_{self.meta_key_postfix}"
