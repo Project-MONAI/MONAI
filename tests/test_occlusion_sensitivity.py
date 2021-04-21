@@ -14,13 +14,13 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.networks.nets import DenseNet, densenet121
+from monai.networks.nets import DenseNet, DenseNet121
 from monai.visualize import OcclusionSensitivity
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 out_channels_2d = 4
 out_channels_3d = 3
-model_2d = densenet121(spatial_dims=2, in_channels=1, out_channels=out_channels_2d).to(device)
+model_2d = DenseNet121(spatial_dims=2, in_channels=1, out_channels=out_channels_2d).to(device)
 model_3d = DenseNet(
     spatial_dims=3, in_channels=1, out_channels=out_channels_3d, init_features=2, growth_rate=2, block_config=(6,)
 ).to(device)

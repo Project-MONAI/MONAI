@@ -24,7 +24,7 @@ We are happy to talk with you about your needs for MONAI and your ideas for cont
 
 ### Does it belong in PyTorch instead of MONAI?
 
-MONAI is based on the PyTorch and Numpy libraries. These libraries implement what we consider to be best practice for general scientific computing and deep learning functionality. MONAI builds on these with a strong focus on medical applications. As such, it is a good idea to consider whether your functionality is medical-application specific or not. General deep learning functionality may be better off in PyTorch; you can find their contribution guidelines [here](https://pytorch.org/docs/stable/community/contribution_guide.html).
+MONAI is part of [PyTorch Ecosystem](https://pytorch.org/ecosystem/), and mainly based on the PyTorch and Numpy libraries. These libraries implement what we consider to be best practice for general scientific computing and deep learning functionality. MONAI builds on these with a strong focus on medical applications. As such, it is a good idea to consider whether your functionality is medical-application specific or not. General deep learning functionality may be better off in PyTorch; you can find their contribution guidelines [here](https://pytorch.org/docs/stable/community/contribution_guide.html).
 
 ## The contribution process
 
@@ -51,11 +51,15 @@ Coding style is checked and enforced by flake8, black, and isort, using [a flake
 Before submitting a pull request, we recommend that all linting should pass, by running the following command locally:
 
 ```bash
-pip install -U -r requirements-dev.txt  # install the latest tools
-./runtests.sh --codeformat --nounittests  # runs the linting tools only
+# optionally update the dependencies and dev tools
+python -m pip install -U pip
+python -m pip install -U -r requirements-dev.txt
+
+# run the linting and type checking tools
+./runtests.sh --codeformat
 
 # try to fix the coding style errors automatically
-./runtests.sh --autofix --nounittests
+./runtests.sh --autofix
 ```
 
 License information: all source code files should start with this paragraph:
@@ -86,7 +90,7 @@ MONAI tests are located under `tests/`.
 - The unit test's file name follows `test_[module_name].py`.
 - The integration test's file name follows `test_integration_[workflow_name].py`.
 
-A bash script (`runtests.sh`) is provided to run all tests locally
+A bash script (`runtests.sh`) is provided to run all tests locally.
 Please run ``./runtests.sh -h`` to see all options.
 
 To run a particular test, for example `tests/test_dice_loss.py`:
@@ -98,16 +102,16 @@ Before submitting a pull request, we recommend that all linting and unit tests
 should pass, by running the following command locally:
 
 ```bash
-./runtests.sh --codeformat --coverage
+./runtests.sh -f -u --net --coverage
 ```
 or (for new features that would not break existing functionality):
 
 ```bash
-./runtests.sh --quick
+./runtests.sh --quick --unittests
 ```
 
 It is recommended that the new test `test_[module_name].py` is constructed by using only
-python 3.6+ build-in functions, `torch`, `numpy`, and `parameterized` packages.
+python 3.6+ build-in functions, `torch`, `numpy`, `coverage` (for reporting code coverages) and `parameterized` (for organising test cases) packages.
 If it requires any other external packages, please make sure:
 - the packages are listed in [`requirements-dev.txt`](requirements-dev.txt)
 - the new test `test_[module_name].py` is added to the `exclude_cases` in [`./tests/min_tests.py`](./tests/min_tests.py) so that
@@ -141,7 +145,7 @@ Before submitting a pull request, it is recommended to:
 - check the auto-generated documentation (by browsing `./docs/build/html/index.html` with a web browser)
 - type `make clean` in `docs/` folder to remove the current build files.
 
-Please type `make help` for all supported format options.
+Please type `make help` in `docs/` folder for all supported format options.
 
 #### Automatic code formatting
 MONAI provides support of automatic Python code formatting via [a customised GitHub action](https://github.com/Project-MONAI/monai-code-formatter).
@@ -251,6 +255,7 @@ All code review comments should be specific, constructive, and actionable.
 1. Read carefully the descriptions of the pull request and the files changed, write comments if needed.
 1. Make in-line comments to specific code segments, [request for changes](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-request-reviews) if needed.
 1. Review any further code changes until all comments addressed by the contributors.
+1. Comment to trigger `/black` and/or `/integration-test` for optional auto code formatting and [integration tests](.github/workflows/integration.yml).
 1. Merge the pull request to the master branch.
 1. Close the corresponding task ticket on [the issue list][monai issue list].
 
