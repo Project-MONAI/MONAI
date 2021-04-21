@@ -13,6 +13,7 @@ import warnings
 from copy import deepcopy
 from typing import TYPE_CHECKING, Callable, Optional, Sequence, Union
 
+import torch
 from torch.utils.data import DataLoader as TorchDataLoader
 
 from monai.data import BatchInverseTransform
@@ -32,7 +33,7 @@ class TransformInverter:
     """
     Ignite handler to automatically invert `transforms`.
     It takes `engine.state.output` as the input data and uses the transforms information from `engine.state.batch`.
-    The outputs are stored in `engine.state.output` with key: "{output_key}_{postfix}".
+    The inverted results are stored in `engine.state.output` with key: "{output_key}_{postfix}".
     """
 
     def __init__(
@@ -45,6 +46,8 @@ class TransformInverter:
         collate_fn: Optional[Callable] = no_collation,
         postfix: str = "inverted",
         nearest_interp: Union[bool, Sequence[bool]] = True,
+        to_tensor: Union[bool, Sequence[bool]] = True,
+        device: Union[Union[str, torch.device], Sequence[Union[str, torch.device]]] = "cpu",
         post_func: Union[Callable, Sequence[Callable]] = lambda x: x,
         num_workers: Optional[int] = 0,
     ) -> None:
@@ -67,6 +70,11 @@ class TransformInverter:
             nearest_interp: whether to use `nearest` interpolation mode when inverting the spatial transforms,
                 default to `True`. If `False`, use the same interpolation mode as the original transform.
                 it also can be a list of bool, each matches to the `output_keys` data.
+            to_tensor: whether to convert the inverted data into PyTorch Tensor first, default to `True`.
+                it also can be a list of bool, each matches to the `output_keys` data.
+            device: if converted to Tensor, move the inverted results to target device before `post_func`,
+                default to "cpu", it also can be a list of string or `torch.device`,
+                each matches to the `output_keys` data.
             post_func: post processing for the inverted data, should be a callable function.
                 it also can be a list of callable, each matches to the `output_keys` data.
             num_workers: number of workers when run data loader for inverse transforms,
@@ -86,6 +94,8 @@ class TransformInverter:
         self.meta_key_postfix = meta_key_postfix
         self.postfix = postfix
         self.nearest_interp = ensure_tuple_rep(nearest_interp, len(self.output_keys))
+        self.to_tensor = ensure_tuple_rep(to_tensor, len(self.output_keys))
+        self.device = ensure_tuple_rep(device, len(self.output_keys))
         self.post_func = ensure_tuple_rep(post_func, len(self.output_keys))
         self._totensor = ToTensor()
 
@@ -101,8 +111,8 @@ class TransformInverter:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        for output_key, batch_key, nearest_interp, post_funct in zip(
-            self.output_keys, self.batch_keys, self.nearest_interp, self.post_func
+        for output_key, batch_key, nearest_interp, to_tensor, device, post_func in zip(
+            self.output_keys, self.batch_keys, self.nearest_interp, self.to_tensor, self.device, self.post_func
         ):
             transform_key = batch_key + InverseKeys.KEY_SUFFIX
             if transform_key not in engine.state.batch:
@@ -118,7 +128,7 @@ class TransformInverter:
                 )
 
             segs_dict = {
-                batch_key: engine.state.output[output_key].detach().cpu(),
+                batch_key: engine.state.output[output_key],
                 transform_key: transform_info,
             }
             meta_dict_key = f"{batch_key}_{self.meta_key_postfix}"
@@ -128,5 +138,6 @@ class TransformInverter:
             with allow_missing_keys_mode(self.transform):  # type: ignore
                 inverted_key = f"{output_key}_{self.postfix}"
                 engine.state.output[inverted_key] = [
-                    post_funct(self._totensor(i[batch_key])) for i in self.inverter(segs_dict)
+                    post_func(self._totensor(i[batch_key]).to(device) if to_tensor else i[batch_key])
+                    for i in self.inverter(segs_dict)
                 ]

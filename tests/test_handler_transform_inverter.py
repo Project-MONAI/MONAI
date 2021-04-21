@@ -60,8 +60,8 @@ class TestTransformInverter(unittest.TestCase):
                 RandRotated(KEYS, prob=0.5, range_x=np.pi, mode="bilinear", align_corners=True),
                 RandAffined(KEYS, prob=0.5, rotate_range=np.pi, mode="nearest"),
                 ResizeWithPadOrCropd(KEYS, 100),
-                ToTensord(KEYS),
-                CastToTyped(KEYS, dtype=torch.uint8),
+                ToTensord("image"),  # test to support both Tensor and Numpy array when inverting
+                CastToTyped(KEYS, dtype=[torch.uint8, np.uint8]),
             ]
         )
         data = [{"image": im_fname, "label": seg_fname} for _ in range(12)]
@@ -90,6 +90,8 @@ class TestTransformInverter(unittest.TestCase):
             batch_keys="label",
             nearest_interp=True,
             postfix="inverted1",
+            to_tensor=[True, False],
+            device="cpu",
             num_workers=0 if sys.platform == "darwin" or torch.cuda.is_available() else 2,
         ).attach(engine)
 
@@ -110,11 +112,15 @@ class TestTransformInverter(unittest.TestCase):
         self.assertTupleEqual(engine.state.output["image"].shape, (2, 1, 100, 100, 100))
         self.assertTupleEqual(engine.state.output["label"].shape, (2, 1, 100, 100, 100))
         # check the nearest inerpolation mode
-        for i in engine.state.output["image_inverted1"] + engine.state.output["label_inverted1"]:
+        for i in engine.state.output["image_inverted1"]:
             torch.testing.assert_allclose(i.to(torch.uint8).to(torch.float), i.to(torch.float))
             self.assertTupleEqual(i.shape, (1, 100, 101, 107))
+        for i in engine.state.output["label_inverted1"]:
+            np.testing.assert_allclose(i.astype(np.uint8).astype(np.float32), i.astype(np.float32))
+            self.assertTupleEqual(i.shape, (1, 100, 101, 107))
+
         # check labels match
-        reverted = engine.state.output["label_inverted1"][-1].detach().cpu().numpy()[0].astype(np.int32)
+        reverted = engine.state.output["label_inverted1"][-1].astype(np.int32)
         original = LoadImaged(KEYS)(data[-1])["label"]
         n_good = np.sum(np.isclose(reverted, original, atol=1e-3))
         reverted_name = engine.state.output["label_meta_dict"]["filename_or_obj"][-1]
