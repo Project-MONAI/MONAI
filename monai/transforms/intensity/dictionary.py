@@ -29,6 +29,7 @@ from monai.transforms.intensity.array import (
     MaskIntensity,
     NormalizeIntensity,
     RandBiasField,
+    RandRicianNoise,
     ScaleIntensity,
     ScaleIntensityRange,
     ScaleIntensityRangePercentiles,
@@ -41,6 +42,7 @@ from monai.utils import dtype_torch_to_numpy, ensure_tuple_rep, ensure_tuple_siz
 
 __all__ = [
     "RandGaussianNoised",
+    "RandRicianNoised",
     "ShiftIntensityd",
     "RandShiftIntensityd",
     "ScaleIntensityd",
@@ -149,6 +151,62 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         for key, noise in self.key_iterator(d, self._noise):
             dtype = dtype_torch_to_numpy(d[key].dtype) if isinstance(d[key], torch.Tensor) else d[key].dtype
             d[key] = d[key] + noise.astype(dtype)
+        return d
+
+
+class RandRicianNoised(RandomizableTransform, MapTransform):
+    """
+    Dictionary-based version :py:class:`monai.transforms.RandRicianNoise`.
+    Add Rician noise to image. This transform assumes all the expected fields have same shape.
+
+    Args:
+        keys: Keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        global_prob: Probability to add Rician noise to the dictionary.
+        prob: Probability to add Rician noise to each item in the dictionary,
+            once asserted that noise will be added to the dictionary at all.
+        mean: Mean or "centre" of the Gaussian distributions sampled to make up
+            the Rician noise.
+        std: Standard deviation (spread) of the Gaussian distributions sampled
+            to make up the Rician noise.
+        channel_wise: If True, treats each channel of the image separately.
+        relative: If True, the spread of the sampled Gaussian distributions will
+            be std times the standard deviation of the image or channel's intensity
+            histogram.
+        sample_std: If True, sample the spread of the Gaussian distributions
+            uniformly from 0 to std.
+        allow_missing_keys: Don't raise exception if key is missing.
+    """
+    def __init__(
+        self,
+        keys: KeysCollection,
+        global_prob: float = 0.1,
+        prob: float = 1.0,
+        mean: Union[Sequence[float], float] = 0.0,
+        std: Union[Sequence[float], float] = 1.0,
+        channel_wise: bool = False,
+        relative: bool = False,
+        sample_std: bool = True,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, global_prob)
+        self.rand_rician_noise = RandRicianNoise(
+            prob,
+            mean,
+            std,
+            channel_wise,
+            relative,
+            sample_std,
+        )
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = dict(data)
+        super().randomize(None)
+        if not self._do_transform:
+            return d
+        for key in self.key_iterator(d):
+            d[key] = self.rand_rician_noise(d[key])
         return d
 
 
@@ -958,6 +1016,7 @@ class RandHistogramShiftd(RandomizableTransform, MapTransform):
 
 
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
+RandRicianNoiseD = RandRicianNoiseDict = RandRicianNoised
 ShiftIntensityD = ShiftIntensityDict = ShiftIntensityd
 RandShiftIntensityD = RandShiftIntensityDict = RandShiftIntensityd
 StdShiftIntensityD = StdShiftIntensityDict = StdShiftIntensityd
