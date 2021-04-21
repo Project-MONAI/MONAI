@@ -556,3 +556,6 @@ def copy_conv_param(module2d, module3d):
 def copy_bn_param(module2d, module3d):
     for p2d, p3d in zip(module2d.parameters(), module3d.parameters()):
         p3d.data[:] = p2d.data[:]  # Two parameter gamma and beta
+
+
+AHnet = Ahnet = ahnet = AHNet
