@@ -612,8 +612,8 @@ class CropForegroundd(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         box_start, box_end = self.cropper.compute_bounding_box(img=d[self.source_key])
-        d[self.start_coord_key] = np.asarray(box_start)
-        d[self.end_coord_key] = np.asarray(box_end)
+        d[self.start_coord_key] = box_start
+        d[self.end_coord_key] = box_end
         for key in self.key_iterator(d):
             self.push_transform(d, key, extra_info={"box_start": box_start, "box_end": box_end})
             d[key] = self.cropper.crop_pad(d[key], box_start, box_end)
@@ -624,11 +624,11 @@ class CropForegroundd(MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            orig_size = np.array(transform[InverseKeys.ORIG_SIZE])
-            cur_size = np.array(d[key].shape[1:])
+            orig_size = np.asarray(transform[InverseKeys.ORIG_SIZE])
+            cur_size = np.asarray(d[key].shape[1:])
             extra_info = transform[InverseKeys.EXTRA_INFO]
-            box_start = extra_info["box_start"]
-            box_end = extra_info["box_end"]
+            box_start = np.asarray(extra_info["box_start"])
+            box_end = np.asarray(extra_info["box_end"])
             # first crop the padding part
             roi_start = np.maximum(-box_start, 0)
             roi_end = cur_size - np.maximum(box_end - orig_size, 0)
