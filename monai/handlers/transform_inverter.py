@@ -149,4 +149,4 @@ class TransformInverter:
 
             # save the inverted meta dict into state.batch
             if meta_dict_key in engine.state.batch:
-                engine.state.batch[f"{inverted_key}_{self.meta_key_postfix}"] = [i[meta_dict_key] for i in inverted]
+                engine.state.batch[f"{inverted_key}_{self.meta_key_postfix}"] = [i.get(meta_dict_key) for i in inverted]
