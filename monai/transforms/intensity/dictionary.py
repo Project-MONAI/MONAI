@@ -177,6 +177,7 @@ class RandRicianNoised(RandomizableTransform, MapTransform):
             uniformly from 0 to std.
         allow_missing_keys: Don't raise exception if key is missing.
     """
+
     def __init__(
         self,
         keys: KeysCollection,

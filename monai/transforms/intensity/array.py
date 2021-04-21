@@ -24,7 +24,13 @@ from monai.config import DtypeLike
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
 from monai.transforms.transform import RandomizableTransform, Transform
 from monai.transforms.utils import rescale_array
-from monai.utils import PT_BEFORE_1_7, InvalidPyTorchVersionError, dtype_torch_to_numpy, ensure_tuple_rep, ensure_tuple_size
+from monai.utils import (
+    PT_BEFORE_1_7,
+    InvalidPyTorchVersionError,
+    dtype_torch_to_numpy,
+    ensure_tuple_rep,
+    ensure_tuple_size,
+)
 
 __all__ = [
     "RandGaussianNoise",
@@ -103,6 +109,7 @@ class RandRicianNoise(RandomizableTransform):
         sample_std: If True, sample the spread of the Gaussian distributions
             uniformly from 0 to std.
     """
+
     def __init__(
         self,
         prob: float = 0.1,
@@ -123,17 +130,14 @@ class RandRicianNoise(RandomizableTransform):
         self._noise2 = None
 
     def _add_noise(
-        self,
-        img: Union[torch.Tensor, np.ndarray],
-        mean: float,
-        std: float
+        self, img: Union[torch.Tensor, np.ndarray], mean: float, std: float
     ) -> Union[torch.Tensor, np.ndarray]:
         im_shape = img.shape
         _std = self.R.uniform(0, std) if self.sample_std else std
         self._noise1 = self.R.normal(mean, _std, size=im_shape)
         self._noise2 = self.R.normal(mean, _std, size=im_shape)
         dtype = dtype_torch_to_numpy(img.dtype) if isinstance(img, torch.Tensor) else img.dtype
-        return np.sqrt((img + self._noise1.astype(dtype))**2 + self._noise2.astype(dtype)**2)
+        return np.sqrt((img + self._noise1.astype(dtype)) ** 2 + self._noise2.astype(dtype) ** 2)
 
     def __call__(self, img: Union[torch.Tensor, np.ndarray]) -> Union[torch.Tensor, np.ndarray]:
         """
@@ -146,21 +150,13 @@ class RandRicianNoise(RandomizableTransform):
             _mean = ensure_tuple_rep(self.mean, len(img))
             _std = ensure_tuple_rep(self.std, len(img))
             for i, d in enumerate(img):
-                img[i] = self._add_noise(
-                    d,
-                    mean=_mean[i],
-                    std=_std[i]*d.std() if self.relative else _std[i]
-                )
+                img[i] = self._add_noise(d, mean=_mean[i], std=_std[i] * d.std() if self.relative else _std[i])
         else:
             if not isinstance(self.mean, (int, float)):
                 raise AssertionError("If channel_wise is False, mean must be a float or int number.")
             if not isinstance(self.std, (int, float)):
                 raise AssertionError("If channel_wise is False, std must be a float or int number.")
-            img = self._add_noise(
-                img,
-                mean=self.mean,
-                std=self.std*img.std() if self.relative else self.std
-            )
+            img = self._add_noise(img, mean=self.mean, std=self.std * img.std() if self.relative else self.std)
         return img
 
 
