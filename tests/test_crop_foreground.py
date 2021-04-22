@@ -52,9 +52,15 @@ TEST_CASE_6 = [
     np.array([[[1, 2, 1, 0], [2, 3, 2, 0], [1, 2, 1, 0], [0, 0, 0, 0]]]),
 ]
 
+TEST_CASE_7 = [
+    {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 0, "k_divisible": 10},
+    np.array([[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),
+    np.zeros((1, 0, 0)),
+]
+
 
 class TestCropForeground(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7])
     def test_value(self, argments, image, expected_data):
         result = CropForeground(**argments)(image)
         np.testing.assert_allclose(result, expected_data)

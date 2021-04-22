@@ -561,7 +561,8 @@ def generate_spatial_bounding_box(
     for di, ax in enumerate(itertools.combinations(reversed(range(ndim)), ndim - 1)):
         dt = data.any(axis=ax)
         if not np.any(dt):
-            return [-1] * ndim, [-1] * ndim
+            # if no foreground, return all zero bounding box coords
+            return [0] * ndim, [0] * ndim
 
         min_d = max(np.argmax(dt) - margin[di], 0)
         max_d = max(data.shape[di] - max(np.argmax(dt[::-1]) - margin[di], 0), min_d + 1)
