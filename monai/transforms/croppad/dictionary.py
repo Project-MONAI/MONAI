@@ -539,8 +539,11 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> List[Dict[Hashable, np.ndarray]]:
         ret = []
-        d = dict(data)
         for i in range(self.num_samples):
+            d = dict(data)
+            # deep copy all the unmodified data
+            for key in set(data.keys()).difference(set(self.keys)):
+                d[key] = deepcopy(data[key])
             cropped = self.cropper(d)
             # add `patch_index` to the meta data
             for key in self.key_iterator(d):

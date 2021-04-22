@@ -33,7 +33,10 @@ class TransformInverter:
     """
     Ignite handler to automatically invert `transforms`.
     It takes `engine.state.output` as the input data and uses the transforms information from `engine.state.batch`.
-    The inverted results are stored in `engine.state.output` with key: "{output_key}_{postfix}".
+    The inverted data are stored in `engine.state.output` with key: "{output_key}_{postfix}".
+    And the inverted meta dict will be stored in `engine.state.batch`
+    with key: "{output_key}_{postfix}_{meta_key_postfix}".
+
     """
 
     def __init__(
@@ -136,8 +139,14 @@ class TransformInverter:
                 segs_dict[meta_dict_key] = engine.state.batch[meta_dict_key]
 
             with allow_missing_keys_mode(self.transform):  # type: ignore
-                inverted_key = f"{output_key}_{self.postfix}"
-                engine.state.output[inverted_key] = [
-                    post_func(self._totensor(i[batch_key]).to(device) if to_tensor else i[batch_key])
-                    for i in self.inverter(segs_dict)
-                ]
+                inverted = self.inverter(segs_dict)
+
+            # save the inverted data into state.output
+            inverted_key = f"{output_key}_{self.postfix}"
+            engine.state.output[inverted_key] = [
+                post_func(self._totensor(i[batch_key]).to(device) if to_tensor else i[batch_key]) for i in inverted
+            ]
+
+            # save the inverted meta dict into state.batch
+            if meta_dict_key in engine.state.batch:
+                engine.state.batch[f"{inverted_key}_{self.meta_key_postfix}"] = [i.get(meta_dict_key) for i in inverted]
