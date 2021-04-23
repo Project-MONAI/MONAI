@@ -95,6 +95,11 @@ class RandGaussianNoise(RandomizableTransform):
 class RandRicianNoise(RandomizableTransform):
     """
     Add Rician noise to image.
+    Rician noise in MRI is the result of performing a magnitude operation on complex
+    data with Gaussian noise of the same variance in both channels, as described in `Noise in Magnitude Magnetic Resonance Images
+    <https://doi.org/10.1002/cmr.a.20124>`_. This transform is adapted from
+    `DIPY<https://github.com/dipy/dipy>`_. See also: `The rician distribution of noisy mri data
+    <https://doi.org/10.1002/mrm.1910340618>`_.
 
     Args:
         prob: Probability to add Rician noise.
