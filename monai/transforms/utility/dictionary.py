@@ -25,7 +25,7 @@ import torch
 
 from monai.config import DtypeLike, KeysCollection, NdarrayTensor
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
+from monai.transforms.transform import MapTransform, Randomizable
 from monai.transforms.utility.array import (
     AddChannel,
     AsChannelFirst,
@@ -972,14 +972,20 @@ class TorchVisiond(MapTransform):
         return d
 
 
-class RandTorchVisiond(RandomizableTransform, MapTransform):
+class RandTorchVisiond(Randomizable, MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.TorchVision` for randomized transoforms.
+    Dictionary-based wrapper of :py:class:`monai.transforms.TorchVision` for randomized transforms.
     For deterministic non-randomized transforms of TorchVision use :py:class:`monai.transforms.TorchVisiond`.
 
     Note:
-        As most of the TorchVision transforms only work for PIL image and PyTorch Tensor, this transform expects input
-        data to be dict of PyTorch Tensors, users can easily call `ToTensord` transform to convert Numpy to Tensor.
+
+        - As most of the TorchVision transforms only work for PIL image and PyTorch Tensor, this transform expects input
+          data to be dict of PyTorch Tensors, users can easily call `ToTensord` transform to convert Numpy to Tensor.
+        - This class inherits the ``Randomizable`` purely to prevent any dataset caching to skip the transform
+          computation. If the random factor of the underlying torchvision transform is not derived from `self.R`,
+          the results may not be deterministic.
+          See Also: :py:class:`monai.transforms.Randomizable`.
+
     """
 
     def __init__(
