@@ -228,7 +228,7 @@ class MaskedInferenceWSIDataset(Dataset):
         }
         """
         image = self.image_reader.read(sample["image"])
-        mask = np.load(sample["mask"]).T
+        mask = np.load(sample["mask"])
         try:
             level, ratio = self._calculate_mask_level(image, mask)
         except ValueError as err:
