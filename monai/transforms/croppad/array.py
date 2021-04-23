@@ -13,6 +13,7 @@ A collection of "vanilla" transforms for crop and pad operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
+from itertools import chain
 from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -22,6 +23,7 @@ from monai.config import IndexSelection
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import (
+    compute_divisible_spatial_size,
     generate_pos_neg_label_crop_centers,
     generate_spatial_bounding_box,
     map_binary_to_indices,
@@ -199,14 +201,9 @@ class DivisiblePad(Transform):
                 One of the listed string values or a user supplied function. Defaults to ``self.mode``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
         """
-        spatial_shape = img.shape[1:]
-        k = fall_back_tuple(self.k, (1,) * len(spatial_shape))
-        new_size = []
-        for k_d, dim in zip(k, spatial_shape):
-            new_dim = int(np.ceil(dim / k_d) * k_d) if k_d > 0 else dim
-            new_size.append(new_dim)
-
+        new_size = compute_divisible_spatial_size(spatial_shape=img.shape[1:], k=self.k)
         spatial_pad = SpatialPad(spatial_size=new_size, method=Method.SYMMETRIC, mode=mode or self.mode)
+
         return spatial_pad(img)
 
 
@@ -417,6 +414,8 @@ class CropForeground(Transform):
         channel_indices: Optional[IndexSelection] = None,
         margin: Union[Sequence[int], int] = 0,
         return_coords: bool = False,
+        k_divisible: Union[Sequence[int], int] = 1,
+        mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
     ) -> None:
         """
         Args:
@@ -425,19 +424,56 @@ class CropForeground(Transform):
                 of image. if None, select foreground on the whole image.
             margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
             return_coords: whether return the coordinates of spatial bounding box for foreground.
+            k_divisible: make each spatial dimension to be divisible by k, default to 1.
+                if `k_divisible` is an int, the same `k` be applied to all the input spatial dimensions.
+            mode: padding mode {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                one of the listed string values or a user supplied function. Defaults to ``"constant"``.
+                see also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+
         """
         self.select_fn = select_fn
         self.channel_indices = ensure_tuple(channel_indices) if channel_indices is not None else None
         self.margin = margin
         self.return_coords = return_coords
+        self.k_divisible = k_divisible
+        self.mode: NumpyPadMode = NumpyPadMode(mode)
+
+    def compute_bounding_box(self, img: np.ndarray):
+        """
+        Compute the start points and end points of bounding box to crop.
+        And adjust bounding box coords to be divisible by `k`.
+
+        """
+        box_start, box_end = generate_spatial_bounding_box(img, self.select_fn, self.channel_indices, self.margin)
+        box_start_ = np.asarray(box_start, dtype=np.int16)
+        box_end_ = np.asarray(box_end, dtype=np.int16)
+        orig_spatial_size = box_end_ - box_start_
+        # make the spatial size divisible by `k`
+        spatial_size = np.asarray(compute_divisible_spatial_size(spatial_shape=orig_spatial_size, k=self.k_divisible))
+        # update box_start and box_end
+        box_start_ = box_start_ - np.floor_divide(np.asarray(spatial_size) - orig_spatial_size, 2)
+        box_end_ = box_start_ + spatial_size
+        return box_start_, box_end_
+
+    def crop_pad(self, img: np.ndarray, box_start: np.ndarray, box_end: np.ndarray):
+        """
+        Crop and pad based on the bounding box.
+
+        """
+        cropped = SpatialCrop(roi_start=box_start, roi_end=box_end)(img)
+        pad_to_start = np.maximum(-box_start, 0)
+        pad_to_end = np.maximum(box_end - np.asarray(img.shape[1:]), 0)
+        pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
+        return BorderPad(spatial_border=pad, mode=self.mode)(cropped)
 
     def __call__(self, img: np.ndarray):
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't change the channel dim.
         """
-        box_start, box_end = generate_spatial_bounding_box(img, self.select_fn, self.channel_indices, self.margin)
-        cropped = SpatialCrop(roi_start=box_start, roi_end=box_end)(img)
+        box_start, box_end = self.compute_bounding_box(img)
+        cropped = self.crop_pad(img, box_start, box_end)
 
         if self.return_coords:
             return cropped, box_start, box_end
