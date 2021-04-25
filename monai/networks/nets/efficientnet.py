@@ -702,8 +702,7 @@ def _make_same_padder(conv_op: Union[nn.Conv1d, nn.Conv2d, nn.Conv3d], image_siz
     padder = Pad["constantpad", len(padding) // 2]
     if sum(padding) > 0:
         return padder(padding=padding, value=0.0)
-    else:
-        return nn.Identity()
+    return nn.Identity()
 
 
 def _round_filters(filters: int, width_coefficient: Optional[float], depth_divisor: float) -> int:
