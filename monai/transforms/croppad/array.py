@@ -78,11 +78,11 @@ class SpatialPad(Transform):
         self.spatial_size = fall_back_tuple(self.spatial_size, data_shape)
         if self.method == Method.SYMMETRIC:
             pad_width = []
-            for i in range(len(self.spatial_size)):
-                width = max(self.spatial_size[i] - data_shape[i], 0)
+            for i, sp_i in enumerate(self.spatial_size):
+                width = max(sp_i - data_shape[i], 0)
                 pad_width.append((width // 2, width - (width // 2)))
             return pad_width
-        return [(0, max(self.spatial_size[i] - data_shape[i], 0)) for i in range(len(self.spatial_size))]
+        return [(0, max(sp_i - data_shape[i], 0)) for i, sp_i in enumerate(self.spatial_size)]
 
     def __call__(self, img: np.ndarray, mode: Optional[Union[NumpyPadMode, str]] = None) -> np.ndarray:
         """
