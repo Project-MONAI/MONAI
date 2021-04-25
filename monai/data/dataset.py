@@ -244,12 +244,15 @@ class PersistentDataset(Dataset):
             # NOTE: Writing to a temporary directory and then using a nearly atomic rename operation
             #       to make the cache more robust to manual killing of parent process
             #       which may leave partially written cache files in an incomplete state
-            with tempfile.TemporaryDirectory(dir=self.cache_dir) as tmpdirname:
+            with tempfile.TemporaryDirectory() as tmpdirname:
                 temp_hash_file = Path(tmpdirname) / hashfile.name
                 torch.save(_item_transformed, temp_hash_file)
                 if temp_hash_file.is_file() and not hashfile.is_file():
                     # On Unix, if target exists and is a file, it will be replaced silently if the user has permission.
-                    temp_hash_file.rename(hashfile)
+                    try:
+                        temp_hash_file.rename(hashfile)
+                    except FileExistsError:
+                        pass
         return _item_transformed
 
     def _transform(self, index: int):
