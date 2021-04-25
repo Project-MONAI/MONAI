@@ -763,8 +763,6 @@ def _calculate_output_image_size(input_image_size: List[int], stride: Union[int,
     Returns:
         output_image_size: output image/feature spatial size.
     """
-    # get number of spatial dimensions, corresponds to image spatial size length
-    num_dims = len(input_image_size)
 
     # checks to extract integer stride in case tuple was received
     if isinstance(stride, tuple):

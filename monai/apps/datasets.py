@@ -128,10 +128,8 @@ class MedNISTDataset(Randomizable, CacheDataset):
             image_files_list.extend(image_files[i])
             image_class.extend([i] * num_each[i])
             class_name.extend([class_names[i]] * num_each[i])
-        num_total = len(image_class)
 
         data = []
-
         length = len(image_files_list)
         indices = np.arange(length)
         self.randomize(indices)

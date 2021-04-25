@@ -342,5 +342,5 @@ class ThreadContainer(Thread):
         which holds the internal lock during the plot generation.
         """
         with self.lock:
-            self.fig, axes = plot_func(title=self.status(), engine=self.engine, logger=logger, fig=self.fig)
+            self.fig, _ = plot_func(title=self.status(), engine=self.engine, logger=logger, fig=self.fig)
             return self.fig
