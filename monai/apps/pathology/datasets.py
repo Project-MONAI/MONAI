@@ -274,7 +274,7 @@ class MaskedInferenceWSIDataset(Dataset):
                 f"ratio 0: {ratios[0]} ({image_shape[0]} / {mask_shape[0]}),"
                 f"ratio 1: {ratios[1]} ({image_shape[1]} / {mask_shape[1]}),"
             )
-        elif not level.is_integer():
+        if not level.is_integer():
             raise ValueError(f"Mask is not at a regular level (ratio not power of 2), image / mask ratio: {ratios[0]}")
 
         return int(level), ratios[0]
