@@ -415,6 +415,10 @@ class LMDBDataset(PersistentDataset):
                     new_size = size * 2
                     warnings.warn(f"Resizing the cache database from {int(size) >> 20}MB to {int(new_size) >> 20}MB.")
                     env.set_mapsize(new_size)
+                except lmdb.MapResizedError:
+                    # the mapsize is increased by another process
+                    # set_mapsize with a size of 0 to adopt the new size,
+                    env.set_mapsize(0)
             if not done:  # still has the map full error
                 size = env.info()["map_size"]
                 env.close()
