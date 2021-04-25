@@ -185,8 +185,8 @@ class AddGuidanceSignald(Transform):
             signal = np.zeros((len(guidance), image.shape[-2], image.shape[-1]), dtype=np.float32)
 
         sshape = signal.shape
-        for i in range(len(guidance)):
-            for point in guidance[i]:
+        for i, g_i in enumerate(guidance):
+            for point in g_i:
                 if np.any(np.asarray(point) < 0):
                     continue
 
@@ -924,8 +924,8 @@ class Fetch2DSliced(MapTransform):
     def _apply(self, image, guidance):
         slice_idx = guidance[2]  # (pos, neg, slice_idx)
         idx = []
-        for i in range(len(image.shape)):
-            idx.append(slice_idx) if i == self.axis else idx.append(slice(0, image.shape[i]))
+        for i, size_i in enumerate(image.shape):
+            idx.append(slice_idx) if i == self.axis else idx.append(slice(0, size_i))
 
         idx = tuple(idx)
         return image[idx], idx

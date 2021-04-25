@@ -590,8 +590,8 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         if self.alpha_mode == "GDL":  # GDL style
             # Define alpha like in the generalized dice loss
             # i.e. the inverse of the volume of each class.
-            one_hot = F.one_hot(flat_target, num_classes=self.num_classes).permute(0, 2, 1).float()
-            volumes = torch.sum(one_hot, dim=2)
+            one_hot_f = F.one_hot(flat_target, num_classes=self.num_classes).permute(0, 2, 1).float()
+            volumes = torch.sum(one_hot_f, dim=2)
             alpha = 1.0 / (volumes + 1.0)
         else:  # default, i.e. like in the original paper
             # alpha weights are 0 for the background and 1 the other classes
