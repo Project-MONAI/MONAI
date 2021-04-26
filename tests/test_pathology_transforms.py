@@ -18,63 +18,88 @@ from monai.utils import exact_version, optional_import
 
 cp, has_cp = optional_import("cupy", "8.6.0", exact_version)
 
-# input pixels all transparent and below the beta absorbance threshold
-EXTRACT_STAINS_TEST_CASE_1 = [
-    cp.full((3, 2, 3), 240),
-]
 
-# input pixels uniformly filled, but above beta absorbance threshold
-EXTRACT_STAINS_TEST_CASE_2 = [
-    cp.full((3, 2, 3), 100),
-]
+EXTRACT_STAINS_TEST_CASE_1 = (None,)
+EXTRACT_STAINS_TEST_CASE_2 = (None,)
+EXTRACT_STAINS_TEST_CASE_3 = (None,)
+EXTRACT_STAINS_TEST_CASE_4 = (None, None)
+EXTRACT_STAINS_TEST_CASE_5 = (None, None)
+NORMALIZE_STAINS_TEST_CASE_1 = (None,)
+NORMALIZE_STAINS_TEST_CASE_2 = ({}, None, None)
+NORMALIZE_STAINS_TEST_CASE_3 = ({}, None, None)
+NORMALIZE_STAINS_TEST_CASE_4 = ({}, None, None)
 
-# input pixels uniformly filled (different value), but above beta absorbance threshold
-EXTRACT_STAINS_TEST_CASE_3 = [
-    cp.full((3, 2, 3), 150),
-]
 
-# input pixels uniformly filled with zeros, leading to two identical stains extracted
-EXTRACT_STAINS_TEST_CASE_4 = [
-    cp.zeros((3, 2, 3)),
-    cp.array([[0.0, 0.0], [0.70710678, 0.70710678], [0.70710678, 0.70710678]]),
-]
+def prepare_test_data():
+    # input pixels all transparent and below the beta absorbance threshold
+    global EXTRACT_STAINS_TEST_CASE_1
+    EXTRACT_STAINS_TEST_CASE_1 = [
+        cp.full((3, 2, 3), 240),
+    ]
 
-# input pixels not uniformly filled, leading to two different stains extracted
-EXTRACT_STAINS_TEST_CASE_5 = [
-    cp.array([[[100, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]]]),
-    cp.array([[0.70710677, 0.18696113], [0.0, 0.0], [0.70710677, 0.98236734]]),
-]
+    # input pixels uniformly filled, but above beta absorbance threshold
+    global EXTRACT_STAINS_TEST_CASE_2
+    EXTRACT_STAINS_TEST_CASE_2 = [
+        cp.full((3, 2, 3), 100),
+    ]
 
-# input pixels all transparent and below the beta absorbance threshold
-NORMALIZE_STAINS_TEST_CASE_1 = [
-    cp.full((3, 2, 3), 240),
-]
+    # input pixels uniformly filled (different value), but above beta absorbance threshold
+    global EXTRACT_STAINS_TEST_CASE_3
+    EXTRACT_STAINS_TEST_CASE_3 = [
+        cp.full((3, 2, 3), 150),
+    ]
 
-# input pixels uniformly filled with zeros, and target stain matrix provided
-NORMALIZE_STAINS_TEST_CASE_2 = [
-    {"target_he": cp.full((3, 2), 1)},
-    cp.zeros((3, 2, 3)),
-    cp.full((3, 2, 3), 11),
-]
+    # input pixels uniformly filled with zeros, leading to two identical stains extracted
+    global EXTRACT_STAINS_TEST_CASE_4
+    EXTRACT_STAINS_TEST_CASE_4 = [
+        cp.zeros((3, 2, 3)),
+        cp.array([[0.0, 0.0], [0.70710678, 0.70710678], [0.70710678, 0.70710678]]),
+    ]
 
-# input pixels uniformly filled with zeros, and target stain matrix not provided
-NORMALIZE_STAINS_TEST_CASE_3 = [
-    {},
-    cp.zeros((3, 2, 3)),
-    cp.array([[[63, 25, 60], [63, 25, 60]], [[63, 25, 60], [63, 25, 60]], [[63, 25, 60], [63, 25, 60]]]),
-]
+    # input pixels not uniformly filled, leading to two different stains extracted
+    global EXTRACT_STAINS_TEST_CASE_5
+    EXTRACT_STAINS_TEST_CASE_5 = [
+        cp.array([[[100, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]]]),
+        cp.array([[0.70710677, 0.18696113], [0.0, 0.0], [0.70710677, 0.98236734]]),
+    ]
 
-# input pixels not uniformly filled
-NORMALIZE_STAINS_TEST_CASE_4 = [
-    {"target_he": cp.full((3, 2), 1)},
-    cp.array([[[100, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]]]),
-    cp.array([[[87, 87, 87], [33, 33, 33]], [[33, 33, 33], [33, 33, 33]], [[33, 33, 33], [33, 33, 33]]]),
-]
+    # input pixels all transparent and below the beta absorbance threshold
+    global NORMALIZE_STAINS_TEST_CASE_1
+    NORMALIZE_STAINS_TEST_CASE_1 = [
+        cp.full((3, 2, 3), 240),
+    ]
+
+    # input pixels uniformly filled with zeros, and target stain matrix provided
+    global NORMALIZE_STAINS_TEST_CASE_2
+    NORMALIZE_STAINS_TEST_CASE_2 = [
+        {"target_he": cp.full((3, 2), 1)},
+        cp.zeros((3, 2, 3)),
+        cp.full((3, 2, 3), 11),
+    ]
+
+    # input pixels uniformly filled with zeros, and target stain matrix not provided
+    global NORMALIZE_STAINS_TEST_CASE_3
+    NORMALIZE_STAINS_TEST_CASE_3 = [
+        {},
+        cp.zeros((3, 2, 3)),
+        cp.array([[[63, 25, 60], [63, 25, 60]], [[63, 25, 60], [63, 25, 60]], [[63, 25, 60], [63, 25, 60]]]),
+    ]
+
+    # input pixels not uniformly filled
+    global NORMALIZE_STAINS_TEST_CASE_4
+    NORMALIZE_STAINS_TEST_CASE_4 = [
+        {"target_he": cp.full((3, 2), 1)},
+        cp.array([[[100, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]]]),
+        cp.array([[[87, 87, 87], [33, 33, 33]], [[33, 33, 33], [33, 33, 33]], [[33, 33, 33], [33, 33, 33]]]),
+    ]
 
 
 class TestExtractStainsMacenko(unittest.TestCase):
-    @parameterized.expand([EXTRACT_STAINS_TEST_CASE_1])
     @unittest.skipUnless(has_cp, "Requires CuPy")
+    def setUp(self):
+        prepare_test_data()
+
+    @parameterized.expand([EXTRACT_STAINS_TEST_CASE_1])
     def test_transparent_image(self, image):
         """
         Test Macenko stain extraction on an image that comprises
@@ -83,11 +108,14 @@ class TestExtractStainsMacenko(unittest.TestCase):
         since once the transparent pixels are removed, there are no
         remaining pixels to compute eigenvectors.
         """
-        with self.assertRaises(ValueError):
-            ExtractStainsMacenko()(image)
+        if image == None:
+            with self.assertRaises(TypeError):
+                NormalizeStainsMacenko()(image)
+        else:
+            with self.assertRaises(ValueError):
+                ExtractStainsMacenko()(image)
 
     @parameterized.expand([EXTRACT_STAINS_TEST_CASE_2, EXTRACT_STAINS_TEST_CASE_3])
-    @unittest.skipUnless(has_cp, "Requires CuPy")
     def test_identical_result_vectors(self, image):
         """
         Test Macenko stain extraction on input images that are
@@ -97,11 +125,14 @@ class TestExtractStainsMacenko(unittest.TestCase):
         we assert that the first column is equal to the second column
         of the returned stain matrix.
         """
-        result = ExtractStainsMacenko()(image)
-        cp.testing.assert_array_equal(result[:, 0], result[:, 1])
+        if image == None:
+            with self.assertRaises(TypeError):
+                NormalizeStainsMacenko()(image)
+        else:
+            result = ExtractStainsMacenko()(image)
+            cp.testing.assert_array_equal(result[:, 0], result[:, 1])
 
     @parameterized.expand([EXTRACT_STAINS_TEST_CASE_4, EXTRACT_STAINS_TEST_CASE_5])
-    @unittest.skipUnless(has_cp, "Requires CuPy")
     def test_result_value(self, image, expected_data):
         """
         Test that an input image returns an expected stain matrix.
@@ -129,13 +160,20 @@ class TestExtractStainsMacenko(unittest.TestCase):
         - the resulting extracted stain should be
           [[0.70710677,0.18696113],[0,0],[0.70710677,0.98236734]]
         """
-        result = ExtractStainsMacenko()(image)
-        cp.testing.assert_allclose(result, expected_data)
+        if image == None:
+            with self.assertRaises(TypeError):
+                NormalizeStainsMacenko()(image)
+        else:
+            result = ExtractStainsMacenko()(image)
+            cp.testing.assert_allclose(result, expected_data)
 
 
 class TestNormalizeStainsMacenko(unittest.TestCase):
-    @parameterized.expand([NORMALIZE_STAINS_TEST_CASE_1])
     @unittest.skipUnless(has_cp, "Requires CuPy")
+    def setUp(self):
+        prepare_test_data()
+
+    @parameterized.expand([NORMALIZE_STAINS_TEST_CASE_1])
     def test_transparent_image(self, image):
         """
         Test Macenko stain normalization on an image that comprises
@@ -144,11 +182,14 @@ class TestNormalizeStainsMacenko(unittest.TestCase):
         since once the transparent pixels are removed, there are no
         remaining pixels to compute eigenvectors.
         """
-        with self.assertRaises(ValueError):
-            NormalizeStainsMacenko()(image)
+        if image == None:
+            with self.assertRaises(TypeError):
+                NormalizeStainsMacenko()(image)
+        else:
+            with self.assertRaises(ValueError):
+                NormalizeStainsMacenko()(image)
 
     @parameterized.expand([NORMALIZE_STAINS_TEST_CASE_2, NORMALIZE_STAINS_TEST_CASE_3, NORMALIZE_STAINS_TEST_CASE_4])
-    @unittest.skipUnless(has_cp, "Requires CuPy")
     def test_result_value(self, argments, image, expected_data):
         """
         Test that an input image returns an expected normalized image.
@@ -194,8 +235,12 @@ class TestNormalizeStainsMacenko(unittest.TestCase):
           image should be [[[87, 87, 87], [33, 33, 33]], [[33, 33, 33], [33, 33, 33]],
           [[33, 33, 33], [33, 33, 33]]]
         """
-        result = NormalizeStainsMacenko(**argments)(image)
-        cp.testing.assert_allclose(result, expected_data)
+        if image == None:
+            with self.assertRaises(TypeError):
+                NormalizeStainsMacenko()(image)
+        else:
+            result = NormalizeStainsMacenko(**argments)(image)
+            cp.testing.assert_allclose(result, expected_data)
 
 
 if __name__ == "__main__":

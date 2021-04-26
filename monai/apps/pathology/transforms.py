@@ -85,6 +85,9 @@ class ExtractStainsMacenko(Transform):
         return:
             target_he: H&E absorbance matrix for the image (first column is H, second column is E, rows are RGB values)
         """
+        if not isinstance(image, cp.ndarray):
+            raise TypeError("Image must be of type cupy.ndarray.")
+
         target_he = self._deconvolution_extract_stain(image)
         return target_he
 
@@ -188,6 +191,9 @@ class NormalizeStainsMacenko(Transform):
         Return:
             image_norm: stain normalized image/patch
         """
+        if not isinstance(image, cp.ndarray):
+            raise TypeError("Image must be of type cupy.ndarray.")
+
         h, w, _ = image.shape
         image_c = self._deconvolution_extract_conc(image)
 
