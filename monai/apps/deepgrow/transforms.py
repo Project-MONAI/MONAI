@@ -478,8 +478,8 @@ class SpatialCropForegroundd(MapTransform):
 
         if np.all(np.less(current_size, self.spatial_size)):
             cropper = SpatialCrop(roi_center=center, roi_size=self.spatial_size)
-            box_start = cropper.roi_start
-            box_end = cropper.roi_end
+            box_start = np.array([s.start for s in cropper.slices])
+            box_end = np.array([s.stop for s in cropper.slices])
         else:
             cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
 
