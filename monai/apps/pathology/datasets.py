@@ -228,7 +228,7 @@ class MaskedInferenceWSIDataset(Dataset):
         }
         """
         image = self.image_reader.read(sample["image"])
-        mask = np.load(sample["mask"]).T
+        mask = np.load(sample["mask"])
         try:
             level, ratio = self._calculate_mask_level(image, mask)
         except ValueError as err:
@@ -274,7 +274,7 @@ class MaskedInferenceWSIDataset(Dataset):
                 f"ratio 0: {ratios[0]} ({image_shape[0]} / {mask_shape[0]}),"
                 f"ratio 1: {ratios[1]} ({image_shape[1]} / {mask_shape[1]}),"
             )
-        elif not level.is_integer():
+        if not level.is_integer():
             raise ValueError(f"Mask is not at a regular level (ratio not power of 2), image / mask ratio: {ratios[0]}")
 
         return int(level), ratios[0]

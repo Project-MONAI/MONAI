@@ -14,6 +14,7 @@ import collections.abc
 import math
 import pickle
 import sys
+import tempfile
 import threading
 import time
 import warnings
@@ -240,12 +241,18 @@ class PersistentDataset(Dataset):
 
         _item_transformed = self._pre_transform(deepcopy(item_transformed))  # keep the original hashed
         if hashfile is not None:
-            # NOTE: Writing to ".temp_write_cache" and then using a nearly atomic rename operation
+            # NOTE: Writing to a temporary directory and then using a nearly atomic rename operation
             #       to make the cache more robust to manual killing of parent process
             #       which may leave partially written cache files in an incomplete state
-            temp_hash_file = hashfile.with_suffix(".temp_write_cache")
-            torch.save(_item_transformed, temp_hash_file)
-            temp_hash_file.rename(hashfile)
+            with tempfile.TemporaryDirectory() as tmpdirname:
+                temp_hash_file = Path(tmpdirname) / hashfile.name
+                torch.save(_item_transformed, temp_hash_file)
+                if temp_hash_file.is_file() and not hashfile.is_file():
+                    # On Unix, if target exists and is a file, it will be replaced silently if the user has permission.
+                    try:
+                        temp_hash_file.rename(hashfile)
+                    except FileExistsError:
+                        pass
         return _item_transformed
 
     def _transform(self, index: int):
@@ -408,6 +415,10 @@ class LMDBDataset(PersistentDataset):
                     new_size = size * 2
                     warnings.warn(f"Resizing the cache database from {int(size) >> 20}MB to {int(new_size) >> 20}MB.")
                     env.set_mapsize(new_size)
+                except lmdb.MapResizedError:
+                    # the mapsize is increased by another process
+                    # set_mapsize with a size of 0 to adopt the new size,
+                    env.set_mapsize(0)
             if not done:  # still has the map full error
                 size = env.info()["map_size"]
                 env.close()

@@ -181,8 +181,8 @@ class DynUNet(nn.Module):
         if not (len(kernels) == len(strides) and len(kernels) >= 3):
             raise AssertionError(error_msg)
 
-        for idx in range(len(kernels)):
-            kernel, stride = kernels[idx], strides[idx]
+        for idx, k_i in enumerate(kernels):
+            kernel, stride = k_i, strides[idx]
             if not isinstance(kernel, int):
                 error_msg = "length of kernel_size in block {} should be the same as spatial_dims.".format(idx)
                 if len(kernel) != self.spatial_dims:
@@ -303,4 +303,4 @@ class DynUNet(nn.Module):
             nn.init.zeros_(module.bias)
 
 
-DynUnet = Dynunet = DynUNet
+DynUnet = Dynunet = dynunet = DynUNet

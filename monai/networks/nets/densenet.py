@@ -314,3 +314,10 @@ class DenseNet264(DenseNet):
         )
         if pretrained:
             print("Currently PyTorch Hub does not provide densenet264 pretrained models.")
+
+
+Densenet = densenet = DenseNet
+Densenet121 = densenet121 = DenseNet121
+Densenet169 = densenet169 = DenseNet169
+Densenet201 = densenet201 = DenseNet201
+Densenet264 = densenet264 = DenseNet264

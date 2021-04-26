@@ -340,6 +340,9 @@ from .utility.dictionary import (
     RandLambdad,
     RandLambdaD,
     RandLambdaDict,
+    RandTorchVisiond,
+    RandTorchVisionD,
+    RandTorchVisionDict,
     RemoveRepeatedChanneld,
     RemoveRepeatedChannelD,
     RemoveRepeatedChannelDict,
@@ -371,6 +374,7 @@ from .utility.dictionary import (
 )
 from .utils import (
     allow_missing_keys_mode,
+    compute_divisible_spatial_size,
     convert_inverse_interp_mode,
     copypaste_arrays,
     create_control_grid,

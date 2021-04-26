@@ -702,8 +702,7 @@ def _make_same_padder(conv_op: Union[nn.Conv1d, nn.Conv2d, nn.Conv3d], image_siz
     padder = Pad["constantpad", len(padding) // 2]
     if sum(padding) > 0:
         return padder(padding=padding, value=0.0)
-    else:
-        return nn.Identity()
+    return nn.Identity()
 
 
 def _round_filters(filters: int, width_coefficient: Optional[float], depth_divisor: float) -> int:
@@ -763,8 +762,6 @@ def _calculate_output_image_size(input_image_size: List[int], stride: Union[int,
     Returns:
         output_image_size: output image/feature spatial size.
     """
-    # get number of spatial dimensions, corresponds to image spatial size length
-    num_dims = len(input_image_size)
 
     # checks to extract integer stride in case tuple was received
     if isinstance(stride, tuple):
