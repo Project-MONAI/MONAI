@@ -13,10 +13,12 @@ import unittest
 
 from parameterized import parameterized
 
-from monai.apps.pathology.transforms import ExtractStainsMacenko
 from monai.utils import exact_version, optional_import
 
 cp, has_cp = optional_import("cupy", "8.6.0", exact_version)
+
+if has_cp:
+    from monai.apps.pathology.transforms import ExtractStainsMacenko, NormalizeStainsMacenko
 
 
 EXTRACT_STAINS_TEST_CASE_1 = (None,)
@@ -25,9 +27,9 @@ EXTRACT_STAINS_TEST_CASE_3 = (None,)
 EXTRACT_STAINS_TEST_CASE_4 = (None, None)
 EXTRACT_STAINS_TEST_CASE_5 = (None, None)
 NORMALIZE_STAINS_TEST_CASE_1 = (None,)
-NORMALIZE_STAINS_TEST_CASE_2 = ({}, None, None)
-NORMALIZE_STAINS_TEST_CASE_3 = ({}, None, None)
-NORMALIZE_STAINS_TEST_CASE_4 = ({}, None, None)
+NORMALIZE_STAINS_TEST_CASE_2 = (None, None, None)
+NORMALIZE_STAINS_TEST_CASE_3 = (None, None, None)
+NORMALIZE_STAINS_TEST_CASE_4 = (None, None, None)
 
 
 def prepare_test_data():
