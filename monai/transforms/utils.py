@@ -339,8 +339,10 @@ def generate_pos_neg_label_crop_centers(
     valid_end = np.subtract(label_spatial_shape + np.array(1), spatial_size / np.array(2)).astype(np.uint16)
     # int generation to have full range on upper side, but subtract unfloored size/2 to prevent rounded range
     # from being too high
-    for i in range(len(valid_start)):  # need this because np.random.randint does not work with same start and end
-        if valid_start[i] == valid_end[i]:
+    for i, valid_s in enumerate(
+        valid_start
+    ):  # need this because np.random.randint does not work with same start and end
+        if valid_s == valid_end[i]:
             valid_end[i] += 1
 
     def _correct_centers(
@@ -561,7 +563,8 @@ def generate_spatial_bounding_box(
     for di, ax in enumerate(itertools.combinations(reversed(range(ndim)), ndim - 1)):
         dt = data.any(axis=ax)
         if not np.any(dt):
-            return [-1] * ndim, [-1] * ndim
+            # if no foreground, return all zero bounding box coords
+            return [0] * ndim, [0] * ndim
 
         min_d = max(np.argmax(dt) - margin[di], 0)
         max_d = max(data.shape[di] - max(np.argmax(dt[::-1]) - margin[di], 0), min_d + 1)
@@ -801,3 +804,23 @@ def convert_inverse_interp_mode(trans_info: List, mode: str = "nearest", align_c
                 else:
                     item[InverseKeys.EXTRA_INFO]["align_corners"] = align_corners_
     return trans_info
+
+
+def compute_divisible_spatial_size(spatial_shape: Sequence[int], k: Union[Sequence[int], int]):
+    """
+    Compute the target spatial size which should be divisible by `k`.
+
+    Args:
+        spatial_shape: original spatial shape.
+        k: the target k for each spatial dimension.
+            if `k` is negative or 0, the original size is preserved.
+            if `k` is an int, the same `k` be applied to all the input spatial dimensions.
+
+    """
+    k = fall_back_tuple(k, (1,) * len(spatial_shape))
+    new_size = []
+    for k_d, dim in zip(k, spatial_shape):
+        new_dim = int(np.ceil(dim / k_d) * k_d) if k_d > 0 else dim
+        new_size.append(new_dim)
+
+    return new_size

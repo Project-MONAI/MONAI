@@ -107,7 +107,7 @@ def default_prepare_batch(
     """
     if not isinstance(batchdata, dict):
         raise AssertionError("default prepare_batch expects dictionary input data.")
-    if CommonKeys.LABEL in batchdata:
+    if isinstance(batchdata.get(CommonKeys.LABEL, None), torch.Tensor):
         return (
             batchdata[CommonKeys.IMAGE].to(device=device, non_blocking=non_blocking),
             batchdata[CommonKeys.LABEL].to(device=device, non_blocking=non_blocking),

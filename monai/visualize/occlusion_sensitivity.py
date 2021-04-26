@@ -299,15 +299,14 @@ class OcclusionSensitivity:
             sensitivity_ims_list, output_im_shape = self._compute_occlusion_sensitivity(x, b_box)
 
             # Loop over image for each classification
-            for i in range(len(sensitivity_ims_list)):
-
+            for i, sens_i in enumerate(sensitivity_ims_list):
                 # upsample
                 if self.upsampler is not None:
-                    if len(sensitivity_ims_list[i].shape) != len(x.shape):
+                    if len(sens_i.shape) != len(x.shape):
                         raise AssertionError
-                    if np.any(sensitivity_ims_list[i].shape != x.shape):
+                    if np.any(sens_i.shape != x.shape):
                         img_spatial = tuple(output_im_shape[1:])
-                        sensitivity_ims_list[i] = self.upsampler(img_spatial)(sensitivity_ims_list[i])
+                        sensitivity_ims_list[i] = self.upsampler(img_spatial)(sens_i)
 
             # Convert list of tensors to tensor
             sensitivity_ims = torch.stack(sensitivity_ims_list, dim=-1)
