@@ -108,7 +108,7 @@ class TestExtractStainsMacenko(unittest.TestCase):
         since once the transparent pixels are removed, there are no
         remaining pixels to compute eigenvectors.
         """
-        if image == None:
+        if image is None:
             with self.assertRaises(TypeError):
                 NormalizeStainsMacenko()(image)
         else:
@@ -125,7 +125,7 @@ class TestExtractStainsMacenko(unittest.TestCase):
         we assert that the first column is equal to the second column
         of the returned stain matrix.
         """
-        if image == None:
+        if image is None:
             with self.assertRaises(TypeError):
                 NormalizeStainsMacenko()(image)
         else:
@@ -160,7 +160,7 @@ class TestExtractStainsMacenko(unittest.TestCase):
         - the resulting extracted stain should be
           [[0.70710677,0.18696113],[0,0],[0.70710677,0.98236734]]
         """
-        if image == None:
+        if image is None:
             with self.assertRaises(TypeError):
                 NormalizeStainsMacenko()(image)
         else:
@@ -182,7 +182,7 @@ class TestNormalizeStainsMacenko(unittest.TestCase):
         since once the transparent pixels are removed, there are no
         remaining pixels to compute eigenvectors.
         """
-        if image == None:
+        if image is None:
             with self.assertRaises(TypeError):
                 NormalizeStainsMacenko()(image)
         else:
@@ -235,7 +235,7 @@ class TestNormalizeStainsMacenko(unittest.TestCase):
           image should be [[[87, 87, 87], [33, 33, 33]], [[33, 33, 33], [33, 33, 33]],
           [[33, 33, 33], [33, 33, 33]]]
         """
-        if image == None:
+        if image is None:
             with self.assertRaises(TypeError):
                 NormalizeStainsMacenko()(image)
         else:
