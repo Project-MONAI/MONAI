@@ -70,6 +70,7 @@ class PNGSaver:
         self.mode: InterpolateMode = InterpolateMode(mode)
         self.scale = scale
         self.data_root_dir = data_root_dir
+        self.print_log = print_log
 
         self._data_index = 0
 
