@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Union
 
 from monai.handlers.utils import string_list_all_gather, write_metrics_reports
 from monai.utils import ImageMetaKey as Key
-from monai.utils import ensure_tuple, exact_version, optional_import
+from monai.utils import ensure_tuple, exact_version, issequenceiterable, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
 idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
@@ -95,8 +95,9 @@ class MetricsSaver:
 
     def _get_filenames(self, engine: Engine) -> None:
         if self.metric_details is not None:
-            _filenames = list(ensure_tuple(self.batch_transform(engine.state.batch)[Key.FILENAME_OR_OBJ]))
-            self._filenames += _filenames
+            filenames = self.batch_transform(engine.state.batch).get(Key.FILENAME_OR_OBJ)
+            if issequenceiterable(filenames):
+                self._filenames.extend(filenames)
 
     def __call__(self, engine: Engine) -> None:
         """
@@ -123,7 +124,7 @@ class MetricsSaver:
 
             write_metrics_reports(
                 save_dir=self.save_dir,
-                images=_images,
+                images=None if len(_images) == 0 else _images,
                 metrics=_metrics,
                 metric_details=_metric_details,
                 summary_ops=self.summary_ops,

@@ -99,7 +99,7 @@ class ClassificationSaver:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        filenames = self.batch_transform(engine.state.batch).get(Key.FILENAME_OR_OBJ, None)
+        filenames = self.batch_transform(engine.state.batch).get(Key.FILENAME_OR_OBJ)
         if issequenceiterable(filenames):
             self._filenames.extend(filenames)
         outputs = self.output_transform(engine.state.output)
