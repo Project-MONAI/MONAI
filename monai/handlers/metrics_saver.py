@@ -105,7 +105,7 @@ class MetricsSaver:
         """
         ws = idist.get_world_size()
         if self.save_rank >= ws:
-            raise ValueError("target rank is greater than the distributed group size.")
+            raise ValueError("target save rank is greater than the distributed group size.")
 
         # all gather file names across ranks
         _images = string_list_all_gather(strings=self._filenames) if ws > 1 else self._filenames

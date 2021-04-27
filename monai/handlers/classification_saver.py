@@ -62,7 +62,7 @@ class ClassificationSaver:
                 default to 0.
 
         """
-        self._expected_rank: bool = idist.get_rank() == save_rank
+        self.save_rank = save_rank
         self.output_dir = output_dir
         self.filename = filename
         self.overwrite = overwrite
@@ -113,8 +113,16 @@ class ClassificationSaver:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        outputs = evenly_divisible_all_gather(torch.cat(self._outputs, dim=0))
-        filenames = string_list_all_gather(self._filenames)
+        ws = idist.get_world_size()
+        if self.save_rank >= ws:
+            raise ValueError("target save rank is greater than the distributed group size.")
+
+        outputs = torch.cat(self._outputs, dim=0)
+        filenames = self._filenames
+        if ws > 1:
+            outputs = evenly_divisible_all_gather(outputs)
+            filenames = string_list_all_gather(filenames)
+
         if len(filenames) == 0:
             meta_dict = None
         elif len(filenames) != len(outputs):
@@ -123,7 +131,7 @@ class ClassificationSaver:
             meta_dict = {Key.FILENAME_OR_OBJ: filenames}
 
         # save to CSV file only in the expected rank
-        if self._expected_rank:
+        if idist.get_rank() == self.save_rank:
             saver = CSVSaver(self.output_dir, self.filename, self.overwrite)
             saver.save_batch(outputs, meta_dict)
             saver.finalize()
