@@ -145,6 +145,8 @@ class TestRandAffined(unittest.TestCase):
         res = g(input_data)
         for key in res:
             result = res[key]
+            if "_transforms" in key:
+                continue
             expected = expected_val[key] if isinstance(expected_val, dict) else expected_val
             self.assertEqual(isinstance(result, torch.Tensor), isinstance(expected, torch.Tensor))
             if isinstance(result, torch.Tensor):
