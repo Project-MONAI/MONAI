@@ -187,7 +187,7 @@ class TestMPLMDBDataset(DistTestCase):
     def tearDown(self):
         shutil.rmtree(self.tempdir)
 
-    @DistCall(nnodes=1, nproc_per_node=2)
+    @DistCall(nnodes=1, nproc_per_node=1)
     def test_mp_cache(self):
         items = [[list(range(i))] for i in range(5)]
 
