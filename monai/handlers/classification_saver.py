@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import logging
-from typing import TYPE_CHECKING, Callable, Optional, List
+from typing import TYPE_CHECKING, Callable, List, Optional
 
 import torch
 
