@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import logging
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import TYPE_CHECKING, Callable, Optional, List
 
 import torch
 
@@ -71,8 +71,8 @@ class ClassificationSaver:
 
         self.logger = logging.getLogger(name)
         self._name = name
-        self._outputs = []
-        self._filenames = []
+        self._outputs: List[torch.Tensor] = []
+        self._filenames: List[str] = []
 
     def attach(self, engine: Engine) -> None:
         """
