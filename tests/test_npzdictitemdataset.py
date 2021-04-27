@@ -24,7 +24,7 @@ class TestNPZDictItemDataset(unittest.TestCase):
         dat1 = np.random.rand(10, 1, 4, 4)
 
         npzfile = BytesIO()
-        npz = np.savez_compressed(npzfile, dat0=dat0, dat1=dat1)
+        np.savez_compressed(npzfile, dat0=dat0, dat1=dat1)
         npzfile.seek(0)
 
         npzds = NPZDictItemDataset(npzfile, {"dat0": "images", "dat1": "seg"})
@@ -41,7 +41,7 @@ class TestNPZDictItemDataset(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             npzfile = f"{tempdir}/test.npz"
 
-            npz = np.savez_compressed(npzfile, dat0=dat0, dat1=dat1)
+            np.savez_compressed(npzfile, dat0=dat0, dat1=dat1)
 
             npzds = NPZDictItemDataset(npzfile, {"dat0": "images", "dat1": "seg"})
 

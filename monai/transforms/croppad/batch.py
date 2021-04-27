@@ -99,10 +99,10 @@ class PadListDataCollate(InvertibleTransform):
             padder = SpatialPad(max_shape, self.method, self.mode)  # type: ignore
             transform = padder if not output_to_tensor else Compose([padder, ToTensor()])
 
-            for idx in range(len(batch)):
-                im = batch[idx][key_or_idx]
+            for idx, batch_i in enumerate(batch):
+                im = batch_i[key_or_idx]
                 orig_size = im.shape[1:]
-                padded = transform(batch[idx][key_or_idx])
+                padded = transform(batch_i[key_or_idx])
                 batch = replace_element(padded, batch, idx, key_or_idx)
 
                 # If we have a dictionary of data, append to list

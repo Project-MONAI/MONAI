@@ -44,6 +44,7 @@ class NiftiSaver:
         output_dtype: DtypeLike = np.float32,
         squeeze_end_dims: bool = True,
         data_root_dir: str = "",
+        print_log: bool = True,
     ) -> None:
         """
         Args:
@@ -78,6 +79,7 @@ class NiftiSaver:
                 output_dir: /output,
                 data_root_dir: /foo/bar,
                 output will be: /output/test1/image/image_seg.nii.gz
+            print_log: whether to print log about the saved NIfTI file path, etc. default to `True`.
 
         """
         self.output_dir = output_dir
@@ -92,6 +94,7 @@ class NiftiSaver:
         self._data_index = 0
         self.squeeze_end_dims = squeeze_end_dims
         self.data_root_dir = data_root_dir
+        self.print_log = print_log
 
     def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
         """
@@ -153,6 +156,9 @@ class NiftiSaver:
             dtype=self.dtype,
             output_dtype=self.output_dtype,
         )
+
+        if self.print_log:
+            print(f"file written: {path}.")
 
     def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
         """
