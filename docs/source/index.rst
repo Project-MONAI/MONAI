@@ -45,6 +45,7 @@ Technical documentation is available at `docs.monai.io <https://docs.monai.io>`_
    :maxdepth: 1
    :caption: Feature highlights
 
+   whatsnew.md
    highlights.md
 
 .. toctree::
@@ -91,9 +92,8 @@ Links
 - FAQ: https://github.com/Project-MONAI/MONAI/wiki/Frequently-asked-questions-and-answers
 - Test status: https://github.com/Project-MONAI/MONAI/actions
 - PyPI package: https://pypi.org/project/monai/
+- Weekly previews: https://pypi.org/project/monai-weekly/
 - Docker Hub: https://hub.docker.com/r/projectmonai/monai
-- Google Group: https://groups.google.com/forum/#!forum/project-monai
-- Reddit: https://www.reddit.com/r/projectmonai/
 
 
 Indices and tables
