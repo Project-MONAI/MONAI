@@ -47,6 +47,15 @@ class DistributedHandlerClassificationSaver(DistTestCase):
                     "data_shape": [(1, 1) for _ in range(8 * rank, (8 + rank) * (rank + 1))],
                 }
             ]
+            # rank 1 has more iterations
+            if rank == 1:
+                data.append(
+                    {
+                        "filename_or_obj": ["testfile" + str(i) for i in range(18, 28)],
+                        "data_shape": [(1, 1) for _ in range(18, 28)],
+                    }
+                )
+
             engine.run(data, max_epochs=1)
             filepath = os.path.join(tempdir, "predictions.csv")
             if rank == 1:
@@ -58,7 +67,7 @@ class DistributedHandlerClassificationSaver(DistTestCase):
                         self.assertEqual(row[0], "testfile" + str(i))
                         self.assertEqual(np.array(row[1:]).astype(np.float32), 0.0)
                         i += 1
-                    self.assertEqual(i, 18)
+                    self.assertEqual(i, 28)
 
 
 if __name__ == "__main__":
