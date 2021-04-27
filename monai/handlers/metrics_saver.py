@@ -86,7 +86,7 @@ class MetricsSaver:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        engine.add_event_handler(Events.STARTED, self._started)
+        engine.add_event_handler(Events.EPOCH_STARTED, self._started)
         engine.add_event_handler(Events.ITERATION_COMPLETED, self._get_filenames)
         engine.add_event_handler(Events.EPOCH_COMPLETED, self)
 

@@ -11,13 +11,13 @@
 
 import logging
 from typing import TYPE_CHECKING, Callable, List, Optional
-
+import warnings
 import torch
 
 from monai.data import CSVSaver
 from monai.handlers.utils import evenly_divisible_all_gather, string_list_all_gather
 from monai.utils import ImageMetaKey as Key
-from monai.utils import exact_version, optional_import
+from monai.utils import exact_version, optional_import, issequenceiterable
 
 idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
 Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
@@ -62,7 +62,6 @@ class ClassificationSaver:
 
         """
         self._expected_rank: bool = idist.get_rank() == save_rank
-        self.saver = CSVSaver(output_dir, filename, overwrite)
         self.output_dir = output_dir
         self.filename = filename
         self.overwrite = overwrite
@@ -81,10 +80,16 @@ class ClassificationSaver:
         """
         if self._name is None:
             self.logger = engine.logger
+        if not engine.has_event_handler(self._started, Events.EPOCH_STARTED):
+            engine.add_event_handler(Events.EPOCH_STARTED, self._started)
         if not engine.has_event_handler(self, Events.ITERATION_COMPLETED):
             engine.add_event_handler(Events.ITERATION_COMPLETED, self)
-        if not engine.has_event_handler(self.saver.finalize, Events.COMPLETED):
-            engine.add_event_handler(Events.COMPLETED, self._finalize)
+        if not engine.has_event_handler(self._finalize, Events.COMPLETED):
+            engine.add_event_handler(Events.EPOCH_COMPLETED, self._finalize)
+
+    def _started(self, engine: Engine) -> None:
+        self._outputs = []
+        self._filenames = []
 
     def __call__(self, engine: Engine) -> None:
         """
@@ -94,7 +99,7 @@ class ClassificationSaver:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
         filenames = self.batch_transform(engine.state.batch).get(Key.FILENAME_OR_OBJ, None)
-        if filenames is not None:
+        if issequenceiterable(filenames):
             self._filenames.extend(filenames)
         outputs = self.output_transform(engine.state.output)
         if outputs is not None:
@@ -112,7 +117,7 @@ class ClassificationSaver:
         if len(filenames) == 0:
             meta_dict = None
         elif len(filenames) != len(outputs):
-            raise RuntimeError(f"filenames length: {len(filenames)} doesn't match outputs length: {len(outputs)}.")
+            warnings.warn(f"filenames length: {len(filenames)} doesn't match outputs length: {len(outputs)}.")
         else:
             meta_dict = {Key.FILENAME_OR_OBJ: filenames}
 
@@ -121,6 +126,3 @@ class ClassificationSaver:
             saver = CSVSaver(self.output_dir, self.filename, self.overwrite)
             saver.save_batch(outputs, meta_dict)
             saver.finalize()
-        # reset cache
-        self._outputs = []
-        self._filenames = []
