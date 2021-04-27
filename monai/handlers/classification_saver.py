@@ -10,14 +10,15 @@
 # limitations under the License.
 
 import logging
-from typing import TYPE_CHECKING, Callable, List, Optional
 import warnings
+from typing import TYPE_CHECKING, Callable, List, Optional
+
 import torch
 
 from monai.data import CSVSaver
 from monai.handlers.utils import evenly_divisible_all_gather, string_list_all_gather
 from monai.utils import ImageMetaKey as Key
-from monai.utils import exact_version, optional_import, issequenceiterable
+from monai.utils import exact_version, issequenceiterable, optional_import
 
 idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
 Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
