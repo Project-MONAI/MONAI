@@ -85,7 +85,7 @@ class ClassificationSaver:
             engine.add_event_handler(Events.EPOCH_STARTED, self._started)
         if not engine.has_event_handler(self, Events.ITERATION_COMPLETED):
             engine.add_event_handler(Events.ITERATION_COMPLETED, self)
-        if not engine.has_event_handler(self._finalize, Events.COMPLETED):
+        if not engine.has_event_handler(self._finalize, Events.EPOCH_COMPLETED):
             engine.add_event_handler(Events.EPOCH_COMPLETED, self._finalize)
 
     def _started(self, engine: Engine) -> None:
