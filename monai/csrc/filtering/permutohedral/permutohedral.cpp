@@ -11,8 +11,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#include <string>
 #include <stdexcept>
+#include <string>
 
 #include "utils/common_utils.h"
 #include "utils/meta_macros.h"
@@ -49,15 +49,15 @@ torch::Tensor PermutohedralFilter(torch::Tensor input, torch::Tensor features) {
   if (torch::cuda::is_available() && data.is_cuda()) {
     CHECK_CONTIGUOUS_CUDA(data);
 
-  if (channelCount > PHL_CUDA_MAX_CHANNELS)
-  {
-    throw std::runtime_error("PHL filtering not implemented for channel count > " + std::to_string(PHL_CUDA_MAX_CHANNELS));
-  }
+    if (channelCount > PHL_CUDA_MAX_CHANNELS) {
+      throw std::runtime_error(
+          "PHL filtering not implemented for channel count > " + std::to_string(PHL_CUDA_MAX_CHANNELS));
+    }
 
-  if (featureCount > PHL_CUDA_MAX_FEATURES)
-  {
-    throw std::runtime_error("PHL filtering not implemented for feature count > " + std::to_string(PHL_CUDA_MAX_FEATURES));
-  }
+    if (featureCount > PHL_CUDA_MAX_FEATURES) {
+      throw std::runtime_error(
+          "PHL filtering not implemented for feature count > " + std::to_string(PHL_CUDA_MAX_FEATURES));
+    }
 
 #define CASE(dc, fc)                                                                                                  \
   AT_DISPATCH_FLOATING_TYPES(data.scalar_type(), "PermutohedralCuda", ([&] {                                          \

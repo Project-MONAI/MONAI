@@ -11,9 +11,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#include <string>
-#include <stdexcept>
 #include <torch/extension.h>
+#include <stdexcept>
+#include <string>
 
 #include "bilateral.h"
 #include "utils/common_utils.h"
@@ -26,14 +26,15 @@ torch::Tensor BilateralFilter(torch::Tensor input, float spatial_sigma, float co
   if (torch::cuda::is_available() && input.is_cuda()) {
     CHECK_CONTIGUOUS_CUDA(input);
 
-    if (input.size(1) > BF_CUDA_MAX_CHANNELS)
-    {
-        throw std::runtime_error("Bilateral filtering not implemented for channel count > " + std::to_string(BF_CUDA_MAX_CHANNELS));
+    if (input.size(1) > BF_CUDA_MAX_CHANNELS) {
+      throw std::runtime_error(
+          "Bilateral filtering not implemented for channel count > " + std::to_string(BF_CUDA_MAX_CHANNELS));
     }
-    
-    if (input.dim() - 2 > BF_CUDA_MAX_SPATIAL_DIMENSION)
-    {
-        throw std::runtime_error("Bilateral filtering not implemented for spatial dimension > " + std::to_string(BF_CUDA_MAX_SPATIAL_DIMENSION));
+
+    if (input.dim() - 2 > BF_CUDA_MAX_SPATIAL_DIMENSION) {
+      throw std::runtime_error(
+          "Bilateral filtering not implemented for spatial dimension > " +
+          std::to_string(BF_CUDA_MAX_SPATIAL_DIMENSION));
     }
 
     filterFunction = usePHL ? &BilateralFilterPHLCuda : &BilateralFilterCuda;
