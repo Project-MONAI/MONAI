@@ -53,7 +53,6 @@ class DistributedHandlerClassificationSaver(DistTestCase):
                     {
                         "filename_or_obj": ["testfile" + str(i) for i in range(18, 28)],
                         "data_shape": [(1, 1) for _ in range(18, 28)],
-
                     }
                 )
 
