@@ -37,6 +37,7 @@ class PNGSaver:
         mode: Union[InterpolateMode, str] = InterpolateMode.NEAREST,
         scale: Optional[int] = None,
         data_root_dir: str = "",
+        print_log: bool = True,
     ) -> None:
         """
         Args:
@@ -59,6 +60,7 @@ class PNGSaver:
                 output_dir: /output,
                 data_root_dir: /foo/bar,
                 output will be: /output/test1/image/image_seg.png
+            print_log: whether to print log about the saved PNG file path, etc. default to `True`.
 
         """
         self.output_dir = output_dir
@@ -121,6 +123,9 @@ class PNGSaver:
             mode=self.mode,
             scale=self.scale,
         )
+
+        if self.print_log:
+            print(f"file written: {path}.")
 
     def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
         """Save a batch of data into png format files.
