@@ -125,9 +125,9 @@ class ClassificationSaver:
 
         if len(filenames) == 0:
             meta_dict = None
-        elif len(filenames) != len(outputs):
-            warnings.warn(f"filenames length: {len(filenames)} doesn't match outputs length: {len(outputs)}.")
         else:
+            if len(filenames) != len(outputs):
+                warnings.warn(f"filenames length: {len(filenames)} doesn't match outputs length: {len(outputs)}.")
             meta_dict = {Key.FILENAME_OR_OBJ: filenames}
 
         # save to CSV file only in the expected rank
