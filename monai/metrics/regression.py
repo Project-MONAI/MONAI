@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import math
-import warnings
 from abc import ABC, abstractmethod
 from functools import partial
 from typing import Any, Union
@@ -116,8 +115,10 @@ class PSNRMetric(RegressionMetric):
 
     def _compute_metric(self, y_pred: torch.Tensor, y_target: torch.Tensor) -> Any:
         # https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio
-        # Implments equation: \mathit{PSNR} = 20 \cdot \log_{10} \left({\mathit{MAX}}_{I}\right) -10 \cdot \log_{10}\left(\mathit{MSE}\right)
-        # Help from: https://github.com/tensorflow/tensorflow/blob/2b96f3662bd776e277f86997659e61046b56c315/tensorflow/python/ops/image_ops_impl.py#L3401
+        # Implments equation:
+        # \mathit{PSNR} = 20 \cdot \log_{10} \left({\mathit{MAX}}_{I}\right) -10 \cdot \log_{10}\left(\mathit{MSE}\right)
+        # Help from:
+        # https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/ops/image_ops_impl.py line 4139
 
         y_pred = y_pred.float()
         y_target = y_target.float()

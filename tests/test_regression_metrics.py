@@ -14,9 +14,11 @@ from functools import partial
 
 import numpy as np
 import torch
-from parameterized import parameterized
 
 from monai.metrics import MAEMetric, MSEMetric, PSNRMetric, RMSEMetric
+
+# from parameterized import parameterized
+
 
 # TODO: Add parametrised examples similar to test_comput_meandice.py
 
