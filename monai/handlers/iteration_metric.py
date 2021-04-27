@@ -77,7 +77,11 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
         y_pred, y = output
 
         def _compute(y_pred, y):
-            score = self.metric_fn(y_pred.detach(), y.detach())
+            if isinstance(y_pred, torch.Tensor):
+                y_pred = y_pred.detach()
+            if isinstance(y, torch.Tensor):
+                y = y.detach()
+            score = self.metric_fn(y_pred, y)
             return score[0] if isinstance(score, (tuple, list)) else score
 
         if isinstance(y_pred, (list, tuple)) or isinstance(y, (list, tuple)):
