@@ -104,7 +104,7 @@ class ClassificationSaver:
             self._filenames.extend(filenames)
         outputs = self.output_transform(engine.state.output)
         if outputs is not None:
-            self._outputs.append(outputs)
+            self._outputs.append(outputs.detach())
 
     def _finalize(self, engine: Engine) -> None:
         """
