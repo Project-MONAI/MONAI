@@ -11,6 +11,7 @@
 
 import logging
 from typing import TYPE_CHECKING, Callable, Optional
+import torch
 
 from monai.data import CSVSaver
 from monai.handlers.utils import evenly_divisible_all_gather, string_list_all_gather
@@ -61,11 +62,16 @@ class ClassificationSaver:
         """
         self._expected_rank: bool = idist.get_rank() == save_rank
         self.saver = CSVSaver(output_dir, filename, overwrite)
+        self.output_dir = output_dir
+        self.filename = filename
+        self.overwrite = overwrite
         self.batch_transform = batch_transform
         self.output_transform = output_transform
 
         self.logger = logging.getLogger(name)
         self._name = name
+        self._outputs = []
+        self._filenames = []
 
     def attach(self, engine: Engine) -> None:
         """
@@ -76,8 +82,8 @@ class ClassificationSaver:
             self.logger = engine.logger
         if not engine.has_event_handler(self, Events.ITERATION_COMPLETED):
             engine.add_event_handler(Events.ITERATION_COMPLETED, self)
-        if self._expected_rank and not engine.has_event_handler(self.saver.finalize, Events.COMPLETED):
-            engine.add_event_handler(Events.COMPLETED, lambda engine: self.saver.finalize())
+        if not engine.has_event_handler(self.saver.finalize, Events.COMPLETED):
+            engine.add_event_handler(Events.COMPLETED, self._finalize)
 
     def __call__(self, engine: Engine) -> None:
         """
@@ -86,12 +92,34 @@ class ClassificationSaver:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        _meta_data = self.batch_transform(engine.state.batch)
-        if Key.FILENAME_OR_OBJ in _meta_data:
-            # all gather filenames across ranks, only filenames are necessary
-            _meta_data = {Key.FILENAME_OR_OBJ: string_list_all_gather(_meta_data[Key.FILENAME_OR_OBJ])}
-        # all gather predictions across ranks
-        _engine_output = evenly_divisible_all_gather(self.output_transform(engine.state.output))
+        filenames = self.batch_transform(engine.state.batch).get(Key.FILENAME_OR_OBJ, None)
+        if filenames is not None:
+            self._filenames.extend(filenames)
+        outputs = self.output_transform(engine.state.output)
+        if outputs is not None:
+            self._outputs.append(outputs)
 
+    def _finalize(self, engine: Engine) -> None:
+        """
+        All gather classification results from ranks and save to CSV file.
+
+        Args:
+            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+        """
+        outputs = evenly_divisible_all_gather(torch.cat(self._outputs, dim=0))
+        filenames = string_list_all_gather(self._filenames)
+        if len(filenames) == 0:
+            meta_dict = None
+        elif len(filenames) != len(outputs):
+            raise RuntimeError(f"filenames length: {len(filenames)} doesn't match outputs length: {len(outputs)}.")
+        else:
+            meta_dict = {Key.FILENAME_OR_OBJ: filenames}
+
+        # save to CSV file only in the expected rank
         if self._expected_rank:
-            self.saver.save_batch(_engine_output, _meta_data)
+            saver = CSVSaver(self.output_dir, self.filename, self.overwrite)
+            saver.save_batch(outputs, meta_dict)
+            saver.finalize()
+        # reset cache
+        self._outputs = []
+        self._filenames = []
