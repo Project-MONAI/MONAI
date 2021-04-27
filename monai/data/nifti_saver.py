@@ -153,6 +153,7 @@ class NiftiSaver:
             dtype=self.dtype,
             output_dtype=self.output_dtype,
         )
+        print(f"file written: {path}.")
 
     def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
         """
