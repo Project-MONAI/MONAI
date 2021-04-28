@@ -201,7 +201,9 @@ class RandRicianNoised(RandomizableTransform, MapTransform):
             sample_std,
         )
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(
+        self, data: Mapping[Hashable, Union[torch.Tensor, np.ndarray]]
+    ) -> Dict[Hashable, Union[torch.Tensor, np.ndarray]]:
         d = dict(data)
         super().randomize(None)
         if not self._do_transform:

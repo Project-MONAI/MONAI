@@ -134,13 +134,13 @@ class RandRicianNoise(RandomizableTransform):
         self._noise1 = None
         self._noise2 = None
 
-    def _add_noise(
-        self, img: Union[torch.Tensor, np.ndarray], mean: float, std: float
-    ) -> Union[torch.Tensor, np.ndarray]:
+    def _add_noise(self, img: Union[torch.Tensor, np.ndarray], mean: float, std: float):
         im_shape = img.shape
         _std = self.R.uniform(0, std) if self.sample_std else std
         self._noise1 = self.R.normal(mean, _std, size=im_shape)
         self._noise2 = self.R.normal(mean, _std, size=im_shape)
+        if self._noise1 is None or self._noise2 is None:
+            raise AssertionError
         dtype = dtype_torch_to_numpy(img.dtype) if isinstance(img, torch.Tensor) else img.dtype
         return np.sqrt((img + self._noise1.astype(dtype)) ** 2 + self._noise2.astype(dtype) ** 2)
 
@@ -161,7 +161,10 @@ class RandRicianNoise(RandomizableTransform):
                 raise AssertionError("If channel_wise is False, mean must be a float or int number.")
             if not isinstance(self.std, (int, float)):
                 raise AssertionError("If channel_wise is False, std must be a float or int number.")
-            img = self._add_noise(img, mean=self.mean, std=self.std * img.std() if self.relative else self.std)
+            std = self.std * img.std() if self.relative else self.std
+            if not isinstance(std, (int, float)):
+                raise AssertionError
+            img = self._add_noise(img, mean=self.mean, std=std)
         return img
 
 
