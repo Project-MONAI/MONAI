@@ -13,14 +13,14 @@ from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Union
 
 from monai.handlers.utils import string_list_all_gather, write_metrics_reports
 from monai.utils import ImageMetaKey as Key
-from monai.utils import ensure_tuple, exact_version, optional_import
+from monai.utils import ensure_tuple, exact_version, issequenceiterable, optional_import
 
-Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
-idist, _ = optional_import("ignite", "0.4.2", exact_version, "distributed")
+Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
+idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
 
 
 class MetricsSaver:
@@ -86,7 +86,7 @@ class MetricsSaver:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        engine.add_event_handler(Events.STARTED, self._started)
+        engine.add_event_handler(Events.EPOCH_STARTED, self._started)
         engine.add_event_handler(Events.ITERATION_COMPLETED, self._get_filenames)
         engine.add_event_handler(Events.EPOCH_COMPLETED, self)
 
@@ -95,8 +95,9 @@ class MetricsSaver:
 
     def _get_filenames(self, engine: Engine) -> None:
         if self.metric_details is not None:
-            _filenames = list(ensure_tuple(self.batch_transform(engine.state.batch)[Key.FILENAME_OR_OBJ]))
-            self._filenames += _filenames
+            filenames = self.batch_transform(engine.state.batch).get(Key.FILENAME_OR_OBJ)
+            if issequenceiterable(filenames):
+                self._filenames.extend(filenames)
 
     def __call__(self, engine: Engine) -> None:
         """
@@ -105,7 +106,7 @@ class MetricsSaver:
         """
         ws = idist.get_world_size()
         if self.save_rank >= ws:
-            raise ValueError("target rank is greater than the distributed group size.")
+            raise ValueError("target save rank is greater than the distributed group size.")
 
         # all gather file names across ranks
         _images = string_list_all_gather(strings=self._filenames) if ws > 1 else self._filenames
@@ -123,7 +124,7 @@ class MetricsSaver:
 
             write_metrics_reports(
                 save_dir=self.save_dir,
-                images=_images,
+                images=None if len(_images) == 0 else _images,
                 metrics=_metrics,
                 metric_details=_metric_details,
                 summary_ops=self.summary_ops,
