@@ -1,10 +1,10 @@
 name: deploy
 
 on:
-  # master only tests
+  # dev branch only tests
   push:
     branches:
-      - master
+      - dev
 
 jobs:
   # caching of these jobs:
@@ -136,7 +136,7 @@ jobs:
         python -c 'import monai; monai.config.print_config()'
     - uses: actions/checkout@v2
       with:
-        ref: master
+        ref: dev
     - name: Quick test installed
       run: |
         cd $GITHUB_WORKSPACE

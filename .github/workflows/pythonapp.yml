@@ -4,7 +4,7 @@ on:
   # quick tests for every pull request
   push:
     branches:
-      - master
+      - dev
   pull_request:
 
 jobs:
