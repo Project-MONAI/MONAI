@@ -664,6 +664,9 @@ class RandWeightedCropd(Randomizable, MapTransform):
             If its components have non-positive values, the corresponding size of `img` will be used.
         num_samples: number of samples (image patches) to take in the returned list.
         center_coord_key: if specified, the actual sampling location will be stored with the corresponding key.
+        meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
+            default is `meta_dict`, the meta data is a dictionary object.
+            used to add `patch_index` to the meta dict.
         allow_missing_keys: don't raise exception if key is missing.
 
     See Also:
@@ -677,6 +680,7 @@ class RandWeightedCropd(Randomizable, MapTransform):
         spatial_size: Union[Sequence[int], int],
         num_samples: int = 1,
         center_coord_key: Optional[str] = None,
+        meta_key_postfix: str = "meta_dict",
         allow_missing_keys: bool = False,
     ):
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -684,6 +688,7 @@ class RandWeightedCropd(Randomizable, MapTransform):
         self.w_key = w_key
         self.num_samples = int(num_samples)
         self.center_coord_key = center_coord_key
+        self.meta_key_postfix = meta_key_postfix
         self.centers: List[np.ndarray] = []
 
     def randomize(self, weight_map: np.ndarray) -> None:
@@ -710,9 +715,15 @@ class RandWeightedCropd(Randomizable, MapTransform):
                 if self.center_coord_key:
                     results[i][self.center_coord_key] = center
         # fill in the extra keys with unmodified data
-        for key in set(data.keys()).difference(set(self.keys)):
-            for i in range(self.num_samples):
-                results[i][key] = data[key]
+        for i in range(self.num_samples):
+            for key in set(data.keys()).difference(set(self.keys)):
+                results[i][key] = deepcopy(data[key])
+            # add `patch_index` to the meta data
+            for key in self.key_iterator(d):
+                meta_data_key = f"{key}_{self.meta_key_postfix}"
+                if meta_data_key not in results[i]:
+                    results[i][meta_data_key] = {}  # type: ignore
+                results[i][meta_data_key][Key.PATCH_INDEX] = i
 
         return results
 
@@ -829,7 +840,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
                 results[i][key] = cropper(img)
             # fill in the extra keys with unmodified data
             for key in set(data.keys()).difference(set(self.keys)):
-                results[i][key] = data[key]
+                results[i][key] = deepcopy(data[key])
             # add `patch_index` to the meta data
             for key in self.key_iterator(d):
                 meta_data_key = f"{key}_{self.meta_key_postfix}"
