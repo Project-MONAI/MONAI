@@ -40,7 +40,7 @@ class TestHandlerMeanDice(unittest.TestCase):
         dice_metric.update([y_pred, y])
 
         y_pred = [torch.Tensor([[0], [1]]), torch.Tensor([[1], [0]])]
-        y = [torch.Tensor([[0], [1]]), torch.Tensor([[1], [0]])]
+        y = torch.Tensor([[[0], [1]], [[1], [0]]])
         dice_metric.update([y_pred, y])
 
         avg_dice = dice_metric.compute()

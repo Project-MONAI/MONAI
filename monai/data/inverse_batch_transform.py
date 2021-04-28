@@ -77,7 +77,7 @@ class BatchInverseTransform(Transform):
         self.batch_size = loader.batch_size
         self.num_workers = loader.num_workers if num_workers is None else num_workers
         self.collate_fn = collate_fn
-        self.pad_collation_used = loader.collate_fn == pad_list_data_collate
+        self.pad_collation_used = loader.collate_fn.__doc__ == pad_list_data_collate.__doc__
 
     def __call__(self, data: Dict[str, Any]) -> Any:
 

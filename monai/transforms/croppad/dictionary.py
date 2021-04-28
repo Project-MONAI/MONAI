@@ -29,6 +29,7 @@ from monai.transforms.croppad.array import (
     BorderPad,
     BoundingRect,
     CenterSpatialCrop,
+    CropForeground,
     DivisiblePad,
     ResizeWithPadOrCrop,
     SpatialCrop,
@@ -36,12 +37,7 @@ from monai.transforms.croppad.array import (
 )
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable
-from monai.transforms.utils import (
-    generate_pos_neg_label_crop_centers,
-    generate_spatial_bounding_box,
-    map_binary_to_indices,
-    weighted_patch_samples,
-)
+from monai.transforms.utils import generate_pos_neg_label_crop_centers, map_binary_to_indices, weighted_patch_samples
 from monai.utils import ImageMetaKey as Key
 from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
 from monai.utils.enums import InverseKeys
@@ -543,8 +539,11 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> List[Dict[Hashable, np.ndarray]]:
         ret = []
-        d = dict(data)
         for i in range(self.num_samples):
+            d = dict(data)
+            # deep copy all the unmodified data
+            for key in set(data.keys()).difference(set(self.keys)):
+                d[key] = deepcopy(data[key])
             cropped = self.cropper(d)
             # add `patch_index` to the meta data
             for key in self.key_iterator(d):
@@ -576,6 +575,8 @@ class CropForegroundd(MapTransform, InvertibleTransform):
         select_fn: Callable = lambda x: x > 0,
         channel_indices: Optional[IndexSelection] = None,
         margin: int = 0,
+        k_divisible: Union[Sequence[int], int] = 1,
+        mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
         start_coord_key: str = "foreground_start_coord",
         end_coord_key: str = "foreground_end_coord",
         allow_missing_keys: bool = False,
@@ -589,29 +590,36 @@ class CropForegroundd(MapTransform, InvertibleTransform):
             channel_indices: if defined, select foreground only on the specified channels
                 of image. if None, select foreground on the whole image.
             margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
+            k_divisible: make each spatial dimension to be divisible by k, default to 1.
+                if `k_divisible` is an int, the same `k` be applied to all the input spatial dimensions.
+            mode: padding mode {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                one of the listed string values or a user supplied function. Defaults to ``"constant"``.
+                see also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
             start_coord_key: key to record the start coordinate of spatial bounding box for foreground.
             end_coord_key: key to record the end coordinate of spatial bounding box for foreground.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
         self.source_key = source_key
-        self.select_fn = select_fn
-        self.channel_indices = ensure_tuple(channel_indices) if channel_indices is not None else None
-        self.margin = margin
         self.start_coord_key = start_coord_key
         self.end_coord_key = end_coord_key
+        self.cropper = CropForeground(
+            select_fn=select_fn,
+            channel_indices=channel_indices,
+            margin=margin,
+            k_divisible=k_divisible,
+            mode=mode,
+        )
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        box_start, box_end = generate_spatial_bounding_box(
-            d[self.source_key], self.select_fn, self.channel_indices, self.margin
-        )
-        d[self.start_coord_key] = np.asarray(box_start)
-        d[self.end_coord_key] = np.asarray(box_end)
-        cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
+        box_start, box_end = self.cropper.compute_bounding_box(img=d[self.source_key])
+        d[self.start_coord_key] = box_start
+        d[self.end_coord_key] = box_end
         for key in self.key_iterator(d):
             self.push_transform(d, key, extra_info={"box_start": box_start, "box_end": box_end})
-            d[key] = cropper(d[key])
+            d[key] = self.cropper.crop_pad(d[key], box_start, box_end)
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
@@ -619,15 +627,24 @@ class CropForegroundd(MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            orig_size = np.array(transform[InverseKeys.ORIG_SIZE])
+            orig_size = np.asarray(transform[InverseKeys.ORIG_SIZE])
+            cur_size = np.asarray(d[key].shape[1:])
             extra_info = transform[InverseKeys.EXTRA_INFO]
-            pad_to_start = np.array(extra_info["box_start"])
-            pad_to_end = orig_size - np.array(extra_info["box_end"])
+            box_start = np.asarray(extra_info["box_start"])
+            box_end = np.asarray(extra_info["box_end"])
+            # first crop the padding part
+            roi_start = np.maximum(-box_start, 0)
+            roi_end = cur_size - np.maximum(box_end - orig_size, 0)
+
+            d[key] = SpatialCrop(roi_start=roi_start, roi_end=roi_end)(d[key])
+
+            # update bounding box to pad
+            pad_to_start = np.maximum(box_start, 0)
+            pad_to_end = orig_size - np.minimum(box_end, orig_size)
             # interleave mins and maxes
             pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
-            inverse_transform = BorderPad(pad)
-            # Apply inverse transform
-            d[key] = inverse_transform(d[key])
+            # second pad back the original size
+            d[key] = BorderPad(pad)(d[key])
             # Remove the applied transform
             self.pop_transform(d, key)
 

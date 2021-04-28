@@ -209,7 +209,8 @@ def plot_engine_status(
 
     axes = plot_metric_images(fig, title, graphmap, imagemap, yscale, avg_keys, window_fraction)
 
-    axes[0].axhline(logger.loss[-1][1], c="k", ls=":")  # draw dotted horizontal line at last loss value
+    if logger.loss:
+        axes[0].axhline(logger.loss[-1][1], c="k", ls=":")  # draw dotted horizontal line at last loss value
 
     return fig, axes
 
@@ -341,5 +342,5 @@ class ThreadContainer(Thread):
         which holds the internal lock during the plot generation.
         """
         with self.lock:
-            self.fig, axes = plot_func(title=self.status(), engine=self.engine, logger=logger, fig=self.fig)
+            self.fig, _ = plot_func(title=self.status(), engine=self.engine, logger=logger, fig=self.fig)
             return self.fig

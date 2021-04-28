@@ -67,7 +67,7 @@ class TestDiceFocalLoss(unittest.TestCase):
 
     def test_ill_lambda(self):
         with self.assertRaisesRegex(ValueError, ""):
-            loss = DiceFocalLoss(lambda_dice=-1.0)
+            DiceFocalLoss(lambda_dice=-1.0)
 
     @SkipIfBeforePyTorchVersion((1, 7, 0))
     def test_script(self):

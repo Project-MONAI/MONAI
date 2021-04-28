@@ -176,6 +176,19 @@ CROP_TEST_CASE_1 = [
     np.array([[[[1, 2, 1], [2, 3, 2], [1, 2, 1]]]]),
 ]
 
+CROP_TEST_CASE_2 = [
+    {
+        "keys": ["image", "label"],
+        "source_key": "label",
+        "select_fn": lambda x: x > 0,
+        "channel_indices": None,
+        "margin": 0,
+        "spatial_size": [2, 4, 4],
+    },
+    DATA_1,
+    np.array([1, 1, 4, 4]),
+]
+
 ADD_INITIAL_POINT_TEST_CASE_1 = [
     {"label": "label", "guidance": "guidance", "sids": "sids"},
     DATA_1,
@@ -359,6 +372,11 @@ class TestSpatialCropForegroundd(unittest.TestCase):
     def test_correct_results(self, arguments, input_data, expected_result):
         result = SpatialCropForegroundd(**arguments)(input_data)
         np.testing.assert_allclose(result["image"], expected_result)
+
+    @parameterized.expand([CROP_TEST_CASE_2])
+    def test_correct_shape(self, arguments, input_data, expected_shape):
+        result = SpatialCropForegroundd(**arguments)(input_data)
+        np.testing.assert_equal(result["image"].shape, expected_shape)
 
     @parameterized.expand([CROP_TEST_CASE_1])
     def test_foreground_position(self, arguments, input_data, _):
