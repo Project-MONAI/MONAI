@@ -614,8 +614,10 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         4. Call `shutdown()` when training ends.
 
     Note:
-        This replacement will not work if setting the `multiprocessing_context` of DataLoader to `spawn`
-        or on windows(the default multiprocessing method is `spawn`) and setting `num_workers` greater than 0.
+        This replacement will not work for below cases:
+        1. Set the `multiprocessing_context` of DataLoader to `spawn`.
+        2. Run on windows(the default multiprocessing method is `spawn`) with `num_workers` greater than 0.
+        3. Set `persistent_workers=True` in the PyTorch DataLoader.
 
         If using MONAI workflows, please add `SmartCacheHandler` to the handler list of trainer,
         otherwise, please make sure to call `start()`, `update_cache()`, `shutdown()` during training.
