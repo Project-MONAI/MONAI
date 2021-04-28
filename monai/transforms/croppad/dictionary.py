@@ -829,7 +829,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
                 results[i][key] = cropper(img)
             # fill in the extra keys with unmodified data
             for key in set(data.keys()).difference(set(self.keys)):
-                results[i][key] = data[key]
+                results[i][key] = deepcopy(data[key])
             # add `patch_index` to the meta data
             for key in self.key_iterator(d):
                 meta_data_key = f"{key}_{self.meta_key_postfix}"
