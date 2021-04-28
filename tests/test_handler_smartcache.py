@@ -38,7 +38,7 @@ class TestHandlerSmartCache(unittest.TestCase):
 
         # set up testing handler
         dataset = SmartCacheDataset(data, transform=None, replace_rate=0.2, cache_num=5, shuffle=False)
-        workers = 2 if sys.platform != "darwin" else 0
+        workers = 2 if sys.platform == "linux" else 0
         data_loader = torch.utils.data.DataLoader(dataset, batch_size=5, num_workers=workers, persistent_workers=False)
         SmartCacheHandler(dataset).attach(engine)
 
