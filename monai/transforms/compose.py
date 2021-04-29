@@ -48,10 +48,11 @@ class Compose(Randomizable, InvertibleTransform):
        dictionary. It is required that the dictionary is copied between input
        and output of each transform.
 
-    If some transform takes a data item dictionary as input, and return a list
-    of data items in the transform chain, and all the following transforms will
-    be applied to each item of the list, this behaviour is enabled by default
-    with `map_items=True`.
+    If some transform takes a data item dictionary as input, and returns a
+    sequence of data items in the transform chain, all following transforms
+    will be applied to each item of this list if `map_items` is `True` (the
+    default).  If `map_items` is `False`, the returned sequence is passed whole
+    to the next callable in the chain.
 
     For example:
 
