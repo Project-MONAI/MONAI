@@ -753,6 +753,27 @@ def partition_dataset(
     And it can split the dataset based on specified ratios or evenly split into `num_partitions`.
     Refer to: https://github.com/pytorch/pytorch/blob/master/torch/utils/data/distributed.py.
 
+    Note:
+        It also can be used to partition dataset for ranks in distributed training.
+        For example, partition dataset before training and use `CacheDataset`, every rank trains with its own data.
+        It can avoid duplicated caching content in each rank, but will not do global shuffle before every epoch:
+
+        .. code-block:: python
+
+            data_partition = partition_dataset(
+                data=train_files,
+                num_partitions=dist.get_world_size(),
+                shuffle=True,
+                even_divisible=True,
+            )[dist.get_rank()]
+
+            train_ds = SmartCacheDataset(
+                data=data_partition,
+                transform=train_transforms,
+                replace_rate=0.2,
+                cache_num=15,
+            )
+
     Args:
         data: input dataset to split, expect a list of data.
         ratios: a list of ratio number to split the dataset, like [8, 1, 1].
