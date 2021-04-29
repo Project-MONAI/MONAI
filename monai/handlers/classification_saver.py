@@ -104,6 +104,8 @@ class ClassificationSaver:
             self._filenames.extend(filenames)
         outputs = self.output_transform(engine.state.output)
         if outputs is not None:
+            if isinstance(outputs, torch.Tensor):
+                outputs = outputs.detach()
             self._outputs.append(outputs)
 
     def _finalize(self, engine: Engine) -> None:
