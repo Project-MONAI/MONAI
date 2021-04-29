@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
 import unittest
 
 import torch
@@ -16,8 +17,10 @@ from ignite.engine import Engine
 
 from monai.data import SmartCacheDataset
 from monai.handlers import SmartCacheHandler
+from tests.utils import SkipIfBeforePyTorchVersion
 
 
+@SkipIfBeforePyTorchVersion((1, 7))
 class TestHandlerSmartCache(unittest.TestCase):
     def test_content(self):
         data = [0, 1, 2, 3, 4, 5, 6, 7, 8]
@@ -37,7 +40,8 @@ class TestHandlerSmartCache(unittest.TestCase):
 
         # set up testing handler
         dataset = SmartCacheDataset(data, transform=None, replace_rate=0.2, cache_num=5, shuffle=False)
-        data_loader = torch.utils.data.DataLoader(dataset, batch_size=5)
+        workers = 2 if sys.platform == "linux" else 0
+        data_loader = torch.utils.data.DataLoader(dataset, batch_size=5, num_workers=workers, persistent_workers=False)
         SmartCacheHandler(dataset).attach(engine)
 
         engine.run(data_loader, max_epochs=5)
