@@ -8,9 +8,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""
+A collection of dictionary-based wrappers around the pathology transforms
+defined in :py:class:`monai.apps.pathology.transforms.array`.
 
-from .datasets import MaskedInferenceWSIDataset, PatchWSIDataset, SmartCacheDataset
-from .handlers import ProbMapProducer
-from .metrics import LesionFROC
-from .transforms.array import ExtractHEStains, NormalizeStainsMacenko
-from .utils import PathologyProbNMS, compute_isolated_tumor_cells, compute_multi_instance_mask
+Class names are ended with 'd' to denote dictionary-based transforms.
+"""

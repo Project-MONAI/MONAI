@@ -13,12 +13,10 @@ import unittest
 
 from parameterized import parameterized
 
+from monai.apps.pathology.transforms.array import ExtractHEStains, NormalizeStainsMacenko
 from monai.utils import exact_version, optional_import
 
 cp, has_cp = optional_import("cupy", "8.6.0", exact_version)
-
-if has_cp:
-    from monai.apps.pathology.transforms import ExtractStainsMacenko, NormalizeStainsMacenko
 
 
 EXTRACT_STAINS_TEST_CASE_1 = (None,)
@@ -96,7 +94,7 @@ def prepare_test_data():
     ]
 
 
-class TestExtractStainsMacenko(unittest.TestCase):
+class TestExtractHEStains(unittest.TestCase):
     @unittest.skipUnless(has_cp, "Requires CuPy")
     def setUp(self):
         prepare_test_data()
@@ -115,7 +113,7 @@ class TestExtractStainsMacenko(unittest.TestCase):
                 NormalizeStainsMacenko()(image)
         else:
             with self.assertRaises(ValueError):
-                ExtractStainsMacenko()(image)
+                ExtractHEStains()(image)
 
     @parameterized.expand([EXTRACT_STAINS_TEST_CASE_2, EXTRACT_STAINS_TEST_CASE_3])
     def test_identical_result_vectors(self, image):
@@ -131,7 +129,7 @@ class TestExtractStainsMacenko(unittest.TestCase):
             with self.assertRaises(TypeError):
                 NormalizeStainsMacenko()(image)
         else:
-            result = ExtractStainsMacenko()(image)
+            result = ExtractHEStains()(image)
             cp.testing.assert_array_equal(result[:, 0], result[:, 1])
 
     @parameterized.expand([EXTRACT_STAINS_TEST_CASE_4, EXTRACT_STAINS_TEST_CASE_5])
@@ -166,7 +164,7 @@ class TestExtractStainsMacenko(unittest.TestCase):
             with self.assertRaises(TypeError):
                 NormalizeStainsMacenko()(image)
         else:
-            result = ExtractStainsMacenko()(image)
+            result = ExtractHEStains()(image)
             cp.testing.assert_allclose(result, expected_data)
 
 
@@ -226,7 +224,7 @@ class TestNormalizeStainsMacenko(unittest.TestCase):
         For test case 4:
         - For this non-uniformly filled image, the stain extracted should be
           [[0.70710677,0.18696113],[0,0],[0.70710677,0.98236734]], as validated for the
-          ExtractStainsMacenko class. Solving the linear least squares problem (since
+          ExtractHEStains class. Solving the linear least squares problem (since
           absorbance matrix = stain matrix * concentration matrix), we obtain the concentration
           matrix that should be [[-0.3101, 7.7508, 7.7508, 7.7508, 7.7508, 7.7508],
           [5.8022, 0, 0, 0, 0, 0]]
