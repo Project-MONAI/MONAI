@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - dev
+      - update-tests
   pull_request:
 
 jobs:
