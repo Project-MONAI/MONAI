@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - dev
+      - update-tests
 
 jobs:
   # caching of these jobs:
