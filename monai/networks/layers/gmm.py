@@ -15,7 +15,8 @@ from monai._extensions.loader import load_module
 
 __all__ = ["GaussianMixtureModel"]
 
-class GaussianMixtureModel():
+
+class GaussianMixtureModel:
     """
     Takes an initial labeling and uses a mixture of gaussians to approximate each classes
     distribution in the feature space. Each unlabled element is then asigned a probability
@@ -48,14 +49,11 @@ class GaussianMixtureModel():
 
     def learn(self, features, labels):
         """
-        Learns the distribution of each class from provided labels.
+        Learns, from scratch, the distribution of each class from the provided labels.
 
         Args:
             features (torch.Tensor): features for each element.
             initial_labels (torch.Tensor): initial labeling for each element.
-
-        Returns:
-            output_logits (torch.Tensor): class assignment probabilities for each element.
         """
         self.compiled_extention.learn(self.params, self.scratch, features, labels)
 
@@ -69,22 +67,14 @@ class GaussianMixtureModel():
         Returns:
             output (torch.Tensor): class assignment probabilities for each element.
         """
-        return self.compiled_extention.apply(self.params, features)
-
-
-class _LearnFunc(torch.autograd.Function):
-    @staticmethod
-    def forward(ctx, compiled_extention, params, scratch, features, labels, learn_rate):
-        return compiled_extention.learn(params, scratch, features, labels, learn_rate)
-    @staticmethod
-    def backward(ctx, grad_output):
-        raise NotImplementedError("GMM does not currently support backpropagation")
+        return _ApplyFunc.apply(self.params, features, self.compiled_extention)
 
 
 class _ApplyFunc(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, features, initial_labels, compiled_extention):
-        return compiled_extention.gmm(features, initial_labels)
+    def forward(ctx, params, features, compiled_extention):
+        return compiled_extention.apply(params, features)
+
     @staticmethod
     def backward(ctx, grad_output):
-        raise NotImplementedError("GMM does not currently support backpropagation")
+        raise NotImplementedError("GMM does not support backpropagation")

@@ -323,7 +323,8 @@ class GMMTestCase(unittest.TestCase):
         gmm = GaussianMixtureModel(features_tensor.size(1), mixture_count, class_count)
 
         # Apply GMM
-        results_tensor = gmm(features_tensor, labels_tensor)
+        gmm.learn(features_tensor, labels_tensor)
+        results_tensor = gmm.apply(features_tensor)
 
         # Read back results
         results = results_tensor.cpu().numpy()

@@ -83,7 +83,7 @@ torch::Tensor apply(torch::Tensor gmm_tensor, torch::Tensor input_tensor)
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) 
 {
-    m.def("init", torch::wrap_pybind_function(init), "Creates the parameters for a gaussian mixture model");
-    m.def("learn", torch::wrap_pybind_function(learn), "Encorporates the provided data into the existing model");
-    m.def("apply", torch::wrap_pybind_function(apply), "Applies the existing model to obtain class predictions");
+    m.def("init", torch::wrap_pybind_function(init));
+    m.def("learn", torch::wrap_pybind_function(learn));
+    m.def("apply", torch::wrap_pybind_function(apply));
 }
