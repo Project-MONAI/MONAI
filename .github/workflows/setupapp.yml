@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - dev
+      - main
+      - releasing/*
 
 jobs:
   # caching of these jobs:
@@ -104,7 +106,7 @@ jobs:
         fail_ci_if_error: false
         file: ./coverage.xml
 
-  install:  # pip install from github url
+  install:  # pip install from github url, the default branch is dev
     runs-on: ubuntu-latest
     steps:
     - name: Set up Python 3.8
