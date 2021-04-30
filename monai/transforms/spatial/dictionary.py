@@ -198,6 +198,9 @@ class Spacingd(MapTransform, InvertibleTransform):
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
             meta_data_key = f"{key}_{self.meta_key_postfix}"
+            # create metadata if necessary
+            if meta_data_key not in d:
+                d[meta_data_key] = {"affine": None}
             meta_data = d[meta_data_key]
             # resample array of each corresponding key
             # using affine fetched from d[affine_key]
@@ -317,6 +320,9 @@ class Orientationd(MapTransform, InvertibleTransform):
         d: Dict = dict(data)
         for key in self.key_iterator(d):
             meta_data_key = f"{key}_{self.meta_key_postfix}"
+            # create metadata if necessary
+            if meta_data_key not in d:
+                d[meta_data_key] = {"affine": None}
             meta_data = d[meta_data_key]
             d[key], old_affine, new_affine = self.ornt_transform(d[key], affine=meta_data["affine"])
             self.push_transform(d, key, extra_info={"meta_data_key": meta_data_key, "old_affine": old_affine})
