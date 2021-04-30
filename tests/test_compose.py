@@ -79,6 +79,29 @@ class TestCompose(unittest.TestCase):
         for item in value:
             self.assertDictEqual(item, {"a": 2, "b": 1, "c": 2})
 
+    def test_list_dict_compose_no_map(self):
+        def a(d):  # transform to handle dict data
+            d = dict(d)
+            d["a"] += 1
+            return d
+
+        def b(d):  # transform to generate a batch list of data
+            d = dict(d)
+            d["b"] += 1
+            d = [d] * 5
+            return d
+
+        def c(d):  # transform to handle dict data
+            d = [dict(di) for di in d]
+            for di in d:
+                di["c"] += 1
+            return d
+
+        transforms = Compose([a, a, b, c, c], map_items=False)
+        value = transforms({"a": 0, "b": 0, "c": 0})
+        for item in value:
+            self.assertDictEqual(item, {"a": 2, "b": 1, "c": 2})
+
     def test_random_compose(self):
         class _Acc(Randomizable):
             self.rand = 0.0
