@@ -33,7 +33,7 @@ class TestSpacingDCase(unittest.TestCase):
         np.testing.assert_allclose(res["image"].shape, (2, 10, 10))
         np.testing.assert_allclose(res["image_meta_dict"]["affine"], np.diag((1, 2, 1)))
 
-    def test_spacingd_2d_no_spacing(self):
+    def test_spacingd_2d_no_metadata(self):
         data = {"image": np.ones((2, 10, 20))}
         spacing = Spacingd(keys="image", pixdim=(1, 2, 1.4))
         res = spacing(data)
