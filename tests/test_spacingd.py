@@ -33,6 +33,14 @@ class TestSpacingDCase(unittest.TestCase):
         np.testing.assert_allclose(res["image"].shape, (2, 10, 10))
         np.testing.assert_allclose(res["image_meta_dict"]["affine"], np.diag((1, 2, 1)))
 
+    def test_spacingd_2d_no_spacing(self):
+        data = {"image": np.ones((2, 10, 20))}
+        spacing = Spacingd(keys="image", pixdim=(1, 2, 1.4))
+        res = spacing(data)
+        self.assertEqual(("image", "image_meta_dict", "image_transforms"), tuple(sorted(res)))
+        np.testing.assert_allclose(res["image"].shape, (2, 10, 10))
+        np.testing.assert_allclose(res["image_meta_dict"]["affine"], np.diag((1, 2, 1)))
+
     def test_interp_all(self):
         data = {
             "image": np.arange(20).reshape((2, 1, 10)),
