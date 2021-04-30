@@ -13,7 +13,7 @@ import unittest
 
 from parameterized import parameterized
 
-from monai.apps.pathology.transforms.array import ExtractHEStains, NormalizeStainsMacenko
+from monai.apps.pathology.transforms.dictionary import ExtractHEStainsd, NormalizeStainsMacenkod
 from monai.utils import exact_version, optional_import
 
 cp, has_cp = optional_import("cupy", "8.6.0", exact_version)
@@ -94,7 +94,7 @@ def prepare_test_data():
     ]
 
 
-class TestExtractHEStains(unittest.TestCase):
+class TestExtractHEStainsd(unittest.TestCase):
     @unittest.skipUnless(has_cp, "Requires CuPy")
     def setUp(self):
         prepare_test_data()
@@ -108,12 +108,13 @@ class TestExtractHEStains(unittest.TestCase):
         since once the transparent pixels are removed, there are no
         remaining pixels to compute eigenvectors.
         """
+        key = "image"
         if image is None:
             with self.assertRaises(TypeError):
-                ExtractHEStains()(image)
+                ExtractHEStainsd([key])({key: image})
         else:
             with self.assertRaises(ValueError):
-                ExtractHEStains()(image)
+                ExtractHEStainsd([key])({key: image})
 
     @parameterized.expand([EXTRACT_STAINS_TEST_CASE_2, EXTRACT_STAINS_TEST_CASE_3])
     def test_identical_result_vectors(self, image):
@@ -125,12 +126,13 @@ class TestExtractHEStains(unittest.TestCase):
         we assert that the first column is equal to the second column
         of the returned stain matrix.
         """
+        key = "image"
         if image is None:
             with self.assertRaises(TypeError):
-                ExtractHEStains()(image)
+                ExtractHEStainsd([key])({key: image})
         else:
-            result = ExtractHEStains()(image)
-            cp.testing.assert_array_equal(result[:, 0], result[:, 1])
+            result = ExtractHEStainsd([key])({key: image})
+            cp.testing.assert_array_equal(result[key][:, 0], result[key][:, 1])
 
     @parameterized.expand([EXTRACT_STAINS_TEST_CASE_4, EXTRACT_STAINS_TEST_CASE_5])
     def test_result_value(self, image, expected_data):
@@ -160,15 +162,16 @@ class TestExtractHEStains(unittest.TestCase):
         - the resulting extracted stain should be
           [[0.70710677,0.18696113],[0,0],[0.70710677,0.98236734]]
         """
+        key = "image"
         if image is None:
             with self.assertRaises(TypeError):
-                ExtractHEStains()(image)
+                ExtractHEStainsd([key])({key: image})
         else:
-            result = ExtractHEStains()(image)
-            cp.testing.assert_allclose(result, expected_data)
+            result = ExtractHEStainsd([key])({key: image})
+            cp.testing.assert_allclose(result[key], expected_data)
 
 
-class TestNormalizeStainsMacenko(unittest.TestCase):
+class TestNormalizeStainsMacenkod(unittest.TestCase):
     @unittest.skipUnless(has_cp, "Requires CuPy")
     def setUp(self):
         prepare_test_data()
@@ -182,12 +185,13 @@ class TestNormalizeStainsMacenko(unittest.TestCase):
         since once the transparent pixels are removed, there are no
         remaining pixels to compute eigenvectors.
         """
+        key = "image"
         if image is None:
             with self.assertRaises(TypeError):
-                NormalizeStainsMacenko()(image)
+                NormalizeStainsMacenkod([key])({key: image})
         else:
             with self.assertRaises(ValueError):
-                NormalizeStainsMacenko()(image)
+                NormalizeStainsMacenkod([key])({key: image})
 
     @parameterized.expand([NORMALIZE_STAINS_TEST_CASE_2, NORMALIZE_STAINS_TEST_CASE_3, NORMALIZE_STAINS_TEST_CASE_4])
     def test_result_value(self, argments, image, expected_data):
@@ -235,12 +239,13 @@ class TestNormalizeStainsMacenko(unittest.TestCase):
           image should be [[[87, 87, 87], [33, 33, 33]], [[33, 33, 33], [33, 33, 33]],
           [[33, 33, 33], [33, 33, 33]]]
         """
+        key = "image"
         if image is None:
             with self.assertRaises(TypeError):
-                NormalizeStainsMacenko()(image)
+                NormalizeStainsMacenkod([key])({key: image})
         else:
-            result = NormalizeStainsMacenko(**argments)(image)
-            cp.testing.assert_allclose(result, expected_data)
+            result = NormalizeStainsMacenkod([key], **argments)({key: image})
+            cp.testing.assert_allclose(result[key], expected_data)
 
 
 if __name__ == "__main__":
