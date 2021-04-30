@@ -576,7 +576,7 @@ class CacheDataset(Dataset):
         for _transform in self.transform.transforms:
             if start_run or isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
                 start_run = True
-                data = apply_transform(_transform, data)
+                data = apply_transform(_transform, deepcopy(data))
         return data
 
 
