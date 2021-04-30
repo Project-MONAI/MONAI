@@ -28,12 +28,10 @@ class RegressionMetric(ABC):
     def _reduce(self, f: torch.Tensor):
         return do_metric_reduction(f, self.reduction)
 
-    def _check_shape(self, y_pred: torch.Tensor, y_target: torch.Tensor) -> None:
-        if y_pred.shape != y_target.shape:
+    def _check_shape(self, y_pred: torch.Tensor, y: torch.Tensor) -> None:
+        if y_pred.shape != y.shape:
             raise ValueError(
-                "y_pred and y_target shapes dont match, received y_pred: [{}] and y_target: [{}]".format(
-                    y_pred.shape, y_target.shape
-                )
+                "y_pred and y shapes dont match, received y_pred: [{}] and y: [{}]".format(y_pred.shape, y.shape)
             )
 
         # also check if there is atleast one non-batch dimension i.e. num_dims >= 2
@@ -41,71 +39,132 @@ class RegressionMetric(ABC):
             raise ValueError("either channel or spatial dimensions required, found only batch dimension")
 
     @abstractmethod
-    def _compute_metric(self, y_pred: torch.Tensor, y_target: torch.Tensor) -> torch.Tensor:
+    def _compute_metric(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def __call__(self, y_pred: torch.Tensor, y_target: torch.Tensor):
-        self._check_shape(y_pred, y_target)
-        out = self._compute_metric(y_pred, y_target)
+    def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):
+        self._check_shape(y_pred, y)
+        out = self._compute_metric(y_pred, y)
         y, not_nans = self._reduce(out)
-        return y
+        return y, not_nans
 
 
 class MSEMetric(RegressionMetric):
+    r"""Compute Mean Squared Error between two tensors using function:
+
+    .. math::
+        \operatorname {MSE} ={\frac {1}{n}}\sum _{i=1}^{n}(Y_{i}-{\hat {Y_{i}}})^{2}.
+
+    More info: https://en.wikipedia.org/wiki/Mean_squared_error
+
+    Input `y_pred` (BCHW[D] where C is number of channels) is compared with ground truth `y` (BCHW[D]).
+    Both `y_pred` and `y` are expected to be real-valued, where `y_pred` is output from a regression model.
+
+    Args:
+        reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}
+            Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
+
+    """
+
     def __init__(self, reduction: Union[MetricReduction, str] = MetricReduction.MEAN) -> None:
         super().__init__(reduction=reduction)
         self.sq_func = partial(torch.pow, exponent=2.0)
 
-    def _compute_metric(self, y_pred: torch.Tensor, y_target: torch.Tensor) -> torch.Tensor:
-        # https://en.wikipedia.org/wiki/Mean_squared_error
-        # Implments equation: {\displaystyle \operatorname {MSE} ={\frac {1}{n}}\sum _{i=1}^{n}(Y_{i}-{\hat {Y_{i}}})^{2}.}
-
+    def _compute_metric(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         y_pred = y_pred.float()
-        y_target = y_target.float()
+        y = y.float()
 
-        mse_out = compute_mean_error_metrics(y_pred, y_target, func=self.sq_func)
-
+        mse_out = compute_mean_error_metrics(y_pred, y, func=self.sq_func)
         return mse_out
 
 
 class MAEMetric(RegressionMetric):
+    r"""Compute Mean Absolute Error between two tensors using function:
+
+    .. math::
+        \operatorname {MAE} ={\frac {\sum _{i=1}^{n}\left|y_{i}-x_{i}\right|}{n}}.
+
+    More info: https://en.wikipedia.org/wiki/Mean_absolute_error
+
+    Input `y_pred` (BCHW[D] where C is number of channels) is compared with ground truth `y` (BCHW[D]).
+    Both `y_pred` and `y` are expected to be real-valued, where `y_pred` is output from a regression model.
+
+    Args:
+        reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}
+            Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
+
+    """
+
     def __init__(self, reduction: Union[MetricReduction, str] = MetricReduction.MEAN) -> None:
         super().__init__(reduction=reduction)
         self.abs_func = torch.abs
 
-    def _compute_metric(self, y_pred: torch.Tensor, y_target: torch.Tensor) -> torch.Tensor:
-        # https://en.wikipedia.org/wiki/Mean_absolute_error
-        # Implments equation: {\displaystyle \mathrm {MAE} ={\frac {\sum _{i=1}^{n}\left|y_{i}-x_{i}\right|}{n}}.}
-
+    def _compute_metric(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         y_pred = y_pred.float()
-        y_target = y_target.float()
+        y = y.float()
 
-        mae_out = compute_mean_error_metrics(y_pred, y_target, func=self.abs_func)
-
+        mae_out = compute_mean_error_metrics(y_pred, y, func=self.abs_func)
         return mae_out
 
 
 class RMSEMetric(RegressionMetric):
+    r"""Compute Root Mean Squared Error between two tensors using function:
+
+    .. math::
+        \operatorname {RMSE} ={\sqrt {\frac {\sum _{i=1}^{n}({\hat {y}}_{i}-y_{i})^{2}}{n}}} \\\\
+        = {\sqrt {\operatorname{MSE}(\hat{Y}_i, Y_i))}}.
+
+    More info: https://en.wikipedia.org/wiki/Root-mean-square_deviation
+
+    Input `y_pred` (BCHW[D] where C is number of channels) is compared with ground truth `y` (BCHW[D]).
+    Both `y_pred` and `y` are expected to be real-valued, where `y_pred` is output from a regression model.
+
+    Args:
+        reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}
+            Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
+
+    """
+
     def __init__(self, reduction: Union[MetricReduction, str] = MetricReduction.MEAN) -> None:
         super().__init__(reduction=reduction)
         self.sq_func = partial(torch.pow, exponent=2.0)
 
-    def _compute_metric(self, y_pred: torch.Tensor, y_target: torch.Tensor) -> torch.Tensor:
-        # https://en.wikipedia.org/wiki/Root-mean-square_deviation
-        # Implments equation: {\displaystyle \operatorname {RMSD} ={\sqrt {\frac {\sum _{t=1}^{T}({\hat {y}}_{t}-y_{t})^{2}}{T}}}.}
-
+    def _compute_metric(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         y_pred = y_pred.float()
-        y_target = y_target.float()
+        y = y.float()
 
-        mse_out = compute_mean_error_metrics(y_pred, y_target, func=self.sq_func)
-
-        # https://en.wikipedia.org/wiki/Root-mean-square_deviation#Formula
+        mse_out = compute_mean_error_metrics(y_pred, y, func=self.sq_func)
         rmse_out = torch.sqrt(mse_out)
-
         return rmse_out
 
 
 class PSNRMetric(RegressionMetric):
+    r"""Compute Root Mean Squared Error between two tensors using function:
+
+    .. math::
+        \operatorname{PSNR} = 20 \cdot \log_{10} \left({\mathit{MAX}}_{I}\right) \\\\
+        -10 \cdot \log_{10}\left(\operatorname{MSE(\hat{Y}_i, Y_i)}\right)
+
+    More info: https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio
+
+    Help taken from:
+    https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/ops/image_ops_impl.py line 4139
+
+    Input `y_pred` (BCHW[D] where C is number of channels) is compared with ground truth `y` (BCHW[D]).
+    Both `y_pred` and `y` are expected to be real-valued, where `y_pred` is output from a regression model.
+
+    Args:
+        max_val: The dynamic range of the images/volumes (i.e., the difference between the
+            maximum the and minimum allowed values e.g. 255 for a uint8 image).
+        reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}
+            Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
+
+    """
+
     def __init__(
         self, max_val: Union[int, float], reduction: Union[MetricReduction, str] = MetricReduction.MEAN
     ) -> None:
@@ -113,28 +172,19 @@ class PSNRMetric(RegressionMetric):
         self.max_val = max_val
         self.sq_func = partial(torch.pow, exponent=2.0)
 
-    def _compute_metric(self, y_pred: torch.Tensor, y_target: torch.Tensor) -> Any:
-        # https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio
-        # Implments equation:
-        # \mathit{PSNR} = 20 \cdot \log_{10} \left({\mathit{MAX}}_{I}\right) -10 \cdot \log_{10}\left(\mathit{MSE}\right)
-        # Help from:
-        # https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/ops/image_ops_impl.py line 4139
-
+    def _compute_metric(self, y_pred: torch.Tensor, y: torch.Tensor) -> Any:
         y_pred = y_pred.float()
-        y_target = y_target.float()
+        y = y.float()
 
-        mse_out = compute_mean_error_metrics(y_pred, y_target, func=self.sq_func)
-
-        # \mathit{PSNR} = 20 \cdot \log_{10} \left({\mathit{MAX}}_{I}\right) -10 \cdot \log_{10}\left(\mathit{MSE}\right)
+        mse_out = compute_mean_error_metrics(y_pred, y, func=self.sq_func)
         psnr_val = 20 * math.log10(self.max_val) - 10 * torch.log10(mse_out)
-
         return psnr_val
 
 
-def compute_mean_error_metrics(y_pred: torch.Tensor, y_target: torch.Tensor, func) -> torch.Tensor:
-    # reducing only channel + spatial dimensions (not batch)
-    # reducion batch handled inside __call__() using do_metric_reduction() in respective calling class
+def compute_mean_error_metrics(y_pred: torch.Tensor, y: torch.Tensor, func) -> torch.Tensor:
+    # reducing in only channel + spatial dimensions (not batch)
+    # reducion of batch handled inside __call__() using do_metric_reduction() in respective calling class
     flt = partial(torch.flatten, start_dim=1)
-    error_metric = torch.mean(flt(func(y_target - y_pred)), dim=-1, keepdim=True)
+    error_metric = torch.mean(flt(func(y - y_pred)), dim=-1, keepdim=True)
 
     return error_metric

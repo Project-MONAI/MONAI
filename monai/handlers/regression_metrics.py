@@ -38,7 +38,7 @@ class MeanSquaredError(IterationMetric):
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
         See also:
-            :py:meth:`monai.metrics.regression.compute_mean_error_metrics`
+            :py:meth:`monai.metrics.MSEMetric`
         """
         metric_fn = MSEMetric(
             reduction=MetricReduction.NONE,
@@ -71,7 +71,7 @@ class MeanAbsoluteError(IterationMetric):
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
         See also:
-            :py:meth:`monai.metrics.regression.compute_mean_error_metrics`
+            :py:meth:`monai.metrics.MAEMetric`
         """
         metric_fn = MAEMetric(
             reduction=MetricReduction.NONE,
@@ -104,7 +104,7 @@ class RootMeanSquaredError(IterationMetric):
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
         See also:
-            :py:meth:`monai.metrics.regression.compute_mean_error_metrics`
+            :py:meth:`monai.metrics.RMSEMetric`
         """
         metric_fn = RMSEMetric(
             reduction=MetricReduction.NONE,
@@ -132,15 +132,15 @@ class PeakSignalToNoiseRatio(IterationMetric):
         """
 
         Args:
-            max_val: maximum value defining the different between min and max possible values,
-                necessary for calculating correct PSNR.
+            max_val: The dynamic range of the images/volumes (i.e., the difference between the
+                maximum the and minimum allowed values e.g. 255 for a uint8 image).
             output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
             device: device specification in case of distributed computation usage.
             save_details: whether to save metric computation details per image, for example: mean dice of every image.
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
         See also:
-            :py:meth:`monai.metrics.regression.PSNRMetric`
+            :py:meth:`monai.metrics.PSNRMetric`
         """
         metric_fn = PSNRMetric(
             max_val=max_val,
