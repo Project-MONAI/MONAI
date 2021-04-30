@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - dev
+      - 2118-speed-up-quick-test
   pull_request:
 
 jobs:
