@@ -159,7 +159,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.6, 3.7]
+        python-version: [3.6, 3.7, 3.8, 3.9]
     timeout-minutes: 40
     steps:
     - uses: actions/checkout@v2
@@ -295,7 +295,8 @@ jobs:
         python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
         python -c 'import torch; print(torch.rand(5, 3, device=torch.device("cuda:0")))'
         python -c "import monai; monai.config.print_config()"
-        BUILD_MONAI=1 ./runtests.sh --quick --unittests
+        # build for the current self-hosted CI Tesla V100
+        BUILD_MONAI=1 TORCH_CUDA_ARCH_LIST="7.0" ./runtests.sh --quick --unittests
         if [ ${{ matrix.environment }} = "PT18+CUDA112" ]; then
           # test the clang-format tool downloading once
           coverage run -m tests.clang_format_utils
