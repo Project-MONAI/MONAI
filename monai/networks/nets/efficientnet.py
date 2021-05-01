@@ -264,7 +264,7 @@ class EfficientNet(nn.Module):
         ]
 
         # decode blocks args into arguments for MBConvBlock
-        blocks_args = _decode_block_list(blocks_args_str)
+        blocks_args = [BlockArgs.from_string(s) for s in blocks_args_str]
 
         # checks for successful decoding of blocks_args_str
         if not isinstance(blocks_args, list):
@@ -702,8 +702,7 @@ def _make_same_padder(conv_op: Union[nn.Conv1d, nn.Conv2d, nn.Conv3d], image_siz
     padder = Pad["constantpad", len(padding) // 2]
     if sum(padding) > 0:
         return padder(padding=padding, value=0.0)
-    else:
-        return nn.Identity()
+    return nn.Identity()
 
 
 def _round_filters(filters: int, width_coefficient: Optional[float], depth_divisor: float) -> int:
@@ -763,8 +762,6 @@ def _calculate_output_image_size(input_image_size: List[int], stride: Union[int,
     Returns:
         output_image_size: output image/feature spatial size.
     """
-    # get number of spatial dimensions, corresponds to image spatial size length
-    num_dims = len(input_image_size)
 
     # checks to extract integer stride in case tuple was received
     if isinstance(stride, tuple):
@@ -778,32 +775,25 @@ def _calculate_output_image_size(input_image_size: List[int], stride: Union[int,
     return [int(math.ceil(im_sz / stride)) for im_sz in input_image_size]
 
 
-def _decode_block_list(string_list: List[str]):
+class BlockArgs(NamedTuple):
     """
-    Decode a list of string notations to specify blocks inside the network.
-
-    Args:
-        string_list: a list of strings, each string is a notation of block.
-
-    Returns:
-        blocks_args: a list of BlockArgs namedtuples of block args.
+    BlockArgs object to assist in decoding string notation
+        of arguments for MBConvBlock definition.
     """
-    # Parameters for an individual model block
-    # namedtuple with defaults for mypy help from:
-    # https://stackoverflow.com/a/53255358
-    class BlockArgs(NamedTuple):
-        num_repeat: int
-        kernel_size: int
-        stride: int
-        expand_ratio: int
-        input_filters: int
-        output_filters: int
-        id_skip: bool
-        se_ratio: Optional[float] = None
 
-    def _decode_block_string(block_string: str):
+    num_repeat: int
+    kernel_size: int
+    stride: int
+    expand_ratio: int
+    input_filters: int
+    output_filters: int
+    id_skip: bool
+    se_ratio: Optional[float] = None
+
+    @staticmethod
+    def from_string(block_string: str):
         """
-        Get a block through a string notation of arguments.
+        Get a BlockArgs object from a string notation of arguments.
 
         Args:
             block_string (str): A string notation of arguments.
@@ -840,10 +830,25 @@ def _decode_block_list(string_list: List[str]):
             se_ratio=float(options["se"]) if "se" in options else None,
         )
 
-    # convert block strings into BlockArgs for each entry in string_list list
-    blocks_args: List[BlockArgs] = []
-    for current_string in string_list:
-        blocks_args.append(_decode_block_string(current_string))
+    def to_string(self):
+        """
+        Return a block string notation for current BlockArgs object
 
-    # return blocks_args list, to be used for arguments of MBConv layers in EfficientNet
-    return blocks_args
+        Returns:
+            A string notation of BlockArgs object arguments.
+                Example: "r1_k3_s11_e1_i32_o16_se0.25_noskip".
+        """
+        string = "r{}_k{}_s{}{}_e{}_i{}_o{}_se{}".format(
+            self.num_repeat,
+            self.kernel_size,
+            self.stride,
+            self.stride,
+            self.expand_ratio,
+            self.input_filters,
+            self.output_filters,
+            self.se_ratio,
+        )
+
+        if not self.id_skip:
+            string += "_noskip"
+        return string

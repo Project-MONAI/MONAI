@@ -339,8 +339,10 @@ def generate_pos_neg_label_crop_centers(
     valid_end = np.subtract(label_spatial_shape + np.array(1), spatial_size / np.array(2)).astype(np.uint16)
     # int generation to have full range on upper side, but subtract unfloored size/2 to prevent rounded range
     # from being too high
-    for i in range(len(valid_start)):  # need this because np.random.randint does not work with same start and end
-        if valid_start[i] == valid_end[i]:
+    for i, valid_s in enumerate(
+        valid_start
+    ):  # need this because np.random.randint does not work with same start and end
+        if valid_s == valid_end[i]:
             valid_end[i] += 1
 
     def _correct_centers(
