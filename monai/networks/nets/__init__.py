@@ -31,7 +31,7 @@ from .densenet import (
     densenet264,
 )
 from .dynunet import DynUNet, DynUnet, Dynunet, dynunet
-from .efficientnet import EfficientNet, EfficientNetBN, drop_connect, get_efficientnet_image_size
+from .efficientnet import BlockArgs, EfficientNet, EfficientNetBN, drop_connect, get_efficientnet_image_size
 from .fullyconnectednet import FullyConnectedNet, VarFullyConnectedNet
 from .generator import Generator
 from .highresnet import HighResBlock, HighResNet
