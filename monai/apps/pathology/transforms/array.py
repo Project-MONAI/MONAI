@@ -142,8 +142,6 @@ class NormalizeStainsMacenko(Transform):
         max_cref: cp.ndarray = None,
     ) -> None:
         self.tli = tli
-        self.alpha = alpha
-        self.beta = beta
 
         self.target_he = target_he
         if self.target_he is None:
@@ -152,6 +150,8 @@ class NormalizeStainsMacenko(Transform):
         self.max_cref = max_cref
         if self.max_cref is None:
             self.max_cref = cp.array([1.9705, 1.0308])
+
+        self.stain_extractor = ExtractHEStains(tli=self.tli, alpha=alpha, beta=beta, max_cref=self.max_cref)
 
     def __call__(self, image: cp.ndarray) -> cp.ndarray:
         """Perform stain normalization.
@@ -166,8 +166,7 @@ class NormalizeStainsMacenko(Transform):
             raise TypeError("Image must be of type cupy.ndarray.")
 
         # extract stain of the image
-        stain_extractor = ExtractHEStains(tli=self.tli, alpha=self.alpha, beta=self.beta, max_cref=self.max_cref)
-        he = stain_extractor(image)
+        he = self.stain_extractor(image)
 
         h, w, _ = image.shape
 
