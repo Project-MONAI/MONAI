@@ -17,8 +17,10 @@ from monai.utils import exact_version, optional_import
 
 if TYPE_CHECKING:
     import cupy as cp
+    from cupy import ndarray as cp_ndarray
 else:
     cp, _ = optional_import("cupy", "8.6.0", exact_version)
+    cp_ndarray, _ = optional_import("cupy", "8.6.0", exact_version, name="ndarray")
 
 
 class ExtractHEStains(Transform):
@@ -40,7 +42,7 @@ class ExtractHEStains(Transform):
             - Python: https://github.com/schaugf/HEnorm_python
     """
 
-    def __init__(self, tli: float = 240, alpha: float = 1, beta: float = 0.15, max_cref: cp.ndarray = None) -> None:
+    def __init__(self, tli: float = 240, alpha: float = 1, beta: float = 0.15, max_cref: cp_ndarray = None) -> None:
         self.tli = tli
         self.alpha = alpha
         self.beta = beta
@@ -49,7 +51,7 @@ class ExtractHEStains(Transform):
         if self.max_cref is None:
             self.max_cref = cp.array([1.9705, 1.0308])
 
-    def _deconvolution_extract_stain(self, img: cp.ndarray) -> cp.ndarray:
+    def _deconvolution_extract_stain(self, img: cp_ndarray) -> cp_ndarray:
         """Perform Stain Deconvolution using the Macenko Method, and return stain matrix for the image.
 
         Args:
@@ -90,7 +92,7 @@ class ExtractHEStains(Transform):
 
         return he
 
-    def __call__(self, image: cp.ndarray) -> cp.ndarray:
+    def __call__(self, image: cp_ndarray) -> cp_ndarray:
         """Perform stain extraction.
 
         Args:
@@ -99,7 +101,7 @@ class ExtractHEStains(Transform):
         return:
             target_he: H&E absorbance matrix for the image (first column is H, second column is E, rows are RGB values)
         """
-        if not isinstance(image, cp.ndarray):
+        if not isinstance(image, cp_ndarray):
             raise TypeError("Image must be of type cupy.ndarray.")
 
         target_he = self._deconvolution_extract_stain(image)
@@ -138,8 +140,8 @@ class NormalizeStainsMacenko(Transform):
         tli: float = 240,
         alpha: float = 1,
         beta: float = 0.15,
-        target_he: cp.ndarray = None,
-        max_cref: cp.ndarray = None,
+        target_he: cp_ndarray = None,
+        max_cref: cp_ndarray = None,
     ) -> None:
         self.tli = tli
 
@@ -153,7 +155,7 @@ class NormalizeStainsMacenko(Transform):
 
         self.stain_extractor = ExtractHEStains(tli=self.tli, alpha=alpha, beta=beta, max_cref=self.max_cref)
 
-    def __call__(self, image: cp.ndarray) -> cp.ndarray:
+    def __call__(self, image: cp_ndarray) -> cp_ndarray:
         """Perform stain normalization.
 
         Args:
@@ -162,7 +164,7 @@ class NormalizeStainsMacenko(Transform):
         Return:
             image_norm: stain normalized image/patch
         """
-        if not isinstance(image, cp.ndarray):
+        if not isinstance(image, cp_ndarray):
             raise TypeError("Image must be of type cupy.ndarray.")
 
         # extract stain of the image

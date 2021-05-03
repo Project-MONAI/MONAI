@@ -23,9 +23,9 @@ from monai.transforms.transform import MapTransform
 from monai.utils import exact_version, optional_import
 
 if TYPE_CHECKING:
-    import cupy as cp
+    from cupy import ndarray as cp_ndarray
 else:
-    cp, _ = optional_import("cupy", "8.6.0", exact_version)
+    cp_ndarray, _ = optional_import("cupy", "8.6.0", exact_version, name="ndarray")
 
 
 class ExtractHEStainsd(MapTransform):
@@ -57,13 +57,13 @@ class ExtractHEStainsd(MapTransform):
         tli: float = 240,
         alpha: float = 1,
         beta: float = 0.15,
-        max_cref: cp.ndarray = None,
+        max_cref: cp_ndarray = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.extractor = ExtractHEStains(tli=tli, alpha=alpha, beta=beta, max_cref=max_cref)
 
-    def __call__(self, data: Mapping[Hashable, cp.ndarray]) -> Dict[Hashable, cp.ndarray]:
+    def __call__(self, data: Mapping[Hashable, cp_ndarray]) -> Dict[Hashable, cp_ndarray]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.extractor(d[key])
@@ -108,8 +108,8 @@ class NormalizeStainsMacenkod(MapTransform):
         tli: float = 240,
         alpha: float = 1,
         beta: float = 0.15,
-        target_he: cp.ndarray = None,
-        max_cref: cp.ndarray = None,
+        target_he: cp_ndarray = None,
+        max_cref: cp_ndarray = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -117,7 +117,7 @@ class NormalizeStainsMacenkod(MapTransform):
             tli=tli, alpha=alpha, beta=beta, target_he=target_he, max_cref=max_cref
         )
 
-    def __call__(self, data: Mapping[Hashable, cp.ndarray]) -> Dict[Hashable, cp.ndarray]:
+    def __call__(self, data: Mapping[Hashable, cp_ndarray]) -> Dict[Hashable, cp_ndarray]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.normalizer(d[key])
