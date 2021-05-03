@@ -57,6 +57,9 @@ __all__ = [
     "DecollateD",
     "DecollateDict",
     "Decollated",
+    "ProbNMSd",
+    "ProbNMSD",
+    "ProbNMSDict",
 ]
 
 
@@ -83,7 +86,7 @@ class Activationsd(MapTransform):
             softmax: whether to execute softmax function on model output before transform.
                 it also can be a sequence of bool, each element corresponds to a key in ``keys``.
             other: callable function to execute other activation layers,
-                for example: `other = lambda x: torch.tanh(x)`. it also can be a sequence of Callable, each
+                for example: `other = torch.tanh`. it also can be a sequence of Callable, each
                 element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
 

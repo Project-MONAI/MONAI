@@ -42,11 +42,13 @@ __all__ = [
     "img_bounds",
     "in_bounds",
     "is_empty",
+    "is_positive",
     "zero_margins",
     "rescale_array",
     "rescale_instance_array",
     "rescale_array_int_max",
     "copypaste_arrays",
+    "compute_divisible_spatial_size",
     "resize_center",
     "map_binary_to_indices",
     "weighted_patch_samples",
@@ -95,6 +97,13 @@ def is_empty(img: Union[np.ndarray, torch.Tensor]) -> bool:
     Returns True if `img` is empty, that is its maximum value is not greater than its minimum.
     """
     return not (img.max() > img.min())  # use > instead of <= so that an image full of NaNs will result in True
+
+
+def is_positive(img):
+    """
+    Returns a boolean version of `img` where the positive values are converted into True, the other values are False.
+    """
+    return img > 0
 
 
 def zero_margins(img: np.ndarray, margin: int) -> bool:
@@ -526,7 +535,7 @@ def create_translate(spatial_dims: int, shift: Union[Sequence[float], float]) ->
 
 def generate_spatial_bounding_box(
     img: np.ndarray,
-    select_fn: Callable = lambda x: x > 0,
+    select_fn: Callable = is_positive,
     channel_indices: Optional[IndexSelection] = None,
     margin: Union[Sequence[int], int] = 0,
 ) -> Tuple[List[int], List[int]]:
