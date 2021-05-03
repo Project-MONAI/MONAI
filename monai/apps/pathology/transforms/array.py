@@ -13,14 +13,14 @@
 from typing import TYPE_CHECKING
 
 from monai.transforms.transform import Transform
-from monai.utils import exact_version, optional_import
+from monai.utils import optional_import
 
 if TYPE_CHECKING:
     import cupy as cp
     from cupy import ndarray as cp_ndarray
 else:
-    cp, _ = optional_import("cupy", "9.0.0", exact_version)
-    cp_ndarray, _ = optional_import("cupy", "9.0.0", exact_version, name="ndarray")
+    cp, _ = optional_import("cupy")
+    cp_ndarray, _ = optional_import("cupy", name="ndarray")
 
 
 class ExtractHEStains(Transform):

@@ -20,12 +20,12 @@ from typing import TYPE_CHECKING, Dict, Hashable, Mapping
 from monai.apps.pathology.transforms.array import ExtractHEStains, NormalizeStainsMacenko
 from monai.config import KeysCollection
 from monai.transforms.transform import MapTransform
-from monai.utils import exact_version, optional_import
+from monai.utils import optional_import
 
 if TYPE_CHECKING:
     from cupy import ndarray as cp_ndarray
 else:
-    cp_ndarray, _ = optional_import("cupy", "9.0.0", exact_version, name="ndarray")
+    cp_ndarray, _ = optional_import("cupy", name="ndarray")
 
 
 class ExtractHEStainsd(MapTransform):

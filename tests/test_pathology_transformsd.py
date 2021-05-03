@@ -14,9 +14,9 @@ import unittest
 from parameterized import parameterized
 
 from monai.apps.pathology.transforms.dictionary import ExtractHEStainsd, NormalizeStainsMacenkod
-from monai.utils import exact_version, optional_import
+from monai.utils import optional_import
 
-cp, has_cp = optional_import("cupy", "9.0.0", exact_version)
+cp, has_cp = optional_import("cupy")
 
 
 EXTRACT_STAINS_TEST_CASE_1 = (None,)
