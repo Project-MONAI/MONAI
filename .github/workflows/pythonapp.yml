@@ -286,7 +286,7 @@ jobs:
         which python
         python -m pip install --upgrade pip wheel
         python -m pip install ${{ matrix.pytorch }}
-        sed -i 's/cupy=/cupy-${{ matrix.environment }:-7}=/g' requirements-dev.txt
+        sed -i 's/cupy=/cupy-cuda${{ matrix.environment }: -3}=/g' requirements-dev.txt
         python -m pip install -r requirements-dev.txt
         python -m pip list
     - name: Run quick tests (GPU)
