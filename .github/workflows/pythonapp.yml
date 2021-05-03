@@ -30,6 +30,9 @@ jobs:
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ steps.pip-cache.outputs.datew }}
+    - name: Remove CUDA-required dependencies
+      run: |
+        python -c "f=open('requirements-dev.txt', 'r'); txt=f.readlines(); f.close(); print(txt); f=open('requirements-dev.txt', 'w'); f.writelines([t for t in txt if not t.startswith('cupy')]); f.close()"
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip wheel
