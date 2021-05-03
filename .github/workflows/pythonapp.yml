@@ -281,6 +281,7 @@ jobs:
         python -m pip install --upgrade pip wheel
         python -m pip install ${{ matrix.pytorch }}
         python -m pip install -r requirements-dev.txt
+        python -m pip install cupy==8.6.0
         python -m pip list
     - name: Run quick tests (GPU)
       run: |
