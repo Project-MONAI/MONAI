@@ -87,3 +87,15 @@ Applications
 .. autofunction:: compute_isolated_tumor_cells
 .. autoclass:: PathologyProbNMS
     :members:
+
+.. automodule:: monai.apps.pathology.transforms.array
+.. autoclass:: ExtractHEStains
+    :members:
+.. autoclass:: NormalizeStainsMacenko
+    :members:
+
+.. automodule:: monai.apps.pathology.transforms.dictionary
+.. autoclass:: ExtractHEStainsd
+    :members:
+.. autoclass:: NormalizeStainsMacenkod
+    :members:
