@@ -25,7 +25,7 @@ from monai.utils import exact_version, optional_import
 if TYPE_CHECKING:
     from cupy import ndarray as cp_ndarray
 else:
-    cp_ndarray, _ = optional_import("cupy", "8.6.0", exact_version, name="ndarray")
+    cp_ndarray, _ = optional_import("cupy", "9.0.0", exact_version, name="ndarray")
 
 
 class ExtractHEStainsd(MapTransform):
