@@ -41,6 +41,7 @@ __all__ = [
     "CastToType",
     "ToTensor",
     "ToNumpy",
+    "ToPIL",
     "Transpose",
     "SqueezeDim",
     "DataStats",

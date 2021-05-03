@@ -395,6 +395,7 @@ from .utils import (
     img_bounds,
     in_bounds,
     is_empty,
+    is_positive,
     map_binary_to_indices,
     map_spatial_axes,
     rand_choice,
