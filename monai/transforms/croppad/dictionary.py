@@ -37,7 +37,12 @@ from monai.transforms.croppad.array import (
 )
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable
-from monai.transforms.utils import generate_pos_neg_label_crop_centers, map_binary_to_indices, weighted_patch_samples
+from monai.transforms.utils import (
+    generate_pos_neg_label_crop_centers,
+    is_positive,
+    map_binary_to_indices,
+    weighted_patch_samples,
+)
 from monai.utils import ImageMetaKey as Key
 from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
 from monai.utils.enums import InverseKeys
@@ -572,7 +577,7 @@ class CropForegroundd(MapTransform, InvertibleTransform):
         self,
         keys: KeysCollection,
         source_key: str,
-        select_fn: Callable = lambda x: x > 0,
+        select_fn: Callable = is_positive,
         channel_indices: Optional[IndexSelection] = None,
         margin: int = 0,
         k_divisible: Union[Sequence[int], int] = 1,
@@ -948,7 +953,7 @@ class BoundingRectd(MapTransform):
         self,
         keys: KeysCollection,
         bbox_key_postfix: str = "bbox",
-        select_fn: Callable = lambda x: x > 0,
+        select_fn: Callable = is_positive,
         allow_missing_keys: bool = False,
     ):
         super().__init__(keys, allow_missing_keys)
