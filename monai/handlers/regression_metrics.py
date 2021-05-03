@@ -38,7 +38,7 @@ class MeanSquaredError(IterationMetric):
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
         See also:
-            :py:meth:`monai.metrics.MSEMetric`
+            :py:class:`monai.metrics.MSEMetric`
         """
         metric_fn = MSEMetric(
             reduction=MetricReduction.NONE,
@@ -71,7 +71,7 @@ class MeanAbsoluteError(IterationMetric):
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
         See also:
-            :py:meth:`monai.metrics.MAEMetric`
+            :py:class:`monai.metrics.MAEMetric`
         """
         metric_fn = MAEMetric(
             reduction=MetricReduction.NONE,
@@ -104,7 +104,7 @@ class RootMeanSquaredError(IterationMetric):
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
         See also:
-            :py:meth:`monai.metrics.RMSEMetric`
+            :py:class:`monai.metrics.RMSEMetric`
         """
         metric_fn = RMSEMetric(
             reduction=MetricReduction.NONE,
@@ -140,7 +140,7 @@ class PeakSignalToNoiseRatio(IterationMetric):
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
         See also:
-            :py:meth:`monai.metrics.PSNRMetric`
+            :py:class:`monai.metrics.PSNRMetric`
         """
         metric_fn = PSNRMetric(
             max_val=max_val,
