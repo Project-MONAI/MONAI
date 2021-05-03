@@ -77,6 +77,9 @@ jobs:
       with:
         path: ${{ steps.pip-cache.outputs.dir }}
         key: ${{ matrix.os }}-latest-pip-${{ steps.pip-cache.outputs.datew }}
+    - name: Remove CUDA-required dependencies
+      run: |
+        python -c "f=open('requirements-dev.txt', 'r'); txt=f.readlines(); f.close(); print(txt); f=open('requirements-dev.txt', 'w'); f.writelines([t for t in txt if not t.startswith('cupy')]); f.close()"
     - if: runner.os == 'windows'
       name: Install torch cpu from pytorch.org (Windows only)
       run: |
@@ -281,7 +284,6 @@ jobs:
         python -m pip install --upgrade pip wheel
         python -m pip install ${{ matrix.pytorch }}
         python -m pip install -r requirements-dev.txt
-        python -m pip install cupy==8.6.0
         python -m pip list
     - name: Run quick tests (GPU)
       run: |
