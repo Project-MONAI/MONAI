@@ -33,6 +33,7 @@ __all__ = [
     "LabelToContour",
     "MeanEnsemble",
     "VoteEnsemble",
+    "ProbNMS",
 ]
 
 
@@ -74,7 +75,7 @@ class Activations(Transform):
             softmax: whether to execute softmax function on model output before transform.
                 Defaults to ``self.softmax``.
             other: callable function to execute other activation layers, for example:
-                `other = lambda x: torch.tanh(x)`. Defaults to ``self.other``.
+                `other = torch.tanh`. Defaults to ``self.other``.
 
         Raises:
             ValueError: When ``sigmoid=True`` and ``softmax=True``. Incompatible values.
