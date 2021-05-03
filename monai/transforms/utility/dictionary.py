@@ -113,6 +113,8 @@ __all__ = [
     "RepeatChannelD",
     "RepeatChannelDict",
     "RepeatChanneld",
+    "SelectItemsD",
+    "SelectItemsDict",
     "SelectItemsd",
     "SimulateDelayD",
     "SimulateDelayDict",
@@ -1066,6 +1068,7 @@ ToTensorD = ToTensorDict = ToTensord
 ToNumpyD = ToNumpyDict = ToNumpyd
 ToPILD = ToPILDict = ToPILd
 DeleteItemsD = DeleteItemsDict = DeleteItemsd
+SelectItemsD = SelectItemsDict = SelectItemsd
 SqueezeDimD = SqueezeDimDict = SqueezeDimd
 DataStatsD = DataStatsDict = DataStatsd
 SimulateDelayD = SimulateDelayDict = SimulateDelayd

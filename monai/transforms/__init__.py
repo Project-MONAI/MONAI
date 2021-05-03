@@ -354,6 +354,8 @@ from .utility.dictionary import (
     RepeatChannelD,
     RepeatChannelDict,
     SelectItemsd,
+    SelectItemsD,
+    SelectItemsDict,
     SimulateDelayd,
     SimulateDelayD,
     SimulateDelayDict,
