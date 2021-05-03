@@ -52,7 +52,6 @@ class TestToCupyd(unittest.TestCase):
         self.assertTrue(result.flags["C_CONTIGUOUS"])
         cp.testing.assert_allclose(result, test_data.numpy())
 
-
     @skipUnless(has_cp, "CuPy is required.")
     def test_list_tuple(self):
         test_data = [[1, 2], [3, 4]]
@@ -61,6 +60,7 @@ class TestToCupyd(unittest.TestCase):
         test_data = ((1, 2), (3, 4))
         result = ToCupyd(keys="img")({"img": test_data})["img"]
         cp.testing.assert_allclose(result, cp.asarray(test_data))
+
 
 if __name__ == "__main__":
     unittest.main()
