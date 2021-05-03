@@ -20,7 +20,7 @@ from monai.utils import MetricReduction
 
 class MeanSquaredError(IterationMetric):
     """
-    Computes Mean Squared Error from full size Tensor and collects average over batch, class-channels, iterations.
+    Computes Mean Squared Error from full size Tensor and collects average over batch, iterations.
     """
 
     def __init__(
@@ -53,7 +53,7 @@ class MeanSquaredError(IterationMetric):
 
 class MeanAbsoluteError(IterationMetric):
     """
-    Computes Mean Absolute Error from full size Tensor and collects average over batch, class-channels, iterations.
+    Computes Mean Absolute Error from full size Tensor and collects average over batch, iterations.
     """
 
     def __init__(
@@ -86,7 +86,7 @@ class MeanAbsoluteError(IterationMetric):
 
 class RootMeanSquaredError(IterationMetric):
     """
-    Computes Root Mean Squared Error from full size Tensor and collects average over batch, class-channels, iterations.
+    Computes Root Mean Squared Error from full size Tensor and collects average over batch, iterations.
     """
 
     def __init__(
@@ -119,7 +119,7 @@ class RootMeanSquaredError(IterationMetric):
 
 class PeakSignalToNoiseRatio(IterationMetric):
     """
-    Computes Peak Signal to Noise Ratio from full size Tensor and collects average over batch, class-channels, iterations.
+    Computes Peak Signal to Noise Ratio from full size Tensor and collects average over batch, iterations.
     """
 
     def __init__(
@@ -133,7 +133,7 @@ class PeakSignalToNoiseRatio(IterationMetric):
 
         Args:
             max_val: The dynamic range of the images/volumes (i.e., the difference between the
-                maximum the and minimum allowed values e.g. 255 for a uint8 image).
+                maximum and the minimum allowed values e.g. 255 for a uint8 image).
             output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
             device: device specification in case of distributed computation usage.
             save_details: whether to save metric computation details per image, for example: mean dice of every image.

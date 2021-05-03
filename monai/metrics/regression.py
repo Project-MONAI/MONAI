@@ -53,7 +53,7 @@ class MSEMetric(RegressionMetric):
     r"""Compute Mean Squared Error between two tensors using function:
 
     .. math::
-        \operatorname {MSE} ={\frac {1}{n}}\sum _{i=1}^{n}(Y_{i}-{\hat {Y_{i}}})^{2}.
+        \operatorname {MSE}\left(Y, \hat{Y}\right) =\frac {1}{n}\sum _{i=1}^{n}\left(y_i-\hat{y_i} \right)^{2}.
 
     More info: https://en.wikipedia.org/wiki/Mean_squared_error
 
@@ -83,7 +83,7 @@ class MAEMetric(RegressionMetric):
     r"""Compute Mean Absolute Error between two tensors using function:
 
     .. math::
-        \operatorname {MAE} ={\frac {\sum _{i=1}^{n}\left|y_{i}-x_{i}\right|}{n}}.
+        \operatorname {MAE}\left(Y, \hat{Y}\right) =\frac {1}{n}\sum _{i=1}^{n}\left|y_i-\hat{y_i}\right|.
 
     More info: https://en.wikipedia.org/wiki/Mean_absolute_error
 
@@ -113,8 +113,8 @@ class RMSEMetric(RegressionMetric):
     r"""Compute Root Mean Squared Error between two tensors using function:
 
     .. math::
-        \operatorname {RMSE} ={\sqrt {\frac {\sum _{i=1}^{n}({\hat {y}}_{i}-y_{i})^{2}}{n}}} \\\\
-        = {\sqrt {\operatorname{MSE}(\hat{Y}_i, Y_i))}}.
+        \operatorname {RMSE}\left(Y, \hat{Y}\right) ={ \sqrt{ \frac {1}{n}\sum _{i=1}^{n}\left(y_i-\hat{y_i}\right)^2 } } \
+        = \sqrt {\operatorname{MSE}\left(Y, \hat{Y}\right)}.
 
     More info: https://en.wikipedia.org/wiki/Root-mean-square_deviation
 
@@ -142,11 +142,11 @@ class RMSEMetric(RegressionMetric):
 
 
 class PSNRMetric(RegressionMetric):
-    r"""Compute Root Mean Squared Error between two tensors using function:
+    r"""Compute Peak Signal To Noise Ratio between two tensors using function:
 
     .. math::
-        \operatorname{PSNR} = 20 \cdot \log_{10} \left({\mathit{MAX}}_{I}\right) \\\\
-        -10 \cdot \log_{10}\left(\operatorname{MSE(\hat{Y}_i, Y_i)}\right)
+        \operatorname{PSNR}\left(Y, \hat{Y}\right) = 20 \cdot \log_{10} \left({\mathit{MAX}}_Y\right) \
+        -10 \cdot \log_{10}\left(\operatorname{MSE\left(Y, \hat{Y}\right)}\right)
 
     More info: https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio
 
@@ -158,7 +158,7 @@ class PSNRMetric(RegressionMetric):
 
     Args:
         max_val: The dynamic range of the images/volumes (i.e., the difference between the
-            maximum the and minimum allowed values e.g. 255 for a uint8 image).
+            maximum and the minimum allowed values e.g. 255 for a uint8 image).
         reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}
             Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
