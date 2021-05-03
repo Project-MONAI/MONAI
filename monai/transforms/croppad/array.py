@@ -26,6 +26,7 @@ from monai.transforms.utils import (
     compute_divisible_spatial_size,
     generate_pos_neg_label_crop_centers,
     generate_spatial_bounding_box,
+    is_positive,
     map_binary_to_indices,
     weighted_patch_samples,
 )
@@ -400,7 +401,14 @@ class CropForeground(Transform):
               [0, 1, 3, 2, 0],
               [0, 1, 2, 1, 0],
               [0, 0, 0, 0, 0]]])  # 1x5x5, single channel 5x5 image
-        cropper = CropForeground(select_fn=lambda x: x > 1, margin=0)
+
+
+        def threshold_at_one(x):
+            # threshold at 1
+            return x > 1
+
+
+        cropper = CropForeground(select_fn=threshold_at_one, margin=0)
         print(cropper(image))
         [[[2, 1],
           [3, 2],
@@ -410,7 +418,7 @@ class CropForeground(Transform):
 
     def __init__(
         self,
-        select_fn: Callable = lambda x: x > 0,
+        select_fn: Callable = is_positive,
         channel_indices: Optional[IndexSelection] = None,
         margin: Union[Sequence[int], int] = 0,
         return_coords: bool = False,
@@ -725,7 +733,7 @@ class BoundingRect(Transform):
         select_fn: function to select expected foreground, default is to select values > 0.
     """
 
-    def __init__(self, select_fn: Callable = lambda x: x > 0) -> None:
+    def __init__(self, select_fn: Callable = is_positive) -> None:
         self.select_fn = select_fn
 
     def __call__(self, img: np.ndarray) -> np.ndarray:

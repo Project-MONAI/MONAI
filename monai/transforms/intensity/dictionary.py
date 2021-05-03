@@ -102,6 +102,8 @@ __all__ = [
     "RandGaussianSharpenDict",
     "RandHistogramShiftD",
     "RandHistogramShiftDict",
+    "RandRicianNoiseD",
+    "RandRicianNoiseDict",
 ]
 
 
