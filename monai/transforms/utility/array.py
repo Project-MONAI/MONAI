@@ -319,6 +319,8 @@ class ToNumpy(Transform):
         """
         if isinstance(img, torch.Tensor):
             img = img.detach().cpu().numpy()  # type: ignore
+        if isinstance(img, cp_ndarray):
+            img = cp.asnumpy(img)  # type: ignore
         return np.ascontiguousarray(img)
 
 
