@@ -82,8 +82,6 @@ def run_testsuit():
         "test_parallel_execution",
         "test_persistentdataset",
         "test_cachentransdataset",
-        "test_pathology_transforms.py",
-        "test_pathology_transformsd.py",
         "test_pil_reader",
         "test_plot_2d_or_3d_image",
         "test_png_rw",
