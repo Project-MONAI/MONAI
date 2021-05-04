@@ -137,7 +137,7 @@ class PersistentDataset(Dataset):
         self,
         data: Sequence,
         transform: Union[Sequence[Callable], Callable],
-        cache_dir: Optional[Union[Path, str]] = None,
+        cache_dir: Optional[Union[Path, str]],
         hash_func: Callable[..., bytes] = pickle_hashing,
     ) -> None:
         """
@@ -150,7 +150,8 @@ class PersistentDataset(Dataset):
                 of pre-computed transformed data tensors. The cache_dir is computed once, and
                 persists on disk until explicitly removed.  Different runs, programs, experiments
                 may share a common cache dir provided that the transforms pre-processing is consistent.
-                If the cache_dir doesn't exist, will automatically create it.
+                If `cache_dir` doesn't exist, will automatically create it.
+                If `cache_dir` is `None`, there is effectively no caching.
             hash_func: a callable to compute hash from data items to be cached.
                 defaults to `monai.data.utils.pickle_hashing`.
 
@@ -271,7 +272,7 @@ class CacheNTransDataset(PersistentDataset):
         data: Sequence,
         transform: Union[Sequence[Callable], Callable],
         cache_n_trans: int,
-        cache_dir: Optional[Union[Path, str]] = None,
+        cache_dir: Optional[Union[Path, str]],
         hash_func: Callable[..., bytes] = pickle_hashing,
     ) -> None:
         """
@@ -285,7 +286,8 @@ class CacheNTransDataset(PersistentDataset):
                 of pre-computed transformed data tensors. The cache_dir is computed once, and
                 persists on disk until explicitly removed.  Different runs, programs, experiments
                 may share a common cache dir provided that the transforms pre-processing is consistent.
-                If the cache_dir doesn't exist, will automatically create it.
+                If `cache_dir` doesn't exist, will automatically create it.
+                If `cache_dir` is `None`, there is effectively no caching.
             hash_func: a callable to compute hash from data items to be cached.
                 defaults to `monai.data.utils.pickle_hashing`.
 
