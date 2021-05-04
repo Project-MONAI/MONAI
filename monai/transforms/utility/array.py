@@ -28,7 +28,7 @@ from monai.utils import ensure_tuple, min_version, optional_import
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
-cp, _ = optional_import("cupy")
+cp, has_cp = optional_import("cupy")
 cp_ndarray, _ = optional_import("cupy", name="ndarray")
 
 __all__ = [
@@ -319,7 +319,7 @@ class ToNumpy(Transform):
         """
         if isinstance(img, torch.Tensor):
             img = img.detach().cpu().numpy()  # type: ignore
-        if isinstance(img, cp_ndarray):
+        elif has_cp and isinstance(img, cp_ndarray):
             img = cp.asnumpy(img)  # type: ignore
         return np.ascontiguousarray(img)
 
