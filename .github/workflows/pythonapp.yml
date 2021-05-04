@@ -32,7 +32,7 @@ jobs:
         key: ${{ runner.os }}-pip-${{ steps.pip-cache.outputs.datew }}
     - name: Remove CUDA-required dependencies
       run: |
-        sed -i '/^cupy/d' requirements-dev.txt
+        sed -i.bak -e "/^cupy/d" requirements-dev.txt
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip wheel
@@ -82,7 +82,7 @@ jobs:
         key: ${{ matrix.os }}-latest-pip-${{ steps.pip-cache.outputs.datew }}
     - name: Remove CUDA-required dependencies
       run: |
-        sed -i '/^cupy/d' requirements-dev.txt
+        sed -i.bak -e "/^cupy/d" requirements-dev.txt
     - if: runner.os == 'windows'
       name: Install torch cpu from pytorch.org (Windows only)
       run: |
@@ -287,7 +287,7 @@ jobs:
         python -m pip install --upgrade pip wheel
         python -m pip install ${{ matrix.pytorch }}
         matenv=${{ matrix.environment }}
-        sed -i 's/cupy=/cupy-cuda${matenv: -3}=/g' requirements-dev.txt
+        sed -i.bak -e "s/cupy=/cupy-cuda${matenv: -3}=/g" requirements-dev.txt
         python -m pip install -r requirements-dev.txt
         python -m pip list
     - name: Run quick tests (GPU)
