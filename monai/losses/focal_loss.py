@@ -63,7 +63,7 @@ class FocalLoss(_Loss):
 
                 pred = torch.tensor([[1, 0], [0, 1], [1, 0]], dtype=torch.float32)
                 grnd = torch.tensor([[0], [1], [0]], dtype=torch.int64)
-                fl = FocalLoss()
+                fl = FocalLoss(to_onehot_y=True)
                 fl(pred, grnd)
 
         """

@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -23,6 +23,14 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import Randomizable
 from monai.transforms.utils import allow_missing_keys_mode
 from monai.utils.enums import CommonKeys, InverseKeys
+from monai.utils.module import optional_import
+
+if TYPE_CHECKING:
+    from tqdm import tqdm
+
+    has_tqdm = True
+else:
+    tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
 
 __all__ = ["TestTimeAugmentation"]
 
@@ -54,9 +62,14 @@ class TestTimeAugmentation:
         device: device on which to perform inference.
         image_key: key used to extract image from input dictionary.
         label_key: key used to extract label from input dictionary.
+        meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
+            default is `meta_dict`, the meta data is a dictionary object.
+            For example, to handle key `image`,  read/write affine matrices from the
+            metadata `image_meta_dict` dictionary's `affine` field.
         return_full_data: normally, metrics are returned (mode, mean, std, vvc). Setting this flag to `True` will return the
             full data. Dimensions will be same size as when passing a single image through `inferrer_fn`, with a dimension appended
             equal in size to `num_examples` (N), i.e., `[N,C,H,W,[D]]`.
+        progress: whether to display a progress bar.
 
     Example:
         .. code-block:: python
@@ -79,7 +92,9 @@ class TestTimeAugmentation:
         device: Optional[Union[str, torch.device]] = "cuda" if torch.cuda.is_available() else "cpu",
         image_key=CommonKeys.IMAGE,
         label_key=CommonKeys.LABEL,
+        meta_key_postfix="meta_dict",
         return_full_data: bool = False,
+        progress: bool = True,
     ) -> None:
         self.transform = transform
         self.batch_size = batch_size
@@ -88,7 +103,9 @@ class TestTimeAugmentation:
         self.device = device
         self.image_key = image_key
         self.label_key = label_key
+        self.meta_key_postfix = meta_key_postfix
         self.return_full_data = return_full_data
+        self.progress = progress
 
         # check that the transform has at least one random component, and that all random transforms are invertible
         self._check_transforms()
@@ -143,7 +160,7 @@ class TestTimeAugmentation:
 
         outputs: List[np.ndarray] = []
 
-        for batch_data in dl:
+        for batch_data in tqdm(dl) if has_tqdm and self.progress else dl:
 
             batch_images = batch_data[self.image_key].to(self.device)
 
@@ -156,6 +173,10 @@ class TestTimeAugmentation:
 
             # create a dictionary containing the inferred batch and their transforms
             inferred_dict = {self.label_key: batch_output, label_transform_key: batch_data[label_transform_key]}
+            # if meta dict is present, add that too (required for some inverse transforms)
+            label_meta_dict_key = f"{self.label_key}_{self.meta_key_postfix}"
+            if label_meta_dict_key in batch_data:
+                inferred_dict[label_meta_dict_key] = batch_data[label_meta_dict_key]
 
             # do inverse transformation (allow missing keys as only inverting label)
             with allow_missing_keys_mode(self.transform):  # type: ignore
@@ -171,7 +192,7 @@ class TestTimeAugmentation:
             return output
 
         # calculate metrics
-        mode: np.ndarray = np.apply_along_axis(lambda x: np.bincount(x).argmax(), axis=0, arr=output.astype(np.int64))
+        mode = np.array(torch.mode(torch.Tensor(output.astype(np.int64)), dim=0).values)
         mean: np.ndarray = np.mean(output, axis=0)  # type: ignore
         std: np.ndarray = np.std(output, axis=0)  # type: ignore
         vvc: float = (np.std(output) / np.mean(output)).item()

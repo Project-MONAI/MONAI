@@ -17,12 +17,14 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 import copy
 import logging
+from copy import deepcopy
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
 from monai.config import DtypeLike, KeysCollection, NdarrayTensor
+from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable
 from monai.transforms.utility.array import (
     AddChannel,
@@ -51,81 +53,90 @@ from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.utils import ensure_tuple, ensure_tuple_rep
 
 __all__ = [
-    "Identityd",
-    "AsChannelFirstd",
-    "AsChannelLastd",
-    "AddChanneld",
-    "EnsureChannelFirstd",
-    "RepeatChanneld",
-    "RemoveRepeatedChanneld",
-    "SplitChanneld",
-    "CastToTyped",
-    "ToTensord",
-    "ToNumpyd",
-    "ToPILd",
-    "DeleteItemsd",
-    "SelectItemsd",
-    "SqueezeDimd",
-    "DataStatsd",
-    "SimulateDelayd",
-    "CopyItemsd",
-    "ConcatItemsd",
-    "Lambdad",
-    "RandLambdad",
-    "LabelToMaskd",
-    "FgBgToIndicesd",
-    "ConvertToMultiChannelBasedOnBratsClassesd",
-    "AddExtremePointsChanneld",
-    "TorchVisiond",
-    "MapLabelValued",
-    "IdentityD",
-    "IdentityDict",
-    "AsChannelFirstD",
-    "AsChannelFirstDict",
-    "AsChannelLastD",
-    "AsChannelLastDict",
     "AddChannelD",
     "AddChannelDict",
-    "EnsureChannelFirstD",
-    "EnsureChannelFirstDict",
-    "RandLambdaD",
-    "RandLambdaDict",
-    "RepeatChannelD",
-    "RepeatChannelDict",
-    "RemoveRepeatedChannelD",
-    "RemoveRepeatedChannelDict",
-    "SplitChannelD",
-    "SplitChannelDict",
-    "CastToTypeD",
-    "CastToTypeDict",
-    "ToTensorD",
-    "ToTensorDict",
-    "DeleteItemsD",
-    "DeleteItemsDict",
-    "SqueezeDimD",
-    "SqueezeDimDict",
-    "DataStatsD",
-    "DataStatsDict",
-    "SimulateDelayD",
-    "SimulateDelayDict",
-    "CopyItemsD",
-    "CopyItemsDict",
-    "ConcatItemsD",
-    "ConcatItemsDict",
-    "LambdaD",
-    "LambdaDict",
-    "LabelToMaskD",
-    "LabelToMaskDict",
-    "FgBgToIndicesD",
-    "FgBgToIndicesDict",
-    "ConvertToMultiChannelBasedOnBratsClassesD",
-    "ConvertToMultiChannelBasedOnBratsClassesDict",
+    "AddChanneld",
     "AddExtremePointsChannelD",
     "AddExtremePointsChannelDict",
-    "TorchVisionD",
-    "TorchVisionDict",
+    "AddExtremePointsChanneld",
+    "AsChannelFirstD",
+    "AsChannelFirstDict",
+    "AsChannelFirstd",
+    "AsChannelLastD",
+    "AsChannelLastDict",
+    "AsChannelLastd",
+    "CastToTypeD",
+    "CastToTypeDict",
+    "CastToTyped",
+    "ConcatItemsD",
+    "ConcatItemsDict",
+    "ConcatItemsd",
+    "ConvertToMultiChannelBasedOnBratsClassesD",
+    "ConvertToMultiChannelBasedOnBratsClassesDict",
+    "ConvertToMultiChannelBasedOnBratsClassesd",
+    "CopyItemsD",
+    "CopyItemsDict",
+    "CopyItemsd",
+    "DataStatsD",
+    "DataStatsDict",
+    "DataStatsd",
+    "DeleteItemsD",
+    "DeleteItemsDict",
+    "DeleteItemsd",
+    "EnsureChannelFirstD",
+    "EnsureChannelFirstDict",
+    "EnsureChannelFirstd",
+    "FgBgToIndicesD",
+    "FgBgToIndicesDict",
+    "FgBgToIndicesd",
+    "IdentityD",
+    "IdentityDict",
+    "Identityd",
+    "LabelToMaskD",
+    "LabelToMaskDict",
+    "LabelToMaskd",
+    "LambdaD",
+    "LambdaDict",
+    "Lambdad",
     "MapLabelValueD",
     "MapLabelValueDict",
+    "MapLabelValued",
+    "RandLambdaD",
+    "RandLambdaDict",
+    "RandLambdad",
+    "RandTorchVisionD",
+    "RandTorchVisionDict",
+    "RandTorchVisiond",
+    "RemoveRepeatedChannelD",
+    "RemoveRepeatedChannelDict",
+    "RemoveRepeatedChanneld",
+    "RepeatChannelD",
+    "RepeatChannelDict",
+    "RepeatChanneld",
+    "SelectItemsD",
+    "SelectItemsDict",
+    "SelectItemsd",
+    "SimulateDelayD",
+    "SimulateDelayDict",
+    "SimulateDelayd",
+    "SplitChannelD",
+    "SplitChannelDict",
+    "SplitChanneld",
+    "SqueezeDimD",
+    "SqueezeDimDict",
+    "SqueezeDimd",
+    "ToNumpyD",
+    "ToNumpyDict",
+    "ToNumpyd",
+    "ToPILD",
+    "ToPILDict",
+    "ToPILd",
+    "ToTensorD",
+    "ToTensorDict",
+    "ToTensord",
+    "TorchVisionD",
+    "TorchVisionDict",
+    "TorchVisiond",
 ]
 
 
@@ -379,7 +390,7 @@ class CastToTyped(MapTransform):
         return d
 
 
-class ToTensord(MapTransform):
+class ToTensord(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ToTensor`.
     """
@@ -397,7 +408,19 @@ class ToTensord(MapTransform):
     def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
         d = dict(data)
         for key in self.key_iterator(d):
+            self.push_transform(d, key)
             d[key] = self.converter(d[key])
+        return d
+
+    def inverse(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            # Create inverse transform
+            inverse_transform = ToNumpy()
+            # Apply inverse
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.pop_transform(d, key)
         return d
 
 
@@ -919,12 +942,22 @@ class AddExtremePointsChanneld(Randomizable, MapTransform):
 
 class TorchVisiond(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.TorchVision`.
-    As most of the TorchVision transforms only work for PIL image and PyTorch Tensor, this transform expects input
-    data to be dict of PyTorch Tensors, users can easily call `ToTensord` transform to convert Numpy to Tensor.
+    Dictionary-based wrapper of :py:class:`monai.transforms.TorchVision` for non-randomized transforms.
+    For randomized transforms of TorchVision use :py:class:`monai.transforms.RandTorchVisiond`.
+
+    Note:
+        As most of the TorchVision transforms only work for PIL image and PyTorch Tensor, this transform expects input
+        data to be dict of PyTorch Tensors, users can easily call `ToTensord` transform to convert Numpy to Tensor.
     """
 
-    def __init__(self, keys: KeysCollection, name: str, allow_missing_keys: bool = False, *args, **kwargs) -> None:
+    def __init__(
+        self,
+        keys: KeysCollection,
+        name: str,
+        allow_missing_keys: bool = False,
+        *args,
+        **kwargs,
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -936,6 +969,50 @@ class TorchVisiond(MapTransform):
 
         """
         super().__init__(keys, allow_missing_keys)
+        self.trans = TorchVision(name, *args, **kwargs)
+
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.trans(d[key])
+        return d
+
+
+class RandTorchVisiond(Randomizable, MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.TorchVision` for randomized transforms.
+    For deterministic non-randomized transforms of TorchVision use :py:class:`monai.transforms.TorchVisiond`.
+
+    Note:
+
+        - As most of the TorchVision transforms only work for PIL image and PyTorch Tensor, this transform expects input
+          data to be dict of PyTorch Tensors, users can easily call `ToTensord` transform to convert Numpy to Tensor.
+        - This class inherits the ``Randomizable`` purely to prevent any dataset caching to skip the transform
+          computation. If the random factor of the underlying torchvision transform is not derived from `self.R`,
+          the results may not be deterministic.
+          See Also: :py:class:`monai.transforms.Randomizable`.
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        name: str,
+        allow_missing_keys: bool = False,
+        *args,
+        **kwargs,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            name: The transform name in TorchVision package.
+            allow_missing_keys: don't raise exception if key is missing.
+            args: parameters for the TorchVision transform.
+            kwargs: parameters for the TorchVision transform.
+
+        """
+        MapTransform.__init__(self, keys, allow_missing_keys)
         self.trans = TorchVision(name, *args, **kwargs)
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
@@ -991,6 +1068,7 @@ ToTensorD = ToTensorDict = ToTensord
 ToNumpyD = ToNumpyDict = ToNumpyd
 ToPILD = ToPILDict = ToPILd
 DeleteItemsD = DeleteItemsDict = DeleteItemsd
+SelectItemsD = SelectItemsDict = SelectItemsd
 SqueezeDimD = SqueezeDimDict = SqueezeDimd
 DataStatsD = DataStatsDict = DataStatsd
 SimulateDelayD = SimulateDelayDict = SimulateDelayd
@@ -1004,5 +1082,6 @@ ConvertToMultiChannelBasedOnBratsClassesD = (
 ) = ConvertToMultiChannelBasedOnBratsClassesd
 AddExtremePointsChannelD = AddExtremePointsChannelDict = AddExtremePointsChanneld
 TorchVisionD = TorchVisionDict = TorchVisiond
+RandTorchVisionD = RandTorchVisionDict = RandTorchVisiond
 RandLambdaD = RandLambdaDict = RandLambdad
 MapLabelValueD = MapLabelValueDict = MapLabelValued

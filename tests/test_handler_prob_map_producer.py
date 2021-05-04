@@ -30,14 +30,16 @@ TEST_CASE_2 = ["temp_image_inference_output_3", 1000]
 
 class TestDataset(Dataset):
     def __init__(self, name, size):
-        self.data = [
-            {
-                "name": name,
-                "mask_shape": (size, size),
-                "mask_locations": [[i, i] for i in range(size)],
-                "level": 0,
-            }
-        ]
+        super().__init__(
+            data=[
+                {
+                    "name": name,
+                    "mask_shape": (size, size),
+                    "mask_locations": [[i, i] for i in range(size)],
+                    "level": 0,
+                }
+            ]
+        )
         self.len = size
 
     def __len__(self):

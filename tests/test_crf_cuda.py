@@ -444,7 +444,7 @@ class CRFTestCaseCuda(unittest.TestCase):
         output = crf(input_tensor, feature_tensor).cpu().numpy()
 
         # Ensure result are as expected
-        np.testing.assert_allclose(output, expected, atol=1e-4, rtol=1e-4)
+        np.testing.assert_allclose(output, expected, atol=5e-2, rtol=5e-2)
 
 
 if __name__ == "__main__":

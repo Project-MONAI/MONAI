@@ -40,10 +40,10 @@ WIDTH = 46000
 
 def prepare_data():
 
-    mask = np.zeros((WIDTH // 2, HEIGHT // 2))
+    mask = np.zeros((HEIGHT // 2, WIDTH // 2))
     mask[100, 100] = 1
     np.save(MASK1, mask)
-    mask[100, 100:102] = 1
+    mask[100, 101] = 1
     np.save(MASK2, mask)
     mask[100:102, 100:102] = 1
     np.save(MASK4, mask)
@@ -81,7 +81,7 @@ TEST_CASE_1 = [
         {
             "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
             "name": FILE_NAME,
-            "mask_location": [101, 100],
+            "mask_location": [100, 101],
         },
     ],
 ]
@@ -163,7 +163,7 @@ TEST_CASE_4 = [
         {
             "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
             "name": FILE_NAME,
-            "mask_location": [101, 100],
+            "mask_location": [100, 101],
         },
     ],
 ]
@@ -201,7 +201,7 @@ TEST_CASE_OPENSLIDE_1 = [
         {
             "image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8),
             "name": FILE_NAME,
-            "mask_location": [101, 100],
+            "mask_location": [100, 101],
         },
     ],
 ]

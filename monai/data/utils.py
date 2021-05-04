@@ -65,6 +65,7 @@ __all__ = [
     "sorted_dict",
     "decollate_batch",
     "pad_list_data_collate",
+    "no_collation",
 ]
 
 
@@ -377,6 +378,13 @@ def pad_list_data_collate(
     from monai.transforms.croppad.batch import PadListDataCollate  # needs to be here to avoid circular import
 
     return PadListDataCollate(method, mode)(batch)
+
+
+def no_collation(x):
+    """
+    No any collation operation.
+    """
+    return x
 
 
 def worker_init_fn(worker_id: int) -> None:
@@ -744,6 +752,27 @@ def partition_dataset(
     Will return a set of datasets, every dataset contains 1 partition of original dataset.
     And it can split the dataset based on specified ratios or evenly split into `num_partitions`.
     Refer to: https://github.com/pytorch/pytorch/blob/master/torch/utils/data/distributed.py.
+
+    Note:
+        It also can be used to partition dataset for ranks in distributed training.
+        For example, partition dataset before training and use `CacheDataset`, every rank trains with its own data.
+        It can avoid duplicated caching content in each rank, but will not do global shuffle before every epoch:
+
+        .. code-block:: python
+
+            data_partition = partition_dataset(
+                data=train_files,
+                num_partitions=dist.get_world_size(),
+                shuffle=True,
+                even_divisible=True,
+            )[dist.get_rank()]
+
+            train_ds = SmartCacheDataset(
+                data=data_partition,
+                transform=train_transforms,
+                replace_rate=0.2,
+                cache_num=15,
+            )
 
     Args:
         data: input dataset to split, expect a list of data.

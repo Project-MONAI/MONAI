@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Iterable, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import torch
 from torch.utils.data import DataLoader
@@ -23,11 +23,12 @@ from monai.utils import ForwardMode, ensure_tuple, exact_version, optional_impor
 from monai.utils.enums import CommonKeys as Keys
 
 if TYPE_CHECKING:
-    from ignite.engine import Engine
+    from ignite.engine import Engine, EventEnum
     from ignite.metrics import Metric
 else:
     Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
     Metric, _ = optional_import("ignite.metrics", "0.4.4", exact_version, "Metric")
+    EventEnum, _ = optional_import("ignite.engine", "0.4.4", exact_version, "EventEnum")
 
 __all__ = ["Evaluator", "SupervisedEvaluator", "EnsembleEvaluator"]
 
@@ -56,6 +57,10 @@ class Evaluator(Workflow):
         amp: whether to enable auto-mixed-precision evaluation, default is False.
         mode: model forward mode during evaluation, should be 'eval' or 'train',
             which maps to `model.eval()` or `model.train()`, default to 'eval'.
+        event_names: additional custom ignite events that will register to the engine.
+            new events can be a list of str or `ignite.engine.events.EventEnum`.
+        event_to_attr: a dictionary to map an event to a state attribute, then add to `engine.state`.
+            for more details, check: https://github.com/pytorch/ignite/blob/v0.4.4.post1/ignite/engine/engine.py#L160
 
     """
 
@@ -73,6 +78,8 @@ class Evaluator(Workflow):
         val_handlers: Optional[Sequence] = None,
         amp: bool = False,
         mode: Union[ForwardMode, str] = ForwardMode.EVAL,
+        event_names: Optional[List[Union[str, EventEnum]]] = None,
+        event_to_attr: Optional[dict] = None,
     ) -> None:
         super().__init__(
             device=device,
@@ -87,6 +94,8 @@ class Evaluator(Workflow):
             additional_metrics=additional_metrics,
             handlers=val_handlers,
             amp=amp,
+            event_names=event_names,
+            event_to_attr=event_to_attr,
         )
         mode = ForwardMode(mode)
         if mode == ForwardMode.EVAL:
@@ -140,6 +149,10 @@ class SupervisedEvaluator(Evaluator):
         amp: whether to enable auto-mixed-precision evaluation, default is False.
         mode: model forward mode during evaluation, should be 'eval' or 'train',
             which maps to `model.eval()` or `model.train()`, default to 'eval'.
+        event_names: additional custom ignite events that will register to the engine.
+            new events can be a list of str or `ignite.engine.events.EventEnum`.
+        event_to_attr: a dictionary to map an event to a state attribute, then add to `engine.state`.
+            for more details, check: https://github.com/pytorch/ignite/blob/v0.4.4.post1/ignite/engine/engine.py#L160
 
     """
 
@@ -159,6 +172,8 @@ class SupervisedEvaluator(Evaluator):
         val_handlers: Optional[Sequence] = None,
         amp: bool = False,
         mode: Union[ForwardMode, str] = ForwardMode.EVAL,
+        event_names: Optional[List[Union[str, EventEnum]]] = None,
+        event_to_attr: Optional[dict] = None,
     ) -> None:
         super().__init__(
             device=device,
@@ -173,14 +188,13 @@ class SupervisedEvaluator(Evaluator):
             val_handlers=val_handlers,
             amp=amp,
             mode=mode,
+            # add the iteration events
+            event_names=[IterationEvents] if event_names is None else event_names + [IterationEvents],
+            event_to_attr=event_to_attr,
         )
 
         self.network = network
         self.inferer = SimpleInferer() if inferer is None else inferer
-
-    def _register_additional_events(self):
-        super()._register_additional_events()
-        self.register_events(*IterationEvents)
 
     def _iteration(self, engine: Engine, batchdata: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """
@@ -209,17 +223,18 @@ class SupervisedEvaluator(Evaluator):
             inputs, targets, args, kwargs = batch
 
         # put iteration outputs into engine.state
-        engine.state.output = output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
+        engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
         # execute forward computation
         with self.mode(self.network):
             if self.amp:
                 with torch.cuda.amp.autocast():
-                    output[Keys.PRED] = self.inferer(inputs, self.network, *args, **kwargs)
+                    engine.state.output[Keys.PRED] = self.inferer(inputs, self.network, *args, **kwargs)
             else:
-                output[Keys.PRED] = self.inferer(inputs, self.network, *args, **kwargs)
+                engine.state.output[Keys.PRED] = self.inferer(inputs, self.network, *args, **kwargs)
         engine.fire_event(IterationEvents.FORWARD_COMPLETED)
+        engine.fire_event(IterationEvents.MODEL_COMPLETED)
 
-        return output
+        return engine.state.output
 
 
 class EnsembleEvaluator(Evaluator):
@@ -251,6 +266,10 @@ class EnsembleEvaluator(Evaluator):
         amp: whether to enable auto-mixed-precision evaluation, default is False.
         mode: model forward mode during evaluation, should be 'eval' or 'train',
             which maps to `model.eval()` or `model.train()`, default to 'eval'.
+        event_names: additional custom ignite events that will register to the engine.
+            new events can be a list of str or `ignite.engine.events.EventEnum`.
+        event_to_attr: a dictionary to map an event to a state attribute, then add to `engine.state`.
+            for more details, check: https://github.com/pytorch/ignite/blob/v0.4.4.post1/ignite/engine/engine.py#L160
 
     """
 
@@ -271,6 +290,8 @@ class EnsembleEvaluator(Evaluator):
         val_handlers: Optional[Sequence] = None,
         amp: bool = False,
         mode: Union[ForwardMode, str] = ForwardMode.EVAL,
+        event_names: Optional[List[Union[str, EventEnum]]] = None,
+        event_to_attr: Optional[dict] = None,
     ) -> None:
         super().__init__(
             device=device,
@@ -285,15 +306,14 @@ class EnsembleEvaluator(Evaluator):
             val_handlers=val_handlers,
             amp=amp,
             mode=mode,
+            # add the iteration events
+            event_names=[IterationEvents] if event_names is None else event_names + [IterationEvents],
+            event_to_attr=event_to_attr,
         )
 
         self.networks = ensure_tuple(networks)
         self.pred_keys = ensure_tuple(pred_keys)
         self.inferer = SimpleInferer() if inferer is None else inferer
-
-    def _register_additional_events(self):
-        super()._register_additional_events()
-        self.register_events(*IterationEvents)
 
     def _iteration(self, engine: Engine, batchdata: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """
@@ -325,14 +345,17 @@ class EnsembleEvaluator(Evaluator):
             inputs, targets, args, kwargs = batch
 
         # put iteration outputs into engine.state
-        engine.state.output = output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
+        engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
         for idx, network in enumerate(self.networks):
             with self.mode(network):
                 if self.amp:
                     with torch.cuda.amp.autocast():
-                        output.update({self.pred_keys[idx]: self.inferer(inputs, network, *args, **kwargs)})
+                        engine.state.output.update(
+                            {self.pred_keys[idx]: self.inferer(inputs, network, *args, **kwargs)}
+                        )
                 else:
-                    output.update({self.pred_keys[idx]: self.inferer(inputs, network, *args, **kwargs)})
+                    engine.state.output.update({self.pred_keys[idx]: self.inferer(inputs, network, *args, **kwargs)})
         engine.fire_event(IterationEvents.FORWARD_COMPLETED)
+        engine.fire_event(IterationEvents.MODEL_COMPLETED)
 
-        return output
+        return engine.state.output

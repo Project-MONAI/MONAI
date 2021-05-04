@@ -38,13 +38,14 @@ class IterationEvents(EventEnum):
     `FORWARD_COMPLETED` is the Event when `network(image, label)` completed.
     `LOSS_COMPLETED` is the Event when `loss(pred, label)` completed.
     `BACKWARD_COMPLETED` is the Event when `loss.backward()` completed.
+    `MODEL_COMPLETED` is the Event when all the model related operations completed.
 
     """
 
     FORWARD_COMPLETED = "forward_completed"
     LOSS_COMPLETED = "loss_completed"
     BACKWARD_COMPLETED = "backward_completed"
-    OPTIMIZER_COMPLETED = "optimizer_completed"
+    MODEL_COMPLETED = "model_completed"
 
 
 class GanKeys:
@@ -106,7 +107,7 @@ def default_prepare_batch(
     """
     if not isinstance(batchdata, dict):
         raise AssertionError("default prepare_batch expects dictionary input data.")
-    if CommonKeys.LABEL in batchdata:
+    if isinstance(batchdata.get(CommonKeys.LABEL, None), torch.Tensor):
         return (
             batchdata[CommonKeys.IMAGE].to(device=device, non_blocking=non_blocking),
             batchdata[CommonKeys.LABEL].to(device=device, non_blocking=non_blocking),

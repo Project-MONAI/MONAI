@@ -1075,6 +1075,12 @@ Utility (Dict)
     :members:
     :special-members: __call__
 
+`RandTorchVisiond`
+""""""""""""""""""
+.. autoclass:: RandTorchVisiond
+    :members:
+    :special-members: __call__
+
 `MapLabelValued`
 """"""""""""""""
 .. autoclass:: MapLabelValued

@@ -127,15 +127,15 @@ class OcclusionSensitivity:
 
         model_2d = DenseNet121(spatial_dims=2, in_channels=1, out_channels=3)
         occ_sens = OcclusionSensitivity(nn_module=model_2d)
-        occ_map, most_probable_class = occ_sens(x=torch.rand((1, 1, 48, 64)), class_idx=None, b_box=[-1, -1, 2, 40, 1, 62])
+        occ_map, most_probable_class = occ_sens(x=torch.rand((1, 1, 48, 64)), b_box=[-1, -1, 2, 40, 1, 62])
 
         # densenet 3d
         from monai.networks.nets import DenseNet
         from monai.visualize import OcclusionSensitivity
 
         model_3d = DenseNet(spatial_dims=3, in_channels=1, out_channels=3, init_features=2, growth_rate=2, block_config=(6,))
-        occ_sens = OcclusionSensitivity(nn_module=model_3d, n_batch=10, stride=2)
-        occ_map, most_probable_class = occ_sens(torch.rand(1, 1, 6, 6, 6), class_idx=1, b_box=[-1, -1, 2, 3, -1, -1, -1, -1])
+        occ_sens = OcclusionSensitivity(nn_module=model_3d, n_batch=10, stride=3)
+        occ_map, most_probable_class = occ_sens(torch.rand(1, 1, 6, 6, 6), b_box=[-1, -1, 1, 3, -1, -1, -1, -1])
 
     See Also:
 
@@ -152,7 +152,7 @@ class OcclusionSensitivity:
         upsampler: Optional[Callable] = default_upsampler,
         verbose: bool = True,
     ) -> None:
-        """Occlusion sensitivitiy constructor.
+        """Occlusion sensitivity constructor.
 
         Args:
             nn_module: Classification model to use for inference
@@ -187,7 +187,7 @@ class OcclusionSensitivity:
         # Get the number of prediction classes
         num_classes = self.nn_module(x).numel()
 
-        #  If pad val not supplied, get the mean of the image
+        # If pad val not supplied, get the mean of the image
         pad_val = x.mean() if self.pad_val is None else self.pad_val
 
         # List containing a batch of images to be inferred
@@ -299,15 +299,14 @@ class OcclusionSensitivity:
             sensitivity_ims_list, output_im_shape = self._compute_occlusion_sensitivity(x, b_box)
 
             # Loop over image for each classification
-            for i in range(len(sensitivity_ims_list)):
-
+            for i, sens_i in enumerate(sensitivity_ims_list):
                 # upsample
                 if self.upsampler is not None:
-                    if len(sensitivity_ims_list[i].shape) != len(x.shape):
+                    if len(sens_i.shape) != len(x.shape):
                         raise AssertionError
-                    if np.any(sensitivity_ims_list[i].shape != x.shape):
+                    if np.any(sens_i.shape != x.shape):
                         img_spatial = tuple(output_im_shape[1:])
-                        sensitivity_ims_list[i] = self.upsampler(img_spatial)(sensitivity_ims_list[i])
+                        sensitivity_ims_list[i] = self.upsampler(img_spatial)(sens_i)
 
             # Convert list of tensors to tensor
             sensitivity_ims = torch.stack(sensitivity_ims_list, dim=-1)

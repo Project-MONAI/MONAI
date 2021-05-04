@@ -33,6 +33,7 @@ def run_testsuit():
         "test_cachedataset_parallel",
         "test_dataset",
         "test_detect_envelope",
+        "test_efficientnet",
         "test_iterable_dataset",
         "test_ensemble_evaluator",
         "test_handler_checkpoint_loader",
@@ -47,6 +48,7 @@ def run_testsuit():
         "test_handler_prob_map_producer",
         "test_handler_rocauc",
         "test_handler_rocauc_dist",
+        "test_handler_parameter_scheduler",
         "test_handler_segmentation_saver",
         "test_handler_smartcache",
         "test_handler_stats",
@@ -103,6 +105,7 @@ def run_testsuit():
         "test_occlusion_sensitivity",
         "test_torchvision",
         "test_torchvisiond",
+        "test_randtorchvisiond",
         "test_handler_metrics_saver",
         "test_handler_metrics_saver_dist",
         "test_evenly_divisible_all_gather_dist",
@@ -115,6 +118,8 @@ def run_testsuit():
         "test_ensure_channel_first",
         "test_ensure_channel_firstd",
         "test_handler_early_stop",
+        "test_handler_transform_inverter",
+        "test_testtimeaugmentation",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 

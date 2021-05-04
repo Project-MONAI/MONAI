@@ -9,26 +9,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Iterable, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Sequence, Union
 
 import torch
 import torch.distributed as dist
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
-from monai.engines.utils import default_prepare_batch
+from monai.engines.utils import IterationEvents, default_prepare_batch
 from monai.transforms import apply_transform
 from monai.utils import ensure_tuple, exact_version, optional_import
 
 IgniteEngine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
 State, _ = optional_import("ignite.engine", "0.4.4", exact_version, "State")
 Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
+
 if TYPE_CHECKING:
-    from ignite.engine import Engine
+    from ignite.engine import Engine, EventEnum
     from ignite.metrics import Metric
 else:
     Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
     Metric, _ = optional_import("ignite.metrics", "0.4.4", exact_version, "Metric")
+    EventEnum, _ = optional_import("ignite.engine", "0.4.4", exact_version, "EventEnum")
 
 
 class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optional_import
@@ -60,6 +62,10 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
         amp: whether to enable auto-mixed-precision training or inference, default is False.
+        event_names: additional custom ignite events that will register to the engine.
+            new events can be a list of str or `ignite.engine.events.EventEnum`.
+        event_to_attr: a dictionary to map an event to a state attribute, then add to `engine.state`.
+            for more details, check: https://github.com/pytorch/ignite/blob/v0.4.4.post1/ignite/engine/engine.py#L160
 
     Raises:
         TypeError: When ``device`` is not a ``torch.Device``.
@@ -83,6 +89,8 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         additional_metrics: Optional[Dict[str, Metric]] = None,
         handlers: Optional[Sequence] = None,
         amp: bool = False,
+        event_names: Optional[List[Union[str, EventEnum]]] = None,
+        event_to_attr: Optional[dict] = None,
     ) -> None:
         if iteration_update is not None:
             super().__init__(iteration_update)
@@ -128,7 +136,17 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         self.prepare_batch = prepare_batch
         self.amp = amp
 
-        self._register_additional_events()
+        if event_names is not None:
+            if not isinstance(event_names, list):
+                raise ValueError("event_names must be a list or string or EventEnum.")
+            for name in event_names:
+                if isinstance(name, str):
+                    self.register_events(name, event_to_attr=event_to_attr)
+                elif issubclass(name, EventEnum):
+                    self.register_events(*name, event_to_attr=event_to_attr)
+                else:
+                    raise ValueError("event_names must be a list or string or EventEnum.")
+
         if post_transform is not None:
             self._register_post_transforms(post_transform)
         if key_metric is not None:
@@ -136,26 +154,17 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         if handlers is not None:
             self._register_handlers(handlers)
 
-    def _register_additional_events(self):
-        """
-        Register more ignite Events to the engine.
-
-        """
-        pass
-
-    def _register_post_transforms(self, posttrans):
+    def _register_post_transforms(self, posttrans: Callable):
         """
         Register the post transforms to the engine, will execute them as a chain when iteration completed.
 
         """
 
-        @self.on(Events.ITERATION_COMPLETED)
+        @self.on(IterationEvents.MODEL_COMPLETED)
         def run_post_transform(engine: Engine) -> None:
-            if posttrans is None:
-                raise AssertionError
             engine.state.output = apply_transform(posttrans, engine.state.output)
 
-    def _register_metrics(self, k_metric, add_metrics):
+    def _register_metrics(self, k_metric: Dict, add_metrics: Optional[Dict] = None):
         """
         Register the key metric and additional metrics to the engine, supports ignite Metrics.
 
@@ -180,7 +189,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
                     engine.state.best_metric = current_val_metric
                     engine.state.best_metric_epoch = engine.state.epoch
 
-    def _register_handlers(self, handlers):
+    def _register_handlers(self, handlers: Sequence):
         """
         Register the handlers to the engine, supports ignite Handlers with `attach` API.
 

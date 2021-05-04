@@ -41,6 +41,7 @@ __all__ = [
     "CastToType",
     "ToTensor",
     "ToNumpy",
+    "ToPIL",
     "Transpose",
     "SqueezeDim",
     "DataStats",
@@ -160,7 +161,7 @@ class EnsureChannelFirst(Transform):
         Apply the transform to `img`.
         """
         if not isinstance(meta_dict, dict):
-            raise ValueError("meta_dict must be a dictionay data.")
+            raise ValueError("meta_dict must be a dictionary data.")
 
         channel_dim = meta_dict.get("original_channel_dim", None)
 
@@ -777,6 +778,9 @@ class MapLabelValue:
         """
         if len(orig_labels) != len(target_labels):
             raise ValueError("orig_labels and target_labels must have the same length.")
+        if all(o == z for o, z in zip(orig_labels, target_labels)):
+            raise ValueError("orig_labels and target_labels are exactly the same, should be different to map.")
+
         self.orig_labels = orig_labels
         self.target_labels = target_labels
         self.dtype = dtype

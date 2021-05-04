@@ -75,8 +75,11 @@ class TestThreadContainer(unittest.TestCase):
         opt = torch.optim.Adam(net.parameters())
 
         img = torch.rand(1, 16, 16)
-        data = {CommonKeys.IMAGE: img, CommonKeys.LABEL: img}
-        loader = DataLoader([data for _ in range(10)])
+
+        # a third non-image key is added to test that this is correctly ignored when plotting
+        data = {CommonKeys.IMAGE: img, CommonKeys.LABEL: img, "Not Image Data": ["This isn't an image"]}
+
+        loader = DataLoader([data] * 10)
 
         trainer = SupervisedTrainer(
             device=torch.device("cpu"),
@@ -99,7 +102,7 @@ class TestThreadContainer(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             tempimg = f"{tempdir}/threadcontainer_plot_test.png"
             fig.savefig(tempimg)
-            comp = compare_images(f"{testing_dir}/threadcontainer_plot_test.png", tempimg, 1e-3)
+            comp = compare_images(f"{testing_dir}/threadcontainer_plot_test.png", tempimg, 1e-2)
 
             self.assertIsNone(comp, comp)  # None indicates test passed
 

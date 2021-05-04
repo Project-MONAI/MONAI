@@ -54,6 +54,7 @@ from monai.transforms import (
     SpatialPadd,
     Zoomd,
     allow_missing_keys_mode,
+    convert_inverse_interp_mode,
 )
 from monai.utils import first, get_seed, optional_import, set_determinism
 from monai.utils.enums import InverseKeys
@@ -121,13 +122,21 @@ TESTS.append(
     )
 )
 
-
 TESTS.append(
     (
         "SpatialCropd 2d",
         "2D",
         0,
         SpatialCropd(KEYS, [49, 51], [90, 89]),
+    )
+)
+
+TESTS.append(
+    (
+        "SpatialCropd 3d",
+        "3D",
+        0,
+        SpatialCropd(KEYS, roi_slices=[slice(s, e) for s, e in zip([None, None, -99], [None, -2, None])]),
     )
 )
 
@@ -219,7 +228,7 @@ TESTS.append(
 
 TESTS.append(("CropForegroundd 2d", "2D", 0, CropForegroundd(KEYS, source_key="label", margin=2)))
 
-TESTS.append(("CropForegroundd 3d", "3D", 0, CropForegroundd(KEYS, source_key="label")))
+TESTS.append(("CropForegroundd 3d", "3D", 0, CropForegroundd(KEYS, source_key="label", k_divisible=[5, 101, 2])))
 
 
 TESTS.append(("ResizeWithPadOrCropd 3d", "3D", 0, ResizeWithPadOrCropd(KEYS, [201, 150, 105])))
@@ -572,9 +581,11 @@ class TestInverse(unittest.TestCase):
         segs_dict = {"label": segs, label_transform_key: data[label_transform_key]}
 
         segs_dict_decollated = decollate_batch(segs_dict)
-
         # inverse of individual segmentation
         seg_dict = first(segs_dict_decollated)
+        # test to convert interpolation mode for 1 data of model output batch
+        convert_inverse_interp_mode(seg_dict, mode="nearest", align_corners=None)
+
         with allow_missing_keys_mode(transforms):
             inv_seg = transforms.inverse(seg_dict)["label"]
         self.assertEqual(len(data["label_transforms"]), num_invertible_transforms)

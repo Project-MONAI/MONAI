@@ -195,10 +195,11 @@ def plot_engine_status(
         for src in (engine.state.batch, engine.state.output):
             if isinstance(src, dict):
                 for k, v in src.items():
-                    images = image_fn(k, v)
+                    if isinstance(v, torch.Tensor):
+                        images = image_fn(k, v)
 
-                    for i, im in enumerate(images):
-                        imagemap[f"{k}_{i}"] = im
+                        for i, im in enumerate(images):
+                            imagemap[f"{k}_{i}"] = im
             else:
                 label = "Batch" if src is engine.state.batch else "Output"
                 images = image_fn(label, src)
@@ -208,7 +209,8 @@ def plot_engine_status(
 
     axes = plot_metric_images(fig, title, graphmap, imagemap, yscale, avg_keys, window_fraction)
 
-    axes[0].axhline(logger.loss[-1][1], c="k", ls=":")  # draw dotted horizontal line at last loss value
+    if logger.loss:
+        axes[0].axhline(logger.loss[-1][1], c="k", ls=":")  # draw dotted horizontal line at last loss value
 
     return fig, axes
 
@@ -311,7 +313,7 @@ class ThreadContainer(Thread):
     def status_dict(self) -> Dict[str, str]:
         """A dictionary containing status information, current loss, and current metric values."""
         with self.lock:
-            stats = {StatusMembers.STATUS.value: "Running" if self.is_alive else "Stopped"}
+            stats = {StatusMembers.STATUS.value: "Running" if self.is_alive() else "Stopped"}
             stats.update(self._status_dict)
             return stats
 
@@ -319,8 +321,15 @@ class ThreadContainer(Thread):
         """Returns a status string for the current state of the engine."""
         stats = self.status_dict
 
-        msgs = [stats.pop(StatusMembers.STATUS.value), "Iters: " + str(stats.pop(StatusMembers.ITERS.value))]
-        msgs += [self.status_format.format(key, val) for key, val in stats.items()]
+        msgs = [stats.pop(StatusMembers.STATUS.value), "Iters: " + str(stats.pop(StatusMembers.ITERS.value, 0))]
+
+        for key, val in stats.items():
+            if isinstance(val, float):
+                msg = self.status_format.format(key, val)
+            else:
+                msg = f"{key}: {val}"
+
+            msgs.append(msg)
 
         return ", ".join(msgs)
 
@@ -333,5 +342,5 @@ class ThreadContainer(Thread):
         which holds the internal lock during the plot generation.
         """
         with self.lock:
-            self.fig, axes = plot_func(title=self.status(), engine=self.engine, logger=logger, fig=self.fig)
+            self.fig, _ = plot_func(title=self.status(), engine=self.engine, logger=logger, fig=self.fig)
             return self.fig

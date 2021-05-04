@@ -1,16 +1,16 @@
 <p align="center">
-  <img src="https://github.com/Project-MONAI/MONAI/raw/master/docs/images/MONAI-logo-color.png" width="50%" alt='project-monai'>
+  <img src="https://github.com/Project-MONAI/MONAI/blob/dev/docs/images/MONAI-logo-color.png" width="50%" alt='project-monai'>
 </p>
 
 **M**edical **O**pen **N**etwork for **AI**
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
-[![CI Build](https://github.com/Project-MONAI/MONAI/workflows/build/badge.svg?branch=master)](https://github.com/Project-MONAI/MONAI/commits/master)
+[![CI Build](https://github.com/Project-MONAI/MONAI/workflows/build/badge.svg?branch=dev)](https://github.com/Project-MONAI/MONAI/commits/dev)
 [![Documentation Status](https://readthedocs.org/projects/monai/badge/?version=latest)](https://docs.monai.io/en/latest/?badge=latest)
-[![codecov](https://codecov.io/gh/Project-MONAI/MONAI/branch/master/graph/badge.svg)](https://codecov.io/gh/Project-MONAI/MONAI)
+[![codecov](https://codecov.io/gh/Project-MONAI/MONAI/branch/dev/graph/badge.svg)](https://codecov.io/gh/Project-MONAI/MONAI)
 [![PyPI version](https://badge.fury.io/py/monai.svg)](https://badge.fury.io/py/monai)
 
-MONAI is a [PyTorch](https://pytorch.org/)-based, [open-source](https://github.com/Project-MONAI/MONAI/blob/master/LICENSE) framework for deep learning in healthcare imaging, part of [PyTorch Ecosystem](https://pytorch.org/ecosystem/).
+MONAI is a [PyTorch](https://pytorch.org/)-based, [open-source](LICENSE) framework for deep learning in healthcare imaging, part of [PyTorch Ecosystem](https://pytorch.org/ecosystem/).
 Its ambitions are:
 - developing a community of academic, industrial and clinical researchers collaborating on a common foundation;
 - creating state-of-the-art, end-to-end training workflows for healthcare imaging;
@@ -19,7 +19,7 @@ Its ambitions are:
 
 ## Features
 > _The codebase is currently under active development._
-> _Please see [the technical highlights](https://docs.monai.io/en/latest/highlights.html) of the current milestone release._
+> _Please see [the technical highlights](https://docs.monai.io/en/latest/highlights.html) and [What's New](https://docs.monai.io/en/latest/whatsnew.html) of the current milestone release._
 
 - flexible pre-processing for multi-dimensional medical imaging data;
 - compositional & portable APIs for ease of integration in existing workflows;
@@ -36,7 +36,7 @@ To install [the current release](https://pypi.org/project/monai/), you can simpl
 pip install monai
 ```
 
-For other installation methods (using the master branch, using Docker, etc.), please refer to [the installation guide](https://docs.monai.io/en/latest/installation.html).
+For other installation methods (using the default GitHub branch, using Docker, etc.), please refer to [the installation guide](https://docs.monai.io/en/latest/installation.html).
 
 ## Getting Started
 
@@ -47,7 +47,7 @@ Examples and notebook tutorials are located at [Project-MONAI/tutorials](https:/
 Technical documentation is available at [docs.monai.io](https://docs.monai.io).
 
 ## Contributing
-For guidance on making a contribution to MONAI, see the [contributing guidelines](https://github.com/Project-MONAI/MONAI/blob/master/CONTRIBUTING.md).
+For guidance on making a contribution to MONAI, see the [contributing guidelines](CONTRIBUTING.md).
 
 ## Community
 Join the conversation on Twitter [@ProjectMONAI](https://twitter.com/ProjectMONAI) or join our [Slack channel](https://forms.gle/QTxJq3hFictp31UM9).
