@@ -44,6 +44,7 @@ from monai.transforms.utility.array import (
     SimulateDelay,
     SplitChannel,
     SqueezeDim,
+    ToCupy,
     ToNumpy,
     ToPIL,
     TorchVision,
@@ -125,6 +126,9 @@ __all__ = [
     "SqueezeDimD",
     "SqueezeDimDict",
     "SqueezeDimd",
+    "ToCupyD",
+    "ToCupyDict",
+    "ToCupyd",
     "ToNumpyD",
     "ToNumpyDict",
     "ToNumpyd",
@@ -438,6 +442,28 @@ class ToNumpyd(MapTransform):
         """
         super().__init__(keys, allow_missing_keys)
         self.converter = ToNumpy()
+
+    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.converter(d[key])
+        return d
+
+
+class ToCupyd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.ToCupy`.
+    """
+
+    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.converter = ToCupy()
 
     def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
         d = dict(data)
@@ -1066,6 +1092,7 @@ SplitChannelD = SplitChannelDict = SplitChanneld
 CastToTypeD = CastToTypeDict = CastToTyped
 ToTensorD = ToTensorDict = ToTensord
 ToNumpyD = ToNumpyDict = ToNumpyd
+ToCupyD = ToCupyDict = ToCupyd
 ToPILD = ToPILDict = ToPILd
 DeleteItemsD = DeleteItemsDict = DeleteItemsd
 SelectItemsD = SelectItemsDict = SelectItemsd

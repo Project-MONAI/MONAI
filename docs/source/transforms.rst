@@ -502,6 +502,13 @@ Utility
     :members:
     :special-members: __call__
 
+`ToCupy`
+""""""""
+.. autoclass:: ToCupy
+    :members:
+    :special-members: __call__
+
+
 `Transpose`
 """""""""""
 .. autoclass:: Transpose
@@ -988,6 +995,12 @@ Utility (Dict)
 `ToNumpyd`
 """"""""""
 .. autoclass:: ToNumpyd
+    :members:
+    :special-members: __call__
+
+`ToCupyd`
+"""""""""
+.. autoclass:: ToCupyd
     :members:
     :special-members: __call__
 
