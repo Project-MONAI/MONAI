@@ -80,7 +80,8 @@ jobs:
       with:
         path: ${{ steps.pip-cache.outputs.dir }}
         key: ${{ matrix.os }}-latest-pip-${{ steps.pip-cache.outputs.datew }}
-    - name: Remove CUDA-required dependencies
+    - if: runner.os != 'windows'
+      name: Remove CUDA-required dependencies (Mac and Linux)
       run: |
         sed -i.bak -e "/^cupy/d" requirements-dev.txt
     - if: runner.os == 'windows'
