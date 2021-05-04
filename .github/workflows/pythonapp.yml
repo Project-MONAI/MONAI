@@ -282,13 +282,16 @@ jobs:
         python get-pip.py && \
         rm get-pip.py;
         fi
+    - name: Create the CUDA-dependent binary requirements for the environment
+      run: |
+        matenv=${{ matrix.environment }}
+        sed -i.bak -e "s/cupy=/cupy-cuda${matenv: -3}=/g" requirements-dev.txt
+        cat "requirements-dev.txt"
     - name: Install dependencies
       run: |
         which python
         python -m pip install --upgrade pip wheel
         python -m pip install ${{ matrix.pytorch }}
-        matenv=${{ matrix.environment }}
-        sed -i.bak -e "s/cupy=/cupy-cuda${matenv: -3}=/g" requirements-dev.txt
         python -m pip install -r requirements-dev.txt
         python -m pip list
     - name: Run quick tests (GPU)
