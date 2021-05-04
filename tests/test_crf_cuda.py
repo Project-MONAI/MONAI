@@ -456,7 +456,7 @@ class CRFTestCaseCuda(unittest.TestCase):
         abs_diff = abs(output - expected)
         mismatch_count = sum(np.where(abs_diff > absolute_diff_tolerance, 1, 0))
 
-        assert mismatch_count / len(output) < mismatch_ratio_tolerance
+        self.assertLessEqual(mismatch_count / len(output), mismatch_ratio_tolerance)
 
 
 if __name__ == "__main__":
