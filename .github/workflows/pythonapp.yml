@@ -284,8 +284,7 @@ jobs:
         fi
     - name: Create the CUDA-dependent binary requirements for the environment
       run: |
-        matenv=${{ matrix.environment }}
-        sed -i.bak -e "s/cupy=/cupy-cuda${matenv: -3}=/g" requirements-dev.txt
+        sed -i.bak -e "s/cupy=/cupy-cuda$(echo ${{ matrix.pytorch }} | sed 's/^.*CUDA//')=/g" requirements-dev.txt
         cat "requirements-dev.txt"
     - name: Install dependencies
       run: |
