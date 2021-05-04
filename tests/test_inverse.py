@@ -52,6 +52,7 @@ from monai.transforms import (
     Spacingd,
     SpatialCropd,
     SpatialPadd,
+    Transposed,
     Zoomd,
     allow_missing_keys_mode,
     convert_inverse_interp_mode,
@@ -375,6 +376,24 @@ TESTS.append(
         "3D",
         1e-1,
         RandRotated(KEYS, *[random.uniform(np.pi / 6, np.pi) for _ in range(3)], 1),  # type: ignore
+    )
+)
+
+TESTS.append(
+    (
+        "Transposed 2d",
+        "2D",
+        0,
+        Transposed(KEYS, [0, 2, 1]),  # channel=0
+    )
+)
+
+TESTS.append(
+    (
+        "Transposed 3d",
+        "3D",
+        0,
+        Transposed(KEYS, [0, 3, 1, 2]),  # channel=0
     )
 )
 

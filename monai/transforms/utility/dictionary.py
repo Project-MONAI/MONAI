@@ -48,9 +48,11 @@ from monai.transforms.utility.array import (
     ToPIL,
     TorchVision,
     ToTensor,
+    Transpose,
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.utils import ensure_tuple, ensure_tuple_rep
+from monai.utils.enums import InverseKeys
 
 __all__ = [
     "AddChannelD",
@@ -137,6 +139,9 @@ __all__ = [
     "TorchVisionD",
     "TorchVisionDict",
     "TorchVisiond",
+    "Transposed",
+    "TransposeDict",
+    "TransposeD",
 ]
 
 
@@ -465,6 +470,41 @@ class ToPILd(MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
+        return d
+
+
+class Transposed(MapTransform, InvertibleTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.Transpose`.
+    """
+
+    def __init__(
+        self, keys: KeysCollection, indices: Optional[Sequence[int]], allow_missing_keys: bool = False
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.transform = Transpose(indices)
+
+    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.transform(d[key])
+            # if None was supplied then numpy uses range(a.ndim)[::-1]
+            indices = self.transform.indices or range(d[key].ndim)[::-1]
+            self.push_transform(d, key, extra_info={"indices": indices})
+        return d
+
+    def inverse(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            fwd_indices = np.array(transform[InverseKeys.EXTRA_INFO]["indices"])
+            inv_indices = np.argsort(fwd_indices)
+            inverse_transform = Transpose(inv_indices)
+            # Apply inverse
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.pop_transform(d, key)
         return d
 
 
@@ -1067,6 +1107,7 @@ CastToTypeD = CastToTypeDict = CastToTyped
 ToTensorD = ToTensorDict = ToTensord
 ToNumpyD = ToNumpyDict = ToNumpyd
 ToPILD = ToPILDict = ToPILd
+TransposeD = TransposeDict = Transposed
 DeleteItemsD = DeleteItemsDict = DeleteItemsd
 SelectItemsD = SelectItemsDict = SelectItemsd
 SqueezeDimD = SqueezeDimDict = SqueezeDimd
