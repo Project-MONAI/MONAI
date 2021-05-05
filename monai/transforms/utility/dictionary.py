@@ -526,7 +526,7 @@ class Transposed(MapTransform, InvertibleTransform):
             # Create inverse transform
             fwd_indices = np.array(transform[InverseKeys.EXTRA_INFO]["indices"])
             inv_indices = np.argsort(fwd_indices)
-            inverse_transform = Transpose(inv_indices)
+            inverse_transform = Transpose(inv_indices.tolist())
             # Apply inverse
             d[key] = inverse_transform(d[key])
             # Remove the applied transform
