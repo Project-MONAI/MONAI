@@ -381,6 +381,9 @@ from .utility.dictionary import (
     ToTensord,
     ToTensorD,
     ToTensorDict,
+    Transposed,
+    TransposeD,
+    TransposeDict,
 )
 from .utils import (
     allow_missing_keys_mode,
