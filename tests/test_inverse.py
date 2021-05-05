@@ -36,6 +36,8 @@ from monai.transforms import (
     InvertibleTransform,
     LoadImaged,
     Orientationd,
+    Rand2DElasticd,
+    Rand3DElasticd,
     RandAffined,
     RandAxisFlipd,
     RandFlipd,
@@ -58,12 +60,13 @@ from monai.transforms import (
 )
 from monai.utils import first, get_seed, optional_import, set_determinism
 from monai.utils.enums import InverseKeys
-from tests.utils import make_nifti_image, make_rand_affine
+from tests.utils import make_nifti_image, make_rand_affine, test_is_quick
 
 if TYPE_CHECKING:
-
+    has_vtk = True
     has_nib = True
 else:
+    _, has_vtk = optional_import("vtk")
     _, has_nib = optional_import("nibabel")
 
 KEYS = ["image", "label"]
@@ -411,6 +414,47 @@ TESTS.append(
         ),
     )
 )
+
+if has_vtk:
+    TESTS.append(
+        (
+            "Rand2DElasticd 2d",
+            "2D",
+            2e-1,
+            Rand2DElasticd(
+                KEYS,
+                spacing=(10.0, 10.0),
+                magnitude_range=(1, 1),
+                spatial_size=(155, 192),
+                prob=1,
+                padding_mode="zeros",
+                rotate_range=[(np.pi / 6, np.pi / 6)],
+                shear_range=[(0.5, 0.5)],
+                translate_range=[10, 5],
+                scale_range=[(0.2, 0.2), (0.3, 0.3)],
+            ),
+        )
+    )
+
+if not test_is_quick() and has_vtk:
+    TESTS.append(
+        (
+            "Rand3DElasticd 3d",
+            "3D",
+            1e-1,
+            Rand3DElasticd(
+                KEYS,
+                sigma_range=(3, 5),
+                magnitude_range=(100, 100),
+                prob=1,
+                padding_mode="zeros",
+                rotate_range=[np.pi / 6, np.pi / 7],
+                shear_range=[(0.5, 0.5), 0.2],
+                translate_range=[10, 5, 3],
+                scale_range=[(0.8, 1.2), (0.9, 1.3)],
+            ),
+        )
+    )
 
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
 
