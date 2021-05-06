@@ -13,8 +13,8 @@
 import collections.abc
 import math
 import pickle
-import sys
 import shutil
+import sys
 import tempfile
 import threading
 import time
