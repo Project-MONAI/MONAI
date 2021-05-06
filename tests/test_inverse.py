@@ -431,6 +431,16 @@ TESTS.append(
     )
 )
 
+TESTS.append(
+    (
+        "RandAffine 3d",
+        "3D",
+        0,
+        RandAffined(KEYS, spatial_size=None, prob=0),
+    )
+)
+
+
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
 
 TESTS = TESTS + TESTS_COMPOSE_X2  # type: ignore
