@@ -15,6 +15,7 @@ limitations under the License.
 #include <cuda_runtime.h>
 #include <torch/extension.h>
 
+#include "bilateral.h"
 #include "utils/meta_macros.h"
 #include "utils/tensor_description.h"
 
@@ -253,7 +254,7 @@ torch::Tensor BilateralFilterCuda(torch::Tensor inputTensor, float spatialSigma,
   torch::Tensor outputTensor = torch::zeros_like(inputTensor);
 
 #define CASE(c, d) BilateralFilterCuda<c, d>(inputTensor, outputTensor, spatialSigma, colorSigma);
-  SWITCH_AB(CASE, 16, 3, inputTensor.size(1), inputTensor.dim() - 2);
+  SWITCH_AB(CASE, BF_CUDA_MAX_CHANNELS, BF_CUDA_MAX_SPATIAL_DIMENSION, inputTensor.size(1), inputTensor.dim() - 2);
 
   return outputTensor;
 }

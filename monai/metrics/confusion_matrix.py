@@ -112,8 +112,7 @@ class ConfusionMatrixMetric:
                 results.append(f)
                 results.append(not_nans)
             return results
-        else:
-            return confusion_matrix
+        return confusion_matrix
 
 
 def get_confusion_matrix(
