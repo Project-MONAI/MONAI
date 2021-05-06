@@ -762,7 +762,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
                 if self.rand_affine.resampler.as_tensor_output and not isinstance(d[key], torch.Tensor):
                     d[key] = torch.Tensor(d[key])
                 elif not self.rand_affine.resampler.as_tensor_output and isinstance(d[key], torch.Tensor):
-                    d[key] = d[key].detach().cpu().numpy()
+                    d[key] = d[key].detach().cpu().numpy()  # type: ignore[union-attr]
 
         return d
 
@@ -773,7 +773,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             transform = self.get_most_recent_transform(d, key)
             # if transform was not performed and spatial size is None, nothing to do.
             if not transform[InverseKeys.DO_TRANSFORM] and self.rand_affine.spatial_size is None:
-                out = d[key]
+                out: Union[np.ndarray, torch.Tensor] = d[key]
             else:
                 orig_size = transform[InverseKeys.ORIG_SIZE]
                 # Create inverse transform
