@@ -67,6 +67,14 @@ TEST_CASES = [
     ],
 ]
 
+ARR_NUMPY = np.arange(9 * 10).reshape(1, 9, 10)
+ARR_TORCH = torch.Tensor(ARR_NUMPY)
+TEST_CASES_SKIPPED_CONSISTENCY = []
+for im in (ARR_NUMPY, ARR_TORCH):
+    for as_tensor_output in (True, False):
+        for in_dtype_is_int in (True, False):
+            TEST_CASES_SKIPPED_CONSISTENCY.append((im, as_tensor_output, in_dtype_is_int))
+
 
 class TestRandAffine(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
@@ -79,6 +87,25 @@ class TestRandAffine(unittest.TestCase):
             np.testing.assert_allclose(result.cpu().numpy(), expected_val.cpu().numpy(), rtol=1e-4, atol=1e-4)
         else:
             np.testing.assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
+
+    @parameterized.expand(TEST_CASES_SKIPPED_CONSISTENCY)
+    def test_skipped_transform_consistency(self, im, as_tensor_output, in_dtype_is_int):
+        t1 = RandAffine(prob=0, as_tensor_output=as_tensor_output)
+        t2 = RandAffine(prob=1, spatial_size=(10, 11), as_tensor_output=as_tensor_output)
+
+        # change dtype to int32 or float32
+        if in_dtype_is_int:
+            im = im.astype("int32") if isinstance(im, np.ndarray) else im.int()
+        else:
+            im = im.astype("float32") if isinstance(im, np.ndarray) else im.float()
+
+        out1 = t1(im)
+        out2 = t2(im)
+
+        # check same type
+        self.assertEqual(type(out1), type(out2))
+        # check matching dtype
+        self.assertEqual(out1.dtype, out2.dtype)
 
 
 if __name__ == "__main__":
