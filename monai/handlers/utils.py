@@ -147,8 +147,8 @@ def write_metrics_reports(
             None - don't generate summary report for every expected metric_details
             "*" - generate summary report for every metric_details with all the supported operations.
             list of strings - generate summary report for every metric_details with specified operations, they
-            should be within this list: [`mean`, `median`, `max`, `min`, `90percent`, `std`].
-            default to None.
+            should be within list: ["mean", "median", "max", "min", "90percent", "std", "notnans"]. default to None.
+            for the overall summary, it computes `nanmean` of all classes for each image first, then compute summary.
         deli: the delimiter character in the file, default to "\t".
         output_type: expected output file type, supported types: ["csv"], default to "csv".
 
@@ -192,6 +192,7 @@ def write_metrics_reports(
                         "min": np.nanmin,
                         "90percent": lambda x: np.nanpercentile(x, 10),
                         "std": np.nanstd,
+                        "notnans": lambda x: (~np.isnan(x)).sum(),
                     }
                 )
                 ops = ensure_tuple(summary_ops)

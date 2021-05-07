@@ -52,8 +52,8 @@ class MetricsSaver:
             None - don't generate summary report for every specified metric_details
             "*" - generate summary report for every metric_details with all the supported operations.
             list of strings - generate summary report for every metric_details with specified operations, they
-            should be within this list: [`mean`, `median`, `max`, `min`, `90percent`, `std`].
-            default to None.
+            should be within list: ["mean", "median", "max", "min", "90percent", "std", "notnans"]. default to None.
+            for the overall summary, it computes `nanmean` of all classes for each image first, then compute summary.
         save_rank: only the handler on specified rank will save to files in multi-gpus validation, default to 0.
         delimiter: the delimiter character in CSV file, default to "\t".
         output_type: expected output file type, supported types: ["csv"], default to "csv".
