@@ -69,6 +69,7 @@ __all__ = [
     "RandAffine",
     "Rand2DElastic",
     "Rand3DElastic",
+    "CoordConv",
 ]
 
 RandRange = Optional[Union[Sequence[Union[Tuple[float, float], float]], float]]
@@ -1700,3 +1701,36 @@ class Rand3DElastic(RandomizableTransform):
             grid[:3] += gaussian(offset)[0] * self.magnitude
             grid = self.rand_affine_grid(grid=grid)
         return self.resampler(img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode)
+
+
+class CoordConv(Transform):
+    """
+    Implement CordConv
+    """
+
+    def __init__(
+        self,
+        spatial_channels: Tuple[int],
+    ) -> None:
+        self.spatial_channels = spatial_channels
+
+    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, torch.Tensor]:
+        """
+        Apply the transform to `img`.
+        """
+
+        spatial_dims = img.shape[1:]
+        # pre-allocate memory
+        coord_channels = np.ones((len(self.spatial_channels), *spatial_dims)).astype(img.dtype)
+
+        for i, dim in enumerate(self.spatial_channels):
+            ones = np.ones((1, *spatial_dims))
+            channel_size = img.shape[dim]
+            range = np.arange(channel_size)
+            non_channel_dims = list(set(np.arange(img.ndim)).difference([dim]))
+            channel = ones * np.expand_dims(range, non_channel_dims)
+            channel = channel / channel_size - 0.5
+            coord_channels[i] = channel
+
+        return np.concatenate((img, coord_channels), axis=0)
+        return img

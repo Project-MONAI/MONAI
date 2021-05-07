@@ -30,6 +30,7 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.array import (
     Affine,
     AffineGrid,
+    CoordConv,
     Flip,
     Orientation,
     Rand2DElastic,
@@ -106,6 +107,8 @@ __all__ = [
     "ZoomDict",
     "RandZoomD",
     "RandZoomDict",
+    "CordConvD",
+    "CordConvDict",
 ]
 
 GridSampleModeSequence = Union[Sequence[Union[GridSampleMode, str]], GridSampleMode, str]
@@ -1639,6 +1642,31 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
 
+class CoordConvd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.CordConv`.
+    """
+
+    def __init__(self, keys: KeysCollection, spatial_channels: Tuple[int], allow_missing_keys: bool = False) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            allow_missing_keys: don't raise exception if key is missing.
+
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.coord_conv = CoordConv(spatial_channels)
+
+    def __call__(
+        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
+    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.coord_conv(d[key])
+        return d
+
+
 SpacingD = SpacingDict = Spacingd
 OrientationD = OrientationDict = Orientationd
 Rotate90D = Rotate90Dict = Rotate90d
@@ -1655,3 +1683,4 @@ RotateD = RotateDict = Rotated
 RandRotateD = RandRotateDict = RandRotated
 ZoomD = ZoomDict = Zoomd
 RandZoomD = RandZoomDict = RandZoomd
+CoordConvD = CoordConvDict = CoordConvd
