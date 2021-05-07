@@ -104,11 +104,11 @@ class DistributedMetricsSaver(DistTestCase):
                 f_csv = csv.reader(f)
                 for i, row in enumerate(f_csv):
                     if i == 1:
-                        self.assertEqual(row, ["class0\t2.0000\t2.0000\t3.0000\t1.0000\t1.2000\t0.8165\t3.0000"])
+                        self.assertEqual(row, ["class0\t2.0000\t2.0000\t3.0000\t1.0000\t2.8000\t0.8165\t3.0000"])
                     elif i == 2:
-                        self.assertEqual(row, ["class1\t3.0000\t3.0000\t4.0000\t2.0000\t2.2000\t0.8165\t3.0000"])
+                        self.assertEqual(row, ["class1\t3.0000\t3.0000\t4.0000\t2.0000\t3.8000\t0.8165\t3.0000"])
                     elif i == 3:
-                        self.assertEqual(row, ["mean\t2.5000\t2.5000\t3.5000\t1.5000\t1.7000\t0.8165\t3.0000"])
+                        self.assertEqual(row, ["mean\t2.5000\t2.5000\t3.5000\t1.5000\t3.3000\t0.8165\t3.0000"])
             self.assertTrue(os.path.exists(os.path.join(tempdir, "metric4_raw.csv")))
             self.assertTrue(os.path.exists(os.path.join(tempdir, "metric4_summary.csv")))
 

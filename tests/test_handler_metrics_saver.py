@@ -28,7 +28,7 @@ class TestHandlerMetricsSaver(unittest.TestCase):
                 metrics=["metric1", "metric2"],
                 metric_details=["metric3", "metric4"],
                 batch_transform=lambda x: x["image_meta_dict"],
-                summary_ops=["mean", "median", "max", "90percent", "notnans"],
+                summary_ops=["mean", "median", "max", "5percent", "95percent", "notnans"],
             )
             # set up engine
             data = [
@@ -70,12 +70,13 @@ class TestHandlerMetricsSaver(unittest.TestCase):
             with open(os.path.join(tempdir, "metric4_summary.csv")) as f:
                 f_csv = csv.reader(f)
                 for i, row in enumerate(f_csv):
+                    print(row)
                     if i == 1:
-                        self.assertEqual(row, ["class0\t6.0000\t6.0000\t7.0000\t5.2000\t2.0000"])
+                        self.assertEqual(row, ["class0\t6.0000\t6.0000\t7.0000\t5.1000\t6.9000\t2.0000"])
                     elif i == 2:
-                        self.assertEqual(row, ["class1\t6.0000\t6.0000\t6.0000\t6.0000\t1.0000"])
+                        self.assertEqual(row, ["class1\t6.0000\t6.0000\t6.0000\t6.0000\t6.0000\t1.0000"])
                     elif i == 3:
-                        self.assertEqual(row, ["mean\t6.2500\t6.2500\t7.0000\t5.6500\t2.0000"])
+                        self.assertEqual(row, ["mean\t6.2500\t6.2500\t7.0000\t5.5750\t6.9250\t2.0000"])
             self.assertTrue(os.path.exists(os.path.join(tempdir, "metric4_raw.csv")))
             self.assertTrue(os.path.exists(os.path.join(tempdir, "metric3_summary.csv")))
 

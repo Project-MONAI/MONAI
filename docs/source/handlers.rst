@@ -130,3 +130,8 @@ Transform inverter
 ------------------
 .. autoclass:: TransformInverter
     :members:
+
+Utilities
+---------
+.. automodule:: monai.handlers.utils
+  :members:

@@ -140,15 +140,23 @@ def write_metrics_reports(
         images: name or path of every input image corresponding to the metric_details data.
             if None, will use index number as the filename of every input image.
         metrics: a dictionary of (metric name, metric value) pairs.
-        metric_details: a dictionary of (metric name, metric raw values) pairs, usually, it comes from metrics computation,
-            for example, the raw value can be the mean_dice of every channel of every input image.
+        metric_details: a dictionary of (metric name, metric raw values) pairs, usually, it comes from metrics
+            computation, for example, the raw value can be the mean_dice of every channel of every input image.
         summary_ops: expected computation operations to generate the summary report.
-            it can be: None, "*" or list of strings.
-            None - don't generate summary report for every expected metric_details
+            it can be: None, "*" or list of strings, default to None.
+            None - don't generate summary report for every expected metric_details.
             "*" - generate summary report for every metric_details with all the supported operations.
             list of strings - generate summary report for every metric_details with specified operations, they
-            should be within list: ["mean", "median", "max", "min", "90percent", "std", "notnans"]. default to None.
-            for the overall summary, it computes `nanmean` of all classes for each image first, then compute summary.
+            should be within list: ["mean", "median", "max", "min", "<int>percent", "std", "notnans"].
+            the number in "<int>percent" should be [0, 100], like: "15percent", "85percent". default: "90percent".
+            note that: for the overall summary, it computes `nanmean` of all classes for each image first,
+            then compute summary. example of the generated summary report::
+
+                class    mean    median    max    5percent    95percent    notnans
+                class0  6.0000   6.0000   7.0000   5.1000      6.9000      2.0000
+                class1  6.0000   6.0000   6.0000   6.0000      6.0000      1.0000
+                mean    6.2500   6.2500   7.0000   5.5750      6.9250      2.0000
+
         deli: the delimiter character in the file, default to "\t".
         output_type: expected output file type, supported types: ["csv"], default to "csv".
 
@@ -190,7 +198,7 @@ def write_metrics_reports(
                         "median": np.nanmedian,
                         "max": np.nanmax,
                         "min": np.nanmin,
-                        "90percent": lambda x: np.nanpercentile(x, 10),
+                        "90percent": lambda x: np.nanpercentile(x[0], x[1]),
                         "std": np.nanstd,
                         "notnans": lambda x: (~np.isnan(x)).sum(),
                     }
@@ -199,7 +207,14 @@ def write_metrics_reports(
                 if "*" in ops:
                     ops = tuple(supported_ops.keys())
 
+                def _compute_op(op: str, d: np.ndarray):
+                    if op.endswith("percent"):
+                        threshold = int(op.split("percent")[0])
+                        return supported_ops["90percent"]((d, threshold))
+                    else:
+                        return supported_ops[op](d)
+
                 with open(os.path.join(save_dir, f"{k}_summary.csv"), "w") as f:
                     f.write(f"class{deli}{deli.join(ops)}\n")
                     for i, c in enumerate(np.transpose(v)):
-                        f.write(f"{class_labels[i]}{deli}{deli.join([f'{supported_ops[k](c):.4f}' for k in ops])}\n")
+                        f.write(f"{class_labels[i]}{deli}{deli.join([f'{_compute_op(k, c):.4f}' for k in ops])}\n")
