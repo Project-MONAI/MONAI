@@ -13,6 +13,7 @@
 import collections.abc
 import math
 import pickle
+import shutil
 import sys
 import tempfile
 import threading
@@ -249,8 +250,9 @@ class PersistentDataset(Dataset):
                 torch.save(_item_transformed, temp_hash_file)
                 if temp_hash_file.is_file() and not hashfile.is_file():
                     # On Unix, if target exists and is a file, it will be replaced silently if the user has permission.
+                    # for more details: https://docs.python.org/3/library/shutil.html#shutil.move.
                     try:
-                        temp_hash_file.rename(hashfile)
+                        shutil.move(temp_hash_file, hashfile)
                     except FileExistsError:
                         pass
         return _item_transformed
