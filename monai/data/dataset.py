@@ -579,7 +579,10 @@ class CacheDataset(Dataset):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
         for _transform in self.transform.transforms:
             if start_run or isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
-                start_run = True
+                # only need to deep copy data on first non-deterministic transform
+                if not start_run:
+                    start_run = True
+                    data = deepcopy(data)
                 data = apply_transform(_transform, data)
         return data
 
