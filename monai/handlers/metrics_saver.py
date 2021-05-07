@@ -54,6 +54,7 @@ class MetricsSaver:
             list of strings - generate summary report for every metric_details with specified operations, they
             should be within list: ["mean", "median", "max", "min", "<int>percent", "std", "notnans"].
             the number in "<int>percent" should be [0, 100], like: "15percent", "85percent". default: "90percent".
+            for more details, please check: https://numpy.org/doc/stable/reference/generated/numpy.nanpercentile.html.
             note that: for the overall summary, it computes `nanmean` of all classes for each image first,
             then compute summary. example of the generated summary report::
 
