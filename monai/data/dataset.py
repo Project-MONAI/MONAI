@@ -571,15 +571,17 @@ class CacheDataset(Dataset):
             # no cache for this index, execute all the transforms directly
             return super()._transform(index)
         # load data from cache and execute from the first random transform
+        start_run = False
         if self._cache is None:
             self._cache = self._fill_cache()
         data = self._cache[index]
         if not isinstance(self.transform, Compose):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
-        for idx, _transform in enumerate(self.transform.transforms):
-            if idx == 0 or isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
-                # need to deep copy data on first pass
-                if idx == 0:
+        for _transform in self.transform.transforms:
+            if start_run or isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
+                # only need to deep copy data on first non-deterministic transform
+                if not start_run:
+                    start_run = True
                     data = deepcopy(data)
                 data = apply_transform(_transform, data)
         return data
