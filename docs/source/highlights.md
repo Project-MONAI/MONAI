@@ -264,7 +264,7 @@ Various useful evaluation metrics have been used to measure the quality of medic
 For example, `Mean Dice` score can be used for segmentation tasks, and the area under the ROC curve(`ROCAUC`) for classification tasks. We continue to integrate more options.
 
 ### 3. Metrics report generation
-During evaluation, users usually save the metrics of every input image, then analyze the bad cases to improve the deep learning pipeline. To save detailed information of metrics, MONAI provided a handler `MetricsSaver`, which can save the final metric values, raw metric of every model output channel of every input image, metrics summary report of operations: `mean`, `median`, `max`, `min`, `90percent`, `std`, etc. The `MeanDice` reports of validation with prostate dataset are as below:
+During evaluation, users usually save the metrics of every input image, then analyze the bad cases to improve the deep learning pipeline. To save detailed information of metrics, MONAI provided a handler `MetricsSaver`, which can save the final metric values, raw metric of every model output channel of every input image, metrics summary report of operations: `mean`, `median`, `max`, `min`, `90percentile`, `std`, etc. The `MeanDice` reports of validation with prostate dataset are as below:
 ![metrics report example](../images/metrics_report.png)
 
 ## Visualization

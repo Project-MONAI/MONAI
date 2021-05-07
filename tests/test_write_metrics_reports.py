@@ -27,7 +27,7 @@ class TestWriteMetricsReports(unittest.TestCase):
                 images=["filepath1", "filepath2"],
                 metrics={"metric1": 1, "metric2": 2},
                 metric_details={"metric3": torch.tensor([[1, 2], [2, 3]]), "metric4": torch.tensor([[5, 6], [7, 8]])},
-                summary_ops=["mean", "median", "max", "90percent"],
+                summary_ops=["mean", "median", "max", "90percentile"],
                 deli="\t",
                 output_type="csv",
             )

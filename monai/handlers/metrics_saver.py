@@ -52,16 +52,16 @@ class MetricsSaver:
             None - don't generate summary report for every expected metric_details.
             "*" - generate summary report for every metric_details with all the supported operations.
             list of strings - generate summary report for every metric_details with specified operations, they
-            should be within list: ["mean", "median", "max", "min", "<int>percent", "std", "notnans"].
-            the number in "<int>percent" should be [0, 100], like: "15percent", "85percent". default: "90percent".
+            should be within list: ["mean", "median", "max", "min", "<int>percentile", "std", "notnans"].
+            the number in "<int>percentile" should be [0, 100], like: "15percentile". default: "90percentile".
             for more details, please check: https://numpy.org/doc/stable/reference/generated/numpy.nanpercentile.html.
             note that: for the overall summary, it computes `nanmean` of all classes for each image first,
             then compute summary. example of the generated summary report::
 
-                class    mean    median    max    5percent    95percent    notnans
-                class0  6.0000   6.0000   7.0000   5.1000      6.9000      2.0000
-                class1  6.0000   6.0000   6.0000   6.0000      6.0000      1.0000
-                mean    6.2500   6.2500   7.0000   5.5750      6.9250      2.0000
+                class    mean    median    max    5percentile 95percentile  notnans
+                class0  6.0000   6.0000   7.0000   5.1000      6.9000       2.0000
+                class1  6.0000   6.0000   6.0000   6.0000      6.0000       1.0000
+                mean    6.2500   6.2500   7.0000   5.5750      6.9250       2.0000
 
         save_rank: only the handler on specified rank will save to files in multi-gpus validation, default to 0.
         delimiter: the delimiter character in CSV file, default to "\t".

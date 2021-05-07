@@ -147,16 +147,16 @@ def write_metrics_reports(
             None - don't generate summary report for every expected metric_details.
             "*" - generate summary report for every metric_details with all the supported operations.
             list of strings - generate summary report for every metric_details with specified operations, they
-            should be within list: ["mean", "median", "max", "min", "<int>percent", "std", "notnans"].
-            the number in "<int>percent" should be [0, 100], like: "15percent", "85percent". default: "90percent".
+            should be within list: ["mean", "median", "max", "min", "<int>percentile", "std", "notnans"].
+            the number in "<int>percentile" should be [0, 100], like: "15percentile". default: "90percentile".
             for more details, please check: https://numpy.org/doc/stable/reference/generated/numpy.nanpercentile.html.
             note that: for the overall summary, it computes `nanmean` of all classes for each image first,
             then compute summary. example of the generated summary report::
 
-                class    mean    median    max    5percent    95percent    notnans
-                class0  6.0000   6.0000   7.0000   5.1000      6.9000      2.0000
-                class1  6.0000   6.0000   6.0000   6.0000      6.0000      1.0000
-                mean    6.2500   6.2500   7.0000   5.5750      6.9250      2.0000
+                class    mean    median    max    5percentile 95percentile  notnans
+                class0  6.0000   6.0000   7.0000   5.1000      6.9000       2.0000
+                class1  6.0000   6.0000   6.0000   6.0000      6.0000       1.0000
+                mean    6.2500   6.2500   7.0000   5.5750      6.9250       2.0000
 
         deli: the delimiter character in the file, default to "\t".
         output_type: expected output file type, supported types: ["csv"], default to "csv".
@@ -199,7 +199,7 @@ def write_metrics_reports(
                         "median": np.nanmedian,
                         "max": np.nanmax,
                         "min": np.nanmin,
-                        "90percent": lambda x: np.nanpercentile(x[0], x[1]),
+                        "90percentile": lambda x: np.nanpercentile(x[0], x[1]),
                         "std": np.nanstd,
                         "notnans": lambda x: (~np.isnan(x)).sum(),
                     }
@@ -209,9 +209,9 @@ def write_metrics_reports(
                     ops = tuple(supported_ops.keys())
 
                 def _compute_op(op: str, d: np.ndarray):
-                    if op.endswith("percent"):
-                        threshold = int(op.split("percent")[0])
-                        return supported_ops["90percent"]((d, threshold))
+                    if op.endswith("percentile"):
+                        threshold = int(op.split("percentile")[0])
+                        return supported_ops["90percentile"]((d, threshold))
                     else:
                         return supported_ops[op](d)
 
