@@ -21,7 +21,6 @@ pycodestyle
 pyflakes
 black
 isort
-attrs<21.1.0
 pytype>=2020.6.1
 mypy>=0.790
 ninja
