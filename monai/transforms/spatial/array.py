@@ -1437,7 +1437,8 @@ class RandAffine(RandomizableTransform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
         self.randomize()
-        # if not doing transform and spatial size not defined, nothing to do except convert to float and convert numpy/torch
+        # if not doing transform and spatial size not defined, nothing to do
+        # except convert to float and convert numpy/torch
         if not self._do_transform and not spatial_size and not self.spatial_size:
             img = img.float() if isinstance(img, torch.Tensor) else img.astype("float32")
             return torch.Tensor(img) if self.resampler.as_tensor_output else np.array(img)

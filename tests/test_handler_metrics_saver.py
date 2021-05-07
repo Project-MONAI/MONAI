@@ -46,7 +46,7 @@ class TestHandlerMetricsSaver(unittest.TestCase):
                 engine.state.metrics = {"metric1": 1, "metric2": 2}
                 engine.state.metric_details = {
                     "metric3": torch.tensor([[1, 2], [2, 3]]),
-                    "metric4": torch.tensor([[5, 6], [7, torch.tensor(float('nan'))]]),
+                    "metric4": torch.tensor([[5, 6], [7, torch.tensor(float("nan"))]]),
                 }
 
             metrics_saver.attach(engine)
