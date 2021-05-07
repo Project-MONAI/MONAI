@@ -20,6 +20,7 @@ import torch.distributed as dist
 from ignite.engine import Engine, Events
 
 from monai.handlers import MetricsSaver
+from monai.handlers.utils import evenly_divisible_all_gather
 from tests.utils import DistCall, DistTestCase, SkipIfBeforePyTorchVersion
 
 
@@ -72,6 +73,13 @@ class DistributedMetricsSaver(DistTestCase):
                     "metric4": torch.tensor([[6, 7], [7, 8]]),
                 }
 
+        @engine.on(Events.EPOCH_COMPLETED)
+        def _all_gather(engine):
+            scores = engine.state.metric_details["metric3"]
+            engine.state.metric_details["metric3"] = evenly_divisible_all_gather(data=scores)
+            scores = engine.state.metric_details["metric4"]
+            engine.state.metric_details["metric4"] = evenly_divisible_all_gather(data=scores)
+
         metrics_saver.attach(engine)
         engine.run(data, max_epochs=1)
 
@@ -96,11 +104,11 @@ class DistributedMetricsSaver(DistTestCase):
                 f_csv = csv.reader(f)
                 for i, row in enumerate(f_csv):
                     if i == 1:
-                        self.assertEqual(row, ["class0\t1.0000\t1.0000\t1.0000\t1.0000\t1.0000\t0.0000"])
+                        self.assertEqual(row, ["class0\t2.0000\t2.0000\t3.0000\t1.0000\t1.2000\t0.8165\t3.0000"])
                     elif i == 2:
-                        self.assertEqual(row, ["class1\t2.0000\t2.0000\t2.0000\t2.0000\t2.0000\t0.0000"])
+                        self.assertEqual(row, ["class1\t3.0000\t3.0000\t4.0000\t2.0000\t2.2000\t0.8165\t3.0000"])
                     elif i == 3:
-                        self.assertEqual(row, ["mean\t1.5000\t1.5000\t1.5000\t1.5000\t1.5000\t0.0000"])
+                        self.assertEqual(row, ["mean\t2.5000\t2.5000\t3.5000\t1.5000\t1.7000\t0.8165\t3.0000"])
             self.assertTrue(os.path.exists(os.path.join(tempdir, "metric4_raw.csv")))
             self.assertTrue(os.path.exists(os.path.join(tempdir, "metric4_summary.csv")))
 
