@@ -60,7 +60,7 @@ class TestRegressionMetrics(unittest.TestCase):
             for spatial in spatial_dims:
                 for base in base_dims:
 
-                    # create random tensor
+                    # create random tensors
                     in_tensor = torch.rand((batch,) + (base,) * (spatial - 1)).to(device)
 
                     # iterate over regression metrics, check shape for diff. reduction func
@@ -95,7 +95,7 @@ class TestRegressionMetrics(unittest.TestCase):
             for spatial in spatial_dims:
                 for base in base_dims:
 
-                    # create random tensor
+                    # create random tensors
                     in_tensor_a = torch.rand((batch,) + (base,) * (spatial - 1)).to(device)
                     in_tensor_b = torch.rand((batch,) + (base,) * (spatial - 1)).to(device)
 
@@ -143,7 +143,7 @@ class TestRegressionMetrics(unittest.TestCase):
             for spatial in spatial_dims:
                 for base in base_dims:
 
-                    # create random tensor
+                    # create random tensors
                     in_tensor = torch.rand((batch,) + (base,) * (spatial - 1)).to(device)
 
                     # check metrics

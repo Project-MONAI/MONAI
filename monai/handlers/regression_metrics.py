@@ -34,7 +34,7 @@ class MeanSquaredError(IterationMetric):
         Args:
             output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
             device: device specification in case of distributed computation usage.
-            save_details: whether to save metric computation details per image, for example: mean dice of every image.
+            save_details: whether to save metric computation details per image, for example: mean squared error of every image.
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
         See also:
@@ -67,7 +67,7 @@ class MeanAbsoluteError(IterationMetric):
         Args:
             output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
             device: device specification in case of distributed computation usage.
-            save_details: whether to save metric computation details per image, for example: mean dice of every image.
+            save_details: whether to save metric computation details per image, for example: mean absolute error of every image.
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
         See also:
@@ -100,7 +100,7 @@ class RootMeanSquaredError(IterationMetric):
         Args:
             output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
             device: device specification in case of distributed computation usage.
-            save_details: whether to save metric computation details per image, for example: mean dice of every image.
+            save_details: whether to save metric computation details per image, for example: root mean squared error of every image.
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
         See also:
@@ -136,7 +136,7 @@ class PeakSignalToNoiseRatio(IterationMetric):
                 maximum and the minimum allowed values e.g. 255 for a uint8 image).
             output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
             device: device specification in case of distributed computation usage.
-            save_details: whether to save metric computation details per image, for example: mean dice of every image.
+            save_details: whether to save metric computation details per image, for example: PSNR of every image.
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
         See also:
