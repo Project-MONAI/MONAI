@@ -41,3 +41,23 @@ Metrics
 
 .. autoclass:: SurfaceDistanceMetric
     :members:
+
+`Mean squared error`
+--------------------
+.. autoclass:: MSEMetric
+    :members:
+
+`Mean absolute error`
+---------------------
+.. autoclass:: MAEMetric
+    :members:
+
+`Root mean squared error`
+-------------------------
+.. autoclass:: RMSEMetric
+    :members:
+
+`Peak signal to noise ratio`
+----------------------------
+.. autoclass:: PSNRMetric
+    :members:
