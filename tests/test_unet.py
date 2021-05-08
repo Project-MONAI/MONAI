@@ -127,7 +127,15 @@ class TestUNET(unittest.TestCase):
             self.assertEqual(result.shape, expected_shape)
 
     def test_script(self):
-        net = UNet(dimensions=2, in_channels=1, out_channels=3, channels=(16, 32, 64), strides=(2, 2), num_res_units=0)
+        net = UNet(
+            dimensions=2,
+            in_channels=1,
+            out_channels=3,
+            channels=(16, 32, 64),
+            strides=(2, 2),
+            num_res_units=0,
+            norm=("batch", {"track_running_stats": False}),
+        )
         test_data = torch.randn(16, 1, 32, 32)
         test_script_save(net, test_data)
 
