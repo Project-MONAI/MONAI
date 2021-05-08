@@ -110,3 +110,28 @@ SmartCache handler
 ------------------
 .. autoclass:: SmartCacheHandler
     :members:
+
+Parameter Scheduler handler
+---------------------------
+.. autoclass:: ParamSchedulerHandler
+    :members:
+
+EarlyStop handler
+-----------------
+.. autoclass:: EarlyStopHandler
+    :members:
+
+GarbageCollector handler
+------------------------
+.. autoclass:: GarbageCollector
+    :members:
+
+Transform inverter
+------------------
+.. autoclass:: TransformInverter
+    :members:
+
+Utilities
+---------
+.. automodule:: monai.handlers.utils
+  :members:

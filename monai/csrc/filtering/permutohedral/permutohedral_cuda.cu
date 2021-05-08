@@ -38,7 +38,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#define BLOCK_SIZE 64
+#define BLOCK_SIZE 32
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -47,6 +47,7 @@ SOFTWARE.
 #include <THC/THCAtomics.cuh>
 
 #include "hash_table.cuh"
+#include "permutohedral.h"
 #include "utils/meta_macros.h"
 
 template <typename scalar_t>
