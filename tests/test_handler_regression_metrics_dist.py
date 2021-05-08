@@ -44,6 +44,16 @@ def psnrmetric_np(max_val, y_pred, y):
     return np.mean(20 * np.log10(max_val) - 10 * np.log10(mse))
 
 
+# define tensor size as (BATCH_SIZE, (BASE_DIM_SIZE,) * SPATIAL_DIM)
+# One tensor with following shape takes 4*32*32*32*32/(8*1000) = 512 MB on a single GPU
+# We have total of 2 tensors each on one GPU for following tests, so required GPU memory is 1024 MB on each GPU
+# The required GPU memory can be lowered by changing BASE_DIM_SIZE to another value e.g. BASE_DIM_SIZE=16 will
+# require 128 MB on each GPU
+BATCH_SIZE = 4
+BASE_DIM_SIZE = 32
+SPATIAL_DIM = 3
+
+
 class DistributedMeanSquaredError(DistTestCase):
     @DistCall(nnodes=1, nproc_per_node=2)
     def test_compute(self):
@@ -61,9 +71,9 @@ class DistributedMeanSquaredError(DistTestCase):
         metric.attach(engine, "MSE")
 
         # get testing data
-        batch = 4
-        base = 32
-        spatial = 3
+        batch = BATCH_SIZE
+        base = BASE_DIM_SIZE
+        spatial = SPATIAL_DIM
         in_tensor_a1 = torch.rand((batch,) + (base,) * (spatial - 1))
         in_tensor_b1 = torch.rand((batch,) + (base,) * (spatial - 1))
 
@@ -107,9 +117,9 @@ class DistributedMeanAbsoluteError(DistTestCase):
         metric.attach(engine, "MAE")
 
         # get testing data
-        batch = 4
-        base = 32
-        spatial = 3
+        batch = BATCH_SIZE
+        base = BASE_DIM_SIZE
+        spatial = SPATIAL_DIM
         in_tensor_a1 = torch.rand((batch,) + (base,) * (spatial - 1))
         in_tensor_b1 = torch.rand((batch,) + (base,) * (spatial - 1))
 
@@ -153,9 +163,9 @@ class DistributedRootMeanSquaredError(DistTestCase):
         metric.attach(engine, "RMSE")
 
         # get testing data
-        batch = 4
-        base = 32
-        spatial = 3
+        batch = BATCH_SIZE
+        base = BASE_DIM_SIZE
+        spatial = SPATIAL_DIM
         in_tensor_a1 = torch.rand((batch,) + (base,) * (spatial - 1))
         in_tensor_b1 = torch.rand((batch,) + (base,) * (spatial - 1))
 
@@ -190,7 +200,8 @@ class DistributedPeakSignalToNoiseRatio(DistTestCase):
 
     def _compute(self):
         device = f"cuda:{dist.get_rank()}" if torch.cuda.is_available() else "cpu"
-        metric = PeakSignalToNoiseRatio()
+        max_val = 1.0
+        metric = PeakSignalToNoiseRatio(max_val=max_val)
 
         def _val_func(engine, batch):
             pass
@@ -199,9 +210,9 @@ class DistributedPeakSignalToNoiseRatio(DistTestCase):
         metric.attach(engine, "PSNR")
 
         # get testing data
-        batch = 4
-        base = 32
-        spatial = 3
+        batch = BATCH_SIZE
+        base = BASE_DIM_SIZE
+        spatial = SPATIAL_DIM
         in_tensor_a1 = torch.rand((batch,) + (base,) * (spatial - 1))
         in_tensor_b1 = torch.rand((batch,) + (base,) * (spatial - 1))
 
@@ -221,8 +232,8 @@ class DistributedPeakSignalToNoiseRatio(DistTestCase):
         out_tensor = metric.compute()
 
         # do numpy functions to get ground truth referece
-        out_tensor_np1 = psnrmetric_np(y_pred=in_tensor_a1.cpu().numpy(), y=in_tensor_b1.cpu().numpy())
-        out_tensor_np2 = psnrmetric_np(y_pred=in_tensor_a2.cpu().numpy(), y=in_tensor_b2.cpu().numpy())
+        out_tensor_np1 = psnrmetric_np(max_val=max_val, y_pred=in_tensor_a1.cpu().numpy(), y=in_tensor_b1.cpu().numpy())
+        out_tensor_np2 = psnrmetric_np(max_val=max_val, y_pred=in_tensor_a2.cpu().numpy(), y=in_tensor_b2.cpu().numpy())
         out_tensor_np = (out_tensor_np1 + out_tensor_np2) / 2.0
 
         np.testing.assert_allclose(out_tensor, out_tensor_np, rtol=1e-04, atol=1e-04)
