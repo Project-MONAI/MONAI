@@ -52,6 +52,7 @@ from monai.transforms import (
     Spacingd,
     SpatialCropd,
     SpatialPadd,
+    Transposed,
     Zoomd,
     allow_missing_keys_mode,
     convert_inverse_interp_mode,
@@ -380,6 +381,24 @@ TESTS.append(
 
 TESTS.append(
     (
+        "Transposed 2d",
+        "2D",
+        0,
+        Transposed(KEYS, [0, 2, 1]),  # channel=0
+    )
+)
+
+TESTS.append(
+    (
+        "Transposed 3d",
+        "3D",
+        0,
+        Transposed(KEYS, [0, 3, 1, 2]),  # channel=0
+    )
+)
+
+TESTS.append(
+    (
         "Affine 3d",
         "3D",
         1e-1,
@@ -411,6 +430,16 @@ TESTS.append(
         ),
     )
 )
+
+TESTS.append(
+    (
+        "RandAffine 3d",
+        "3D",
+        0,
+        RandAffined(KEYS, spatial_size=None, prob=0),
+    )
+)
+
 
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
 

@@ -15,40 +15,51 @@ from unittest import skipUnless
 import numpy as np
 import torch
 
-from monai.transforms import ToNumpyd
+from monai.transforms import ToCupy
 from monai.utils import optional_import
 
 cp, has_cp = optional_import("cupy")
 
 
-class TestToNumpyd(unittest.TestCase):
+class TestToCupy(unittest.TestCase):
     @skipUnless(has_cp, "CuPy is required.")
     def test_cumpy_input(self):
         test_data = cp.array([[1, 2], [3, 4]])
         test_data = cp.rot90(test_data)
         self.assertFalse(test_data.flags["C_CONTIGUOUS"])
-        result = ToNumpyd(keys="img")({"img": test_data})["img"]
-        self.assertTrue(isinstance(result, np.ndarray))
+        result = ToCupy()(test_data)
+        self.assertTrue(isinstance(result, cp.ndarray))
         self.assertTrue(result.flags["C_CONTIGUOUS"])
-        np.testing.assert_allclose(result, test_data.get())
+        cp.testing.assert_allclose(result, test_data)
 
+    @skipUnless(has_cp, "CuPy is required.")
     def test_numpy_input(self):
         test_data = np.array([[1, 2], [3, 4]])
         test_data = np.rot90(test_data)
         self.assertFalse(test_data.flags["C_CONTIGUOUS"])
-        result = ToNumpyd(keys="img")({"img": test_data})["img"]
-        self.assertTrue(isinstance(result, np.ndarray))
+        result = ToCupy()(test_data)
+        self.assertTrue(isinstance(result, cp.ndarray))
         self.assertTrue(result.flags["C_CONTIGUOUS"])
-        np.testing.assert_allclose(result, test_data)
+        cp.testing.assert_allclose(result, test_data)
 
+    @skipUnless(has_cp, "CuPy is required.")
     def test_tensor_input(self):
         test_data = torch.tensor([[1, 2], [3, 4]])
         test_data = test_data.rot90()
         self.assertFalse(test_data.is_contiguous())
-        result = ToNumpyd(keys="img")({"img": test_data})["img"]
-        self.assertTrue(isinstance(result, np.ndarray))
+        result = ToCupy()(test_data)
+        self.assertTrue(isinstance(result, cp.ndarray))
         self.assertTrue(result.flags["C_CONTIGUOUS"])
-        np.testing.assert_allclose(result, test_data.numpy())
+        cp.testing.assert_allclose(result, test_data.numpy())
+
+    @skipUnless(has_cp, "CuPy is required.")
+    def test_list_tuple(self):
+        test_data = [[1, 2], [3, 4]]
+        result = ToCupy()(test_data)
+        cp.testing.assert_allclose(result, cp.asarray(test_data))
+        test_data = ((1, 2), (3, 4))
+        result = ToCupy()(test_data)
+        cp.testing.assert_allclose(result, cp.asarray(test_data))
 
 
 if __name__ == "__main__":
