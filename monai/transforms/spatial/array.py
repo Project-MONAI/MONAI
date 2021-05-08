@@ -1705,19 +1705,34 @@ class Rand3DElastic(RandomizableTransform):
 
 class CoordConv(Transform):
     """
-    Implement CordConv
+    Appends additional channels encoding coordinates of the input.
+
+    Liu, R. et al. An Intriguing Failing of Convolutional Neural Networks and the CoordConv Solution, NeurIPS 2018.
     """
 
     def __init__(
         self,
-        spatial_channels: Tuple[int],
+        spatial_channels: Sequence[int],
     ) -> None:
+        """
+        Args:
+            spatial_channels: the spatial dimensions that are to have their coordinates encoded in a channel and
+                appended to the input. E.g., `(1,2,3)` will append three channels to the input, encoding the
+                coordinates of the input's three spatial dimensions (0 is reserved for the channel dimension).
+        """
         self.spatial_channels = spatial_channels
 
     def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, torch.Tensor]:
         """
-        Apply the transform to `img`.
+        Args:
+            img: data to be transformed, assuming `img` is channel first.
         """
+        if max(self.spatial_channels) > img.ndim - 1:
+            raise ValueError(
+                f"input has {img.ndim-1} spatial dimensions, cannot add CoordConv channel for dim {max(self.spatial_channels)}."
+            )
+        if 0 in self.spatial_channels:
+            raise ValueError("cannot add CoordConv channel for dimension 0, as 0 is channel dim.")
 
         spatial_dims = img.shape[1:]
         # pre-allocate memory
@@ -1733,4 +1748,3 @@ class CoordConv(Transform):
             coord_channels[i] = channel
 
         return np.concatenate((img, coord_channels), axis=0)
-        return img

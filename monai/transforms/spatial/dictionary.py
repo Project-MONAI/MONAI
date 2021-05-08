@@ -107,8 +107,8 @@ __all__ = [
     "ZoomDict",
     "RandZoomD",
     "RandZoomDict",
-    "CordConvD",
-    "CordConvDict",
+    "CoordConvD",
+    "CoordConvDict",
 ]
 
 GridSampleModeSequence = Union[Sequence[Union[GridSampleMode, str]], GridSampleMode, str]
@@ -1644,15 +1644,18 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
 
 class CoordConvd(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.CordConv`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.CoordConv`.
     """
 
-    def __init__(self, keys: KeysCollection, spatial_channels: Tuple[int], allow_missing_keys: bool = False) -> None:
+    def __init__(self, keys: KeysCollection, spatial_channels: Sequence[int], allow_missing_keys: bool = False) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             allow_missing_keys: don't raise exception if key is missing.
+            spatial_channels: the spatial dimensions that are to have their coordinates encoded in a channel and
+                appended to the input. E.g., `(1,2,3)` will append three channels to the input, encoding the
+                coordinates of the input's three spatial dimensions. It is assumed dimension 0 is the channel.
 
         """
         super().__init__(keys, allow_missing_keys)
