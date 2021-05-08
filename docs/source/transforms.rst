@@ -439,6 +439,12 @@ Spatial
     :members:
     :special-members: __call__
 
+`CoordConv`
+"""""""""""
+.. autoclass:: CoordConv
+    :members:
+    :special-members: __call__
+
 Utility
 ^^^^^^^
 
@@ -932,6 +938,12 @@ Spatial (Dict)
 `Rand3DElasticd`
 """"""""""""""""
 .. autoclass:: Rand3DElasticd
+    :members:
+    :special-members: __call__
+
+`CoordConvd`
+""""""""""""
+.. autoclass:: CoordConvd
     :members:
     :special-members: __call__
 
