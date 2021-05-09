@@ -29,6 +29,7 @@ from monai.transforms.intensity.array import (
     MaskIntensity,
     NormalizeIntensity,
     RandBiasField,
+    RandGibbsNoise,
     RandRicianNoise,
     ScaleIntensity,
     ScaleIntensityRange,
@@ -62,6 +63,7 @@ __all__ = [
     "GaussianSharpend",
     "RandGaussianSharpend",
     "RandHistogramShiftd",
+    "RandGibbsNoised",
     "RandGaussianNoiseD",
     "RandGaussianNoiseDict",
     "ShiftIntensityD",
@@ -104,6 +106,8 @@ __all__ = [
     "RandHistogramShiftDict",
     "RandRicianNoiseD",
     "RandRicianNoiseDict",
+    "RandGibbsNoiseD",
+    "RandGibbsNoiseDict",
 ]
 
 
@@ -194,14 +198,7 @@ class RandRicianNoised(RandomizableTransform, MapTransform):
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, global_prob)
-        self.rand_rician_noise = RandRicianNoise(
-            prob,
-            mean,
-            std,
-            channel_wise,
-            relative,
-            sample_std,
-        )
+        self.rand_rician_noise = RandRicianNoise(prob, mean, std, channel_wise, relative, sample_std,)
 
     def __call__(
         self, data: Mapping[Hashable, Union[torch.Tensor, np.ndarray]]
@@ -1020,6 +1017,51 @@ class RandHistogramShiftd(RandomizableTransform, MapTransform):
         return d
 
 
+class RandGibbsNoised(RandomizableTransform, MapTransform):
+
+    """
+    Dictionary-based wrapper for RandGibbsNoise.
+    
+    Args:
+        keys: 'image', 'label', or ['image', 'label'] depending on which data
+                you need to transform.
+        alpha: Parametrizes the intensity of the Gibbs noise filter applied. Smaller
+            values of alpha correspond to milder applications. If a length-2 list is given
+            as [a,b] then the value of alpha will be sampled uniformly from the 
+            interval [a,b].
+        prob: probability of applying the transform. 
+        allow_missing_keys: don't raise exception if key is missing.
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection = "image",
+        alpha: Union[float, List[float]] = 0.5,
+        prob: float = 0.1,
+        allow_missing_keys: bool = False,
+    ) -> None:
+
+        assert prob <= 1 and prob >= 0, "prob must take values in [0,1]."
+        self.alpha = alpha
+
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob=prob)
+
+    def __call__(self, data):
+
+        d = dict(data)
+        self.randomize(None)
+
+        if not self._do_transform:
+            return d
+        else:
+            for key in self.key_iterator(d):
+                gibbs = RandGibbsNoise(self.alpha, 1.0)
+                d[key] = gibbs(d[key])
+            return d
+
+
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
 RandRicianNoiseD = RandRicianNoiseDict = RandRicianNoised
 ShiftIntensityD = ShiftIntensityDict = ShiftIntensityd
@@ -1041,3 +1083,4 @@ RandGaussianSmoothD = RandGaussianSmoothDict = RandGaussianSmoothd
 GaussianSharpenD = GaussianSharpenDict = GaussianSharpend
 RandGaussianSharpenD = RandGaussianSharpenDict = RandGaussianSharpend
 RandHistogramShiftD = RandHistogramShiftDict = RandHistogramShiftd
+RandGibbsNoiseD = RandGibbsNoiseDict = RandGibbsNoised
