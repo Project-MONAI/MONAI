@@ -1055,8 +1055,7 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob=prob)
 
-    def __call__(self, 
-                data: Mapping[Hashable, torch.tensor]) -> Dict[Hashable, torch.tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.tensor]) -> Dict[Hashable, torch.tensor]:
 
         d = dict(data)
         self.randomize(None)
