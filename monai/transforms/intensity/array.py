@@ -1142,7 +1142,7 @@ class RandGibbsNoise(RandomizableTransform):
     For general information on Gibbs artifacts, please refer to:
     https://pubs.rsna.org/doi/full/10.1148/rg.313105115
     https://pubs.rsna.org/doi/full/10.1148/radiographics.22.4.g02jl14949
-    
+
 
     Args:
         keys: 'image', 'label', or ['image', 'label'] depending on which data
@@ -1172,7 +1172,7 @@ class RandGibbsNoise(RandomizableTransform):
         self.randomize()
 
         if not self._do_transform:
-            return d
+            return img
         else:
             # FT
             k = self.shift_fourier(img)
