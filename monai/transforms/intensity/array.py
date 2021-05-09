@@ -1135,7 +1135,14 @@ class RandHistogramShift(RandomizableTransform):
 class RandGibbsNoise(RandomizableTransform):
 
     """
-    Randomly applies Gibbs noise a 3D MRI scan image.
+    Naturalistic image augmentation via Gibbs artifacts. The transform 
+    randomly applies Gibbs noise to 3D MRI images. Gibbs artifacts
+    are one of the common type of type artfifacts appearing in MRI scans.
+    
+    For general information on Gibbs artifacts, please refer to:
+    https://pubs.rsna.org/doi/full/10.1148/rg.313105115
+    https://pubs.rsna.org/doi/full/10.1148/radiographics.22.4.g02jl14949
+    
 
     Args:
         keys: 'image', 'label', or ['image', 'label'] depending on which data
