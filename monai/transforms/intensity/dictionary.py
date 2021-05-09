@@ -1018,7 +1018,6 @@ class RandHistogramShiftd(RandomizableTransform, MapTransform):
 
 
 class RandGibbsNoised(RandomizableTransform, MapTransform):
-
     """
     Dictionary-based wrapper for RandGibbsNoise.
 
