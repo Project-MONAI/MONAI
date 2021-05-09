@@ -1034,8 +1034,8 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
         keys: 'image', 'label', or ['image', 'label'] depending on which data
                 you need to transform.
         alpha: Parametrizes the intensity of the Gibbs noise filter applied. Smaller
-            values of alpha correspond to milder applications. If a length-2 list is given
-            as [a,b] then the value of alpha will be sampled uniformly from the 
+            values of alpha correspond to milder applications. If a length-2 list is 
+            given as [a,b] then the value of alpha will be sampled uniformly from the 
             interval [a,b].
         prob: probability of applying the transform. 
         allow_missing_keys: don't raise exception if key is missing.
@@ -1056,7 +1056,8 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob=prob)
 
-    def __call__(self, data):
+    def __call__(self, 
+                data: Mapping[Hashable, torch.tensor]) -> Dict[Hashable, torch.tensor]:
 
         d = dict(data)
         self.randomize(None)
