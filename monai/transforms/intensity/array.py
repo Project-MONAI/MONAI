@@ -56,6 +56,7 @@ __all__ = [
     "GaussianSharpen",
     "RandGaussianSharpen",
     "RandHistogramShift",
+    "RandGibbsNoise",
 ]
 
 
@@ -238,11 +239,7 @@ class StdShiftIntensity(Transform):
     """
 
     def __init__(
-        self,
-        factor: float,
-        nonzero: bool = False,
-        channel_wise: bool = False,
-        dtype: DtypeLike = np.float32,
+        self, factor: float, nonzero: bool = False, channel_wise: bool = False, dtype: DtypeLike = np.float32,
     ) -> None:
         self.factor = factor
         self.nonzero = nonzero
@@ -431,11 +428,7 @@ class RandBiasField(RandomizableTransform):
         self.dtype = dtype
 
     def _generate_random_field(
-        self,
-        spatial_shape: Tuple[int, ...],
-        rank: int,
-        degree: int,
-        coeff: Tuple[int, ...],
+        self, spatial_shape: Tuple[int, ...], rank: int, degree: int, coeff: Tuple[int, ...],
     ):
         """
         products of polynomials as bias field estimations
@@ -1137,3 +1130,113 @@ class RandHistogramShift(RandomizableTransform):
         return np.asarray(
             np.interp(img, reference_control_points_scaled, floating_control_points_scaled), dtype=img.dtype
         )
+
+
+class RandGibbsNoise(RandomizableTransform):
+
+    """
+    Randomly applies Gibbs noise a 3D MRI scan image.
+
+    Args:
+        keys: 'image', 'label', or ['image', 'label'] depending on which data
+                you need to transform.
+        alpha: Parametrizes the intensity of the Gibbs noise filter applied. Takes
+            values in [0,1] with alpha = 0 acting as the identity mapping. 
+            If a length-2 list is given as [a,b] then the value of alpha will be 
+            sampled uniformly from the interval [a,b]. 0 <= a <= b <= 1.
+        prob: probability of applying the transform. 
+
+    """
+
+    def __init__(self, alpha: Union[float, List[float]] = 0.5, prob: float = 0.1,) -> None:
+
+        assert prob <= 1 and prob >= 0, "prob must take values in [0,1]."
+        if type(alpha) == list:
+            assert alpha[1] <= 1 and alpha[0] >= 0, "alpha must take values in [0,1]."
+            assert alpha[0] <= alpha[1], "When alpha = [a,b] we need a < b."
+        else:
+            assert alpha <= 1 and alpha >= 0, "alpha must take values in [0,1]."
+        self.alpha = alpha
+
+        RandomizableTransform.__init__(self, prob=prob)
+
+    def __call__(self, img: torch.tensor) -> torch.tensor:
+
+        self.randomize()
+
+        if not self._do_transform:
+            return d
+        else:
+            # FT
+            k = self.shift_fourier(img)
+            # build and apply mask
+            k = self.apply_mask(k)
+            # map back
+            img = self.inv_shift_fourier(k).real
+            return img
+
+    def randomize(self) -> None:
+        """
+        (1) Get random variable to apply the transform.
+        (2) Get radius from uniform distribution.
+        """
+        super().randomize(None)
+        if type(self.alpha) == list:
+            self.alpha = self.R.uniform(self.alpha[0], self.alpha[1])
+
+    def shift_fourier(self, x: torch.tensor) -> torch.tensor:
+        """
+        Applies fourier transform and shifts its output.
+        Only the the last three dimensions get transformed: (x,y,z)-directions.
+        
+        Args: x[torch.tensor] = tensor to transform
+        """
+
+        return torch.fft.fftshift(torch.fft.fftn(x, dim=(-3, -2, -1)), dim=(-3, -2, -1))
+
+    def inv_shift_fourier(self, k: torch.tensor) -> torch.tensor:
+        """
+        Applies inverse shift and fourier transform. Only the last
+        three dimensions are transformed.
+        """
+        return torch.fft.ifftn(torch.fft.ifftshift(k, dim=(-3, -2, -1)), dim=(-3, -2, -1), norm="backward")
+
+    def apply_mask(self, k_tensor) -> torch.tensor:
+        """Builds and applies a 3d mask using the last three dimensions.
+        
+        Args:
+            k_tensor (torch.tensor): k-space version of the image.
+        Returns:
+            masked version of the k-space image.
+        """
+
+        # compute masking radius
+        r = (1 - self.alpha) * np.max(k_tensor.shape[-3:]) * np.sqrt(2) / 2
+
+        # instatiate mask holder array and reshape to (bunch,H,W)
+        mask = torch.zeros(k_tensor.size())
+        mask = mask.reshape(-1, k_tensor.size(-3), k_tensor.size(-2), k_tensor.size(-1))
+
+        # create boolean disk centered at image's center, and
+        # with given radius
+        center = (np.floor(k_tensor.size(-3) / 2), np.floor(k_tensor.size(-2) / 2), np.floor(k_tensor.size(-1) / 2))
+
+        axes = (
+            torch.arange(0, k_tensor.size(-3)),
+            torch.arange(0, k_tensor.size(-2)),
+            torch.arange(0, k_tensor.size(-1)),
+        )
+
+        select = (
+            (axes[0][:, None, None] - center[0]) ** 2
+            + (axes[1][None, :, None] - center[1]) ** 2
+            + (axes[2][None, None, :] - center[2]) ** 2
+        ) < r ** 2
+
+        # add batch dimensions
+        select = select.unsqueeze(0).repeat_interleave(mask.size(0), 0)
+
+        # create binary mask
+        mask[select] = 1
+        mask = mask.reshape(k_tensor.size())
+        return k_tensor * mask
