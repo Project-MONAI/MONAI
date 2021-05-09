@@ -1184,7 +1184,7 @@ class RandGibbsNoise(RandomizableTransform):
 
     def randomize(self) -> None:
         """
-        (1) Get random variable to apply the transform.
+        (1) Set random variable to apply the transform.
         (2) Get radius from uniform distribution.
         """
         super().randomize(None)
@@ -1196,7 +1196,8 @@ class RandGibbsNoise(RandomizableTransform):
         Applies fourier transform and shifts its output.
         Only the the last three dimensions get transformed: (x,y,z)-directions.
         
-        Args: x[torch.tensor] = tensor to transform
+        Args: 
+            x (torch.tensor): tensor to fourier transform
         """
 
         return torch.fft.fftshift(torch.fft.fftn(x, dim=(-3, -2, -1)), dim=(-3, -2, -1))
