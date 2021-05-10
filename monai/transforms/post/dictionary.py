@@ -421,6 +421,7 @@ class Invertd(MapTransform):
     Note:
         As this transform only accepts 1 input dict while ignite stores model input data in `state.batch`
         and stores model output data in `state.output`, so it's not compatible with MONAI engines so far.
+        For MONAI workflow engines, please use the `TransformInverter` handler instead.
         Users can use this transform in a regular PyTorch program which uses dict data for transforms.
 
     """
