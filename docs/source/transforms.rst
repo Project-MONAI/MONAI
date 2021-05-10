@@ -836,6 +836,12 @@ Post-processing (Dict)
     :members:
     :special-members: __call__
 
+`Invertd`
+"""""""""
+.. autoclass:: Invertd
+    :members:
+    :special-members: __call__
+
 Spatial (Dict)
 ^^^^^^^^^^^^^^
 

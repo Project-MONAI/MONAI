@@ -21,7 +21,6 @@ import torch
 from parameterized import parameterized
 
 from monai.data import CacheDataset, DataLoader, create_test_image_2d, create_test_image_3d
-from monai.data.inverse_batch_transform import BatchInverseTransform
 from monai.data.utils import decollate_batch
 from monai.networks.nets import UNet
 from monai.transforms import (
@@ -56,6 +55,7 @@ from monai.transforms import (
     Zoomd,
     allow_missing_keys_mode,
     convert_inverse_interp_mode,
+    BatchInverseTransform,
 )
 from monai.utils import first, get_seed, optional_import, set_determinism
 from monai.utils.enums import InverseKeys
