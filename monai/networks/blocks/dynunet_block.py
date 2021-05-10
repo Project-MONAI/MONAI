@@ -17,6 +17,7 @@ import torch.nn as nn
 
 from monai.networks.blocks.convolutions import Convolution
 from monai.networks.layers.factories import Act, Norm, split_args
+from monai.utils import has_option
 
 
 class UnetResBlock(nn.Module):
@@ -31,9 +32,8 @@ class UnetResBlock(nn.Module):
         out_channels: number of output channels.
         kernel_size: convolution kernel size.
         stride: convolution stride.
-        norm_name: [``"batch"``, ``"instance"``, ``"group"``]
-            feature normalization type and arguments. In this module, if using ``"group"``,
-            `in_channels` should be divisible by 16 (default value for ``num_groups``).
+        norm_name: feature normalization type and arguments.
+
     """
 
     def __init__(
@@ -43,7 +43,7 @@ class UnetResBlock(nn.Module):
         out_channels: int,
         kernel_size: Union[Sequence[int], int],
         stride: Union[Sequence[int], int],
-        norm_name: str,
+        norm_name: Union[Tuple, str],
     ):
         super(UnetResBlock, self).__init__()
         self.conv1 = get_conv_layer(
@@ -106,9 +106,8 @@ class UnetBasicBlock(nn.Module):
         out_channels: number of output channels.
         kernel_size: convolution kernel size.
         stride: convolution stride.
-        norm_name: [``"batch"``, ``"instance"``, ``"group"``]
-            feature normalization type and arguments. In this module, if using ``"group"``,
-            `in_channels` should be divisible by 16 (default value for ``num_groups``).
+        norm_name: feature normalization type and arguments.
+
     """
 
     def __init__(
@@ -118,7 +117,7 @@ class UnetBasicBlock(nn.Module):
         out_channels: int,
         kernel_size: Union[Sequence[int], int],
         stride: Union[Sequence[int], int],
-        norm_name: str,
+        norm_name: Union[Tuple, str],
     ):
         super(UnetBasicBlock, self).__init__()
         self.conv1 = get_conv_layer(
@@ -164,9 +163,8 @@ class UnetUpBlock(nn.Module):
         kernel_size: convolution kernel size.
         stride: convolution stride.
         upsample_kernel_size: convolution kernel size for transposed convolution layers.
-        norm_name: [``"batch"``, ``"instance"``, ``"group"``]
-            feature normalization type and arguments. In this module, if using ``"group"``,
-            `in_channels` should be divisible by 16 (default value for ``num_groups``).
+        norm_name: feature normalization type and arguments.
+
     """
 
     def __init__(
@@ -177,7 +175,7 @@ class UnetUpBlock(nn.Module):
         kernel_size: Union[Sequence[int], int],
         stride: Union[Sequence[int], int],
         upsample_kernel_size: Union[Sequence[int], int],
-        norm_name: str,
+        norm_name: Union[Tuple, str],
     ):
         super(UnetUpBlock, self).__init__()
         upsample_stride = upsample_kernel_size
@@ -225,16 +223,17 @@ def get_acti_layer(act: Union[Tuple[str, Dict], str]):
     return act_type(**act_args)
 
 
-def get_norm_layer(spatial_dims: int, out_channels: int, norm_name: str, num_groups: int = 16):
-    if norm_name not in ["batch", "instance", "group"]:
-        raise ValueError(f"Unsupported normalization mode: {norm_name}")
-    if norm_name == "group":
-        if out_channels % num_groups != 0:
-            raise AssertionError("out_channels should be divisible by num_groups.")
-        norm = Norm[norm_name](num_groups=num_groups, num_channels=out_channels, affine=True)
-    else:
-        norm = Norm[norm_name, spatial_dims](out_channels, affine=True)
-    return norm
+def get_norm_layer(spatial_dims: int, out_channels: int, norm: Union[Tuple, str]):
+    norm_name, norm_args = split_args(norm)
+    norm_type = Norm[norm_name, spatial_dims]
+    kw_args = dict(norm_args)
+    if has_option(norm_type, "num_features") and "num_features" not in kw_args:
+        kw_args["num_features"] = out_channels
+    if has_option(norm_type, "num_channels") and "num_channels" not in kw_args:
+        kw_args["num_channels"] = out_channels
+    if has_option(norm_type, "affine") and "affine" not in kw_args:
+        kw_args["affine"] = True
+    return norm_type(**kw_args)
 
 
 def get_conv_layer(
