@@ -101,17 +101,19 @@ TEST_CASE_8 = [
 
 
 class TestSaveImage(unittest.TestCase):
-    @parameterized.expand([
-        TEST_CASE_0,
-        TEST_CASE_1,
-        TEST_CASE_2,
-        TEST_CASE_3,
-        TEST_CASE_4,
-        TEST_CASE_5,
-        TEST_CASE_6,
-        TEST_CASE_7,
-        TEST_CASE_8,
-    ])
+    @parameterized.expand(
+        [
+            TEST_CASE_0,
+            TEST_CASE_1,
+            TEST_CASE_2,
+            TEST_CASE_3,
+            TEST_CASE_4,
+            TEST_CASE_5,
+            TEST_CASE_6,
+            TEST_CASE_7,
+            TEST_CASE_8,
+        ]
+    )
     def test_saved_content(self, test_data, meta_data, output_ext, resample, save_batch):
         with tempfile.TemporaryDirectory() as tempdir:
             trans = SaveImage(
