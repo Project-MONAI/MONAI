@@ -43,6 +43,11 @@ Generic Interfaces
 .. autoclass:: InvertibleTransform
     :members:
 
+`BatchInverseTransform`
+^^^^^^^^^^^^^^^^^^^^^^^
+.. autoclass:: BatchInverseTransform
+    :members:
+
 
 Vanilla Transforms
 ------------------
