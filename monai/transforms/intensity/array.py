@@ -1136,7 +1136,7 @@ class RandGibbsNoise(RandomizableTransform):
     """
     Naturalistic image augmentation via Gibbs artifacts. The transform 
     randomly applies Gibbs noise to 3D MRI images. Gibbs artifacts
-    are one of the common type of type artfifacts appearing in MRI scans.
+    are one of the common type of type artifacts appearing in MRI scans.
     
     For general information on Gibbs artifacts, please refer to:
     https://pubs.rsna.org/doi/full/10.1148/rg.313105115
