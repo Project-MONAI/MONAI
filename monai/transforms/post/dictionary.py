@@ -526,13 +526,20 @@ class Invertd(MapTransform):
 
             # save the inverted data
             inverted_key = f"{key}_{self.postfix}"
-            d[inverted_key] = [
-                post_func(self._totensor(i[orig_key]).to(device) if to_tensor else i[orig_key]) for i in inverted
-            ]
-
-            # save the inverted meta dict
-            if meta_dict_key in d:
-                d[f"{inverted_key}_{self.meta_key_postfix}"] = [i.get(meta_dict_key) for i in inverted]
+            if isinstance(inverted, (tuple, list)):
+                d[inverted_key] = [
+                    post_func(self._totensor(i[orig_key]).to(device) if to_tensor else i[orig_key]) for i in inverted
+                ]
+                # save the inverted meta dict
+                if meta_dict_key in d:
+                    d[f"{inverted_key}_{self.meta_key_postfix}"] = [i.get(meta_dict_key) for i in inverted]
+            else:
+                d[inverted_key] = post_func(
+                    self._totensor(inverted[orig_key]).to(device) if to_tensor else inverted[orig_key]
+                )
+                # save the inverted meta dict
+                if meta_dict_key in d:
+                    d[f"{inverted_key}_{self.meta_key_postfix}"] = inverted.get(meta_dict_key)
         return d
 
 

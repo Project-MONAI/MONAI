@@ -276,7 +276,18 @@ class SaveImage(Transform):
             meta_data: key-value pairs of meta_data corresponding to the data.
 
         """
-        if self.save_batch:
-            self.saver.save_batch(img, meta_data)
+        if isinstance(img, (tuple, list)):
+            # if a list of data in shape: [channel, H, W, [D]], save every item separately
+            for i, d in enumerate(img):
+                if isinstance(meta_data, dict):
+                    meta_ = {k: meta_data[k][i] for k in meta_data}
+                elif isinstance(meta_data, (list, tuple)):
+                    meta_ = meta_data[i]
+                else:
+                    meta_ = meta_data
+                self.saver.save(d, meta_)
         else:
-            self.saver.save(img, meta_data)
+            if self.save_batch:
+                self.saver.save_batch(img, meta_data)
+            else:
+                self.saver.save(img, meta_data)
