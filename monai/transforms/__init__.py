@@ -160,6 +160,7 @@ from .intensity.dictionary import (
     ThresholdIntensityDict,
 )
 from .inverse import InvertibleTransform
+from .inverse_batch_transform import BatchInverseTransform
 from .io.array import LoadImage, SaveImage
 from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict
 from .post.array import (
@@ -182,6 +183,9 @@ from .post.dictionary import (
     DecollateD,
     DecollateDict,
     Ensembled,
+    Invertd,
+    InvertD,
+    InvertDict,
     KeepLargestConnectedComponentd,
     KeepLargestConnectedComponentD,
     KeepLargestConnectedComponentDict,
