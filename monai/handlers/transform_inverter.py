@@ -9,18 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
-from copy import deepcopy
 from typing import TYPE_CHECKING, Callable, Optional, Sequence, Union
 
 import torch
 from torch.utils.data import DataLoader as TorchDataLoader
 
-from monai.data import BatchInverseTransform
 from monai.data.utils import no_collation
 from monai.engines.utils import CommonKeys, IterationEvents
-from monai.transforms import InvertibleTransform, ToTensor, allow_missing_keys_mode, convert_inverse_interp_mode
-from monai.utils import InverseKeys, ensure_tuple, ensure_tuple_rep, exact_version, optional_import
+from monai.transforms import Invertd, InvertibleTransform
+from monai.utils import ensure_tuple, exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
 if TYPE_CHECKING:
@@ -33,6 +30,7 @@ class TransformInverter:
     """
     Ignite handler to automatically invert `transforms`.
     It takes `engine.state.output` as the input data and uses the transforms information from `engine.state.batch`.
+    Expect both `engine.state.output` and `engine.state.batch` to be dictionary data.
     The inverted data are stored in `engine.state.output` with key: "{output_key}_{postfix}".
     And the inverted meta dict will be stored in `engine.state.batch`
     with key: "{output_key}_{postfix}_{meta_key_postfix}".
@@ -85,22 +83,23 @@ class TransformInverter:
                 Set to `None`, to use the `num_workers` of the input transform data loader.
 
         """
-        self.transform = transform
-        self.inverter = BatchInverseTransform(
+        self.inverter = Invertd(
+            keys=output_keys,
             transform=transform,
             loader=loader,
+            orig_keys=batch_keys,
+            meta_key_postfix=meta_key_postfix,
             collate_fn=collate_fn,
+            postfix=postfix,
+            nearest_interp=nearest_interp,
+            to_tensor=to_tensor,
+            device=device,
+            post_func=post_func,
             num_workers=num_workers,
         )
         self.output_keys = ensure_tuple(output_keys)
-        self.batch_keys = ensure_tuple_rep(batch_keys, len(self.output_keys))
         self.meta_key_postfix = meta_key_postfix
         self.postfix = postfix
-        self.nearest_interp = ensure_tuple_rep(nearest_interp, len(self.output_keys))
-        self.to_tensor = ensure_tuple_rep(to_tensor, len(self.output_keys))
-        self.device = ensure_tuple_rep(device, len(self.output_keys))
-        self.post_func = ensure_tuple_rep(post_func, len(self.output_keys))
-        self._totensor = ToTensor()
 
     def attach(self, engine: Engine) -> None:
         """
@@ -114,42 +113,17 @@ class TransformInverter:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        for output_key, batch_key, nearest_interp, to_tensor, device, post_func in zip(
-            self.output_keys, self.batch_keys, self.nearest_interp, self.to_tensor, self.device, self.post_func
-        ):
-            transform_key = batch_key + InverseKeys.KEY_SUFFIX
-            if transform_key not in engine.state.batch:
-                warnings.warn(f"all the transforms on `{batch_key}` are not InvertibleTransform.")
-                continue
+        # combine `batch` and `output` to temporarily act as 1 dict for post transform
+        data = dict(engine.state.batch)
+        data.update(engine.state.output)
+        ret = self.inverter(data)
 
-            transform_info = engine.state.batch[transform_key]
-            if nearest_interp:
-                transform_info = convert_inverse_interp_mode(
-                    trans_info=deepcopy(transform_info),
-                    mode="nearest",
-                    align_corners=None,
-                )
-
-            output = engine.state.output[output_key]
-            if isinstance(output, torch.Tensor):
-                output = output.detach()
-            segs_dict = {
-                batch_key: output,
-                transform_key: transform_info,
-            }
-            meta_dict_key = f"{batch_key}_{self.meta_key_postfix}"
-            if meta_dict_key in engine.state.batch:
-                segs_dict[meta_dict_key] = engine.state.batch[meta_dict_key]
-
-            with allow_missing_keys_mode(self.transform):  # type: ignore
-                inverted = self.inverter(segs_dict)
-
+        for output_key in self.output_keys:
             # save the inverted data into state.output
             inverted_key = f"{output_key}_{self.postfix}"
-            engine.state.output[inverted_key] = [
-                post_func(self._totensor(i[batch_key]).to(device) if to_tensor else i[batch_key]) for i in inverted
-            ]
-
+            if inverted_key in ret:
+                engine.state.output[inverted_key] = ret[inverted_key]
             # save the inverted meta dict into state.batch
-            if meta_dict_key in engine.state.batch:
-                engine.state.batch[f"{inverted_key}_{self.meta_key_postfix}"] = [i.get(meta_dict_key) for i in inverted]
+            meta_dict_key = f"{inverted_key}_{self.meta_key_postfix}"
+            if meta_dict_key in ret:
+                engine.state.batch[meta_dict_key] = ret[meta_dict_key]
