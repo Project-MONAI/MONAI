@@ -123,6 +123,7 @@ def run_testsuit():
         "test_handler_transform_inverter",
         "test_testtimeaugmentation",
         "test_cachedataset_persistent_workers",
+        "test_invertd",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 

@@ -10,13 +10,12 @@
 # limitations under the License.
 
 import warnings
-from typing import Any, Callable, Dict, Hashable, Optional, Sequence
+from typing import Any, Callable, Dict, Optional, Sequence
 
-import numpy as np
+from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader as TorchDataLoader
 
 from monai.data.dataloader import DataLoader
-from monai.data.dataset import Dataset
 from monai.data.utils import decollate_batch, no_collation, pad_list_data_collate
 from monai.transforms.croppad.batch import PadListDataCollate
 from monai.transforms.inverse import InvertibleTransform
@@ -33,11 +32,11 @@ class _BatchInverseDataset(Dataset):
         transform: InvertibleTransform,
         pad_collation_used: bool,
     ) -> None:
-        super().__init__(data, transform)
+        self.data = data
         self.invertible_transform = transform
         self.pad_collation_used = pad_collation_used
 
-    def _transform(self, index: int) -> Dict[Hashable, np.ndarray]:
+    def __getitem__(self, index: int):
         data = dict(self.data[index])
         # If pad collation was used, then we need to undo this first
         if self.pad_collation_used:
@@ -47,6 +46,9 @@ class _BatchInverseDataset(Dataset):
             warnings.warn("transform is not invertible, can't invert transform for the input data.")
             return data
         return self.invertible_transform.inverse(data)
+
+    def __len__(self) -> int:
+        return len(self.data)
 
 
 class BatchInverseTransform(Transform):
