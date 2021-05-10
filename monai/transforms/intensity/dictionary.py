@@ -1043,8 +1043,8 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
 
     def __init__(
         self,
+        keys: KeysCollection,
         prob: float = 0.1,
-        keys: KeysCollection = "image",
         alpha: Union[float, List[float]] = 0.5,
         allow_missing_keys: bool = False
     ) -> None:
