@@ -1170,16 +1170,14 @@ class RandGibbsNoise(RandomizableTransform):
 
         self.randomize()
 
-        if not self._do_transform:
-            return img
-        else:
+        if self._do_transform:
             # FT
             k = self.shift_fourier(img)
             # build and apply mask
             k = self.apply_mask(k)
             # map back
             img = self.inv_shift_fourier(k).real
-            return img
+        return img
 
     def randomize(self) -> None:
         """
