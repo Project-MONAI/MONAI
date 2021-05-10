@@ -1030,23 +1030,23 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
     https://pubs.rsna.org/doi/full/10.1148/radiographics.22.4.g02jl14949
     
     Args:
+        prob: probability of applying the transform.
         keys: 'image', 'label', or ['image', 'label'] depending on which data
                 you need to transform.
         alpha: Parametrizes the intensity of the Gibbs noise filter applied. Smaller
             values of alpha correspond to milder applications. If a length-2 list is 
             given as [a,b] then the value of alpha will be sampled uniformly from the 
-            interval [a,b].
-        prob: probability of applying the transform. 
+            interval [a,b]. 
         allow_missing_keys: don't raise exception if key is missing.
 
     """
 
     def __init__(
         self,
+        prob: float = 0.1,
         keys: KeysCollection = "image",
         alpha: Union[float, List[float]] = 0.5,
-        prob: float = 0.1,
-        allow_missing_keys: bool = False,
+        allow_missing_keys: bool = False
     ) -> None:
 
         assert prob <= 1 and prob >= 0, "prob must take values in [0,1]."
