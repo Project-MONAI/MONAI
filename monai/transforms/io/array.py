@@ -278,6 +278,7 @@ class SaveImage(Transform):
         """
         if isinstance(img, (tuple, list)):
             # if a list of data in shape: [channel, H, W, [D]], save every item separately
+            meta_: Optional[Dict] = None
             for i, d in enumerate(img):
                 if isinstance(meta_data, dict):
                     meta_ = {k: meta_data[k][i] for k in meta_data}
