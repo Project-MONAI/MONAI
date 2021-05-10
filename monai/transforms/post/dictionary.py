@@ -418,6 +418,11 @@ class Invertd(MapTransform):
     on the data with `keys`. several `keys` can share one `orig_keys`.
     A typical usage is to invert the pre-transforms (appplied on input `image`) on the model `pred` data.
 
+    Note:
+        As this transform only accepts 1 input dict while ignite stores model input data in `state.batch`
+        and stores model output data in `state.output`, so it's not compatible with MONAI engines so far.
+        Users can use this transform in a regular PyTorch program which uses dict data for transforms.
+
     """
 
     def __init__(

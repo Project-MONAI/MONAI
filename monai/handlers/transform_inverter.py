@@ -112,7 +112,7 @@ class TransformInverter:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        # FIXME: combine `batch` and `output` to temporarily act as 1 dict for post transform
+        # combine `batch` and `output` to temporarily act as 1 dict for post transform
         data = dict(engine.state.batch)
         data.update(engine.state.output)
         ret = self.inverter(data)
