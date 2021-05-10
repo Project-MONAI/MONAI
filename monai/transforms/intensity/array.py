@@ -1154,7 +1154,7 @@ class RandGibbsNoise(RandomizableTransform):
 
     """
 
-    def __init__(self, alpha: Union[float, List[float]] = 0.5, prob: float = 0.1,) -> None:
+    def __init__(self, prob: float = 0.1, alpha: Union[float, List[float]] = 0.5) -> None:
 
         assert prob <= 1 and prob >= 0, "prob must take values in [0,1]."
         if type(alpha) == list:
