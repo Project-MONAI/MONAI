@@ -15,9 +15,10 @@ defined in :py:class:`monai.transforms.utility.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Union
 import warnings
 from copy import deepcopy
+from typing import Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Union
+
 import numpy as np
 import torch
 from torch.utils.data import DataLoader as TorchDataLoader
@@ -25,6 +26,8 @@ from torch.utils.data import DataLoader as TorchDataLoader
 import monai.data
 from monai.config import KeysCollection
 from monai.data.utils import no_collation
+from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.inverse_batch_transform import BatchInverseTransform
 from monai.transforms.post.array import (
     Activations,
     AsDiscrete,
@@ -34,10 +37,8 @@ from monai.transforms.post.array import (
     ProbNMS,
     VoteEnsemble,
 )
-from monai.transforms.utility.array import ToTensor
 from monai.transforms.transform import MapTransform
-from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.inverse_batch_transform import BatchInverseTransform
+from monai.transforms.utility.array import ToTensor
 from monai.transforms.utils import allow_missing_keys_mode, convert_inverse_interp_mode
 from monai.utils import ensure_tuple_rep
 from monai.utils.enums import InverseKeys
@@ -418,6 +419,7 @@ class Invertd(MapTransform):
     A typical usage is to invert the pre-transforms (appplied on input `image`) on the model `pred` data.
 
     """
+
     def __init__(
         self,
         keys: KeysCollection,
