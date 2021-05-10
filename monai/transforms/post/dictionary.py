@@ -17,7 +17,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 import warnings
 from copy import deepcopy
-from typing import Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Union
+from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -485,7 +485,7 @@ class Invertd(MapTransform):
         self.post_func = ensure_tuple_rep(post_func, len(self.keys))
         self._totensor = ToTensor()
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
         d = dict(data)
         for key, orig_key, nearest_interp, to_tensor, device, post_func in self.key_iterator(
             d, self.orig_keys, self.nearest_interp, self.to_tensor, self.device, self.post_func
