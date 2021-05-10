@@ -83,9 +83,35 @@ TEST_CASE_6 = [
     False,
 ]
 
+TEST_CASE_7 = [
+    [torch.randint(0, 255, (1, 2, 3, 4)), torch.randint(0, 255, (1, 2, 3, 4))],
+    [{"filename_or_obj": "testfile0.nii.gz"}, {"filename_or_obj": "testfile1.nii.gz"}],
+    ".nii.gz",
+    False,
+    False,
+]
+
+TEST_CASE_8 = [
+    [torch.randint(0, 255, (1, 2, 3, 4))],
+    {"filename_or_obj": ["testfile0.nii.gz"]},
+    ".nii.gz",
+    False,
+    False,
+]
+
 
 class TestSaveImage(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
+    @parameterized.expand([
+        TEST_CASE_0,
+        TEST_CASE_1,
+        TEST_CASE_2,
+        TEST_CASE_3,
+        TEST_CASE_4,
+        TEST_CASE_5,
+        TEST_CASE_6,
+        TEST_CASE_7,
+        TEST_CASE_8,
+    ])
     def test_saved_content(self, test_data, meta_data, output_ext, resample, save_batch):
         with tempfile.TemporaryDirectory() as tempdir:
             trans = SaveImage(
