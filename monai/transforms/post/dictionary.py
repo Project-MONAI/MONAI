@@ -419,6 +419,10 @@ class Invertd(MapTransform):
     A typical usage is to invert the pre-transforms (appplied on input `image`) on the model `pred` data.
 
     Note:
+        According to the `collate_fn`, this transform may return a list of Tensor without batch dim,
+        some following post transforms may not support a list of Tensor, users can leverage the `post_func`
+        arg for basic processing logic.
+
         As this transform only accepts 1 input dict while ignite stores model input data in `state.batch`
         and stores model output data in `state.output`, so it's not compatible with MONAI engines so far.
         For MONAI workflow engines, please use the `TransformInverter` handler instead.

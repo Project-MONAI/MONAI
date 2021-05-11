@@ -169,8 +169,9 @@ class SaveImage(Transform):
     Save transformed data into files, support NIfTI and PNG formats.
     It can work for both numpy array and PyTorch Tensor in both pre-transform chain
     and post transform chain.
+    It can also save a list of PyTorch Tensor or numpy array without `batch dim`.
 
-    NB: image should include channel dimension: [B],C,H,W,[D].
+    Note: image should include channel dimension: [B],C,H,W,[D].
 
     Args:
         output_dir: output image directory.
