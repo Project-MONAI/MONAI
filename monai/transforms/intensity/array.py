@@ -1154,6 +1154,11 @@ class RandGibbsNoise(RandomizableTransform):
 
     def __init__(self, prob: float = 0.1, alpha: Union[float, List[float]] = 0.5) -> None:
 
+        if type(alpha) == list:
+            assert alpha[1] <= 1 and alpha[0] >= 0, "alpha must take values in [0,1]."
+            assert alpha[0] <= alpha[1], "When alpha = [a,b] we need a < b."
+            assert len(alpha) == 2, "If alpha is a list, then its length must be 2."
+
         self.alpha = alpha
         RandomizableTransform.__init__(self, prob=prob)
 
@@ -1191,18 +1196,11 @@ class GibbsNoise(Transform):
     Args:
         alpha: Parametrizes the intensity of the Gibbs noise filter applied. Takes
             values in [0,1] with alpha = 0 acting as the identity mapping. 
-            If a length-2 list is given as [a,b] then the value of alpha will be 
-            sampled uniformly from the interval [a,b]. 0 <= a <= b <= 1.
     """
 
     def __init__(self, alpha: Union[float, List[float]] = 0.5) -> None:
 
-        if type(alpha) == list:
-            assert alpha[1] <= 1 and alpha[0] >= 0, "alpha must take values in [0,1]."
-            assert alpha[0] <= alpha[1], "When alpha = [a,b] we need a < b."
-            assert len(alpha) == 2, "If alpha is a list, then its length must be 2."
-        else:
-            assert alpha <= 1 and alpha >= 0, "alpha must take values in [0,1]."
+        assert alpha <= 1 and alpha >= 0, "alpha must take values in [0,1]."
         self.alpha = alpha
 
     def __call__(self, img: torch.tensor) -> torch.tensor:
