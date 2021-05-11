@@ -56,6 +56,7 @@ __all__ = [
     "GaussianSharpen",
     "RandGaussianSharpen",
     "RandHistogramShift",
+    "GibbsNoise",
     "RandGibbsNoise",
 ]
 
@@ -1144,49 +1145,75 @@ class RandGibbsNoise(RandomizableTransform):
 
 
     Args:
-        keys: 'image', 'label', or ['image', 'label'] depending on which data
-                you need to transform.
-        alpha: Parametrizes the intensity of the Gibbs noise filter applied. Takes
+        prob (float): probability of applying the transform.
+        alpha (float): Parametrizes the intensity of the Gibbs noise filter applied. Takes
             values in [0,1] with alpha = 0 acting as the identity mapping. 
             If a length-2 list is given as [a,b] then the value of alpha will be 
             sampled uniformly from the interval [a,b]. 0 <= a <= b <= 1.
-        prob: probability of applying the transform. 
-
     """
 
     def __init__(self, prob: float = 0.1, alpha: Union[float, List[float]] = 0.5) -> None:
 
-        assert prob <= 1 and prob >= 0, "prob must take values in [0,1]."
-        if type(alpha) == list:
-            assert alpha[1] <= 1 and alpha[0] >= 0, "alpha must take values in [0,1]."
-            assert alpha[0] <= alpha[1], "When alpha = [a,b] we need a < b."
-        else:
-            assert alpha <= 1 and alpha >= 0, "alpha must take values in [0,1]."
         self.alpha = alpha
-
         RandomizableTransform.__init__(self, prob=prob)
 
     def __call__(self, img: torch.tensor) -> torch.tensor:
 
+        # randomize application and possibly alpha
         self.randomize()
 
         if self._do_transform:
-            # FT
-            k = self.shift_fourier(img)
-            # build and apply mask
-            k = self.apply_mask(k)
-            # map back
-            img = self.inv_shift_fourier(k).real
+            # apply transform
+            transform = GibbsNoise(self.alpha)
+            img = transform(img)
         return img
 
     def randomize(self) -> None:
         """
         (1) Set random variable to apply the transform.
-        (2) Get radius from uniform distribution.
+        (2) Get alpha from uniform distribution.
         """
         super().randomize(None)
         if type(self.alpha) == list:
             self.alpha = self.R.uniform(self.alpha[0], self.alpha[1])
+
+
+class GibbsNoise(Transform):
+    """
+    The transform applies Gibbs noise to 3D MRI images. Gibbs artifacts
+    are one of the common type of type artifacts appearing in MRI scans.
+    
+    For general information on Gibbs artifacts, please refer to:
+    https://pubs.rsna.org/doi/full/10.1148/rg.313105115
+    https://pubs.rsna.org/doi/full/10.1148/radiographics.22.4.g02jl14949
+
+
+    Args:
+        alpha: Parametrizes the intensity of the Gibbs noise filter applied. Takes
+            values in [0,1] with alpha = 0 acting as the identity mapping. 
+            If a length-2 list is given as [a,b] then the value of alpha will be 
+            sampled uniformly from the interval [a,b]. 0 <= a <= b <= 1.
+    """
+
+    def __init__(self, alpha: Union[float, List[float]] = 0.5) -> None:
+
+        if type(alpha) == list:
+            assert alpha[1] <= 1 and alpha[0] >= 0, "alpha must take values in [0,1]."
+            assert alpha[0] <= alpha[1], "When alpha = [a,b] we need a < b."
+            assert len(alpha) == 2, "If alpha is a list, then its length must be 2."
+        else:
+            assert alpha <= 1 and alpha >= 0, "alpha must take values in [0,1]."
+        self.alpha = alpha
+
+    def __call__(self, img: torch.tensor) -> torch.tensor:
+
+        # FT
+        k = self.shift_fourier(img)
+        # build and apply mask
+        k = self.apply_mask(k)
+        # map back
+        img = self.inv_shift_fourier(k).real
+        return img
 
     def shift_fourier(self, x: torch.tensor) -> torch.tensor:
         """
@@ -1194,9 +1221,8 @@ class RandGibbsNoise(RandomizableTransform):
         Only the the last three dimensions get transformed: (x,y,z)-directions.
         
         Args: 
-            x (torch.tensor): tensor to fourier transform
+            x (torch.tensor): tensor to fourier transform.
         """
-
         return torch.fft.fftshift(torch.fft.fftn(x, dim=(-3, -2, -1)), dim=(-3, -2, -1))
 
     def inv_shift_fourier(self, k: torch.tensor) -> torch.tensor:
@@ -1206,7 +1232,7 @@ class RandGibbsNoise(RandomizableTransform):
         """
         return torch.fft.ifftn(torch.fft.ifftshift(k, dim=(-3, -2, -1)), dim=(-3, -2, -1), norm="backward")
 
-    def apply_mask(self, k_tensor) -> torch.tensor:
+    def apply_mask(self, k_tensor: torch.tensor) -> torch.tensor:
         """Builds and applies a 3d mask using the last three dimensions.
         
         Args:
