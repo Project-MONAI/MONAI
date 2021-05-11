@@ -1199,7 +1199,7 @@ class GibbsNoise(Transform):
             values in [0,1] with alpha = 0 acting as the identity mapping. 
     """
 
-    def __init__(self, alpha: Union[float, List[float]] = 0.5) -> None:
+    def __init__(self, alpha: float = 0.5) -> None:
 
         assert alpha <= 1 and alpha >= 0, "alpha must take values in [0,1]."
         self.alpha = alpha
