@@ -70,6 +70,7 @@ from .intensity.array import (
     DetectEnvelope,
     GaussianSharpen,
     GaussianSmooth,
+    GibbsNoise,
     MaskIntensity,
     NormalizeIntensity,
     RandAdjustContrast,
