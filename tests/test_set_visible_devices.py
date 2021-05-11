@@ -9,10 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from tests.utils import skip_if_no_cuda
 import unittest
-from unittest.case import skipUnless
 import os
-import torch
 
 class TestVisibleDevices(unittest.TestCase):
     @staticmethod
@@ -20,13 +19,13 @@ class TestVisibleDevices(unittest.TestCase):
         value = os.system(code_to_execute)
         return int(bin(value).replace("0b", "").rjust(16, '0')[:8], 2)
 
-    @skipUnless(torch.cuda.device_count() > 1, "Requires at least 2 CUDA devices")
+    @skip_if_no_cuda
     def test_visible_devices(self):
         num_gpus_before = self.run_process_and_get_exit_code(
-            "python -c \"import os; import torch; os.environ['CUDA_VISIBLE_DEVICES'] = '0'; exit(torch.cuda.device_count())\""
+            "python -c \"import os; import torch; os.environ['CUDA_VISIBLE_DEVICES'] = ''; exit(torch.cuda.device_count())\""
         )
         num_gpus_after = self.run_process_and_get_exit_code(
-            "python -c \"import os; import monai; import torch; os.environ['CUDA_VISIBLE_DEVICES'] = '0'; exit(torch.cuda.device_count())\""
+            "python -c \"import os; import monai; import torch; os.environ['CUDA_VISIBLE_DEVICES'] = ''; exit(torch.cuda.device_count())\""
         )
         self.assertEqual(num_gpus_before, num_gpus_after)
 
