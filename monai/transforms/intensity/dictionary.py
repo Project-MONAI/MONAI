@@ -1046,7 +1046,7 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
         keys: KeysCollection,
         prob: float = 0.1,
         alpha: Union[float, List[float]] = 0.5,
-        allow_missing_keys: bool = False
+        allow_missing_keys: bool = False,
     ) -> None:
 
         self.alpha = alpha
