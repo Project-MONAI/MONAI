@@ -1156,7 +1156,8 @@ class RandGibbsNoise(RandomizableTransform):
 
         if type(alpha) == list:
             assert alpha[1] <= 1 and alpha[0] >= 0, "alpha must take values in [0,1]."
-            assert alpha[0] <= alpha[1], "When alpha = [a,b] we need a < b."
+            if alpha[0] > alpha[1]:
+                raise AssertionError("When alpha = [a,b] we need a < b.")
             assert len(alpha) == 2, "If alpha is a list, then its length must be 2."
 
         self.alpha = alpha
