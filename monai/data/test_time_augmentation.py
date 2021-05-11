@@ -89,7 +89,7 @@ class TestTimeAugmentation:
         batch_size: int,
         num_workers: int,
         inferrer_fn: Callable,
-        device: Optional[Union[str, torch.device]] = "cuda" if torch.cuda.is_available() else "cpu",
+        device: Optional[Union[str, torch.device]] = None,
         image_key=CommonKeys.IMAGE,
         label_key=CommonKeys.LABEL,
         meta_key_postfix="meta_dict",
@@ -100,7 +100,7 @@ class TestTimeAugmentation:
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.inferrer_fn = inferrer_fn
-        self.device = device
+        self.device = device or "cuda" if torch.cuda.is_available() else "cpu"
         self.image_key = image_key
         self.label_key = label_key
         self.meta_key_postfix = meta_key_postfix
