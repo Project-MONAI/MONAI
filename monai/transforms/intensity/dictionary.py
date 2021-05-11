@@ -1077,8 +1077,7 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
         (2) Get alpha from uniform distribution.
         """
         super().randomize(None)
-        if type(self.alpha) == list:
-            self.alpha = self.R.uniform(self.alpha[0], self.alpha[1])
+        return self.R.uniform(self.alpha[0], self.alpha[1]) if isinstance(self.alpha, list) else self.alpha
 
 
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
