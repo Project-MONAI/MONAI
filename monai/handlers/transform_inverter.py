@@ -65,8 +65,8 @@ class TransformInverter:
                 default is `meta_dict`, the meta data is a dictionary object.
                 For example, to handle key `image`,  read/write affine matrices from the
                 metadata `image_meta_dict` dictionary's `affine` field.
-            collate_fn: how to collate data after inverse transformations.
-                default won't do any collation, so the output will be a list of size batch size.
+            collate_fn: how to collate data after inverse transformations. default won't do any collation,
+                so the output will be a list of PyTorch Tensor or numpy array without batch dim.
             postfix: will save the inverted result into `ignite.engine.output` with key `{output_key}_{postfix}`.
             nearest_interp: whether to use `nearest` interpolation mode when inverting the spatial transforms,
                 default to `True`. If `False`, use the same interpolation mode as the original transform.
