@@ -26,10 +26,10 @@ from monai.transforms.intensity.array import (
     AdjustContrast,
     GaussianSharpen,
     GaussianSmooth,
+    GibbsNoise,
     MaskIntensity,
     NormalizeIntensity,
     RandBiasField,
-    RandGibbsNoise,
     RandRicianNoise,
     ScaleIntensity,
     ScaleIntensityRange,
@@ -62,8 +62,8 @@ __all__ = [
     "RandGaussianSmoothd",
     "GaussianSharpend",
     "RandGaussianSharpend",
-    "RandHistogramShiftd",
     "RandGibbsNoised",
+    "RandHistogramShiftd",
     "RandGaussianNoiseD",
     "RandGaussianNoiseDict",
     "ShiftIntensityD",
@@ -102,12 +102,12 @@ __all__ = [
     "GaussianSharpenDict",
     "RandGaussianSharpenD",
     "RandGaussianSharpenDict",
+    "RandGibbsNoiseD",
+    "RandGibbsNoiseDict",
     "RandHistogramShiftD",
     "RandHistogramShiftDict",
     "RandRicianNoiseD",
     "RandRicianNoiseDict",
-    "RandGibbsNoiseD",
-    "RandGibbsNoiseDict",
 ]
 
 
@@ -198,7 +198,7 @@ class RandRicianNoised(RandomizableTransform, MapTransform):
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, global_prob)
-        self.rand_rician_noise = RandRicianNoise(prob, mean, std, channel_wise, relative, sample_std,)
+        self.rand_rician_noise = RandRicianNoise(prob, mean, std, channel_wise, relative, sample_std)
 
     def __call__(
         self, data: Mapping[Hashable, Union[torch.Tensor, np.ndarray]]
@@ -1019,7 +1019,7 @@ class RandHistogramShiftd(RandomizableTransform, MapTransform):
 
 class RandGibbsNoised(RandomizableTransform, MapTransform):
     """
-    Dictionary-based wrapper for RandGibbsNoise.
+    Dictionary-based version of RandGibbsNoise.
 
     Naturalistic image augmentation via Gibbs artifacts. The transform 
     randomly applies Gibbs noise to 3D MRI images. Gibbs artifacts
@@ -1049,7 +1049,6 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
         allow_missing_keys: bool = False
     ) -> None:
 
-        assert prob <= 1 and prob >= 0, "prob must take values in [0,1]."
         self.alpha = alpha
 
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -1058,15 +1057,23 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
     def __call__(self, data: Mapping[Hashable, torch.tensor]) -> Dict[Hashable, torch.tensor]:
 
         d = dict(data)
-        self.randomize(None)
+        # randomize application and possibly alpha
+        self.randomize()
+        transform = GibbsNoise(self.alpha)
 
-        if not self._do_transform:
-            return d
-        else:
+        if self._do_transform:
             for key in self.key_iterator(d):
-                gibbs = RandGibbsNoise(self.alpha, 1.0)
-                d[key] = gibbs(d[key])
-            return d
+                d[key] = transform(d[key])
+        return d
+
+    def randomize(self) -> None:
+        """
+        (1) Set random variable to apply the transform.
+        (2) Get alpha from uniform distribution.
+        """
+        super().randomize(None)
+        if type(self.alpha) == list:
+            self.alpha = self.R.uniform(self.alpha[0], self.alpha[1])
 
 
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
