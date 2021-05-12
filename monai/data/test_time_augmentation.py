@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Tuple, Union
 
 import numpy as np
 import torch
@@ -89,7 +89,7 @@ class TestTimeAugmentation:
         batch_size: int,
         num_workers: int,
         inferrer_fn: Callable,
-        device: Optional[Union[str, torch.device]] = "cuda" if torch.cuda.is_available() else "cpu",
+        device: Union[str, torch.device] = "cpu",
         image_key=CommonKeys.IMAGE,
         label_key=CommonKeys.LABEL,
         meta_key_postfix="meta_dict",
