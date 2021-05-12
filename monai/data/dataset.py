@@ -736,11 +736,8 @@ class SmartCacheDataset(Randomizable, CacheDataset):
             if not self._replace_done:
                 return False
 
-            remain_num: int = self.cache_num - self._replace_num
-            for i in range(remain_num):
-                self._cache[i] = self._cache[i + self._replace_num]
-            for i in range(self._replace_num):
-                self._cache[remain_num + i] = self._replacements[i]
+            del self._cache[: self._replace_num]
+            self._cache.extend(self._replacements)
 
             self._start_pos += self._replace_num
             if self._start_pos >= self._total_num:
