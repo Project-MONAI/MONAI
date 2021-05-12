@@ -740,7 +740,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
             if not self._replace_done:
                 return False
 
-            del self._cache[:self._replace_num]
+            del self._cache[: self._replace_num]
             self._cache.extend(self._replacements)
 
             self._start_pos += self._replace_num
