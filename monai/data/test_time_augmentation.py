@@ -89,7 +89,7 @@ class TestTimeAugmentation:
         batch_size: int,
         num_workers: int,
         inferrer_fn: Callable,
-        device: Union[str, torch.device] = torch.device("cpu"),
+        device: Union[str, torch.device] = "cpu",
         image_key=CommonKeys.IMAGE,
         label_key=CommonKeys.LABEL,
         meta_key_postfix="meta_dict",
