@@ -156,6 +156,7 @@ from .intensity.dictionary import (
     ThresholdIntensityDict,
 )
 from .inverse import InvertibleTransform
+from .inverse_batch_transform import BatchInverseTransform
 from .io.array import LoadImage, SaveImage
 from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict
 from .post.array import (
@@ -178,6 +179,9 @@ from .post.dictionary import (
     DecollateD,
     DecollateDict,
     Ensembled,
+    Invertd,
+    InvertD,
+    InvertDict,
     KeepLargestConnectedComponentd,
     KeepLargestConnectedComponentD,
     KeepLargestConnectedComponentDict,
@@ -286,6 +290,7 @@ from .utility.array import (
     SimulateDelay,
     SplitChannel,
     SqueezeDim,
+    ToCupy,
     ToNumpy,
     ToPIL,
     TorchVision,
@@ -365,6 +370,9 @@ from .utility.dictionary import (
     SqueezeDimd,
     SqueezeDimD,
     SqueezeDimDict,
+    ToCupyd,
+    ToCupyD,
+    ToCupyDict,
     ToNumpyd,
     ToNumpyD,
     ToNumpyDict,
@@ -377,6 +385,9 @@ from .utility.dictionary import (
     ToTensord,
     ToTensorD,
     ToTensorDict,
+    Transposed,
+    TransposeD,
+    TransposeDict,
 )
 from .utils import (
     allow_missing_keys_mode,

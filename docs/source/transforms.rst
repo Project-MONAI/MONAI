@@ -43,6 +43,11 @@ Generic Interfaces
 .. autoclass:: InvertibleTransform
     :members:
 
+`BatchInverseTransform`
+^^^^^^^^^^^^^^^^^^^^^^^
+.. autoclass:: BatchInverseTransform
+    :members:
+
 
 Vanilla Transforms
 ------------------
@@ -502,6 +507,13 @@ Utility
     :members:
     :special-members: __call__
 
+`ToCupy`
+""""""""
+.. autoclass:: ToCupy
+    :members:
+    :special-members: __call__
+
+
 `Transpose`
 """""""""""
 .. autoclass:: Transpose
@@ -829,6 +841,12 @@ Post-processing (Dict)
     :members:
     :special-members: __call__
 
+`Invertd`
+"""""""""
+.. autoclass:: Invertd
+    :members:
+    :special-members: __call__
+
 Spatial (Dict)
 ^^^^^^^^^^^^^^
 
@@ -988,6 +1006,12 @@ Utility (Dict)
 `ToNumpyd`
 """"""""""
 .. autoclass:: ToNumpyd
+    :members:
+    :special-members: __call__
+
+`ToCupyd`
+"""""""""
+.. autoclass:: ToCupyd
     :members:
     :special-members: __call__
 
