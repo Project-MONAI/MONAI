@@ -12,7 +12,7 @@
 import os
 import tempfile
 import unittest
-
+import copy
 import nibabel as nib
 import numpy as np
 from parameterized import parameterized
