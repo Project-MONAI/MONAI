@@ -74,7 +74,7 @@ class TestSmartCacheDataset(unittest.TestCase):
     def test_update_cache(self):
         # Given
         test_data = [{"image": f"test_image{i}.nii.gz", "label": f"test_image{i}.nii.gz"} for i in range(40)]
-        dataset = Smart_New_Dataset(
+        dataset = SmartCacheDataset(
             data=test_data,
             transform=None,
             replace_rate=0.2,
