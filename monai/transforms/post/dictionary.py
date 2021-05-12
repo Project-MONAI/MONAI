@@ -419,6 +419,10 @@ class Invertd(MapTransform):
     A typical usage is to invert the pre-transforms (appplied on input `image`) on the model `pred` data.
 
     Note:
+        According to the `collate_fn`, this transform may return a list of Tensor without batch dim,
+        thus some following post transforms may not support a list of Tensor, and users can leverage the
+        `post_func` arg for basic processing logic.
+
         As this transform only accepts 1 input dict while ignite stores model input data in `state.batch`
         and stores model output data in `state.output`, so it's not compatible with MONAI engines so far.
         For MONAI workflow engines, please use the `TransformInverter` handler instead.
@@ -455,8 +459,8 @@ class Invertd(MapTransform):
                 default is `meta_dict`, the meta data is a dictionary object.
                 For example, to handle orig_key `image`,  read/write `affine` matrices from the
                 metadata `image_meta_dict` dictionary's `affine` field.
-            collate_fn: how to collate data after inverse transformations.
-                default won't do any collation, so the output will be a list of size batch size.
+            collate_fn: how to collate data after inverse transformations. default won't do any collation,
+                so the output will be a list of PyTorch Tensor or numpy array without batch dim.
             postfix: will save the inverted result into dict with key `{key}_{postfix}`.
             nearest_interp: whether to use `nearest` interpolation mode when inverting the spatial transforms,
                 default to `True`. If `False`, use the same interpolation mode as the original transform.
@@ -526,13 +530,20 @@ class Invertd(MapTransform):
 
             # save the inverted data
             inverted_key = f"{key}_{self.postfix}"
-            d[inverted_key] = [
-                post_func(self._totensor(i[orig_key]).to(device) if to_tensor else i[orig_key]) for i in inverted
-            ]
-
-            # save the inverted meta dict
-            if meta_dict_key in d:
-                d[f"{inverted_key}_{self.meta_key_postfix}"] = [i.get(meta_dict_key) for i in inverted]
+            if isinstance(inverted, (tuple, list)):
+                d[inverted_key] = [
+                    post_func(self._totensor(i[orig_key]).to(device) if to_tensor else i[orig_key]) for i in inverted
+                ]
+                # save the inverted meta dict
+                if meta_dict_key in d:
+                    d[f"{inverted_key}_{self.meta_key_postfix}"] = [i.get(meta_dict_key) for i in inverted]
+            else:
+                d[inverted_key] = post_func(
+                    self._totensor(inverted[orig_key]).to(device) if to_tensor else inverted[orig_key]
+                )
+                # save the inverted meta dict
+                if meta_dict_key in d:
+                    d[f"{inverted_key}_{self.meta_key_postfix}"] = inverted.get(meta_dict_key)
         return d
 
 
