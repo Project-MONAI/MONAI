@@ -30,6 +30,8 @@ class HausdorffDistanceMetric:
     `y_preds` is expected to have binarized predictions and `y` should be in one-hot format.
     You can use suitable transforms in ``monai.transforms.post`` first to achieve binarized values.
 
+    The implementation refers to `DeepMind's implementation <https://github.com/deepmind/surface-distance>`_.
+
     Args:
         include_background: whether to include distance computation on the first channel of
             the predicted output. Defaults to ``False``.

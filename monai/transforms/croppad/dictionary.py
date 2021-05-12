@@ -410,6 +410,9 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
         roi_size: if `random_size` is True, it specifies the minimum crop region.
             if `random_size` is False, it specifies the expected ROI size to crop. e.g. [224, 224, 128]
             If its components have non-positive values, the corresponding size of input image will be used.
+        max_roi_size: if `random_size` is True and `roi_size` specifies the min crop region size, `max_roi_size`
+            can specify the max crop region size. if None, defaults to the input image size.
+            if its components have non-positive values, the corresponding size of input image will be used.
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specific size ROI.
             The actual size is sampled from `randint(roi_size, img_size)`.
@@ -420,12 +423,14 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
         self,
         keys: KeysCollection,
         roi_size: Union[Sequence[int], int],
+        max_roi_size: Optional[Union[Sequence[int], int]] = None,
         random_center: bool = True,
         random_size: bool = True,
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.roi_size = roi_size
+        self.max_roi_size = max_roi_size
         self.random_center = random_center
         self.random_size = random_size
         self._slices: Optional[Tuple[slice, ...]] = None
@@ -434,7 +439,10 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
     def randomize(self, img_size: Sequence[int]) -> None:
         self._size = fall_back_tuple(self.roi_size, img_size)
         if self.random_size:
-            self._size = [self.R.randint(low=self._size[i], high=img_size[i] + 1) for i in range(len(img_size))]
+            max_size = img_size if self.max_roi_size is None else fall_back_tuple(self.max_roi_size, img_size)
+            if any([i > j for i, j in zip(self._size, max_size)]):
+                raise ValueError(f"min ROI size: {self._size} is bigger than max ROI size: {max_size}.")
+            self._size = [self.R.randint(low=self._size[i], high=max_size[i] + 1) for i in range(len(img_size))]
         if self.random_center:
             valid_size = get_valid_patch_size(img_size, self._size)
             self._slices = (slice(None),) + get_random_patch(img_size, valid_size, self.R)
@@ -499,9 +507,13 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
-        roi_size: if `random_size` is True, the spatial size of the minimum crop region.
-            if `random_size` is False, specify the expected ROI size to crop. e.g. [224, 224, 128]
+        roi_size: if `random_size` is True, it specifies the minimum crop region.
+            if `random_size` is False, it specifies the expected ROI size to crop. e.g. [224, 224, 128]
+            If its components have non-positive values, the corresponding size of input image will be used.
         num_samples: number of samples (crop regions) to take in the returned list.
+        max_roi_size: if `random_size` is True and `roi_size` specifies the min crop region size, `max_roi_size`
+            can specify the max crop region size. if None, defaults to the input image size.
+            if its components have non-positive values, the corresponding size of input image will be used.
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specific size ROI.
             The actual size is sampled from `randint(roi_size, img_size)`.
@@ -520,6 +532,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
         keys: KeysCollection,
         roi_size: Union[Sequence[int], int],
         num_samples: int,
+        max_roi_size: Optional[Union[Sequence[int], int]] = None,
         random_center: bool = True,
         random_size: bool = True,
         meta_key_postfix: str = "meta_dict",
@@ -529,7 +542,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
         if num_samples < 1:
             raise ValueError(f"num_samples must be positive, got {num_samples}.")
         self.num_samples = num_samples
-        self.cropper = RandSpatialCropd(keys, roi_size, random_center, random_size, allow_missing_keys)
+        self.cropper = RandSpatialCropd(keys, roi_size, max_roi_size, random_center, random_size, allow_missing_keys)
         self.meta_key_postfix = meta_key_postfix
 
     def set_random_state(
