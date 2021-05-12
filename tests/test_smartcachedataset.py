@@ -70,6 +70,38 @@ class TestSmartCacheDataset(unittest.TestCase):
                         self.assertIsInstance(dataset[15]["image"], str)
                 dataset.shutdown()
 
+    def test_update_cache(self):
+       # Given
+        test_data = [{"image": f"test_image{i}.nii.gz",
+                        "label": f"test_image{i}.nii.gz"
+                        } for i in range(40)] 
+        dataset = Smart_New_Dataset(
+            data=test_data,
+            transform=None,
+            replace_rate=0.2,
+            cache_num=10,
+            num_init_workers=4,
+            num_replace_workers=4,
+            shuffle=False,
+        )
+        dataset.start()
+        start_num = int(0.2 * 10)
+        remain_num = int((1-0.2) * 10)
+        
+        old_cache = copy.deepcopy(dataset._cache)
+        # When
+        with dataset._update_lock:
+            replacements = copy.deepcopy(dataset._replacements)
+        dataset.update_cache()
+        new_cache = dataset._cache 
+        kept_cache = old_cache[start_num:]
+        # Then
+        for string1, string2 in zip(kept_cache, new_cache[0:remain_num]):
+            assert(string1 == string2)
+        for string_new, string_replacement in zip(replacements, new_cache[remain_num:]): 
+            assert(string_new == string_replacement)
+        
+    
     def test_shuffle(self):
         test_data = [{"image": f"test_image{i}.nii.gz"} for i in range(20)]
         dataset = SmartCacheDataset(
