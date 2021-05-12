@@ -21,12 +21,12 @@ import torch
 from parameterized import parameterized
 
 from monai.data import CacheDataset, DataLoader, create_test_image_2d, create_test_image_3d
-from monai.data.inverse_batch_transform import BatchInverseTransform
 from monai.data.utils import decollate_batch
 from monai.networks.nets import UNet
 from monai.transforms import (
     AddChanneld,
     Affined,
+    BatchInverseTransform,
     BorderPadd,
     CenterSpatialCropd,
     Compose,

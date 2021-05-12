@@ -43,6 +43,11 @@ Generic Interfaces
 .. autoclass:: InvertibleTransform
     :members:
 
+`BatchInverseTransform`
+^^^^^^^^^^^^^^^^^^^^^^^
+.. autoclass:: BatchInverseTransform
+    :members:
+
 
 Vanilla Transforms
 ------------------
@@ -839,6 +844,12 @@ Post-processing (Dict)
 `VoteEnsembled`
 """""""""""""""
 .. autoclass:: VoteEnsembled
+    :members:
+    :special-members: __call__
+
+`Invertd`
+"""""""""
+.. autoclass:: Invertd
     :members:
     :special-members: __call__
 
