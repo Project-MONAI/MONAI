@@ -298,8 +298,8 @@ class RandSpatialCrop(Randomizable):
         roi_size: if `random_size` is True, it specifies the minimum crop region.
             if `random_size` is False, it specifies the expected ROI size to crop. e.g. [224, 224, 128]
             If its components have non-positive values, the corresponding size of input image will be used.
-        max_roi_size: if `random_size` is True and `roi_size` specified the min crop region size, `max_roi_size`
-            can specify the max crop region size. if None, default to the input image size.
+        max_roi_size: if `random_size` is True and `roi_size` specifies the min crop region size, `max_roi_size`
+            can specify the max crop region size. if None, defaults to the input image size.
             if its components have non-positive values, the corresponding size of input image will be used.
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specific size ROI.
@@ -324,6 +324,8 @@ class RandSpatialCrop(Randomizable):
         self._size = fall_back_tuple(self.roi_size, img_size)
         if self.random_size:
             max_size = img_size if self.max_roi_size is None else fall_back_tuple(self.max_roi_size, img_size)
+            if any([i > j for i, j in zip(self._size, max_size)]):
+                raise ValueError(f"min ROI size: {self._size} is bigger than max ROI size: {max_size}.")
             self._size = tuple((self.R.randint(low=self._size[i], high=max_size[i] + 1) for i in range(len(img_size))))
         if self.random_center:
             valid_size = get_valid_patch_size(img_size, self._size)
@@ -355,8 +357,8 @@ class RandSpatialCropSamples(Randomizable):
             if `random_size` is False, it specifies the expected ROI size to crop. e.g. [224, 224, 128]
             If its components have non-positive values, the corresponding size of input image will be used.
         num_samples: number of samples (crop regions) to take in the returned list.
-        max_roi_size: if `random_size` is True and `roi_size` specified the min crop region size, `max_roi_size`
-            can specify the max crop region size. if None, default to the input image size.
+        max_roi_size: if `random_size` is True and `roi_size` specifies the min crop region size, `max_roi_size`
+            can specify the max crop region size. if None, defaults to the input image size.
             if its components have non-positive values, the corresponding size of input image will be used.
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specific size ROI.
