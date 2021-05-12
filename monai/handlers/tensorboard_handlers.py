@@ -18,12 +18,12 @@ import torch
 from monai.utils import exact_version, is_scalar, optional_import
 from monai.visualize import plot_2d_or_3d_image
 
-Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
+Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
 if TYPE_CHECKING:
     from ignite.engine import Engine
     from torch.utils.tensorboard import SummaryWriter
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
     SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
 DEFAULT_TAG = "Loss"
@@ -79,7 +79,9 @@ class TensorBoardStatsHandler(TensorBoardHandler):
         summary_writer: Optional[SummaryWriter] = None,
         log_dir: str = "./runs",
         epoch_event_writer: Optional[Callable[[Engine, SummaryWriter], Any]] = None,
+        epoch_interval: int = 1,
         iteration_event_writer: Optional[Callable[[Engine, SummaryWriter], Any]] = None,
+        iteration_interval: int = 1,
         output_transform: Callable = lambda x: x,
         global_epoch_transform: Callable = lambda x: x,
         tag_name: str = DEFAULT_TAG,
@@ -91,8 +93,10 @@ class TensorBoardStatsHandler(TensorBoardHandler):
             log_dir: if using default SummaryWriter, write logs to this directory, default is `./runs`.
             epoch_event_writer: customized callable TensorBoard writer for epoch level.
                 Must accept parameter "engine" and "summary_writer", use default event writer if None.
+            epoch_interval: the epoch interval at which the epoch_event_writer is called. Defaults to 1.
             iteration_event_writer: customized callable TensorBoard writer for iteration level.
                 Must accept parameter "engine" and "summary_writer", use default event writer if None.
+            iteration_interval: the iteration interval at which the iteration_event_writer is called. Defaults to 1.
             output_transform: a callable that is used to transform the
                 ``ignite.engine.output`` into a scalar to plot, or a dictionary of {key: scalar}.
                 In the latter case, the output string will be formatted as key: value.
@@ -104,7 +108,9 @@ class TensorBoardStatsHandler(TensorBoardHandler):
         """
         super().__init__(summary_writer=summary_writer, log_dir=log_dir)
         self.epoch_event_writer = epoch_event_writer
+        self.epoch_interval = epoch_interval
         self.iteration_event_writer = iteration_event_writer
+        self.iteration_interval = iteration_interval
         self.output_transform = output_transform
         self.global_epoch_transform = global_epoch_transform
         self.tag_name = tag_name
@@ -118,9 +124,11 @@ class TensorBoardStatsHandler(TensorBoardHandler):
 
         """
         if not engine.has_event_handler(self.iteration_completed, Events.ITERATION_COMPLETED):
-            engine.add_event_handler(Events.ITERATION_COMPLETED, self.iteration_completed)
+            engine.add_event_handler(
+                Events.ITERATION_COMPLETED(every=self.iteration_interval), self.iteration_completed
+            )
         if not engine.has_event_handler(self.epoch_completed, Events.EPOCH_COMPLETED):
-            engine.add_event_handler(Events.EPOCH_COMPLETED, self.epoch_completed)
+            engine.add_event_handler(Events.EPOCH_COMPLETED(every=self.epoch_interval), self.epoch_completed)
 
     def epoch_completed(self, engine: Engine) -> None:
         """

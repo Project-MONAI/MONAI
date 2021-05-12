@@ -181,6 +181,12 @@ class SegResNetVAE(SegResNet):
     The model supports 2D or 3D inputs.
 
     Args:
+        input_image_size: the size of images to input into the network. It is used to
+            determine the in_features of the fc layer in VAE.
+        vae_estimate_std: whether to estimate the standard deviations in VAE. Defaults to ``False``.
+        vae_default_std: if not to estimate the std, use the default value. Defaults to 0.3.
+        vae_nz: number of latent variables in VAE. Defaults to 256.
+            Where, 128 to represent mean, and 128 to represent std.
         spatial_dims: spatial dimension of the input data. Defaults to 3.
         init_filters: number of output channels for initial convolution layer. Defaults to 8.
         in_channels: number of input channels for the network. Defaults to 1.
@@ -199,15 +205,6 @@ class SegResNetVAE(SegResNet):
             - ``deconv``, uses transposed convolution layers.
             - ``nontrainable``, uses non-trainable `linear` interpolation.
             - ``pixelshuffle``, uses :py:class:`monai.networks.blocks.SubpixelUpsample`.
-
-        use_vae: if use the variational autoencoder (VAE) during training. Defaults to ``False``.
-        input_image_size: the size of images to input into the network. It is used to
-            determine the in_features of the fc layer in VAE. When ``use_vae == True``, please
-            ensure that this parameter is set. Defaults to ``None``.
-        vae_estimate_std: whether to estimate the standard deviations in VAE. Defaults to ``False``.
-        vae_default_std: if not to estimate the std, use the default value. Defaults to 0.3.
-        vae_nz: number of latent variables in VAE. Defaults to 256.
-            Where, 128 to represent mean, and 128 to represent std.
     """
 
     def __init__(
