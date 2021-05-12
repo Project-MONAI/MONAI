@@ -438,8 +438,8 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
 
     def randomize(self, img_size: Sequence[int]) -> None:
         self._size = fall_back_tuple(self.roi_size, img_size)
-        max_size = img_size if self.max_roi_size is None else fall_back_tuple(self.max_roi_size, img_size)
         if self.random_size:
+            max_size = img_size if self.max_roi_size is None else fall_back_tuple(self.max_roi_size, img_size)
             self._size = [self.R.randint(low=self._size[i], high=max_size[i] + 1) for i in range(len(img_size))]
         if self.random_center:
             valid_size = get_valid_patch_size(img_size, self._size)
