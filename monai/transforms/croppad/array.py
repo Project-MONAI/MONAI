@@ -351,9 +351,13 @@ class RandSpatialCropSamples(Randomizable):
     It will return a list of cropped images.
 
     Args:
-        roi_size: if `random_size` is True, the spatial size of the minimum crop region.
-            if `random_size` is False, specify the expected ROI size to crop. e.g. [224, 224, 128]
+        roi_size: if `random_size` is True, it specifies the minimum crop region.
+            if `random_size` is False, it specifies the expected ROI size to crop. e.g. [224, 224, 128]
+            If its components have non-positive values, the corresponding size of input image will be used.
         num_samples: number of samples (crop regions) to take in the returned list.
+        max_roi_size: if `random_size` is True and `roi_size` specified the min crop region size, `max_roi_size`
+            can specify the max crop region size. if None, default to the input image size.
+            if its components have non-positive values, the corresponding size of input image will be used.
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specific size ROI.
             The actual size is sampled from `randint(roi_size, img_size)`.
@@ -367,13 +371,14 @@ class RandSpatialCropSamples(Randomizable):
         self,
         roi_size: Union[Sequence[int], int],
         num_samples: int,
+        max_roi_size: Optional[Union[Sequence[int], int]] = None,
         random_center: bool = True,
         random_size: bool = True,
     ) -> None:
         if num_samples < 1:
             raise ValueError(f"num_samples must be positive, got {num_samples}.")
         self.num_samples = num_samples
-        self.cropper = RandSpatialCrop(roi_size, random_center, random_size)
+        self.cropper = RandSpatialCrop(roi_size, max_roi_size, random_center, random_size)
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
