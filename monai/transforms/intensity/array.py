@@ -1136,8 +1136,10 @@ class RandHistogramShift(RandomizableTransform):
 class RandGibbsNoise(RandomizableTransform):
     """
     Naturalistic image augmentation via Gibbs artifacts. The transform 
-    randomly applies Gibbs noise to 3D MRI images. Gibbs artifacts
+    randomly applies Gibbs noise to 2D/3D MRI images. Gibbs artifacts
     are one of the common type of type artifacts appearing in MRI scans.
+
+    The transform is applied to all the channels in the data.
     
     For general information on Gibbs artifacts, please refer to:
     https://pubs.rsna.org/doi/full/10.1148/rg.313105115
@@ -1146,31 +1148,43 @@ class RandGibbsNoise(RandomizableTransform):
 
     Args:
         prob (float): probability of applying the transform.
-        alpha (float): Parametrizes the intensity of the Gibbs noise filter applied. Takes
-            values in [0,1] with alpha = 0 acting as the identity mapping. 
+        alpha (float, List(float)): Parametrizes the intensity of the Gibbs noise filter applied. Takes
+            values in the interval [0,1] with alpha = 0 acting as the identity mapping. 
             If a length-2 list is given as [a,b] then the value of alpha will be 
             sampled uniformly from the interval [a,b]. 0 <= a <= b <= 1.
+        dim : spatial dimensions of the image (with any leading dimensions). 
+            Set dim = 2 for 2D images, and dim = 3 for 3D images.
     """
 
-    def __init__(self, prob: float = 0.1, alpha: Union[float, List[float]] = 0.5) -> None:
+    def __init__(self, prob: float = 0.1, alpha: Union[float, List[float]] = 0.5, dim: int = 3) -> None:
 
         if type(alpha) == list:
-            assert alpha[1] <= 1 and alpha[0] >= 0, "alpha must take values in [0,1]."
+            if alpha[1] > 1 or alpha[0] < 0:
+                raise AssertionError("alpha must take values in the interval [0,1]")
             if alpha[0] > alpha[1]:
                 raise AssertionError("When alpha = [a,b] we need a < b.")
-            assert len(alpha) == 2, "If alpha is a list, then its length must be 2."
+            if len(alpha) != 2:
+                raise AssertionError("If alpha is a list, then its length must be 2.")
+        else:
+            if alpha > 1 or alpha < 0:
+                raise AssertionError("alpha must take values in the interval [0,1].")
+
+        if dim not in [2, 3]:
+            raise AssertionError(("Set dim = 2 or dim = 3 depending on spatial" " dimensions of image."))
 
         self.alpha = alpha
+        self.dim = dim
+        self.sampled_alpha = None  # stores last alpha sampled by randomize()
         RandomizableTransform.__init__(self, prob=prob)
 
     def __call__(self, img: torch.tensor) -> torch.tensor:
 
         # randomize application and possibly alpha
-        self.randomize()
+        self.sampled_alpha = self.randomize()
 
         if self._do_transform:
             # apply transform
-            transform = GibbsNoise(self.alpha)
+            transform = GibbsNoise(self.sampled_alpha, self.dim)
             img = transform(img)
         return img
 
@@ -1180,14 +1194,15 @@ class RandGibbsNoise(RandomizableTransform):
         (2) Get alpha from uniform distribution.
         """
         super().randomize(None)
-        if type(self.alpha) == list:
-            self.alpha = self.R.uniform(self.alpha[0], self.alpha[1])
+        return self.R.uniform(self.alpha[0], self.alpha[1]) if isinstance(self.alpha, list) else self.alpha
 
 
 class GibbsNoise(Transform):
     """
-    The transform applies Gibbs noise to 3D MRI images. Gibbs artifacts
+    The transform applies Gibbs noise to 2D/3D MRI images. Gibbs artifacts
     are one of the common type of type artifacts appearing in MRI scans.
+
+    The transform is applied to all the channels in the data.
     
     For general information on Gibbs artifacts, please refer to:
     https://pubs.rsna.org/doi/full/10.1148/rg.313105115
@@ -1195,14 +1210,21 @@ class GibbsNoise(Transform):
 
 
     Args:
-        alpha: Parametrizes the intensity of the Gibbs noise filter applied. Takes
-            values in [0,1] with alpha = 0 acting as the identity mapping. 
+        alpha (float): Parametrizes the intensity of the Gibbs noise filter applied. Takes
+            values in the interval [0,1] with alpha = 0 acting as the identity mapping.
+        dim : spatial dimensions of the image (with any leading dimensions). 
+            Set dim = 2 for 2D images, and dim = 3 for 3D images. 
+            
     """
 
-    def __init__(self, alpha: float = 0.5) -> None:
+    def __init__(self, alpha: float = 0.5, dim: int = 3) -> None:
 
-        assert alpha <= 1 and alpha >= 0, "alpha must take values in [0,1]."
+        if alpha > 1 or alpha < 0:
+            raise AssertionError("alpha must take values in the interval [0,1].")
+        if dim not in [2, 3]:
+            raise AssertionError(("Set dim = 2 or dim = 3 depending on spatial" " dimensions of image."))
         self.alpha = alpha
+        self.dim = dim
 
     def __call__(self, img: torch.tensor) -> torch.tensor:
 
@@ -1217,22 +1239,24 @@ class GibbsNoise(Transform):
     def shift_fourier(self, x: torch.tensor) -> torch.tensor:
         """
         Applies fourier transform and shifts its output.
-        Only the the last three dimensions get transformed: (x,y,z)-directions.
+        Only the spatial dimensions get transformed.
         
         Args: 
             x (torch.tensor): tensor to fourier transform.
         """
-        return torch.fft.fftshift(torch.fft.fftn(x, dim=(-3, -2, -1)), dim=(-3, -2, -1))
+        return torch.fft.fftshift(torch.fft.fftn(x, dim=tuple(range(-self.dim, 0))), dim=tuple(range(-self.dim, 0)))
 
     def inv_shift_fourier(self, k: torch.tensor) -> torch.tensor:
         """
-        Applies inverse shift and fourier transform. Only the last
-        three dimensions are transformed.
+        Applies inverse shift and fourier transform. Only the spatial
+        dimensions are transformed.
         """
-        return torch.fft.ifftn(torch.fft.ifftshift(k, dim=(-3, -2, -1)), dim=(-3, -2, -1), norm="backward")
+        return torch.fft.ifftn(
+            torch.fft.ifftshift(k, dim=tuple(range(-self.dim, 0))), dim=tuple(range(-self.dim, 0)), norm="backward"
+        )
 
     def apply_mask(self, k_tensor: torch.tensor) -> torch.tensor:
-        """Builds and applies a 3d mask using the last three dimensions.
+        """Builds and applies a mask on the spatial dimensions.
         
         Args:
             k_tensor (torch.tensor): k-space version of the image.
@@ -1241,32 +1265,30 @@ class GibbsNoise(Transform):
         """
 
         # compute masking radius
-        r = (1 - self.alpha) * np.max(k_tensor.shape[-3:]) * np.sqrt(2) / 2
+        r = (1 - self.alpha) * np.max(k_tensor.shape[-self.dim :]) * np.sqrt(2) / 2.0
 
-        # instatiate mask holder array and reshape to (bunch,H,W)
+        # instatiate mask holder array and reshape to (Bunch,H,W,D) or (Bunch,H,W)
         mask = torch.zeros(k_tensor.size())
-        mask = mask.reshape(-1, k_tensor.size(-3), k_tensor.size(-2), k_tensor.size(-1))
+        mask = mask.reshape(-1, *k_tensor.shape[-self.dim :])
 
-        # create boolean disk centered at image's center, and
-        # with given radius
-        center = (np.floor(k_tensor.size(-3) / 2), np.floor(k_tensor.size(-2) / 2), np.floor(k_tensor.size(-1) / 2))
+        # create center and axes for mask
+        center = np.floor(torch.tensor(k_tensor.shape[-self.dim :]) / 2)
+        axes = tuple(torch.arange(0, k_tensor.size(i)) for i in range(-self.dim, 0))
 
-        axes = (
-            torch.arange(0, k_tensor.size(-3)),
-            torch.arange(0, k_tensor.size(-2)),
-            torch.arange(0, k_tensor.size(-1)),
-        )
-
-        select = (
-            (axes[0][:, None, None] - center[0]) ** 2
-            + (axes[1][None, :, None] - center[1]) ** 2
-            + (axes[2][None, None, :] - center[2]) ** 2
-        ) < r ** 2
+        # create 2D or 3D boolean mask
+        if self.dim == 3:
+            select = (
+                (axes[0][:, None, None] - center[0]) ** 2
+                + (axes[1][None, :, None] - center[1]) ** 2
+                + (axes[2][None, None, :] - center[2]) ** 2
+            ) < r ** 2
+        else:
+            select = ((axes[0][:, None] - center[0]) ** 2 + (axes[1][None, :] - center[1]) ** 2) < r ** 2
 
         # add batch dimensions
         select = select.unsqueeze(0).repeat_interleave(mask.size(0), 0)
 
-        # create binary mask
+        # apply binary mask
         mask[select] = 1
         mask = mask.reshape(k_tensor.size())
         return k_tensor * mask
