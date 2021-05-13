@@ -1141,6 +1141,7 @@ class RandHistogramShift(RandomizableTransform):
         )
 
 
+
 class RandGibbsNoise(RandomizableTransform):
     """
     Naturalistic image augmentation via Gibbs artifacts. The transform
@@ -1156,7 +1157,7 @@ class RandGibbsNoise(RandomizableTransform):
 
     Args:
         prob (float): probability of applying the transform.
-        alpha (float, List(float)): Parametrizes the intensity of the Gibbs noise filter applied. Takes
+        alpha (float, Sequence(float)): Parametrizes the intensity of the Gibbs noise filter applied. Takes
             values in the interval [0,1] with alpha = 0 acting as the identity mapping.
             If a length-2 list is given as [a,b] then the value of alpha will be
             sampled uniformly from the interval [a,b]. 0 <= a <= b <= 1.
@@ -1228,50 +1229,56 @@ class GibbsNoise(Transform):
             raise AssertionError("alpha must take values in the interval [0,1].")
         self.alpha = alpha
         self.as_tensor_output = as_tensor_output
+        self._device = 'cpu'
 
     def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> Union[torch.Tensor, np.ndarray]:
         n_dims = len(img.shape[1:])
 
+        # convert to ndarray to work with np.fft
+        if type(img) == torch.Tensor:
+            self._device = img.device
+            img = img.cpu().detach().numpy()
+
         # FT
-        k = self.shift_fourier(torch.Tensor(img), n_dims)
+        k = self.shift_fourier(img, n_dims)
         # build and apply mask
         k = self.apply_mask(k)
         # map back
         img = self.inv_shift_fourier(k, n_dims)
-        return img if self.as_tensor_output else img.detach().numpy()
+        return torch.Tensor(img).to(self._device) if self.as_tensor_output else img
 
-    def shift_fourier(self, x: torch.Tensor, n_dims: int) -> torch.Tensor:
+    def shift_fourier(self, x: np.ndarray, n_dims: int) -> torch.Tensor:
         """
         Applies fourier transform and shifts its output.
         Only the spatial dimensions get transformed.
 
         Args:
-            x (torch.Tensor): tensor to fourier transform.
+            x (np.ndarray): tensor to fourier transform.
         """
-        out: torch.Tensor = torch.fft.fftshift(
-            torch.fft.fftn(x, dim=tuple(range(-n_dims, 0))), dim=tuple(range(-n_dims, 0))
+        out: np.ndarray = np.fft.fftshift(
+            np.fft.fftn(x, axes=tuple(range(-n_dims, 0))), axes=tuple(range(-n_dims, 0))
         )
         return out
-
-    def inv_shift_fourier(self, k: torch.Tensor, n_dims: int) -> torch.Tensor:
+        
+    def inv_shift_fourier(self, k: np.ndarray, n_dims: int) -> torch.Tensor:
         """
         Applies inverse shift and fourier transform. Only the spatial
         dimensions are transformed.
         """
-        out: torch.Tensor = torch.fft.ifftn(
-            torch.fft.ifftshift(k, dim=tuple(range(-n_dims, 0))), dim=tuple(range(-n_dims, 0)), norm="backward"
+        out: np.ndarray = np.fft.ifftn(
+            np.fft.ifftshift(k, axes=tuple(range(-n_dims, 0))), axes=tuple(range(-n_dims, 0))
         ).real
         return out
 
-    def apply_mask(self, k_tensor: torch.Tensor) -> torch.Tensor:
+    def apply_mask(self, k: np.ndarray) -> np.ndarray:
         """Builds and applies a mask on the spatial dimensions.
 
         Args:
-            k_tensor (torch.Tensor): k-space version of the image.
+            k (np.ndarray): k-space version of the image.
         Returns:
             masked version of the k-space image.
         """
-        shape = k_tensor.shape[1:]
+        shape = k.shape[1:]
 
         # compute masking radius and center
         r = (1 - self.alpha) * np.max(shape) * np.sqrt(2) / 2.0
@@ -1286,7 +1293,8 @@ class GibbsNoise(Transform):
         mask = dist_from_center <= r
 
         # add channel dimension into mask
-        mask = np.repeat(mask[None], k_tensor.shape[0], axis=0)
+        mask = np.repeat(mask[None], k.shape[0], axis=0)
 
         # apply binary mask
-        return k_tensor * mask
+        return k * mask
+
