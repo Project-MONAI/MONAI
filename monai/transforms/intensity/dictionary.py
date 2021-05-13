@@ -1061,15 +1061,21 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
         self.sampled_alpha = -1.0  # stores last alpha sampled by randomize()
         self.as_tensor_output = as_tensor_output
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, Union[torch.Tensor, np.ndarray]]) -> Dict[Hashable, Union[torch.Tensor, np.ndarray]]:
 
         d = dict(data)
         self.randomize(None)
 
-        if self._do_transform:
-            transform = GibbsNoise(self.sampled_alpha, self.as_tensor_output)
-            for key in self.key_iterator(d):
+        for i, key in enumerate(self.key_iterator(d)):
+            if self._do_transform:
+                if i == 0:
+                    transform = GibbsNoise(self.sampled_alpha, self.as_tensor_output)
                 d[key] = transform(d[key])
+            else:
+                if isinstance(d[key], np.ndarray) and self.as_tensor_output:
+                    d[key] = torch.Tensor(d[key])
+                elif isinstance(d[key], torch.Tensor) and not self.as_tensor_output:
+                    d[key] = d[key].detach().cpu().numpy()
         return d
 
     def randomize(self, _: Any) -> None:

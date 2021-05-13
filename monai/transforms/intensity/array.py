@@ -1185,8 +1185,13 @@ class RandGibbsNoise(RandomizableTransform):
 
         if self._do_transform:
             # apply transform
-            transform = GibbsNoise(self.sampled_alpha)
+            transform = GibbsNoise(self.sampled_alpha, self.as_tensor_output)
             img = transform(img)
+        else:
+            if isinstance(img, np.ndarray) and self.as_tensor_output:
+                img = torch.Tensor(img)
+            elif isinstance(img, torch.Tensor) and not self.as_tensor_output:
+                img = img.detach().cpu().numpy()
         return img
 
     def randomize(self, _: Any) -> None:
