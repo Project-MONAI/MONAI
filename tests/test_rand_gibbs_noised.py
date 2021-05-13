@@ -9,77 +9,98 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from monai.utils.misc import set_determinism
+from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 import unittest
 
 import numpy as np
 import torch
+from copy import deepcopy
+from parameterized import parameterized
 
 from monai.transforms import RandGibbsNoised
-from tests.utils import TorchImageTestCase2D, TorchImageTestCase3D
+
+TEST_CASES = []
+for shape in ((128, 64), (64, 48, 80)):
+    for as_tensor_output in (True, False):
+        for as_tensor_input in (True, False):
+            TEST_CASES.append((shape, as_tensor_output, as_tensor_input))
+
+KEYS = ["im", "label"]
+
+class TestRandGibbsNoised(unittest.TestCase):
+    def setUp(self):
+        set_determinism(0)
+        super().setUp()
+
+    def tearDown(self):
+        set_determinism(None)
+
+    @staticmethod
+    def get_data(im_shape, as_tensor_input):
+        create_test_image = create_test_image_2d if len(im_shape) == 2 else create_test_image_3d
+        ims = create_test_image(*im_shape, 4, 20, 0, 5)
+        ims = [torch.Tensor(im) for im in ims] if as_tensor_input else ims
+        return {k: v for k, v in zip(KEYS, ims)}
+
+    @parameterized.expand(TEST_CASES)
+    def test_0_prob(self, im_shape, as_tensor_output, as_tensor_input):
+        data = self.get_data(im_shape, as_tensor_input)
+        alpha = [0.5, 1.0]
+        t = RandGibbsNoised(KEYS, 0.0, alpha, as_tensor_output)
+        out = t(data)
+        for k in KEYS:
+            np.testing.assert_allclose(data[k], out[k])
+
+    @parameterized.expand(TEST_CASES)
+    def test_same_result(self, im_shape, as_tensor_output, as_tensor_input):
+        data = self.get_data(im_shape, as_tensor_input)
+        alpha = [0.5, 0.8]
+        t = RandGibbsNoised(KEYS, 1.0, alpha, as_tensor_output)
+        t.set_random_state(42)
+        out1 = t(deepcopy(data))
+        t.set_random_state(42)
+        out2 = t(deepcopy(data))
+        for k in KEYS:
+            np.testing.assert_allclose(out1[k], out2[k])
+
+    @parameterized.expand(TEST_CASES)
+    def test_identity(self, im_shape, _, as_tensor_input):
+        data = self.get_data(im_shape, as_tensor_input)
+        alpha = [0.0, 0.0]
+        t = RandGibbsNoised(KEYS, 1.0, alpha)
+        out = t(deepcopy(data))
+        for k in KEYS:
+            np.testing.assert_allclose(data[k], out[k], atol=1e-2)
+
+    @parameterized.expand(TEST_CASES)
+    def test_alpha_1(self, im_shape, _, as_tensor_input):
+        data = self.get_data(im_shape, as_tensor_input)
+        alpha = [1.0, 1.0]
+        t = RandGibbsNoised(KEYS, 1.0, alpha)
+        out = t(deepcopy(data))
+        for k in KEYS:
+            np.testing.assert_allclose(0 * data[k], out[k])
+
+    @parameterized.expand(TEST_CASES)
+    def test_dict_matches(self, im_shape, _, as_tensor_input):
+        data = self.get_data(im_shape, as_tensor_input)
+        # use same image for both dictionary entries to check same trans is applied to them
+        data = {KEYS[0]: deepcopy(data[KEYS[0]]), KEYS[1]: deepcopy(data[KEYS[0]])}
+        alpha = [0.5, 1.0]
+        t = RandGibbsNoised(KEYS, 1.0, alpha)
+        out = t(deepcopy(data))
+        np.testing.assert_allclose(out[KEYS[0]], out[KEYS[1]])
 
 
-class TestRandGibbsNoised(TorchImageTestCase3D, TorchImageTestCase2D):
-    """
-    Tests below check the extreme cases of the transform.
-    It should act as identity for alpha = 0 and as the zero
-    map for alpha = 1. The functions check the 2D and 3D cases,
-    for both the image and the label. We also check the case when
-    alpha is a list.
-    
-    """
-
-    def test_correct_results(self):
-
-        self.test_3d()
-        self.test_2d()
-
-    def test_3d(self):
-
-        TorchImageTestCase3D.setUp(self)
-        data = {"image": self.imt, "label": self.segn}
-
-        # check identity
-        id_map = RandGibbsNoised(["image", "label"], prob=1, alpha=0)
-        data_new = id_map(data)
-        np.testing.assert_allclose(self.imt, data_new["image"], atol=1e-3)
-        np.testing.assert_allclose(self.segn, data_new["label"], atol=1e-2)
-
-        # check zero mapping
-        zero_map = RandGibbsNoised(["image", "label"], prob=1, alpha=1)
-        data_new = zero_map(data)
-        np.testing.assert_allclose(0 * self.imt, data_new["image"])
-        np.testing.assert_allclose(0 * self.segn, data_new["label"])
-
-        # check alpha = [a,b] works
-        g = RandGibbsNoised(["image", "label"], prob=1, alpha=[0.50, 0.51])
-        data_new = g(data)
-        self.assertTrue(
-            (g.sampled_alpha >= 0.50 and g.sampled_alpha <= 0.51), "sampling alpha outside provided interval"
-        )
-
-    def test_2d(self):
-
-        TorchImageTestCase2D.setUp(self)
-        data = {"image": self.imt, "label": self.segn}
-
-        # check identity
-        id_map = RandGibbsNoised(["image", "label"], prob=1, alpha=0, dim=2)
-        data_new = id_map(data)
-        np.testing.assert_allclose(self.imt, data_new["image"], atol=1e-3)
-        np.testing.assert_allclose(self.segn, data_new["label"], atol=1e-2)
-
-        # check zero mapping
-        zero_map = RandGibbsNoised(["image", "label"], prob=1, alpha=1, dim=2)
-        data_new = zero_map(data)
-        np.testing.assert_allclose(0 * self.imt, data_new["image"])
-        np.testing.assert_allclose(0 * self.segn, data_new["label"])
-
-        # check alpha = [a,b] works
-        g = RandGibbsNoised(["image", "label"], prob=1, alpha=[0.50, 0.51], dim=2)
-        data_new = g(data)
-        self.assertTrue(
-            (g.sampled_alpha >= 0.50 and g.sampled_alpha <= 0.51), "sampling alpha outside provided interval"
-        )
+    @parameterized.expand(TEST_CASES)
+    def test_alpha(self, im_shape, _, as_tensor_input):
+        data = self.get_data(im_shape, as_tensor_input)
+        alpha = [0.5, 0.51]
+        t = RandGibbsNoised(KEYS, 1.0, alpha)
+        _ = t(deepcopy(data))
+        self.assertGreaterEqual(t.sampled_alpha, 0.5)
+        self.assertLessEqual(t.sampled_alpha, 0.51)
 
 
 if __name__ == "__main__":

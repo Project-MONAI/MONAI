@@ -9,61 +9,76 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from monai.utils.misc import set_determinism
+from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 import unittest
 
 import numpy as np
 import torch
+from copy import deepcopy
+from parameterized import parameterized
 
 from monai.transforms import GibbsNoised
-from tests.utils import TorchImageTestCase2D, TorchImageTestCase3D
 
+TEST_CASES = []
+for shape in ((128, 64), (64, 48, 80)):
+    for as_tensor_output in (True, False):
+        for as_tensor_input in (True, False):
+            TEST_CASES.append((shape, as_tensor_output, as_tensor_input))
 
-class TestGibbsNoised(TorchImageTestCase3D, TorchImageTestCase2D):
-    """
-       Test below checks the extreme cases of the transform. 
-       It should act as identity for alpha = 0 and as the zero
-       map for alpha = 1. The functions check the 2D and 3D cases,
-       for both the image and the label.
-     """
+KEYS = ["im", "label"]
 
-    def test_correct_results(self):
+class TestGibbsNoised(unittest.TestCase):
+    def setUp(self):
+        set_determinism(0)
+        super().setUp()
 
-        self.test_3d()
-        self.test_2d()
+    def tearDown(self):
+        set_determinism(None)
 
-    def test_3d(self):
+    @staticmethod
+    def get_data(im_shape, as_tensor_input):
+        create_test_image = create_test_image_2d if len(im_shape) == 2 else create_test_image_3d
+        ims = create_test_image(*im_shape, 4, 20, 0, 5)
+        ims = [torch.Tensor(im) for im in ims] if as_tensor_input else ims
+        return {k: v for k, v in zip(KEYS, ims)}
 
-        TorchImageTestCase3D.setUp(self)
-        data = {"image": self.imt, "label": self.segn}
+    @parameterized.expand(TEST_CASES)
+    def test_same_result(self, im_shape, as_tensor_output, as_tensor_input):
+        data = self.get_data(im_shape, as_tensor_input)
+        alpha = 0.8
+        t = GibbsNoised(KEYS, alpha, as_tensor_output)
+        out1 = t(deepcopy(data))
+        out2 = t(deepcopy(data))
+        for k in KEYS:
+            np.testing.assert_allclose(out1[k], out2[k])
 
-        # check identity
-        id_map = GibbsNoised(["image", "label"], alpha=0)
-        data_new = id_map(data)
-        np.testing.assert_allclose(self.imt, data_new["image"], atol=1e-3)
-        np.testing.assert_allclose(self.segn, data_new["label"], atol=1e-2)
+    @parameterized.expand(TEST_CASES)
+    def test_identity(self, im_shape, _, as_tensor_input):
+        data = self.get_data(im_shape, as_tensor_input)
+        alpha = 0.0
+        t = GibbsNoised(KEYS, alpha)
+        out = t(deepcopy(data))
+        for k in KEYS:
+            np.testing.assert_allclose(data[k], out[k], atol=1e-2)
 
-        # check zero mapping
-        zero_map = GibbsNoised(["image", "label"], alpha=1)
-        data_new = zero_map(data)
-        np.testing.assert_allclose(0 * self.imt, data_new["image"])
-        np.testing.assert_allclose(0 * self.segn, data_new["label"])
+    @parameterized.expand(TEST_CASES)
+    def test_alpha_1(self, im_shape, _, as_tensor_input):
+        data = self.get_data(im_shape, as_tensor_input)
+        alpha = 1.0
+        t = GibbsNoised(KEYS, alpha)
+        out = t(deepcopy(data))
+        for k in KEYS:
+            np.testing.assert_allclose(0 * data[k], out[k])
 
-    def test_2d(self):
-
-        TorchImageTestCase2D.setUp(self)
-        data = {"image": self.imt, "label": self.segn}
-
-        # check identity
-        id_map = GibbsNoised(["image", "label"], alpha=0, dim=2)
-        data_new = id_map(data)
-        np.testing.assert_allclose(self.imt, data_new["image"], atol=1e-3)
-        np.testing.assert_allclose(self.segn, data_new["label"], atol=1e-2)
-
-        # check zero mapping
-        zero_map = GibbsNoised(["image", "label"], alpha=1, dim=2)
-        data_new = zero_map(data)
-        np.testing.assert_allclose(0 * self.imt, data_new["image"])
-        np.testing.assert_allclose(0 * self.segn, data_new["label"])
+    @parameterized.expand(TEST_CASES)
+    def test_dict_matches(self, im_shape, _, as_tensor_input):
+        data = self.get_data(im_shape, as_tensor_input)
+        data = {KEYS[0]: deepcopy(data[KEYS[0]]), KEYS[1]: deepcopy(data[KEYS[0]])}
+        alpha = 1.0
+        t = GibbsNoised(KEYS, alpha)
+        out = t(deepcopy(data))
+        np.testing.assert_allclose(out[KEYS[0]], out[KEYS[1]])
 
 
 if __name__ == "__main__":

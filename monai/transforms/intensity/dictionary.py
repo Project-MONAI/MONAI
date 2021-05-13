@@ -30,6 +30,7 @@ from monai.transforms.intensity.array import (
     MaskIntensity,
     NormalizeIntensity,
     RandBiasField,
+    RandGibbsNoise,
     RandRicianNoise,
     ScaleIntensity,
     ScaleIntensityRange,
@@ -1024,26 +1025,25 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
     """
     Dictionary-based version of RandGibbsNoise.
 
-    Naturalistic image augmentation via Gibbs artifacts. The transform 
+    Naturalistic image augmentation via Gibbs artifacts. The transform
     randomly applies Gibbs noise to 2D/3D MRI images. Gibbs artifacts
     are one of the common type of type artifacts appearing in MRI scans.
 
     The transform is applied to all the channels in the data.
-    
+
     For general information on Gibbs artifacts, please refer to:
     https://pubs.rsna.org/doi/full/10.1148/rg.313105115
     https://pubs.rsna.org/doi/full/10.1148/radiographics.22.4.g02jl14949
-    
+
     Args:
         keys: 'image', 'label', or ['image', 'label'] depending on which data
                 you need to transform.
         prob (float): probability of applying the transform.
         alpha (float, List[float]): Parametrizes the intensity of the Gibbs noise filter applied. Takes
             values in the interval [0,1] with alpha = 0 acting as the identity mapping.
-            If a length-2 list is given as [a,b] then the value of alpha will be sampled 
+            If a length-2 list is given as [a,b] then the value of alpha will be sampled
             uniformly from the interval [a,b].
-        dim : spatial dimensions of the image (with any leading dimensions). 
-            Set dim = 2 for 2D images, and dim = 3 for 3D images. 
+        as_tensor_output: if true return torch.Tensor, else return np.array. default: True.
         allow_missing_keys: do not raise exception if key is missing.
     """
 
@@ -1051,84 +1051,69 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
         self,
         keys: KeysCollection,
         prob: float = 0.1,
-        alpha: Union[float, List[float]] = 0.5,
-        dim: int = 3,
+        alpha: Sequence[float] = [0.0, 1.0],
+        as_tensor_output: bool = True,
         allow_missing_keys: bool = False,
     ) -> None:
 
-        if type(alpha) == list:
-            if alpha[1] > 1 or alpha[0] < 0:
-                raise AssertionError("alpha must take values in the interval [0,1]")
-            if alpha[0] > alpha[1]:
-                raise AssertionError("When alpha = [a,b] we need a < b.")
-            if len(alpha) != 2:
-                raise AssertionError("If alpha is a list, then its length must be 2.")
-        else:
-            if alpha > 1 or alpha < 0:
-                raise AssertionError("alpha must take values in the interval [0,1].")
-
-        if dim not in [2, 3]:
-            raise AssertionError(("Set dim = 2 or dim = 3 depending on spatial" " dimensions of image."))
-
-        self.alpha = alpha
-        self.dim = dim
-        self.sampled_alpha = None  # stores last alpha sampled by randomize()
-
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob=prob)
+        self.alpha = alpha
+        self.sampled_alpha = -1.0  # stores last alpha sampled by randomize()
+        self.as_tensor_output = as_tensor_output
 
-    def __call__(self, data: Mapping[Hashable, torch.tensor]) -> Dict[Hashable, torch.tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
 
         d = dict(data)
-        # randomize application and possibly alpha
-        self.sampled_alpha = self.randomize()
-        transform = GibbsNoise(self.sampled_alpha, self.dim)
+        self.randomize(None)
 
         if self._do_transform:
+            transform = GibbsNoise(self.sampled_alpha, self.as_tensor_output)
             for key in self.key_iterator(d):
                 d[key] = transform(d[key])
         return d
 
-    def randomize(self) -> None:
+    def randomize(self, _: Any) -> None:
         """
         (1) Set random variable to apply the transform.
         (2) Get alpha from uniform distribution.
         """
         super().randomize(None)
-        return self.R.uniform(self.alpha[0], self.alpha[1]) if isinstance(self.alpha, list) else self.alpha
+        self.sampled_alpha = self.R.uniform(self.alpha[0], self.alpha[1])
 
 
-class GibbsNoised(RandomizableTransform, MapTransform):
+class GibbsNoised(MapTransform):
     """
     Dictionary-based version of GibbsNoise.
 
     The transform applies Gibbs noise to 2D/3D MRI images. Gibbs artifacts
     are one of the common type of type artifacts appearing in MRI scans.
-    
+
     For general information on Gibbs artifacts, please refer to:
     https://pubs.rsna.org/doi/full/10.1148/rg.313105115
     https://pubs.rsna.org/doi/full/10.1148/radiographics.22.4.g02jl14949
-    
+
     Args:
         keys: 'image', 'label', or ['image', 'label'] depending on which data
                 you need to transform.
         alpha (float): Parametrizes the intensity of the Gibbs noise filter applied. Takes
             values in the interval [0,1] with alpha = 0 acting as the identity mapping.
-        dim : spatial dimensions of the image (with any leading dimensions). 
-            Set dim = 2 for 2D images, and dim = 3 for 3D images.
+        as_tensor_output: if true return torch.Tensor, else return np.array. default: True.
         allow_missing_keys: do not raise exception if key is missing.
     """
 
     def __init__(
-        self, keys: KeysCollection, alpha: float = 0.5, dim: int = 3, allow_missing_keys: bool = False
+        self,
+        keys: KeysCollection,
+        alpha: float = 0.5,
+        as_tensor_output: bool = True,
+        allow_missing_keys: bool = False
     ) -> None:
 
-        self.alpha = alpha
-        self.transform = GibbsNoise(alpha, dim)
-
         MapTransform.__init__(self, keys, allow_missing_keys)
+        self.transform = GibbsNoise(alpha, as_tensor_output)
 
-    def __call__(self, data: Mapping[Hashable, torch.tensor]) -> Dict[Hashable, torch.tensor]:
+    def __call__(self, data: Mapping[Hashable, Union[torch.Tensor, np.ndarray]]) -> Dict[Hashable, Union[torch.Tensor, np.ndarray]]:
 
         d = dict(data)
         for key in self.key_iterator(d):

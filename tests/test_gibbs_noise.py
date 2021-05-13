@@ -9,54 +9,62 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from monai.utils.misc import set_determinism
+from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 import unittest
 
 import numpy as np
 import torch
+from copy import deepcopy
+from parameterized import parameterized
 
 from monai.transforms import GibbsNoise
-from tests.utils import TorchImageTestCase2D, TorchImageTestCase3D
+
+TEST_CASES = []
+for shape in ((128, 64), (64, 48, 80)):
+    for as_tensor_output in (True, False):
+        for as_tensor_input in (True, False):
+            TEST_CASES.append((shape, as_tensor_output, as_tensor_input))
 
 
-class TestGibbsNoise(TorchImageTestCase3D, TorchImageTestCase2D):
-    """
-    Tests below check the extreme cases of the transform.
-    It should act as identity for alpha = 0 and as the zero
-    map for alpha = 1. The functions check the 2D and 3D cases.    
-    """
+class TestGibbsNoise(unittest.TestCase):
+    def setUp(self):
+        set_determinism(0)
+        super().setUp()
 
-    def test_correct_results(self):
-        # check 3D and 2D cases
-        self.test_3d()
-        self.test_2d()
+    def tearDown(self):
+        set_determinism(None)
 
-    def test_3d(self):
+    @staticmethod
+    def get_data(im_shape, as_tensor_input):
+        create_test_image = create_test_image_2d if len(im_shape) == 2 else create_test_image_3d
+        im = create_test_image(*im_shape, 4, 20, 0, 5)[0][None]
+        return torch.Tensor(im) if as_tensor_input else im
 
-        TorchImageTestCase3D.setUp(self)
+    @parameterized.expand(TEST_CASES)
+    def test_same_result(self, im_shape, as_tensor_output, as_tensor_input):
+        im = self.get_data(im_shape, as_tensor_input)
+        alpha = 0.8
+        t = GibbsNoise(alpha, as_tensor_output)
+        out1 = t(deepcopy(im))
+        out2 = t(deepcopy(im))
+        np.testing.assert_allclose(out1, out2)
 
-        # check identity
-        id_map = GibbsNoise(0)
-        new = id_map(self.imt)
-        np.testing.assert_allclose(self.imt, new, atol=1e-3)
+    @parameterized.expand(TEST_CASES)
+    def test_identity(self, im_shape, _, as_tensor_input):
+        im = self.get_data(im_shape, as_tensor_input)
+        alpha = 0.0
+        t = GibbsNoise(alpha)
+        out = t(deepcopy(im))
+        np.testing.assert_allclose(im, out, atol=1e-2)
 
-        # check zero vector
-        zero_map = GibbsNoise(1)
-        new = zero_map(self.imt)
-        np.testing.assert_allclose(0 * self.imt, new)
-
-    def test_2d(self):
-
-        TorchImageTestCase2D.setUp(self)
-
-        # check identity
-        id_map = GibbsNoise(0, dim=2)
-        new = id_map(self.imt)
-        np.testing.assert_allclose(self.imt, new, atol=1e-3)
-
-        # check zero vector
-        zero_map = GibbsNoise(1, dim=2)
-        new = zero_map(self.imt)
-        np.testing.assert_allclose(0 * self.imt, new)
+    @parameterized.expand(TEST_CASES)
+    def test_alpha_1(self, im_shape, _, as_tensor_input):
+        im = self.get_data(im_shape, as_tensor_input)
+        alpha = 1.0
+        t = GibbsNoise(alpha)
+        out = t(deepcopy(im))
+        np.testing.assert_allclose(0 * im, out)
 
 
 if __name__ == "__main__":
