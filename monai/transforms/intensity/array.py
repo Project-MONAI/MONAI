@@ -240,7 +240,11 @@ class StdShiftIntensity(Transform):
     """
 
     def __init__(
-        self, factor: float, nonzero: bool = False, channel_wise: bool = False, dtype: DtypeLike = np.float32,
+        self,
+        factor: float,
+        nonzero: bool = False,
+        channel_wise: bool = False,
+        dtype: DtypeLike = np.float32,
     ) -> None:
         self.factor = factor
         self.nonzero = nonzero
@@ -429,7 +433,11 @@ class RandBiasField(RandomizableTransform):
         self.dtype = dtype
 
     def _generate_random_field(
-        self, spatial_shape: Tuple[int, ...], rank: int, degree: int, coeff: Tuple[int, ...],
+        self,
+        spatial_shape: Tuple[int, ...],
+        rank: int,
+        degree: int,
+        coeff: Tuple[int, ...],
     ):
         """
         products of polynomials as bias field estimations
@@ -1155,12 +1163,7 @@ class RandGibbsNoise(RandomizableTransform):
         as_tensor_output: if true return torch.Tensor, else return np.array. default: True.
     """
 
-    def __init__(
-        self,
-        prob: float = 0.1,
-        alpha: Sequence[float] = [0.0, 1.0],
-        as_tensor_output: bool = True
-    ) -> None:
+    def __init__(self, prob: float = 0.1, alpha: Sequence[float] = (0.0, 1.0), as_tensor_output: bool = True) -> None:
 
         if len(alpha) != 2:
             raise AssertionError("alpha length must be 2.")
@@ -1240,7 +1243,9 @@ class GibbsNoise(Transform):
         Args:
             x (torch.Tensor): tensor to fourier transform.
         """
-        out: torch.Tensor = torch.fft.fftshift(torch.fft.fftn(x, dim=tuple(range(-n_dims, 0))), dim=tuple(range(-n_dims, 0)))
+        out: torch.Tensor = torch.fft.fftshift(
+            torch.fft.fftn(x, dim=tuple(range(-n_dims, 0))), dim=tuple(range(-n_dims, 0))
+        )
         return out
 
     def inv_shift_fourier(self, k: torch.Tensor, n_dims: int) -> torch.Tensor:
@@ -1271,7 +1276,7 @@ class GibbsNoise(Transform):
         coords = np.ogrid[tuple(slice(0, i) for i in shape)]
 
         # need to subtract center coord and then square for Euc distance
-        coords_from_center_sq = [(coord - c)**2 for coord, c in zip(coords, center)]
+        coords_from_center_sq = [(coord - c) ** 2 for coord, c in zip(coords, center)]
         dist_from_center = np.sqrt(sum(coords_from_center_sq))
         mask = dist_from_center <= r
 

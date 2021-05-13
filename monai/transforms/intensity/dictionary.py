@@ -30,7 +30,6 @@ from monai.transforms.intensity.array import (
     MaskIntensity,
     NormalizeIntensity,
     RandBiasField,
-    RandGibbsNoise,
     RandRicianNoise,
     ScaleIntensity,
     ScaleIntensityRange,
@@ -1051,7 +1050,7 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
         self,
         keys: KeysCollection,
         prob: float = 0.1,
-        alpha: Sequence[float] = [0.0, 1.0],
+        alpha: Sequence[float] = (0.0, 1.0),
         as_tensor_output: bool = True,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -1103,17 +1102,15 @@ class GibbsNoised(MapTransform):
     """
 
     def __init__(
-        self,
-        keys: KeysCollection,
-        alpha: float = 0.5,
-        as_tensor_output: bool = True,
-        allow_missing_keys: bool = False
+        self, keys: KeysCollection, alpha: float = 0.5, as_tensor_output: bool = True, allow_missing_keys: bool = False
     ) -> None:
 
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.transform = GibbsNoise(alpha, as_tensor_output)
 
-    def __call__(self, data: Mapping[Hashable, Union[torch.Tensor, np.ndarray]]) -> Dict[Hashable, Union[torch.Tensor, np.ndarray]]:
+    def __call__(
+        self, data: Mapping[Hashable, Union[torch.Tensor, np.ndarray]]
+    ) -> Dict[Hashable, Union[torch.Tensor, np.ndarray]]:
 
         d = dict(data)
         for key in self.key_iterator(d):

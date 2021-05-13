@@ -9,16 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from monai.utils.misc import set_determinism
-from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 import unittest
+from copy import deepcopy
 
 import numpy as np
 import torch
-from copy import deepcopy
 from parameterized import parameterized
 
+from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 from monai.transforms import GibbsNoise
+from monai.utils.misc import set_determinism
 
 TEST_CASES = []
 for shape in ((128, 64), (64, 48, 80)):
@@ -49,6 +49,7 @@ class TestGibbsNoise(unittest.TestCase):
         out1 = t(deepcopy(im))
         out2 = t(deepcopy(im))
         np.testing.assert_allclose(out1, out2)
+        self.assertIsInstance(out1, torch.Tensor if as_tensor_output else np.ndarray)
 
     @parameterized.expand(TEST_CASES)
     def test_identity(self, im_shape, _, as_tensor_input):
