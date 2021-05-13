@@ -62,6 +62,7 @@ __all__ = [
     "RandGaussianSmoothd",
     "GaussianSharpend",
     "RandGaussianSharpend",
+    "GibbsNoised",
     "RandGibbsNoised",
     "RandHistogramShiftd",
     "RandGaussianNoiseD",
@@ -102,6 +103,8 @@ __all__ = [
     "GaussianSharpenDict",
     "RandGaussianSharpenD",
     "RandGaussianSharpenDict",
+    "GibbsNoiseD",
+    "GibbsNoiseDict",
     "RandGibbsNoiseD",
     "RandGibbsNoiseDict",
     "RandHistogramShiftD",
@@ -1022,23 +1025,26 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
     Dictionary-based version of RandGibbsNoise.
 
     Naturalistic image augmentation via Gibbs artifacts. The transform 
-    randomly applies Gibbs noise to 3D MRI images. Gibbs artifacts
-    are one of the common type of type artfifacts appearing in MRI scans.
+    randomly applies Gibbs noise to 2D/3D MRI images. Gibbs artifacts
+    are one of the common type of type artifacts appearing in MRI scans.
+
+    The transform is applied to all the channels in the data.
     
     For general information on Gibbs artifacts, please refer to:
     https://pubs.rsna.org/doi/full/10.1148/rg.313105115
     https://pubs.rsna.org/doi/full/10.1148/radiographics.22.4.g02jl14949
     
     Args:
-        prob: probability of applying the transform.
         keys: 'image', 'label', or ['image', 'label'] depending on which data
                 you need to transform.
-        alpha: Parametrizes the intensity of the Gibbs noise filter applied. Smaller
-            values of alpha correspond to milder applications. If a length-2 list is 
-            given as [a,b] then the value of alpha will be sampled uniformly from the 
-            interval [a,b]. 
-        allow_missing_keys: don't raise exception if key is missing.
-
+        prob (float): probability of applying the transform.
+        alpha (float, List[float]): Parametrizes the intensity of the Gibbs noise filter applied. Takes
+            values in the interval [0,1] with alpha = 0 acting as the identity mapping.
+            If a length-2 list is given as [a,b] then the value of alpha will be sampled 
+            uniformly from the interval [a,b].
+        dim : spatial dimensions of the image (with any leading dimensions). 
+            Set dim = 2 for 2D images, and dim = 3 for 3D images. 
+        allow_missing_keys: do not raise exception if key is missing.
     """
 
     def __init__(
@@ -1046,15 +1052,27 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
         keys: KeysCollection,
         prob: float = 0.1,
         alpha: Union[float, List[float]] = 0.5,
+        dim: int = 3,
         allow_missing_keys: bool = False,
     ) -> None:
 
         if type(alpha) == list:
-            assert alpha[1] <= 1 and alpha[0] >= 0, "alpha must take values in [0,1]."
-            assert alpha[0] <= alpha[1], "When alpha = [a,b] we need a < b."
-            assert len(alpha) == 2, "If alpha is a list, then its length must be 2."
+            if alpha[1] > 1 or alpha[0] < 0:
+                raise AssertionError("alpha must take values in the interval [0,1]")
+            if alpha[0] > alpha[1]:
+                raise AssertionError("When alpha = [a,b] we need a < b.")
+            if len(alpha) != 2:
+                raise AssertionError("If alpha is a list, then its length must be 2.")
+        else:
+            if alpha > 1 or alpha < 0:
+                raise AssertionError("alpha must take values in the interval [0,1].")
+
+        if dim not in [2, 3]:
+            raise AssertionError(("Set dim = 2 or dim = 3 depending on spatial" " dimensions of image."))
 
         self.alpha = alpha
+        self.dim = dim
+        self.sampled_alpha = None  # stores last alpha sampled by randomize()
 
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob=prob)
@@ -1063,8 +1081,8 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
 
         d = dict(data)
         # randomize application and possibly alpha
-        self.randomize()
-        transform = GibbsNoise(self.alpha)
+        self.sampled_alpha = self.randomize()
+        transform = GibbsNoise(self.sampled_alpha, self.dim)
 
         if self._do_transform:
             for key in self.key_iterator(d):
@@ -1078,6 +1096,44 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
         """
         super().randomize(None)
         return self.R.uniform(self.alpha[0], self.alpha[1]) if isinstance(self.alpha, list) else self.alpha
+
+
+class GibbsNoised(RandomizableTransform, MapTransform):
+    """
+    Dictionary-based version of GibbsNoise.
+
+    The transform applies Gibbs noise to 2D/3D MRI images. Gibbs artifacts
+    are one of the common type of type artifacts appearing in MRI scans.
+    
+    For general information on Gibbs artifacts, please refer to:
+    https://pubs.rsna.org/doi/full/10.1148/rg.313105115
+    https://pubs.rsna.org/doi/full/10.1148/radiographics.22.4.g02jl14949
+    
+    Args:
+        keys: 'image', 'label', or ['image', 'label'] depending on which data
+                you need to transform.
+        alpha (float): Parametrizes the intensity of the Gibbs noise filter applied. Takes
+            values in the interval [0,1] with alpha = 0 acting as the identity mapping.
+        dim : spatial dimensions of the image (with any leading dimensions). 
+            Set dim = 2 for 2D images, and dim = 3 for 3D images.
+        allow_missing_keys: do not raise exception if key is missing.
+    """
+
+    def __init__(
+        self, keys: KeysCollection, alpha: float = 0.5, dim: int = 3, allow_missing_keys: bool = False
+    ) -> None:
+
+        self.alpha = alpha
+        self.transform = GibbsNoise(alpha, dim)
+
+        MapTransform.__init__(self, keys, allow_missing_keys)
+
+    def __call__(self, data: Mapping[Hashable, torch.tensor]) -> Dict[Hashable, torch.tensor]:
+
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.transform(d[key])
+        return d
 
 
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
@@ -1102,3 +1158,4 @@ GaussianSharpenD = GaussianSharpenDict = GaussianSharpend
 RandGaussianSharpenD = RandGaussianSharpenDict = RandGaussianSharpend
 RandHistogramShiftD = RandHistogramShiftDict = RandHistogramShiftd
 RandGibbsNoiseD = RandGibbsNoiseDict = RandGibbsNoised
+GibbsNoiseD = GibbsNoiseDict = GibbsNoised
