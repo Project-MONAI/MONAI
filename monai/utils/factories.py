@@ -9,6 +9,57 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+Defines factories for creating objects in generic, extensible, and dimensionally independent ways. A separate factory
+object is created for each type of object, and factory functions keyed to names are added to these objects. Whenever
+an object is requested the factory name and any necessary arguments are passed to the factory object. The return value
+is typically a type but can be any callable producing an object.
+
+The factory objects contain functions keyed to names converted to upper case, these names can be referred to as members
+of the factory so that they can function as constant identifiers. eg. instance normalization is named `Norm.INSTANCE`.
+
+For example, to get a transpose convolution object the name is needed and then a dimension argument is provided which is
+passed to the factory function:
+
+.. code-block:: python
+
+    dimension = 3
+    name = Conv.CONVTRANS
+    conv = Conv[name, dimension]
+
+This allows the `dimension` value to be set in the constructor, for example so that the dimensionality of a network is
+parameterizable. Not all factories require arguments after the name, the caller must be aware which are required.
+
+Defining new factories involves creating the object then associating it with factory functions:
+
+.. code-block:: python
+
+    fact = ObjectFactory()
+
+    @fact.factory_function('test')
+    def make_something(x, y):
+        # do something with x and y to choose which layer type to return
+        return SomeLayerType
+    ...
+
+    # request object from factory TEST with 1 and 2 as values for x and y
+    layer = fact[fact.TEST, 1, 2]
+
+Typically the caller of a factory would know what arguments to pass (ie. the dimensionality of the requested type) but
+can be parameterized with the factory name and the arguments to pass to the created type at instantiation time:
+
+.. code-block:: python
+
+    def use_factory(fact_args):
+        fact_name, type_args = split_args
+        layer_type = fact[fact_name, 1, 2]
+        return layer_type(**type_args)
+    ...
+
+    kw_args = {'arg0':0, 'arg1':True}
+    layer = use_factory( (fact.TEST, kwargs) )
+"""
+
 from typing import Any, Callable, Dict, Tuple
 
 __all__ = ["ObjectFactory"]
@@ -18,56 +69,6 @@ class ObjectFactory:
     """
     Factory object for creating objects, this uses given factory functions to actually produce the types or constructing
     callables. These functions are referred to by name and can be added at any time.
-
-
-    Defines factories for creating objects in generic, extensible, and dimensionally independent ways. A separate factory
-    object is created for each type of object, and factory functions keyed to names are added to these objects. Whenever
-    an object is requested the factory name and any necessary arguments are passed to the factory object. The return value
-    is typically a type but can be any callable producing an object.
-
-    The factory objects contain functions keyed to names converted to upper case, these names can be referred to as members
-    of the factory so that they can function as constant identifiers. eg. instance normalization is named `Norm.INSTANCE`.
-
-    For example, to get a transpose convolution object the name is needed and then a dimension argument is provided which is
-    passed to the factory function:
-
-    .. code-block:: python
-
-        dimension = 3
-        name = Conv.CONVTRANS
-        conv = Conv[name, dimension]
-
-    This allows the `dimension` value to be set in the constructor, for example so that the dimensionality of a network is
-    parameterizable. Not all factories require arguments after the name, the caller must be aware which are required.
-
-    Defining new factories involves creating the object then associating it with factory functions:
-
-    .. code-block:: python
-
-        fact = ObjectFactory()
-
-        @fact.factory_function('test')
-        def make_something(x, y):
-            # do something with x and y to choose which layer type to return
-            return SomeLayerType
-        ...
-
-        # request object from factory TEST with 1 and 2 as values for x and y
-        layer = fact[fact.TEST, 1, 2]
-
-    Typically the caller of a factory would know what arguments to pass (ie. the dimensionality of the requested type) but
-    can be parameterized with the factory name and the arguments to pass to the created type at instantiation time:
-
-    .. code-block:: python
-
-        def use_factory(fact_args):
-            fact_name, type_args = split_args
-            layer_type = fact[fact_name, 1, 2]
-            return layer_type(**type_args)
-        ...
-
-        kw_args = {'arg0':0, 'arg1':True}
-        layer = use_factory( (fact.TEST, kwargs) )
     """
 
     def __init__(self) -> None:

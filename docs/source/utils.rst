@@ -35,6 +35,8 @@ Profiling
 
 
 Factories
-~~~~~~~~~
+---------
+.. automodule:: monai.utils.factories
+
 .. autoclass:: monai.utils.factories.ObjectFactory
   :members:
