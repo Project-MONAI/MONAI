@@ -1159,12 +1159,12 @@ class RandGibbsNoise(RandomizableTransform):
     def __init__(self, prob: float = 0.1, alpha: Union[float, List[float]] = 0.5, dim: int = 3) -> None:
 
         if type(alpha) == list:
+            if len(alpha) != 2:
+                raise AssertionError("If alpha is a list, then its length must be 2.")
             if alpha[1] > 1 or alpha[0] < 0:
                 raise AssertionError("alpha must take values in the interval [0,1]")
             if alpha[0] > alpha[1]:
                 raise AssertionError("When alpha = [a,b] we need a < b.")
-            if len(alpha) != 2:
-                raise AssertionError("If alpha is a list, then its length must be 2.")
         else:
             if alpha > 1 or alpha < 0:
                 raise AssertionError("alpha must take values in the interval [0,1].")
