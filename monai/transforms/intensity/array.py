@@ -240,11 +240,7 @@ class StdShiftIntensity(Transform):
     """
 
     def __init__(
-        self,
-        factor: float,
-        nonzero: bool = False,
-        channel_wise: bool = False,
-        dtype: DtypeLike = np.float32,
+        self, factor: float, nonzero: bool = False, channel_wise: bool = False, dtype: DtypeLike = np.float32
     ) -> None:
         self.factor = factor
         self.nonzero = nonzero
@@ -433,11 +429,7 @@ class RandBiasField(RandomizableTransform):
         self.dtype = dtype
 
     def _generate_random_field(
-        self,
-        spatial_shape: Tuple[int, ...],
-        rank: int,
-        degree: int,
-        coeff: Tuple[int, ...],
+        self, spatial_shape: Tuple[int, ...], rank: int, degree: int, coeff: Tuple[int, ...],
     ):
         """
         products of polynomials as bias field estimations
@@ -1141,7 +1133,6 @@ class RandHistogramShift(RandomizableTransform):
         )
 
 
-
 class RandGibbsNoise(RandomizableTransform):
     """
     Naturalistic image augmentation via Gibbs artifacts. The transform
@@ -1229,7 +1220,7 @@ class GibbsNoise(Transform):
             raise AssertionError("alpha must take values in the interval [0,1].")
         self.alpha = alpha
         self.as_tensor_output = as_tensor_output
-        self._device = 'cpu'
+        self._device = "cpu"
 
     def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> Union[torch.Tensor, np.ndarray]:
         n_dims = len(img.shape[1:])
@@ -1255,11 +1246,9 @@ class GibbsNoise(Transform):
         Args:
             x (np.ndarray): tensor to fourier transform.
         """
-        out: np.ndarray = np.fft.fftshift(
-            np.fft.fftn(x, axes=tuple(range(-n_dims, 0))), axes=tuple(range(-n_dims, 0))
-        )
+        out: np.ndarray = np.fft.fftshift(np.fft.fftn(x, axes=tuple(range(-n_dims, 0))), axes=tuple(range(-n_dims, 0)))
         return out
-        
+
     def inv_shift_fourier(self, k: np.ndarray, n_dims: int) -> torch.Tensor:
         """
         Applies inverse shift and fourier transform. Only the spatial
@@ -1297,4 +1286,3 @@ class GibbsNoise(Transform):
 
         # apply binary mask
         return k * mask
-
