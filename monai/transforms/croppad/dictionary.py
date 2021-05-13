@@ -418,7 +418,7 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
             if its components have non-positive values, the corresponding size of input image will be used.
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specific size ROI.
-            The actual size is sampled from `randint(roi_size, max_roi_size)`.
+            if True, the actual size is sampled from `randint(roi_size, max_roi_size)`.
         allow_missing_keys: don't raise exception if key is missing.
     """
 

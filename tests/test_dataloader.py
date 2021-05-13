@@ -17,7 +17,8 @@ import torch
 from parameterized import parameterized
 
 from monai.data import CacheDataset, DataLoader, Dataset
-from monai.transforms import Compose, DataStatsd, SimulateDelayd
+from monai.transforms import Compose, DataStatsd, Randomizable, SimulateDelayd
+from monai.utils import set_determinism
 
 TEST_CASE_1 = [
     [
@@ -62,6 +63,35 @@ class TestDataLoader(unittest.TestCase):
         with self.assertRaisesRegex((TypeError, RuntimeError), "Collate error on the key"):
             for _ in dataloader:
                 pass
+
+
+class _RandomDataset(torch.utils.data.Dataset, Randomizable):
+    def __getitem__(self, index):
+        return self.R.randint(0, 1000, (1,))
+
+    def __len__(self):
+        return 8
+
+
+class TestLoaderRandom(unittest.TestCase):
+    """
+    Testing data loader working with the randomizable interface
+    """
+
+    def setUp(self):
+        set_determinism(0)
+
+    def tearDown(self):
+        set_determinism(None)
+
+    def test_randomize(self):
+        dataset = _RandomDataset()
+        dataloader = DataLoader(dataset, batch_size=2, num_workers=3)
+        output = []
+        for _ in range(2):
+            for batch in dataloader:
+                output.extend(batch.data.numpy().flatten().tolist())
+        self.assertListEqual(output, [594, 170, 524, 778, 370, 906, 292, 589, 762, 763, 156, 886, 42, 405, 221, 166])
 
 
 if __name__ == "__main__":
