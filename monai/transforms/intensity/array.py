@@ -1170,7 +1170,7 @@ class RandGibbsNoise(RandomizableTransform):
                 raise AssertionError("alpha must take values in the interval [0,1].")
 
         if dim not in [2, 3]:
-            raise AssertionError(("Set dim = 2 or dim = 3 depending on spatial" " dimensions of image."))
+            raise AssertionError("Set dim = 2 or dim = 3 depending on spatial dimensions of image.")
 
         self.alpha = alpha
         self.dim = dim
