@@ -10,68 +10,81 @@
 # limitations under the License.
 
 import unittest
+from copy import deepcopy
 
 import numpy as np
 import torch
+from parameterized import parameterized
 
+from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 from monai.transforms import RandGibbsNoise
-from tests.utils import TorchImageTestCase2D, TorchImageTestCase3D
+from monai.utils.misc import set_determinism
+
+TEST_CASES = []
+for shape in ((128, 64), (64, 48, 80)):
+    for as_tensor_output in (True, False):
+        for as_tensor_input in (True, False):
+            TEST_CASES.append((shape, as_tensor_output, as_tensor_input))
 
 
-class TestRandGibbsNoise(TorchImageTestCase3D, TorchImageTestCase2D):
-    """
-    Tests below check the extreme cases of the transform.
-    It should act as identity for alpha = 0 and as the zero
-    map for alpha = 1. The functions check the 2D and 3D cases.
-    We also check the case when alpha is a list.
-    """
+class TestRandGibbsNoise(unittest.TestCase):
+    def setUp(self):
+        set_determinism(0)
+        super().setUp()
 
-    def test_correct_results(self):
-        # check both 3d and 2d cases
-        self.test_3d()
-        self.test_2d()
+    def tearDown(self):
+        set_determinism(None)
 
-    def test_3d(self):
+    @staticmethod
+    def get_data(im_shape, as_tensor_input):
+        create_test_image = create_test_image_2d if len(im_shape) == 2 else create_test_image_3d
+        im = create_test_image(*im_shape, 4, 20, 0, 5)[0][None]
+        return torch.Tensor(im) if as_tensor_input else im
 
-        TorchImageTestCase3D.setUp(self)
+    @parameterized.expand(TEST_CASES)
+    def test_0_prob(self, im_shape, as_tensor_output, as_tensor_input):
+        im = self.get_data(im_shape, as_tensor_input)
+        alpha = [0.5, 1.0]
+        t = RandGibbsNoise(0.0, alpha, as_tensor_output)
+        out = t(im)
+        np.testing.assert_allclose(im, out)
 
-        # check identity
-        id_map = RandGibbsNoise(prob=1, alpha=0)
-        new = id_map(self.imt)
-        np.testing.assert_allclose(self.imt, new, atol=1e-3)
+    @parameterized.expand(TEST_CASES)
+    def test_same_result(self, im_shape, as_tensor_output, as_tensor_input):
+        im = self.get_data(im_shape, as_tensor_input)
+        alpha = [0.5, 0.8]
+        t = RandGibbsNoise(1.0, alpha, as_tensor_output)
+        t.set_random_state(42)
+        out1 = t(deepcopy(im))
+        t.set_random_state(42)
+        out2 = t(deepcopy(im))
+        np.testing.assert_allclose(out1, out2)
+        self.assertIsInstance(out1, torch.Tensor if as_tensor_output else np.ndarray)
 
-        # check zero vector
-        zero_map = RandGibbsNoise(prob=1, alpha=1)
-        new = zero_map(self.imt)
-        np.testing.assert_allclose(0 * self.imt, new)
+    @parameterized.expand(TEST_CASES)
+    def test_identity(self, im_shape, _, as_tensor_input):
+        im = self.get_data(im_shape, as_tensor_input)
+        alpha = [0.0, 0.0]
+        t = RandGibbsNoise(1.0, alpha)
+        out = t(deepcopy(im))
+        np.testing.assert_allclose(im, out, atol=1e-2)
 
-        # check alpha = [a,b] works
-        g = RandGibbsNoise(prob=1.0, alpha=[0.50, 0.51])
-        new = g(self.imt)
-        self.assertTrue(
-            (g.sampled_alpha >= 0.50 and g.sampled_alpha <= 0.51), "sampling alpha outside provided interval"
-        )
+    @parameterized.expand(TEST_CASES)
+    def test_alpha_1(self, im_shape, _, as_tensor_input):
+        im = self.get_data(im_shape, as_tensor_input)
+        alpha = [1.0, 1.0]
+        t = RandGibbsNoise(1.0, alpha)
+        out = t(deepcopy(im))
+        np.testing.assert_allclose(0 * im, out)
 
-    def test_2d(self):
-
-        TorchImageTestCase2D.setUp(self)
-
-        # check identity
-        id_map = RandGibbsNoise(prob=1, alpha=0, dim=2)
-        new = id_map(self.imt)
-        np.testing.assert_allclose(self.imt, new, atol=1e-3)
-
-        # check zero vector
-        zero_map = RandGibbsNoise(prob=1, alpha=1, dim=2)
-        new = zero_map(self.imt)
-        np.testing.assert_allclose(0 * self.imt, new)
-
-        # check alpha = [a,b] works
-        g = RandGibbsNoise(prob=1.0, alpha=[0.50, 0.51], dim=2)
-        new = g(self.imt)
-        self.assertTrue(
-            (g.sampled_alpha >= 0.50 and g.sampled_alpha <= 0.51), "sampling alpha outside provided interval"
-        )
+    @parameterized.expand(TEST_CASES)
+    def test_alpha(self, im_shape, _, as_tensor_input):
+        im = self.get_data(im_shape, as_tensor_input)
+        alpha = [0.5, 0.51]
+        t = RandGibbsNoise(1.0, alpha)
+        _ = t(deepcopy(im))
+        self.assertGreaterEqual(t.sampled_alpha, 0.5)
+        self.assertLessEqual(t.sampled_alpha, 0.51)
 
 
 if __name__ == "__main__":
