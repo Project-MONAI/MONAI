@@ -13,11 +13,13 @@ from typing import Tuple, Union
 
 import torch
 
+from monai.networks.nets.net_factory import NetworkFactory
 from monai.utils import optional_import
 
 models, _ = optional_import("torchvision.models")
 
 
+@NetworkFactory.factory_function("TorchVisionFullyConvModel")
 class TorchVisionFullyConvModel(torch.nn.Module):
     """
     Customize TorchVision models to replace fully connected layer by convolutional layer.

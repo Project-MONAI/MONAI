@@ -20,6 +20,7 @@ from torch import nn
 from torch.utils import model_zoo
 
 from monai.networks.layers.factories import Act, Conv, Norm, Pad, Pool
+from monai.networks.nets.net_factory import NetworkFactory
 
 __all__ = ["EfficientNetBN", "get_efficientnet_image_size", "drop_connect"]
 
@@ -196,6 +197,7 @@ class MBConvBlock(nn.Module):
         self._swish = Act["memswish"]() if memory_efficient else Act["swish"](alpha=1.0)
 
 
+@NetworkFactory.factory_function("EfficientNet")
 class EfficientNet(nn.Module):
     def __init__(
         self,
@@ -459,6 +461,7 @@ class EfficientNet(nn.Module):
                 m.bias.data.zero_()
 
 
+@NetworkFactory.factory_function("EfficientNetBN")
 class EfficientNetBN(EfficientNet):
     def __init__(
         self,

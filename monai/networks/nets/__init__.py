@@ -35,6 +35,7 @@ from .efficientnet import BlockArgs, EfficientNet, EfficientNetBN, drop_connect,
 from .fullyconnectednet import FullyConnectedNet, VarFullyConnectedNet
 from .generator import Generator
 from .highresnet import HighResBlock, HighResNet
+from .net_factory import NetworkFactory
 from .regressor import Regressor
 from .regunet import GlobalNet, LocalNet, RegUNet
 from .segresnet import SegResNet, SegResNetVAE

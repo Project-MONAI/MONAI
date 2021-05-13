@@ -18,6 +18,7 @@ import torch.nn as nn
 from torch.hub import load_state_dict_from_url
 
 from monai.networks.layers.factories import Conv, Dropout, Norm, Pool
+from monai.networks.nets.net_factory import NetworkFactory
 
 
 class _DenseLayer(nn.Module):
@@ -99,6 +100,7 @@ class _Transition(nn.Sequential):
         self.add_module("pool", pool_type(kernel_size=2, stride=2))
 
 
+@NetworkFactory.factory_function("DenseNet")
 class DenseNet(nn.Module):
     """
     Densenet based on: `Densely Connected Convolutional Networks <https://arxiv.org/pdf/1608.06993.pdf>`_.
@@ -233,6 +235,7 @@ def _load_state_dict(model, arch, progress):
     model.load_state_dict(model_dict)
 
 
+@NetworkFactory.factory_function("DenseNet121")
 class DenseNet121(DenseNet):
     def __init__(
         self,
@@ -254,6 +257,7 @@ class DenseNet121(DenseNet):
             _load_state_dict(self, "densenet121", progress)
 
 
+@NetworkFactory.factory_function("DenseNet169")
 class DenseNet169(DenseNet):
     def __init__(
         self,
@@ -275,6 +279,7 @@ class DenseNet169(DenseNet):
             _load_state_dict(self, "densenet169", progress)
 
 
+@NetworkFactory.factory_function("DenseNet201")
 class DenseNet201(DenseNet):
     def __init__(
         self,
@@ -296,6 +301,7 @@ class DenseNet201(DenseNet):
             _load_state_dict(self, "densenet201", progress)
 
 
+@NetworkFactory.factory_function("DenseNet264")
 class DenseNet264(DenseNet):
     def __init__(
         self,

@@ -172,15 +172,6 @@ Blocks
 Layers
 ------
 
-`Factories`
-~~~~~~~~~~~
-.. automodule:: monai.networks.layers.factories
-
-.. autoclass:: monai.networks.layers.LayerFactory
-  :members:
-
-.. currentmodule:: monai.networks.layers
-
 `split_args`
 ~~~~~~~~~~~~
 .. autofunction:: monai.networks.layers.split_args

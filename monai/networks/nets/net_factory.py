@@ -9,18 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .convutils import calculate_out_shape, gaussian_1d, polyval, same_padding, stride_minus_kernel_padding
-from .factories import Act, Conv, Dropout, Norm, Pad, Pool, split_args
-from .filtering import BilateralFilter, PHLFilter
-from .simplelayers import (
-    LLTM,
-    ChannelPad,
-    Flatten,
-    GaussianFilter,
-    HilbertTransform,
-    Reshape,
-    SavitzkyGolayFilter,
-    SkipConnection,
-    separable_filtering,
-)
-from .spatial_transforms import AffineTransform, grid_count, grid_grad, grid_pull, grid_push
+from monai.utils.factories import ObjectFactory
+
+__all__ = ["NetworkFactory"]
+
+NetworkFactory = ObjectFactory()

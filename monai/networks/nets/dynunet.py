@@ -17,6 +17,7 @@ import torch.nn as nn
 from torch.nn.functional import interpolate
 
 from monai.networks.blocks.dynunet_block import UnetBasicBlock, UnetOutBlock, UnetResBlock, UnetUpBlock
+from monai.networks.nets.net_factory import NetworkFactory
 
 __all__ = ["DynUNet", "DynUnet", "Dynunet"]
 
@@ -52,6 +53,7 @@ class DynUNetSkipLayer(nn.Module):
         return upout
 
 
+@NetworkFactory.factory_function("DynUNet")
 class DynUNet(nn.Module):
     """
     This reimplementation of a dynamic UNet (DynUNet) is based on:

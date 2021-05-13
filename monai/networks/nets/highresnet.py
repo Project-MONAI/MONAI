@@ -16,6 +16,7 @@ import torch.nn as nn
 
 from monai.networks.blocks import ADN, Convolution
 from monai.networks.layers.simplelayers import ChannelPad
+from monai.networks.nets.net_factory import NetworkFactory
 from monai.utils import ChannelMatching
 
 DEFAULT_LAYER_PARAMS_3D = (
@@ -94,6 +95,7 @@ class HighResBlock(nn.Module):
         return x_conv + torch.as_tensor(self.chn_pad(x))
 
 
+@NetworkFactory.factory_function("HighResNet")
 class HighResNet(nn.Module):
     """
     Reimplementation of highres3dnet based on

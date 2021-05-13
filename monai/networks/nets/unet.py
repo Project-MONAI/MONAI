@@ -17,11 +17,13 @@ import torch.nn as nn
 from monai.networks.blocks.convolutions import Convolution, ResidualUnit
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.simplelayers import SkipConnection
+from monai.networks.nets.net_factory import NetworkFactory
 from monai.utils import alias, export
 
 __all__ = ["UNet", "Unet", "unet"]
 
 
+@NetworkFactory.factory_function("UNet")
 @export("monai.networks.nets")
 @alias("Unet")
 class UNet(nn.Module):

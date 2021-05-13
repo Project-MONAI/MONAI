@@ -18,9 +18,11 @@ import torch.nn.functional as F
 
 from monai.networks.blocks.segresnet_block import ResBlock, get_conv_layer, get_norm_layer, get_upsample_layer
 from monai.networks.layers.factories import Act, Dropout
+from monai.networks.nets.net_factory import NetworkFactory
 from monai.utils import UpsampleMode
 
 
+@NetworkFactory.factory_function("SegResNet")
 class SegResNet(nn.Module):
     """
     SegResNet based on `3D MRI brain tumor segmentation using autoencoder regularization
@@ -173,6 +175,7 @@ class SegResNet(nn.Module):
         return x
 
 
+@NetworkFactory.factory_function("SegResNetVAE")
 class SegResNetVAE(SegResNet):
     """
     SegResNetVAE based on `3D MRI brain tumor segmentation using autoencoder regularization

@@ -20,8 +20,10 @@ from torch.hub import load_state_dict_from_url
 from monai.networks.blocks.convolutions import Convolution
 from monai.networks.blocks.squeeze_and_excitation import SEBottleneck, SEResNetBottleneck, SEResNeXtBottleneck
 from monai.networks.layers.factories import Act, Conv, Dropout, Norm, Pool
+from monai.networks.nets.net_factory import NetworkFactory
 
 
+@NetworkFactory.factory_function("SENet")
 class SENet(nn.Module):
     """
     SENet based on `Squeeze-and-Excitation Networks <https://arxiv.org/pdf/1709.01507.pdf>`_.
@@ -303,6 +305,7 @@ def _load_state_dict(model, arch, progress):
     model.load_state_dict(model_dict)
 
 
+@NetworkFactory.factory_function("SENet154")
 class SENet154(SENet):
     def __init__(
         self,
@@ -325,6 +328,7 @@ class SENet154(SENet):
             _load_state_dict(self, "senet154", progress)
 
 
+@NetworkFactory.factory_function("SeResNet50")
 class SEResNet50(SENet):
     def __init__(
         self,
@@ -355,6 +359,7 @@ class SEResNet50(SENet):
             _load_state_dict(self, "se_resnet50", progress)
 
 
+@NetworkFactory.factory_function("SeResNet101")
 class SEResNet101(SENet):
     def __init__(
         self,
@@ -383,6 +388,7 @@ class SEResNet101(SENet):
             _load_state_dict(self, "se_resnet101", progress)
 
 
+@NetworkFactory.factory_function("SeResNet152")
 class SEResNet152(SENet):
     def __init__(
         self,

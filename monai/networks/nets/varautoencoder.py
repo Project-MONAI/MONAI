@@ -19,8 +19,10 @@ from torch.nn import functional as F
 from monai.networks.layers.convutils import calculate_out_shape, same_padding
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.nets import AutoEncoder
+from monai.networks.nets.net_factory import NetworkFactory
 
 
+@NetworkFactory.factory_function("VarAutoEncoder")
 class VarAutoEncoder(AutoEncoder):
     """Variational Autoencoder based on the paper - https://arxiv.org/abs/1312.6114"""
 

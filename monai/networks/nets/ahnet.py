@@ -18,6 +18,7 @@ import torch.nn.functional as F
 
 from monai.networks.blocks.fcn import FCN
 from monai.networks.layers.factories import Act, Conv, Norm, Pool
+from monai.networks.nets.net_factory import NetworkFactory
 
 
 class Bottleneck3x3x1(nn.Module):
@@ -307,6 +308,7 @@ class PSP(nn.Module):
         return x
 
 
+@NetworkFactory.factory_function("AHNet")
 class AHNet(nn.Module):
     """
     AHNet based on `Anisotropic Hybrid Network <https://arxiv.org/pdf/1711.08580.pdf>`_.

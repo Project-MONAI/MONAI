@@ -16,6 +16,7 @@ import torch.nn as nn
 
 from monai.networks.blocks.convolutions import Convolution
 from monai.networks.layers.factories import Act, Conv, Dropout, Norm, split_args
+from monai.networks.nets.net_factory import NetworkFactory
 
 
 def get_acti_layer(act: Union[Tuple[str, Dict], str], nchan: int = 0):
@@ -178,6 +179,7 @@ class OutputTransition(nn.Module):
         return out
 
 
+@NetworkFactory.factory_function("VNet")
 class VNet(nn.Module):
     """
     V-Net based on `Fully Convolutional Neural Networks for Volumetric Medical Image Segmentation

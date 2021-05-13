@@ -19,9 +19,11 @@ from monai.networks.blocks import Convolution, ResidualUnit
 from monai.networks.layers.convutils import calculate_out_shape, same_padding
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.simplelayers import Reshape
+from monai.networks.nets.net_factory import NetworkFactory
 from monai.utils import ensure_tuple, ensure_tuple_rep
 
 
+@NetworkFactory.factory_function("Regressor")
 class Regressor(nn.Module):
     """
     This defines a network for relating large-sized input tensors to small output tensors, ie. regressing large

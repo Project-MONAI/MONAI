@@ -16,6 +16,7 @@ import torch.nn as nn
 
 from monai.networks.blocks import Convolution, UpSample
 from monai.networks.layers.factories import Conv, Pool
+from monai.networks.nets.net_factory import NetworkFactory
 from monai.utils import ensure_tuple_rep
 
 __all__ = ["BasicUNet", "BasicUnet", "Basicunet"]
@@ -134,6 +135,7 @@ class UpCat(nn.Module):
         return x
 
 
+@NetworkFactory.factory_function("BasicUNet")
 class BasicUNet(nn.Module):
     def __init__(
         self,

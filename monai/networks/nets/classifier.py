@@ -15,11 +15,13 @@ import torch
 import torch.nn as nn
 
 from monai.networks.layers.factories import Act, Norm, split_args
+from monai.networks.nets.net_factory import NetworkFactory
 from monai.networks.nets.regressor import Regressor
 
 __all__ = ["Classifier", "Discriminator", "Critic"]
 
 
+@NetworkFactory.factory_function("Classifier")
 class Classifier(Regressor):
     """
     Defines a classification network from Regressor by specifying the output shape as a single dimensional tensor
@@ -64,6 +66,7 @@ class Classifier(Regressor):
             self.final.add_module("lastact", last_act_type(**last_act_args))
 
 
+@NetworkFactory.factory_function("Discriminator")
 class Discriminator(Classifier):
     """
     Defines a discriminator network from Classifier with a single output value and sigmoid activation by default. This
@@ -99,6 +102,7 @@ class Discriminator(Classifier):
         super().__init__(in_shape, 1, channels, strides, kernel_size, num_res_units, act, norm, dropout, bias, last_act)
 
 
+@NetworkFactory.factory_function("Critic")
 class Critic(Classifier):
     """
     Defines a critic network from Classifier with a single output value and no final activation. The final layer is

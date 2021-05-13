@@ -16,6 +16,7 @@ import torch.nn as nn
 
 from monai.networks.blocks import ADN
 from monai.networks.layers.factories import Act
+from monai.networks.nets.net_factory import NetworkFactory
 
 __all__ = ["FullyConnectedNet", "VarFullyConnectedNet"]
 
@@ -28,6 +29,7 @@ def _get_adn_layer(
     return ADN(act=act, dropout=dropout, dropout_dim=1)
 
 
+@NetworkFactory.factory_function("FullyConnectedNet")
 class FullyConnectedNet(nn.Sequential):
     """
     Plain full-connected layer neural network
@@ -69,6 +71,7 @@ class FullyConnectedNet(nn.Sequential):
         return seq
 
 
+@NetworkFactory.factory_function("VarFullyConnectedNet")
 class VarFullyConnectedNet(nn.Module):
     """Variational fully-connected network."""
 

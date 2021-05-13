@@ -33,6 +33,7 @@ from .enums import (
     UpsampleMode,
     Weight,
 )
+from .factories import ObjectFactory
 from .jupyter_utils import StatusMembers, ThreadContainer
 from .misc import (
     MAX_SEED,
