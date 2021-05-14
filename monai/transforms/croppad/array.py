@@ -15,7 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 from itertools import chain
 from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
-
+from math import ceil
 import numpy as np
 import torch
 
@@ -304,7 +304,7 @@ class RandSpatialCrop(Randomizable):
             if its components have non-positive values, the corresponding size of input image will be used.
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specific size ROI.
-            if True, the actual size is sampled from `randint(roi_size, max_roi_size)`.
+            if True, the actual size is sampled from `randint(roi_size, max_roi_size + 1)`.
     """
 
     def __init__(
@@ -359,11 +359,12 @@ class RandScaleCrop(RandSpatialCrop):
             will use `1.0` instead, which means the input image size.
         max_roi_size: if `random_size` is True and `roi_scale` specifies the min crop region size, `max_roi_scale`
             can specify the max crop region size: `max_roi_scale * image spatial size`.
-            if None, defaults to the input image size. if its components have non-positive values or very small
-            scale value causes the crop size to be zero, will use `1.0` instead, which means the input image size.
+            if None, defaults to the input image size. if its components have non-positive values,
+            will use `1.0` instead, which means the input image size.
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specified size ROI by `roi_scale * image spatial size`.
-            if True, the actual size is sampled from `rand(roi_scale, max_roi_scale) * image spatial size`.
+            if True, the actual size is sampled from:
+            `randint(roi_scale * image spatial size, max_roi_scale * image spatial size + 1)`.
     """
 
     def __init__(
@@ -384,9 +385,9 @@ class RandScaleCrop(RandSpatialCrop):
         """
         img_size = img.shape[1:]
         ndim = len(img_size)
-        self.roi_size = [int(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
+        self.roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
         if self.max_roi_scale is not None:
-            self.max_roi_size = [int(r * s) for r, s in zip(ensure_tuple_rep(self.max_roi_scale, ndim), img_size)]
+            self.max_roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.max_roi_scale, ndim), img_size)]
         else:
             self.max_roi_size = None
         return super().__call__(img=img)

@@ -162,7 +162,9 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
 
         @self.on(IterationEvents.MODEL_COMPLETED)
         def run_post_transform(engine: Engine) -> None:
-            engine.state.output = apply_transform(posttrans, engine.state.output)
+            data = dict(engine.state.batch)
+            data.update(engine.state.output)
+            engine.state.output = apply_transform(posttrans, data)
 
     def _register_metrics(self, k_metric: Dict, add_metrics: Optional[Dict] = None):
         """

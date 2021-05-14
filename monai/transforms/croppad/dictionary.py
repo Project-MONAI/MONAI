@@ -18,7 +18,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 from copy import deepcopy
 from enum import Enum
 from itertools import chain
-from math import floor
+from math import floor, ceil
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -418,7 +418,8 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
             if its components have non-positive values, the corresponding size of input image will be used.
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specific size ROI.
-            if True, the actual size is sampled from `randint(roi_size, max_roi_size)`.
+            if True, the actual size is sampled from:
+            `randint(roi_scale * image spatial size, max_roi_scale * image spatial size + 1)`.
         allow_missing_keys: don't raise exception if key is missing.
     """
 
@@ -515,8 +516,8 @@ class RandScaleCropd(RandSpatialCropd):
             will use `1.0` instead, which means the input image size.
         max_roi_size: if `random_size` is True and `roi_scale` specifies the min crop region size, `max_roi_scale`
             can specify the max crop region size: `max_roi_scale * image spatial size`.
-            if None, defaults to the input image size. if its components have non-positive values or very small
-            scale value causes the crop size to be zero, will use `1.0` instead, which means the input image size.
+            if None, defaults to the input image size. if its components have non-positive values,
+            will use `1.0` instead, which means the input image size.
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specified size ROI by `roi_scale * image spatial size`.
             if True, the actual size is sampled from `rand(roi_scale, max_roi_scale) * image spatial size`.
@@ -547,9 +548,9 @@ class RandScaleCropd(RandSpatialCropd):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         img_size = data[self.keys[0]].shape[1:]
         ndim = len(img_size)
-        self.roi_size = [int(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
+        self.roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
         if self.max_roi_scale is not None:
-            self.max_roi_size = [int(r * s) for r, s in zip(ensure_tuple_rep(self.max_roi_scale, ndim), img_size)]
+            self.max_roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.max_roi_scale, ndim), img_size)]
         else:
             self.max_roi_size = None
         return super().__call__(data=data)

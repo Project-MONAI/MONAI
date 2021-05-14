@@ -42,7 +42,13 @@ TEST_CASE_4 = [
 TEST_CASE_5 = [
     {"roi_scale": 0.6, "max_roi_scale": 0.8, "random_center": True, "random_size": True},
     np.random.randint(0, 2, size=[1, 4, 5, 6]),
-    (1, 2, 4, 3),
+    (1, 3, 4, 4),
+]
+
+TEST_CASE_6 = [
+    {"roi_scale": 0.2, "max_roi_scale": 0.8, "random_center": True, "random_size": True},
+    np.random.randint(0, 2, size=[1, 4, 5, 6]),
+    (1, 3, 2, 4),
 ]
 
 
@@ -59,7 +65,7 @@ class TestRandScaleCrop(unittest.TestCase):
         roi = [(2 - i // 2, 2 + i - i // 2) for i in cropper._size]
         np.testing.assert_allclose(result, input_data[:, roi[0][0] : roi[0][1], roi[1][0] : roi[1][1]])
 
-    @parameterized.expand([TEST_CASE_4, TEST_CASE_5])
+    @parameterized.expand([TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
     def test_random_shape(self, input_param, input_data, expected_shape):
         cropper = RandScaleCrop(**input_param)
         cropper.set_random_state(seed=123)
