@@ -9,15 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 import torch.nn as nn
 
 from monai.networks.blocks.convolutions import Convolution
-from monai.networks.layers.factories import Act, Norm, split_args
-from monai.utils import has_option
+from monai.networks.blocks.utils import get_act_layer, get_norm_layer
+from monai.networks.layers.factories import Act, Norm
 
 
 class UnetResBlock(nn.Module):
@@ -70,10 +70,10 @@ class UnetResBlock(nn.Module):
             stride=stride,
             conv_only=True,
         )
-        self.lrelu = get_acti_layer(("leakyrelu", {"inplace": True, "negative_slope": 0.01}))
-        self.norm1 = get_norm_layer(spatial_dims, out_channels, norm_name)
-        self.norm2 = get_norm_layer(spatial_dims, out_channels, norm_name)
-        self.norm3 = get_norm_layer(spatial_dims, out_channels, norm_name)
+        self.lrelu = get_act_layer(("leakyrelu", {"inplace": True, "negative_slope": 0.01}))
+        self.norm1 = get_norm_layer(spatial_dims, channels=out_channels, norm=norm_name)
+        self.norm2 = get_norm_layer(spatial_dims, channels=out_channels, norm=norm_name)
+        self.norm3 = get_norm_layer(spatial_dims, channels=out_channels, norm=norm_name)
         self.downsample = in_channels != out_channels
         stride_np = np.atleast_1d(stride)
         if not np.all(stride_np == 1):
@@ -136,9 +136,9 @@ class UnetBasicBlock(nn.Module):
             stride=1,
             conv_only=True,
         )
-        self.lrelu = get_acti_layer(("leakyrelu", {"inplace": True, "negative_slope": 0.01}))
-        self.norm1 = get_norm_layer(spatial_dims, out_channels, norm_name)
-        self.norm2 = get_norm_layer(spatial_dims, out_channels, norm_name)
+        self.lrelu = get_act_layer(("leakyrelu", {"inplace": True, "negative_slope": 0.01}))
+        self.norm1 = get_norm_layer(spatial_dims, channels=out_channels, norm=norm_name)
+        self.norm2 = get_norm_layer(spatial_dims, channels=out_channels, norm=norm_name)
 
     def forward(self, inp):
         out = self.conv1(inp)
@@ -215,25 +215,6 @@ class UnetOutBlock(nn.Module):
     def forward(self, inp):
         out = self.conv(inp)
         return out
-
-
-def get_acti_layer(act: Union[Tuple[str, Dict], str]):
-    act_name, act_args = split_args(act)
-    act_type = Act[act_name]
-    return act_type(**act_args)
-
-
-def get_norm_layer(spatial_dims: int, out_channels: int, norm: Union[Tuple, str]):
-    norm_name, norm_args = split_args(norm)
-    norm_type = Norm[norm_name, spatial_dims]
-    kw_args = dict(norm_args)
-    if has_option(norm_type, "num_features") and "num_features" not in kw_args:
-        kw_args["num_features"] = out_channels
-    if has_option(norm_type, "num_channels") and "num_channels" not in kw_args:
-        kw_args["num_channels"] = out_channels
-    if has_option(norm_type, "affine") and "affine" not in kw_args:
-        kw_args["affine"] = True
-    return norm_type(**kw_args)
 
 
 def get_conv_layer(

@@ -15,25 +15,9 @@ import torch.nn as nn
 
 from monai.networks.blocks.convolutions import Convolution
 from monai.networks.blocks.upsample import UpSample
-from monai.networks.layers.factories import Act, Norm, split_args
-from monai.utils import InterpolateMode, UpsampleMode, has_option
-
-
-def get_norm_layer(spatial_dims: int, in_channels: int, norm: Union[Tuple, str]):
-    norm_name, norm_args = split_args(norm)
-    norm_type = Norm[norm_name, spatial_dims]
-    kw_args = dict(norm_args)
-    if has_option(norm_type, "num_features") and "num_features" not in kw_args:
-        kw_args["num_features"] = in_channels
-    if has_option(norm_type, "num_channels") and "num_channels" not in kw_args:
-        kw_args["num_channels"] = in_channels
-    return norm_type(**kw_args)
-
-
-def get_act_layer(act_name: Union[Tuple, str]):
-    act_name, act_args = split_args(act_name)
-    act_type = Act[act_name]
-    return act_type(**act_args)
+from monai.networks.blocks.utils import get_norm_layer
+from monai.networks.layers.factories import Act
+from monai.utils import InterpolateMode, UpsampleMode
 
 
 def get_conv_layer(
@@ -92,11 +76,11 @@ class ResBlock(nn.Module):
         if kernel_size % 2 != 1:
             raise AssertionError("kernel_size should be an odd number.")
 
-        self.norm1 = get_norm_layer(spatial_dims, in_channels, norm)
-        self.norm2 = get_norm_layer(spatial_dims, in_channels, norm)
+        self.norm1 = get_norm_layer(spatial_dims, channels=in_channels, norm=norm)
+        self.norm2 = get_norm_layer(spatial_dims, channels=in_channels, norm=norm)
         self.relu = Act[Act.RELU](inplace=True)
-        self.conv1 = get_conv_layer(spatial_dims, in_channels, in_channels)
-        self.conv2 = get_conv_layer(spatial_dims, in_channels, in_channels)
+        self.conv1 = get_conv_layer(spatial_dims, in_channels=in_channels, out_channels=in_channels)
+        self.conv2 = get_conv_layer(spatial_dims, in_channels=in_channels, out_channels=in_channels)
 
     def forward(self, x):
 

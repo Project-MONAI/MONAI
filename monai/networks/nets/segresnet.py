@@ -9,20 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Tuple, Union
+from typing import Dict, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from monai.networks.blocks.segresnet_block import (
-    ResBlock,
-    get_act_layer,
-    get_conv_layer,
-    get_norm_layer,
-    get_upsample_layer,
-)
+from monai.networks.blocks.segresnet_block import ResBlock, get_conv_layer, get_upsample_layer
+from monai.networks.blocks.utils import get_act_layer, get_norm_layer
 from monai.networks.layers.factories import Dropout
 from monai.utils import UpsampleMode
 
@@ -62,7 +57,7 @@ class SegResNet(nn.Module):
         in_channels: int = 1,
         out_channels: int = 2,
         dropout_prob: Optional[float] = None,
-        act: Union[str, tuple] = ("RELU", {"inplace": True}),
+        act: Union[Tuple, str] = ("RELU", {"inplace": True}),
         norm: Union[Tuple, str] = ("GROUP", {"num_groups": 8}),
         use_conv_final: bool = True,
         blocks_down: tuple = (1, 2, 2, 4),
@@ -143,9 +138,9 @@ class SegResNet(nn.Module):
 
     def _make_final_conv(self, out_channels: int):
         return nn.Sequential(
-            get_norm_layer(self.spatial_dims, self.init_filters, norm=self.norm),
+            get_norm_layer(self.spatial_dims, channels=self.init_filters, norm=self.norm),
             self.act,
-            get_conv_layer(self.spatial_dims, self.init_filters, out_channels=out_channels, kernel_size=1, bias=True),
+            get_conv_layer(self.spatial_dims, self.init_filters, out_channels, kernel_size=1, bias=True),
         )
 
     def forward(self, x):
@@ -184,6 +179,23 @@ class SegResNetVAE(SegResNet):
         vae_default_std: if not to estimate the std, use the default value. Defaults to 0.3.
         vae_nz: number of latent variables in VAE. Defaults to 256.
             Where, 128 to represent mean, and 128 to represent std.
+        spatial_dims: spatial dimension of the input data. Defaults to 3.
+        init_filters: number of output channels for initial convolution layer. Defaults to 8.
+        in_channels: number of input channels for the network. Defaults to 1.
+        out_channels: number of output channels for the network. Defaults to 2.
+        dropout_prob: probability of an element to be zero-ed. Defaults to ``None``.
+        act: activation type and arguments. Defaults to ``RELU``.
+        norm: feature normalization type and arguments. Defaults to ``GROUP``.
+        use_conv_final: if add a final convolution block to output. Defaults to ``True``.
+        blocks_down: number of down sample blocks in each layer. Defaults to ``[1,2,2,4]``.
+        blocks_up: number of up sample blocks in each layer. Defaults to ``[1,1,1]``.
+        upsample_mode: [``"deconv"``, ``"nontrainable"``, ``"pixelshuffle"``]
+            The mode of upsampling manipulations.
+            Using the ``nontrainable`` modes cannot guarantee the model's reproducibility. Defaults to``nontrainable``.
+
+            - ``deconv``, uses transposed convolution layers.
+            - ``nontrainable``, uses non-trainable `linear` interpolation.
+            - ``pixelshuffle``, uses :py:class:`monai.networks.blocks.SubpixelUpsample`.
     """
 
     def __init__(
@@ -192,10 +204,29 @@ class SegResNetVAE(SegResNet):
         vae_estimate_std: bool = False,
         vae_default_std: float = 0.3,
         vae_nz: int = 256,
-        **kwargs,
+        spatial_dims: int = 3,
+        init_filters: int = 8,
+        in_channels: int = 1,
+        out_channels: int = 2,
+        dropout_prob: Optional[float] = None,
+        act: Union[str, tuple] = ("RELU", {"inplace": True}),
+        norm: Union[Tuple, str] = ("GROUP", {"num_groups": 8}),
+        use_conv_final: bool = True,
+        blocks_down: tuple = (1, 2, 2, 4),
+        blocks_up: tuple = (1, 1, 1),
+        upsample_mode: Union[UpsampleMode, str] = UpsampleMode.NONTRAINABLE,
     ):
         super(SegResNetVAE, self).__init__(
-            **kwargs,
+            spatial_dims=spatial_dims,
+            init_filters=init_filters,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            dropout_prob=dropout_prob,
+            norm=norm,
+            use_conv_final=use_conv_final,
+            blocks_down=blocks_down,
+            blocks_up=blocks_up,
+            upsample_mode=upsample_mode,
         )
 
         self.input_image_size = input_image_size
@@ -208,7 +239,7 @@ class SegResNetVAE(SegResNet):
         self.vae_default_std = vae_default_std
         self.vae_nz = vae_nz
         self._prepare_vae_modules()
-        self.vae_conv_final = self._make_final_conv(self.in_channels)
+        self.vae_conv_final = self._make_final_conv(in_channels)
 
     def _prepare_vae_modules(self):
         zoom = 2 ** (len(self.blocks_down) - 1)
@@ -216,10 +247,10 @@ class SegResNetVAE(SegResNet):
         total_elements = int(self.smallest_filters * np.prod(self.fc_insize))
 
         self.vae_down = nn.Sequential(
-            get_norm_layer(self.spatial_dims, v_filters, norm=self.norm),
+            get_norm_layer(self.spatial_dims, channels=v_filters, norm=self.norm),
             self.act,
             get_conv_layer(self.spatial_dims, v_filters, self.smallest_filters, stride=2, bias=True),
-            get_norm_layer(self.spatial_dims, self.smallest_filters, norm=self.norm),
+            get_norm_layer(self.spatial_dims, channels=self.smallest_filters, norm=self.norm),
             self.act,
         )
         self.vae_fc1 = nn.Linear(total_elements, self.vae_nz)
@@ -229,7 +260,7 @@ class SegResNetVAE(SegResNet):
         self.vae_fc_up_sample = nn.Sequential(
             get_conv_layer(self.spatial_dims, self.smallest_filters, v_filters, kernel_size=1),
             get_upsample_layer(self.spatial_dims, v_filters, upsample_mode=self.upsample_mode),
-            get_norm_layer(self.spatial_dims, v_filters, norm=self.norm),
+            get_norm_layer(self.spatial_dims, channels=v_filters, norm=self.norm),
             self.act,
         )
 
