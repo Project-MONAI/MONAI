@@ -1289,4 +1289,5 @@ class GibbsNoise(Transform):
         mask = np.repeat(mask[None], k.shape[0], axis=0)
 
         # apply binary mask
-        return k * mask
+        k_masked: np.ndarray = k * mask
+        return k_masked
