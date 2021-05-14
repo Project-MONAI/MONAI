@@ -1077,7 +1077,8 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
                 if isinstance(d[key], np.ndarray) and self.as_tensor_output:
                     d[key] = torch.Tensor(d[key])
                 elif isinstance(d[key], torch.Tensor) and not self.as_tensor_output:
-                    d[key] = d[key].detach().cpu().numpy()
+                    #     d[key] = d[key].cpu().detach().numpy()
+                    d[key] = self._to_numpy(d[key])
         return d
 
     def randomize(self, _: Any) -> None:
@@ -1087,6 +1088,10 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
         """
         super().randomize(None)
         self.sampled_alpha = self.R.uniform(self.alpha[0], self.alpha[1])
+
+    def _to_numpy(self, d: Union[torch.Tensor, np.ndarray]) -> torch.Tensor:
+        if isinstance(d, torch.Tensor):
+            return d.cpu().detach().numpy()
 
 
 class GibbsNoised(MapTransform):
