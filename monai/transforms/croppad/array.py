@@ -14,8 +14,9 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 from itertools import chain
-from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 from math import ceil
+from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
+
 import numpy as np
 import torch
 
