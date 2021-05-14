@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Tuple, Union
+from typing import Tuple, Union
 
 from monai.networks.layers.factories import Act, Dropout, Norm, split_args
 from monai.utils import has_option

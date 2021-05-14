@@ -60,7 +60,7 @@ can be parameterized with the factory name and the arguments to pass to the crea
     layer = use_factory( (fact.TEST, kwargs) )
 """
 
-from typing import Any, Callable, Dict, Optional, Tuple, Type, Union
+from typing import Any, Callable, Dict, Tuple, Type, Union
 
 import torch.nn as nn
 
@@ -204,7 +204,7 @@ def dropout_factory(dim: int) -> Type[Union[nn.Dropout, nn.Dropout2d, nn.Dropout
 
 
 @Dropout.factory_function("alphadropout")
-def dropout_factory(_dim):
+def alpha_dropout_factory(_dim):
     return nn.AlphaDropout
 
 

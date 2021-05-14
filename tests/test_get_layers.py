@@ -11,27 +11,26 @@
 
 import unittest
 
-import torch
 from parameterized import parameterized
 
 from monai.networks.layers import get_act_layer, get_dropout_layer, get_norm_layer
 
 TEST_CASE_NORM = [
-    [{"norm": ("group", {"num_groups": 1})}, "GroupNorm(1, 1, eps=1e-05, affine=True)"],
+    [{"name": ("group", {"num_groups": 1})}, "GroupNorm(1, 1, eps=1e-05, affine=True)"],
     [
-        {"norm": "instance", "spatial_dims": 2},
+        {"name": "instance", "spatial_dims": 2},
         "InstanceNorm2d(1, eps=1e-05, momentum=0.1, affine=False, track_running_stats=False)",
     ],
 ]
 
 TEST_CASE_ACT = [
-    [{"act": "swish"}, "Swish()"],
-    [{"act": ("prelu", {"num_parameters": 1, "init": 0.25})}, "PReLU(num_parameters=1)"],
+    [{"name": "swish"}, "Swish()"],
+    [{"name": ("prelu", {"num_parameters": 1, "init": 0.25})}, "PReLU(num_parameters=1)"],
 ]
 
 TEST_CASE_DROPOUT = [
-    [{"dropout": "dropout"}, "Dropout(p=0.5, inplace=False)"],
-    [{"dropout": ("alphadropout", {"p": 0.25})}, "AlphaDropout(p=0.25, inplace=False)"],
+    [{"name": "dropout"}, "Dropout(p=0.5, inplace=False)"],
+    [{"name": ("alphadropout", {"p": 0.25})}, "AlphaDropout(p=0.25, inplace=False)"],
 ]
 
 
