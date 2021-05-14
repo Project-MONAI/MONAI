@@ -1224,13 +1224,13 @@ class GibbsNoise(Transform):
             raise AssertionError("alpha must take values in the interval [0,1].")
         self.alpha = alpha
         self.as_tensor_output = as_tensor_output
-        self._device = "cpu"
+        self._device = torch.device("cpu")
 
     def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> Union[torch.Tensor, np.ndarray]:
         n_dims = len(img.shape[1:])
 
         # convert to ndarray to work with np.fft
-        if type(img) == torch.Tensor:
+        if isinstance(img, torch.Tensor):
             self._device = img.device
             img = img.cpu().detach().numpy()
 
@@ -1242,7 +1242,7 @@ class GibbsNoise(Transform):
         img = self.inv_shift_fourier(k, n_dims)
         return torch.Tensor(img).to(self._device) if self.as_tensor_output else img
 
-    def shift_fourier(self, x: np.ndarray, n_dims: int) -> np.ndarray:
+    def shift_fourier(self, x: Union[np.ndarray, torch.Tensor], n_dims: int) -> np.ndarray:
         """
         Applies fourier transform and shifts its output.
         Only the spatial dimensions get transformed.
@@ -1253,7 +1253,7 @@ class GibbsNoise(Transform):
         out: np.ndarray = np.fft.fftshift(np.fft.fftn(x, axes=tuple(range(-n_dims, 0))), axes=tuple(range(-n_dims, 0)))
         return out
 
-    def inv_shift_fourier(self, k: np.ndarray, n_dims: int) -> np.ndarray:
+    def inv_shift_fourier(self, k: Union[np.ndarray, torch.Tensor], n_dims: int) -> np.ndarray:
         """
         Applies inverse shift and fourier transform. Only the spatial
         dimensions are transformed.
