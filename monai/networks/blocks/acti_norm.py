@@ -13,8 +13,7 @@ from typing import Optional, Tuple, Union
 
 import torch.nn as nn
 
-from monai.networks.blocks.utils import get_act_layer, get_norm_layer
-from monai.networks.layers.factories import Dropout, split_args
+from monai.networks.layers.utils import get_act_layer, get_dropout_layer, get_norm_layer
 
 
 class ADN(nn.Sequential):
@@ -82,28 +81,18 @@ class ADN(nn.Sequential):
         op_dict = {"A": None, "D": None, "N": None}
         # define the normalization type and the arguments to the constructor
         if norm is not None:
-            spatial_dims = norm_dim or dropout_dim
-            if isinstance(spatial_dims, int):
-                op_dict["N"] = get_norm_layer(spatial_dims=spatial_dims, channels=in_channels, norm=norm)
-            else:
+            if norm_dim is None and dropout_dim is None:
                 raise ValueError("norm_dim or dropout_dim needs to be specified.")
+            op_dict["N"] = get_norm_layer(name=norm, spatial_dims=norm_dim or dropout_dim, channels=in_channels)
 
         # define the activation type and the arguments to the constructor
         if act is not None:
             op_dict["A"] = get_act_layer(act)
 
         if dropout is not None:
-            # if dropout was specified simply as a p value, use default name and make a keyword map with the value
-            if isinstance(dropout, (int, float)):
-                drop_name = Dropout.DROPOUT
-                drop_args = {"p": float(dropout)}
-            else:
-                drop_name, drop_args = split_args(dropout)
-
             if norm_dim is None and dropout_dim is None:
                 raise ValueError("norm_dim or dropout_dim needs to be specified.")
-            drop_type = Dropout[drop_name, dropout_dim or norm_dim]
-            op_dict["D"] = drop_type(**drop_args)
+            op_dict["D"] = get_dropout_layer(name=dropout, dropout_dim=dropout_dim or norm_dim)
 
         for item in ordering.upper():
             if item not in op_dict:

@@ -15,8 +15,8 @@ import torch.nn as nn
 
 from monai.networks.blocks.convolutions import Convolution
 from monai.networks.blocks.upsample import UpSample
-from monai.networks.blocks.utils import get_norm_layer
 from monai.networks.layers.factories import Act
+from monai.networks.layers.utils import get_norm_layer
 from monai.utils import InterpolateMode, UpsampleMode
 
 
@@ -76,8 +76,8 @@ class ResBlock(nn.Module):
         if kernel_size % 2 != 1:
             raise AssertionError("kernel_size should be an odd number.")
 
-        self.norm1 = get_norm_layer(spatial_dims, channels=in_channels, norm=norm)
-        self.norm2 = get_norm_layer(spatial_dims, channels=in_channels, norm=norm)
+        self.norm1 = get_norm_layer(name=norm, spatial_dims=spatial_dims, channels=in_channels)
+        self.norm2 = get_norm_layer(name=norm, spatial_dims=spatial_dims, channels=in_channels)
         self.relu = Act[Act.RELU](inplace=True)
         self.conv1 = get_conv_layer(spatial_dims, in_channels=in_channels, out_channels=in_channels)
         self.conv2 = get_conv_layer(spatial_dims, in_channels=in_channels, out_channels=in_channels)
