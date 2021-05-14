@@ -1066,7 +1066,7 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
     ) -> Dict[Hashable, Union[torch.Tensor, np.ndarray]]:
 
         d = dict(data)
-        self.randomize(None)
+        self._randomize(None)
 
         for i, key in enumerate(self.key_iterator(d)):
             if self._do_transform:
@@ -1080,7 +1080,7 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
                     d[key] = self._to_numpy(d[key])
         return d
 
-    def randomize(self, _: Any) -> None:
+    def _randomize(self, _: Any) -> None:
         """
         (1) Set random variable to apply the transform.
         (2) Get alpha from uniform distribution.
