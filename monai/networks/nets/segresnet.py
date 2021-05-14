@@ -17,8 +17,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from monai.networks.blocks.segresnet_block import ResBlock, get_conv_layer, get_upsample_layer
-from monai.networks.blocks.utils import get_act_layer, get_norm_layer
 from monai.networks.layers.factories import Dropout
+from monai.networks.layers.utils import get_act_layer, get_norm_layer
 from monai.utils import UpsampleMode
 
 
@@ -138,7 +138,7 @@ class SegResNet(nn.Module):
 
     def _make_final_conv(self, out_channels: int):
         return nn.Sequential(
-            get_norm_layer(self.spatial_dims, channels=self.init_filters, norm=self.norm),
+            get_norm_layer(name=self.norm, spatial_dims=self.spatial_dims, channels=self.init_filters),
             self.act,
             get_conv_layer(self.spatial_dims, self.init_filters, out_channels, kernel_size=1, bias=True),
         )
@@ -247,10 +247,10 @@ class SegResNetVAE(SegResNet):
         total_elements = int(self.smallest_filters * np.prod(self.fc_insize))
 
         self.vae_down = nn.Sequential(
-            get_norm_layer(self.spatial_dims, channels=v_filters, norm=self.norm),
+            get_norm_layer(name=self.norm, spatial_dims=self.spatial_dims, channels=v_filters),
             self.act,
             get_conv_layer(self.spatial_dims, v_filters, self.smallest_filters, stride=2, bias=True),
-            get_norm_layer(self.spatial_dims, channels=self.smallest_filters, norm=self.norm),
+            get_norm_layer(name=self.norm, spatial_dims=self.spatial_dims, channels=self.smallest_filters),
             self.act,
         )
         self.vae_fc1 = nn.Linear(total_elements, self.vae_nz)
@@ -260,7 +260,7 @@ class SegResNetVAE(SegResNet):
         self.vae_fc_up_sample = nn.Sequential(
             get_conv_layer(self.spatial_dims, self.smallest_filters, v_filters, kernel_size=1),
             get_upsample_layer(self.spatial_dims, v_filters, upsample_mode=self.upsample_mode),
-            get_norm_layer(self.spatial_dims, channels=v_filters, norm=self.norm),
+            get_norm_layer(name=self.norm, spatial_dims=self.spatial_dims, channels=v_filters),
             self.act,
         )
 

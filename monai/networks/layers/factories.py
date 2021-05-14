@@ -203,6 +203,11 @@ def dropout_factory(dim: int) -> Type[Union[nn.Dropout, nn.Dropout2d, nn.Dropout
     return types[dim - 1]
 
 
+@Dropout.factory_function("alphadropout")
+def dropout_factory(_dim):
+    return nn.AlphaDropout
+
+
 @Norm.factory_function("instance")
 def instance_factory(dim: int) -> Type[Union[nn.InstanceNorm1d, nn.InstanceNorm2d, nn.InstanceNorm3d]]:
     types = (nn.InstanceNorm1d, nn.InstanceNorm2d, nn.InstanceNorm3d)
@@ -216,22 +221,22 @@ def batch_factory(dim: int) -> Type[Union[nn.BatchNorm1d, nn.BatchNorm2d, nn.Bat
 
 
 @Norm.factory_function("group")
-def group_factory(_dim: Optional[int] = None) -> Type[nn.GroupNorm]:
+def group_factory(_dim) -> Type[nn.GroupNorm]:
     return nn.GroupNorm
 
 
 @Norm.factory_function("layer")
-def layer_factory(_dim: Optional[int] = None) -> Type[nn.LayerNorm]:
+def layer_factory(_dim) -> Type[nn.LayerNorm]:
     return nn.LayerNorm
 
 
 @Norm.factory_function("localresponse")
-def local_response_factory(_dim: Optional[int] = None) -> Type[nn.LocalResponseNorm]:
+def local_response_factory(_dim) -> Type[nn.LocalResponseNorm]:
     return nn.LocalResponseNorm
 
 
 @Norm.factory_function("syncbatch")
-def sync_batch_factory(_dim: Optional[int] = None) -> Type[nn.SyncBatchNorm]:
+def sync_batch_factory(_dim) -> Type[nn.SyncBatchNorm]:
     return nn.SyncBatchNorm
 
 

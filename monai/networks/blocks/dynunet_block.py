@@ -16,8 +16,8 @@ import torch
 import torch.nn as nn
 
 from monai.networks.blocks.convolutions import Convolution
-from monai.networks.blocks.utils import get_act_layer, get_norm_layer
 from monai.networks.layers.factories import Act, Norm
+from monai.networks.layers.utils import get_act_layer, get_norm_layer
 
 
 class UnetResBlock(nn.Module):
@@ -71,9 +71,9 @@ class UnetResBlock(nn.Module):
             conv_only=True,
         )
         self.lrelu = get_act_layer(("leakyrelu", {"inplace": True, "negative_slope": 0.01}))
-        self.norm1 = get_norm_layer(spatial_dims, channels=out_channels, norm=norm_name)
-        self.norm2 = get_norm_layer(spatial_dims, channels=out_channels, norm=norm_name)
-        self.norm3 = get_norm_layer(spatial_dims, channels=out_channels, norm=norm_name)
+        self.norm1 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
+        self.norm2 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
+        self.norm3 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
         self.downsample = in_channels != out_channels
         stride_np = np.atleast_1d(stride)
         if not np.all(stride_np == 1):
@@ -137,8 +137,8 @@ class UnetBasicBlock(nn.Module):
             conv_only=True,
         )
         self.lrelu = get_act_layer(("leakyrelu", {"inplace": True, "negative_slope": 0.01}))
-        self.norm1 = get_norm_layer(spatial_dims, channels=out_channels, norm=norm_name)
-        self.norm2 = get_norm_layer(spatial_dims, channels=out_channels, norm=norm_name)
+        self.norm1 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
+        self.norm2 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
 
     def forward(self, inp):
         out = self.conv1(inp)
