@@ -281,7 +281,7 @@ jobs:
         python -m pip list
     - name: Run quick tests (GPU)
       run: |
-        git clone --depth 1 --branch master --single-branch \
+        git clone --depth 1 \
           https://github.com/Project-MONAI/MONAI-extra-test-data.git /MONAI-extra-test-data
         export MONAI_EXTRA_TEST_DATA="/MONAI-extra-test-data"
         nvidia-smi
