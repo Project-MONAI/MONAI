@@ -29,8 +29,8 @@ class TestAddCoordinateChannels(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape(self, input_param, input, expected_shape):
         result = AddCoordinateChannels(**input_param)(input)
-        print(result.shape, expected_shape)
         self.assertEqual(list(result.shape), list(expected_shape))
+        np.testing.assert_array_equal(input[0,...], result[0,...])
 
     @parameterized.expand([TEST_CASE_ERROR_3])
     def test_max_channel(self, input_param, input):
