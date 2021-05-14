@@ -149,4 +149,4 @@ class SegmentationSaver:
         meta_data = self.batch_transform(engine.state.batch)
         engine_output = self.output_transform(engine.state.output)
         self._saver(engine_output, meta_data)
-        self.logger.info("saved all the model outputs into files.")
+        self.logger.info("model outputs saved into files.")

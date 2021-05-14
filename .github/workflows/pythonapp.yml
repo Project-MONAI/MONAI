@@ -227,7 +227,7 @@ jobs:
           - environment: PT18+CUDA112
             # we explicitly set pytorch to -h to avoid pip install error
             pytorch: "-h"
-            base: "nvcr.io/nvidia/pytorch:21.02-py3"
+            base: "nvcr.io/nvidia/pytorch:21.04-py3"
     container:
       image: ${{ matrix.base }}
       options: --gpus all
@@ -260,7 +260,8 @@ jobs:
           libboost-test-dev \
           libgoogle-glog-dev \
           libjsoncpp-dev \
-          cmake && \
+          cmake \
+          git && \
         rm -rf /var/lib/apt/lists/* && \
         export PYTHONIOENCODING=utf-8 LC_ALL=C.UTF-8 && \
         rm -f /usr/bin/python && \
@@ -280,6 +281,9 @@ jobs:
         python -m pip list
     - name: Run quick tests (GPU)
       run: |
+        git clone --depth 1 \
+          https://github.com/Project-MONAI/MONAI-extra-test-data.git /MONAI-extra-test-data
+        export MONAI_EXTRA_TEST_DATA="/MONAI-extra-test-data"
         nvidia-smi
         export LAUNCH_DELAY=$(python -c "import numpy; print(numpy.random.randint(30) * 10)")
         echo "Sleep $LAUNCH_DELAY"
