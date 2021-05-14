@@ -281,7 +281,7 @@ Intensity
     :special-members: __call__
 
 `RandGibbsNoised`
-""""""""""""""
+""""""""""""""""""
 .. autoclass:: RandGibbsNoised
     :members:
     :special-members: __call__
