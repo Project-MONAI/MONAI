@@ -1238,7 +1238,7 @@ class GibbsNoise(Transform):
         img = self.inv_shift_fourier(k, n_dims)
         return torch.Tensor(img).to(self._device) if self.as_tensor_output else img
 
-    def shift_fourier(self, x: np.ndarray, n_dims: int) -> torch.Tensor:
+    def shift_fourier(self, x: np.ndarray, n_dims: int) -> np.ndarray:
         """
         Applies fourier transform and shifts its output.
         Only the spatial dimensions get transformed.
@@ -1249,7 +1249,7 @@ class GibbsNoise(Transform):
         out: np.ndarray = np.fft.fftshift(np.fft.fftn(x, axes=tuple(range(-n_dims, 0))), axes=tuple(range(-n_dims, 0)))
         return out
 
-    def inv_shift_fourier(self, k: np.ndarray, n_dims: int) -> torch.Tensor:
+    def inv_shift_fourier(self, k: np.ndarray, n_dims: int) -> np.ndarray:
         """
         Applies inverse shift and fourier transform. Only the spatial
         dimensions are transformed.
