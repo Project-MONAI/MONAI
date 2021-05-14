@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 from monai.networks.layers.factories import Act, Dropout, Norm, split_args
 from monai.utils import has_option
@@ -17,7 +17,7 @@ from monai.utils import has_option
 __all__ = ["get_norm_layer", "get_act_layer", "get_dropout_layer"]
 
 
-def get_norm_layer(name: Union[Tuple, str], spatial_dims: int = 1, channels: int = 1):
+def get_norm_layer(name: Union[Tuple, str], spatial_dims: Optional[int] = 1, channels: Optional[int] = 1):
     """
     Create a normalization layer instance.
 
@@ -67,7 +67,7 @@ def get_act_layer(name: Union[Tuple, str]):
     return act_type(**act_args)
 
 
-def get_dropout_layer(name: Union[Tuple, str, float, int], dropout_dim: int = 1):
+def get_dropout_layer(name: Union[Tuple, str, float, int], dropout_dim: Optional[int] = 1):
     """
     Create a dropout layer instance.
 
