@@ -429,7 +429,11 @@ class RandBiasField(RandomizableTransform):
         self.dtype = dtype
 
     def _generate_random_field(
-        self, spatial_shape: Tuple[int, ...], rank: int, degree: int, coeff: Tuple[int, ...],
+        self,
+        spatial_shape: Tuple[int, ...],
+        rank: int,
+        degree: int,
+        coeff: Tuple[int, ...],
     ):
         """
         products of polynomials as bias field estimations
