@@ -1177,7 +1177,7 @@ class RandGibbsNoise(RandomizableTransform):
     def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> Union[torch.Tensor, np.ndarray]:
 
         # randomize application and possibly alpha
-        self.randomize(None)
+        self._randomize(None)
 
         if self._do_transform:
             # apply transform
@@ -1190,7 +1190,7 @@ class RandGibbsNoise(RandomizableTransform):
                 img = img.detach().cpu().numpy()
         return img
 
-    def randomize(self, _: Any) -> None:
+    def _randomize(self, _: Any) -> None:
         """
         (1) Set random variable to apply the transform.
         (2) Get alpha from uniform distribution.
@@ -1235,14 +1235,14 @@ class GibbsNoise(Transform):
             img = img.cpu().detach().numpy()
 
         # FT
-        k = self.shift_fourier(img, n_dims)
+        k = self._shift_fourier(img, n_dims)
         # build and apply mask
-        k = self.apply_mask(k)
+        k = self._apply_mask(k)
         # map back
-        img = self.inv_shift_fourier(k, n_dims)
+        img = self._inv_shift_fourier(k, n_dims)
         return torch.Tensor(img).to(self._device) if self.as_tensor_output else img
 
-    def shift_fourier(self, x: Union[np.ndarray, torch.Tensor], n_dims: int) -> np.ndarray:
+    def _shift_fourier(self, x: Union[np.ndarray, torch.Tensor], n_dims: int) -> np.ndarray:
         """
         Applies fourier transform and shifts its output.
         Only the spatial dimensions get transformed.
@@ -1253,7 +1253,7 @@ class GibbsNoise(Transform):
         out: np.ndarray = np.fft.fftshift(np.fft.fftn(x, axes=tuple(range(-n_dims, 0))), axes=tuple(range(-n_dims, 0)))
         return out
 
-    def inv_shift_fourier(self, k: Union[np.ndarray, torch.Tensor], n_dims: int) -> np.ndarray:
+    def _inv_shift_fourier(self, k: Union[np.ndarray, torch.Tensor], n_dims: int) -> np.ndarray:
         """
         Applies inverse shift and fourier transform. Only the spatial
         dimensions are transformed.
@@ -1263,7 +1263,7 @@ class GibbsNoise(Transform):
         ).real
         return out
 
-    def apply_mask(self, k: np.ndarray) -> np.ndarray:
+    def _apply_mask(self, k: np.ndarray) -> np.ndarray:
         """Builds and applies a mask on the spatial dimensions.
 
         Args:
