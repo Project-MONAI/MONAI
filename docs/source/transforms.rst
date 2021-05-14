@@ -444,9 +444,9 @@ Spatial
     :members:
     :special-members: __call__
 
-`CoordConv`
-"""""""""""
-.. autoclass:: CoordConv
+`AddCoordinateChannels`
+"""""""""""""""""""""""
+.. autoclass:: AddCoordinateChannels
     :members:
     :special-members: __call__
 
@@ -952,9 +952,9 @@ Spatial (Dict)
     :members:
     :special-members: __call__
 
-`CoordConvd`
-""""""""""""
-.. autoclass:: CoordConvd
+`AddCoordinateChannelsd`
+""""""""""""""""""""""""
+.. autoclass:: AddCoordinateChannelsd
     :members:
     :special-members: __call__
 

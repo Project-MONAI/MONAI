@@ -28,9 +28,9 @@ from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.array import (
+    AddCoordinateChannels,
     Affine,
     AffineGrid,
-    CoordConv,
     Flip,
     Orientation,
     Rand2DElastic,
@@ -107,8 +107,8 @@ __all__ = [
     "ZoomDict",
     "RandZoomD",
     "RandZoomDict",
-    "CoordConvD",
-    "CoordConvDict",
+    "AddCoordinateChannelsD",
+    "AddCoordinateChannelsDict",
 ]
 
 GridSampleModeSequence = Union[Sequence[Union[GridSampleMode, str]], GridSampleMode, str]
@@ -1642,9 +1642,9 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
 
-class CoordConvd(MapTransform):
+class AddCoordinateChannelsd(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.CoordConv`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.AddCoordinateChannels`.
     """
 
     def __init__(self, keys: KeysCollection, spatial_channels: Sequence[int], allow_missing_keys: bool = False) -> None:
@@ -1659,14 +1659,14 @@ class CoordConvd(MapTransform):
 
         """
         super().__init__(keys, allow_missing_keys)
-        self.coord_conv = CoordConv(spatial_channels)
+        self.add_coordinate_channels = AddCoordinateChannels(spatial_channels)
 
     def __call__(
         self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
     ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
         d = dict(data)
         for key in self.key_iterator(d):
-            d[key] = self.coord_conv(d[key])
+            d[key] = self.add_coordinate_channels(d[key])
         return d
 
 
@@ -1686,4 +1686,4 @@ RotateD = RotateDict = Rotated
 RandRotateD = RandRotateDict = RandRotated
 ZoomD = ZoomDict = Zoomd
 RandZoomD = RandZoomDict = RandZoomd
-CoordConvD = CoordConvDict = CoordConvd
+AddCoordinateChannelsD = AddCoordinateChannelsDict = AddCoordinateChannelsd

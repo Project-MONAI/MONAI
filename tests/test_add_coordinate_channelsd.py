@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms import CoordConvd
+from monai.transforms import AddCoordinateChannelsd
 
 TEST_CASE_1 = [
     {"spatial_channels": (1, 2, 3), "keys": ["img"]},
@@ -33,21 +33,21 @@ TEST_CASE_ERROR_3 = [{"spatial_channels": (3,), "keys": ["img"]}, {"img": np.ran
 TEST_CASE_ERROR_4 = [{"spatial_channels": (0, 1, 2), "keys": ["img"]}, {"img": np.random.randint(0, 2, size=(1, 3, 3))}]
 
 
-class TestCoordConv(unittest.TestCase):
+class TestAddCoordinateChannels(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape(self, input_param, input, expected_shape):
-        result = CoordConvd(**input_param)(input)
+        result = AddCoordinateChannelsd(**input_param)(input)
         self.assertEqual(list(result["img"].shape), list(expected_shape))
 
     @parameterized.expand([TEST_CASE_ERROR_3])
     def test_max_channel(self, input_param, input):
         with self.assertRaises(ValueError):
-            CoordConvd(**input_param)(input)
+            AddCoordinateChannelsd(**input_param)(input)
 
     @parameterized.expand([TEST_CASE_ERROR_4])
     def test_channel_dim(self, input_param, input):
         with self.assertRaises(ValueError):
-            CoordConvd(**input_param)(input)
+            AddCoordinateChannelsd(**input_param)(input)
 
 
 if __name__ == "__main__":

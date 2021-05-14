@@ -69,7 +69,7 @@ __all__ = [
     "RandAffine",
     "Rand2DElastic",
     "Rand3DElastic",
-    "CoordConv",
+    "AddCoordinateChannels",
 ]
 
 RandRange = Optional[Union[Sequence[Union[Tuple[float, float], float]], float]]
@@ -1703,9 +1703,12 @@ class Rand3DElastic(RandomizableTransform):
         return self.resampler(img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode)
 
 
-class CoordConv(Transform):
+class AddCoordinateChannels(Transform):
     """
-    Appends additional channels encoding coordinates of the input.
+    Appends additional channels encoding coordinates of the input. Useful when e.g. training using patch-based sampling,
+    to allow feeding of the patch's location into the network.
+
+    This can be seen as a input-only version of CoordConv:
 
     Liu, R. et al. An Intriguing Failing of Convolutional Neural Networks and the CoordConv Solution, NeurIPS 2018.
     """
@@ -1722,29 +1725,27 @@ class CoordConv(Transform):
         """
         self.spatial_channels = spatial_channels
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, torch.Tensor]:
+    def __call__(self, img: Union[np.ndarray, torch.Tensor]):
         """
         Args:
             img: data to be transformed, assuming `img` is channel first.
         """
         if max(self.spatial_channels) > img.ndim - 1:
             raise ValueError(
-                f"input has {img.ndim-1} spatial dimensions, cannot add CoordConv channel for dim {max(self.spatial_channels)}."
+                f"input has {img.ndim-1} spatial dimensions, cannot add AddCoordinateChannels channel for "
+                f"dim {max(self.spatial_channels)}."
             )
         if 0 in self.spatial_channels:
-            raise ValueError("cannot add CoordConv channel for dimension 0, as 0 is channel dim.")
+            raise ValueError("cannot add AddCoordinateChannels channel for dimension 0, as 0 is channel dim.")
 
         spatial_dims = img.shape[1:]
-        # pre-allocate memory
-        coord_channels = np.ones((len(self.spatial_channels), *spatial_dims)).astype(img.dtype)
-
-        for i, dim in enumerate(self.spatial_channels):
-            ones = np.ones((1, *spatial_dims))
-            channel_size = img.shape[dim]
-            range = np.arange(channel_size)
-            non_channel_dims = list(set(np.arange(img.ndim)).difference([dim]))
-            channel = ones * np.expand_dims(range, non_channel_dims)
-            channel = channel / channel_size - 0.5
-            coord_channels[i] = channel
+        num_spatial_dims = len(spatial_dims)
+        coord_channels = np.mgrid[tuple(slice(0, i) for i in spatial_dims)]
+        # normalise so coordinates lie between [-0.5,0.5]
+        normalisation = np.expand_dims(np.array(spatial_dims) - 1, axis=tuple(np.arange(1, num_spatial_dims + 1)))
+        coord_channels = coord_channels / normalisation - 0.5
+        # only keep required dimensions. need to subtract 1 since im will be 0-based
+        # but user input is 1-based (because channel dim is 0)
+        coord_channels = coord_channels[[s - 1 for s in self.spatial_channels]]
 
         return np.concatenate((img, coord_channels), axis=0)
