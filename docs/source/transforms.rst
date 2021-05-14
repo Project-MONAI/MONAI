@@ -269,7 +269,7 @@ Intensity
     :special-members: __call__
 
 `RandGibbsNoise`
-""""""""""""""
+"""""""""""""""""
 .. autoclass:: GibbsNoise
     :members:
     :special-members: __call__
