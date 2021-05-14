@@ -268,6 +268,19 @@ Intensity
     :members:
     :special-members: __call__
 
+`GibbsNoise`
+""""""""""""""
+.. autoclass:: GibbsNoise
+    :members:
+    :special-members: __call__
+
+`RandGibbsNoise`
+"""""""""""""""""
+.. autoclass:: RandGibbsNoise
+    :members:
+    :special-members: __call__
+
+
 IO
 ^^
 
@@ -736,6 +749,18 @@ Instensity (Dict)
 `ScaleIntensityRanged`
 """"""""""""""""""""""
 .. autoclass:: ScaleIntensityRanged
+    :members:
+    :special-members: __call__
+
+`GibbsNoised`
+""""""""""""""
+.. autoclass:: GibbsNoised
+    :members:
+    :special-members: __call__
+
+`RandGibbsNoised`
+""""""""""""""""""
+.. autoclass:: RandGibbsNoised
     :members:
     :special-members: __call__
 
