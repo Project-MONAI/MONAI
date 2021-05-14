@@ -142,12 +142,12 @@ class TestTestTimeAugmentation(unittest.TestCase):
             TestTimeAugmentation(transforms, None, None, None)
 
     def test_single_transform(self):
-        transforms = RandFlipd(["image", "label"])
+        transforms = RandFlipd(["image", "label"], prob=1.0)
         tta = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x)
         tta(self.get_data(1, (20, 20)))
 
     def test_image_no_label(self):
-        transforms = RandFlipd(["image"])
+        transforms = RandFlipd(["image"], prob=1.0)
         tta = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x, label_key="image")
         tta(self.get_data(1, (20, 20), include_label=False))
 

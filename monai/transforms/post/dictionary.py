@@ -15,13 +15,19 @@ defined in :py:class:`monai.transforms.utility.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Union
+import warnings
+from copy import deepcopy
+from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Union
 
 import numpy as np
 import torch
+from torch.utils.data import DataLoader as TorchDataLoader
 
 import monai.data
 from monai.config import KeysCollection
+from monai.data.utils import no_collation
+from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.inverse_batch_transform import BatchInverseTransform
 from monai.transforms.post.array import (
     Activations,
     AsDiscrete,
@@ -32,7 +38,10 @@ from monai.transforms.post.array import (
     VoteEnsemble,
 )
 from monai.transforms.transform import MapTransform
+from monai.transforms.utility.array import ToTensor
+from monai.transforms.utils import allow_missing_keys_mode, convert_inverse_interp_mode
 from monai.utils import ensure_tuple_rep
+from monai.utils.enums import InverseKeys
 
 __all__ = [
     "Activationsd",
@@ -46,6 +55,9 @@ __all__ = [
     "ActivationsDict",
     "AsDiscreteD",
     "AsDiscreteDict",
+    "InvertD",
+    "InvertDict",
+    "Invertd",
     "KeepLargestConnectedComponentD",
     "KeepLargestConnectedComponentDict",
     "LabelToContourD",
@@ -399,6 +411,142 @@ class ProbNMSd(MapTransform):
         return d
 
 
+class Invertd(MapTransform):
+    """
+    Utility transform to automatically invert the previous transforms based on transform information.
+    It extracts the transform information applied on the data with `orig_keys`, then inverts the transforms
+    on the data with `keys`. several `keys` can share one `orig_keys`.
+    A typical usage is to invert the pre-transforms (appplied on input `image`) on the model `pred` data.
+
+    Note:
+        According to the `collate_fn`, this transform may return a list of Tensor without batch dim,
+        thus some following post transforms may not support a list of Tensor, and users can leverage the
+        `post_func` arg for basic processing logic.
+
+        As this transform only accepts 1 input dict while ignite stores model input data in `state.batch`
+        and stores model output data in `state.output`, so it's not compatible with MONAI engines so far.
+        For MONAI workflow engines, please use the `TransformInverter` handler instead.
+        Users can use this transform in a regular PyTorch program which uses dict data for transforms.
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        transform: InvertibleTransform,
+        loader: TorchDataLoader,
+        orig_keys: Union[str, Sequence[str]],
+        meta_key_postfix: str = "meta_dict",
+        collate_fn: Optional[Callable] = no_collation,
+        postfix: str = "inverted",
+        nearest_interp: Union[bool, Sequence[bool]] = True,
+        to_tensor: Union[bool, Sequence[bool]] = True,
+        device: Union[Union[str, torch.device], Sequence[Union[str, torch.device]]] = "cpu",
+        post_func: Union[Callable, Sequence[Callable]] = lambda x: x,
+        num_workers: Optional[int] = 0,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: the key of expected data in the dict, invert transforms on it.
+                it also can be a list of keys, will invert transform for each of them, like: ["pred", "pred_class2"].
+            transform: the previous callable transform that applied on input data.
+            loader: data loader used to run transforms and generate the batch of data.
+            orig_keys: the key of the original input data in the dict. will get the applied transform information
+                for this input data, then invert them for the expected data with `keys`.
+                It can also be a list of keys, each matches to the `keys` data.
+            meta_key_postfix: use `{orig_key}_{postfix}` to to fetch the meta data from dict,
+                default is `meta_dict`, the meta data is a dictionary object.
+                For example, to handle orig_key `image`,  read/write `affine` matrices from the
+                metadata `image_meta_dict` dictionary's `affine` field.
+            collate_fn: how to collate data after inverse transformations. default won't do any collation,
+                so the output will be a list of PyTorch Tensor or numpy array without batch dim.
+            postfix: will save the inverted result into dict with key `{key}_{postfix}`.
+            nearest_interp: whether to use `nearest` interpolation mode when inverting the spatial transforms,
+                default to `True`. If `False`, use the same interpolation mode as the original transform.
+                it also can be a list of bool, each matches to the `keys` data.
+            to_tensor: whether to convert the inverted data into PyTorch Tensor first, default to `True`.
+                it also can be a list of bool, each matches to the `keys` data.
+            device: if converted to Tensor, move the inverted results to target device before `post_func`,
+                default to "cpu", it also can be a list of string or `torch.device`,
+                each matches to the `keys` data.
+            post_func: post processing for the inverted data, should be a callable function.
+                it also can be a list of callable, each matches to the `keys` data.
+            num_workers: number of workers when run data loader for inverse transforms,
+                default to 0 as only run one iteration and multi-processing may be even slower.
+                Set to `None`, to use the `num_workers` of the input transform data loader.
+            allow_missing_keys: don't raise exception if key is missing.
+
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.transform = transform
+        self.inverter = BatchInverseTransform(
+            transform=transform,
+            loader=loader,
+            collate_fn=collate_fn,
+            num_workers=num_workers,
+        )
+        self.orig_keys = ensure_tuple_rep(orig_keys, len(self.keys))
+        self.meta_key_postfix = meta_key_postfix
+        self.postfix = postfix
+        self.nearest_interp = ensure_tuple_rep(nearest_interp, len(self.keys))
+        self.to_tensor = ensure_tuple_rep(to_tensor, len(self.keys))
+        self.device = ensure_tuple_rep(device, len(self.keys))
+        self.post_func = ensure_tuple_rep(post_func, len(self.keys))
+        self._totensor = ToTensor()
+
+    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+        d = dict(data)
+        for key, orig_key, nearest_interp, to_tensor, device, post_func in self.key_iterator(
+            d, self.orig_keys, self.nearest_interp, self.to_tensor, self.device, self.post_func
+        ):
+            transform_key = orig_key + InverseKeys.KEY_SUFFIX
+            if transform_key not in d:
+                warnings.warn(f"transform info of `{orig_key}` is not available or no InvertibleTransform applied.")
+                continue
+
+            transform_info = d[transform_key]
+            if nearest_interp:
+                transform_info = convert_inverse_interp_mode(
+                    trans_info=deepcopy(transform_info),
+                    mode="nearest",
+                    align_corners=None,
+                )
+
+            input = d[key]
+            if isinstance(input, torch.Tensor):
+                input = input.detach()
+            # construct the input dict data for BatchInverseTransform
+            input_dict = {
+                orig_key: input,
+                transform_key: transform_info,
+            }
+            meta_dict_key = f"{orig_key}_{self.meta_key_postfix}"
+            if meta_dict_key in d:
+                input_dict[meta_dict_key] = d[meta_dict_key]
+
+            with allow_missing_keys_mode(self.transform):  # type: ignore
+                inverted = self.inverter(input_dict)
+
+            # save the inverted data
+            inverted_key = f"{key}_{self.postfix}"
+            if isinstance(inverted, (tuple, list)):
+                d[inverted_key] = [
+                    post_func(self._totensor(i[orig_key]).to(device) if to_tensor else i[orig_key]) for i in inverted
+                ]
+                # save the inverted meta dict
+                if meta_dict_key in d:
+                    d[f"{inverted_key}_{self.meta_key_postfix}"] = [i.get(meta_dict_key) for i in inverted]
+            else:
+                d[inverted_key] = post_func(
+                    self._totensor(inverted[orig_key]).to(device) if to_tensor else inverted[orig_key]
+                )
+                # save the inverted meta dict
+                if meta_dict_key in d:
+                    d[f"{inverted_key}_{self.meta_key_postfix}"] = inverted.get(meta_dict_key)
+        return d
+
+
 ActivationsD = ActivationsDict = Activationsd
 AsDiscreteD = AsDiscreteDict = AsDiscreted
 KeepLargestConnectedComponentD = KeepLargestConnectedComponentDict = KeepLargestConnectedComponentd
@@ -407,3 +555,4 @@ MeanEnsembleD = MeanEnsembleDict = MeanEnsembled
 ProbNMSD = ProbNMSDict = ProbNMSd
 VoteEnsembleD = VoteEnsembleDict = VoteEnsembled
 DecollateD = DecollateDict = Decollated
+InvertD = InvertDict = Invertd

@@ -43,6 +43,11 @@ Generic Interfaces
 .. autoclass:: InvertibleTransform
     :members:
 
+`BatchInverseTransform`
+^^^^^^^^^^^^^^^^^^^^^^^
+.. autoclass:: BatchInverseTransform
+    :members:
+
 
 Vanilla Transforms
 ------------------
@@ -119,6 +124,12 @@ Crop and Pad
 `BoundingRect`
 """"""""""""""
 .. autoclass:: BoundingRect
+    :members:
+    :special-members: __call__
+
+`RandScaleCrop`
+"""""""""""""""
+.. autoclass:: RandScaleCrop
     :members:
     :special-members: __call__
 
@@ -256,6 +267,19 @@ Intensity
 .. autoclass:: DetectEnvelope
     :members:
     :special-members: __call__
+
+`GibbsNoise`
+""""""""""""""
+.. autoclass:: GibbsNoise
+    :members:
+    :special-members: __call__
+
+`RandGibbsNoise`
+"""""""""""""""""
+.. autoclass:: RandGibbsNoise
+    :members:
+    :special-members: __call__
+
 
 IO
 ^^
@@ -502,6 +526,13 @@ Utility
     :members:
     :special-members: __call__
 
+`ToCupy`
+""""""""
+.. autoclass:: ToCupy
+    :members:
+    :special-members: __call__
+
+
 `Transpose`
 """""""""""
 .. autoclass:: Transpose
@@ -646,6 +677,12 @@ Crop and Pad (Dict)
     :members:
     :special-members: __call__
 
+`RandScaleCropd`
+""""""""""""""""
+.. autoclass:: RandScaleCropd
+    :members:
+    :special-members: __call__
+
 Instensity (Dict)
 ^^^^^^^^^^^^^^^^^
 
@@ -712,6 +749,18 @@ Instensity (Dict)
 `ScaleIntensityRanged`
 """"""""""""""""""""""
 .. autoclass:: ScaleIntensityRanged
+    :members:
+    :special-members: __call__
+
+`GibbsNoised`
+""""""""""""""
+.. autoclass:: GibbsNoised
+    :members:
+    :special-members: __call__
+
+`RandGibbsNoised`
+""""""""""""""""""
+.. autoclass:: RandGibbsNoised
     :members:
     :special-members: __call__
 
@@ -826,6 +875,12 @@ Post-processing (Dict)
 `VoteEnsembled`
 """""""""""""""
 .. autoclass:: VoteEnsembled
+    :members:
+    :special-members: __call__
+
+`Invertd`
+"""""""""
+.. autoclass:: Invertd
     :members:
     :special-members: __call__
 
@@ -988,6 +1043,12 @@ Utility (Dict)
 `ToNumpyd`
 """"""""""
 .. autoclass:: ToNumpyd
+    :members:
+    :special-members: __call__
+
+`ToCupyd`
+"""""""""
+.. autoclass:: ToCupyd
     :members:
     :special-members: __call__
 
