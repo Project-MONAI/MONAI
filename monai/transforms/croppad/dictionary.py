@@ -520,7 +520,8 @@ class RandScaleCropd(RandSpatialCropd):
             will use `1.0` instead, which means the input image size.
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specified size ROI by `roi_scale * image spatial size`.
-            if True, the actual size is sampled from `rand(roi_scale, max_roi_scale) * image spatial size`.
+            if True, the actual size is sampled from:
+            `randint(roi_scale * image spatial size, max_roi_scale * image spatial size + 1)`.
         allow_missing_keys: don't raise exception if key is missing.
     """
 
