@@ -13,8 +13,8 @@ from typing import Optional, Tuple, Union
 
 import torch.nn as nn
 
-from monai.networks.layers.factories import Act, Dropout, Norm, split_args
-from monai.utils import has_option
+from monai.networks.blocks.utils import get_act_layer, get_norm_layer
+from monai.networks.layers.factories import Dropout, split_args
 
 
 class ADN(nn.Sequential):
@@ -82,22 +82,15 @@ class ADN(nn.Sequential):
         op_dict = {"A": None, "D": None, "N": None}
         # define the normalization type and the arguments to the constructor
         if norm is not None:
-            if norm_dim is None and dropout_dim is None:
+            spatial_dims = norm_dim or dropout_dim
+            if isinstance(spatial_dims, int):
+                op_dict["N"] = get_norm_layer(spatial_dims=spatial_dims, channels=in_channels, norm=norm)
+            else:
                 raise ValueError("norm_dim or dropout_dim needs to be specified.")
-            norm_name, norm_args = split_args(norm)
-            norm_type = Norm[norm_name, norm_dim or dropout_dim]
-            kw_args = dict(norm_args)
-            if has_option(norm_type, "num_features") and "num_features" not in kw_args:
-                kw_args["num_features"] = in_channels
-            if has_option(norm_type, "num_channels") and "num_channels" not in kw_args:
-                kw_args["num_channels"] = in_channels
-            op_dict["N"] = norm_type(**kw_args)
 
         # define the activation type and the arguments to the constructor
         if act is not None:
-            act_name, act_args = split_args(act)
-            act_type = Act[act_name]
-            op_dict["A"] = act_type(**act_args)
+            op_dict["A"] = get_act_layer(act)
 
         if dropout is not None:
             # if dropout was specified simply as a p value, use default name and make a keyword map with the value
