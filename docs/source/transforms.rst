@@ -463,6 +463,12 @@ Spatial
     :members:
     :special-members: __call__
 
+`AddCoordinateChannels`
+"""""""""""""""""""""""
+.. autoclass:: AddCoordinateChannels
+    :members:
+    :special-members: __call__
+
 Utility
 ^^^^^^^
 
@@ -980,6 +986,12 @@ Spatial (Dict)
 `Rand3DElasticd`
 """"""""""""""""
 .. autoclass:: Rand3DElasticd
+    :members:
+    :special-members: __call__
+
+`AddCoordinateChannelsd`
+""""""""""""""""""""""""
+.. autoclass:: AddCoordinateChannelsd
     :members:
     :special-members: __call__
 

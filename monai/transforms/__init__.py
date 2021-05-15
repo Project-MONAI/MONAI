@@ -211,6 +211,7 @@ from .post.dictionary import (
     VoteEnsembleDict,
 )
 from .spatial.array import (
+    AddCoordinateChannels,
     Affine,
     AffineGrid,
     Flip,
@@ -233,6 +234,9 @@ from .spatial.array import (
     Zoom,
 )
 from .spatial.dictionary import (
+    AddCoordinateChannelsd,
+    AddCoordinateChannelsD,
+    AddCoordinateChannelsDict,
     Affined,
     AffineD,
     AffineDict,
