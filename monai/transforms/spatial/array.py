@@ -1739,7 +1739,7 @@ class AddCoordinateChannels(Transform):
             raise ValueError("cannot add AddCoordinateChannels channel for dimension 0, as 0 is channel dim.")
 
         spatial_dims = img.shape[1:]
-        coord_channels = np.array(np.meshgrid(*tuple(np.linspace(-0.5, 0.5, s) for s in spatial_dims), indexing='ij'))
+        coord_channels = np.array(np.meshgrid(*tuple(np.linspace(-0.5, 0.5, s) for s in spatial_dims), indexing="ij"))
         # only keep required dimensions. need to subtract 1 since im will be 0-based
         # but user input is 1-based (because channel dim is 0)
         coord_channels = coord_channels[[s - 1 for s in self.spatial_channels]]
