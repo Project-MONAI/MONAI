@@ -127,6 +127,12 @@ Crop and Pad
     :members:
     :special-members: __call__
 
+`RandScaleCrop`
+"""""""""""""""
+.. autoclass:: RandScaleCrop
+    :members:
+    :special-members: __call__
+
 Intensity
 ^^^^^^^^^
 
@@ -674,6 +680,12 @@ Crop and Pad (Dict)
 `BoundingRectd`
 """""""""""""""
 .. autoclass:: BoundingRectd
+    :members:
+    :special-members: __call__
+
+`RandScaleCropd`
+""""""""""""""""
+.. autoclass:: RandScaleCropd
     :members:
     :special-members: __call__
 
