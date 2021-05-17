@@ -272,6 +272,8 @@ Layers
 ~~~~~~~~~~~
 .. automodule:: monai.networks.layers.convutils
     :members:
+.. automodule:: monai.networks.layers.utils
+    :members:
 
 
 Nets

@@ -12,6 +12,50 @@
 
 from typing import Callable, Optional, Type, Union
 
+For example, to get a transpose convolution layer the name is needed and then a dimension argument is provided which is
+passed to the factory function:
+
+.. code-block:: python
+
+    dimension = 3
+    name = Conv.CONVTRANS
+    conv = Conv[name, dimension]
+
+This allows the `dimension` value to be set in the constructor, for example so that the dimensionality of a network is
+parameterizable. Not all factories require arguments after the name, the caller must be aware which are required.
+
+Defining new factories involves creating the object then associating it with factory functions:
+
+.. code-block:: python
+
+    fact = LayerFactory()
+
+    @fact.factory_function('test')
+    def make_something(x, y):
+        # do something with x and y to choose which layer type to return
+        return SomeLayerType
+    ...
+
+    # request object from factory TEST with 1 and 2 as values for x and y
+    layer = fact[fact.TEST, 1, 2]
+
+Typically the caller of a factory would know what arguments to pass (ie. the dimensionality of the requested type) but
+can be parameterized with the factory name and the arguments to pass to the created type at instantiation time:
+
+.. code-block:: python
+
+    def use_factory(fact_args):
+        fact_name, type_args = split_args
+        layer_type = fact[fact_name, 1, 2]
+        return layer_type(**type_args)
+    ...
+
+    kw_args = {'arg0':0, 'arg1':True}
+    layer = use_factory( (fact.TEST, kwargs) )
+"""
+
+from typing import Any, Callable, Dict, Tuple, Type, Union
+
 import torch.nn as nn
 
 from monai.utils.factories import ObjectFactory
@@ -69,6 +113,11 @@ def dropout_factory(dim: int) -> Type[Union[nn.Dropout, nn.Dropout2d, nn.Dropout
     return types[dim - 1]
 
 
+@Dropout.factory_function("alphadropout")
+def alpha_dropout_factory(_dim):
+    return nn.AlphaDropout
+
+
 @Norm.factory_function("instance")
 def instance_factory(dim: int) -> Type[Union[nn.InstanceNorm1d, nn.InstanceNorm2d, nn.InstanceNorm3d]]:
     types = (nn.InstanceNorm1d, nn.InstanceNorm2d, nn.InstanceNorm3d)
@@ -82,22 +131,22 @@ def batch_factory(dim: int) -> Type[Union[nn.BatchNorm1d, nn.BatchNorm2d, nn.Bat
 
 
 @Norm.factory_function("group")
-def group_factory(_dim: Optional[int] = None) -> Type[nn.GroupNorm]:
+def group_factory(_dim) -> Type[nn.GroupNorm]:
     return nn.GroupNorm
 
 
 @Norm.factory_function("layer")
-def layer_factory(_dim: Optional[int] = None) -> Type[nn.LayerNorm]:
+def layer_factory(_dim) -> Type[nn.LayerNorm]:
     return nn.LayerNorm
 
 
 @Norm.factory_function("localresponse")
-def local_response_factory(_dim: Optional[int] = None) -> Type[nn.LocalResponseNorm]:
+def local_response_factory(_dim) -> Type[nn.LocalResponseNorm]:
     return nn.LocalResponseNorm
 
 
 @Norm.factory_function("syncbatch")
-def sync_batch_factory(_dim: Optional[int] = None) -> Type[nn.SyncBatchNorm]:
+def sync_batch_factory(_dim) -> Type[nn.SyncBatchNorm]:
     return nn.SyncBatchNorm
 
 
