@@ -302,10 +302,11 @@ class CenterScaleCrop(CenterSpatialCrop):
             If its components have non-positive values, will use `1.0` instead, which means the input image size.
 
     """
+
     def __init__(self, roi_scale: Union[Sequence[float], float]):
         super().__init__(roi_size=0)
         self.roi_scale = roi_scale
-    
+
     def __call__(self, img: np.ndarray):
         img_size = img.shape[1:]
         ndim = len(img_size)
