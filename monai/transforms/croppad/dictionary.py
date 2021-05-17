@@ -416,7 +416,7 @@ class CenterScaleCropd(CenterSpatialCropd):
     """
 
     def __init__(
-        self, keys: KeysCollection, roi_scale: Union[Sequence[int], int], allow_missing_keys: bool = False
+        self, keys: KeysCollection, roi_scale: Union[Sequence[float], float], allow_missing_keys: bool = False
     ) -> None:
         super().__init__(keys, roi_size=0, allow_missing_keys=allow_missing_keys)
         self.roi_scale = roi_scale
