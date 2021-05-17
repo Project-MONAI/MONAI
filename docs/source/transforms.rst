@@ -133,6 +133,12 @@ Crop and Pad
     :members:
     :special-members: __call__
 
+`CenterScaleCrop`
+"""""""""""""""""
+.. autoclass:: CenterScaleCrop
+    :members:
+    :special-members: __call__
+
 Intensity
 ^^^^^^^^^
 
@@ -686,6 +692,12 @@ Crop and Pad (Dict)
 `RandScaleCropd`
 """"""""""""""""
 .. autoclass:: RandScaleCropd
+    :members:
+    :special-members: __call__
+
+`CenterScaleCropd`
+""""""""""""""""""
+.. autoclass:: CenterScaleCropd
     :members:
     :special-members: __call__
 

@@ -14,6 +14,7 @@ from .compose import Compose
 from .croppad.array import (
     BorderPad,
     BoundingRect,
+    CenterScaleCrop,
     CenterSpatialCrop,
     CropForeground,
     DivisiblePad,
@@ -34,6 +35,9 @@ from .croppad.dictionary import (
     BoundingRectd,
     BoundingRectD,
     BoundingRectDict,
+    CenterScaleCropd,
+    CenterScaleCropD,
+    CenterScaleCropDict,
     CenterSpatialCropd,
     CenterSpatialCropD,
     CenterSpatialCropDict,
