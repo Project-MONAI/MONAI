@@ -54,6 +54,7 @@ __all__ = [
     "DivisiblePadd",
     "SpatialCropd",
     "CenterSpatialCropd",
+    "CenterScaleCropd",
     "RandScaleCropd",
     "RandSpatialCropd",
     "RandSpatialCropSamplesd",
@@ -72,6 +73,8 @@ __all__ = [
     "SpatialCropDict",
     "CenterSpatialCropD",
     "CenterSpatialCropDict",
+    "CenterScaleCropD",
+    "CenterScaleCropDict",
     "RandScaleCropD",
     "RandScaleCropDict",
     "RandSpatialCropD",
@@ -400,6 +403,32 @@ class CenterSpatialCropd(MapTransform, InvertibleTransform):
         return d
 
 
+class CenterScaleCropd(CenterSpatialCropd):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.CenterScaleCrop`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: monai.transforms.MapTransform
+        roi_scale: specifies the expected scale of image size to crop. e.g. [0.3, 0.4, 0.5] or a number for all dims.
+            If its components have non-positive values, will use `1.0` instead, which means the input image size.
+        allow_missing_keys: don't raise exception if key is missing.
+    """
+
+    def __init__(
+        self, keys: KeysCollection, roi_scale: Union[Sequence[int], int], allow_missing_keys: bool = False
+    ) -> None:
+        super().__init__(keys, roi_size=0, allow_missing_keys=allow_missing_keys)
+        self.roi_scale = roi_scale
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = dict(data)
+        img_size = data[self.keys[0]].shape[1:]
+        ndim = len(img_size)
+        self.cropper.roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
+        return super().__call__(data=data)
+
+
 class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandSpatialCrop`.
@@ -512,8 +541,7 @@ class RandScaleCropd(RandSpatialCropd):
             See also: monai.transforms.MapTransform
         roi_scale: if `random_size` is True, it specifies the minimum crop size: `roi_scale * image spatial size`.
             if `random_size` is False, it specifies the expected scale of image size to crop. e.g. [0.3, 0.4, 0.5].
-            If its components have non-positive values or very small scale value causes the crop size to be zero,
-            will use `1.0` instead, which means the input image size.
+            If its components have non-positive values, will use `1.0` instead, which means the input image size.
         max_roi_size: if `random_size` is True and `roi_scale` specifies the min crop region size, `max_roi_scale`
             can specify the max crop region size: `max_roi_scale * image spatial size`.
             if None, defaults to the input image size. if its components have non-positive values,
@@ -1054,6 +1082,7 @@ BorderPadD = BorderPadDict = BorderPadd
 DivisiblePadD = DivisiblePadDict = DivisiblePadd
 SpatialCropD = SpatialCropDict = SpatialCropd
 CenterSpatialCropD = CenterSpatialCropDict = CenterSpatialCropd
+CenterScaleCropD = CenterScaleCropDict = CenterScaleCropd
 RandSpatialCropD = RandSpatialCropDict = RandSpatialCropd
 RandScaleCropD = RandScaleCropDict = RandScaleCropd
 RandSpatialCropSamplesD = RandSpatialCropSamplesDict = RandSpatialCropSamplesd

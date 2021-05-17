@@ -39,6 +39,7 @@ __all__ = [
     "DivisiblePad",
     "SpatialCrop",
     "CenterSpatialCrop",
+    "CenterScaleCrop",
     "RandSpatialCrop",
     "RandScaleCrop",
     "RandSpatialCropSamples",
@@ -291,6 +292,27 @@ class CenterSpatialCrop(Transform):
         return cropper(img)
 
 
+class CenterScaleCrop(CenterSpatialCrop):
+    """
+    Subclass of :py:class:`monai.transforms.CenterSpatialCrop`.
+    Crop at the center of image with specified scale of ROI size.
+
+    Args:
+        roi_scale: specifies the expected scale of image size to crop. e.g. [0.3, 0.4, 0.5] or a number for all dims.
+            If its components have non-positive values, will use `1.0` instead, which means the input image size.
+
+    """
+    def __init__(self, roi_scale: Union[Sequence[float], float]):
+        super().__init__(roi_size=0)
+        self.roi_scale = roi_scale
+    
+    def __call__(self, img: np.ndarray):
+        img_size = img.shape[1:]
+        ndim = len(img_size)
+        self.roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
+        return super().__call__(img=img)
+
+
 class RandSpatialCrop(Randomizable):
     """
     Crop image with random size or specific size ROI. It can crop at a random position as center
@@ -356,8 +378,7 @@ class RandScaleCrop(RandSpatialCrop):
     Args:
         roi_scale: if `random_size` is True, it specifies the minimum crop size: `roi_scale * image spatial size`.
             if `random_size` is False, it specifies the expected scale of image size to crop. e.g. [0.3, 0.4, 0.5].
-            If its components have non-positive values or very small scale value causes the crop size to be zero,
-            will use `1.0` instead, which means the input image size.
+            If its components have non-positive values, will use `1.0` instead, which means the input image size.
         max_roi_size: if `random_size` is True and `roi_scale` specifies the min crop region size, `max_roi_scale`
             can specify the max crop region size: `max_roi_scale * image spatial size`.
             if None, defaults to the input image size. if its components have non-positive values,
