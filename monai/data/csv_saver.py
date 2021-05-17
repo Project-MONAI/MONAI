@@ -26,8 +26,10 @@ class CSVSaver:
     Typically, the data can be classification predictions, call `save` for single data
     or call `save_batch` to save a batch of data together, and call `finalize` to write
     the cached data into CSV file. If no meta data provided, use index from 0 to save data.
-    """
+    Note that this saver can't support multi-processing because it reads / writes single
+    CSV file and can't guarantee the data order in multi-processing situation.
 
+    """
     def __init__(self, output_dir: str = "./", filename: str = "predictions.csv", overwrite: bool = True) -> None:
         """
         Args:
@@ -64,6 +66,8 @@ class CSVSaver:
                 for result in v.flatten():
                     f.write("," + str(result))
                 f.write("\n")
+        # clear cache content after writing
+        self.reset_cache()
 
     def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
         """Save data into the cache dictionary. The metadata should have the following key:
@@ -93,3 +97,12 @@ class CSVSaver:
         """
         for i, data in enumerate(batch_data):  # save a batch of files
             self.save(data, {k: meta_data[k][i] for k in meta_data} if meta_data else None)
+
+    def get_cache(self) -> OrderedDict:
+        """Get the cache dictionary, key is filename and value is the corresponding data"""
+
+        return self._cache_dict
+
+    def reset_cache(self) -> None:
+        """Clear the cache dictionary content"""
+        self._cache_dict.clear()
