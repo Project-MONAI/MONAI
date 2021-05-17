@@ -25,7 +25,7 @@ from torch.utils.data import DataLoader as TorchDataLoader
 
 from monai.config import KeysCollection
 from monai.data.csv_saver import CSVSaver
-from monai.data.utils import no_collation
+from monai.data.utils import decollate_batch, no_collation
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.inverse_batch_transform import BatchInverseTransform
 from monai.transforms.post.array import (
@@ -356,7 +356,7 @@ class Decollated(MapTransform):
         self.batch_size = batch_size
 
     def __call__(self, data: dict) -> List[dict]:
-        return monai.data.decollate_batch(data, self.batch_size)
+        return decollate_batch(data, self.batch_size)
 
 
 class ProbNMSd(MapTransform):
@@ -591,7 +591,7 @@ class SaveClassificationd(MapTransform):
         self.saver = CSVSaver(output_dir, filename, overwrite) if saver is None else saver
         self.meta_key_postfix = meta_key_postfix
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data):
         d = dict(data)
         for key in self.key_iterator(d):
             meta_data = d[f"{key}_{self.meta_key_postfix}"] if self.meta_key_postfix is not None else None
