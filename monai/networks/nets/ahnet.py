@@ -390,10 +390,8 @@ class AHNet(nn.Module):
         self.bn0 = norm_type(64)
         self.relu = relu_type(inplace=True)
         if upsample_mode in ["transpose", "nearest"]:
-            """
-            To maintain the determinism, the value of kernel_size and stride should be the same.
-            (you can check this link for reference: https://github.com/Project-MONAI/MONAI/pull/815 )
-            """
+            # To maintain the determinism, the value of kernel_size and stride should be the same.
+            # (you can check this link for reference: https://github.com/Project-MONAI/MONAI/pull/815 )
             self.maxpool = pool_type(kernel_size=(2, 2, 2)[-spatial_dims:], stride=2)
         else:
             self.maxpool = pool_type(kernel_size=(3, 3, 3)[-spatial_dims:], stride=2, padding=1)
@@ -556,3 +554,6 @@ def copy_conv_param(module2d, module3d):
 def copy_bn_param(module2d, module3d):
     for p2d, p3d in zip(module2d.parameters(), module3d.parameters()):
         p3d.data[:] = p2d.data[:]  # Two parameter gamma and beta
+
+
+AHnet = Ahnet = ahnet = AHNet

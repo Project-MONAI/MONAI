@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Union
 
 import torch
 
@@ -28,7 +28,7 @@ class ConfusionMatrix(IterationMetric):
         include_background: bool = True,
         metric_name: str = "hit_rate",
         output_transform: Callable = lambda x: x,
-        device: Optional[torch.device] = None,
+        device: Union[str, torch.device] = "cpu",
         save_details: bool = True,
     ) -> None:
         """
