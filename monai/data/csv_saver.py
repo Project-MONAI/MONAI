@@ -30,6 +30,7 @@ class CSVSaver:
     CSV file and can't guarantee the data order in multi-processing situation.
 
     """
+
     def __init__(self, output_dir: str = "./", filename: str = "predictions.csv", overwrite: bool = True) -> None:
         """
         Args:

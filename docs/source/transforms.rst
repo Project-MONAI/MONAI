@@ -890,6 +890,12 @@ Post-processing (Dict)
     :members:
     :special-members: __call__
 
+`SaveClassificationd`
+"""""""""""""""""""""
+.. autoclass:: SaveClassificationd
+    :members:
+    :special-members: __call__
+
 Spatial (Dict)
 ^^^^^^^^^^^^^^
 

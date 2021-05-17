@@ -23,8 +23,8 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader as TorchDataLoader
 
-import monai.data
 from monai.config import KeysCollection
+from monai.data.csv_saver import CSVSaver
 from monai.data.utils import no_collation
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.inverse_batch_transform import BatchInverseTransform
@@ -72,6 +72,9 @@ __all__ = [
     "ProbNMSd",
     "ProbNMSD",
     "ProbNMSDict",
+    "SaveClassificationd",
+    "SaveClassificationD",
+    "SaveClassificationDict",
 ]
 
 
@@ -547,6 +550,64 @@ class Invertd(MapTransform):
         return d
 
 
+class SaveClassificationd(MapTransform):
+    """
+    Save the classification results and meta data into CSV file or other storage.
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        meta_key_postfix: str = "meta_dict",
+        saver: Optional[CSVSaver] = None,
+        output_dir: str = "./",
+        filename: str = "predictions.csv",
+        overwrite: bool = True,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to model output, this transform only supports 1 key.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            meta_key_postfix: `key_{postfix}` was used to store the metadata in `LoadImaged`.
+                so need the key to extract the metadata of input image, like filename, etc. default is `meta_dict`.
+                for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+                the meta data is a dictionary object which contains: filename, original_shape, etc.
+                if no corresponding metadata, set to `None`.
+            saver: the saver instance to save classification results, if None, create a CSVSaver internally.
+                the saver must provide `save_batch(batch_data, meta_data)` and `finalize()` APIs.
+            output_dir: if `saver=None`, specify the directory to save the CSV file.
+            filename: if `saver=None`, specify the name of the saved CSV file.
+            overwrite: if `saver=None`, indicate whether to overwriting existing CSV file content.
+                if not overwriting, will check if the results have been previously saved first,
+                and load them to the prediction_dict.
+            allow_missing_keys: don't raise exception if key is missing.
+
+        """
+        super().__init__(keys, allow_missing_keys)
+        if len(self.keys) != 1:
+            raise ValueError("only 1 key is allowed when saving the classification result.")
+        self.saver = CSVSaver(output_dir, filename, overwrite) if saver is None else saver
+        self.meta_key_postfix = meta_key_postfix
+
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            meta_data = d[f"{key}_{self.meta_key_postfix}"] if self.meta_key_postfix is not None else None
+            self.saver.save_batch(batch_data=d[key], meta_data=meta_data)
+
+        return d
+
+    def get_saver(self):
+        """
+        If want to write content into file, may need to call `finalize` of saver when epoch completed.
+        Or users can also get the cache content from `saver` instead of writing into file.
+
+        """
+        return self.saver
+
+
 ActivationsD = ActivationsDict = Activationsd
 AsDiscreteD = AsDiscreteDict = AsDiscreted
 KeepLargestConnectedComponentD = KeepLargestConnectedComponentDict = KeepLargestConnectedComponentd
@@ -556,3 +617,4 @@ ProbNMSD = ProbNMSDict = ProbNMSd
 VoteEnsembleD = VoteEnsembleDict = VoteEnsembled
 DecollateD = DecollateDict = Decollated
 InvertD = InvertDict = Invertd
+SaveClassificationD = SaveClassificationDict = SaveClassificationd
