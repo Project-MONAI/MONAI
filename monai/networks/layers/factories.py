@@ -10,51 +10,7 @@
 # limitations under the License.
 
 
-from typing import Callable, Optional, Type, Union
-
-For example, to get a transpose convolution layer the name is needed and then a dimension argument is provided which is
-passed to the factory function:
-
-.. code-block:: python
-
-    dimension = 3
-    name = Conv.CONVTRANS
-    conv = Conv[name, dimension]
-
-This allows the `dimension` value to be set in the constructor, for example so that the dimensionality of a network is
-parameterizable. Not all factories require arguments after the name, the caller must be aware which are required.
-
-Defining new factories involves creating the object then associating it with factory functions:
-
-.. code-block:: python
-
-    fact = LayerFactory()
-
-    @fact.factory_function('test')
-    def make_something(x, y):
-        # do something with x and y to choose which layer type to return
-        return SomeLayerType
-    ...
-
-    # request object from factory TEST with 1 and 2 as values for x and y
-    layer = fact[fact.TEST, 1, 2]
-
-Typically the caller of a factory would know what arguments to pass (ie. the dimensionality of the requested type) but
-can be parameterized with the factory name and the arguments to pass to the created type at instantiation time:
-
-.. code-block:: python
-
-    def use_factory(fact_args):
-        fact_name, type_args = split_args
-        layer_type = fact[fact_name, 1, 2]
-        return layer_type(**type_args)
-    ...
-
-    kw_args = {'arg0':0, 'arg1':True}
-    layer = use_factory( (fact.TEST, kwargs) )
-"""
-
-from typing import Any, Callable, Dict, Tuple, Type, Union
+from typing import Callable, Type, Union
 
 import torch.nn as nn
 
