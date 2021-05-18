@@ -9,9 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from abc import ABC, abstractmethod
-from typing import Callable, Sequence, Dict
 import unittest
+from abc import ABC, abstractmethod
+from typing import Callable, Dict, Sequence
 
 import torch
 
@@ -66,6 +66,7 @@ class Handler(ABC):
     Base class of all handlers
 
     """
+
     def __init__(self, events: Sequence[str]) -> None:
         self.events = events
 

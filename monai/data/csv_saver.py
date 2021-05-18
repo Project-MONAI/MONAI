@@ -103,7 +103,7 @@ class CSVSaver:
         """
         for i, data in enumerate(batch_data):  # save a batch of files
             self.save(data, {k: meta_data[k][i] for k in meta_data} if meta_data else None)
-        
+
         if self.flush:
             self.finalize()
 

@@ -588,7 +588,7 @@ class SaveClassificationd(MapTransform):
             filename: if `saver=None`, specify the name of the saved CSV file.
             overwrite: if `saver=None`, indicate whether to overwriting existing CSV file content, if True,
                 will clear the file before saving. otherwise, will apend new content to the CSV file.
-            flush: if `saver=None`, indicate whether to write the cache data to CSV file immediately 
+            flush: if `saver=None`, indicate whether to write the cache data to CSV file immediately
                 in this transform and clear the cache. default to True.
                 If False, may need user to call `saver.finalize()` manually then.
             allow_missing_keys: don't raise exception if key is missing.
