@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import csv
 import os
 from collections import OrderedDict
 from typing import Dict, Optional, Union
@@ -36,8 +35,8 @@ class CSVSaver:
         Args:
             output_dir: output CSV file directory.
             filename: name of the saved CSV file name.
-            overwrite: whether to overwriting existing CSV file content. If we are not overwriting,
-                then we check if the results have been previously saved, and load them to the prediction_dict.
+            overwrite: whether to overwriting existing CSV file content, if True, will clear the file before saving.
+                otherwise, will apend new content to the CSV file.
 
         """
         self.output_dir = output_dir
@@ -45,7 +44,9 @@ class CSVSaver:
         if not (isinstance(filename, str) and filename[-4:] == ".csv"):
             raise AssertionError("filename must be a string with CSV format.")
         self._filepath = os.path.join(output_dir, filename)
-        self.overwrite = overwrite
+        if os.path.exists(self._filepath) and overwrite:
+            os.remove(self._filepath)
+
         self._data_index = 0
 
     def finalize(self) -> None:
@@ -53,15 +54,9 @@ class CSVSaver:
         Writes the cached dict to a csv
 
         """
-        if not self.overwrite and os.path.exists(self._filepath):
-            with open(self._filepath, "r") as f:
-                reader = csv.reader(f)
-                for row in reader:
-                    self._cache_dict[row[0]] = np.array(row[1:]).astype(np.float32)
-
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
-        with open(self._filepath, "w") as f:
+        with open(self._filepath, "a") as f:
             for k, v in self._cache_dict.items():
                 f.write(k)
                 for result in v.flatten():

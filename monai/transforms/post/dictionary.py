@@ -559,29 +559,37 @@ class SaveClassificationd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
+        meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
         saver: Optional[CSVSaver] = None,
         output_dir: str = "./",
         filename: str = "predictions.csv",
         overwrite: bool = True,
+        finalize: bool = True,
         allow_missing_keys: bool = False,
     ) -> None:
         """
         Args:
             keys: keys of the corresponding items to model output, this transform only supports 1 key.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
+            meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+                for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+                the meta data is a dictionary object which contains: filename, original_shape, etc.
+                if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
+                will extract the filename of input image to save classifcation results.
             meta_key_postfix: `key_{postfix}` was used to store the metadata in `LoadImaged`.
                 so need the key to extract the metadata of input image, like filename, etc. default is `meta_dict`.
                 for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
                 the meta data is a dictionary object which contains: filename, original_shape, etc.
-                if no corresponding metadata, set to `None`.
+                this arg only works when `meta_keys=None`. if no corresponding metadata, set to `None`.
             saver: the saver instance to save classification results, if None, create a CSVSaver internally.
                 the saver must provide `save_batch(batch_data, meta_data)` and `finalize()` APIs.
             output_dir: if `saver=None`, specify the directory to save the CSV file.
             filename: if `saver=None`, specify the name of the saved CSV file.
-            overwrite: if `saver=None`, indicate whether to overwriting existing CSV file content.
-                if not overwriting, will check if the results have been previously saved first,
-                and load them to the prediction_dict.
+            overwrite: if `saver=None`, indicate whether to overwriting existing CSV file content, if True,
+                will clear the file before saving. otherwise, will apend new content to the CSV file.
+            finalize: whether execute `finalize` of saver, usually saver needs to write cache into file in `finalize`.
+                default to True. If False, may need user to call `finalize` manually then.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
@@ -589,13 +597,19 @@ class SaveClassificationd(MapTransform):
         if len(self.keys) != 1:
             raise ValueError("only 1 key is allowed when saving the classification result.")
         self.saver = CSVSaver(output_dir, filename, overwrite) if saver is None else saver
-        self.meta_key_postfix = meta_key_postfix
+        self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
+        self.finalize = finalize
 
     def __call__(self, data):
         d = dict(data)
-        for key in self.key_iterator(d):
-            meta_data = d[f"{key}_{self.meta_key_postfix}"] if self.meta_key_postfix is not None else None
+        for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
+            if meta_key is None and meta_key_postfix is not None:
+                meta_key = f"{key}_{meta_key_postfix}"
+            meta_data = d[meta_key] if meta_key is not None else None
             self.saver.save_batch(batch_data=d[key], meta_data=meta_data)
+            if self.finalize:
+                self.saver.finalize()
 
         return d
 

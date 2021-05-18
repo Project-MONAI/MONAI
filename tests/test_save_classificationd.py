@@ -33,43 +33,60 @@ class TestSaveClassificationd(unittest.TestCase):
                     "pred": torch.zeros(8),
                     "image_meta_dict": {"filename_or_obj": ["testfile" + str(i) for i in range(8, 16)]},
                 },
+                {
+                    "pred": torch.zeros(8),
+                    "image_meta_dict": {"filename_or_obj": ["testfile" + str(i) for i in range(16, 24)]},
+                },
             ]
 
-            saver = CSVSaver(output_dir=tempdir, filename="predictions.csv", overwrite=False)
+            saver = CSVSaver(output_dir=tempdir, filename="predictions2.csv", overwrite=False)
             # set up test transforms
-            saver_classification = SaveClassificationd(
-                keys="pred",
-                saver=None,
-                output_dir=tempdir,
-                filename="predictions.csv",
-                overwrite=False,
-            )
             post_trans = Compose(
                 [
                     CopyItemsd(keys="image_meta_dict", times=1, names="pred_meta_dict"),
                     # 1st saver saves data into CSV file
-                    saver_classification,
-                    # 2nd saver will not save new data due to `overwrite=False`
-                    SaveClassificationd(keys="pred", saver=saver),
+                    SaveClassificationd(
+                        keys="pred",
+                        saver=None,
+                        meta_keys=None,
+                        output_dir=tempdir,
+                        filename="predictions1.csv",
+                        overwrite=True,
+                    ),
+                    # 2rd saver only saves data into the cache, manually finalize later
+                    SaveClassificationd(keys="pred", saver=saver, meta_key_postfix="meta_dict", finalize=False),
                 ]
             )
             # simulate inference 2 iterations
-            for d in data:
-                post_trans(d)
+            post_trans(data[0])
+            post_trans(data[1])
             # write into CSV file
-            saver_classification.get_saver().finalize()
             saver.finalize()
 
-            filepath = os.path.join(tempdir, "predictions.csv")
-            self.assertTrue(os.path.exists(filepath))
-            with open(filepath, "r") as f:
-                reader = csv.reader(f)
-                i = 0
-                for row in reader:
-                    self.assertEqual(row[0], "testfile" + str(i))
-                    self.assertEqual(np.array(row[1:]).astype(np.float32), 0.0)
-                    i += 1
-                self.assertEqual(i, 16)
+            # 3rd saver will not delete previous data due to `overwrite=False`
+            SaveClassificationd(
+                keys="pred",
+                saver=None,
+                meta_keys="image_meta_dict",  # specify meta key, so no need to copy anymore
+                output_dir=tempdir,
+                filename="predictions1.csv",
+                overwrite=False,
+            )(data[2])
+
+            def _test_file(filename, count):
+                filepath = os.path.join(tempdir, filename)
+                self.assertTrue(os.path.exists(filepath))
+                with open(filepath, "r") as f:
+                    reader = csv.reader(f)
+                    i = 0
+                    for row in reader:
+                        self.assertEqual(row[0], "testfile" + str(i))
+                        self.assertEqual(np.array(row[1:]).astype(np.float32), 0.0)
+                        i += 1
+                    self.assertEqual(i, count)
+
+            _test_file("predictions1.csv", 24)
+            _test_file("predictions2.csv", 16)
 
 
 if __name__ == "__main__":
