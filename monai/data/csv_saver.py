@@ -51,7 +51,7 @@ class CSVSaver:
         self.output_dir = output_dir
         self._cache_dict: OrderedDict = OrderedDict()
         if not (isinstance(filename, str) and filename[-4:] == ".csv"):
-            warnings.warn("filename is not a string with CSV format.")
+            warnings.warn("CSV filename is not a string ends with '.csv'.")
         self._filepath = os.path.join(output_dir, filename)
         if os.path.exists(self._filepath) and overwrite:
             os.remove(self._filepath)
