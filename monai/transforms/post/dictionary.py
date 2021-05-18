@@ -565,7 +565,7 @@ class SaveClassificationd(MapTransform):
         output_dir: str = "./",
         filename: str = "predictions.csv",
         overwrite: bool = True,
-        finalize: bool = True,
+        flush: bool = True,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -583,23 +583,23 @@ class SaveClassificationd(MapTransform):
                 the meta data is a dictionary object which contains: filename, original_shape, etc.
                 this arg only works when `meta_keys=None`. if no corresponding metadata, set to `None`.
             saver: the saver instance to save classification results, if None, create a CSVSaver internally.
-                the saver must provide `save_batch(batch_data, meta_data)` and `finalize()` APIs.
+                the saver must provide `save_batch(batch_data, meta_data)` APIs.
             output_dir: if `saver=None`, specify the directory to save the CSV file.
             filename: if `saver=None`, specify the name of the saved CSV file.
             overwrite: if `saver=None`, indicate whether to overwriting existing CSV file content, if True,
                 will clear the file before saving. otherwise, will apend new content to the CSV file.
-            finalize: whether execute `finalize` of saver, usually saver needs to write cache into file in `finalize`.
-                default to True. If False, may need user to call `finalize` manually then.
+            flush: if `saver=None`, indicate whether to write the cache data to CSV file immediately 
+                in this transform and clear the cache. default to True.
+                If False, may need user to call `saver.finalize()` manually then.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
         super().__init__(keys, allow_missing_keys)
         if len(self.keys) != 1:
             raise ValueError("only 1 key is allowed when saving the classification result.")
-        self.saver = CSVSaver(output_dir, filename, overwrite) if saver is None else saver
+        self.saver = saver or CSVSaver(output_dir, filename, overwrite, flush)
         self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
-        self.finalize = finalize
 
     def __call__(self, data):
         d = dict(data)
@@ -608,8 +608,6 @@ class SaveClassificationd(MapTransform):
                 meta_key = f"{key}_{meta_key_postfix}"
             meta_data = d[meta_key] if meta_key is not None else None
             self.saver.save_batch(batch_data=d[key], meta_data=meta_data)
-            if self.finalize:
-                self.saver.finalize()
 
         return d
 

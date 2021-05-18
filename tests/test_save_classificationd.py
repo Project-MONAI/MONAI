@@ -39,7 +39,7 @@ class TestSaveClassificationd(unittest.TestCase):
                 },
             ]
 
-            saver = CSVSaver(output_dir=tempdir, filename="predictions2.csv", overwrite=False)
+            saver = CSVSaver(output_dir=tempdir, filename="predictions2.csv", overwrite=False, flush=False)
             # set up test transforms
             post_trans = Compose(
                 [
@@ -54,7 +54,7 @@ class TestSaveClassificationd(unittest.TestCase):
                         overwrite=True,
                     ),
                     # 2rd saver only saves data into the cache, manually finalize later
-                    SaveClassificationd(keys="pred", saver=saver, meta_key_postfix="meta_dict", finalize=False),
+                    SaveClassificationd(keys="pred", saver=saver, meta_key_postfix="meta_dict"),
                 ]
             )
             # simulate inference 2 iterations

@@ -138,6 +138,6 @@ class ClassificationSaver:
 
         # save to CSV file only in the expected rank
         if idist.get_rank() == self.save_rank:
-            saver = CSVSaver(self.output_dir, self.filename, self.overwrite) if self.saver is None else self.saver
+            saver = self.saver or CSVSaver(self.output_dir, self.filename, self.overwrite)
             saver.save_batch(outputs, meta_dict)
             saver.finalize()

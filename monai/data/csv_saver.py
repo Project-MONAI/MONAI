@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import os
+import warnings
 from collections import OrderedDict
 from typing import Dict, Optional, Union
 
@@ -30,23 +31,32 @@ class CSVSaver:
 
     """
 
-    def __init__(self, output_dir: str = "./", filename: str = "predictions.csv", overwrite: bool = True) -> None:
+    def __init__(
+        self,
+        output_dir: str = "./",
+        filename: str = "predictions.csv",
+        overwrite: bool = True,
+        flush: bool = False,
+    ) -> None:
         """
         Args:
             output_dir: output CSV file directory.
             filename: name of the saved CSV file name.
             overwrite: whether to overwriting existing CSV file content, if True, will clear the file before saving.
                 otherwise, will apend new content to the CSV file.
+            flush: whether to write the cache data to CSV file immediately when `save_batch` and clear the cache.
+                default to False.
 
         """
         self.output_dir = output_dir
         self._cache_dict: OrderedDict = OrderedDict()
         if not (isinstance(filename, str) and filename[-4:] == ".csv"):
-            raise AssertionError("filename must be a string with CSV format.")
+            warnings.warn("filename is not a string with CSV format.")
         self._filepath = os.path.join(output_dir, filename)
         if os.path.exists(self._filepath) and overwrite:
             os.remove(self._filepath)
 
+        self.flush = flush
         self._data_index = 0
 
     def finalize(self) -> None:
@@ -93,6 +103,9 @@ class CSVSaver:
         """
         for i, data in enumerate(batch_data):  # save a batch of files
             self.save(data, {k: meta_data[k][i] for k in meta_data} if meta_data else None)
+        
+        if self.flush:
+            self.finalize()
 
     def get_cache(self) -> OrderedDict:
         """Get the cache dictionary, key is filename and value is the corresponding data"""
