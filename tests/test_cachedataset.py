@@ -17,12 +17,20 @@ import nibabel as nib
 import numpy as np
 from parameterized import parameterized
 
-from monai.data import CacheDataset
-from monai.transforms import Compose, LoadImaged
+from monai.data import CacheDataset, DataLoader, PersistentDataset
+from monai.transforms import Compose, LoadImaged, ThreadUnsafe, Transform
 
 TEST_CASE_1 = [Compose([LoadImaged(keys=["image", "label", "extra"])]), (128, 128, 128)]
 
 TEST_CASE_2 = [None, (128, 128, 128)]
+
+
+TEST_DS = []
+for c in (0, 1, 2):
+    for l in (0, 1, 2):
+        TEST_DS.append([False, c, l])
+    for l in (1, 2):
+        TEST_DS.append([True, c, l])
 
 
 class TestCacheDataset(unittest.TestCase):
@@ -68,6 +76,67 @@ class TestCacheDataset(unittest.TestCase):
             self.assertTupleEqual(data2["extra"].shape, expected_shape)
             for d in data3:
                 self.assertTupleEqual(d["image"].shape, expected_shape)
+
+
+class _StatefulTransform(Transform, ThreadUnsafe):
+    """
+    A transform with an internal state.
+    The state is changing at each call.
+    """
+
+    def __init__(self):
+        self.property = 1
+
+    def __call__(self, data):
+        self.property = self.property + 1
+        return data * 100 + self.property
+
+
+class TestCacheThread(unittest.TestCase):
+    """
+    cache dataset and persistent dataset should behave in the same way when used with different loader settings.
+    loader's are tested with two epochs.
+    """
+
+    @parameterized.expand(TEST_DS)
+    def test_thread_safe(self, persistent_workers, cache_workers, loader_workers):
+        expected = [102, 202, 302, 402, 502, 602, 702, 802, 902, 1002]
+        data_list = list(range(1, 11))
+        dataset = CacheDataset(
+            data=data_list,
+            transform=_StatefulTransform(),
+            cache_rate=1.0,
+            num_workers=cache_workers,
+            progress=False,
+        )
+        self.assertListEqual(expected, list(dataset))
+        loader = DataLoader(
+            CacheDataset(
+                data=data_list,
+                transform=_StatefulTransform(),
+                cache_rate=1.0,
+                num_workers=cache_workers,
+                progress=False,
+            ),
+            batch_size=1,
+            persistent_workers=persistent_workers,
+            num_workers=loader_workers,
+        )
+        self.assertListEqual(expected, [y.item() for y in loader])
+        self.assertListEqual(expected, [y.item() for y in loader])
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            pdata = PersistentDataset(data=data_list, transform=_StatefulTransform(), cache_dir=tempdir)
+            self.assertListEqual(expected, list(pdata))
+            loader = DataLoader(
+                PersistentDataset(data=data_list, transform=_StatefulTransform(), cache_dir=tempdir),
+                batch_size=1,
+                persistent_workers=persistent_workers,
+                num_workers=loader_workers,
+                shuffle=False,
+            )
+            self.assertListEqual(expected, [y.item() for y in loader])
+            self.assertListEqual(expected, [y.item() for y in loader])
 
 
 if __name__ == "__main__":
