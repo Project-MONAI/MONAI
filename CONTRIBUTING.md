@@ -30,7 +30,7 @@ MONAI is part of [PyTorch Ecosystem](https://pytorch.org/ecosystem/), and mainly
 
 _Pull request early_
 
-We encourage you to create pull requests early. It helps us track the contributions under development, whether they are ready to be merged or not. Change your pull request's title to begin with `[WIP]` until it is ready for formal review.
+We encourage you to create pull requests early. It helps us track the contributions under development, whether they are ready to be merged or not. Change your pull request's title, to begin with `[WIP]` and/or [create a draft pull request](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-requests#draft-pull-requests) until it is ready for formal review.
 
 Please note that, as per PyTorch, MONAI uses American English spelling. This means classes and variables should be: normali**z**e, visuali**z**e, colo~~u~~r, etc.
 
@@ -230,19 +230,19 @@ For string definition, [f-string](https://www.python.org/dev/peps/pep-0498/) is 
 
 
 ### Submitting pull requests
-All code changes to the master branch must be done via [pull requests](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/proposing-changes-to-your-work-with-pull-requests).
+All code changes to the dev branch must be done via [pull requests](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/proposing-changes-to-your-work-with-pull-requests).
 1. Create a new ticket or take a known ticket from [the issue list][monai issue list].
 1. Check if there's already a branch dedicated to the task.
 1. If the task has not been taken, [create a new branch in your fork](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork)
 of the codebase named `[ticket_id]-[task_name]`.
 For example, branch name `19-ci-pipeline-setup` corresponds to [issue #19](https://github.com/Project-MONAI/MONAI/issues/19).
-Ideally, the new branch should be based on the latest `master` branch.
+Ideally, the new branch should be based on the latest `dev` branch.
 1. Make changes to the branch ([use detailed commit messages if possible](https://chris.beams.io/posts/git-commit/)).
 1. Make sure that new tests cover the changes and the changed codebase [passes all tests locally](#unit-testing).
-1. [Create a new pull request](https://help.github.com/en/desktop/contributing-to-projects/creating-a-pull-request) from the task branch to the master branch, with detailed descriptions of the purpose of this pull request.
+1. [Create a new pull request](https://help.github.com/en/desktop/contributing-to-projects/creating-a-pull-request) from the task branch to the dev branch, with detailed descriptions of the purpose of this pull request.
 1. Check [the CI/CD status of the pull request][github ci], make sure all CI/CD tests passed.
 1. Wait for reviews; if there are reviews, make point-to-point responses, make further code changes if needed.
-1. If there are conflicts between the pull request branch and the master branch, pull the changes from the master and resolve the conflicts locally.
+1. If there are conflicts between the pull request branch and the dev branch, pull the changes from the dev and resolve the conflicts locally.
 1. Reviewer and contributor may have discussions back and forth until all comments addressed.
 1. Wait for the pull request to be merged.
 
@@ -256,7 +256,7 @@ All code review comments should be specific, constructive, and actionable.
 1. Make in-line comments to specific code segments, [request for changes](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-request-reviews) if needed.
 1. Review any further code changes until all comments addressed by the contributors.
 1. Comment to trigger `/black` and/or `/integration-test` for optional auto code formatting and [integration tests](.github/workflows/integration.yml).
-1. Merge the pull request to the master branch.
+1. Merge the pull request to the dev branch.
 1. Close the corresponding task ticket on [the issue list][monai issue list].
 
 [github ci]: https://github.com/Project-MONAI/MONAI/actions
@@ -266,15 +266,22 @@ All code review comments should be specific, constructive, and actionable.
 ## Admin tasks
 
 ### Release a new version
-- Prepare [a release note](https://github.com/Project-MONAI/MONAI/releases).
-- Checkout a new branch `releases/[version number]` locally from the master branch and push to the codebase.
-- Create a tag, for example `git tag -a 0.1a -m "version 0.1a"`.
-- Push the tag to the codebase, for example `git push origin 0.1a`.
+The `dev` branch's `HEAD` always corresponds to MONAI docker image's latest tag: `projectmonai/monai:latest`.
+The `main` branch's `HEAD` always corresponds to the latest MONAI milestone release.
+
+When major features are ready for a milestone, to prepare for a new release:
+- Prepare [a release note](https://github.com/Project-MONAI/MONAI/releases) and release checklist.
+- Check out or cherry-pick a new branch `releasing/[version number]` locally from the `dev` branch and push to the codebase.
+- Create a release candidate tag, for example, `git tag -a 0.1.0rc1 -m "release candidate 1 of version 0.1.0"`.
+- Push the tag to the codebase, for example, `git push origin 0.1.0rc1`.
   This step will trigger package building and testing.
   The resultant packages are automatically uploaded to
   [TestPyPI](https://test.pypi.org/project/monai/).  The packages are also available for downloading as
   repository's artifacts (e.g. the file at https://github.com/Project-MONAI/MONAI/actions/runs/66570977).
 - Check the release test at [TestPyPI](https://test.pypi.org/project/monai/), download the artifacts when the CI finishes.
+- Once the release candidate is verified, make PRs from `releasing/[version number]` to`dev` and `main` respectively.
+  Make sure all the test pipelines succeed.
+- Check out the `main` branch, tag and push a milestone, for example, `git push origin 0.1.0`.
 - Upload the packages to [PyPI](https://pypi.org/project/monai/).
   This could be done manually by ``twine upload dist/*``, given the artifacts are unzipped to the folder ``dist/``.
 - Publish the release note.
@@ -282,15 +289,9 @@ All code review comments should be specific, constructive, and actionable.
 Note that the release should be tagged with a [PEP440](https://www.python.org/dev/peps/pep-0440/) compliant
 [semantic versioning](https://semver.org/spec/v2.0.0.html) number.
 
-If any error occurs during the release process, first checkout a new branch from the master, make PRs to the master
-to fix the bugs via the regular contribution procedure.
-Then rollback the release branch and tag:
- - remove any artifacts (website UI) and tag (`git tag -d` and `git push origin -d`).
- - reset the `releases/[version number]` branch to the latest master:
- ```bash
-git checkout master
-git pull origin master
-git checkout releases/[version number]
-git reset --hard master
-```
-Finally, repeat the tagging and TestPyPI uploading process.
+If any error occurs during the release process, first check out a new hotfix branch from the `releasing/[version number]`,
+then make PRs to the `releasing/[version number]` to fix the bugs via the regular contribution procedure.
+
+If any error occurs after the release process, first check out a new hotfix branch from the `main` branch,
+make a minor version release following the semantic versioning, for example, `releasing/0.1.1`.
+Make sure the `releasing/0.1.1` is merged back into both `dev` and `main` and all the test pipelines succeed.
