@@ -529,6 +529,8 @@ void PermutohedralCuda(scalar_t* values, scalar_t* positions, int elementCount, 
 
   destroyHashTable<scalar_t>();
   cudaFree(table_values);
+  cudaFree(scaleFactor);
+  cudaFree(matrix);
 }
 
 #define DECLARATION(dc, fc)                                                                                         \
