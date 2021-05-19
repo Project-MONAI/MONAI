@@ -640,7 +640,9 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
             raise ValueError(f"num_samples must be positive, got {num_samples}.")
         self.num_samples = num_samples
         self.cropper = RandSpatialCropd(keys, roi_size, max_roi_size, random_center, random_size, allow_missing_keys)
-        self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
+        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
     def set_random_state(
@@ -811,7 +813,9 @@ class RandWeightedCropd(Randomizable, MapTransform):
         self.w_key = w_key
         self.num_samples = int(num_samples)
         self.center_coord_key = center_coord_key
-        self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
+        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.centers: List[np.ndarray] = []
 
@@ -930,7 +934,9 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         self.image_threshold = image_threshold
         self.fg_indices_key = fg_indices_key
         self.bg_indices_key = bg_indices_key
-        self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
+        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.centers: Optional[List[List[np.ndarray]]] = None
 

@@ -18,7 +18,7 @@ from monai.networks.layers import GaussianFilter
 from monai.transforms import Resize, SpatialCrop
 from monai.transforms.transform import MapTransform, Randomizable, Transform
 from monai.transforms.utils import generate_spatial_bounding_box
-from monai.utils import InterpolateMode, ensure_tuple_rep, min_version, optional_import
+from monai.utils import InterpolateMode, ensure_tuple, ensure_tuple_rep, min_version, optional_import
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_cdt")
@@ -467,7 +467,9 @@ class SpatialCropForegroundd(MapTransform):
         self.select_fn = select_fn
         self.channel_indices = channel_indices
         self.margin = margin
-        self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
+        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.start_coord_key = start_coord_key
         self.end_coord_key = end_coord_key
@@ -670,7 +672,9 @@ class SpatialCropGuidanced(MapTransform):
         self.guidance = guidance
         self.spatial_size = list(spatial_size)
         self.margin = margin
-        self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
+        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.start_coord_key = start_coord_key
         self.end_coord_key = end_coord_key
@@ -863,7 +867,9 @@ class RestoreLabeld(MapTransform):
         self.slice_only = slice_only
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
-        self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
+        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = meta_key_postfix
         self.start_coord_key = start_coord_key
         self.end_coord_key = end_coord_key
@@ -959,7 +965,9 @@ class Fetch2DSliced(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.guidance = guidance
         self.axis = axis
-        self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
+        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
     def _apply(self, image, guidance):
