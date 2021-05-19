@@ -438,7 +438,7 @@ class Invertd(MapTransform):
         keys: KeysCollection,
         transform: InvertibleTransform,
         loader: TorchDataLoader,
-        orig_keys: Union[str, Sequence[str]],
+        orig_keys: KeysCollection,
         meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
         collate_fn: Optional[Callable] = no_collation,
@@ -527,7 +527,7 @@ class Invertd(MapTransform):
             self.device,
             self.post_func,
         ):
-            transform_key = orig_key + InverseKeys.KEY_SUFFIX
+            transform_key = f"{orig_key}{InverseKeys.KEY_SUFFIX}"
             if transform_key not in d:
                 warnings.warn(f"transform info of `{orig_key}` is not available or no InvertibleTransform applied.")
                 continue
