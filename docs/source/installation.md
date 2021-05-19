@@ -65,7 +65,7 @@ or, to build with MONAI Cpp/CUDA extensions:
 ```bash
 BUILD_MONAI=1 pip install git+https://github.com/Project-MONAI/MONAI#egg=monai
 ```
-this command will download and install the current master branch of [MONAI from
+this command will download and install the current `dev` branch of [MONAI from
 GitHub](https://github.com/Project-MONAI/MONAI).
 
 This documentation website by default shows the information for the latest version.
@@ -128,7 +128,7 @@ Note that you do not need to install the CUDA toolkit on the host, but the drive
 Please find out more information on [nvidia-docker](https://github.com/NVIDIA/nvidia-docker).
 
 Assuming that you have the Nvidia driver and Docker 19.03+ installed, running the following command will
-download and start a container with the latest version of MONAI. The latest master branch of MONAI from GitHub
+download and start a container with the latest version of MONAI. The latest `dev` branch of MONAI from GitHub
 is included in the image.
 ```bash
 docker run --gpus all --rm -ti --ipc=host projectmonai/monai:latest
