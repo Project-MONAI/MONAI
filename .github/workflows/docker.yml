@@ -4,11 +4,12 @@ name: docker
 # docker_test_latest: test the latest internal docker image (has flake)
 # docker_test_dockerhub: test the latest dockerhub release (no flake)
 on:
-  # master only docker deployment and quick tests
+  # dev only docker deployment and quick tests
   push:
     branches:
-      - master
+      - dev
   # Allows you to run this workflow manually from the Actions tab
+  # This is to trigger building/testing docker image from dev only.
   workflow_dispatch:
 
 jobs:
@@ -24,7 +25,7 @@ jobs:
       - uses: actions/checkout@v2
         # full history so that we can git describe
         with:
-          ref: master
+          ref: dev
           fetch-depth: 0
       - shell: bash
         run: |
@@ -52,7 +53,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       with:
-        ref: master
+        ref: dev
     - name: Download version
       uses: actions/download-artifact@v2
       with:

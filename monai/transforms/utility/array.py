@@ -28,6 +28,8 @@ from monai.utils import ensure_tuple, min_version, optional_import
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
+cp, has_cp = optional_import("cupy")
+cp_ndarray, _ = optional_import("cupy", name="ndarray")
 
 __all__ = [
     "Identity",
@@ -41,6 +43,7 @@ __all__ = [
     "CastToType",
     "ToTensor",
     "ToNumpy",
+    "ToPIL",
     "Transpose",
     "SqueezeDim",
     "DataStats",
@@ -316,7 +319,23 @@ class ToNumpy(Transform):
         """
         if isinstance(img, torch.Tensor):
             img = img.detach().cpu().numpy()  # type: ignore
+        elif has_cp and isinstance(img, cp_ndarray):
+            img = cp.asnumpy(img)  # type: ignore
         return np.ascontiguousarray(img)
+
+
+class ToCupy(Transform):
+    """
+    Converts the input data to CuPy array, can support list or tuple of numbers, NumPy and PyTorch Tensor.
+    """
+
+    def __call__(self, img):
+        """
+        Apply the transform to `img` and make it contiguous.
+        """
+        if isinstance(img, torch.Tensor):
+            img = img.detach().cpu().numpy()  # type: ignore
+        return cp.ascontiguousarray(cp.asarray(img))
 
 
 class ToPIL(Transform):
@@ -326,7 +345,7 @@ class ToPIL(Transform):
 
     def __call__(self, img):
         """
-        Apply the transform to `img` and make it contiguous.
+        Apply the transform to `img`.
         """
         if isinstance(img, PILImageImage):
             return img

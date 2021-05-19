@@ -13,6 +13,7 @@
 import collections.abc
 import math
 import pickle
+import shutil
 import sys
 import tempfile
 import threading
@@ -137,7 +138,7 @@ class PersistentDataset(Dataset):
         self,
         data: Sequence,
         transform: Union[Sequence[Callable], Callable],
-        cache_dir: Optional[Union[Path, str]] = None,
+        cache_dir: Optional[Union[Path, str]],
         hash_func: Callable[..., bytes] = pickle_hashing,
     ) -> None:
         """
@@ -150,7 +151,8 @@ class PersistentDataset(Dataset):
                 of pre-computed transformed data tensors. The cache_dir is computed once, and
                 persists on disk until explicitly removed.  Different runs, programs, experiments
                 may share a common cache dir provided that the transforms pre-processing is consistent.
-                If the cache_dir doesn't exist, will automatically create it.
+                If `cache_dir` doesn't exist, will automatically create it.
+                If `cache_dir` is `None`, there is effectively no caching.
             hash_func: a callable to compute hash from data items to be cached.
                 defaults to `monai.data.utils.pickle_hashing`.
 
@@ -249,8 +251,9 @@ class PersistentDataset(Dataset):
                 torch.save(_item_transformed, temp_hash_file)
                 if temp_hash_file.is_file() and not hashfile.is_file():
                     # On Unix, if target exists and is a file, it will be replaced silently if the user has permission.
+                    # for more details: https://docs.python.org/3/library/shutil.html#shutil.move.
                     try:
-                        temp_hash_file.rename(hashfile)
+                        shutil.move(temp_hash_file, hashfile)
                     except FileExistsError:
                         pass
         return _item_transformed
@@ -271,7 +274,7 @@ class CacheNTransDataset(PersistentDataset):
         data: Sequence,
         transform: Union[Sequence[Callable], Callable],
         cache_n_trans: int,
-        cache_dir: Optional[Union[Path, str]] = None,
+        cache_dir: Optional[Union[Path, str]],
         hash_func: Callable[..., bytes] = pickle_hashing,
     ) -> None:
         """
@@ -285,7 +288,8 @@ class CacheNTransDataset(PersistentDataset):
                 of pre-computed transformed data tensors. The cache_dir is computed once, and
                 persists on disk until explicitly removed.  Different runs, programs, experiments
                 may share a common cache dir provided that the transforms pre-processing is consistent.
-                If the cache_dir doesn't exist, will automatically create it.
+                If `cache_dir` doesn't exist, will automatically create it.
+                If `cache_dir` is `None`, there is effectively no caching.
             hash_func: a callable to compute hash from data items to be cached.
                 defaults to `monai.data.utils.pickle_hashing`.
 
@@ -575,7 +579,10 @@ class CacheDataset(Dataset):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
         for _transform in self.transform.transforms:
             if start_run or isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
-                start_run = True
+                # only need to deep copy data on first non-deterministic transform
+                if not start_run:
+                    start_run = True
+                    data = deepcopy(data)
                 data = apply_transform(_transform, data)
         return data
 
@@ -614,8 +621,10 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         4. Call `shutdown()` when training ends.
 
     Note:
-        This replacement will not work if setting the `multiprocessing_context` of DataLoader to `spawn`
-        or on windows(the default multiprocessing method is `spawn`) and setting `num_workers` greater than 0.
+        This replacement will not work for below cases:
+        1. Set the `multiprocessing_context` of DataLoader to `spawn`.
+        2. Run on windows(the default multiprocessing method is `spawn`) with `num_workers` greater than 0.
+        3. Set the `persistent_workers` of DataLoader to `True` with `num_workers` greater than 0.
 
         If using MONAI workflows, please add `SmartCacheHandler` to the handler list of trainer,
         otherwise, please make sure to call `start()`, `update_cache()`, `shutdown()` during training.
@@ -731,11 +740,8 @@ class SmartCacheDataset(Randomizable, CacheDataset):
             if not self._replace_done:
                 return False
 
-            remain_num: int = self.cache_num - self._replace_num
-            for i in range(remain_num):
-                self._cache[i] = self._cache[i + self._replace_num]
-            for i in range(self._replace_num):
-                self._cache[remain_num + i] = self._replacements[i]
+            del self._cache[: self._replace_num]
+            self._cache.extend(self._replacements)
 
             self._start_pos += self._replace_num
             if self._start_pos >= self._total_num:

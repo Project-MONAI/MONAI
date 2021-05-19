@@ -24,10 +24,17 @@ from monai.config import DtypeLike
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
 from monai.transforms.transform import RandomizableTransform, Transform
 from monai.transforms.utils import rescale_array
-from monai.utils import PT_BEFORE_1_7, InvalidPyTorchVersionError, dtype_torch_to_numpy, ensure_tuple_size
+from monai.utils import (
+    PT_BEFORE_1_7,
+    InvalidPyTorchVersionError,
+    dtype_torch_to_numpy,
+    ensure_tuple_rep,
+    ensure_tuple_size,
+)
 
 __all__ = [
     "RandGaussianNoise",
+    "RandRicianNoise",
     "ShiftIntensity",
     "RandShiftIntensity",
     "StdShiftIntensity",
@@ -49,6 +56,8 @@ __all__ = [
     "GaussianSharpen",
     "RandGaussianSharpen",
     "RandHistogramShift",
+    "GibbsNoise",
+    "RandGibbsNoise",
 ]
 
 
@@ -83,6 +92,82 @@ class RandGaussianNoise(RandomizableTransform):
             return img
         dtype = dtype_torch_to_numpy(img.dtype) if isinstance(img, torch.Tensor) else img.dtype
         return img + self._noise.astype(dtype)
+
+
+class RandRicianNoise(RandomizableTransform):
+    """
+    Add Rician noise to image.
+    Rician noise in MRI is the result of performing a magnitude operation on complex
+    data with Gaussian noise of the same variance in both channels, as described in `Noise in Magnitude Magnetic Resonance Images
+    <https://doi.org/10.1002/cmr.a.20124>`_. This transform is adapted from
+    `DIPY<https://github.com/dipy/dipy>`_. See also: `The rician distribution of noisy mri data
+    <https://doi.org/10.1002/mrm.1910340618>`_.
+
+    Args:
+        prob: Probability to add Rician noise.
+        mean: Mean or "centre" of the Gaussian distributions sampled to make up
+            the Rician noise.
+        std: Standard deviation (spread) of the Gaussian distributions sampled
+            to make up the Rician noise.
+        channel_wise: If True, treats each channel of the image separately.
+        relative: If True, the spread of the sampled Gaussian distributions will
+            be std times the standard deviation of the image or channel's intensity
+            histogram.
+        sample_std: If True, sample the spread of the Gaussian distributions
+            uniformly from 0 to std.
+    """
+
+    def __init__(
+        self,
+        prob: float = 0.1,
+        mean: Union[Sequence[float], float] = 0.0,
+        std: Union[Sequence[float], float] = 1.0,
+        channel_wise: bool = False,
+        relative: bool = False,
+        sample_std: bool = True,
+    ) -> None:
+        RandomizableTransform.__init__(self, prob)
+        self.prob = prob
+        self.mean = mean
+        self.std = std
+        self.channel_wise = channel_wise
+        self.relative = relative
+        self.sample_std = sample_std
+        self._noise1 = None
+        self._noise2 = None
+
+    def _add_noise(self, img: Union[torch.Tensor, np.ndarray], mean: float, std: float):
+        im_shape = img.shape
+        _std = self.R.uniform(0, std) if self.sample_std else std
+        self._noise1 = self.R.normal(mean, _std, size=im_shape)
+        self._noise2 = self.R.normal(mean, _std, size=im_shape)
+        if self._noise1 is None or self._noise2 is None:
+            raise AssertionError
+        dtype = dtype_torch_to_numpy(img.dtype) if isinstance(img, torch.Tensor) else img.dtype
+        return np.sqrt((img + self._noise1.astype(dtype)) ** 2 + self._noise2.astype(dtype) ** 2)
+
+    def __call__(self, img: Union[torch.Tensor, np.ndarray]) -> Union[torch.Tensor, np.ndarray]:
+        """
+        Apply the transform to `img`.
+        """
+        super().randomize(None)
+        if not self._do_transform:
+            return img
+        if self.channel_wise:
+            _mean = ensure_tuple_rep(self.mean, len(img))
+            _std = ensure_tuple_rep(self.std, len(img))
+            for i, d in enumerate(img):
+                img[i] = self._add_noise(d, mean=_mean[i], std=_std[i] * d.std() if self.relative else _std[i])
+        else:
+            if not isinstance(self.mean, (int, float)):
+                raise AssertionError("If channel_wise is False, mean must be a float or int number.")
+            if not isinstance(self.std, (int, float)):
+                raise AssertionError("If channel_wise is False, std must be a float or int number.")
+            std = self.std * img.std() if self.relative else self.std
+            if not isinstance(std, (int, float)):
+                raise AssertionError
+            img = self._add_noise(img, mean=self.mean, std=std)
+        return img
 
 
 class ShiftIntensity(Transform):
@@ -155,11 +240,7 @@ class StdShiftIntensity(Transform):
     """
 
     def __init__(
-        self,
-        factor: float,
-        nonzero: bool = False,
-        channel_wise: bool = False,
-        dtype: DtypeLike = np.float32,
+        self, factor: float, nonzero: bool = False, channel_wise: bool = False, dtype: DtypeLike = np.float32
     ) -> None:
         self.factor = factor
         self.nonzero = nonzero
@@ -1054,3 +1135,159 @@ class RandHistogramShift(RandomizableTransform):
         return np.asarray(
             np.interp(img, reference_control_points_scaled, floating_control_points_scaled), dtype=img.dtype
         )
+
+
+class RandGibbsNoise(RandomizableTransform):
+    """
+    Naturalistic image augmentation via Gibbs artifacts. The transform
+    randomly applies Gibbs noise to 2D/3D MRI images. Gibbs artifacts
+    are one of the common type of type artifacts appearing in MRI scans.
+
+    The transform is applied to all the channels in the data.
+
+    For general information on Gibbs artifacts, please refer to:
+    https://pubs.rsna.org/doi/full/10.1148/rg.313105115
+    https://pubs.rsna.org/doi/full/10.1148/radiographics.22.4.g02jl14949
+
+
+    Args:
+        prob (float): probability of applying the transform.
+        alpha (float, Sequence(float)): Parametrizes the intensity of the Gibbs noise filter applied. Takes
+            values in the interval [0,1] with alpha = 0 acting as the identity mapping.
+            If a length-2 list is given as [a,b] then the value of alpha will be
+            sampled uniformly from the interval [a,b]. 0 <= a <= b <= 1.
+        as_tensor_output: if true return torch.Tensor, else return np.array. default: True.
+    """
+
+    def __init__(self, prob: float = 0.1, alpha: Sequence[float] = (0.0, 1.0), as_tensor_output: bool = True) -> None:
+
+        if len(alpha) != 2:
+            raise AssertionError("alpha length must be 2.")
+        if alpha[1] > 1 or alpha[0] < 0:
+            raise AssertionError("alpha must take values in the interval [0,1]")
+        if alpha[0] > alpha[1]:
+            raise AssertionError("When alpha = [a,b] we need a < b.")
+
+        self.alpha = alpha
+        self.sampled_alpha = -1.0  # stores last alpha sampled by randomize()
+        self.as_tensor_output = as_tensor_output
+
+        RandomizableTransform.__init__(self, prob=prob)
+
+    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> Union[torch.Tensor, np.ndarray]:
+
+        # randomize application and possibly alpha
+        self._randomize(None)
+
+        if self._do_transform:
+            # apply transform
+            transform = GibbsNoise(self.sampled_alpha, self.as_tensor_output)
+            img = transform(img)
+        else:
+            if isinstance(img, np.ndarray) and self.as_tensor_output:
+                img = torch.Tensor(img)
+            elif isinstance(img, torch.Tensor) and not self.as_tensor_output:
+                img = img.detach().cpu().numpy()
+        return img
+
+    def _randomize(self, _: Any) -> None:
+        """
+        (1) Set random variable to apply the transform.
+        (2) Get alpha from uniform distribution.
+        """
+        super().randomize(None)
+        self.sampled_alpha = self.R.uniform(self.alpha[0], self.alpha[1])
+
+
+class GibbsNoise(Transform):
+    """
+    The transform applies Gibbs noise to 2D/3D MRI images. Gibbs artifacts
+    are one of the common type of type artifacts appearing in MRI scans.
+
+    The transform is applied to all the channels in the data.
+
+    For general information on Gibbs artifacts, please refer to:
+    https://pubs.rsna.org/doi/full/10.1148/rg.313105115
+    https://pubs.rsna.org/doi/full/10.1148/radiographics.22.4.g02jl14949
+
+
+    Args:
+        alpha (float): Parametrizes the intensity of the Gibbs noise filter applied. Takes
+            values in the interval [0,1] with alpha = 0 acting as the identity mapping.
+        as_tensor_output: if true return torch.Tensor, else return np.array. default: True.
+
+    """
+
+    def __init__(self, alpha: float = 0.5, as_tensor_output: bool = True) -> None:
+
+        if alpha > 1 or alpha < 0:
+            raise AssertionError("alpha must take values in the interval [0,1].")
+        self.alpha = alpha
+        self.as_tensor_output = as_tensor_output
+        self._device = torch.device("cpu")
+
+    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> Union[torch.Tensor, np.ndarray]:
+        n_dims = len(img.shape[1:])
+
+        # convert to ndarray to work with np.fft
+        if isinstance(img, torch.Tensor):
+            self._device = img.device
+            img = img.cpu().detach().numpy()
+
+        # FT
+        k = self._shift_fourier(img, n_dims)
+        # build and apply mask
+        k = self._apply_mask(k)
+        # map back
+        img = self._inv_shift_fourier(k, n_dims)
+        return torch.Tensor(img).to(self._device) if self.as_tensor_output else img
+
+    def _shift_fourier(self, x: Union[np.ndarray, torch.Tensor], n_dims: int) -> np.ndarray:
+        """
+        Applies fourier transform and shifts its output.
+        Only the spatial dimensions get transformed.
+
+        Args:
+            x (np.ndarray): tensor to fourier transform.
+        """
+        out: np.ndarray = np.fft.fftshift(np.fft.fftn(x, axes=tuple(range(-n_dims, 0))), axes=tuple(range(-n_dims, 0)))
+        return out
+
+    def _inv_shift_fourier(self, k: Union[np.ndarray, torch.Tensor], n_dims: int) -> np.ndarray:
+        """
+        Applies inverse shift and fourier transform. Only the spatial
+        dimensions are transformed.
+        """
+        out: np.ndarray = np.fft.ifftn(
+            np.fft.ifftshift(k, axes=tuple(range(-n_dims, 0))), axes=tuple(range(-n_dims, 0))
+        ).real
+        return out
+
+    def _apply_mask(self, k: np.ndarray) -> np.ndarray:
+        """Builds and applies a mask on the spatial dimensions.
+
+        Args:
+            k (np.ndarray): k-space version of the image.
+        Returns:
+            masked version of the k-space image.
+        """
+        shape = k.shape[1:]
+
+        # compute masking radius and center
+        r = (1 - self.alpha) * np.max(shape) * np.sqrt(2) / 2.0
+        center = (np.array(shape) - 1) / 2
+
+        # gives list w/ len==self.dim. Each dim gives coordinate in that dimension
+        coords = np.ogrid[tuple(slice(0, i) for i in shape)]
+
+        # need to subtract center coord and then square for Euc distance
+        coords_from_center_sq = [(coord - c) ** 2 for coord, c in zip(coords, center)]
+        dist_from_center = np.sqrt(sum(coords_from_center_sq))
+        mask = dist_from_center <= r
+
+        # add channel dimension into mask
+        mask = np.repeat(mask[None], k.shape[0], axis=0)
+
+        # apply binary mask
+        k_masked: np.ndarray = k * mask
+        return k_masked

@@ -30,6 +30,7 @@ __all__ = [
     "Method",
     "InverseKeys",
     "CommonKeys",
+    "ForwardMode",
 ]
 
 

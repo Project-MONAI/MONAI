@@ -9,17 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Tuple, Union
 
 import numpy as np
 import torch
 
 from monai.data.dataloader import DataLoader
 from monai.data.dataset import Dataset
-from monai.data.inverse_batch_transform import BatchInverseTransform
 from monai.data.utils import list_data_collate, pad_list_data_collate
 from monai.transforms.compose import Compose
 from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.inverse_batch_transform import BatchInverseTransform
 from monai.transforms.transform import Randomizable
 from monai.transforms.utils import allow_missing_keys_mode
 from monai.utils.enums import CommonKeys, InverseKeys
@@ -89,7 +89,7 @@ class TestTimeAugmentation:
         batch_size: int,
         num_workers: int,
         inferrer_fn: Callable,
-        device: Optional[Union[str, torch.device]] = "cuda" if torch.cuda.is_available() else "cpu",
+        device: Union[str, torch.device] = "cpu",
         image_key=CommonKeys.IMAGE,
         label_key=CommonKeys.LABEL,
         meta_key_postfix="meta_dict",

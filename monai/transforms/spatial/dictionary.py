@@ -28,6 +28,7 @@ from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.array import (
+    AddCoordinateChannels,
     Affine,
     AffineGrid,
     Flip,
@@ -106,6 +107,8 @@ __all__ = [
     "ZoomDict",
     "RandZoomD",
     "RandZoomDict",
+    "AddCoordinateChannelsD",
+    "AddCoordinateChannelsDict",
 ]
 
 GridSampleModeSequence = Union[Sequence[Union[GridSampleMode, str]], GridSampleMode, str]
@@ -198,6 +201,9 @@ class Spacingd(MapTransform, InvertibleTransform):
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
             meta_data_key = f"{key}_{self.meta_key_postfix}"
+            # create metadata if necessary
+            if meta_data_key not in d:
+                d[meta_data_key] = {"affine": None}
             meta_data = d[meta_data_key]
             # resample array of each corresponding key
             # using affine fetched from d[affine_key]
@@ -317,6 +323,9 @@ class Orientationd(MapTransform, InvertibleTransform):
         d: Dict = dict(data)
         for key in self.key_iterator(d):
             meta_data_key = f"{key}_{self.meta_key_postfix}"
+            # create metadata if necessary
+            if meta_data_key not in d:
+                d[meta_data_key] = {"affine": None}
             meta_data = d[meta_data_key]
             d[key], old_affine, new_affine = self.ornt_transform(d[key], affine=meta_data["affine"])
             self.push_transform(d, key, extra_info={"meta_data_key": meta_data_key, "old_affine": old_affine})
@@ -732,9 +741,11 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             grid = self.rand_affine.rand_affine_grid(spatial_size=sp_size)
             affine = self.rand_affine.rand_affine_grid.get_transformation_matrix()
         else:
-            grid = create_grid(spatial_size=sp_size)
             # to be consistent with the self._do_transform case (dtype and device)
             affine = torch.as_tensor(np.eye(len(sp_size) + 1), device=self.rand_affine.rand_affine_grid.device)
+            # no transform, but a change of size
+            if self.rand_affine.spatial_size is not None:
+                grid = create_grid(spatial_size=sp_size)
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             self.push_transform(
@@ -746,7 +757,16 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
                     "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
                 },
             )
-            d[key] = self.rand_affine.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)
+            # do the transform
+            if self._do_transform or self.rand_affine.spatial_size is not None:
+                d[key] = self.rand_affine.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)
+            # if not doing transform and and spatial size is unchanged, only need to do numpy/torch conversion
+            else:
+                if self.rand_affine.resampler.as_tensor_output and not isinstance(d[key], torch.Tensor):
+                    d[key] = torch.Tensor(d[key])
+                elif not self.rand_affine.resampler.as_tensor_output and isinstance(d[key], torch.Tensor):
+                    d[key] = d[key].detach().cpu().numpy()  # type: ignore[union-attr]
+
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
@@ -754,18 +774,22 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
 
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
-            orig_size = transform[InverseKeys.ORIG_SIZE]
-            # Create inverse transform
-            fwd_affine = transform[InverseKeys.EXTRA_INFO]["affine"]
-            mode = transform[InverseKeys.EXTRA_INFO]["mode"]
-            padding_mode = transform[InverseKeys.EXTRA_INFO]["padding_mode"]
-            inv_affine = np.linalg.inv(fwd_affine)
+            # if transform was not performed and spatial size is None, nothing to do.
+            if not transform[InverseKeys.DO_TRANSFORM] and self.rand_affine.spatial_size is None:
+                out: Union[np.ndarray, torch.Tensor] = d[key]
+            else:
+                orig_size = transform[InverseKeys.ORIG_SIZE]
+                # Create inverse transform
+                fwd_affine = transform[InverseKeys.EXTRA_INFO]["affine"]
+                mode = transform[InverseKeys.EXTRA_INFO]["mode"]
+                padding_mode = transform[InverseKeys.EXTRA_INFO]["padding_mode"]
+                inv_affine = np.linalg.inv(fwd_affine)
 
-            affine_grid = AffineGrid(affine=inv_affine)
-            grid, _ = affine_grid(orig_size)  # type: ignore
+                affine_grid = AffineGrid(affine=inv_affine)
+                grid, _ = affine_grid(orig_size)  # type: ignore
 
-            # Apply inverse transform
-            out = self.rand_affine.resampler(d[key], grid, mode, padding_mode)
+                # Apply inverse transform
+                out = self.rand_affine.resampler(d[key], grid, mode, padding_mode)
 
             # Convert to numpy
             d[key] = out if isinstance(out, np.ndarray) else out.cpu().numpy()
@@ -1618,6 +1642,34 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
 
+class AddCoordinateChannelsd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.AddCoordinateChannels`.
+    """
+
+    def __init__(self, keys: KeysCollection, spatial_channels: Sequence[int], allow_missing_keys: bool = False) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            allow_missing_keys: don't raise exception if key is missing.
+            spatial_channels: the spatial dimensions that are to have their coordinates encoded in a channel and
+                appended to the input. E.g., `(1,2,3)` will append three channels to the input, encoding the
+                coordinates of the input's three spatial dimensions. It is assumed dimension 0 is the channel.
+
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.add_coordinate_channels = AddCoordinateChannels(spatial_channels)
+
+    def __call__(
+        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
+    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.add_coordinate_channels(d[key])
+        return d
+
+
 SpacingD = SpacingDict = Spacingd
 OrientationD = OrientationDict = Orientationd
 Rotate90D = Rotate90Dict = Rotate90d
@@ -1634,3 +1686,4 @@ RotateD = RotateDict = Rotated
 RandRotateD = RandRotateDict = RandRotated
 ZoomD = ZoomDict = Zoomd
 RandZoomD = RandZoomDict = RandZoomd
+AddCoordinateChannelsD = AddCoordinateChannelsDict = AddCoordinateChannelsd

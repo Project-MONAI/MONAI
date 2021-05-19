@@ -43,6 +43,11 @@ Generic Interfaces
 .. autoclass:: InvertibleTransform
     :members:
 
+`BatchInverseTransform`
+^^^^^^^^^^^^^^^^^^^^^^^
+.. autoclass:: BatchInverseTransform
+    :members:
+
 
 Vanilla Transforms
 ------------------
@@ -119,6 +124,18 @@ Crop and Pad
 `BoundingRect`
 """"""""""""""
 .. autoclass:: BoundingRect
+    :members:
+    :special-members: __call__
+
+`RandScaleCrop`
+"""""""""""""""
+.. autoclass:: RandScaleCrop
+    :members:
+    :special-members: __call__
+
+`CenterScaleCrop`
+"""""""""""""""""
+.. autoclass:: CenterScaleCrop
     :members:
     :special-members: __call__
 
@@ -256,6 +273,19 @@ Intensity
 .. autoclass:: DetectEnvelope
     :members:
     :special-members: __call__
+
+`GibbsNoise`
+""""""""""""""
+.. autoclass:: GibbsNoise
+    :members:
+    :special-members: __call__
+
+`RandGibbsNoise`
+"""""""""""""""""
+.. autoclass:: RandGibbsNoise
+    :members:
+    :special-members: __call__
+
 
 IO
 ^^
@@ -439,6 +469,12 @@ Spatial
     :members:
     :special-members: __call__
 
+`AddCoordinateChannels`
+"""""""""""""""""""""""
+.. autoclass:: AddCoordinateChannels
+    :members:
+    :special-members: __call__
+
 Utility
 ^^^^^^^
 
@@ -501,6 +537,13 @@ Utility
 .. autoclass:: ToNumpy
     :members:
     :special-members: __call__
+
+`ToCupy`
+""""""""
+.. autoclass:: ToCupy
+    :members:
+    :special-members: __call__
+
 
 `Transpose`
 """""""""""
@@ -646,6 +689,18 @@ Crop and Pad (Dict)
     :members:
     :special-members: __call__
 
+`RandScaleCropd`
+""""""""""""""""
+.. autoclass:: RandScaleCropd
+    :members:
+    :special-members: __call__
+
+`CenterScaleCropd`
+""""""""""""""""""
+.. autoclass:: CenterScaleCropd
+    :members:
+    :special-members: __call__
+
 Instensity (Dict)
 ^^^^^^^^^^^^^^^^^
 
@@ -712,6 +767,18 @@ Instensity (Dict)
 `ScaleIntensityRanged`
 """"""""""""""""""""""
 .. autoclass:: ScaleIntensityRanged
+    :members:
+    :special-members: __call__
+
+`GibbsNoised`
+""""""""""""""
+.. autoclass:: GibbsNoised
+    :members:
+    :special-members: __call__
+
+`RandGibbsNoised`
+""""""""""""""""""
+.. autoclass:: RandGibbsNoised
     :members:
     :special-members: __call__
 
@@ -829,6 +896,18 @@ Post-processing (Dict)
     :members:
     :special-members: __call__
 
+`Invertd`
+"""""""""
+.. autoclass:: Invertd
+    :members:
+    :special-members: __call__
+
+`SaveClassificationd`
+"""""""""""""""""""""
+.. autoclass:: SaveClassificationd
+    :members:
+    :special-members: __call__
+
 Spatial (Dict)
 ^^^^^^^^^^^^^^
 
@@ -928,6 +1007,12 @@ Spatial (Dict)
     :members:
     :special-members: __call__
 
+`AddCoordinateChannelsd`
+""""""""""""""""""""""""
+.. autoclass:: AddCoordinateChannelsd
+    :members:
+    :special-members: __call__
+
 Utility (Dict)
 ^^^^^^^^^^^^^^
 
@@ -988,6 +1073,12 @@ Utility (Dict)
 `ToNumpyd`
 """"""""""
 .. autoclass:: ToNumpyd
+    :members:
+    :special-members: __call__
+
+`ToCupyd`
+"""""""""
+.. autoclass:: ToCupyd
     :members:
     :special-members: __call__
 

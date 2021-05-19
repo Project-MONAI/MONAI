@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets import EfficientNetBN, drop_connect, get_efficientnet_image_size
+from monai.networks.nets import BlockArgs, EfficientNetBN, drop_connect, get_efficientnet_image_size
 from monai.utils import optional_import
 from tests.utils import skip_if_quick, test_pretrained_networks, test_script_save
 
@@ -53,6 +53,26 @@ def get_expected_model_shape(model_name):
         "efficientnet-b7": 600,
     }
     return model_input_shapes[model_name]
+
+
+def get_block_args():
+    # test string list
+    return [
+        "r1_k3_s11_e1_i32_o16_se0.25",
+        "r2_k3_s22_e6_i16_o24_se0.25",
+        "r2_k5_s22_e6_i24_o40_se0.25",
+        "r3_k3_s22_e6_i40_o80_se0.25",
+        "r3_k5_s11_e6_i80_o112_se0.25",
+        "r4_k5_s22_e6_i112_o192_se0.25",
+        "r1_k3_s11_e6_i192_o320_se0.25",
+        "r1_k3_s11_e1_i32_o16_se0.25_noskip",
+        "r2_k3_s22_e6_i16_o24_se0.25_noskip",
+        "r2_k5_s22_e6_i24_o40_se0.25_noskip",
+        "r3_k3_s22_e6_i40_o80_se0.25_noskip",
+        "r3_k5_s11_e6_i80_o112_se0.25_noskip",
+        "r4_k5_s22_e6_i112_o192_se0.25_noskip",
+        "r1_k3_s11_e6_i192_o320_se0.25_noskip",
+    ]
 
 
 def make_shape_cases(models, spatial_dims, batches, pretrained, in_channels=3, num_classes=1000):
@@ -233,7 +253,7 @@ class TestEFFICIENTNET(unittest.TestCase):
         image_size = get_efficientnet_image_size(input_param["model_name"])
         img = PIL.Image.open(image_path)
 
-        # defin ImageNet transform
+        # define ImageNet transforms
         tfms = torchvision.transforms.Compose(
             [
                 torchvision.transforms.Resize(image_size),
@@ -254,11 +274,12 @@ class TestEFFICIENTNET(unittest.TestCase):
             result = net(img)
         pred_label = torch.argmax(result, dim=-1)
 
-        # check output
+        # check output label
         self.assertEqual(pred_label, expected_label)
 
     def test_drop_connect_layer(self):
         p_list = [float(d + 1) / 10.0 for d in range(9)]
+
         # testing 1D, 2D and 3D shape
         for rand_tensor_shape in [(512, 16, 4), (384, 16, 4, 4), (256, 16, 4, 4, 4)]:
 
@@ -283,6 +304,17 @@ class TestEFFICIENTNET(unittest.TestCase):
                 p_calculated = p_calculated.cpu().numpy()
 
                 self.assertTrue(abs(p_calculated - p) < tol)
+
+    def test_block_args_decode(self):
+        blocks_args_str = get_block_args()
+
+        # convert strings to BlockArgs
+        blocks_args = [BlockArgs.from_string(s) for s in blocks_args_str]
+        # convert BlockArgs back to string
+        blocks_args_str_convert = [s.to_string() for s in blocks_args]
+
+        # check if converted strings match original
+        [self.assertEqual(original, converted) for original, converted in zip(blocks_args_str, blocks_args_str_convert)]
 
     def test_ill_arg(self):
         with self.assertRaises(ValueError):

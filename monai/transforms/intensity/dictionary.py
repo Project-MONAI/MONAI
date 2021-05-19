@@ -26,9 +26,11 @@ from monai.transforms.intensity.array import (
     AdjustContrast,
     GaussianSharpen,
     GaussianSmooth,
+    GibbsNoise,
     MaskIntensity,
     NormalizeIntensity,
     RandBiasField,
+    RandRicianNoise,
     ScaleIntensity,
     ScaleIntensityRange,
     ScaleIntensityRangePercentiles,
@@ -41,6 +43,7 @@ from monai.utils import dtype_torch_to_numpy, ensure_tuple_rep, ensure_tuple_siz
 
 __all__ = [
     "RandGaussianNoised",
+    "RandRicianNoised",
     "ShiftIntensityd",
     "RandShiftIntensityd",
     "ScaleIntensityd",
@@ -59,6 +62,8 @@ __all__ = [
     "RandGaussianSmoothd",
     "GaussianSharpend",
     "RandGaussianSharpend",
+    "GibbsNoised",
+    "RandGibbsNoised",
     "RandHistogramShiftd",
     "RandGaussianNoiseD",
     "RandGaussianNoiseDict",
@@ -98,8 +103,14 @@ __all__ = [
     "GaussianSharpenDict",
     "RandGaussianSharpenD",
     "RandGaussianSharpenDict",
+    "GibbsNoiseD",
+    "GibbsNoiseDict",
+    "RandGibbsNoiseD",
+    "RandGibbsNoiseDict",
     "RandHistogramShiftD",
     "RandHistogramShiftDict",
+    "RandRicianNoiseD",
+    "RandRicianNoiseDict",
 ]
 
 
@@ -149,6 +160,58 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         for key, noise in self.key_iterator(d, self._noise):
             dtype = dtype_torch_to_numpy(d[key].dtype) if isinstance(d[key], torch.Tensor) else d[key].dtype
             d[key] = d[key] + noise.astype(dtype)
+        return d
+
+
+class RandRicianNoised(RandomizableTransform, MapTransform):
+    """
+    Dictionary-based version :py:class:`monai.transforms.RandRicianNoise`.
+    Add Rician noise to image. This transform assumes all the expected fields have same shape.
+
+    Args:
+        keys: Keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        global_prob: Probability to add Rician noise to the dictionary.
+        prob: Probability to add Rician noise to each item in the dictionary,
+            once asserted that noise will be added to the dictionary at all.
+        mean: Mean or "centre" of the Gaussian distributions sampled to make up
+            the Rician noise.
+        std: Standard deviation (spread) of the Gaussian distributions sampled
+            to make up the Rician noise.
+        channel_wise: If True, treats each channel of the image separately.
+        relative: If True, the spread of the sampled Gaussian distributions will
+            be std times the standard deviation of the image or channel's intensity
+            histogram.
+        sample_std: If True, sample the spread of the Gaussian distributions
+            uniformly from 0 to std.
+        allow_missing_keys: Don't raise exception if key is missing.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        global_prob: float = 0.1,
+        prob: float = 1.0,
+        mean: Union[Sequence[float], float] = 0.0,
+        std: Union[Sequence[float], float] = 1.0,
+        channel_wise: bool = False,
+        relative: bool = False,
+        sample_std: bool = True,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, global_prob)
+        self.rand_rician_noise = RandRicianNoise(prob, mean, std, channel_wise, relative, sample_std)
+
+    def __call__(
+        self, data: Mapping[Hashable, Union[torch.Tensor, np.ndarray]]
+    ) -> Dict[Hashable, Union[torch.Tensor, np.ndarray]]:
+        d = dict(data)
+        super().randomize(None)
+        if not self._do_transform:
+            return d
+        for key in self.key_iterator(d):
+            d[key] = self.rand_rician_noise(d[key])
         return d
 
 
@@ -957,7 +1020,119 @@ class RandHistogramShiftd(RandomizableTransform, MapTransform):
         return d
 
 
+class RandGibbsNoised(RandomizableTransform, MapTransform):
+    """
+    Dictionary-based version of RandGibbsNoise.
+
+    Naturalistic image augmentation via Gibbs artifacts. The transform
+    randomly applies Gibbs noise to 2D/3D MRI images. Gibbs artifacts
+    are one of the common type of type artifacts appearing in MRI scans.
+
+    The transform is applied to all the channels in the data.
+
+    For general information on Gibbs artifacts, please refer to:
+    https://pubs.rsna.org/doi/full/10.1148/rg.313105115
+    https://pubs.rsna.org/doi/full/10.1148/radiographics.22.4.g02jl14949
+
+    Args:
+        keys: 'image', 'label', or ['image', 'label'] depending on which data
+                you need to transform.
+        prob (float): probability of applying the transform.
+        alpha (float, List[float]): Parametrizes the intensity of the Gibbs noise filter applied. Takes
+            values in the interval [0,1] with alpha = 0 acting as the identity mapping.
+            If a length-2 list is given as [a,b] then the value of alpha will be sampled
+            uniformly from the interval [a,b].
+        as_tensor_output: if true return torch.Tensor, else return np.array. default: True.
+        allow_missing_keys: do not raise exception if key is missing.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        prob: float = 0.1,
+        alpha: Sequence[float] = (0.0, 1.0),
+        as_tensor_output: bool = True,
+        allow_missing_keys: bool = False,
+    ) -> None:
+
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob=prob)
+        self.alpha = alpha
+        self.sampled_alpha = -1.0  # stores last alpha sampled by randomize()
+        self.as_tensor_output = as_tensor_output
+
+    def __call__(
+        self, data: Mapping[Hashable, Union[torch.Tensor, np.ndarray]]
+    ) -> Dict[Hashable, Union[torch.Tensor, np.ndarray]]:
+
+        d = dict(data)
+        self._randomize(None)
+
+        for i, key in enumerate(self.key_iterator(d)):
+            if self._do_transform:
+                if i == 0:
+                    transform = GibbsNoise(self.sampled_alpha, self.as_tensor_output)
+                d[key] = transform(d[key])
+            else:
+                if isinstance(d[key], np.ndarray) and self.as_tensor_output:
+                    d[key] = torch.Tensor(d[key])
+                elif isinstance(d[key], torch.Tensor) and not self.as_tensor_output:
+                    d[key] = self._to_numpy(d[key])
+        return d
+
+    def _randomize(self, _: Any) -> None:
+        """
+        (1) Set random variable to apply the transform.
+        (2) Get alpha from uniform distribution.
+        """
+        super().randomize(None)
+        self.sampled_alpha = self.R.uniform(self.alpha[0], self.alpha[1])
+
+    def _to_numpy(self, d: Union[torch.Tensor, np.ndarray]) -> np.ndarray:
+        if isinstance(d, torch.Tensor):
+            d_numpy: np.ndarray = d.cpu().detach().numpy()
+        return d_numpy
+
+
+class GibbsNoised(MapTransform):
+    """
+    Dictionary-based version of GibbsNoise.
+
+    The transform applies Gibbs noise to 2D/3D MRI images. Gibbs artifacts
+    are one of the common type of type artifacts appearing in MRI scans.
+
+    For general information on Gibbs artifacts, please refer to:
+    https://pubs.rsna.org/doi/full/10.1148/rg.313105115
+    https://pubs.rsna.org/doi/full/10.1148/radiographics.22.4.g02jl14949
+
+    Args:
+        keys: 'image', 'label', or ['image', 'label'] depending on which data
+                you need to transform.
+        alpha (float): Parametrizes the intensity of the Gibbs noise filter applied. Takes
+            values in the interval [0,1] with alpha = 0 acting as the identity mapping.
+        as_tensor_output: if true return torch.Tensor, else return np.array. default: True.
+        allow_missing_keys: do not raise exception if key is missing.
+    """
+
+    def __init__(
+        self, keys: KeysCollection, alpha: float = 0.5, as_tensor_output: bool = True, allow_missing_keys: bool = False
+    ) -> None:
+
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        self.transform = GibbsNoise(alpha, as_tensor_output)
+
+    def __call__(
+        self, data: Mapping[Hashable, Union[torch.Tensor, np.ndarray]]
+    ) -> Dict[Hashable, Union[torch.Tensor, np.ndarray]]:
+
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.transform(d[key])
+        return d
+
+
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
+RandRicianNoiseD = RandRicianNoiseDict = RandRicianNoised
 ShiftIntensityD = ShiftIntensityDict = ShiftIntensityd
 RandShiftIntensityD = RandShiftIntensityDict = RandShiftIntensityd
 StdShiftIntensityD = StdShiftIntensityDict = StdShiftIntensityd
@@ -977,3 +1152,5 @@ RandGaussianSmoothD = RandGaussianSmoothDict = RandGaussianSmoothd
 GaussianSharpenD = GaussianSharpenDict = GaussianSharpend
 RandGaussianSharpenD = RandGaussianSharpenDict = RandGaussianSharpend
 RandHistogramShiftD = RandHistogramShiftDict = RandHistogramShiftd
+RandGibbsNoiseD = RandGibbsNoiseDict = RandGibbsNoised
+GibbsNoiseD = GibbsNoiseDict = GibbsNoised

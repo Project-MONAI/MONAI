@@ -31,6 +31,8 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
     Class for metrics that should be computed on every iteration and compute final results when epoch completed.
     Similar to the `EpochMetric` in ignite:
     https://github.com/pytorch/ignite/blob/v0.4.2/ignite/metrics/epoch_metric.py#L13.
+    The input `prediction` or `label` data can be a PyTorch Tensor or numpy array with batch dim and channel dim,
+    or a list of PyTorch Tensor or numpy array without batch dim.
 
     Args:
         metric_fn: callable function or class to compute raw metric results after every iteration.

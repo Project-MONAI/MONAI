@@ -44,13 +44,14 @@ class ClassificationSaver:
         output_transform: Callable = lambda x: x,
         name: Optional[str] = None,
         save_rank: int = 0,
+        saver: Optional[CSVSaver] = None,
     ) -> None:
         """
         Args:
-            output_dir: output CSV file directory.
-            filename: name of the saved CSV file name.
-            overwrite: whether to overwriting existing CSV file content. If we are not overwriting,
-                then we check if the results have been previously saved, and load them to the prediction_dict.
+            output_dir: if `saver=None`, output CSV file directory.
+            filename: if `saver=None`, name of the saved CSV file name.
+            overwrite: if `saver=None`, whether to overwriting existing file content, if True,
+                will clear the file before saving. otherwise, will apend new content to the file.
             batch_transform: a callable that is used to transform the
                 ignite.engine.batch into expected format to extract the meta_data dictionary.
             output_transform: a callable that is used to transform the
@@ -60,6 +61,8 @@ class ClassificationSaver:
             name: identifier of logging.logger to use, defaulting to `engine.logger`.
             save_rank: only the handler on specified rank will save to CSV file in multi-gpus validation,
                 default to 0.
+            saver: the saver instance to save classification results, if None, create a CSVSaver internally.
+                the saver must provide `save_batch(batch_data, meta_data)` and `finalize()` APIs.
 
         """
         self.save_rank = save_rank
@@ -68,6 +71,7 @@ class ClassificationSaver:
         self.overwrite = overwrite
         self.batch_transform = batch_transform
         self.output_transform = output_transform
+        self.saver = saver
 
         self.logger = logging.getLogger(name)
         self._name = name
@@ -134,6 +138,6 @@ class ClassificationSaver:
 
         # save to CSV file only in the expected rank
         if idist.get_rank() == self.save_rank:
-            saver = CSVSaver(self.output_dir, self.filename, self.overwrite)
+            saver = self.saver or CSVSaver(self.output_dir, self.filename, self.overwrite)
             saver.save_batch(outputs, meta_dict)
             saver.finalize()

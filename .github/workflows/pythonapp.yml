@@ -1,10 +1,12 @@
 name: build
 
 on:
-  # quick tests for every pull request
+  # quick tests for pull requests and the releasing branches
   push:
     branches:
-      - master
+      - dev
+      - main
+      - releasing/*
   pull_request:
 
 jobs:
@@ -83,10 +85,6 @@ jobs:
         python -m pip install torch==1.8.1+cpu torchvision==0.9.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
         # min. requirements for windows instances
         python -c "f=open('requirements-dev.txt', 'r'); txt=f.readlines(); f.close(); print(txt); f=open('requirements-dev.txt', 'w'); f.writelines(txt[1:12]); f.close()"
-    - if: runner.os == 'macos'
-      name: Remove cucim installation (Mac only)
-      run: |
-        python -c "f=open('requirements-dev.txt', 'r'); txt=f.readlines(); f.close(); print(txt); f=open('requirements-dev.txt', 'w'); f.writelines([t for t in txt if not t.startswith('cucim')]); f.close()"
     - name: Install the dependencies
       run: |
         python -m pip install torch==1.8.1 torchvision==0.9.1
@@ -159,7 +157,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.6, 3.7]
+        python-version: [3.6, 3.7, 3.8, 3.9]
     timeout-minutes: 40
     steps:
     - uses: actions/checkout@v2
@@ -231,7 +229,7 @@ jobs:
           - environment: PT18+CUDA112
             # we explicitly set pytorch to -h to avoid pip install error
             pytorch: "-h"
-            base: "nvcr.io/nvidia/pytorch:21.02-py3"
+            base: "nvcr.io/nvidia/pytorch:21.04-py3"
     container:
       image: ${{ matrix.base }}
       options: --gpus all
@@ -264,7 +262,8 @@ jobs:
           libboost-test-dev \
           libgoogle-glog-dev \
           libjsoncpp-dev \
-          cmake && \
+          cmake \
+          git && \
         rm -rf /var/lib/apt/lists/* && \
         export PYTHONIOENCODING=utf-8 LC_ALL=C.UTF-8 && \
         rm -f /usr/bin/python && \
@@ -284,6 +283,9 @@ jobs:
         python -m pip list
     - name: Run quick tests (GPU)
       run: |
+        git clone --depth 1 \
+          https://github.com/Project-MONAI/MONAI-extra-test-data.git /MONAI-extra-test-data
+        export MONAI_EXTRA_TEST_DATA="/MONAI-extra-test-data"
         nvidia-smi
         export LAUNCH_DELAY=$(python -c "import numpy; print(numpy.random.randint(30) * 10)")
         echo "Sleep $LAUNCH_DELAY"
@@ -295,7 +297,8 @@ jobs:
         python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
         python -c 'import torch; print(torch.rand(5, 3, device=torch.device("cuda:0")))'
         python -c "import monai; monai.config.print_config()"
-        BUILD_MONAI=1 ./runtests.sh --quick --unittests
+        # build for the current self-hosted CI Tesla V100
+        BUILD_MONAI=1 TORCH_CUDA_ARCH_LIST="7.0" ./runtests.sh --quick --unittests
         if [ ${{ matrix.environment }} = "PT18+CUDA112" ]; then
           # test the clang-format tool downloading once
           coverage run -m tests.clang_format_utils

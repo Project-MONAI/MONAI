@@ -73,8 +73,12 @@ def apply_transform(transform: Callable, data, map_items: bool = True):
 
 class Randomizable(ABC):
     """
-    An interface for handling random state locally, currently based on a class variable `R`,
-    which is an instance of `np.random.RandomState`.
+    An interface for handling random state locally, currently based on a class
+    variable `R`, which is an instance of `np.random.RandomState`.  This
+    provides the flexibility of component-specific determinism without
+    affecting the global states.  It is recommended to use this API with
+    :py:class:`monai.data.DataLoader` for deterministic behaviour of the
+    preprocessing pipelines.
     """
 
     R: np.random.RandomState = np.random.RandomState()

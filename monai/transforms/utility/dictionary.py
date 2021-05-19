@@ -44,93 +44,108 @@ from monai.transforms.utility.array import (
     SimulateDelay,
     SplitChannel,
     SqueezeDim,
+    ToCupy,
     ToNumpy,
     ToPIL,
     TorchVision,
     ToTensor,
+    Transpose,
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.utils import ensure_tuple, ensure_tuple_rep
+from monai.utils.enums import InverseKeys
 
 __all__ = [
-    "Identityd",
-    "AsChannelFirstd",
-    "AsChannelLastd",
-    "AddChanneld",
-    "EnsureChannelFirstd",
-    "RepeatChanneld",
-    "RemoveRepeatedChanneld",
-    "SplitChanneld",
-    "CastToTyped",
-    "ToTensord",
-    "ToNumpyd",
-    "ToPILd",
-    "DeleteItemsd",
-    "SelectItemsd",
-    "SqueezeDimd",
-    "DataStatsd",
-    "SimulateDelayd",
-    "CopyItemsd",
-    "ConcatItemsd",
-    "Lambdad",
-    "RandLambdad",
-    "LabelToMaskd",
-    "FgBgToIndicesd",
-    "ConvertToMultiChannelBasedOnBratsClassesd",
-    "AddExtremePointsChanneld",
-    "TorchVisiond",
-    "RandTorchVisiond",
-    "MapLabelValued",
-    "IdentityD",
-    "IdentityDict",
-    "AsChannelFirstD",
-    "AsChannelFirstDict",
-    "AsChannelLastD",
-    "AsChannelLastDict",
     "AddChannelD",
     "AddChannelDict",
-    "EnsureChannelFirstD",
-    "EnsureChannelFirstDict",
-    "RandLambdaD",
-    "RandLambdaDict",
-    "RepeatChannelD",
-    "RepeatChannelDict",
-    "RemoveRepeatedChannelD",
-    "RemoveRepeatedChannelDict",
-    "SplitChannelD",
-    "SplitChannelDict",
-    "CastToTypeD",
-    "CastToTypeDict",
-    "ToTensorD",
-    "ToTensorDict",
-    "DeleteItemsD",
-    "DeleteItemsDict",
-    "SqueezeDimD",
-    "SqueezeDimDict",
-    "DataStatsD",
-    "DataStatsDict",
-    "SimulateDelayD",
-    "SimulateDelayDict",
-    "CopyItemsD",
-    "CopyItemsDict",
-    "ConcatItemsD",
-    "ConcatItemsDict",
-    "LambdaD",
-    "LambdaDict",
-    "LabelToMaskD",
-    "LabelToMaskDict",
-    "FgBgToIndicesD",
-    "FgBgToIndicesDict",
-    "ConvertToMultiChannelBasedOnBratsClassesD",
-    "ConvertToMultiChannelBasedOnBratsClassesDict",
+    "AddChanneld",
     "AddExtremePointsChannelD",
     "AddExtremePointsChannelDict",
-    "TorchVisionD",
-    "TorchVisionDict",
-    "RandTorchVisionD",
-    "RandTorchVisionDict",
+    "AddExtremePointsChanneld",
+    "AsChannelFirstD",
+    "AsChannelFirstDict",
+    "AsChannelFirstd",
+    "AsChannelLastD",
+    "AsChannelLastDict",
+    "AsChannelLastd",
+    "CastToTypeD",
+    "CastToTypeDict",
+    "CastToTyped",
+    "ConcatItemsD",
+    "ConcatItemsDict",
+    "ConcatItemsd",
+    "ConvertToMultiChannelBasedOnBratsClassesD",
+    "ConvertToMultiChannelBasedOnBratsClassesDict",
+    "ConvertToMultiChannelBasedOnBratsClassesd",
+    "CopyItemsD",
+    "CopyItemsDict",
+    "CopyItemsd",
+    "DataStatsD",
+    "DataStatsDict",
+    "DataStatsd",
+    "DeleteItemsD",
+    "DeleteItemsDict",
+    "DeleteItemsd",
+    "EnsureChannelFirstD",
+    "EnsureChannelFirstDict",
+    "EnsureChannelFirstd",
+    "FgBgToIndicesD",
+    "FgBgToIndicesDict",
+    "FgBgToIndicesd",
+    "IdentityD",
+    "IdentityDict",
+    "Identityd",
+    "LabelToMaskD",
+    "LabelToMaskDict",
+    "LabelToMaskd",
+    "LambdaD",
+    "LambdaDict",
+    "Lambdad",
     "MapLabelValueD",
     "MapLabelValueDict",
+    "MapLabelValued",
+    "RandLambdaD",
+    "RandLambdaDict",
+    "RandLambdad",
+    "RandTorchVisionD",
+    "RandTorchVisionDict",
+    "RandTorchVisiond",
+    "RemoveRepeatedChannelD",
+    "RemoveRepeatedChannelDict",
+    "RemoveRepeatedChanneld",
+    "RepeatChannelD",
+    "RepeatChannelDict",
+    "RepeatChanneld",
+    "SelectItemsD",
+    "SelectItemsDict",
+    "SelectItemsd",
+    "SimulateDelayD",
+    "SimulateDelayDict",
+    "SimulateDelayd",
+    "SplitChannelD",
+    "SplitChannelDict",
+    "SplitChanneld",
+    "SqueezeDimD",
+    "SqueezeDimDict",
+    "SqueezeDimd",
+    "ToCupyD",
+    "ToCupyDict",
+    "ToCupyd",
+    "ToNumpyD",
+    "ToNumpyDict",
+    "ToNumpyd",
+    "ToPILD",
+    "ToPILDict",
+    "ToPILd",
+    "ToTensorD",
+    "ToTensorDict",
+    "ToTensord",
+    "TorchVisionD",
+    "TorchVisionDict",
+    "TorchVisiond",
+    "Transposed",
+    "TransposeDict",
+    "TransposeD",
 ]
 
 
@@ -440,6 +455,28 @@ class ToNumpyd(MapTransform):
         return d
 
 
+class ToCupyd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.ToCupy`.
+    """
+
+    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.converter = ToCupy()
+
+    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.converter(d[key])
+        return d
+
+
 class ToPILd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ToNumpy`.
@@ -459,6 +496,41 @@ class ToPILd(MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
+        return d
+
+
+class Transposed(MapTransform, InvertibleTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.Transpose`.
+    """
+
+    def __init__(
+        self, keys: KeysCollection, indices: Optional[Sequence[int]], allow_missing_keys: bool = False
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.transform = Transpose(indices)
+
+    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.transform(d[key])
+            # if None was supplied then numpy uses range(a.ndim)[::-1]
+            indices = self.transform.indices or range(d[key].ndim)[::-1]
+            self.push_transform(d, key, extra_info={"indices": indices})
+        return d
+
+    def inverse(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            fwd_indices = np.array(transform[InverseKeys.EXTRA_INFO]["indices"])
+            inv_indices = np.argsort(fwd_indices)
+            inverse_transform = Transpose(inv_indices.tolist())
+            # Apply inverse
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.pop_transform(d, key)
         return d
 
 
@@ -1060,8 +1132,11 @@ SplitChannelD = SplitChannelDict = SplitChanneld
 CastToTypeD = CastToTypeDict = CastToTyped
 ToTensorD = ToTensorDict = ToTensord
 ToNumpyD = ToNumpyDict = ToNumpyd
+ToCupyD = ToCupyDict = ToCupyd
 ToPILD = ToPILDict = ToPILd
+TransposeD = TransposeDict = Transposed
 DeleteItemsD = DeleteItemsDict = DeleteItemsd
+SelectItemsD = SelectItemsDict = SelectItemsd
 SqueezeDimD = SqueezeDimDict = SqueezeDimd
 DataStatsD = DataStatsDict = DataStatsd
 SimulateDelayD = SimulateDelayDict = SimulateDelayd
