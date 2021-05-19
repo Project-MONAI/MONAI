@@ -663,8 +663,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
             cropped = self.cropper(d)
             # add `patch_index` to the meta data
             for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
-                if meta_key is None:
-                    meta_key = f"{key}_{meta_key_postfix}"
+                meta_key = meta_key or f"{key}_{meta_key_postfix}"
                 if meta_key not in cropped:
                     cropped[meta_key] = {}  # type: ignore
                 cropped[meta_key][Key.PATCH_INDEX] = i
@@ -845,8 +844,7 @@ class RandWeightedCropd(Randomizable, MapTransform):
                 results[i][key] = deepcopy(data[key])
             # add `patch_index` to the meta data
             for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
-                if meta_key is None:
-                    meta_key = f"{key}_{meta_key_postfix}"
+                meta_key = meta_key or f"{key}_{meta_key_postfix}"
                 if meta_key not in results[i]:
                     results[i][meta_key] = {}  # type: ignore
                 results[i][meta_key][Key.PATCH_INDEX] = i
@@ -977,8 +975,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
                 results[i][key] = deepcopy(data[key])
             # add `patch_index` to the meta data
             for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
-                if meta_key is None:
-                    meta_key = f"{key}_{meta_key_postfix}"
+                meta_key = meta_key or f"{key}_{meta_key_postfix}"
                 if meta_key not in results[i]:
                     results[i][meta_key] = {}  # type: ignore
                 results[i][meta_key][Key.PATCH_INDEX] = i

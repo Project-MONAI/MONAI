@@ -205,8 +205,7 @@ class Spacingd(MapTransform, InvertibleTransform):
         for key, mode, padding_mode, align_corners, dtype, meta_key, meta_key_postfix in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype, self.meta_keys, self.meta_key_postfix
         ):
-            if meta_key is None:
-                meta_key = f"{key}_{meta_key_postfix}"
+            meta_key = meta_key or f"{key}_{meta_key_postfix}"
             # create metadata if necessary
             if meta_key not in d:
                 d[meta_key] = {"affine": None}
@@ -335,8 +334,7 @@ class Orientationd(MapTransform, InvertibleTransform):
     ) -> Dict[Union[Hashable, str], Union[np.ndarray, Dict[str, np.ndarray]]]:
         d: Dict = dict(data)
         for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
-            if meta_key is None:
-                meta_key = f"{key}_{meta_key_postfix}"
+            meta_key = meta_key or f"{key}_{meta_key_postfix}"
             # create metadata if necessary
             if meta_key not in d:
                 d[meta_key] = {"affine": None}

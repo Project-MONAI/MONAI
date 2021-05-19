@@ -725,8 +725,7 @@ class SpatialCropGuidanced(MapTransform):
         for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
             if not np.array_equal(d[key].shape[1:], original_spatial_shape):
                 raise RuntimeError("All the image specified in keys should have same spatial shape")
-            if meta_key is None:
-                meta_key = f"{key}_{meta_key_postfix}"
+            meta_key = meta_key or f"{key}_{meta_key_postfix}"
             d[meta_key][self.start_coord_key] = box_start
             d[meta_key][self.end_coord_key] = box_end
             d[meta_key][self.original_shape_key] = d[key].shape
@@ -916,8 +915,7 @@ class RestoreLabeld(MapTransform):
                 final_result[slice_idx] = result
             d[key] = final_result
 
-            if meta_key is None:
-                meta_key = f"{key}_{self.meta_key_postfix}"
+            meta_key = meta_key or f"{key}_{self.meta_key_postfix}"
             meta = d.get(meta_key)
             if meta is None:
                 meta = dict()

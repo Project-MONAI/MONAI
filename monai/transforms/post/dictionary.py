@@ -509,14 +509,7 @@ class Invertd(MapTransform):
     def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
         d = dict(data)
         for (
-            key,
-            orig_key,
-            meta_key,
-            meta_key_postfix,
-            nearest_interp,
-            to_tensor,
-            device,
-            post_func,
+            key, orig_key, meta_key, meta_key_postfix, nearest_interp, to_tensor, device, post_func
         ) in self.key_iterator(
             d,
             self.orig_keys,

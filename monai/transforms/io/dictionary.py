@@ -119,8 +119,7 @@ class LoadImaged(MapTransform):
                 d[key] = data[0]
                 if not isinstance(data[1], dict):
                     raise ValueError("metadata must be a dict.")
-                if meta_key is None:
-                    meta_key = f"{key}_{meta_key_postfix}"
+                meta_key = meta_key or f"{key}_{meta_key_postfix}"
                 if meta_key in d and not self.overwriting:
                     raise KeyError(f"Meta data with key {meta_key} already exists and overwriting=False.")
                 d[meta_key] = data[1]
