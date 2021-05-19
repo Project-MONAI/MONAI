@@ -61,7 +61,7 @@ class FindAllValidSlicesd(Transform):
         return d
 
 
-class AddInitialSeedPointd(Randomizable):
+class AddInitialSeedPointd(Randomizable, Transform):
     """
     Add random guidance as initial seed point for a given label.
 
@@ -283,7 +283,7 @@ class FindDiscrepancyRegionsd(Transform):
         return d
 
 
-class AddRandomGuidanced(Randomizable):
+class AddRandomGuidanced(Randomizable, Transform):
     """
     Add random guidance based on discrepancies that were found between label and prediction.
 

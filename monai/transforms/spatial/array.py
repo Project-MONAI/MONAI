@@ -1009,7 +1009,7 @@ class AffineGrid(Transform):
         return grid if self.as_tensor_output else np.asarray(grid.cpu().numpy()), affine
 
 
-class RandAffineGrid(Randomizable):
+class RandAffineGrid(Randomizable, Transform):
     """
     Generate randomised affine grid.
     """
@@ -1106,7 +1106,7 @@ class RandAffineGrid(Randomizable):
         return self.affine
 
 
-class RandDeformGrid(Randomizable):
+class RandDeformGrid(Randomizable, Transform):
     """
     Generate random deformation grid.
     """
