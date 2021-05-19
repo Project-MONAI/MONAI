@@ -1,10 +1,12 @@
 name: build
 
 on:
-  # quick tests for every pull request
+  # quick tests for pull requests and the releasing branches
   push:
     branches:
       - dev
+      - main
+      - releasing/*
   pull_request:
 
 jobs:
