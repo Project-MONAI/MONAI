@@ -46,9 +46,21 @@ TEST_CASE_5 = [
     np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),
 ]
 
+TEST_CASE_6 = [
+    {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 0, "k_divisible": 4},
+    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
+    np.array([[[1, 2, 1, 0], [2, 3, 2, 0], [1, 2, 1, 0], [0, 0, 0, 0]]]),
+]
+
+TEST_CASE_7 = [
+    {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 0, "k_divisible": 10},
+    np.array([[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),
+    np.zeros((1, 0, 0)),
+]
+
 
 class TestCropForeground(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7])
     def test_value(self, argments, image, expected_data):
         result = CropForeground(**argments)(image)
         np.testing.assert_allclose(result, expected_data)
@@ -58,8 +70,8 @@ class TestCropForeground(unittest.TestCase):
         argments["return_coords"] = True
         _, start_coord, end_coord = CropForeground(**argments)(image)
         argments["return_coords"] = False
-        self.assertListEqual(start_coord, [1, 1])
-        self.assertListEqual(end_coord, [4, 4])
+        np.testing.assert_allclose(start_coord, np.asarray([1, 1]))
+        np.testing.assert_allclose(end_coord, np.asarray([4, 4]))
 
 
 if __name__ == "__main__":
