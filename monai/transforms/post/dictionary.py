@@ -439,6 +439,7 @@ class Invertd(MapTransform):
         transform: InvertibleTransform,
         loader: TorchDataLoader,
         orig_keys: Union[str, Sequence[str]],
+        meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
         collate_fn: Optional[Callable] = no_collation,
         postfix: str = "inverted",
@@ -458,10 +459,16 @@ class Invertd(MapTransform):
             orig_keys: the key of the original input data in the dict. will get the applied transform information
                 for this input data, then invert them for the expected data with `keys`.
                 It can also be a list of keys, each matches to the `keys` data.
-            meta_key_postfix: use `{orig_key}_{postfix}` to to fetch the meta data from dict,
+            meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+                for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+                the meta data is a dictionary object which contains: filename, original_shape, etc.
+                it can be a sequence of string, map to the `keys`.
+                if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
+            meta_key_postfix: if meta_keys is None, use `{orig_key}_{postfix}` to to fetch the meta data from dict,
                 default is `meta_dict`, the meta data is a dictionary object.
                 For example, to handle orig_key `image`,  read/write `affine` matrices from the
                 metadata `image_meta_dict` dictionary's `affine` field.
+                the inverted meta dict will be stored with key: "{key}_{postfix}_{meta_key_postfix}".
             collate_fn: how to collate data after inverse transformations. default won't do any collation,
                 so the output will be a list of PyTorch Tensor or numpy array without batch dim.
             postfix: will save the inverted result into dict with key `{key}_{postfix}`.
@@ -490,7 +497,8 @@ class Invertd(MapTransform):
             num_workers=num_workers,
         )
         self.orig_keys = ensure_tuple_rep(orig_keys, len(self.keys))
-        self.meta_key_postfix = meta_key_postfix
+        self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.postfix = postfix
         self.nearest_interp = ensure_tuple_rep(nearest_interp, len(self.keys))
         self.to_tensor = ensure_tuple_rep(to_tensor, len(self.keys))
@@ -500,8 +508,24 @@ class Invertd(MapTransform):
 
     def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
         d = dict(data)
-        for key, orig_key, nearest_interp, to_tensor, device, post_func in self.key_iterator(
-            d, self.orig_keys, self.nearest_interp, self.to_tensor, self.device, self.post_func
+        for (
+            key,
+            orig_key,
+            meta_key,
+            meta_key_postfix,
+            nearest_interp,
+            to_tensor,
+            device,
+            post_func,
+        ) in self.key_iterator(
+            d,
+            self.orig_keys,
+            self.meta_keys,
+            self.meta_key_postfix,
+            self.nearest_interp,
+            self.to_tensor,
+            self.device,
+            self.post_func,
         ):
             transform_key = orig_key + InverseKeys.KEY_SUFFIX
             if transform_key not in d:
@@ -524,7 +548,7 @@ class Invertd(MapTransform):
                 orig_key: input,
                 transform_key: transform_info,
             }
-            meta_dict_key = f"{orig_key}_{self.meta_key_postfix}"
+            meta_dict_key = meta_key or f"{orig_key}_{meta_key_postfix}"
             if meta_dict_key in d:
                 input_dict[meta_dict_key] = d[meta_dict_key]
 
@@ -539,14 +563,14 @@ class Invertd(MapTransform):
                 ]
                 # save the inverted meta dict
                 if meta_dict_key in d:
-                    d[f"{inverted_key}_{self.meta_key_postfix}"] = [i.get(meta_dict_key) for i in inverted]
+                    d[f"{inverted_key}_{meta_key_postfix}"] = [i.get(meta_dict_key) for i in inverted]
             else:
                 d[inverted_key] = post_func(
                     self._totensor(inverted[orig_key]).to(device) if to_tensor else inverted[orig_key]
                 )
                 # save the inverted meta dict
                 if meta_dict_key in d:
-                    d[f"{inverted_key}_{self.meta_key_postfix}"] = inverted.get(meta_dict_key)
+                    d[f"{inverted_key}_{meta_key_postfix}"] = inverted.get(meta_dict_key)
         return d
 
 
@@ -575,6 +599,7 @@ class SaveClassificationd(MapTransform):
             meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
                 for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
                 the meta data is a dictionary object which contains: filename, original_shape, etc.
+                it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
                 will extract the filename of input image to save classifcation results.
             meta_key_postfix: `key_{postfix}` was used to store the metadata in `LoadImaged`.
