@@ -108,7 +108,7 @@ class TransformInverter:
             num_workers=num_workers,
         )
         self.output_keys = ensure_tuple(output_keys)
-        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix)
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.output_keys))
         self.postfix = postfix
 
     def attach(self, engine: Engine) -> None:
