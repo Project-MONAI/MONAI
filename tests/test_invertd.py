@@ -74,6 +74,7 @@ class TestInvertd(unittest.TestCase):
             transform=transform,
             loader=loader,
             orig_keys="label",
+            meta_keys="label_meta_dict",
             nearest_interp=True,
             postfix="inverted",
             to_tensor=[True, False],

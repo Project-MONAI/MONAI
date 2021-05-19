@@ -14,10 +14,11 @@ from typing import TYPE_CHECKING, Callable, Optional, Sequence, Union
 import torch
 from torch.utils.data import DataLoader as TorchDataLoader
 
+from monai.config import KeysCollection
 from monai.data.utils import no_collation
 from monai.engines.utils import CommonKeys, IterationEvents
 from monai.transforms import Invertd, InvertibleTransform
-from monai.utils import ensure_tuple, exact_version, optional_import
+from monai.utils import ensure_tuple, ensure_tuple_rep, exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
 if TYPE_CHECKING:
@@ -41,8 +42,9 @@ class TransformInverter:
         self,
         transform: InvertibleTransform,
         loader: TorchDataLoader,
-        output_keys: Union[str, Sequence[str]] = CommonKeys.PRED,
-        batch_keys: Union[str, Sequence[str]] = CommonKeys.IMAGE,
+        output_keys: KeysCollection = CommonKeys.PRED,
+        batch_keys: KeysCollection = CommonKeys.IMAGE,
+        meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
         collate_fn: Optional[Callable] = no_collation,
         postfix: str = "inverted",
@@ -61,10 +63,17 @@ class TransformInverter:
             batch_keys: the key of input data in `ignite.engine.batch`. will get the applied transforms
                 for this input data, then invert them for the expected data with `output_keys`.
                 It can also be a list of keys, each matches to the `output_keys` data. default to "image".
-            meta_key_postfix: use `{batch_key}_{postfix}` to to fetch the meta data according to the key data,
-                default is `meta_dict`, the meta data is a dictionary object.
+            meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+                for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+                the meta data is a dictionary object which contains: filename, original_shape, etc.
+                it can be a sequence of string, map to the `keys`.
+                if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
+                it also can be a list of string, each matches to the `output_keys` data.
+            meta_key_postfix: if meta_keys is None, use `{batch_key}_{postfix}` to to fetch the meta data according
+                to the key data, default is `meta_dict`, the meta data is a dictionary object.
                 For example, to handle key `image`,  read/write affine matrices from the
                 metadata `image_meta_dict` dictionary's `affine` field.
+                the inverted meta dict will be stored with key: "{output_key}_{postfix}_{meta_key_postfix}".
             collate_fn: how to collate data after inverse transformations. default won't do any collation,
                 so the output will be a list of PyTorch Tensor or numpy array without batch dim.
             postfix: will save the inverted result into `ignite.engine.output` with key `{output_key}_{postfix}`.
@@ -88,6 +97,7 @@ class TransformInverter:
             transform=transform,
             loader=loader,
             orig_keys=batch_keys,
+            meta_keys=meta_keys,
             meta_key_postfix=meta_key_postfix,
             collate_fn=collate_fn,
             postfix=postfix,
@@ -98,7 +108,7 @@ class TransformInverter:
             num_workers=num_workers,
         )
         self.output_keys = ensure_tuple(output_keys)
-        self.meta_key_postfix = meta_key_postfix
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.output_keys))
         self.postfix = postfix
 
     def attach(self, engine: Engine) -> None:
@@ -118,12 +128,12 @@ class TransformInverter:
         data.update(engine.state.output)
         ret = self.inverter(data)
 
-        for output_key in self.output_keys:
+        for output_key, meta_key_postfix in zip(self.output_keys, self.meta_key_postfix):
             # save the inverted data into state.output
             inverted_key = f"{output_key}_{self.postfix}"
             if inverted_key in ret:
                 engine.state.output[inverted_key] = ret[inverted_key]
             # save the inverted meta dict into state.batch
-            meta_dict_key = f"{inverted_key}_{self.meta_key_postfix}"
+            meta_dict_key = f"{inverted_key}_{meta_key_postfix}"
             if meta_dict_key in ret:
                 engine.state.batch[meta_dict_key] = ret[meta_dict_key]
