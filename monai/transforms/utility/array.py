@@ -441,7 +441,6 @@ class DataStats(Transform):
         if additional_info is not None and not callable(additional_info):
             raise TypeError(f"additional_info must be None or callable but is {type(additional_info).__name__}.")
         self.additional_info = additional_info
-        self.output: Optional[str] = None
         self._logger = logging.getLogger("DataStats")
         self._logger.setLevel(logging.INFO)
         console = logging.StreamHandler(sys.stdout)  # always stdout
@@ -482,8 +481,8 @@ class DataStats(Transform):
         if additional_info is not None:
             lines.append(f"Additional info: {additional_info(img)}")
         separator = "\n"
-        self.output = f"{separator.join(lines)}"
-        self._logger.info(self.output)
+        output = f"{separator.join(lines)}"
+        self._logger.info(output)
 
         return img
 
