@@ -17,7 +17,7 @@ import nibabel as nib
 import numpy as np
 from parameterized import parameterized
 
-from monai.data import CacheDataset, DataLoader, PersistentDataset
+from monai.data import CacheDataset, DataLoader, PersistentDataset, SmartCacheDataset
 from monai.transforms import Compose, LoadImaged, ThreadUnsafe, Transform
 
 TEST_CASE_1 = [Compose([LoadImaged(keys=["image", "label", "extra"])]), (128, 128, 128)]
@@ -117,6 +117,33 @@ class TestCacheThread(unittest.TestCase):
                 cache_rate=1.0,
                 num_workers=cache_workers,
                 progress=False,
+            ),
+            batch_size=1,
+            persistent_workers=persistent_workers,
+            num_workers=loader_workers,
+        )
+        self.assertListEqual(expected, [y.item() for y in loader])
+        self.assertListEqual(expected, [y.item() for y in loader])
+
+        dataset = SmartCacheDataset(
+            data=data_list,
+            transform=_StatefulTransform(),
+            cache_rate=1.0,
+            replace_rate=0.8,
+            num_replace_workers=cache_workers,
+            progress=False,
+            shuffle=False,
+        )
+        self.assertListEqual(expected, list(dataset))
+        loader = DataLoader(
+            SmartCacheDataset(
+                data=data_list,
+                transform=_StatefulTransform(),
+                cache_rate=1.0,
+                replace_rate=0.5,
+                num_replace_workers=cache_workers,
+                progress=False,
+                shuffle=False,
             ),
             batch_size=1,
             persistent_workers=persistent_workers,

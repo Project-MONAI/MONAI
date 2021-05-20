@@ -76,6 +76,9 @@ class ThreadUnsafe:
     A class to denote that the transform will mutate its member variables,
     when being applied. Transforms inheriting this class should be used
     cautiously in a multi-thread context.
+
+    This type is typically used by :py:class:`monai.data.CacheDataset` and
+    its extensions, where the transform cache is built with multiple threads.
     """
 
     pass

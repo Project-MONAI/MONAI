@@ -79,14 +79,14 @@ class SpatialPad(Transform):
         self.mode: NumpyPadMode = NumpyPadMode(mode)
 
     def _determine_data_pad_width(self, data_shape: Sequence[int]) -> List[Tuple[int, int]]:
-        self.spatial_size = fall_back_tuple(self.spatial_size, data_shape)
+        spatial_size = fall_back_tuple(self.spatial_size, data_shape)
         if self.method == Method.SYMMETRIC:
             pad_width = []
-            for i, sp_i in enumerate(self.spatial_size):
+            for i, sp_i in enumerate(spatial_size):
                 width = max(sp_i - data_shape[i], 0)
                 pad_width.append((width // 2, width - (width // 2)))
             return pad_width
-        return [(0, max(sp_i - data_shape[i], 0)) for i, sp_i in enumerate(self.spatial_size)]
+        return [(0, max(sp_i - data_shape[i], 0)) for i, sp_i in enumerate(spatial_size)]
 
     def __call__(self, img: np.ndarray, mode: Optional[Union[NumpyPadMode, str]] = None) -> np.ndarray:
         """
@@ -158,9 +158,9 @@ class BorderPad(Transform):
         spatial_border = tuple(max(0, b) for b in spatial_border)
 
         if len(spatial_border) == 1:
-            data_pad_width = [(spatial_border[0], spatial_border[0]) for _ in range(len(spatial_shape))]
+            data_pad_width = [(spatial_border[0], spatial_border[0]) for _ in spatial_shape]
         elif len(spatial_border) == len(spatial_shape):
-            data_pad_width = [(spatial_border[i], spatial_border[i]) for i in range(len(spatial_shape))]
+            data_pad_width = [(sp, sp) for sp, _ in zip(spatial_border, spatial_shape)]
         elif len(spatial_border) == len(spatial_shape) * 2:
             data_pad_width = [(spatial_border[2 * i], spatial_border[2 * i + 1]) for i in range(len(spatial_shape))]
         else:
@@ -286,15 +286,14 @@ class CenterSpatialCrop(Transform):
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
         """
-        self.roi_size = fall_back_tuple(self.roi_size, img.shape[1:])
+        roi_size = fall_back_tuple(self.roi_size, img.shape[1:])
         center = [i // 2 for i in img.shape[1:]]
-        cropper = SpatialCrop(roi_center=center, roi_size=self.roi_size)
+        cropper = SpatialCrop(roi_center=center, roi_size=roi_size)
         return cropper(img)
 
 
-class CenterScaleCrop(CenterSpatialCrop):
+class CenterScaleCrop(Transform):
     """
-    Subclass of :py:class:`monai.transforms.CenterSpatialCrop`.
     Crop at the center of image with specified scale of ROI size.
 
     Args:
@@ -304,14 +303,14 @@ class CenterScaleCrop(CenterSpatialCrop):
     """
 
     def __init__(self, roi_scale: Union[Sequence[float], float]):
-        super().__init__(roi_size=0)
         self.roi_scale = roi_scale
 
     def __call__(self, img: np.ndarray):
         img_size = img.shape[1:]
         ndim = len(img_size)
-        self.roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
-        return super().__call__(img=img)
+        roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
+        sp_crop = CenterSpatialCrop(roi_size=roi_size)
+        return sp_crop(img=img)
 
 
 class RandSpatialCrop(Randomizable, Transform):
@@ -375,7 +374,6 @@ class RandScaleCrop(RandSpatialCrop):
     Subclass of :py:class:`monai.transforms.RandSpatialCrop`. Crop image with random size or specific size ROI.
     It can crop at a random position as center or at the image center.
     And allows to set the minimum and maximum scale of image size to limit the randomly generated ROI.
-
     Args:
         roi_scale: if `random_size` is True, it specifies the minimum crop size: `roi_scale * image spatial size`.
             if `random_size` is False, it specifies the expected scale of image size to crop. e.g. [0.3, 0.4, 0.5].
