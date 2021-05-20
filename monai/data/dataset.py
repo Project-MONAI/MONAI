@@ -668,10 +668,10 @@ class SmartCacheDataset(Randomizable, CacheDataset):
             self._cache = self._fill_cache()
         if self.cache_num >= len(data):
             warnings.warn(
-                "cache_num is greater or equal than dataset length, " "fall back to regular monai.data.CacheDataset."
+                "cache_num is greater or equal than dataset length, fall back to regular monai.data.CacheDataset."
             )
         if replace_rate <= 0:
-            raise ValueError("replace_rate must be greater than 0, otherwise, " "please use monai.data.CacheDataset.")
+            raise ValueError("replace_rate must be greater than 0, otherwise, please use monai.data.CacheDataset.")
 
         self.num_replace_workers: Optional[int] = num_replace_workers
         if self.num_replace_workers is not None:
