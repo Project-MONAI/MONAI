@@ -371,20 +371,22 @@ class RandSpatialCrop(Randomizable, Transform):
 
 class RandScaleCrop(RandSpatialCrop):
     """
-    Subclass of :py:class:`monai.transforms.RandSpatialCrop`. Crop image with random size or specific size ROI.
-    It can crop at a random position as center or at the image center.
-    And allows to set the minimum and maximum scale of image size to limit the randomly generated ROI.
+    Subclass of :py:class:`monai.transforms.RandSpatialCrop`. Crop image with
+    random size or specific size ROI.  It can crop at a random position as
+    center or at the image center.  And allows to set the minimum and maximum
+    scale of image size to limit the randomly generated ROI.
+
     Args:
         roi_scale: if `random_size` is True, it specifies the minimum crop size: `roi_scale * image spatial size`.
             if `random_size` is False, it specifies the expected scale of image size to crop. e.g. [0.3, 0.4, 0.5].
             If its components have non-positive values, will use `1.0` instead, which means the input image size.
-        max_roi_size: if `random_size` is True and `roi_scale` specifies the min crop region size, `max_roi_scale`
+        max_roi_scale: if `random_size` is True and `roi_scale` specifies the min crop region size, `max_roi_scale`
             can specify the max crop region size: `max_roi_scale * image spatial size`.
             if None, defaults to the input image size. if its components have non-positive values,
             will use `1.0` instead, which means the input image size.
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specified size ROI by `roi_scale * image spatial size`.
-            if True, the actual size is sampled from:
+            if True, the actual size is sampled from
             `randint(roi_scale * image spatial size, max_roi_scale * image spatial size + 1)`.
     """
 
