@@ -162,7 +162,20 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
 
         @self.on(IterationEvents.MODEL_COMPLETED)
         def run_post_transform(engine: Engine) -> None:
-            engine.state.output = apply_transform(posttrans, engine.state.output)
+            if isinstance(engine.state.batch, dict) and isinstance(engine.state.output, dict):
+                # if `batch` and `output` are dictionaries, temporarily combine them for post transforms
+                data = dict(engine.state.batch)
+                data.update(engine.state.output)
+                data = apply_transform(posttrans, data)
+                for k, v in data.items():
+                    # split the output data of post transforms into `output` and `batch`,
+                    # `batch` should be read-only, so save the generated key-value into `output`
+                    if k in engine.state.output or k not in engine.state.batch:
+                        engine.state.output[k] = v
+                    else:
+                        engine.state.batch[k] = v
+            else:
+                engine.state.output = apply_transform(posttrans, engine.state.output)
 
     def _register_metrics(self, k_metric: Dict, add_metrics: Optional[Dict] = None):
         """
