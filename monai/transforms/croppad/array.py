@@ -314,7 +314,7 @@ class CenterScaleCrop(CenterSpatialCrop):
         return super().__call__(img=img)
 
 
-class RandSpatialCrop(Randomizable):
+class RandSpatialCrop(Randomizable, Transform):
     """
     Crop image with random size or specific size ROI. It can crop at a random position as center
     or at the image center. And allows to set the minimum and maximum size to limit the randomly generated ROI.
@@ -416,7 +416,7 @@ class RandScaleCrop(RandSpatialCrop):
         return super().__call__(img=img)
 
 
-class RandSpatialCropSamples(Randomizable):
+class RandSpatialCropSamples(Randomizable, Transform):
     """
     Crop image with random size or specific size ROI to generate a list of N samples.
     It can crop at a random position as center or at the image center. And allows to set
@@ -575,7 +575,7 @@ class CropForeground(Transform):
         return cropped
 
 
-class RandWeightedCrop(Randomizable):
+class RandWeightedCrop(Randomizable, Transform):
     """
     Samples a list of `num_samples` image patches according to the provided `weight_map`.
 
@@ -627,7 +627,7 @@ class RandWeightedCrop(Randomizable):
         return results
 
 
-class RandCropByPosNegLabel(Randomizable):
+class RandCropByPosNegLabel(Randomizable, Transform):
     """
     Crop random fixed sized regions with the center being a foreground or background voxel
     based on the Pos Neg Ratio.
