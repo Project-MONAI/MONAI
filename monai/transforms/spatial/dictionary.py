@@ -140,6 +140,7 @@ class Spacingd(MapTransform, InvertibleTransform):
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
         align_corners: Union[Sequence[bool], bool] = False,
         dtype: Optional[Union[Sequence[DtypeLike], DtypeLike]] = np.float64,
+        meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
         allow_missing_keys: bool = False,
     ) -> None:
@@ -173,8 +174,13 @@ class Spacingd(MapTransform, InvertibleTransform):
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
                 It also can be a sequence of dtypes, each element corresponds to a key in ``keys``.
-            meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
-                default is `meta_dict`, the meta data is a dictionary object.
+            meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+                for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+                the meta data is a dictionary object which contains: filename, affine, original_shape, etc.
+                it can be a sequence of string, map to the `keys`.
+                if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
+            meta_key_postfix: if meta_keys=None, use `key_{postfix}` to to fetch the meta data according
+                to the key data, default is `meta_dict`, the meta data is a dictionary object.
                 For example, to handle key `image`,  read/write affine matrices from the
                 metadata `image_meta_dict` dictionary's `affine` field.
             allow_missing_keys: don't raise exception if key is missing.
@@ -189,22 +195,23 @@ class Spacingd(MapTransform, InvertibleTransform):
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
-        if not isinstance(meta_key_postfix, str):
-            raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
-        self.meta_key_postfix = meta_key_postfix
+        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
     def __call__(
         self, data: Mapping[Union[Hashable, str], Dict[str, np.ndarray]]
     ) -> Dict[Union[Hashable, str], Union[np.ndarray, Dict[str, np.ndarray]]]:
         d: Dict = dict(data)
-        for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
-            d, self.mode, self.padding_mode, self.align_corners, self.dtype
+        for key, mode, padding_mode, align_corners, dtype, meta_key, meta_key_postfix in self.key_iterator(
+            d, self.mode, self.padding_mode, self.align_corners, self.dtype, self.meta_keys, self.meta_key_postfix
         ):
-            meta_data_key = f"{key}_{self.meta_key_postfix}"
+            meta_key = meta_key or f"{key}_{meta_key_postfix}"
             # create metadata if necessary
-            if meta_data_key not in d:
-                d[meta_data_key] = {"affine": None}
-            meta_data = d[meta_data_key]
+            if meta_key not in d:
+                d[meta_key] = {"affine": None}
+            meta_data = d[meta_key]
             # resample array of each corresponding key
             # using affine fetched from d[affine_key]
             original_spatial_shape = d[key].shape[1:]
@@ -220,7 +227,7 @@ class Spacingd(MapTransform, InvertibleTransform):
                 d,
                 key,
                 extra_info={
-                    "meta_data_key": meta_data_key,
+                    "meta_key": meta_key,
                     "old_affine": old_affine,
                     "mode": mode.value if isinstance(mode, Enum) else mode,
                     "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
@@ -242,7 +249,7 @@ class Spacingd(MapTransform, InvertibleTransform):
                     + "Please raise a github issue if you need this feature"
                 )
             # Create inverse transform
-            meta_data = d[transform[InverseKeys.EXTRA_INFO]["meta_data_key"]]
+            meta_data = d[transform[InverseKeys.EXTRA_INFO]["meta_key"]]
             old_affine = np.array(transform[InverseKeys.EXTRA_INFO]["old_affine"])
             mode = transform[InverseKeys.EXTRA_INFO]["mode"]
             padding_mode = transform[InverseKeys.EXTRA_INFO]["padding_mode"]
@@ -284,6 +291,7 @@ class Orientationd(MapTransform, InvertibleTransform):
         axcodes: Optional[str] = None,
         as_closest_canonical: bool = False,
         labels: Optional[Sequence[Tuple[str, str]]] = tuple(zip("LPI", "RAS")),
+        meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
         allow_missing_keys: bool = False,
     ) -> None:
@@ -298,8 +306,13 @@ class Orientationd(MapTransform, InvertibleTransform):
             labels: optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
                 Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
-            meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
-                default is `meta_dict`, the meta data is a dictionary object.
+            meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+                for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+                the meta data is a dictionary object which contains: filename, affine, original_shape, etc.
+                it can be a sequence of string, map to the `keys`.
+                if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
+            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+                to the key data, default is `meta_dict`, the meta data is a dictionary object.
                 For example, to handle key `image`,  read/write affine matrices from the
                 metadata `image_meta_dict` dictionary's `affine` field.
             allow_missing_keys: don't raise exception if key is missing.
@@ -315,21 +328,24 @@ class Orientationd(MapTransform, InvertibleTransform):
         self.ornt_transform = Orientation(axcodes=axcodes, as_closest_canonical=as_closest_canonical, labels=labels)
         if not isinstance(meta_key_postfix, str):
             raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
-        self.meta_key_postfix = meta_key_postfix
+        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
     def __call__(
         self, data: Mapping[Union[Hashable, str], Dict[str, np.ndarray]]
     ) -> Dict[Union[Hashable, str], Union[np.ndarray, Dict[str, np.ndarray]]]:
         d: Dict = dict(data)
-        for key in self.key_iterator(d):
-            meta_data_key = f"{key}_{self.meta_key_postfix}"
+        for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
+            meta_key = meta_key or f"{key}_{meta_key_postfix}"
             # create metadata if necessary
-            if meta_data_key not in d:
-                d[meta_data_key] = {"affine": None}
-            meta_data = d[meta_data_key]
+            if meta_key not in d:
+                d[meta_key] = {"affine": None}
+            meta_data = d[meta_key]
             d[key], old_affine, new_affine = self.ornt_transform(d[key], affine=meta_data["affine"])
-            self.push_transform(d, key, extra_info={"meta_data_key": meta_data_key, "old_affine": old_affine})
-            d[meta_data_key]["affine"] = new_affine
+            self.push_transform(d, key, extra_info={"meta_key": meta_key, "old_affine": old_affine})
+            d[meta_key]["affine"] = new_affine
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
@@ -337,7 +353,7 @@ class Orientationd(MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
-            meta_data = d[transform[InverseKeys.EXTRA_INFO]["meta_data_key"]]
+            meta_data = d[transform[InverseKeys.EXTRA_INFO]["meta_key"]]
             orig_affine = transform[InverseKeys.EXTRA_INFO]["old_affine"]
             orig_axcodes = nib.orientations.aff2axcodes(orig_affine)
             inverse_transform = Orientation(

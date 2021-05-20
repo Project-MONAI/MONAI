@@ -607,8 +607,14 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specific size ROI.
             The actual size is sampled from `randint(roi_size, img_size)`.
-        meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
-            default is `meta_dict`, the meta data is a dictionary object.
+        meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+            used to add `patch_index` to the meta dict.
+            for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+            the meta data is a dictionary object which contains: filename, original_shape, etc.
+            it can be a sequence of string, map to the `keys`.
+            if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+            to the key data, default is `meta_dict`, the meta data is a dictionary object.
             used to add `patch_index` to the meta dict.
         allow_missing_keys: don't raise exception if key is missing.
 
@@ -625,6 +631,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
         max_roi_size: Optional[Union[Sequence[int], int]] = None,
         random_center: bool = True,
         random_size: bool = True,
+        meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
         allow_missing_keys: bool = False,
     ) -> None:
@@ -633,7 +640,10 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
             raise ValueError(f"num_samples must be positive, got {num_samples}.")
         self.num_samples = num_samples
         self.cropper = RandSpatialCropd(keys, roi_size, max_roi_size, random_center, random_size, allow_missing_keys)
-        self.meta_key_postfix = meta_key_postfix
+        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
@@ -654,11 +664,11 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
                 d[key] = deepcopy(data[key])
             cropped = self.cropper(d)
             # add `patch_index` to the meta data
-            for key in self.key_iterator(d):
-                meta_data_key = f"{key}_{self.meta_key_postfix}"
-                if meta_data_key not in cropped:
-                    cropped[meta_data_key] = {}  # type: ignore
-                cropped[meta_data_key][Key.PATCH_INDEX] = i
+            for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
+                meta_key = meta_key or f"{key}_{meta_key_postfix}"
+                if meta_key not in cropped:
+                    cropped[meta_key] = {}  # type: ignore
+                cropped[meta_key][Key.PATCH_INDEX] = i
             ret.append(cropped)
         return ret
 
@@ -772,8 +782,14 @@ class RandWeightedCropd(Randomizable, MapTransform):
             If its components have non-positive values, the corresponding size of `img` will be used.
         num_samples: number of samples (image patches) to take in the returned list.
         center_coord_key: if specified, the actual sampling location will be stored with the corresponding key.
-        meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
-            default is `meta_dict`, the meta data is a dictionary object.
+        meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+            used to add `patch_index` to the meta dict.
+            for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+            the meta data is a dictionary object which contains: filename, original_shape, etc.
+            it can be a sequence of string, map to the `keys`.
+            if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+            to the key data, default is `meta_dict`, the meta data is a dictionary object.
             used to add `patch_index` to the meta dict.
         allow_missing_keys: don't raise exception if key is missing.
 
@@ -788,6 +804,7 @@ class RandWeightedCropd(Randomizable, MapTransform):
         spatial_size: Union[Sequence[int], int],
         num_samples: int = 1,
         center_coord_key: Optional[str] = None,
+        meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
         allow_missing_keys: bool = False,
     ):
@@ -796,7 +813,10 @@ class RandWeightedCropd(Randomizable, MapTransform):
         self.w_key = w_key
         self.num_samples = int(num_samples)
         self.center_coord_key = center_coord_key
-        self.meta_key_postfix = meta_key_postfix
+        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.centers: List[np.ndarray] = []
 
     def randomize(self, weight_map: np.ndarray) -> None:
@@ -827,11 +847,11 @@ class RandWeightedCropd(Randomizable, MapTransform):
             for key in set(data.keys()).difference(set(self.keys)):
                 results[i][key] = deepcopy(data[key])
             # add `patch_index` to the meta data
-            for key in self.key_iterator(d):
-                meta_data_key = f"{key}_{self.meta_key_postfix}"
-                if meta_data_key not in results[i]:
-                    results[i][meta_data_key] = {}  # type: ignore
-                results[i][meta_data_key][Key.PATCH_INDEX] = i
+            for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
+                meta_key = meta_key or f"{key}_{meta_key_postfix}"
+                if meta_key not in results[i]:
+                    results[i][meta_key] = {}  # type: ignore
+                results[i][meta_key][Key.PATCH_INDEX] = i
 
         return results
 
@@ -868,8 +888,14 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
             `image_threshold`, and randomly select crop centers based on them, need to provide `fg_indices_key`
             and `bg_indices_key` together, expect to be 1 dim array of spatial indices after flattening.
             a typical usage is to call `FgBgToIndicesd` transform first and cache the results.
-        meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
-            default is `meta_dict`, the meta data is a dictionary object.
+        meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+            used to add `patch_index` to the meta dict.
+            for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+            the meta data is a dictionary object which contains: filename, original_shape, etc.
+            it can be a sequence of string, map to the `keys`.
+            if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+            to the key data, default is `meta_dict`, the meta data is a dictionary object.
             used to add `patch_index` to the meta dict.
         allow_missing_keys: don't raise exception if key is missing.
 
@@ -891,6 +917,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         image_threshold: float = 0.0,
         fg_indices_key: Optional[str] = None,
         bg_indices_key: Optional[str] = None,
+        meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
         allow_missing_keys: bool = False,
     ) -> None:
@@ -907,7 +934,10 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         self.image_threshold = image_threshold
         self.fg_indices_key = fg_indices_key
         self.bg_indices_key = bg_indices_key
-        self.meta_key_postfix = meta_key_postfix
+        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.centers: Optional[List[List[np.ndarray]]] = None
 
     def randomize(
@@ -950,11 +980,11 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
             for key in set(data.keys()).difference(set(self.keys)):
                 results[i][key] = deepcopy(data[key])
             # add `patch_index` to the meta data
-            for key in self.key_iterator(d):
-                meta_data_key = f"{key}_{self.meta_key_postfix}"
-                if meta_data_key not in results[i]:
-                    results[i][meta_data_key] = {}  # type: ignore
-                results[i][meta_data_key][Key.PATCH_INDEX] = i
+            for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
+                meta_key = meta_key or f"{key}_{meta_key_postfix}"
+                if meta_key not in results[i]:
+                    results[i][meta_key] = {}  # type: ignore
+                results[i][meta_key][Key.PATCH_INDEX] = i
 
         return results
 
