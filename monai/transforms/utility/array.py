@@ -686,7 +686,7 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
         return np.stack(result, axis=0)
 
 
-class AddExtremePointsChannel(Randomizable):
+class AddExtremePointsChannel(Randomizable, Transform):
     """
     Add extreme points of label to the image as a new channel. This transform generates extreme
     point from label and applies a gaussian filter. The pixel values in points image are rescaled
