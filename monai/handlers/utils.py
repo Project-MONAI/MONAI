@@ -10,19 +10,22 @@
 # limitations under the License.
 
 import os
-from collections import OrderedDict
+from collections import OrderedDict, UserDict
 from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
 
 import numpy as np
 import torch
 
+from .handler import Handler
 from monai.utils import ensure_tuple, exact_version, get_torch_version_tuple, optional_import
 
 idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
 if TYPE_CHECKING:
-    from ignite.engine import Engine
+    from ignite.engine import Engine, Events, State
 else:
     Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
+    Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
+    State, _ = optional_import("ignite.engine", "0.4.4", exact_version, "State")
 
 __all__ = [
     "stopping_fn_from_metric",
@@ -30,6 +33,7 @@ __all__ = [
     "evenly_divisible_all_gather",
     "string_list_all_gather",
     "write_metrics_reports",
+    "attach_ignite_engine",
 ]
 
 
@@ -219,3 +223,43 @@ def write_metrics_reports(
                     f.write(f"class{deli}{deli.join(ops)}\n")
                     for i, c in enumerate(np.transpose(v)):
                         f.write(f"{class_labels[i]}{deli}{deli.join([f'{_compute_op(k, c):.4f}' for k in ops])}\n")
+
+
+class DictState(State):
+    """
+    Utility class that wrapper ignite State with python dict properties.
+
+    """
+    def __getitem__(self, item):
+        return getattr(self, item)
+
+    def __setitem__(self, key, value):
+        setattr(self, key, value)    
+
+    @staticmethod
+    def from_state(state):
+        dstate = DictState()
+        dstate.__dict__ = state.__dict__
+        return dstate
+
+
+class EngineAsDict(UserDict):
+    """
+    Utility class that wrapper ignite Engine with python dict properties.
+
+    """
+    def __init__(self, engine: Engine):
+        super().__init__()
+        engine.state = DictState.from_state(engine.state)
+        self.data = engine.__dict__
+
+
+def attach_ignite_engine(engine: Engine, handler: Handler):
+    """
+    Attach MONAI handler to the specified ignite Engine.
+
+    """
+    dict_engine = EngineAsDict(engine)
+    for event, func in handler.get_event_funcs().items():
+        # pass the event as kwarg to handler callback
+        engine.add_event_handler(event, func, data=dict_engine)

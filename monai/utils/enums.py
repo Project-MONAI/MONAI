@@ -31,6 +31,7 @@ __all__ = [
     "InverseKeys",
     "CommonKeys",
     "ForwardMode",
+    "Events",
 ]
 
 
@@ -260,3 +261,22 @@ class CommonKeys:
     LABEL = "label"
     PRED = "pred"
     LOSS = "loss"
+
+
+class Events:
+    """
+    Built-in events that supported in MONAI handlers.
+
+    """
+    EPOCH_STARTED = "EPOCH_STARTED"
+    EPOCH_COMPLETED = "EPOCH_COMPLETED"
+
+    STARTED = "STARTED"
+    COMPLETED = "COMPLETED"
+
+    ITERATION_STARTED = "ITERATION_STARTED"
+    ITERATION_COMPLETED = "ITERATION_COMPLETED"
+    EXCEPTION_RAISED = "EXCEPTION_RAISED"
+
+    GET_BATCH_STARTED = "GET_BATCH_STARTED"
+    GET_BATCH_COMPLETED = "GET_BATCH_COMPLETED"
