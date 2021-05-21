@@ -1443,7 +1443,7 @@ class RandAffine(RandomizableTransform):
         if spatial_size != fall_back_tuple(spatial_size, [1] * ndim) or spatial_size != fall_back_tuple(
             spatial_size, [2] * ndim
         ):
-            raise RuntimeError(f"spatial_size should not by dynamic, got {spatial_size}.")
+            raise RuntimeError(f"spatial_size should not be dynamic, got {spatial_size}.")
         return create_grid(spatial_size=spatial_size) if self._cached_grid is None else self._cached_grid
 
     def set_random_state(
