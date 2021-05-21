@@ -1351,6 +1351,7 @@ class RandAffine(RandomizableTransform):
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
+        cache_grid: bool = False,
         as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
     ) -> None:
@@ -1380,6 +1381,9 @@ class RandAffine(RandomizableTransform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+            cache_grid: whether to cache the identity sampling grid.
+                If the spatial size is not dynamically defined by input image, enabling this option could
+                accelerate the transform.
             as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device: device on which the tensor will be allocated.
@@ -1401,8 +1405,46 @@ class RandAffine(RandomizableTransform):
         self.resampler = Resample(as_tensor_output=as_tensor_output, device=device)
 
         self.spatial_size = spatial_size
+        self.cache_grid = cache_grid
+        self._cached_grid = self._init_identity_cache()
         self.mode: GridSampleMode = GridSampleMode(mode)
         self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+
+    def _init_identity_cache(self):
+        """
+        Create cache of the identity grid if cache_grid=True and spatial_size is known.
+        """
+        if self.spatial_size is None:
+            if self.cache_grid:
+                warnings.warn(
+                    "cache_grid=True is not compatible with the dynamic spatial_size, please specify 'spatial_size'."
+                )
+            return None
+        _sp_size = ensure_tuple(self.spatial_size)
+        _ndim = len(_sp_size)
+        if _sp_size != fall_back_tuple(_sp_size, [1] * _ndim) or _sp_size != fall_back_tuple(_sp_size, [2] * _ndim):
+            # dynamic shape because it falls back to different outcomes
+            if self.cache_grid:
+                warnings.warn(
+                    "cache_grid=True is not compatible with the dynamic spatial_size "
+                    f"'spatial_size={self.spatial_size}', please specify 'spatial_size'."
+                )
+            return None
+        return torch.tensor(create_grid(spatial_size=_sp_size)).to(self.rand_affine_grid.device)
+
+    def get_identity_grid(self, spatial_size: Sequence[int]):
+        """
+        Return a cached or new identity grid depends on the availability.
+
+        Args:
+            spatial_size: non-dynamic spatial size
+        """
+        ndim = len(spatial_size)
+        if spatial_size != fall_back_tuple(spatial_size, [1] * ndim) or spatial_size != fall_back_tuple(
+            spatial_size, [2] * ndim
+        ):
+            raise RuntimeError(f"spatial_size should not by dynamic, got {spatial_size}.")
+        return create_grid(spatial_size=spatial_size) if self._cached_grid is None else self._cached_grid
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
@@ -1443,12 +1485,10 @@ class RandAffine(RandomizableTransform):
         if not self._do_transform and not spatial_size and not self.spatial_size:
             img = img.float() if isinstance(img, torch.Tensor) else img.astype("float32")
             return torch.Tensor(img) if self.resampler.as_tensor_output else np.array(img)
-
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
+        grid = self.get_identity_grid(sp_size)
         if self._do_transform:
-            grid = self.rand_affine_grid(spatial_size=sp_size)
-        else:
-            grid = create_grid(spatial_size=sp_size)
+            grid = self.rand_affine_grid(grid=grid)
         return self.resampler(
             img=img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
         )
