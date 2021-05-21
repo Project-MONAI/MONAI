@@ -9,10 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
 
+from monai.transforms import apply_transform
 from monai.utils import exact_version, optional_import
 from monai.utils.enums import CommonKeys
 
@@ -27,6 +28,7 @@ __all__ = [
     "get_devices_spec",
     "default_prepare_batch",
     "default_make_latent",
+    "engine_apply_transform",
 ]
 
 
@@ -124,3 +126,27 @@ def default_make_latent(
     non_blocking: bool = False,
 ) -> torch.Tensor:
     return torch.randn(num_latents, latent_size).to(device=device, non_blocking=non_blocking)
+
+
+def engine_apply_transform(batch: Any, output: Any, transform: Callable):
+    """
+    Apply transform for the engine.state.batch and engine.state.output.
+    If `batch` and `output` are dictionaries, temporarily combine them for the transform,
+    otherwise, apply the transform for `output` data only.
+
+    """
+    if isinstance(batch, dict) and isinstance(output, dict):
+        data = dict(batch)
+        data.update(output)
+        data = apply_transform(transform, data)
+        for k, v in data.items():
+            # split the output data of post transforms into `output` and `batch`,
+            # `batch` should be read-only, so save the generated key-value into `output`
+            if k in output or k not in batch:
+                output[k] = v
+            else:
+                batch[k] = v
+    else:
+        output = apply_transform(transform, output)
+
+    return batch, output
