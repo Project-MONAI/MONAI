@@ -9,15 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING
 from enum import Enum
-
-from .module import exact_version, optional_import
-
-if TYPE_CHECKING:
-    from ignite.engine import EventEnum
-else:
-    EventEnum, _ = optional_import("ignite.engine", "0.4.4", exact_version, "EventEnum")
 
 __all__ = [
     "NumpyPadMode",
@@ -38,7 +30,6 @@ __all__ = [
     "Method",
     "InverseKeys",
     "CommonKeys",
-    "IterationEvents",
     "GanKeys",
     "ForwardMode",
     "Events",
@@ -271,24 +262,6 @@ class CommonKeys:
     LABEL = "label"
     PRED = "pred"
     LOSS = "loss"
-
-
-class IterationEvents(EventEnum):
-    """
-    Additional Events engine can register and trigger in the iteration process.
-    Refer to the example in ignite: https://github.com/pytorch/ignite/blob/master/ignite/engine/events.py#L146
-    These Events can be triggered during training iteration:
-    `FORWARD_COMPLETED` is the Event when `network(image, label)` completed.
-    `LOSS_COMPLETED` is the Event when `loss(pred, label)` completed.
-    `BACKWARD_COMPLETED` is the Event when `loss.backward()` completed.
-    `MODEL_COMPLETED` is the Event when all the model related operations completed.
-
-    """
-
-    FORWARD_COMPLETED = "forward_completed"
-    LOSS_COMPLETED = "loss_completed"
-    BACKWARD_COMPLETED = "backward_completed"
-    MODEL_COMPLETED = "model_completed"
 
 
 class GanKeys:

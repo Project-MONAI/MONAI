@@ -17,7 +17,7 @@ import torch
 from ignite.engine import Engine
 
 from monai.data import CacheDataset, DataLoader, create_test_image_3d, pad_list_data_collate
-from monai.engines.utils import IterationEvents
+from monai.engines import IterationEvents
 from monai.handlers import TransformInverter
 from monai.transforms import (
     AddChanneld,

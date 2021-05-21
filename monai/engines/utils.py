@@ -19,15 +19,17 @@ from monai.utils import exact_version, optional_import
 from monai.utils.enums import CommonKeys
 
 if TYPE_CHECKING:
-    from ignite.engine import Engine, State
+    from ignite.engine import Engine, EventEnum, State
 else:
     Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
+    EventEnum, _ = optional_import("ignite.engine", "0.4.4", exact_version, "EventEnum")
     State, _ = optional_import("ignite.engine", "0.4.4", exact_version, "State")
 
 __all__ = [
     "get_devices_spec",
     "default_prepare_batch",
     "default_make_latent",
+    "IterationEvents",
     "attach_ignite_engine",
     "engine_apply_transform",
 ]
@@ -96,6 +98,24 @@ def default_make_latent(
     non_blocking: bool = False,
 ) -> torch.Tensor:
     return torch.randn(num_latents, latent_size).to(device=device, non_blocking=non_blocking)
+
+
+class IterationEvents(EventEnum):
+    """
+    Additional Events engine can register and trigger in the iteration process.
+    Refer to the example in ignite: https://github.com/pytorch/ignite/blob/master/ignite/engine/events.py#L146
+    These Events can be triggered during training iteration:
+    `FORWARD_COMPLETED` is the Event when `network(image, label)` completed.
+    `LOSS_COMPLETED` is the Event when `loss(pred, label)` completed.
+    `BACKWARD_COMPLETED` is the Event when `loss.backward()` completed.
+    `MODEL_COMPLETED` is the Event when all the model related operations completed.
+
+    """
+
+    FORWARD_COMPLETED = "forward_completed"
+    LOSS_COMPLETED = "loss_completed"
+    BACKWARD_COMPLETED = "backward_completed"
+    MODEL_COMPLETED = "model_completed"
 
 
 class DictState(State):

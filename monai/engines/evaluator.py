@@ -19,8 +19,9 @@ from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.networks.utils import eval_mode, train_mode
 from monai.transforms import Transform
-from monai.utils import ForwardMode, ensure_tuple, exact_version, IterationEvents, optional_import
+from monai.utils import ForwardMode, ensure_tuple, exact_version, optional_import
 from monai.utils.enums import CommonKeys as Keys
+from .utils import IterationEvents
 
 if TYPE_CHECKING:
     from ignite.engine import Engine, EventEnum

@@ -23,7 +23,6 @@ from .enums import (
     GanKeys,
     GridSampleMode,
     GridSamplePadMode,
-    IterationEvents,
     InterpolateMode,
     InverseKeys,
     LossReduction,

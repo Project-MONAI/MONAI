@@ -16,13 +16,13 @@ from torch.utils.data import DataLoader as TorchDataLoader
 
 from monai.config import KeysCollection
 from monai.data.utils import no_collation
+from monai.engines import IterationEvents
 from monai.transforms import Invertd, InvertibleTransform
 from monai.utils import (
     CommonKeys,
     ensure_tuple,
     ensure_tuple_rep,
     exact_version,
-    IterationEvents,
     optional_import,
 )
 
