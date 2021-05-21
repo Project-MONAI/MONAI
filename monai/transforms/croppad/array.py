@@ -160,7 +160,7 @@ class BorderPad(Transform):
         if len(spatial_border) == 1:
             data_pad_width = [(spatial_border[0], spatial_border[0]) for _ in spatial_shape]
         elif len(spatial_border) == len(spatial_shape):
-            data_pad_width = [(sp, sp) for sp, _ in zip(spatial_border, spatial_shape)]
+            data_pad_width = [(sp,) * 2 for sp in spatial_border[:len(spatial_shape)]]
         elif len(spatial_border) == len(spatial_shape) * 2:
             data_pad_width = [(spatial_border[2 * i], spatial_border[2 * i + 1]) for i in range(len(spatial_shape))]
         else:
