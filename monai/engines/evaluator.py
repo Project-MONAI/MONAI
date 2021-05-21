@@ -21,6 +21,7 @@ from monai.networks.utils import eval_mode, train_mode
 from monai.transforms import Transform
 from monai.utils import ForwardMode, ensure_tuple, exact_version, optional_import
 from monai.utils.enums import CommonKeys as Keys
+
 from .utils import IterationEvents
 
 if TYPE_CHECKING:

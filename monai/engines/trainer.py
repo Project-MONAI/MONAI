@@ -19,8 +19,9 @@ from monai.engines.utils import default_make_latent, default_prepare_batch
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import Transform
-from monai.utils import exact_version, GanKeys, optional_import
+from monai.utils import GanKeys, exact_version, optional_import
 from monai.utils.enums import CommonKeys as Keys
+
 from .utils import IterationEvents
 
 if TYPE_CHECKING:

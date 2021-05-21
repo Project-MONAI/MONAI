@@ -18,13 +18,7 @@ from monai.config import KeysCollection
 from monai.data.utils import no_collation
 from monai.engines import IterationEvents
 from monai.transforms import Invertd, InvertibleTransform
-from monai.utils import (
-    CommonKeys,
-    ensure_tuple,
-    ensure_tuple_rep,
-    exact_version,
-    optional_import,
-)
+from monai.utils import CommonKeys, ensure_tuple, ensure_tuple_rep, exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
 if TYPE_CHECKING:
