@@ -11,6 +11,7 @@
 
 import unittest
 from typing import Dict
+
 import torch
 from ignite.engine import Engine
 
@@ -27,10 +28,10 @@ class DemoHandler(Handler):
         self._register(event=Events.EPOCH_COMPLETED, func=self._epoch)
 
     def _started(self, data: Dict):
-        data["state"]["magic_number"] = data['state']['max_epochs']
+        data["state"]["magic_number"] = data["state"]["max_epochs"]
 
     def _iteration(self, data: Dict):
-        data["state"]["magic_number"] += data['state']['iteration']
+        data["state"]["magic_number"] += data["state"]["iteration"]
 
     def _epoch(self, data: Dict):
         data["state"]["output"] = torch.tensor(1.0)

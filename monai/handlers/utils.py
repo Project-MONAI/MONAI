@@ -16,8 +16,9 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
 import numpy as np
 import torch
 
-from .handler import Handler
 from monai.utils import ensure_tuple, exact_version, get_torch_version_tuple, optional_import
+
+from .handler import Handler
 
 idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
 if TYPE_CHECKING:
@@ -230,11 +231,12 @@ class DictState(State):
     Utility class that wrapper ignite State with python dict properties.
 
     """
+
     def __getitem__(self, item):
         return getattr(self, item)
 
     def __setitem__(self, key, value):
-        setattr(self, key, value)    
+        setattr(self, key, value)
 
     @staticmethod
     def from_state(state):
@@ -248,6 +250,7 @@ class EngineAsDict(UserDict):
     Utility class that wrapper ignite Engine with python dict properties.
 
     """
+
     def __init__(self, engine: Engine):
         super().__init__()
         engine.state = DictState.from_state(engine.state)

@@ -268,6 +268,7 @@ class Events:
     Built-in events that supported in MONAI handlers.
 
     """
+
     EPOCH_STARTED = "EPOCH_STARTED"
     EPOCH_COMPLETED = "EPOCH_COMPLETED"
 

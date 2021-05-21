@@ -18,6 +18,7 @@ class Handler(ABC):
     Base class of all handlers
 
     """
+
     def __init__(self) -> None:
         self.event_funcs = {}
 
@@ -29,7 +30,7 @@ class Handler(ABC):
         Register a function to specified event, the function must take a `dict` arg: "data".
         And the content of `data` dict has the same structure as MONAI engine objects.
         For example::
-        
+
             def training_started(self, data: Dict) -> None:
                 print("save network parameters into state.")
                 data["state"]["net_param"] = data["network"].named_parameters()
