@@ -37,6 +37,5 @@ from .utils import (
     stopping_fn_from_metric,
     string_list_all_gather,
     write_metrics_reports,
-    attach_ignite_engine,
 )
 from .validation_handler import ValidationHandler

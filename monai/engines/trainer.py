@@ -15,11 +15,11 @@ import torch
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 
-from monai.engines.utils import GanKeys, IterationEvents, default_make_latent, default_prepare_batch
+from monai.engines.utils import default_make_latent, default_prepare_batch
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import Transform
-from monai.utils import exact_version, optional_import
+from monai.utils import exact_version, GanKeys, IterationEvents, optional_import
 from monai.utils.enums import CommonKeys as Keys
 
 if TYPE_CHECKING:

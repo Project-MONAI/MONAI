@@ -16,7 +16,7 @@ import torch
 from ignite.engine import Engine
 
 from monai.handlers.handler import Handler
-from monai.handlers.utils import attach_ignite_engine
+from monai.engines.utils import attach_ignite_engine
 from monai.utils.enums import Events
 
 

@@ -14,12 +14,12 @@ from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Sequ
 import torch
 from torch.utils.data import DataLoader
 
-from monai.engines.utils import IterationEvents, default_prepare_batch
+from monai.engines.utils import default_prepare_batch
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.networks.utils import eval_mode, train_mode
 from monai.transforms import Transform
-from monai.utils import ForwardMode, ensure_tuple, exact_version, optional_import
+from monai.utils import ForwardMode, ensure_tuple, exact_version, IterationEvents, optional_import
 from monai.utils.enums import CommonKeys as Keys
 
 if TYPE_CHECKING:

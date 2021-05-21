@@ -16,10 +16,9 @@ import torch.distributed as dist
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
-from monai.engines.utils import IterationEvents, default_prepare_batch
-from monai.handlers import Handler, attach_ignite_engine
+from monai.engines.utils import default_prepare_batch, attach_ignite_engine
 from monai.transforms import apply_transform
-from monai.utils import ensure_tuple, exact_version, optional_import
+from monai.utils import ensure_tuple, exact_version, IterationEvents, optional_import
 
 IgniteEngine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
 State, _ = optional_import("ignite.engine", "0.4.4", exact_version, "State")
@@ -195,6 +194,8 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         Register the handlers to the engine, supports ignite Handlers with `attach` API.
 
         """
+        from monai.handlers import Handler  # avoid circular import
+
         handlers_ = ensure_tuple(handlers)
         for handler in handlers_:
             if isinstance(handler, Handler):

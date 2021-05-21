@@ -9,56 +9,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from collections import UserDict
 from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
-
-from monai.utils import exact_version, optional_import
-from monai.utils.enums import CommonKeys
+from monai.utils import CommonKeys, GanKeys, exact_version, optional_import
 
 if TYPE_CHECKING:
-    from ignite.engine import EventEnum
+    from ignite.engine import Engine, State
 else:
-    EventEnum, _ = optional_import("ignite.engine", "0.4.4", exact_version, "EventEnum")
+    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
+    State, _ = optional_import("ignite.engine", "0.4.4", exact_version, "State")
 
 __all__ = [
-    "IterationEvents",
-    "GanKeys",
     "get_devices_spec",
     "default_prepare_batch",
     "default_make_latent",
+    "attach_ignite_engine",
 ]
-
-
-class IterationEvents(EventEnum):
-    """
-    Additional Events engine can register and trigger in the iteration process.
-    Refer to the example in ignite: https://github.com/pytorch/ignite/blob/master/ignite/engine/events.py#L146
-    These Events can be triggered during training iteration:
-    `FORWARD_COMPLETED` is the Event when `network(image, label)` completed.
-    `LOSS_COMPLETED` is the Event when `loss(pred, label)` completed.
-    `BACKWARD_COMPLETED` is the Event when `loss.backward()` completed.
-    `MODEL_COMPLETED` is the Event when all the model related operations completed.
-
-    """
-
-    FORWARD_COMPLETED = "forward_completed"
-    LOSS_COMPLETED = "loss_completed"
-    BACKWARD_COMPLETED = "backward_completed"
-    MODEL_COMPLETED = "model_completed"
-
-
-class GanKeys:
-    """
-    A set of common keys for generative adversarial networks.
-
-    """
-
-    REALS = "reals"
-    FAKES = "fakes"
-    LATENTS = "latents"
-    GLOSS = "g_loss"
-    DLOSS = "d_loss"
 
 
 def get_devices_spec(devices: Optional[Sequence[torch.device]] = None) -> List[torch.device]:
@@ -124,3 +92,50 @@ def default_make_latent(
     non_blocking: bool = False,
 ) -> torch.Tensor:
     return torch.randn(num_latents, latent_size).to(device=device, non_blocking=non_blocking)
+
+
+class DictState(State):
+    """
+    Utility class that wrapper ignite State with python dict properties.
+
+    """
+
+    def __getitem__(self, item):
+        return getattr(self, item)
+
+    def __setitem__(self, key, value):
+        setattr(self, key, value)
+
+    @staticmethod
+    def from_state(state):
+        dstate = DictState()
+        dstate.__dict__ = state.__dict__
+        return dstate
+
+
+class EngineAsDict(UserDict):
+    """
+    Utility class that wrapper ignite Engine with python dict properties.
+
+    """
+
+    def __init__(self, engine: Engine):
+        super().__init__()
+        engine.state = DictState.from_state(engine.state)
+        self.data = engine.__dict__
+
+
+def attach_ignite_engine(engine: Engine, handler):
+    """
+    Attach MONAI handler to the specified ignite Engine.
+    handler should be a monai.handlers.Handler.
+
+    """
+    from monai.handlers import Handler  # avoid circular import
+
+    if not isinstance(handler, Handler):
+        raise ValueError("handler must be monai.handlers.Handler.")
+    dict_engine = EngineAsDict(engine)
+    for event, func in handler.get_event_funcs().items():
+        # pass the event as kwarg to handler callback
+        engine.add_event_handler(event, func, data=dict_engine)
