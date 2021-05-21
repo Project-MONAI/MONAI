@@ -27,7 +27,14 @@ class Handler(ABC):
     def _register(self, event: str, func: Callable[[Dict], None]):
         """
         Register a function to specified event, the function must take a `dict` arg: "data".
-        For example: ``def iteration_completed(self, data: Dict) -> None``.
+        And the content of `data` dict has the same structure as MONAI engine objects.
+        For example::
+        
+            def training_started(self, data: Dict) -> None:
+                print("save network parameters into state.")
+                data["state"]["net_param"] = data["network"].named_parameters()
+
+            self._register(event=Events.STARTED, func=self.training_started)
 
         """
         self.event_funcs[event] = func
