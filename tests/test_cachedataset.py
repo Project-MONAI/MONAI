@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import os
+import sys
 import tempfile
 import unittest
 
@@ -29,9 +30,11 @@ TEST_CASE_2 = [None, (128, 128, 128)]
 TEST_DS = []
 for c in (0, 1, 2):
     for l in (0, 1, 2):
-        TEST_DS.append([False, c, l])
-    for l in (1, 2):
-        TEST_DS.append([True, c, l])
+        TEST_DS.append([False, c, 0 if sys.platform in ("darwin", "win32") else l])
+    if sys.platform not in ("darwin", "win32"):
+        # persistent_workers need l > 0
+        for l in (1, 2):
+            TEST_DS.append([True, c, l])
 
 
 class TestCacheDataset(unittest.TestCase):
@@ -102,7 +105,7 @@ class TestCacheThread(unittest.TestCase):
     @parameterized.expand(TEST_DS)
     def test_thread_safe(self, persistent_workers, cache_workers, loader_workers):
         expected = [102, 202, 302, 402, 502, 602, 702, 802, 902, 1002]
-        _kwg = {"persistent_workers": persistent_workers} if get_torch_version_tuple() > (1, 8) else {}
+        _kwg = {"persistent_workers": persistent_workers} if get_torch_version_tuple() > (1, 7) else {}
         data_list = list(range(1, 11))
         dataset = CacheDataset(
             data=data_list,
@@ -130,18 +133,18 @@ class TestCacheThread(unittest.TestCase):
         dataset = SmartCacheDataset(
             data=data_list,
             transform=_StatefulTransform(),
-            cache_rate=1.0,
-            replace_rate=0.8,
+            cache_rate=0.7,
+            replace_rate=0.5,
             num_replace_workers=cache_workers,
             progress=False,
             shuffle=False,
         )
-        self.assertListEqual(expected, list(dataset))
+        self.assertListEqual(expected[:7], list(dataset))
         loader = DataLoader(
             SmartCacheDataset(
                 data=data_list,
                 transform=_StatefulTransform(),
-                cache_rate=1.0,
+                cache_rate=0.7,
                 replace_rate=0.5,
                 num_replace_workers=cache_workers,
                 progress=False,
@@ -151,8 +154,8 @@ class TestCacheThread(unittest.TestCase):
             num_workers=loader_workers,
             **_kwg,
         )
-        self.assertListEqual(expected, [y.item() for y in loader])
-        self.assertListEqual(expected, [y.item() for y in loader])
+        self.assertListEqual(expected[:7], [y.item() for y in loader])
+        self.assertListEqual(expected[:7], [y.item() for y in loader])
 
         with tempfile.TemporaryDirectory() as tempdir:
             pdata = PersistentDataset(data=data_list, transform=_StatefulTransform(), cache_dir=tempdir)
