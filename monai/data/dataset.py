@@ -30,7 +30,7 @@ from torch.utils.data import Dataset as _TorchDataset
 from torch.utils.data import Subset
 
 from monai.data.utils import first, pickle_hashing
-from monai.transforms import Compose, Randomizable, Transform, apply_transform
+from monai.transforms import Compose, Randomizable, ThreadUnsafe, Transform, apply_transform
 from monai.utils import MAX_SEED, get_seed, min_version, optional_import
 
 if TYPE_CHECKING:
@@ -180,13 +180,13 @@ class PersistentDataset(Dataset):
             random transform object
 
         """
-        if not isinstance(self.transform, Compose):
-            raise ValueError("transform must be an instance of monai.transforms.Compose.")
-        for _transform in self.transform.transforms:
+        for _transform in self.transform.transforms:  # type:ignore
             # execute all the deterministic transforms
             if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
                 break
-            item_transformed = apply_transform(_transform, item_transformed)
+            # this is to be consistent with CacheDataset even though it's not in a multi-thread situation.
+            _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
+            item_transformed = apply_transform(_xform, item_transformed)
         return item_transformed
 
     def _post_transform(self, item_transformed):
@@ -312,7 +312,8 @@ class CacheNTransDataset(PersistentDataset):
         for i, _transform in enumerate(self.transform.transforms):
             if i == self.cache_n_trans:
                 break
-            item_transformed = apply_transform(_transform, item_transformed)
+            _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
+            item_transformed = apply_transform(_xform, item_transformed)
         return item_transformed
 
     def _post_transform(self, item_transformed):
@@ -557,13 +558,12 @@ class CacheDataset(Dataset):
             idx: the index of the input data sequence.
         """
         item = self.data[idx]
-        if not isinstance(self.transform, Compose):
-            raise ValueError("transform must be an instance of monai.transforms.Compose.")
-        for _transform in self.transform.transforms:
+        for _transform in self.transform.transforms:  # type:ignore
             # execute all the deterministic transforms
             if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
                 break
-            item = apply_transform(_transform, item)
+            _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
+            item = apply_transform(_xform, item)
         return item
 
     def _transform(self, index: int):
@@ -667,9 +667,11 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         if self._cache is None:
             self._cache = self._fill_cache()
         if self.cache_num >= len(data):
-            warnings.warn("cache_num is greater or equal than dataset length, fall back to regular CacheDataset.")
+            warnings.warn(
+                "cache_num is greater or equal than dataset length, fall back to regular monai.data.CacheDataset."
+            )
         if replace_rate <= 0:
-            raise ValueError("replace_rate must be greater than 0, otherwise, please use CacheDataset.")
+            raise ValueError("replace_rate must be greater than 0, otherwise, please use monai.data.CacheDataset.")
 
         self.num_replace_workers: Optional[int] = num_replace_workers
         if self.num_replace_workers is not None:

@@ -23,7 +23,7 @@ from monai.config import USE_COMPILED, DtypeLike
 from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.transforms.croppad.array import CenterSpatialCrop
-from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
+from monai.transforms.transform import Randomizable, RandomizableTransform, ThreadUnsafe, Transform
 from monai.transforms.utils import (
     create_control_grid,
     create_grid,
@@ -389,7 +389,7 @@ class Resize(Transform):
         return np.asarray(resized)
 
 
-class Rotate(Transform):
+class Rotate(Transform, ThreadUnsafe):
     """
     Rotates an input image by given angle using :py:class:`monai.networks.layers.AffineTransform`.
 
@@ -426,7 +426,7 @@ class Rotate(Transform):
         self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.align_corners = align_corners
         self.dtype = dtype
-        self.rotation_matrix: Optional[np.ndarray] = None
+        self._rotation_matrix: Optional[np.ndarray] = None
 
     def __call__(
         self,
@@ -488,12 +488,15 @@ class Rotate(Transform):
             torch.as_tensor(np.ascontiguousarray(transform).astype(_dtype)),
             spatial_size=output_shape,
         )
-        self.rotation_matrix = transform
+        self._rotation_matrix = transform
         return np.asarray(output.squeeze(0).detach().cpu().numpy(), dtype=np.float32)
 
     def get_rotation_matrix(self) -> Optional[np.ndarray]:
-        """Get the most recently applied rotation matrix"""
-        return self.rotation_matrix
+        """
+        Get the most recently applied rotation matrix
+        This is not thread-safe.
+        """
+        return self._rotation_matrix
 
 
 class Zoom(Transform):

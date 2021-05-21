@@ -1240,8 +1240,9 @@ class GibbsNoise(Transform):
         n_dims = len(img.shape[1:])
 
         # convert to ndarray to work with np.fft
+        _device = None
         if isinstance(img, torch.Tensor):
-            self._device = img.device
+            _device = img.device
             img = img.cpu().detach().numpy()
 
         # FT
@@ -1250,7 +1251,7 @@ class GibbsNoise(Transform):
         k = self._apply_mask(k)
         # map back
         img = self._inv_shift_fourier(k, n_dims)
-        return torch.Tensor(img).to(self._device) if self.as_tensor_output else img
+        return torch.Tensor(img).to(_device or self._device) if self.as_tensor_output else img
 
     def _shift_fourier(self, x: Union[np.ndarray, torch.Tensor], n_dims: int) -> np.ndarray:
         """

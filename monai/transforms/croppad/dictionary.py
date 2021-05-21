@@ -403,7 +403,7 @@ class CenterSpatialCropd(MapTransform, InvertibleTransform):
         return d
 
 
-class CenterScaleCropd(CenterSpatialCropd):
+class CenterScaleCropd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.CenterScaleCrop`.
 
@@ -418,15 +418,16 @@ class CenterScaleCropd(CenterSpatialCropd):
     def __init__(
         self, keys: KeysCollection, roi_scale: Union[Sequence[float], float], allow_missing_keys: bool = False
     ) -> None:
-        super().__init__(keys, roi_size=0, allow_missing_keys=allow_missing_keys)
+        super().__init__(keys, allow_missing_keys=allow_missing_keys)
         self.roi_scale = roi_scale
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         img_size = data[self.keys[0]].shape[1:]
         ndim = len(img_size)
-        self.cropper.roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
-        return super().__call__(data=data)
+        roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
+        sp_crop = CenterSpatialCropd(self.keys, roi_size=roi_size, allow_missing_keys=self.allow_missing_keys)
+        return sp_crop(data=data)
 
 
 class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):

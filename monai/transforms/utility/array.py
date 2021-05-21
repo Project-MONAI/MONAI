@@ -441,14 +441,14 @@ class DataStats(Transform):
         if additional_info is not None and not callable(additional_info):
             raise TypeError(f"additional_info must be None or callable but is {type(additional_info).__name__}.")
         self.additional_info = additional_info
-        self.output: Optional[str] = None
-        self._logger = logging.getLogger("DataStats")
-        self._logger.setLevel(logging.INFO)
+        self._logger_name = "DataStats"
+        _logger = logging.getLogger(self._logger_name)
+        _logger.setLevel(logging.INFO)
         console = logging.StreamHandler(sys.stdout)  # always stdout
         console.setLevel(logging.INFO)
-        self._logger.addHandler(console)
+        _logger.addHandler(console)
         if logger_handler is not None:
-            self._logger.addHandler(logger_handler)
+            _logger.addHandler(logger_handler)
 
     def __call__(
         self,
@@ -482,9 +482,8 @@ class DataStats(Transform):
         if additional_info is not None:
             lines.append(f"Additional info: {additional_info(img)}")
         separator = "\n"
-        self.output = f"{separator.join(lines)}"
-        self._logger.info(self.output)
-
+        output = f"{separator.join(lines)}"
+        logging.getLogger(self._logger_name).info(output)
         return img
 
 
