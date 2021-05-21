@@ -659,6 +659,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.REFLECTION,
+        cache_grid: bool = False,
         as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
         allow_missing_keys: bool = False,
@@ -692,6 +693,9 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
+            cache_grid: whether to cache the identity sampling grid.
+                If the spatial size is not dynamically defined by input image, enabling this option could
+                accelerate the transform.
             as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device: device on which the tensor will be allocated.
@@ -710,6 +714,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             translate_range=translate_range,
             scale_range=scale_range,
             spatial_size=spatial_size,
+            cache_grid=cache_grid,
             as_tensor_output=as_tensor_output,
             device=device,
         )
@@ -734,15 +739,17 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         self.randomize()
 
         sp_size = fall_back_tuple(self.rand_affine.spatial_size, data[self.keys[0]].shape[1:])
-        if self._do_transform:
-            grid = self.rand_affine.rand_affine_grid(spatial_size=sp_size)
-            affine = self.rand_affine.rand_affine_grid.get_transformation_matrix()
-        else:
-            # to be consistent with the self._do_transform case (dtype and device)
-            affine = torch.as_tensor(np.eye(len(sp_size) + 1), device=self.rand_affine.rand_affine_grid.device)
-            # no transform, but a change of size
-            if self.rand_affine.spatial_size is not None:
-                grid = create_grid(spatial_size=sp_size)
+        # change image size or do random transform
+        do_resampling = self.rand_affine.spatial_size is not None or self._do_transform
+
+        # to be consistent with the self._do_transform case (dtype and device)
+        affine = torch.as_tensor(np.eye(len(sp_size) + 1), device=self.rand_affine.rand_affine_grid.device)
+        grid = None
+        if do_resampling:  # need to prepare grid
+            grid = self.rand_affine.get_identity_grid(sp_size)
+            if self._do_transform:  # add some random factors
+                grid = self.rand_affine.rand_affine_grid(grid=grid)
+                affine = self.rand_affine.rand_affine_grid.get_transformation_matrix()  # type: ignore[assignment]
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             self.push_transform(
@@ -755,7 +762,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
                 },
             )
             # do the transform
-            if self._do_transform or self.rand_affine.spatial_size is not None:
+            if do_resampling:
                 d[key] = self.rand_affine.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)
             # if not doing transform and and spatial size is unchanged, only need to do numpy/torch conversion
             else:
