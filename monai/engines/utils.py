@@ -10,10 +10,13 @@
 # limitations under the License.
 
 from collections import UserDict
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
-from monai.utils import CommonKeys, GanKeys, exact_version, optional_import
+
+from monai.transforms import apply_transform
+from monai.utils import exact_version, optional_import
+from monai.utils.enums import CommonKeys
 
 if TYPE_CHECKING:
     from ignite.engine import Engine, State
@@ -26,6 +29,7 @@ __all__ = [
     "default_prepare_batch",
     "default_make_latent",
     "attach_ignite_engine",
+    "engine_apply_transform",
 ]
 
 
@@ -139,3 +143,28 @@ def attach_ignite_engine(engine: Engine, handler):
     for event, func in handler.get_event_funcs().items():
         # pass the event as kwarg to handler callback
         engine.add_event_handler(event, func, data=dict_engine)
+
+
+def engine_apply_transform(batch: Any, output: Any, transform: Callable):
+    """
+    Apply transform for the engine.state.batch and engine.state.output.
+    If `batch` and `output` are dictionaries, temporarily combine them for the transform,
+    otherwise, apply the transform for `output` data only.
+
+    """
+    if isinstance(batch, dict) and isinstance(output, dict):
+        data = dict(batch)
+        data.update(output)
+        data = apply_transform(transform, data)
+        for k, v in data.items():
+            # split the output data of post transforms into `output` and `batch`,
+            # `batch` should be read-only, so save the generated key-value into `output`
+            if k in output or k not in batch:
+                output[k] = v
+            else:
+                batch[k] = v
+    else:
+        output = apply_transform(transform, output)
+
+    return batch, output
+
