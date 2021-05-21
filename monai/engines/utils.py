@@ -16,7 +16,7 @@ import torch
 
 from monai.transforms import apply_transform
 from monai.utils import exact_version, optional_import
-from monai.utils.enums import CommonKeys
+from monai.utils.enums import CommonKeys, GanKeys
 
 if TYPE_CHECKING:
     from ignite.engine import Engine, EventEnum, State
@@ -187,4 +187,3 @@ def engine_apply_transform(batch: Any, output: Any, transform: Callable):
         output = apply_transform(transform, output)
 
     return batch, output
-
