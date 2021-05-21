@@ -20,7 +20,7 @@ class Handler(ABC):
     """
 
     def __init__(self) -> None:
-        self.event_funcs = {}
+        self.event_funcs: Dict[str, Callable] = {}
 
     def get_event_funcs(self):
         return self.event_funcs

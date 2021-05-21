@@ -17,6 +17,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
 from monai.engines.utils import IterationEvents, default_prepare_batch
+from monai.handlers import Handler, attach_ignite_engine
 from monai.transforms import apply_transform
 from monai.utils import ensure_tuple, exact_version, optional_import
 
@@ -196,7 +197,11 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         """
         handlers_ = ensure_tuple(handlers)
         for handler in handlers_:
-            handler.attach(self)
+            if isinstance(handler, Handler):
+                attach_ignite_engine(engine=self, handler=handler)
+            else:
+                # if ignite format handler, attach to engine directly
+                handler.attach(self)
 
     def run(self) -> None:
         """
