@@ -10,8 +10,7 @@
 # limitations under the License.
 
 from abc import ABC
-from typing import Dict, Callable
-from monai.utils import Events
+from typing import Callable, Dict
 
 
 class Handler(ABC):
@@ -25,26 +24,10 @@ class Handler(ABC):
     def get_event_funcs(self):
         return self.event_funcs
 
-    def _register(self, event: str, func: Callable):
+    def _register(self, event: str, func: Callable[[Dict], None]):
+        """
+        Register a function to specified event, the function must take a `dict` arg: "data".
+        For example: ``def iteration_completed(self, data: Dict) -> None``.
+
+        """
         self.event_funcs[event] = func
-
-
-class TestHandler(Handler):
-    def __init__(self) -> None:
-        super().__init__()
-        self._register(event=Events.STARTED, func=self._started)
-        self._register(event=Events.ITERATION_COMPLETED, func=self._iteration)
-        self._register(event=Events.EPOCH_COMPLETED, func=self._epoch)
-
-    def _started(self, data: Dict):
-        print(f"total epochs: {data['state']['max_epochs']}.")
-        data["state"]["magic_number"] = 123
-
-    def _iteration(self, data: Dict):
-        print(f"current iteration: {data['state']['iteration']}.")
-        print(f"magic number: {data['state']['magic_number']}")
-        data["state"]["magic_number"] += 1
-
-    def _epoch(self, data: Dict):
-        print(f"should terminated: {data['should_terminate']}.")
-        print(f"end magic number: {data['state']['magic_number']}")

@@ -6,6 +6,11 @@ Event handlers
 ==============
 .. currentmodule:: monai.handlers
 
+Handler base
+------------
+.. autoclass:: Handler
+  :members:
+
 Model checkpoint loader
 -----------------------
 .. autoclass:: CheckpointLoader
