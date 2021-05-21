@@ -51,7 +51,7 @@ def apply_transform(transform: Callable, data, map_items: bool = True):
         if not isinstance(transform, transforms.compose.Compose):
             # log the input data information of exact transform in the transform chain
             datastats = transforms.utility.array.DataStats(data_shape=False, value_range=False)
-            datastats._logger.info("input data information of the runtime error transform:")
+            datastats._logger.info(f"\n=== Transform input info -- {type(transform).__name__} ===")
             if isinstance(data, (list, tuple)):
                 data = data[0]
 
