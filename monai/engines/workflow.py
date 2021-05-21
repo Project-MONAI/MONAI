@@ -18,6 +18,7 @@ from torch.utils.data.distributed import DistributedSampler
 
 from monai.engines.utils import IterationEvents, default_prepare_batch
 from monai.utils import ensure_tuple, exact_version, optional_import
+
 from .utils import engine_apply_transform
 
 IgniteEngine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")

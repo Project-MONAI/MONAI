@@ -17,6 +17,6 @@ from .utils import (
     IterationEvents,
     default_make_latent,
     default_prepare_batch,
-    get_devices_spec,
     engine_apply_transform,
+    get_devices_spec,
 )
