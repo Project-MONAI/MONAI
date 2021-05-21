@@ -15,8 +15,8 @@ from typing import Dict
 import torch
 from ignite.engine import Engine
 
-from monai.handlers.handler import Handler
 from monai.engines.utils import attach_ignite_engine
+from monai.handlers.handler import Handler
 from monai.utils.enums import Events
 
 

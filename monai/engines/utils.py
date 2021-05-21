@@ -187,4 +187,3 @@ def engine_apply_transform(batch: Any, output: Any, transform: Callable):
         output = apply_transform(transform, output)
 
     return batch, output
-

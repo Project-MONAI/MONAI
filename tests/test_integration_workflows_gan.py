@@ -28,8 +28,8 @@ from monai.handlers import CheckpointSaver, StatsHandler, TensorBoardStatsHandle
 from monai.networks import normal_init
 from monai.networks.nets import Discriminator, Generator
 from monai.transforms import AsChannelFirstd, Compose, LoadImaged, RandFlipd, ScaleIntensityd, ToTensord
-from monai.utils import set_determinism
 from monai.utils import GanKeys as Keys
+from monai.utils import set_determinism
 from tests.utils import DistTestCase, TimedCall, skip_if_quick
 
 
