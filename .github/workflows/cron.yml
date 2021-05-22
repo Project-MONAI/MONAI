@@ -99,6 +99,73 @@ jobs:
         fail_ci_if_error: false
         file: ./coverage.xml
 
+  cron-pip:
+    if: github.repository == 'Project-MONAI/MONAI'
+    strategy:
+      matrix:
+        container: ["pytorch:21.02", "pytorch:21.04"]  # 21.02 for backward comp.
+    container:
+      image: nvcr.io/nvidia/${{ matrix.container }}-py3  # testing with the latest pytorch base image
+      options: "--gpus all"
+    runs-on: [self-hosted, linux, x64, common]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install the dependencies
+        run: |
+          which python
+          python -m pip install --upgrade pip wheel
+          python -m pip uninstall -y torch torchvision
+          python -m pip install -r requirements-dev.txt
+          python -m pip list
+      - name: Run tests report coverage
+        run: |
+          export LAUNCH_DELAY=$[ $RANDOM % 16 * 60 ]
+          echo "Sleep $LAUNCH_DELAY"
+          sleep $LAUNCH_DELAY
+          nvidia-smi
+          export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+          echo $CUDA_VISIBLE_DEVICES
+          trap 'if pgrep python; then pkill python; fi;' ERR
+          python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
+          python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
+
+          pip uninstall monai
+          pip list | grep -iv monai
+          git fetch --depth=1 origin +refs/tags/*:refs/tags/*
+          root_dir=$PWD
+          echo "$root_dir"
+          set -e
+
+          # build tar.gz and wheel
+          python setup.py check -m -s
+          python setup.py sdist bdist_wheel
+          python -m twine check dist/*
+
+          # move packages to a temp dir
+          tmp_dir=$(mktemp -d)
+          cp dist/monai* "$tmp_dir"
+          rm -r build dist monai.egg-info
+          cd "$tmp_dir"
+          ls -al
+
+          # install from tar.gz
+          name=$(ls *.tar.gz | head -n1)
+          echo $name
+          python -m pip install $name[all]
+          python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
+          python -c 'import monai; print(monai.__file__)'
+
+          # run tests
+          cp $root_dir/requirements*.txt "$tmp_dir"
+          cp -r $root_dir/tests "$tmp_dir"
+          pwd
+          ls -al
+          python -m pip install -r requirements-dev.txt
+          python -m unittest -v
+
+          BUILD_MONAI=1 ./tests/runner.py -p test_((?!integration).)  # unit tests
+          if pgrep python; then pkill python; fi
+
   cron-docker:
     if: github.repository == 'Project-MONAI/MONAI'
     container:
