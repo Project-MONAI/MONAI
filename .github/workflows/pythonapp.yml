@@ -7,7 +7,6 @@ on:
       - dev
       - main
       - releasing/*
-      - adds-pypi-tests
   pull_request:
 
 jobs:
