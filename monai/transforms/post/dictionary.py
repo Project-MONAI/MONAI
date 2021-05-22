@@ -15,6 +15,7 @@ defined in :py:class:`monai.transforms.utility.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
+import copy
 import warnings
 from copy import deepcopy
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Union
@@ -26,6 +27,7 @@ from torch.utils.data import DataLoader as TorchDataLoader
 from monai.config import KeysCollection
 from monai.data.csv_saver import CSVSaver
 from monai.data.utils import decollate_batch, no_collation
+from monai.networks.blocks import CRF
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.inverse_batch_transform import BatchInverseTransform
 from monai.transforms.post.array import (
@@ -37,7 +39,7 @@ from monai.transforms.post.array import (
     ProbNMS,
     VoteEnsemble,
 )
-from monai.transforms.transform import MapTransform
+from monai.transforms.transform import MapTransform, Transform
 from monai.transforms.utility.array import ToTensor
 from monai.transforms.utils import allow_missing_keys_mode, convert_inverse_interp_mode
 from monai.utils import ensure_tuple_rep
@@ -645,6 +647,92 @@ class SaveClassificationd(MapTransform):
         return self.saver
 
 
+class ApplyCRFPostProcd(Transform):
+    """
+    Apply post processing to segmentation network's output using MONAI's CRF layer
+    """
+
+    def __init__(
+        self,
+        unary: str,
+        pairwise: str,
+        post_proc_label: str = "pred",
+        bilateral_weight: float = 3.0,
+        gaussian_weight: float = 1.0,
+        bilateral_spatial_sigma: float = 5.0,
+        bilateral_color_sigma: float = 0.5,
+        gaussian_spatial_sigma: float = 5.0,
+        update_factor: float = 3.0,
+        compatibility_kernel_range: int = 1,
+        iterations: int = 5,
+        device: str = "cuda" if torch.cuda.is_available else "cpu",
+    ) -> None:
+        """
+        Args:
+            unary: key corresponding to the unary term.
+                See also: :py:class:`monai.networks.blocks.CRF`
+            pairwise:key corresponding to the pairwise term.
+            post_proc_label: key where postprocessed result will be written.
+            bilateral_weight: the weighting of the bilateral term in the message passing step.
+                See also: :py:class:`monai.networks.blocks.CRF`
+            gaussian_weight: the weighting of the gaussian term in the message passing step.
+                See also: :py:class:`monai.networks.blocks.CRF`
+            bilateral_spatial_sigma: standard deviation in spatial coordinates for the bilateral term.
+                See also: :py:class:`monai.networks.blocks.CRF`
+            bilateral_color_sigma: standard deviation in color space for the bilateral term.
+                See also: :py:class:`monai.networks.blocks.CRF`
+            gaussian_spatial_sigma: standard deviation in spatial coordinates for the gaussian term.
+                See also: :py:class:`monai.networks.blocks.CRF`
+            update_factor: determines the magnitude of each update.
+                See also: :py:class:`monai.networks.blocks.CRF`
+            compatibility_kernel_range: the range of the kernel used in the compatibility convolution.
+                See also: :py:class:`monai.networks.blocks.CRF`
+            iterations: the number of iterations.
+                See also: :py:class:`monai.networks.blocks.CRF`
+            device: device to run the method on, could be from ['cpu', 'cuda']
+        """
+        self.unary = unary
+        self.pairwise = pairwise
+        self.post_proc_label = post_proc_label
+        self.device = device
+
+        self.crf_layer = CRF(
+            bilateral_weight=bilateral_weight,
+            gaussian_weight=gaussian_weight,
+            bilateral_spatial_sigma=bilateral_spatial_sigma,
+            bilateral_color_sigma=bilateral_color_sigma,
+            gaussian_spatial_sigma=gaussian_spatial_sigma,
+            update_factor=update_factor,
+            compatibility_kernel_range=compatibility_kernel_range,
+            iterations=iterations,
+        )
+
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+        d = dict(data)
+
+        if self.unary in d.keys():
+            unary_term = d[self.unary].float()
+        else:
+            raise ValueError("Key {} not found, present keys {}".format(self.unary, d.keys()))
+
+        if self.pairwise in d.keys():
+            pairwise_term = d[self.pairwise].float()
+        else:
+            raise ValueError("Key {} not found, present keys {}".format(self.pairwise, d.keys()))
+
+        unary_term = unary_term.to(self.device)
+        pairwise_term = pairwise_term.to(self.device)
+
+        with torch.no_grad():  # dont need any gradients for this operation
+            d[self.post_proc_label] = torch.argmax(self.crf_layer(unary_term, pairwise_term), dim=1, keepdims=True)
+
+        # copy meta data from pairwise input
+        if self.pairwise + "_meta_dict" in d.keys():
+            d[self.post_proc_label + "_meta_dict"] = copy.deepcopy(d[self.pairwise + "_meta_dict"])
+
+        return d
+
+
 ActivationsD = ActivationsDict = Activationsd
 AsDiscreteD = AsDiscreteDict = AsDiscreted
 KeepLargestConnectedComponentD = KeepLargestConnectedComponentDict = KeepLargestConnectedComponentd
@@ -655,3 +743,4 @@ VoteEnsembleD = VoteEnsembleDict = VoteEnsembled
 DecollateD = DecollateDict = Decollated
 InvertD = InvertDict = Invertd
 SaveClassificationD = SaveClassificationDict = SaveClassificationd
+ApplyCRFPostProcD = ApplyCRFPostProcDict = ApplyCRFPostProcd
