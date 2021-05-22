@@ -100,6 +100,7 @@ jobs:
         file: ./coverage.xml
 
   cron-pip:
+    # pip install monai[all] and use it to run unit tests
     if: github.repository == 'Project-MONAI/MONAI'
     strategy:
       matrix:
