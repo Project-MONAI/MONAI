@@ -370,18 +370,22 @@ jobs:
         rm monai*.whl
 
         # install from tar.gz
-        python -m pip install monai*.tar.gz
+        name=$(ls *.tar.gz | head -n1)
+        echo $name
+        python -m pip install $name[all]
         python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
         python -c 'import monai; print(monai.__file__)'
 
-        cp "$root_dir"/requirements-min.txt "$tmp_dir"
-        cp -r "$root_dir"/tests "$temp_dir"
+        # run min tests
+        cp $root_dir/requirements*.txt "$tmp_dir"
+        cp -r $root_dir/tests "$tmp_dir"
         pwd
         ls -al
-        python -m pip install -r requirements-min.txt
-        python -m tests.min_tests
+        python -m pip install -r requirements-dev.txt
+        python -m unittest -v
       env:
         QUICKTEST: True
+        shell: bash
 
   build-docs:
     runs-on: ubuntu-latest
