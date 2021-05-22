@@ -657,12 +657,12 @@ class ApplyCRFPostProcd(Transform):
         unary: str,
         pairwise: str,
         post_proc_label: str = "pred",
-        bilateral_weight: float = 3.0,
-        gaussian_weight: float = 1.0,
-        bilateral_spatial_sigma: float = 5.0,
-        bilateral_color_sigma: float = 0.5,
-        gaussian_spatial_sigma: float = 5.0,
-        update_factor: float = 3.0,
+        bilateral_weight: float = 5.0,
+        gaussian_weight: float = 3.0,
+        bilateral_spatial_sigma: float = 1.0,
+        bilateral_color_sigma: float = 5.0,
+        gaussian_spatial_sigma: float = 0.5,
+        update_factor: float = 5.0,
         compatibility_kernel_range: int = 1,
         iterations: int = 5,
         device: str = "cuda" if torch.cuda.is_available else "cpu",
@@ -670,7 +670,6 @@ class ApplyCRFPostProcd(Transform):
         """
         Args:
             unary: key corresponding to the unary term.
-                See also: :py:class:`monai.networks.blocks.CRF`
             pairwise:key corresponding to the pairwise term.
             post_proc_label: key where postprocessed result will be written.
             bilateral_weight: the weighting of the bilateral term in the message passing step.
