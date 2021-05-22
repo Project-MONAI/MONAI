@@ -724,7 +724,7 @@ class ApplyCRFPostProcd(Transform):
         pairwise_term = pairwise_term.to(self.device)
 
         with torch.no_grad():  # dont need any gradients for this operation
-            d[self.post_proc_label] = torch.argmax(self.crf_layer(unary_term, pairwise_term), dim=1, keepdims=True)
+            d[self.post_proc_label] = torch.argmax(self.crf_layer(unary_term, pairwise_term), dim=1, keepdim=True)
 
         # copy meta data from pairwise input
         if self.pairwise + "_meta_dict" in d.keys():
