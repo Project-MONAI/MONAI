@@ -25,6 +25,7 @@ from monai.data.utils import decollate_batch
 from monai.networks.nets import UNet
 from monai.transforms import (
     AddChanneld,
+    AdjustContrastd,
     Affined,
     BatchInverseTransform,
     BorderPadd,
@@ -36,6 +37,7 @@ from monai.transforms import (
     InvertibleTransform,
     LoadImaged,
     Orientationd,
+    RandAdjustContrastd,
     RandAffined,
     RandAxisFlipd,
     RandFlipd,
@@ -437,6 +439,24 @@ TESTS.append(
         "3D",
         0,
         RandAffined(KEYS, spatial_size=None, prob=0),
+    )
+)
+
+TESTS.append(
+    (
+        "AdjustContrast 3d",
+        "3D",
+        1e-7,
+        AdjustContrastd(KEYS, gamma=13.4),
+    )
+)
+
+TESTS.append(
+    (
+        "AdjustContrast 3d",
+        "3D",
+        1e-7,
+        RandAdjustContrastd(KEYS, prob=1),
     )
 )
 

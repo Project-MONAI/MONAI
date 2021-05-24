@@ -14,6 +14,7 @@ from .compose import Compose
 from .croppad.array import (
     BorderPad,
     BoundingRect,
+    CenterScaleCrop,
     CenterSpatialCrop,
     CropForeground,
     DivisiblePad,
@@ -34,6 +35,9 @@ from .croppad.dictionary import (
     BoundingRectd,
     BoundingRectD,
     BoundingRectDict,
+    CenterScaleCropd,
+    CenterScaleCropD,
+    CenterScaleCropDict,
     CenterSpatialCropd,
     CenterSpatialCropD,
     CenterSpatialCropDict,
@@ -206,6 +210,9 @@ from .post.dictionary import (
     ProbNMSd,
     ProbNMSD,
     ProbNMSDict,
+    SaveClassificationd,
+    SaveClassificationD,
+    SaveClassificationDict,
     VoteEnsembled,
     VoteEnsembleD,
     VoteEnsembleDict,
@@ -286,7 +293,7 @@ from .spatial.dictionary import (
     ZoomD,
     ZoomDict,
 )
-from .transform import MapTransform, Randomizable, RandomizableTransform, Transform, apply_transform
+from .transform import MapTransform, Randomizable, RandomizableTransform, ThreadUnsafe, Transform, apply_transform
 from .utility.array import (
     AddChannel,
     AddExtremePointsChannel,

@@ -23,7 +23,7 @@ from monai.config import DtypeLike, KeysCollection
 from monai.data.image_reader import ImageReader
 from monai.transforms.io.array import LoadImage, SaveImage
 from monai.transforms.transform import MapTransform
-from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode
+from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, ensure_tuple, ensure_tuple_rep
 
 __all__ = [
     "LoadImaged",
@@ -42,7 +42,7 @@ class LoadImaged(MapTransform):
     stack them together and add a new dimension as the first dimension, and use the
     meta data of the first image to represent the stacked result. Note that the affine
     transform of all the stacked images should be same. The output metadata field will
-    be created as ``key_{meta_key_postfix}``.
+    be created as ``meta_keys`` or ``key_{meta_key_postfix}``.
 
     It can automatically choose readers based on the supported suffixes and in below order:
     - User specified reader at runtime when call this loader.
@@ -57,6 +57,7 @@ class LoadImaged(MapTransform):
         keys: KeysCollection,
         reader: Optional[Union[ImageReader, str]] = None,
         dtype: DtypeLike = np.float32,
+        meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
         overwriting: bool = False,
         image_only: bool = False,
@@ -73,7 +74,11 @@ class LoadImaged(MapTransform):
                 a reader object with the `*args` and `**kwargs` parameters, supported reader name: "NibabelReader",
                 "PILReader", "ITKReader", "NumpyReader".
             dtype: if not None convert the loaded image data to this data type.
-            meta_key_postfix: use `key_{postfix}` to store the metadata of the nifti image,
+            meta_keys: explicitly indicate the key to store the corresponding meta data dictionary.
+                the meta data is a dictionary object which contains: filename, original_shape, etc.
+                it can be a sequence of string, map to the `keys`.
+                if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
+            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to store the metadata of the nifti image,
                 default is `meta_dict`. The meta data is a dictionary object.
                 For example, load nifti file for `image`, store the metadata into `image_meta_dict`.
             overwriting: whether allow to overwrite existing meta data of same key.
@@ -88,7 +93,10 @@ class LoadImaged(MapTransform):
         self._loader = LoadImage(reader, image_only, dtype, *args, **kwargs)
         if not isinstance(meta_key_postfix, str):
             raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
-        self.meta_key_postfix = meta_key_postfix
+        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.overwriting = overwriting
 
     def register(self, reader: ImageReader):
@@ -101,7 +109,7 @@ class LoadImaged(MapTransform):
 
         """
         d = dict(data)
-        for key in self.key_iterator(d):
+        for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
             data = self._loader(d[key], reader)
             if self._loader.image_only:
                 if not isinstance(data, np.ndarray):
@@ -113,10 +121,10 @@ class LoadImaged(MapTransform):
                 d[key] = data[0]
                 if not isinstance(data[1], dict):
                     raise ValueError("metadata must be a dict.")
-                key_to_add = f"{key}_{self.meta_key_postfix}"
-                if key_to_add in d and not self.overwriting:
-                    raise KeyError(f"Meta data with key {key_to_add} already exists and overwriting=False.")
-                d[key_to_add] = data[1]
+                meta_key = meta_key or f"{key}_{meta_key_postfix}"
+                if meta_key in d and not self.overwriting:
+                    raise KeyError(f"Meta data with key {meta_key} already exists and overwriting=False.")
+                d[meta_key] = data[1]
         return d
 
 
@@ -131,8 +139,13 @@ class SaveImaged(MapTransform):
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
-        meta_key_postfix: `key_{postfix}` was used to store the metadata in `LoadImaged`.
-            so need the key to extract metadata to save images, default is `meta_dict`.
+        meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+            for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+            the meta data is a dictionary object which contains: filename, original_shape, etc.
+            it can be a sequence of string, map to the `keys`.
+            if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
+        meta_key_postfix: if meta_keys is None and `key_{postfix}` was used to store the metadata in `LoadImaged`.
+            need the key to extract metadata to save images, default is `meta_dict`.
             for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
             the meta data is a dictionary object which contains: filename, affine, original_shape, etc.
             if no corresponding metadata, set to `None`.
@@ -186,12 +199,14 @@ class SaveImaged(MapTransform):
             output_dir: /output,
             data_root_dir: /foo/bar,
             output will be: /output/test1/image/image_seg.nii.gz
+        print_log: whether to print log about the saved file path, etc. default to `True`.
 
     """
 
     def __init__(
         self,
         keys: KeysCollection,
+        meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
         output_dir: str = "./",
         output_postfix: str = "trans",
@@ -206,9 +221,11 @@ class SaveImaged(MapTransform):
         allow_missing_keys: bool = False,
         squeeze_end_dims: bool = True,
         data_root_dir: str = "",
+        print_log: bool = True,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.meta_key_postfix = meta_key_postfix
+        self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self._saver = SaveImage(
             output_dir=output_dir,
             output_postfix=output_postfix,
@@ -222,12 +239,15 @@ class SaveImaged(MapTransform):
             save_batch=save_batch,
             squeeze_end_dims=squeeze_end_dims,
             data_root_dir=data_root_dir,
+            print_log=print_log,
         )
 
     def __call__(self, data):
         d = dict(data)
-        for key in self.key_iterator(d):
-            meta_data = d[f"{key}_{self.meta_key_postfix}"] if self.meta_key_postfix is not None else None
+        for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
+            if meta_key is None and meta_key_postfix is not None:
+                meta_key = f"{key}_{meta_key_postfix}"
+            meta_data = d[meta_key] if meta_key is not None else None
             self._saver(img=d[key], meta_data=meta_data)
         return d
 

@@ -12,6 +12,7 @@
 A collection of generic interfaces for MONAI transforms.
 """
 
+import logging
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, Generator, Hashable, Iterable, List, Optional, Tuple
 
@@ -22,7 +23,7 @@ from monai import transforms
 from monai.config import KeysCollection
 from monai.utils import MAX_SEED, ensure_tuple
 
-__all__ = ["apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
+__all__ = ["ThreadUnsafe", "apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
 
 
 def apply_transform(transform: Callable, data, map_items: bool = True):
@@ -51,7 +52,8 @@ def apply_transform(transform: Callable, data, map_items: bool = True):
         if not isinstance(transform, transforms.compose.Compose):
             # log the input data information of exact transform in the transform chain
             datastats = transforms.utility.array.DataStats(data_shape=False, value_range=False)
-            datastats._logger.info("input data information of the runtime error transform:")
+            logger = logging.getLogger(datastats._logger_name)
+            logger.info(f"\n=== Transform input info -- {type(transform).__name__} ===")
             if isinstance(data, (list, tuple)):
                 data = data[0]
 
@@ -71,14 +73,29 @@ def apply_transform(transform: Callable, data, map_items: bool = True):
         raise RuntimeError(f"applying transform {transform}") from e
 
 
-class Randomizable(ABC):
+class ThreadUnsafe:
+    """
+    A class to denote that the transform will mutate its member variables,
+    when being applied. Transforms inheriting this class should be used
+    cautiously in a multi-thread context.
+
+    This type is typically used by :py:class:`monai.data.CacheDataset` and
+    its extensions, where the transform cache is built with multiple threads.
+    """
+
+    pass
+
+
+class Randomizable(ABC, ThreadUnsafe):
     """
     An interface for handling random state locally, currently based on a class
     variable `R`, which is an instance of `np.random.RandomState`.  This
     provides the flexibility of component-specific determinism without
     affecting the global states.  It is recommended to use this API with
     :py:class:`monai.data.DataLoader` for deterministic behaviour of the
-    preprocessing pipelines.
+    preprocessing pipelines. This API is not thread-safe. Additionally,
+    deepcopying instance of this class often causes insufficient randomness as
+    the random states will be duplicated.
     """
 
     R: np.random.RandomState = np.random.RandomState()
@@ -142,6 +159,7 @@ class Transform(ABC):
 
         #. thread safety when mutating its own states.
            When used from a multi-process context, transform's instance variables are read-only.
+           thread-unsafe transforms should inherit :py:class:`monai.transforms.ThreadUnsafe`.
         #. ``data`` content unused by this transform may still be used in the
            subsequent transforms in a composed transform.
         #. storing too much information in ``data`` may not scale.

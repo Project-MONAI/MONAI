@@ -133,6 +133,12 @@ Crop and Pad
     :members:
     :special-members: __call__
 
+`CenterScaleCrop`
+"""""""""""""""""
+.. autoclass:: CenterScaleCrop
+    :members:
+    :special-members: __call__
+
 Intensity
 ^^^^^^^^^
 
@@ -689,6 +695,12 @@ Crop and Pad (Dict)
     :members:
     :special-members: __call__
 
+`CenterScaleCropd`
+""""""""""""""""""
+.. autoclass:: CenterScaleCropd
+    :members:
+    :special-members: __call__
+
 Instensity (Dict)
 ^^^^^^^^^^^^^^^^^
 
@@ -887,6 +899,12 @@ Post-processing (Dict)
 `Invertd`
 """""""""
 .. autoclass:: Invertd
+    :members:
+    :special-members: __call__
+
+`SaveClassificationd`
+"""""""""""""""""""""
+.. autoclass:: SaveClassificationd
     :members:
     :special-members: __call__
 

@@ -39,6 +39,7 @@ __all__ = [
     "DivisiblePad",
     "SpatialCrop",
     "CenterSpatialCrop",
+    "CenterScaleCrop",
     "RandSpatialCrop",
     "RandScaleCrop",
     "RandSpatialCropSamples",
@@ -78,14 +79,14 @@ class SpatialPad(Transform):
         self.mode: NumpyPadMode = NumpyPadMode(mode)
 
     def _determine_data_pad_width(self, data_shape: Sequence[int]) -> List[Tuple[int, int]]:
-        self.spatial_size = fall_back_tuple(self.spatial_size, data_shape)
+        spatial_size = fall_back_tuple(self.spatial_size, data_shape)
         if self.method == Method.SYMMETRIC:
             pad_width = []
-            for i, sp_i in enumerate(self.spatial_size):
+            for i, sp_i in enumerate(spatial_size):
                 width = max(sp_i - data_shape[i], 0)
                 pad_width.append((width // 2, width - (width // 2)))
             return pad_width
-        return [(0, max(sp_i - data_shape[i], 0)) for i, sp_i in enumerate(self.spatial_size)]
+        return [(0, max(sp_i - data_shape[i], 0)) for i, sp_i in enumerate(spatial_size)]
 
     def __call__(self, img: np.ndarray, mode: Optional[Union[NumpyPadMode, str]] = None) -> np.ndarray:
         """
@@ -157,9 +158,9 @@ class BorderPad(Transform):
         spatial_border = tuple(max(0, b) for b in spatial_border)
 
         if len(spatial_border) == 1:
-            data_pad_width = [(spatial_border[0], spatial_border[0]) for _ in range(len(spatial_shape))]
+            data_pad_width = [(spatial_border[0], spatial_border[0]) for _ in spatial_shape]
         elif len(spatial_border) == len(spatial_shape):
-            data_pad_width = [(spatial_border[i], spatial_border[i]) for i in range(len(spatial_shape))]
+            data_pad_width = [(sp, sp) for sp in spatial_border[: len(spatial_shape)]]
         elif len(spatial_border) == len(spatial_shape) * 2:
             data_pad_width = [(spatial_border[2 * i], spatial_border[2 * i + 1]) for i in range(len(spatial_shape))]
         else:
@@ -285,13 +286,34 @@ class CenterSpatialCrop(Transform):
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
         """
-        self.roi_size = fall_back_tuple(self.roi_size, img.shape[1:])
+        roi_size = fall_back_tuple(self.roi_size, img.shape[1:])
         center = [i // 2 for i in img.shape[1:]]
-        cropper = SpatialCrop(roi_center=center, roi_size=self.roi_size)
+        cropper = SpatialCrop(roi_center=center, roi_size=roi_size)
         return cropper(img)
 
 
-class RandSpatialCrop(Randomizable):
+class CenterScaleCrop(Transform):
+    """
+    Crop at the center of image with specified scale of ROI size.
+
+    Args:
+        roi_scale: specifies the expected scale of image size to crop. e.g. [0.3, 0.4, 0.5] or a number for all dims.
+            If its components have non-positive values, will use `1.0` instead, which means the input image size.
+
+    """
+
+    def __init__(self, roi_scale: Union[Sequence[float], float]):
+        self.roi_scale = roi_scale
+
+    def __call__(self, img: np.ndarray):
+        img_size = img.shape[1:]
+        ndim = len(img_size)
+        roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
+        sp_crop = CenterSpatialCrop(roi_size=roi_size)
+        return sp_crop(img=img)
+
+
+class RandSpatialCrop(Randomizable, Transform):
     """
     Crop image with random size or specific size ROI. It can crop at a random position as center
     or at the image center. And allows to set the minimum and maximum size to limit the randomly generated ROI.
@@ -349,22 +371,22 @@ class RandSpatialCrop(Randomizable):
 
 class RandScaleCrop(RandSpatialCrop):
     """
-    Subclass of :py:class:`monai.transforms.RandSpatialCrop`. Crop image with random size or specific size ROI.
-    It can crop at a random position as center or at the image center.
-    And allows to set the minimum and maximum scale of image size to limit the randomly generated ROI.
+    Subclass of :py:class:`monai.transforms.RandSpatialCrop`. Crop image with
+    random size or specific size ROI.  It can crop at a random position as
+    center or at the image center.  And allows to set the minimum and maximum
+    scale of image size to limit the randomly generated ROI.
 
     Args:
         roi_scale: if `random_size` is True, it specifies the minimum crop size: `roi_scale * image spatial size`.
             if `random_size` is False, it specifies the expected scale of image size to crop. e.g. [0.3, 0.4, 0.5].
-            If its components have non-positive values or very small scale value causes the crop size to be zero,
-            will use `1.0` instead, which means the input image size.
-        max_roi_size: if `random_size` is True and `roi_scale` specifies the min crop region size, `max_roi_scale`
+            If its components have non-positive values, will use `1.0` instead, which means the input image size.
+        max_roi_scale: if `random_size` is True and `roi_scale` specifies the min crop region size, `max_roi_scale`
             can specify the max crop region size: `max_roi_scale * image spatial size`.
             if None, defaults to the input image size. if its components have non-positive values,
             will use `1.0` instead, which means the input image size.
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specified size ROI by `roi_scale * image spatial size`.
-            if True, the actual size is sampled from:
+            if True, the actual size is sampled from
             `randint(roi_scale * image spatial size, max_roi_scale * image spatial size + 1)`.
     """
 
@@ -394,7 +416,7 @@ class RandScaleCrop(RandSpatialCrop):
         return super().__call__(img=img)
 
 
-class RandSpatialCropSamples(Randomizable):
+class RandSpatialCropSamples(Randomizable, Transform):
     """
     Crop image with random size or specific size ROI to generate a list of N samples.
     It can crop at a random position as center or at the image center. And allows to set
@@ -553,7 +575,7 @@ class CropForeground(Transform):
         return cropped
 
 
-class RandWeightedCrop(Randomizable):
+class RandWeightedCrop(Randomizable, Transform):
     """
     Samples a list of `num_samples` image patches according to the provided `weight_map`.
 
@@ -605,7 +627,7 @@ class RandWeightedCrop(Randomizable):
         return results
 
 
-class RandCropByPosNegLabel(Randomizable):
+class RandCropByPosNegLabel(Randomizable, Transform):
     """
     Crop random fixed sized regions with the center being a foreground or background voxel
     based on the Pos Neg Ratio.
