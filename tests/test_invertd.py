@@ -20,6 +20,7 @@ from monai.transforms import (
     AddChanneld,
     CastToTyped,
     Compose,
+    CopyItemsd,
     Invertd,
     LoadImaged,
     Orientationd,
@@ -33,7 +34,6 @@ from monai.transforms import (
     ScaleIntensityd,
     Spacingd,
     ToTensord,
-    CopyItemsd,
 )
 from monai.utils.misc import set_determinism
 from tests.utils import make_nifti_image

@@ -568,9 +568,7 @@ class Invertd(MapTransform):
                 if orig_meta_key in d:
                     d[meta_key] = [i.get(orig_meta_key) for i in inverted]
             else:
-                d[key] = post_func(
-                    self._totensor(inverted[orig_key]).to(device) if to_tensor else inverted[orig_key]
-                )
+                d[key] = post_func(self._totensor(inverted[orig_key]).to(device) if to_tensor else inverted[orig_key])
                 # save the inverted meta dict
                 if orig_meta_key in d:
                     d[meta_key] = inverted.get(orig_meta_key)
