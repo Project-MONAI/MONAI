@@ -127,6 +127,18 @@ Crop and Pad
     :members:
     :special-members: __call__
 
+`RandScaleCrop`
+"""""""""""""""
+.. autoclass:: RandScaleCrop
+    :members:
+    :special-members: __call__
+
+`CenterScaleCrop`
+"""""""""""""""""
+.. autoclass:: CenterScaleCrop
+    :members:
+    :special-members: __call__
+
 Intensity
 ^^^^^^^^^
 
@@ -261,6 +273,19 @@ Intensity
 .. autoclass:: DetectEnvelope
     :members:
     :special-members: __call__
+
+`GibbsNoise`
+""""""""""""""
+.. autoclass:: GibbsNoise
+    :members:
+    :special-members: __call__
+
+`RandGibbsNoise`
+"""""""""""""""""
+.. autoclass:: RandGibbsNoise
+    :members:
+    :special-members: __call__
+
 
 IO
 ^^
@@ -441,6 +466,12 @@ Spatial
 `Zoom`
 """"""
 .. autoclass:: Zoom
+    :members:
+    :special-members: __call__
+
+`AddCoordinateChannels`
+"""""""""""""""""""""""
+.. autoclass:: AddCoordinateChannels
     :members:
     :special-members: __call__
 
@@ -658,6 +689,18 @@ Crop and Pad (Dict)
     :members:
     :special-members: __call__
 
+`RandScaleCropd`
+""""""""""""""""
+.. autoclass:: RandScaleCropd
+    :members:
+    :special-members: __call__
+
+`CenterScaleCropd`
+""""""""""""""""""
+.. autoclass:: CenterScaleCropd
+    :members:
+    :special-members: __call__
+
 Instensity (Dict)
 ^^^^^^^^^^^^^^^^^
 
@@ -724,6 +767,18 @@ Instensity (Dict)
 `ScaleIntensityRanged`
 """"""""""""""""""""""
 .. autoclass:: ScaleIntensityRanged
+    :members:
+    :special-members: __call__
+
+`GibbsNoised`
+""""""""""""""
+.. autoclass:: GibbsNoised
+    :members:
+    :special-members: __call__
+
+`RandGibbsNoised`
+""""""""""""""""""
+.. autoclass:: RandGibbsNoised
     :members:
     :special-members: __call__
 
@@ -847,6 +902,12 @@ Post-processing (Dict)
     :members:
     :special-members: __call__
 
+`SaveClassificationd`
+"""""""""""""""""""""
+.. autoclass:: SaveClassificationd
+    :members:
+    :special-members: __call__
+
 Spatial (Dict)
 ^^^^^^^^^^^^^^
 
@@ -943,6 +1004,12 @@ Spatial (Dict)
 `Rand3DElasticd`
 """"""""""""""""
 .. autoclass:: Rand3DElasticd
+    :members:
+    :special-members: __call__
+
+`AddCoordinateChannelsd`
+""""""""""""""""""""""""
+.. autoclass:: AddCoordinateChannelsd
     :members:
     :special-members: __call__
 
