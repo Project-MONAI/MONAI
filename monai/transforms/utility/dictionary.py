@@ -732,7 +732,7 @@ class CopyItemsd(MapTransform):
         d = dict(data)
         key_len = len(self.keys)
         for i in range(self.times):
-            for key, new_key in self.key_iterator(d, self.names[i * key_len: (i + 1) * key_len]):
+            for key, new_key in self.key_iterator(d, self.names[i * key_len : (i + 1) * key_len]):
                 if new_key in d:
                     raise KeyError(f"Key {new_key} already exists in data.")
                 if isinstance(d[key], torch.Tensor):
