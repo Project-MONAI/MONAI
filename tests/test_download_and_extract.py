@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import os
+import tempfile
 import unittest
 from urllib.error import ContentTooShortError, HTTPError
 
@@ -49,6 +50,31 @@ class TestDownloadAndExtract(unittest.TestCase):
             extractall(filepath, output_dir, wrong_md5)
         except RuntimeError as e:
             self.assertTrue(str(e).startswith("md5 check"))
+
+    @skip_if_quick
+    def test_default(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            try:
+                # icon.tar.gz https://drive.google.com/file/d/1YGa8N3LBddOkxBnnLndGicoW0klsAH6D/view?usp=sharing
+                download_and_extract(
+                    "https://drive.google.com/uc?id=1aHztVYbynCCq-byTf6cRI8ViETpBWHyC",
+                    output_dir=tmp_dir,
+                    hash_val="a55d11ad26ed9eb7277905d796205531",
+                    file_type="tar",
+                )
+                # favicon.ico.zip https://drive.google.com/file/d/1YGa8N3LBddOkxBnnLndGicoW0klsAH6D/view?usp=sharing
+                download_and_extract(
+                    "https://drive.google.com/uc?id=1YGa8N3LBddOkxBnnLndGicoW0klsAH6D",
+                    output_dir=tmp_dir,
+                    hash_val="ac6e167ee40803577d98237f2b0241e5",
+                    file_type="zip",
+                )
+            except (ContentTooShortError, HTTPError, RuntimeError) as e:
+                print(str(e))
+                if isinstance(e, RuntimeError):
+                    # FIXME: skip MD5 check as current downloading method may fail
+                    self.assertTrue(str(e).startswith("md5 check"))
+                return  # skipping this test due the network connection errors
 
 
 if __name__ == "__main__":
