@@ -35,6 +35,7 @@ from monai.transforms import (
     ScaleIntensityd,
     Spacingd,
     ToTensord,
+    CopyItemsd,
 )
 from monai.utils.misc import set_determinism
 from tests.utils import make_nifti_image
@@ -62,6 +63,8 @@ class TestTransformInverter(unittest.TestCase):
                 ResizeWithPadOrCropd(KEYS, 100),
                 ToTensord("image"),  # test to support both Tensor and Numpy array when inverting
                 CastToTyped(KEYS, dtype=[torch.uint8, np.uint8]),
+                CopyItemsd("label", times=2, names=["label_inverted1", "label_inverted2"]),
+                CopyItemsd("image", times=2, names=["image_inverted1", "image_inverted2"]),
             ]
         )
         data = [{"image": im_fname, "label": seg_fname} for _ in range(12)]
@@ -86,11 +89,11 @@ class TestTransformInverter(unittest.TestCase):
         TransformInverter(
             transform=transform,
             loader=loader,
-            output_keys=["image", "label"],
+            output_keys=["image_inverted1", "label_inverted1"],
             batch_keys="label",
-            meta_keys="label_meta_dict",
+            meta_keys=["image_inverted1_meta_dict", "label_inverted1_meta_dict"],
+            batch_meta_keys="label_meta_dict",
             nearest_interp=True,
-            postfix="inverted1",
             to_tensor=[True, False],
             device="cpu",
             num_workers=0 if sys.platform == "darwin" or torch.cuda.is_available() else 2,
@@ -100,11 +103,13 @@ class TestTransformInverter(unittest.TestCase):
         TransformInverter(
             transform=transform,
             loader=loader,
-            output_keys=["image", "label"],
+            output_keys=["image_inverted2", "label_inverted2"],
             batch_keys="image",
+            meta_keys=None,
+            batch_meta_keys="image_meta_dict",
+            meta_key_postfix="meta_dict",
             nearest_interp=[True, False],
             post_func=[lambda x: x + 10, lambda x: x],
-            postfix="inverted2",
             collate_fn=pad_list_data_collate,
             num_workers=0 if sys.platform == "darwin" or torch.cuda.is_available() else 2,
         ).attach(engine)
@@ -125,7 +130,7 @@ class TestTransformInverter(unittest.TestCase):
         reverted = engine.state.output["label_inverted1"][-1].astype(np.int32)
         original = LoadImaged(KEYS)(data[-1])["label"]
         n_good = np.sum(np.isclose(reverted, original, atol=1e-3))
-        reverted_name = engine.state.output["label_meta_dict"]["filename_or_obj"][-1]
+        reverted_name = engine.state.batch["label_inverted1_meta_dict"][-1]["filename_or_obj"]
         original_name = data[-1]["label"]
         self.assertEqual(reverted_name, original_name)
         print("invert diff", reverted.size - n_good)

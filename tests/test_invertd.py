@@ -33,6 +33,7 @@ from monai.transforms import (
     ScaleIntensityd,
     Spacingd,
     ToTensord,
+    CopyItemsd,
 )
 from monai.utils.misc import set_determinism
 from tests.utils import make_nifti_image
@@ -60,6 +61,7 @@ class TestInvertd(unittest.TestCase):
                 ResizeWithPadOrCropd(KEYS, 100),
                 ToTensord("image"),  # test to support both Tensor and Numpy array when inverting
                 CastToTyped(KEYS, dtype=[torch.uint8, np.uint8]),
+                CopyItemsd("label", times=1, names="label_inverted"),
             ]
         )
         data = [{"image": im_fname, "label": seg_fname} for _ in range(12)]
@@ -70,13 +72,14 @@ class TestInvertd(unittest.TestCase):
         dataset = CacheDataset(data, transform=transform, progress=False)
         loader = DataLoader(dataset, num_workers=num_workers, batch_size=5)
         inverter = Invertd(
-            keys=["image", "label"],
+            # `image` was not copied, invert the original value directly
+            keys=["image", "label_inverted"],
             transform=transform,
             loader=loader,
             orig_keys="label",
-            meta_keys="label_meta_dict",
+            meta_keys=["image_meta_dict", "label_inverted_meta_dict"],
+            orig_meta_keys="label_meta_dict",
             nearest_interp=True,
-            postfix="inverted",
             to_tensor=[True, False],
             device="cpu",
             num_workers=0 if sys.platform == "darwin" or torch.cuda.is_available() else 2,
@@ -86,10 +89,9 @@ class TestInvertd(unittest.TestCase):
         for d in loader:
             d = inverter(d)
             # this unit test only covers basic function, test_handler_transform_inverter covers more
-            self.assertTupleEqual(d["image"].shape[1:], (1, 100, 100, 100))
             self.assertTupleEqual(d["label"].shape[1:], (1, 100, 100, 100))
             # check the nearest inerpolation mode
-            for i in d["image_inverted"]:
+            for i in d["image"]:
                 torch.testing.assert_allclose(i.to(torch.uint8).to(torch.float), i.to(torch.float))
                 self.assertTupleEqual(i.shape, (1, 100, 101, 107))
             for i in d["label_inverted"]:

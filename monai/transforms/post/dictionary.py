@@ -40,7 +40,7 @@ from monai.transforms.post.array import (
 from monai.transforms.transform import MapTransform
 from monai.transforms.utility.array import ToTensor
 from monai.transforms.utils import allow_missing_keys_mode, convert_inverse_interp_mode
-from monai.utils import ensure_tuple_rep
+from monai.utils import ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import InverseKeys
 
 __all__ = [
@@ -426,11 +426,6 @@ class Invertd(MapTransform):
         thus some following post transforms may not support a list of Tensor, and users can leverage the
         `post_func` arg for basic processing logic.
 
-        As this transform only accepts 1 input dict while ignite stores model input data in `state.batch`
-        and stores model output data in `state.output`, so it's not compatible with MONAI engines so far.
-        For MONAI workflow engines, please use the `TransformInverter` handler instead.
-        Users can use this transform in a regular PyTorch program which uses dict data for transforms.
-
     """
 
     def __init__(
@@ -440,9 +435,9 @@ class Invertd(MapTransform):
         loader: TorchDataLoader,
         orig_keys: KeysCollection,
         meta_keys: Optional[KeysCollection] = None,
+        orig_meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
         collate_fn: Optional[Callable] = no_collation,
-        postfix: str = "inverted",
         nearest_interp: Union[bool, Sequence[bool]] = True,
         to_tensor: Union[bool, Sequence[bool]] = True,
         device: Union[Union[str, torch.device], Sequence[Union[str, torch.device]]] = "cpu",
@@ -452,26 +447,30 @@ class Invertd(MapTransform):
     ) -> None:
         """
         Args:
-            keys: the key of expected data in the dict, invert transforms on it.
+            keys: the key of expected data in the dict, invert transforms on it, in-place operation.
                 it also can be a list of keys, will invert transform for each of them, like: ["pred", "pred_class2"].
             transform: the previous callable transform that applied on input data.
             loader: data loader used to run transforms and generate the batch of data.
             orig_keys: the key of the original input data in the dict. will get the applied transform information
                 for this input data, then invert them for the expected data with `keys`.
                 It can also be a list of keys, each matches to the `keys` data.
-            meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
-                for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+            meta_keys: explicitly indicate the key for the inverted meta data dictionary.
                 the meta data is a dictionary object which contains: filename, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
-                if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-            meta_key_postfix: if meta_keys is None, use `{orig_key}_{postfix}` to to fetch the meta data from dict,
+                if None, will try to construct meta_keys by `{key}_{meta_key_postfix}`.
+            orig_meta_keys: the key of the meta data of original input data, will get the `affine`, `data_shape`, etc.
+                the meta data is a dictionary object which contains: filename, original_shape, etc.
+                it can be a sequence of string, map to the `keys`.
+                if None, will try to construct meta_keys by `{orig_key}_{meta_key_postfix}`.
+                meta data will also be inverted and stored in `meta_keys`.
+            meta_key_postfix: if `orig_meta_keys` is None, use `{orig_key}_{meta_key_postfix}` to to fetch the
+                meta data from dict, if `meta_keys` is None, use `{key}_{meta_key_postfix}`.
                 default is `meta_dict`, the meta data is a dictionary object.
                 For example, to handle orig_key `image`,  read/write `affine` matrices from the
                 metadata `image_meta_dict` dictionary's `affine` field.
-                the inverted meta dict will be stored with key: "{key}_{postfix}_{meta_key_postfix}".
+                the inverted meta dict will be stored with key: "{key}_{meta_key_postfix}".
             collate_fn: how to collate data after inverse transformations. default won't do any collation,
                 so the output will be a list of PyTorch Tensor or numpy array without batch dim.
-            postfix: will save the inverted result into dict with key `{key}_{postfix}`.
             nearest_interp: whether to use `nearest` interpolation mode when inverting the spatial transforms,
                 default to `True`. If `False`, use the same interpolation mode as the original transform.
                 it also can be a list of bool, each matches to the `keys` data.
@@ -497,9 +496,11 @@ class Invertd(MapTransform):
             num_workers=num_workers,
         )
         self.orig_keys = ensure_tuple_rep(orig_keys, len(self.keys))
-        self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
+        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
+        self.orig_meta_keys = ensure_tuple_rep(orig_meta_keys, len(self.keys))
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
-        self.postfix = postfix
         self.nearest_interp = ensure_tuple_rep(nearest_interp, len(self.keys))
         self.to_tensor = ensure_tuple_rep(to_tensor, len(self.keys))
         self.device = ensure_tuple_rep(device, len(self.keys))
@@ -512,6 +513,7 @@ class Invertd(MapTransform):
             key,
             orig_key,
             meta_key,
+            orig_meta_key,
             meta_key_postfix,
             nearest_interp,
             to_tensor,
@@ -521,6 +523,7 @@ class Invertd(MapTransform):
             d,
             self.orig_keys,
             self.meta_keys,
+            self.orig_meta_keys,
             self.meta_key_postfix,
             self.nearest_interp,
             self.to_tensor,
@@ -548,29 +551,29 @@ class Invertd(MapTransform):
                 orig_key: input,
                 transform_key: transform_info,
             }
-            meta_dict_key = meta_key or f"{orig_key}_{meta_key_postfix}"
-            if meta_dict_key in d:
-                input_dict[meta_dict_key] = d[meta_dict_key]
+            orig_meta_key = orig_meta_key or f"{orig_key}_{meta_key_postfix}"
+            meta_key = meta_key or f"{key}_{meta_key_postfix}"
+            if orig_meta_key in d:
+                input_dict[orig_meta_key] = d[orig_meta_key]
 
             with allow_missing_keys_mode(self.transform):  # type: ignore
                 inverted = self.inverter(input_dict)
 
             # save the inverted data
-            inverted_key = f"{key}_{self.postfix}"
             if isinstance(inverted, (tuple, list)):
-                d[inverted_key] = [
+                d[key] = [
                     post_func(self._totensor(i[orig_key]).to(device) if to_tensor else i[orig_key]) for i in inverted
                 ]
                 # save the inverted meta dict
-                if meta_dict_key in d:
-                    d[f"{inverted_key}_{meta_key_postfix}"] = [i.get(meta_dict_key) for i in inverted]
+                if orig_meta_key in d:
+                    d[meta_key] = [i.get(orig_meta_key) for i in inverted]
             else:
-                d[inverted_key] = post_func(
+                d[key] = post_func(
                     self._totensor(inverted[orig_key]).to(device) if to_tensor else inverted[orig_key]
                 )
                 # save the inverted meta dict
-                if meta_dict_key in d:
-                    d[f"{inverted_key}_{meta_key_postfix}"] = inverted.get(meta_dict_key)
+                if orig_meta_key in d:
+                    d[meta_key] = inverted.get(orig_meta_key)
         return d
 
 
