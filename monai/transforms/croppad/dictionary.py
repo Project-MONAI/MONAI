@@ -693,7 +693,7 @@ class CropForegroundd(MapTransform, InvertibleTransform):
         source_key: str,
         select_fn: Callable = is_positive,
         channel_indices: Optional[IndexSelection] = None,
-        margin: int = 0,
+        margin: Union[Sequence[int], int] = 0,
         k_divisible: Union[Sequence[int], int] = 1,
         mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
         start_coord_key: str = "foreground_start_coord",
