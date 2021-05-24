@@ -22,6 +22,8 @@ from monai.networks.blocks.regunet_block import (
     get_deconv_block,
 )
 
+__all__ = ["RegUNet", "AffineHead", "GlobalNet", "LocalNet"]
+
 
 class RegUNet(nn.Module):
     """
