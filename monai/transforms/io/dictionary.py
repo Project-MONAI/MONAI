@@ -199,6 +199,7 @@ class SaveImaged(MapTransform):
             output_dir: /output,
             data_root_dir: /foo/bar,
             output will be: /output/test1/image/image_seg.nii.gz
+        print_log: whether to print log about the saved file path, etc. default to `True`.
 
     """
 
@@ -220,6 +221,7 @@ class SaveImaged(MapTransform):
         allow_missing_keys: bool = False,
         squeeze_end_dims: bool = True,
         data_root_dir: str = "",
+        print_log: bool = True,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
@@ -237,6 +239,7 @@ class SaveImaged(MapTransform):
             save_batch=save_batch,
             squeeze_end_dims=squeeze_end_dims,
             data_root_dir=data_root_dir,
+            print_log=print_log,
         )
 
     def __call__(self, data):
