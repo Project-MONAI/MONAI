@@ -10,7 +10,7 @@
 # limitations under the License.
 
 
-from typing import List, Optional, Sequence, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -79,8 +79,7 @@ class DynUNet(nn.Module):
         kernel_size: convolution kernel size.
         strides: convolution strides for each blocks.
         upsample_kernel_size: convolution kernel size for transposed convolution layers.
-        norm_name: [``"batch"``, ``"instance"``, ``"group"``]
-            feature normalization type and arguments.
+        norm_name: feature normalization type and arguments. Defaults to ``INSTANCE``.
         deep_supervision: whether to add deep supervision head before output. Defaults to ``False``.
             If ``True``, in training mode, the forward function will output not only the last feature
             map, but also the previous feature maps that come from the intermediate up sample layers.
@@ -91,7 +90,7 @@ class DynUNet(nn.Module):
             (1, 2, 8, 6). The last two will be interpolated into (1, 2, 32, 24), and the stacked tensor
             will has the shape (1, 3, 2, 8, 6).
             When calculating the loss, you can use torch.unbind to get all feature maps can compute the loss
-            one by one with the groud truth, then do a weighted average for all losses to achieve the final loss.
+            one by one with the ground truth, then do a weighted average for all losses to achieve the final loss.
             (To be added: a corresponding tutorial link)
 
         deep_supr_num: number of feature maps that will output during deep supervision head. The
@@ -109,7 +108,7 @@ class DynUNet(nn.Module):
         kernel_size: Sequence[Union[Sequence[int], int]],
         strides: Sequence[Union[Sequence[int], int]],
         upsample_kernel_size: Sequence[Union[Sequence[int], int]],
-        norm_name: str = "instance",
+        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
         deep_supervision: bool = False,
         deep_supr_num: int = 1,
         res_block: bool = False,
@@ -181,8 +180,8 @@ class DynUNet(nn.Module):
         if not (len(kernels) == len(strides) and len(kernels) >= 3):
             raise AssertionError(error_msg)
 
-        for idx in range(len(kernels)):
-            kernel, stride = kernels[idx], strides[idx]
+        for idx, k_i in enumerate(kernels):
+            kernel, stride = k_i, strides[idx]
             if not isinstance(kernel, int):
                 error_msg = "length of kernel_size in block {} should be the same as spatial_dims.".format(idx)
                 if len(kernel) != self.spatial_dims:
@@ -303,4 +302,4 @@ class DynUNet(nn.Module):
             nn.init.zeros_(module.bias)
 
 
-DynUnet = Dynunet = DynUNet
+DynUnet = Dynunet = dynunet = DynUNet

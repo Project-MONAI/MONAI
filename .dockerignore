@@ -4,8 +4,10 @@ __pycache__/
 docs/
 
 .coverage
+.coverage.*
+.coverage/
+coverage.xml
 .readthedocs.yml
-*.md
 *.toml
 
 !README.md
