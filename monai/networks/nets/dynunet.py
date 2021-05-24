@@ -18,7 +18,7 @@ from torch.nn.functional import interpolate
 
 from monai.networks.blocks.dynunet_block import UnetBasicBlock, UnetOutBlock, UnetResBlock, UnetUpBlock
 
-__all__ = ["DynUNet", "DynUnet", "Dynunet"]
+__all__ = ["DynUNet", "DynUnet", "Dynunet", "dynunet"]
 
 
 class DynUNetSkipLayer(nn.Module):

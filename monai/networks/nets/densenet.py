@@ -19,6 +19,24 @@ from torch.hub import load_state_dict_from_url
 
 from monai.networks.layers.factories import Conv, Dropout, Norm, Pool
 
+__all__ = [
+    "DenseNet",
+    "densenet",
+    "Densenet",
+    "DenseNet121",
+    "densenet121",
+    "Densenet121",
+    "DenseNet169",
+    "densenet169",
+    "Densenet169",
+    "DenseNet201",
+    "densenet201",
+    "Densenet201",
+    "DenseNet264",
+    "densenet264",
+    "Densenet264",
+]
+
 
 class _DenseLayer(nn.Module):
     def __init__(
@@ -234,6 +252,8 @@ def _load_state_dict(model, arch, progress):
 
 
 class DenseNet121(DenseNet):
+    """DenseNet121 with optional pretrained support when `spatial_dims` is 2."""
+
     def __init__(
         self,
         init_features: int = 64,
@@ -255,6 +275,8 @@ class DenseNet121(DenseNet):
 
 
 class DenseNet169(DenseNet):
+    """DenseNet169 with optional pretrained support when `spatial_dims` is 2."""
+
     def __init__(
         self,
         init_features: int = 64,
@@ -276,6 +298,8 @@ class DenseNet169(DenseNet):
 
 
 class DenseNet201(DenseNet):
+    """DenseNet201 with optional pretrained support when `spatial_dims` is 2."""
+
     def __init__(
         self,
         init_features: int = 64,
@@ -297,6 +321,8 @@ class DenseNet201(DenseNet):
 
 
 class DenseNet264(DenseNet):
+    """DenseNet264"""
+
     def __init__(
         self,
         init_features: int = 64,
@@ -313,7 +339,7 @@ class DenseNet264(DenseNet):
             **kwargs,
         )
         if pretrained:
-            print("Currently PyTorch Hub does not provide densenet264 pretrained models.")
+            raise NotImplementedError("Currently PyTorch Hub does not provide densenet264 pretrained models.")
 
 
 Densenet = densenet = DenseNet
