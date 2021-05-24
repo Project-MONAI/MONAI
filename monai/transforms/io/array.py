@@ -223,6 +223,7 @@ class SaveImage(Transform):
             output_dir: /output,
             data_root_dir: /foo/bar,
             output will be: /output/test1/image/image_seg.nii.gz
+        print_log: whether to print log about the saved file path, etc. default to `True`.
 
     """
 
@@ -240,6 +241,7 @@ class SaveImage(Transform):
         save_batch: bool = False,
         squeeze_end_dims: bool = True,
         data_root_dir: str = "",
+        print_log: bool = True,
     ) -> None:
         self.saver: Union[NiftiSaver, PNGSaver]
         if output_ext in (".nii.gz", ".nii"):
@@ -254,6 +256,7 @@ class SaveImage(Transform):
                 output_dtype=output_dtype,
                 squeeze_end_dims=squeeze_end_dims,
                 data_root_dir=data_root_dir,
+                print_log=print_log,
             )
         elif output_ext == ".png":
             self.saver = PNGSaver(
@@ -264,6 +267,7 @@ class SaveImage(Transform):
                 mode=InterpolateMode(mode),
                 scale=scale,
                 data_root_dir=data_root_dir,
+                print_log=print_log,
             )
         else:
             raise ValueError(f"unsupported output extension: {output_ext}.")
