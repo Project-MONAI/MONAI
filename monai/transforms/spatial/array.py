@@ -773,7 +773,17 @@ class RandFlip(RandomizableTransform):
 
     def __init__(self, prob: float = 0.1, spatial_axis: Optional[Union[Sequence[int], int]] = None) -> None:
         RandomizableTransform.__init__(self, prob)
-        self.flipper = Flip(spatial_axis=spatial_axis)
+        self.spatial_axis = spatial_axis
+        self.sampled_spatial_axis: Optional[Union[Sequence[int], int]] = None
+
+    def randomize(self, _) -> None:
+        super().randomize(None)
+        if isinstance(self.spatial_axis, Sequence):
+            # at least 1 axis to flip
+            num_to_flip = np.random.randint(1, len(self.spatial_axis) + 1)
+            self.sampled_spatial_axis = np.random.choice(self.spatial_axis, size=num_to_flip, replace=False)
+        else:
+            self.sampled_spatial_axis = self.spatial_axis
 
     def __call__(self, img: np.ndarray) -> np.ndarray:
         """
@@ -783,7 +793,7 @@ class RandFlip(RandomizableTransform):
         self.randomize(None)
         if not self._do_transform:
             return img
-        return self.flipper(img)
+        return Flip(self.sampled_spatial_axis)(img)
 
 
 class RandAxisFlip(RandomizableTransform):

@@ -36,6 +36,7 @@ from monai.transforms.spatial.array import (
     Rand2DElastic,
     Rand3DElastic,
     RandAffine,
+    RandFlip,
     Resize,
     Rotate,
     Rotate90,
@@ -1123,9 +1124,8 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        self.spatial_axis = spatial_axis
-
-        self.flipper = Flip(spatial_axis=spatial_axis)
+        # use prob == 1 as this class handles the probability
+        self.flipper = RandFlip(prob=1.0, spatial_axis=spatial_axis)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         self.randomize(None)
@@ -1133,7 +1133,7 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             if self._do_transform:
                 d[key] = self.flipper(d[key])
-            self.push_transform(d, key)
+            self.push_transform(d, key, extra_info={"flipped_axes": self.flipper.sampled_spatial_axis})
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
@@ -1145,8 +1145,10 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
                 # Might need to convert to numpy
                 if isinstance(d[key], torch.Tensor):
                     d[key] = torch.Tensor(d[key]).cpu().numpy()
+                # flipped axes
+                flipped_axes = transform[InverseKeys.EXTRA_INFO]["flipped_axes"]
                 # Inverse is same as forward
-                d[key] = self.flipper(d[key])
+                d[key] = Flip(flipped_axes)(d[key])
             # Remove the applied transform
             self.pop_transform(d, key)
         return d
