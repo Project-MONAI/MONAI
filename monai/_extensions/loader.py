@@ -9,22 +9,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import signal
 from glob import glob
-from os import makedirs, path, remove
-from shutil import rmtree
-from sys import platform
-from time import sleep
+from os import makedirs, path
+
+from contextlib import contextmanager
+from threading import Timer
+from _thread import interrupt_main
 
 from torch import cuda
 from torch.utils.cpp_extension import load
 
+@contextmanager
+def timeout(time, message):
+    try:
+        timer = Timer(time, interrupt_main)
+        timer.daemon = True
+        yield timer.start()
+    except KeyboardInterrupt as e:
+        if timer.is_alive():
+            raise e
+        raise TimeoutError(message)
+
 dir_path = path.dirname(path.realpath(__file__))
-lock_max_wait = 30
-lock_check_interval = 5
 
-
-def load_module(module_name, defines=None, verbose_build=False):
+def load_module(module_name, defines=None, verbose_build=False, build_timeout=30):
     """
     Handles the loading of c++ extention modules.
 
@@ -32,6 +40,7 @@ def load_module(module_name, defines=None, verbose_build=False):
         module_name: Name of the module to load. Must match the name of the relevant source directory in the _extensions directory.
         defines: Dictionary containing names and values of compilation defines.
         verbose_build: Set to true to enable build logging.
+        build_timeout: Time in seconds before the build will throw an exception to prevent hanging.
     """
 
     # Ensuring named module exists in _extensions directory.
@@ -56,49 +65,18 @@ def load_module(module_name, defines=None, verbose_build=False):
     # Constructing compilation argument list.
     define_args = [] if defines is None else [f"-D {key}={defines[key]}" for key in defines]
 
-    # Ninja fails to cleanup properly on signal.SIGTSTP (e.g. ctrl+z).
-    # signal.SIGTSTP doesnt exist on windows so we dont have to do anything.
-    if platform != "windows":
+    # Ninja may be blocked by something out of our control.
+    # This will error if the build takes longer than usual.
+    with timeout(build_timeout, "Build appears to be blocked. Is there a stopped proccess building the same extention?"):
 
-        def cleanup_build(signum, frame):
-            # Clearing the build directory.
-            rmtree(build_dir)
-
-            # Reset handler to default.
-            # and raise the signal.
-            signal.signal(signum, signal.SIG_DFL)
-            signal.raise_signal(signum)
-
-        # Set handler to our cleanup function.
-        signal.signal(signal.SIGTSTP, cleanup_build)
-
-    # There still maybe some situations were Ninja does
-    # not clean up properly. Manually waiting here.
-    lock_file = path.join(build_dir, "lock")
-    timer = 0
-
-    while path.exists(lock_file):
-
-        # Give up if we've waited long enough
-        if timer >= lock_max_wait:
-            remove(lock_file)
-
-        # Wait for lock to be freed
-        sleep(lock_check_interval)
-        timer += lock_check_interval
-
-    # This will either run the build or return the existing .so object.
-    module = load(
-        name=module_name,
-        sources=source,
-        extra_cflags=define_args,
-        extra_cuda_cflags=define_args,
-        build_directory=build_dir,
-        verbose=verbose_build,
-    )
-
-    # Reseting the signal handler to default.
-    if platform != "windows":
-        signal.signal(signal.SIGTSTP, signal.SIG_DFL)
+        # This will either run the build or return the existing .so object.
+        module = load(
+            name=module_name,
+            sources=source,
+            extra_cflags=define_args,
+            extra_cuda_cflags=define_args,
+            build_directory=build_dir,
+            verbose=verbose_build,
+        )
 
     return module
