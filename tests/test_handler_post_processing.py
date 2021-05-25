@@ -23,13 +23,16 @@ TEST_CASE_1 = [{"transform": lambda x: dict(pred=x["pred"] + 1.0)}, torch.tensor
 # test composed post transforms as `transform`
 TEST_CASE_2 = [
     {
-        "transform": Compose([
-            CopyItemsd(keys="filename", times=1, names="filename_bak"),
-            AsDiscreted(keys="pred", threshold_values=True, to_onehot=True, n_classes=2),
-        ])
+        "transform": Compose(
+            [
+                CopyItemsd(keys="filename", times=1, names="filename_bak"),
+                AsDiscreted(keys="pred", threshold_values=True, to_onehot=True, n_classes=2),
+            ]
+        )
     },
     torch.tensor([[[[1.0], [1.0]], [[0.0], [0.0]]]]),
 ]
+
 
 class TestHandlerPostProcessing(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
