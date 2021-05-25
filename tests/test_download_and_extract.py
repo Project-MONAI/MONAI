@@ -55,7 +55,7 @@ class TestDownloadAndExtract(unittest.TestCase):
     def test_default(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             try:
-                # icon.tar.gz https://drive.google.com/file/d/1YGa8N3LBddOkxBnnLndGicoW0klsAH6D/view?usp=sharing
+                # icon.tar.gz https://drive.google.com/file/d/1aHztVYbynCCq-byTf6cRI8ViETpBWHyC/view?usp=sharing
                 download_and_extract(
                     "https://drive.google.com/uc?id=1aHztVYbynCCq-byTf6cRI8ViETpBWHyC",
                     output_dir=tmp_dir,

@@ -181,7 +181,7 @@ def extractall(
         hash_val: expected hash value to validate the compressed file.
             if None, skip hash validation.
         hash_type: 'md5' or 'sha1', defaults to 'md5'.
-        file_type: string of file type for decompressing. Left it empty to infer the type from the filepath basename.
+        file_type: string of file type for decompressing. Leave it empty to infer the type from the filepath basename.
 
     Raises:
         RuntimeError: When the hash validation of the ``filepath`` compressed file fails.
@@ -232,7 +232,7 @@ def download_and_extract(
         hash_val: expected hash value to validate the downloaded file.
             if None, skip hash validation.
         hash_type: 'md5' or 'sha1', defaults to 'md5'.
-        file_type: string of file type for decompressing. Left empty to infer it the type from url's base file name.
+        file_type: string of file type for decompressing. Leave it empty to infer the type from url's base file name.
 
     """
     with tempfile.TemporaryDirectory() as tmp_dir:
