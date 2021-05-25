@@ -416,11 +416,15 @@ class ProbNMSd(MapTransform):
 
 class Invertd(MapTransform):
     """
-    Utility transform to automatically invert the previous transforms based on transform information.
-    It extracts the transform information applied on the data with `orig_keys`, then inverts the transforms
-    on the data with `keys`. several `keys` can share one `orig_keys`.
-    A typical usage is to invert the pre-transforms (appplied on input `image`) on the model `pred` data.
-    Detailed usage example is available in the tutorial:
+    Utility transform to automatically invert the previously applied transforms.
+
+    The output of the inverted data and metadata will be stored at `keys` and `meta_keys` respectively.
+    To correctly invert the transforms, the information of the previously applied transforms should be
+    available at `orig_keys`, and the original metadata at `orig_meta_keys`.
+    (`meta_key_postfix` is an optional string to conveniently construct "meta_keys" and/or "orig_meta_keys".)
+
+    Typical usage is to invert the pre-transforms (applied on input `image`) on the model `pred` data.
+    A detailed usage example is available in the tutorial:
     https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/torch/unet_inference_dict.py
 
     Note:
