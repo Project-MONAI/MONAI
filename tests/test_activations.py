@@ -65,13 +65,28 @@ TEST_CASE_6 = [
     (1, 1, 2, 5),
 ]
 
+TEST_CASE_7 = [
+    {"sigmoid": True, "softmax": False, "other": None},
+    [torch.tensor([[[[0.0, 1.0]]]]), torch.tensor([[[[2.0, 3.0]]]])],
+    [torch.tensor([[[[0.5000, 0.7311]]]]), torch.tensor([[[[0.8808, 0.9526]]]])],
+    (1, 1, 1, 2),
+]
+
 
 class TestActivations(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_7])
     def test_value_shape(self, input_param, img, out, expected_shape):
         result = Activations(**input_param)(img)
-        torch.testing.assert_allclose(result, out)
-        self.assertTupleEqual(result.shape, expected_shape)
+
+        def _compare(ret, out, shape):
+            torch.testing.assert_allclose(ret, out)
+            self.assertTupleEqual(ret.shape, shape)
+
+        if isinstance(result, (list, tuple)):
+            for r, e in zip(result, out):
+                _compare(r, e, expected_shape)
+        else:
+            _compare(result, out, expected_shape)
 
     @parameterized.expand([TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
     def test_monai_activations_value_shape(self, input_param, img, out, expected_shape):

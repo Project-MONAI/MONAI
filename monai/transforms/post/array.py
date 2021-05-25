@@ -40,6 +40,7 @@ __all__ = [
 class Activations(Transform):
     """
     Add activation operations to the model output, typically `Sigmoid` or `Softmax`.
+    Supported input img shape: batch-first Tensor or list of channel-first Tensor.
 
     Args:
         sigmoid: whether to execute sigmoid function on model output before transform.
@@ -63,7 +64,7 @@ class Activations(Transform):
 
     def __call__(
         self,
-        img: torch.Tensor,
+        img: Union[Sequence[torch.Tensor], torch.Tensor],
         sigmoid: Optional[bool] = None,
         softmax: Optional[bool] = None,
         other: Optional[Callable] = None,
@@ -83,6 +84,9 @@ class Activations(Transform):
             ValueError: When ``self.other=None`` and ``other=None``. Incompatible values.
 
         """
+        if isinstance(img, (tuple, list)):
+            return [self(img=i.unsqueeze(0), sigmoid=sigmoid, softmax=softmax, other=other).squeeze(0) for i in img]
+
         if sigmoid and softmax:
             raise ValueError("Incompatible values: sigmoid=True and softmax=True.")
         if other is not None and not callable(other):
