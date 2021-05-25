@@ -48,6 +48,7 @@ from monai.transforms import (
     LoadImaged,
     RandCropByPosNegLabeld,
     RandRotate90d,
+    SaveImaged,
     ScaleIntensityd,
     ToTensord,
 )
@@ -160,7 +161,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
             engine.add_event_handler(IterationEvents.FORWARD_COMPLETED, self._forward_completed)
             engine.add_event_handler(IterationEvents.LOSS_COMPLETED, self._loss_completed)
             engine.add_event_handler(IterationEvents.BACKWARD_COMPLETED, self._backward_completed)
-            engine.add_event_handler(IterationEvents.OPTIMIZER_COMPLETED, self._optimizer_completed)
+            engine.add_event_handler(IterationEvents.MODEL_COMPLETED, self._model_completed)
 
         def _forward_completed(self, engine):
             pass
@@ -171,7 +172,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         def _backward_completed(self, engine):
             pass
 
-        def _optimizer_completed(self, engine):
+        def _model_completed(self, engine):
             pass
 
     train_handlers = [
@@ -237,6 +238,14 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
             Activationsd(keys="pred", sigmoid=True),
             AsDiscreted(keys="pred", threshold_values=True),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
+            # test the case that `pred` in `engine.state.output`, while `image_meta_dict` in `engine.state.batch`
+            SaveImaged(
+                keys="pred",
+                meta_keys="image_meta_dict",
+                output_dir=root_dir,
+                output_postfix="seg_transform",
+                save_batch=True,
+            ),
         ]
     )
     val_handlers = [
@@ -244,6 +253,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
         CheckpointLoader(load_path=f"{model_file}", load_dict={"net": net}),
         SegmentationSaver(
             output_dir=root_dir,
+            output_postfix="seg_handler",
             batch_transform=lambda batch: batch["image_meta_dict"],
             output_transform=lambda output: output["pred"],
         ),
@@ -308,14 +318,20 @@ class IntegrationWorkflows(DistTestCase):
             self.assertTrue(test_integration_value(TASK, key="infer_metric", data=infer_metric, rtol=1e-2))
         results.append(best_metric)
         results.append(infer_metric)
-        output_files = sorted(glob(os.path.join(self.data_dir, "img*", "*.nii.gz")))
-        for output in output_files:
-            ave = np.mean(nib.load(output).get_fdata())
-            results.append(ave)
-        if idx == 2:
-            self.assertTrue(test_integration_value(TASK, key="output_sums_2", data=results[2:], rtol=1e-2))
-        else:
-            self.assertTrue(test_integration_value(TASK, key="output_sums", data=results[2:], rtol=1e-2))
+
+        def _test_saved_files(postfix):
+            output_files = sorted(glob(os.path.join(self.data_dir, "img*", f"*{postfix}.nii.gz")))
+            values = []
+            for output in output_files:
+                ave = np.mean(nib.load(output).get_fdata())
+                values.append(ave)
+            if idx == 2:
+                self.assertTrue(test_integration_value(TASK, key="output_sums_2", data=values, rtol=1e-2))
+            else:
+                self.assertTrue(test_integration_value(TASK, key="output_sums", data=values, rtol=1e-2))
+
+        _test_saved_files(postfix="seg_handler")
+        _test_saved_files(postfix="seg_transform")
         try:
             os.remove(model_file)
         except Exception as e:
