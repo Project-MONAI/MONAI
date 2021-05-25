@@ -25,3 +25,4 @@ from .simplelayers import (
     separable_filtering,
 )
 from .spatial_transforms import AffineTransform, grid_count, grid_grad, grid_pull, grid_push
+from .utils import get_act_layer, get_dropout_layer, get_norm_layer

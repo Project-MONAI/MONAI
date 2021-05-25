@@ -106,10 +106,6 @@ def print_config(file=sys.stdout):
     )
 
 
-def set_visible_devices(*dev_inds):
-    os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, dev_inds))
-
-
 def _dict_append(in_dict, key, fn):
     try:
         in_dict[key] = fn() if callable(fn) else fn

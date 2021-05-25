@@ -21,12 +21,13 @@ import torch
 from parameterized import parameterized
 
 from monai.data import CacheDataset, DataLoader, create_test_image_2d, create_test_image_3d
-from monai.data.inverse_batch_transform import BatchInverseTransform
 from monai.data.utils import decollate_batch
 from monai.networks.nets import UNet
 from monai.transforms import (
     AddChanneld,
+    AdjustContrastd,
     Affined,
+    BatchInverseTransform,
     BorderPadd,
     CenterSpatialCropd,
     Compose,
@@ -36,6 +37,7 @@ from monai.transforms import (
     InvertibleTransform,
     LoadImaged,
     Orientationd,
+    RandAdjustContrastd,
     RandAffined,
     RandAxisFlipd,
     RandFlipd,
@@ -52,6 +54,7 @@ from monai.transforms import (
     Spacingd,
     SpatialCropd,
     SpatialPadd,
+    Transposed,
     Zoomd,
     allow_missing_keys_mode,
     convert_inverse_interp_mode,
@@ -158,9 +161,9 @@ TESTS.append(
     )
 )
 
-TESTS.append(("RandSpatialCropd 2d", "2D", 0, RandSpatialCropd(KEYS, [96, 93], True, False)))
+TESTS.append(("RandSpatialCropd 2d", "2D", 0, RandSpatialCropd(KEYS, [96, 93], None, True, False)))
 
-TESTS.append(("RandSpatialCropd 3d", "3D", 0, RandSpatialCropd(KEYS, [96, 93, 92], False, False)))
+TESTS.append(("RandSpatialCropd 3d", "3D", 0, RandSpatialCropd(KEYS, [96, 93, 92], None, False, False)))
 
 TESTS.append(
     (
@@ -380,6 +383,24 @@ TESTS.append(
 
 TESTS.append(
     (
+        "Transposed 2d",
+        "2D",
+        0,
+        Transposed(KEYS, [0, 2, 1]),  # channel=0
+    )
+)
+
+TESTS.append(
+    (
+        "Transposed 3d",
+        "3D",
+        0,
+        Transposed(KEYS, [0, 3, 1, 2]),  # channel=0
+    )
+)
+
+TESTS.append(
+    (
         "Affine 3d",
         "3D",
         1e-1,
@@ -411,6 +432,34 @@ TESTS.append(
         ),
     )
 )
+
+TESTS.append(
+    (
+        "RandAffine 3d",
+        "3D",
+        0,
+        RandAffined(KEYS, spatial_size=None, prob=0),
+    )
+)
+
+TESTS.append(
+    (
+        "AdjustContrast 3d",
+        "3D",
+        1e-7,
+        AdjustContrastd(KEYS, gamma=13.4),
+    )
+)
+
+TESTS.append(
+    (
+        "AdjustContrast 3d",
+        "3D",
+        1e-7,
+        RandAdjustContrastd(KEYS, prob=1),
+    )
+)
+
 
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
 
