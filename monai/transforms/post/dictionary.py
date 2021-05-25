@@ -420,6 +420,41 @@ class Invertd(MapTransform):
     It extracts the transform information applied on the data with `orig_keys`, then inverts the transforms
     on the data with `keys`. several `keys` can share one `orig_keys`.
     A typical usage is to invert the pre-transforms (appplied on input `image`) on the model `pred` data.
+    For example::
+
+        data = [{"img": img, "label": label} for img, label in zip(images, labels)]
+        pre_transforms = Compose([...])
+        dataset = Dataset(data=data, transform=pre_transforms)
+        dataloader = DataLoader(dataset, batch_size=2, num_workers=4)
+
+        post_transforms = Compose([
+            Activationsd(keys="pred", sigmoid=True),
+            AsDiscreted(keys="pred", threshold_values=True),
+            Invertd(
+                keys=["pred", "label"],  # invert both `pred` and `label` data fields
+                transform=pre_transforms,
+                loader=dataloader,
+                orig_keys="img",  # get the previously applied pre_transforms information on the `img` data field,
+                                  # then invert `pred` and `label` based on this information. here we use same info
+                                  # for both `pred` and `label`, also support different orig_keys
+                meta_keys=["pred_meta_dict", "label_meta_dict"],  # key fields to save inverted meta data
+                orig_meta_keys=["img_meta_dict"],  # get the meta data from `img_meta_dict` field when inverting,
+                                                   # for example, need the `affine` and `original_affine`, etc.
+                meta_key_postfix="meta_dict",  # if `meta_keys=None`, use "{keys}_{meta_key_postfix}" as the meta key,
+                                               # if `orig_meta_keys=None`, use "{orig_keys}_{meta_key_postfix}"
+                nearest_interp=True,  # change to use "nearest" mode in interpolation when inverting
+                to_tensor=True,  # convert to PyTorch Tensor after inverting
+            ),
+            SaveImaged(keys="pred", output_dir="./output", output_postfix="seg", resample=False),
+        ])
+
+        net.eval()
+        with torch.no_grad():
+            for d in dataloader:
+                image, label = d["img"].to(device), d["label"].to(device)
+                d["pred"] = net(image)
+                # invert pre_transforms on `pred` and `label`, then save to files
+                post_transforms(d)
 
     Note:
         According to the `collate_fn`, this transform may return a list of Tensor without batch dim,
