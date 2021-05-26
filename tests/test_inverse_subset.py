@@ -10,15 +10,13 @@
 # limitations under the License.
 
 import unittest
-from typing import Callable, List, Optional, Sequence, Tuple
+from typing import List, Sequence, Tuple
 
 from parameterized import parameterized
 
 from monai.data import create_test_image_2d
-from monai.transforms import AddChanneld, Compose, LoadImaged, RandAdjustContrastd, RandAxisFlipd, RandFlipd
-from monai.transforms.inverse import InvertibleTransform
+from monai.transforms import AddChanneld, Compose, LoadImaged, RandAxisFlipd, RandFlipd
 from monai.utils import set_determinism
-from monai.utils.enums import InverseKeys
 from tests.utils import make_nifti_image
 
 KEYS = ["image", "label"]
@@ -28,10 +26,11 @@ TESTS: List[Tuple] = []
 
 class ErrorRandAxisFlipd(RandAxisFlipd):
     def inverse(self, _):
-        raise NotImplementedError
+        raise RuntimeError
 
 
-# Remove any applied "RandAdjustContrastd" (only "label")
+# remove the ErrorRandAxisFlipd transform. Since its inverse
+# raises an exception, we'll know if this wasn't successful
 TESTS.append(
     (
         Compose(
@@ -49,6 +48,7 @@ TESTS.append(
     )
 )
 
+# Nothing is removed, so exception is expected
 TESTS.append(
     (
         Compose([LoadImaged(KEYS), AddChanneld(KEYS), ErrorRandAxisFlipd("label")]),
