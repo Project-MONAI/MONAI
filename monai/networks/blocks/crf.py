@@ -34,35 +34,35 @@ class CRF(torch.nn.Module):
 
     def __init__(
         self,
+        iterations: int = 5,
         bilateral_weight: float = 1.0,
         gaussian_weight: float = 1.0,
         bilateral_spatial_sigma: float = 5.0,
         bilateral_color_sigma: float = 0.5,
         gaussian_spatial_sigma: float = 5.0,
         update_factor: float = 3.0,
-        compatibility_kernel_range: int = 1,
-        iterations: int = 5,
+        compatability_matrix: torch.Tensor = None,
     ):
         """
         Args:
+            iterations: the number of iterations.
             bilateral_weight: the weighting of the bilateral term in the message passing step.
             gaussian_weight: the weighting of the gaussian term in the message passing step.
             bilateral_spatial_sigma: standard deviation in spatial coordinates for the bilateral term.
             bilateral_color_sigma: standard deviation in color space for the bilateral term.
             gaussian_spatial_sigma: standard deviation in spatial coordinates for the gaussian term.
             update_factor: determines the magnitude of each update.
-            compatibility_kernel_range: the range of the kernel used in the compatibility convolution.
-            iterations: the number of iterations.
+            compatability_matrix: a matrix describing class compatability, should be NxN where N is the numer of classes.
         """
         super(CRF, self).__init__()
+        self.iterations = iterations
         self.bilateral_weight = bilateral_weight
         self.gaussian_weight = gaussian_weight
         self.bilateral_spatial_sigma = bilateral_spatial_sigma
         self.bilateral_color_sigma = bilateral_color_sigma
         self.gaussian_spatial_sigma = gaussian_spatial_sigma
         self.update_factor = update_factor
-        self.compatibility_kernel_range = compatibility_kernel_range
-        self.iterations = iterations
+        self.compatability_matrix = compatability_matrix
 
     def forward(self, input_tensor: torch.Tensor, reference_tensor: torch.Tensor):
         """
@@ -74,11 +74,6 @@ class CRF(torch.nn.Module):
             output (torch.Tensor): output tensor.
         """
 
-        # useful values
-        spatial_dim = input_tensor.dim() - 2
-        class_count = input_tensor.size(1)
-        padding = self.compatibility_kernel_range
-
         # constructing spatial feature tensor
         spatial_features = _create_coordinate_tensor(reference_tensor)
 
@@ -87,17 +82,6 @@ class CRF(torch.nn.Module):
             [spatial_features / self.bilateral_spatial_sigma, reference_tensor / self.bilateral_color_sigma], dim=1
         )
         gaussian_features = spatial_features / self.gaussian_spatial_sigma
-
-        # compatibility matrix (potts model (1 - diag) for now)
-        compatibility_matrix = _potts_model_weights(class_count).to(device=input_tensor.device)
-
-        # expanding matrix to kernel
-        compatibility_kernel = _expand_matrix_to_kernel(
-            compatibility_matrix, spatial_dim, self.compatibility_kernel_range
-        )
-
-        # choosing convolution function
-        conv = [conv1d, conv2d, conv3d][spatial_dim - 1]
 
         # setting up output tensor
         output_tensor = softmax(input_tensor, dim=1)
@@ -112,12 +96,14 @@ class CRF(torch.nn.Module):
             # combining filter outputs
             combined_output = self.bilateral_weight * bliateral_output + self.gaussian_weight * gaussian_output
 
-            # compatibility convolution
-            combined_output = pad(combined_output, 2 * spatial_dim * [padding], mode="replicate")
-            compatibility_update = conv(combined_output, compatibility_kernel)
+            # optionally running a compatability transform
+            if self.compatability_matrix != None:
+                flat = combined_output.flatten(start_dim=2).permute(0, 2, 1)
+                flat = torch.matmul(flat, self.compatability_matrix)
+                combined_output = flat.permute(0, 2, 1).reshape(combined_output.shape)
 
             # update and normalize
-            output_tensor = softmax(input_tensor - self.update_factor * compatibility_update, dim=1)
+            output_tensor = softmax(input_tensor + self.update_factor * combined_output, dim=1)
 
         return output_tensor
 
@@ -128,13 +114,3 @@ def _create_coordinate_tensor(tensor):
     grids = torch.meshgrid(axes)
     coords = torch.stack(grids).to(device=tensor.device, dtype=tensor.dtype)
     return torch.stack(tensor.size(0) * [coords], dim=0)
-
-
-def _potts_model_weights(class_count):
-    return (1 - torch.diag(torch.ones(class_count))).unsqueeze(-1)
-
-
-def _expand_matrix_to_kernel(matrix, spatial_dim, kernel_range):
-    reshape_arg = (matrix.size(0), matrix.size(1)) + spatial_dim * (1,)
-    expand_arg = (-1, -1) + spatial_dim * (1 + 2 * kernel_range,)
-    return matrix.reshape(reshape_arg).expand(expand_arg)
