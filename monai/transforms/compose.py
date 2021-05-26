@@ -161,6 +161,17 @@ class Compose(Randomizable, InvertibleTransform):
         return self.inverse_with_omissions(data, [])
 
     def inverse_with_omissions(self, data, *to_skip: Sequence[str]):
+        """Perform the inverse on a subset of the applied transformations.
+        This is done by passing a list of strings of the transforms to be skipped.
+
+        We'll get a subset of the transforms, excluding any in the `to_skip` list. We'll
+        also loop across the data and find the applied transforms (e.g., `image_transforms`),
+        and move those into the list of skipped inverse transforms (image_skipped_inverses).
+
+        Args:
+            data: data to be inverted
+            *to_skip: Sequence of class names to skip.
+        """
         # get all invertible transforms
         invertible_transforms = [t for t in self.flatten().transforms if isinstance(t, InvertibleTransform)]
         if len(invertible_transforms) == 0:
@@ -173,9 +184,16 @@ class Compose(Randomizable, InvertibleTransform):
                 warnings.warn("all invertible transforms have been omitted")
 
             data = deepcopy(data)
-            for key, val in data.items():
-                if InverseKeys.KEY_SUFFIX in key:
-                    data[key] = [t for t in val if t[InverseKeys.CLASS_NAME] not in to_skip]
+            for key in list(data.keys()):
+                inv_key = key + InverseKeys.KEY_SUFFIX
+                if inv_key in data:
+                    to_inverse = [t for t in data[inv_key] if t[InverseKeys.CLASS_NAME] not in to_skip]
+                    to_not_inverse = [t for t in data[inv_key] if t not in to_inverse]
+                    data[key + InverseKeys.KEY_SUFFIX] = to_inverse
+                    skipped_key = key + InverseKeys.KEY_SUFFIX_SKIPPED
+                    if skipped_key not in data:
+                        data[skipped_key] = []
+                    data[key + InverseKeys.KEY_SUFFIX_SKIPPED] += to_not_inverse
 
         # loop backwards over transforms
         for t in reversed(invertible_transforms):

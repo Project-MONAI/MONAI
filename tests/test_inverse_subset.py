@@ -10,14 +10,22 @@
 # limitations under the License.
 
 import unittest
-from typing import List, Sequence, Tuple
+from typing import TYPE_CHECKING, List, Sequence, Tuple
+from unittest.case import skipUnless
 
 from parameterized import parameterized
 
 from monai.data import create_test_image_2d
 from monai.transforms import AddChanneld, Compose, LoadImaged, RandAxisFlipd, RandFlipd
 from monai.utils import set_determinism
+from monai.utils.enums import InverseKeys
 from tests.utils import make_nifti_image
+
+if TYPE_CHECKING:
+    has_nib = True
+else:
+    _, has_nib = optional_import("nibabel")
+
 
 KEYS = ["image", "label"]
 
@@ -44,6 +52,7 @@ TESTS.append(
             ]
         ),
         "ErrorRandAxisFlipd",
+        (1, 2),
         False,
     )
 )
@@ -53,6 +62,7 @@ TESTS.append(
     (
         Compose([LoadImaged(KEYS), AddChanneld(KEYS), ErrorRandAxisFlipd("label")]),
         "",
+        (0, 0),
         True,
     )
 )
@@ -69,18 +79,26 @@ class TestInverseSubset(unittest.TestCase):
         set_determinism(seed=None)
 
     @parameterized.expand(TESTS)
+    @skipUnless(has_nib, "Requires NiBabel")
     def test_inverse_subset(
         self,
         transforms: Compose,
         to_skip: Sequence[str],
+        expected_num_skipped: Sequence[int],
         expected_exception: bool,
     ) -> None:
         d = transforms(self.data)
         if not expected_exception:
-            transforms.inverse_with_omissions(d, to_skip)
+            d = transforms.inverse_with_omissions(d, to_skip)
         else:
             with self.assertRaises(RuntimeError):
-                transforms.inverse_with_omissions(d, to_skip)
+                d = transforms.inverse_with_omissions(d, to_skip)
+
+        for key, num_skipped in zip(KEYS, expected_num_skipped):
+            if num_skipped > 0:
+                self.assertEqual(len(d[key + InverseKeys.KEY_SUFFIX_SKIPPED]), num_skipped)
+            else:
+                self.assertNotIn(key + InverseKeys.KEY_SUFFIX_SKIPPED, d)
 
 
 if __name__ == "__main__":
