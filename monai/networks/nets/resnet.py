@@ -15,22 +15,6 @@ def get_inplanes():
 def get_avgpool():
     return [(0), (1), (1,1), (1,1,1)]
 
-def conv3x3x3(in_planes: int, out_planes: int, stride: int = 1):
-    return nn.Conv3d(in_planes,
-                     out_planes,
-                     kernel_size=3,
-                     stride=stride,
-                     padding=1,
-                     bias=False)
-
-def conv1x1x1(in_planes: int, out_planes: int, stride: int = 1):
-    return nn.Conv3d(in_planes,
-                     out_planes,
-                     kernel_size=1,
-                     stride=stride,
-                     bias=False)
-
-
 class ResNetBlock(nn.Module):
     expansion = 1
 
@@ -44,11 +28,11 @@ class ResNetBlock(nn.Module):
         ) -> None:
         """
         Args:
+            in_planes: number of input channels.
+            planes: number of output channels.
             spatial_dims: number of spatial dimensions of the input image.
-            in_planes: number of spatial dimensions of the input image.
-            planes: number of the input channel.
-            stride: 
-            downsample: 
+            stride: stride to use for first conv layer.
+            downsample: if to use the downsample_basic_block
         """
         super(ResNetBlock, self).__init__()
 
@@ -94,21 +78,26 @@ class ResNetBottleneck(nn.Module):
         downsample: Optional[nn.Module] = None
         ) -> None:
         """
-
+        Args:
+            in_planes: number of input channels.
+            planes: number of output channels (taking expansion into account).
+            spatial_dims: number of spatial dimensions of the input image.
+            stride: stride to use for second conv layer.
+            downsample: if to use the downsample_basic_block
         """
-
+        
         super(ResNetBottleneck, self).__init__()
 
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]
         norm_type: Callable = Norm[Norm.BATCH, spatial_dims]
 
-        self.conv1 = conv1x1x1(in_planes, planes)
-        self.bn1 = nn.BatchNorm3d(planes)
-        self.conv2 = conv3x3x3(planes, planes, stride)
-        self.bn2 = nn.BatchNorm3d(planes)
-        self.conv3 = conv1x1x1(planes, planes * self.expansion)
-        self.bn3 = nn.BatchNorm3d(planes * self.expansion)
-        self.relu = nn.ReLU(inplace=True)
+        self.add_module("conv1", conv_type(in_planes, planes, kernel_size=1, padding=1, bias=False))
+        self.add_module("bn1", norm_type(planes))
+        self.add_module("conv2", conv_type(planes, planes, kernel_size=3, stride=stride, padding=1, bias=False))
+        self.add_module("bn2", norm_type(planes))
+        self.add_module("conv3", conv_type(planes, planes * self.expansion, kernel_size=1, padding=1, bias=False))
+        self.add_module("bn3", norm_type(planes * self.expansion))
+        self.add_module("relu", nn.ReLU(inplace=True))
         self.downsample = downsample
         self.stride = stride
 
@@ -135,10 +124,26 @@ class ResNetBottleneck(nn.Module):
         return out
 
 class ResNet(nn.Module):
-
+    """
+    ResNet based on: `Deep Residual Learning for Image Recognition <https://arxiv.org/pdf/1512.03385.pdf>`_
+    and `Would Mega-scale Datasets Further Enhance Spatiotemporal 3D CNNs <https://arxiv.org/pdf/2004.04968.pdf>`_.
+    Adapted from `<https://github.com/kenshohara/3D-ResNets-PyTorch/tree/master/models>`_.
+    Args:
+        block: which ResNet block to use, either Basic or Bottleneck.
+        layers: how many layers to use.
+        block_inplanes: determine the size of planes at each step. Also tuneable with widen_factor.
+        spatial_dims: number of spatial dimensions of the input image.
+        n_input_channels: number of input channels for first convolutional layer.
+        conv1_t_size: size of first convolution layer, determines kernel and padding.
+        conv1_t_stride: stride of first convolution layer.
+        no_max_pool: bool argument to determine if to use maxpool layer.
+        shortcut_type: which downsample block to use.
+        widen_factor: widen output for each layer.
+        n_classes: number of output (classifications) 
+    """
     def __init__(
         self,
-        block,
+        block:Type[Union[ResNetBlock, ResNetBottleneck]],
         layers:List[int],
         block_inplanes:List[int],
         block_avgpool:List[int],
@@ -159,7 +164,6 @@ class ResNet(nn.Module):
         pool_type: Type[Union[nn.MaxPool1d, nn.MaxPool2d, nn.MaxPool3d]] = Pool[Pool.MAX, spatial_dims]
         avgp_type: Type[Union[nn.AdaptiveAvgPool1d, nn.AdaptiveAvgPool2d, nn.AdaptiveAvgPool3d]] = Pool[Pool.ADAPTIVEAVG, spatial_dims]
 
-        print(avgp_type)
         block_inplanes = [int(x * widen_factor) for x in block_inplanes]
 
         self.in_planes = block_inplanes[0]
@@ -219,15 +223,16 @@ class ResNet(nn.Module):
         self.add_module("fc", nn.Linear(block_inplanes[3] * block.expansion, n_classes))
 
         for m in self.modules():
-            if isinstance(m, nn.Conv3d):
+            if isinstance(m, conv_type):
                 nn.init.kaiming_normal_(m.weight,
                                         mode='fan_out',
                                         nonlinearity='relu')
-            elif isinstance(m, nn.BatchNorm3d):
+            elif isinstance(m, norm_type):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
-    def _downsample_basic_block(self, x, planes, stride):
+    def _downsample_basic_block(self, x: torch.Tensor, planes:int, stride:int, spatial_dims: int = 3) -> torch.Tensor:
+        assert spatial_dims == 3
         out = F.avg_pool3d(x, kernel_size=1, stride=stride)
         zero_pads = torch.zeros(out.size(0), planes - out.size(1), out.size(2),
                                 out.size(3), out.size(4))
@@ -238,7 +243,15 @@ class ResNet(nn.Module):
 
         return out
 
-    def _make_layer(self, block, planes, blocks, spatial_dims, shortcut_type, stride=1):
+    def _make_layer(
+        self, 
+        block: Type[Union[ResNetBlock, ResNetBottleneck]],
+        planes:int,
+        blocks:int, 
+        spatial_dims:int, 
+        shortcut_type:str, 
+        stride:int = 1
+        ) -> nn.Sequential:
 
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]
         norm_type: Callable = Norm[Norm.BATCH, spatial_dims]
@@ -267,7 +280,7 @@ class ResNet(nn.Module):
                   downsample=downsample))
         self.in_planes = planes * block.expansion
         for i in range(1, blocks):
-            layers.append(block(self.in_planes, planes))
+            layers.append(block(self.in_planes, planes, spatial_dims=spatial_dims))
 
         return nn.Sequential(*layers)
 
@@ -291,52 +304,46 @@ class ResNet(nn.Module):
         return x
 
 def resnet10(**kwargs):
-    """Constructs a ResNet-18 model.
-    """
+    """ResNet-10 with optional pretrained support when `spatial_dims` is 3."""
     model = ResNet(ResNetBlock, [1, 1, 1, 1], get_inplanes(), get_avgpool(), **kwargs)
     return model
 
 
 def resnet18(**kwargs):
-    """Constructs a ResNet-18 model.
-    """
+    """ResNet-18 with optional pretrained support when `spatial_dims` is 3."""
     model = ResNet(ResNetBlock, [2, 2, 2, 2], get_inplanes(), get_avgpool(), **kwargs)
     return model
 
 
 def resnet34(**kwargs):
-    """Constructs a ResNet-34 model.
-    """
+    """ResNet-34 with optional pretrained support when `spatial_dims` is 3."""
     model = ResNet(ResNetBlock, [3, 4, 6, 3], get_inplanes(), get_avgpool(), **kwargs)
     return model
 
 
 def resnet50(**kwargs):
-    """Constructs a ResNet-50 model.
-    """
+    """ResNet-50 with optional pretrained support when `spatial_dims` is 3."""
     model = ResNet(ResNetBottleneck, [3, 4, 6, 3], get_inplanes(), get_avgpool(), **kwargs)
     return model
 
 
 def resnet101(**kwargs):
-    """Constructs a ResNet-101 model.
-    """
+    """ResNet-101 with optional pretrained support when `spatial_dims` is 3."""
     model = ResNet(ResNetBottleneck, [3, 4, 23, 3], get_inplanes(), get_avgpool(), **kwargs)
     return model
 
 
 def resnet152(**kwargs):
-    """Constructs a ResNet-101 model.
-    """
+    """ResNet-152 with optional pretrained support when `spatial_dims` is 3."""
     model = ResNet(ResNetBottleneck, [3, 8, 36, 3], get_inplanes(), get_avgpool(), **kwargs)
     return model
 
 
 def resnet200(**kwargs):
-    """Constructs a ResNet-101 model.
-    """
+    """ResNet-200 with optional pretrained support when `spatial_dims` is 3."""
     model = ResNet(ResNetBottleneck, [3, 24, 36, 3], get_inplanes(), get_avgpool(), **kwargs)
     return model
 
 if __name__=="__main__":
-    print(resnet10(n_input_channels=1, n_classes=2, spatial_dims=3))
+    print(resnet101(n_input_channels=1, n_classes=2, spatial_dims=2, ))
+    #resnet152(n_input_channels=1, n_classes=2, spatial_dims=3, )
