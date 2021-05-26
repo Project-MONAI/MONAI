@@ -303,9 +303,30 @@ Nets
 .. autoclass:: DenseNet
   :members:
 
+`DenseNet121`
+~~~~~~~~~~~~~
+.. autoclass:: DenseNet121
+
+`DenseNet169`
+~~~~~~~~~~~~~
+.. autoclass:: DenseNet169
+
+`DenseNet201`
+~~~~~~~~~~~~~
+.. autoclass:: DenseNet201
+
+`DenseNet264`
+~~~~~~~~~~~~~
+.. autoclass:: DenseNet264
+
 `EfficientNet`
 ~~~~~~~~~~~~~~
 .. autoclass:: EfficientNet
+  :members:
+
+`EfficientNetBN`
+~~~~~~~~~~~~~~~~
+.. autoclass:: EfficientNetBN
   :members:
 
 `SegResNet`
@@ -322,6 +343,30 @@ Nets
 ~~~~~~~
 .. autoclass:: SENet
   :members:
+
+`SENet154`
+~~~~~~~~~~
+.. autoclass:: SENet154
+
+`SEResNet50`
+~~~~~~~~~~~~
+.. autoclass:: SEResNet50
+
+`SEResNet101`
+~~~~~~~~~~~~~
+.. autoclass:: SEResNet101
+
+`SEResNet152`
+~~~~~~~~~~~~~
+.. autoclass:: SEResNet152
+
+`SEResNext50`
+~~~~~~~~~~~~~
+.. autoclass:: SEResNext50
+
+`SEResNext101`
+~~~~~~~~~~~~~~
+.. autoclass:: SEResNext101
 
 `HighResNet`
 ~~~~~~~~~~~~
