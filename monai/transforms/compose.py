@@ -13,6 +13,7 @@ A collection of generic interfaces for MONAI transforms.
 """
 
 import warnings
+from copy import deepcopy
 from typing import Any, Callable, Optional, Sequence, Union
 
 import numpy as np
@@ -28,6 +29,7 @@ from monai.transforms.transform import (  # noqa: F401
     apply_transform,
 )
 from monai.utils import MAX_SEED, ensure_tuple, get_seed
+from monai.utils.enums import InverseKeys
 
 __all__ = ["Compose"]
 
@@ -156,9 +158,24 @@ class Compose(Randomizable, InvertibleTransform):
         return input_
 
     def inverse(self, data):
+        return self.inverse_with_omissions(data, [])
+
+    def inverse_with_omissions(self, data, *to_skip: Sequence[str]):
+        # get all invertible transforms
         invertible_transforms = [t for t in self.flatten().transforms if isinstance(t, InvertibleTransform)]
         if len(invertible_transforms) == 0:
             warnings.warn("inverse has been called but no invertible transforms have been supplied")
+
+        if len(to_skip) > 0:
+            # omit certain invertible transforms
+            invertible_transforms = [t for t in invertible_transforms if t.__class__.__name__ not in to_skip]
+            if len(invertible_transforms) == 0:
+                warnings.warn("all invertible transforms have been omitted")
+
+            data = deepcopy(data)
+            for key, val in data.items():
+                if InverseKeys.KEY_SUFFIX in key:
+                    data[key] = [t for t in val if t[InverseKeys.CLASS_NAME] not in to_skip]
 
         # loop backwards over transforms
         for t in reversed(invertible_transforms):
