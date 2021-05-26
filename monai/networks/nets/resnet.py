@@ -126,7 +126,7 @@ class ResNetBottleneck(nn.Module):
 class ResNet(nn.Module):
     """
     ResNet based on: `Deep Residual Learning for Image Recognition <https://arxiv.org/pdf/1512.03385.pdf>`_
-    and `Would Mega-scale Datasets Further Enhance Spatiotemporal 3D CNNs <https://arxiv.org/pdf/2004.04968.pdf>`_.
+    and `Can Spatiotemporal 3D CNNs Retrace the History of 2D CNNs and ImageNet? <https://arxiv.org/pdf/1711.09577.pdf>`_.
     Adapted from `<https://github.com/kenshohara/3D-ResNets-PyTorch/tree/master/models>`_.
     Args:
         block: which ResNet block to use, either Basic or Bottleneck.
@@ -146,7 +146,6 @@ class ResNet(nn.Module):
         block:Type[Union[ResNetBlock, ResNetBottleneck]],
         layers:List[int],
         block_inplanes:List[int],
-        block_avgpool:List[int],
         spatial_dims:int = 3,
         n_input_channels:int = 3,
         conv1_t_size:int = 7,
@@ -164,6 +163,7 @@ class ResNet(nn.Module):
         pool_type: Type[Union[nn.MaxPool1d, nn.MaxPool2d, nn.MaxPool3d]] = Pool[Pool.MAX, spatial_dims]
         avgp_type: Type[Union[nn.AdaptiveAvgPool1d, nn.AdaptiveAvgPool2d, nn.AdaptiveAvgPool3d]] = Pool[Pool.ADAPTIVEAVG, spatial_dims]
 
+        block_avgpool = get_avgpool()
         block_inplanes = [int(x * widen_factor) for x in block_inplanes]
 
         self.in_planes = block_inplanes[0]
@@ -303,46 +303,105 @@ class ResNet(nn.Module):
 
         return x
 
-def resnet10(**kwargs):
-    """ResNet-10 with optional pretrained support when `spatial_dims` is 3."""
-    model = ResNet(ResNetBlock, [1, 1, 1, 1], get_inplanes(), get_avgpool(), **kwargs)
+def _resnet(
+    arch: str,
+    block: Type[Union[ResNetBlock, ResNetBottleneck]],
+    layers: List[int],
+    block_inplanes:List[int],
+    pretrained: bool,
+    progress: bool,
+    **kwargs: Any
+) -> ResNet:
+    model = ResNet(block, layers, block_inplanes, **kwargs)
+    if pretrained:
+        print('currently unable to load pretrained as it is zipped in gdrive')
+        #state_dict = load_state_dict_from_url(model_urls[arch],
+                                              #progress=progress)
+        #model.load_state_dict(state_dict)
     return model
 
+def resnet10(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
+    """ResNet-10 with optional pretrained support when `spatial_dims` is 3.
 
-def resnet18(**kwargs):
-    """ResNet-18 with optional pretrained support when `spatial_dims` is 3."""
-    model = ResNet(ResNetBlock, [2, 2, 2, 2], get_inplanes(), get_avgpool(), **kwargs)
-    return model
+    Pretraining from `Med3D: Transfer Learning for 3D Medical Image Analysis <https://arxiv.org/pdf/1904.00625.pdf>`_.
 
-
-def resnet34(**kwargs):
-    """ResNet-34 with optional pretrained support when `spatial_dims` is 3."""
-    model = ResNet(ResNetBlock, [3, 4, 6, 3], get_inplanes(), get_avgpool(), **kwargs)
-    return model
-
-
-def resnet50(**kwargs):
-    """ResNet-50 with optional pretrained support when `spatial_dims` is 3."""
-    model = ResNet(ResNetBottleneck, [3, 4, 6, 3], get_inplanes(), get_avgpool(), **kwargs)
-    return model
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on 23 medical datasets
+        progress (bool): If True, displays a progress bar of the download to stderr
+    """
+    return ResNet("resnet10", ResNetBlock, [1, 1, 1, 1], get_inplanes(), pretrained, progress, **kwargs)
 
 
-def resnet101(**kwargs):
-    """ResNet-101 with optional pretrained support when `spatial_dims` is 3."""
-    model = ResNet(ResNetBottleneck, [3, 4, 23, 3], get_inplanes(), get_avgpool(), **kwargs)
-    return model
+def resnet18(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
+    """ResNet-18 with optional pretrained support when `spatial_dims` is 3.
+
+    Pretraining from `Med3D: Transfer Learning for 3D Medical Image Analysis <https://arxiv.org/pdf/1904.00625.pdf>`_.
+
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on 23 medical datasets
+        progress (bool): If True, displays a progress bar of the download to stderr
+    """
+    return ResNet("resnet18", ResNetBlock, [2, 2, 2, 2], get_inplanes(), pretrained, progress, **kwargs)
 
 
-def resnet152(**kwargs):
-    """ResNet-152 with optional pretrained support when `spatial_dims` is 3."""
-    model = ResNet(ResNetBottleneck, [3, 8, 36, 3], get_inplanes(), get_avgpool(), **kwargs)
-    return model
+def resnet34(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
+    """ResNet-34 with optional pretrained support when `spatial_dims` is 3.
+
+    Pretraining from `Med3D: Transfer Learning for 3D Medical Image Analysis <https://arxiv.org/pdf/1904.00625.pdf>`_.
+
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on 23 medical datasets
+        progress (bool): If True, displays a progress bar of the download to stderr
+    """
+    return ResNet("resnet34", ResNetBlock, [3, 4, 6, 3], get_inplanes(), pretrained, progress, **kwargs)
 
 
-def resnet200(**kwargs):
-    """ResNet-200 with optional pretrained support when `spatial_dims` is 3."""
-    model = ResNet(ResNetBottleneck, [3, 24, 36, 3], get_inplanes(), get_avgpool(), **kwargs)
-    return model
+def resnet50(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
+    """ResNet-50 with optional pretrained support when `spatial_dims` is 3.
+    
+    Pretraining from `Med3D: Transfer Learning for 3D Medical Image Analysis <https://arxiv.org/pdf/1904.00625.pdf>`_.
+
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on 23 medical datasets
+        progress (bool): If True, displays a progress bar of the download to stderr
+    """
+    return ResNet("resnet50", ResNetBottleneck, [3, 4, 6, 3], get_inplanes(), pretrained, progress, **kwargs)
+
+
+def resnet101(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
+    """ResNet-101 with optional pretrained support when `spatial_dims` is 3.
+
+    Pretraining from `Med3D: Transfer Learning for 3D Medical Image Analysis <https://arxiv.org/pdf/1904.00625.pdf>`_.
+
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on 8 medical datasets
+        progress (bool): If True, displays a progress bar of the download to stderr
+    """
+    return ResNet("resnet101", ResNetBottleneck, [3, 4, 23, 3], get_inplanes(), pretrained, progress, **kwargs)
+
+
+def resnet152(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
+    """ResNet-152 with optional pretrained support when `spatial_dims` is 3.
+
+    Pretraining from `Med3D: Transfer Learning for 3D Medical Image Analysis <https://arxiv.org/pdf/1904.00625.pdf>`_.
+
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on 8 medical datasets
+        progress (bool): If True, displays a progress bar of the download to stderr
+    """
+    return ResNet("resnet152", ResNetBottleneck, [3, 8, 36, 3], get_inplanes(), pretrained, progress, **kwargs)
+
+
+def resnet200(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
+    """ResNet-200 with optional pretrained support when `spatial_dims` is 3.
+    
+    Pretraining from `Med3D: Transfer Learning for 3D Medical Image Analysis <https://arxiv.org/pdf/1904.00625.pdf>`_.
+
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on 8 medical datasets
+        progress (bool): If True, displays a progress bar of the download to stderr
+    """
+    return ResNet("resnet200", ResNetBottleneck, [3, 24, 36, 3], get_inplanes(), pretrained, progress, **kwargs)
 
 if __name__=="__main__":
     print(resnet101(n_input_channels=1, n_classes=2, spatial_dims=2, ))
