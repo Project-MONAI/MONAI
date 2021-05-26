@@ -9,15 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from _thread import interrupt_main
+from contextlib import contextmanager
 from glob import glob
 from os import makedirs, path
-
-from contextlib import contextmanager
 from threading import Timer
-from _thread import interrupt_main
 
 from torch import cuda
 from torch.utils.cpp_extension import load
+
+dir_path = path.dirname(path.realpath(__file__))
+
 
 @contextmanager
 def timeout(time, message):
@@ -30,7 +32,6 @@ def timeout(time, message):
             raise e
         raise TimeoutError(message)
 
-dir_path = path.dirname(path.realpath(__file__))
 
 def load_module(module_name, defines=None, verbose_build=False, build_timeout=30):
     """
@@ -45,7 +46,8 @@ def load_module(module_name, defines=None, verbose_build=False, build_timeout=30
 
     # Ensuring named module exists in _extensions directory.
     module_dir = path.join(dir_path, module_name)
-    assert path.exists(module_dir), f"No extention module named {module_name}"
+    if not path.exists(module_dir):
+        raise ValueError(f"No extention module named {module_name}")
 
     # Naming build.
     build_tag = "" if defines is None else "_".join(str(v) for v in defines.values())
@@ -67,7 +69,9 @@ def load_module(module_name, defines=None, verbose_build=False, build_timeout=30
 
     # Ninja may be blocked by something out of our control.
     # This will error if the build takes longer than usual.
-    with timeout(build_timeout, "Build appears to be blocked. Is there a stopped proccess building the same extention?"):
+    with timeout(
+        build_timeout, "Build appears to be blocked. Is there a stopped proccess building the same extention?"
+    ):
 
         # This will either run the build or return the existing .so object.
         module = load(
