@@ -171,6 +171,7 @@ class ResNet(nn.Module):
         shortcut_type: str = "B",
         widen_factor: float = 1.0,
         n_classes: int = 400,
+        feed_forward: bool = True,
     ) -> None:
 
         super(ResNet, self).__init__()
@@ -241,7 +242,8 @@ class ResNet(nn.Module):
 
         self.add_module("avgpool", avgp_type(block_avgpool[spatial_dims]))
 
-        self.add_module("fc", nn.Linear(block_inplanes[3] * block.expansion, n_classes))
+        if feed_forward == True:
+            self.add_module("fc", nn.Linear(block_inplanes[3] * block.expansion, n_classes))
 
         for m in self.modules():
             if isinstance(m, conv_type):
