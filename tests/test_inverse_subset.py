@@ -17,7 +17,7 @@ from parameterized import parameterized
 
 from monai.data import create_test_image_2d
 from monai.transforms import AddChanneld, Compose, LoadImaged, RandAxisFlipd, RandFlipd
-from monai.utils import set_determinism, optional_import
+from monai.utils import optional_import, set_determinism
 from monai.utils.enums import InverseKeys
 from tests.utils import make_nifti_image
 
