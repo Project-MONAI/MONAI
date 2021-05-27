@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import torch
-from torch.nn.functional import conv1d, conv2d, conv3d, pad, softmax
+from torch.nn.functional import softmax
 
 from monai.networks.layers.filtering import PHLFilter
 
