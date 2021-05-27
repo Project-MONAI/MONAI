@@ -206,24 +206,28 @@ class Transform(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     def pre_conv_data(
-        self, data: TransformTypes.Images, requires_numpy: bool = False
-    ) -> Tuple[TransformTypes.Images, bool]:
+        self, data: TransformTypes.Images, required_type: type = torch.Tensor
+    ) -> Tuple[TransformTypes.Images, type]:
         """Convert to torch/numpy, as required. Also return the original state so that after the transform,
         the data can be reverted to its original type.
         """
-        input_is_numpy = isinstance(data, np.ndarray)
-        if input_is_numpy and not requires_numpy:
-            data = torch.Tensor(data)
-        if requires_numpy and not input_is_numpy:
-            data = data.detach().cpu().numpy()  # type: ignore
-        return data, input_is_numpy
+        orig_type = type(data)
+        assert orig_type in (torch.Tensor, np.ndarray)
 
-    def post_convert_data(self, data: TransformTypes.Images, to_numpy: bool) -> TransformTypes.Images:
-        """Convert back to original type."""
-        is_numpy = isinstance(data, np.ndarray)
-        if is_numpy and not to_numpy:
+        if orig_type is np.ndarray and required_type is torch.Tensor:
             data = torch.Tensor(data)
-        if to_numpy and not is_numpy:
+        elif orig_type is torch.Tensor and required_type is np.ndarray:
+            data = data.detach().cpu().numpy()  # type: ignore
+        return data, orig_type
+
+    def post_convert_data(self, data: TransformTypes.Images, output_type: type) -> TransformTypes.Images:
+        """Convert back to original type."""
+        current_type = type(data)
+        assert current_type in (torch.Tensor, np.ndarray)
+
+        if current_type is np.ndarray and output_type is torch.Tensor:
+            data = torch.Tensor(data)
+        elif current_type is torch.Tensor and output_type is np.ndarray:
             data = data.detach().cpu().numpy()  # type: ignore
         return data
 
