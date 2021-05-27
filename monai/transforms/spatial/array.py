@@ -316,11 +316,11 @@ class Flip(Transform):
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-        img, input_is_numpy = self.pre_conv_data(img)
+        img, orig_type = self.pre_conv_data(img)
 
         result = torch.flip(img, map_spatial_axes(img.ndim, self.spatial_axis)).to(img.dtype)  # type: ignore
 
-        return self.post_convert_data(result, input_is_numpy)
+        return self.post_convert_data(result, orig_type)
 
 
 class Resize(Transform):
