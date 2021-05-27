@@ -97,7 +97,7 @@ class CRF(torch.nn.Module):
             combined_output = self.bilateral_weight * bliateral_output + self.gaussian_weight * gaussian_output
 
             # optionally running a compatability transform
-            if self.compatability_matrix != None:
+            if self.compatability_matrix is not None:
                 flat = combined_output.flatten(start_dim=2).permute(0, 2, 1)
                 flat = torch.matmul(flat, self.compatability_matrix)
                 combined_output = flat.permute(0, 2, 1).reshape(combined_output.shape)
