@@ -14,10 +14,12 @@ from .compose import Compose
 from .croppad.array import (
     BorderPad,
     BoundingRect,
+    CenterScaleCrop,
     CenterSpatialCrop,
     CropForeground,
     DivisiblePad,
     RandCropByPosNegLabel,
+    RandScaleCrop,
     RandSpatialCrop,
     RandSpatialCropSamples,
     RandWeightedCrop,
@@ -33,6 +35,9 @@ from .croppad.dictionary import (
     BoundingRectd,
     BoundingRectD,
     BoundingRectDict,
+    CenterScaleCropd,
+    CenterScaleCropD,
+    CenterScaleCropDict,
     CenterSpatialCropd,
     CenterSpatialCropD,
     CenterSpatialCropDict,
@@ -46,6 +51,9 @@ from .croppad.dictionary import (
     RandCropByPosNegLabeld,
     RandCropByPosNegLabelD,
     RandCropByPosNegLabelDict,
+    RandScaleCropd,
+    RandScaleCropD,
+    RandScaleCropDict,
     RandSpatialCropd,
     RandSpatialCropD,
     RandSpatialCropDict,
@@ -70,6 +78,7 @@ from .intensity.array import (
     DetectEnvelope,
     GaussianSharpen,
     GaussianSmooth,
+    GibbsNoise,
     MaskIntensity,
     NormalizeIntensity,
     RandAdjustContrast,
@@ -77,6 +86,7 @@ from .intensity.array import (
     RandGaussianNoise,
     RandGaussianSharpen,
     RandGaussianSmooth,
+    RandGibbsNoise,
     RandHistogramShift,
     RandRicianNoise,
     RandScaleIntensity,
@@ -100,6 +110,9 @@ from .intensity.dictionary import (
     GaussianSmoothd,
     GaussianSmoothD,
     GaussianSmoothDict,
+    GibbsNoised,
+    GibbsNoiseD,
+    GibbsNoiseDict,
     MaskIntensityd,
     MaskIntensityD,
     MaskIntensityDict,
@@ -121,6 +134,9 @@ from .intensity.dictionary import (
     RandGaussianSmoothd,
     RandGaussianSmoothD,
     RandGaussianSmoothDict,
+    RandGibbsNoised,
+    RandGibbsNoiseD,
+    RandGibbsNoiseDict,
     RandHistogramShiftd,
     RandHistogramShiftD,
     RandHistogramShiftDict,
@@ -156,6 +172,7 @@ from .intensity.dictionary import (
     ThresholdIntensityDict,
 )
 from .inverse import InvertibleTransform
+from .inverse_batch_transform import BatchInverseTransform
 from .io.array import LoadImage, SaveImage
 from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict
 from .post.array import (
@@ -178,6 +195,9 @@ from .post.dictionary import (
     DecollateD,
     DecollateDict,
     Ensembled,
+    Invertd,
+    InvertD,
+    InvertDict,
     KeepLargestConnectedComponentd,
     KeepLargestConnectedComponentD,
     KeepLargestConnectedComponentDict,
@@ -190,11 +210,15 @@ from .post.dictionary import (
     ProbNMSd,
     ProbNMSD,
     ProbNMSDict,
+    SaveClassificationd,
+    SaveClassificationD,
+    SaveClassificationDict,
     VoteEnsembled,
     VoteEnsembleD,
     VoteEnsembleDict,
 )
 from .spatial.array import (
+    AddCoordinateChannels,
     Affine,
     AffineGrid,
     Flip,
@@ -217,6 +241,9 @@ from .spatial.array import (
     Zoom,
 )
 from .spatial.dictionary import (
+    AddCoordinateChannelsd,
+    AddCoordinateChannelsD,
+    AddCoordinateChannelsDict,
     Affined,
     AffineD,
     AffineDict,
@@ -266,7 +293,7 @@ from .spatial.dictionary import (
     ZoomD,
     ZoomDict,
 )
-from .transform import MapTransform, Randomizable, RandomizableTransform, Transform, apply_transform
+from .transform import MapTransform, Randomizable, RandomizableTransform, ThreadUnsafe, Transform, apply_transform
 from .utility.array import (
     AddChannel,
     AddExtremePointsChannel,
@@ -286,6 +313,7 @@ from .utility.array import (
     SimulateDelay,
     SplitChannel,
     SqueezeDim,
+    ToCupy,
     ToNumpy,
     ToPIL,
     TorchVision,
@@ -365,6 +393,9 @@ from .utility.dictionary import (
     SqueezeDimd,
     SqueezeDimD,
     SqueezeDimDict,
+    ToCupyd,
+    ToCupyD,
+    ToCupyDict,
     ToNumpyd,
     ToNumpyD,
     ToNumpyDict,
@@ -377,6 +408,9 @@ from .utility.dictionary import (
     ToTensord,
     ToTensorD,
     ToTensorDict,
+    Transposed,
+    TransposeD,
+    TransposeDict,
 )
 from .utils import (
     allow_missing_keys_mode,

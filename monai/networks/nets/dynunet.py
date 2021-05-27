@@ -10,7 +10,7 @@
 # limitations under the License.
 
 
-from typing import List, Optional, Sequence, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -18,7 +18,7 @@ from torch.nn.functional import interpolate
 
 from monai.networks.blocks.dynunet_block import UnetBasicBlock, UnetOutBlock, UnetResBlock, UnetUpBlock
 
-__all__ = ["DynUNet", "DynUnet", "Dynunet"]
+__all__ = ["DynUNet", "DynUnet", "Dynunet", "dynunet"]
 
 
 class DynUNetSkipLayer(nn.Module):
@@ -79,8 +79,7 @@ class DynUNet(nn.Module):
         kernel_size: convolution kernel size.
         strides: convolution strides for each blocks.
         upsample_kernel_size: convolution kernel size for transposed convolution layers.
-        norm_name: [``"batch"``, ``"instance"``, ``"group"``]
-            feature normalization type and arguments.
+        norm_name: feature normalization type and arguments. Defaults to ``INSTANCE``.
         deep_supervision: whether to add deep supervision head before output. Defaults to ``False``.
             If ``True``, in training mode, the forward function will output not only the last feature
             map, but also the previous feature maps that come from the intermediate up sample layers.
@@ -109,7 +108,7 @@ class DynUNet(nn.Module):
         kernel_size: Sequence[Union[Sequence[int], int]],
         strides: Sequence[Union[Sequence[int], int]],
         upsample_kernel_size: Sequence[Union[Sequence[int], int]],
-        norm_name: str = "instance",
+        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
         deep_supervision: bool = False,
         deep_supr_num: int = 1,
         res_block: bool = False,

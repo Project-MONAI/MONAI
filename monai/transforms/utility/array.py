@@ -28,6 +28,8 @@ from monai.utils import ensure_tuple, min_version, optional_import
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
+cp, has_cp = optional_import("cupy")
+cp_ndarray, _ = optional_import("cupy", name="ndarray")
 
 __all__ = [
     "Identity",
@@ -317,7 +319,23 @@ class ToNumpy(Transform):
         """
         if isinstance(img, torch.Tensor):
             img = img.detach().cpu().numpy()  # type: ignore
+        elif has_cp and isinstance(img, cp_ndarray):
+            img = cp.asnumpy(img)  # type: ignore
         return np.ascontiguousarray(img)
+
+
+class ToCupy(Transform):
+    """
+    Converts the input data to CuPy array, can support list or tuple of numbers, NumPy and PyTorch Tensor.
+    """
+
+    def __call__(self, img):
+        """
+        Apply the transform to `img` and make it contiguous.
+        """
+        if isinstance(img, torch.Tensor):
+            img = img.detach().cpu().numpy()  # type: ignore
+        return cp.ascontiguousarray(cp.asarray(img))
 
 
 class ToPIL(Transform):
@@ -327,7 +345,7 @@ class ToPIL(Transform):
 
     def __call__(self, img):
         """
-        Apply the transform to `img` and make it contiguous.
+        Apply the transform to `img`.
         """
         if isinstance(img, PILImageImage):
             return img
@@ -423,14 +441,14 @@ class DataStats(Transform):
         if additional_info is not None and not callable(additional_info):
             raise TypeError(f"additional_info must be None or callable but is {type(additional_info).__name__}.")
         self.additional_info = additional_info
-        self.output: Optional[str] = None
-        self._logger = logging.getLogger("DataStats")
-        self._logger.setLevel(logging.INFO)
+        self._logger_name = "DataStats"
+        _logger = logging.getLogger(self._logger_name)
+        _logger.setLevel(logging.INFO)
         console = logging.StreamHandler(sys.stdout)  # always stdout
         console.setLevel(logging.INFO)
-        self._logger.addHandler(console)
+        _logger.addHandler(console)
         if logger_handler is not None:
-            self._logger.addHandler(logger_handler)
+            _logger.addHandler(logger_handler)
 
     def __call__(
         self,
@@ -464,9 +482,8 @@ class DataStats(Transform):
         if additional_info is not None:
             lines.append(f"Additional info: {additional_info(img)}")
         separator = "\n"
-        self.output = f"{separator.join(lines)}"
-        self._logger.info(self.output)
-
+        output = f"{separator.join(lines)}"
+        logging.getLogger(self._logger_name).info(output)
         return img
 
 
@@ -668,7 +685,7 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
         return np.stack(result, axis=0)
 
 
-class AddExtremePointsChannel(Randomizable):
+class AddExtremePointsChannel(Randomizable, Transform):
     """
     Add extreme points of label to the image as a new channel. This transform generates extreme
     point from label and applies a gaussian filter. The pixel values in points image are rescaled

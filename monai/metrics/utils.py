@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from typing import Tuple, Union
 
 import numpy as np
@@ -189,9 +190,11 @@ def get_surface_distance(
 
     if not np.any(seg_gt):
         dis = np.inf * np.ones_like(seg_gt)
+        warnings.warn("ground truth is all 0, this may result in nan/inf distance.")
     else:
         if not np.any(seg_pred):
             dis = np.inf * np.ones_like(seg_gt)
+            warnings.warn("prediction is all 0, this may result in nan/inf distance.")
             return np.asarray(dis[seg_gt])
         if distance_metric == "euclidean":
             dis = distance_transform_edt(~seg_gt)

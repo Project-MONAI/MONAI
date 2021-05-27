@@ -14,6 +14,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 from itertools import chain
+from math import ceil
 from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -30,7 +31,7 @@ from monai.transforms.utils import (
     map_binary_to_indices,
     weighted_patch_samples,
 )
-from monai.utils import Method, NumpyPadMode, ensure_tuple, fall_back_tuple
+from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
 
 __all__ = [
     "SpatialPad",
@@ -38,7 +39,9 @@ __all__ = [
     "DivisiblePad",
     "SpatialCrop",
     "CenterSpatialCrop",
+    "CenterScaleCrop",
     "RandSpatialCrop",
+    "RandScaleCrop",
     "RandSpatialCropSamples",
     "CropForeground",
     "RandWeightedCrop",
@@ -76,14 +79,14 @@ class SpatialPad(Transform):
         self.mode: NumpyPadMode = NumpyPadMode(mode)
 
     def _determine_data_pad_width(self, data_shape: Sequence[int]) -> List[Tuple[int, int]]:
-        self.spatial_size = fall_back_tuple(self.spatial_size, data_shape)
+        spatial_size = fall_back_tuple(self.spatial_size, data_shape)
         if self.method == Method.SYMMETRIC:
             pad_width = []
-            for i, sp_i in enumerate(self.spatial_size):
+            for i, sp_i in enumerate(spatial_size):
                 width = max(sp_i - data_shape[i], 0)
                 pad_width.append((width // 2, width - (width // 2)))
             return pad_width
-        return [(0, max(sp_i - data_shape[i], 0)) for i, sp_i in enumerate(self.spatial_size)]
+        return [(0, max(sp_i - data_shape[i], 0)) for i, sp_i in enumerate(spatial_size)]
 
     def __call__(self, img: np.ndarray, mode: Optional[Union[NumpyPadMode, str]] = None) -> np.ndarray:
         """
@@ -155,9 +158,9 @@ class BorderPad(Transform):
         spatial_border = tuple(max(0, b) for b in spatial_border)
 
         if len(spatial_border) == 1:
-            data_pad_width = [(spatial_border[0], spatial_border[0]) for _ in range(len(spatial_shape))]
+            data_pad_width = [(spatial_border[0], spatial_border[0]) for _ in spatial_shape]
         elif len(spatial_border) == len(spatial_shape):
-            data_pad_width = [(spatial_border[i], spatial_border[i]) for i in range(len(spatial_shape))]
+            data_pad_width = [(sp, sp) for sp in spatial_border[: len(spatial_shape)]]
         elif len(spatial_border) == len(spatial_shape) * 2:
             data_pad_width = [(spatial_border[2 * i], spatial_border[2 * i + 1]) for i in range(len(spatial_shape))]
         else:
@@ -283,30 +286,59 @@ class CenterSpatialCrop(Transform):
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
         """
-        self.roi_size = fall_back_tuple(self.roi_size, img.shape[1:])
+        roi_size = fall_back_tuple(self.roi_size, img.shape[1:])
         center = [i // 2 for i in img.shape[1:]]
-        cropper = SpatialCrop(roi_center=center, roi_size=self.roi_size)
+        cropper = SpatialCrop(roi_center=center, roi_size=roi_size)
         return cropper(img)
 
 
-class RandSpatialCrop(Randomizable):
+class CenterScaleCrop(Transform):
+    """
+    Crop at the center of image with specified scale of ROI size.
+
+    Args:
+        roi_scale: specifies the expected scale of image size to crop. e.g. [0.3, 0.4, 0.5] or a number for all dims.
+            If its components have non-positive values, will use `1.0` instead, which means the input image size.
+
+    """
+
+    def __init__(self, roi_scale: Union[Sequence[float], float]):
+        self.roi_scale = roi_scale
+
+    def __call__(self, img: np.ndarray):
+        img_size = img.shape[1:]
+        ndim = len(img_size)
+        roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
+        sp_crop = CenterSpatialCrop(roi_size=roi_size)
+        return sp_crop(img=img)
+
+
+class RandSpatialCrop(Randomizable, Transform):
     """
     Crop image with random size or specific size ROI. It can crop at a random position as center
-    or at the image center. And allows to set the minimum size to limit the randomly generated ROI.
+    or at the image center. And allows to set the minimum and maximum size to limit the randomly generated ROI.
 
     Args:
         roi_size: if `random_size` is True, it specifies the minimum crop region.
             if `random_size` is False, it specifies the expected ROI size to crop. e.g. [224, 224, 128]
             If its components have non-positive values, the corresponding size of input image will be used.
+        max_roi_size: if `random_size` is True and `roi_size` specifies the min crop region size, `max_roi_size`
+            can specify the max crop region size. if None, defaults to the input image size.
+            if its components have non-positive values, the corresponding size of input image will be used.
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specific size ROI.
-            The actual size is sampled from `randint(roi_size, img_size)`.
+            if True, the actual size is sampled from `randint(roi_size, max_roi_size + 1)`.
     """
 
     def __init__(
-        self, roi_size: Union[Sequence[int], int], random_center: bool = True, random_size: bool = True
+        self,
+        roi_size: Union[Sequence[int], int],
+        max_roi_size: Optional[Union[Sequence[int], int]] = None,
+        random_center: bool = True,
+        random_size: bool = True,
     ) -> None:
         self.roi_size = roi_size
+        self.max_roi_size = max_roi_size
         self.random_center = random_center
         self.random_size = random_size
         self._size: Optional[Sequence[int]] = None
@@ -315,7 +347,10 @@ class RandSpatialCrop(Randomizable):
     def randomize(self, img_size: Sequence[int]) -> None:
         self._size = fall_back_tuple(self.roi_size, img_size)
         if self.random_size:
-            self._size = tuple((self.R.randint(low=self._size[i], high=img_size[i] + 1) for i in range(len(img_size))))
+            max_size = img_size if self.max_roi_size is None else fall_back_tuple(self.max_roi_size, img_size)
+            if any([i > j for i, j in zip(self._size, max_size)]):
+                raise ValueError(f"min ROI size: {self._size} is bigger than max ROI size: {max_size}.")
+            self._size = tuple((self.R.randint(low=self._size[i], high=max_size[i] + 1) for i in range(len(img_size))))
         if self.random_center:
             valid_size = get_valid_patch_size(img_size, self._size)
             self._slices = (slice(None),) + get_random_patch(img_size, valid_size, self.R)
@@ -334,7 +369,54 @@ class RandSpatialCrop(Randomizable):
         return cropper(img)
 
 
-class RandSpatialCropSamples(Randomizable):
+class RandScaleCrop(RandSpatialCrop):
+    """
+    Subclass of :py:class:`monai.transforms.RandSpatialCrop`. Crop image with
+    random size or specific size ROI.  It can crop at a random position as
+    center or at the image center.  And allows to set the minimum and maximum
+    scale of image size to limit the randomly generated ROI.
+
+    Args:
+        roi_scale: if `random_size` is True, it specifies the minimum crop size: `roi_scale * image spatial size`.
+            if `random_size` is False, it specifies the expected scale of image size to crop. e.g. [0.3, 0.4, 0.5].
+            If its components have non-positive values, will use `1.0` instead, which means the input image size.
+        max_roi_scale: if `random_size` is True and `roi_scale` specifies the min crop region size, `max_roi_scale`
+            can specify the max crop region size: `max_roi_scale * image spatial size`.
+            if None, defaults to the input image size. if its components have non-positive values,
+            will use `1.0` instead, which means the input image size.
+        random_center: crop at random position as center or the image center.
+        random_size: crop with random size or specified size ROI by `roi_scale * image spatial size`.
+            if True, the actual size is sampled from
+            `randint(roi_scale * image spatial size, max_roi_scale * image spatial size + 1)`.
+    """
+
+    def __init__(
+        self,
+        roi_scale: Union[Sequence[float], float],
+        max_roi_scale: Optional[Union[Sequence[float], float]] = None,
+        random_center: bool = True,
+        random_size: bool = True,
+    ) -> None:
+        super().__init__(roi_size=-1, max_roi_size=None, random_center=random_center, random_size=random_size)
+        self.roi_scale = roi_scale
+        self.max_roi_scale = max_roi_scale
+
+    def __call__(self, img: np.ndarray):
+        """
+        Apply the transform to `img`, assuming `img` is channel-first and
+        slicing doesn't apply to the channel dim.
+        """
+        img_size = img.shape[1:]
+        ndim = len(img_size)
+        self.roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
+        if self.max_roi_scale is not None:
+            self.max_roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.max_roi_scale, ndim), img_size)]
+        else:
+            self.max_roi_size = None
+        return super().__call__(img=img)
+
+
+class RandSpatialCropSamples(Randomizable, Transform):
     """
     Crop image with random size or specific size ROI to generate a list of N samples.
     It can crop at a random position as center or at the image center. And allows to set
@@ -342,9 +424,13 @@ class RandSpatialCropSamples(Randomizable):
     It will return a list of cropped images.
 
     Args:
-        roi_size: if `random_size` is True, the spatial size of the minimum crop region.
-            if `random_size` is False, specify the expected ROI size to crop. e.g. [224, 224, 128]
+        roi_size: if `random_size` is True, it specifies the minimum crop region.
+            if `random_size` is False, it specifies the expected ROI size to crop. e.g. [224, 224, 128]
+            If its components have non-positive values, the corresponding size of input image will be used.
         num_samples: number of samples (crop regions) to take in the returned list.
+        max_roi_size: if `random_size` is True and `roi_size` specifies the min crop region size, `max_roi_size`
+            can specify the max crop region size. if None, defaults to the input image size.
+            if its components have non-positive values, the corresponding size of input image will be used.
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specific size ROI.
             The actual size is sampled from `randint(roi_size, img_size)`.
@@ -358,13 +444,14 @@ class RandSpatialCropSamples(Randomizable):
         self,
         roi_size: Union[Sequence[int], int],
         num_samples: int,
+        max_roi_size: Optional[Union[Sequence[int], int]] = None,
         random_center: bool = True,
         random_size: bool = True,
     ) -> None:
         if num_samples < 1:
             raise ValueError(f"num_samples must be positive, got {num_samples}.")
         self.num_samples = num_samples
-        self.cropper = RandSpatialCrop(roi_size, random_center, random_size)
+        self.cropper = RandSpatialCrop(roi_size, max_roi_size, random_center, random_size)
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
@@ -488,7 +575,7 @@ class CropForeground(Transform):
         return cropped
 
 
-class RandWeightedCrop(Randomizable):
+class RandWeightedCrop(Randomizable, Transform):
     """
     Samples a list of `num_samples` image patches according to the provided `weight_map`.
 
@@ -540,7 +627,7 @@ class RandWeightedCrop(Randomizable):
         return results
 
 
-class RandCropByPosNegLabel(Randomizable):
+class RandCropByPosNegLabel(Randomizable, Transform):
     """
     Crop random fixed sized regions with the center being a foreground or background voxel
     based on the Pos Neg Ratio.

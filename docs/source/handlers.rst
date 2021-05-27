@@ -65,6 +65,30 @@ Surface distance metrics handler
     :members:
 
 
+Mean squared error metrics handler
+----------------------------------
+.. autoclass:: MeanSquaredError
+    :members:
+
+
+Mean absolute error metrics handler
+-----------------------------------
+.. autoclass:: MeanAbsoluteError
+    :members:
+
+
+Root mean squared error metrics handler
+---------------------------------------
+.. autoclass:: RootMeanSquaredError
+    :members:
+
+
+Peak signal to noise ratio metrics handler
+------------------------------------------
+.. autoclass:: PeakSignalToNoiseRatio
+    :members:
+
+
 Metric logger
 -------------
 .. autoclass:: MetricLogger
@@ -130,3 +154,13 @@ Transform inverter
 ------------------
 .. autoclass:: TransformInverter
     :members:
+
+Post processing
+---------------
+.. autoclass:: PostProcessing
+    :members:
+
+Utilities
+---------
+.. automodule:: monai.handlers.utils
+  :members:

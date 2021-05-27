@@ -46,6 +46,8 @@ def run_testsuit():
         "test_handler_garbage_collector",
         "test_handler_mean_dice",
         "test_handler_prob_map_producer",
+        "test_handler_regression_metrics",
+        "test_handler_regression_metrics_dist",
         "test_handler_rocauc",
         "test_handler_rocauc_dist",
         "test_handler_parameter_scheduler",
@@ -120,6 +122,9 @@ def run_testsuit():
         "test_handler_early_stop",
         "test_handler_transform_inverter",
         "test_testtimeaugmentation",
+        "test_cachedataset_persistent_workers",
+        "test_invertd",
+        "test_handler_post_processing",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 

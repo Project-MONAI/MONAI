@@ -18,6 +18,9 @@ from monai.utils import optional_import
 models, _ = optional_import("torchvision.models")
 
 
+__all__ = ["TorchVisionFullyConvModel"]
+
+
 class TorchVisionFullyConvModel(torch.nn.Module):
     """
     Customize TorchVision models to replace fully connected layer by convolutional layer.
