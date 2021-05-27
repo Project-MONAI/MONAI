@@ -14,7 +14,7 @@ A collection of generic interfaces for MONAI transforms.
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Generator, Hashable, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Generator, Hashable, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -196,6 +196,30 @@ class Transform(ABC):
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+
+    def pre_conv_data(
+        self, data: Union[torch.Tensor, np.ndarray], requires_numpy: bool = False
+    ) -> Union[Union[torch.Tensor, np.ndarray], bool]:
+        """If input is in numpy, convert to torch. Also return the original state so that after the transform,
+        the data can be reverted to its original type.
+        """
+        input_is_numpy = isinstance(data, np.ndarray)
+        if input_is_numpy and not requires_numpy:
+            data = torch.Tensor(data)
+        if requires_numpy and not input_is_numpy:
+            data = data.detach().cpu().numpy()  # type: ignore
+        return data, input_is_numpy
+
+    def post_convert_data(
+        self, data: Union[torch.Tensor, np.ndarray], to_numpy: bool
+    ) -> Union[torch.Tensor, np.ndarray]:
+        """Convert back to original type."""
+        is_numpy = isinstance(data, np.ndarray)
+        if is_numpy and not to_numpy:
+            data = torch.Tensor(data)
+        if to_numpy and not is_numpy:
+            data = data.detach().cpu().numpy()
+        return data
 
 
 class RandomizableTransform(Randomizable, Transform):

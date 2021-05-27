@@ -310,14 +310,16 @@ class Flip(Transform):
     def __init__(self, spatial_axis: Optional[Union[Sequence[int], int]] = None) -> None:
         self.spatial_axis = spatial_axis
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: Union[torch.Tensor, np.ndarray]) -> Union[torch.Tensor, np.ndarray]:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
+        img, input_is_numpy = self.pre_conv_data(img)
 
-        result: np.ndarray = np.flip(img, map_spatial_axes(img.ndim, self.spatial_axis))
-        return result.astype(img.dtype)
+        result = torch.flip(img, map_spatial_axes(img.ndim, self.spatial_axis)).to(img.dtype)  # type: ignore
+
+        return self.post_convert_data(result, input_is_numpy)
 
 
 class Resize(Transform):
