@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
+
 import torch
 from torch.nn.functional import softmax
 
@@ -41,7 +43,7 @@ class CRF(torch.nn.Module):
         bilateral_color_sigma: float = 0.5,
         gaussian_spatial_sigma: float = 5.0,
         update_factor: float = 3.0,
-        compatability_matrix: torch.Tensor = None,
+        compatability_matrix: Optional[torch.Tensor] = None,
     ):
         """
         Args:
