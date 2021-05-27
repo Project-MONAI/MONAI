@@ -93,7 +93,7 @@ TEST_CASES = [
             0.5,  # bilateral_color_sigma
             5.0,  # gaussian_spatial_sigma
             1.0,  # update_factor
-            2 * torch.eye(2).cuda(),  # compatibility_matrix
+            2 * torch.eye(2),  # compatibility_matrix
         ],
         # Input
         [
@@ -500,6 +500,8 @@ class CRFTestCaseCuda(unittest.TestCase):
         # Create input tensors
         input_tensor = torch.from_numpy(np.array(input)).to(dtype=torch.float, device=torch.device("cuda"))
         feature_tensor = torch.from_numpy(np.array(features)).to(dtype=torch.float, device=torch.device("cuda"))
+
+        params[-1] = None if params[-1] is None else params[-1].cuda()
 
         # apply filter
         crf = CRF(*params)
