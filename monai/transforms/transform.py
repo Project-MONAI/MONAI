@@ -23,6 +23,7 @@ from monai import transforms
 from monai.config import KeysCollection
 from monai.utils import MAX_SEED, ensure_tuple
 from monai.utils.enums import TransformTypes
+from monai.utils.misc import convert_data_type
 
 __all__ = [
     "ThreadUnsafe",
@@ -211,24 +212,12 @@ class Transform(ABC):
         """Convert to torch/numpy, as required. Also return the original state so that after the transform,
         the data can be reverted to its original type.
         """
-        orig_type = type(data)
-        assert orig_type in (torch.Tensor, np.ndarray)
-
-        if orig_type is np.ndarray and required_type is torch.Tensor:
-            data = torch.Tensor(data)
-        elif orig_type is torch.Tensor and required_type is np.ndarray:
-            data = data.detach().cpu().numpy()  # type: ignore
+        data, orig_type = convert_data_type(data, required_type)
         return data, orig_type
 
     def post_convert_data(self, data: TransformTypes.Images, output_type: type) -> TransformTypes.Images:
         """Convert back to original type."""
-        current_type = type(data)
-        assert current_type in (torch.Tensor, np.ndarray)
-
-        if current_type is np.ndarray and output_type is torch.Tensor:
-            data = torch.Tensor(data)
-        elif current_type is torch.Tensor and output_type is np.ndarray:
-            data = data.detach().cpu().numpy()  # type: ignore
+        data, _ = convert_data_type(data, output_type)
         return data
 
 
