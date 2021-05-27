@@ -10,6 +10,10 @@
 # limitations under the License.
 
 from enum import Enum
+from typing import Dict, Hashable, Union
+
+import numpy as np
+import torch
 
 __all__ = [
     "NumpyPadMode",
@@ -31,6 +35,7 @@ __all__ = [
     "InverseKeys",
     "CommonKeys",
     "ForwardMode",
+    "TransformTypes",
 ]
 
 
@@ -260,3 +265,10 @@ class CommonKeys:
     LABEL = "label"
     PRED = "pred"
     LOSS = "loss"
+
+
+class TransformTypes:
+    """Common transform types."""
+
+    Images = Union[torch.Tensor, np.ndarray]
+    ImageDict = Dict[Hashable, Images]

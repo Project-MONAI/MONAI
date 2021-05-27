@@ -14,7 +14,7 @@ A collection of generic interfaces for MONAI transforms.
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Generator, Hashable, Iterable, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Generator, Hashable, Iterable, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -22,8 +22,16 @@ import torch
 from monai import transforms
 from monai.config import KeysCollection
 from monai.utils import MAX_SEED, ensure_tuple
+from monai.utils.enums import TransformTypes
 
-__all__ = ["ThreadUnsafe", "apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
+__all__ = [
+    "ThreadUnsafe",
+    "apply_transform",
+    "Randomizable",
+    "RandomizableTransform",
+    "Transform",
+    "MapTransform",
+]
 
 
 def apply_transform(transform: Callable, data, map_items: bool = True):
@@ -198,8 +206,8 @@ class Transform(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     def pre_conv_data(
-        self, data: Union[torch.Tensor, np.ndarray], requires_numpy: bool = False
-    ) -> Tuple[Union[torch.Tensor, np.ndarray], bool]:
+        self, data: TransformTypes.Images, requires_numpy: bool = False
+    ) -> Tuple[TransformTypes.Images, bool]:
         """Convert to torch/numpy, as required. Also return the original state so that after the transform,
         the data can be reverted to its original type.
         """
@@ -210,15 +218,13 @@ class Transform(ABC):
             data = data.detach().cpu().numpy()  # type: ignore
         return data, input_is_numpy
 
-    def post_convert_data(
-        self, data: Union[torch.Tensor, np.ndarray], to_numpy: bool
-    ) -> Union[torch.Tensor, np.ndarray]:
+    def post_convert_data(self, data: TransformTypes.Images, to_numpy: bool) -> TransformTypes.Images:
         """Convert back to original type."""
         is_numpy = isinstance(data, np.ndarray)
         if is_numpy and not to_numpy:
             data = torch.Tensor(data)
         if to_numpy and not is_numpy:
-            data = data.detach().cpu().numpy()
+            data = data.detach().cpu().numpy()  # type: ignore
         return data
 
 

@@ -45,6 +45,7 @@ from monai.utils import (
     issequenceiterable,
     optional_import,
 )
+from monai.utils.enums import TransformTypes
 
 nib, _ = optional_import("nibabel")
 
@@ -310,7 +311,7 @@ class Flip(Transform):
     def __init__(self, spatial_axis: Optional[Union[Sequence[int], int]] = None) -> None:
         self.spatial_axis = spatial_axis
 
-    def __call__(self, img: Union[torch.Tensor, np.ndarray]) -> Union[torch.Tensor, np.ndarray]:
+    def __call__(self, img: TransformTypes.Images) -> TransformTypes.Images:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -777,7 +778,7 @@ class RandFlip(RandomizableTransform):
         RandomizableTransform.__init__(self, prob)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: TransformTypes.Images) -> TransformTypes.Images:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -803,11 +804,11 @@ class RandAxisFlip(RandomizableTransform):
         RandomizableTransform.__init__(self, prob)
         self._axis: Optional[int] = None
 
-    def randomize(self, data: np.ndarray) -> None:
+    def randomize(self, data: TransformTypes.Images) -> None:
         super().randomize(None)
         self._axis = self.R.randint(data.ndim - 1)
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: TransformTypes.Images) -> TransformTypes.Images:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),

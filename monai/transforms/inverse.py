@@ -9,9 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, Hashable, Optional, Tuple
+from typing import Hashable, Optional, Tuple
 
-import numpy as np
 import torch
 
 from monai.transforms.transform import RandomizableTransform, Transform
@@ -110,7 +109,7 @@ class InvertibleTransform(Transform):
         """Remove most recent transform."""
         data[str(key) + InverseKeys.KEY_SUFFIX].pop()
 
-    def inverse(self, data: dict) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: dict) -> dict:
         """
         Inverse of ``__call__``.
 
