@@ -199,7 +199,7 @@ class Transform(ABC):
 
     def pre_conv_data(
         self, data: Union[torch.Tensor, np.ndarray], requires_numpy: bool = False
-    ) -> Union[Union[torch.Tensor, np.ndarray], bool]:
+    ) -> Tuple[Union[torch.Tensor, np.ndarray], bool]:
         """Convert to torch/numpy, as required. Also return the original state so that after the transform,
         the data can be reverted to its original type.
         """
