@@ -1483,7 +1483,7 @@ class RandAffine(RandomizableTransform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
         self.randomize()
-        # if not doing transform and spatial size not defined, nothing to do
+        # if not doing transform and spatial size doesn't change, nothing to do
         # except convert to float and convert numpy/torch
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
         do_resampling = self._do_transform or (sp_size != ensure_tuple(img.shape[1:]))
