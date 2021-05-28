@@ -165,7 +165,7 @@ jobs:
           python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
 
           python -m pip install -r requirements-dev.txt
-          BUILD_MONAI=1 python ./tests/runner.py -p 'test_((?!integration).)'  # unit tests
+          PYTHONPATH=$(pwd):$PYTHONPATH BUILD_MONAI=1 python ./tests/runner.py -p 'test_((?!integration).)'  # unit tests
           if pgrep python; then pkill python; fi
 
   cron-docker:
