@@ -13,6 +13,7 @@ import unittest
 
 import numpy as np
 from parameterized import parameterized
+import torch
 
 from monai.transforms import Transpose
 
@@ -31,9 +32,10 @@ class TestTranspose(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_transpose(self, im, indices):
         tr = Transpose(indices)
-        out1 = tr(im)
-        out2 = np.transpose(im, indices)
-        np.testing.assert_array_equal(out1, out2)
+        for array_class in (np.array, torch.Tensor):
+            out1 = tr(array_class(im))
+            out2 = np.transpose(im, indices)
+            np.testing.assert_array_equal(out1, out2)
 
 
 if __name__ == "__main__":

@@ -22,7 +22,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike
-from monai.transforms.transform import Randomizable, Transform, convert_data_type
+from monai.transforms.transform import NumpyTransform, Randomizable, Transform, convert_data_type
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points, map_binary_to_indices
 from monai.utils import ensure_tuple, min_version, optional_import
 from monai.utils.enums import DataObjects
@@ -308,13 +308,16 @@ class ToTensor(Transform):
     Converts the input image to a tensor without applying any other transformations.
     """
 
-    def __call__(self, img) -> torch.Tensor:
+    def __call__(self, img: Union[DataObjects.Images, Sequence]) -> torch.Tensor:
         """
         Apply the transform to `img` and make it contiguous.
         """
-        if isinstance(img, torch.Tensor):
-            return img.contiguous()
-        return torch.as_tensor(np.ascontiguousarray(img))
+        if isinstance(img, Sequence):
+            img = torch.Tensor(img)
+        else:
+            img, _ = convert_data_type(img, torch.Tensor)
+            img = img.contiguous()
+        return img
 
 
 class ToNumpy(Transform):
@@ -322,12 +325,16 @@ class ToNumpy(Transform):
     Converts the input data to numpy array, can support list or tuple of numbers and PyTorch Tensor.
     """
 
-    def __call__(self, img) -> np.ndarray:
+    def __call__(self, img: Union[DataObjects.Images, Sequence]) -> np.ndarray:
         """
         Apply the transform to `img` and make it contiguous.
         """
-        img, _ = convert_data_type(img, np.ndarray)
-        return np.ascontiguousarray(img)
+        if isinstance(img, Sequence):
+            img = np.array(img)
+        else:
+            img, _ = convert_data_type(img, np.ndarray)
+            img = np.ascontiguousarray(img)
+        return img
 
 
 class ToCupy(Transform):
@@ -335,7 +342,7 @@ class ToCupy(Transform):
     Converts the input data to CuPy array, can support list or tuple of numbers, NumPy and PyTorch Tensor.
     """
 
-    def __call__(self, img):
+    def __call__(self, img: Union[DataObjects.Images, Sequence]):
         """
         Apply the transform to `img` and make it contiguous.
         """
@@ -355,12 +362,10 @@ class ToPIL(Transform):
         """
         if isinstance(img, PILImageImage):
             return img
-        if isinstance(img, torch.Tensor):
-            img = img.detach().cpu().numpy()
-        return pil_image_fromarray(img)
+        return pil_image_fromarray(ToNumpy()(img))
 
 
-class Transpose(Transform):
+class Transpose(NumpyTransform):
     """
     Transposes the input image based on the given `indices` dimension ordering.
     """
@@ -368,11 +373,13 @@ class Transpose(Transform):
     def __init__(self, indices: Optional[Sequence[int]]) -> None:
         self.indices = None if indices is None else tuple(indices)
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Apply the transform to `img`.
         """
-        return img.transpose(self.indices)  # type: ignore
+        img, orig_type = self.pre_conv_data(img)
+        img = img.transpose(self.indices)  # type: ignore
+        return self.post_convert_data(img, orig_type)
 
 
 class SqueezeDim(Transform):

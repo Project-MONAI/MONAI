@@ -15,49 +15,53 @@ from unittest import skipUnless
 import numpy as np
 import torch
 
-from monai.transforms import ToNumpy
+from monai.transforms import ToTensor
 from monai.utils import optional_import
 
 cp, has_cp = optional_import("cupy")
 
 
-class TestToNumpy(unittest.TestCase):
+class TestToTensor(unittest.TestCase):
     @skipUnless(has_cp, "CuPy is required.")
     def test_cupy_input(self):
         test_data = cp.array([[1, 2], [3, 4]])
         test_data = cp.rot90(test_data)
         self.assertFalse(test_data.flags["C_CONTIGUOUS"])
-        result = ToNumpy()(test_data)
-        self.assertTrue(isinstance(result, np.ndarray))
-        self.assertTrue(result.flags["C_CONTIGUOUS"])
-        np.testing.assert_allclose(result, test_data.get())
+        result = ToTensor()(test_data)
+        self.assertTrue(isinstance(result, torch.Tensor))
+        self.assertTrue(result.is_contiguous())
+        torch.testing.assert_allclose(result, test_data.get())
 
     def test_numpy_input(self):
         test_data = np.array([[1, 2], [3, 4]])
         test_data = np.rot90(test_data)
         self.assertFalse(test_data.flags["C_CONTIGUOUS"])
-        result = ToNumpy()(test_data)
-        self.assertTrue(isinstance(result, np.ndarray))
-        self.assertTrue(result.flags["C_CONTIGUOUS"])
-        np.testing.assert_allclose(result, test_data)
+        result = ToTensor()(test_data)
+        self.assertTrue(isinstance(result, torch.Tensor))
+        self.assertTrue(result.is_contiguous())
+        torch.testing.assert_allclose(result, np.ascontiguousarray(test_data))
 
     def test_tensor_input(self):
         test_data = torch.tensor([[1, 2], [3, 4]])
         test_data = test_data.rot90()
         self.assertFalse(test_data.is_contiguous())
-        result = ToNumpy()(test_data)
-        self.assertTrue(isinstance(result, np.ndarray))
-        self.assertTrue(result.flags["C_CONTIGUOUS"])
-        np.testing.assert_allclose(result, test_data.numpy())
+        result = ToTensor()(test_data)
+        self.assertTrue(isinstance(result, torch.Tensor))
+        self.assertTrue(result.is_contiguous())
+        torch.testing.assert_allclose(result, test_data)
 
     def test_list_tuple(self):
         test_data = [[1, 2], [3, 4]]
-        result = ToNumpy()(test_data)
-        np.testing.assert_allclose(result, np.asarray(test_data))
+        result = ToTensor()(test_data)
+        torch.testing.assert_allclose(result, test_data)
         test_data = ((1, 2), (3, 4))
-        result = ToNumpy()(test_data)
-        np.testing.assert_allclose(result, np.asarray(test_data))
+        result = ToTensor()(test_data)
+        torch.testing.assert_allclose(result, test_data)
 
 
 if __name__ == "__main__":
-    unittest.main()
+    # unittest.main()
+    a = TestToTensor()
+    a.test_list_tuple()
+    a.test_numpy_input()
+    a.test_tensor_input()

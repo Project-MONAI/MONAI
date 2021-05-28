@@ -41,7 +41,7 @@ def convert_data_type(data, output_type: type) -> Tuple[DataObjects.Images, type
     orig_type = type(data)
     assert orig_type in (torch.Tensor, np.ndarray), f"Expected types {(torch.Tensor, np.ndarray)}, got {orig_type}"
     if orig_type is np.ndarray and output_type is torch.Tensor:
-        data = torch.Tensor(data)
+        data = torch.Tensor(np.ascontiguousarray(data))
     elif orig_type is torch.Tensor and output_type is np.ndarray:
         data = data.detach().cpu().numpy()
 
