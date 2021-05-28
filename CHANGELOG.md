@@ -6,6 +6,40 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 ## [0.5.3] - 2021-05-28
+### Changed
+* Project default branch renamed to `dev` from `master`
+* Base Docker image upgraded to `nvcr.io/nvidia/pytorch:21.02-py3` from `nvcr.io/nvidia/pytorch:21.04-py3`
+* Enhanced type checks for the `iteration_metric` handler
+* Enhanced `PersistentDataset` to use `tempfile` during caching computation
+* Enhanced various info/error messages
+* Enhanced performance of `RandAffine`
+* Enhanced performance of `SmartCacheDataset`
+* Optionally requires `cucim` when the platform is `Linux`
+* Default `device` of `TestTimeAugmentation` changed to `cpu`
+
+### Fixed
+* Download utilities now provide better default parameters
+* Duplicated `key_transforms` in the patch-based transforms
+* A multi-GPU issue in `ClassificationSaver`
+* A default `meta_data` issue in `SpacingD`
+* Dataset caching issue with the persistent data loader workers
+* A memory issue in `permutohedral_cuda`
+* Dictionary key issue in `CopyItemsd`
+* `box_start` and `box_end` parameters for deepgrow `SpatialCropForegroundd`
+* Tissue mask array transpose issue in `MaskedInferenceWSIDataset`
+* Various type hint errors
+* Various docstring typos
+
+### Added
+* Support of `to_tensor` and `device` arguments for `TransformInverter`
+* Slicing options with SpatialCrop
+* Class name alias for the networks for backward compatibility
+* `k_divisible` option for CropForeground
+* `map_items` option for `Compose`
+* Warnings of `inf` and `nan` for surface distance computation
+* A `print_log` flag to the image savers
+* Basic testing pipelines for Python 3.9
+
 ## [0.5.0] - 2021-04-09
 ### Added
 * Overview document for [feature highlights in v0.5.0](https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md)
