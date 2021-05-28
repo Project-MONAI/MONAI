@@ -14,7 +14,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 from copy import deepcopy
-from typing import Any, Dict, Hashable, Union
+from typing import Any, Union
 
 import numpy as np
 import torch
@@ -24,7 +24,7 @@ from monai.transforms.compose import Compose
 from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.utility.array import ToTensor
-from monai.utils.enums import InverseKeys, Method, NumpyPadMode
+from monai.utils.enums import DataObjects, InverseKeys, Method, NumpyPadMode
 
 __all__ = [
     "PadListDataCollate",
@@ -116,7 +116,7 @@ class PadListDataCollate(InvertibleTransform):
         return list_data_collate(batch)
 
     @staticmethod
-    def inverse(data: dict) -> Dict[Hashable, np.ndarray]:
+    def inverse(data: dict) -> DataObjects.Dict:
         if not isinstance(data, dict):
             raise RuntimeError("Inverse can only currently be applied on dictionaries.")
 

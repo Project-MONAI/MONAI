@@ -18,6 +18,7 @@ from monai.data.png_writer import write_png
 from monai.data.utils import create_file_basename
 from monai.utils import ImageMetaKey as Key
 from monai.utils import InterpolateMode
+from monai.utils.enums import DataObjects
 
 
 class PNGSaver:
@@ -74,7 +75,7 @@ class PNGSaver:
 
         self._data_index = 0
 
-    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
+    def save(self, data: DataObjects.Images, meta_data: Optional[Dict] = None) -> None:
         """
         Save data into a png file.
         The meta_data could optionally have the following keys:
@@ -128,7 +129,7 @@ class PNGSaver:
         if self.print_log:
             print(f"file written: {path}.")
 
-    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
+    def save_batch(self, batch_data: DataObjects.Images, meta_data: Optional[Dict] = None) -> None:
         """Save a batch of data into png format files.
 
         Args:

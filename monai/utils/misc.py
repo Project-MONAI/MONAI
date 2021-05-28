@@ -22,8 +22,6 @@ from typing import Any, Callable, Optional, Sequence, Tuple, Union, cast
 import numpy as np
 import torch
 
-from monai.utils.enums import TransformTypes
-
 __all__ = [
     "zip_with",
     "star_zip_with",
@@ -44,7 +42,6 @@ __all__ = [
     "MAX_SEED",
     "copy_to_device",
     "ImageMetaKey",
-    "convert_data_type",
 ]
 
 _seed = None
@@ -362,15 +359,3 @@ class ImageMetaKey:
 
     FILENAME_OR_OBJ = "filename_or_obj"
     PATCH_INDEX = "patch_index"
-
-
-def convert_data_type(data, output_type: type) -> Tuple[TransformTypes.Images, type]:
-    """Convert to torch.Tensor/np.ndarray."""
-    orig_type = type(data)
-    assert orig_type in (torch.Tensor, np.ndarray)
-    if orig_type is np.ndarray and output_type is torch.Tensor:
-        data = torch.Tensor(data)
-    elif orig_type is torch.Tensor and output_type is np.ndarray:
-        data = data.detach().cpu().numpy()
-
-    return data, orig_type

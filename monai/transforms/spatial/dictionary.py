@@ -53,7 +53,7 @@ from monai.utils import (
     ensure_tuple_rep,
     fall_back_tuple,
 )
-from monai.utils.enums import InverseKeys, TransformTypes
+from monai.utils.enums import DataObjects, InverseKeys
 from monai.utils.module import optional_import
 
 nib, _ = optional_import("nibabel")
@@ -239,7 +239,7 @@ class Spacingd(MapTransform, InvertibleTransform):
             meta_data["affine"] = new_affine
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = deepcopy(dict(data))
         for key, dtype in self.key_iterator(d, self.dtype):
             transform = self.get_most_recent_transform(d, key)
@@ -348,7 +348,7 @@ class Orientationd(MapTransform, InvertibleTransform):
             d[meta_key]["affine"] = new_affine
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -388,14 +388,14 @@ class Rotate90d(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.rotator = Rotate90(k, spatial_axes)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key in self.key_iterator(d):
             self.push_transform(d, key)
             d[key] = self.rotator(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             _ = self.get_most_recent_transform(d, key)
@@ -454,7 +454,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         self._rand_k = self.R.randint(self.max_k) + 1
         super().randomize(None)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Mapping[Hashable, np.ndarray]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Mapping:
         self.randomize()
         d = dict(data)
 
@@ -465,7 +465,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
             self.push_transform(d, key, extra_info={"rand_k": self._rand_k})
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -521,7 +521,7 @@ class Resized(MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.resizer = Resize(spatial_size=spatial_size)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key, mode, align_corners in self.key_iterator(d, self.mode, self.align_corners):
             self.push_transform(
@@ -535,7 +535,7 @@ class Resized(MapTransform, InvertibleTransform):
             d[key] = self.resizer(d[key], mode=mode, align_corners=align_corners)
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -616,9 +616,7 @@ class Affined(MapTransform, InvertibleTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: DataObjects.Mapping) -> Dict[Hashable, DataObjects.Images]:
         d = dict(data)
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             orig_size = d[key].shape[1:]
@@ -635,7 +633,7 @@ class Affined(MapTransform, InvertibleTransform):
             )
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
@@ -751,9 +749,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         super().randomize(None)
         self.rand_affine.randomize()
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: DataObjects.Mapping) -> Dict[Hashable, DataObjects.Images]:
         d = dict(data)
         self.randomize()
 
@@ -792,14 +788,14 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
 
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # if transform was not performed and spatial size is None, nothing to do.
             if not transform[InverseKeys.DO_TRANSFORM] and self.rand_affine.spatial_size is None:
-                out: Union[np.ndarray, torch.Tensor] = d[key]
+                out: DataObjects.Images = d[key]
             else:
                 orig_size = transform[InverseKeys.ORIG_SIZE]
                 # Create inverse transform
@@ -915,9 +911,7 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
         super().randomize(None)
         self.rand_2d_elastic.randomize(spatial_size)
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: DataObjects.Mapping) -> Dict[Hashable, DataObjects.Images]:
         d = dict(data)
 
         sp_size = fall_back_tuple(self.rand_2d_elastic.spatial_size, data[self.keys[0]].shape[1:])
@@ -1035,9 +1029,7 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
         super().randomize(None)
         self.rand_3d_elastic.randomize(grid_size)
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: DataObjects.Mapping) -> Dict[Hashable, DataObjects.Images]:
         d = dict(data)
         sp_size = fall_back_tuple(self.rand_3d_elastic.spatial_size, data[self.keys[0]].shape[1:])
 
@@ -1078,14 +1070,14 @@ class Flipd(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
-    def __call__(self, data: TransformTypes.ImageDict) -> TransformTypes.ImageDict:
+    def __call__(self, data: DataObjects.Dict) -> DataObjects.Dict:
         d = dict(data)
         for key in self.key_iterator(d):
             self.push_transform(d, key)
             d[key] = self.flipper(d[key])
         return d
 
-    def inverse(self, data: TransformTypes.ImageDict) -> TransformTypes.ImageDict:
+    def inverse(self, data: DataObjects.Dict) -> DataObjects.Dict:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             _ = self.get_most_recent_transform(d, key)
@@ -1124,7 +1116,7 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
 
         self.flipper = Flip(spatial_axis=spatial_axis)
 
-    def __call__(self, data: TransformTypes.ImageDict) -> TransformTypes.ImageDict:
+    def __call__(self, data: DataObjects.Dict) -> DataObjects.Dict:
         self.randomize(None)
         d = dict(data)
         for key in self.key_iterator(d):
@@ -1133,7 +1125,7 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
             self.push_transform(d, key)
         return d
 
-    def inverse(self, data: TransformTypes.ImageDict) -> TransformTypes.ImageDict:
+    def inverse(self, data: DataObjects.Dict) -> DataObjects.Dict:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -1165,11 +1157,11 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         RandomizableTransform.__init__(self, prob)
         self._axis: Optional[int] = None
 
-    def randomize(self, data: TransformTypes.Images) -> None:
+    def randomize(self, data: DataObjects.Images) -> None:
         super().randomize(None)
         self._axis = self.R.randint(data.ndim - 1)
 
-    def __call__(self, data: TransformTypes.ImageDict) -> TransformTypes.ImageDict:
+    def __call__(self, data: DataObjects.Dict) -> DataObjects.Dict:
         self.randomize(data=data[self.keys[0]])
         flipper = Flip(spatial_axis=self._axis)
 
@@ -1180,7 +1172,7 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
             self.push_transform(d, key, extra_info={"axis": self._axis})
         return d
 
-    def inverse(self, data: TransformTypes.ImageDict) -> TransformTypes.ImageDict:
+    def inverse(self, data: DataObjects.Dict) -> DataObjects.Dict:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -1241,7 +1233,7 @@ class Rotated(MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
@@ -1268,7 +1260,7 @@ class Rotated(MapTransform, InvertibleTransform):
             )
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = deepcopy(dict(data))
         for key, dtype in self.key_iterator(d, self.dtype):
             transform = self.get_most_recent_transform(d, key)
@@ -1375,7 +1367,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
         self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         self.randomize()
         d = dict(data)
         angle: Union[Sequence[float], float] = self.x if d[self.keys[0]].ndim == 3 else (self.x, self.y, self.z)
@@ -1411,7 +1403,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
             )
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = deepcopy(dict(data))
         for key, dtype in self.key_iterator(d, self.dtype):
             transform = self.get_most_recent_transform(d, key)
@@ -1484,7 +1476,7 @@ class Zoomd(MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.zoomer = Zoom(zoom=zoom, keep_size=keep_size)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key, mode, padding_mode, align_corners in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners
@@ -1506,7 +1498,7 @@ class Zoomd(MapTransform, InvertibleTransform):
             )
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -1594,7 +1586,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         super().randomize(None)
         self._zoom = [self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom)]
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         # match the spatial dim of first item
         self.randomize()
         d = dict(data)
@@ -1629,7 +1621,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
                 )
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -1675,9 +1667,7 @@ class AddCoordinateChannelsd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.add_coordinate_channels = AddCoordinateChannels(spatial_channels)
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: DataObjects.Mapping) -> Dict[Hashable, DataObjects.Images]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.add_coordinate_channels(d[key])

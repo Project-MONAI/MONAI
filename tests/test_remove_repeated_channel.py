@@ -11,12 +11,12 @@
 
 import unittest
 
-import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import RemoveRepeatedChannel
 
-TEST_CASE_1 = [{"repeats": 2}, np.array([[1, 2], [1, 2], [3, 4], [3, 4]]), (2, 2)]
+TEST_CASE_1 = [{"repeats": 2}, torch.Tensor([[1, 2], [1, 2], [3, 4], [3, 4]]), (2, 2)]
 
 
 class TestRemoveRepeatedChannel(unittest.TestCase):

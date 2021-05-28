@@ -21,6 +21,7 @@ from torch.nn.modules.loss import _Loss
 from monai.losses.focal_loss import FocalLoss
 from monai.networks import one_hot
 from monai.utils import LossReduction, Weight
+from monai.utils.enums import DataObjects
 
 
 class DiceLoss(_Loss):
@@ -382,7 +383,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
 
     def __init__(
         self,
-        dist_matrix: Union[np.ndarray, torch.Tensor],
+        dist_matrix: DataObjects.Images,
         weighting_mode: str = "default",
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
         smooth_nr: float = 1e-5,

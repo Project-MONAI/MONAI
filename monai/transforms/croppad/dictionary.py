@@ -19,7 +19,7 @@ from copy import deepcopy
 from enum import Enum
 from itertools import chain
 from math import ceil, floor
-from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -45,7 +45,7 @@ from monai.transforms.utils import (
 )
 from monai.utils import ImageMetaKey as Key
 from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
-from monai.utils.enums import InverseKeys
+from monai.utils.enums import DataObjects, InverseKeys
 
 __all__ = [
     "NumpyPadModeSequence",
@@ -130,14 +130,14 @@ class SpatialPadd(MapTransform, InvertibleTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padder = SpatialPad(spatial_size, method)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key, m in self.key_iterator(d, self.mode):
             self.push_transform(d, key, extra_info={"mode": m.value if isinstance(m, Enum) else m})
             d[key] = self.padder(d[key], mode=m)
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -198,14 +198,14 @@ class BorderPadd(MapTransform, InvertibleTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padder = BorderPad(spatial_border=spatial_border)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key, m in self.key_iterator(d, self.mode):
             self.push_transform(d, key, extra_info={"mode": m.value if isinstance(m, Enum) else m})
             d[key] = self.padder(d[key], mode=m)
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
@@ -264,14 +264,14 @@ class DivisiblePadd(MapTransform, InvertibleTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padder = DivisiblePad(k=k)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key, m in self.key_iterator(d, self.mode):
             self.push_transform(d, key, extra_info={"mode": m.value if isinstance(m, Enum) else m})
             d[key] = self.padder(d[key], mode=m)
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
@@ -326,14 +326,14 @@ class SpatialCropd(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.cropper = SpatialCrop(roi_center, roi_size, roi_start, roi_end, roi_slices)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key in self.key_iterator(d):
             self.push_transform(d, key)
             d[key] = self.cropper(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
@@ -373,7 +373,7 @@ class CenterSpatialCropd(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.cropper = CenterSpatialCrop(roi_size)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key in self.key_iterator(d):
             orig_size = d[key].shape[1:]
@@ -381,7 +381,7 @@ class CenterSpatialCropd(MapTransform, InvertibleTransform):
             self.push_transform(d, key, orig_size=orig_size)
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
@@ -421,7 +421,7 @@ class CenterScaleCropd(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys=allow_missing_keys)
         self.roi_scale = roi_scale
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         img_size = data[self.keys[0]].shape[1:]
         ndim = len(img_size)
@@ -481,7 +481,7 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
             valid_size = get_valid_patch_size(img_size, self._size)
             self._slices = (slice(None),) + get_random_patch(img_size, valid_size, self.R)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         self.randomize(d[self.keys[0]].shape[1:])  # image shape from the first data key
         if self._size is None:
@@ -496,7 +496,7 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
                 d[key] = cropper(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
@@ -575,7 +575,7 @@ class RandScaleCropd(RandSpatialCropd):
         self.roi_scale = roi_scale
         self.max_roi_scale = max_roi_scale
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         img_size = data[self.keys[0]].shape[1:]
         ndim = len(img_size)
         self.roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
@@ -656,7 +656,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
     def randomize(self, data: Optional[Any] = None) -> None:
         pass
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> List[Dict[Hashable, np.ndarray]]:
+    def __call__(self, data: DataObjects.Mapping) -> List[DataObjects.Dict]:
         ret = []
         for i in range(self.num_samples):
             d = dict(data)
@@ -731,7 +731,7 @@ class CropForegroundd(MapTransform, InvertibleTransform):
             mode=mode,
         )
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         box_start, box_end = self.cropper.compute_bounding_box(img=d[self.source_key])
         d[self.start_coord_key] = box_start
@@ -741,7 +741,7 @@ class CropForegroundd(MapTransform, InvertibleTransform):
             d[key] = self.cropper.crop_pad(d[key], box_start, box_end)
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -825,12 +825,12 @@ class RandWeightedCropd(Randomizable, MapTransform):
             spatial_size=self.spatial_size, w=weight_map[0], n_samples=self.num_samples, r_state=self.R
         )
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> List[Dict[Hashable, np.ndarray]]:
+    def __call__(self, data: DataObjects.Mapping) -> List[DataObjects.Dict]:
         d = dict(data)
         self.randomize(d[self.w_key])
         _spatial_size = fall_back_tuple(self.spatial_size, d[self.w_key].shape[1:])
 
-        results: List[Dict[Hashable, np.ndarray]] = [{} for _ in range(self.num_samples)]
+        results: List[DataObjects.Dict] = [{} for _ in range(self.num_samples)]
         for key in self.key_iterator(d):
             img = d[key]
             if img.shape[1:] != d[self.w_key].shape[1:]:
@@ -958,7 +958,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
             self.spatial_size, self.num_samples, self.pos_ratio, label.shape[1:], fg_indices_, bg_indices_, self.R
         )
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> List[Dict[Hashable, np.ndarray]]:
+    def __call__(self, data: DataObjects.Mapping) -> List[DataObjects.Dict]:
         d = dict(data)
         label = d[self.label_key]
         image = d[self.image_key] if self.image_key else None
@@ -970,7 +970,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
             raise AssertionError
         if self.centers is None:
             raise AssertionError
-        results: List[Dict[Hashable, np.ndarray]] = [{} for _ in range(self.num_samples)]
+        results: List[DataObjects.Dict] = [{} for _ in range(self.num_samples)]
 
         for i, center in enumerate(self.centers):
             for key in self.key_iterator(d):
@@ -1019,7 +1019,7 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padcropper = ResizeWithPadOrCrop(spatial_size=spatial_size)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key, m in self.key_iterator(d, self.mode):
             orig_size = d[key].shape[1:]
@@ -1034,7 +1034,7 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
             )
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -1094,7 +1094,7 @@ class BoundingRectd(MapTransform):
         self.bbox = BoundingRect(select_fn=select_fn)
         self.bbox_key_postfix = bbox_key_postfix
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         """
         See also: :py:class:`monai.transforms.utils.generate_spatial_bounding_box`.
         """

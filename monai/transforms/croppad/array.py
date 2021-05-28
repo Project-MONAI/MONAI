@@ -18,7 +18,6 @@ from math import ceil
 from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
-import torch
 
 from monai.config import IndexSelection
 from monai.data.utils import get_random_patch, get_valid_patch_size
@@ -32,6 +31,7 @@ from monai.transforms.utils import (
     weighted_patch_samples,
 )
 from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
+from monai.utils.enums import DataObjects
 
 __all__ = [
     "SpatialPad",
@@ -259,7 +259,7 @@ class SpatialCrop(Transform):
             # convert to slices
             self.slices = [slice(s, e) for s, e in zip(roi_start_np, roi_end_np)]
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]):
+    def __call__(self, img: DataObjects.Images):
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.

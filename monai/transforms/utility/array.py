@@ -21,10 +21,11 @@ from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
 
-from monai.config import DtypeLike, NdarrayTensor
-from monai.transforms.transform import Randomizable, Transform
+from monai.config import DtypeLike
+from monai.transforms.transform import Randomizable, Transform, convert_data_type
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points, map_binary_to_indices
 from monai.utils import ensure_tuple, min_version, optional_import
+from monai.utils.enums import DataObjects
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
@@ -66,7 +67,7 @@ class Identity(Transform):
 
     """
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> np.ndarray:
+    def __call__(self, img: DataObjects.Images) -> np.ndarray:
         """
         Apply the transform to `img`.
         """
@@ -94,11 +95,13 @@ class AsChannelFirst(Transform):
             raise AssertionError("invalid channel dimension.")
         self.channel_dim = channel_dim
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Apply the transform to `img`.
         """
-        return np.moveaxis(img, self.channel_dim, 0)
+        img, orig_type = self.pre_conv_data(img)
+        img = torch.moveaxis(img, self.channel_dim, 0)  # type: ignore
+        return self.post_convert_data(img, orig_type)
 
 
 class AsChannelLast(Transform):
@@ -121,11 +124,13 @@ class AsChannelLast(Transform):
             raise AssertionError("invalid channel dimension.")
         self.channel_dim = channel_dim
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Apply the transform to `img`.
         """
-        return np.moveaxis(img, self.channel_dim, -1)
+        img, orig_type = self.pre_conv_data(img)
+        img = torch.moveaxis(img, self.channel_dim, -1)  # type: ignore
+        return self.post_convert_data(img, orig_type)
 
 
 class AddChannel(Transform):
@@ -142,7 +147,7 @@ class AddChannel(Transform):
     transforms.
     """
 
-    def __call__(self, img: NdarrayTensor):
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Apply the transform to `img`.
         """
@@ -158,7 +163,7 @@ class EnsureChannelFirst(Transform):
 
     """
 
-    def __call__(self, img: np.ndarray, meta_dict: Optional[Dict] = None):
+    def __call__(self, img: DataObjects.Images, meta_dict: Optional[Dict] = None) -> DataObjects.Images:
         """
         Apply the transform to `img`.
         """
@@ -189,11 +194,13 @@ class RepeatChannel(Transform):
             raise AssertionError("repeats count must be greater than 0.")
         self.repeats = repeats
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Apply the transform to `img`, assuming `img` is a "channel-first" array.
         """
-        return np.repeat(img, self.repeats, 0)
+        img, orig_type = self.pre_conv_data(img)
+        img = torch.repeat_interleave(img, self.repeats, 0)  # type: ignore
+        return self.post_convert_data(img, orig_type)
 
 
 class RemoveRepeatedChannel(Transform):
@@ -212,14 +219,16 @@ class RemoveRepeatedChannel(Transform):
 
         self.repeats = repeats
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Apply the transform to `img`, assuming `img` is a "channel-first" array.
         """
         if np.shape(img)[0] < 2:
             raise AssertionError("Image must have more than one channel")
 
-        return np.array(img[:: self.repeats, :])
+        img, orig_type = self.pre_conv_data(img)
+        img = torch.Tensor(img[:: self.repeats, :])  # type: ignore
+        return self.post_convert_data(img, orig_type)
 
 
 class SplitChannel(Transform):
@@ -238,7 +247,7 @@ class SplitChannel(Transform):
     def __init__(self, channel_dim: Optional[int] = None) -> None:
         self.channel_dim = channel_dim
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> List[Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, img: DataObjects.Images) -> List[DataObjects.Images]:
         if self.channel_dim is None:
             # automatically select the default channel dim based on data type
             if isinstance(img, torch.Tensor):
@@ -275,8 +284,8 @@ class CastToType(Transform):
         self.dtype = dtype
 
     def __call__(
-        self, img: Union[np.ndarray, torch.Tensor], dtype: Optional[Union[DtypeLike, torch.dtype]] = None
-    ) -> Union[np.ndarray, torch.Tensor]:
+        self, img: DataObjects.Images, dtype: Optional[Union[DtypeLike, torch.dtype]] = None
+    ) -> DataObjects.Images:
         """
         Apply the transform to `img`, assuming `img` is a numpy array or PyTorch Tensor.
 
@@ -317,10 +326,7 @@ class ToNumpy(Transform):
         """
         Apply the transform to `img` and make it contiguous.
         """
-        if isinstance(img, torch.Tensor):
-            img = img.detach().cpu().numpy()  # type: ignore
-        elif has_cp and isinstance(img, cp_ndarray):
-            img = cp.asnumpy(img)  # type: ignore
+        img, _ = convert_data_type(img, np.ndarray)
         return np.ascontiguousarray(img)
 
 
@@ -388,7 +394,7 @@ class SqueezeDim(Transform):
             raise TypeError(f"dim must be None or a int but is {type(dim).__name__}.")
         self.dim = dim
 
-    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Args:
             img: numpy arrays with required dimension `dim` removed
@@ -452,14 +458,14 @@ class DataStats(Transform):
 
     def __call__(
         self,
-        img: NdarrayTensor,
+        img: DataObjects.Images,
         prefix: Optional[str] = None,
         data_type: Optional[bool] = None,
         data_shape: Optional[bool] = None,
         value_range: Optional[bool] = None,
         data_value: Optional[bool] = None,
         additional_info: Optional[Callable] = None,
-    ) -> NdarrayTensor:
+    ) -> DataObjects.Images:
         """
         Apply the transform to `img`, optionally take arguments similar to the class constructor.
         """
@@ -508,7 +514,7 @@ class SimulateDelay(Transform):
         super().__init__()
         self.delay_time: float = delay_time
 
-    def __call__(self, img: NdarrayTensor, delay_time: Optional[float] = None) -> NdarrayTensor:
+    def __call__(self, img: DataObjects.Images, delay_time: Optional[float] = None) -> DataObjects.Images:
         """
         Args:
             img: data remain unchanged throughout this transform.
@@ -546,7 +552,7 @@ class Lambda(Transform):
             raise TypeError(f"func must be None or callable but is {type(func).__name__}.")
         self.func = func
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor], func: Optional[Callable] = None):
+    def __call__(self, img: DataObjects.Images, func: Optional[Callable] = None):
         """
         Apply `self.func` to `img`.
 

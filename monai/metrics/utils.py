@@ -18,6 +18,7 @@ import torch
 from monai.transforms.croppad.array import SpatialCrop
 from monai.transforms.utils import generate_spatial_bounding_box
 from monai.utils import MetricReduction, optional_import
+from monai.utils.enums import DataObjects
 
 binary_erosion, _ = optional_import("scipy.ndimage.morphology", name="binary_erosion")
 distance_transform_edt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_edt")
@@ -27,8 +28,8 @@ __all__ = ["ignore_background", "do_metric_reduction", "get_mask_edges", "get_su
 
 
 def ignore_background(
-    y_pred: Union[np.ndarray, torch.Tensor],
-    y: Union[np.ndarray, torch.Tensor],
+    y_pred: DataObjects.Images,
+    y: DataObjects.Images,
 ):
     """
     This function is used to remove background (the first channel) for `y_pred` and `y`.
@@ -105,8 +106,8 @@ def do_metric_reduction(
 
 
 def get_mask_edges(
-    seg_pred: Union[np.ndarray, torch.Tensor],
-    seg_gt: Union[np.ndarray, torch.Tensor],
+    seg_pred: DataObjects.Images,
+    seg_gt: DataObjects.Images,
     label_idx: int = 1,
     crop: bool = True,
 ) -> Tuple[np.ndarray, np.ndarray]:
