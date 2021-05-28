@@ -236,12 +236,30 @@ class Transform(ABC):
         return data
 
 
+class TorchOrNumpyTransform(Transform):
+    """Transforms that inherit from this class process the input the same regardless of whether
+    the input is torch or numpy. No conversions are needed."""
+    pass
+
+
+class TorchTransform(Transform):
+    """Most transforms use torch. If the transforms inherits from this class, then that is the case.
+    If the input is not torch, convert to torch and then convert back at the end."""
+
+    array_class = torch.Tensor
+
+
 class NumpyTransform(Transform):
     """Most transforms use torch. Transforms that inherit from this class, however, use numpy under the hood.
     This means that if the input image is `torch.Tensor`, it will be converted to numpy and then reverted
     at the end."""
 
     array_class = np.ndarray
+
+
+class ToDoTransform(Transform):
+    """Transforms that inherit from this class are still to be updated. This is a temporary class."""
+    pass
 
 
 class RandomizableTransform(Randomizable, Transform):

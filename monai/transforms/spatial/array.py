@@ -23,7 +23,7 @@ from monai.config import USE_COMPILED, DtypeLike
 from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.transforms.croppad.array import CenterSpatialCrop
-from monai.transforms.transform import Randomizable, RandomizableTransform, ThreadUnsafe, Transform
+from monai.transforms.transform import Randomizable, RandomizableTransform, ThreadUnsafe, ToDoTransform, TorchTransform, Transform
 from monai.transforms.utils import (
     create_control_grid,
     create_grid,
@@ -76,7 +76,7 @@ __all__ = [
 RandRange = Optional[Union[Sequence[Union[Tuple[float, float], float]], float]]
 
 
-class Spacing(Transform):
+class Spacing(ToDoTransform):
     """
     Resample input image into the specified `pixdim`.
     """
@@ -208,7 +208,7 @@ class Spacing(Transform):
         return output_data, affine, new_affine
 
 
-class Orientation(Transform):
+class Orientation(ToDoTransform):
     """
     Change the input image's orientation into the specified based on `axcodes`.
     """
@@ -293,7 +293,7 @@ class Orientation(Transform):
         return data_array, affine, new_affine
 
 
-class Flip(Transform):
+class Flip(TorchTransform):
     """
     Reverses the order of elements along the given spatial axis. Preserves shape.
     Uses ``np.flip`` in practice. See numpy.flip for additional details:
@@ -323,7 +323,7 @@ class Flip(Transform):
         return self.post_convert_data(result, orig_type)
 
 
-class Resize(Transform):
+class Resize(ToDoTransform):
     """
     Resize the input image to given spatial size (with scaling, not cropping/padding).
     Implemented using :py:class:`torch.nn.functional.interpolate`.
@@ -392,7 +392,7 @@ class Resize(Transform):
         return np.asarray(resized)
 
 
-class Rotate(Transform, ThreadUnsafe):
+class Rotate(ToDoTransform, ThreadUnsafe):
     """
     Rotates an input image by given angle using :py:class:`monai.networks.layers.AffineTransform`.
 
@@ -502,7 +502,7 @@ class Rotate(Transform, ThreadUnsafe):
         return self._rotation_matrix
 
 
-class Zoom(Transform):
+class Zoom(ToDoTransform):
     """
     Zooms an ND image using :py:class:`torch.nn.functional.interpolate`.
     For details, please see https://pytorch.org/docs/stable/nn.functional.html#interpolate.
@@ -590,7 +590,7 @@ class Zoom(Transform):
         return zoomed[tuple(slice_vec)]
 
 
-class Rotate90(Transform):
+class Rotate90(ToDoTransform):
     """
     Rotate an array by 90 degrees in the plane specified by `axes`.
     See np.rot90 for additional details:
@@ -622,7 +622,7 @@ class Rotate90(Transform):
         return result.astype(img.dtype)
 
 
-class RandRotate90(RandomizableTransform):
+class RandRotate90(ToDoTransform, RandomizableTransform):
     """
     With probability `prob`, input arrays are rotated by 90 degrees
     in the plane specified by `spatial_axes`.
@@ -659,7 +659,7 @@ class RandRotate90(RandomizableTransform):
         return rotator(img)
 
 
-class RandRotate(RandomizableTransform):
+class RandRotate(ToDoTransform, RandomizableTransform):
     """
     Randomly rotate the input arrays.
 
@@ -763,7 +763,7 @@ class RandRotate(RandomizableTransform):
         return np.array(rotator(img))
 
 
-class RandFlip(RandomizableTransform):
+class RandFlip(TorchTransform, RandomizableTransform):
     """
     Randomly flips the image along axes. Preserves shape.
     See numpy.flip for additional details.
@@ -789,7 +789,7 @@ class RandFlip(RandomizableTransform):
         return self.flipper(img)
 
 
-class RandAxisFlip(RandomizableTransform):
+class RandAxisFlip(TorchTransform, RandomizableTransform):
     """
     Randomly select a spatial axis and flip along it.
     See numpy.flip for additional details.
@@ -820,7 +820,7 @@ class RandAxisFlip(RandomizableTransform):
         return flipper(img)
 
 
-class RandZoom(RandomizableTransform):
+class RandZoom(ToDoTransform, RandomizableTransform):
     """
     Randomly zooms input arrays with given probability within given zoom range.
 
@@ -919,7 +919,7 @@ class RandZoom(RandomizableTransform):
         )
 
 
-class AffineGrid(Transform):
+class AffineGrid(ToDoTransform):
     """
     Affine transforms on the coordinates.
 
@@ -1015,7 +1015,7 @@ class AffineGrid(Transform):
         return grid if self.as_tensor_output else np.asarray(grid.cpu().numpy()), affine
 
 
-class RandAffineGrid(Randomizable, Transform):
+class RandAffineGrid(Randomizable, ToDoTransform):
     """
     Generate randomised affine grid.
     """
@@ -1112,7 +1112,7 @@ class RandAffineGrid(Randomizable, Transform):
         return self.affine
 
 
-class RandDeformGrid(Randomizable, Transform):
+class RandDeformGrid(Randomizable, ToDoTransform):
     """
     Generate random deformation grid.
     """
@@ -1162,7 +1162,7 @@ class RandDeformGrid(Randomizable, Transform):
         return control_grid
 
 
-class Resample(Transform):
+class Resample(ToDoTransform):
     def __init__(
         self,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
