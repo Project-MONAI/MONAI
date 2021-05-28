@@ -18,7 +18,7 @@ import numpy as np
 from nibabel.processing import resample_to_output
 from parameterized import parameterized
 
-from monai.transforms import AddChanneld, LoadImaged, Orientationd, Spacingd
+from monai.transforms import AddChanneld, LoadImaged, Orientationd, Spacingd, convert_data_type
 
 FILES = tuple(
     os.path.join(os.path.dirname(__file__), "testing_data", filename)
@@ -36,7 +36,8 @@ class TestLoadSpacingOrientation(unittest.TestCase):
         res_dict = Spacingd(keys="image", pixdim=(1, 0.2, 1), diagonal=True, padding_mode="zeros")(data_dict)
         t1 = time.time()
         print(f"time monai: {t1 - t}")
-        anat = nibabel.Nifti1Image(data_dict["image"][0], data_dict["image_meta_dict"]["original_affine"])
+        im_np, _ = convert_data_type(data_dict["image"][0], np.ndarray)
+        anat = nibabel.Nifti1Image(im_np, data_dict["image_meta_dict"]["original_affine"])
         ref = resample_to_output(anat, (1, 0.2, 1), order=1)
         t2 = time.time()
         print(f"time scipy: {t2 - t1}")
@@ -58,7 +59,8 @@ class TestLoadSpacingOrientation(unittest.TestCase):
         res_dict = Spacingd(keys="image", pixdim=(1, 2, 3), diagonal=True, padding_mode="zeros")(data_dict)
         t1 = time.time()
         print(f"time monai: {t1 - t}")
-        anat = nibabel.Nifti1Image(data_dict["image"][0], data_dict["image_meta_dict"]["original_affine"])
+        im_np, _ = convert_data_type(data_dict["image"][0], np.ndarray)
+        anat = nibabel.Nifti1Image(im_np, data_dict["image_meta_dict"]["original_affine"])
         ref = resample_to_output(anat, (1, 2, 3), order=1)
         t2 = time.time()
         print(f"time scipy: {t2 - t1}")

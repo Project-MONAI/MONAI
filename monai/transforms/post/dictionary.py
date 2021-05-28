@@ -17,7 +17,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 import warnings
 from copy import deepcopy
-from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Union
+from typing import Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -41,7 +41,7 @@ from monai.transforms.transform import MapTransform
 from monai.transforms.utility.array import ToTensor
 from monai.transforms.utils import allow_missing_keys_mode, convert_inverse_interp_mode
 from monai.utils import ensure_tuple, ensure_tuple_rep
-from monai.utils.enums import InverseKeys
+from monai.utils.enums import DataObjects, InverseKeys
 
 __all__ = [
     "Activationsd",
@@ -407,7 +407,7 @@ class ProbNMSd(MapTransform):
             box_size=box_size,
         )
 
-    def __call__(self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]):
+    def __call__(self, data: DataObjects.Mapping):
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.prob_nms(d[key])
@@ -513,7 +513,7 @@ class Invertd(MapTransform):
         self.post_func = ensure_tuple_rep(post_func, len(self.keys))
         self._totensor = ToTensor()
 
-    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for (
             key,

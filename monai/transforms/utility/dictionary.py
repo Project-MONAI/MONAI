@@ -23,7 +23,7 @@ from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Seque
 import numpy as np
 import torch
 
-from monai.config import DtypeLike, KeysCollection, NdarrayTensor
+from monai.config import DtypeLike, KeysCollection
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable
 from monai.transforms.utility.array import (
@@ -53,7 +53,7 @@ from monai.transforms.utility.array import (
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.utils import ensure_tuple, ensure_tuple_rep
-from monai.utils.enums import InverseKeys
+from monai.utils.enums import DataObjects, InverseKeys
 
 __all__ = [
     "AddChannelD",
@@ -165,9 +165,7 @@ class Identityd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.identity = Identity()
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: DataObjects.Mapping) -> Dict[Hashable, DataObjects.Images]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.identity(d[key])
@@ -190,7 +188,7 @@ class AsChannelFirstd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = AsChannelFirst(channel_dim=channel_dim)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -213,7 +211,7 @@ class AsChannelLastd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = AsChannelLast(channel_dim=channel_dim)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -235,7 +233,7 @@ class AddChanneld(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.adder = AddChannel()
 
-    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.adder(d[key])
@@ -272,7 +270,7 @@ class EnsureChannelFirstd(MapTransform):
         self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
-    def __call__(self, data) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key, meta_key, meta_key_postfix in zip(self.keys, self.meta_keys, self.meta_key_postfix):
             d[key] = self.adjuster(d[key], d[meta_key or f"{key}_{meta_key_postfix}"])
@@ -295,7 +293,7 @@ class RepeatChanneld(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.repeater = RepeatChannel(repeats)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.repeater(d[key])
@@ -318,7 +316,7 @@ class RemoveRepeatedChanneld(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.repeater = RemoveRepeatedChannel(repeats)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.repeater(d[key])
@@ -358,9 +356,7 @@ class SplitChanneld(MapTransform):
         self.output_postfixes = output_postfixes
         self.splitter = SplitChannel(channel_dim=channel_dim)
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: DataObjects.Mapping) -> Dict[Hashable, DataObjects.Images]:
         d = dict(data)
         for key in self.key_iterator(d):
             rets = self.splitter(d[key])
@@ -400,9 +396,7 @@ class CastToTyped(MapTransform):
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.converter = CastToType()
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[np.ndarray, torch.Tensor]]
-    ) -> Dict[Hashable, Union[np.ndarray, torch.Tensor]]:
+    def __call__(self, data: DataObjects.Mapping) -> Dict[Hashable, DataObjects.Images]:
         d = dict(data)
         for key, dtype in self.key_iterator(d, self.dtype):
             d[key] = self.converter(d[key], dtype=dtype)
@@ -425,14 +419,14 @@ class ToTensord(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = ToTensor()
 
-    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key in self.key_iterator(d):
             self.push_transform(d, key)
             d[key] = self.converter(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+    def inverse(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             # Create inverse transform
@@ -459,7 +453,7 @@ class ToNumpyd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = ToNumpy()
 
-    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -481,7 +475,7 @@ class ToCupyd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = ToCupy()
 
-    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -503,7 +497,7 @@ class ToPILd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = ToPIL()
 
-    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -521,7 +515,7 @@ class Transposed(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.transform = Transpose(indices)
 
-    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.transform(d[key])
@@ -530,7 +524,7 @@ class Transposed(MapTransform, InvertibleTransform):
             self.push_transform(d, key, extra_info={"indices": indices})
         return d
 
-    def inverse(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+    def inverse(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -582,7 +576,7 @@ class SqueezeDimd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = SqueezeDim(dim=dim)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -640,7 +634,7 @@ class DataStatsd(MapTransform):
         self.logger_handler = logger_handler
         self.printer = DataStats(logger_handler=logger_handler)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key, prefix, data_type, data_shape, value_range, data_value, additional_info in self.key_iterator(
             d, self.prefix, self.data_type, self.data_shape, self.value_range, self.data_value, self.additional_info
@@ -678,7 +672,7 @@ class SimulateDelayd(MapTransform):
         self.delay_time = ensure_tuple_rep(delay_time, len(self.keys))
         self.delayer = SimulateDelay()
 
-    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key, delay_time in self.key_iterator(d, self.delay_time):
             d[key] = self.delayer(d[key], delay_time=delay_time)
@@ -879,7 +873,7 @@ class LabelToMaskd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = LabelToMask(select_labels=select_labels, merge_channels=merge_channels)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -923,7 +917,7 @@ class FgBgToIndicesd(MapTransform):
         self.image_key = image_key
         self.converter = FgBgToIndices(image_threshold, output_shape)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         image = d[self.image_key] if self.image_key else None
         for key in self.key_iterator(d):
@@ -947,7 +941,7 @@ class ConvertToMultiChannelBasedOnBratsClassesd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = ConvertToMultiChannelBasedOnBratsClasses()
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -1126,7 +1120,7 @@ class MapLabelValued(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.mapper = MapLabelValue(orig_labels=orig_labels, target_labels=target_labels, dtype=dtype)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.mapper(d[key])

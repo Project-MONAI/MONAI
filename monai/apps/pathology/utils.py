@@ -9,13 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Union
+from typing import List
 
 import numpy as np
-import torch
 
 from monai.transforms.post.array import ProbNMS
 from monai.utils import optional_import
+from monai.utils.enums import DataObjects
 
 measure, _ = optional_import("skimage.measure")
 ndimage, _ = optional_import("scipy.ndimage")
@@ -67,7 +67,7 @@ class PathologyProbNMS(ProbNMS):
 
     def __call__(
         self,
-        probs_map: Union[np.ndarray, torch.Tensor],
+        probs_map: DataObjects.Images,
         resolution_level: int = 0,
     ):
         """

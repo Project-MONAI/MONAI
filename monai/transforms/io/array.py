@@ -26,6 +26,7 @@ from monai.transforms.transform import Transform
 from monai.utils import GridSampleMode, GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
 from monai.utils import InterpolateMode, ensure_tuple, optional_import
+from monai.utils.enums import DataObjects
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
@@ -70,6 +71,7 @@ class LoadImage(Transform):
         reader: Optional[Union[ImageReader, str]] = None,
         image_only: bool = False,
         dtype: DtypeLike = np.float32,
+        as_tensor: bool = True,
         *args,
         **kwargs,
     ) -> None:
@@ -81,6 +83,7 @@ class LoadImage(Transform):
                 "PILReader", "ITKReader", "NumpyReader".
             image_only: if True return only the image volume, otherwise return image data array and header dict.
             dtype: if not None convert the loaded image to this data type.
+            as_tensor: output as `torch.Tensor`, defaults to `True`.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
 
@@ -108,6 +111,7 @@ class LoadImage(Transform):
 
         self.image_only = image_only
         self.dtype = dtype
+        self.as_tensor = as_tensor
 
     def register(self, reader: ImageReader) -> List[ImageReader]:
         """
@@ -152,8 +156,13 @@ class LoadImage(Transform):
             )
 
         img = reader.read(filename)
+        img_array: DataObjects.Images
         img_array, meta_data = reader.get_data(img)
         img_array = img_array.astype(self.dtype)
+
+        # convert to desired output type
+        if self.as_tensor:
+            img_array = torch.Tensor(img_array)
 
         if self.image_only:
             return img_array
@@ -274,7 +283,7 @@ class SaveImage(Transform):
 
         self.save_batch = save_batch
 
-    def __call__(self, img: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None):
+    def __call__(self, img: DataObjects.Images, meta_data: Optional[Dict] = None):
         """
         Args:
             img: target data content that save into file.

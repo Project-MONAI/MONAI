@@ -10,17 +10,19 @@
 # limitations under the License.
 
 
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
 
+from monai.utils.enums import DataObjects
+
 
 def compute_fp_tp_probs(
-    probs: Union[np.ndarray, torch.Tensor],
-    y_coord: Union[np.ndarray, torch.Tensor],
-    x_coord: Union[np.ndarray, torch.Tensor],
-    evaluation_mask: Union[np.ndarray, torch.Tensor],
+    probs: DataObjects.Images,
+    y_coord: DataObjects.Images,
+    x_coord: DataObjects.Images,
+    evaluation_mask: DataObjects.Images,
     labels_to_exclude: Optional[List] = None,
     resolution_level: int = 0,
 ):
@@ -77,8 +79,8 @@ def compute_fp_tp_probs(
 
 
 def compute_froc_curve_data(
-    fp_probs: Union[np.ndarray, torch.Tensor],
-    tp_probs: Union[np.ndarray, torch.Tensor],
+    fp_probs: DataObjects.Images,
+    tp_probs: DataObjects.Images,
     num_targets: int,
     num_images: int,
 ):

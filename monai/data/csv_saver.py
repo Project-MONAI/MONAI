@@ -12,12 +12,13 @@
 import os
 import warnings
 from collections import OrderedDict
-from typing import Dict, Optional, Union
+from typing import Dict, Optional
 
 import numpy as np
 import torch
 
 from monai.utils import ImageMetaKey as Key
+from monai.utils.enums import DataObjects
 
 
 class CSVSaver:
@@ -75,7 +76,7 @@ class CSVSaver:
         # clear cache content after writing
         self.reset_cache()
 
-    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
+    def save(self, data: DataObjects.Images, meta_data: Optional[Dict] = None) -> None:
         """Save data into the cache dictionary. The metadata should have the following key:
             - ``'filename_or_obj'`` -- save the data corresponding to file name or object.
         If meta_data is None, use the default index from 0 to save data instead.
@@ -93,7 +94,7 @@ class CSVSaver:
             raise AssertionError
         self._cache_dict[save_key] = data.astype(np.float32)
 
-    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
+    def save_batch(self, batch_data: DataObjects.Images, meta_data: Optional[Dict] = None) -> None:
         """Save a batch of data into the cache dictionary.
 
         Args:

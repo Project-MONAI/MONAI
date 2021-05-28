@@ -14,7 +14,7 @@ A collection of generic interfaces for MONAI transforms.
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Generator, Hashable, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Generator, Hashable, Iterable, List, Optional, Tuple, Type, Union
 
 import numpy as np
 import torch
@@ -22,8 +22,30 @@ import torch
 from monai import transforms
 from monai.config import KeysCollection
 from monai.utils import MAX_SEED, ensure_tuple
+from monai.utils.enums import DataObjects
 
-__all__ = ["ThreadUnsafe", "apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
+__all__ = [
+    "ThreadUnsafe",
+    "apply_transform",
+    "Randomizable",
+    "RandomizableTransform",
+    "Transform",
+    "MapTransform",
+    "convert_data_type",
+    "NumpyTransform",
+]
+
+
+def convert_data_type(data, output_type: type) -> Tuple[DataObjects.Images, type]:
+    """Convert to torch.Tensor/np.ndarray."""
+    orig_type = type(data)
+    assert orig_type in (torch.Tensor, np.ndarray), f"Expected types {(torch.Tensor, np.ndarray)}, got {orig_type}"
+    if orig_type is np.ndarray and output_type is torch.Tensor:
+        data = torch.Tensor(data)
+    elif orig_type is torch.Tensor and output_type is np.ndarray:
+        data = data.detach().cpu().numpy()
+
+    return data, orig_type
 
 
 def apply_transform(transform: Callable, data, map_items: bool = True):
@@ -169,6 +191,9 @@ class Transform(ABC):
         :py:class:`monai.transforms.Compose`
     """
 
+    array_class: Union[Type[torch.Tensor], Type[np.ndarray]]
+    array_class = torch.Tensor
+
     @abstractmethod
     def __call__(self, data: Any):
         """
@@ -196,6 +221,27 @@ class Transform(ABC):
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+
+    def pre_conv_data(self, data: DataObjects.Images) -> Tuple[DataObjects.Images, type]:
+        """Convert to torch/numpy, as required. Also return the original state so that after the transform,
+        the data can be reverted to its original type.
+        """
+        data, orig_type = convert_data_type(data, self.array_class)
+        return data, orig_type
+
+    @staticmethod
+    def post_convert_data(data: DataObjects.Images, output_type: type) -> DataObjects.Images:
+        """Convert back to original type."""
+        data, _ = convert_data_type(data, output_type)
+        return data
+
+
+class NumpyTransform(Transform):
+    """Most transforms use torch. Transforms that inherit from this class, however, use numpy under the hood.
+    This means that if the input image is `torch.Tensor`, it will be converted to numpy and then reverted
+    at the end."""
+
+    array_class = np.ndarray
 
 
 class RandomizableTransform(Randomizable, Transform):
@@ -308,7 +354,7 @@ class MapTransform(Transform):
 
     def key_iterator(
         self,
-        data: Dict[Hashable, Any],
+        data: DataObjects.Dict,
         *extra_iterables: Optional[Iterable],
     ) -> Generator:
         """

@@ -17,6 +17,7 @@ import torch
 
 from monai.metrics.utils import do_metric_reduction, get_mask_edges, get_surface_distance, ignore_background
 from monai.utils import MetricReduction
+from monai.utils.enums import DataObjects
 
 __all__ = ["HausdorffDistanceMetric", "compute_hausdorff_distance", "compute_percent_hausdorff_distance"]
 
@@ -98,8 +99,8 @@ class HausdorffDistanceMetric:
 
 
 def compute_hausdorff_distance(
-    y_pred: Union[np.ndarray, torch.Tensor],
-    y: Union[np.ndarray, torch.Tensor],
+    y_pred: DataObjects.Images,
+    y: DataObjects.Images,
     include_background: bool = False,
     distance_metric: str = "euclidean",
     percentile: Optional[float] = None,

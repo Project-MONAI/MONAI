@@ -61,6 +61,7 @@ class LoadImaged(MapTransform):
         meta_key_postfix: str = "meta_dict",
         overwriting: bool = False,
         image_only: bool = False,
+        as_tensor: bool = True,
         allow_missing_keys: bool = False,
         *args,
         **kwargs,
@@ -85,12 +86,13 @@ class LoadImaged(MapTransform):
                 default is False, which will raise exception if encountering existing key.
             image_only: if True return dictionary containing just only the image volumes, otherwise return
                 dictionary containing image data array and header dict per input key.
+            as_tensor: output as `torch.Tensor`, defaults to `True`.
             allow_missing_keys: don't raise exception if key is missing.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
         """
         super().__init__(keys, allow_missing_keys)
-        self._loader = LoadImage(reader, image_only, dtype, *args, **kwargs)
+        self._loader = LoadImage(reader, image_only, dtype, as_tensor, *args, **kwargs)
         if not isinstance(meta_key_postfix, str):
             raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
         self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)

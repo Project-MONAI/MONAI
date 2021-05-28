@@ -17,6 +17,7 @@ import torch
 
 from monai.metrics.utils import do_metric_reduction, get_mask_edges, get_surface_distance, ignore_background
 from monai.utils import MetricReduction
+from monai.utils.enums import DataObjects
 
 
 class SurfaceDistanceMetric:
@@ -88,8 +89,8 @@ class SurfaceDistanceMetric:
 
 
 def compute_average_surface_distance(
-    y_pred: Union[np.ndarray, torch.Tensor],
-    y: Union[np.ndarray, torch.Tensor],
+    y_pred: DataObjects.Images,
+    y: DataObjects.Images,
     include_background: bool = False,
     symmetric: bool = False,
     distance_metric: str = "euclidean",

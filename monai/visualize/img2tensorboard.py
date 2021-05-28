@@ -9,13 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Dict, Optional, Sequence
 
 import numpy as np
 import torch
 
 from monai.transforms import rescale_array
 from monai.utils import optional_import
+from monai.utils.enums import DataObjects
 
 PIL, _ = optional_import("PIL")
 GifImage, _ = optional_import("PIL.GifImagePlugin", name="Image")
@@ -31,7 +32,7 @@ else:
 __all__ = ["make_animated_gif_summary", "add_animated_gif", "add_animated_gif_no_channels", "plot_2d_or_3d_image"]
 
 
-def _image3_animated_gif(tag: str, image: Union[np.ndarray, torch.Tensor], scale_factor: float = 1.0) -> Summary:
+def _image3_animated_gif(tag: str, image: DataObjects.Images, scale_factor: float = 1.0) -> Summary:
     """Function to actually create the animated gif.
 
     Args:
@@ -60,7 +61,7 @@ def _image3_animated_gif(tag: str, image: Union[np.ndarray, torch.Tensor], scale
 
 def make_animated_gif_summary(
     tag: str,
-    image: Union[np.ndarray, torch.Tensor],
+    image: DataObjects.Images,
     max_out: int = 3,
     animation_axes: Sequence[int] = (3,),
     image_axes: Sequence[int] = (1, 2),
@@ -95,7 +96,7 @@ def make_animated_gif_summary(
     image = image[tuple(slicing)]
 
     for it_i in range(min(max_out, list(image.shape)[0])):
-        one_channel_img: Union[torch.Tensor, np.ndarray] = (
+        one_channel_img: DataObjects.Images = (
             image[it_i, :, :, :].squeeze(dim=0) if isinstance(image, torch.Tensor) else image[it_i, :, :, :]
         )
         summary_op = _image3_animated_gif(tag + suffix.format(it_i), one_channel_img, scale_factor)
@@ -105,7 +106,7 @@ def make_animated_gif_summary(
 def add_animated_gif(
     writer: SummaryWriter,
     tag: str,
-    image_tensor: Union[np.ndarray, torch.Tensor],
+    image_tensor: DataObjects.Images,
     max_out: int,
     scale_factor: float,
     global_step: Optional[int] = None,
@@ -132,7 +133,7 @@ def add_animated_gif(
 def add_animated_gif_no_channels(
     writer: SummaryWriter,
     tag: str,
-    image_tensor: Union[np.ndarray, torch.Tensor],
+    image_tensor: DataObjects.Images,
     max_out: int,
     scale_factor: float,
     global_step: Optional[int] = None,
@@ -159,7 +160,7 @@ def add_animated_gif_no_channels(
 
 
 def plot_2d_or_3d_image(
-    data: Union[torch.Tensor, np.ndarray],
+    data: DataObjects.Images,
     step: int,
     writer: SummaryWriter,
     index: int = 0,

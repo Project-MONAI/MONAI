@@ -17,6 +17,7 @@ import numpy as np
 import torch
 
 from monai.utils import ensure_tuple, exact_version, get_torch_version_tuple, optional_import
+from monai.utils.enums import DataObjects
 
 idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
 if TYPE_CHECKING:
@@ -123,8 +124,8 @@ def string_list_all_gather(strings: List[str]) -> List[str]:
 def write_metrics_reports(
     save_dir: str,
     images: Optional[Sequence[str]],
-    metrics: Optional[Dict[str, Union[torch.Tensor, np.ndarray]]],
-    metric_details: Optional[Dict[str, Union[torch.Tensor, np.ndarray]]],
+    metrics: Optional[Dict[str, DataObjects.Images]],
+    metric_details: Optional[Dict[str, DataObjects.Images]],
     summary_ops: Optional[Union[str, Sequence[str]]],
     deli: str = "\t",
     output_type: str = "csv",

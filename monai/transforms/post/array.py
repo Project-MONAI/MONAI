@@ -25,6 +25,7 @@ from monai.networks.layers import GaussianFilter
 from monai.transforms.transform import Transform
 from monai.transforms.utils import get_largest_connected_component_mask
 from monai.utils import ensure_tuple
+from monai.utils.enums import DataObjects
 
 __all__ = [
     "Activations",
@@ -485,7 +486,7 @@ class ProbNMS(Transform):
 
     def __call__(
         self,
-        prob_map: Union[np.ndarray, torch.Tensor],
+        prob_map: DataObjects.Images,
     ):
         """
         prob_map: the input probabilities map, it must have shape (H[, W, ...]).

@@ -34,6 +34,7 @@ from monai.utils import (
     min_version,
     optional_import,
 )
+from monai.utils.enums import DataObjects
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 
@@ -92,7 +93,7 @@ def in_bounds(x: float, y: float, margin: float, maxx: float, maxy: float) -> bo
     return bool(margin <= x < (maxx - margin) and margin <= y < (maxy - margin))
 
 
-def is_empty(img: Union[np.ndarray, torch.Tensor]) -> bool:
+def is_empty(img: DataObjects.Images) -> bool:
     """
     Returns True if `img` is empty, that is its maximum value is not greater than its minimum.
     """

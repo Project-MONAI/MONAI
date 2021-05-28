@@ -31,6 +31,7 @@ from monai.utils import (
     ensure_tuple_rep,
     ensure_tuple_size,
 )
+from monai.utils.enums import DataObjects
 
 __all__ = [
     "RandGaussianNoise",
@@ -81,7 +82,7 @@ class RandGaussianNoise(RandomizableTransform):
         super().randomize(None)
         self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
 
-    def __call__(self, img: Union[torch.Tensor, np.ndarray]) -> Union[torch.Tensor, np.ndarray]:
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Apply the transform to `img`.
         """
@@ -136,7 +137,7 @@ class RandRicianNoise(RandomizableTransform):
         self._noise1 = None
         self._noise2 = None
 
-    def _add_noise(self, img: Union[torch.Tensor, np.ndarray], mean: float, std: float):
+    def _add_noise(self, img: DataObjects.Images, mean: float, std: float):
         im_shape = img.shape
         _std = self.R.uniform(0, std) if self.sample_std else std
         self._noise1 = self.R.normal(mean, _std, size=im_shape)
@@ -146,7 +147,7 @@ class RandRicianNoise(RandomizableTransform):
         dtype = dtype_torch_to_numpy(img.dtype) if isinstance(img, torch.Tensor) else img.dtype
         return np.sqrt((img + self._noise1.astype(dtype)) ** 2 + self._noise2.astype(dtype) ** 2)
 
-    def __call__(self, img: Union[torch.Tensor, np.ndarray]) -> Union[torch.Tensor, np.ndarray]:
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Apply the transform to `img`.
         """
@@ -1174,7 +1175,7 @@ class RandGibbsNoise(RandomizableTransform):
 
         RandomizableTransform.__init__(self, prob=prob)
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> Union[torch.Tensor, np.ndarray]:
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
 
         # randomize application and possibly alpha
         self._randomize(None)
@@ -1226,7 +1227,7 @@ class GibbsNoise(Transform):
         self.as_tensor_output = as_tensor_output
         self._device = torch.device("cpu")
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> Union[torch.Tensor, np.ndarray]:
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         n_dims = len(img.shape[1:])
 
         # convert to ndarray to work with np.fft
@@ -1243,7 +1244,7 @@ class GibbsNoise(Transform):
         img = self._inv_shift_fourier(k, n_dims)
         return torch.Tensor(img).to(_device or self._device) if self.as_tensor_output else img
 
-    def _shift_fourier(self, x: Union[np.ndarray, torch.Tensor], n_dims: int) -> np.ndarray:
+    def _shift_fourier(self, x: DataObjects.Images, n_dims: int) -> np.ndarray:
         """
         Applies fourier transform and shifts its output.
         Only the spatial dimensions get transformed.
@@ -1254,7 +1255,7 @@ class GibbsNoise(Transform):
         out: np.ndarray = np.fft.fftshift(np.fft.fftn(x, axes=tuple(range(-n_dims, 0))), axes=tuple(range(-n_dims, 0)))
         return out
 
-    def _inv_shift_fourier(self, k: Union[np.ndarray, torch.Tensor], n_dims: int) -> np.ndarray:
+    def _inv_shift_fourier(self, k: DataObjects.Images, n_dims: int) -> np.ndarray:
         """
         Applies inverse shift and fourier transform. Only the spatial
         dimensions are transformed.

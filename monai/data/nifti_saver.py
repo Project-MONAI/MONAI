@@ -19,6 +19,7 @@ from monai.data.nifti_writer import write_nifti
 from monai.data.utils import create_file_basename
 from monai.utils import GridSampleMode, GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
+from monai.utils.enums import DataObjects
 
 
 class NiftiSaver:
@@ -96,7 +97,7 @@ class NiftiSaver:
         self.data_root_dir = data_root_dir
         self.print_log = print_log
 
-    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
+    def save(self, data: DataObjects.Images, meta_data: Optional[Dict] = None) -> None:
         """
         Save data into a Nifti file.
         The meta_data could optionally have the following keys:
@@ -160,7 +161,7 @@ class NiftiSaver:
         if self.print_log:
             print(f"file written: {path}.")
 
-    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
+    def save_batch(self, batch_data: DataObjects.Images, meta_data: Optional[Dict] = None) -> None:
         """
         Save a batch of data into Nifti format files.
 
