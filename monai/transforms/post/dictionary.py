@@ -25,7 +25,7 @@ from torch.utils.data import DataLoader as TorchDataLoader
 
 from monai.config import KeysCollection
 from monai.data.csv_saver import CSVSaver
-from monai.data.utils import decollate_batch, no_collation
+from monai.data.utils import decollate_batch
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.inverse_batch_transform import BatchInverseTransform
 from monai.transforms.post.array import (
@@ -438,12 +438,10 @@ class Invertd(MapTransform):
         self,
         keys: KeysCollection,
         transform: InvertibleTransform,
-        loader: TorchDataLoader,
         orig_keys: KeysCollection,
         meta_keys: Optional[KeysCollection] = None,
         orig_meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
-        collate_fn: Optional[Callable] = no_collation,
         nearest_interp: Union[bool, Sequence[bool]] = True,
         to_tensor: Union[bool, Sequence[bool]] = True,
         device: Union[Union[str, torch.device], Sequence[Union[str, torch.device]]] = "cpu",
@@ -456,7 +454,6 @@ class Invertd(MapTransform):
             keys: the key of expected data in the dict, invert transforms on it, in-place operation.
                 it also can be a list of keys, will invert transform for each of them, like: ["pred", "pred_class2"].
             transform: the previous callable transform that applied on input data.
-            loader: data loader used to run transforms and generate the batch of data.
             orig_keys: the key of the original input data in the dict. will get the applied transform information
                 for this input data, then invert them for the expected data with `keys`.
                 It can also be a list of keys, each matches to the `keys` data.
@@ -475,8 +472,6 @@ class Invertd(MapTransform):
                 For example, to handle orig_key `image`,  read/write `affine` matrices from the
                 metadata `image_meta_dict` dictionary's `affine` field.
                 the inverted meta dict will be stored with key: "{key}_{meta_key_postfix}".
-            collate_fn: how to collate data after inverse transformations. default won't do any collation,
-                so the output will be a list of PyTorch Tensor or numpy array without batch dim.
             nearest_interp: whether to use `nearest` interpolation mode when inverting the spatial transforms,
                 default to `True`. If `False`, use the same interpolation mode as the original transform.
                 it also can be a list of bool, each matches to the `keys` data.
@@ -494,13 +489,9 @@ class Invertd(MapTransform):
 
         """
         super().__init__(keys, allow_missing_keys)
+        if not isinstance(transform, InvertibleTransform):
+            raise ValueError("transform is not invertible, can't invert transform for the data.")
         self.transform = transform
-        self.inverter = BatchInverseTransform(
-            transform=transform,
-            loader=loader,
-            collate_fn=collate_fn,
-            num_workers=num_workers,
-        )
         self.orig_keys = ensure_tuple_rep(orig_keys, len(self.keys))
         self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
         if len(self.keys) != len(self.meta_keys):
@@ -563,21 +554,14 @@ class Invertd(MapTransform):
                 input_dict[orig_meta_key] = d[orig_meta_key]
 
             with allow_missing_keys_mode(self.transform):  # type: ignore
-                inverted = self.inverter(input_dict)
+                inverted = self.transform.inverse(input_dict)
 
             # save the inverted data
-            if isinstance(inverted, (tuple, list)):
-                d[key] = [
-                    post_func(self._totensor(i[orig_key]).to(device) if to_tensor else i[orig_key]) for i in inverted
-                ]
-                # save the inverted meta dict
-                if orig_meta_key in d:
-                    d[meta_key] = [i.get(orig_meta_key) for i in inverted]
-            else:
-                d[key] = post_func(self._totensor(inverted[orig_key]).to(device) if to_tensor else inverted[orig_key])
-                # save the inverted meta dict
-                if orig_meta_key in d:
-                    d[meta_key] = inverted.get(orig_meta_key)
+            d[key] = post_func(self._totensor(inverted[orig_key]).to(device) if to_tensor else inverted[orig_key])
+            # save the inverted meta dict
+            if orig_meta_key in d:
+                d[meta_key] = inverted.get(orig_meta_key)
+
         return d
 
 
@@ -615,14 +599,14 @@ class SaveClassificationd(MapTransform):
                 the meta data is a dictionary object which contains: filename, original_shape, etc.
                 this arg only works when `meta_keys=None`. if no corresponding metadata, set to `None`.
             saver: the saver instance to save classification results, if None, create a CSVSaver internally.
-                the saver must provide `save_batch(batch_data, meta_data)` APIs.
+                the saver must provide `save(data, meta_data)` and `finalize()` APIs.
             output_dir: if `saver=None`, specify the directory to save the CSV file.
             filename: if `saver=None`, specify the name of the saved CSV file.
             overwrite: if `saver=None`, indicate whether to overwriting existing CSV file content, if True,
                 will clear the file before saving. otherwise, will apend new content to the CSV file.
             flush: if `saver=None`, indicate whether to write the cache data to CSV file immediately
                 in this transform and clear the cache. default to True.
-                If False, may need user to call `saver.finalize()` manually then.
+                If False, may need user to call `saver.finalize()` manually or use `ClassificationSaver` handler.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
@@ -630,6 +614,7 @@ class SaveClassificationd(MapTransform):
         if len(self.keys) != 1:
             raise ValueError("only 1 key is allowed when saving the classification result.")
         self.saver = saver or CSVSaver(output_dir, filename, overwrite, flush)
+        self.flush = flush
         self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
@@ -639,7 +624,9 @@ class SaveClassificationd(MapTransform):
             if meta_key is None and meta_key_postfix is not None:
                 meta_key = f"{key}_{meta_key_postfix}"
             meta_data = d[meta_key] if meta_key is not None else None
-            self.saver.save_batch(batch_data=d[key], meta_data=meta_data)
+            self.saver.save(data=d[key], meta_data=meta_data)
+            if self.flush:
+                self.saver.finalize()
 
         return d
 
