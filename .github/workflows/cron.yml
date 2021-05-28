@@ -117,7 +117,6 @@ jobs:
         run: |
           which python
           python -m pip install --upgrade pip wheel twine
-          python -m pip uninstall -y torch torchvision
           python -m pip list
       - name: Run tests report coverage
         run: |
@@ -129,6 +128,8 @@ jobs:
           set -e
 
           # build tar.gz and wheel
+          bash runtests.sh --clean  # clear any existing dev temp files
+          python -m pip uninstall -y torch torchvision
           python setup.py check -m -s
           python setup.py sdist bdist_wheel
           python -m twine check dist/*
@@ -148,6 +149,11 @@ jobs:
           python -c 'import monai; print(monai.__file__)'
 
           # run tests
+          cp $root_dir/requirements*.txt "$tmp_dir"
+          cp -r $root_dir/tests "$tmp_dir"
+          pwd
+          ls -al
+
           export LAUNCH_DELAY=$[ $RANDOM % 16 * 60 ]
           echo "Sleep $LAUNCH_DELAY"
           sleep $LAUNCH_DELAY
@@ -158,10 +164,6 @@ jobs:
           python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
           python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
 
-          cp $root_dir/requirements*.txt "$tmp_dir"
-          cp -r $root_dir/tests "$tmp_dir"
-          pwd
-          ls -al
           python -m pip install -r requirements-dev.txt
           BUILD_MONAI=1 python ./tests/runner.py -p 'test_((?!integration).)'  # unit tests
           if pgrep python; then pkill python; fi
