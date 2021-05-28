@@ -16,7 +16,6 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
 from collections.abc import Iterable
-from copy import deepcopy
 from typing import Any, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -39,10 +38,8 @@ from monai.transforms.intensity.array import (
     StdShiftIntensity,
     ThresholdIntensity,
 )
-from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.utils import dtype_torch_to_numpy, ensure_tuple_rep, ensure_tuple_size
-from monai.utils.enums import InverseKeys
 
 __all__ = [
     "RandGaussianNoised",
@@ -613,7 +610,7 @@ class ScaleIntensityRanged(MapTransform):
         return d
 
 
-class AdjustContrastd(MapTransform, InvertibleTransform):
+class AdjustContrastd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.AdjustContrast`.
     Changes image intensity by gamma. Each pixel/voxel intensity is updated as:
@@ -634,24 +631,11 @@ class AdjustContrastd(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.key_iterator(d):
-            self.push_transform(d, key, extra_info={"min": d[key].min(), "max": d[key].max()})
             d[key] = self.adjuster(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
-        d = deepcopy(dict(data))
 
-        for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            _min = transform[InverseKeys.EXTRA_INFO]["min"]
-            _max = transform[InverseKeys.EXTRA_INFO]["max"]
-            d[key] = AdjustContrast.inverse(d[key], _min, _max, self.adjuster.gamma)
-            # Remove the applied transform
-            self.pop_transform(d, key)
-        return d
-
-
-class RandAdjustContrastd(RandomizableTransform, MapTransform, InvertibleTransform):
+class RandAdjustContrastd(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandAdjustContrast`.
     Randomly changes image intensity by gamma. Each pixel/voxel intensity is updated as:
@@ -699,27 +683,11 @@ class RandAdjustContrastd(RandomizableTransform, MapTransform, InvertibleTransfo
         self.randomize()
         if self.gamma_value is None:
             raise AssertionError
-
+        if not self._do_transform:
+            return d
         adjuster = AdjustContrast(self.gamma_value)
         for key in self.key_iterator(d):
-            self.push_transform(
-                d, key, extra_info={"min": d[key].min(), "max": d[key].max(), "gamma": self.gamma_value}
-            )
-            if self._do_transform:
-                d[key] = adjuster(d[key])
-        return d
-
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
-        d = deepcopy(dict(data))
-
-        for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            _min = transform[InverseKeys.EXTRA_INFO]["min"]
-            _max = transform[InverseKeys.EXTRA_INFO]["max"]
-            _gamma = transform[InverseKeys.EXTRA_INFO]["gamma"]
-            d[key] = AdjustContrast.inverse(d[key], _min, _max, _gamma)
-            # Remove the applied transform
-            self.pop_transform(d, key)
+            d[key] = adjuster(d[key])
         return d
 
 
