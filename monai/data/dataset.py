@@ -510,7 +510,7 @@ class CacheDataset(Dataset):
         during training. it may take a long time to prepare cache content according to the size of expected cache data.
         So to debug or verify the program before real training, users can set `cache_rate=0.0` or `cache_num=0` to
         temporarily skip caching.
- 
+
     """
 
     def __init__(
