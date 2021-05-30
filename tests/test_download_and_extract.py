@@ -22,7 +22,7 @@ class TestDownloadAndExtract(unittest.TestCase):
     @skip_if_quick
     def test_actions(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
-        url = "https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz?dl=1"
+        url = "https://drive.google.com/uc?id=13MhoPsNgI6qboJfLicFf_jNvsFUbIYsd"
         filepath = os.path.join(testing_dir, "MedNIST.tar.gz")
         output_dir = testing_dir
         md5_value = "0bc7306e7427e00ad1c5526a6677552d"
