@@ -8,6 +8,10 @@ on:
       - main
       - releasing/*
 
+concurrency:
+  group: deploy-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # caching of these jobs:
   #   - docker-py3-pip- (shared)
