@@ -124,7 +124,7 @@ class TestDeCollate(unittest.TestCase):
 
     @parameterized.expand(TESTS_LIST)
     def test_decollation_list(self, *transforms):
-        class TestCompose(Compose):
+        class _ListCompose(Compose):
             def __call__(self, input_):
                 img, metadata = self.transforms[0](input_)
                 for t in self.transforms[1:]:
@@ -134,7 +134,7 @@ class TestDeCollate(unittest.TestCase):
         t_compose = Compose([AddChannel(), Compose(transforms), ToTensor()])
         # If nibabel present, read from disk
         if has_nib:
-            t_compose = TestCompose([LoadImage(image_only=False), t_compose])
+            t_compose = _ListCompose([LoadImage(image_only=False), t_compose])
 
         dataset = Dataset(self.data_list, t_compose)
         self.check_decollate(dataset=dataset)
