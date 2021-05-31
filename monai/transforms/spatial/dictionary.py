@@ -759,7 +759,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
 
         sp_size = fall_back_tuple(self.rand_affine.spatial_size, data[self.keys[0]].shape[1:])
         # change image size or do random transform
-        do_resampling = self.rand_affine.spatial_size is not None or self._do_transform
+        do_resampling = self._do_transform or (sp_size != ensure_tuple(data[self.keys[0]].shape[1:]))
 
         # to be consistent with the self._do_transform case (dtype and device)
         affine = torch.as_tensor(np.eye(len(sp_size) + 1), device=self.rand_affine.rand_affine_grid.device)
