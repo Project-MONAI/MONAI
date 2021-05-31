@@ -288,7 +288,7 @@ def list_data_collate(batch: Sequence):
         raise TypeError(re_str)
 
 
-def decollate_batch(data: dict, batch_size: Optional[int] = None) -> List[dict]:
+def decollate_batch(data: Union[dict, list, torch.Tensor], batch_size: Optional[int] = None) -> List[dict]:
     """De-collate a batch of data (for example, as produced by a `DataLoader`).
 
     Returns a list of dictionaries, list or Tensor, mapping to a given batch.
@@ -351,23 +351,26 @@ def decollate_batch(data: dict, batch_size: Optional[int] = None) -> List[dict]:
             return data[idx]
         raise TypeError(f"Not sure how to de-collate type: {type(data)}")
 
-    def detect_batch_size(batch_data: Sequence):
+    def _detect_batch_size(batch_data):
         for v in batch_data:
             if isinstance(v, torch.Tensor):
                 return v.shape[0]
         raise RuntimeError("Couldn't determine batch size, please specify as argument.")
 
+    result: List[Any]
     if isinstance(data, dict):
-        batch_size = detect_batch_size(batch_data=data.values()) if batch_size is None else batch_size
-        return [{key: decollate(data[key], idx) for key in data.keys()} for idx in range(batch_size)]
+        batch_size = _detect_batch_size(batch_data=data.values()) if batch_size is None else batch_size
+        result = [{key: decollate(data[key], idx) for key in data.keys()} for idx in range(batch_size)]
     elif isinstance(data, list):
-        batch_size = detect_batch_size(batch_data=data) if batch_size is None else batch_size
-        return [[decollate(d, idx) for d in data] for idx in range(batch_size)]
+        batch_size = _detect_batch_size(batch_data=data) if batch_size is None else batch_size
+        result = [[decollate(d, idx) for d in data] for idx in range(batch_size)]
     elif isinstance(data, torch.Tensor):
         batch_size = data.shape[0]
-        return [data[idx] for idx in range(batch_size)]
+        result = [data[idx] for idx in range(batch_size)]
     else:
         raise RuntimeError("Only currently implemented for dictionary, list or Tensor data.")
+
+    return result
 
 
 def pad_list_data_collate(
