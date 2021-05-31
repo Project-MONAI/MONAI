@@ -18,22 +18,22 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.data import Dataset, CacheDataset, DataLoader, create_test_image_2d
+from monai.data import CacheDataset, DataLoader, Dataset, create_test_image_2d
 from monai.data.utils import decollate_batch
 from monai.transforms import (
+    AddChannel,
     AddChanneld,
     Compose,
-    LoadImaged,
-    RandFlipd,
-    SpatialPadd,
-    ToTensord,
-    AddChannel,
     LoadImage,
-    ToTensor,
-    SpatialPad,
-    RandFlip,
-    RandRotate90,
+    LoadImaged,
     RandAffine,
+    RandFlip,
+    RandFlipd,
+    RandRotate90,
+    SpatialPad,
+    SpatialPadd,
+    ToTensor,
+    ToTensord,
 )
 from monai.transforms.post.dictionary import Decollated
 from monai.transforms.spatial.dictionary import RandAffined, RandRotate90d
@@ -54,6 +54,7 @@ TESTS_LIST: List[Tuple] = []
 TESTS_LIST.append((SpatialPad(150), RandFlip(prob=1.0, spatial_axis=1)))
 TESTS_LIST.append((RandRotate90(prob=0.0, max_k=1),))
 TESTS_LIST.append((RandAffine(prob=0.0, translate_range=10),))
+
 
 class TestDeCollate(unittest.TestCase):
     def setUp(self) -> None:
