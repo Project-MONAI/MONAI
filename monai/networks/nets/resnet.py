@@ -9,15 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import math
 from functools import partial
-from typing import Any, Callable, List, Optional, Type, Union
+from typing import Any, Callable, List, Type, Union
 
 import torch
 import torch.nn as nn
-from torch.hub import load_state_dict_from_url
+import torch.nn.functional as F
 
-from monai.networks.layers.factories import Conv, Dropout, Norm, Pool
+from monai.networks.layers.factories import Conv, Norm, Pool
 
 __all__ = ["ResNet", "resnet10", "resnet18", "resnet34", "resnet50", "resnet101", "resnet152", "resnet200"]
 
@@ -30,6 +29,14 @@ def get_avgpool():
     return [(0), (1), (1, 1), (1, 1, 1)]
 
 
+def get_conv1(conv1_t_size: int, conv1_t_stride: int):
+    return (
+        [(0), (conv1_t_size), (conv1_t_size, 7), (conv1_t_size, 7, 7)],
+        [(0), (conv1_t_stride), (conv1_t_stride, 2), (conv1_t_stride, 2, 2)],
+        [(0), (conv1_t_size // 2), (conv1_t_size // 2, 3), (conv1_t_size // 2, 3, 3)],
+    )
+
+
 class ResNetBlock(nn.Module):
     expansion = 1
 
@@ -39,7 +46,7 @@ class ResNetBlock(nn.Module):
         planes: int,
         spatial_dims: int = 3,
         stride: int = 1,
-        downsample: Optional[nn.Module] = None,
+        downsample: Union[nn.Module, partial, None] = None,
     ) -> None:
         """
         Args:
@@ -47,25 +54,25 @@ class ResNetBlock(nn.Module):
             planes: number of output channels.
             spatial_dims: number of spatial dimensions of the input image.
             stride: stride to use for first conv layer.
-            downsample: if to use the downsample_basic_block
+            downsample: which downsample layer to use.
         """
         super(ResNetBlock, self).__init__()
 
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]
         norm_type: Callable = Norm[Norm.BATCH, spatial_dims]
 
-        self.add_module("conv1", conv_type(in_planes, planes, kernel_size=3, padding=1, stride=stride, bias=False))
-        self.add_module("bn1", norm_type(planes))
-        self.add_module("relu", nn.ReLU(inplace=True))
-        self.add_module("conv2", conv_type(planes, planes, kernel_size=3, padding=1, bias=False))
-        self.add_module("bn2", norm_type(planes))
+        self.conv1 = conv_type(in_planes, planes, kernel_size=3, padding=1, stride=stride, bias=False)
+        self.bn1 = norm_type(planes)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv2 = conv_type(planes, planes, kernel_size=3, padding=1, bias=False)
+        self.bn2 = norm_type(planes)
         self.downsample = downsample
         self.stride = stride
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         residual = x
 
-        out = self.conv1(x)
+        out: torch.Tensor = self.conv1(x)
         out = self.bn1(out)
         out = self.relu(out)
 
@@ -90,7 +97,7 @@ class ResNetBottleneck(nn.Module):
         planes: int,
         spatial_dims: int = 3,
         stride: int = 1,
-        downsample: Optional[nn.Module] = None,
+        downsample: Union[nn.Module, partial, None] = None,
     ) -> None:
         """
         Args:
@@ -98,7 +105,7 @@ class ResNetBottleneck(nn.Module):
             planes: number of output channels (taking expansion into account).
             spatial_dims: number of spatial dimensions of the input image.
             stride: stride to use for second conv layer.
-            downsample: if to use the downsample_basic_block
+            downsample: which downsample layer to use.
         """
 
         super(ResNetBottleneck, self).__init__()
@@ -106,20 +113,20 @@ class ResNetBottleneck(nn.Module):
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]
         norm_type: Callable = Norm[Norm.BATCH, spatial_dims]
 
-        self.add_module("conv1", conv_type(in_planes, planes, kernel_size=1, padding=1, bias=False))
-        self.add_module("bn1", norm_type(planes))
-        self.add_module("conv2", conv_type(planes, planes, kernel_size=3, stride=stride, padding=1, bias=False))
-        self.add_module("bn2", norm_type(planes))
-        self.add_module("conv3", conv_type(planes, planes * self.expansion, kernel_size=1, padding=1, bias=False))
-        self.add_module("bn3", norm_type(planes * self.expansion))
-        self.add_module("relu", nn.ReLU(inplace=True))
+        self.conv1 = conv_type(in_planes, planes, kernel_size=1, bias=False)
+        self.bn1 = norm_type(planes)
+        self.conv2 = conv_type(planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.bn2 = norm_type(planes)
+        self.conv3 = conv_type(planes, planes * self.expansion, kernel_size=1, bias=False)
+        self.bn3 = norm_type(planes * self.expansion)
+        self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
         self.stride = stride
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         residual = x
 
-        out = self.conv1(x)
+        out: torch.Tensor = self.conv1(x)
         out = self.bn1(out)
         out = self.relu(out)
 
@@ -184,79 +191,46 @@ class ResNet(nn.Module):
         ]
 
         block_avgpool = get_avgpool()
+        conv1_kernel, conv1_stride, con1_padding = get_conv1(conv1_t_size, conv1_t_stride)
         block_inplanes = [int(x * widen_factor) for x in block_inplanes]
 
         self.in_planes = block_inplanes[0]
         self.no_max_pool = no_max_pool
 
-        if spatial_dims == 1:
-            self.add_module(
-                "conv1",
-                conv_type(
-                    n_input_channels,
-                    self.in_planes,
-                    kernel_size=(conv1_t_size),
-                    stride=(conv1_t_stride),
-                    padding=(conv1_t_size // 2),
-                    bias=False,
-                ),
-            )
-        elif spatial_dims == 2:
-            self.add_module(
-                "conv1",
-                conv_type(
-                    n_input_channels,
-                    self.in_planes,
-                    kernel_size=(conv1_t_size, 7),
-                    stride=(conv1_t_stride, 2),
-                    padding=(conv1_t_size // 2, 3),
-                    bias=False,
-                ),
-            )
-        else:
-            self.add_module(
-                "conv1",
-                conv_type(
-                    n_input_channels,
-                    self.in_planes,
-                    kernel_size=(conv1_t_size, 7, 7),
-                    stride=(conv1_t_stride, 2, 2),
-                    padding=(conv1_t_size // 2, 3, 3),
-                    bias=False,
-                ),
-            )
-
-        self.add_module("bn1", norm_type(self.in_planes))
-        self.add_module("relu", nn.ReLU(inplace=True))
-        self.add_module("maxpool", pool_type(kernel_size=3, stride=2, padding=1))
-        self.add_module("layer1", self._make_layer(block, block_inplanes[0], layers[0], spatial_dims, shortcut_type))
-        self.add_module(
-            "layer2", self._make_layer(block, block_inplanes[1], layers[1], spatial_dims, shortcut_type, stride=2)
+        self.conv1 = conv_type(
+            n_input_channels,
+            self.in_planes,
+            kernel_size=conv1_kernel[spatial_dims],
+            stride=conv1_stride[spatial_dims],
+            padding=con1_padding[spatial_dims],
+            bias=False,
         )
-        self.add_module(
-            "layer3", self._make_layer(block, block_inplanes[2], layers[2], spatial_dims, shortcut_type, stride=2)
-        )
-        self.add_module(
-            "layer4", self._make_layer(block, block_inplanes[3], layers[3], spatial_dims, shortcut_type, stride=2)
-        )
+        self.bn1 = norm_type(self.in_planes)
+        self.relu = nn.ReLU(inplace=True)
+        self.maxpool = pool_type(kernel_size=3, stride=2, padding=1)
+        self.layer1 = self._make_layer(block, block_inplanes[0], layers[0], spatial_dims, shortcut_type)
+        self.layer2 = self._make_layer(block, block_inplanes[1], layers[1], spatial_dims, shortcut_type, stride=2)
+        self.layer3 = self._make_layer(block, block_inplanes[2], layers[2], spatial_dims, shortcut_type, stride=2)
+        self.layer4 = self._make_layer(block, block_inplanes[3], layers[3], spatial_dims, shortcut_type, stride=2)
+        self.avgpool = avgp_type(block_avgpool[spatial_dims])
 
-        self.add_module("avgpool", avgp_type(block_avgpool[spatial_dims]))
-
-        if feed_forward == True:
-            self.add_module("fc", nn.Linear(block_inplanes[3] * block.expansion, n_classes))
+        if feed_forward:
+            self.fc = nn.Linear(block_inplanes[3] * block.expansion, n_classes)
 
         for m in self.modules():
             if isinstance(m, conv_type):
-                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+                nn.init.kaiming_normal_(torch.as_tensor(m.weight), mode="fan_out", nonlinearity="relu")
             elif isinstance(m, norm_type):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
+                nn.init.constant_(torch.as_tensor(m.weight), 1)
+                nn.init.constant_(torch.as_tensor(m.bias), 0)
+            elif isinstance(m, nn.Linear):
+                nn.init.constant_(torch.as_tensor(m.bias), 0)
 
     def _downsample_basic_block(self, x: torch.Tensor, planes: int, stride: int, spatial_dims: int = 3) -> torch.Tensor:
         assert spatial_dims == 3
-        out = F.avg_pool3d(x, kernel_size=1, stride=stride)
+        out: torch.Tensor = F.avg_pool3d(x, kernel_size=1, stride=stride)
         zero_pads = torch.zeros(out.size(0), planes - out.size(1), out.size(2), out.size(3), out.size(4))
-        if isinstance(out.data, torch.cuda.FloatTensor):
+        if isinstance(out.data, torch.FloatTensor):
             zero_pads = zero_pads.cuda()
 
         out = torch.cat([out.data, zero_pads], dim=1)
@@ -276,7 +250,7 @@ class ResNet(nn.Module):
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]
         norm_type: Callable = Norm[Norm.BATCH, spatial_dims]
 
-        downsample = None
+        downsample: Union[nn.Module, partial, None] = None
         if stride != 1 or self.in_planes != planes * block.expansion:
             if shortcut_type == "A":
                 downsample = partial(
@@ -295,7 +269,7 @@ class ResNet(nn.Module):
             )
         )
         self.in_planes = planes * block.expansion
-        for i in range(1, blocks):
+        for _i in range(1, blocks):
             layers.append(block(self.in_planes, planes, spatial_dims=spatial_dims))
 
         return nn.Sequential(*layers)
@@ -331,7 +305,11 @@ def _resnet(
 ) -> ResNet:
     model = ResNet(block, layers, block_inplanes, **kwargs)
     if pretrained:
-        print("currently unable to load pretrained as it is zipped in gdrive")
+        # Author of paper zipped the state_dict on googledrive,
+        # so would need to download, unzip and read (2.8gb file for a ~150mb state dict).
+        # Would like to load dict from url but need somewhere to save the state dicts.
+        print("Currently not implemented, see comments in source code")
+
         # state_dict = load_state_dict_from_url(model_urls[arch],
         # progress=progress)
         # model.load_state_dict(state_dict)
@@ -347,7 +325,7 @@ def resnet10(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> 
         pretrained (bool): If True, returns a model pre-trained on 23 medical datasets
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-    return ResNet("resnet10", ResNetBlock, [1, 1, 1, 1], get_inplanes(), pretrained, progress, **kwargs)
+    return _resnet("resnet10", ResNetBlock, [1, 1, 1, 1], get_inplanes(), pretrained, progress, **kwargs)
 
 
 def resnet18(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
@@ -359,7 +337,7 @@ def resnet18(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> 
         pretrained (bool): If True, returns a model pre-trained on 23 medical datasets
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-    return ResNet("resnet18", ResNetBlock, [2, 2, 2, 2], get_inplanes(), pretrained, progress, **kwargs)
+    return _resnet("resnet18", ResNetBlock, [2, 2, 2, 2], get_inplanes(), pretrained, progress, **kwargs)
 
 
 def resnet34(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
@@ -371,7 +349,7 @@ def resnet34(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> 
         pretrained (bool): If True, returns a model pre-trained on 23 medical datasets
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-    return ResNet("resnet34", ResNetBlock, [3, 4, 6, 3], get_inplanes(), pretrained, progress, **kwargs)
+    return _resnet("resnet34", ResNetBlock, [3, 4, 6, 3], get_inplanes(), pretrained, progress, **kwargs)
 
 
 def resnet50(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
@@ -383,7 +361,7 @@ def resnet50(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> 
         pretrained (bool): If True, returns a model pre-trained on 23 medical datasets
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-    return ResNet("resnet50", ResNetBottleneck, [3, 4, 6, 3], get_inplanes(), pretrained, progress, **kwargs)
+    return _resnet("resnet50", ResNetBottleneck, [3, 4, 6, 3], get_inplanes(), pretrained, progress, **kwargs)
 
 
 def resnet101(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
@@ -395,7 +373,7 @@ def resnet101(pretrained: bool = False, progress: bool = True, **kwargs: Any) ->
         pretrained (bool): If True, returns a model pre-trained on 8 medical datasets
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-    return ResNet("resnet101", ResNetBottleneck, [3, 4, 23, 3], get_inplanes(), pretrained, progress, **kwargs)
+    return _resnet("resnet101", ResNetBottleneck, [3, 4, 23, 3], get_inplanes(), pretrained, progress, **kwargs)
 
 
 def resnet152(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
@@ -407,7 +385,7 @@ def resnet152(pretrained: bool = False, progress: bool = True, **kwargs: Any) ->
         pretrained (bool): If True, returns a model pre-trained on 8 medical datasets
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-    return ResNet("resnet152", ResNetBottleneck, [3, 8, 36, 3], get_inplanes(), pretrained, progress, **kwargs)
+    return _resnet("resnet152", ResNetBottleneck, [3, 8, 36, 3], get_inplanes(), pretrained, progress, **kwargs)
 
 
 def resnet200(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
@@ -419,4 +397,4 @@ def resnet200(pretrained: bool = False, progress: bool = True, **kwargs: Any) ->
         pretrained (bool): If True, returns a model pre-trained on 8 medical datasets
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-    return ResNet("resnet200", ResNetBottleneck, [3, 24, 36, 3], get_inplanes(), pretrained, progress, **kwargs)
+    return _resnet("resnet200", ResNetBottleneck, [3, 24, 36, 3], get_inplanes(), pretrained, progress, **kwargs)
