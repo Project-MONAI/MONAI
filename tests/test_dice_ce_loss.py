@@ -16,6 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.losses import DiceCELoss
+from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
 
 TEST_CASES = [
     [  # shape: (2, 2, 3), (2, 1, 3)
@@ -42,6 +43,20 @@ TEST_CASES = [
         },
         0.2088,
     ],
+    [  # shape: (2, 2, 3), (2, 1, 3) lambda_dice: 1.0, lambda_ce: 2.0
+        {
+            "include_background": False,
+            "to_onehot_y": True,
+            "ce_weight": torch.tensor([1.0, 1.0]),
+            "lambda_dice": 1.0,
+            "lambda_ce": 2.0,
+        },
+        {
+            "input": torch.tensor([[[100.0, 100.0, 0.0], [0.0, 0.0, 1.0]], [[1.0, 0.0, 1.0], [0.0, 1.0, 0.0]]]),
+            "target": torch.tensor([[[0.0, 0.0, 1.0]], [[0.0, 1.0, 0.0]]]),
+        },
+        0.4176,
+    ],
     [  # shape: (2, 2, 3), (2, 1, 3), do not include class 0
         {"include_background": False, "to_onehot_y": True, "ce_weight": torch.tensor([0.0, 1.0])},
         {
@@ -63,6 +78,12 @@ class TestDiceCELoss(unittest.TestCase):
         loss = DiceCELoss()
         with self.assertRaisesRegex(ValueError, ""):
             loss(torch.ones((1, 2, 3)), torch.ones((1, 1, 2, 3)))
+
+    @SkipIfBeforePyTorchVersion((1, 7, 0))
+    def test_script(self):
+        loss = DiceCELoss()
+        test_input = torch.ones(2, 1, 8, 8)
+        test_script_save(loss, test_input, test_input)
 
 
 if __name__ == "__main__":

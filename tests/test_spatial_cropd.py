@@ -16,33 +16,37 @@ from parameterized import parameterized
 
 from monai.transforms import SpatialCropd
 
-TEST_CASE_1 = [
-    {"keys": ["img"], "roi_center": [1, 1, 1], "roi_size": [2, 2, 2]},
-    {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
-    (3, 2, 2, 2),
-]
-
-TEST_CASE_2 = [
-    {"keys": ["img"], "roi_start": [0, 0, 0], "roi_end": [2, 2, 2]},
-    {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
-    (3, 2, 2, 2),
-]
-
-TEST_CASE_3 = [
-    {"keys": ["img"], "roi_start": [0, 0], "roi_end": [2, 2]},
-    {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
-    (3, 2, 2, 3),
-]
-
-TEST_CASE_4 = [
-    {"keys": ["img"], "roi_start": [0, 0, 0, 0, 0], "roi_end": [2, 2, 2, 2, 2]},
-    {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
-    (3, 2, 2, 2),
+TEST_CASES = [
+    [
+        {"keys": ["img"], "roi_center": [1, 1, 1], "roi_size": [2, 2, 2]},
+        {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
+        (3, 2, 2, 2),
+    ],
+    [
+        {"keys": ["img"], "roi_start": [0, 0, 0], "roi_end": [2, 2, 2]},
+        {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
+        (3, 2, 2, 2),
+    ],
+    [
+        {"keys": ["img"], "roi_start": [0, 0], "roi_end": [2, 2]},
+        {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
+        (3, 2, 2, 3),
+    ],
+    [
+        {"keys": ["img"], "roi_start": [0, 0, 0, 0, 0], "roi_end": [2, 2, 2, 2, 2]},
+        {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
+        (3, 2, 2, 2),
+    ],
+    [
+        {"keys": ["img"], "roi_slices": [slice(s, e) for s, e in zip([-1, -2, 0], [None, None, 2])]},
+        {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
+        (3, 1, 2, 2),
+    ],
 ]
 
 
 class TestSpatialCropd(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
+    @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_data, expected_shape):
         result = SpatialCropd(**input_param)(input_data)
         self.assertTupleEqual(result["img"].shape, expected_shape)

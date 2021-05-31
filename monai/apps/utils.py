@@ -11,7 +11,9 @@
 
 import hashlib
 import os
+import shutil
 import tarfile
+import tempfile
 import warnings
 import zipfile
 from typing import TYPE_CHECKING, Optional
@@ -35,6 +37,12 @@ __all__ = [
     "extractall",
     "download_and_extract",
 ]
+
+
+def _basename(p):
+    """get the last part of the path (removing the trailing slash if it exists)"""
+    sep = os.path.sep + (os.path.altsep or "") + "/ "
+    return os.path.basename(p.rstrip(sep))
 
 
 def check_hash(filepath: str, val: Optional[str] = None, hash_type: str = "md5") -> bool:
@@ -64,20 +72,20 @@ def check_hash(filepath: str, val: Optional[str] = None, hash_type: str = "md5")
         print(f"Exception in check_hash: {e}")
         return False
     if val != actual_hash.hexdigest():
-        print("check_hash failed.")
+        print(f"check_hash failed {actual_hash.hexdigest()}.")
         return False
 
-    print(f"Verified '{os.path.basename(filepath)}', {hash_type}: {val}.")
+    print(f"Verified '{_basename(filepath)}', {hash_type}: {val}.")
     return True
 
 
-def download_url(url: str, filepath: str, hash_val: Optional[str] = None, hash_type: str = "md5") -> None:
+def download_url(url: str, filepath: str = "", hash_val: Optional[str] = None, hash_type: str = "md5") -> None:
     """
     Download file from specified URL link, support process bar and hash check.
 
     Args:
         url: source URL link to download file.
-        filepath: target filepath to save the downloaded file.
+        filepath: target filepath to save the downloaded file. If undefined, `os.path.basename(url)` will be used.
         hash_val: expected hash value to validate the downloaded file.
             if None, skip hash validation.
         hash_type: 'md5' or 'sha1', defaults to 'md5'.
@@ -93,6 +101,9 @@ def download_url(url: str, filepath: str, hash_val: Optional[str] = None, hash_t
         RuntimeError: When the hash validation of the ``url`` downloaded file fails.
 
     """
+    if not filepath:
+        filepath = os.path.abspath(os.path.join(".", _basename(url)))
+        print(f"Default downloading to '{filepath}'")
     if os.path.exists(filepath):
         if not check_hash(filepath, hash_val, hash_type):
             raise RuntimeError(
@@ -150,7 +161,6 @@ def download_url(url: str, filepath: str, hash_val: Optional[str] = None, hash_t
         except (URLError, HTTPError, ContentTooShortError, IOError) as e:
             print(f"download failed from {url} to {filepath}.")
             raise e
-
     if not check_hash(filepath, hash_val, hash_type):
         raise RuntimeError(
             f"{hash_type} check of downloaded file failed: URL={url}, "
@@ -158,7 +168,9 @@ def download_url(url: str, filepath: str, hash_val: Optional[str] = None, hash_t
         )
 
 
-def extractall(filepath: str, output_dir: str, hash_val: Optional[str] = None, hash_type: str = "md5") -> None:
+def extractall(
+    filepath: str, output_dir: str = ".", hash_val: Optional[str] = None, hash_type: str = "md5", file_type: str = ""
+) -> None:
     """
     Extract file to the output directory.
     Expected file types are: `zip`, `tar.gz` and `tar`.
@@ -169,48 +181,65 @@ def extractall(filepath: str, output_dir: str, hash_val: Optional[str] = None, h
         hash_val: expected hash value to validate the compressed file.
             if None, skip hash validation.
         hash_type: 'md5' or 'sha1', defaults to 'md5'.
+        file_type: string of file type for decompressing. Leave it empty to infer the type from the filepath basename.
 
     Raises:
         RuntimeError: When the hash validation of the ``filepath`` compressed file fails.
-        ValueError: When the ``filepath`` file extension is not one of [zip", "tar.gz", "tar"].
+        NotImplementedError: When the ``filepath`` file extension is not one of [zip", "tar.gz", "tar"].
 
     """
-    target_file = os.path.join(output_dir, os.path.basename(filepath).split(".")[0])
+    target_file = os.path.join(output_dir, _basename(filepath).split(".")[0])
     if os.path.exists(target_file):
         print(f"extracted file {target_file} exists, skip extracting.")
         return
-    if not check_hash(filepath, hash_val, hash_type):
+    if hash_val and not check_hash(filepath, hash_val, hash_type):
         raise RuntimeError(
             f"{hash_type} check of compressed file failed: " f"filepath={filepath}, expected {hash_type}={hash_val}."
         )
-
-    if filepath.endswith("zip"):
+    _file_type = file_type.lower().strip()
+    if filepath.endswith("zip") or _file_type == "zip":
         zip_file = zipfile.ZipFile(filepath)
         zip_file.extractall(output_dir)
         zip_file.close()
-    elif filepath.endswith("tar") or filepath.endswith("tar.gz"):
+        return
+    if filepath.endswith("tar") or filepath.endswith("tar.gz") or "tar" in _file_type:
         tar_file = tarfile.open(filepath)
         tar_file.extractall(output_dir)
         tar_file.close()
-    else:
-        raise ValueError('Unsupported file extension, available options are: ["zip", "tar.gz", "tar"].')
+        return
+    raise NotImplementedError(
+        f'Unsupported file type, available options are: ["zip", "tar.gz", "tar"]. name={filepath} type={file_type}.'
+    )
 
 
 def download_and_extract(
-    url: str, filepath: str, output_dir: str, hash_val: Optional[str] = None, hash_type: str = "md5"
+    url: str,
+    filepath: str = "",
+    output_dir: str = ".",
+    hash_val: Optional[str] = None,
+    hash_type: str = "md5",
+    file_type: str = "",
 ) -> None:
     """
     Download file from URL and extract it to the output directory.
 
     Args:
         url: source URL link to download file.
-        filepath: the file path of compressed file.
+        filepath: the file path of the downloaded compressed file.
+            use this option to keep the directly downloaded compressed file, to avoid further repeated downloads.
         output_dir: target directory to save extracted files.
-            default is None to save in current directory.
+            default is the current directory.
         hash_val: expected hash value to validate the downloaded file.
             if None, skip hash validation.
         hash_type: 'md5' or 'sha1', defaults to 'md5'.
+        file_type: string of file type for decompressing. Leave it empty to infer the type from url's base file name.
 
     """
-    download_url(url=url, filepath=filepath, hash_val=hash_val, hash_type=hash_type)
-    extractall(filepath=filepath, output_dir=output_dir, hash_val=hash_val, hash_type=hash_type)
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_name = os.path.join(tmp_dir, f"{_basename(url)}")
+        download_url(url=url, filepath=tmp_name, hash_val=hash_val, hash_type=hash_type)
+        if filepath:
+            shutil.move(tmp_name, filepath)  # copy the downloaded to a user-specified cache.
+        else:
+            filepath = tmp_name
+        extractall(filepath=filepath, output_dir=output_dir, file_type=file_type)
