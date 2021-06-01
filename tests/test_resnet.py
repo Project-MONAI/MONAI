@@ -11,7 +11,6 @@
 
 import unittest
 from typing import TYPE_CHECKING
-from unittest import skipUnless
 
 import torch
 from parameterized import parameterized
@@ -19,7 +18,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.nets import resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200
 from monai.utils import optional_import
-from tests.utils import skip_if_quick, test_script_save
+from tests.utils import test_script_save
 
 if TYPE_CHECKING:
     import torchvision
