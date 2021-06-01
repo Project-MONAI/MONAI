@@ -9,14 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence
+from typing import Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
 
 from monai.networks.blocks.convolutions import Convolution
 from monai.networks.layers import same_padding
-from monai.networks.layers.factories import Act, Conv, Norm
+from monai.networks.layers.factories import Conv
 
 
 class SimpleASPP(nn.Module):
@@ -37,8 +37,8 @@ class SimpleASPP(nn.Module):
         conv_out_channels: int,
         kernel_sizes: Sequence[int] = (1, 3, 3, 3),
         dilations: Sequence[int] = (1, 2, 4, 6),
-        norm_type=Norm.BATCH,
-        acti_type=Act.LEAKYRELU,
+        norm_type: Optional[Union[Tuple, str]] = "BATCH",
+        acti_type: Optional[Union[Tuple, str]] = "LEAKYRELU",
     ) -> None:
         """
         Args:
