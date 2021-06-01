@@ -239,6 +239,7 @@ class Transform(ABC):
 class TorchOrNumpyTransform(Transform):
     """Transforms that inherit from this class process the input the same regardless of whether
     the input is torch or numpy. No conversions are needed."""
+
     pass
 
 
@@ -259,6 +260,7 @@ class NumpyTransform(Transform):
 
 class ToDoTransform(Transform):
     """Transforms that inherit from this class are still to be updated. This is a temporary class."""
+
     pass
 
 

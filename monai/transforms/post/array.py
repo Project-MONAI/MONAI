@@ -22,7 +22,7 @@ import torch.nn.functional as F
 
 from monai.networks import one_hot
 from monai.networks.layers import GaussianFilter
-from monai.transforms.transform import Transform
+from monai.transforms.transform import TorchTransform, Transform
 from monai.transforms.utils import get_largest_connected_component_mask
 from monai.utils import ensure_tuple
 from monai.utils.enums import DataObjects
@@ -38,7 +38,7 @@ __all__ = [
 ]
 
 
-class Activations(Transform):
+class Activations(TorchTransform):
     """
     Add activation operations to the model output, typically `Sigmoid` or `Softmax`.
 
@@ -64,11 +64,11 @@ class Activations(Transform):
 
     def __call__(
         self,
-        img: torch.Tensor,
+        img: DataObjects.Images,
         sigmoid: Optional[bool] = None,
         softmax: Optional[bool] = None,
         other: Optional[Callable] = None,
-    ) -> torch.Tensor:
+    ) -> DataObjects.Images:
         """
         Args:
             sigmoid: whether to execute sigmoid function on model output before transform.
@@ -89,8 +89,10 @@ class Activations(Transform):
         if other is not None and not callable(other):
             raise TypeError(f"other must be None or callable but is {type(other).__name__}.")
 
+        img, orig_type = self.pre_conv_data(img)
+
         # convert to float as activation must operate on float tensor
-        img = img.float()
+        img = img.float()  # type: ignore
         if sigmoid or self.sigmoid:
             img = torch.sigmoid(img)
         if softmax or self.softmax:
@@ -103,7 +105,7 @@ class Activations(Transform):
         if act_func is not None:
             img = act_func(img)
 
-        return img
+        return self.post_convert_data(img, orig_type)
 
 
 class AsDiscrete(Transform):
@@ -181,7 +183,7 @@ class AsDiscrete(Transform):
         return img.float()
 
 
-class KeepLargestConnectedComponent(Transform):
+class KeepLargestConnectedComponent(TorchTransform):
     """
     Keeps only the largest connected component in the image.
     This transform can be used as a post-processing step to clean up over-segment areas in model output.
@@ -247,7 +249,7 @@ class KeepLargestConnectedComponent(Transform):
         self.independent = independent
         self.connectivity = connectivity
 
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Args:
             img: shape must be (batch_size, C, spatial_dim1[, spatial_dim2, ...]).
@@ -255,10 +257,12 @@ class KeepLargestConnectedComponent(Transform):
         Returns:
             A PyTorch Tensor with shape (batch_size, C, spatial_dim1[, spatial_dim2, ...]).
         """
+        img, orig_type = self.pre_conv_data(img)
+
         channel_dim = 1
         if img.shape[channel_dim] == 1:
 
-            img = torch.squeeze(img, dim=channel_dim)
+            img = torch.squeeze(img, dim=channel_dim)  # type: ignore
 
             if self.independent:
                 for i in self.applied_labels:
@@ -286,10 +290,10 @@ class KeepLargestConnectedComponent(Transform):
                 background_mask = torch.unsqueeze(foreground != mask, dim=channel_dim)
                 background_mask = torch.repeat_interleave(background_mask, len(self.applied_labels), dim=channel_dim)
                 applied_img[background_mask] = 0
-                img[:, self.applied_labels, ...] = applied_img.type(img.type())
-            output = img
+                img[:, self.applied_labels, ...] = applied_img.type(img.type())  # type: ignore
+            output = img  # type: ignore
 
-        return output
+        return self.post_convert_data(output, orig_type)
 
 
 class LabelToContour(Transform):

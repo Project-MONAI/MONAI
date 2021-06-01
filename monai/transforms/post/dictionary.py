@@ -112,7 +112,7 @@ class Activationsd(MapTransform):
         self.other = ensure_tuple_rep(other, len(self.keys))
         self.converter = Activations()
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Mapping:
         d = dict(data)
         for key, sigmoid, softmax, other in self.key_iterator(d, self.sigmoid, self.softmax, self.other):
             d[key] = self.converter(d[key], sigmoid, softmax, other)
@@ -207,7 +207,7 @@ class KeepLargestConnectedComponentd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = KeepLargestConnectedComponent(applied_labels, independent, connectivity)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Mapping:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])

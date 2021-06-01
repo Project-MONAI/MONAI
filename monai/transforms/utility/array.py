@@ -22,7 +22,14 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike
-from monai.transforms.transform import NumpyTransform, Randomizable, Transform, convert_data_type
+from monai.transforms.transform import (
+    NumpyTransform,
+    Randomizable,
+    TorchOrNumpyTransform,
+    TorchTransform,
+    Transform,
+    convert_data_type,
+)
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points, map_binary_to_indices
 from monai.utils import ensure_tuple, min_version, optional_import
 from monai.utils.enums import DataObjects
@@ -59,7 +66,7 @@ __all__ = [
 ]
 
 
-class Identity(Transform):
+class Identity(TorchOrNumpyTransform):
     """
     Convert the input to an np.ndarray, if input data is np.ndarray or subclasses, return unchanged data.
     As the output value is same as input, it can be used as a testing tool to verify the transform chain,
@@ -67,14 +74,14 @@ class Identity(Transform):
 
     """
 
-    def __call__(self, img: DataObjects.Images) -> np.ndarray:
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Apply the transform to `img`.
         """
-        return np.asanyarray(img)
+        return img
 
 
-class AsChannelFirst(Transform):
+class AsChannelFirst(TorchTransform):
     """
     Change the channel dimension of the image to the first dimension.
 
@@ -104,7 +111,7 @@ class AsChannelFirst(Transform):
         return self.post_convert_data(img, orig_type)
 
 
-class AsChannelLast(Transform):
+class AsChannelLast(TorchTransform):
     """
     Change the channel dimension of the image to the last dimension.
 
@@ -133,7 +140,7 @@ class AsChannelLast(Transform):
         return self.post_convert_data(img, orig_type)
 
 
-class AddChannel(Transform):
+class AddChannel(TorchOrNumpyTransform):
     """
     Adds a 1-length channel dimension to the input image.
 
@@ -154,7 +161,7 @@ class AddChannel(Transform):
         return img[None]
 
 
-class EnsureChannelFirst(Transform):
+class EnsureChannelFirst(TorchTransform):
     """
     Automatically adjust or add the channel dimension of input data to ensure `channel_first` shape.
     It extracts the `original_channel_dim` info from provided meta_data dictionary.
@@ -231,7 +238,7 @@ class RemoveRepeatedChannel(Transform):
         return self.post_convert_data(img, orig_type)
 
 
-class SplitChannel(Transform):
+class SplitChannel(TorchOrNumpyTransform):
     """
     Split Numpy array or PyTorch Tensor data according to the channel dim.
     It can help applying different following transforms to different channels.
@@ -303,7 +310,7 @@ class CastToType(Transform):
         raise TypeError(f"img must be one of (numpy.ndarray, torch.Tensor) but is {type(img).__name__}.")
 
 
-class ToTensor(Transform):
+class ToTensor(TorchTransform):
     """
     Converts the input image to a tensor without applying any other transformations.
     """
@@ -316,11 +323,11 @@ class ToTensor(Transform):
             img = torch.Tensor(img)
         else:
             img, _ = convert_data_type(img, torch.Tensor)
-            img = img.contiguous()
+            img = img.contiguous()  # type: ignore
         return img
 
 
-class ToNumpy(Transform):
+class ToNumpy(NumpyTransform):
     """
     Converts the input data to numpy array, can support list or tuple of numbers and PyTorch Tensor.
     """
@@ -382,7 +389,7 @@ class Transpose(NumpyTransform):
         return self.post_convert_data(img, orig_type)
 
 
-class SqueezeDim(Transform):
+class SqueezeDim(TorchOrNumpyTransform):
     """
     Squeeze a unitary dimension.
     """
@@ -406,7 +413,12 @@ class SqueezeDim(Transform):
         Args:
             img: numpy arrays with required dimension `dim` removed
         """
-        return img.squeeze(self.dim)  # type: ignore
+        if self.dim is None:
+            return img.squeeze()
+        # for pytorch/numpy unification
+        if img.shape[self.dim] != 1:
+            raise ValueError("Can only squeeze singleton dimension")
+        return img.squeeze(self.dim)
 
 
 class DataStats(Transform):
@@ -500,7 +512,7 @@ class DataStats(Transform):
         return img
 
 
-class SimulateDelay(Transform):
+class SimulateDelay(TorchOrNumpyTransform):
     """
     This is a pass through transform to be used for testing purposes. It allows
     adding fake behaviors that are useful for testing purposes to simulate
@@ -580,7 +592,7 @@ class Lambda(Transform):
         raise ValueError("Incompatible values: func=None and self.func=None.")
 
 
-class LabelToMask(Transform):
+class LabelToMask(NumpyTransform):
     """
     Convert labels to mask for other tasks. A typical usage is to convert segmentation labels
     to mask data to pre-process images and then feed the images into classification network.
@@ -608,8 +620,11 @@ class LabelToMask(Transform):
         self.merge_channels = merge_channels
 
     def __call__(
-        self, img: np.ndarray, select_labels: Optional[Union[Sequence[int], int]] = None, merge_channels: bool = False
-    ):
+        self,
+        img: DataObjects.Images,
+        select_labels: Optional[Union[Sequence[int], int]] = None,
+        merge_channels: bool = False,
+    ) -> DataObjects.Images:
         """
         Args:
             select_labels: labels to generate mask from. for 1 channel label, the `select_labels`
@@ -618,6 +633,8 @@ class LabelToMask(Transform):
             merge_channels: whether to use `np.any()` to merge the result on channel dim. if yes,
                 will return a single channel mask with binary data.
         """
+        img, orig_type = self.pre_conv_data(img)
+
         if select_labels is None:
             select_labels = self.select_labels
         else:
@@ -628,7 +645,9 @@ class LabelToMask(Transform):
         else:
             data = np.where(np.in1d(img, select_labels), True, False).reshape(img.shape)
 
-        return np.any(data, axis=0, keepdims=True) if (merge_channels or self.merge_channels) else data
+        out = np.any(data, axis=0, keepdims=True) if (merge_channels or self.merge_channels) else data
+
+        return self.post_convert_data(out, orig_type)  # type: ignore
 
 
 class FgBgToIndices(Transform):

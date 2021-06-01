@@ -22,7 +22,7 @@ import torch
 
 from monai.config import DtypeLike
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
-from monai.transforms.transform import RandomizableTransform, Transform
+from monai.transforms.transform import RandomizableTransform, TorchOrNumpyTransform, Transform
 from monai.transforms.utils import rescale_array
 from monai.utils import (
     PT_BEFORE_1_7,
@@ -171,7 +171,7 @@ class RandRicianNoise(RandomizableTransform):
         return img
 
 
-class ShiftIntensity(Transform):
+class ShiftIntensity(TorchOrNumpyTransform):
     """
     Shift intensity uniformly for the entire image with specified `offset`.
 
@@ -182,14 +182,17 @@ class ShiftIntensity(Transform):
     def __init__(self, offset: float) -> None:
         self.offset = offset
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Apply the transform to `img`.
         """
-        return np.asarray((img + self.offset), dtype=img.dtype)
+        out = img + self.offset
+        if isinstance(out, torch.Tensor):
+            return out.type(img.dtype)  # type: ignore
+        return out.astype(img.dtype)  # type: ignore
 
 
-class RandShiftIntensity(RandomizableTransform):
+class RandShiftIntensity(RandomizableTransform, TorchOrNumpyTransform):
     """
     Randomly shift intensity with randomly picked offset.
     """
@@ -214,7 +217,7 @@ class RandShiftIntensity(RandomizableTransform):
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
         super().randomize(None)
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Apply the transform to `img`.
         """
@@ -585,7 +588,7 @@ class ThresholdIntensity(Transform):
         )
 
 
-class ScaleIntensityRange(Transform):
+class ScaleIntensityRange(TorchOrNumpyTransform):
     """
     Apply specific intensity scaling to the whole numpy array.
     Scaling from [a_min, a_max] to [b_min, b_max] with clip option.
@@ -605,7 +608,7 @@ class ScaleIntensityRange(Transform):
         self.b_max = b_max
         self.clip = clip
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Apply the transform to `img`.
         """
@@ -616,11 +619,12 @@ class ScaleIntensityRange(Transform):
         img = (img - self.a_min) / (self.a_max - self.a_min)
         img = img * (self.b_max - self.b_min) + self.b_min
         if self.clip:
-            img = np.asarray(np.clip(img, self.b_min, self.b_max))
+            mod = torch if isinstance(img, torch.Tensor) else np
+            img = mod.clip(img, self.b_min, self.b_max)  # type: ignore
         return img
 
 
-class AdjustContrast(Transform):
+class AdjustContrast(TorchOrNumpyTransform):
     """
     Changes image intensity by gamma. Each pixel/voxel intensity is updated as::
 
@@ -635,17 +639,17 @@ class AdjustContrast(Transform):
             raise AssertionError("gamma must be a float or int number.")
         self.gamma = gamma
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Apply the transform to `img`.
         """
         epsilon = 1e-7
         img_min = img.min()
         img_range = img.max() - img_min
-        return np.power(((img - img_min) / float(img_range + epsilon)), self.gamma) * img_range + img_min
+        return ((img - img_min) / float(img_range + epsilon)) ** self.gamma * img_range + img_min
 
 
-class RandAdjustContrast(RandomizableTransform):
+class RandAdjustContrast(TorchOrNumpyTransform, RandomizableTransform):
     """
     Randomly changes image intensity by gamma. Each pixel/voxel intensity is updated as::
 
@@ -690,7 +694,7 @@ class RandAdjustContrast(RandomizableTransform):
         return adjuster(img)
 
 
-class ScaleIntensityRangePercentiles(Transform):
+class ScaleIntensityRangePercentiles(TorchOrNumpyTransform):
     """
     Apply range scaling to a numpy array based on the intensity distribution of the input.
 
@@ -759,7 +763,7 @@ class ScaleIntensityRangePercentiles(Transform):
         self.clip = clip
         self.relative = relative
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Apply the transform to `img`.
         """
@@ -776,7 +780,8 @@ class ScaleIntensityRangePercentiles(Transform):
         img = scalar(img)
 
         if self.clip:
-            img = np.asarray(np.clip(img, self.b_min, self.b_max))
+            mod = torch if isinstance(img, torch.Tensor) else np
+            img = mod.clip(img, self.b_min, self.b_max)  # type: ignore
 
         return img
 

@@ -23,7 +23,14 @@ from monai.config import USE_COMPILED, DtypeLike
 from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.transforms.croppad.array import CenterSpatialCrop
-from monai.transforms.transform import Randomizable, RandomizableTransform, ThreadUnsafe, ToDoTransform, TorchTransform, Transform
+from monai.transforms.transform import (
+    Randomizable,
+    RandomizableTransform,
+    ThreadUnsafe,
+    ToDoTransform,
+    TorchTransform,
+    Transform,
+)
 from monai.transforms.utils import (
     create_control_grid,
     create_grid,
@@ -1750,7 +1757,7 @@ class Rand3DElastic(RandomizableTransform):
         return self.resampler(img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode)
 
 
-class AddCoordinateChannels(Transform):
+class AddCoordinateChannels(ToDoTransform):
     """
     Appends additional channels encoding coordinates of the input. Useful when e.g. training using patch-based sampling,
     to allow feeding of the patch's location into the network.
