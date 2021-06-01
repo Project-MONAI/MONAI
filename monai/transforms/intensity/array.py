@@ -829,7 +829,7 @@ class MaskIntensity(TorchOrNumpyTransform):
                 "When mask_data is not single channel, mask_data channels must match img, "
                 f"got img={img.shape[0]} mask_data={mask_data_.shape[0]}."
             )
-        mask_data_, _ = convert_data_type(mask_data_, type(img))
+        mask_data_, *_ = convert_data_type(mask_data_, type(img))
         return img * mask_data_
 
 
@@ -1161,10 +1161,9 @@ class RandGibbsNoise(RandomizableTransform):
             values in the interval [0,1] with alpha = 0 acting as the identity mapping.
             If a length-2 list is given as [a,b] then the value of alpha will be
             sampled uniformly from the interval [a,b]. 0 <= a <= b <= 1.
-        as_tensor_output: if true return torch.Tensor, else return np.array. default: True.
     """
 
-    def __init__(self, prob: float = 0.1, alpha: Sequence[float] = (0.0, 1.0), as_tensor_output: bool = True) -> None:
+    def __init__(self, prob: float = 0.1, alpha: Sequence[float] = (0.0, 1.0)) -> None:
 
         if len(alpha) != 2:
             raise AssertionError("alpha length must be 2.")
@@ -1175,7 +1174,6 @@ class RandGibbsNoise(RandomizableTransform):
 
         self.alpha = alpha
         self.sampled_alpha = -1.0  # stores last alpha sampled by randomize()
-        self.as_tensor_output = as_tensor_output
 
         RandomizableTransform.__init__(self, prob=prob)
 
@@ -1186,13 +1184,8 @@ class RandGibbsNoise(RandomizableTransform):
 
         if self._do_transform:
             # apply transform
-            transform = GibbsNoise(self.sampled_alpha, self.as_tensor_output)
+            transform = GibbsNoise(self.sampled_alpha)
             img = transform(img)
-        else:
-            if isinstance(img, np.ndarray) and self.as_tensor_output:
-                img = torch.Tensor(img)
-            elif isinstance(img, torch.Tensor) and not self.as_tensor_output:
-                img = img.detach().cpu().numpy()
         return img
 
     def _randomize(self, _: Any) -> None:
@@ -1204,7 +1197,7 @@ class RandGibbsNoise(RandomizableTransform):
         self.sampled_alpha = self.R.uniform(self.alpha[0], self.alpha[1])
 
 
-class GibbsNoise(Transform):
+class GibbsNoise(TorchOrNumpyTransform):
     """
     The transform applies Gibbs noise to 2D/3D MRI images. Gibbs artifacts
     are one of the common type of type artifacts appearing in MRI scans.
@@ -1219,61 +1212,56 @@ class GibbsNoise(Transform):
     Args:
         alpha (float): Parametrizes the intensity of the Gibbs noise filter applied. Takes
             values in the interval [0,1] with alpha = 0 acting as the identity mapping.
-        as_tensor_output: if true return torch.Tensor, else return np.array. default: True.
-
     """
 
-    def __init__(self, alpha: float = 0.5, as_tensor_output: bool = True) -> None:
+    def __init__(self, alpha: float = 0.5) -> None:
 
         if alpha > 1 or alpha < 0:
             raise AssertionError("alpha must take values in the interval [0,1].")
         self.alpha = alpha
-        self.as_tensor_output = as_tensor_output
-        self._device = torch.device("cpu")
 
     def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         n_dims = len(img.shape[1:])
-
-        # convert to ndarray to work with np.fft
-        _device = None
-        if isinstance(img, torch.Tensor):
-            _device = img.device
-            img = img.cpu().detach().numpy()
-
+        data_type = type(img)
         # FT
-        k = self._shift_fourier(img, n_dims)
+        k = self._shift_fourier(img, n_dims, data_type)
         # build and apply mask
-        k = self._apply_mask(k)
+        k = self._apply_mask(k, data_type)
         # map back
-        img = self._inv_shift_fourier(k, n_dims)
-        return torch.Tensor(img).to(_device or self._device) if self.as_tensor_output else img
+        return self._inv_shift_fourier(k, n_dims, data_type)
 
-    def _shift_fourier(self, x: DataObjects.Images, n_dims: int) -> np.ndarray:
+    def _shift_fourier(self, x: DataObjects.Images, n_dims: int, data_type: type) -> DataObjects.Images:
         """
         Applies fourier transform and shifts its output.
         Only the spatial dimensions get transformed.
 
         Args:
-            x (np.ndarray): tensor to fourier transform.
+            x: tensor to fourier transform.
         """
-        out: np.ndarray = np.fft.fftshift(np.fft.fftn(x, axes=tuple(range(-n_dims, 0))), axes=tuple(range(-n_dims, 0)))
+        # argument is dim if torch, else axes
+        mod, arg = (torch, "dim") if data_type is torch.Tensor else (np, "axes")
+        arg_dict = {arg: tuple(range(-n_dims, 0))}
+        out: DataObjects.Images = mod.fft.fftshift(mod.fft.fftn(x, **arg_dict), **arg_dict)  # type: ignore
         return out
 
-    def _inv_shift_fourier(self, k: DataObjects.Images, n_dims: int) -> np.ndarray:
+    def _inv_shift_fourier(self, k: DataObjects.Images, n_dims: int, data_type: type) -> DataObjects.Images:
         """
         Applies inverse shift and fourier transform. Only the spatial
         dimensions are transformed.
         """
-        out: np.ndarray = np.fft.ifftn(
-            np.fft.ifftshift(k, axes=tuple(range(-n_dims, 0))), axes=tuple(range(-n_dims, 0))
-        ).real
-        return out
+        dims = tuple(range(-n_dims, 0))
+        out: DataObjects.Images
+        if data_type is torch.Tensor:
+            out = torch.fft.ifftn(torch.fft.ifftshift(k, dim=dims), dim=dims, norm="backward")
+        else:
+            out = np.fft.ifftn(np.fft.ifftshift(k, axes=dims), axes=dims)
+        return out.real
 
-    def _apply_mask(self, k: np.ndarray) -> np.ndarray:
+    def _apply_mask(self, k: DataObjects.Images, data_type: type) -> DataObjects.Images:
         """Builds and applies a mask on the spatial dimensions.
 
         Args:
-            k (np.ndarray): k-space version of the image.
+            k: k-space version of the image.
         Returns:
             masked version of the k-space image.
         """
@@ -1294,6 +1282,9 @@ class GibbsNoise(Transform):
         # add channel dimension into mask
         mask = np.repeat(mask[None], k.shape[0], axis=0)
 
+        if data_type is torch.Tensor:
+            mask = torch.Tensor(mask)
+
         # apply binary mask
-        k_masked: np.ndarray = k * mask
-        return k_masked
+        out: DataObjects.Images = k * mask  # type: ignore
+        return out

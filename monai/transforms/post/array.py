@@ -89,7 +89,7 @@ class Activations(TorchTransform):
         if other is not None and not callable(other):
             raise TypeError(f"other must be None or callable but is {type(other).__name__}.")
 
-        img, orig_type = self.pre_conv_data(img)
+        img, orig_type, orig_device = self.pre_conv_data(img)
 
         # convert to float as activation must operate on float tensor
         img = img.float()  # type: ignore
@@ -105,7 +105,7 @@ class Activations(TorchTransform):
         if act_func is not None:
             img = act_func(img)
 
-        return self.post_convert_data(img, orig_type)
+        return self.post_convert_data(img, orig_type, orig_device)
 
 
 class AsDiscrete(TorchTransform):
@@ -169,7 +169,7 @@ class AsDiscrete(TorchTransform):
 
         """
         img_t: torch.Tensor
-        img_t, orig_type = self.pre_conv_data(img)  # type: ignore
+        img_t, orig_type, orig_device = self.pre_conv_data(img)  # type: ignore
 
         if argmax or self.argmax:
             img_t = torch.argmax(img_t, dim=1, keepdim=True)
@@ -183,7 +183,7 @@ class AsDiscrete(TorchTransform):
         if threshold_values or self.threshold_values:
             img_t = img_t >= (logit_thresh or self.logit_thresh)
 
-        return self.post_convert_data(img_t.float(), orig_type)
+        return self.post_convert_data(img_t.float(), orig_type, orig_device)
 
 
 class KeepLargestConnectedComponent(TorchTransform):
@@ -260,7 +260,7 @@ class KeepLargestConnectedComponent(TorchTransform):
         Returns:
             A PyTorch Tensor with shape (batch_size, C, spatial_dim1[, spatial_dim2, ...]).
         """
-        img, orig_type = self.pre_conv_data(img)
+        img, orig_type, orig_device = self.pre_conv_data(img)
 
         channel_dim = 1
         if img.shape[channel_dim] == 1:
@@ -296,7 +296,7 @@ class KeepLargestConnectedComponent(TorchTransform):
                 img[:, self.applied_labels, ...] = applied_img.type(img.type())  # type: ignore
             output = img  # type: ignore
 
-        return self.post_convert_data(output, orig_type)
+        return self.post_convert_data(output, orig_type, orig_device)
 
 
 class LabelToContour(Transform):

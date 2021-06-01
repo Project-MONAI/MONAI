@@ -1041,7 +1041,6 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
             values in the interval [0,1] with alpha = 0 acting as the identity mapping.
             If a length-2 list is given as [a,b] then the value of alpha will be sampled
             uniformly from the interval [a,b].
-        as_tensor_output: if true return torch.Tensor, else return np.array. default: True.
         allow_missing_keys: do not raise exception if key is missing.
     """
 
@@ -1050,7 +1049,6 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
         keys: KeysCollection,
         prob: float = 0.1,
         alpha: Sequence[float] = (0.0, 1.0),
-        as_tensor_output: bool = True,
         allow_missing_keys: bool = False,
     ) -> None:
 
@@ -1058,7 +1056,6 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
         RandomizableTransform.__init__(self, prob=prob)
         self.alpha = alpha
         self.sampled_alpha = -1.0  # stores last alpha sampled by randomize()
-        self.as_tensor_output = as_tensor_output
 
     def __call__(self, data: DataObjects.Mapping) -> Dict[Hashable, DataObjects.Images]:
 
@@ -1068,13 +1065,8 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
         for i, key in enumerate(self.key_iterator(d)):
             if self._do_transform:
                 if i == 0:
-                    transform = GibbsNoise(self.sampled_alpha, self.as_tensor_output)
+                    transform = GibbsNoise(self.sampled_alpha)
                 d[key] = transform(d[key])
-            else:
-                if isinstance(d[key], np.ndarray) and self.as_tensor_output:
-                    d[key] = torch.Tensor(d[key])
-                elif isinstance(d[key], torch.Tensor) and not self.as_tensor_output:
-                    d[key] = self._to_numpy(d[key])
         return d
 
     def _randomize(self, _: Any) -> None:
@@ -1107,16 +1099,13 @@ class GibbsNoised(MapTransform):
                 you need to transform.
         alpha (float): Parametrizes the intensity of the Gibbs noise filter applied. Takes
             values in the interval [0,1] with alpha = 0 acting as the identity mapping.
-        as_tensor_output: if true return torch.Tensor, else return np.array. default: True.
         allow_missing_keys: do not raise exception if key is missing.
     """
 
-    def __init__(
-        self, keys: KeysCollection, alpha: float = 0.5, as_tensor_output: bool = True, allow_missing_keys: bool = False
-    ) -> None:
+    def __init__(self, keys: KeysCollection, alpha: float = 0.5, allow_missing_keys: bool = False) -> None:
 
         MapTransform.__init__(self, keys, allow_missing_keys)
-        self.transform = GibbsNoise(alpha, as_tensor_output)
+        self.transform = GibbsNoise(alpha)
 
     def __call__(self, data: DataObjects.Mapping) -> Dict[Hashable, DataObjects.Images]:
 

@@ -106,9 +106,9 @@ class AsChannelFirst(TorchTransform):
         """
         Apply the transform to `img`.
         """
-        img, orig_type = self.pre_conv_data(img)
+        img, orig_type, orig_device = self.pre_conv_data(img)
         img = torch.moveaxis(img, self.channel_dim, 0)  # type: ignore
-        return self.post_convert_data(img, orig_type)
+        return self.post_convert_data(img, orig_type, orig_device)
 
 
 class AsChannelLast(TorchTransform):
@@ -135,9 +135,9 @@ class AsChannelLast(TorchTransform):
         """
         Apply the transform to `img`.
         """
-        img, orig_type = self.pre_conv_data(img)
+        img, orig_type, orig_device = self.pre_conv_data(img)
         img = torch.moveaxis(img, self.channel_dim, -1)  # type: ignore
-        return self.post_convert_data(img, orig_type)
+        return self.post_convert_data(img, orig_type, orig_device)
 
 
 class AddChannel(TorchOrNumpyTransform):
@@ -319,7 +319,7 @@ class ToTensor(TorchTransform):
         if isinstance(img, Sequence):
             img = torch.Tensor(img)
         else:
-            img, _ = convert_data_type(img, torch.Tensor)
+            img, *_ = convert_data_type(img, torch.Tensor)
             img = img.contiguous()  # type: ignore
         return img
 
@@ -336,7 +336,7 @@ class ToNumpy(NumpyTransform):
         if isinstance(img, Sequence):
             img = np.array(img)
         else:
-            img, _ = convert_data_type(img, np.ndarray)
+            img, *_ = convert_data_type(img, np.ndarray)
             img = np.ascontiguousarray(img)
         return img
 
@@ -381,9 +381,9 @@ class Transpose(NumpyTransform):
         """
         Apply the transform to `img`.
         """
-        img, orig_type = self.pre_conv_data(img)
+        img, orig_type, orig_device = self.pre_conv_data(img)
         img = img.transpose(self.indices)  # type: ignore
-        return self.post_convert_data(img, orig_type)
+        return self.post_convert_data(img, orig_type, orig_device)
 
 
 class SqueezeDim(TorchOrNumpyTransform):
@@ -630,7 +630,7 @@ class LabelToMask(NumpyTransform):
             merge_channels: whether to use `np.any()` to merge the result on channel dim. if yes,
                 will return a single channel mask with binary data.
         """
-        img, orig_type = self.pre_conv_data(img)
+        img, orig_type, orig_device = self.pre_conv_data(img)
 
         if select_labels is None:
             select_labels = self.select_labels
@@ -644,7 +644,7 @@ class LabelToMask(NumpyTransform):
 
         out = np.any(data, axis=0, keepdims=True) if (merge_channels or self.merge_channels) else data
 
-        return self.post_convert_data(out, orig_type)  # type: ignore
+        return self.post_convert_data(out, *orig_info)  # type: ignore
 
 
 class FgBgToIndices(Transform):

@@ -22,9 +22,8 @@ from monai.utils.misc import set_determinism
 
 TEST_CASES = []
 for shape in ((128, 64), (64, 48, 80)):
-    for as_tensor_output in (True, False):
-        for as_tensor_input in (True, False):
-            TEST_CASES.append((shape, as_tensor_output, as_tensor_input))
+    for as_tensor_input in (True, False):
+        TEST_CASES.append((shape, as_tensor_input))
 
 
 class TestGibbsNoise(unittest.TestCase):
@@ -42,17 +41,17 @@ class TestGibbsNoise(unittest.TestCase):
         return torch.Tensor(im) if as_tensor_input else im
 
     @parameterized.expand(TEST_CASES)
-    def test_same_result(self, im_shape, as_tensor_output, as_tensor_input):
+    def test_same_result(self, im_shape, as_tensor_input):
         im = self.get_data(im_shape, as_tensor_input)
         alpha = 0.8
-        t = GibbsNoise(alpha, as_tensor_output)
+        t = GibbsNoise(alpha)
         out1 = t(deepcopy(im))
         out2 = t(deepcopy(im))
         np.testing.assert_allclose(out1, out2)
-        self.assertIsInstance(out1, torch.Tensor if as_tensor_output else np.ndarray)
+        self.assertIsInstance(out1, type(im))
 
     @parameterized.expand(TEST_CASES)
-    def test_identity(self, im_shape, _, as_tensor_input):
+    def test_identity(self, im_shape, as_tensor_input):
         im = self.get_data(im_shape, as_tensor_input)
         alpha = 0.0
         t = GibbsNoise(alpha)
@@ -60,7 +59,7 @@ class TestGibbsNoise(unittest.TestCase):
         np.testing.assert_allclose(im, out, atol=1e-2)
 
     @parameterized.expand(TEST_CASES)
-    def test_alpha_1(self, im_shape, _, as_tensor_input):
+    def test_alpha_1(self, im_shape, as_tensor_input):
         im = self.get_data(im_shape, as_tensor_input)
         alpha = 1.0
         t = GibbsNoise(alpha)

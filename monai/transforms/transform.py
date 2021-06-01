@@ -36,16 +36,23 @@ __all__ = [
 ]
 
 
-def convert_data_type(data, output_type: type) -> Tuple[DataObjects.Images, type]:
+def convert_data_type(
+    data, output_type: type, device: Optional[torch.device] = None
+) -> Tuple[DataObjects.Images, type, Optional[torch.device]]:
     """Convert to torch.Tensor/np.ndarray."""
     orig_type = type(data)
     assert orig_type in (torch.Tensor, np.ndarray), f"Expected types {(torch.Tensor, np.ndarray)}, got {orig_type}"
+    orig_device = data.device if isinstance(data, torch.Tensor) else None
+
     if orig_type is np.ndarray and output_type is torch.Tensor:
         data = torch.Tensor(np.ascontiguousarray(data))
     elif orig_type is torch.Tensor and output_type is np.ndarray:
         data = data.detach().cpu().numpy()
 
-    return data, orig_type
+    if isinstance(data, torch.Tensor) and device is not None:
+        data.to(device)
+
+    return data, orig_type, orig_device
 
 
 def apply_transform(transform: Callable, data, map_items: bool = True):
@@ -222,17 +229,19 @@ class Transform(ABC):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def pre_conv_data(self, data: DataObjects.Images) -> Tuple[DataObjects.Images, type]:
+    def pre_conv_data(self, data: DataObjects.Images) -> Tuple[DataObjects.Images, type, Optional[torch.device]]:
         """Convert to torch/numpy, as required. Also return the original state so that after the transform,
         the data can be reverted to its original type.
         """
-        data, orig_type = convert_data_type(data, self.array_class)
-        return data, orig_type
+        data, orig_type, orig_device = convert_data_type(data, self.array_class)
+        return data, orig_type, orig_device
 
     @staticmethod
-    def post_convert_data(data: DataObjects.Images, output_type: type) -> DataObjects.Images:
+    def post_convert_data(
+        data: DataObjects.Images, output_type: type, ouput_device: Optional[torch.device] = None
+    ) -> DataObjects.Images:
         """Convert back to original type."""
-        data, _ = convert_data_type(data, output_type)
+        data, *_ = convert_data_type(data, output_type, ouput_device)
         return data
 
 
