@@ -22,7 +22,7 @@ import torch
 
 from monai.config import DtypeLike
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
-from monai.transforms.transform import RandomizableTransform, TorchOrNumpyTransform, Transform
+from monai.transforms.transform import RandomizableTransform, TorchOrNumpyTransform, Transform, convert_data_type
 from monai.transforms.utils import rescale_array
 from monai.utils import (
     PT_BEFORE_1_7,
@@ -786,7 +786,7 @@ class ScaleIntensityRangePercentiles(TorchOrNumpyTransform):
         return img
 
 
-class MaskIntensity(Transform):
+class MaskIntensity(TorchOrNumpyTransform):
     """
     Mask the intensity values of input image with the specified mask data.
     Mask data must have the same spatial size as the input image, and all
@@ -801,10 +801,10 @@ class MaskIntensity(Transform):
 
     """
 
-    def __init__(self, mask_data: Optional[np.ndarray]) -> None:
+    def __init__(self, mask_data: Optional[DataObjects.Images]) -> None:
         self.mask_data = mask_data
 
-    def __call__(self, img: np.ndarray, mask_data: Optional[np.ndarray] = None) -> np.ndarray:
+    def __call__(self, img: DataObjects.Images, mask_data: Optional[DataObjects.Images] = None) -> DataObjects.Images:
         """
         Args:
             mask_data: if mask data is single channel, apply to every channel
@@ -817,21 +817,20 @@ class MaskIntensity(Transform):
             - ValueError: When ``mask_data`` and ``img`` channels differ and ``mask_data`` is not single channel.
 
         """
-        if self.mask_data is None and mask_data is None:
-            raise ValueError("Unknown mask_data.")
-        mask_data_ = np.array([[1]])
-        if self.mask_data is not None and mask_data is None:
-            mask_data_ = self.mask_data > 0
+
         if mask_data is not None:
             mask_data_ = mask_data > 0
-        mask_data_ = np.asarray(mask_data_)
+        elif self.mask_data is not None:
+            mask_data_ = self.mask_data > 0
+        else:
+            raise ValueError("Unknown mask_data.")
         if mask_data_.shape[0] != 1 and mask_data_.shape[0] != img.shape[0]:
             raise ValueError(
                 "When mask_data is not single channel, mask_data channels must match img, "
                 f"got img={img.shape[0]} mask_data={mask_data_.shape[0]}."
             )
-
-        return np.asarray(img * mask_data_)
+        mask_data_, _ = convert_data_type(mask_data_, type(img))
+        return img * mask_data_
 
 
 class SavitzkyGolaySmooth(Transform):
