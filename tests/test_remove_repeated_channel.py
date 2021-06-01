@@ -11,16 +11,19 @@
 
 import unittest
 
+import numpy as np
 import torch
 from parameterized import parameterized
 
 from monai.transforms import RemoveRepeatedChannel
 
-TEST_CASE_1 = [{"repeats": 2}, torch.Tensor([[1, 2], [1, 2], [3, 4], [3, 4]]), (2, 2)]
+TEST_CASES = []
+for q in (torch.Tensor, np.array):
+    TEST_CASES.append([{"repeats": 2}, q([[1, 2], [1, 2], [3, 4], [3, 4]]), (2, 2)])  # type: ignore
 
 
 class TestRemoveRepeatedChannel(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1])
+    @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_data, expected_shape):
         result = RemoveRepeatedChannel(**input_param)(input_data)
         self.assertEqual(result.shape, expected_shape)

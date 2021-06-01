@@ -12,15 +12,18 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import RepeatChannel
 
-TEST_CASE_1 = [{"repeats": 3}, np.array([[[0, 1], [1, 2]]]), (3, 2, 2)]
+TEST_CASES = []
+for q in (torch.Tensor, np.array):
+    TEST_CASES.append([{"repeats": 3}, q([[[0, 1], [1, 2]]]), (3, 2, 2)])  # type: ignore
 
 
 class TestRepeatChannel(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1])
+    @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_data, expected_shape):
         result = RepeatChannel(**input_param)(input_data)
         self.assertEqual(result.shape, expected_shape)

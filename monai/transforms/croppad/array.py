@@ -21,7 +21,7 @@ import numpy as np
 
 from monai.config import IndexSelection
 from monai.data.utils import get_random_patch, get_valid_patch_size
-from monai.transforms.transform import Randomizable, Transform
+from monai.transforms.transform import Randomizable, TorchOrNumpyTransform, Transform
 from monai.transforms.utils import (
     compute_divisible_spatial_size,
     generate_pos_neg_label_crop_centers,
@@ -211,7 +211,7 @@ class DivisiblePad(Transform):
         return spatial_pad(img)
 
 
-class SpatialCrop(Transform):
+class SpatialCrop(TorchOrNumpyTransform):
     """
     General purpose cropper to produce sub-volume region of interest (ROI).
     It can support to crop ND spatial (channel-first) data.
@@ -259,7 +259,7 @@ class SpatialCrop(Transform):
             # convert to slices
             self.slices = [slice(s, e) for s, e in zip(roi_start_np, roi_end_np)]
 
-    def __call__(self, img: DataObjects.Images):
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
@@ -269,7 +269,7 @@ class SpatialCrop(Transform):
         return img[tuple(slices)]
 
 
-class CenterSpatialCrop(Transform):
+class CenterSpatialCrop(TorchOrNumpyTransform):
     """
     Crop at the center of image with specified ROI size.
 
@@ -281,7 +281,7 @@ class CenterSpatialCrop(Transform):
     def __init__(self, roi_size: Union[Sequence[int], int]) -> None:
         self.roi_size = roi_size
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
@@ -556,7 +556,7 @@ class CropForeground(Transform):
         Crop and pad based on the bounding box.
 
         """
-        cropped = SpatialCrop(roi_start=box_start, roi_end=box_end)(img)
+        cropped: np.ndarray = SpatialCrop(roi_start=box_start, roi_end=box_end)(img)  # type: ignore
         pad_to_start = np.maximum(-box_start, 0)
         pad_to_end = np.maximum(box_end - np.asarray(img.shape[1:]), 0)
         pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
@@ -620,10 +620,10 @@ class RandWeightedCrop(Randomizable, Transform):
             raise ValueError(f"image and weight map spatial shape mismatch: {img.shape[1:]} vs {weight_map.shape[1:]}.")
         self.randomize(weight_map)
         _spatial_size = fall_back_tuple(self.spatial_size, weight_map.shape[1:])
-        results = []
+        results: List[np.ndarray] = []
         for center in self.centers:
             cropper = SpatialCrop(roi_center=center, roi_size=_spatial_size)
-            results.append(cropper(img))
+            results.append(cropper(img))  # type: ignore
         return results
 
 
@@ -752,7 +752,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         if self.centers is not None:
             for center in self.centers:
                 cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)  # type: ignore
-                results.append(cropper(img))
+                results.append(cropper(img))  # type: ignore
 
         return results
 
@@ -793,7 +793,7 @@ class ResizeWithPadOrCrop(Transform):
                 If None, defaults to the ``mode`` in construction.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
         """
-        return self.padder(self.cropper(img), mode=mode)
+        return self.padder(self.cropper(img), mode=mode)  # type: ignore
 
 
 class BoundingRect(Transform):

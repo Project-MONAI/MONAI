@@ -108,7 +108,7 @@ class Activations(TorchTransform):
         return self.post_convert_data(img, orig_type)
 
 
-class AsDiscrete(Transform):
+class AsDiscrete(TorchTransform):
     """
     Execute after model forward to transform model output to discrete values.
     It can complete below operations:
@@ -147,13 +147,13 @@ class AsDiscrete(Transform):
 
     def __call__(
         self,
-        img: torch.Tensor,
+        img: DataObjects.Images,
         argmax: Optional[bool] = None,
         to_onehot: Optional[bool] = None,
         n_classes: Optional[int] = None,
         threshold_values: Optional[bool] = None,
         logit_thresh: Optional[float] = None,
-    ) -> torch.Tensor:
+    ) -> DataObjects.Images:
         """
         Args:
             argmax: whether to execute argmax function on input data before transform.
@@ -168,19 +168,22 @@ class AsDiscrete(Transform):
                 Defaults to ``self.logit_thresh``.
 
         """
+        img_t: torch.Tensor
+        img_t, orig_type = self.pre_conv_data(img)  # type: ignore
+
         if argmax or self.argmax:
-            img = torch.argmax(img, dim=1, keepdim=True)
+            img_t = torch.argmax(img_t, dim=1, keepdim=True)
 
         if to_onehot or self.to_onehot:
             _nclasses = self.n_classes if n_classes is None else n_classes
             if not isinstance(_nclasses, int):
                 raise AssertionError("One of self.n_classes or n_classes must be an integer")
-            img = one_hot(img, _nclasses)
+            img_t = one_hot(img_t, _nclasses)
 
         if threshold_values or self.threshold_values:
-            img = img >= (self.logit_thresh if logit_thresh is None else logit_thresh)
+            img_t = img_t >= (logit_thresh or self.logit_thresh)
 
-        return img.float()
+        return self.post_convert_data(img_t.float(), orig_type)
 
 
 class KeepLargestConnectedComponent(TorchTransform):

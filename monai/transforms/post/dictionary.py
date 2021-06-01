@@ -159,7 +159,7 @@ class AsDiscreted(MapTransform):
         self.logit_thresh = ensure_tuple_rep(logit_thresh, len(self.keys))
         self.converter = AsDiscrete()
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key, argmax, to_onehot, n_classes, threshold_values, logit_thresh in self.key_iterator(
             d, self.argmax, self.to_onehot, self.n_classes, self.threshold_values, self.logit_thresh

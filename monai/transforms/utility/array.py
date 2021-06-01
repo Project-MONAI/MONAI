@@ -186,7 +186,7 @@ class EnsureChannelFirst(TorchTransform):
         return AsChannelFirst(channel_dim=channel_dim)(img)
 
 
-class RepeatChannel(Transform):
+class RepeatChannel(TorchOrNumpyTransform):
     """
     Repeat channel data to construct expected input shape for models.
     The `repeats` count includes the origin data, for example:
@@ -205,12 +205,11 @@ class RepeatChannel(Transform):
         """
         Apply the transform to `img`, assuming `img` is a "channel-first" array.
         """
-        img, orig_type = self.pre_conv_data(img)
-        img = torch.repeat_interleave(img, self.repeats, 0)  # type: ignore
-        return self.post_convert_data(img, orig_type)
+        repeeat_fn = torch.repeat_interleave if isinstance(img, torch.Tensor) else np.repeat
+        return repeeat_fn(img, self.repeats, 0)  # type: ignore
 
 
-class RemoveRepeatedChannel(Transform):
+class RemoveRepeatedChannel(TorchOrNumpyTransform):
     """
     RemoveRepeatedChannel data to undo RepeatChannel
     The `repeats` count specifies the deletion of the origin data, for example:
@@ -230,12 +229,10 @@ class RemoveRepeatedChannel(Transform):
         """
         Apply the transform to `img`, assuming `img` is a "channel-first" array.
         """
-        if np.shape(img)[0] < 2:
+        if img.shape[0] < 2:
             raise AssertionError("Image must have more than one channel")
 
-        img, orig_type = self.pre_conv_data(img)
-        img = torch.Tensor(img[:: self.repeats, :])  # type: ignore
-        return self.post_convert_data(img, orig_type)
+        return img[:: self.repeats, :]
 
 
 class SplitChannel(TorchOrNumpyTransform):
@@ -277,7 +274,7 @@ class SplitChannel(TorchOrNumpyTransform):
         return outputs
 
 
-class CastToType(Transform):
+class CastToType(TorchOrNumpyTransform):
     """
     Cast the Numpy data to specified numpy data type, or cast the PyTorch Tensor to
     specified PyTorch data type.
@@ -304,9 +301,9 @@ class CastToType(Transform):
 
         """
         if isinstance(img, np.ndarray):
-            return img.astype(self.dtype if dtype is None else dtype)  # type: ignore
+            return img.astype(dtype or self.dtype)  # type: ignore
         if isinstance(img, torch.Tensor):
-            return torch.as_tensor(img, dtype=self.dtype if dtype is None else dtype)
+            return img.to(dtype=dtype or self.dtype)  # type: ignore
         raise TypeError(f"img must be one of (numpy.ndarray, torch.Tensor) but is {type(img).__name__}.")
 
 
@@ -421,7 +418,7 @@ class SqueezeDim(TorchOrNumpyTransform):
         return img.squeeze(self.dim)
 
 
-class DataStats(Transform):
+class DataStats(TorchOrNumpyTransform):
     """
     Utility transform to show the statistics of data for debug or analysis.
     It can be inserted into any place of a transform chain and check results of previous transforms.
