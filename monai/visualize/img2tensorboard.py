@@ -144,7 +144,7 @@ def add_animated_gif_no_channels(
     Args:
         writer: Tensorboard SummaryWriter to write to
         tag: Data identifier
-        image_tensor: tensor for the image to add, expected to be in CHWD format
+        image_tensor: tensor for the image to add, expected to be in HWD format
         max_out: maximum number of slices to animate through
         scale_factor: amount to multiply values by. If the image data is between 0 and 1,
                               using 255 for this value will scale it to displayable range

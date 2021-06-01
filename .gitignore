@@ -40,12 +40,16 @@ htmlcov/
 .tox/
 .coverage
 .coverage.*
+.coverage/
 .cache
 nosetests.xml
 coverage.xml
 *.cover
 .hypothesis/
 .pytest_cache/
+
+# temporary unittest artifacts
+tests/testing_data/temp_*
 
 # Translations
 *.mo
@@ -124,6 +128,7 @@ temp/
 # temporary testing data MedNIST
 tests/testing_data/MedNIST*
 tests/testing_data/*Hippocampus*
+tests/testing_data/*.tiff
 
 # clang format tool
 .clang-format-bin/
