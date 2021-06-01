@@ -355,7 +355,8 @@ def decollate_batch(data: Union[dict, list, torch.Tensor], batch_size: Optional[
         for v in batch_data:
             if isinstance(v, torch.Tensor):
                 return v.shape[0]
-        raise RuntimeError("Couldn't determine batch size, please specify as argument.")
+        warnings.warn("batch_data is not a sequence of tensors in decollate, use `len(batch_data[0])` directly.")
+        return len(batch_data[0])
 
     result: List[Any]
     if isinstance(data, dict):
@@ -368,7 +369,7 @@ def decollate_batch(data: Union[dict, list, torch.Tensor], batch_size: Optional[
         batch_size = data.shape[0]
         result = [data[idx] for idx in range(batch_size)]
     else:
-        raise RuntimeError("Only currently implemented for dictionary, list or Tensor data.")
+        raise NotImplementedError("Only currently implemented for dictionary, list or Tensor data.")
 
     return result
 
