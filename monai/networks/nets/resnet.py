@@ -308,11 +308,7 @@ def _resnet(
         # Author of paper zipped the state_dict on googledrive,
         # so would need to download, unzip and read (2.8gb file for a ~150mb state dict).
         # Would like to load dict from url but need somewhere to save the state dicts.
-        print("Currently not implemented, see comments in source code")
-
-        # state_dict = load_state_dict_from_url(model_urls[arch],
-        # progress=progress)
-        # model.load_state_dict(state_dict)
+        raise NotImplementedError("Currently not implemented, see comments in source code")
     return model
 
 
