@@ -12,60 +12,77 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import CropForeground
 
-TEST_CASE_1 = [
-    {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 0},
-    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
-    np.array([[[1, 2, 1], [2, 3, 2], [1, 2, 1]]]),
-]
+TESTS = []
+for p in (torch.Tensor, np.array):
+    TESTS.append(
+        [
+            {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 0},
+            p([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),  # type: ignore
+            np.array([[[1, 2, 1], [2, 3, 2], [1, 2, 1]]]),
+        ]
+    )
 
-TEST_CASE_2 = [
-    {"select_fn": lambda x: x > 1, "channel_indices": None, "margin": 0},
-    np.array([[[0, 0, 0, 0, 0], [0, 1, 1, 1, 0], [0, 1, 3, 1, 0], [0, 1, 1, 1, 0], [0, 0, 0, 0, 0]]]),
-    np.array([[[3]]]),
-]
+    TESTS.append(
+        [
+            {"select_fn": lambda x: x > 1, "channel_indices": None, "margin": 0},
+            p([[[0, 0, 0, 0, 0], [0, 1, 1, 1, 0], [0, 1, 3, 1, 0], [0, 1, 1, 1, 0], [0, 0, 0, 0, 0]]]),  # type: ignore
+            np.array([[[3]]]),
+        ]
+    )
 
-TEST_CASE_3 = [
-    {"select_fn": lambda x: x > 0, "channel_indices": 0, "margin": 0},
-    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
-    np.array([[[1, 2, 1], [2, 3, 2], [1, 2, 1]]]),
-]
+    TESTS.append(
+        [
+            {"select_fn": lambda x: x > 0, "channel_indices": 0, "margin": 0},
+            p([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),  # type: ignore
+            np.array([[[1, 2, 1], [2, 3, 2], [1, 2, 1]]]),
+        ]
+    )
 
-TEST_CASE_4 = [
-    {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 1},
-    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),
-    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0]]]),
-]
+    TESTS.append(
+        [
+            {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 1},
+            p([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),  # type: ignore
+            np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0]]]),
+        ]
+    )
 
-TEST_CASE_5 = [
-    {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": [2, 1]},
-    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),
-    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),
-]
+    TESTS.append(
+        [
+            {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": [2, 1]},
+            p([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),  # type: ignore
+            np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),
+        ]
+    )
 
-TEST_CASE_6 = [
-    {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 0, "k_divisible": 4},
-    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
-    np.array([[[1, 2, 1, 0], [2, 3, 2, 0], [1, 2, 1, 0], [0, 0, 0, 0]]]),
-]
+    TESTS.append(
+        [
+            {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 0, "k_divisible": 4},
+            p([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),  # type: ignore
+            np.array([[[1, 2, 1, 0], [2, 3, 2, 0], [1, 2, 1, 0], [0, 0, 0, 0]]]),
+        ]
+    )
 
-TEST_CASE_7 = [
-    {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 0, "k_divisible": 10},
-    np.array([[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),
-    np.zeros((1, 0, 0)),
-]
+    TESTS.append(
+        [
+            {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 0, "k_divisible": 10},
+            p([[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),  # type: ignore
+            np.zeros((1, 0, 0)),
+        ]
+    )
 
 
 class TestCropForeground(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7])
+    @parameterized.expand(TESTS)
     def test_value(self, argments, image, expected_data):
         result = CropForeground(**argments)(image)
         np.testing.assert_allclose(result, expected_data)
 
-    @parameterized.expand([TEST_CASE_1])
+    @parameterized.expand([TESTS[0]])
     def test_return_coords(self, argments, image, _):
         argments["return_coords"] = True
         _, start_coord, end_coord = CropForeground(**argments)(image)
