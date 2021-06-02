@@ -22,7 +22,13 @@ import torch
 
 from monai.config import DtypeLike
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
-from monai.transforms.transform import RandomizableTransform, TorchOrNumpyTransform, Transform, convert_data_type
+from monai.transforms.transform import (
+    RandomizableTransform,
+    TorchOrNumpyTransform,
+    TorchTransform,
+    Transform,
+    convert_data_type,
+)
 from monai.transforms.utils import rescale_array
 from monai.utils import (
     PT_BEFORE_1_7,
@@ -914,7 +920,7 @@ class DetectEnvelope(Transform):
         return np.abs(hilbert_transform(input_data).squeeze(0).numpy())
 
 
-class GaussianSmooth(Transform):
+class GaussianSmooth(TorchTransform):
     """
     Apply Gaussian smooth to the input data based on specified `sigma` parameter.
     A default value `sigma=1.0` is provided for reference.
@@ -932,13 +938,16 @@ class GaussianSmooth(Transform):
         self.sigma = sigma
         self.approx = approx
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
+        img_t: torch.Tensor
+        img_t, orig_type, orig_device = self.pre_conv_data(img)  # type: ignore
+
         gaussian_filter = GaussianFilter(img.ndim - 1, self.sigma, approx=self.approx)
-        input_data = torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0)
-        return gaussian_filter(input_data).squeeze(0).detach().numpy()
+        out = gaussian_filter(img_t.unsqueeze(0)).squeeze(0)
+        return self.post_convert_data(out, orig_type, orig_device)
 
 
-class RandGaussianSmooth(RandomizableTransform):
+class RandGaussianSmooth(TorchTransform, RandomizableTransform):
     """
     Apply Gaussian smooth to the input data based on randomly selected `sigma` parameters.
 
@@ -976,7 +985,7 @@ class RandGaussianSmooth(RandomizableTransform):
         self.y = self.R.uniform(low=self.sigma_y[0], high=self.sigma_y[1])
         self.z = self.R.uniform(low=self.sigma_z[0], high=self.sigma_z[1])
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         self.randomize()
         if not self._do_transform:
             return img
