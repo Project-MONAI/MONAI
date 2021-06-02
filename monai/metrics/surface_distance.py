@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Union
+from typing import Optional, Union
 
 import numpy as np
 import torch
@@ -55,7 +55,7 @@ class SurfaceDistanceMetric(Metric):
         self.symmetric = symmetric
         self.reduction = reduction
 
-    def _apply(self, y_pred: torch.Tensor, y: torch.Tensor):
+    def _apply(self, y_pred: torch.Tensor, y: Optional[torch.Tensor] = None):
         """
         Args:
             y_pred: input data to compute, typical segmentation model output.
@@ -68,8 +68,10 @@ class SurfaceDistanceMetric(Metric):
             ValueError: when `y` is not a binarized tensor.
             ValueError: when `y_pred` has less than three dimensions.
         """
+        if not isinstance(y_pred, torch.Tensor) or not isinstance(y, torch.Tensor):
+            raise ValueError("y_pred and y must be PyTorch Tensor.")
         if not torch.all(y_pred.byte() == y_pred):
-            warnings.warn("y_pred is not a binarized tensor here!")
+            warnings.warn("y_pred should be a binarized tensor.")
         if not torch.all(y.byte() == y):
             raise ValueError("y should be a binarized tensor.")
         dims = y_pred.ndimension()

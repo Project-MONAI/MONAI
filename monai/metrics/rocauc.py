@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Tuple, Union, cast
+from typing import Tuple, Optional, Union, cast
 
 import numpy as np
 import torch
@@ -45,7 +45,7 @@ class ROCAUCMetric(Metric):
         super().__init__()
         self.average = average
 
-    def _apply(self, y_pred: torch.Tensor, y: torch.Tensor):
+    def _apply(self, y_pred: torch.Tensor, y: Optional[torch.Tensor] = None):
         return y_pred, y
 
     def reduce(self, data: Tuple[torch.Tensor, torch.Tensor]):

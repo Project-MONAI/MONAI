@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any, List, Optional, Sequence, Union
 
 import torch
 
@@ -41,21 +41,27 @@ class Metric(ABC):
                 or a `batch-first` Tensor.
 
         """
+        ret: Union[torch.Tensor, Sequence[torch.Tensor]]
         if isinstance(y_pred, (list, tuple)) or isinstance(y, (list, tuple)):
             # if y_pred or y is a list of channel-first data, add batch dim and compute metric
+            ret_: List[torch.Tensor]
             if y is not None:
-                ret = [self._apply(p_.detach().unsqueeze(0), y_.detach().unsqueeze(0)) for p_, y_ in zip(y_pred, y)]
+                ret_ = [self._apply(p_.detach().unsqueeze(0), y_.detach().unsqueeze(0)) for p_, y_ in zip(y_pred, y)]
             else:
-                ret = [self._apply(p_.detach().unsqueeze(0), None) for p_ in y_pred]
+                ret_ = [self._apply(p_.detach().unsqueeze(0), None) for p_ in y_pred]
             # concat the list of results
-            if isinstance(ret[0], torch.Tensor):
-                ret = torch.cat(ret, dim=0)
-            elif isinstance(ret[0], (list, tuple)) and all([isinstance(i, torch.Tensor) for i in ret[0]]):
+            if isinstance(ret_[0], torch.Tensor):
+                ret = torch.cat(ret_, dim=0)
+            elif isinstance(ret_[0], (list, tuple)) and all([isinstance(i, torch.Tensor) for i in ret_[0]]):
                 # if _apply() returned not only 1 Tensor, concat them separately
-                ret = [torch.cat([k[i] for k in ret], dim=0) for i in range(len(ret[0]))]
-        else:
-            y = y.detach() if y is not None else y
-            ret = self._apply(y_pred.detach(), y)
+                ret = [torch.cat([k[i] for k in ret_], dim=0) for i in range(len(ret_[0]))]
+            else:
+                # if not expected data type, return raw results directly
+                ret = ret_
+        elif isinstance(y_pred, torch.Tensor):
+            y_ = y.detach() if isinstance(y, torch.Tensor) else None
+            ret = self._apply(y_pred.detach(), y_)
+
         return ret
 
     @abstractmethod

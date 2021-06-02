@@ -12,7 +12,7 @@
 import math
 from abc import abstractmethod
 from functools import partial
-from typing import Any, Union
+from typing import Any, Optional, Union
 
 import torch
 
@@ -41,7 +41,6 @@ class RegressionMetric(Metric):
         self.reduction = reduction
 
     def reduce(self, data: torch.Tensor):
-        data = torch.cat(data, dim=0) if isinstance(data, list) else data
         return do_metric_reduction(data, self.reduction)
 
     def _check_shape(self, y_pred: torch.Tensor, y: torch.Tensor) -> None:
@@ -58,7 +57,9 @@ class RegressionMetric(Metric):
     def _compute_metric(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def _apply(self, y_pred: torch.Tensor, y: torch.Tensor):
+    def _apply(self, y_pred: torch.Tensor, y: Optional[torch.Tensor] = None):
+        if not isinstance(y_pred, torch.Tensor) or not isinstance(y, torch.Tensor):
+            raise ValueError("y_pred and y must be PyTorch Tensor.")
         self._check_shape(y_pred, y)
         return self._compute_metric(y_pred, y)
 

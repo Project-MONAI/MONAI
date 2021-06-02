@@ -14,10 +14,11 @@ from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence, Union
 import torch
 
 from monai.handlers.utils import evenly_divisible_all_gather
+from monai.metrics import Metric
 from monai.utils import exact_version, optional_import
 
 idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
-Metric, _ = optional_import("ignite.metrics", "0.4.4", exact_version, "Metric")
+igniteMetric, _ = optional_import("ignite.metrics", "0.4.4", exact_version, "Metric")
 reinit__is_reduced, _ = optional_import("ignite.metrics.metric", "0.4.4", exact_version, "reinit__is_reduced")
 if TYPE_CHECKING:
     from ignite.engine import Engine
@@ -25,7 +26,7 @@ else:
     Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
 
 
-class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to optional_import
+class IterationMetric(igniteMetric):  # type: ignore[valid-type, misc] # due to optional_import
     """
     Class for metrics that should be computed on every iteration and compute final results when epoch completed.
     Similar to the `EpochMetric` in ignite:
@@ -45,7 +46,7 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
 
     def __init__(
         self,
-        metric_fn: Callable,
+        metric_fn: Metric,
         output_transform: Callable = lambda x: x,
         device: Union[str, torch.device] = "cpu",
         save_details: bool = True,

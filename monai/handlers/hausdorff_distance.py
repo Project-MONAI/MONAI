@@ -54,7 +54,6 @@ class HausdorffDistance(IterationMetric):
                 Define the mode to reduce computation result. Defaults to ``"mean"``.
 
         """
-        super().__init__(output_transform, device=device)
         metric_fn = HausdorffDistanceMetric(
             include_background=include_background,
             distance_metric=distance_metric,
