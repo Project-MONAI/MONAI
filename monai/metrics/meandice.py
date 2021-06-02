@@ -14,6 +14,7 @@ from typing import Union
 
 import torch
 
+from monai.config import TensorList
 from monai.metrics.utils import do_metric_reduction, ignore_background
 from monai.utils import MetricReduction
 from .metric import Metric
@@ -75,7 +76,7 @@ class DiceMetric(Metric):
             include_background=self.include_background,
         )
 
-    def reduce(self, data):
+    def reduce(self, data: TensorList):
         data = torch.cat(data, dim=0) if isinstance(data, list) else data
         # do metric reduction
         f, not_nans = do_metric_reduction(data, self.reduction)

@@ -10,13 +10,14 @@
 # limitations under the License.
 
 from typing import Any, Optional
+from abc import ABC, abstractmethod
 
 import torch
 
 from monai.config import TensorList
 
 
-class Metric:
+class Metric(ABC):
     def __call__(self, y_pred: TensorList, y: Optional[TensorList] = None):
         if isinstance(y_pred, (list, tuple)) or isinstance(y, (list, tuple)):
             # if y_pred or y is a list of channel-first data, add batch dim and compute metric
@@ -28,8 +29,10 @@ class Metric:
             ret = self._apply(y_pred, y)
         return ret
 
+    @abstractmethod
     def _apply(self, y_pred: torch.Tensor, y: Optional[torch.Tensor] = None):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
+    @abstractmethod
     def reduce(self, data: Any):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")

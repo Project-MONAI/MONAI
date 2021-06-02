@@ -10,23 +10,26 @@
 # limitations under the License.
 
 import math
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from functools import partial
 from typing import Any, Union
 
 import torch
 
+from monai.config import TensorList
 from monai.metrics.utils import do_metric_reduction
 from monai.utils import MetricReduction
+from .metric import Metric
 
 
-class RegressionMetric(ABC):
+class RegressionMetric(Metric):
     def __init__(self, reduction: Union[MetricReduction, str] = MetricReduction.MEAN) -> None:
         super().__init__()
         self.reduction = reduction
 
-    def _reduce(self, f: torch.Tensor):
-        return do_metric_reduction(f, self.reduction)
+    def reduce(self, data: TensorList):
+        data = torch.cat(data, dim=0) if isinstance(data, list) else data
+        return do_metric_reduction(data, self.reduction)
 
     def _check_shape(self, y_pred: torch.Tensor, y: torch.Tensor) -> None:
         if y_pred.shape != y.shape:
@@ -42,12 +45,9 @@ class RegressionMetric(ABC):
     def _compute_metric(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):
+    def _apply(self, y_pred: torch.Tensor, y: torch.Tensor):
         self._check_shape(y_pred, y)
-        out = self._compute_metric(y_pred, y)
-        y, not_nans = self._reduce(out)
-        return y, not_nans
-
+        return self._compute_metric(y_pred, y)
 
 class MSEMetric(RegressionMetric):
     r"""Compute Mean Squared Error between two tensors using function:
