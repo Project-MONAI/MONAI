@@ -37,7 +37,7 @@ from monai.transforms.croppad.array import (
     SpatialPad,
 )
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.transform import MapTransform, Randomizable
+from monai.transforms.transform import MapTransform, Randomizable, convert_data_type
 from monai.transforms.utils import (
     allow_missing_keys_mode,
     generate_pos_neg_label_crop_centers,
@@ -852,7 +852,7 @@ class RandWeightedCropd(Randomizable, MapTransform, InvertibleTransform):
 
     def __call__(self, data: DataObjects.Mapping) -> List[DataObjects.Dict]:
         d = dict(data)
-        self.randomize(d[self.w_key])
+        self.randomize(convert_data_type(d[self.w_key], np.ndarray)[0])
         _spatial_size = fall_back_tuple(self.spatial_size, d[self.w_key].shape[1:])
 
         results: List[DataObjects.Dict] = [{} for _ in range(self.num_samples)]
@@ -1011,10 +1011,14 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
 
     def __call__(self, data: DataObjects.Mapping) -> List[DataObjects.Dict]:
         d = dict(data)
-        label = d[self.label_key]
-        image = d[self.image_key] if self.image_key else None
-        fg_indices = d.get(self.fg_indices_key) if self.fg_indices_key is not None else None
-        bg_indices = d.get(self.bg_indices_key) if self.bg_indices_key is not None else None
+        label = convert_data_type(d[self.label_key], np.ndarray)[0]
+        image = convert_data_type(d[self.image_key], np.ndarray)[0] if self.image_key else None
+        fg_indices = (
+            convert_data_type(d.get(self.fg_indices_key), np.ndarray)[0] if self.fg_indices_key is not None else None
+        )
+        bg_indices = (
+            convert_data_type(d.get(self.bg_indices_key), np.ndarray)[0] if self.bg_indices_key is not None else None
+        )
 
         self.randomize(label, fg_indices, bg_indices, image)
         if not isinstance(self.spatial_size, tuple):
