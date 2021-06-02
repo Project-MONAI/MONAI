@@ -61,6 +61,8 @@ class Metric(ABC):
         elif isinstance(y_pred, torch.Tensor):
             y_ = y.detach() if y is not None and isinstance(y, torch.Tensor) else None
             ret = self._apply(y_pred.detach(), y_)
+        else:
+            raise ValueError("y_pred or y must be a list of `channel-first` Tensors or a `batch-first` Tensor.")
 
         return ret
 
