@@ -153,7 +153,7 @@ class Randomizable(ABC, ThreadUnsafe):
             _seed = id(seed) if not isinstance(seed, (int, np.integer)) else seed
             _seed = _seed % MAX_SEED
             self.R = np.random.RandomState(_seed)
-            self.R_torch = self.R_torch.manual_seed(_seed)
+            self.R_torch = self.R_torch.manual_seed(int(_seed))
             return self
 
         if state is not None:
