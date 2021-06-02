@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any
+from typing import Any, Optional
 
 import torch
 
@@ -17,19 +17,24 @@ from monai.config import TensorList
 
 
 class Metric:
+    def __init__(self, batch_reduce: bool = False) -> None:
+        self.batch_reduce = batch_reduce
+
     def __call__(self, y_pred: TensorList, y: Optional[TensorList] = None):
         if isinstance(y_pred, (list, tuple)) or isinstance(y, (list, tuple)):
             # if y_pred or y is a list of channel-first data, add batch dim and compute metric
-            ret = [self._apply(p_.unsqueeze(0), y_.unsqueeze(0)) for p_, y_ in zip(y_pred, y)]
+            if y is not None:
+                ret = [self._apply(p_.unsqueeze(0), y_.unsqueeze(0)) for p_, y_ in zip(y_pred, y)]
+            else:
+                ret = [self._apply(p_.unsqueeze(0), None) for p_ in y_pred]
         else:
             ret = self._apply(y_pred, y)
-        return self._reduce(ret)
-    
+        if self.batch_reduce:
+            ret = self.reduce(ret)
+        return ret
+
     def _apply(self, y_pred: torch.Tensor, y: Optional[torch.Tensor] = None):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def _reduce(self, data: Any):
-        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
-
-    def compute(self):
+    def reduce(self, data: Any):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")

@@ -167,6 +167,14 @@ TEST_CASE_9 = [
     [[1.0000, 1.0000], [1.0000, 1.0000]],
 ]
 
+TEST_CASE_10 = [
+    {
+        "y": [torch.ones((2, 3, 3)), torch.ones((2, 3, 3))],
+        "y_pred": [torch.ones((2, 3, 3)), torch.ones((2, 3, 3))],
+    },
+    [[1.0000, 1.0000], [1.0000, 1.0000]],
+]
+
 
 class TestComputeMeanDice(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_9])
@@ -180,7 +188,7 @@ class TestComputeMeanDice(unittest.TestCase):
         self.assertTrue(np.allclose(np.isnan(result.cpu().numpy()), expected_value))
 
     # DiceMetric class tests
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_10])
     def test_value_class(self, input_data, expected_value):
 
         # same test as for compute_meandice

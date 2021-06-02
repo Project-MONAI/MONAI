@@ -15,9 +15,26 @@ import numpy as np
 import torch
 
 from monai.utils import Average
+from .metric import Metric
 
 
-def _calculate(y: torch.Tensor, y_pred: torch.Tensor) -> float:
+class ROCAUCMetric(Metric):
+    def __init__(self, average: Union[Average, str] = Average.MACRO, batch_reduce: bool = False) -> None:
+        super().__init__(batch_reduce=batch_reduce)
+        self.average = average
+
+    def _apply(self, y_pred: torch.Tensor, y: torch.Tensor):
+        return y_pred, y
+
+    def reduce(self, data):
+        y_pred, y = data
+        y_pred = torch.cat(y_pred, dim=0) if isinstance(y_pred, list) else y_pred
+        y = torch.cat(y, dim=0) if isinstance(y, list) else y
+        # compute final value and do metric reduction
+        return compute_roc_auc(y_pred=y_pred, y=y, average=self.average)
+
+
+def _calculate(y_pred: torch.Tensor, y: torch.Tensor) -> float:
     if not (y.ndimension() == y_pred.ndimension() == 1 and len(y) == len(y_pred)):
         raise AssertionError("y and y_pred must be 1 dimension data with same length.")
     if not y.unique().equal(torch.tensor([0, 1], dtype=y.dtype, device=y.device)):
@@ -96,16 +113,16 @@ def compute_roc_auc(
         y = y.squeeze(dim=-1)
 
     if y_pred_ndim == 1:
-        return _calculate(y, y_pred)
+        return _calculate(y_pred, y)
 
     if y.shape != y_pred.shape:
         raise AssertionError("data shapes of y_pred and y do not match.")
 
     average = Average(average)
     if average == Average.MICRO:
-        return _calculate(y.flatten(), y_pred.flatten())
+        return _calculate(y_pred.flatten(), y.flatten())
     y, y_pred = y.transpose(0, 1), y_pred.transpose(0, 1)
-    auc_values = [_calculate(y_, y_pred_) for y_, y_pred_ in zip(y, y_pred)]
+    auc_values = [_calculate(y_pred_, y_) for y_pred_, y_ in zip(y_pred, y)]
     if average == Average.NONE:
         return auc_values
     if average == Average.MACRO:

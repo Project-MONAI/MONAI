@@ -16,9 +16,10 @@ import torch
 
 from monai.metrics.utils import do_metric_reduction, ignore_background
 from monai.utils import MetricReduction
+from .metric import Metric
 
 
-class DiceMetric:
+class DiceMetric(Metric):
     """
     Compute average Dice loss between two tensors. It can support both multi-classes and multi-labels tasks.
     Input `y_pred` (BNHW[D] where N is number of classes) is compared with ground truth `y` (BNHW[D]).
@@ -42,12 +43,13 @@ class DiceMetric:
         self,
         include_background: bool = True,
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        batch_reduce: bool = True,
     ) -> None:
-        super().__init__()
+        super().__init__(batch_reduce=batch_reduce)
         self.include_background = include_background
         self.reduction = reduction
 
-    def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):
+    def _apply(self, y_pred: torch.Tensor, y: torch.Tensor):
         """
         Args:
             y_pred: input data to compute, typical segmentation model output.
@@ -68,14 +70,16 @@ class DiceMetric:
         if dims < 3:
             raise ValueError("y_pred should have at least three dimensions.")
         # compute dice (BxC) for each channel for each batch
-        f = compute_meandice(
+        return compute_meandice(
             y_pred=y_pred,
             y=y,
             include_background=self.include_background,
         )
 
+    def reduce(self, data):
+        data = torch.cat(data, dim=0) if isinstance(data, list) else data
         # do metric reduction
-        f, not_nans = do_metric_reduction(f, self.reduction)
+        f, not_nans = do_metric_reduction(data, self.reduction)
         return f, not_nans
 
 
