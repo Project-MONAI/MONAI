@@ -148,7 +148,7 @@ class RandRicianNoise(TorchOrNumpyTransform, RandomizableTransform):
             _std = self.R.uniform(0, std) if self.sample_std else std
             self._noise1 = self.R.normal(mean, _std, size=im_shape).astype(img.dtype)
             self._noise2 = self.R.normal(mean, _std, size=im_shape).astype(img.dtype)
-            return np.sqrt((img + self._noise1) ** 2 + self._noise2 ** 2)
+            return np.sqrt((img + self._noise1) ** 2 + self._noise2 ** 2)  # type: ignore
 
     def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """

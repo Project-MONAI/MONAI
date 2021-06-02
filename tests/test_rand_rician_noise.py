@@ -12,8 +12,8 @@
 import unittest
 
 import numpy as np
-from parameterized import parameterized
 import torch
+from parameterized import parameterized
 
 from monai.transforms import RandRicianNoise
 from tests.utils import NumpyImageTestCase2D, TorchImageTestCase2D

@@ -687,7 +687,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, InvertibleTransform):
             ret.append(cropped)
         return ret
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = deepcopy(dict(data))
         # We changed the transform name from RandSpatialCropd to RandSpatialCropSamplesd
         # Need to revert that since we're calling RandSpatialCropd's inverse
@@ -885,7 +885,7 @@ class RandWeightedCropd(Randomizable, MapTransform, InvertibleTransform):
 
         return results
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -1042,7 +1042,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
 
         return results
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
