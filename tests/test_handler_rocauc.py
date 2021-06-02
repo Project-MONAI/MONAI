@@ -35,7 +35,7 @@ class TestHandlerROCAUC(unittest.TestCase):
         y_pred = act(y_pred)
         y = to_onehot(y)
         # test a list of channel-first tensors
-        y_pred, y = [i for i in y_pred], [i for i in y]
+        y_pred, y = list(y_pred), list(y)
         auc_metric.update([y_pred, y])
 
         auc = auc_metric.compute()
