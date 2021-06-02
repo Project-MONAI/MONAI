@@ -64,7 +64,7 @@ class TestRandGibbsNoised(unittest.TestCase):
         out2 = t(deepcopy(data))
         for k in KEYS:
             np.testing.assert_allclose(out1[k], out2[k])
-            self.assertIsInstance(out1[k], torch.Tensor if as_tensor_output else np.ndarray)
+            self.assertIsInstance(out1[k], type(data[k]))
 
     @parameterized.expand(TEST_CASES)
     def test_identity(self, im_shape, _, as_tensor_input):
