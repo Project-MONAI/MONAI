@@ -14,7 +14,7 @@ from typing import Any, List, Optional, Sequence, Union
 
 import torch
 
-from monai.config import TensorList
+from monai.config import TensorOrList
 
 
 class Metric(ABC):
@@ -27,7 +27,7 @@ class Metric(ABC):
 
     """
 
-    def __call__(self, y_pred: TensorList, y: Optional[TensorList] = None):
+    def __call__(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):
         """
         Execute basic computation for model prediction and ground truth.
         It can support  both `list of channel-first Tensor` and `batch-first Tensor`.

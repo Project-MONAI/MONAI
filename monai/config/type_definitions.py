@@ -14,7 +14,7 @@ from typing import Collection, Hashable, Iterable, Sequence, TypeVar, Union
 import numpy as np
 import torch
 
-__all__ = ["KeysCollection", "IndexSelection", "DtypeLike", "NdarrayTensor", "TensorList"]
+__all__ = ["KeysCollection", "IndexSelection", "DtypeLike", "NdarrayTensor", "TensorOrList"]
 
 """Commonly used concepts
 This module provides naming and type specifications for commonly used concepts
@@ -70,8 +70,8 @@ adapted from https://github.com/numpy/numpy/blob/master/numpy/typing/_dtype_like
 NdarrayTensor = TypeVar("NdarrayTensor", np.ndarray, torch.Tensor)
 
 
-TensorList = Union[torch.Tensor, Sequence[torch.Tensor]]
-"""TensorList
+TensorOrList = Union[torch.Tensor, Sequence[torch.Tensor]]
+"""TensorOrList
 
-The TensorList type is used for defining `batch-first Tensor` or `list of channel-first Tensor`.
+The TensorOrList type is used for defining `batch-first Tensor` or `list of channel-first Tensor`.
 """
