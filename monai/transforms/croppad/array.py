@@ -540,8 +540,9 @@ class CropForeground(NumpyTransform):
         And adjust bounding box coords to be divisible by `k`.
 
         """
-        img, *_ = convert_data_type(img, np.ndarray)
-        box_start, box_end = generate_spatial_bounding_box(img, self.select_fn, self.channel_indices, self.margin)
+        img_np: np.ndarray
+        img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+        box_start, box_end = generate_spatial_bounding_box(img_np, self.select_fn, self.channel_indices, self.margin)
         box_start_ = np.asarray(box_start, dtype=np.int16)
         box_end_ = np.asarray(box_end, dtype=np.int16)
         orig_spatial_size = box_end_ - box_start_
@@ -563,15 +564,16 @@ class CropForeground(NumpyTransform):
         pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
         return BorderPad(spatial_border=pad, mode=self.mode)(cropped)
 
-    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
+    def __call__(self, img: DataObjects.Images):
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't change the channel dim.
         """
-        img, orig_type, orig_device = self.pre_conv_data(img)
+        img_np: np.ndarray
+        img_np, orig_type, orig_device = self.pre_conv_data(img)  # type: ignore
 
-        box_start, box_end = self.compute_bounding_box(img)
-        cropped = self.crop_pad(img, box_start, box_end)
+        box_start, box_end = self.compute_bounding_box(img_np)
+        cropped = self.crop_pad(img_np, box_start, box_end)
 
         cropped = self.post_convert_data(cropped, orig_type, orig_device)
 
