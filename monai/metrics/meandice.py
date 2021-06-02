@@ -14,7 +14,6 @@ from typing import Union
 
 import torch
 
-from monai.config import TensorList
 from monai.metrics.utils import do_metric_reduction, ignore_background
 from monai.utils import MetricReduction
 from .metric import Metric
@@ -30,13 +29,14 @@ class DiceMetric(Metric):
     the first category (channel index 0) which is by convention assumed to be background. If the non-background
     segmentations are small compared to the total image size they can get overwhelmed by the signal from the
     background so excluding it in such cases helps convergence.
+    `y_preds` and `y` can also be a list of Tensor with shape: [CHW[D]].
 
     Args:
         include_background: whether to skip Dice computation on the first channel of
             the predicted output. Defaults to ``True``.
         reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}
-            Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
+            Define the mode to reduce computation result. Defaults to ``"mean"``.
 
     """
 
@@ -76,7 +76,11 @@ class DiceMetric(Metric):
             include_background=self.include_background,
         )
 
-    def reduce(self, data: TensorList):
+    def reduce(self, data: torch.Tensor):
+        """
+        Execute reduction logic for the output of `compute_meandice`.
+
+        """
         data = torch.cat(data, dim=0) if isinstance(data, list) else data
         # do metric reduction
         f, not_nans = do_metric_reduction(data, self.reduction)

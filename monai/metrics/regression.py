@@ -16,18 +16,29 @@ from typing import Any, Union
 
 import torch
 
-from monai.config import TensorList
 from monai.metrics.utils import do_metric_reduction
 from monai.utils import MetricReduction
 from .metric import Metric
 
 
 class RegressionMetric(Metric):
+    """
+    Base class for regression metrics.
+    Input `y_pred` (BCHW[D] where C is number of channels) is compared with ground truth `y` (BCHW[D]).
+    Both `y_pred` and `y` are expected to be real-valued, where `y_pred` is output from a regression model.
+    `y_preds` and `y` can also be a list of Tensor with shape: [CHW[D]].
+
+    Args:
+        reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}
+            Define the mode to reduce computation result. Defaults to ``"mean"``.
+
+    """
     def __init__(self, reduction: Union[MetricReduction, str] = MetricReduction.MEAN) -> None:
         super().__init__()
         self.reduction = reduction
 
-    def reduce(self, data: TensorList):
+    def reduce(self, data: torch.Tensor):
         data = torch.cat(data, dim=0) if isinstance(data, list) else data
         return do_metric_reduction(data, self.reduction)
 

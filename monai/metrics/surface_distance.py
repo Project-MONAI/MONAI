@@ -15,7 +15,6 @@ from typing import Union
 import numpy as np
 import torch
 
-from monai.config import TensorList
 from monai.metrics.utils import do_metric_reduction, get_mask_edges, get_surface_distance, ignore_background
 from monai.utils import MetricReduction
 from .metric import Metric
@@ -38,7 +37,7 @@ class SurfaceDistanceMetric(Metric):
             the metric used to compute surface distance. Defaults to ``"euclidean"``.
         reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}
-            Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
+            Define the mode to reduce computation result. Defaults to ``"mean"``.
 
     """
 
@@ -84,8 +83,11 @@ class SurfaceDistanceMetric(Metric):
             distance_metric=self.distance_metric,
         )
 
-    def reduce(self, data: TensorList):
-        data = torch.cat(data, dim=0) if isinstance(data, list) else data
+    def reduce(self, data: torch.Tensor):
+        """
+        Execute reduction logic for the output of `compute_average_surface_distance`.
+
+        """
         # do metric reduction
         f, not_nans = do_metric_reduction(data, self.reduction)
         return f, not_nans

@@ -14,8 +14,7 @@ from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence, Union
 import torch
 
 from monai.handlers.utils import evenly_divisible_all_gather
-from monai.metrics import do_metric_reduction
-from monai.utils import MetricReduction, exact_version, optional_import
+from monai.utils import exact_version, optional_import
 
 idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
 Metric, _ = optional_import("ignite.metrics", "0.4.4", exact_version, "Metric")
@@ -78,19 +77,7 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
 
         y_pred, y = output
 
-        def _compute(y_pred, y):
-            if isinstance(y_pred, torch.Tensor):
-                y_pred = y_pred.detach()
-            if isinstance(y, torch.Tensor):
-                y = y.detach()
-            score = self.metric_fn(y_pred, y)
-            return score[0] if isinstance(score, (tuple, list)) else score
-
-        if isinstance(y_pred, (list, tuple)) or isinstance(y, (list, tuple)):
-            # if y_pred or y is a list of channel-first data, add batch dim and compute metric, then concat the scores
-            score = torch.cat([_compute(p_.unsqueeze(0), y_.unsqueeze(0)) for p_, y_ in zip(y_pred, y)], dim=0)
-        else:
-            score = _compute(y_pred, y)
+        score = self.metric_fn(y_pred, y)
         self._scores.append(score.to(self._device))
 
     def compute(self) -> Any:
@@ -116,16 +103,14 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
         result: torch.Tensor = torch.zeros(1)
         if idist.get_rank() == 0:
             # run compute_fn on zero rank only
-            result = self._reduce(_scores)
+            result = self.metric_fn.reduce(_scores)
+            result = result[0] if isinstance(result, (list, tuple)) else result
 
         if ws > 1:
             # broadcast result to all processes
             result = idist.broadcast(result, src=0)
 
         return result.item() if isinstance(result, torch.Tensor) else result
-
-    def _reduce(self, scores) -> Any:
-        return do_metric_reduction(scores, MetricReduction.MEAN)[0]
 
     def attach(self, engine: Engine, name: str) -> None:
         """

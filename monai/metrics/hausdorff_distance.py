@@ -15,7 +15,6 @@ from typing import Optional, Union
 import numpy as np
 import torch
 
-from monai.config import TensorList
 from monai.metrics.utils import do_metric_reduction, get_mask_edges, get_surface_distance, ignore_background
 from monai.utils import MetricReduction
 from .metric import Metric
@@ -31,7 +30,7 @@ class HausdorffDistanceMetric(Metric):
     Input `y_pred` (BNHW[D] where N is number of classes) is compared with ground truth `y` (BNHW[D]).
     `y_preds` is expected to have binarized predictions and `y` should be in one-hot format.
     You can use suitable transforms in ``monai.transforms.post`` first to achieve binarized values.
-
+    `y_preds` and `y` can also be a list of Tensor with shape: [CHW[D]].
     The implementation refers to `DeepMind's implementation <https://github.com/deepmind/surface-distance>`_.
 
     Args:
@@ -45,7 +44,7 @@ class HausdorffDistanceMetric(Metric):
         directed: whether to calculate directed Hausdorff distance. Defaults to ``False``.
         reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}
-            Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
+            Define the mode to reduce computation result. Defaults to ``"mean"``.
 
     """
 
@@ -94,8 +93,11 @@ class HausdorffDistanceMetric(Metric):
             directed=self.directed,
         )
 
-    def reduce(self, data: TensorList):
-        data = torch.cat(data, dim=0) if isinstance(data, list) else data
+    def reduce(self, data: torch.Tensor):
+        """
+        Execute reduction logic for the output of `compute_hausdorff_distance`.
+
+        """
         # do metric reduction
         f, not_nans = do_metric_reduction(data, self.reduction)
         return f, not_nans

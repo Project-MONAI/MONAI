@@ -9,13 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable, Union
+from typing import Callable, Union
 
 import torch
 
 from monai.handlers.iteration_metric import IterationMetric
-from monai.metrics import ConfusionMatrixMetric, compute_confusion_matrix_metric
-from monai.metrics.utils import MetricReduction, do_metric_reduction
+from monai.metrics import ConfusionMatrixMetric
+from monai.metrics.utils import MetricReduction
 
 
 class ConfusionMatrix(IterationMetric):
@@ -30,6 +30,7 @@ class ConfusionMatrix(IterationMetric):
         output_transform: Callable = lambda x: x,
         device: Union[str, torch.device] = "cpu",
         save_details: bool = True,
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
     ) -> None:
         """
 
@@ -47,6 +48,9 @@ class ConfusionMatrix(IterationMetric):
             device: device specification in case of distributed computation usage.
             save_details: whether to save metric computation details per image, for example: TP/TN/FP/FN of every image.
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
+            reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+                ``"mean_channel"``, ``"sum_channel"``}
+                Define the mode to reduce computation result. Defaults to ``"mean"``.
 
         See also:
             :py:meth:`monai.metrics.confusion_matrix`
@@ -55,7 +59,7 @@ class ConfusionMatrix(IterationMetric):
             include_background=include_background,
             metric_name=metric_name,
             compute_sample=False,
-            reduction=MetricReduction.NONE,
+            reduction=reduction,
         )
         self.metric_name = metric_name
         super().__init__(
@@ -64,7 +68,3 @@ class ConfusionMatrix(IterationMetric):
             device=device,
             save_details=save_details,
         )
-
-    def _reduce(self, scores) -> Any:
-        confusion_matrix, _ = do_metric_reduction(scores, MetricReduction.MEAN)
-        return compute_confusion_matrix_metric(self.metric_name, confusion_matrix)

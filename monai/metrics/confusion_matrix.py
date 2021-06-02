@@ -14,7 +14,6 @@ from typing import Sequence, Union
 
 import torch
 
-from monai.config import TensorList
 from monai.metrics.utils import do_metric_reduction, ignore_background
 from monai.utils import ensure_tuple, MetricReduction
 from .metric import Metric
@@ -49,8 +48,6 @@ class ConfusionMatrixMetric(Metric):
             compute reduction first, defaults to ``False``.
         reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}
-            Define the mode to reduce computation result of 1 batch data. Reduction will only be employed when
-            ``compute_sample`` is ``True``. Defaults to ``"mean"``.
 
     """
 
@@ -98,8 +95,14 @@ class ConfusionMatrixMetric(Metric):
             include_background=self.include_background,
         )
 
-    def reduce(self, data: TensorList):
-        data = torch.cat(data, dim=0) if isinstance(data, list) else data
+    def reduce(self, data: torch.Tensor):
+        """
+        Execute reduction for the confusion matrix values, the `data` usually is a Tensor of shape [BC4],
+        Where, the third dimension represents the number of true positive, false positive, true negative
+        and false negative values for each channel of each sample within the input batch. Where, B equals
+        to the batch size and C equals to the number of classes that need to be computed.
+
+        """
         results = []
         for metric_name in self.metric_name:
             if self.compute_sample:           

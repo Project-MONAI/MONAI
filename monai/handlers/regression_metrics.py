@@ -28,6 +28,7 @@ class MeanSquaredError(IterationMetric):
         output_transform: Callable = lambda x: x,
         device: Union[str, torch.device] = "cpu",
         save_details: bool = True,
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
     ) -> None:
         """
 
@@ -36,13 +37,14 @@ class MeanSquaredError(IterationMetric):
             device: device specification in case of distributed computation usage.
             save_details: whether to save metric computation details per image, for example: mean squared error of every image.
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
+            reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+                ``"mean_channel"``, ``"sum_channel"``}
+                Define the mode to reduce computation result. Defaults to ``"mean"``.
 
         See also:
             :py:class:`monai.metrics.MSEMetric`
         """
-        metric_fn = MSEMetric(
-            reduction=MetricReduction.NONE,
-        )
+        metric_fn = MSEMetric(reduction=reduction)
         super().__init__(
             metric_fn=metric_fn,
             output_transform=output_transform,
@@ -61,6 +63,7 @@ class MeanAbsoluteError(IterationMetric):
         output_transform: Callable = lambda x: x,
         device: Union[str, torch.device] = "cpu",
         save_details: bool = True,
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
     ) -> None:
         """
 
@@ -69,13 +72,14 @@ class MeanAbsoluteError(IterationMetric):
             device: device specification in case of distributed computation usage.
             save_details: whether to save metric computation details per image, for example: mean absolute error of every image.
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
+            reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+                ``"mean_channel"``, ``"sum_channel"``}
+                Define the mode to reduce computation result. Defaults to ``"mean"``.
 
         See also:
             :py:class:`monai.metrics.MAEMetric`
         """
-        metric_fn = MAEMetric(
-            reduction=MetricReduction.NONE,
-        )
+        metric_fn = MAEMetric(reduction=reduction)
         super().__init__(
             metric_fn=metric_fn,
             output_transform=output_transform,
@@ -94,6 +98,7 @@ class RootMeanSquaredError(IterationMetric):
         output_transform: Callable = lambda x: x,
         device: Union[str, torch.device] = "cpu",
         save_details: bool = True,
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
     ) -> None:
         """
 
@@ -102,13 +107,14 @@ class RootMeanSquaredError(IterationMetric):
             device: device specification in case of distributed computation usage.
             save_details: whether to save metric computation details per image, for example: root mean squared error of every image.
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
+            reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+                ``"mean_channel"``, ``"sum_channel"``}
+                Define the mode to reduce computation result. Defaults to ``"mean"``.
 
         See also:
             :py:class:`monai.metrics.RMSEMetric`
         """
-        metric_fn = RMSEMetric(
-            reduction=MetricReduction.NONE,
-        )
+        metric_fn = RMSEMetric(reduction=reduction)
         super().__init__(
             metric_fn=metric_fn,
             output_transform=output_transform,
@@ -128,6 +134,7 @@ class PeakSignalToNoiseRatio(IterationMetric):
         output_transform: Callable = lambda x: x,
         device: Union[str, torch.device] = "cpu",
         save_details: bool = True,
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
     ) -> None:
         """
 
@@ -138,14 +145,14 @@ class PeakSignalToNoiseRatio(IterationMetric):
             device: device specification in case of distributed computation usage.
             save_details: whether to save metric computation details per image, for example: PSNR of every image.
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
+            reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+                ``"mean_channel"``, ``"sum_channel"``}
+                Define the mode to reduce computation result. Defaults to ``"mean"``.
 
         See also:
             :py:class:`monai.metrics.PSNRMetric`
         """
-        metric_fn = PSNRMetric(
-            max_val=max_val,
-            reduction=MetricReduction.NONE,
-        )
+        metric_fn = PSNRMetric(max_val=max_val, reduction=reduction)
         super().__init__(
             metric_fn=metric_fn,
             output_transform=output_transform,

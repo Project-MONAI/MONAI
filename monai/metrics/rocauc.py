@@ -14,12 +14,31 @@ from typing import Tuple, Union, cast
 import numpy as np
 import torch
 
-from monai.config import TensorList
 from monai.utils import Average
 from .metric import Metric
 
 
 class ROCAUCMetric(Metric):
+    """
+    Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC). Referring to:
+    `sklearn.metrics.roc_auc_score <https://scikit-learn.org/stable/modules/generated/
+    sklearn.metrics.roc_auc_score.html#sklearn.metrics.roc_auc_score>`_.
+    The input `y_pred` and `y` can be a list of `channel-first` Tensor or a `batch-first` Tensor.
+
+    Args:
+        average: {``"macro"``, ``"weighted"``, ``"micro"``, ``"none"``}
+            Type of averaging performed if not binary classification.
+            Defaults to ``"macro"``.
+
+            - ``"macro"``: calculate metrics for each label, and find their unweighted mean.
+                This does not take label imbalance into account.
+            - ``"weighted"``: calculate metrics for each label, and find their average,
+                weighted by support (the number of true instances for each label).
+            - ``"micro"``: calculate metrics globally by considering each element of the label
+                indicator matrix as a label.
+            - ``"none"``: the scores for each class are returned.
+
+    """
     def __init__(self, average: Union[Average, str] = Average.MACRO) -> None:
         super().__init__()
         self.average = average
@@ -27,10 +46,27 @@ class ROCAUCMetric(Metric):
     def _apply(self, y_pred: torch.Tensor, y: torch.Tensor):
         return y_pred, y
 
-    def reduce(self, data: Tuple[TensorList, TensorList]):
+    def reduce(self, data: Tuple[torch.Tensor, torch.Tensor]):
+        """
+        As AUC metric needs to execute on the overall data, so usually users accumulate `y_pred` and `y`
+        of every iteration, then execute real computation and reduction on the accumulated data.
+        For example::
+
+            y_pred = []
+            y = []
+            metric = ROCAUCMetric(average=Average.MACRO)
+
+            for batch in dataloader:
+                image, label = batch
+                pred = model(image)
+                pred_, y_ = metric(pred, label)
+                y.append(y_)
+                y_pred.append(pred_)
+
+            result = metric.reduce(torch.cat(y_pred, dim=0), torch.cat(y, dim=0))
+
+        """
         y_pred, y = data
-        y_pred = torch.cat(y_pred, dim=0) if isinstance(y_pred, list) else y_pred
-        y = torch.cat(y, dim=0) if isinstance(y, list) else y
         # compute final value and do metric reduction
         return compute_roc_auc(y_pred=y_pred, y=y, average=self.average)
 
