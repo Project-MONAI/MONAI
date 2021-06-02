@@ -18,7 +18,7 @@ from monai.metrics import Metric
 from monai.utils import exact_version, optional_import
 
 idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
-igniteMetric, _ = optional_import("ignite.metrics", "0.4.4", exact_version, "Metric")
+IgniteMetric, _ = optional_import("ignite.metrics", "0.4.4", exact_version, "Metric")
 reinit__is_reduced, _ = optional_import("ignite.metrics.metric", "0.4.4", exact_version, "reinit__is_reduced")
 if TYPE_CHECKING:
     from ignite.engine import Engine
@@ -26,7 +26,7 @@ else:
     Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
 
 
-class IterationMetric(igniteMetric):  # type: ignore[valid-type, misc] # due to optional_import
+class IterationMetric(IgniteMetric):  # type: ignore[valid-type, misc] # due to optional_import
     """
     Class for metrics that should be computed on every iteration and compute final results when epoch completed.
     Similar to the `EpochMetric` in ignite:
