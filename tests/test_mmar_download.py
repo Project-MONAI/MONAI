@@ -18,6 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.apps import download_mmar, load_from_mmar
+from monai.apps.mmars import MODEL_DESC
 from tests.utils import skip_if_quick
 
 TEST_CASES = [["clara_pt_prostate_mri_segmentation_1"], ["clara_pt_covid19_ct_lesion_segmentation_1"]]
@@ -83,6 +84,11 @@ class TestMMMARDownload(unittest.TestCase):
         self.assertEqual(output.__class__.__name__, expected_name)
         x = next(output.parameters())  # verify the first element
         np.testing.assert_allclose(x[0][0].detach().cpu().numpy(), expected_val, rtol=1e-3, atol=1e-3)
+
+    def test_unique(self):
+        # model ids are unique
+        keys = sorted([m["id"] for m in MODEL_DESC])
+        self.assertTrue(keys == sorted(set(keys)))
 
 
 if __name__ == "__main__":
