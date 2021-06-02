@@ -993,7 +993,7 @@ class RandGaussianSmooth(TorchTransform, RandomizableTransform):
         return GaussianSmooth(sigma=sigma, approx=self.approx)(img)
 
 
-class GaussianSharpen(Transform):
+class GaussianSharpen(TorchTransform):
     """
     Sharpen images using the Gaussian Blur filter.
     Referring to: http://scipy-lectures.org/advanced/image_processing/auto_examples/plot_sharpen.html.
@@ -1032,16 +1032,18 @@ class GaussianSharpen(Transform):
         self.alpha = alpha
         self.approx = approx
 
-    def __call__(self, img: np.ndarray):
-        gaussian_filter1 = GaussianFilter(img.ndim - 1, self.sigma1, approx=self.approx)
-        gaussian_filter2 = GaussianFilter(img.ndim - 1, self.sigma2, approx=self.approx)
-        input_data = torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0)
-        blurred_f = gaussian_filter1(input_data)
-        filter_blurred_f = gaussian_filter2(blurred_f)
-        return (blurred_f + self.alpha * (blurred_f - filter_blurred_f)).squeeze(0).detach().numpy()
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
+        img_t: torch.Tensor
+        img_t, orig_type, orig_device = self.pre_conv_data(img)  # type: ignore
+
+        gf1, gf2 = [GaussianFilter(img_t.ndim - 1, sigma, approx=self.approx) for sigma in (self.sigma1, self.sigma2)]
+        blurred_f = gf1(img_t.unsqueeze(0))
+        filter_blurred_f = gf2(blurred_f)
+        out = (blurred_f + self.alpha * (blurred_f - filter_blurred_f)).squeeze(0)
+        return self.post_convert_data(out, orig_type, orig_device)
 
 
-class RandGaussianSharpen(RandomizableTransform):
+class RandGaussianSharpen(TorchTransform, RandomizableTransform):
     """
     Sharpen images using the Gaussian Blur filter based on randomly selected `sigma1`, `sigma2` and `alpha`.
     The algorithm is :py:class:`monai.transforms.GaussianSharpen`.
