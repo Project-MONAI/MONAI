@@ -66,12 +66,17 @@ def download_mmar(item, mmar_dir=None, progress: bool = True):
     Download and extract Medical Model Archive (MMAR) from Nvidia Clara Train.
 
     See Also:
-        https://docs.nvidia.com/clara/
+        - https://docs.nvidia.com/clara/
+        - Nvidia NGC Registry CLI
 
     Args:
         item: the corresponding model item from `MODEL_DESC`.
         mmar_dir: target directory to store the MMAR, default is mmars subfolder under `torch.hub get_dir()`.
         progress: whether to display a progress bar.
+
+    Examples::
+        >>> from monai.apps import download_mmar
+        >>> download_mmar("clara_pt_prostate_mri_segmentation_1", mmar_dir=".")
 
     Returns:
         The local directory of the downloaded model.
@@ -91,7 +96,6 @@ def download_mmar(item, mmar_dir=None, progress: bool = True):
         has_base=False,
         progress=progress,
     )
-    print(f"*** \"{item['id']}\" available at {model_dir}.\n")
     return model_dir
 
 
@@ -107,6 +111,11 @@ def load_from_mmar(item, mmar_dir=None, progress: bool = True, map_location=None
         pretrained: whether to load the pretrained weights after initializing a network module.
         weights_only: whether to load only the weights instead of initializing the network module and assign weights.
 
+    Examples::
+        >>> from monai.apps import load_from_mmar
+        >>> unet_model = load_from_mmar("clara_pt_prostate_mri_segmentation_1", mmar_dir=".", map_location="cpu")
+        >>> print(unet_model)
+
     See Also:
         https://docs.nvidia.com/clara/
     """
@@ -114,6 +123,7 @@ def load_from_mmar(item, mmar_dir=None, progress: bool = True, map_location=None
         item = _get_model_spec(item)
     model_dir = download_mmar(item=item, mmar_dir=mmar_dir, progress=progress)
     model_file = os.path.join(model_dir, item["model_file"])
+    print(f"\n*** \"{item['id']}\" available at {model_dir}.")
 
     # loading with `torch.jit.load`
     if f"{model_file}".endswith(".ts"):
@@ -135,7 +145,8 @@ def load_from_mmar(item, mmar_dir=None, progress: bool = True, map_location=None
     model_kwargs = model_config["args"]
     model_cls = monai_nets.__dict__[model_name]
     model_inst = model_cls(**model_kwargs)
-    print(f"{model_cls}({model_kwargs})")
+    print(f"*** Model: {model_cls}")
+    print(f"*** Model param: {model_kwargs}")
     if pretrained:
         model_inst.load_state_dict(model_dict["model"])
     print("\n---")
