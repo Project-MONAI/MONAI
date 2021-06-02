@@ -59,7 +59,7 @@ class Metric(ABC):
                 # if not expected data type, return raw results directly
                 ret = ret_
         elif isinstance(y_pred, torch.Tensor):
-            y_ = y.detach() if isinstance(y, torch.Tensor) else None
+            y_ = y.detach() if y is not None and isinstance(y, torch.Tensor) else None
             ret = self._apply(y_pred.detach(), y_)
 
         return ret
