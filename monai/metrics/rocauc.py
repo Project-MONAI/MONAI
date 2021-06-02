@@ -19,8 +19,8 @@ from .metric import Metric
 
 
 class ROCAUCMetric(Metric):
-    def __init__(self, average: Union[Average, str] = Average.MACRO, batch_reduce: bool = False) -> None:
-        super().__init__(batch_reduce=batch_reduce)
+    def __init__(self, average: Union[Average, str] = Average.MACRO) -> None:
+        super().__init__()
         self.average = average
 
     def _apply(self, y_pred: torch.Tensor, y: torch.Tensor):

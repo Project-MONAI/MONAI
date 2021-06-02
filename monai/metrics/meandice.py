@@ -43,9 +43,8 @@ class DiceMetric(Metric):
         self,
         include_background: bool = True,
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
-        batch_reduce: bool = True,
     ) -> None:
-        super().__init__(batch_reduce=batch_reduce)
+        super().__init__()
         self.include_background = include_background
         self.reduction = reduction
 
