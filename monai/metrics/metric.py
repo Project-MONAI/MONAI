@@ -54,7 +54,8 @@ class Metric(ABC):
                 # if _apply() returned not only 1 Tensor, concat them separately
                 ret = [torch.cat([k[i] for k in ret], dim=0) for i in range(len(ret[0]))]
         else:
-            ret = self._apply(y_pred.detach(), y.detach())
+            y = y.detach() if y is not None else y
+            ret = self._apply(y_pred.detach(), y)
         return ret
 
     @abstractmethod
