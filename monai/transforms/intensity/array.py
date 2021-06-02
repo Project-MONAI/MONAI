@@ -95,7 +95,7 @@ class RandGaussianNoise(RandomizableTransform):
         return img + self._noise.astype(dtype)
 
 
-class RandRicianNoise(RandomizableTransform):
+class RandRicianNoise(TorchOrNumpyTransform, RandomizableTransform):
     """
     Add Rician noise to image.
     Rician noise in MRI is the result of performing a magnitude operation on complex
@@ -134,18 +134,21 @@ class RandRicianNoise(RandomizableTransform):
         self.channel_wise = channel_wise
         self.relative = relative
         self.sample_std = sample_std
-        self._noise1 = None
-        self._noise2 = None
+        self._noise1: Optional[DataObjects.Images] = None
+        self._noise2: Optional[DataObjects.Images] = None
 
     def _add_noise(self, img: DataObjects.Images, mean: float, std: float):
         im_shape = img.shape
-        _std = self.R.uniform(0, std) if self.sample_std else std
-        self._noise1 = self.R.normal(mean, _std, size=im_shape)
-        self._noise2 = self.R.normal(mean, _std, size=im_shape)
-        if self._noise1 is None or self._noise2 is None:
-            raise AssertionError
-        dtype = dtype_torch_to_numpy(img.dtype) if isinstance(img, torch.Tensor) else img.dtype
-        return np.sqrt((img + self._noise1.astype(dtype)) ** 2 + self._noise2.astype(dtype) ** 2)
+        if isinstance(img, torch.Tensor):
+            _std = float(torch.rand(1, generator=self.R_torch)) * std if self.sample_std else std
+            self._noise1 = torch.normal(mean, _std, size=im_shape, generator=self.R_torch).to(img.dtype)
+            self._noise2 = torch.normal(mean, _std, size=im_shape, generator=self.R_torch).to(img.dtype)
+            return torch.sqrt((img + self._noise1) ** 2 + self._noise2 ** 2)
+        else:
+            _std = self.R.uniform(0, std) if self.sample_std else std
+            self._noise1 = self.R.normal(mean, _std, size=im_shape).astype(img.dtype)
+            self._noise2 = self.R.normal(mean, _std, size=im_shape).astype(img.dtype)
+            return np.sqrt((img + self._noise1) ** 2 + self._noise2 ** 2)
 
     def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """

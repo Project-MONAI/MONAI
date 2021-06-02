@@ -13,13 +13,19 @@ import unittest
 
 import numpy as np
 from parameterized import parameterized
+import torch
 
 from monai.transforms import RandRicianNoise
 from tests.utils import NumpyImageTestCase2D, TorchImageTestCase2D
 
+TESTS = [
+    ("test_zero_mean", 0, 0.1),
+    ("test_non_zero_mean", 1, 0.5),
+]
+
 
 class TestRandRicianNoise(NumpyImageTestCase2D):
-    @parameterized.expand([("test_zero_mean", 0, 0.1), ("test_non_zero_mean", 1, 0.5)])
+    @parameterized.expand(TESTS)
     def test_correct_results(self, _, mean, std):
         seed = 0
         rician_fn = RandRicianNoise(prob=1.0, mean=mean, std=std)
@@ -36,18 +42,17 @@ class TestRandRicianNoise(NumpyImageTestCase2D):
 
 
 class TestRandRicianNoiseTorch(TorchImageTestCase2D):
-    @parameterized.expand([("test_zero_mean", 0, 0.1), ("test_non_zero_mean", 1, 0.5)])
+    @parameterized.expand(TESTS)
     def test_correct_results(self, _, mean, std):
         seed = 0
         rician_fn = RandRicianNoise(prob=1.0, mean=mean, std=std)
         rician_fn.set_random_state(seed)
         noised = rician_fn(self.imt)
-        np.random.seed(seed)
-        np.random.random()
-        _std = np.random.uniform(0, std)
-        expected = np.sqrt(
-            (self.imt + np.random.normal(mean, _std, size=self.imt.shape)) ** 2
-            + np.random.normal(mean, _std, size=self.imt.shape) ** 2
+        torch.manual_seed(seed)
+        _std = float(torch.rand(1)) * std
+        expected = torch.sqrt(
+            (self.imt + torch.normal(mean, _std, size=self.imt.shape)) ** 2
+            + torch.normal(mean, _std, size=self.imt.shape) ** 2
         )
         np.testing.assert_allclose(expected, noised, atol=1e-5)
 

@@ -128,6 +128,7 @@ class Randomizable(ABC, ThreadUnsafe):
     """
 
     R: np.random.RandomState = np.random.RandomState()
+    R_torch = torch.Generator()
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
@@ -152,6 +153,7 @@ class Randomizable(ABC, ThreadUnsafe):
             _seed = id(seed) if not isinstance(seed, (int, np.integer)) else seed
             _seed = _seed % MAX_SEED
             self.R = np.random.RandomState(_seed)
+            self.R_torch = self.R_torch.manual_seed(_seed)
             return self
 
         if state is not None:
@@ -161,6 +163,7 @@ class Randomizable(ABC, ThreadUnsafe):
             return self
 
         self.R = np.random.RandomState()
+        self.R_torch = torch.Generator()
         return self
 
     def randomize(self, data: Any) -> None:
