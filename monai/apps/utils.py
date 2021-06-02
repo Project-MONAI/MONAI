@@ -181,7 +181,12 @@ def download_url(
 
 
 def extractall(
-    filepath: str, output_dir: str = ".", hash_val: Optional[str] = None, hash_type: str = "md5", file_type: str = ""
+    filepath: str,
+    output_dir: str = ".",
+    hash_val: Optional[str] = None,
+    hash_type: str = "md5",
+    file_type: str = "",
+    has_base: bool = True,
 ) -> None:
     """
     Extract file to the output directory.
@@ -194,21 +199,29 @@ def extractall(
             if None, skip hash validation.
         hash_type: 'md5' or 'sha1', defaults to 'md5'.
         file_type: string of file type for decompressing. Leave it empty to infer the type from the filepath basename.
+        has_base: whether the extracted files have a base folder. This flag is used when checking if the existing
+            folder is a result of `extractall`, if it is, the extraction is skipped. For example, if A.zip is unzipped
+            to folder structure `A/*.png`, this flag should be True; if B.zip is unzipped to `*.png`, this flag should
+            be False.
 
     Raises:
         RuntimeError: When the hash validation of the ``filepath`` compressed file fails.
         NotImplementedError: When the ``filepath`` file extension is not one of [zip", "tar.gz", "tar"].
 
     """
-    target_file = os.path.join(output_dir, _basename(filepath).split(".")[0])
-    if os.path.exists(target_file) or os.path.exists(output_dir):
-        print(f"Folder exists in {output_dir}, skipped extracting.")
+    if has_base:
+        # the extracted files will be in this folder
+        cache_dir = os.path.join(output_dir, _basename(filepath).split(".")[0])
+    else:
+        cache_dir = output_dir
+    if os.path.exists(cache_dir) and len(os.listdir(cache_dir)) > 0:
+        print(f"Non-empty folder exists in {cache_dir}, skipped extracting.")
         return
     if hash_val and not check_hash(filepath, hash_val, hash_type):
         raise RuntimeError(
             f"{hash_type} check of compressed file failed: " f"filepath={filepath}, expected {hash_type}={hash_val}."
         )
-    print(f"Writing directory: {output_dir}.")
+    print(f"Writing into directory: {output_dir}.")
     _file_type = file_type.lower().strip()
     if filepath.endswith("zip") or _file_type == "zip":
         zip_file = zipfile.ZipFile(filepath)
@@ -232,6 +245,7 @@ def download_and_extract(
     hash_val: Optional[str] = None,
     hash_type: str = "md5",
     file_type: str = "",
+    has_base: bool = True,
     progress: bool = True,
 ) -> None:
     """
@@ -247,10 +261,13 @@ def download_and_extract(
             if None, skip hash validation.
         hash_type: 'md5' or 'sha1', defaults to 'md5'.
         file_type: string of file type for decompressing. Leave it empty to infer the type from url's base file name.
+        has_base: whether the extracted files have a base folder. This flag is used when checking if the existing
+            folder is a result of `extractall`, if it is, the extraction is skipped. For example, if A.zip is unzipped
+            to folder structure `A/*.png`, this flag should be True; if B.zip is unzipped to `*.png`, this flag should
+            be False.
         progress: whether to display progress bar.
-
     """
     with tempfile.TemporaryDirectory() as tmp_dir:
         filename = filepath or os.path.join(tmp_dir, f"{_basename(url)}")
         download_url(url=url, filepath=filename, hash_val=hash_val, hash_type=hash_type, progress=progress)
-        extractall(filepath=filename, output_dir=output_dir, file_type=file_type)
+        extractall(filepath=filename, output_dir=output_dir, file_type=file_type, has_base=has_base)

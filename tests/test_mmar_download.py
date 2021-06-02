@@ -23,7 +23,10 @@ from tests.utils import skip_if_quick
 TEST_CASES = [["clara_pt_prostate_mri_segmentation_1"], ["clara_pt_covid19_ct_lesion_segmentation_1"]]
 TEST_EXTRACT_CASES = [
     (
-        {"item": "clara_pt_prostate_mri_segmentation_1", "map_location": "cuda" if torch.cuda.is_available() else "cpu"},
+        {
+            "item": "clara_pt_prostate_mri_segmentation_1",
+            "map_location": "cuda" if torch.cuda.is_available() else "cpu",
+        },
         "UNet",
         np.array(
             [
@@ -69,6 +72,7 @@ class TestMMMARDownload(unittest.TestCase):
         download_mmar(idx)
         download_mmar(idx, progress=False)  # repeated to check caching
         with tempfile.TemporaryDirectory() as tmp_dir:
+            download_mmar(idx, mmar_dir=tmp_dir, progress=False)
             download_mmar(idx, mmar_dir=tmp_dir, progress=False)  # repeated to check caching
             self.assertTrue(os.path.exists(os.path.join(tmp_dir, idx)))
 

@@ -88,9 +88,10 @@ def download_mmar(item, mmar_dir=None, progress: bool = True):
         hash_val=item["hash_val"],
         hash_type=item["hash_type"],
         file_type=item["file_type"],
+        has_base=False,
         progress=progress,
     )
-    print(f"\n\"{item['id']}\" at {mmar_dir}.")
+    print(f"*** \"{item['id']}\" available at {model_dir}.\n")
     return model_dir
 
 
