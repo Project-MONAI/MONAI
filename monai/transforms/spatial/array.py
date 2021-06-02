@@ -28,6 +28,7 @@ from monai.transforms.transform import (
     RandomizableTransform,
     ThreadUnsafe,
     ToDoTransform,
+    TorchOrNumpyTransform,
     TorchTransform,
     Transform,
 )
@@ -597,7 +598,7 @@ class Zoom(ToDoTransform):
         return zoomed[tuple(slice_vec)]
 
 
-class Rotate90(ToDoTransform):
+class Rotate90(TorchOrNumpyTransform):
     """
     Rotate an array by 90 degrees in the plane specified by `axes`.
     See np.rot90 for additional details:
@@ -619,17 +620,17 @@ class Rotate90(ToDoTransform):
             raise ValueError("spatial_axes must be 2 int numbers to indicate the axes to rotate 90 degrees.")
         self.spatial_axes = spatial_axes_
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
+        if isinstance(img, torch.Tensor):
+            return torch.rot90(img, self.k, map_spatial_axes(img.ndim, self.spatial_axes)).to(img.dtype)
+        return np.rot90(img, self.k, map_spatial_axes(img.ndim, self.spatial_axes)).astype(img.dtype)  # type: ignore
 
-        result: np.ndarray = np.rot90(img, self.k, map_spatial_axes(img.ndim, self.spatial_axes))
-        return result.astype(img.dtype)
 
-
-class RandRotate90(ToDoTransform, RandomizableTransform):
+class RandRotate90(TorchOrNumpyTransform, RandomizableTransform):
     """
     With probability `prob`, input arrays are rotated by 90 degrees
     in the plane specified by `spatial_axes`.
@@ -654,7 +655,7 @@ class RandRotate90(ToDoTransform, RandomizableTransform):
         self._rand_k = self.R.randint(self.max_k) + 1
         super().randomize(None)
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
