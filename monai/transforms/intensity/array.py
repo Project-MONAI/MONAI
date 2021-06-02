@@ -1142,7 +1142,7 @@ class RandHistogramShift(RandomizableTransform):
         )
 
 
-class RandGibbsNoise(RandomizableTransform):
+class RandGibbsNoise(TorchOrNumpyTransform, RandomizableTransform):
     """
     Naturalistic image augmentation via Gibbs artifacts. The transform
     randomly applies Gibbs noise to 2D/3D MRI images. Gibbs artifacts

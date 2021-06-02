@@ -22,9 +22,8 @@ from monai.utils.misc import set_determinism
 
 TEST_CASES = []
 for shape in ((128, 64), (64, 48, 80)):
-    for as_tensor_output in (True, False):
-        for as_tensor_input in (True, False):
-            TEST_CASES.append((shape, as_tensor_output, as_tensor_input))
+    for as_tensor_input in (True, False):
+        TEST_CASES.append((shape, as_tensor_input))
 
 
 class TestRandGibbsNoise(unittest.TestCase):
@@ -42,27 +41,27 @@ class TestRandGibbsNoise(unittest.TestCase):
         return torch.Tensor(im) if as_tensor_input else im
 
     @parameterized.expand(TEST_CASES)
-    def test_0_prob(self, im_shape, as_tensor_output, as_tensor_input):
+    def test_0_prob(self, im_shape, as_tensor_input):
         im = self.get_data(im_shape, as_tensor_input)
         alpha = [0.5, 1.0]
-        t = RandGibbsNoise(0.0, alpha, as_tensor_output)
+        t = RandGibbsNoise(0.0, alpha)
         out = t(im)
         np.testing.assert_allclose(im, out)
 
     @parameterized.expand(TEST_CASES)
-    def test_same_result(self, im_shape, as_tensor_output, as_tensor_input):
+    def test_same_result(self, im_shape, as_tensor_input):
         im = self.get_data(im_shape, as_tensor_input)
         alpha = [0.5, 0.8]
-        t = RandGibbsNoise(1.0, alpha, as_tensor_output)
+        t = RandGibbsNoise(1.0, alpha)
         t.set_random_state(42)
         out1 = t(deepcopy(im))
         t.set_random_state(42)
         out2 = t(deepcopy(im))
         np.testing.assert_allclose(out1, out2)
-        self.assertIsInstance(out1, torch.Tensor if as_tensor_output else np.ndarray)
+        self.assertIsInstance(out1, type(im))
 
     @parameterized.expand(TEST_CASES)
-    def test_identity(self, im_shape, _, as_tensor_input):
+    def test_identity(self, im_shape, as_tensor_input):
         im = self.get_data(im_shape, as_tensor_input)
         alpha = [0.0, 0.0]
         t = RandGibbsNoise(1.0, alpha)
@@ -70,7 +69,7 @@ class TestRandGibbsNoise(unittest.TestCase):
         np.testing.assert_allclose(im, out, atol=1e-2)
 
     @parameterized.expand(TEST_CASES)
-    def test_alpha_1(self, im_shape, _, as_tensor_input):
+    def test_alpha_1(self, im_shape, as_tensor_input):
         im = self.get_data(im_shape, as_tensor_input)
         alpha = [1.0, 1.0]
         t = RandGibbsNoise(1.0, alpha)
@@ -78,7 +77,7 @@ class TestRandGibbsNoise(unittest.TestCase):
         np.testing.assert_allclose(0 * im, out)
 
     @parameterized.expand(TEST_CASES)
-    def test_alpha(self, im_shape, _, as_tensor_input):
+    def test_alpha(self, im_shape, as_tensor_input):
         im = self.get_data(im_shape, as_tensor_input)
         alpha = [0.5, 0.51]
         t = RandGibbsNoise(1.0, alpha)
