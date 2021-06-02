@@ -14,11 +14,13 @@ from typing import Sequence, Union
 
 import torch
 
+from monai.config import TensorList
 from monai.metrics.utils import do_metric_reduction, ignore_background
-from monai.utils import MetricReduction
+from monai.utils import ensure_tuple, MetricReduction
+from .metric import Metric
 
 
-class ConfusionMatrixMetric:
+class ConfusionMatrixMetric(Metric):
     """
     Compute confusion matrix related metrics. This function supports to calculate all metrics mentioned in:
     `Confusion matrix <https://en.wikipedia.org/wiki/Confusion_matrix>`_.
@@ -43,10 +45,8 @@ class ConfusionMatrixMetric:
             Except for input only one metric, multiple metrics are also supported via input a sequence of metric names, such as
             ("sensitivity", "precision", "recall"), if ``compute_sample`` is ``True``, multiple ``f`` and ``not_nans`` will be
             returned with the same order as input names when calling the class.
-        compute_sample: if ``True``, each sample's metric will be computed first. If ``False``, the confusion matrix for each image
-            (the output of function ``get_confusion_matrix``) will be returned. In this way, users should achieve the confusion
-            matrixes for all images during an epoch and then use ``compute_confusion_matrix_metric`` to calculate the metric.
-            Defaults to ``False``.
+        compute_sample: when reducing, if ``True``, each sample's metric will be computed first. If ``False``,
+            compute reduction first, defaults to ``False``.
         reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}
             Define the mode to reduce computation result of 1 batch data. Reduction will only be employed when
@@ -63,11 +63,11 @@ class ConfusionMatrixMetric:
     ) -> None:
         super().__init__()
         self.include_background = include_background
-        self.metric_name = metric_name
+        self.metric_name = ensure_tuple(metric_name)
         self.compute_sample = compute_sample
         self.reduction = reduction
 
-    def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):
+    def _apply(self, y_pred: torch.Tensor, y: torch.Tensor):
         """
         Args:
             y_pred: input data to compute. It must be one-hot format and first dim is batch.
@@ -92,27 +92,25 @@ class ConfusionMatrixMetric:
                 warnings.warn("As for classification task, compute_sample should be False.")
                 self.compute_sample = False
 
-        confusion_matrix = get_confusion_matrix(
+        return get_confusion_matrix(
             y_pred=y_pred,
             y=y,
             include_background=self.include_background,
         )
 
-        if self.compute_sample:
-            if isinstance(self.metric_name, str):
-                confusion_matrix = compute_confusion_matrix_metric(self.metric_name, confusion_matrix)
-                f, not_nans = do_metric_reduction(confusion_matrix, self.reduction)
-                return f, not_nans
-            if len(self.metric_name) < 1:
-                raise ValueError("the sequence should at least has on metric name.")
-            results = []
-            for metric_name in self.metric_name:
-                sub_confusion_matrix = compute_confusion_matrix_metric(metric_name, confusion_matrix)
+    def reduce(self, data: TensorList):
+        data = torch.cat(data, dim=0) if isinstance(data, list) else data
+        results = []
+        for metric_name in self.metric_name:
+            if self.compute_sample:           
+                sub_confusion_matrix = compute_confusion_matrix_metric(metric_name, data)
                 f, not_nans = do_metric_reduction(sub_confusion_matrix, self.reduction)
-                results.append(f)
-                results.append(not_nans)
-            return results
-        return confusion_matrix
+            else:
+                f, not_nans = do_metric_reduction(data, self.reduction)
+                f = compute_confusion_matrix_metric(metric_name, f)
+            results.append(f)
+            results.append(not_nans)
+        return results
 
 
 def get_confusion_matrix(

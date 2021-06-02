@@ -136,7 +136,7 @@ class TestAllSurfaceMetrics(unittest.TestCase):
             batch, n_class = 2, 3
             batch_seg_1 = seg_1.unsqueeze(0).unsqueeze(0).repeat([batch, n_class, 1, 1, 1])
             batch_seg_2 = seg_2.unsqueeze(0).unsqueeze(0).repeat([batch, n_class, 1, 1, 1])
-            result, _ = sur_metric(batch_seg_1, batch_seg_2)
+            result, _ = sur_metric.reduce(sur_metric(batch_seg_1, batch_seg_2))
             expected_value_curr = expected_value[ct]
             np.testing.assert_allclose(expected_value_curr, result, rtol=1e-7)
             ct += 1
@@ -147,9 +147,10 @@ class TestAllSurfaceMetrics(unittest.TestCase):
         seg_1 = torch.tensor(seg_1)
         seg_2 = torch.tensor(seg_2)
         sur_metric = SurfaceDistanceMetric(include_background=False)
-        batch_seg_1 = seg_1.unsqueeze(0).unsqueeze(0)
-        batch_seg_2 = seg_2.unsqueeze(0).unsqueeze(0)
-        result, not_nans = sur_metric(batch_seg_1, batch_seg_2)
+        # test list of channel-first Tensor
+        batch_seg_1 = [seg_1.unsqueeze(0)]
+        batch_seg_2 = [seg_2.unsqueeze(0)]
+        result, not_nans = sur_metric.reduce(sur_metric(batch_seg_1, batch_seg_2))
         np.testing.assert_allclose(0, result, rtol=1e-7)
         np.testing.assert_allclose(0, not_nans, rtol=1e-7)
 

@@ -131,7 +131,7 @@ class TestHausdorffDistance(unittest.TestCase):
                 batch, n_class = 2, 3
                 batch_seg_1 = seg_1.unsqueeze(0).unsqueeze(0).repeat([batch, n_class, 1, 1, 1])
                 batch_seg_2 = seg_2.unsqueeze(0).unsqueeze(0).repeat([batch, n_class, 1, 1, 1])
-                result, _ = hd_metric(batch_seg_1, batch_seg_2)
+                result, _ = hd_metric.reduce(hd_metric(batch_seg_1, batch_seg_2))
                 expected_value_curr = expected_value[ct]
                 np.testing.assert_allclose(expected_value_curr, result, rtol=1e-7)
                 ct += 1
@@ -144,7 +144,7 @@ class TestHausdorffDistance(unittest.TestCase):
         hd_metric = HausdorffDistanceMetric(include_background=False)
         batch_seg_1 = seg_1.unsqueeze(0).unsqueeze(0)
         batch_seg_2 = seg_2.unsqueeze(0).unsqueeze(0)
-        result, not_nans = hd_metric(batch_seg_1, batch_seg_2)
+        result, not_nans = hd_metric.reduce(hd_metric(batch_seg_1, batch_seg_2))
         np.testing.assert_allclose(0, result, rtol=1e-7)
         np.testing.assert_allclose(0, not_nans, rtol=1e-7)
 

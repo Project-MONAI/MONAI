@@ -15,13 +15,15 @@ from typing import Optional, Union
 import numpy as np
 import torch
 
+from monai.config import TensorList
 from monai.metrics.utils import do_metric_reduction, get_mask_edges, get_surface_distance, ignore_background
 from monai.utils import MetricReduction
+from .metric import Metric
 
 __all__ = ["HausdorffDistanceMetric", "compute_hausdorff_distance", "compute_percent_hausdorff_distance"]
 
 
-class HausdorffDistanceMetric:
+class HausdorffDistanceMetric(Metric):
     """
     Compute Hausdorff Distance between two tensors. It can support both multi-classes and multi-labels tasks.
     It supports both directed and non-directed Hausdorff distance calculation. In addition, specify the `percentile`
@@ -62,7 +64,7 @@ class HausdorffDistanceMetric:
         self.directed = directed
         self.reduction = reduction
 
-    def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):
+    def _apply(self, y_pred: torch.Tensor, y: torch.Tensor):
         """
         Args:
             y_pred: input data to compute, typical segmentation model output.
@@ -83,7 +85,7 @@ class HausdorffDistanceMetric:
         if dims < 3:
             raise ValueError("y_pred should have at least three dimensions.")
         # compute (BxC) for each channel for each batch
-        f = compute_hausdorff_distance(
+        return compute_hausdorff_distance(
             y_pred=y_pred,
             y=y,
             include_background=self.include_background,
@@ -92,8 +94,10 @@ class HausdorffDistanceMetric:
             directed=self.directed,
         )
 
+    def reduce(self, data: TensorList):
+        data = torch.cat(data, dim=0) if isinstance(data, list) else data
         # do metric reduction
-        f, not_nans = do_metric_reduction(f, self.reduction)
+        f, not_nans = do_metric_reduction(data, self.reduction)
         return f, not_nans
 
 

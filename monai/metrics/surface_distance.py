@@ -15,11 +15,13 @@ from typing import Union
 import numpy as np
 import torch
 
+from monai.config import TensorList
 from monai.metrics.utils import do_metric_reduction, get_mask_edges, get_surface_distance, ignore_background
 from monai.utils import MetricReduction
+from .metric import Metric
 
 
-class SurfaceDistanceMetric:
+class SurfaceDistanceMetric(Metric):
     """
     Compute Surface Distance between two tensors. It can support both multi-classes and multi-labels tasks.
     It supports both symmetric and asymmetric surface distance calculation.
@@ -53,7 +55,7 @@ class SurfaceDistanceMetric:
         self.symmetric = symmetric
         self.reduction = reduction
 
-    def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):
+    def _apply(self, y_pred: torch.Tensor, y: torch.Tensor):
         """
         Args:
             y_pred: input data to compute, typical segmentation model output.
@@ -74,7 +76,7 @@ class SurfaceDistanceMetric:
         if dims < 3:
             raise ValueError("y_pred should have at least three dimensions.")
         # compute (BxC) for each channel for each batch
-        f = compute_average_surface_distance(
+        return compute_average_surface_distance(
             y_pred=y_pred,
             y=y,
             include_background=self.include_background,
@@ -82,8 +84,10 @@ class SurfaceDistanceMetric:
             distance_metric=self.distance_metric,
         )
 
+    def reduce(self, data: TensorList):
+        data = torch.cat(data, dim=0) if isinstance(data, list) else data
         # do metric reduction
-        f, not_nans = do_metric_reduction(f, self.reduction)
+        f, not_nans = do_metric_reduction(data, self.reduction)
         return f, not_nans
 
 

@@ -9,11 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union, cast
+from typing import Tuple, Union, cast
 
 import numpy as np
 import torch
 
+from monai.config import TensorList
 from monai.utils import Average
 from .metric import Metric
 
@@ -26,7 +27,7 @@ class ROCAUCMetric(Metric):
     def _apply(self, y_pred: torch.Tensor, y: torch.Tensor):
         return y_pred, y
 
-    def reduce(self, data):
+    def reduce(self, data: Tuple[TensorList, TensorList]):
         y_pred, y = data
         y_pred = torch.cat(y_pred, dim=0) if isinstance(y_pred, list) else y_pred
         y = torch.cat(y, dim=0) if isinstance(y, list) else y
