@@ -17,6 +17,7 @@ import torch
 
 from monai.metrics.utils import do_metric_reduction, get_mask_edges, get_surface_distance, ignore_background
 from monai.utils import MetricReduction
+
 from .metric import Metric
 
 

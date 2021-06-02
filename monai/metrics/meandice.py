@@ -16,6 +16,7 @@ import torch
 
 from monai.metrics.utils import do_metric_reduction, ignore_background
 from monai.utils import MetricReduction
+
 from .metric import Metric
 
 

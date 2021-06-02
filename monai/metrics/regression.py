@@ -18,6 +18,7 @@ import torch
 
 from monai.metrics.utils import do_metric_reduction
 from monai.utils import MetricReduction
+
 from .metric import Metric
 
 
@@ -34,6 +35,7 @@ class RegressionMetric(Metric):
             Define the mode to reduce computation result. Defaults to ``"mean"``.
 
     """
+
     def __init__(self, reduction: Union[MetricReduction, str] = MetricReduction.MEAN) -> None:
         super().__init__()
         self.reduction = reduction
@@ -59,6 +61,7 @@ class RegressionMetric(Metric):
     def _apply(self, y_pred: torch.Tensor, y: torch.Tensor):
         self._check_shape(y_pred, y)
         return self._compute_metric(y_pred, y)
+
 
 class MSEMetric(RegressionMetric):
     r"""Compute Mean Squared Error between two tensors using function:

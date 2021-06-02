@@ -9,8 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Optional
 from abc import ABC, abstractmethod
+from typing import Any, Optional
 
 import torch
 
@@ -26,6 +26,7 @@ class Metric(ABC):
     or for the accumulated overall data.
 
     """
+
     def __call__(self, y_pred: TensorList, y: Optional[TensorList] = None):
         """
         Execute basic computation for model prediction and ground truth.

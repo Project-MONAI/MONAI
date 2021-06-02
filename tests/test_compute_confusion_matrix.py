@@ -16,7 +16,12 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.metrics import ConfusionMatrixMetric, get_confusion_matrix, do_metric_reduction, compute_confusion_matrix_metric
+from monai.metrics import (
+    ConfusionMatrixMetric,
+    compute_confusion_matrix_metric,
+    do_metric_reduction,
+    get_confusion_matrix,
+)
 
 # input data
 data: Dict[Any, Any] = {

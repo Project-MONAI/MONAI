@@ -15,7 +15,8 @@ from typing import Sequence, Union
 import torch
 
 from monai.metrics.utils import do_metric_reduction, ignore_background
-from monai.utils import ensure_tuple, MetricReduction
+from monai.utils import MetricReduction, ensure_tuple
+
 from .metric import Metric
 
 
@@ -105,7 +106,7 @@ class ConfusionMatrixMetric(Metric):
         """
         results = []
         for metric_name in self.metric_name:
-            if self.compute_sample:           
+            if self.compute_sample:
                 sub_confusion_matrix = compute_confusion_matrix_metric(metric_name, data)
                 f, not_nans = do_metric_reduction(sub_confusion_matrix, self.reduction)
             else:

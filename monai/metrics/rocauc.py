@@ -15,6 +15,7 @@ import numpy as np
 import torch
 
 from monai.utils import Average
+
 from .metric import Metric
 
 
@@ -39,6 +40,7 @@ class ROCAUCMetric(Metric):
             - ``"none"``: the scores for each class are returned.
 
     """
+
     def __init__(self, average: Union[Average, str] = Average.MACRO) -> None:
         super().__init__()
         self.average = average
