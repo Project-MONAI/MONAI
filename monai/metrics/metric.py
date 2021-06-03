@@ -62,7 +62,7 @@ class Metric(ABC):
 
         return ret
 
-    def _compute_list(self, y_pred: List[torch.Tensor], y: Optional[List[torch.Tensor]] = None):
+    def _compute_list(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):
         """
         Excute the computation for every item of a list.
         Subclass may enhance the operation with multi-threads to accelerate.
