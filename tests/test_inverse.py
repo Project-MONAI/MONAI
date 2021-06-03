@@ -38,11 +38,14 @@ from monai.transforms import (
     Orientationd,
     RandAffined,
     RandAxisFlipd,
+    RandCropByPosNegLabeld,
     RandFlipd,
     Randomizable,
     RandRotate90d,
     RandRotated,
     RandSpatialCropd,
+    RandSpatialCropSamplesd,
+    RandWeightedCropd,
     RandZoomd,
     Resized,
     ResizeWithPadOrCrop,
@@ -440,10 +443,43 @@ TESTS.append(
     )
 )
 
+TESTS.append(
+    (
+        "RandCropByPosNegLabeld 2d",
+        "2D",
+        1e-7,
+        RandCropByPosNegLabeld(KEYS, "label", (99, 96), num_samples=10),
+    )
+)
+
+TESTS.append(
+    (
+        "RandSpatialCropSamplesd 2d",
+        "2D",
+        1e-7,
+        RandSpatialCropSamplesd(KEYS, (90, 91), num_samples=10),
+    )
+)
+
+TESTS.append(
+    (
+        "RandWeightedCropd 2d",
+        "2D",
+        1e-7,
+        RandWeightedCropd(KEYS, "label", (90, 91), num_samples=10),
+    )
+)
 
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
 
 TESTS = TESTS + TESTS_COMPOSE_X2  # type: ignore
+
+NUM_SAMPLES = 5
+N_SAMPLES_TESTS = [
+    [RandCropByPosNegLabeld(KEYS, "label", (110, 99), num_samples=NUM_SAMPLES)],
+    [RandSpatialCropSamplesd(KEYS, (90, 91), num_samples=NUM_SAMPLES, random_size=False)],
+    [RandWeightedCropd(KEYS, "label", (90, 91), num_samples=NUM_SAMPLES)],
+]
 
 
 def no_collation(x):
@@ -563,8 +599,15 @@ class TestInverse(unittest.TestCase):
         fwd_bck = forwards[-1].copy()
         for i, t in enumerate(reversed(transforms)):
             if isinstance(t, InvertibleTransform):
-                fwd_bck = t.inverse(fwd_bck)
-                self.check_inverse(name, data.keys(), forwards[-i - 2], fwd_bck, forwards[-1], acceptable_diff)
+                if isinstance(fwd_bck, list):
+                    for j, _fwd_bck in enumerate(fwd_bck):
+                        fwd_bck = t.inverse(_fwd_bck)
+                        self.check_inverse(
+                            name, data.keys(), forwards[-i - 2], fwd_bck, forwards[-1][j], acceptable_diff
+                        )
+                else:
+                    fwd_bck = t.inverse(fwd_bck)
+                    self.check_inverse(name, data.keys(), forwards[-i - 2], fwd_bck, forwards[-1], acceptable_diff)
 
     # skip this test if multiprocessing uses 'spawn', as the check is only basic anyway
     @skipUnless(torch.multiprocessing.get_start_method(allow_none=False) == "spawn", "requires spawn")
@@ -578,7 +621,8 @@ class TestInverse(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             t2.inverse(data)
 
-    def test_inverse_inferred_seg(self):
+    @parameterized.expand(N_SAMPLES_TESTS)
+    def test_inverse_inferred_seg(self, extra_transform):
 
         test_data = []
         for _ in range(20):
@@ -588,7 +632,13 @@ class TestInverse(unittest.TestCase):
         batch_size = 10
         # num workers = 0 for mac
         num_workers = 2 if sys.platform != "darwin" else 0
-        transforms = Compose([AddChanneld(KEYS), SpatialPadd(KEYS, (150, 153)), CenterSpatialCropd(KEYS, (110, 99))])
+        transforms = Compose(
+            [
+                AddChanneld(KEYS),
+                SpatialPadd(KEYS, (150, 153)),
+                extra_transform,
+            ]
+        )
         num_invertible_transforms = sum(1 for i in transforms.transforms if isinstance(i, InvertibleTransform))
 
         dataset = CacheDataset(test_data, transform=transforms, progress=False)
@@ -604,6 +654,9 @@ class TestInverse(unittest.TestCase):
         ).to(device)
 
         data = first(loader)
+        self.assertEqual(len(data["label_transforms"]), num_invertible_transforms)
+        self.assertEqual(data["image"].shape[0], batch_size * NUM_SAMPLES)
+
         labels = data["label"].to(device)
         segs = model(labels).detach().cpu()
         label_transform_key = "label" + InverseKeys.KEY_SUFFIX
