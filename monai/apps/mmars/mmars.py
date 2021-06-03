@@ -18,34 +18,10 @@ import torch
 import monai.networks.nets as monai_nets
 from monai.apps.utils import download_and_extract
 
-__all__ = ["download_mmar", "load_from_mmar", "MODEL_DESC"]
+from .model_desc import MODEL_DESC
+from .model_desc import RemoteMMARKeys as Keys
 
-
-MODEL_DESC = (
-    {
-        "id": "clara_pt_prostate_mri_segmentation_1",
-        "name": "clara_pt_prostate_mri_segmentation",
-        "url": "https://api.ngc.nvidia.com/v2/models/nvidia/med/clara_pt_prostate_mri_segmentation/versions/1/zip",
-        "doc": "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_prostate_mri_segmentation",
-        "file_type": "zip",
-        "hash_type": "md5",
-        "hash_val": None,
-        "model_file": os.path.join("models", "model.pt"),
-    },
-    {
-        "id": "clara_pt_covid19_ct_lesion_segmentation_1",
-        "name": "clara_pt_covid19_ct_lesion_segmentation",
-        "url": "https://api.ngc.nvidia.com/v2/models/nvidia/med/clara_pt_covid19_ct_lesion_segmentation/versions/1/zip",
-        "doc": "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_covid19_ct_lesion_segmentation",
-        "file_type": "zip",
-        "hash_type": "md5",
-        "hash_val": None,
-        "model_file": os.path.join("models", "model.pt"),
-    },
-)
-"""
-Collection of the remote MMAR descriptors
-"""
+__all__ = ["download_mmar", "load_from_mmar"]
 
 
 def _get_model_spec(idx):
@@ -55,7 +31,7 @@ def _get_model_spec(idx):
     if isinstance(idx, str):
         key = idx.strip().lower()
         for cand in MODEL_DESC:
-            if cand["id"].strip().lower() == key:
+            if cand[Keys.ID].strip().lower() == key:
                 return cand
     print(f"Available specs are: {MODEL_DESC}.")
     raise ValueError(f"Unknown MODEL_DESC request: {idx}")
@@ -85,14 +61,14 @@ def download_mmar(item, mmar_dir=None, progress: bool = True):
         item = _get_model_spec(item)
     if not mmar_dir:
         mmar_dir = os.path.join(torch.hub.get_dir(), "mmars")
-    model_dir = os.path.join(mmar_dir, item["id"])
+    model_dir = os.path.join(mmar_dir, item[Keys.ID])
     download_and_extract(
-        url=item["url"],
-        filepath=os.path.join(mmar_dir, f"{item['id']}.{item['file_type']}"),
+        url=item[Keys.URL],
+        filepath=os.path.join(mmar_dir, f"{item[Keys.ID]}.{item[Keys.FILE_TYPE]}"),
         output_dir=model_dir,
-        hash_val=item["hash_val"],
-        hash_type=item["hash_type"],
-        file_type=item["file_type"],
+        hash_val=item[Keys.HASH_VAL],
+        hash_type=item[Keys.HASH_TYPE],
+        file_type=item[Keys.FILE_TYPE],
         has_base=False,
         progress=progress,
     )
@@ -122,8 +98,8 @@ def load_from_mmar(item, mmar_dir=None, progress: bool = True, map_location=None
     if not isinstance(item, Mapping):
         item = _get_model_spec(item)
     model_dir = download_mmar(item=item, mmar_dir=mmar_dir, progress=progress)
-    model_file = os.path.join(model_dir, item["model_file"])
-    print(f"\n*** \"{item['id']}\" available at {model_dir}.")
+    model_file = os.path.join(model_dir, item[Keys.MODEL_FILE])
+    print(f'\n*** "{item[Keys.ID]}" available at {model_dir}.')
 
     # loading with `torch.jit.load`
     if f"{model_file}".endswith(".ts"):
@@ -140,6 +116,8 @@ def load_from_mmar(item, mmar_dir=None, progress: bool = True, map_location=None
 
     # TODO: search for the module based on model name?
     # TODO：support [model][path]?
+    if not model_dict.get("train_conf", ""):
+        raise ValueError("The MMAR configuration does not have a 'train_conf' section.")
     model_config = model_dict["train_conf"]["train"]["model"]
     model_name = model_config["name"]
     model_kwargs = model_config["args"]
