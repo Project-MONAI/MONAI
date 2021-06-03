@@ -25,9 +25,10 @@ class SurfaceDistanceMetric(Metric):
     """
     Compute Surface Distance between two tensors. It can support both multi-classes and multi-labels tasks.
     It supports both symmetric and asymmetric surface distance calculation.
-    Input `y_pred` (BNHW[D] where N is number of classes) is compared with ground truth `y` (BNHW[D]).
+    Input `y_pred` is compared with ground truth `y`.
     `y_preds` is expected to have binarized predictions and `y` should be in one-hot format.
     You can use suitable transforms in ``monai.transforms.post`` first to achieve binarized values.
+    `y_preds` and `y` can be a list of channel-first Tensor (CHW[D]) or a batch-first Tensor (BCHW[D]).
 
     Args:
         include_background: whether to skip distance computation on the first channel of

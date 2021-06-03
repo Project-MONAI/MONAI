@@ -25,9 +25,9 @@ from .metric import Metric
 class RegressionMetric(Metric):
     """
     Base class for regression metrics.
-    Input `y_pred` (BCHW[D] where C is number of channels) is compared with ground truth `y` (BCHW[D]).
+    Input `y_pred` is compared with ground truth `y`.
     Both `y_pred` and `y` are expected to be real-valued, where `y_pred` is output from a regression model.
-    `y_preds` and `y` can also be a list of Tensor with shape: [CHW[D]].
+    `y_preds` and `y` can be a list of channel-first Tensor (CHW[D]) or a batch-first Tensor (BCHW[D]).
 
     Args:
         reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
@@ -72,7 +72,7 @@ class MSEMetric(RegressionMetric):
 
     More info: https://en.wikipedia.org/wiki/Mean_squared_error
 
-    Input `y_pred` (BCHW[D] where C is number of channels) is compared with ground truth `y` (BCHW[D]).
+    Input `y_pred` is compared with ground truth `y`.
     Both `y_pred` and `y` are expected to be real-valued, where `y_pred` is output from a regression model.
 
     Args:
@@ -102,7 +102,7 @@ class MAEMetric(RegressionMetric):
 
     More info: https://en.wikipedia.org/wiki/Mean_absolute_error
 
-    Input `y_pred` (BCHW[D] where C is number of channels) is compared with ground truth `y` (BCHW[D]).
+    Input `y_pred` is compared with ground truth `y`.
     Both `y_pred` and `y` are expected to be real-valued, where `y_pred` is output from a regression model.
 
     Args:
@@ -133,7 +133,7 @@ class RMSEMetric(RegressionMetric):
 
     More info: https://en.wikipedia.org/wiki/Root-mean-square_deviation
 
-    Input `y_pred` (BCHW[D] where C is number of channels) is compared with ground truth `y` (BCHW[D]).
+    Input `y_pred` is compared with ground truth `y`.
     Both `y_pred` and `y` are expected to be real-valued, where `y_pred` is output from a regression model.
 
     Args:
@@ -168,7 +168,7 @@ class PSNRMetric(RegressionMetric):
     Help taken from:
     https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/ops/image_ops_impl.py line 4139
 
-    Input `y_pred` (BCHW[D] where C is number of channels) is compared with ground truth `y` (BCHW[D]).
+    Input `y_pred` is compared with ground truth `y`.
     Both `y_pred` and `y` are expected to be real-valued, where `y_pred` is output from a regression model.
 
     Args:
