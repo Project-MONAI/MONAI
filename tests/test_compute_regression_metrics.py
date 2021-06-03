@@ -66,19 +66,19 @@ class TestRegressionMetrics(unittest.TestCase):
                     # iterate over regression metrics, check shape for diff. reduction func
                     for mt_fn in metrics:
                         mt = mt_fn(reduction="mean")
-                        out_tensor, _ = mt.reduce(mt(in_tensor, in_tensor))
+                        out_tensor, _ = mt.aggregate(mt(in_tensor, in_tensor))
                         self.assertTrue(len(out_tensor.shape) == 1)
 
                         mt = mt_fn(reduction="sum")
-                        out_tensor, _ = mt.reduce(mt(in_tensor, in_tensor))
+                        out_tensor, _ = mt.aggregate(mt(in_tensor, in_tensor))
                         self.assertTrue(len(out_tensor.shape) == 0)
 
                         mt = mt_fn(reduction="mean_channel")
-                        out_tensor, _ = mt.reduce(mt(in_tensor, in_tensor))
+                        out_tensor, _ = mt.aggregate(mt(in_tensor, in_tensor))
                         self.assertTrue(len(out_tensor.shape) == 1 and out_tensor.shape[0] == batch)
 
                         mt = mt_fn(reduction="sum_channel")
-                        out_tensor, _ = mt.reduce(mt(in_tensor, in_tensor))
+                        out_tensor, _ = mt.aggregate(mt(in_tensor, in_tensor))
                         self.assertTrue(len(out_tensor.shape) == 1 and out_tensor.shape[0] == batch)
 
     def test_compare_numpy(self):
@@ -106,7 +106,7 @@ class TestRegressionMetrics(unittest.TestCase):
                     # check metrics
                     for mt_fn, mt_fn_np in zip(metrics, metrics_np):
                         mt = mt_fn(reduction="mean")
-                        out_tensor, _ = mt.reduce(mt(y_pred=in_tensor_a, y=in_tensor_b))
+                        out_tensor, _ = mt.aggregate(mt(y_pred=in_tensor_a, y=in_tensor_b))
                         out_np = mt_fn_np(y_pred=in_tensor_a.cpu().numpy(), y=in_tensor_b.cpu().numpy())
 
                         np.testing.assert_allclose(out_tensor.cpu().numpy(), out_np, atol=1e-4)
@@ -154,7 +154,7 @@ class TestRegressionMetrics(unittest.TestCase):
                     # check metrics
                     for mt_fn, rs in zip(metrics, results):
                         mt = mt_fn(reduction="mean")
-                        out_tensor, _ = mt.reduce(mt(in_tensor, in_tensor))
+                        out_tensor, _ = mt.aggregate(mt(in_tensor, in_tensor))
                         np.testing.assert_allclose(out_tensor.cpu(), rs, atol=1e-4)
 
     def test_diff_input(self):
@@ -180,7 +180,7 @@ class TestRegressionMetrics(unittest.TestCase):
                     # check metrics
                     for mt_fn, rs in zip(metrics, results):
                         mt = mt_fn(reduction="mean")
-                        out_tensor, _ = mt.reduce(mt(in_tensor_a, in_tensor_b))
+                        out_tensor, _ = mt.aggregate(mt(in_tensor_a, in_tensor_b))
                         np.testing.assert_allclose(out_tensor.cpu(), rs, atol=1e-4)
 
 

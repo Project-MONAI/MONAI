@@ -45,10 +45,10 @@ class ROCAUCMetric(Metric):
         super().__init__()
         self.average = average
 
-    def _apply(self, y_pred: torch.Tensor, y: Optional[torch.Tensor] = None):
+    def _compute(self, y_pred: torch.Tensor, y: Optional[torch.Tensor] = None):
         return y_pred, y
 
-    def reduce(self, data: Tuple[torch.Tensor, torch.Tensor]):
+    def aggregate(self, data: Tuple[torch.Tensor, torch.Tensor]):
         """
         As AUC metric needs to execute on the overall data, so usually users accumulate `y_pred` and `y`
         of every iteration, then execute real computation and reduction on the accumulated data.
@@ -65,7 +65,7 @@ class ROCAUCMetric(Metric):
                 y.append(y_)
                 y_pred.append(pred_)
 
-            result = metric.reduce(torch.cat(y_pred, dim=0), torch.cat(y, dim=0))
+            result = metric.aggregate(torch.cat(y_pred, dim=0), torch.cat(y, dim=0))
 
         """
         y_pred, y = data

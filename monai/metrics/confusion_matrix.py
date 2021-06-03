@@ -65,7 +65,7 @@ class ConfusionMatrixMetric(Metric):
         self.compute_sample = compute_sample
         self.reduction = reduction
 
-    def _apply(self, y_pred: torch.Tensor, y: Optional[torch.Tensor] = None):
+    def _compute(self, y_pred: torch.Tensor, y: Optional[torch.Tensor] = None):
         """
         Args:
             y_pred: input data to compute. It must be one-hot format and first dim is batch.
@@ -98,7 +98,7 @@ class ConfusionMatrixMetric(Metric):
             include_background=self.include_background,
         )
 
-    def reduce(self, data: torch.Tensor):
+    def aggregate(self, data: torch.Tensor):
         """
         Execute reduction for the confusion matrix values, the `data` usually is a Tensor of shape [BC4],
         Where, the third dimension represents the number of true positive, false positive, true negative

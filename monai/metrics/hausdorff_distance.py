@@ -63,7 +63,7 @@ class HausdorffDistanceMetric(Metric):
         self.directed = directed
         self.reduction = reduction
 
-    def _apply(self, y_pred: torch.Tensor, y: Optional[torch.Tensor] = None):
+    def _compute(self, y_pred: torch.Tensor, y: Optional[torch.Tensor] = None):
         """
         Args:
             y_pred: input data to compute, typical segmentation model output.
@@ -95,7 +95,7 @@ class HausdorffDistanceMetric(Metric):
             directed=self.directed,
         )
 
-    def reduce(self, data: torch.Tensor):
+    def aggregate(self, data: torch.Tensor):
         """
         Execute reduction logic for the output of `compute_hausdorff_distance`.
 

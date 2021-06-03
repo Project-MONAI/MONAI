@@ -114,7 +114,7 @@ class IterationMetric(IgniteMetric):  # type: ignore[valid-type, misc] # due to 
         return result.item() if isinstance(result, torch.Tensor) else result
 
     def _reduce(self, scores) -> Any:
-        return self.metric_fn.reduce(_scores)
+        return self.metric_fn.aggregate(_scores)
 
     def attach(self, engine: Engine, name: str) -> None:
         """

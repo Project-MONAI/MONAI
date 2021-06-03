@@ -95,7 +95,7 @@ class TestComputeROCAUC(unittest.TestCase):
         y_pred = Activations(softmax=softmax)(y_pred)
         y = AsDiscrete(to_onehot=to_onehot, n_classes=2)(y)
         metric = ROCAUCMetric(average=average)
-        result = metric.reduce(metric(y_pred=y_pred, y=y))
+        result = metric.aggregate(metric(y_pred=y_pred, y=y))
         np.testing.assert_allclose(expected_value, result, rtol=1e-5)
 
 

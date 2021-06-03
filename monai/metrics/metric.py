@@ -46,28 +46,28 @@ class Metric(ABC):
             # if y_pred or y is a list of channel-first data, add batch dim and compute metric
             ret_: List[torch.Tensor]
             if y is not None:
-                ret_ = [self._apply(p_.detach().unsqueeze(0), y_.detach().unsqueeze(0)) for p_, y_ in zip(y_pred, y)]
+                ret_ = [self._compute(p_.detach().unsqueeze(0), y_.detach().unsqueeze(0)) for p_, y_ in zip(y_pred, y)]
             else:
-                ret_ = [self._apply(p_.detach().unsqueeze(0), None) for p_ in y_pred]
+                ret_ = [self._compute(p_.detach().unsqueeze(0), None) for p_ in y_pred]
             # concat the list of results
             if isinstance(ret_[0], torch.Tensor):
                 ret = torch.cat(ret_, dim=0)
             elif isinstance(ret_[0], (list, tuple)) and all([isinstance(i, torch.Tensor) for i in ret_[0]]):
-                # if _apply() returned not only 1 Tensor, concat them separately
+                # if _compute() returned not only 1 Tensor, concat them separately
                 ret = [torch.cat([k[i] for k in ret_], dim=0) for i in range(len(ret_[0]))]
             else:
                 # if not expected data type, return raw results directly
                 ret = ret_
         elif isinstance(y_pred, torch.Tensor):
             y_ = y.detach() if y is not None and isinstance(y, torch.Tensor) else None
-            ret = self._apply(y_pred.detach(), y_)
+            ret = self._compute(y_pred.detach(), y_)
         else:
             raise ValueError("y_pred or y must be a list of `channel-first` Tensors or a `batch-first` Tensor.")
 
         return ret
 
     @abstractmethod
-    def _apply(self, y_pred: torch.Tensor, y: Optional[torch.Tensor] = None):
+    def _compute(self, y_pred: torch.Tensor, y: Optional[torch.Tensor] = None):
         """
         Actual computation logic of the metric, input data should be `batch-first` Tensor.
 
@@ -75,9 +75,9 @@ class Metric(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def reduce(self, data: Any):
+    def aggregate(self, data: Any):
         """
-        Execute reduction operation for the metric results. Users can call it for the batch data of every iteration
+        Aggregate the metric results. Users can call it for the batch data of every iteration
         or accumulte the results of every iteration and call it for the final output.
 
         """

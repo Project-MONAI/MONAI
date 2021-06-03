@@ -60,7 +60,7 @@ class ROCAUC(EpochMetric):  # type: ignore[valid-type, misc]  # due to optional_
         self.metric = ROCAUCMetric(average=Average(average))
         self._is_reduced: bool = False
         super().__init__(
-            compute_fn=lambda p, y: self.metric.reduce(data=(p, y)),
+            compute_fn=lambda p, y: self.metric.aggregate(data=(p, y)),
             output_transform=output_transform,
             check_compute_fn=False,
             device=device,
