@@ -9,15 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, List
 import unittest
+from functools import partial
+from typing import Callable, List
 
 import numpy as np
 import torch
 
 from monai.transforms import ScaleIntensity
 from tests.utils import NumpyImageTestCase2D
-from functools import partial
 
 NDARRAYS: List[Callable] = [np.array, torch.Tensor]
 if torch.cuda.is_available():

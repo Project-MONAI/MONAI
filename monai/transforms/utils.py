@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import itertools
-from monai.utils.misc import dtype_numpy_to_torch, dtype_torch_to_numpy
 import random
 import warnings
 from contextlib import contextmanager
@@ -36,6 +35,7 @@ from monai.utils import (
     optional_import,
 )
 from monai.utils.enums import DataObjects
+from monai.utils.misc import dtype_numpy_to_torch, dtype_torch_to_numpy
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 
@@ -118,7 +118,12 @@ def zero_margins(img: np.ndarray, margin: int) -> bool:
     return not np.any(img[:, :margin, :]) and not np.any(img[:, -margin:, :])
 
 
-def rescale_array(arr: DataObjects.Images, minv: float = 0.0, maxv: float = 1.0, dtype: Optional[Union[DtypeLike, torch.dtype]] = np.float32) -> DataObjects.Images:
+def rescale_array(
+    arr: DataObjects.Images,
+    minv: float = 0.0,
+    maxv: float = 1.0,
+    dtype: Optional[Union[DtypeLike, torch.dtype]] = np.float32,
+) -> DataObjects.Images:
     """
     Rescale the values of numpy array `arr` to be from `minv` to `maxv`.
     """
