@@ -460,8 +460,8 @@ class GeneralizedWassersteinDiceLoss(_Loss):
 
         """
         # Aggregate spatial dimensions
-        flat_input = input.view(input.size(0), input.size(1), -1)
-        flat_target = target.view(target.size(0), -1).long()
+        flat_input = input.reshape(input.size(0), input.size(1), -1)
+        flat_target = target.reshape(target.size(0), -1).long()
 
         # Apply the softmax to the input scores map
         probs = F.softmax(flat_input, dim=1)

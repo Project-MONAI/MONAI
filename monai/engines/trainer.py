@@ -120,8 +120,7 @@ class SupervisedTrainer(Trainer):
             additional_metrics=additional_metrics,
             handlers=train_handlers,
             amp=amp,
-            # add the iteration events
-            event_names=[IterationEvents] if event_names is None else event_names + [IterationEvents],
+            event_names=event_names,
             event_to_attr=event_to_attr,
         )
 
