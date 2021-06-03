@@ -16,8 +16,8 @@ import unittest
 
 import nibabel as nib
 import numpy as np
-from parameterized import parameterized
 import torch
+from parameterized import parameterized
 
 from monai.data import SmartCacheDataset
 from monai.transforms import Compose, LoadImaged
