@@ -17,6 +17,7 @@ import unittest
 import nibabel as nib
 import numpy as np
 from parameterized import parameterized
+import torch
 
 from monai.data import SmartCacheDataset
 from monai.transforms import Compose, LoadImaged
@@ -65,7 +66,7 @@ class TestSmartCacheDataset(unittest.TestCase):
                 for _ in range(3):
                     dataset.update_cache()
                     self.assertIsNotNone(dataset[15])
-                    if isinstance(dataset[15]["image"], np.ndarray):
+                    if isinstance(dataset[15]["image"], (np.ndarray, torch.Tensor)):
                         np.testing.assert_allclose(dataset[15]["image"], dataset[15]["label"])
                     else:
                         self.assertIsInstance(dataset[15]["image"], str)
