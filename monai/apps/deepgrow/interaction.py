@@ -13,7 +13,7 @@ from typing import Callable, Dict, Sequence, Union
 import torch
 
 from monai.engines import SupervisedEvaluator, SupervisedTrainer
-from monai.engines.workflow import Events
+from monai.engines.utils import IterationEvents
 from monai.transforms import Compose
 from monai.utils.enums import CommonKeys
 
@@ -51,8 +51,8 @@ class Interaction:
         self.key_probability = key_probability
 
     def attach(self, engine: Union[SupervisedTrainer, SupervisedEvaluator]) -> None:
-        if not engine.has_event_handler(self, Events.ITERATION_STARTED):
-            engine.add_event_handler(Events.ITERATION_STARTED, self)
+        if not engine.has_event_handler(self, IterationEvents.ITERATION_STARTED):
+            engine.add_event_handler(IterationEvents.ITERATION_STARTED, self)
 
     def __call__(self, engine: Union[SupervisedTrainer, SupervisedEvaluator], batchdata: Dict[str, torch.Tensor]):
         if batchdata is None:
@@ -62,6 +62,8 @@ class Interaction:
             inputs, _ = engine.prepare_batch(batchdata)
             inputs = inputs.to(engine.state.device)
 
+            engine.fire_event(IterationEvents.INNER_ITERATION_STARTED)
+
             engine.network.eval()
             with torch.no_grad():
                 if engine.amp:
@@ -69,6 +71,8 @@ class Interaction:
                         predictions = engine.inferer(inputs, engine.network)
                 else:
                     predictions = engine.inferer(inputs, engine.network)
+
+            engine.fire_event(IterationEvents.INNER_ITERATION_COMPLETED)
 
             batchdata.update({CommonKeys.PRED: predictions})
             batchdata[self.key_probability] = torch.as_tensor(
