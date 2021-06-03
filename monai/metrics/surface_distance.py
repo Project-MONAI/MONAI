@@ -99,6 +99,7 @@ def compute_average_surface_distance(
     under the default setting.
     In addition, if sets ``symmetric = True``, the average symmetric surface distance between
     these two inputs will be returned.
+    The implementation refers to `DeepMind's implementation <https://github.com/deepmind/surface-distance>`_.
 
     Args:
         y_pred: input data to compute, typical segmentation model output.

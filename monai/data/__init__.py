@@ -17,27 +17,30 @@ from .dataset import (
     CacheNTransDataset,
     Dataset,
     LMDBDataset,
+    NPZDictItemDataset,
     PersistentDataset,
     SmartCacheDataset,
     ZipDataset,
 )
 from .decathlon_datalist import load_decathlon_datalist, load_decathlon_properties
-from .grid_dataset import GridPatchDataset, PatchDataset
+from .grid_dataset import GridPatchDataset, PatchDataset, PatchIter
 from .image_dataset import ImageDataset
-from .image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader
+from .image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader, WSIReader
 from .iterable_dataset import IterableDataset
 from .nifti_saver import NiftiSaver
 from .nifti_writer import write_nifti
 from .png_saver import PNGSaver
 from .png_writer import write_png
+from .samplers import DistributedSampler, DistributedWeightedRandomSampler
 from .synthetic import create_test_image_2d, create_test_image_3d
-from .thread_buffer import ThreadBuffer
+from .test_time_augmentation import TestTimeAugmentation
+from .thread_buffer import ThreadBuffer, ThreadDataLoader
 from .utils import (
-    DistributedSampler,
     compute_importance_map,
     compute_shape_offset,
     correct_nifti_header_if_necessary,
     create_file_basename,
+    decollate_batch,
     dense_patch_slices,
     get_random_patch,
     get_valid_patch_size,
@@ -46,6 +49,7 @@ from .utils import (
     iter_patch_slices,
     json_hashing,
     list_data_collate,
+    pad_list_data_collate,
     partition_dataset,
     partition_dataset_classes,
     pickle_hashing,
