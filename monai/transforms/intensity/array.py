@@ -880,7 +880,7 @@ class SavitzkyGolaySmooth(Transform):
         return savgol_filter(input_data).squeeze(0).numpy()
 
 
-class DetectEnvelope(Transform):
+class DetectEnvelope(TorchTransform):
     """
     Find the envelope of the input data along the requested axis using a Hilbert transform.
     Requires PyTorch 1.7.0+ and the PyTorch FFT module (which is not included in NVIDIA PyTorch Release 20.10).
@@ -903,21 +903,24 @@ class DetectEnvelope(Transform):
         self.axis = axis
         self.n = n
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
 
         Args:
-            img: numpy.ndarray containing input data. Must be real and in shape [channels, spatial1, spatial2, ...].
+            img: array containing input data. Must be real and in shape [channels, spatial1, spatial2, ...].
 
         Returns:
-            np.ndarray containing envelope of data in img along the specified axis.
+            array containing envelope of data in img along the specified axis.
 
         """
+        img_t: torch.Tensor
+        img_t, orig_type, orig_device = self.pre_conv_data(img)  # type: ignore
+
         # add one to transform axis because a batch axis will be added at dimension 0
         hilbert_transform = HilbertTransform(self.axis + 1, self.n)
         # convert to Tensor and add Batch axis expected by HilbertTransform
-        input_data = torch.as_tensor(np.ascontiguousarray(img)).unsqueeze(0)
-        return np.abs(hilbert_transform(input_data).squeeze(0).numpy())
+        out = torch.abs(hilbert_transform(img_t.unsqueeze(0))).squeeze(0)
+        return self.post_convert_data(out, orig_type, orig_device)
 
 
 class GaussianSmooth(TorchTransform):

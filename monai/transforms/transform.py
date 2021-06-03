@@ -23,6 +23,7 @@ from monai import transforms
 from monai.config import KeysCollection
 from monai.utils import MAX_SEED, ensure_tuple
 from monai.utils.enums import DataObjects
+from monai.utils.misc import dtype_numpy_to_torch, dtype_torch_to_numpy
 
 __all__ = [
     "ThreadUnsafe",
@@ -45,9 +46,11 @@ def convert_data_type(
     orig_device = data.device if isinstance(data, torch.Tensor) else None
 
     if orig_type is np.ndarray and output_type is torch.Tensor:
-        data = torch.Tensor(np.ascontiguousarray(data))
+        dtype = dtype_numpy_to_torch(data.dtype)
+        data = torch.Tensor(np.ascontiguousarray(data)).to(dtype)
     elif orig_type is torch.Tensor and output_type is np.ndarray:
-        data = data.detach().cpu().numpy()
+        dtype = dtype_torch_to_numpy(data.dtype)
+        data = data.detach().cpu().numpy().astype(dtype)
 
     if isinstance(data, torch.Tensor) and device is not None:
         data.to(device)

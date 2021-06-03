@@ -10,6 +10,8 @@
 # limitations under the License.
 
 import unittest
+from functools import partial
+from typing import Callable, List
 
 import numpy as np
 import torch
@@ -17,11 +19,15 @@ import torch
 from monai.transforms import RandRotate90
 from tests.utils import NumpyImageTestCase2D
 
+NDARRAYS: List[Callable] = [np.array, torch.Tensor]
+if torch.cuda.is_available():
+    NDARRAYS.append(partial(torch.Tensor, device="cuda"))
+
 
 class TestRandRotate90(NumpyImageTestCase2D):
     def test_default(self):
         rotate = RandRotate90()
-        for p in (torch.Tensor, np.array):
+        for p in NDARRAYS:
             rotate.set_random_state(123)
             rotated = rotate(p(self.imt[0]))
             expected = []
@@ -32,7 +38,7 @@ class TestRandRotate90(NumpyImageTestCase2D):
 
     def test_k(self):
         rotate = RandRotate90(max_k=2)
-        for p in (torch.Tensor, np.array):
+        for p in NDARRAYS:
             rotate.set_random_state(234)
             rotated = rotate(p(self.imt[0]))
             expected = []
@@ -43,7 +49,7 @@ class TestRandRotate90(NumpyImageTestCase2D):
 
     def test_spatial_axes(self):
         rotate = RandRotate90(spatial_axes=(0, 1))
-        for p in (torch.Tensor, np.array):
+        for p in NDARRAYS:
             rotate.set_random_state(234)
             rotated = rotate(p(self.imt[0]))
             expected = []
@@ -54,7 +60,7 @@ class TestRandRotate90(NumpyImageTestCase2D):
 
     def test_prob_k_spatial_axes(self):
         rotate = RandRotate90(prob=1.0, max_k=2, spatial_axes=(0, 1))
-        for p in (torch.Tensor, np.array):
+        for p in NDARRAYS:
             rotate.set_random_state(234)
             rotated = rotate(p(self.imt[0]))
             expected = []

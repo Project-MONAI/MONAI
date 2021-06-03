@@ -852,7 +852,8 @@ class RandWeightedCropd(Randomizable, MapTransform, InvertibleTransform):
 
     def __call__(self, data: DataObjects.Mapping) -> List[DataObjects.Dict]:
         d = dict(data)
-        self.randomize(convert_data_type(d[self.w_key], np.ndarray)[0])
+        weight_map: np.ndarray = convert_data_type(d[self.w_key], np.ndarray)[0]  # type: ignore
+        self.randomize(weight_map)
         _spatial_size = fall_back_tuple(self.spatial_size, d[self.w_key].shape[1:])
 
         results: List[DataObjects.Dict] = [{} for _ in range(self.num_samples)]
@@ -1011,14 +1012,14 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
 
     def __call__(self, data: DataObjects.Mapping) -> List[DataObjects.Dict]:
         d = dict(data)
-        label = convert_data_type(d[self.label_key], np.ndarray)[0]
-        image = convert_data_type(d[self.image_key], np.ndarray)[0] if self.image_key else None
-        fg_indices = (
-            convert_data_type(d.get(self.fg_indices_key), np.ndarray)[0] if self.fg_indices_key is not None else None
-        )
-        bg_indices = (
-            convert_data_type(d.get(self.bg_indices_key), np.ndarray)[0] if self.bg_indices_key is not None else None
-        )
+
+        def get_as_np(x) -> np.ndarray:
+            return convert_data_type(x, np.ndarray)[0]  # type: ignore
+
+        label = get_as_np(d[self.label_key])
+        image = get_as_np(d[self.image_key]) if self.image_key else None
+        fg_indices = get_as_np(d[self.fg_indices_key]) if self.fg_indices_key is not None else None
+        bg_indices = get_as_np(d[self.bg_indices_key]) if self.bg_indices_key is not None else None
 
         self.randomize(label, fg_indices, bg_indices, image)
         if not isinstance(self.spatial_size, tuple):

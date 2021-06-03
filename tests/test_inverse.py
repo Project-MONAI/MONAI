@@ -60,6 +60,7 @@ from monai.transforms import (
     allow_missing_keys_mode,
     convert_inverse_interp_mode,
 )
+from monai.transforms.utility.dictionary import ToTensord
 from monai.utils import first, get_seed, optional_import, set_determinism
 from monai.utils.enums import InverseKeys
 from tests.utils import make_nifti_image, make_rand_affine
@@ -470,7 +471,7 @@ TESTS.append(
     )
 )
 
-TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose(Compose(t[3:]))) for t in TESTS]
+TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], Compose([ToTensord(KEYS), Compose(t[3:])])) for t in TESTS]
 
 TESTS = TESTS + TESTS_COMPOSE_X2  # type: ignore
 

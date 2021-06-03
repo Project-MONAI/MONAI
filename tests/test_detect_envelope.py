@@ -10,8 +10,10 @@
 # limitations under the License.
 
 import unittest
+from typing import Callable, List
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import DetectEnvelope
@@ -110,6 +112,12 @@ TEST_CASE_INVALID_IMG_LEN = [
 
 TEST_CASE_INVALID_OBJ = [{}, "a string", "__call__"]  # method expected to raise exception
 
+from functools import partial
+
+NDARRAYS: List[Callable] = [np.array, torch.Tensor]
+if torch.cuda.is_available():
+    NDARRAYS.append(partial(torch.Tensor, device="cuda"))
+
 
 @SkipIfBeforePyTorchVersion((1, 7))
 @SkipIfNoModule("torch.fft")
@@ -125,8 +133,9 @@ class TestDetectEnvelope(unittest.TestCase):
         ]
     )
     def test_value(self, arguments, image, expected_data, atol):
-        result = DetectEnvelope(**arguments)(image)
-        np.testing.assert_allclose(result, expected_data, atol=atol)
+        for p in NDARRAYS:
+            result = DetectEnvelope(**arguments)(p(image))
+            np.testing.assert_allclose(result, expected_data, atol=atol)
 
     @parameterized.expand(
         [
