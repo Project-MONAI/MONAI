@@ -19,6 +19,7 @@ import torch
 import torch.distributed as dist
 from ignite.engine import Engine
 
+from monai.data import decollate_batch
 from monai.handlers import ClassificationSaver
 from tests.utils import DistCall, DistTestCase, SkipIfBeforePyTorchVersion
 
@@ -32,7 +33,8 @@ class DistributedHandlerClassificationSaver(DistTestCase):
 
             # set up engine
             def _train_func(engine, batch):
-                return torch.zeros(8 + rank * 2)
+                engine.state.batch = decollate_batch(batch, batch_size=8 + 2 * rank)
+                return [torch.zeros(1) for _ in range(8 + rank * 2)]
 
             engine = Engine(_train_func)
 
@@ -44,7 +46,7 @@ class DistributedHandlerClassificationSaver(DistTestCase):
             data = [
                 {
                     "filename_or_obj": ["testfile" + str(i) for i in range(8 * rank, (8 + rank) * (rank + 1))],
-                    "data_shape": [(1, 1) for _ in range(8 * rank, (8 + rank) * (rank + 1))],
+                    "data_shape": torch.ones((8 + rank * 2, 1, 1)),
                 }
             ]
             # rank 1 has more iterations
@@ -52,7 +54,7 @@ class DistributedHandlerClassificationSaver(DistTestCase):
                 data.append(
                     {
                         "filename_or_obj": ["testfile" + str(i) for i in range(18, 28)],
-                        "data_shape": [(1, 1) for _ in range(18, 28)],
+                        "data_shape": torch.ones((10, 1, 1)),
                     }
                 )
 

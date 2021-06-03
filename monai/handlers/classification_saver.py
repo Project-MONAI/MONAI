@@ -103,14 +103,15 @@ class ClassificationSaver:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        filenames = self.batch_transform(engine.state.batch).get(Key.FILENAME_OR_OBJ)
+        filenames = [self.batch_transform(i).get(Key.FILENAME_OR_OBJ) for i in engine.state.batch]
         if issequenceiterable(filenames):
             self._filenames.extend(filenames)
-        outputs = self.output_transform(engine.state.output)
-        if outputs is not None:
-            if isinstance(outputs, torch.Tensor):
-                outputs = outputs.detach()
-            self._outputs.append(outputs)
+
+        outputs = [self.output_transform(i) for i in engine.state.output]
+        for out in outputs:
+            if isinstance(out, torch.Tensor):
+                out = out.detach()
+            self._outputs.append(out)
 
     def _finalize(self, engine: Engine) -> None:
         """
@@ -123,7 +124,7 @@ class ClassificationSaver:
         if self.save_rank >= ws:
             raise ValueError("target save rank is greater than the distributed group size.")
 
-        outputs = torch.cat(self._outputs, dim=0)
+        outputs = torch.stack(self._outputs, dim=0)
         filenames = self._filenames
         if ws > 1:
             outputs = evenly_divisible_all_gather(outputs)

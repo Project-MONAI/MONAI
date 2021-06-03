@@ -118,7 +118,6 @@ class SegmentationSaver:
             scale=scale,
             dtype=dtype,
             output_dtype=output_dtype,
-            save_batch=True,
             squeeze_end_dims=squeeze_end_dims,
             data_root_dir=data_root_dir,
         )
@@ -146,7 +145,8 @@ class SegmentationSaver:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        meta_data = self.batch_transform(engine.state.batch)
-        engine_output = self.output_transform(engine.state.output)
-        self._saver(engine_output, meta_data)
+        for batch, output in zip(engine.state.batch, engine.state.output):
+            meta_data = self.batch_transform(batch)
+            engine_output = self.output_transform(output)
+            self._saver(engine_output, meta_data)
         self.logger.info("model outputs saved into files.")

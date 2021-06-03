@@ -188,8 +188,7 @@ class SupervisedEvaluator(Evaluator):
             val_handlers=val_handlers,
             amp=amp,
             mode=mode,
-            # add the iteration events
-            event_names=[IterationEvents] if event_names is None else event_names + [IterationEvents],
+            event_names=event_names,
             event_to_attr=event_to_attr,
         )
 
@@ -223,7 +222,10 @@ class SupervisedEvaluator(Evaluator):
             inputs, targets, args, kwargs = batch
 
         # put iteration outputs into engine.state
-        engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
+        engine.state.output = {Keys.IMAGE: inputs}
+        if targets is not None:
+            engine.state.output[Keys.LABEL] = targets
+
         # execute forward computation
         with self.mode(self.network):
             if self.amp:
@@ -306,8 +308,7 @@ class EnsembleEvaluator(Evaluator):
             val_handlers=val_handlers,
             amp=amp,
             mode=mode,
-            # add the iteration events
-            event_names=[IterationEvents] if event_names is None else event_names + [IterationEvents],
+            event_names=event_names,
             event_to_attr=event_to_attr,
         )
 
@@ -345,7 +346,10 @@ class EnsembleEvaluator(Evaluator):
             inputs, targets, args, kwargs = batch
 
         # put iteration outputs into engine.state
-        engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
+        engine.state.output = {Keys.IMAGE: inputs}
+        if targets is not None:
+            engine.state.output[Keys.LABEL] = targets
+
         for idx, network in enumerate(self.networks):
             with self.mode(network):
                 if self.amp:
