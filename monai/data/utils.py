@@ -293,7 +293,7 @@ def decollate_batch(
     data: Union[dict, list, torch.Tensor],
     batch_size: Optional[int] = None,
     copy_non_batch: bool = True,
-) -> List[dict]:
+) -> Union[List[dict], List[list], List[torch.Tensor]]:
     """De-collate a batch of data (for example, as produced by a `DataLoader`).
 
     Returns a list of dictionaries, list or Tensor, mapping to a given batch.
