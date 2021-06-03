@@ -188,8 +188,7 @@ class SupervisedEvaluator(Evaluator):
             val_handlers=val_handlers,
             amp=amp,
             mode=mode,
-            # add the iteration events
-            event_names=[IterationEvents] if event_names is None else event_names + [IterationEvents],
+            event_names=event_names,
             event_to_attr=event_to_attr,
         )
 
@@ -306,8 +305,7 @@ class EnsembleEvaluator(Evaluator):
             val_handlers=val_handlers,
             amp=amp,
             mode=mode,
-            # add the iteration events
-            event_names=[IterationEvents] if event_names is None else event_names + [IterationEvents],
+            event_names=event_names,
             event_to_attr=event_to_attr,
         )
 
