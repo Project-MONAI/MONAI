@@ -138,7 +138,12 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         self.prepare_batch = prepare_batch
         self.amp = amp
 
-        event_names = [IterationEvents] if event_names is None else event_names + [IterationEvents]
+        if event_names is None:
+            event_names = [IterationEvents]
+        else:
+            if not isinstance(event_names, list):
+                raise ValueError("event_names must be a list or string or EventEnum.")
+            event_names += [IterationEvents]
         for name in event_names:
             if isinstance(name, str):
                 self.register_events(name, event_to_attr=event_to_attr)
