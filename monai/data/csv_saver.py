@@ -89,8 +89,8 @@ class CSVSaver:
         self._data_index += 1
         if isinstance(data, torch.Tensor):
             data = data.detach().cpu().numpy()
-        if not isinstance(data, np.ndarray):
-            raise AssertionError
+        else:
+            data = np.asarray(data)
         self._cache_dict[save_key] = data.astype(np.float32)
 
     def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:

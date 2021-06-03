@@ -18,6 +18,7 @@ import torch
 from ignite.engine import Engine
 from parameterized import parameterized
 
+from monai.data import decollate_batch
 from monai.handlers import SegmentationSaver
 
 TEST_CASE_0 = [".nii.gz"]
@@ -32,7 +33,8 @@ class TestHandlerSegmentationSaver(unittest.TestCase):
 
             # set up engine
             def _train_func(engine, batch):
-                return torch.randint(0, 255, (8, 1, 2, 2)).float()
+                engine.state.batch = decollate_batch(batch)
+                return [torch.randint(0, 255, (1, 2, 2)).float() for _ in range(8)]
 
             engine = Engine(_train_func)
 
@@ -43,7 +45,7 @@ class TestHandlerSegmentationSaver(unittest.TestCase):
             data = [
                 {
                     "filename_or_obj": ["testfile" + str(i) + ".nii.gz" for i in range(8)],
-                    "patch_index": list(range(8)),
+                    "patch_index": torch.tensor(list(range(8))),
                 }
             ]
             engine.run(data, max_epochs=1)
@@ -57,7 +59,8 @@ class TestHandlerSegmentationSaver(unittest.TestCase):
 
             # set up engine
             def _train_func(engine, batch):
-                return torch.randint(0, 255, (8, 1, 2, 2)).float()
+                engine.state.batch = decollate_batch(batch)
+                return [torch.randint(0, 255, (1, 2, 2)).float() for _ in range(8)]
 
             engine = Engine(_train_func)
 
@@ -68,9 +71,9 @@ class TestHandlerSegmentationSaver(unittest.TestCase):
             data = [
                 {
                     "filename_or_obj": ["testfile" + str(i) + ".nii.gz" for i in range(8)],
-                    "spatial_shape": [(28, 28)] * 8,
-                    "affine": [np.diag(np.ones(4)) * 5] * 8,
-                    "original_affine": [np.diag(np.ones(4)) * 1.0] * 8,
+                    "spatial_shape": torch.tensor([[28, 28] for _ in range(8)]),
+                    "affine": torch.tensor([np.diag(np.ones(4)) * 5 for _ in range(8)]),
+                    "original_affine": torch.tensor([np.diag(np.ones(4)) * 1.0 for _ in range(8)]),
                 }
             ]
             engine.run(data, max_epochs=1)

@@ -12,10 +12,8 @@
 from typing import TYPE_CHECKING, Callable, Optional, Sequence, Union
 
 import torch
-from torch.utils.data import DataLoader as TorchDataLoader
 
 from monai.config import KeysCollection
-from monai.data.utils import no_collation
 from monai.engines.utils import CommonKeys, IterationEvents
 from monai.transforms import Invertd, InvertibleTransform
 from monai.utils import ensure_tuple, ensure_tuple_rep, exact_version, optional_import
@@ -41,13 +39,11 @@ class TransformInverter:
     def __init__(
         self,
         transform: InvertibleTransform,
-        loader: TorchDataLoader,
         output_keys: KeysCollection = CommonKeys.PRED,
         batch_keys: KeysCollection = CommonKeys.IMAGE,
         meta_keys: Optional[KeysCollection] = None,
         batch_meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
-        collate_fn: Optional[Callable] = no_collation,
         nearest_interp: Union[bool, Sequence[bool]] = True,
         to_tensor: Union[bool, Sequence[bool]] = True,
         device: Union[Union[str, torch.device], Sequence[Union[str, torch.device]]] = "cpu",
@@ -57,7 +53,6 @@ class TransformInverter:
         """
         Args:
             transform: a callable data transform on input data.
-            loader: data loader used to run transforms and generate the batch of data.
             output_keys: the key of expected data in `ignite.engine.output`, invert transforms on it.
                 it also can be a list of keys, will invert transform for each of them.
                 Default to "pred". it's in-place operation.
@@ -80,8 +75,6 @@ class TransformInverter:
                 For example, to handle orig_key `image`,  read/write `affine` matrices from the
                 metadata `image_meta_dict` dictionary's `affine` field.
                 the inverted meta dict will be stored with key: "{key}_{meta_key_postfix}".
-            collate_fn: how to collate data after inverse transformations. default won't do any collation,
-                so the output will be a list of PyTorch Tensor or numpy array without batch dim.
             nearest_interp: whether to use `nearest` interpolation mode when inverting the spatial transforms,
                 default to `True`. If `False`, use the same interpolation mode as the original transform.
                 it also can be a list of bool, each matches to the `output_keys` data.
@@ -100,12 +93,10 @@ class TransformInverter:
         self.inverter = Invertd(
             keys=output_keys,
             transform=transform,
-            loader=loader,
             orig_keys=batch_keys,
             meta_keys=meta_keys,
             orig_meta_keys=batch_meta_keys,
             meta_key_postfix=meta_key_postfix,
-            collate_fn=collate_fn,
             nearest_interp=nearest_interp,
             to_tensor=to_tensor,
             device=device,
@@ -131,16 +122,17 @@ class TransformInverter:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
         # combine `batch` and `output` to temporarily act as 1 dict for post transform
-        data = dict(engine.state.batch)
-        data.update(engine.state.output)
-        ret = self.inverter(data)
+        for i, (b, o) in enumerate(zip(engine.state.batch, engine.state.output)):
+            data = dict(b)
+            data.update(o)
+            ret = self.inverter(data)
 
-        for output_key, meta_key, meta_key_postfix in zip(self.output_keys, self.meta_keys, self.meta_key_postfix):
-            # save the inverted data into state.output
-            engine.state.output[output_key] = ret.get(output_key)
-            # save the inverted meta dict into state.batch
-            meta_key = meta_key or f"{output_key}_{meta_key_postfix}"
-            if meta_key in ret:
-                # FIXME: we save inverted meta dict into `batch` to be compatible with `SegmentationSaver`
-                # will deprecate both handlers soon
-                engine.state.batch[meta_key] = ret.get(meta_key)
+            for output_key, meta_key, meta_key_postfix in zip(self.output_keys, self.meta_keys, self.meta_key_postfix):
+                # save the inverted data into state.output
+                engine.state.output[i][output_key] = ret.get(output_key)
+                # save the inverted meta dict into state.batch
+                meta_key = meta_key or f"{output_key}_{meta_key_postfix}"
+                if meta_key in ret:
+                    # FIXME: we save inverted meta dict into `batch` to be compatible with `SegmentationSaver`
+                    # will deprecate both handlers soon
+                    engine.state.batch[i][meta_key] = ret.get(meta_key)

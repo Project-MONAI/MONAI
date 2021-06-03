@@ -147,30 +147,30 @@ class TestContourd(unittest.TestCase):
 
         # check 5-dim input data
         test_cube, expected_output = gen_fixed_cube()
-        test_result_cube = LabelToContourd(**input_param)({"img": test_cube})
-        self.assertEqual(test_result_cube["img"].shape, test_cube.shape)
+        for cube in test_cube:
+            test_result_cube = LabelToContourd(**input_param)({"img": cube})
+            self.assertEqual(test_result_cube["img"].shape, cube.shape)
 
-        test_result_np = test_result_cube["img"].data.cpu().numpy()
-        batch_size, channels = test_cube.shape[0], test_cube.shape[1]
-        for batch in range(batch_size):
+            test_result_np = test_result_cube["img"].cpu().numpy()
+            channels = cube.shape[0]
             for channel in range(channels):
-                np.testing.assert_allclose(test_result_np[batch, channel, ...], expected_output)
+                np.testing.assert_allclose(test_result_np[channel, ...], expected_output)
 
         # check 4-dim input data
         test_img, expected_output = gen_fixed_img()
-        batch_size, channels = test_img.shape[0], test_img.shape[1]
-        test_result_img = LabelToContourd(**input_param)({"img": test_img})
-        self.assertEqual(test_result_img["img"].shape, test_img.shape)
+        for img in test_img:
+            channels = img.shape[0]
+            test_result_img = LabelToContourd(**input_param)({"img": img})
+            self.assertEqual(test_result_img["img"].shape, img.shape)
 
-        test_result_np = test_result_img["img"].data.cpu().numpy()
-        for batch in range(batch_size):
+            test_result_np = test_result_img["img"].cpu().numpy()
             for channel in range(channels):
-                np.testing.assert_allclose(test_result_img["img"][batch, channel, ...], expected_output)
+                np.testing.assert_allclose(test_result_np[channel, ...], expected_output)
 
         # check invalid input data
-        error_input = {"img": torch.rand(1, 2, 3)}
+        error_input = {"img": torch.rand(1, 2)}
         self.assertRaises(ValueError, LabelToContourd(**input_param), error_input)
-        error_input = {"img": torch.rand(1, 2, 3, 4, 5, 6)}
+        error_input = {"img": torch.rand(1, 2, 3, 4, 5)}
         self.assertRaises(ValueError, LabelToContourd(**input_param), error_input)
 
 

@@ -180,7 +180,7 @@ class StatsHandler:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
 
         """
-        loss = self.output_transform(engine.state.output)
+        loss = self.output_transform(engine.state.output[0])
         if loss is None:
             return  # no printing if the output is empty
 
