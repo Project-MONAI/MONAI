@@ -44,11 +44,7 @@ class Metric(ABC):
         ret: TensorOrList
         if isinstance(y_pred, (list, tuple)) or isinstance(y, (list, tuple)):
             # if y_pred or y is a list of channel-first data, add batch dim and compute metric
-            ret_: List[torch.Tensor]
-            if y is not None:
-                ret_ = [self._compute(p_.detach().unsqueeze(0), y_.detach().unsqueeze(0)) for p_, y_ in zip(y_pred, y)]
-            else:
-                ret_ = [self._compute(p_.detach().unsqueeze(0), None) for p_ in y_pred]
+            ret_: List[torch.Tensor] = self._compute_list(y_pred, y)
             # concat the list of results
             if isinstance(ret_[0], torch.Tensor):
                 ret = torch.cat(ret_, dim=0)
@@ -65,6 +61,17 @@ class Metric(ABC):
             raise ValueError("y_pred or y must be a list of `channel-first` Tensors or a `batch-first` Tensor.")
 
         return ret
+
+    def _compute_list(self, y_pred: List[torch.Tensor], y: Optional[List[torch.Tensor]] = None):
+        """
+        Excute the computation for every item of a list.
+        Subclass may enhance the operation with multi-threads to accelerate.
+
+        """
+        if y is not None:
+            return [self._compute(p_.detach().unsqueeze(0), y_.detach().unsqueeze(0)) for p_, y_ in zip(y_pred, y)]
+        else:
+            return [self._compute(p_.detach().unsqueeze(0), None) for p_ in y_pred]
 
     @abstractmethod
     def _compute(self, y_pred: torch.Tensor, y: Optional[torch.Tensor] = None):
