@@ -104,7 +104,7 @@ class IterationMetric(IgniteMetric):  # type: ignore[valid-type, misc] # due to 
         result: torch.Tensor = torch.zeros(1)
         if idist.get_rank() == 0:
             # run compute_fn on zero rank only
-            result = self.metric_fn.reduce(_scores)
+            result = self._reduce(_scores)
             result = result[0] if isinstance(result, (list, tuple)) else result
 
         if ws > 1:
@@ -112,6 +112,9 @@ class IterationMetric(IgniteMetric):  # type: ignore[valid-type, misc] # due to 
             result = idist.broadcast(result, src=0)
 
         return result.item() if isinstance(result, torch.Tensor) else result
+
+    def _reduce(self, scores) -> Any:
+        return self.metric_fn.reduce(_scores)
 
     def attach(self, engine: Engine, name: str) -> None:
         """

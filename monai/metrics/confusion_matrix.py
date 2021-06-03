@@ -45,8 +45,8 @@ class ConfusionMatrixMetric(Metric):
             Except for input only one metric, multiple metrics are also supported via input a sequence of metric names, such as
             ("sensitivity", "precision", "recall"), if ``compute_sample`` is ``True``, multiple ``f`` and ``not_nans`` will be
             returned with the same order as input names when calling the class.
-        compute_sample: when reducing, if ``True``, each sample's metric will be computed first. If ``False``,
-            compute reduction first, defaults to ``False``.
+        compute_sample: when reducing, if ``True``, each sample's metric will be computed based on each confusion matrix first.
+            if ``False``, compute reduction on the confusion matrices first, defaults to ``False``.
         reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}
 

@@ -41,7 +41,7 @@ class Metric(ABC):
                 or a `batch-first` Tensor.
 
         """
-        ret: Union[torch.Tensor, Sequence[torch.Tensor]]
+        ret: TensorOrList
         if isinstance(y_pred, (list, tuple)) or isinstance(y, (list, tuple)):
             # if y_pred or y is a list of channel-first data, add batch dim and compute metric
             ret_: List[torch.Tensor]
