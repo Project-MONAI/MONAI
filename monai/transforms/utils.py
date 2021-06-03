@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import itertools
+from monai.utils.misc import dtype_numpy_to_torch, dtype_torch_to_numpy
 import random
 import warnings
 from contextlib import contextmanager
@@ -117,15 +118,22 @@ def zero_margins(img: np.ndarray, margin: int) -> bool:
     return not np.any(img[:, :margin, :]) and not np.any(img[:, -margin:, :])
 
 
-def rescale_array(arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0, dtype: DtypeLike = np.float32):
+def rescale_array(arr: DataObjects.Images, minv: float = 0.0, maxv: float = 1.0, dtype: Optional[Union[DtypeLike, torch.dtype]] = np.float32) -> DataObjects.Images:
     """
     Rescale the values of numpy array `arr` to be from `minv` to `maxv`.
     """
     if dtype is not None:
-        arr = arr.astype(dtype)
+        if isinstance(arr, torch.Tensor):
+            if isinstance(dtype, np.dtype):
+                dtype = dtype_numpy_to_torch(dtype)
+            arr = arr.to(dtype)  # type: ignore
+        else:
+            if isinstance(dtype, torch.dtype):
+                dtype = dtype_torch_to_numpy(dtype)
+            arr = arr.astype(dtype)  # type: ignore
 
-    mina = np.min(arr)
-    maxa = np.max(arr)
+    mina = arr.min()
+    maxa = arr.max()
 
     if mina == maxa:
         return arr * minv

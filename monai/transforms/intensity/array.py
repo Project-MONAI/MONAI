@@ -334,7 +334,7 @@ class RandStdShiftIntensity(RandomizableTransform):
         return shifter(img)
 
 
-class ScaleIntensity(Transform):
+class ScaleIntensity(TorchOrNumpyTransform):
     """
     Scale the intensity of input image to the given value range (minv, maxv).
     If `minv` and `maxv` not provided, use `factor` to scale image by ``v = v * (1 + factor)``.
@@ -354,7 +354,7 @@ class ScaleIntensity(Transform):
         self.maxv = maxv
         self.factor = factor
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Apply the transform to `img`.
 
@@ -363,9 +363,13 @@ class ScaleIntensity(Transform):
 
         """
         if self.minv is not None and self.maxv is not None:
-            return np.asarray(rescale_array(img, self.minv, self.maxv, img.dtype))
+            return rescale_array(img, self.minv, self.maxv, img.dtype)
         if self.factor is not None:
-            return np.asarray(img * (1 + self.factor), dtype=img.dtype)
+            out = img * (1 + self.factor)
+            if isinstance(out, torch.Tensor):
+                return out.to(img.dtype)  # type: ignore
+            else:
+                return out.astype(img.dtype)  # type: ignore
         raise ValueError("Incompatible values: minv=None or maxv=None and factor=None.")
 
 

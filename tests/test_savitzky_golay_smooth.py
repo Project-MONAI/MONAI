@@ -9,12 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, List
 import unittest
+from typing import Callable, List
 
 import numpy as np
-from parameterized import parameterized
 import torch
+from parameterized import parameterized
 
 from monai.transforms import SavitzkyGolaySmooth
 
@@ -66,9 +66,11 @@ class TestSavitzkyGolaySmooth(unittest.TestCase):
 
 
 from functools import partial
+
 NDARRAYS: List[Callable] = [np.array, torch.Tensor]
 if torch.cuda.is_available():
     NDARRAYS.append(partial(torch.Tensor, device="cuda"))
+
 
 class TestSavitzkyGolaySmoothREP(unittest.TestCase):
     @parameterized.expand([TEST_CASE_SINGLE_VALUE_REP])
