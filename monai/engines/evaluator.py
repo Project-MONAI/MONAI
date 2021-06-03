@@ -222,9 +222,7 @@ class SupervisedEvaluator(Evaluator):
             inputs, targets, args, kwargs = batch
 
         # put iteration outputs into engine.state
-        engine.state.output = {Keys.IMAGE: inputs}
-        if targets is not None:
-            engine.state.output[Keys.LABEL] = targets
+        engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
 
         # execute forward computation
         with self.mode(self.network):
@@ -346,9 +344,7 @@ class EnsembleEvaluator(Evaluator):
             inputs, targets, args, kwargs = batch
 
         # put iteration outputs into engine.state
-        engine.state.output = {Keys.IMAGE: inputs}
-        if targets is not None:
-            engine.state.output[Keys.LABEL] = targets
+        engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
 
         for idx, network in enumerate(self.networks):
             with self.mode(network):

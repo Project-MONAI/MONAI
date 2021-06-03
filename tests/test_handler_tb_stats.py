@@ -25,7 +25,7 @@ class TestHandlerTBStats(unittest.TestCase):
 
             # set up engine
             def _train_func(engine, batch):
-                return batch + 1.0
+                return [batch + 1.0]
 
             engine = Engine(_train_func)
 
@@ -48,7 +48,7 @@ class TestHandlerTBStats(unittest.TestCase):
 
             # set up engine
             def _train_func(engine, batch):
-                return batch + 1.0
+                return [batch + 1.0]
 
             engine = Engine(_train_func)
 

@@ -184,7 +184,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
             writer: TensorBoard writer, created in TensorBoardHandler.
 
         """
-        loss = self.output_transform(engine.state.output)
+        loss = self.output_transform(engine.state.output[0])
         if loss is None:
             return  # do nothing if output is empty
         if isinstance(loss, dict):
