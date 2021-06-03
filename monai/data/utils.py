@@ -15,6 +15,7 @@ import math
 import os
 import pickle
 import warnings
+from copy import deepcopy
 from collections import abc, defaultdict
 from itertools import product, starmap
 from pathlib import PurePath
@@ -288,7 +289,11 @@ def list_data_collate(batch: Sequence):
         raise TypeError(re_str)
 
 
-def decollate_batch(data: Union[dict, list, torch.Tensor], batch_size: Optional[int] = None) -> List[dict]:
+def decollate_batch(
+    data: Union[dict, list, torch.Tensor],
+    batch_size: Optional[int] = None,
+    copy_non_batch: bool = True,
+) -> List[dict]:
     """De-collate a batch of data (for example, as produced by a `DataLoader`).
 
     Returns a list of dictionaries, list or Tensor, mapping to a given batch.
@@ -328,6 +333,8 @@ def decollate_batch(data: Union[dict, list, torch.Tensor], batch_size: Optional[
     Args:
         data: data to be de-collated.
         batch_size: number of batches in data. If `None` is passed, try to figure out batch size.
+        copy_non_batch: whether deepcopy the non-batch data in the input to every item of decollated list.
+            default to True.
     """
 
     def torch_to_single(d: torch.Tensor):
@@ -339,8 +346,9 @@ def decollate_batch(data: Union[dict, list, torch.Tensor], batch_size: Optional[
         if isinstance(data, dict):
             return {k: decollate(v, idx) for k, v in data.items()}
         if isinstance(data, torch.Tensor):
-            out = data[idx]
-            return torch_to_single(out)
+            if data.ndim > 0:
+                out = data[idx]
+                return torch_to_single(out)
         if isinstance(data, list):
             if len(data) == 0:
                 return data
@@ -349,11 +357,15 @@ def decollate_batch(data: Union[dict, list, torch.Tensor], batch_size: Optional[
             if issequenceiterable(data[0]):
                 return [decollate(d, idx) for d in data]
             return data[idx]
-        raise TypeError(f"Not sure how to de-collate type: {type(data)}")
+        # copy the scalar data without batch dimension
+        if copy_non_batch:
+            return deepcopy(data)
+        else:
+            raise TypeError(f"Not sure how to de-collate type: {type(data)}")
 
     def _detect_batch_size(batch_data):
         for v in batch_data:
-            if isinstance(v, torch.Tensor):
+            if isinstance(v, torch.Tensor) and v.ndim > 0:
                 return v.shape[0]
         warnings.warn("batch_data is not a sequence of tensors in decollate, use `len(batch_data[0])` directly.")
         return len(batch_data[0])

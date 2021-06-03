@@ -25,7 +25,7 @@ from torch.utils.data import DataLoader as TorchDataLoader
 
 from monai.config import KeysCollection
 from monai.data.csv_saver import CSVSaver
-from monai.data.utils import decollate_batch, no_collation
+from monai.data.utils import no_collation
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.inverse_batch_transform import BatchInverseTransform
 from monai.transforms.post.array import (
@@ -66,9 +66,6 @@ __all__ = [
     "MeanEnsembleDict",
     "VoteEnsembleD",
     "VoteEnsembleDict",
-    "DecollateD",
-    "DecollateDict",
-    "Decollated",
     "ProbNMSd",
     "ProbNMSD",
     "ProbNMSDict",
@@ -338,25 +335,6 @@ class VoteEnsembled(Ensembled):
         """
         ensemble = VoteEnsemble(num_classes=num_classes)
         super().__init__(keys, ensemble, output_key)
-
-
-class Decollated(MapTransform):
-    """
-    Decollate a batch of data.
-
-    Note that unlike most MapTransforms, this will decollate all data, so keys are not needed.
-
-    Args:
-        batch_size: if not supplied, we try to determine it based on array lengths. Will raise an error if
-            it fails to determine it automatically.
-    """
-
-    def __init__(self, batch_size: Optional[int] = None) -> None:
-        super().__init__(None)
-        self.batch_size = batch_size
-
-    def __call__(self, data: dict) -> List[dict]:
-        return decollate_batch(data, self.batch_size)
 
 
 class ProbNMSd(MapTransform):
@@ -659,6 +637,5 @@ LabelToContourD = LabelToContourDict = LabelToContourd
 MeanEnsembleD = MeanEnsembleDict = MeanEnsembled
 ProbNMSD = ProbNMSDict = ProbNMSd
 VoteEnsembleD = VoteEnsembleDict = VoteEnsembled
-DecollateD = DecollateDict = Decollated
 InvertD = InvertDict = Invertd
 SaveClassificationD = SaveClassificationDict = SaveClassificationd
