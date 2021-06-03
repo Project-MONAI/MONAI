@@ -373,7 +373,7 @@ class ScaleIntensity(TorchOrNumpyTransform):
         raise ValueError("Incompatible values: minv=None or maxv=None and factor=None.")
 
 
-class RandScaleIntensity(RandomizableTransform):
+class RandScaleIntensity(TorchOrNumpyTransform, RandomizableTransform):
     """
     Randomly scale the intensity of input image by ``v = v * (1 + factor)`` where the `factor`
     is randomly picked.
@@ -400,7 +400,7 @@ class RandScaleIntensity(RandomizableTransform):
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
         super().randomize(None)
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Apply the transform to `img`.
         """

@@ -9,22 +9,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Callable, List
 import unittest
 
 import numpy as np
+import torch
 
 from monai.transforms import RandScaleIntensity
 from tests.utils import NumpyImageTestCase2D
+from functools import partial
+
+NDARRAYS: List[Callable] = [np.array, torch.Tensor]
+if torch.cuda.is_available():
+    NDARRAYS.append(partial(torch.Tensor, device="cuda"))
 
 
 class TestRandScaleIntensity(NumpyImageTestCase2D):
     def test_value(self):
-        scaler = RandScaleIntensity(factors=0.5, prob=1.0)
-        scaler.set_random_state(seed=0)
-        result = scaler(self.imt)
-        np.random.seed(0)
-        expected = (self.imt * (1 + np.random.uniform(low=-0.5, high=0.5))).astype(np.float32)
-        np.testing.assert_allclose(result, expected)
+        for p in NDARRAYS:
+            scaler = RandScaleIntensity(factors=0.5, prob=1.0)
+            scaler.set_random_state(seed=0)
+            result = scaler(p(self.imt))
+            np.random.seed(0)
+            expected = (self.imt * (1 + np.random.uniform(low=-0.5, high=0.5))).astype(np.float32)
+            np.testing.assert_allclose(result, expected)
 
 
 if __name__ == "__main__":
