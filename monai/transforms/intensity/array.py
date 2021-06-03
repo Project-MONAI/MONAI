@@ -842,7 +842,7 @@ class MaskIntensity(TorchOrNumpyTransform):
         return img * mask_data_
 
 
-class SavitzkyGolaySmooth(Transform):
+class SavitzkyGolaySmooth(TorchTransform):
     """
     Smooth the input data along the given axis using a Savitzky-Golay filter.
 
@@ -864,20 +864,23 @@ class SavitzkyGolaySmooth(Transform):
         self.axis = axis
         self.mode = mode
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Args:
-            img: numpy.ndarray containing input data. Must be real and in shape [channels, spatial1, spatial2, ...].
+            img: array containing input data. Must be real and in shape [channels, spatial1, spatial2, ...].
 
         Returns:
-            np.ndarray containing smoothed result.
+            array containing smoothed result.
 
         """
+        img_t: torch.Tensor
+        img_t, orig_type, orig_device = self.pre_conv_data(img)  # type: ignore
+
         # add one to transform axis because a batch axis will be added at dimension 0
         savgol_filter = SavitzkyGolayFilter(self.window_length, self.order, self.axis + 1, self.mode)
         # convert to Tensor and add Batch axis expected by HilbertTransform
-        input_data = torch.as_tensor(np.ascontiguousarray(img)).unsqueeze(0)
-        return savgol_filter(input_data).squeeze(0).numpy()
+        out = savgol_filter(img_t.unsqueeze(0)).squeeze(0)
+        return self.post_convert_data(out, orig_type, orig_device)
 
 
 class DetectEnvelope(TorchTransform):
