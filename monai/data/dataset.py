@@ -132,6 +132,10 @@ class PersistentDataset(Dataset):
     Note:
         The input data must be a list of file paths and will hash them as cache keys.
 
+        When loading persistent cache content, it can't guarantee the cached data matches current
+        transform chain, so please make sure to use exactly the same non-random transforms and the
+        args as the cache content, otherwise, it may cause unexpected errors.
+
     """
 
     def __init__(
