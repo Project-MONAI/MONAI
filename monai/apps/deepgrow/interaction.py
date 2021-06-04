@@ -20,7 +20,7 @@ from monai.utils.enums import CommonKeys
 
 class Interaction:
     """
-    Ignite handler used to introduce interactions (simulation of clicks) for Deepgrow Training/Evaluation.
+    Ignite process_function used to introduce interactions (simulation of clicks) for Deepgrow Training/Evaluation.
     This implementation is based on:
 
         Sakinis et al., Interactive segmentation of medical images through
@@ -49,10 +49,6 @@ class Interaction:
         self.max_interactions = max_interactions
         self.train = train
         self.key_probability = key_probability
-
-    def attach(self, engine: Union[SupervisedTrainer, SupervisedEvaluator]) -> None:
-        if not engine.has_event_handler(self, IterationEvents.ITERATION_STARTED):
-            engine.add_event_handler(IterationEvents.ITERATION_STARTED, self)
 
     def __call__(self, engine: Union[SupervisedTrainer, SupervisedEvaluator], batchdata: Dict[str, torch.Tensor]):
         if batchdata is None:
