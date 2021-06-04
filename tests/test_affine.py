@@ -78,12 +78,9 @@ class TestAffine(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_affine(self, input_param, input_data, expected_val):
         g = Affine(**input_param)
-        result = g(**input_data)
+        result, _ = g(**input_data)
         self.assertEqual(isinstance(result, torch.Tensor), isinstance(expected_val, torch.Tensor))
-        if isinstance(result, torch.Tensor):
-            np.testing.assert_allclose(result.cpu().numpy(), expected_val.cpu().numpy(), rtol=1e-4, atol=1e-4)
-        else:
-            np.testing.assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
+        np.testing.assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
 
 
 if __name__ == "__main__":
