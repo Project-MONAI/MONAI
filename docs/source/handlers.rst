@@ -155,6 +155,11 @@ Transform inverter
 .. autoclass:: TransformInverter
     :members:
 
+Post processing
+---------------
+.. autoclass:: PostProcessing
+    :members:
+
 Utilities
 ---------
 .. automodule:: monai.handlers.utils

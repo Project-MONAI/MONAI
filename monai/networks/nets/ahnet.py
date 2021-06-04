@@ -19,6 +19,8 @@ import torch.nn.functional as F
 from monai.networks.blocks.fcn import FCN
 from monai.networks.layers.factories import Act, Conv, Norm, Pool
 
+__all__ = ["AHnet", "Ahnet", "ahnet", "AHNet"]
+
 
 class Bottleneck3x3x1(nn.Module):
 

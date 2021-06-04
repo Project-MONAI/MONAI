@@ -32,9 +32,9 @@ class TransformInverter:
     Ignite handler to automatically invert `transforms`.
     It takes `engine.state.output` as the input data and uses the transforms information from `engine.state.batch`.
     Expect both `engine.state.output` and `engine.state.batch` to be dictionary data.
-    The inverted data are stored in `engine.state.output` with key: "{output_key}_{postfix}".
+    The inverted data is in-place saved back to `engine.state.output` with key: "{output_key}".
     And the inverted meta dict will be stored in `engine.state.batch`
-    with key: "{output_key}_{postfix}_{meta_key_postfix}".
+    with key: "{meta_keys}" or "{key}_{meta_key_postfix}".
 
     """
 
@@ -45,9 +45,9 @@ class TransformInverter:
         output_keys: KeysCollection = CommonKeys.PRED,
         batch_keys: KeysCollection = CommonKeys.IMAGE,
         meta_keys: Optional[KeysCollection] = None,
+        batch_meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
         collate_fn: Optional[Callable] = no_collation,
-        postfix: str = "inverted",
         nearest_interp: Union[bool, Sequence[bool]] = True,
         to_tensor: Union[bool, Sequence[bool]] = True,
         device: Union[Union[str, torch.device], Sequence[Union[str, torch.device]]] = "cpu",
@@ -59,24 +59,29 @@ class TransformInverter:
             transform: a callable data transform on input data.
             loader: data loader used to run transforms and generate the batch of data.
             output_keys: the key of expected data in `ignite.engine.output`, invert transforms on it.
-                it also can be a list of keys, will invert transform for each of them. Default to "pred".
+                it also can be a list of keys, will invert transform for each of them.
+                Default to "pred". it's in-place operation.
             batch_keys: the key of input data in `ignite.engine.batch`. will get the applied transforms
                 for this input data, then invert them for the expected data with `output_keys`.
                 It can also be a list of keys, each matches to the `output_keys` data. default to "image".
-            meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
-                for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+            meta_keys: explicitly indicate the key for the inverted meta data dictionary.
                 the meta data is a dictionary object which contains: filename, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
-                if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-                it also can be a list of string, each matches to the `output_keys` data.
-            meta_key_postfix: if meta_keys is None, use `{batch_key}_{postfix}` to to fetch the meta data according
-                to the key data, default is `meta_dict`, the meta data is a dictionary object.
-                For example, to handle key `image`,  read/write affine matrices from the
+                if None, will try to construct meta_keys by `{key}_{meta_key_postfix}`.
+            batch_meta_keys: the key of the meta data of input data in `ignite.engine.batch`,
+                will get the `affine`, `data_shape`, etc.
+                the meta data is a dictionary object which contains: filename, original_shape, etc.
+                it can be a sequence of string, map to the `keys`.
+                if None, will try to construct meta_keys by `{orig_key}_{meta_key_postfix}`.
+                meta data will also be inverted and stored in `meta_keys`.
+            meta_key_postfix: if `orig_meta_keys` is None, use `{orig_key}_{meta_key_postfix}` to to fetch the
+                meta data from dict, if `meta_keys` is None, use `{key}_{meta_key_postfix}`.
+                default is `meta_dict`, the meta data is a dictionary object.
+                For example, to handle orig_key `image`,  read/write `affine` matrices from the
                 metadata `image_meta_dict` dictionary's `affine` field.
-                the inverted meta dict will be stored with key: "{output_key}_{postfix}_{meta_key_postfix}".
+                the inverted meta dict will be stored with key: "{key}_{meta_key_postfix}".
             collate_fn: how to collate data after inverse transformations. default won't do any collation,
                 so the output will be a list of PyTorch Tensor or numpy array without batch dim.
-            postfix: will save the inverted result into `ignite.engine.output` with key `{output_key}_{postfix}`.
             nearest_interp: whether to use `nearest` interpolation mode when inverting the spatial transforms,
                 default to `True`. If `False`, use the same interpolation mode as the original transform.
                 it also can be a list of bool, each matches to the `output_keys` data.
@@ -98,9 +103,9 @@ class TransformInverter:
             loader=loader,
             orig_keys=batch_keys,
             meta_keys=meta_keys,
+            orig_meta_keys=batch_meta_keys,
             meta_key_postfix=meta_key_postfix,
             collate_fn=collate_fn,
-            postfix=postfix,
             nearest_interp=nearest_interp,
             to_tensor=to_tensor,
             device=device,
@@ -108,8 +113,10 @@ class TransformInverter:
             num_workers=num_workers,
         )
         self.output_keys = ensure_tuple(output_keys)
+        self.meta_keys = ensure_tuple_rep(None, len(self.output_keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.output_keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as output_keys.")
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.output_keys))
-        self.postfix = postfix
 
     def attach(self, engine: Engine) -> None:
         """
@@ -128,12 +135,12 @@ class TransformInverter:
         data.update(engine.state.output)
         ret = self.inverter(data)
 
-        for output_key, meta_key_postfix in zip(self.output_keys, self.meta_key_postfix):
+        for output_key, meta_key, meta_key_postfix in zip(self.output_keys, self.meta_keys, self.meta_key_postfix):
             # save the inverted data into state.output
-            inverted_key = f"{output_key}_{self.postfix}"
-            if inverted_key in ret:
-                engine.state.output[inverted_key] = ret[inverted_key]
+            engine.state.output[output_key] = ret.get(output_key)
             # save the inverted meta dict into state.batch
-            meta_dict_key = f"{inverted_key}_{meta_key_postfix}"
-            if meta_dict_key in ret:
-                engine.state.batch[meta_dict_key] = ret[meta_dict_key]
+            meta_key = meta_key or f"{output_key}_{meta_key_postfix}"
+            if meta_key in ret:
+                # FIXME: we save inverted meta dict into `batch` to be compatible with `SegmentationSaver`
+                # will deprecate both handlers soon
+                engine.state.batch[meta_key] = ret.get(meta_key)

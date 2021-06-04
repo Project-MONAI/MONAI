@@ -21,6 +21,8 @@ from monai.networks.layers.factories import Dropout
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
 from monai.utils import UpsampleMode
 
+__all__ = ["SegResNet", "SegResNetVAE"]
+
 
 class SegResNet(nn.Module):
     """
