@@ -46,8 +46,6 @@ def apply_transform(transform: Callable, data, map_items: bool = True):
     try:
         if isinstance(data, (list, tuple)) and map_items:
             return [transform(item) for item in data]
-        if isinstance(data, (list, tuple)) and not map_items:
-            return transform(*data)
         return transform(data)
     except Exception as e:
 

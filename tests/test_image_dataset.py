@@ -36,7 +36,8 @@ class RandTest(RandomizableTransform):
 
 
 class _TestCompose(Compose):
-    def __call__(self, data, meta):
+    def __call__(self, input_):
+        data, meta = input_
         data = self.transforms[0](data, meta)  # ensure channel first
         data, _, meta["affine"] = self.transforms[1](data, meta["affine"])  # spacing
         if len(self.transforms) == 3:
