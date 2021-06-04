@@ -11,6 +11,9 @@
 
 """
 Collection of the remote MMAR descriptors
+
+See Also:
+    - https://docs.nvidia.com/clara/clara-train-sdk/pt/mmar.html
 """
 
 import os
@@ -38,8 +41,8 @@ MODEL_DESC = (
     {
         RemoteMMARKeys.ID: "clara_pt_prostate_mri_segmentation_1",
         RemoteMMARKeys.NAME: "clara_pt_prostate_mri_segmentation",
-        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/\
-        med/clara_pt_prostate_mri_segmentation/versions/1/zip",
+        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/"
+        "med/clara_pt_prostate_mri_segmentation/versions/1/zip",
         RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_prostate_mri_segmentation",
         RemoteMMARKeys.FILE_TYPE: "zip",
         RemoteMMARKeys.HASH_TYPE: "md5",
@@ -49,12 +52,24 @@ MODEL_DESC = (
     {
         RemoteMMARKeys.ID: "clara_pt_covid19_ct_lesion_segmentation_1",
         RemoteMMARKeys.NAME: "clara_pt_covid19_ct_lesion_segmentation",
-        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/\
-        med/clara_pt_covid19_ct_lesion_segmentation/versions/1/zip",
+        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/"
+        "med/clara_pt_covid19_ct_lesion_segmentation/versions/1/zip",
         RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_covid19_ct_lesion_segmentation",
         RemoteMMARKeys.FILE_TYPE: "zip",
         RemoteMMARKeys.HASH_TYPE: "md5",
         RemoteMMARKeys.HASH_VAL: None,
         RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
+    },
+    {
+        RemoteMMARKeys.ID: "clara_pt_fed_learning_brain_tumor_mri_segmentation_1",
+        RemoteMMARKeys.NAME: "clara_pt_fed_learning_brain_tumor_mri_segmentation",
+        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/"
+        "med/clara_pt_fed_learning_brain_tumor_mri_segmentation/versions/1/zip",
+        RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/"
+        "nvidia:med:clara_pt_fed_learning_brain_tumor_mri_segmentation",
+        RemoteMMARKeys.FILE_TYPE: "zip",
+        RemoteMMARKeys.HASH_TYPE: "md5",
+        RemoteMMARKeys.HASH_VAL: None,
+        RemoteMMARKeys.MODEL_FILE: os.path.join("models", "server", "best_FL_global_model.pt"),
     },
 )

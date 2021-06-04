@@ -9,6 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+Utilities for accessing Nvidia MMARs
+
+See Also:
+    - https://docs.nvidia.com/clara/clara-train-sdk/pt/mmar.html
+"""
+
 import os
 import warnings
 from typing import Mapping
@@ -17,6 +24,7 @@ import torch
 
 import monai.networks.nets as monai_nets
 from monai.apps.utils import download_and_extract
+from monai.utils.module import optional_import
 
 from .model_desc import MODEL_DESC
 from .model_desc import RemoteMMARKeys as Keys
@@ -44,6 +52,7 @@ def download_mmar(item, mmar_dir=None, progress: bool = True):
     See Also:
         - https://docs.nvidia.com/clara/
         - Nvidia NGC Registry CLI
+        - https://docs.nvidia.com/clara/clara-train-sdk/pt/mmar.html
 
     Args:
         item: the corresponding model item from `MODEL_DESC`.
@@ -115,13 +124,19 @@ def load_from_mmar(item, mmar_dir=None, progress: bool = True, map_location=None
         return model_dict["model"]
 
     # TODO: search for the module based on model name?
-    # TODO：support [model][path]?
     if not model_dict.get("train_conf", ""):
         raise ValueError("The MMAR configuration does not have a 'train_conf' section.")
     model_config = model_dict["train_conf"]["train"]["model"]
-    model_name = model_config["name"]
+    if model_config.get("name", ""):  # model config section is a "name"
+        model_name = model_config["name"]
+        model_cls = monai_nets.__dict__[model_name]
+    else:  # model config section is a "path"
+        # https://docs.nvidia.com/clara/clara-train-sdk/pt/byom.html
+        model_module, model_name = model_config.get("path", "").rsplit(".", 1)
+        model_cls, has_cls = optional_import(module=model_module, name=model_name)
+        if not has_cls:
+            raise ValueError(f"Could not load model config {model_config.get('path', '')}.")
     model_kwargs = model_config["args"]
-    model_cls = monai_nets.__dict__[model_name]
     model_inst = model_cls(**model_kwargs)
     print(f"*** Model: {model_cls}")
     print(f"*** Model param: {model_kwargs}")
