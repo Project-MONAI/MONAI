@@ -274,6 +274,18 @@ Intensity
     :members:
     :special-members: __call__
 
+`KSpaceSpikeNoise`
+""""""""""""""""""""
+.. autoclass:: KSpaceSpikeNoise
+    :members:
+    :special-members: __call__
+
+`RandKSpaceSpikeNoise`
+""""""""""""""""""""""""
+ .. autoclass:: RandKSpaceSpikeNoise
+     :members:
+     :special-members: __call__
+
 
 IO
 ^^
