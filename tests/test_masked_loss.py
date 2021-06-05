@@ -32,7 +32,7 @@ TEST_CASES = [
             "to_onehot_y": True,
             "reduction": "sum",
         },
-        [12.105497, 10.636354],
+        [(12.105497, 18.805185), (10.636354, 6.3138)],
     ],
 ]
 
@@ -50,12 +50,17 @@ class TestMaskedLoss(unittest.TestCase):
         label = torch.randint(low=0, high=2, size=size)
         label = torch.argmax(label, dim=1, keepdim=True)
         pred = torch.randn(size)
+        print(label[0, 0, 0])
         result = MaskedLoss(**input_param)(pred, label, None)
-        np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val[0], rtol=1e-5)
+        out = result.detach().cpu().numpy()
+        checked = np.allclose(out, expected_val[0][0]) or np.allclose(out, expected_val[0][1])
+        self.assertTrue(checked)
 
         mask = torch.randint(low=0, high=2, size=label.shape)
         result = MaskedLoss(**input_param)(pred, label, mask)
-        np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val[1], rtol=1e-5)
+        out = result.detach().cpu().numpy()
+        checked = np.allclose(out, expected_val[1][0]) or np.allclose(out, expected_val[1][1])
+        self.assertTrue(checked)
 
     def test_ill_opts(self):
         with self.assertRaisesRegex(ValueError, ""):
