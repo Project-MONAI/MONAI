@@ -10,6 +10,11 @@ Metrics
 ------
 .. autofunction:: compute_froc_score
 
+`Metric`
+--------
+.. autoclass:: Metric
+    :members:
+
 `Mean Dice`
 -----------
 .. autofunction:: compute_meandice
@@ -20,6 +25,9 @@ Metrics
 `Area under the ROC curve`
 --------------------------
 .. autofunction:: compute_roc_auc
+
+.. autoclass:: ROCAUCMetric
+    :members:
 
 `Confusion matrix`
 ------------------

@@ -167,6 +167,14 @@ TEST_CASE_9 = [
     [[1.0000, 1.0000], [1.0000, 1.0000]],
 ]
 
+TEST_CASE_10 = [
+    {
+        "y": [torch.ones((2, 3, 3)), torch.ones((2, 3, 3))],
+        "y_pred": [torch.ones((2, 3, 3)), torch.ones((2, 3, 3))],
+    },
+    [[1.0000, 1.0000], [1.0000, 1.0000]],
+]
+
 
 class TestComputeMeanDice(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_9])
@@ -180,7 +188,7 @@ class TestComputeMeanDice(unittest.TestCase):
         self.assertTrue(np.allclose(np.isnan(result.cpu().numpy()), expected_value))
 
     # DiceMetric class tests
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_10])
     def test_value_class(self, input_data, expected_value):
 
         # same test as for compute_meandice
@@ -188,14 +196,16 @@ class TestComputeMeanDice(unittest.TestCase):
         vals["y_pred"] = input_data.pop("y_pred")
         vals["y"] = input_data.pop("y")
         dice_metric = DiceMetric(**input_data, reduction="none")
-        result, _ = dice_metric(**vals)
+        result = dice_metric(**vals)
+        result, _ = dice_metric.aggregate(result)
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
 
     @parameterized.expand([TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8])
     def test_nans_class(self, params, input_data, expected_value):
 
         dice_metric = DiceMetric(**params)
-        result, _ = dice_metric(**input_data)
+        result = dice_metric(**input_data)
+        result, _ = dice_metric.aggregate(result)
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
 
 

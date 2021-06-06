@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Union
+from typing import Optional, Union
 
 import numpy as np
 import torch
@@ -18,14 +18,17 @@ import torch
 from monai.metrics.utils import do_metric_reduction, get_mask_edges, get_surface_distance, ignore_background
 from monai.utils import MetricReduction
 
+from .metric import Metric
 
-class SurfaceDistanceMetric:
+
+class SurfaceDistanceMetric(Metric):
     """
     Compute Surface Distance between two tensors. It can support both multi-classes and multi-labels tasks.
     It supports both symmetric and asymmetric surface distance calculation.
-    Input `y_pred` (BNHW[D] where N is number of classes) is compared with ground truth `y` (BNHW[D]).
+    Input `y_pred` is compared with ground truth `y`.
     `y_preds` is expected to have binarized predictions and `y` should be in one-hot format.
     You can use suitable transforms in ``monai.transforms.post`` first to achieve binarized values.
+    `y_preds` and `y` can be a list of channel-first Tensor (CHW[D]) or a batch-first Tensor (BCHW[D]).
 
     Args:
         include_background: whether to skip distance computation on the first channel of
@@ -36,7 +39,7 @@ class SurfaceDistanceMetric:
             the metric used to compute surface distance. Defaults to ``"euclidean"``.
         reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}
-            Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
+            Define the mode to reduce computation result. Defaults to ``"mean"``.
 
     """
 
@@ -53,7 +56,7 @@ class SurfaceDistanceMetric:
         self.symmetric = symmetric
         self.reduction = reduction
 
-    def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):
+    def _compute(self, y_pred: torch.Tensor, y: Optional[torch.Tensor] = None):
         """
         Args:
             y_pred: input data to compute, typical segmentation model output.
@@ -66,15 +69,17 @@ class SurfaceDistanceMetric:
             ValueError: when `y` is not a binarized tensor.
             ValueError: when `y_pred` has less than three dimensions.
         """
+        if not isinstance(y_pred, torch.Tensor) or not isinstance(y, torch.Tensor):
+            raise ValueError("y_pred and y must be PyTorch Tensor.")
         if not torch.all(y_pred.byte() == y_pred):
-            warnings.warn("y_pred is not a binarized tensor here!")
+            warnings.warn("y_pred should be a binarized tensor.")
         if not torch.all(y.byte() == y):
             raise ValueError("y should be a binarized tensor.")
         dims = y_pred.ndimension()
         if dims < 3:
             raise ValueError("y_pred should have at least three dimensions.")
         # compute (BxC) for each channel for each batch
-        f = compute_average_surface_distance(
+        return compute_average_surface_distance(
             y_pred=y_pred,
             y=y,
             include_background=self.include_background,
@@ -82,8 +87,13 @@ class SurfaceDistanceMetric:
             distance_metric=self.distance_metric,
         )
 
+    def aggregate(self, data: torch.Tensor):
+        """
+        Execute reduction logic for the output of `compute_average_surface_distance`.
+
+        """
         # do metric reduction
-        f, not_nans = do_metric_reduction(f, self.reduction)
+        f, not_nans = do_metric_reduction(data, self.reduction)
         return f, not_nans
 
 

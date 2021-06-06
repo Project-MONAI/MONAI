@@ -29,6 +29,7 @@ class MeanDice(IterationMetric):
         output_transform: Callable = lambda x: x,
         device: Union[str, torch.device] = "cpu",
         save_details: bool = True,
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
     ) -> None:
         """
 
@@ -39,14 +40,14 @@ class MeanDice(IterationMetric):
             device: device specification in case of distributed computation usage.
             save_details: whether to save metric computation details per image, for example: mean dice of every image.
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
+            reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+                ``"mean_channel"``, ``"sum_channel"``}
+                Define the mode to reduce computation result. Defaults to ``"mean"``.
 
         See also:
             :py:meth:`monai.metrics.meandice.compute_meandice`
         """
-        metric_fn = DiceMetric(
-            include_background=include_background,
-            reduction=MetricReduction.NONE,
-        )
+        metric_fn = DiceMetric(include_background=include_background, reduction=reduction)
         super().__init__(
             metric_fn=metric_fn,
             output_transform=output_transform,

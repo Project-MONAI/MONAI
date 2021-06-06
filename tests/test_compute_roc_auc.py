@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.metrics import compute_roc_auc
+from monai.metrics import ROCAUCMetric, compute_roc_auc
 from monai.transforms import Activations, AsDiscrete
 
 TEST_CASE_1 = [
@@ -88,6 +88,14 @@ class TestComputeROCAUC(unittest.TestCase):
         y_pred = Activations(softmax=softmax)(y_pred)
         y = AsDiscrete(to_onehot=to_onehot, n_classes=2)(y)
         result = compute_roc_auc(y_pred=y_pred, y=y, average=average)
+        np.testing.assert_allclose(expected_value, result, rtol=1e-5)
+
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7])
+    def test_class_value(self, y_pred, y, softmax, to_onehot, average, expected_value):
+        y_pred = Activations(softmax=softmax)(y_pred)
+        y = AsDiscrete(to_onehot=to_onehot, n_classes=2)(y)
+        metric = ROCAUCMetric(average=average)
+        result = metric.aggregate(metric(y_pred=y_pred, y=y))
         np.testing.assert_allclose(expected_value, result, rtol=1e-5)
 
 

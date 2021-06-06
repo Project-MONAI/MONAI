@@ -16,7 +16,12 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.metrics import ConfusionMatrixMetric, get_confusion_matrix
+from monai.metrics import (
+    ConfusionMatrixMetric,
+    compute_confusion_matrix_metric,
+    do_metric_reduction,
+    get_confusion_matrix,
+)
 
 # input data
 data: Dict[Any, Any] = {
@@ -59,6 +64,8 @@ data_clf: Dict[Any, Any] = {
     "y": torch.tensor([[1, 0, 0], [0, 1, 0]]),
     "compute_sample": False,
     "include_background": True,
+    "metric_name": "tpr",
+    "reduction": "mean_channel",
 }
 
 # 1. test confusion matrix
@@ -224,7 +231,7 @@ class TestConfusionMatrix(unittest.TestCase):
         vals["y_pred"] = params.pop("y_pred")
         vals["y"] = params.pop("y")
         metric = ConfusionMatrixMetric(**params)
-        result, _ = metric(**vals)
+        result, _ = metric.aggregate(metric(**vals))
         np.testing.assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
 
     @parameterized.expand(TEST_CASES_COMPUTE_SAMPLE_MULTI_METRICS)
@@ -234,7 +241,7 @@ class TestConfusionMatrix(unittest.TestCase):
         vals["y_pred"] = params.pop("y_pred")
         vals["y"] = params.pop("y")
         metric = ConfusionMatrixMetric(**params)
-        results = metric(**vals)
+        results = metric.aggregate(metric(**vals))
         for idx in range(0, len(results), 2):
             result = results[idx]
             expected_value = expected_values[int(idx / 2)]
@@ -247,7 +254,7 @@ class TestConfusionMatrix(unittest.TestCase):
         vals["y_pred"] = params.pop("y_pred")
         vals["y"] = params.pop("y")
         metric = ConfusionMatrixMetric(**params)
-        result, not_nans = metric(**vals)
+        result, not_nans = metric.aggregate(metric(**vals))
         np.testing.assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
         np.testing.assert_allclose(not_nans, expected_not_nans, atol=1e-4, rtol=1e-4)
 
@@ -259,6 +266,10 @@ class TestConfusionMatrix(unittest.TestCase):
         vals["y"] = params.pop("y")
         metric = ConfusionMatrixMetric(**params)
         result = metric(**vals)
+        np.testing.assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
+        result, _ = metric.aggregate(result)
+        expected_value, _ = do_metric_reduction(expected_value, "mean_channel")
+        expected_value = compute_confusion_matrix_metric("tpr", expected_value)
         np.testing.assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
 
 

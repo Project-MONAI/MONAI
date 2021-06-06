@@ -31,6 +31,7 @@ class SurfaceDistance(IterationMetric):
         output_transform: Callable = lambda x: x,
         device: Union[str, torch.device] = "cpu",
         save_details: bool = True,
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
     ) -> None:
         """
 
@@ -45,13 +46,16 @@ class SurfaceDistance(IterationMetric):
             device: device specification in case of distributed computation usage.
             save_details: whether to save metric computation details per image, for example: surface dice
                 of every image. default to True, will save to `engine.state.metric_details` dict with the metric name as key.
+            reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+                ``"mean_channel"``, ``"sum_channel"``}
+                Define the mode to reduce computation result. Defaults to ``"mean"``.
 
         """
         metric_fn = SurfaceDistanceMetric(
             include_background=include_background,
             symmetric=symmetric,
             distance_metric=distance_metric,
-            reduction=MetricReduction.NONE,
+            reduction=reduction,
         )
         super().__init__(
             metric_fn=metric_fn,

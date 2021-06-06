@@ -13,7 +13,8 @@ from .confusion_matrix import ConfusionMatrixMetric, compute_confusion_matrix_me
 from .froc import compute_fp_tp_probs, compute_froc_curve_data, compute_froc_score
 from .hausdorff_distance import HausdorffDistanceMetric, compute_hausdorff_distance, compute_percent_hausdorff_distance
 from .meandice import DiceMetric, compute_meandice
+from .metric import Metric
 from .regression import MAEMetric, MSEMetric, PSNRMetric, RMSEMetric
-from .rocauc import compute_roc_auc
+from .rocauc import ROCAUCMetric, compute_roc_auc
 from .surface_distance import SurfaceDistanceMetric, compute_average_surface_distance
 from .utils import do_metric_reduction, get_mask_edges, get_surface_distance, ignore_background

@@ -9,16 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable, Union
+from typing import Any, Callable, Tuple, Union
 
 import torch
 
 from monai.handlers.utils import evenly_divisible_all_gather
-from monai.metrics import compute_roc_auc
+from monai.metrics import ROCAUCMetric
 from monai.utils import Average, exact_version, optional_import
 
 idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
 EpochMetric, _ = optional_import("ignite.metrics", "0.4.4", exact_version, "EpochMetric")
+reinit__is_reduced, _ = optional_import("ignite.metrics.metric", "0.4.4", exact_version, "reinit__is_reduced")
 
 
 class ROCAUC(EpochMetric):  # type: ignore[valid-type, misc]  # due to optional_import
@@ -56,20 +57,18 @@ class ROCAUC(EpochMetric):  # type: ignore[valid-type, misc]  # due to optional_
         output_transform: Callable = lambda x: x,
         device: Union[str, torch.device] = "cpu",
     ) -> None:
-        def _compute_fn(pred, label):
-            return compute_roc_auc(
-                y_pred=pred,
-                y=label,
-                average=Average(average),
-            )
-
+        self.metric = ROCAUCMetric(average=Average(average))
         self._is_reduced: bool = False
         super().__init__(
-            compute_fn=_compute_fn,
+            compute_fn=lambda p, y: self.metric.aggregate(data=(p, y)),
             output_transform=output_transform,
             check_compute_fn=False,
             device=device,
         )
+
+    @reinit__is_reduced
+    def update(self, output: Tuple[torch.Tensor, torch.Tensor]) -> None:
+        super().update(output=self.metric(output[0], output[1]))
 
     def compute(self) -> Any:
         _prediction_tensor = torch.cat(self._predictions, dim=0)

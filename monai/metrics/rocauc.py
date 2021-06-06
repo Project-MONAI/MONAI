@@ -9,15 +9,71 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union, cast
+from typing import Optional, Tuple, Union, cast
 
 import numpy as np
 import torch
 
 from monai.utils import Average
 
+from .metric import Metric
 
-def _calculate(y: torch.Tensor, y_pred: torch.Tensor) -> float:
+
+class ROCAUCMetric(Metric):
+    """
+    Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC). Referring to:
+    `sklearn.metrics.roc_auc_score <https://scikit-learn.org/stable/modules/generated/
+    sklearn.metrics.roc_auc_score.html#sklearn.metrics.roc_auc_score>`_.
+    The input `y_pred` and `y` can be a list of `channel-first` Tensor or a `batch-first` Tensor.
+
+    Args:
+        average: {``"macro"``, ``"weighted"``, ``"micro"``, ``"none"``}
+            Type of averaging performed if not binary classification.
+            Defaults to ``"macro"``.
+
+            - ``"macro"``: calculate metrics for each label, and find their unweighted mean.
+                This does not take label imbalance into account.
+            - ``"weighted"``: calculate metrics for each label, and find their average,
+                weighted by support (the number of true instances for each label).
+            - ``"micro"``: calculate metrics globally by considering each element of the label
+                indicator matrix as a label.
+            - ``"none"``: the scores for each class are returned.
+
+    """
+
+    def __init__(self, average: Union[Average, str] = Average.MACRO) -> None:
+        super().__init__()
+        self.average = average
+
+    def _compute(self, y_pred: torch.Tensor, y: Optional[torch.Tensor] = None):
+        return y_pred, y
+
+    def aggregate(self, data: Tuple[torch.Tensor, torch.Tensor]):
+        """
+        As AUC metric needs to execute on the overall data, so usually users accumulate `y_pred` and `y`
+        of every iteration, then execute real computation and reduction on the accumulated data.
+        For example::
+
+            y_pred = []
+            y = []
+            metric = ROCAUCMetric(average=Average.MACRO)
+
+            for batch in dataloader:
+                image, label = batch
+                pred = model(image)
+                pred_, y_ = metric(pred, label)
+                y.append(y_)
+                y_pred.append(pred_)
+
+            result = metric.aggregate(torch.cat(y_pred, dim=0), torch.cat(y, dim=0))
+
+        """
+        y_pred, y = data
+        # compute final value and do metric reduction
+        return compute_roc_auc(y_pred=y_pred, y=y, average=self.average)
+
+
+def _calculate(y_pred: torch.Tensor, y: torch.Tensor) -> float:
     if not (y.ndimension() == y_pred.ndimension() == 1 and len(y) == len(y_pred)):
         raise AssertionError("y and y_pred must be 1 dimension data with same length.")
     if not y.unique().equal(torch.tensor([0, 1], dtype=y.dtype, device=y.device)):
@@ -96,16 +152,16 @@ def compute_roc_auc(
         y = y.squeeze(dim=-1)
 
     if y_pred_ndim == 1:
-        return _calculate(y, y_pred)
+        return _calculate(y_pred, y)
 
     if y.shape != y_pred.shape:
         raise AssertionError("data shapes of y_pred and y do not match.")
 
     average = Average(average)
     if average == Average.MICRO:
-        return _calculate(y.flatten(), y_pred.flatten())
+        return _calculate(y_pred.flatten(), y.flatten())
     y, y_pred = y.transpose(0, 1), y_pred.transpose(0, 1)
-    auc_values = [_calculate(y_, y_pred_) for y_, y_pred_ in zip(y, y_pred)]
+    auc_values = [_calculate(y_pred_, y_) for y_pred_, y_ in zip(y_pred, y)]
     if average == Average.NONE:
         return auc_values
     if average == Average.MACRO:
