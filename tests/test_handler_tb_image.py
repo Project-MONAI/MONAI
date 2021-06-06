@@ -18,6 +18,7 @@ import torch
 from ignite.engine import Engine, Events
 from parameterized import parameterized
 
+from monai.data import decollate_batch
 from monai.handlers import TensorBoardImageHandler
 
 TEST_CASES = [[[20, 20]], [[2, 20, 20]], [[3, 20, 20]], [[20, 20, 20]], [[2, 20, 20, 20]], [[2, 2, 20, 20, 20]]]
@@ -30,7 +31,8 @@ class TestHandlerTBImage(unittest.TestCase):
 
             # set up engine
             def _train_func(engine, batch):
-                return torch.zeros((1, 1, 10, 10))
+                engine.state.batch = decollate_batch(batch, batch_size=10)
+                return [torch.zeros((1, 10, 10))]
 
             engine = Engine(_train_func)
 

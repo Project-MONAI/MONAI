@@ -17,7 +17,7 @@ import unittest
 import numpy as np
 import torch
 
-from monai.data import CSVSaver
+from monai.data import CSVSaver, decollate_batch
 from monai.transforms import Compose, CopyItemsd, SaveClassificationd
 
 
@@ -58,20 +58,27 @@ class TestSaveClassificationd(unittest.TestCase):
                 ]
             )
             # simulate inference 2 iterations
-            post_trans(data[0])
-            post_trans(data[1])
+            d = decollate_batch(data[0])
+            for i in d:
+                post_trans(i)
+            d = decollate_batch(data[1])
+            for i in d:
+                post_trans(i)
             # write into CSV file
             saver.finalize()
 
             # 3rd saver will not delete previous data due to `overwrite=False`
-            SaveClassificationd(
+            trans2 = SaveClassificationd(
                 keys="pred",
                 saver=None,
                 meta_keys="image_meta_dict",  # specify meta key, so no need to copy anymore
                 output_dir=tempdir,
                 filename="predictions1.csv",
                 overwrite=False,
-            )(data[2])
+            )
+            d = decollate_batch(data[2])
+            for i in d:
+                trans2(i)
 
             def _test_file(filename, count):
                 filepath = os.path.join(tempdir, filename)

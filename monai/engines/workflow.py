@@ -16,6 +16,7 @@ import torch.distributed as dist
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
+from monai.data import decollate_batch
 from monai.engines.utils import IterationEvents, default_prepare_batch
 from monai.utils import ensure_tuple, exact_version, optional_import
 
@@ -137,7 +138,12 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         self.prepare_batch = prepare_batch
         self.amp = amp
 
-        event_names = [IterationEvents] if event_names is None else event_names + [IterationEvents]
+        if event_names is None:
+            event_names = [IterationEvents]
+        else:
+            if not isinstance(event_names, list):
+                raise ValueError("event_names must be a list or string or EventEnum.")
+            event_names += [IterationEvents]
         for name in event_names:
             if isinstance(name, str):
                 self.register_events(name, event_to_attr=event_to_attr)
@@ -146,12 +152,26 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             else:
                 raise ValueError("event_names must be a list or string or EventEnum.")
 
+        self._register_decollate()
         if post_transform is not None:
             self._register_post_transforms(post_transform)
         if key_metric is not None:
             self._register_metrics(key_metric, additional_metrics)
         if handlers is not None:
             self._register_handlers(handlers)
+
+    def _register_decollate(self):
+        """
+        Register the decollate operation for batch data, will execure after model forward and loss forward.
+
+        """
+
+        @self.on(IterationEvents.MODEL_COMPLETED)
+        def _decollate_data(engine: Engine) -> None:
+            if isinstance(engine.state.batch, (dict, list, torch.Tensor)):
+                engine.state.batch = decollate_batch(engine.state.batch, copy_non_batch=True)
+            if isinstance(engine.state.output, (dict, list, torch.Tensor)):
+                engine.state.output = decollate_batch(engine.state.output, copy_non_batch=True)
 
     def _register_post_transforms(self, posttrans: Callable):
         """
@@ -160,12 +180,9 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         """
 
         @self.on(IterationEvents.MODEL_COMPLETED)
-        def run_post_transform(engine: Engine) -> None:
-            engine.state.batch, engine.state.output = engine_apply_transform(
-                batch=engine.state.batch,
-                output=engine.state.output,
-                transform=posttrans,
-            )
+        def _run_post_transform(engine: Engine) -> None:
+            for i, (b, o) in enumerate(zip(engine.state.batch, engine.state.output)):
+                engine.state.batch[i], engine.state.output[i] = engine_apply_transform(b, o, posttrans)
 
     def _register_metrics(self, k_metric: Dict, add_metrics: Optional[Dict] = None):
         """

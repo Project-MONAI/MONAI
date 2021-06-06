@@ -49,8 +49,5 @@ class PostProcessing:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        engine.state.batch, engine.state.output = engine_apply_transform(
-            batch=engine.state.batch,
-            output=engine.state.output,
-            transform=self.transform,
-        )
+        for i, (b, o) in enumerate(zip(engine.state.batch, engine.state.output)):
+            engine.state.batch[i], engine.state.output[i] = engine_apply_transform(b, o, self.transform)

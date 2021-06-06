@@ -38,8 +38,8 @@ class TestHandlerPostProcessing(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_compute(self, input_params, expected):
         data = [
-            {"image": torch.tensor([[[[2.0], [3.0]]]]), "filename": "test1"},
-            {"image": torch.tensor([[[[6.0], [8.0]]]]), "filename": "test2"},
+            {"image": torch.tensor([[[[2.0], [3.0]]]]), "filename": ["test1"]},
+            {"image": torch.tensor([[[[6.0], [8.0]]]]), "filename": ["test2"]},
         ]
         # set up engine, PostProcessing handler works together with post_transform of engine
         engine = SupervisedEvaluator(
@@ -52,10 +52,11 @@ class TestHandlerPostProcessing(unittest.TestCase):
         )
         engine.run()
 
-        torch.testing.assert_allclose(engine.state.output["pred"], expected)
-        filename = engine.state.output.get("filename_bak")
-        if filename is not None:
-            self.assertEqual(filename, "test2")
+        for o, e in zip(engine.state.output, expected):
+            torch.testing.assert_allclose(o["pred"], e)
+            filename = o.get("filename_bak")
+            if filename is not None:
+                self.assertEqual(filename, "test2")
 
 
 if __name__ == "__main__":

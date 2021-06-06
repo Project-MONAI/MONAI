@@ -223,6 +223,7 @@ class SupervisedEvaluator(Evaluator):
 
         # put iteration outputs into engine.state
         engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
+
         # execute forward computation
         with self.mode(self.network):
             if self.amp:
@@ -344,6 +345,7 @@ class EnsembleEvaluator(Evaluator):
 
         # put iteration outputs into engine.state
         engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
+
         for idx, network in enumerate(self.networks):
             with self.mode(network):
                 if self.amp:

@@ -169,9 +169,8 @@ class SaveImage(Transform):
     Save transformed data into files, support NIfTI and PNG formats.
     It can work for both numpy array and PyTorch Tensor in both pre-transform chain
     and post transform chain.
-    It can also save a list of PyTorch Tensor or numpy array without `batch dim`.
 
-    Note: image should include channel dimension: [B],C,H,W,[D].
+    Note: image should be channel-first shape: [C,H,W,[D]].
 
     Args:
         output_dir: output image directory.
@@ -206,8 +205,6 @@ class SaveImage(Transform):
             it's used for NIfTI format only.
         output_dtype: data type for saving data. Defaults to ``np.float32``.
             it's used for NIfTI format only.
-        save_batch: whether the import image is a batch data, default to `False`.
-            usually pre-transforms run for channel first data, while post-transforms run for batch data.
         squeeze_end_dims: if True, any trailing singleton dimensions will be removed (after the channel
             has been moved to the end). So if input is (C,H,W,D), this will be altered to (H,W,D,C), and
             then if C==1, it will be saved as (H,W,D). If D also ==1, it will be saved as (H,W). If false,
@@ -238,7 +235,6 @@ class SaveImage(Transform):
         scale: Optional[int] = None,
         dtype: DtypeLike = np.float64,
         output_dtype: DtypeLike = np.float32,
-        save_batch: bool = False,
         squeeze_end_dims: bool = True,
         data_root_dir: str = "",
         print_log: bool = True,
@@ -272,8 +268,6 @@ class SaveImage(Transform):
         else:
             raise ValueError(f"unsupported output extension: {output_ext}.")
 
-        self.save_batch = save_batch
-
     def __call__(self, img: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None):
         """
         Args:
@@ -281,19 +275,4 @@ class SaveImage(Transform):
             meta_data: key-value pairs of meta_data corresponding to the data.
 
         """
-        if isinstance(img, (tuple, list)):
-            # if a list of data in shape: [channel, H, W, [D]], save every item separately
-            meta_: Optional[Dict] = None
-            for i, d in enumerate(img):
-                if isinstance(meta_data, dict):
-                    meta_ = {k: meta_data[k][i] for k in meta_data}
-                elif isinstance(meta_data, (list, tuple)):
-                    meta_ = meta_data[i]
-                else:
-                    meta_ = meta_data
-                self.saver.save(d, meta_)
-        else:
-            if self.save_batch:
-                self.saver.save_batch(img, meta_data)
-            else:
-                self.saver.save(img, meta_data)
+        self.saver.save(img, meta_data)
