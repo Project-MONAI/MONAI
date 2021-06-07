@@ -16,7 +16,8 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 import logging
 import sys
 import time
-from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
+import warnings
+from typing import Callable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -155,20 +156,34 @@ class EnsureChannelFirst(Transform):
     It extracts the `original_channel_dim` info from provided meta_data dictionary.
     Typical values of `original_channel_dim` can be: "no_channel", 0, -1.
     Convert the data to `channel_first` based on the `original_channel_dim` information.
-
     """
 
-    def __call__(self, img: np.ndarray, meta_dict: Optional[Dict] = None):
+    def __init__(self, strict_check: bool = True):
+        """
+        Args:
+            strict_check: whether to raise an error when the meta information is insufficient.
+        """
+        self.strict_check = strict_check
+
+    def __call__(self, img: np.ndarray, meta_dict: Optional[Mapping] = None):
         """
         Apply the transform to `img`.
         """
-        if not isinstance(meta_dict, dict):
-            raise ValueError("meta_dict must be a dictionary data.")
+        if not isinstance(meta_dict, Mapping):
+            msg = "meta_dict not available, EnsureChannelFirst is not in use."
+            if self.strict_check:
+                raise ValueError(msg)
+            warnings.warn(msg)
+            return img
 
-        channel_dim = meta_dict.get("original_channel_dim", None)
+        channel_dim = meta_dict.get("original_channel_dim")
 
         if channel_dim is None:
-            raise ValueError("meta_dict must contain `original_channel_dim` information.")
+            msg = "Unknown original_channel_dim in the meta_dict, EnsureChannelFirst is not in use."
+            if self.strict_check:
+                raise ValueError(msg)
+            warnings.warn(msg)
+            return img
         if channel_dim == "no_channel":
             return AddChannel()(img)
         return AsChannelFirst(channel_dim=channel_dim)(img)
