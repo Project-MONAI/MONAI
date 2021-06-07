@@ -404,8 +404,8 @@ class NibabelReader(ImageReader):
             img: a Nibabel image object loaded from a image file.
 
         """
-        # swap to little endian
-        header = img.header.as_byteswapped() if img.header.endianness == ">" else img.header
+        # swap to little endian as PyTorch doesn't support big endian
+        header = img.header.as_byteswapped("<")
         return dict(header)
 
     def _get_affine(self, img):
@@ -427,8 +427,8 @@ class NibabelReader(ImageReader):
             img: a Nibabel image object loaded from a image file.
 
         """
-        # swap to little endian
-        header = img.header.as_byteswapped() if img.header.endianness == ">" else img.header
+        # swap to little endian as PyTorch doesn't support big endian
+        header = img.header.as_byteswapped("<")
         ndim = header["dim"][0]
         spatial_rank = min(ndim, 3)
         # the img data should have no channel dim or the last dim is channel
