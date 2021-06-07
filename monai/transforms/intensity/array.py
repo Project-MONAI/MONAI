@@ -60,7 +60,7 @@ __all__ = [
     "GibbsNoise",
     "RandGibbsNoise",
     "KSpaceSpikeNoise",
-    "RandKSpaceSpikeNoise"
+    "RandKSpaceSpikeNoise",
 ]
 
 
@@ -1322,7 +1322,7 @@ class KSpaceSpikeNoise(Transform):
         as_tensor_output (bool): if ``True`` return torch.Tensor, else return np.array.
             Default: ``True``.
     """
-    
+
     def __init__(
         self,
         loc: Union[Tuple, Sequence[Tuple]],
@@ -1362,7 +1362,7 @@ class KSpaceSpikeNoise(Transform):
 
         # convert to ndarray to work with np.fft
         if isinstance(img, torch.Tensor):
-            self.device = img.device
+            self._device = img.device
             img = img.cpu().detach().numpy()
 
         # FT
@@ -1469,6 +1469,7 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
         self.as_tensor_output = as_tensor_output
         self.sampled_k_intensity = None
         self.sampled_locs = None
+        self._device = None
 
         if isinstance(intensity_range[0], Sequence) and not channel_wise:
             raise AssertionError("When channel_wise = False, intensity_range should be a 2-tuple.")
@@ -1493,13 +1494,17 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
 
         self._randomize(img)
 
+        # convert to ndarray to work with np.fft
+        if isinstance(img, torch.Tensor):
+            self._device = img.device
+            img = img.cpu().detach().numpy()
+
         # build/appy transform only if there are spike locations
         if self.sampled_locs:
             transform = KSpaceSpikeNoise(self.sampled_locs, self.sampled_k_intensity, self.as_tensor_output)
-
             return transform(img)
 
-        return img
+        return torch.Tensor(img, device=self._device) if self.as_tensor_output else img
 
     def _randomize(self, img) -> None:
         """
@@ -1515,7 +1520,7 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
         if self.channel_wise:
 
             if not isinstance(self.intensity_range[0], Sequence):
-                self.intensity_range = (self.intensity_range,) * img.shape(0)
+                self.intensity_range = (self.intensity_range,) * img.shape[0]
 
             for i, chan in enumerate(img):
                 super().randomize(None)
