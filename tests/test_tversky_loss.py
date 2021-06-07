@@ -16,6 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.losses import TverskyLoss
+from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
 
 TEST_CASES = [
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
@@ -182,6 +183,12 @@ class TestTverskyLoss(unittest.TestCase):
         with self.assertWarns(Warning):
             loss = TverskyLoss(to_onehot_y=True)
             loss.forward(chn_input, chn_target)
+
+    @SkipIfBeforePyTorchVersion((1, 7, 0))
+    def test_script(self):
+        loss = TverskyLoss()
+        test_input = torch.ones(2, 1, 8, 8)
+        test_script_save(loss, test_input, test_input)
 
 
 if __name__ == "__main__":
