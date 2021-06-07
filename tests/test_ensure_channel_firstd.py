@@ -57,6 +57,16 @@ class TestEnsureChannelFirstd(unittest.TestCase):
             result = EnsureChannelFirstd(keys="img")(result)
             self.assertEqual(result["img"].shape[0], 3)
 
+    def test_exceptions(self):
+        with self.assertRaises(ValueError):  # no meta
+            EnsureChannelFirstd("img")({"img": np.zeros((1, 2, 3)), "img_meta_dict": None})
+        with self.assertRaises(ValueError):  # no meta channel
+            EnsureChannelFirstd("img")({"img": np.zeros((1, 2, 3)), "img_meta_dict": {"original_channel_dim": None}})
+        EnsureChannelFirstd("img", strict_check=False)({"img": np.zeros((1, 2, 3)), "img_meta_dict": None})
+        EnsureChannelFirstd("img", strict_check=False)(
+            {"img": np.zeros((1, 2, 3)), "img_meta_dict": {"original_channel_dim": None}}
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
