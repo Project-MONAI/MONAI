@@ -9,6 +9,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .datasets import CrossValidation, DecathlonDataset, MedNISTDataset
-from .mmars import MODEL_DESC, RemoteMMARKeys, download_mmar, load_from_mmar
-from .utils import check_hash, download_and_extract, download_url, extractall
+from .mmars import download_mmar, load_from_mmar
+from .model_desc import MODEL_DESC, RemoteMMARKeys
