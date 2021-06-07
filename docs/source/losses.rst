@@ -82,9 +82,14 @@ Registration Losses
     :members:
 
 Loss Wrappers
---------------
+-------------
 
 `MultiScaleLoss`
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 .. autoclass:: MultiScaleLoss
+    :members:
+
+`MaskedLoss`
+~~~~~~~~~~~~
+.. autoclass:: MaskedLoss
     :members:

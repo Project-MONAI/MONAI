@@ -19,6 +19,7 @@ import torch.nn.functional as F
 from torch.nn.modules.loss import _Loss
 
 from monai.losses.focal_loss import FocalLoss
+from monai.losses.spatial_mask import MaskedLoss
 from monai.networks import one_hot
 from monai.utils import LossReduction, Weight
 
@@ -185,32 +186,21 @@ class MaskedDiceLoss(DiceLoss):
 
     """
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def __init__(self, *args, **kwargs) -> None:
+        """
+        Args follow :py:class:`monai.losses.DiceLoss`.
+        """
+        super().__init__(*args, **kwargs)
+        self.spatial_weighted = MaskedLoss(loss=super().forward)
+
+    def forward(self, input: torch.Tensor, target: torch.Tensor, mask: Optional[torch.Tensor] = None):
         """
         Args:
             input: the shape should be BNH[WD].
             target: the shape should be BNH[WD].
             mask: the shape should B1H[WD] or 11H[WD].
         """
-        if mask is not None:
-            # checking if mask is of proper shape
-            if input.dim() != mask.dim():
-                raise AssertionError(f"dim of input ({input.shape}) is different from mask ({mask.shape})")
-            if not (input.shape[0] == mask.shape[0] or mask.shape[0] == 1):
-                raise AssertionError(f" batch size of mask ({mask.shape}) must be 1 or equal to input ({input.shape})")
-
-            if target.dim() > 1:
-                if mask.shape[1] != 1:
-                    raise AssertionError(f"mask ({mask.shape}) must have only 1 channel")
-                if input.shape[2:] != mask.shape[2:]:
-                    raise AssertionError(f"spatial size of input ({input.shape}) is different from mask ({mask.shape})")
-
-            input = input * mask
-            target = target * mask
-        else:
-            warnings.warn("no mask value specified for the MaskedDiceLoss.")
-
-        return super().forward(input=input, target=target)
+        return self.spatial_weighted(input=input, target=target, mask=mask)
 
 
 class GeneralizedDiceLoss(_Loss):
