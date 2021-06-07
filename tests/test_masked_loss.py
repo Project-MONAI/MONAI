@@ -32,7 +32,7 @@ TEST_CASES = [
             "to_onehot_y": True,
             "reduction": "sum",
         },
-        [(12.105497, 18.805185), (10.636354, 6.3138)],
+        [18.805183, 6.3138],  # w/o mask
     ],
 ]
 
@@ -50,17 +50,14 @@ class TestMaskedLoss(unittest.TestCase):
         label = torch.randint(low=0, high=2, size=size)
         label = torch.argmax(label, dim=1, keepdim=True)
         pred = torch.randn(size)
-        print(label[0, 0, 0])
         result = MaskedLoss(**input_param)(pred, label, None)
         out = result.detach().cpu().numpy()
-        checked = np.allclose(out, expected_val[0][0]) or np.allclose(out, expected_val[0][1])
-        self.assertTrue(checked)
+        np.testing.assert_allclose(out, expected_val[0], rtol=1e-4)
 
         mask = torch.randint(low=0, high=2, size=label.shape)
         result = MaskedLoss(**input_param)(pred, label, mask)
         out = result.detach().cpu().numpy()
-        checked = np.allclose(out, expected_val[1][0]) or np.allclose(out, expected_val[1][1])
-        self.assertTrue(checked)
+        np.testing.assert_allclose(out, expected_val[1], rtol=1e-4)
 
     def test_ill_opts(self):
         with self.assertRaisesRegex(ValueError, ""):
@@ -78,9 +75,9 @@ class TestMaskedLoss(unittest.TestCase):
     def test_script(self):
         input_param, expected_val = TEST_CASES[0]
         size = [3, 3, 5, 5]
-        label = torch.randint(low=0, high=2, size=size)
+        label = torch.ones(size)
         label = torch.argmax(label, dim=1, keepdim=True)
-        pred = torch.randn(size)
+        pred = torch.zeros(size)
         loss = MaskedLoss(**input_param)
         test_script_save(loss, pred, label)
 
