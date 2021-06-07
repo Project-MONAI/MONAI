@@ -58,7 +58,9 @@ class TestNiftiEndianness(unittest.TestCase):
         tr = LoadImage(image_only=image_only) if use_array else LoadImaged("image", image_only=image_only)
         check_ds = Dataset(data, tr)
         check_loader = DataLoader(check_ds, batch_size=1)
-        _ = next(iter(check_loader))
+        ret = next(iter(check_loader))
+        if isinstance(ret, dict) and "image_meta_dict" in ret:
+            np.testing.assert_allclose(ret["image_meta_dict"]["spatial_shape"], [[100, 100]])
 
     def test_switch(self):  # verify data types
         for data in (np.zeros((2, 1)), ("test",), [24, 42], {"foo": "bar"}, True, 42):
