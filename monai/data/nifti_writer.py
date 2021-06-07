@@ -55,12 +55,12 @@ def write_nifti(
     The saved `affine` matrix follows:
     - If `affine` equals to `target_affine`, save the data with `target_affine`.
     - If `resample=False`, transform `affine` to `new_affine` based on the orientation
-      of `target_affine` and save the data with `new_affine`.
+    of `target_affine` and save the data with `new_affine`.
     - If `resample=True`, save the data with `target_affine`, if explicitly specify
-      the `output_spatial_shape`, the shape of saved data is not computed by `target_affine`.
-    - If `target_affine` is None, set `target_affine=affine`.
-      If `affine` and `target_affine` are None, the data will be saved with an identity
-      matrix as the image affine.
+    the `output_spatial_shape`, the shape of saved data is not computed by `target_affine`.
+    - If `target_affine` is None, set `target_affine=affine` and save.
+    - If `affine` and `target_affine` are None, the data will be saved with an identity
+    matrix as the image affine.
 
     This function assumes the NIfTI dimension notations.
     Spatially it supports up to three dimensions, that is, H, HW, HWD for
