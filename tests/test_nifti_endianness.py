@@ -78,6 +78,10 @@ class TestNiftiEndianness(unittest.TestCase):
         after = switch_endianness(before)
         np.testing.assert_allclose(after.astype(float), expected_float)
 
+        before = np.array(["1.12", "-9.2", "42"], dtype=np.string_)
+        after = switch_endianness(before)
+        np.testing.assert_array_equal(before, after)
+
         with self.assertRaises(NotImplementedError):
             switch_endianness(np.zeros((2, 1)), "=")
 
