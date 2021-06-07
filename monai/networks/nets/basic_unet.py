@@ -234,4 +234,4 @@ class BasicUNet(nn.Module):
         return logits
 
 
-BasicUnet = Basicunet = BasicUNet
+BasicUnet = Basicunet = basicunet = BasicUNet
