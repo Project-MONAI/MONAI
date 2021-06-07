@@ -1,14 +1,21 @@
 name: deploy
 
 on:
-  # master only tests
+  # full tests for all the important branches
   push:
     branches:
-      - master
+      - dev
+      - main
+      - releasing/*
+
+concurrency:
+  # automatically cancel the previously triggered workflows when there's a newer version
+  group: deploy-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   # caching of these jobs:
-  #   - docker-20-03-py3-pip- (shared)
+  #   - docker-py3-pip- (shared)
   #   - ubuntu py36 37 38-pip-
   #   - os-latest-pip (shared)
   coverage-py3:
@@ -30,35 +37,43 @@ jobs:
         path: |
           ~/.cache/pip
           ~/.cache/torch
-        key: docker-20-03-py3-pip-${{ steps.pip-cache.outputs.datew }}
+        key: docker-py3-pip-${{ steps.pip-cache.outputs.datew }}
     - name: Install the dependencies
       run: |
         which python
         python -m pip install --upgrade pip wheel
         python -m pip uninstall -y torch torchvision
-        python -m pip install torch==1.7.1 torchvision==0.8.2
+        python -m pip install torch==1.8.1 torchvision==0.9.1
         python -m pip install -r requirements-dev.txt
     - name: Run unit tests report coverage
       run: |
         python -m pip list
+        export LAUNCH_DELAY=$[ $RANDOM % 16 * 60 ]
+        echo "Sleep $LAUNCH_DELAY"
+        sleep $LAUNCH_DELAY
         nvidia-smi
         export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
         echo $CUDA_VISIBLE_DEVICES
+        trap 'if pgrep python; then pkill python; fi;' ERR
+        python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
         python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
-        python -c 'import torch; print(torch.rand(5,3, device=torch.device("cuda:0")))'
-        BUILD_MONAI=1 ./runtests.sh --coverage
+        python -c 'import torch; print(torch.rand(5, 3, device=torch.device("cuda:0")))'
+        BUILD_MONAI=1 ./runtests.sh --coverage --unittests  # unit tests with coverage report
+        BUILD_MONAI=1 ./runtests.sh --coverage --net  # integration tests with coverage report
         coverage xml
+        if pgrep python; then pkill python; fi
+      shell: bash
     - name: Upload coverage
       uses: codecov/codecov-action@v1
       with:
-        fail_ci_if_error: true
+        fail_ci_if_error: false
         file: ./coverage.xml
 
   test-py3x:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8]
+        python-version: [3.6, 3.7, 3.8, 3.9]
     steps:
     - uses: actions/checkout@v2
       with:
@@ -82,13 +97,13 @@ jobs:
     - name: Install the dependencies
       run: |
         python -m pip install --upgrade pip wheel
-        python -m pip install torch==1.7.1 torchvision==0.8.2
+        python -m pip install torch==1.8.1 torchvision==0.9.1
         python -m pip install -r requirements-dev.txt
     - name: Run quick tests CPU ubuntu
       run: |
         python -m pip list
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
-        BUILD_MONAI=1 ./runtests.sh --quick
+        BUILD_MONAI=1 ./runtests.sh --quick --unittests
         coverage xml
     - name: Upload coverage
       uses: codecov/codecov-action@v1
@@ -96,7 +111,7 @@ jobs:
         fail_ci_if_error: false
         file: ./coverage.xml
 
-  install:  # pip install from github url
+  install:  # pip install from github url, the default branch is dev
     runs-on: ubuntu-latest
     steps:
     - name: Set up Python 3.8
@@ -115,67 +130,31 @@ jobs:
           ~/.cache/pip
           ~/.cache/torch
         key: ${{ runner.os }}-pip-${{ steps.pip-cache.outputs.datew }}
-    - name: Install the default branch no build
+    - name: Install the default branch no build (dev branch only)
+      if: github.ref == 'refs/heads/dev'
       run: |
         BUILD_MONAI=0 pip install git+https://github.com/Project-MONAI/MONAI#egg=MONAI
         python -c 'import monai; monai.config.print_config()'
         cd $(python -c 'import monai; import os; print(os.path.dirname(monai.__file__))')
         ls .
         pip uninstall -y monai
-    - name: Install the default branch with build
+    - name: Install the default branch with build (dev branch only)
+      if: github.ref == 'refs/heads/dev'
       run: |
         BUILD_MONAI=1 pip install git+https://github.com/Project-MONAI/MONAI#egg=MONAI
         python -c 'import monai; monai.config.print_config()'
-    - uses: actions/checkout@v2
+    - name: Get the test cases (dev branch only)
+      if: github.ref == 'refs/heads/dev'
+      uses: actions/checkout@v2
       with:
-        ref: master
-    - name: Quick test installed
+        ref: dev
+    - name: Quick test installed (dev branch only)
+      if: github.ref == 'refs/heads/dev'
       run: |
         cd $GITHUB_WORKSPACE
         rm -rf monai/
         ls -al .
         python -m pip install -r requirements-min.txt
-        python -m tests.min_tests
-      env:
-        QUICKTEST: True
-
-  local_docker:
-    if: github.repository == 'Project-MONAI/MONAI'
-    runs-on: [self-hosted, linux, x64, build_only]
-    # we only push built container if it is built from master branch
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        ref: master
-    - name: docker_build
-      run: |
-        # build and run original docker image for local registry
-        docker build -t localhost:5000/local_monai:latest -f Dockerfile .
-        docker push localhost:5000/local_monai:latest
-        # build once more w/ tag "latest": remove flake package as it is not needed on hub.docker.com
-        sed -i '/flake/d' requirements-dev.txt
-        docker build -t projectmonai/monai:latest -f Dockerfile .
-        # also push as tag "dockerhub" to local registry
-        docker image tag projectmonai/monai:latest localhost:5000/local_monai:dockerhub
-        docker push localhost:5000/local_monai:dockerhub
-        # distribute as always w/ tag "latest" to hub.docker.com
-        echo "${{ secrets.DOCKER_PW }}" | docker login -u projectmonai --password-stdin
-        docker push projectmonai/monai:latest
-        docker logout
-
-  docker:
-    if: github.repository == 'Project-MONAI/MONAI'
-    needs: local_docker
-    container:
-      image: localhost:5000/local_monai:latest
-    runs-on: [self-hosted, linux, x64, common]
-    steps:
-    - name: Import
-      run: |
-        python -c 'import monai; monai.config.print_config()'
-        cd /opt/monai
-        ls -al
-        ngc --version
         python -m tests.min_tests
       env:
         QUICKTEST: True

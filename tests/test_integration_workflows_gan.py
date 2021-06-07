@@ -145,7 +145,7 @@ class IntegrationWorkflowsGAN(DistTestCase):
         set_determinism(seed=None)
         shutil.rmtree(self.data_dir)
 
-    @TimedCall(seconds=100, daemon=False)
+    @TimedCall(seconds=200, daemon=False)
     def test_training(self):
         torch.manual_seed(0)
 
