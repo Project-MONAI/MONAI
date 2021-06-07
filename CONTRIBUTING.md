@@ -87,9 +87,9 @@ If you intend for any variables/functions/classes to be available outside of the
 #### Unit testing
 MONAI tests are located under `tests/`.
 
-- The unit test's file name follows `test_[module_name].py`.
+- The unit test's file name currently follows `test_[module_name].py` or `test_[module_name]_dist.py`.
+- The `test_[module_name]_dist.py` subset of unit tests requires a distributed environment to verify the module with distributed GPU-based computation.
 - The integration test's file name follows `test_integration_[workflow_name].py`.
-- For the unit tests that require a distributed environment, their names follow `test_[module_name]_dist.py`.
 
 A bash script (`runtests.sh`) is provided to run all tests locally.
 Please run ``./runtests.sh -h`` to see all options.
