@@ -64,8 +64,22 @@ class TestNiftiEndianness(unittest.TestCase):
 
     def test_switch(self):  # verify data types
         for data in (np.zeros((2, 1)), ("test",), [24, 42], {"foo": "bar"}, True, 42):
-            output = switch_endianness(data, ">", "<")
+            output = switch_endianness(data, "<")
             self.assertEqual(type(data), type(output))
+
+        before = np.array((20, 20), dtype=">i2")
+        expected_float = before.astype(float)
+        after = switch_endianness(before)
+        np.testing.assert_allclose(after.astype(float), expected_float)
+        self.assertEqual(after.dtype.byteorder, "<")
+
+        before = np.array((20, 20), dtype="<i2")
+        expected_float = before.astype(float)
+        after = switch_endianness(before)
+        np.testing.assert_allclose(after.astype(float), expected_float)
+
+        with self.assertRaises(NotImplementedError):
+            switch_endianness(np.zeros((2, 1)), "=")
 
     @skipUnless(has_pil, "Requires PIL")
     def test_pil(self):
