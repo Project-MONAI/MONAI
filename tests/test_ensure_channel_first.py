@@ -81,6 +81,14 @@ class TestEnsureChannelFirst(unittest.TestCase):
             result = EnsureChannelFirst()(result, header)
             self.assertEqual(result.shape[0], 3)
 
+    def test_check(self):
+        with self.assertRaises(ValueError):  # no meta
+            EnsureChannelFirst()(np.zeros((1, 2, 3)), None)
+        with self.assertRaises(ValueError):  # no meta channel
+            EnsureChannelFirst()(np.zeros((1, 2, 3)), {"original_channel_dim": None})
+        EnsureChannelFirst(strict_check=False)(np.zeros((1, 2, 3)), None)
+        EnsureChannelFirst(strict_check=False)(np.zeros((1, 2, 3)), {"original_channel_dim": None})
+
 
 if __name__ == "__main__":
     unittest.main()
