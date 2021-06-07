@@ -36,7 +36,7 @@ __all__ = ["LoadImage", "SaveImage"]
 
 def switch_endianness(data, new="<"):
     """
-    Convert the input `data` endianness to `new.
+    Convert the input `data` endianness to `new`.
 
     Args:
         data: input to be converted.
