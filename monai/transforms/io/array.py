@@ -36,7 +36,11 @@ __all__ = ["LoadImage", "SaveImage"]
 
 def switch_endianness(data, new="<"):
     """
-    If any numpy arrays have `new` endianness (e.g., "<").
+    Convert the input `data` endianness to `new.
+
+    Args:
+        data: input to be converted.
+        new: the target endianness, currently support "<" or ">".
     """
     if isinstance(data, np.ndarray):
         # default to system endian
