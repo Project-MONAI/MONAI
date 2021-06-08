@@ -373,7 +373,7 @@ def get_dist_device():
     return None
 
 
-def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = False):
+def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = True):
     """
     Utility function for distributed data parallel to pad at first dim to make it evenly divisible and all_gather.
     The input data of every rank should have the same number of dimensions, only the first dim can be different.
@@ -381,7 +381,7 @@ def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = False):
     Args:
         data: source tensor to pad and execute all_gather in distributed data parallel.
         concat: whether to concat the gathered list to be a Tensor, if False, return a list
-            of Tensors, same behavior as torch.distributed.all_gather(). default to False.
+            of Tensors, similar behavior as torch.distributed.all_gather(). default to True.
 
     Note:
         The input data on different ranks must have exactly same `dtype`.
