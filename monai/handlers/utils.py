@@ -10,10 +10,10 @@
 # limitations under the License.
 
 import os
+import warnings
 from collections import OrderedDict
 from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
 
-import warnings
 import numpy as np
 import torch
 
