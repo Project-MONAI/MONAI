@@ -110,7 +110,6 @@ def run_testsuit():
         "test_randtorchvisiond",
         "test_handler_metrics_saver",
         "test_handler_metrics_saver_dist",
-        "test_evenly_divisible_all_gather_dist",
         "test_handler_classification_saver_dist",
         "test_deepgrow_transforms",
         "test_deepgrow_interaction",

@@ -17,10 +17,11 @@ import types
 import warnings
 from ast import literal_eval
 from distutils.util import strtobool
-from typing import Any, Callable, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Callable, List, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 import torch
+import torch.distributed as dist
 
 __all__ = [
     "zip_with",
@@ -41,6 +42,9 @@ __all__ = [
     "dtype_numpy_to_torch",
     "MAX_SEED",
     "copy_to_device",
+    "get_dist_device",
+    "evenly_divisible_all_gather",
+    "string_list_all_gather",
     "ImageMetaKey",
 ]
 
@@ -350,6 +354,103 @@ def copy_to_device(
         warnings.warn(f"{fn_name} called with incompatible type: " + f"{type(obj)}. Data will be returned unchanged.")
 
     return obj
+
+
+def get_dist_device():
+    """
+    Get the expected target device in the distributed data parallel.
+    For NCCL backend, return GPU device of current process.
+    For GLOO backend, return CPU.
+    For any other backends, return None as the default, tensor.to(None) will not change the device.
+
+    """
+    if dist.is_initialized():
+        backend = dist.get_backend()
+        if backend == "nccl" and torch.cuda.is_available():
+            return torch.device(f"cuda:{torch.cuda.current_device()}")
+        elif backend == "gloo":
+            return torch.device("cpu")
+    return None
+
+
+def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = False) -> torch.Tensor:
+    """
+    Utility function for distributed data parallel to pad at first dim to make it evenly divisible and all_gather.
+
+    Args:
+        data: source tensor to pad and execute all_gather in distributed data parallel.
+        concat: whether to concat the gathered list to be a Tensor, if False, return a list
+            of Tensors, same behavior as torch.distributed.all_gather(). default to False.
+
+    Note:
+        The input data on different ranks must have exactly same `dtype`.
+
+    """
+    if not isinstance(data, torch.Tensor):
+        raise ValueError("input data must be PyTorch Tensor.")
+
+    world_size = dist.get_world_size() if dist.is_initialized() else 1
+    if world_size <= 1:
+        return data
+
+    device = get_dist_device()
+    orig_device = data.device
+    data = data.to(device)
+    # tensor must have batch dimension
+    if data.ndimension() == 0:
+        data = data.unsqueeze(0)
+    # make sure the data is evenly-divisible on multi-GPUs
+    length = data.shape[0]
+    length_tensor = torch.as_tensor([length], device=device)
+    all_lens = [torch.zeros_like(length_tensor) for _ in range(world_size)]
+    dist.all_gather(all_lens, length_tensor)
+
+    max_len = max(all_lens).item()
+    if length < max_len:
+        size = [max_len - length] + list(data.shape[1:])
+        data = torch.cat([data, data.new_full(size, 0)], dim=0)
+    # all gather across all processes
+    output = [torch.zeros_like(data) for _ in range(world_size)]
+    dist.all_gather(output, data)
+    # remove the padding items
+    output = [o[:l.item(), ...].to(orig_device) for o, l in zip(output, all_lens)]
+
+    return torch.cat(output, dim=0) if concat else output
+
+
+def string_list_all_gather(strings: List[str]) -> List[str]:
+    """
+    Utility function for distributed data parallel to all gather a list of strings.
+    Refer to the idea of ignite `all_gather(string)`.
+
+    Args:
+        strings: a list of strings to all gather.
+
+    """
+    world_size = dist.get_world_size() if dist.is_initialized() else 1
+    if world_size <= 1:
+        return strings
+
+    result: List[List[str]] = [[] for _ in range(world_size)]
+    # get length of strings
+    length = len(strings)
+    length_tensor = torch.as_tensor([length], device=get_dist_device())
+    dist.all_reduce(length_tensor, op=dist.ReduceOp.MAX)
+    max_len = length_tensor.item()
+
+    # pad the item to make sure the same length
+    if length < max_len:
+        strings = strings + ["" for _ in range(max_len - length)]
+
+    for s in strings:
+        gathered = evenly_divisible_all_gather(data=torch.tensor(bytearray(s, "utf-8"), dtype=torch.long), concat=False)
+        gathered = [bytearray(g.tolist()).decode("utf-8") for g in gathered]
+
+        for i, g in enumerate(gathered):
+            if len(g) > 0:
+                result[i].append(g)
+
+    return [i for k in result for i in k]
 
 
 class ImageMetaKey:
