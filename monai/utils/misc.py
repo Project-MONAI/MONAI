@@ -374,7 +374,6 @@ def get_dist_device():
 
 
 def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = False):
-    
     """
     Utility function for distributed data parallel to pad at first dim to make it evenly divisible and all_gather.
 
@@ -415,7 +414,7 @@ def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = False):
     output = [torch.zeros_like(data) for _ in range(world_size)]
     dist.all_gather(output, data)
     # remove the padding items
-    output = [o[: l, ...].to(orig_device) for o, l in zip(output, all_lens_)]
+    output = [o[:l, ...].to(orig_device) for o, l in zip(output, all_lens_)]
 
     return torch.cat(output, dim=0) if concat else output
 
