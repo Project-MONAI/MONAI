@@ -30,6 +30,7 @@ from monai.utils import (
     dtype_torch_to_numpy,
     ensure_tuple_rep,
     ensure_tuple_size,
+    ensure_tuple
 )
 
 __all__ = [
