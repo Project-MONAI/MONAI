@@ -16,9 +16,14 @@ from typing import TYPE_CHECKING, Callable, List, Optional
 import torch
 
 from monai.data import CSVSaver
-from monai.handlers.utils import evenly_divisible_all_gather, string_list_all_gather
 from monai.utils import ImageMetaKey as Key
-from monai.utils import exact_version, issequenceiterable, optional_import
+from monai.utils import (
+    evenly_divisible_all_gather,
+    exact_version,
+    issequenceiterable,
+    optional_import,
+    string_list_all_gather,
+)
 
 idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
 Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
@@ -126,7 +131,7 @@ class ClassificationSaver:
         outputs = torch.cat(self._outputs, dim=0)
         filenames = self._filenames
         if ws > 1:
-            outputs = evenly_divisible_all_gather(outputs)
+            outputs = evenly_divisible_all_gather(outputs, concat=True)
             filenames = string_list_all_gather(filenames)
 
         if len(filenames) == 0:
