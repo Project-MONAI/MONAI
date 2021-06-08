@@ -373,7 +373,8 @@ def get_dist_device():
     return None
 
 
-def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = False) -> torch.Tensor:
+def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = False):
+    
     """
     Utility function for distributed data parallel to pad at first dim to make it evenly divisible and all_gather.
 
@@ -400,12 +401,13 @@ def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = False) -> tor
     if data.ndimension() == 0:
         data = data.unsqueeze(0)
     # make sure the data is evenly-divisible on multi-GPUs
-    length = data.shape[0]
+    length: int = data.shape[0]
     length_tensor = torch.as_tensor([length], device=device)
     all_lens = [torch.zeros_like(length_tensor) for _ in range(world_size)]
     dist.all_gather(all_lens, length_tensor)
+    all_lens_: List[int] = [int(i.item()) for i in all_lens]
 
-    max_len = max(all_lens).item()
+    max_len: int = max(all_lens_)
     if length < max_len:
         size = [max_len - length] + list(data.shape[1:])
         data = torch.cat([data, data.new_full(size, 0)], dim=0)
@@ -413,7 +415,7 @@ def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = False) -> tor
     output = [torch.zeros_like(data) for _ in range(world_size)]
     dist.all_gather(output, data)
     # remove the padding items
-    output = [o[: l.item(), ...].to(orig_device) for o, l in zip(output, all_lens)]
+    output = [o[: l, ...].to(orig_device) for o, l in zip(output, all_lens_)]
 
     return torch.cat(output, dim=0) if concat else output
 
