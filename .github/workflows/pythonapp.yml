@@ -45,6 +45,9 @@ jobs:
       run: |
         # clean up temporary files
         $(pwd)/runtests.sh --clean
+        # workaround until https://github.com/python/mypy/issues/10600
+        # and https://github.com/python/mypy/issues/10598
+        python3 -m pip install types-pkg_resources
         # Git hub actions have 2 cores, so parallize pytype
         $(pwd)/runtests.sh --codeformat -j 2
 
