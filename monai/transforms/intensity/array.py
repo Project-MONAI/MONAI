@@ -1364,9 +1364,9 @@ class KSpaceSpikeNoise(Transform):
         if len(img.shape) < 3:
             raise AssertionError("Image needs a channel direction.")
         if isinstance(self.loc[0], int) and len(img.shape) == 4 and len(self.loc) == 2:
-            raise AssertionError(f"Input images of dimension 4 need location tuple to be length 3 or 4")
+            raise AssertionError("Input images of dimension 4 need location tuple to be length 3 or 4")
         if isinstance(self.loc[0], Sequence) and len(img.shape) == 4 and min(map(lambda x: len(x), self.loc)) == 2:
-            raise AssertionError(f"Input images of dimension 4 need location tuple to be length 3 or 4")
+            raise AssertionError("Input images of dimension 4 need location tuple to be length 3 or 4")
 
         # convert to ndarray to work with np.fft
         if isinstance(img, torch.Tensor):
@@ -1460,7 +1460,7 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
             ((a0, b0), (a1, b1), ...) to sample for each respective channel.
             In the second case, the number of 2-tuples must match the number of
             channels.
-            Default ranges is `(0.95v, 1.10v)` where `v` is the mean
+            Default ranges is `(0.95x, 1.10x)` where `x` is the mean
             log-intensity for each channel.
         channel_wise (bool): treat each channel independently. True by
             default.
@@ -1468,10 +1468,10 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
             return np.array. default: True.
 
     Example:
-    To apply `k`-space spikes randomly with probability of `prob = 0.5`, and
-    log-intensity sampled from the interval [11, 12] for each channel
-    independently one uses
-    ``RandKSpaceSpikeNoise(prob=0.5, intensity_range=(11, 12), channel_wise=True)``
+        To apply `k`-space spikes randomly with probability of `prob = 0.5`, and
+        log-intensity sampled from the interval [11, 12] for each channel
+        independently, one uses
+        ``RandKSpaceSpikeNoise(prob=0.5, intensity_range=(11, 12), channel_wise=True)``
     """
 
     def __init__(
