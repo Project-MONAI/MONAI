@@ -413,7 +413,7 @@ def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = False) -> tor
     output = [torch.zeros_like(data) for _ in range(world_size)]
     dist.all_gather(output, data)
     # remove the padding items
-    output = [o[:l.item(), ...].to(orig_device) for o, l in zip(output, all_lens)]
+    output = [o[: l.item(), ...].to(orig_device) for o, l in zip(output, all_lens)]
 
     return torch.cat(output, dim=0) if concat else output
 
@@ -438,6 +438,7 @@ def string_list_all_gather(strings: List[str], delimiter: str = "\t") -> List[st
     gathered = [bytearray(g.tolist()).decode("utf-8").split(delimiter) for g in gathered]
 
     return [i for k in gathered for i in k]
+
 
 class ImageMetaKey:
     """
