@@ -28,9 +28,9 @@ from monai.utils import (
     PT_BEFORE_1_7,
     InvalidPyTorchVersionError,
     dtype_torch_to_numpy,
+    ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
-    ensure_tuple
 )
 
 __all__ = [
@@ -1293,6 +1293,7 @@ class GibbsNoise(Transform):
         # apply binary mask
         k_masked: np.ndarray = k * mask
         return k_masked
+
 
 class KSpaceSpikeNoise(Transform):
     """
