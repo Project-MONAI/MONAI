@@ -11,19 +11,27 @@
 
 import os
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
 
+import warnings
 import numpy as np
 import torch
 
-from monai.utils import ensure_tuple, exact_version, optional_import
+from monai.utils import ensure_tuple, exact_version, get_torch_version_tuple, optional_import
 
+idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
     Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
 
-__all__ = ["stopping_fn_from_metric", "stopping_fn_from_loss", "write_metrics_reports"]
+__all__ = [
+    "stopping_fn_from_metric",
+    "stopping_fn_from_loss",
+    "evenly_divisible_all_gather",
+    "string_list_all_gather",
+    "write_metrics_reports",
+]
 
 
 def stopping_fn_from_metric(metric_name: str):
@@ -46,6 +54,79 @@ def stopping_fn_from_loss():
         return -engine.state.output
 
     return stopping_fn
+
+
+def evenly_divisible_all_gather(data: torch.Tensor) -> torch.Tensor:
+    """
+    Utility function for distributed data parallel to pad at first dim to make it evenly divisible and all_gather.
+
+    Args:
+        data: source tensor to pad and execute all_gather in distributed data parallel.
+
+    Note:
+        The input data on different ranks must have exactly same `dtype`.
+
+    """
+    warnings.warn(
+        "evenly_divisible_all_gather had been moved to monai.utils module, will deprecate this API in MONAI v0.7.",
+        DeprecationWarning,
+    )
+    if not isinstance(data, torch.Tensor):
+        raise ValueError("input data must be PyTorch Tensor.")
+
+    if idist.get_world_size() <= 1:
+        return data
+
+    # make sure the data is evenly-divisible on multi-GPUs
+    length = data.shape[0]
+    all_lens = idist.all_gather(length)
+    max_len = max(all_lens)
+    if length < max_len:
+        size = [max_len - length] + list(data.shape[1:])
+        data = torch.cat([data, data.new_full(size, 0)], dim=0)
+    # all gather across all processes
+    data = idist.all_gather(data)
+    # delete the padding NaN items
+    return torch.cat([data[i * max_len : i * max_len + l, ...] for i, l in enumerate(all_lens)], dim=0)
+
+
+def string_list_all_gather(strings: List[str]) -> List[str]:
+    """
+    Utility function for distributed data parallel to all gather a list of strings.
+    Note that if the item in `strings` is longer than 1024 chars, it will be truncated to 1024:
+    https://github.com/pytorch/ignite/blob/master/ignite/distributed/comp_models/base.py#L92
+
+    Args:
+        strings: a list of strings to all gather.
+
+    """
+    warnings.warn(
+        "string_list_all_gather had been moved to monai.utils module, will deprecate this API in MONAI v0.7.",
+        DeprecationWarning,
+    )
+    world_size = idist.get_world_size()
+    if world_size <= 1:
+        return strings
+
+    result: List[List[str]] = [[] for _ in range(world_size)]
+    # get length of strings
+    length = len(strings)
+    all_lens = idist.all_gather(length)
+    max_len = max(all_lens)
+    # pad the item to make sure the same length
+    if length < max_len:
+        strings = strings + ["" for _ in range(max_len - length)]
+
+    if get_torch_version_tuple() > (1, 6, 0):
+        for s in strings:
+            gathered = idist.all_gather(s)
+            for i, g in enumerate(gathered):
+                if len(g) > 0:
+                    result[i].append(g)
+    else:
+        raise RuntimeError("string all_gather can not be supported in PyTorch < 1.7.0.")
+
+    return [i for k in result for i in k]
 
 
 def write_metrics_reports(
