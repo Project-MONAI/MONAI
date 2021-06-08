@@ -21,10 +21,9 @@ from ignite.engine import Engine, Events
 
 from monai.handlers import MetricsSaver
 from monai.utils import evenly_divisible_all_gather
-from tests.utils import DistCall, DistTestCase, SkipIfBeforePyTorchVersion
+from tests.utils import DistCall, DistTestCase
 
 
-@SkipIfBeforePyTorchVersion((1, 7))
 class DistributedMetricsSaver(DistTestCase):
     @DistCall(nnodes=1, nproc_per_node=2)
     def test_content(self):
