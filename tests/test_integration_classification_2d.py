@@ -39,7 +39,7 @@ from monai.utils import set_determinism
 from tests.testing_data.integration_answers import test_integration_value
 from tests.utils import DistTestCase, TimedCall, skip_if_quick
 
-TEST_DATA_URL = "https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz?dl=1"
+TEST_DATA_URL = "https://drive.google.com/uc?id=13MhoPsNgI6qboJfLicFf_jNvsFUbIYsd"
 MD5_VALUE = "0bc7306e7427e00ad1c5526a6677552d"
 TASK = "integration_classification_2d"
 

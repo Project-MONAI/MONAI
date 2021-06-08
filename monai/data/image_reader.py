@@ -404,7 +404,9 @@ class NibabelReader(ImageReader):
             img: a Nibabel image object loaded from a image file.
 
         """
-        return dict(img.header)
+        # swap to little endian as PyTorch doesn't support big endian
+        header = img.header.as_byteswapped("<")
+        return dict(header)
 
     def _get_affine(self, img):
         """
@@ -425,10 +427,12 @@ class NibabelReader(ImageReader):
             img: a Nibabel image object loaded from a image file.
 
         """
-        ndim = img.header["dim"][0]
+        # swap to little endian as PyTorch doesn't support big endian
+        header = img.header.as_byteswapped("<")
+        ndim = header["dim"][0]
         spatial_rank = min(ndim, 3)
         # the img data should have no channel dim or the last dim is channel
-        return np.asarray(img.header["dim"][1 : spatial_rank + 1])
+        return np.asarray(header["dim"][1 : spatial_rank + 1])
 
     def _get_array_data(self, img):
         """

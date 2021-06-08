@@ -58,12 +58,32 @@ class TestNiftiEndianness(unittest.TestCase):
         tr = LoadImage(image_only=image_only) if use_array else LoadImaged("image", image_only=image_only)
         check_ds = Dataset(data, tr)
         check_loader = DataLoader(check_ds, batch_size=1)
-        _ = next(iter(check_loader))
+        ret = next(iter(check_loader))
+        if isinstance(ret, dict) and "image_meta_dict" in ret:
+            np.testing.assert_allclose(ret["image_meta_dict"]["spatial_shape"], [[100, 100]])
 
     def test_switch(self):  # verify data types
         for data in (np.zeros((2, 1)), ("test",), [24, 42], {"foo": "bar"}, True, 42):
-            output = switch_endianness(data, ">", "<")
+            output = switch_endianness(data, "<")
             self.assertEqual(type(data), type(output))
+
+        before = np.array((20, 20), dtype=">i2")
+        expected_float = before.astype(float)
+        after = switch_endianness(before)
+        np.testing.assert_allclose(after.astype(float), expected_float)
+        self.assertEqual(after.dtype.byteorder, "<")
+
+        before = np.array((20, 20), dtype="<i2")
+        expected_float = before.astype(float)
+        after = switch_endianness(before)
+        np.testing.assert_allclose(after.astype(float), expected_float)
+
+        before = np.array(["1.12", "-9.2", "42"], dtype=np.string_)
+        after = switch_endianness(before)
+        np.testing.assert_array_equal(before, after)
+
+        with self.assertRaises(NotImplementedError):
+            switch_endianness(np.zeros((2, 1)), "=")
 
     @skipUnless(has_pil, "Requires PIL")
     def test_pil(self):
