@@ -376,6 +376,7 @@ def get_dist_device():
 def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = False):
     """
     Utility function for distributed data parallel to pad at first dim to make it evenly divisible and all_gather.
+    The input data of every rank should have the same number of dimensions, only the first dim can be different.
 
     Args:
         data: source tensor to pad and execute all_gather in distributed data parallel.
@@ -396,8 +397,10 @@ def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = False):
     device = get_dist_device()
     orig_device = data.device
     data = data.to(device)
-    # tensor must have batch dimension
-    if data.ndimension() == 0:
+    # data of all the ranks must have same number of dimensions
+    ndims = data.ndimension()
+    if ndims == 0:
+        # tensor must have batch dimension
         data = data.unsqueeze(0)
     # make sure the data is evenly-divisible on multi-GPUs
     length: int = data.shape[0]
@@ -413,8 +416,8 @@ def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = False):
     # all gather across all processes
     output = [torch.zeros_like(data) for _ in range(world_size)]
     dist.all_gather(output, data)
-    # remove the padding items
-    output = [o[:l, ...].to(orig_device) for o, l in zip(output, all_lens_)]
+    # remove the padding items, if all the input data doesn't have batch dim, suqeeze the first dim
+    output = [(o.squeeze(0) if ndims == 0 else o[:l, ...]).to(orig_device) for o, l in zip(output, all_lens_)]
 
     return torch.cat(output, dim=0) if concat else output
 
@@ -422,7 +425,8 @@ def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = False):
 def string_list_all_gather(strings: List[str], delimiter: str = "\t") -> List[str]:
     """
     Utility function for distributed data parallel to all gather a list of strings.
-    Refer to the idea of ignite `all_gather(string)`.
+    Refer to the idea of ignite `all_gather(string)`:
+    https://github.com/pytorch/ignite/blob/master/ignite/distributed/utils.py#L346.
 
     Args:
         strings: a list of strings to all gather.
