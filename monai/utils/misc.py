@@ -418,40 +418,26 @@ def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = False) -> tor
     return torch.cat(output, dim=0) if concat else output
 
 
-def string_list_all_gather(strings: List[str]) -> List[str]:
+def string_list_all_gather(strings: List[str], delimiter: str = "\t") -> List[str]:
     """
     Utility function for distributed data parallel to all gather a list of strings.
     Refer to the idea of ignite `all_gather(string)`.
 
     Args:
         strings: a list of strings to all gather.
+        delimiter: use the delimiter to join the string list to be a long string,
+            then all gather across ranks and split to a list. default to "\t".
 
     """
     world_size = dist.get_world_size() if dist.is_initialized() else 1
     if world_size <= 1:
         return strings
 
-    result: List[List[str]] = [[] for _ in range(world_size)]
-    # get length of strings
-    length = len(strings)
-    length_tensor = torch.as_tensor([length], device=get_dist_device())
-    dist.all_reduce(length_tensor, op=dist.ReduceOp.MAX)
-    max_len = length_tensor.item()
+    joined = delimiter.join(strings)
+    gathered = evenly_divisible_all_gather(torch.tensor(bytearray(joined, "utf-8"), dtype=torch.long), concat=False)
+    gathered = [bytearray(g.tolist()).decode("utf-8").split(delimiter) for g in gathered]
 
-    # pad the item to make sure the same length
-    if length < max_len:
-        strings = strings + ["" for _ in range(max_len - length)]
-
-    for s in strings:
-        gathered = evenly_divisible_all_gather(data=torch.tensor(bytearray(s, "utf-8"), dtype=torch.long), concat=False)
-        gathered = [bytearray(g.tolist()).decode("utf-8") for g in gathered]
-
-        for i, g in enumerate(gathered):
-            if len(g) > 0:
-                result[i].append(g)
-
-    return [i for k in result for i in k]
-
+    return [i for k in gathered for i in k]
 
 class ImageMetaKey:
     """
