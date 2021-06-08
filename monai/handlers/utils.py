@@ -18,7 +18,6 @@ import torch
 
 from monai.utils import ensure_tuple, exact_version, optional_import
 
-idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
