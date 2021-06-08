@@ -7,7 +7,6 @@ on:
       - dev
       - main
       - releasing/*
-      - fixes-mypy
   pull_request:
 
 concurrency:
