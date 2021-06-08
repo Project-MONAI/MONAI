@@ -62,7 +62,6 @@ class TestKSpaceSpikeNoise(unittest.TestCase):
         im = self.get_data(im_shape, as_tensor_input)
         loc = [0, int(im.shape[1] / 2), 0] if len(im_shape) == 2 else [0, int(im.shape[1] / 2), 0, 0]
         k_intensity = 10
-        print(im.shape)
         t = KSpaceSpikeNoise(loc, k_intensity, as_tensor_output)
         out = t(im)
 

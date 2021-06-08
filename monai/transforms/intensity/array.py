@@ -1311,16 +1311,22 @@ class KSpaceSpikeNoise(Transform):
     perspective <https://doi.org/10.1002/jmri.24288>`_.
 
     Args:
-        loc (Tuple, Sequence(Tuple)): spatial location for the spikes. The user
-            can provide (C,X,Y,Z) to fix which channel C is affected, or (X,Y,Z)
-            to place the same spike in all channels. For 2D cases, the user can
-            provide (C,X,Y) or (X,Y).
+        loc (Tuple, Sequence(Tuple)): spatial location for the spikes. For
+            images with 3D spatial dimensions, the user can provide (C, X, Y, Z)
+            to fix which channel C is affected, or (X, Y, Z) to place the same
+            spike in all channels. For 2D cases, the user can provide (C, X, Y)
+            or (X, Y).
         k_itensity (float, Sequence(float)): value for the log-intensity of the
             `k`-space version of the image. This value should be tested. The
             default values are the 2.5 the mean of the log intensity for each
             channel.
         as_tensor_output (bool): if ``True`` return torch.Tensor, else return np.array.
             Default: ``True``.
+
+    Example:
+        When working with 4D data, ``KSpaceSpikeNoise(loc = ((3,60,64,32), (64,60,32)), k_intensity = (13,14))``
+        will place a spike at `[3, 60, 64, 32]` with `log-intensity = 13`, and
+        four spikes located at `[: , 64, 60, 32]` with `log-intensity = 14`.
     """
 
     def __init__(
@@ -1336,19 +1342,21 @@ class KSpaceSpikeNoise(Transform):
         self._device = torch.device("cpu")
 
         # assert one-to-one relationship between factors and locations
-        if isinstance(self.k_intensity, Sequence):
-            if not isinstance(self.loc[0], Sequence):
+        if isinstance(k_intensity, Sequence):
+            if not isinstance(loc[0], Sequence):
+                raise AssertionError(
+                    "If a sequence is passed to k_intensity, then a sequence of locations must be passed to loc"
+                )
+            elif len(self.k_intensity) != len(loc):
                 raise AssertionError("There must be one intensity_factor value for each tuple of indices in loc.")
-            elif len(self.k_intensity) != len(self.loc):
-                raise AssertionError("There must be one intensity_factor value for each tuple of indices in loc.")
-        if isinstance(self.loc[0], Sequence):
+        if isinstance(self.loc[0], Sequence) and k_intensity is not None:
             if not isinstance(self.k_intensity, Sequence):
                 raise AssertionError("There must be one intensity_factor value for each tuple of indices in loc.")
 
     def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> Union[torch.Tensor, np.ndarray]:
         """
         Args:
-            img (np.array or torch.tensor): image with dimensions (C,H,W) or (C,H,W,D)
+            img (np.array or torch.tensor): image with dimensions (C, H, W) or (C, H, W, D)
         """
 
         n_dims = len(img.shape[1:])
@@ -1372,7 +1380,7 @@ class KSpaceSpikeNoise(Transform):
 
         # default log intensity
         if self.k_intensity is None:
-            self.k_intensity = np.mean(log_abs, axis=tuple(range(-n_dims, 0))) * 2.5
+            self.k_intensity = tuple(np.mean(log_abs, axis=tuple(range(-n_dims, 0))) * 2.5)
 
         # highlight
         if isinstance(self.loc[0], Sequence):
@@ -1396,7 +1404,10 @@ class KSpaceSpikeNoise(Transform):
         """
 
         if len(k.shape) == len(idx):
-            k[idx] = val
+            if isinstance(val, Sequence):
+                k[idx] = val[idx[0]]
+            else:
+                k[idx] = val
         elif len(k.shape) == 4 and len(idx) == 3:
             k[:, idx[0], idx[1], idx[2]] = val
         elif len(k.shape) == 3 and len(idx) == 2:
@@ -1443,15 +1454,24 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
     Args:
         prob (float): probability of applying the transform, either on all
             channels at once, or channel-wise if ``channel_wise = True``.
-        intensity_range (Tuple(float)): pass a tuple (a,b) to sample
-            the log-intensity from the interval (a,b) uniformly for all
-            channels. Or pass sequence of intevals ((a0, b0), (a1, b1), ...)
-            to sample for each respective channel. In the second case, the number
-            of 2-tuples must match the number of channels.
+        intensity_range (Tuple(float), Sequence(Tuple(float))): pass a tuple
+            (a, b) to sample the log-intensity from the interval (a, b)
+            uniformly for all channels. Or pass sequence of intevals
+            ((a0, b0), (a1, b1), ...) to sample for each respective channel.
+            In the second case, the number of 2-tuples must match the number of
+            channels.
+            Default ranges is `(0.95v, 1.10v)` where `v` is the mean
+            log-intensity for each channel.
         channel_wise (bool): treat each channel independently. True by
             default.
         as_tensor_output (bool): if True return torch.Tensor, else
             return np.array. default: True.
+
+    Example:
+    To apply `k`-space spikes randomly with probability of `prob = 0.5`, and
+    log-intensity sampled from the interval [11, 12] for each channel
+    independently one uses
+    ``RandKSpaceSpikeNoise(prob=0.5, intensity_range=(11, 12), channel_wise=True)``
     """
 
     def __init__(
@@ -1462,8 +1482,6 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
         as_tensor_output: bool = True,
     ):
 
-        # TODO set default intensity?
-
         self.intensity_range = intensity_range
         self.channel_wise = channel_wise
         self.as_tensor_output = as_tensor_output
@@ -1471,8 +1489,11 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
         self.sampled_locs = None
         self._device = None
 
-        if isinstance(intensity_range[0], Sequence) and not channel_wise:
-            raise AssertionError("When channel_wise = False, intensity_range should be a 2-tuple.")
+        if intensity_range is not None:
+            if isinstance(intensity_range[0], Sequence) and not channel_wise:
+                raise AssertionError(
+                    "When channel_wise = False, intensity_range should be a 2-tuple (low, high) or None."
+                )
 
         super().__init__(prob)
 
@@ -1481,23 +1502,27 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
         Apply transform to `img`. Assumes data is in channel-first form.
 
         Args:
-            img (np.array or torch.tensor): image with dimensions (C,H,W) or (C,H,W,D)
+            img (np.array or torch.tensor): image with dimensions (C, H, W) or (C, H, W, D)
         """
 
-        if isinstance(self.intensity_range[0], Sequence) and len(self.intensity_range) != img.shape[0]:
-            raise AssertionError(
-                "If intensity_range is a sequence of sequences, then its length must equal the number of channels"
-            )
+        if self.intensity_range is not None:
+            if isinstance(self.intensity_range[0], Sequence) and len(self.intensity_range) != img.shape[0]:
+                raise AssertionError(
+                    "If intensity_range is a sequence of sequences, then there must be one (low, high) tuple for each channel."
+                )
 
         self.sampled_k_intensity = []
         self.sampled_locs = []
-
-        self._randomize(img)
 
         # convert to ndarray to work with np.fft
         if isinstance(img, torch.Tensor):
             self._device = img.device
             img = img.cpu().detach().numpy()
+
+        if not self.intensity_range:
+            self._set_default_range(img)
+
+        self._randomize(img)
 
         # build/appy transform only if there are spike locations
         if self.sampled_locs:
@@ -1506,7 +1531,7 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
 
         return torch.Tensor(img, device=self._device) if self.as_tensor_output else img
 
-    def _randomize(self, img) -> None:
+    def _randomize(self, img: np.ndarray) -> None:
         """
         Helper method to sample both the location and intensity of the spikes.
         When not working channel wise (channel_wise=False) it use the random
@@ -1525,7 +1550,7 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
             for i, chan in enumerate(img):
                 super().randomize(None)
                 if self._do_transform:
-                    self.sampled_locs.append((i,) + tuple(torch.randint(0, k, (1,)) for k in chan.shape))
+                    self.sampled_locs.append((i,) + tuple(self.R.randint(0, k) for k in chan.shape))
                     self.sampled_k_intensity.append(
                         self.R.uniform(self.intensity_range[i][0], self.intensity_range[i][1])
                     )
@@ -1534,5 +1559,23 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
         else:
             super().randomize(None)
             if self._do_transform:
-                self.sampled_locs.append(tuple(torch.randint(0, k, (1,)) for k in img.shape[1:]))
-                self.sampled_k_intensity.append(self.R.uniform(self.intensity_range[0], self.intensity_range[1]))
+                spatial = tuple(self.R.randint(0, k) for k in img.shape[1:])
+                self.sampled_locs = [(i,) + spatial for i in range(img.shape[0])]
+                if isinstance(self.intensity_range[0], Sequence):
+                    self.sampled_k_intensity = [self.R.uniform(*p) for p in self.intensity_range]
+                else:
+                    self.sampled_k_intensity = [self.R.uniform(*self.intensity_range)] * len(img)
+
+    def _set_default_range(self, x: np.ndarray) -> None:
+        """
+        Sets default intensity ranges to be sampled.
+
+        Args:
+            x (np.ndarray): tensor to fourier transform.
+        """
+        n_dims = len(x.shape[1:])
+
+        k = np.fft.fftshift(np.fft.fftn(x, axes=tuple(range(-n_dims, 0))), axes=tuple(range(-n_dims, 0)))
+        log_abs = np.log(np.absolute(k))
+        shifted_means = np.mean(log_abs, axis=tuple(range(-n_dims, 0))) * 2.5
+        self.intensity_range = tuple((i * 0.95, i * 1.1) for i in shifted_means)
