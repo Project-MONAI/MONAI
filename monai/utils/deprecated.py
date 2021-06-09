@@ -39,14 +39,7 @@ def warn_deprecated(obj, msg):
 
 
 def version_leq(lhs, rhs):
-    """Returns True if version `lhs` and earlier or equal to `rhs`."""
-
-    if "+" in lhs:
-        lhs = lhs.split("+", 1)[0]
-
-    if "+" in rhs:
-        rhs = rhs.split("+", 1)[0]
-
+    """Returns True if version `lhs` is earlier or equal to `rhs`."""
     def _try_cast(val):
         val = val.strip()
         try:
@@ -54,11 +47,19 @@ def version_leq(lhs, rhs):
         except ValueError:
             return val
 
+    # remove git version suffixes if present
+    lhs = lhs.split("+", 1)[0]
+    rhs = rhs.split("+", 1)[0]
+    
     # parse the version strings in this basic way to avoid needing the `packaging` package
     lhs = map(_try_cast, lhs.split("."))
     rhs = map(_try_cast, rhs.split("."))
 
-    return all(l <= r for l, r in zip(lhs, rhs))
+    for l, r in zip(lhs, rhs):
+        if l != r:
+            return l < r
+        
+    return True
 
 
 def deprecated(
@@ -71,6 +72,15 @@ def deprecated(
     that is when the function is called or the class instantiated, a warning is issued if `since` is given and
     the current version is at or later than that given. An exception is instead raised if `removed` is given and
     the current version is at or later than that, or if neither `since` nor `removed` is provided.
+    
+    Args:
+        since: version at which the definition was marked deprecated but not removed
+        removed: version at which the definition was removed and no longer usable
+        msg_suffix: message appended to warning/exception detailing reasons for deprecation and what to use instead
+        version_val: (used for testing) version to compare since and removed against, default is MONAI version
+        
+    Returns:
+        Decorated definition which warns or raises exception when used
     """
 
     is_deprecated = since is not None and version_leq(since, version_val)
@@ -117,6 +127,16 @@ def deprecated_arg(
     """
     Marks a particular named argument of a callable as deprecated. The same conditions for `since` and `removed` as
     described in the `deprecated` decorator.
+    
+    Args:
+        name: name of position or keyword argument to mark as deprecated
+        since: version at which the argument was marked deprecated but not removed
+        removed: version at which the argument was removed and no longer usable
+        msg_suffix: message appended to warning/exception detailing reasons for deprecation and what to use instead
+        version_val: (used for testing) version to compare since and removed against, default is MONAI version
+        
+    Returns:
+        Decorated callable which warns or raises exception when deprecated argument used
     """
 
     is_deprecated = since is not None and version_leq(since, version_val)
