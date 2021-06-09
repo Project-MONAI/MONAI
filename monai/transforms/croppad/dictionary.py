@@ -855,7 +855,8 @@ class RandWeightedCropd(Randomizable, MapTransform, InvertibleTransform):
         self.randomize(d[self.w_key])
         _spatial_size = fall_back_tuple(self.spatial_size, d[self.w_key].shape[1:])
 
-        results: List[Dict[Hashable, np.ndarray]] = [{} for _ in range(self.num_samples)]
+        # initialize returned list with shallow copy to preserve key ordering
+        results: List[Dict[Hashable, np.ndarray]] = [dict(data) for _ in range(self.num_samples)]
         # fill in the extra keys with unmodified data
         for i in range(self.num_samples):
             for key in set(data.keys()).difference(set(self.keys)):
@@ -1021,7 +1022,9 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
             raise AssertionError
         if self.centers is None:
             raise AssertionError
-        results: List[Dict[Hashable, np.ndarray]] = [{} for _ in range(self.num_samples)]
+
+        # initialize returned list with shallow copy to preserve key ordering
+        results: List[Dict[Hashable, np.ndarray]] = [dict(data) for _ in range(self.num_samples)]
 
         for i, center in enumerate(self.centers):
             # fill in the extra keys with unmodified data
