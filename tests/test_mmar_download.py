@@ -94,6 +94,7 @@ class TestMMMARDownload(unittest.TestCase):
 
     @parameterized.expand(TEST_EXTRACT_CASES)
     @skip_if_quick
+    @SkipIfBeforePyTorchVersion((1, 6))
     def test_load_ckpt(self, input_args, expected_name, expected_val):
         output = load_from_mmar(**input_args)
         self.assertEqual(output.__class__.__name__, expected_name)
