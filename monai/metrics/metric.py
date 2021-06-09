@@ -10,16 +10,47 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Tuple
 
 import torch
 
 from monai.config import TensorOrList
+from monai.utils import evenly_divisible_all_gather
 
 
 class Metric(ABC):
     """
-    Base class of Metrics interface.
+    Base class of all Metrics inerface.
+    `__call__` is designed to execute metric computation, and `reset` is designed to reset
+    all the states and environments for next round.
+
+    """
+    @abstractmethod
+    def __call__(self, *args: Any, **kwds: Any) -> Any:
+        """
+        API to execute the metric computation.
+
+        """
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+
+    def reset(self, *args: Any, **kwds: Any) -> Any:
+        """
+        API to reset all the states and environments to next round computation.
+
+        """
+        pass
+
+    def sync(self, *args: Any, **kwds: Any) -> Any:
+        """
+        API to sync data of all the ranks in distributed computation parallel.
+
+        """
+        pass
+
+
+class CumulativeMetric(Metric):
+    """
+    Base class of cumulative Metrics interface.
     `__call__` is supposed to compute independent logic for several samples of `y_pred` and `y`(optional).
     Ususally, subclass only needs to implement the `_apply` function for computation process.
     And `reduce` is supposed to execute reduction for the final result, it can be used for 1 batch data
@@ -82,10 +113,66 @@ class Metric(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def aggregate(self, data: Any):
+    def aggregate(self, *args: Any, **kwds: Any) -> Any:
         """
         Aggregate the metric results. Users can call it for the batch data of every iteration
         or accumulte the results of every iteration and call it for the final output.
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+
+
+class IterationMetric(CumulativeMetric):
+    def __init__(self) -> None:
+        super().__init__()
+        self._scores: List = []
+        self._synced_scores: Optional[torch.Tensor] = None
+
+    def reset(self) -> None:
+        self._scores = []
+        self._synced_scores = None
+
+    def sync(self) -> torch.Tensor:
+        scores = torch.cat(self._scores, dim=0)
+        # all gather across all processes
+        self._synced_scores = evenly_divisible_all_gather(data=scores, concat=True)
+
+        return self._synced_scores
+
+    def __call__(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):
+        score = super().__call__(y_pred=y_pred, y=y)
+        self._scores.append(score)
+
+        return score
+
+
+class EpochMetric(CumulativeMetric):
+    def __init__(self) -> None:
+        super().__init__()
+        self._y_pred: List = []
+        self._y: List = []
+        self._synced_y_pred: Optional[torch.Tensor] = None
+        self._synced_y: Optional[torch.Tensor] = None
+
+    def reset(self) -> None:
+        self._y_pred = []
+        self._y = []
+        self._synced_y_pred = None
+        self._synced_y = None
+
+    def sync(self) -> Tuple[torch.Tensor, torch.Tensor]:
+        y_pred = torch.cat(self._y_pred, dim=0)
+        y = torch.cat(self._y, dim=0) if len(self._y) > 0 else None
+        # all gather across all processes
+        self._synced_y_pred = evenly_divisible_all_gather(data=y_pred, concat=True)
+        self._synced_y = evenly_divisible_all_gather(data=y, concat=True) if y is not None else None
+
+        return self._synced_y_pred, self._synced_y
+
+    def __call__(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):
+        y_pred, y = super().__call__(y_pred=y_pred, y=y)
+        self._y_pred.append(y_pred)
+        if y is not None:
+            self._y.append(y)
+
+        return y_pred, y

@@ -95,7 +95,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0):
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
     val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
     val_post_tran = Compose([Activations(sigmoid=True), AsDiscrete(threshold_values=True)])
-    dice_metric = DiceMetric(include_background=True, reduction="mean")
+    dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=True)
 
     # create UNet, DiceLoss and Adam optimizer
     model = monai.networks.nets.UNet(
@@ -194,7 +194,7 @@ def run_inference_test(root_dir, device="cuda:0"):
     # sliding window inference need to input 1 image in every iteration
     val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
     val_post_tran = Compose([Activations(sigmoid=True), AsDiscrete(threshold_values=True)])
-    dice_metric = DiceMetric(include_background=True, reduction="mean")
+    dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=True)
 
     model = UNet(
         dimensions=3,

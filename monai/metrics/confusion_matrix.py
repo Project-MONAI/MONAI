@@ -17,10 +17,10 @@ import torch
 from monai.metrics.utils import do_metric_reduction, ignore_background
 from monai.utils import MetricReduction, ensure_tuple
 
-from .metric import Metric
+from .metric import IterationMetric
 
 
-class ConfusionMatrixMetric(Metric):
+class ConfusionMatrixMetric(IterationMetric):
     """
     Compute confusion matrix related metrics. This function supports to calculate all metrics mentioned in:
     `Confusion matrix <https://en.wikipedia.org/wiki/Confusion_matrix>`_.
@@ -49,6 +49,7 @@ class ConfusionMatrixMetric(Metric):
             if ``False``, compute reduction on the confusion matrices first, defaults to ``False``.
         reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}
+        get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
 
     """
 
@@ -58,14 +59,16 @@ class ConfusionMatrixMetric(Metric):
         metric_name: Union[Sequence[str], str] = "hit_rate",
         compute_sample: bool = False,
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        get_not_nans: bool = False,
     ) -> None:
         super().__init__()
         self.include_background = include_background
         self.metric_name = ensure_tuple(metric_name)
         self.compute_sample = compute_sample
         self.reduction = reduction
+        self.get_not_nans = get_not_nans
 
-    def _compute(self, y_pred: torch.Tensor, y: Optional[torch.Tensor] = None):
+    def _compute(self, y_pred: torch.Tensor, y: torch.Tensor):
         """
         Args:
             y_pred: input data to compute. It must be one-hot format and first dim is batch.
@@ -98,7 +101,7 @@ class ConfusionMatrixMetric(Metric):
             include_background=self.include_background,
         )
 
-    def aggregate(self, data: torch.Tensor):
+    def aggregate(self, data: Optional[torch.Tensor] = None):
         """
         Execute reduction for the confusion matrix values, the `data` usually is a Tensor of shape [BC4],
         Where, the third dimension represents the number of true positive, false positive, true negative
@@ -106,6 +109,7 @@ class ConfusionMatrixMetric(Metric):
         to the batch size and C equals to the number of classes that need to be computed.
 
         """
+        data = self._synced_scores if data is None else data
         results = []
         for metric_name in self.metric_name:
             if self.compute_sample:
@@ -115,7 +119,8 @@ class ConfusionMatrixMetric(Metric):
                 f, not_nans = do_metric_reduction(data, self.reduction)
                 f = compute_confusion_matrix_metric(metric_name, f)
             results.append(f)
-            results.append(not_nans)
+            if self.get_not_nans:
+                results.append(not_nans)
         return results
 
 

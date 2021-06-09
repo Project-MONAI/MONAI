@@ -16,10 +16,10 @@ import torch
 
 from monai.utils import Average
 
-from .metric import Metric
+from .metric import EpochMetric
 
 
-class ROCAUCMetric(Metric):
+class ROCAUCMetric(EpochMetric):
     """
     Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC). Referring to:
     `sklearn.metrics.roc_auc_score <https://scikit-learn.org/stable/modules/generated/
@@ -45,10 +45,10 @@ class ROCAUCMetric(Metric):
         super().__init__()
         self.average = average
 
-    def _compute(self, y_pred: torch.Tensor, y: Optional[torch.Tensor] = None):
+    def _compute(self, y_pred: torch.Tensor, y: torch.Tensor):
         return y_pred, y
 
-    def aggregate(self, data: Tuple[torch.Tensor, torch.Tensor]):
+    def aggregate(self, data: Optional[Tuple[torch.Tensor, torch.Tensor]] = None):
         """
         As AUC metric needs to execute on the overall data, so usually users accumulate `y_pred` and `y`
         of every iteration, then execute real computation and reduction on the accumulated data.
@@ -68,7 +68,7 @@ class ROCAUCMetric(Metric):
             result = metric.aggregate(torch.cat(y_pred, dim=0), torch.cat(y, dim=0))
 
         """
-        y_pred, y = data
+        y_pred, y = (self._synced_y_pred, self._synced_y) if data is None else data
         # compute final value and do metric reduction
         return compute_roc_auc(y_pred=y_pred, y=y, average=self.average)
 

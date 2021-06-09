@@ -66,6 +66,7 @@ data_clf: Dict[Any, Any] = {
     "include_background": True,
     "metric_name": "tpr",
     "reduction": "mean_channel",
+    "get_not_nans": True,
 }
 
 # 1. test confusion matrix
@@ -147,6 +148,7 @@ for idx in range(len(metric_names)):
         TEST_CASE[0]["include_background"] = True
         TEST_CASE[0]["metric_name"] = metric_names[idx]
         TEST_CASE[0]["reduction"] = reduction
+        TEST_CASE[0]["get_not_nans"] = True
         if reduction == "mean_batch":
             result = result_mean_batch[idx]
         elif reduction == "mean":
@@ -161,6 +163,7 @@ for reduction in ["mean", "mean_batch"]:
     TEST_CASE_MULTIPLE[0]["include_background"] = True
     TEST_CASE_MULTIPLE[0]["metric_name"] = metric_names
     TEST_CASE_MULTIPLE[0]["reduction"] = reduction
+    TEST_CASE_MULTIPLE[0]["get_not_nans"] = True
     if reduction == "mean_batch":
         result = result_mean_batch
     elif reduction == "mean":
@@ -194,6 +197,7 @@ for idx in range(2):
         TEST_CASE[0]["include_background"] = True
         TEST_CASE[0]["reduction"] = reduction
         TEST_CASE[0]["metric_name"] = metric_names[idx]
+        TEST_CASE[0]["get_not_nans"] = True
         if reduction == "sum":
             TEST_CASE.append(result_sum[idx])
             TEST_CASE.append(not_nans_sum[idx])

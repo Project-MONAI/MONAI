@@ -17,10 +17,10 @@ import torch
 from monai.metrics.utils import do_metric_reduction, ignore_background
 from monai.utils import MetricReduction
 
-from .metric import Metric
+from .metric import IterationMetric
 
 
-class DiceMetric(Metric):
+class DiceMetric(IterationMetric):
     """
     Compute average Dice loss between two tensors. It can support both multi-classes and multi-labels tasks.
     Input `y_pred` is compared with ground truth `y`.
@@ -38,6 +38,7 @@ class DiceMetric(Metric):
         reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}
             Define the mode to reduce computation result. Defaults to ``"mean"``.
+        get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
 
     """
 
@@ -45,12 +46,14 @@ class DiceMetric(Metric):
         self,
         include_background: bool = True,
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        get_not_nans: bool = False,
     ) -> None:
         super().__init__()
         self.include_background = include_background
         self.reduction = reduction
+        self.get_not_nans = get_not_nans
 
-    def _compute(self, y_pred: torch.Tensor, y: Optional[torch.Tensor] = None):
+    def _compute(self, y_pred: torch.Tensor, y: torch.Tensor):
         """
         Args:
             y_pred: input data to compute, typical segmentation model output.
@@ -79,14 +82,15 @@ class DiceMetric(Metric):
             include_background=self.include_background,
         )
 
-    def aggregate(self, data: torch.Tensor):
+    def aggregate(self, data: Optional[torch.Tensor] = None):
         """
         Execute reduction logic for the output of `compute_meandice`.
 
         """
+        data = self._synced_scores if data is None else data
         # do metric reduction
         f, not_nans = do_metric_reduction(data, self.reduction)
-        return f, not_nans
+        return (f, not_nans) if self.get_not_nans else f
 
 
 def compute_meandice(

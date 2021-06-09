@@ -68,7 +68,7 @@ TEST_CASE_3 = [
 ]
 
 TEST_CASE_4 = [
-    {"include_background": True, "reduction": "mean_batch"},
+    {"include_background": True, "reduction": "mean_batch", "get_not_nans": True},
     {
         "y_pred": torch.tensor(
             [
@@ -87,7 +87,7 @@ TEST_CASE_4 = [
 ]
 
 TEST_CASE_5 = [
-    {"include_background": True, "reduction": "mean"},
+    {"include_background": True, "reduction": "mean", "get_not_nans": True},
     {
         "y_pred": torch.tensor(
             [
@@ -106,7 +106,7 @@ TEST_CASE_5 = [
 ]
 
 TEST_CASE_6 = [
-    {"include_background": True, "reduction": "sum_batch"},
+    {"include_background": True, "reduction": "sum_batch", "get_not_nans": True},
     {
         "y_pred": torch.tensor(
             [
@@ -125,7 +125,7 @@ TEST_CASE_6 = [
 ]
 
 TEST_CASE_7 = [
-    {"include_background": True, "reduction": "mean"},
+    {"include_background": True, "reduction": "mean", "get_not_nans": True},
     {
         "y_pred": torch.tensor(
             [
@@ -144,7 +144,7 @@ TEST_CASE_7 = [
 ]
 
 TEST_CASE_8 = [
-    {"include_background": False, "reduction": "sum_batch"},
+    {"include_background": False, "reduction": "sum_batch", "get_not_nans": True},
     {
         "y_pred": torch.tensor(
             [
@@ -197,8 +197,12 @@ class TestComputeMeanDice(unittest.TestCase):
         vals["y"] = input_data.pop("y")
         dice_metric = DiceMetric(**input_data, reduction="none")
         result = dice_metric(**vals)
-        result, _ = dice_metric.aggregate(result)
+        result = dice_metric.aggregate(result)
+        # test aggregate with stored memeber variables
+        dice_metric.sync()
+        result2 = dice_metric.aggregate()
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
+        np.testing.assert_allclose(result2.cpu().numpy(), result.cpu().numpy(), atol=1e-4)
 
     @parameterized.expand([TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8])
     def test_nans_class(self, params, input_data, expected_value):

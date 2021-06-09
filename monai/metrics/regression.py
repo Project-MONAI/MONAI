@@ -19,10 +19,10 @@ import torch
 from monai.metrics.utils import do_metric_reduction
 from monai.utils import MetricReduction
 
-from .metric import Metric
+from .metric import IterationMetric
 
 
-class RegressionMetric(Metric):
+class RegressionMetric(IterationMetric):
     """
     Base class for regression metrics.
     Input `y_pred` is compared with ground truth `y`.
@@ -33,15 +33,23 @@ class RegressionMetric(Metric):
         reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}
             Define the mode to reduce computation result. Defaults to ``"mean"``.
+        get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
 
     """
 
-    def __init__(self, reduction: Union[MetricReduction, str] = MetricReduction.MEAN) -> None:
+    def __init__(
+        self,
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        get_not_nans: bool = False,
+    ) -> None:
         super().__init__()
         self.reduction = reduction
+        self.get_not_nans = get_not_nans
 
-    def aggregate(self, data: torch.Tensor):
-        return do_metric_reduction(data, self.reduction)
+    def aggregate(self, data: Optional[torch.Tensor] = None):
+        data = self._synced_scores if data is None else data
+        f, not_nans = do_metric_reduction(data, self.reduction)
+        return (f, not_nans) if self.get_not_nans else f
 
     def _check_shape(self, y_pred: torch.Tensor, y: torch.Tensor) -> None:
         if y_pred.shape != y.shape:
@@ -57,7 +65,7 @@ class RegressionMetric(Metric):
     def _compute_metric(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def _compute(self, y_pred: torch.Tensor, y: Optional[torch.Tensor] = None):
+    def _compute(self, y_pred: torch.Tensor, y: torch.Tensor):
         if not isinstance(y_pred, torch.Tensor) or not isinstance(y, torch.Tensor):
             raise ValueError("y_pred and y must be PyTorch Tensor.")
         self._check_shape(y_pred, y)
@@ -79,11 +87,16 @@ class MSEMetric(RegressionMetric):
         reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}
             Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
+        get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
 
     """
 
-    def __init__(self, reduction: Union[MetricReduction, str] = MetricReduction.MEAN) -> None:
-        super().__init__(reduction=reduction)
+    def __init__(
+        self,
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        get_not_nans: bool = False,
+    ) -> None:
+        super().__init__(reduction=reduction, get_not_nans=get_not_nans)
         self.sq_func = partial(torch.pow, exponent=2.0)
 
     def _compute_metric(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
@@ -109,11 +122,16 @@ class MAEMetric(RegressionMetric):
         reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}
             Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
+        get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
 
     """
 
-    def __init__(self, reduction: Union[MetricReduction, str] = MetricReduction.MEAN) -> None:
-        super().__init__(reduction=reduction)
+    def __init__(
+        self,
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        get_not_nans: bool = False,
+    ) -> None:
+        super().__init__(reduction=reduction, get_not_nans=get_not_nans)
         self.abs_func = torch.abs
 
     def _compute_metric(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
@@ -140,11 +158,16 @@ class RMSEMetric(RegressionMetric):
         reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}
             Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
+        get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
 
     """
 
-    def __init__(self, reduction: Union[MetricReduction, str] = MetricReduction.MEAN) -> None:
-        super().__init__(reduction=reduction)
+    def __init__(
+        self,
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        get_not_nans: bool = False,
+    ) -> None:
+        super().__init__(reduction=reduction, get_not_nans=get_not_nans)
         self.sq_func = partial(torch.pow, exponent=2.0)
 
     def _compute_metric(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
@@ -177,13 +200,17 @@ class PSNRMetric(RegressionMetric):
         reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}
             Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
+        get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
 
     """
 
     def __init__(
-        self, max_val: Union[int, float], reduction: Union[MetricReduction, str] = MetricReduction.MEAN
+        self,
+        max_val: Union[int, float],
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        get_not_nans: bool = False,
     ) -> None:
-        super().__init__(reduction=reduction)
+        super().__init__(reduction=reduction, get_not_nans=get_not_nans)
         self.max_val = max_val
         self.sq_func = partial(torch.pow, exponent=2.0)
 
