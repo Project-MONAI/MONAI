@@ -13,8 +13,9 @@ Utilities and types for defining networks, these depend on PyTorch.
 """
 
 import warnings
+from collections import OrderedDict
 from contextlib import contextmanager
-from typing import Any, Callable, Optional, Sequence
+from typing import Any, Callable, Mapping, Optional, Sequence, Union
 
 import torch
 import torch.nn as nn
@@ -30,6 +31,7 @@ __all__ = [
     "pixelshuffle",
     "eval_mode",
     "train_mode",
+    "compatible_mod_state",
 ]
 
 
@@ -310,3 +312,52 @@ def train_mode(*nets: nn.Module):
         # Return required networks to eval_list
         for n in eval_list:
             n.eval()
+
+
+def compatible_mod_state(
+    dst: Union[torch.nn.Module, Mapping], src: Union[torch.nn.Module, Mapping], prefix="", mapping=None
+):
+    """
+    Compute a module state_dict, of which the keys are the same as `dst`. The values of `dst` are overwritten
+    by the ones from `src` whenever their keys match. The method provides additional `prefix` for
+    the `dst` key when matching them. `mapping` can be a {"src_key": "dst_key"} dict, indicating
+    `dst[prefix + dst_key] = src[src_key]`.
+    This function is mainly to generate a model state dict,
+    for loading the `src` model state into the `dst` model, `src` and `dst` can have different dict keys, but
+    their corresponding values normally have the same shape.
+
+    Args:
+        dst: a pytorch module or state dict to be updated.
+        src: a pytorch module or state dist used to get the values used for the update.
+        prefix: `dst` key prefix.
+        mapping: a {"src_key": "dst_key"} dict, indicating that `dst[prefix + dst_key]` to be written by `src[src_key]`.
+
+    Returns: an OrderedDict of `dst` state.
+    """
+
+    if isinstance(src, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
+        src = src.module
+    if isinstance(dst, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
+        dst = dst.module
+    src_dict = src.state_dict() if isinstance(src, torch.nn.Module) else src
+    dst_dict = dst.state_dict() if isinstance(dst, torch.nn.Module) else dst
+    dst_dict = OrderedDict(dst_dict)
+
+    # update dst with items from src
+    all_keys, updated_keys = list(dst_dict), list()
+    for s, val in src_dict.items():
+        dest_key = f"{prefix}{s}"
+        if dest_key in dst_dict and dst_dict[dest_key].shape == val.shape:
+            dst_dict[dest_key] = val
+            updated_keys.append(dest_key)
+    for s in mapping if mapping else {}:
+        dest_key = f"{prefix}{mapping[s]}"
+        if dest_key in dst_dict:
+            if dst_dict[dest_key].shape != src_dict[s].shape:
+                warnings.warn(f"Param. shaped changed from {dst_dict[dest_key].shape} to {src_dict[s].shape}.")
+            dst_dict[dest_key] = src_dict[s]
+            updated_keys.append(dest_key)
+
+    updated_keys = set(updated_keys)
+    unchanged_keys = set(all_keys).difference(updated_keys)
+    return dst_dict, sorted(updated_keys), sorted(unchanged_keys)
