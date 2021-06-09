@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from abc import ABC, abstractmethod
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Optional
 
 import torch
 
@@ -27,21 +27,21 @@ class Metric(ABC):
     """
 
     @abstractmethod
-    def __call__(self, *args: Any, **kwds: Any) -> Any:
+    def __call__(self, *args: Any, **kwds: Any):
         """
         API to execute the metric computation.
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def reset(self, *args: Any, **kwds: Any) -> Any:
+    def reset(self, *args: Any, **kwds: Any):
         """
         API to reset all the states and environments to next round computation.
 
         """
         pass
 
-    def sync(self, *args: Any, **kwds: Any) -> Any:
+    def sync(self, *args: Any, **kwds: Any):
         """
         API to sync data of all the ranks in distributed computation parallel.
 
@@ -59,7 +59,7 @@ class CumulativeMetric(Metric):
 
     """
 
-    def __call__(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):
+    def __call__(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):  # type: ignore
         """
         Execute basic computation for model prediction and ground truth.
         It can support  both `list of channel-first Tensor` and `batch-first Tensor`.
@@ -124,23 +124,39 @@ class CumulativeMetric(Metric):
 
 
 class IterationMetric(CumulativeMetric):
+    """
+    Class for metrics that should be computed on every iteration and compute final results when epoch completed.
+
+    """
     def __init__(self) -> None:
         super().__init__()
         self._scores: List = []
         self._synced_scores: Optional[torch.Tensor] = None
 
-    def reset(self) -> None:
+    def reset(self, *args: Any, **kwds: Any) -> None:
+        """
+        Reset buffer of computed results for iterations and synced tensors.
+
+        """
         self._scores = []
         self._synced_scores = None
 
-    def sync(self) -> torch.Tensor:
+    def sync(self, *args: Any, **kwds: Any):
+        """
+        All gather the scores of all the ranks in distributed data parallel.
+
+        """
         scores = torch.cat(self._scores, dim=0)
         # all gather across all processes
         self._synced_scores = evenly_divisible_all_gather(data=scores, concat=True)
 
         return self._synced_scores
 
-    def __call__(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):
+    def __call__(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):  # type: ignore
+        """
+        Compute intermediate values for every iteration.
+
+        """
         score = super().__call__(y_pred=y_pred, y=y)
         self._scores.append(score)
 
@@ -148,6 +164,11 @@ class IterationMetric(CumulativeMetric):
 
 
 class EpochMetric(CumulativeMetric):
+    """
+    Class for metrics that accumulate `y_pred` and `y` in every iteration and
+    compute overall result when epoch completed.
+
+    """
     def __init__(self) -> None:
         super().__init__()
         self._y_pred: List = []
@@ -155,13 +176,21 @@ class EpochMetric(CumulativeMetric):
         self._synced_y_pred: Optional[torch.Tensor] = None
         self._synced_y: Optional[torch.Tensor] = None
 
-    def reset(self) -> None:
+    def reset(self, *args: Any, **kwds: Any) -> None:
+        """
+        Reset buffer of `y_pred` and `y` for iterations and synced tensors.
+
+        """
         self._y_pred = []
         self._y = []
         self._synced_y_pred = None
         self._synced_y = None
 
-    def sync(self) -> Tuple[torch.Tensor, torch.Tensor]:
+    def sync(self, *args: Any, **kwds: Any):
+        """
+        All gather the collected `y_pred` and `y` of all the ranks in distributed data parallel.
+
+        """
         y_pred = torch.cat(self._y_pred, dim=0)
         y = torch.cat(self._y, dim=0) if len(self._y) > 0 else None
         # all gather across all processes
@@ -170,7 +199,11 @@ class EpochMetric(CumulativeMetric):
 
         return self._synced_y_pred, self._synced_y
 
-    def __call__(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):
+    def __call__(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):  # type: ignore
+        """
+        Collect the `y_pred` and `y` of every iteration.
+
+        """
         y_pred, y = super().__call__(y_pred=y_pred, y=y)
         self._y_pred.append(y_pred)
         if y is not None:

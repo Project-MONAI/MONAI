@@ -45,10 +45,10 @@ class ROCAUCMetric(EpochMetric):
         super().__init__()
         self.average = average
 
-    def _compute(self, y_pred: torch.Tensor, y: torch.Tensor):
+    def _compute(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
         return y_pred, y
 
-    def aggregate(self, data: Optional[Tuple[torch.Tensor, torch.Tensor]] = None):
+    def aggregate(self, data: Optional[Tuple[torch.Tensor, torch.Tensor]] = None):  # type: ignore
         """
         As AUC metric needs to execute on the overall data, so usually users accumulate `y_pred` and `y`
         of every iteration, then execute real computation and reduction on the accumulated data.
@@ -70,6 +70,9 @@ class ROCAUCMetric(EpochMetric):
         """
         y_pred, y = (self._synced_y_pred, self._synced_y) if data is None else data
         # compute final value and do metric reduction
+        if not isinstance(y_pred, torch.Tensor) or not isinstance(y, torch.Tensor):
+            raise ValueError("y_pred and y must be PyTorch Tensor.")
+
         return compute_roc_auc(y_pred=y_pred, y=y, average=self.average)
 
 

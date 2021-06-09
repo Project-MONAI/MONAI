@@ -53,7 +53,7 @@ class DiceMetric(IterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def _compute(self, y_pred: torch.Tensor, y: torch.Tensor):
+    def _compute(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
         """
         Args:
             y_pred: input data to compute, typical segmentation model output.
@@ -82,12 +82,15 @@ class DiceMetric(IterationMetric):
             include_background=self.include_background,
         )
 
-    def aggregate(self, data: Optional[torch.Tensor] = None):
+    def aggregate(self, data: Optional[torch.Tensor] = None):  # type: ignore
         """
         Execute reduction logic for the output of `compute_meandice`.
 
         """
         data = self._synced_scores if data is None else data
+        if not isinstance(data, torch.Tensor):
+            raise ValueError("the data to aggregate must be PyTorch Tensor.")
+
         # do metric reduction
         f, not_nans = do_metric_reduction(data, self.reduction)
         return (f, not_nans) if self.get_not_nans else f

@@ -68,7 +68,7 @@ class ConfusionMatrixMetric(IterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def _compute(self, y_pred: torch.Tensor, y: torch.Tensor):
+    def _compute(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
         """
         Args:
             y_pred: input data to compute. It must be one-hot format and first dim is batch.
@@ -101,7 +101,7 @@ class ConfusionMatrixMetric(IterationMetric):
             include_background=self.include_background,
         )
 
-    def aggregate(self, data: Optional[torch.Tensor] = None):
+    def aggregate(self, data: Optional[torch.Tensor] = None):  # type: ignore
         """
         Execute reduction for the confusion matrix values, the `data` usually is a Tensor of shape [BC4],
         Where, the third dimension represents the number of true positive, false positive, true negative
@@ -110,6 +110,9 @@ class ConfusionMatrixMetric(IterationMetric):
 
         """
         data = self._synced_scores if data is None else data
+        if not isinstance(data, torch.Tensor):
+            raise ValueError("the data to aggregate must be PyTorch Tensor.")
+
         results = []
         for metric_name in self.metric_name:
             if self.compute_sample:

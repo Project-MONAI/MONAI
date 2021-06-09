@@ -46,8 +46,11 @@ class RegressionMetric(IterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def aggregate(self, data: Optional[torch.Tensor] = None):
+    def aggregate(self, data: Optional[torch.Tensor] = None):  # type: ignore
         data = self._synced_scores if data is None else data
+        if not isinstance(data, torch.Tensor):
+            raise ValueError("the data to aggregate must be PyTorch Tensor.")
+
         f, not_nans = do_metric_reduction(data, self.reduction)
         return (f, not_nans) if self.get_not_nans else f
 
@@ -65,7 +68,7 @@ class RegressionMetric(IterationMetric):
     def _compute_metric(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def _compute(self, y_pred: torch.Tensor, y: torch.Tensor):
+    def _compute(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
         if not isinstance(y_pred, torch.Tensor) or not isinstance(y, torch.Tensor):
             raise ValueError("y_pred and y must be PyTorch Tensor.")
         self._check_shape(y_pred, y)
