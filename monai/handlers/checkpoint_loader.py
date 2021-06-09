@@ -13,7 +13,6 @@ import logging
 from typing import TYPE_CHECKING, Dict, Optional
 
 import torch
-import torch.nn as nn
 
 from monai.networks.utils import compatible_mod_state
 from monai.utils import exact_version, optional_import

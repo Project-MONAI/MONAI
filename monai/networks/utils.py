@@ -332,7 +332,7 @@ def compatible_mod_state(
         prefix: `dst` key prefix.
         mapping: a {"src_key": "dst_key"} dict, indicating that `dst[prefix + dst_key]` to be written by `src[src_key]`.
 
-    Returns: an OrderedDict of `dst` state.
+    Returns: an OrderedDict of `dst` state, and the changed, unchanged keys.
     """
 
     if isinstance(src, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
