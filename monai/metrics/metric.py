@@ -25,6 +25,7 @@ class Metric(ABC):
     all the states and environments for next round.
 
     """
+
     @abstractmethod
     def __call__(self, *args: Any, **kwds: Any) -> Any:
         """
