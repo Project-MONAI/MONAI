@@ -1338,7 +1338,6 @@ class KSpaceSpikeNoise(Transform):
         self.loc = ensure_tuple(loc)
         self.as_tensor_output = as_tensor_output
         self.k_intensity = k_intensity
-        self._device = torch.device("cpu")
 
         # assert one-to-one relationship between factors and locations
         if isinstance(k_intensity, Sequence):
@@ -1369,28 +1368,31 @@ class KSpaceSpikeNoise(Transform):
 
         # convert to ndarray to work with np.fft
         if isinstance(img, torch.Tensor):
-            self._device = img.device
+            device = img.device
             img = img.cpu().detach().numpy()
+        else:
+            device = torch.device("cpu")
 
         # FT
         k = self._shift_fourier(img, n_dims)
         log_abs = np.log(np.absolute(k))
         phase = np.angle(k)
 
+        k_intensity = self.k_intensity
         # default log intensity
-        if self.k_intensity is None:
-            self.k_intensity = tuple(np.mean(log_abs, axis=tuple(range(-n_dims, 0))) * 2.5)
+        if k_intensity is None:
+            k_intensity = tuple(np.mean(log_abs, axis=tuple(range(-n_dims, 0))) * 2.5)
 
         # highlight
         if isinstance(self.loc[0], Sequence):
-            for idx, val in zip(self.loc, ensure_tuple(self.k_intensity)):
+            for idx, val in zip(self.loc, ensure_tuple(k_intensity)):
                 self._set_spike(log_abs, idx, val)
         else:
-            self._set_spike(log_abs, self.loc, self.k_intensity)
+            self._set_spike(log_abs, self.loc, k_intensity)
         # map back
         k = np.exp(log_abs) * np.exp(1j * phase)
         img = self._inv_shift_fourier(k, n_dims)
-        return torch.Tensor(img, device=self._device) if self.as_tensor_output else img
+        return torch.Tensor(img, device=device) if self.as_tensor_output else img
 
     def _set_spike(self, k: np.array, idx: Tuple, val: float):
         """
@@ -1486,7 +1488,6 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
         self.as_tensor_output = as_tensor_output
         self.sampled_k_intensity = None
         self.sampled_locs = None
-        self._device = None
 
         if intensity_range is not None:
             if isinstance(intensity_range[0], Sequence) and not channel_wise:
@@ -1515,8 +1516,10 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
 
         # convert to ndarray to work with np.fft
         if isinstance(img, torch.Tensor):
-            self._device = img.device
+            device = img.device
             img = img.cpu().detach().numpy()
+        else:
+            device = torch.device("cpu")
 
         if not self.intensity_range:
             self._set_default_range(img)
@@ -1528,8 +1531,8 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
             transform = KSpaceSpikeNoise(self.sampled_locs, self.sampled_k_intensity, self.as_tensor_output)
             return transform(img)
 
-        return torch.Tensor(img, device=self._device) if self.as_tensor_output else img
-
+        return torch.Tensor(img, device=device) if self.as_tensor_output else img
+    
     def _randomize(self, img: np.ndarray) -> None:
         """
         Helper method to sample both the location and intensity of the spikes.
