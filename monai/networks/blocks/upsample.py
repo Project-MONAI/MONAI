@@ -109,15 +109,15 @@ class UpSample(nn.Sequential):
             linear_mode = [InterpolateMode.LINEAR, InterpolateMode.BILINEAR, InterpolateMode.TRILINEAR]
             if interp_mode in linear_mode:  # choose mode based on dimensions
                 interp_mode = linear_mode[dimensions - 1]
-                self.add_module(
-                    "upsample_non_trainable",
-                    nn.Upsample(
-                        size=size,
-                        scale_factor=None if size else scale_factor_,
-                        mode=interp_mode.value,
-                        align_corners=align_corners,
-                    ),
-                )
+            self.add_module(
+                "upsample_non_trainable",
+                nn.Upsample(
+                    size=size,
+                    scale_factor=None if size else scale_factor_,
+                    mode=interp_mode.value,
+                    align_corners=align_corners,
+                ),
+            )
         elif up_mode == UpsampleMode.PIXELSHUFFLE:
             self.add_module(
                 "pixelshuffle",
