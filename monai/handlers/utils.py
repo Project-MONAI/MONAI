@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import os
+import warnings
 from collections import OrderedDict
 from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
 
@@ -66,6 +67,10 @@ def evenly_divisible_all_gather(data: torch.Tensor) -> torch.Tensor:
         The input data on different ranks must have exactly same `dtype`.
 
     """
+    warnings.warn(
+        "evenly_divisible_all_gather had been moved to monai.utils module, will deprecate this API in MONAI v0.7.",
+        DeprecationWarning,
+    )
     if not isinstance(data, torch.Tensor):
         raise ValueError("input data must be PyTorch Tensor.")
 
@@ -95,6 +100,10 @@ def string_list_all_gather(strings: List[str]) -> List[str]:
         strings: a list of strings to all gather.
 
     """
+    warnings.warn(
+        "string_list_all_gather had been moved to monai.utils module, will deprecate this API in MONAI v0.7.",
+        DeprecationWarning,
+    )
     world_size = idist.get_world_size()
     if world_size <= 1:
         return strings

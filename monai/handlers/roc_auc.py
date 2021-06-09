@@ -13,9 +13,8 @@ from typing import Any, Callable, Union
 
 import torch
 
-from monai.handlers.utils import evenly_divisible_all_gather
 from monai.metrics import compute_roc_auc
-from monai.utils import Average, exact_version, optional_import
+from monai.utils import Average, evenly_divisible_all_gather, exact_version, optional_import
 
 idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
 EpochMetric, _ = optional_import("ignite.metrics", "0.4.4", exact_version, "EpochMetric")
@@ -78,8 +77,8 @@ class ROCAUC(EpochMetric):  # type: ignore[valid-type, misc]  # due to optional_
         ws = idist.get_world_size()
         if ws > 1 and not self._is_reduced:
             # All gather across all processes
-            _prediction_tensor = evenly_divisible_all_gather(_prediction_tensor)
-            _target_tensor = evenly_divisible_all_gather(_target_tensor)
+            _prediction_tensor = evenly_divisible_all_gather(_prediction_tensor, concat=True)
+            _target_tensor = evenly_divisible_all_gather(_target_tensor, concat=True)
         self._is_reduced = True
 
         result: torch.Tensor = torch.zeros(1)
