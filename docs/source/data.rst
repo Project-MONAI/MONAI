@@ -188,3 +188,8 @@ ThreadBuffer
 TestTimeAugmentation
 ~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: monai.data.TestTimeAugmentation
+
+
+CSV Datalist
+~~~~~~~~~~~~
+.. autofunction:: monai.data.load_csv_datalist

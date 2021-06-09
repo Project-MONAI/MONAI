@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .csv_datalist import load_csv_datalist
 from .csv_saver import CSVSaver
 from .dataloader import DataLoader
 from .dataset import (
