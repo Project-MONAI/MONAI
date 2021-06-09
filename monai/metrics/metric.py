@@ -128,6 +128,7 @@ class IterationMetric(CumulativeMetric):
     Class for metrics that should be computed on every iteration and compute final results when epoch completed.
 
     """
+
     def __init__(self) -> None:
         super().__init__()
         self._scores: List = []
@@ -169,6 +170,7 @@ class EpochMetric(CumulativeMetric):
     compute overall result when epoch completed.
 
     """
+
     def __init__(self) -> None:
         super().__init__()
         self._y_pred: List = []
