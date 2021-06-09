@@ -358,6 +358,6 @@ def compatible_mod_state(
             dst_dict[dest_key] = src_dict[s]
             updated_keys.append(dest_key)
 
-    updated_keys = set(updated_keys)
-    unchanged_keys = set(all_keys).difference(updated_keys)
-    return dst_dict, sorted(updated_keys), sorted(unchanged_keys)
+    updated_keys = sorted(set(updated_keys))
+    unchanged_keys = sorted(set(all_keys).difference(updated_keys))
+    return dst_dict, updated_keys, unchanged_keys
