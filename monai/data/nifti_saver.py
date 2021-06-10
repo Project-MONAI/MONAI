@@ -25,10 +25,13 @@ class NiftiSaver:
     """
     Save the data as NIfTI file, it can support single data content or a batch of data.
     Typically, the data can be segmentation predictions, call `save` for single data
-    or call `save_batch` to save a batch of data together. If no meta data provided,
-    use index from 0 as the filename prefix.
+    or call `save_batch` to save a batch of data together.
+    The name of saved file will be `{input_image_name}_{output_postfix}{output_ext}`,
+    where the input image name is extracted from the provided meta data dictionary.
+    If no meta data provided, use index from 0 as the filename prefix.
 
-    NB: image should include channel dimension: [B],C,H,W,[D].
+    Note: image should include channel dimension: [B],C,H,W,[D].
+
     """
 
     def __init__(
