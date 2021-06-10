@@ -315,7 +315,10 @@ def train_mode(*nets: nn.Module):
 
 
 def compatible_mod_state(
-    dst: Union[torch.nn.Module, Mapping], src: Union[torch.nn.Module, Mapping], prefix="", mapping=None
+    dst: Union[torch.nn.Module, Mapping],
+    src: Union[torch.nn.Module, Mapping],
+    prefix="",
+    mapping=None,
 ):
     """
     Compute a module state_dict, of which the keys are the same as `dst`. The values of `dst` are overwritten
@@ -330,7 +333,8 @@ def compatible_mod_state(
         dst: a pytorch module or state dict to be updated.
         src: a pytorch module or state dist used to get the values used for the update.
         prefix: `dst` key prefix.
-        mapping: a {"src_key": "dst_key"} dict, indicating that `dst[prefix + dst_key]` to be written by `src[src_key]`.
+        mapping: a `{"src_key": "dst_key"}` dict, indicating that `dst[prefix + dst_key]` to be written by `src[src_key]`.
+            `"src_key": None` pair indicates to never use the `src_key` in the `dst`.
 
     Returns: an OrderedDict of `dst` state, and the changed, unchanged keys.
     """
@@ -343,14 +347,21 @@ def compatible_mod_state(
     dst_dict = dst.state_dict() if isinstance(dst, torch.nn.Module) else dst
     dst_dict = OrderedDict(dst_dict)
 
+    # find the set of src keys, based on mapping = {"src_key": None, "src_key_1": None}
+    to_skip = {s_key for s_key in src_dict if mapping and s_key in mapping and mapping[s_key] is None}
+
     # update dst with items from src
     all_keys, updated_keys = list(dst_dict), list()
     for s, val in src_dict.items():
+        if s in to_skip:
+            continue
         dest_key = f"{prefix}{s}"
         if dest_key in dst_dict and dst_dict[dest_key].shape == val.shape:
             dst_dict[dest_key] = val
             updated_keys.append(dest_key)
     for s in mapping if mapping else {}:
+        if s in to_skip:
+            continue
         dest_key = f"{prefix}{mapping[s]}"
         if dest_key in dst_dict:
             if dst_dict[dest_key].shape != src_dict[s].shape:
@@ -360,4 +371,5 @@ def compatible_mod_state(
 
     updated_keys = sorted(set(updated_keys))
     unchanged_keys = sorted(set(all_keys).difference(updated_keys))
+    print(f"dst model updated: {len(updated_keys)} of {len(dst_dict)} variables.")
     return dst_dict, updated_keys, unchanged_keys
