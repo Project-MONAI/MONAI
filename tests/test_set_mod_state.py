@@ -47,34 +47,33 @@ class _TestModelTwo(torch.nn.Module):
 
 TEST_CASES = []
 __devices = ("cpu", "cuda") if torch.cuda.is_available() else ("cpu",)
-for x in __devices:
-    for y in __devices:
-        TEST_CASES.append((x, y))
+for _x in __devices:
+    for _y in __devices:
+        TEST_CASES.append((_x, _y))
 
 
 class TestModuleState(unittest.TestCase):
-    def setUp(self):
-        set_determinism(0)
-
     def tearDown(self):
         set_determinism(None)
 
     @parameterized.expand(TEST_CASES)
     def test_set_state(self, device_0, device_1):
+        set_determinism(0)
         model_one = _TestModelOne(10, 20, 3)
         model_two = _TestModelTwo(10, 20, 10, 4)
         model_one.to(device_0)
         model_two.to(device_1)
         model_dict, ch, unch = compatible_mod_state(model_one, model_two)
         model_one.load_state_dict(model_dict)
-        x = torch.randn((4, 10), device=device_0)
+        x = np.random.randn(4, 10)
+        x = torch.tensor(x, device=device_0, dtype=torch.float32)
         output = model_one(x).detach().cpu().numpy()
         expected = np.array(
             [
-                [0.3876864, -0.10779603, -0.35779887],
-                [-0.6996534, -0.17674239, -0.48923326],
-                [0.06991734, -0.45093504, -0.24457899],
-                [0.24552809, -0.41014993, 0.19142818],
+                [-0.36076584, -0.03177825, -0.7702266],
+                [-0.0526831, -0.15855855, -0.01149344],
+                [-0.3760508, -0.22485238, -0.0634037],
+                [0.5977675, -0.67991066, 0.1919502],
             ]
         )
         np.testing.assert_allclose(output, expected, atol=1e-3)
@@ -83,6 +82,7 @@ class TestModuleState(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES)
     def test_set_full_state(self, device_0, device_1):
+        set_determinism(0)
         model_one = _TestModelOne(10, 20, 3)
         model_two = _TestModelOne(10, 20, 3)
         model_one.to(device_0)
@@ -92,7 +92,8 @@ class TestModuleState(unittest.TestCase):
         # test dict input
         model_dict, ch, unch = compatible_mod_state(model_dict, model_two)
         model_one.load_state_dict(model_dict)
-        x = torch.randn((4, 10), device=device_0)
+        x = np.random.randn(4, 10)
+        x = torch.tensor(x, device=device_0, dtype=torch.float32)
         output = model_one(x).detach().cpu().numpy()
         model_two.to(device_0)
         output_1 = model_two(x).detach().cpu().numpy()
@@ -102,21 +103,23 @@ class TestModuleState(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES)
     def test_set_map_state(self, device_0, device_1):
+        set_determinism(0)
         model_one = _TestModelOne(10, 20, 3)
         model_two = _TestModelTwo(10, 20, 10, 4)
         model_one.to(device_0)
         model_two.to(device_1)
         # test skip layer.bias
-        model_dict, ch, unch = compatible_mod_state(model_one, model_two, mapping={"layer.bias": None})
+        model_dict, ch, unch = compatible_mod_state(model_one, model_two, exclude_vars="layer.bias")
         model_one.load_state_dict(model_dict)
-        x = torch.randn((4, 10), device=device_0)
+        x = np.random.randn(4, 10)
+        x = torch.tensor(x, device=device_0, dtype=torch.float32)
         output = model_one(x).detach().cpu().numpy()
         expected = np.array(
             [
-                [0.40672818, -0.03851359, -0.5709822],
-                [-0.6806116, -0.10745992, -0.70241666],
-                [0.08895908, -0.38165253, -0.45776233],
-                [0.26456985, -0.34086746, -0.02175514],
+                [-0.34172416, 0.0375042, -0.98340976],
+                [-0.03364138, -0.08927619, -0.2246768],
+                [-0.35700908, -0.15556987, -0.27658707],
+                [0.61680925, -0.6106281, -0.02123314],
             ]
         )
         np.testing.assert_allclose(output, expected, atol=1e-3)
@@ -125,6 +128,7 @@ class TestModuleState(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES)
     def test_set_map_across(self, device_0, device_1):
+        set_determinism(0)
         model_one = _TestModelOne(10, 10, 3)
         model_two = _TestModelTwo(10, 10, 10, 4)
         model_one.to(device_0)
@@ -134,14 +138,15 @@ class TestModuleState(unittest.TestCase):
             model_one, model_two, mapping={"layer_1.weight": "layer.weight", "layer_1.bias": "layer_1.weight"}
         )
         model_one.load_state_dict(model_dict)
-        x = torch.randn((4, 10), device=device_0)
+        x = np.random.randn(4, 10)
+        x = torch.tensor(x, device=device_0, dtype=torch.float32)
         output = model_one(x).detach().cpu().numpy()
         expected = np.array(
             [
-                [0.05807909, 0.7679508, 0.30770922],
-                [0.38950497, 0.5880758, 0.3073718],
-                [0.26307103, 0.81471455, 0.1975978],
-                [0.38134947, 0.26907563, 0.48251086],
+                [0.8244487, -0.19650555, 0.65723234],
+                [0.71239626, 0.25617486, 0.5247122],
+                [0.24168758, 1.0301148, 0.39089814],
+                [0.25791705, 0.8653245, 0.14833644],
             ]
         )
         np.testing.assert_allclose(output, expected, atol=1e-3)
