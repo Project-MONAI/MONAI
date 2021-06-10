@@ -95,7 +95,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0):
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
     val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
     val_post_tran = Compose([Activations(sigmoid=True), AsDiscrete(threshold_values=True)])
-    dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=True)
+    dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
 
     # create UNet, DiceLoss and Adam optimizer
     model = monai.networks.nets.UNet(
@@ -140,8 +140,6 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0):
 
         if (epoch + 1) % val_interval == 0:
             with eval_mode(model):
-                metric_sum = 0.0
-                metric_count = 0
                 val_images = None
                 val_labels = None
                 val_outputs = None
@@ -150,10 +148,9 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0):
                     sw_batch_size, roi_size = 4, (96, 96, 96)
                     val_outputs = val_post_tran(sliding_window_inference(val_images, roi_size, sw_batch_size, model))
                     dice_metric(y_pred=val_outputs, y=val_labels)
-                    value, not_nans = dice_metric.aggregate()
-                    metric_count += not_nans.item()
-                    metric_sum += value.item() * not_nans.item()
-                metric = metric_sum / metric_count
+
+                metric = dice_metric.aggregate().item()
+                dice_metric.reset()
                 metric_values.append(metric)
                 if metric > best_metric:
                     best_metric = metric
@@ -195,7 +192,7 @@ def run_inference_test(root_dir, device="cuda:0"):
     # sliding window inference need to input 1 image in every iteration
     val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
     val_post_tran = Compose([Activations(sigmoid=True), AsDiscrete(threshold_values=True)])
-    dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=True)
+    dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
 
     model = UNet(
         dimensions=3,
@@ -209,8 +206,6 @@ def run_inference_test(root_dir, device="cuda:0"):
     model_filename = os.path.join(root_dir, "best_metric_model.pth")
     model.load_state_dict(torch.load(model_filename))
     with eval_mode(model):
-        metric_sum = 0.0
-        metric_count = 0
         # resampling with align_corners=True or dtype=float64 will generate
         # slight different results between PyTorch 1.5 an 1.6
         saver = NiftiSaver(output_dir=os.path.join(root_dir, "output"), dtype=np.float32)
@@ -220,12 +215,9 @@ def run_inference_test(root_dir, device="cuda:0"):
             sw_batch_size, roi_size = 4, (96, 96, 96)
             val_outputs = val_post_tran(sliding_window_inference(val_images, roi_size, sw_batch_size, model))
             dice_metric(y_pred=val_outputs, y=val_labels)
-            value, not_nans = dice_metric.aggregate()
-            metric_count += not_nans.item()
-            metric_sum += value.item() * not_nans.item()
             saver.save_batch(val_outputs, val_data["img_meta_dict"])
-        metric = metric_sum / metric_count
-    return metric
+
+    return dice_metric.aggregate().item()
 
 
 @skip_if_quick
