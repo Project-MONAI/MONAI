@@ -155,6 +155,7 @@ class Cumulative:
             if not isinstance(d, torch.Tensor):
                 raise ValueError(f"the data to cumulate in a buffer must be PyTorch Tensor, but got: {type(d)}.")
             self._buffers[i].append(d)
+        self._synced = False
 
     def aggregate(self):
         """
