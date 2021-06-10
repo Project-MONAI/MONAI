@@ -6,6 +6,10 @@ Metrics
 =======
 .. currentmodule:: monai.metrics
 
+`FROC`
+------
+.. autofunction:: compute_froc_score
+
 `Mean Dice`
 -----------
 .. autofunction:: compute_meandice
@@ -36,4 +40,24 @@ Metrics
 .. autofunction:: compute_average_surface_distance
 
 .. autoclass:: SurfaceDistanceMetric
+    :members:
+
+`Mean squared error`
+--------------------
+.. autoclass:: MSEMetric
+    :members:
+
+`Mean absolute error`
+---------------------
+.. autoclass:: MAEMetric
+    :members:
+
+`Root mean squared error`
+-------------------------
+.. autoclass:: RMSEMetric
+    :members:
+
+`Peak signal to noise ratio`
+----------------------------
+.. autoclass:: PSNRMetric
     :members:

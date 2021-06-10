@@ -9,21 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence, Union
 
 import torch
 
-from monai.handlers.utils import evenly_divisible_all_gather
 from monai.metrics import do_metric_reduction
-from monai.utils import MetricReduction, exact_version, optional_import
+from monai.utils import MetricReduction, evenly_divisible_all_gather, exact_version, optional_import
 
-idist, _ = optional_import("ignite", "0.4.2", exact_version, "distributed")
-Metric, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "Metric")
-reinit__is_reduced, _ = optional_import("ignite.metrics.metric", "0.4.2", exact_version, "reinit__is_reduced")
+idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
+Metric, _ = optional_import("ignite.metrics", "0.4.4", exact_version, "Metric")
+reinit__is_reduced, _ = optional_import("ignite.metrics.metric", "0.4.4", exact_version, "reinit__is_reduced")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
 
 
 class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to optional_import
@@ -31,6 +30,8 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
     Class for metrics that should be computed on every iteration and compute final results when epoch completed.
     Similar to the `EpochMetric` in ignite:
     https://github.com/pytorch/ignite/blob/v0.4.2/ignite/metrics/epoch_metric.py#L13.
+    The input `prediction` or `label` data can be a PyTorch Tensor or numpy array with batch dim and channel dim,
+    or a list of PyTorch Tensor or numpy array without batch dim.
 
     Args:
         metric_fn: callable function or class to compute raw metric results after every iteration.
@@ -46,7 +47,7 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
         self,
         metric_fn: Callable,
         output_transform: Callable = lambda x: x,
-        device: Optional[torch.device] = None,
+        device: Union[str, torch.device] = "cpu",
         save_details: bool = True,
     ) -> None:
         self._is_reduced: bool = False
@@ -73,11 +74,23 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
         """
         if len(output) != 2:
             raise ValueError(f"output must have length 2, got {len(output)}.")
+
         y_pred, y = output
-        score = self.metric_fn(y_pred, y)
-        if isinstance(score, (tuple, list)):
-            score = score[0]
-        self._scores.append(score)
+
+        def _compute(y_pred, y):
+            if isinstance(y_pred, torch.Tensor):
+                y_pred = y_pred.detach()
+            if isinstance(y, torch.Tensor):
+                y = y.detach()
+            score = self.metric_fn(y_pred, y)
+            return score[0] if isinstance(score, (tuple, list)) else score
+
+        if isinstance(y_pred, (list, tuple)) or isinstance(y, (list, tuple)):
+            # if y_pred or y is a list of channel-first data, add batch dim and compute metric, then concat the scores
+            score = torch.cat([_compute(p_.unsqueeze(0), y_.unsqueeze(0)) for p_, y_ in zip(y_pred, y)], dim=0)
+        else:
+            score = _compute(y_pred, y)
+        self._scores.append(score.to(self._device))
 
     def compute(self) -> Any:
         """
@@ -90,7 +103,7 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
         ws = idist.get_world_size()
         if ws > 1 and not self._is_reduced:
             # all gather across all processes
-            _scores = evenly_divisible_all_gather(data=_scores)
+            _scores = evenly_divisible_all_gather(data=_scores, concat=True)
         self._is_reduced = True
 
         # save score of every image into engine.state for other components

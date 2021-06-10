@@ -9,16 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Union
 
 import torch
 
-from monai.handlers.utils import evenly_divisible_all_gather
 from monai.metrics import compute_roc_auc
-from monai.utils import Average, exact_version, optional_import
+from monai.utils import Average, evenly_divisible_all_gather, exact_version, optional_import
 
-idist, _ = optional_import("ignite", "0.4.2", exact_version, "distributed")
-EpochMetric, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "EpochMetric")
+idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
+EpochMetric, _ = optional_import("ignite.metrics", "0.4.4", exact_version, "EpochMetric")
 
 
 class ROCAUC(EpochMetric):  # type: ignore[valid-type, misc]  # due to optional_import
@@ -27,10 +26,6 @@ class ROCAUC(EpochMetric):  # type: ignore[valid-type, misc]  # due to optional_
     accumulating predictions and the ground-truth during an epoch and applying `compute_roc_auc`.
 
     Args:
-        to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
-        softmax: whether to add softmax function to `y_pred` before computation. Defaults to False.
-        other_act: callable function to replace `softmax` as activation layer if needed, Defaults to ``None``.
-            for example: `other_act = lambda x: torch.log_softmax(x)`.
         average: {``"macro"``, ``"weighted"``, ``"micro"``, ``"none"``}
             Type of averaging performed if not binary classification. Defaults to ``"macro"``.
 
@@ -56,20 +51,14 @@ class ROCAUC(EpochMetric):  # type: ignore[valid-type, misc]  # due to optional_
 
     def __init__(
         self,
-        to_onehot_y: bool = False,
-        softmax: bool = False,
-        other_act: Optional[Callable] = None,
         average: Union[Average, str] = Average.MACRO,
         output_transform: Callable = lambda x: x,
-        device: Optional[torch.device] = None,
+        device: Union[str, torch.device] = "cpu",
     ) -> None:
         def _compute_fn(pred, label):
             return compute_roc_auc(
                 y_pred=pred,
                 y=label,
-                to_onehot_y=to_onehot_y,
-                softmax=softmax,
-                other_act=other_act,
                 average=Average(average),
             )
 
@@ -88,8 +77,8 @@ class ROCAUC(EpochMetric):  # type: ignore[valid-type, misc]  # due to optional_
         ws = idist.get_world_size()
         if ws > 1 and not self._is_reduced:
             # All gather across all processes
-            _prediction_tensor = evenly_divisible_all_gather(_prediction_tensor)
-            _target_tensor = evenly_divisible_all_gather(_target_tensor)
+            _prediction_tensor = evenly_divisible_all_gather(_prediction_tensor, concat=True)
+            _target_tensor = evenly_divisible_all_gather(_target_tensor, concat=True)
         self._is_reduced = True
 
         result: torch.Tensor = torch.zeros(1)
