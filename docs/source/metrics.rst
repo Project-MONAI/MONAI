@@ -15,19 +15,14 @@ Metrics
 .. autoclass:: Metric
     :members:
 
-`CumulativeMetric`
-------------------
-.. autoclass:: CumulativeMetric
-    :members:
-
 `IterationMetric`
 -----------------
 .. autoclass:: IterationMetric
     :members:
 
-`EpochMetric`
--------------
-.. autoclass:: EpochMetric
+`Cumulative`
+------------
+.. autoclass:: Cumulative
     :members:
 
 `Mean Dice`
