@@ -140,6 +140,10 @@ class SaveImage(Transform):
     Save transformed data into files, support NIfTI and PNG formats.
     It can work for both numpy array and PyTorch Tensor in both pre-transform chain
     and post transform chain.
+    The name of saved file will be `{input_image_name}_{output_postfix}{output_ext}`,
+    where the input image name is extracted from the provided meta data dictionary.
+    If no meta data provided, use index from 0 as the filename prefix.
+
 
     Args:
         output_dir: output image directory.

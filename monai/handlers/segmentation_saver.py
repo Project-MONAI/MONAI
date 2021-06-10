@@ -28,6 +28,11 @@ else:
 class SegmentationSaver:
     """
     Event handler triggered on completing every iteration to save the segmentation predictions into files.
+    The name of saved file will be `{input_image_name}_{output_postfix}{output_ext}`,
+    where the input image name is extracted from the meta data dictionary, which is extracted
+    from `engine.state.batch` by the `batch_transform`. If no meta data provided, use index from 0
+    as the filename prefix.
+
     """
 
     def __init__(
