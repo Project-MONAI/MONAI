@@ -25,6 +25,11 @@ Metrics
 .. autoclass:: Cumulative
     :members:
 
+`CumulativeIterationMetric`
+---------------------------
+.. autoclass:: CumulativeIterationMetric
+    :members:
+
 `Mean Dice`
 -----------
 .. autofunction:: compute_meandice

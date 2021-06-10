@@ -196,20 +196,16 @@ class TestComputeMeanDice(unittest.TestCase):
         vals["y_pred"] = input_data.pop("y_pred")
         vals["y"] = input_data.pop("y")
         dice_metric = DiceMetric(**input_data, reduction="none")
-        result = dice_metric(**vals)
-        result = dice_metric.aggregate(result)
-        # test aggregate with stored memeber variables
-        dice_metric.sync()
-        result2 = dice_metric.aggregate()
+        dice_metric(**vals)
+        result = dice_metric.aggregate()
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
-        np.testing.assert_allclose(result2.cpu().numpy(), result.cpu().numpy(), atol=1e-4)
 
     @parameterized.expand([TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8])
     def test_nans_class(self, params, input_data, expected_value):
 
         dice_metric = DiceMetric(**params)
-        result = dice_metric(**input_data)
-        result, _ = dice_metric.aggregate(result)
+        dice_metric(**input_data)
+        result, _ = dice_metric.aggregate()
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
 
 

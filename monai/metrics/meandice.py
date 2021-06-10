@@ -10,17 +10,17 @@
 # limitations under the License.
 
 import warnings
-from typing import Optional, Union
+from typing import Union
 
 import torch
 
 from monai.metrics.utils import do_metric_reduction, ignore_background
 from monai.utils import MetricReduction
 
-from .metric import IterationMetric
+from .metric import CumulativeIterationMetric
 
 
-class DiceMetric(IterationMetric):
+class DiceMetric(CumulativeIterationMetric):
     """
     Compute average Dice loss between two tensors. It can support both multi-classes and multi-labels tasks.
     Input `y_pred` is compared with ground truth `y`.
@@ -48,12 +48,12 @@ class DiceMetric(IterationMetric):
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
         get_not_nans: bool = False,
     ) -> None:
-        super().__init__()
+        super().__init__(buffer_num=1)
         self.include_background = include_background
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def _compute(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
         """
         Args:
             y_pred: input data to compute, typical segmentation model output.
@@ -82,12 +82,13 @@ class DiceMetric(IterationMetric):
             include_background=self.include_background,
         )
 
-    def aggregate(self, data: Optional[torch.Tensor] = None):  # type: ignore
+    def aggregate(self):
         """
         Execute reduction logic for the output of `compute_meandice`.
 
         """
-        data = self._synced_scores if data is None else data
+        super().aggregate()
+        data = self.get_synced_tensors()
         if not isinstance(data, torch.Tensor):
             raise ValueError("the data to aggregate must be PyTorch Tensor.")
 

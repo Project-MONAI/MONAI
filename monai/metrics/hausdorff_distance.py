@@ -18,12 +18,12 @@ import torch
 from monai.metrics.utils import do_metric_reduction, get_mask_edges, get_surface_distance, ignore_background
 from monai.utils import MetricReduction
 
-from .metric import IterationMetric
+from .metric import CumulativeIterationMetric
 
 __all__ = ["HausdorffDistanceMetric", "compute_hausdorff_distance", "compute_percent_hausdorff_distance"]
 
 
-class HausdorffDistanceMetric(IterationMetric):
+class HausdorffDistanceMetric(CumulativeIterationMetric):
     """
     Compute Hausdorff Distance between two tensors. It can support both multi-classes and multi-labels tasks.
     It supports both directed and non-directed Hausdorff distance calculation. In addition, specify the `percentile`
@@ -58,7 +58,7 @@ class HausdorffDistanceMetric(IterationMetric):
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
         get_not_nans: bool = False,
     ) -> None:
-        super().__init__()
+        super().__init__(buffer_num=1)
         self.include_background = include_background
         self.distance_metric = distance_metric
         self.percentile = percentile
@@ -66,7 +66,7 @@ class HausdorffDistanceMetric(IterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def _compute(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
         """
         Args:
             y_pred: input data to compute, typical segmentation model output.
@@ -98,12 +98,13 @@ class HausdorffDistanceMetric(IterationMetric):
             directed=self.directed,
         )
 
-    def aggregate(self, data: Optional[torch.Tensor] = None):  # type: ignore
+    def aggregate(self):
         """
         Execute reduction logic for the output of `compute_hausdorff_distance`.
 
         """
-        data = self._synced_scores if data is None else data
+        super().aggregate()
+        data = self.get_synced_tensors()
         if not isinstance(data, torch.Tensor):
             raise ValueError("the data to aggregate must be PyTorch Tensor.")
 

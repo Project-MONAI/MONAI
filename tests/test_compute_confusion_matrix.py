@@ -235,7 +235,8 @@ class TestConfusionMatrix(unittest.TestCase):
         vals["y_pred"] = params.pop("y_pred")
         vals["y"] = params.pop("y")
         metric = ConfusionMatrixMetric(**params)
-        result, _ = metric.aggregate(metric(**vals))
+        metric(**vals)
+        result, _ = metric.aggregate()
         np.testing.assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
 
     @parameterized.expand(TEST_CASES_COMPUTE_SAMPLE_MULTI_METRICS)
@@ -245,7 +246,8 @@ class TestConfusionMatrix(unittest.TestCase):
         vals["y_pred"] = params.pop("y_pred")
         vals["y"] = params.pop("y")
         metric = ConfusionMatrixMetric(**params)
-        results = metric.aggregate(metric(**vals))
+        metric(**vals)
+        results = metric.aggregate()
         for idx in range(0, len(results), 2):
             result = results[idx]
             expected_value = expected_values[int(idx / 2)]
@@ -258,7 +260,8 @@ class TestConfusionMatrix(unittest.TestCase):
         vals["y_pred"] = params.pop("y_pred")
         vals["y"] = params.pop("y")
         metric = ConfusionMatrixMetric(**params)
-        result, not_nans = metric.aggregate(metric(**vals))
+        metric(**vals)
+        result, not_nans = metric.aggregate()
         np.testing.assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
         np.testing.assert_allclose(not_nans, expected_not_nans, atol=1e-4, rtol=1e-4)
 
@@ -271,7 +274,7 @@ class TestConfusionMatrix(unittest.TestCase):
         metric = ConfusionMatrixMetric(**params)
         result = metric(**vals)
         np.testing.assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
-        result, _ = metric.aggregate(result)
+        result, _ = metric.aggregate()
         expected_value, _ = do_metric_reduction(expected_value, "mean_channel")
         expected_value = compute_confusion_matrix_metric("tpr", expected_value)
         np.testing.assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)

@@ -12,17 +12,17 @@
 import math
 from abc import abstractmethod
 from functools import partial
-from typing import Any, Optional, Union
+from typing import Any, Union
 
 import torch
 
 from monai.metrics.utils import do_metric_reduction
 from monai.utils import MetricReduction
 
-from .metric import IterationMetric
+from .metric import CumulativeIterationMetric
 
 
-class RegressionMetric(IterationMetric):
+class RegressionMetric(CumulativeIterationMetric):
     """
     Base class for regression metrics.
     Input `y_pred` is compared with ground truth `y`.
@@ -42,12 +42,13 @@ class RegressionMetric(IterationMetric):
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
         get_not_nans: bool = False,
     ) -> None:
-        super().__init__()
+        super().__init__(buffer_num=1)
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def aggregate(self, data: Optional[torch.Tensor] = None):  # type: ignore
-        data = self._synced_scores if data is None else data
+    def aggregate(self):
+        super().aggregate()
+        data = self.get_synced_tensors()
         if not isinstance(data, torch.Tensor):
             raise ValueError("the data to aggregate must be PyTorch Tensor.")
 
@@ -68,7 +69,7 @@ class RegressionMetric(IterationMetric):
     def _compute_metric(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def _compute(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
         if not isinstance(y_pred, torch.Tensor) or not isinstance(y, torch.Tensor):
             raise ValueError("y_pred and y must be PyTorch Tensor.")
         self._check_shape(y_pred, y)

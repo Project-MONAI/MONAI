@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence
 
 import torch
 
-from monai.metrics import CumulativeMetric
+from monai.metrics import CumulativeIterationMetric
 from monai.utils import exact_version, optional_import
 
 idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
@@ -43,7 +43,7 @@ class IgniteMetric(Metric):  # type: ignore[valid-type, misc] # due to optional_
 
     def __init__(
         self,
-        metric_fn: CumulativeMetric,
+        metric_fn: CumulativeIterationMetric,
         output_transform: Callable = lambda x: x,
         save_details: bool = True,
     ) -> None:
@@ -82,20 +82,19 @@ class IgniteMetric(Metric):  # type: ignore[valid-type, misc] # due to optional_
             NotComputableError: When ``compute`` is called before an ``update`` occurs.
 
         """
-        details = self.metric_fn.sync()
+        result = self.metric_fn.aggregate()
+        if isinstance(result, (tuple, list)):
+            if len(result) > 1:
+                warnings.warn("metric handler can only record the first value of result list.")
+            result = result[0]
+
         self._is_reduced = True
 
         # save score of every image into engine.state for other components
         if self.save_details:
             if self._engine is None or self._name is None:
                 raise RuntimeError("please call the attach() function to connect expected engine first.")
-            self._engine.state.metric_details[self._name] = details
-
-        result = self.metric_fn.aggregate()
-        if isinstance(result, (tuple, list)):
-            if len(result) > 1:
-                warnings.warn("metric handler can only record the first value of result list.")
-            result = result[0]
+            self._engine.state.metric_details[self._name] = self.metric_fn.get_synced_tensors()
 
         return result.item() if isinstance(result, torch.Tensor) else result
 

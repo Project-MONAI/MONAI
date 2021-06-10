@@ -9,17 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Tuple, Union, cast
+from typing import Union, cast
 
 import numpy as np
 import torch
 
 from monai.utils import Average
 
-from .metric import EpochMetric
+from .metric import CumulativeIterationMetric
 
 
-class ROCAUCMetric(EpochMetric):
+class ROCAUCMetric(CumulativeIterationMetric):
     """
     Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC). Referring to:
     `sklearn.metrics.roc_auc_score <https://scikit-learn.org/stable/modules/generated/
@@ -42,33 +42,20 @@ class ROCAUCMetric(EpochMetric):
     """
 
     def __init__(self, average: Union[Average, str] = Average.MACRO) -> None:
-        super().__init__()
+        super().__init__(buffer_num=2)
         self.average = average
 
-    def _compute(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
         return y_pred, y
 
-    def aggregate(self, data: Optional[Tuple[torch.Tensor, torch.Tensor]] = None):  # type: ignore
+    def aggregate(self):
         """
         As AUC metric needs to execute on the overall data, so usually users accumulate `y_pred` and `y`
         of every iteration, then execute real computation and reduction on the accumulated data.
-        For example::
-
-            y_pred = []
-            y = []
-            metric = ROCAUCMetric(average=Average.MACRO)
-
-            for batch in dataloader:
-                image, label = batch
-                pred = model(image)
-                pred_, y_ = metric(pred, label)
-                y.append(y_)
-                y_pred.append(pred_)
-
-            result = metric.aggregate(torch.cat(y_pred, dim=0), torch.cat(y, dim=0))
 
         """
-        y_pred, y = (self._synced_y_pred, self._synced_y) if data is None else data
+        super().aggregate()
+        y_pred, y = self.get_synced_tensors()
         # compute final value and do metric reduction
         if not isinstance(y_pred, torch.Tensor) or not isinstance(y, torch.Tensor):
             raise ValueError("y_pred and y must be PyTorch Tensor.")

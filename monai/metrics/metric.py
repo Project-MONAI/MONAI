@@ -117,6 +117,7 @@ class Cumulative:
             usually every Tensor should map to a buffer.
 
     """
+
     def __init__(self, buffer_num: int = 1):
         self.buffer_num = buffer_num
         self.reset()
@@ -126,8 +127,8 @@ class Cumulative:
         Reset buffers to cumulate tensors and the synced results.
 
         """
-        self._buffers: List[List[torch.Tensor]] = [[] for _ in self.buffer_num]
-        self._synced_tensors: List[Optional[torch.Tensor]] = [None for _ in self.buffer_num]
+        self._buffers: List[List[torch.Tensor]] = [[] for _ in range(self.buffer_num)]
+        self._synced_tensors: List[Optional[torch.Tensor]] = [None for _ in range(self.buffer_num)]
 
     def add(self, *data: torch.Tensor):
         """
@@ -164,4 +165,35 @@ class Cumulative:
         For example, generate the metrics report based on the raw metric details.
 
         """
-        return self._synced_tensors
+        return self._synced_tensors[0] if len(self._synced_tensors) == 1 else self._synced_tensors
+
+
+class CumulativeIterationMetric(Cumulative, IterationMetric):
+    """
+    Base class of cumulative metric for batch data.
+    Typically, it computes some intermediate results for every iteration, cumulates in buffers,
+    then syncs across all the distributed ranks and aggregates for the final result when epoch completed.
+
+    """
+
+    def __call__(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):  # type: ignore
+        """
+        Execute basic computation for model prediction and ground truth.
+        It can support  both `list of channel-first Tensor` and `batch-first Tensor`.
+        And users can execute on every batch of data, then accumulate the results, or
+        accumulate the original `y_pred` and `y`, then execute on the accumulated data.
+
+        Args:
+            y_pred: the model prediction data to compute, must be a list of `channel-first` Tensor
+                or a `batch-first` Tensor.
+            y: the ground truth to compute, must be a list of `channel-first` Tensor
+                or a `batch-first` Tensor.
+
+        """
+        ret = super().__call__(y_pred=y_pred, y=y)
+        if isinstance(ret, (tuple, list)):
+            self.add(*ret)
+        else:
+            self.add(ret)
+
+        return ret

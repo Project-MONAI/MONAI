@@ -149,7 +149,8 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0):
                     val_images, val_labels = val_data["img"].to(device), val_data["seg"].to(device)
                     sw_batch_size, roi_size = 4, (96, 96, 96)
                     val_outputs = val_post_tran(sliding_window_inference(val_images, roi_size, sw_batch_size, model))
-                    value, not_nans = dice_metric.aggregate(dice_metric(y_pred=val_outputs, y=val_labels))
+                    dice_metric(y_pred=val_outputs, y=val_labels)
+                    value, not_nans = dice_metric.aggregate()
                     metric_count += not_nans.item()
                     metric_sum += value.item() * not_nans.item()
                 metric = metric_sum / metric_count
@@ -218,7 +219,8 @@ def run_inference_test(root_dir, device="cuda:0"):
             # define sliding window size and batch size for windows inference
             sw_batch_size, roi_size = 4, (96, 96, 96)
             val_outputs = val_post_tran(sliding_window_inference(val_images, roi_size, sw_batch_size, model))
-            value, not_nans = dice_metric.aggregate(dice_metric(y_pred=val_outputs, y=val_labels))
+            dice_metric(y_pred=val_outputs, y=val_labels)
+            value, not_nans = dice_metric.aggregate()
             metric_count += not_nans.item()
             metric_sum += value.item() * not_nans.item()
             saver.save_batch(val_outputs, val_data["img_meta_dict"])

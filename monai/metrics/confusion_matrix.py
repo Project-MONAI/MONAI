@@ -10,17 +10,17 @@
 # limitations under the License.
 
 import warnings
-from typing import Optional, Sequence, Union
+from typing import Sequence, Union
 
 import torch
 
 from monai.metrics.utils import do_metric_reduction, ignore_background
 from monai.utils import MetricReduction, ensure_tuple
 
-from .metric import IterationMetric
+from .metric import CumulativeIterationMetric
 
 
-class ConfusionMatrixMetric(IterationMetric):
+class ConfusionMatrixMetric(CumulativeIterationMetric):
     """
     Compute confusion matrix related metrics. This function supports to calculate all metrics mentioned in:
     `Confusion matrix <https://en.wikipedia.org/wiki/Confusion_matrix>`_.
@@ -61,14 +61,14 @@ class ConfusionMatrixMetric(IterationMetric):
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
         get_not_nans: bool = False,
     ) -> None:
-        super().__init__()
+        super().__init__(buffer_num=1)
         self.include_background = include_background
         self.metric_name = ensure_tuple(metric_name)
         self.compute_sample = compute_sample
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def _compute(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
         """
         Args:
             y_pred: input data to compute. It must be one-hot format and first dim is batch.
@@ -101,15 +101,13 @@ class ConfusionMatrixMetric(IterationMetric):
             include_background=self.include_background,
         )
 
-    def aggregate(self, data: Optional[torch.Tensor] = None):  # type: ignore
+    def aggregate(self):
         """
-        Execute reduction for the confusion matrix values, the `data` usually is a Tensor of shape [BC4],
-        Where, the third dimension represents the number of true positive, false positive, true negative
-        and false negative values for each channel of each sample within the input batch. Where, B equals
-        to the batch size and C equals to the number of classes that need to be computed.
+        Execute reduction for the confusion matrix values.
 
         """
-        data = self._synced_scores if data is None else data
+        super().aggregate()
+        data = self.get_synced_tensors()
         if not isinstance(data, torch.Tensor):
             raise ValueError("the data to aggregate must be PyTorch Tensor.")
 

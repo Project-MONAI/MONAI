@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Optional, Union
+from typing import Union
 
 import numpy as np
 import torch
@@ -18,10 +18,10 @@ import torch
 from monai.metrics.utils import do_metric_reduction, get_mask_edges, get_surface_distance, ignore_background
 from monai.utils import MetricReduction
 
-from .metric import IterationMetric
+from .metric import CumulativeIterationMetric
 
 
-class SurfaceDistanceMetric(IterationMetric):
+class SurfaceDistanceMetric(CumulativeIterationMetric):
     """
     Compute Surface Distance between two tensors. It can support both multi-classes and multi-labels tasks.
     It supports both symmetric and asymmetric surface distance calculation.
@@ -52,14 +52,14 @@ class SurfaceDistanceMetric(IterationMetric):
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
         get_not_nans: bool = False,
     ) -> None:
-        super().__init__()
+        super().__init__(buffer_num=1)
         self.include_background = include_background
         self.distance_metric = distance_metric
         self.symmetric = symmetric
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def _compute(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
         """
         Args:
             y_pred: input data to compute, typical segmentation model output.
@@ -90,12 +90,13 @@ class SurfaceDistanceMetric(IterationMetric):
             distance_metric=self.distance_metric,
         )
 
-    def aggregate(self, data: Optional[torch.Tensor] = None):  # type: ignore
+    def aggregate(self):
         """
         Execute reduction logic for the output of `compute_average_surface_distance`.
 
         """
-        data = self._synced_scores if data is None else data
+        super().aggregate()
+        data = self.get_synced_tensors()
         if not isinstance(data, torch.Tensor):
             raise ValueError("the data to aggregate must be PyTorch Tensor.")
 
