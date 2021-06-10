@@ -94,7 +94,7 @@ class IgniteMetric(Metric):  # type: ignore[valid-type, misc] # due to optional_
         if self.save_details:
             if self._engine is None or self._name is None:
                 raise RuntimeError("please call the attach() function to connect expected engine first.")
-            self._engine.state.metric_details[self._name] = self.metric_fn.get_synced_tensors()
+            self._engine.state.metric_details[self._name] = self.metric_fn.get_buffer()
 
         return result.item() if isinstance(result, torch.Tensor) else result
 

@@ -42,7 +42,7 @@ class ROCAUCMetric(CumulativeIterationMetric):
     """
 
     def __init__(self, average: Union[Average, str] = Average.MACRO) -> None:
-        super().__init__(buffer_num=2)
+        super().__init__()
         self.average = average
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
@@ -55,7 +55,7 @@ class ROCAUCMetric(CumulativeIterationMetric):
 
         """
         super().aggregate()
-        y_pred, y = self.get_synced_tensors()
+        y_pred, y = self.get_buffer()
         # compute final value and do metric reduction
         if not isinstance(y_pred, torch.Tensor) or not isinstance(y, torch.Tensor):
             raise ValueError("y_pred and y must be PyTorch Tensor.")

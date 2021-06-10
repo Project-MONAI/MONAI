@@ -42,13 +42,13 @@ class RegressionMetric(CumulativeIterationMetric):
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
         get_not_nans: bool = False,
     ) -> None:
-        super().__init__(buffer_num=1)
+        super().__init__()
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
     def aggregate(self):
         super().aggregate()
-        data = self.get_synced_tensors()
+        data = self.get_buffer()
         if not isinstance(data, torch.Tensor):
             raise ValueError("the data to aggregate must be PyTorch Tensor.")
 

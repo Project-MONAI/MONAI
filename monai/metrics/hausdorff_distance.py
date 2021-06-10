@@ -58,7 +58,7 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
         get_not_nans: bool = False,
     ) -> None:
-        super().__init__(buffer_num=1)
+        super().__init__()
         self.include_background = include_background
         self.distance_metric = distance_metric
         self.percentile = percentile
@@ -104,7 +104,7 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
 
         """
         super().aggregate()
-        data = self.get_synced_tensors()
+        data = self.get_buffer()
         if not isinstance(data, torch.Tensor):
             raise ValueError("the data to aggregate must be PyTorch Tensor.")
 

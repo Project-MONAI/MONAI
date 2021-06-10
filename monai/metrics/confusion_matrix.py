@@ -61,7 +61,7 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
         get_not_nans: bool = False,
     ) -> None:
-        super().__init__(buffer_num=1)
+        super().__init__()
         self.include_background = include_background
         self.metric_name = ensure_tuple(metric_name)
         self.compute_sample = compute_sample
@@ -107,7 +107,7 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
 
         """
         super().aggregate()
-        data = self.get_synced_tensors()
+        data = self.get_buffer()
         if not isinstance(data, torch.Tensor):
             raise ValueError("the data to aggregate must be PyTorch Tensor.")
 
