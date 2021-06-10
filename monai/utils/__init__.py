@@ -12,6 +12,7 @@
 # have to explicitly bring these in here to resolve circular import issues
 from .aliases import alias, resolve_name
 from .decorators import MethodReplacer, RestartGenerator
+from .deprecated import DeprecatedError, deprecated, deprecated_arg
 from .enums import (
     Activation,
     Average,
