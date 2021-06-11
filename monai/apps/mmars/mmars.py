@@ -69,7 +69,12 @@ def download_mmar(item, mmar_dir=None, progress: bool = True):
     if not isinstance(item, Mapping):
         item = _get_model_spec(item)
     if not mmar_dir:
-        mmar_dir = os.path.join(torch.hub.get_dir(), "mmars")
+        get_dir, has_home = optional_import("torch.hub", name="get_dir")
+        if has_home:
+            mmar_dir = os.path.join(get_dir(), "mmars")
+        else:
+            raise ValueError("mmar_dir=None, but no suitable default directory computed. Upgrade Pytorch to 1.6+ ?")
+
     model_dir = os.path.join(mmar_dir, item[Keys.ID])
     download_and_extract(
         url=item[Keys.URL],

@@ -13,9 +13,8 @@ from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence, Union
 
 import torch
 
-from monai.handlers.utils import evenly_divisible_all_gather
 from monai.metrics import do_metric_reduction
-from monai.utils import MetricReduction, exact_version, optional_import
+from monai.utils import MetricReduction, evenly_divisible_all_gather, exact_version, optional_import
 
 idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
 Metric, _ = optional_import("ignite.metrics", "0.4.4", exact_version, "Metric")
@@ -104,7 +103,7 @@ class IterationMetric(Metric):  # type: ignore[valid-type, misc] # due to option
         ws = idist.get_world_size()
         if ws > 1 and not self._is_reduced:
             # all gather across all processes
-            _scores = evenly_divisible_all_gather(data=_scores)
+            _scores = evenly_divisible_all_gather(data=_scores, concat=True)
         self._is_reduced = True
 
         # save score of every image into engine.state for other components
