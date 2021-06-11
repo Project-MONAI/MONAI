@@ -18,8 +18,8 @@ import numpy as np
 import torch
 from ignite.engine import Engine
 
-from monai.data.csv_saver import CSVSaver
 from monai.data import decollate_batch
+from monai.data.csv_saver import CSVSaver
 from monai.handlers import ClassificationSaver
 
 

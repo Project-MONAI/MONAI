@@ -16,7 +16,7 @@ import numpy as np
 import torch
 from ignite.engine import Engine
 
-from monai.data import CacheDataset, decollate_batch, DataLoader, create_test_image_3d
+from monai.data import CacheDataset, DataLoader, create_test_image_3d, decollate_batch
 from monai.engines.utils import IterationEvents
 from monai.handlers import TransformInverter
 from monai.transforms import (

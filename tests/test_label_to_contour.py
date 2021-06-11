@@ -168,7 +168,10 @@ class TestContour(unittest.TestCase):
                 np.testing.assert_allclose(test_result_np[channel, ...], expected_output)
 
         # check invalid input data
-        error_input = torch.rand(1, 2, )
+        error_input = torch.rand(
+            1,
+            2,
+        )
         self.assertRaises(ValueError, LabelToContour(**input_param), error_input)
         error_input = torch.rand(1, 2, 3, 4, 5)
         self.assertRaises(ValueError, LabelToContour(**input_param), error_input)
