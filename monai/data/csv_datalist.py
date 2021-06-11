@@ -13,6 +13,7 @@ from functools import reduce
 from typing import Dict, List, Optional, Sequence, Union
 
 from monai.utils import ensure_tuple, optional_import
+
 pd, _ = optional_import("pandas")
 
 
@@ -23,9 +24,7 @@ def load_csv_datalist(
     col_groups: Optional[Dict[str, Sequence[str]]] = None,
     **kwargs,
 ) -> List[Dict]:
-    """Load data list from CSV files.
-
-    """
+    """Load data list from CSV files."""
     files = ensure_tuple(filename)
     # join tables with additional kwargs
     dfs = [pd.read_csv(f) for f in files]

@@ -12,6 +12,7 @@
 import os
 import tempfile
 import unittest
+
 import numpy as np
 
 from monai.data import load_csv_datalist
@@ -123,7 +124,7 @@ class TestLoadCSVDatalist(unittest.TestCase):
             )
             np.testing.assert_allclose(
                 [round(i, 4) for i in result[-1]["ehr"]],
-                [3.3333, 3.2353, 3.4000, 3.1647, 3.0863, 3.7255, 3.6980, 3.6980, 3.7020, 3.3098, 3.7294]
+                [3.3333, 3.2353, 3.4000, 3.1647, 3.0863, 3.7255, 3.6980, 3.6980, 3.7020, 3.3098, 3.7294],
             )
             np.testing.assert_allclose(result[-1]["meta12"], [False, True])
 
