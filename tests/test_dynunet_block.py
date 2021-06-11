@@ -22,7 +22,7 @@ TEST_CASE_RES_BASIC_BLOCK = []
 for spatial_dims in range(2, 4):
     for kernel_size in [1, 3]:
         for stride in [1, 2]:
-            for norm_name in ["group", "batch", "instance"]:
+            for norm_name in [("GROUP", {"num_groups": 16}), ("batch", {"track_running_stats": False}), "instance"]:
                 for in_size in [15, 16]:
                     padding = get_padding(kernel_size, stride)
                     if not isinstance(padding, int):
@@ -76,7 +76,7 @@ class TestResBasicBlock(unittest.TestCase):
                 self.assertEqual(result.shape, expected_shape)
 
     def test_ill_arg(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(KeyError):
             UnetBasicBlock(3, 4, 2, kernel_size=3, stride=1, norm_name="norm")
         with self.assertRaises(AssertionError):
             UnetResBlock(3, 4, 2, kernel_size=1, stride=4, norm_name="batch")

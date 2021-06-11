@@ -98,7 +98,7 @@ class TestAutoEncoder(unittest.TestCase):
 
     def test_channel_stride_difference(self):
         with self.assertRaises(ValueError):
-            net = AutoEncoder(**TEST_CASE_FAIL)
+            AutoEncoder(**TEST_CASE_FAIL)
 
 
 if __name__ == "__main__":
