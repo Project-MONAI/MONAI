@@ -200,7 +200,7 @@ def plot_engine_status(
 
                         for i, im in enumerate(images):
                             imagemap[f"{k}_{i}"] = im
-            else:
+            elif isinstance(src, torch.Tensor):
                 label = "Batch" if src is engine.state.batch else "Output"
                 images = image_fn(label, src)
 
