@@ -105,9 +105,15 @@ class Cumulative:
     """
     Utility class for the typical cumulative computation process based on PyTorch Tensors.
     It cumulates tensors in the buffer, then sync across distributed ranks and aggregate.
+
+    To speed up computation with multi-processing, PyTorch programs usually split data to distributed ranks
+    by `DistributedSampler` before an epoch, every rank then computes only based on its own data part and
+    `add` to the buffers in its process. Eventually, sync the values of all ranks to compute the final results.
+
     Note: the data list should have the same length every time calling `add()` in a round,
     it will automatically create buffers according to the length of data list.
-    Execute the steps referring to below examples::
+
+    Typically, this class is expected to execute the steps referring to below examples::
 
         cum = Cumulative()
         cum.add(x, y)
