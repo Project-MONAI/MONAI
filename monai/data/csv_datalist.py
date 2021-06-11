@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, Sequence, Union
-from monai.utils import optional_import
+from functools import reduce
+from typing import Dict, List, Optional, Sequence, Union
+from monai.utils import ensure_tuple, optional_import
 pd, _ = optional_import("pandas")
 
 
@@ -24,4 +25,31 @@ def load_csv_datalist(
     """Load data list from CSV files.
 
     """
-    pass
+    files = ensure_tuple(filename)
+    # join tables with additional kwargs
+    dfs = [pd.read_csv(f) for f in files]
+    df = reduce(lambda l, r: pd.merge(l, r, **kwargs), dfs)
+
+    # parse row indices
+    rows: List[int]
+    if row_indices is None:
+        rows = list(range(df.shape[0]))
+    else:
+        for i in row_indices:
+            if isinstance(i, (tuple, list)):
+                if len(i) != 2:
+                    raise ValueError("range of row indices must contain 2 values: start and end.")
+                rows.extend(list(range(i[0], i[1])))
+            else:
+                rows.append(i)
+
+    data = df.loc(rows) if col_names is None else df.loc(rows, col_names)
+
+    # group columns to generate new column
+    if col_groups is not None:
+        for name, cols in col_names.items():
+            data[name] = df.loc(rows, cols).values
+
+    # convert to a list of dictionaries
+    length = len(data[data.keys()[0]])
+    return [{data[k][i] for k in data.keys()} for i in length]
