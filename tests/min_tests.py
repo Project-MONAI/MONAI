@@ -125,6 +125,7 @@ def run_testsuit():
         "test_invertd",
         "test_handler_post_processing",
         "test_write_metrics_reports",
+        "test_load_csv_datalist",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 

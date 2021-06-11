@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from collections import OrderedDict
 from functools import reduce
 from typing import Dict, List, Optional, Sequence, Union
 from monai.utils import ensure_tuple, optional_import
@@ -43,7 +44,7 @@ def load_csv_datalist(
             else:
                 rows.append(i)
 
-    data = df.loc(rows) if col_names is None else df.loc(rows, col_names)
+    data: List[OrderedDict] = OrderedDict(df.loc[rows] if col_names is None else df.loc[rows, col_names])
 
     # group columns to generate new column
     if col_groups is not None:
@@ -51,5 +52,5 @@ def load_csv_datalist(
             data[name] = df.loc(rows, cols).values
 
     # convert to a list of dictionaries
-    length = len(data[data.keys()[0]])
-    return [{data[k][i] for k in data.keys()} for i in length]
+    length = len(data[list(data.keys())[0]])
+    return [OrderedDict({k: data[k][i] for k in data.keys()}) for i in range(length)]
