@@ -30,6 +30,9 @@ class SegmentationSaver:
     Event handler triggered on completing every iteration to save the segmentation predictions into files.
     It can extract the input image meta data(filename, affine, original_shape, etc.) and resample the predictions
     based on the meta data.
+    The name of saved file will be `{input_image_name}_{output_postfix}{output_ext}`,
+    where the input image name is extracted from the meta data dictionary. If no meta data provided,
+    use index from 0 as the filename prefix.
     The predictions can be PyTorch Tensor with [B, C, H, W, [D]] shape or a list of Tensor without batch dim.
 
     """

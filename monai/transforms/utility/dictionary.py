@@ -252,6 +252,7 @@ class EnsureChannelFirstd(MapTransform):
         keys: KeysCollection,
         meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
+        strict_check: bool = True,
     ) -> None:
         """
         Args:
@@ -265,10 +266,11 @@ class EnsureChannelFirstd(MapTransform):
             meta_key_postfix: if meta_keys is None and `key_{postfix}` was used to store the metadata in `LoadImaged`.
                 So need the key to extract metadata for channel dim information, default is `meta_dict`.
                 For example, for data with key `image`, metadata by default is in `image_meta_dict`.
+            strict_check: whether to raise an error when the meta information is insufficient.
 
         """
         super().__init__(keys)
-        self.adjuster = EnsureChannelFirst()
+        self.adjuster = EnsureChannelFirst(strict_check=strict_check)
         self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
