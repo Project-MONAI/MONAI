@@ -101,7 +101,7 @@ class IterationMetric(Metric):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
-class Cumulative:
+class Cumulative(ABC):
     """
     Utility class for the typical cumulative computation process based on PyTorch Tensors.
     It cumulates tensors in the buffer, then sync across distributed ranks and aggregate.
@@ -163,13 +163,13 @@ class Cumulative:
             self._buffers[i].append(d)
         self._synced = False
 
-    def aggregate(self):
+    @abstractmethod
+    def aggregate(self, *args: Any, **kwds: Any):
         """
-        Sync the buffers across distributed ranks and aggregate final results based on the buffers.
-        This base class only syncs the data, subclasses should implement more logic.
+        Aggregate final results based on the buffers.
 
         """
-        self._sync()
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     def _sync(self):
         """

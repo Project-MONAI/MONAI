@@ -48,13 +48,12 @@ class ROCAUCMetric(CumulativeIterationMetric):
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
         return y_pred, y
 
-    def aggregate(self):
+    def aggregate(self):  # type: ignore
         """
         As AUC metric needs to execute on the overall data, so usually users accumulate `y_pred` and `y`
         of every iteration, then execute real computation and reduction on the accumulated data.
 
         """
-        super().aggregate()
         y_pred, y = self.get_buffer()
         # compute final value and do metric reduction
         if not isinstance(y_pred, torch.Tensor) or not isinstance(y, torch.Tensor):

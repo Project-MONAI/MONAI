@@ -90,12 +90,11 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
             distance_metric=self.distance_metric,
         )
 
-    def aggregate(self):
+    def aggregate(self):  # type: ignore
         """
         Execute reduction logic for the output of `compute_average_surface_distance`.
 
         """
-        super().aggregate()
         data = self.get_buffer()
         if not isinstance(data, torch.Tensor):
             raise ValueError("the data to aggregate must be PyTorch Tensor.")

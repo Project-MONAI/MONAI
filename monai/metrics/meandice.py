@@ -82,12 +82,11 @@ class DiceMetric(CumulativeIterationMetric):
             include_background=self.include_background,
         )
 
-    def aggregate(self):
+    def aggregate(self):  # type: ignore
         """
         Execute reduction logic for the output of `compute_meandice`.
 
         """
-        super().aggregate()
         data = self.get_buffer()
         if not isinstance(data, torch.Tensor):
             raise ValueError("the data to aggregate must be PyTorch Tensor.")
