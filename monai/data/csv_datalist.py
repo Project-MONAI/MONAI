@@ -24,7 +24,35 @@ def load_csv_datalist(
     col_groups: Optional[Dict[str, Sequence[str]]] = None,
     **kwargs,
 ) -> List[Dict]:
-    """Load data list from CSV files."""
+    """
+    Utility to load data from CSV files and return a list of dictionaries,
+    every dictionay maps to a row of the CSV file, and the keys of dictionary
+    map to the column names of the CSV file.
+
+    It can load multiple CSV files and join the tables with addtional `kwargs`.
+    To support very big CSV files, it can load specific rows and columns. And it
+    can also group several loaded columns to generate a new column, for example,
+    set `col_groups={"meta": ["meta_0", "meta_1", "meta_2"]}`, output can be::
+
+        [
+            {"image": "./image0.nii", "meta_0": 11, "meta_1": 12, "meta_2": 13, "meta": [11, 12, 13]},
+            {"image": "./image1.nii", "meta_0": 21, "meta_1": 22, "meta_2": 23, "meta": [21, 22, 23]},
+        ]
+
+    Args:
+        filename: the filename of expected CSV file to load. if providing a list
+            of filenames, it will load all the files and join tables.
+        row_indices: indices of the expected rows to load. it should be a list,
+            every item can be a int number or a range `[start, end)` for the indices.
+            for example: `row_indices=[[0, 100], 200, 201, 202, 300]`. if None,
+            load all the rows.
+        col_names: names of the expected columns to load. if None, load all the columns.
+        col_groups: args to group the loaded columns to generate a new column,
+            it should be a dictionary, every item maps to a group, the `key` will
+            be the new column name, the `value` is the names of columns to combine.
+        kwargs: additional arguments for `pandas.merge()` API to join tables.
+
+    """
     files = ensure_tuple(filename)
     # join tables with additional kwargs
     dfs = [pd.read_csv(f) for f in files]
