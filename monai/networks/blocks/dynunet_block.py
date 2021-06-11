@@ -9,14 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 import torch.nn as nn
 
 from monai.networks.blocks.convolutions import Convolution
-from monai.networks.layers.factories import Act, Norm, split_args
+from monai.networks.layers.factories import Act, Norm
+from monai.networks.layers.utils import get_act_layer, get_norm_layer
 
 
 class UnetResBlock(nn.Module):
@@ -31,9 +32,8 @@ class UnetResBlock(nn.Module):
         out_channels: number of output channels.
         kernel_size: convolution kernel size.
         stride: convolution stride.
-        norm_name: [``"batch"``, ``"instance"``, ``"group"``]
-            feature normalization type and arguments. In this module, if using ``"group"``,
-            `in_channels` should be divisible by 16 (default value for ``num_groups``).
+        norm_name: feature normalization type and arguments.
+
     """
 
     def __init__(
@@ -43,7 +43,7 @@ class UnetResBlock(nn.Module):
         out_channels: int,
         kernel_size: Union[Sequence[int], int],
         stride: Union[Sequence[int], int],
-        norm_name: str,
+        norm_name: Union[Tuple, str],
     ):
         super(UnetResBlock, self).__init__()
         self.conv1 = get_conv_layer(
@@ -70,10 +70,10 @@ class UnetResBlock(nn.Module):
             stride=stride,
             conv_only=True,
         )
-        self.lrelu = get_acti_layer(("leakyrelu", {"inplace": True, "negative_slope": 0.01}))
-        self.norm1 = get_norm_layer(spatial_dims, out_channels, norm_name)
-        self.norm2 = get_norm_layer(spatial_dims, out_channels, norm_name)
-        self.norm3 = get_norm_layer(spatial_dims, out_channels, norm_name)
+        self.lrelu = get_act_layer(("leakyrelu", {"inplace": True, "negative_slope": 0.01}))
+        self.norm1 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
+        self.norm2 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
+        self.norm3 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
         self.downsample = in_channels != out_channels
         stride_np = np.atleast_1d(stride)
         if not np.all(stride_np == 1):
@@ -106,9 +106,8 @@ class UnetBasicBlock(nn.Module):
         out_channels: number of output channels.
         kernel_size: convolution kernel size.
         stride: convolution stride.
-        norm_name: [``"batch"``, ``"instance"``, ``"group"``]
-            feature normalization type and arguments. In this module, if using ``"group"``,
-            `in_channels` should be divisible by 16 (default value for ``num_groups``).
+        norm_name: feature normalization type and arguments.
+
     """
 
     def __init__(
@@ -118,7 +117,7 @@ class UnetBasicBlock(nn.Module):
         out_channels: int,
         kernel_size: Union[Sequence[int], int],
         stride: Union[Sequence[int], int],
-        norm_name: str,
+        norm_name: Union[Tuple, str],
     ):
         super(UnetBasicBlock, self).__init__()
         self.conv1 = get_conv_layer(
@@ -137,9 +136,9 @@ class UnetBasicBlock(nn.Module):
             stride=1,
             conv_only=True,
         )
-        self.lrelu = get_acti_layer(("leakyrelu", {"inplace": True, "negative_slope": 0.01}))
-        self.norm1 = get_norm_layer(spatial_dims, out_channels, norm_name)
-        self.norm2 = get_norm_layer(spatial_dims, out_channels, norm_name)
+        self.lrelu = get_act_layer(("leakyrelu", {"inplace": True, "negative_slope": 0.01}))
+        self.norm1 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
+        self.norm2 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
 
     def forward(self, inp):
         out = self.conv1(inp)
@@ -164,9 +163,8 @@ class UnetUpBlock(nn.Module):
         kernel_size: convolution kernel size.
         stride: convolution stride.
         upsample_kernel_size: convolution kernel size for transposed convolution layers.
-        norm_name: [``"batch"``, ``"instance"``, ``"group"``]
-            feature normalization type and arguments. In this module, if using ``"group"``,
-            `in_channels` should be divisible by 16 (default value for ``num_groups``).
+        norm_name: feature normalization type and arguments.
+
     """
 
     def __init__(
@@ -177,7 +175,7 @@ class UnetUpBlock(nn.Module):
         kernel_size: Union[Sequence[int], int],
         stride: Union[Sequence[int], int],
         upsample_kernel_size: Union[Sequence[int], int],
-        norm_name: str,
+        norm_name: Union[Tuple, str],
     ):
         super(UnetUpBlock, self).__init__()
         upsample_stride = upsample_kernel_size
@@ -217,24 +215,6 @@ class UnetOutBlock(nn.Module):
     def forward(self, inp):
         out = self.conv(inp)
         return out
-
-
-def get_acti_layer(act: Union[Tuple[str, Dict], str]):
-    act_name, act_args = split_args(act)
-    act_type = Act[act_name]
-    return act_type(**act_args)
-
-
-def get_norm_layer(spatial_dims: int, out_channels: int, norm_name: str, num_groups: int = 16):
-    if norm_name not in ["batch", "instance", "group"]:
-        raise ValueError(f"Unsupported normalization mode: {norm_name}")
-    if norm_name == "group":
-        if out_channels % num_groups != 0:
-            raise AssertionError("out_channels should be divisible by num_groups.")
-        norm = Norm[norm_name](num_groups=num_groups, num_channels=out_channels, affine=True)
-    else:
-        norm = Norm[norm_name, spatial_dims](out_channels, affine=True)
-    return norm
 
 
 def get_conv_layer(
