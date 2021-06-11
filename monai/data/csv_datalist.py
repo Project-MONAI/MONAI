@@ -9,9 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from collections import OrderedDict
 from functools import reduce
 from typing import Dict, List, Optional, Sequence, Union
+
 from monai.utils import ensure_tuple, optional_import
 pd, _ = optional_import("pandas")
 
@@ -32,7 +32,7 @@ def load_csv_datalist(
     df = reduce(lambda l, r: pd.merge(l, r, **kwargs), dfs)
 
     # parse row indices
-    rows: List[int]
+    rows: List[int] = []
     if row_indices is None:
         rows = list(range(df.shape[0]))
     else:
@@ -44,13 +44,15 @@ def load_csv_datalist(
             else:
                 rows.append(i)
 
-    data: List[OrderedDict] = OrderedDict(df.loc[rows] if col_names is None else df.loc[rows, col_names])
+    # convert to a list of dictionaries corresponding to every row
+    data = (df.loc[rows] if col_names is None else df.loc[rows, col_names]).to_dict(orient="records")
 
     # group columns to generate new column
     if col_groups is not None:
-        for name, cols in col_names.items():
-            data[name] = df.loc(rows, cols).values
+        groups: Dict[List] = {}
+        for name, cols in col_groups.items():
+            groups[name] = df.loc[rows, cols].values
+        # invert items of groups to every row of data
+        data = [dict(d, **{k: v[i] for k, v in groups.items()}) for i, d in enumerate(data)]
 
-    # convert to a list of dictionaries
-    length = len(data[list(data.keys())[0]])
-    return [OrderedDict({k: data[k][i] for k in data.keys()}) for i in range(length)]
+    return data

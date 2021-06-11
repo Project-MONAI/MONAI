@@ -9,10 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from collections import OrderedDict
 import os
 import tempfile
 import unittest
+import numpy as np
 
 from monai.data import load_csv_datalist
 
@@ -29,7 +29,20 @@ class TestLoadCSVDatalist(unittest.TestCase):
                 ["s000004", 9, "./imgs/s000004.png", 6.427451134, 6.254901886, 5.976470947],
             ]
             test_data2 = [
-
+                ["subject_id", "ehr_3", "ehr_4", "ehr_5", "ehr_6", "ehr_7", "ehr_8"],
+                ["s000000", 3.019608021, 3.807843208, 3.584313869, 3.141176462, 3.1960783, 4.211764812],
+                ["s000001", 5.192157269, 5.274509907, 5.250980377, 4.647058964, 4.886274338, 4.392156601],
+                ["s000002", 5.298039436, 9.545097351, 12.57254887, 6.799999714, 2.1960783, 1.882352948],
+                ["s000003", 3.164705753, 3.086274624, 3.725490093, 3.698039293, 3.698039055, 3.701960802],
+                ["s000004", 6.26274538, 7.717647076, 9.584313393, 6.082352638, 2.662744999, 2.34117651],
+            ]
+            test_data3 = [
+                ["subject_id", "ehr_9", "ehr_10", "meta_0", "meta_1", "meta_2"],
+                ["s000000", 6.301961422, 6.470588684, "TRUE", "TRUE", "TRUE"],
+                ["s000001", 5.219608307, 7.827450752, "FALSE", "TRUE", "FALSE"],
+                ["s000002", 1.882352948, 2.031372547, "TRUE", "FALSE", "TRUE"],
+                ["s000003", 3.309803963, 3.729412079, "FALSE", "FALSE", "TRUE"],
+                ["s000004", 2.062745094, 2.34117651, "FALSE", "TRUE", "TRUE"],
             ]
 
             def prepare_csv_file(data, filepath):
@@ -38,9 +51,13 @@ class TestLoadCSVDatalist(unittest.TestCase):
                         f.write((",".join([str(i) for i in d])) + "\n")
 
             filepath1 = os.path.join(tempdir, "test_data1.csv")
+            filepath2 = os.path.join(tempdir, "test_data2.csv")
+            filepath3 = os.path.join(tempdir, "test_data3.csv")
             prepare_csv_file(test_data1, filepath1)
+            prepare_csv_file(test_data2, filepath2)
+            prepare_csv_file(test_data3, filepath3)
 
-            # load single CSV file
+            # test loading single CSV file
             result = load_csv_datalist(filepath1)
             self.assertDictEqual(
                 {k: round(v, 4) if not isinstance(v, str) else v for k, v in result[2].items()},
@@ -53,6 +70,63 @@ class TestLoadCSVDatalist(unittest.TestCase):
                     "ehr_2": 4.6353,
                 },
             )
+
+            # test loading multiple CSV files, join tables with kwargs
+            result = result = load_csv_datalist([filepath1, filepath2, filepath3], on="subject_id")
+            self.assertDictEqual(
+                {k: round(v, 4) if not isinstance(v, (str, np.bool_)) else v for k, v in result[3].items()},
+                {
+                    "subject_id": "s000003",
+                    "label": 1,
+                    "image": "./imgs/s000003.png",
+                    "ehr_0": 3.3333,
+                    "ehr_1": 3.2353,
+                    "ehr_2": 3.4000,
+                    "ehr_3": 3.1647,
+                    "ehr_4": 3.0863,
+                    "ehr_5": 3.7255,
+                    "ehr_6": 3.6980,
+                    "ehr_7": 3.6980,
+                    "ehr_8": 3.7020,
+                    "ehr_9": 3.3098,
+                    "ehr_10": 3.7294,
+                    "meta_0": False,
+                    "meta_1": False,
+                    "meta_2": True,
+                },
+            )
+
+            # test loading selected rows and columns
+            result = result = load_csv_datalist(
+                filename=[filepath1, filepath2, filepath3],
+                row_indices=[[0, 2], 3],  # load row: 0, 1, 3
+                col_names=["subject_id", "image", "ehr_1", "ehr_7", "meta_1"],
+            )
+            self.assertEqual(len(result), 3)
+            self.assertDictEqual(
+                {k: round(v, 4) if not isinstance(v, (str, np.bool_)) else v for k, v in result[-1].items()},
+                {
+                    "subject_id": "s000003",
+                    "image": "./imgs/s000003.png",
+                    "ehr_1": 3.2353,
+                    "ehr_7": 3.6980,
+                    "meta_1": False,
+                },
+            )
+
+            # test group columns
+            result = result = load_csv_datalist(
+                filename=[filepath1, filepath2, filepath3],
+                row_indices=[1, 3],  # load row: 1, 3
+                col_names=["subject_id", "image", *[f"ehr_{i}" for i in range(11)], "meta_0", "meta_1", "meta_2"],
+                col_groups={"ehr": [f"ehr_{i}" for i in range(11)], "meta12": ["meta_1", "meta_2"]},
+            )
+            np.testing.assert_allclose(
+                [round(i, 4) for i in result[-1]["ehr"]],
+                [3.3333, 3.2353, 3.4000, 3.1647, 3.0863, 3.7255, 3.6980, 3.6980, 3.7020, 3.3098, 3.7294]
+            )
+            np.testing.assert_allclose(result[-1]["meta12"], [False, True])
+
 
 if __name__ == "__main__":
     unittest.main()
