@@ -794,6 +794,18 @@ Instensity (Dict)
     :members:
     :special-members: __call__
 
+`KSpaceSpikeNoised`
+""""""""""""""""""""""
+.. autoclass:: KSpaceSpikeNoised
+    :members:
+    :special-members: __call__
+
+`RandKSpaceSpikeNoised`
+"""""""""""""""""""""""""
+.. autoclass:: RandKSpaceSpikeNoised
+    :members:
+    :special-members: __call__
+
 `ScaleIntensityRangePercentilesd`
 """""""""""""""""""""""""""""""""
 .. autoclass:: ScaleIntensityRangePercentilesd

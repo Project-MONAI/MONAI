@@ -59,6 +59,8 @@ __all__ = [
     "RandHistogramShift",
     "GibbsNoise",
     "RandGibbsNoise",
+    "KSpaceSpikeNoise",
+    "RandKSpaceSpikeNoise",
 ]
 
 
@@ -1310,22 +1312,26 @@ class KSpaceSpikeNoise(Transform):
     perspective <https://doi.org/10.1002/jmri.24288>`_.
 
     Args:
-        loc (Tuple, Sequence(Tuple)): spatial location for the spikes. For
+        loc: spatial location for the spikes. For
             images with 3D spatial dimensions, the user can provide (C, X, Y, Z)
             to fix which channel C is affected, or (X, Y, Z) to place the same
             spike in all channels. For 2D cases, the user can provide (C, X, Y)
             or (X, Y).
-        k_itensity (float, Sequence(float)): value for the log-intensity of the
-            `k`-space version of the image. This value should be tested. The
-            default values are the 2.5 the mean of the log intensity for each
-            channel.
-        as_tensor_output (bool): if ``True`` return torch.Tensor, else return np.array.
+        k_intensity: value for the log-intensity of the
+            `k`-space version of the image. If one location is passed to ``loc`` or the
+                channel is not specified, then this argument should receive a float. If
+                ``loc`` is given a sequence of locations, then this argument should
+                receive a sequence of intensities. This value should be tested as it is
+                data-dependent. The default values are the 2.5 the mean of the
+                log-intensity for each channel.
+        as_tensor_output: if ``True`` return torch.Tensor, else return np.array.
             Default: ``True``.
 
     Example:
         When working with 4D data, ``KSpaceSpikeNoise(loc = ((3,60,64,32), (64,60,32)), k_intensity = (13,14))``
         will place a spike at `[3, 60, 64, 32]` with `log-intensity = 13`, and
-        four spikes located at `[: , 64, 60, 32]` with `log-intensity = 14`.
+        one spike per channel located respectively at `[: , 64, 60, 32]`
+        with `log-intensity = 14`.
     """
 
     def __init__(
@@ -1357,7 +1363,8 @@ class KSpaceSpikeNoise(Transform):
             img (np.array or torch.tensor): image with dimensions (C, H, W) or (C, H, W, D)
         """
 
-        n_dims = len(img.shape[1:])
+        # checking that tuples in loc are consistent with img size
+        self._check_indices(img)
 
         if len(img.shape) < 3:
             raise AssertionError("Image needs a channel direction.")
@@ -1365,6 +1372,8 @@ class KSpaceSpikeNoise(Transform):
             raise AssertionError("Input images of dimension 4 need location tuple to be length 3 or 4")
         if isinstance(self.loc[0], Sequence) and len(img.shape) == 4 and min(map(lambda x: len(x), self.loc)) == 2:
             raise AssertionError("Input images of dimension 4 need location tuple to be length 3 or 4")
+
+        n_dims = len(img.shape[1:])
 
         # convert to ndarray to work with np.fft
         if isinstance(img, torch.Tensor):
@@ -1375,7 +1384,7 @@ class KSpaceSpikeNoise(Transform):
 
         # FT
         k = self._shift_fourier(img, n_dims)
-        log_abs = np.log(np.absolute(k))
+        log_abs = np.log(np.absolute(k) + 1e-10)
         phase = np.angle(k)
 
         k_intensity = self.k_intensity
@@ -1393,6 +1402,24 @@ class KSpaceSpikeNoise(Transform):
         k = np.exp(log_abs) * np.exp(1j * phase)
         img = self._inv_shift_fourier(k, n_dims)
         return torch.Tensor(img, device=device) if self.as_tensor_output else img
+
+    def _check_indices(self, img) -> None:
+        """Helper method to check consistency of self.loc and input image.
+
+        Raises assertion error if any index in loc is out of bounds."""
+
+        loc = list(self.loc)
+        if not isinstance(loc[0], Sequence):
+            loc = [loc]
+        for i in range(len(loc)):
+            if len(loc[i]) < len(img.shape):
+                loc[i] = [0] + list(loc[i])
+
+        for i in range(len(img.shape)):
+            if img.shape[i] <= max(map(lambda x: x[i], loc)):
+                raise AssertionError(
+                    f"The index value at position {i} of one of the tuples in loc = {self.loc} is out of bounds for current image."
+                )
 
     def _set_spike(self, k: np.array, idx: Tuple, val: float):
         """
@@ -1453,9 +1480,9 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
     perspective <https://doi.org/10.1002/jmri.24288>`_.
 
     Args:
-        prob (float): probability of applying the transform, either on all
+        prob: probability of applying the transform, either on all
             channels at once, or channel-wise if ``channel_wise = True``.
-        intensity_range (Tuple(float), Sequence(Tuple(float))): pass a tuple
+        intensity_range: pass a tuple
             (a, b) to sample the log-intensity from the interval (a, b)
             uniformly for all channels. Or pass sequence of intevals
             ((a0, b0), (a1, b1), ...) to sample for each respective channel.
@@ -1463,13 +1490,13 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
             channels.
             Default ranges is `(0.95x, 1.10x)` where `x` is the mean
             log-intensity for each channel.
-        channel_wise (bool): treat each channel independently. True by
+        channel_wise: treat each channel independently. True by
             default.
-        as_tensor_output (bool): if True return torch.Tensor, else
+        as_tensor_output: if True return torch.Tensor, else
             return np.array. default: True.
 
     Example:
-        To apply `k`-space spikes randomly with probability of `prob = 0.5`, and
+        To apply `k`-space spikes randomly with probability 0.5, and
         log-intensity sampled from the interval [11, 12] for each channel
         independently, one uses
         ``RandKSpaceSpikeNoise(prob=0.5, intensity_range=(11, 12), channel_wise=True)``
@@ -1532,7 +1559,7 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
             return transform(img)
 
         return torch.Tensor(img, device=device) if self.as_tensor_output else img
-    
+
     def _randomize(self, img: np.ndarray) -> None:
         """
         Helper method to sample both the location and intensity of the spikes.
@@ -1578,6 +1605,6 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
         n_dims = len(x.shape[1:])
 
         k = np.fft.fftshift(np.fft.fftn(x, axes=tuple(range(-n_dims, 0))), axes=tuple(range(-n_dims, 0)))
-        log_abs = np.log(np.absolute(k))
+        log_abs = np.log(np.absolute(k) + 1e-10)
         shifted_means = np.mean(log_abs, axis=tuple(range(-n_dims, 0))) * 2.5
         self.intensity_range = tuple((i * 0.95, i * 1.1) for i in shifted_means)
