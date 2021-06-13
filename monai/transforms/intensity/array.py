@@ -1319,11 +1319,11 @@ class KSpaceSpikeNoise(Transform):
             or (X, Y).
         k_intensity: value for the log-intensity of the
             `k`-space version of the image. If one location is passed to ``loc`` or the
-                channel is not specified, then this argument should receive a float. If
-                ``loc`` is given a sequence of locations, then this argument should
-                receive a sequence of intensities. This value should be tested as it is
-                data-dependent. The default values are the 2.5 the mean of the
-                log-intensity for each channel.
+            channel is not specified, then this argument should receive a float. If
+            ``loc`` is given a sequence of locations, then this argument should
+            receive a sequence of intensities. This value should be tested as it is
+            data-dependent. The default values are the 2.5 the mean of the
+            log-intensity for each channel.
         as_tensor_output: if ``True`` return torch.Tensor, else return np.array.
             Default: ``True``.
 
