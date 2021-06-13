@@ -1337,7 +1337,7 @@ class KSpaceSpikeNoise(Transform):
     def __init__(
         self,
         loc: Union[Tuple, Sequence[Tuple]],
-        k_intensity: Union[float, Sequence[float]] = None,
+        k_intensity: Optional[Union[Sequence[float], float]] = None,
         as_tensor_output: bool = True,
     ):
 
@@ -1505,7 +1505,7 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
     def __init__(
         self,
         prob: float = 0.1,
-        intensity_range: Union[Sequence[float], Sequence[Sequence[float]]] = None,
+        intensity_range: Optional[Sequence[Union[Sequence[float], float]]] = None,
         channel_wise=True,
         as_tensor_output: bool = True,
     ):
