@@ -14,7 +14,6 @@ from copy import deepcopy
 
 import numpy as np
 import torch
-from numpy.fft import fftn, fftshift
 from parameterized import parameterized
 
 from monai.data.synthetic import create_test_image_2d, create_test_image_3d
