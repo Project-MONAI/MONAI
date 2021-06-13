@@ -16,7 +16,7 @@ from .confusion_matrix import ConfusionMatrix
 from .earlystop_handler import EarlyStopHandler
 from .garbage_collector import GarbageCollector
 from .hausdorff_distance import HausdorffDistance
-from .iteration_metric import IterationMetric
+from .ignite_metric import IgniteMetric
 from .lr_schedule_handler import LrScheduleHandler
 from .mean_dice import MeanDice
 from .metric_logger import MetricLogger, MetricLoggerKeys

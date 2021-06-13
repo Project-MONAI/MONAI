@@ -390,7 +390,7 @@ def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = True):
     if not isinstance(data, torch.Tensor):
         raise ValueError("input data must be PyTorch Tensor.")
 
-    world_size = dist.get_world_size() if dist.is_initialized() else 1
+    world_size = dist.get_world_size() if dist.is_available() and dist.is_initialized() else 1
     if world_size <= 1:
         return data
 
@@ -434,7 +434,7 @@ def string_list_all_gather(strings: List[str], delimiter: str = "\t") -> List[st
             then all gather across ranks and split to a list. default to "\t".
 
     """
-    world_size = dist.get_world_size() if dist.is_initialized() else 1
+    world_size = dist.get_world_size() if dist.is_available() and dist.is_initialized() else 1
     if world_size <= 1:
         return strings
 

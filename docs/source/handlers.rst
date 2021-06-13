@@ -29,9 +29,9 @@ CSV saver
     :members:
 
 
-Iteration Metric
-----------------
-.. autoclass:: IterationMetric
+Ignite Metric
+-------------
+.. autoclass:: IgniteMetric
     :members:
 
 
