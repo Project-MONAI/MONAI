@@ -205,6 +205,10 @@ class RandRicianNoised(RandomizableTransform, MapTransform):
         RandomizableTransform.__init__(self, global_prob)
         self.rand_rician_noise = RandRicianNoise(prob, mean, std, channel_wise, relative, sample_std)
 
+    def set_random_state(self, seed=None, state=None):
+        super().set_random_state(seed, state)
+        self.rand_rician_noise.set_random_state(seed, state)
+
     def __call__(self, data: DataObjects.Mapping) -> Dict[Hashable, DataObjects.Images]:
         d = dict(data)
         super().randomize(None)

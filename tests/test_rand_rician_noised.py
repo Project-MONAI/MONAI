@@ -12,6 +12,7 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import RandRicianNoised
@@ -24,36 +25,39 @@ TEST_CASES = [TEST_CASE_0, TEST_CASE_1]
 seed = 0
 
 
-def test_numpy_or_torch(keys, mean, std, imt):
-    rician_fn = RandRicianNoised(keys=keys, global_prob=1.0, prob=1.0, mean=mean, std=std)
-    rician_fn.set_random_state(seed)
-    rician_fn.rand_rician_noise.set_random_state(seed)
-    noised = rician_fn({k: imt for k in keys})
-    np.random.seed(seed)
-    np.random.random()
-    np.random.seed(seed)
-    for k in keys:
-        np.random.random()
-        _std = np.random.uniform(0, std)
-        expected = np.sqrt(
-            (imt + np.random.normal(mean, _std, size=imt.shape)) ** 2
-            + np.random.normal(mean, _std, size=imt.shape) ** 2
-        )
-        np.testing.assert_allclose(expected, noised[k], atol=1e-5, rtol=1e-5)
-
-
 # Test with numpy
 class TestRandRicianNoisedNumpy(NumpyImageTestCase2D):
     @parameterized.expand(TEST_CASES)
     def test_correct_results(self, _, keys, mean, std):
-        test_numpy_or_torch(keys, mean, std, self.imt)
+        rician_fn = RandRicianNoised(keys=keys, global_prob=1.0, prob=1.0, mean=mean, std=std)
+        rician_fn.set_random_state(seed)
+        noised = rician_fn({k: self.imt for k in keys})
+        np.random.seed(seed)
+        for k in keys:
+            np.random.random()
+            _std = np.random.uniform(0, std)
+            expected = np.sqrt(
+                (self.imt + np.random.normal(mean, _std, size=self.imt.shape)) ** 2
+                + np.random.normal(mean, _std, size=self.imt.shape) ** 2
+            )
+            np.testing.assert_allclose(expected, noised[k], atol=1e-5, rtol=1e-5)
 
 
 # Test with torch
 class TestRandRicianNoisedTorch(TorchImageTestCase2D):
     @parameterized.expand(TEST_CASES)
     def test_correct_results(self, _, keys, mean, std):
-        test_numpy_or_torch(keys, mean, std, self.imt)
+        rician_fn = RandRicianNoised(keys=keys, global_prob=1.0, prob=1.0, mean=mean, std=std)
+        rician_fn.set_random_state(seed)
+        noised = rician_fn({k: self.imt for k in keys})
+        torch.manual_seed(seed)
+        for k in keys:
+            _std = float(torch.rand(1)) * std
+            expected = torch.sqrt(
+                (self.imt + torch.normal(mean, _std, size=self.imt.shape)) ** 2
+                + torch.normal(mean, _std, size=self.imt.shape) ** 2
+            )
+            np.testing.assert_allclose(expected, noised[k], atol=1e-5, rtol=1e-5)
 
 
 if __name__ == "__main__":
