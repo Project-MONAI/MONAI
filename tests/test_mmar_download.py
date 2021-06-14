@@ -95,6 +95,8 @@ class TestMMMARDownload(unittest.TestCase):
                 self.assertTrue(os.path.exists(os.path.join(tmp_dir, idx)))
         except (ContentTooShortError, HTTPError, RuntimeError) as e:
             print(str(e))
+            if isinstance(e, HTTPError):
+                self.assertTrue("500" in str(e))  # http error has the code 500
             return  # skipping this test due the network connection errors
 
     @parameterized.expand(TEST_EXTRACT_CASES)
@@ -105,6 +107,8 @@ class TestMMMARDownload(unittest.TestCase):
             output = load_from_mmar(**input_args)
         except (ContentTooShortError, HTTPError, RuntimeError) as e:
             print(str(e))
+            if isinstance(e, HTTPError):
+                self.assertTrue("500" in str(e))  # http error has the code 500
             return
         self.assertEqual(output.__class__.__name__, expected_name)
         x = next(output.parameters())  # verify the first element
