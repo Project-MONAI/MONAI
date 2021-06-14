@@ -24,7 +24,7 @@ from monai.config import KeysCollection
 from monai.config.type_definitions import DtypeLike
 from monai.utils import MAX_SEED, ensure_tuple
 from monai.utils.enums import DataObjects
-from monai.utils.misc import dtype_numpy_to_torch, dtype_torch_to_numpy
+from monai.utils.misc import dtype_convert
 
 __all__ = [
     "ThreadUnsafe",
@@ -49,19 +49,17 @@ def convert_data_type(
     orig_device = data.device if isinstance(data, torch.Tensor) else None
 
     output_type = output_type or orig_type
-    dtype = dtype or data.dtype
+    dtype = dtype_convert(dtype or data.dtype, output_type)
 
     if output_type is torch.Tensor:
         if orig_type is np.ndarray:
             data = torch.Tensor(np.ascontiguousarray(data))
         if dtype != data.dtype:
-            dtype = dtype_numpy_to_torch(dtype) if not isinstance(dtype, torch.dtype) else dtype
             data = data.to(dtype)  # type: ignore
     elif output_type is np.ndarray:
         if orig_type is torch.Tensor:
             data = data.detach().cpu().numpy()  # type: ignore
         if dtype != data.dtype:
-            dtype = dtype_torch_to_numpy(dtype) if isinstance(dtype, torch.dtype) else dtype
             data = data.astype(dtype)  # type: ignore
 
     if isinstance(data, torch.Tensor) and device is not None:

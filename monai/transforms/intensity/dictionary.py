@@ -39,8 +39,9 @@ from monai.transforms.intensity.array import (
     ThresholdIntensity,
 )
 from monai.transforms.transform import MapTransform, RandomizableTransform
-from monai.utils import dtype_torch_to_numpy, ensure_tuple_rep, ensure_tuple_size
+from monai.utils import ensure_tuple_rep, ensure_tuple_size
 from monai.utils.enums import DataObjects
+from monai.utils.misc import dtype_convert
 
 __all__ = [
     "RandGaussianNoised",
@@ -159,7 +160,7 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         if not self._do_transform:
             return d
         for key, noise in self.key_iterator(d, self._noise):
-            dtype = dtype_torch_to_numpy(d[key].dtype) if isinstance(d[key], torch.Tensor) else d[key].dtype
+            dtype = dtype_convert(d[key].dtype, np.array)
             d[key] = d[key] + noise.astype(dtype)
         return d
 

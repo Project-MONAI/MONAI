@@ -32,14 +32,9 @@ from monai.transforms.transform import (
     convert_data_type,
 )
 from monai.transforms.utils import rescale_array
-from monai.utils import (
-    PT_BEFORE_1_7,
-    InvalidPyTorchVersionError,
-    dtype_torch_to_numpy,
-    ensure_tuple_rep,
-    ensure_tuple_size,
-)
+from monai.utils import PT_BEFORE_1_7, InvalidPyTorchVersionError, ensure_tuple_rep, ensure_tuple_size
 from monai.utils.enums import DataObjects
+from monai.utils.misc import dtype_convert
 
 __all__ = [
     "RandGaussianNoise",
@@ -99,7 +94,7 @@ class RandGaussianNoise(RandomizableTransform):
             raise AssertionError
         if not self._do_transform:
             return img
-        dtype = dtype_torch_to_numpy(img.dtype) if isinstance(img, torch.Tensor) else img.dtype
+        dtype = dtype_convert(img.dtype, np.array)
         return img + self._noise.astype(dtype)
 
 

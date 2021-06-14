@@ -21,7 +21,7 @@ import torch
 from monai.config import DtypeLike, IndexSelection
 from monai.networks.layers import GaussianFilter
 from monai.transforms.compose import Compose
-from monai.transforms.transform import MapTransform
+from monai.transforms.transform import MapTransform, convert_data_type
 from monai.utils import (
     GridSampleMode,
     InterpolateMode,
@@ -35,7 +35,6 @@ from monai.utils import (
     optional_import,
 )
 from monai.utils.enums import DataObjects
-from monai.utils.misc import dtype_numpy_to_torch, dtype_torch_to_numpy
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 
@@ -128,14 +127,7 @@ def rescale_array(
     Rescale the values of numpy array `arr` to be from `minv` to `maxv`.
     """
     if dtype is not None:
-        if isinstance(arr, torch.Tensor):
-            if isinstance(dtype, np.dtype):
-                dtype = dtype_numpy_to_torch(dtype)
-            arr = arr.to(dtype)  # type: ignore
-        else:
-            if isinstance(dtype, torch.dtype):
-                dtype = dtype_torch_to_numpy(dtype)
-            arr = arr.astype(dtype)  # type: ignore
+        arr, *_ = convert_data_type(arr, dtype=dtype)
 
     mina = arr.min()
     maxa = arr.max()

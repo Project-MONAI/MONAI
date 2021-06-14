@@ -40,6 +40,7 @@ from .misc import (
     MAX_SEED,
     ImageMetaKey,
     copy_to_device,
+    dtype_convert,
     dtype_numpy_to_torch,
     dtype_torch_to_numpy,
     ensure_tuple,

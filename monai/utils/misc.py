@@ -40,6 +40,7 @@ __all__ = [
     "list_to_dict",
     "dtype_torch_to_numpy",
     "dtype_numpy_to_torch",
+    "dtype_convert",
     "MAX_SEED",
     "copy_to_device",
     "get_dist_device",
@@ -316,8 +317,28 @@ def dtype_torch_to_numpy(dtype):
 
 def dtype_numpy_to_torch(dtype):
     """Convert a numpy dtype to its torch equivalent."""
+    # np dtypes can be given as np.float32 and np.dtype(np.float32) so unify them
     dtype = np.dtype(dtype) if type(dtype) == type else dtype
     return _np_to_torch_dtype[dtype]
+
+
+def dtype_convert(dtype, data_type):
+    """Convert to the `dtype` that corresponds to `data_type`.
+
+    Example:
+        im = torch.Tensor((1))
+        dtype = dtype_convert(np.float32, type(im))
+    """
+    if data_type is torch.Tensor:
+        if type(dtype) is torch.dtype:
+            return dtype
+        return dtype_numpy_to_torch(dtype)
+    else:
+        # np dtypes can be given as np.float32 and np.dtype(np.float32) so unify them
+        dtype = np.dtype(dtype) if type(dtype) == type else dtype
+        if type(dtype) is np.dtype:
+            return dtype
+        return dtype_torch_to_numpy(dtype)
 
 
 def copy_to_device(
