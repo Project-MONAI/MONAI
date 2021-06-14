@@ -12,6 +12,7 @@
 from typing import Collection, Hashable, Iterable, Sequence, TypeVar, Union
 
 import numpy as np
+import torch
 
 __all__ = ["KeysCollection", "IndexSelection", "DtypeLike", "NdarrayTensor", "TensorOrList"]
 

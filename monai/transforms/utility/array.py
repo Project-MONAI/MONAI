@@ -17,7 +17,7 @@ import logging
 import sys
 import time
 import warnings
-from typing import Callable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
