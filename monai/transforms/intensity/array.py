@@ -1351,7 +1351,7 @@ class KSpaceSpikeNoise(Transform):
                 raise AssertionError(
                     "If a sequence is passed to k_intensity, then a sequence of locations must be passed to loc"
                 )
-            elif len(self.k_intensity) != len(loc):
+            elif len(k_intensity) != len(loc):
                 raise AssertionError("There must be one intensity_factor value for each tuple of indices in loc.")
         if isinstance(self.loc[0], Sequence) and k_intensity is not None:
             if not isinstance(self.k_intensity, Sequence):
@@ -1362,7 +1362,6 @@ class KSpaceSpikeNoise(Transform):
         Args:
             img (np.array or torch.tensor): image with dimensions (C, H, W) or (C, H, W, D)
         """
-
         # checking that tuples in loc are consistent with img size
         self._check_indices(img)
 
@@ -1416,12 +1415,12 @@ class KSpaceSpikeNoise(Transform):
                 loc[i] = [0] + list(loc[i])
 
         for i in range(len(img.shape)):
-            if img.shape[i] <= max(map(lambda x: x[i], loc)):
+            if img.shape[i] <= max([x[i] for x in loc]):
                 raise AssertionError(
                     f"The index value at position {i} of one of the tuples in loc = {self.loc} is out of bounds for current image."
                 )
 
-    def _set_spike(self, k: np.array, idx: Tuple, val: float):
+    def _set_spike(self, k: np.ndarray, idx: Tuple, val: Union[Sequence[float], float]):
         """
         Helper function to introduce a given intensity at given location.
 
@@ -1430,7 +1429,6 @@ class KSpaceSpikeNoise(Transform):
             idx (tuple): index of location where to apply change.
             val (float): value of intensity to write in.
         """
-
         if len(k.shape) == len(idx):
             if isinstance(val, Sequence):
                 k[idx] = val[idx[0]]
@@ -1513,8 +1511,8 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
         self.intensity_range = intensity_range
         self.channel_wise = channel_wise
         self.as_tensor_output = as_tensor_output
-        self.sampled_k_intensity = None
-        self.sampled_locs = None
+        self.sampled_k_intensity: List[float] = []
+        self.sampled_locs: List[Tuple] = []
 
         if intensity_range is not None:
             if isinstance(intensity_range[0], Sequence) and not channel_wise:
@@ -1531,7 +1529,6 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
         Args:
             img (np.array or torch.tensor): image with dimensions (C, H, W) or (C, H, W, D)
         """
-
         if self.intensity_range is not None:
             if isinstance(self.intensity_range[0], Sequence) and len(self.intensity_range) != img.shape[0]:
                 raise AssertionError(
@@ -1542,25 +1539,18 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
         self.sampled_locs = []
 
         # convert to ndarray to work with np.fft
-        if isinstance(img, torch.Tensor):
-            device = img.device
-            img = img.cpu().detach().numpy()
-        else:
-            device = torch.device("cpu")
-
-        if not self.intensity_range:
-            self._set_default_range(img)
-
-        self._randomize(img)
+        x, device = self._to_numpy(img)
+        intensity_range = self._make_sequence(x)
+        self._randomize(x, intensity_range)
 
         # build/appy transform only if there are spike locations
         if self.sampled_locs:
             transform = KSpaceSpikeNoise(self.sampled_locs, self.sampled_k_intensity, self.as_tensor_output)
-            return transform(img)
+            return transform(x)
 
-        return torch.Tensor(img, device=device) if self.as_tensor_output else img
+        return torch.Tensor(x, device=device) if self.as_tensor_output else x
 
-    def _randomize(self, img: np.ndarray) -> None:
+    def _randomize(self, img: np.ndarray, intensity_range: Sequence[Sequence[float]]) -> None:
         """
         Helper method to sample both the location and intensity of the spikes.
         When not working channel wise (channel_wise=False) it use the random
@@ -1572,30 +1562,37 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
         """
         # randomizing per channel
         if self.channel_wise:
-
-            if not isinstance(self.intensity_range[0], Sequence):
-                self.intensity_range = (self.intensity_range,) * img.shape[0]
-
             for i, chan in enumerate(img):
                 super().randomize(None)
                 if self._do_transform:
                     self.sampled_locs.append((i,) + tuple(self.R.randint(0, k) for k in chan.shape))
-                    self.sampled_k_intensity.append(
-                        self.R.uniform(self.intensity_range[i][0], self.intensity_range[i][1])
-                    )
-
+                    self.sampled_k_intensity.append(self.R.uniform(intensity_range[i][0], intensity_range[i][1]))
         # working with all channels together
         else:
             super().randomize(None)
             if self._do_transform:
                 spatial = tuple(self.R.randint(0, k) for k in img.shape[1:])
                 self.sampled_locs = [(i,) + spatial for i in range(img.shape[0])]
-                if isinstance(self.intensity_range[0], Sequence):
-                    self.sampled_k_intensity = [self.R.uniform(*p) for p in self.intensity_range]
+                if isinstance(intensity_range[0], Sequence):
+                    self.sampled_k_intensity = [self.R.uniform(*p) for p in intensity_range]
                 else:
                     self.sampled_k_intensity = [self.R.uniform(*self.intensity_range)] * len(img)
 
-    def _set_default_range(self, x: np.ndarray) -> None:
+    def _make_sequence(self, x: np.ndarray) -> Sequence[Sequence[float]]:
+        """
+        Formats the sequence of intensities ranges to Sequence[Sequence[float]].
+        """
+        if self.intensity_range is not None:
+            if not isinstance(self.intensity_range[0], Sequence):
+                intensity_range = (ensure_tuple(self.intensity_range),) * x.shape[0]
+                return intensity_range
+            else:
+                return ensure_tuple(self.intensity_range)
+        else:
+            # set default range if one not provided
+            return self._set_default_range(x)
+
+    def _set_default_range(self, x: np.ndarray) -> Sequence[Sequence[float]]:
         """
         Sets default intensity ranges to be sampled.
 
@@ -1607,4 +1604,11 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
         k = np.fft.fftshift(np.fft.fftn(x, axes=tuple(range(-n_dims, 0))), axes=tuple(range(-n_dims, 0)))
         log_abs = np.log(np.absolute(k) + 1e-10)
         shifted_means = np.mean(log_abs, axis=tuple(range(-n_dims, 0))) * 2.5
-        self.intensity_range = tuple((i * 0.95, i * 1.1) for i in shifted_means)
+        intensity_sequence = tuple((i * 0.95, i * 1.1) for i in shifted_means)
+        return intensity_sequence
+
+    def _to_numpy(self, img: Union[np.ndarray, torch.Tensor]) -> Tuple[np.ndarray, torch.device]:
+        if isinstance(img, torch.Tensor):
+            return img.cpu().detach().numpy(), img.device
+        else:
+            return img, torch.device("cpu")
