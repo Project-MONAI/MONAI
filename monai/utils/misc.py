@@ -316,6 +316,7 @@ def dtype_torch_to_numpy(dtype):
 
 def dtype_numpy_to_torch(dtype):
     """Convert a numpy dtype to its torch equivalent."""
+    dtype = np.dtype(dtype) if type(dtype) == type else dtype
     return _np_to_torch_dtype[dtype]
 
 

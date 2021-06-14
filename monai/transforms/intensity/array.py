@@ -14,7 +14,9 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 from collections.abc import Iterable
-from typing import Any, List, Optional, Sequence, Tuple, Union
+from copy import deepcopy
+from functools import partial
+from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 from warnings import warn
 
 import numpy as np
@@ -237,7 +239,7 @@ class RandShiftIntensity(RandomizableTransform, TorchOrNumpyTransform):
         return shifter(img)
 
 
-class StdShiftIntensity(Transform):
+class StdShiftIntensity(TorchOrNumpyTransform):
     """
     Shift intensity for the image with a factor and the standard deviation of the image
     by: ``v = v + factor * std(v)``.
@@ -260,28 +262,38 @@ class StdShiftIntensity(Transform):
         self.channel_wise = channel_wise
         self.dtype = dtype
 
-    def _stdshift(self, img: np.ndarray) -> np.ndarray:
-        slices = (img != 0) if self.nonzero else np.ones(img.shape, dtype=bool)
-        if not np.any(slices):
-            return img
-        offset = self.factor * np.std(img[slices])
-        img[slices] = img[slices] + offset
+    def _stdshift(self, img: DataObjects.Images) -> DataObjects.Images:
+        ones: Callable
+        std: Callable
+        if isinstance(img, torch.Tensor):
+            ones = torch.ones
+            std = partial(torch.std, unbiased=False)
+        else:
+            ones = np.ones
+            std = np.std
+
+        slices = (img != 0) if self.nonzero else ones(img.shape, dtype=bool)
+        if slices.any():
+            out = deepcopy(img)
+            offset = self.factor * std(out[slices])
+            out[slices] = out[slices] + offset
+            return out
         return img
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Apply the transform to `img`.
         """
-        img = img.astype(self.dtype)
+        img, *_ = convert_data_type(img, dtype=self.dtype)
         if self.channel_wise:
             for i, d in enumerate(img):
-                img[i] = self._stdshift(d)
+                img[i] = self._stdshift(d)  # type: ignore
         else:
             img = self._stdshift(img)
         return img
 
 
-class RandStdShiftIntensity(RandomizableTransform):
+class RandStdShiftIntensity(TorchOrNumpyTransform, RandomizableTransform):
     """
     Shift intensity for the image with a factor and the standard deviation of the image
     by: ``v = v + factor * std(v)`` where the `factor` is randomly picked.
@@ -321,7 +333,7 @@ class RandStdShiftIntensity(RandomizableTransform):
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
         super().randomize(None)
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Apply the transform to `img`.
         """
