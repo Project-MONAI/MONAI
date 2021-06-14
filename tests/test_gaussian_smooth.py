@@ -10,22 +10,16 @@
 # limitations under the License.
 
 import unittest
-from typing import Callable, List
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.transforms import GaussianSmooth
+from tests.utils import TEST_NDARRAYS
 
 TESTS = []
-from functools import partial
 
-NDARRAYS: List[Callable] = [np.array, torch.Tensor]
-if torch.cuda.is_available():
-    NDARRAYS.append(partial(torch.Tensor, device="cuda"))
-
-for p in NDARRAYS:
+for p in TEST_NDARRAYS:
     TESTS.append(
         [
             {"sigma": 1.5},

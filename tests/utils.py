@@ -20,9 +20,10 @@ import time
 import traceback
 import unittest
 import warnings
+from functools import partial
 from io import BytesIO
 from subprocess import PIPE, Popen
-from typing import Optional
+from typing import Callable, Optional, Tuple
 from urllib.error import ContentTooShortError, HTTPError, URLError
 
 import numpy as np
@@ -581,6 +582,12 @@ def query_memory(n=2):
     except (FileNotFoundError, TypeError, IndexError):
         ids = range(n) if isinstance(n, int) else []
     return ",".join([f"{int(x)}" for x in ids])
+
+
+TEST_NDARRAYS: Tuple[Callable] = (np.array, torch.Tensor)  # type: ignore
+if torch.cuda.is_available():
+    gpu_tensor: Callable = partial(torch.Tensor, device="cuda")
+    TEST_NDARRAYS = TEST_NDARRAYS + (gpu_tensor,)  # type: ignore
 
 
 if __name__ == "__main__":

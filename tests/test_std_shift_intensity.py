@@ -10,23 +10,16 @@
 # limitations under the License.
 
 import unittest
-from functools import partial
-from typing import Callable, List
 
 import numpy as np
-import torch
 
 from monai.transforms import ShiftIntensity, StdShiftIntensity
-from tests.utils import NumpyImageTestCase2D
-
-NDARRAYS: List[Callable] = [np.array, torch.Tensor]
-if torch.cuda.is_available():
-    NDARRAYS.append(partial(torch.Tensor, device="cuda"))
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D
 
 
 class TestStdShiftIntensity(NumpyImageTestCase2D):
     def test_value(self):
-        for p in NDARRAYS:
+        for p in TEST_NDARRAYS:
             imt = p(self.imt)
             factor = np.random.rand()
             offset = np.std(self.imt) * factor
@@ -38,7 +31,7 @@ class TestStdShiftIntensity(NumpyImageTestCase2D):
 
     def test_zerostd(self):
         image = np.ones([2, 3, 3])
-        for p in NDARRAYS:
+        for p in TEST_NDARRAYS:
             image = p(image)
             for nonzero in [True, False]:
                 for channel_wise in [True, False]:
@@ -48,7 +41,7 @@ class TestStdShiftIntensity(NumpyImageTestCase2D):
                     np.testing.assert_allclose(result, image, rtol=1e-5)
 
     def test_nonzero(self):
-        for p in NDARRAYS:
+        for p in TEST_NDARRAYS:
             image = p(np.asarray([[4.0, 0.0, 2.0], [0, 2, 4]]))  # std = 1
             factor = np.random.rand()
             std_shifter = StdShiftIntensity(factor=factor, nonzero=True)
@@ -57,7 +50,7 @@ class TestStdShiftIntensity(NumpyImageTestCase2D):
             np.testing.assert_allclose(result, expected, rtol=1e-5)
 
     def test_channel_wise(self):
-        for p in NDARRAYS:
+        for p in TEST_NDARRAYS:
             image = p(np.stack((np.asarray([1.0, 2.0]), np.asarray([1.0, 1.0]))))  # std: 0.5, 0
             factor = np.random.rand()
             std_shifter = StdShiftIntensity(factor=factor, channel_wise=True)

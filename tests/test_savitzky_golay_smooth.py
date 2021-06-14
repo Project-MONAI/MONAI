@@ -10,13 +10,12 @@
 # limitations under the License.
 
 import unittest
-from typing import Callable, List
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.transforms import SavitzkyGolaySmooth
+from tests.utils import TEST_NDARRAYS
 
 # Zero-padding trivial tests
 
@@ -65,16 +64,9 @@ class TestSavitzkyGolaySmooth(unittest.TestCase):
         np.testing.assert_allclose(result, expected_data, atol=atol)
 
 
-from functools import partial
-
-NDARRAYS: List[Callable] = [np.array, torch.Tensor]
-if torch.cuda.is_available():
-    NDARRAYS.append(partial(torch.Tensor, device="cuda"))
-
-
 class TestSavitzkyGolaySmoothREP(unittest.TestCase):
     @parameterized.expand([TEST_CASE_SINGLE_VALUE_REP])
     def test_value(self, arguments, image, expected_data, atol):
-        for p in NDARRAYS:
+        for p in TEST_NDARRAYS:
             result = SavitzkyGolaySmooth(**arguments)(p(image))
             np.testing.assert_allclose(result, expected_data, atol=atol)

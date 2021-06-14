@@ -10,23 +10,16 @@
 # limitations under the License.
 
 import unittest
-from functools import partial
-from typing import Callable, List
 
 import numpy as np
-import torch
 
 from monai.transforms import RandStdShiftIntensity
-from tests.utils import NumpyImageTestCase2D
-
-NDARRAYS: List[Callable] = [np.array, torch.Tensor]
-if torch.cuda.is_available():
-    NDARRAYS.append(partial(torch.Tensor, device="cuda"))
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D
 
 
 class TestRandStdShiftIntensity(NumpyImageTestCase2D):
     def test_value(self):
-        for p in NDARRAYS:
+        for p in TEST_NDARRAYS:
             shifter = RandStdShiftIntensity(factors=1.0, prob=1.0)
             shifter.set_random_state(seed=0)
             result = shifter(p(self.imt))

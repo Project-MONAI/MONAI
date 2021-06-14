@@ -10,24 +10,17 @@
 # limitations under the License.
 
 import unittest
-from functools import partial
-from typing import Callable, List
 
 import numpy as np
-import torch
 
 from monai.transforms import Rotate90
-from tests.utils import NumpyImageTestCase2D
-
-NDARRAYS: List[Callable] = [np.array, torch.Tensor]
-if torch.cuda.is_available():
-    NDARRAYS.append(partial(torch.Tensor, device="cuda"))
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D
 
 
 class TestRotate90(NumpyImageTestCase2D):
     def test_rotate90_default(self):
         rotate = Rotate90()
-        for p in NDARRAYS:
+        for p in TEST_NDARRAYS:
             rotated = rotate(p(self.imt[0]))
             expected = []
             for channel in self.imt[0]:
@@ -37,7 +30,7 @@ class TestRotate90(NumpyImageTestCase2D):
 
     def test_k(self):
         rotate = Rotate90(k=2)
-        for p in NDARRAYS:
+        for p in TEST_NDARRAYS:
             rotated = rotate(p(self.imt[0]))
             expected = []
             for channel in self.imt[0]:
@@ -47,7 +40,7 @@ class TestRotate90(NumpyImageTestCase2D):
 
     def test_spatial_axes(self):
         rotate = Rotate90(spatial_axes=(0, -1))
-        for p in NDARRAYS:
+        for p in TEST_NDARRAYS:
             rotated = rotate(p(self.imt[0]))
             expected = []
             for channel in self.imt[0]:
@@ -57,7 +50,7 @@ class TestRotate90(NumpyImageTestCase2D):
 
     def test_prob_k_spatial_axes(self):
         rotate = Rotate90(k=2, spatial_axes=(0, 1))
-        for p in NDARRAYS:
+        for p in TEST_NDARRAYS:
             rotated = rotate(p(self.imt[0]))
             expected = []
             for channel in self.imt[0]:

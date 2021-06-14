@@ -10,21 +10,16 @@
 # limitations under the License.
 
 import unittest
-from functools import partial
-from typing import Callable, List
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.transforms import CropForeground
+from tests.utils import TEST_NDARRAYS
 
 TESTS = []
-NDARRAYS: List[Callable] = [np.array, torch.Tensor]
-if torch.cuda.is_available():
-    NDARRAYS.append(partial(torch.Tensor, device="cuda"))
 
-for p in NDARRAYS:
+for p in TEST_NDARRAYS:
     TESTS.append(
         [
             {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 0},

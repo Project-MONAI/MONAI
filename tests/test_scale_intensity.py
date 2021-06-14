@@ -10,23 +10,16 @@
 # limitations under the License.
 
 import unittest
-from functools import partial
-from typing import Callable, List
 
 import numpy as np
-import torch
 
 from monai.transforms import ScaleIntensity
-from tests.utils import NumpyImageTestCase2D
-
-NDARRAYS: List[Callable] = [np.array, torch.Tensor]
-if torch.cuda.is_available():
-    NDARRAYS.append(partial(torch.Tensor, device="cuda"))
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D
 
 
 class TestScaleIntensity(NumpyImageTestCase2D):
     def test_range_scale(self):
-        for p in NDARRAYS:
+        for p in TEST_NDARRAYS:
             scaler = ScaleIntensity(minv=1.0, maxv=2.0)
             result = scaler(p(self.imt))
             mina = self.imt.min()
@@ -36,7 +29,7 @@ class TestScaleIntensity(NumpyImageTestCase2D):
             np.testing.assert_allclose(result, expected)
 
     def test_factor_scale(self):
-        for p in NDARRAYS:
+        for p in TEST_NDARRAYS:
             scaler = ScaleIntensity(minv=None, maxv=None, factor=0.1)
             result = scaler(p(self.imt))
             expected = (self.imt * (1 + 0.1)).astype(np.float32)
