@@ -326,7 +326,7 @@ def compatible_mod_state(
     by the ones from `src` whenever their keys match. The method provides additional `prefix` for
     the `dst` key when matching them. `mapping` can be a {"src_key": "dst_key"} dict, indicating
     `dst[prefix + dst_key] = src[src_key]`.
-    This function is mainly to generate a model state dict,
+    This function is mainly to return a model state dict
     for loading the `src` model state into the `dst` model, `src` and `dst` can have different dict keys, but
     their corresponding values normally have the same shape.
 
@@ -375,7 +375,7 @@ def compatible_mod_state(
         dest_key = f"{dst_prefix}{mapping[s]}"
         if dest_key in dst_dict and dest_key not in to_skip:
             if dst_dict[dest_key].shape != src_dict[s].shape:
-                warnings.warn(f"Param. shaped changed from {dst_dict[dest_key].shape} to {src_dict[s].shape}.")
+                warnings.warn(f"Param. shape changed from {dst_dict[dest_key].shape} to {src_dict[s].shape}.")
             dst_dict[dest_key] = src_dict[s]
             updated_keys.append(dest_key)
 
