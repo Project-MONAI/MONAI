@@ -336,7 +336,7 @@ def dtype_convert(dtype, data_type):
     else:
         # np dtypes can be given as np.float32 and np.dtype(np.float32) so unify them
         dtype = np.dtype(dtype) if type(dtype) == type else dtype
-        if type(dtype) is np.dtype:
+        if isinstance(dtype, np.dtype):
             return dtype
         return dtype_torch_to_numpy(dtype)
 
