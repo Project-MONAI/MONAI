@@ -16,6 +16,7 @@ from parameterized import parameterized
 
 from monai.transforms import BorderPad
 from monai.utils import NumpyPadMode
+from tests.utils import TEST_NDARRAYS
 
 TEST_CASE_1 = [
     {"spatial_border": 2, "mode": "constant"},
@@ -45,11 +46,12 @@ TEST_CASE_4 = [
 class TestBorderPad(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_pad_shape(self, input_param, input_data, expected_val):
-        padder = BorderPad(**input_param)
-        result = padder(input_data)
-        self.assertAlmostEqual(result.shape, expected_val.shape)
-        result = padder(input_data, mode=input_param["mode"])
-        self.assertAlmostEqual(result.shape, expected_val.shape)
+        for p in TEST_NDARRAYS:
+            padder = BorderPad(**input_param)
+            result = padder(p(input_data))
+            self.assertAlmostEqual(result.shape, expected_val.shape)
+            result = padder(p(input_data), mode=input_param["mode"])
+            self.assertAlmostEqual(result.shape, expected_val.shape)
 
 
 if __name__ == "__main__":
