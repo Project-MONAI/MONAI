@@ -9,11 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Collection, Hashable, Iterable, Union
+from typing import Collection, Hashable, Iterable, Sequence, TypeVar, Union
 
 import numpy as np
 
-__all__ = ["KeysCollection", "IndexSelection", "DtypeLike"]
+__all__ = ["KeysCollection", "IndexSelection", "DtypeLike", "NdarrayTensor", "TensorOrList"]
 
 """Commonly used concepts
 This module provides naming and type specifications for commonly used concepts
@@ -54,6 +54,7 @@ The indices must be integers, and if a container of indices is specified, the
 container must be iterable.
 """
 
+
 DtypeLike = Union[
     np.dtype,
     type,
@@ -61,4 +62,15 @@ DtypeLike = Union[
 ]
 """Type of datatypes
 adapted from https://github.com/numpy/numpy/blob/master/numpy/typing/_dtype_like.py
+"""
+
+# Generic type which can represent either a numpy.ndarray or a torch.Tensor
+# Unlike Union can create a dependence between parameter(s) / return(s)
+NdarrayTensor = TypeVar("NdarrayTensor", np.ndarray, torch.Tensor)
+
+
+TensorOrList = Union[torch.Tensor, Sequence[torch.Tensor]]
+"""TensorOrList
+
+The TensorOrList type is used for defining `batch-first Tensor` or `list of channel-first Tensor`.
 """

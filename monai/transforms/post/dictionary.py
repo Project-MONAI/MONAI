@@ -417,13 +417,17 @@ class ProbNMSd(MapTransform):
 class Invertd(MapTransform):
     """
     Utility transform to automatically invert the previously applied transforms.
+    When applying pre-transforms on a orig_key(like: `image`, `label`, etc.), we record the context
+    information of applied transforms in a dictionary in the input data dictionary with the key
+    "{orig_key}_transforms". This post transform will extract the transform context information of `orig_keys`
+    then invert the transforms(got from this context information) on the `keys` data.
+    Typical usage is to invert the pre-transforms(applied on input `image`) on the model `pred` data.
 
     The output of the inverted data and metadata will be stored at `keys` and `meta_keys` respectively.
     To correctly invert the transforms, the information of the previously applied transforms should be
     available at `orig_keys`, and the original metadata at `orig_meta_keys`.
     (`meta_key_postfix` is an optional string to conveniently construct "meta_keys" and/or "orig_meta_keys".)
 
-    Typical usage is to invert the pre-transforms (applied on input `image`) on the model `pred` data.
     A detailed usage example is available in the tutorial:
     https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/torch/unet_inference_dict.py
 
@@ -431,6 +435,10 @@ class Invertd(MapTransform):
         According to the `collate_fn`, this transform may return a list of Tensor without batch dim,
         thus some following post transforms may not support a list of Tensor, and users can leverage the
         `post_func` arg for basic processing logic.
+
+        This transform needs to extract the context information of applied transforms and the meta data
+        dictionary from the input data dictionary, then use some numpy arrays in them to computes the inverse
+        logic, so please don't move `data["{orig_key}_transforms"]` and `data["{orig_meta_key}"]` to GPU device.
 
     """
 

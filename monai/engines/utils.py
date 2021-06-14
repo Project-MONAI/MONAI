@@ -41,13 +41,16 @@ class IterationEvents(EventEnum):
     `LOSS_COMPLETED` is the Event when `loss(pred, label)` completed.
     `BACKWARD_COMPLETED` is the Event when `loss.backward()` completed.
     `MODEL_COMPLETED` is the Event when all the model related operations completed.
-
+    `INNER_ITERATION_STARTED` is the Event when the iteration has an inner loop and the loop is started.
+    `INNER_ITERATION_COMPLETED` is the Event when the iteration has an inner loop and the loop is completed.
     """
 
     FORWARD_COMPLETED = "forward_completed"
     LOSS_COMPLETED = "loss_completed"
     BACKWARD_COMPLETED = "backward_completed"
     MODEL_COMPLETED = "model_completed"
+    INNER_ITERATION_STARTED = "inner_iteration_started"
+    INNER_ITERATION_COMPLETED = "inner_iteration_completed"
 
 
 class GanKeys:

@@ -20,11 +20,10 @@ import torch.distributed as dist
 from ignite.engine import Engine, Events
 
 from monai.handlers import MetricsSaver
-from monai.handlers.utils import evenly_divisible_all_gather
-from tests.utils import DistCall, DistTestCase, SkipIfBeforePyTorchVersion
+from monai.utils import evenly_divisible_all_gather
+from tests.utils import DistCall, DistTestCase
 
 
-@SkipIfBeforePyTorchVersion((1, 7))
 class DistributedMetricsSaver(DistTestCase):
     @DistCall(nnodes=1, nproc_per_node=2)
     def test_content(self):
@@ -76,9 +75,9 @@ class DistributedMetricsSaver(DistTestCase):
         @engine.on(Events.EPOCH_COMPLETED)
         def _all_gather(engine):
             scores = engine.state.metric_details["metric3"]
-            engine.state.metric_details["metric3"] = evenly_divisible_all_gather(data=scores)
+            engine.state.metric_details["metric3"] = evenly_divisible_all_gather(data=scores, concat=True)
             scores = engine.state.metric_details["metric4"]
-            engine.state.metric_details["metric4"] = evenly_divisible_all_gather(data=scores)
+            engine.state.metric_details["metric4"] = evenly_divisible_all_gather(data=scores, concat=True)
 
         metrics_saver.attach(engine)
         engine.run(data, max_epochs=1)

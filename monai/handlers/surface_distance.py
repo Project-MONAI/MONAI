@@ -9,16 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Union
+from typing import Callable
 
-import torch
-
-from monai.handlers.iteration_metric import IterationMetric
+from monai.handlers.ignite_metric import IgniteMetric
 from monai.metrics import SurfaceDistanceMetric
 from monai.utils import MetricReduction
 
 
-class SurfaceDistance(IterationMetric):
+class SurfaceDistance(IgniteMetric):
     """
     Computes surface distance from full size Tensor and collects average over batch, class-channels, iterations.
     """
@@ -29,7 +27,6 @@ class SurfaceDistance(IterationMetric):
         symmetric: bool = False,
         distance_metric: str = "euclidean",
         output_transform: Callable = lambda x: x,
-        device: Union[str, torch.device] = "cpu",
         save_details: bool = True,
     ) -> None:
         """
@@ -42,7 +39,6 @@ class SurfaceDistance(IterationMetric):
             distance_metric: : [``"euclidean"``, ``"chessboard"``, ``"taxicab"``]
                 the metric used to compute surface distance. Defaults to ``"euclidean"``.
             output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
-            device: device specification in case of distributed computation usage.
             save_details: whether to save metric computation details per image, for example: surface dice
                 of every image. default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
@@ -51,11 +47,10 @@ class SurfaceDistance(IterationMetric):
             include_background=include_background,
             symmetric=symmetric,
             distance_metric=distance_metric,
-            reduction=MetricReduction.NONE,
+            reduction=MetricReduction.MEAN,
         )
         super().__init__(
             metric_fn=metric_fn,
             output_transform=output_transform,
-            device=device,
             save_details=save_details,
         )
