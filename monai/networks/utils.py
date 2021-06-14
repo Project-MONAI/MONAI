@@ -334,9 +334,10 @@ def compatible_mod_state(
         dst: a pytorch module or state dict to be updated.
         src: a pytorch module or state dist used to get the values used for the update.
         dst_prefix: `dst` key prefix.
-        mapping: a `{"src_key": "dst_key"}` dict, indicating that `dst[prefix + dst_key]` to be written by `src[src_key]`.
-            `"src_key": None` pair indicates to never use the `src_key` in the `dst`.
-        exclude_vars: a regular expression to match the `dst` variables, so that their values are not overwritten by `src`.
+        mapping: a `{"src_key": "dst_key"}` dict, indicating that `dst[prefix + dst_key]`
+            to be written by `src[src_key]`.
+        exclude_vars: a regular expression to match the `dst` variable names,
+            so that their values are not overwritten by `src`.
 
     Examples:
         .. code-block:: python
@@ -350,8 +351,9 @@ def compatible_mod_state(
                 model_a, model_b, exclude_vars="conv_0.conv_0")
             # dst model updated: 76 of 82 variables.
             model_a.load_state_dict(model_a_b)
+            # <All keys matched successfully>
 
-    Returns: an OrderedDict of `dst` state, and the changed, unchanged keys.
+    Returns: an OrderedDict of the updated `dst` state, the changed, and unchanged keys.
     """
 
     if isinstance(src, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
