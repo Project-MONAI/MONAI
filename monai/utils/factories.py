@@ -60,7 +60,7 @@ can be parameterized with the factory name and the arguments to pass to the crea
     layer = use_factory( (fact.TEST, kwargs) )
 """
 
-from typing import Any, Callable, Dict, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
 __all__ = ["ObjectFactory"]
 
@@ -103,6 +103,18 @@ class ObjectFactory:
         def _add(func: Callable) -> Callable:
             self.add_factory_callable(name, func)
             return func
+
+        return _add
+
+    def factory_type(self, name: Optional[str] = None) -> Callable:
+        """
+        Decorator for class types, adding a factory function taking no arguments. This is stored under `name` or the class'
+        name if not provided.
+        """
+
+        def _add(cls: type) -> type:
+            self.add_factory_callable(name or cls.__name__, lambda: cls)
+            return cls
 
         return _add
 

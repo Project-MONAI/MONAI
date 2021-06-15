@@ -25,7 +25,7 @@ from monai.utils import UpsampleMode
 __all__ = ["SegResNet", "SegResNetVAE"]
 
 
-@NetworkFactory.factory_function("SegResNet")
+@NetworkFactory.factory_type()
 class SegResNet(nn.Module):
     """
     SegResNet based on `3D MRI brain tumor segmentation using autoencoder regularization
@@ -177,7 +177,7 @@ class SegResNet(nn.Module):
         return x
 
 
-@NetworkFactory.factory_function("SegResNetVAE")
+@NetworkFactory.factory_type()
 class SegResNetVAE(SegResNet):
     """
     SegResNetVAE based on `3D MRI brain tumor segmentation using autoencoder regularization

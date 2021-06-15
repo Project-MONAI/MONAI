@@ -23,7 +23,7 @@ from monai.utils import alias, export
 __all__ = ["UNet", "Unet", "unet"]
 
 
-@NetworkFactory.factory_function("UNet")
+@NetworkFactory.factory_type()
 @export("monai.networks.nets")
 @alias("Unet")
 class UNet(nn.Module):

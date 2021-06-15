@@ -29,7 +29,7 @@ def _get_adn_layer(
     return ADN(act=act, dropout=dropout, dropout_dim=1)
 
 
-@NetworkFactory.factory_function("FullyConnectedNet")
+@NetworkFactory.factory_type()
 class FullyConnectedNet(nn.Sequential):
     """
     Plain full-connected layer neural network
@@ -71,7 +71,7 @@ class FullyConnectedNet(nn.Sequential):
         return seq
 
 
-@NetworkFactory.factory_function("VarFullyConnectedNet")
+@NetworkFactory.factory_type()
 class VarFullyConnectedNet(nn.Module):
     """Variational fully-connected network."""
 

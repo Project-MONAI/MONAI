@@ -197,7 +197,7 @@ class MBConvBlock(nn.Module):
         self._swish = Act["memswish"]() if memory_efficient else Act["swish"](alpha=1.0)
 
 
-@NetworkFactory.factory_function("EfficientNet")
+@NetworkFactory.factory_type()
 class EfficientNet(nn.Module):
     def __init__(
         self,
@@ -442,7 +442,7 @@ class EfficientNet(nn.Module):
                 m.bias.data.zero_()
 
 
-@NetworkFactory.factory_function("EfficientNetBN")
+@NetworkFactory.factory_type()
 class EfficientNetBN(EfficientNet):
     def __init__(
         self,

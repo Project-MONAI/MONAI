@@ -21,7 +21,7 @@ from monai.networks.nets.net_factory import NetworkFactory
 __all__ = ["AutoEncoder"]
 
 
-@NetworkFactory.factory_function("AutoEncoder")
+@NetworkFactory.factory_type()
 class AutoEncoder(nn.Module):
     def __init__(
         self,

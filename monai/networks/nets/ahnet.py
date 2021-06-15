@@ -310,7 +310,7 @@ class PSP(nn.Module):
         return x
 
 
-@NetworkFactory.factory_function("AHNet")
+@NetworkFactory.factory_type()
 class AHNet(nn.Module):
     """
     AHNet based on `Anisotropic Hybrid Network <https://arxiv.org/pdf/1711.08580.pdf>`_.

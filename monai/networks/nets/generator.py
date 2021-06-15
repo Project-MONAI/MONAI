@@ -22,7 +22,7 @@ from monai.networks.nets.net_factory import NetworkFactory
 from monai.utils import ensure_tuple, ensure_tuple_rep
 
 
-@NetworkFactory.factory_function("Generator")
+@NetworkFactory.factory_type()
 class Generator(nn.Module):
     """
     Defines a simple generator network accepting a latent vector and through a sequence of convolution layers

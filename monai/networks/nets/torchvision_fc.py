@@ -22,7 +22,7 @@ models, _ = optional_import("torchvision.models")
 __all__ = ["TorchVisionFullyConvModel"]
 
 
-@NetworkFactory.factory_function("TorchVisionFullyConvModel")
+@NetworkFactory.factory_type()
 class TorchVisionFullyConvModel(torch.nn.Module):
     """
     Customize TorchVision models to replace fully connected layer by convolutional layer.

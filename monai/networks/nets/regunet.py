@@ -26,7 +26,7 @@ from monai.networks.nets.net_factory import NetworkFactory
 __all__ = ["RegUNet", "AffineHead", "GlobalNet", "LocalNet"]
 
 
-@NetworkFactory.factory_function("RegUNet")
+@NetworkFactory.factory_type()
 class RegUNet(nn.Module):
     """
     Class that implements an adapted UNet. This class also serve as the parent class of LocalNet and GlobalNet
@@ -311,7 +311,7 @@ class AffineHead(nn.Module):
         return out
 
 
-@NetworkFactory.factory_function("GlobalNet")
+@NetworkFactory.factory_type()
 class GlobalNet(RegUNet):
     """
     Build GlobalNet for image registration.
@@ -386,7 +386,7 @@ class AdditiveUpSampleBlock(nn.Module):
         return out
 
 
-@NetworkFactory.factory_function("LocalNet")
+@NetworkFactory.factory_type()
 class LocalNet(RegUNet):
     """
     Reimplementation of LocalNet, based on:

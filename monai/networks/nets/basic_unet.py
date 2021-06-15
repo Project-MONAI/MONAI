@@ -135,7 +135,7 @@ class UpCat(nn.Module):
         return x
 
 
-@NetworkFactory.factory_function("BasicUNet")
+@NetworkFactory.factory_type()
 class BasicUNet(nn.Module):
     def __init__(
         self,

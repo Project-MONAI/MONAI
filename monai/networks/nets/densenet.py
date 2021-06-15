@@ -118,7 +118,7 @@ class _Transition(nn.Sequential):
         self.add_module("pool", pool_type(kernel_size=2, stride=2))
 
 
-@NetworkFactory.factory_function("DenseNet")
+@NetworkFactory.factory_type()
 class DenseNet(nn.Module):
     """
     Densenet based on: `Densely Connected Convolutional Networks <https://arxiv.org/pdf/1608.06993.pdf>`_.
@@ -253,7 +253,7 @@ def _load_state_dict(model, arch, progress):
     model.load_state_dict(model_dict)
 
 
-@NetworkFactory.factory_function("DenseNet121")
+@NetworkFactory.factory_type()
 class DenseNet121(DenseNet):
     """DenseNet121 with optional pretrained support when `spatial_dims` is 2."""
 
@@ -277,7 +277,7 @@ class DenseNet121(DenseNet):
             _load_state_dict(self, "densenet121", progress)
 
 
-@NetworkFactory.factory_function("DenseNet169")
+@NetworkFactory.factory_type()
 class DenseNet169(DenseNet):
     """DenseNet169 with optional pretrained support when `spatial_dims` is 2."""
 
@@ -301,7 +301,7 @@ class DenseNet169(DenseNet):
             _load_state_dict(self, "densenet169", progress)
 
 
-@NetworkFactory.factory_function("DenseNet201")
+@NetworkFactory.factory_type()
 class DenseNet201(DenseNet):
     """DenseNet201 with optional pretrained support when `spatial_dims` is 2."""
 
@@ -325,7 +325,7 @@ class DenseNet201(DenseNet):
             _load_state_dict(self, "densenet201", progress)
 
 
-@NetworkFactory.factory_function("DenseNet264")
+@NetworkFactory.factory_type()
 class DenseNet264(DenseNet):
     """DenseNet264"""
 

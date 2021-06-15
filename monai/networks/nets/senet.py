@@ -25,7 +25,7 @@ from monai.networks.nets.net_factory import NetworkFactory
 __all__ = ["SENet", "SENet154", "SEResNet50", "SEResNet101", "SEResNet152", "SEResNeXt50", "SEResNext101"]
 
 
-@NetworkFactory.factory_function("SENet")
+@NetworkFactory.factory_type()
 class SENet(nn.Module):
     """
     SENet based on `Squeeze-and-Excitation Networks <https://arxiv.org/pdf/1709.01507.pdf>`_.
@@ -307,7 +307,7 @@ def _load_state_dict(model, arch, progress):
     model.load_state_dict(model_dict)
 
 
-@NetworkFactory.factory_function("SENet154")
+@NetworkFactory.factory_type()
 class SENet154(SENet):
     """SENet154 based on `Squeeze-and-Excitation Networks` with optional pretrained support when spatial_dims is 2."""
 
@@ -332,7 +332,7 @@ class SENet154(SENet):
             _load_state_dict(self, "senet154", progress)
 
 
-@NetworkFactory.factory_function("SeResNet50")
+@NetworkFactory.factory_type()
 class SEResNet50(SENet):
     """SEResNet50 based on `Squeeze-and-Excitation Networks` with optional pretrained support when spatial_dims is 2."""
 
@@ -365,7 +365,7 @@ class SEResNet50(SENet):
             _load_state_dict(self, "se_resnet50", progress)
 
 
-@NetworkFactory.factory_function("SeResNet101")
+@NetworkFactory.factory_type()
 class SEResNet101(SENet):
     """
     SEResNet101 based on `Squeeze-and-Excitation Networks` with optional pretrained support when spatial_dims is 2.
@@ -398,7 +398,7 @@ class SEResNet101(SENet):
             _load_state_dict(self, "se_resnet101", progress)
 
 
-@NetworkFactory.factory_function("SeResNet152")
+@NetworkFactory.factory_type()
 class SEResNet152(SENet):
     """
     SEResNet152 based on `Squeeze-and-Excitation Networks` with optional pretrained support when spatial_dims is 2.

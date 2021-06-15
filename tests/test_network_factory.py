@@ -13,7 +13,7 @@ import unittest
 
 from parameterized import parameterized
 
-from monai.networks.nets import DenseNet, DenseNet121, NetworkFactory, UNet
+from monai.networks.nets import DenseNet, NetworkFactory, UNet
 
 TESTS = [
     [
@@ -27,23 +27,23 @@ TESTS = [
 
 class TestNetworkFactory(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_network_factory(self, class_name, name, args):
-        net = NetworkFactory.get_constructor(name, **args)
-        self.assertIsInstance(net, class_name)
+    def test_network_factory(self, net_type, name, kwargs):
+        net = NetworkFactory[name](**kwargs)
+        self.assertIsInstance(net, net_type)
 
     def test_fails(self):
         with self.assertRaises(KeyError):
             NetworkFactory["will_never_be_a_network"]
 
-    def test_register_network(self):
+    @parameterized.expand(TESTS)
+    def test_register_network(self, net_type, _, kwargs):
         class_name = "BrandNewNetwork"
 
-        class BrandNewNetwork(DenseNet121):
+        @NetworkFactory.factory_type()
+        class BrandNewNetwork(net_type):
             pass
 
-        NetworkFactory.add_factory_callable(class_name, BrandNewNetwork)
-        kwargs = {"spatial_dims": 3, "in_channels": 3, "out_channels": 2}
-        net = NetworkFactory.get_constructor(class_name.upper(), **kwargs)
+        net = NetworkFactory[class_name](**kwargs)
         self.assertIsInstance(net, BrandNewNetwork)
 
     def test_num_networks(self):

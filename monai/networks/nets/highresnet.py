@@ -97,7 +97,7 @@ class HighResBlock(nn.Module):
         return x_conv + torch.as_tensor(self.chn_pad(x))
 
 
-@NetworkFactory.factory_function("HighResNet")
+@NetworkFactory.factory_type()
 class HighResNet(nn.Module):
     """
     Reimplementation of highres3dnet based on

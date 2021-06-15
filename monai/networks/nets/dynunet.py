@@ -53,7 +53,7 @@ class DynUNetSkipLayer(nn.Module):
         return upout
 
 
-@NetworkFactory.factory_function("DynUNet")
+@NetworkFactory.factory_type()
 class DynUNet(nn.Module):
     """
     This reimplementation of a dynamic UNet (DynUNet) is based on:

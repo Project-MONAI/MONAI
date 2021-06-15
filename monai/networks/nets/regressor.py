@@ -25,7 +25,7 @@ from monai.utils import ensure_tuple, ensure_tuple_rep
 __all__ = ["Regressor"]
 
 
-@NetworkFactory.factory_function("Regressor")
+@NetworkFactory.factory_type()
 class Regressor(nn.Module):
     """
     This defines a network for relating large-sized input tensors to small output tensors, ie. regressing large

@@ -181,7 +181,7 @@ class OutputTransition(nn.Module):
         return out
 
 
-@NetworkFactory.factory_function("VNet")
+@NetworkFactory.factory_type()
 class VNet(nn.Module):
     """
     V-Net based on `Fully Convolutional Neural Networks for Volumetric Medical Image Segmentation

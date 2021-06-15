@@ -24,7 +24,7 @@ from monai.networks.nets.net_factory import NetworkFactory
 __all__ = ["VarAutoEncoder"]
 
 
-@NetworkFactory.factory_function("VarAutoEncoder")
+@NetworkFactory.factory_type()
 class VarAutoEncoder(AutoEncoder):
     """Variational Autoencoder based on the paper - https://arxiv.org/abs/1312.6114"""
 
