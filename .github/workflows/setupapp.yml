@@ -8,6 +8,7 @@ on:
       - main
       - releasing/*
       - feature/*
+      - torch19-test
 
 concurrency:
   # automatically cancel the previously triggered workflows when there's a newer version
