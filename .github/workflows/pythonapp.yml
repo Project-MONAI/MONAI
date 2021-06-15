@@ -280,7 +280,7 @@ jobs:
         python -c "import monai; monai.config.print_config()"
         # build for the current self-hosted CI Tesla V100
         BUILD_MONAI=1 TORCH_CUDA_ARCH_LIST="7.0" ./runtests.sh --quick --unittests
-        if [ ${{ matrix.environment }} = "PT18+CUDA112" ]; then
+        if [ ${{ matrix.environment }} = "PT18+CUDA102" ]; then
           # test the clang-format tool downloading once
           coverage run -m tests.clang_format_utils
         fi
