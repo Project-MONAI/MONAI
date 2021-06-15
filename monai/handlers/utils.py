@@ -31,6 +31,7 @@ __all__ = [
     "evenly_divisible_all_gather",
     "string_list_all_gather",
     "write_metrics_reports",
+    "from_dict",
 ]
 
 
@@ -228,3 +229,22 @@ def write_metrics_reports(
                     f.write(f"class{deli}{deli.join(ops)}\n")
                     for i, c in enumerate(np.transpose(v)):
                         f.write(f"{class_labels[i]}{deli}{deli.join([f'{_compute_op(k, c):.4f}' for k in ops])}\n")
+
+
+def from_dict(keys: Sequence[str]):
+    """
+    Utility function to adapt the expected keys of `engine.state.output` to ignite metrics.
+    It can help avoid a complicated `lambda` function and make the arg more straight-forward.
+    Typically, the first key is expected to be the prediction and the second key is label. Usage example::
+
+        from monai.handlers import MeanDice, from_dict
+
+        metric = MeanDice(
+            include_background=False,
+            output_transform=from_dict(["pred", "label"])
+        )
+
+    """
+    def _wrapper(output: Dict):
+        return tuple(output[k] for k in keys)
+    return _wrapper
