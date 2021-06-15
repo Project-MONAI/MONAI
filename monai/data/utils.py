@@ -346,6 +346,7 @@ def decollate_batch(
         if isinstance(data, dict):
             return {k: decollate(v, idx) for k, v in data.items()}
         if isinstance(data, torch.Tensor):
+            data = data.detach()
             if data.ndim > 0:
                 out = data[idx]
                 return torch_to_single(out)
@@ -353,7 +354,7 @@ def decollate_batch(
             if len(data) == 0:
                 return data
             if isinstance(data[0], torch.Tensor):
-                return [torch_to_single(d[idx]) for d in data]
+                return [torch_to_single(d[idx].detach()) for d in data]
             if issequenceiterable(data[0]):
                 return [decollate(d, idx) for d in data]
             return data[idx]

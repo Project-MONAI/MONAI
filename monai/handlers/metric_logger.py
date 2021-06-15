@@ -25,7 +25,7 @@ else:
 
 
 def _get_loss_from_output(output, loss_key: str = CommonKeys.LOSS):
-    return output[loss_key].item()
+    return output[0][loss_key].item()
 
 
 class MetricLoggerKeys(Enum):

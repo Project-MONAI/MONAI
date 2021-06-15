@@ -303,7 +303,7 @@ class TensorBoardImageHandler(TensorBoardHandler):
 
         """
         step = self.global_iter_transform(engine.state.epoch if self.epoch_level else engine.state.iteration)
-        show_images = self.batch_transform(engine.state.batch[self.index])[0]
+        show_images = self.batch_transform(engine.state.batch[self.index])
         if isinstance(show_images, torch.Tensor):
             show_images = show_images.detach().cpu().numpy()
         if show_images is not None:
@@ -313,7 +313,7 @@ class TensorBoardImageHandler(TensorBoardHandler):
                     f"(numpy.ndarray, torch.Tensor) but is {type(show_images).__name__}."
                 )
             plot_2d_or_3d_image(
-                show_images.unsqeeze(axis=0), step, self._writer, 0, self.max_channels, self.max_frames, "input_0"
+                show_images.unsqueeze(axis=0), step, self._writer, 0, self.max_channels, self.max_frames, "input_0"
             )
 
         show_labels = self.batch_transform(engine.state.batch[self.index])[1]
@@ -326,7 +326,7 @@ class TensorBoardImageHandler(TensorBoardHandler):
                     f"(numpy.ndarray, torch.Tensor) but is {type(show_labels).__name__}."
                 )
             plot_2d_or_3d_image(
-                show_labels.unsqeeze(axis=0), step, self._writer, 0, self.max_channels, self.max_frames, "input_1"
+                show_labels.unsqueeze(axis=0), step, self._writer, 0, self.max_channels, self.max_frames, "input_1"
             )
 
         show_outputs = self.output_transform(engine.state.output[self.index])
@@ -339,7 +339,7 @@ class TensorBoardImageHandler(TensorBoardHandler):
                     f"(numpy.ndarray, torch.Tensor) but is {type(show_outputs).__name__}."
                 )
             plot_2d_or_3d_image(
-                show_outputs.unsqeeze(axis=0), step, self._writer, 0, self.max_channels, self.max_frames, "output"
+                show_outputs.unsqueeze(axis=0), step, self._writer, 0, self.max_channels, self.max_frames, "output"
             )
 
         self._writer.flush()

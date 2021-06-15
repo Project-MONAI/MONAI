@@ -31,7 +31,7 @@ class TestHandlerTBImage(unittest.TestCase):
 
             # set up engine
             def _train_func(engine, batch):
-                engine.state.batch = decollate_batch(batch, batch_size=10)
+                engine.state.batch = decollate_batch(list(batch), batch_size=10)
                 return [torch.zeros((1, 10, 10))]
 
             engine = Engine(_train_func)

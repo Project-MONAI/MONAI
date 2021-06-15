@@ -61,7 +61,7 @@ class TestEnsembleEvaluator(unittest.TestCase):
         def run_post_transform(engine):
             for i in range(5):
                 expected_value = engine.state.iteration + i
-                torch.testing.assert_allclose(engine.state.output[f"pred{i}"], torch.tensor([[expected_value]]))
+                torch.testing.assert_allclose(engine.state.output[0][f"pred{i}"], torch.tensor([[expected_value]]))
 
         @val_engine.on(Events.EPOCH_COMPLETED)
         def trigger_custom_event():
