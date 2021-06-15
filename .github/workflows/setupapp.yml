@@ -60,7 +60,6 @@ jobs:
         python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
         python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
         python -c 'import torch; print(torch.rand(5, 3, device=torch.device("cuda:0")))'
-        BUILD_MONAI=1 ./runtests.sh --coverage --unittests  # unit tests with coverage report
         BUILD_MONAI=1 ./runtests.sh --coverage --net  # integration tests with coverage report
         coverage xml
         if pgrep python; then pkill python; fi
