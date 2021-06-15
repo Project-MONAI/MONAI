@@ -190,7 +190,6 @@ def plot_engine_status(
     graphmap.update(logger.metrics)
 
     imagemap = {}
-
     if image_fn is not None and engine.state is not None and engine.state.batch is not None:
         for src in (engine.state.batch, engine.state.output):
             if isinstance(src, list):
@@ -207,7 +206,6 @@ def plot_engine_status(
                             image = image_fn(label, s)
                             if image is not None:
                                 imagemap[f"{label}_{i}"] = image
-
 
     axes = plot_metric_images(fig, title, graphmap, imagemap, yscale, avg_keys, window_fraction)
 
