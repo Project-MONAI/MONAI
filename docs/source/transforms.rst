@@ -27,11 +27,27 @@ Generic Interfaces
 .. autoclass:: Randomizable
     :members:
 
+`RandomizableTransform`
+^^^^^^^^^^^^^^^^^^^^^^^
+.. autoclass:: RandomizableTransform
+    :members:
+
 `Compose`
 ^^^^^^^^^
 .. autoclass:: Compose
     :members:
     :special-members: __call__
+
+`InvertibleTransform`
+^^^^^^^^^^^^^^^^^^^^^
+.. autoclass:: InvertibleTransform
+    :members:
+
+`BatchInverseTransform`
+^^^^^^^^^^^^^^^^^^^^^^^
+.. autoclass:: BatchInverseTransform
+    :members:
+
 
 Vanilla Transforms
 ------------------
@@ -111,6 +127,18 @@ Crop and Pad
     :members:
     :special-members: __call__
 
+`RandScaleCrop`
+"""""""""""""""
+.. autoclass:: RandScaleCrop
+    :members:
+    :special-members: __call__
+
+`CenterScaleCrop`
+"""""""""""""""""
+.. autoclass:: CenterScaleCrop
+    :members:
+    :special-members: __call__
+
 Intensity
 ^^^^^^^^^
 
@@ -129,6 +157,24 @@ Intensity
 `RandShiftIntensity`
 """"""""""""""""""""
 .. autoclass:: RandShiftIntensity
+    :members:
+    :special-members: __call__
+
+`StdShiftIntensity`
+"""""""""""""""""""
+.. autoclass:: StdShiftIntensity
+    :members:
+    :special-members: __call__
+
+`RandStdShiftIntensity`
+"""""""""""""""""""""""
+.. autoclass:: RandStdShiftIntensity
+    :members:
+    :special-members: __call__
+
+`RandBiasField`
+"""""""""""""""
+.. autoclass:: RandBiasField
     :members:
     :special-members: __call__
 
@@ -228,6 +274,19 @@ Intensity
     :members:
     :special-members: __call__
 
+`GibbsNoise`
+""""""""""""""
+.. autoclass:: GibbsNoise
+    :members:
+    :special-members: __call__
+
+`RandGibbsNoise`
+"""""""""""""""""
+.. autoclass:: RandGibbsNoise
+    :members:
+    :special-members: __call__
+
+
 IO
 ^^
 
@@ -276,6 +335,11 @@ Post-processing
     :members:
     :special-members: __call__
 
+`Prob NMS`
+""""""""""
+.. autoclass:: ProbNMS
+  :members:
+
 `VoteEnsemble`
 """"""""""""""
 .. autoclass:: VoteEnsemble
@@ -306,6 +370,12 @@ Spatial
 `RandFlip`
 """"""""""
 .. autoclass:: RandFlip
+    :members:
+    :special-members: __call__
+
+`RandAxisFlip`
+""""""""""""""
+.. autoclass:: RandAxisFlip
     :members:
     :special-members: __call__
 
@@ -399,6 +469,12 @@ Spatial
     :members:
     :special-members: __call__
 
+`AddCoordinateChannels`
+"""""""""""""""""""""""
+.. autoclass:: AddCoordinateChannels
+    :members:
+    :special-members: __call__
+
 Utility
 ^^^^^^^
 
@@ -423,6 +499,12 @@ Utility
 `AddChannel`
 """"""""""""
 .. autoclass:: AddChannel
+    :members:
+    :special-members: __call__
+
+`EnsureChannelFirst`
+""""""""""""""""""""
+.. autoclass:: EnsureChannelFirst
     :members:
     :special-members: __call__
 
@@ -455,6 +537,13 @@ Utility
 .. autoclass:: ToNumpy
     :members:
     :special-members: __call__
+
+`ToCupy`
+""""""""
+.. autoclass:: ToCupy
+    :members:
+    :special-members: __call__
+
 
 `Transpose`
 """""""""""
@@ -513,6 +602,12 @@ Utility
 `TorchVision`
 """""""""""""
 .. autoclass:: TorchVision
+    :members:
+    :special-members: __call__
+
+`MapLabelValue`
+"""""""""""""""
+.. autoclass:: MapLabelValue
     :members:
     :special-members: __call__
 
@@ -594,6 +689,18 @@ Crop and Pad (Dict)
     :members:
     :special-members: __call__
 
+`RandScaleCropd`
+""""""""""""""""
+.. autoclass:: RandScaleCropd
+    :members:
+    :special-members: __call__
+
+`CenterScaleCropd`
+""""""""""""""""""
+.. autoclass:: CenterScaleCropd
+    :members:
+    :special-members: __call__
+
 Instensity (Dict)
 ^^^^^^^^^^^^^^^^^
 
@@ -612,6 +719,24 @@ Instensity (Dict)
 `RandShiftIntensityd`
 """""""""""""""""""""
 .. autoclass:: RandShiftIntensityd
+    :members:
+    :special-members: __call__
+
+`StdShiftIntensityd`
+""""""""""""""""""""
+.. autoclass:: StdShiftIntensityd
+    :members:
+    :special-members: __call__
+
+`RandStdShiftIntensityd`
+""""""""""""""""""""""""
+.. autoclass:: RandStdShiftIntensityd
+    :members:
+    :special-members: __call__
+
+`RandBiasFieldd`
+""""""""""""""""
+.. autoclass:: RandBiasFieldd
     :members:
     :special-members: __call__
 
@@ -642,6 +767,18 @@ Instensity (Dict)
 `ScaleIntensityRanged`
 """"""""""""""""""""""
 .. autoclass:: ScaleIntensityRanged
+    :members:
+    :special-members: __call__
+
+`GibbsNoised`
+""""""""""""""
+.. autoclass:: GibbsNoised
+    :members:
+    :special-members: __call__
+
+`RandGibbsNoised`
+""""""""""""""""""
+.. autoclass:: RandGibbsNoised
     :members:
     :special-members: __call__
 
@@ -759,6 +896,18 @@ Post-processing (Dict)
     :members:
     :special-members: __call__
 
+`Invertd`
+"""""""""
+.. autoclass:: Invertd
+    :members:
+    :special-members: __call__
+
+`SaveClassificationd`
+"""""""""""""""""""""
+.. autoclass:: SaveClassificationd
+    :members:
+    :special-members: __call__
+
 Spatial (Dict)
 ^^^^^^^^^^^^^^
 
@@ -783,6 +932,12 @@ Spatial (Dict)
 `RandFlipd`
 """""""""""
 .. autoclass:: RandFlipd
+    :members:
+    :special-members: __call__
+
+`RandAxisFlipd`
+"""""""""""""""
+.. autoclass:: RandAxisFlipd
     :members:
     :special-members: __call__
 
@@ -828,6 +983,12 @@ Spatial (Dict)
     :members:
     :special-members: __call__
 
+`Affined`
+"""""""""
+.. autoclass:: Affined
+    :members:
+    :special-members: __call__
+
 `RandAffined`
 """""""""""""
 .. autoclass:: RandAffined
@@ -843,6 +1004,12 @@ Spatial (Dict)
 `Rand3DElasticd`
 """"""""""""""""
 .. autoclass:: Rand3DElasticd
+    :members:
+    :special-members: __call__
+
+`AddCoordinateChannelsd`
+""""""""""""""""""""""""
+.. autoclass:: AddCoordinateChannelsd
     :members:
     :special-members: __call__
 
@@ -873,6 +1040,12 @@ Utility (Dict)
     :members:
     :special-members: __call__
 
+`EnsureChannelFirstd`
+"""""""""""""""""""""
+.. autoclass:: EnsureChannelFirstd
+    :members:
+    :special-members: __call__
+
 `RepeatChanneld`
 """"""""""""""""
 .. autoclass:: RepeatChanneld
@@ -900,6 +1073,12 @@ Utility (Dict)
 `ToNumpyd`
 """"""""""
 .. autoclass:: ToNumpyd
+    :members:
+    :special-members: __call__
+
+`ToCupyd`
+"""""""""
+.. autoclass:: ToCupyd
     :members:
     :special-members: __call__
 
@@ -984,6 +1163,18 @@ Utility (Dict)
 `TorchVisiond`
 """"""""""""""
 .. autoclass:: TorchVisiond
+    :members:
+    :special-members: __call__
+
+`RandTorchVisiond`
+""""""""""""""""""
+.. autoclass:: RandTorchVisiond
+    :members:
+    :special-members: __call__
+
+`MapLabelValued`
+""""""""""""""""
+.. autoclass:: MapLabelValued
     :members:
     :special-members: __call__
 

@@ -11,14 +11,12 @@
 
 from typing import Callable, Optional
 
-import torch
-
-from monai.handlers.iteration_metric import IterationMetric
+from monai.handlers.ignite_metric import IgniteMetric
 from monai.metrics import HausdorffDistanceMetric
 from monai.utils import MetricReduction
 
 
-class HausdorffDistance(IterationMetric):
+class HausdorffDistance(IgniteMetric):
     """
     Computes Hausdorff distance from full size Tensor and collects average over batch, class-channels, iterations.
     """
@@ -30,7 +28,6 @@ class HausdorffDistance(IterationMetric):
         percentile: Optional[float] = None,
         directed: bool = False,
         output_transform: Callable = lambda x: x,
-        device: Optional[torch.device] = None,
         save_details: bool = True,
     ) -> None:
         """
@@ -45,22 +42,19 @@ class HausdorffDistance(IterationMetric):
                 Defaults to ``None``.
             directed: whether to calculate directed Hausdorff distance. Defaults to ``False``.
             output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
-            device: device specification in case of distributed computation usage.
             save_details: whether to save metric computation details per image, for example: hausdorff distance
                 of every image. default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
         """
-        super().__init__(output_transform, device=device)
         metric_fn = HausdorffDistanceMetric(
             include_background=include_background,
             distance_metric=distance_metric,
             percentile=percentile,
             directed=directed,
-            reduction=MetricReduction.NONE,
+            reduction=MetricReduction.MEAN,
         )
         super().__init__(
             metric_fn=metric_fn,
             output_transform=output_transform,
-            device=device,
             save_details=save_details,
         )
