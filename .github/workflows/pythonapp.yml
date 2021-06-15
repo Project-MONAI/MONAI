@@ -210,7 +210,7 @@ jobs:
         include:
           - environment: PT19+CUDA111
             pytorch: "torch==1.9.0 torchvision==0.10.0"
-            base: "nvcr.io/nvidia/cuda:11.1-devel-ubuntu20.04"
+            base: "nvcr.io/nvidia/cuda:11.1-devel-ubuntu18.04"
     container:
       image: ${{ matrix.base }}
       options: --gpus all
