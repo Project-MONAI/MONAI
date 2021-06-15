@@ -32,6 +32,7 @@ def default_normalizer(x: NdarrayTensor) -> NdarrayTensor:
 
     Note: This will flip magnitudes (i.e., smallest will become biggest and vice versa).
     """
+
     def _compute(data: np.ndarray):
         scaler = ScaleIntensity(minv=1.0, maxv=0.0)
         return np.stack([scaler(i) for i in data], axis=0)
