@@ -5,6 +5,11 @@
 Network architectures
 =====================
 
+`NetworkFactory`
+~~~~~~~~~~~~~~~~
+.. automodule:: monai.networks.nets.net_factory.NetworkFactory
+  :members:
+
 Blocks
 ------
 .. automodule:: monai.networks.blocks

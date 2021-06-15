@@ -13,4 +13,4 @@ from monai.utils.factories import ObjectFactory
 
 __all__ = ["NetworkFactory"]
 
-NetworkFactory = ObjectFactory()
+NetworkFactory = ObjectFactory(add_split_args_doc_info=False)

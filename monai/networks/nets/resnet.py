@@ -17,6 +17,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from monai.networks.layers.factories import Conv, Norm, Pool
+from monai.networks.nets.net_factory import NetworkFactory
 
 __all__ = ["ResNet", "resnet10", "resnet18", "resnet34", "resnet50", "resnet101", "resnet152", "resnet200"]
 
@@ -146,6 +147,7 @@ class ResNetBottleneck(nn.Module):
         return out
 
 
+@NetworkFactory.factory_type()
 class ResNet(nn.Module):
     """
     ResNet based on: `Deep Residual Learning for Image Recognition <https://arxiv.org/pdf/1512.03385.pdf>`_

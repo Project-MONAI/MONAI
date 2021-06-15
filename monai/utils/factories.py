@@ -71,8 +71,13 @@ class ObjectFactory:
     callables. These functions are referred to by name and can be added at any time.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, add_split_args_doc_info: bool = True) -> None:
         self.factories: Dict[str, Callable] = {}
+        self.extra_docs = (
+            ".\nPlease see :py:class:`monai.networks.layers.split_args` for additional args parsing."
+            if add_split_args_doc_info
+            else ""
+        )
 
     @property
     def names(self) -> Tuple[str, ...]:
@@ -92,7 +97,7 @@ class ObjectFactory:
             "The supported member"
             + ("s are: " if len(self.names) > 1 else " is: ")
             + ", ".join(f"``{name}``" for name in self.names)
-            + ".\nPlease see :py:class:`monai.networks.layers.split_args` for additional args parsing."
+            + self.extra_docs
         )
 
     def factory_function(self, name: str) -> Callable:
