@@ -238,7 +238,8 @@ def from_engine(keys: Sequence[str]):
     Users only need to set the expected keys, then it will return a callable function to extract data from
     dictionary and construct a tuple respectively.
     It can help avoid a complicated `lambda` function and make the arg of metrics more straight-forward.
-    For example, set the first key as the prediction and the second key as label for a metric::
+    For example, set the first key as the prediction and the second key as label to get the expected data
+    from `engine.state.output` for a metric::
 
         from monai.handlers import MeanDice, from_engine
 
