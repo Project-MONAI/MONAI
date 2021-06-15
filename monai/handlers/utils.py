@@ -245,6 +245,8 @@ def from_dict(keys: Sequence[str]):
         )
 
     """
+
     def _wrapper(output: Dict):
         return tuple(output[k] for k in keys)
+
     return _wrapper
