@@ -28,12 +28,13 @@ __all__ = ["CAM", "GradCAM", "GradCAMpp", "ModelWithHooks", "default_normalizer"
 def default_normalizer(x: NdarrayTensor) -> NdarrayTensor:
     """
     A linear intensity scaling by mapping the (min, max) to (1, 0).
-    The output data type and device will be consistent with input data.
+    If the input data is PyTorch Tensor, the output data will be Tensor on the same device,
+    otherwise, output data will be numpy array.
 
     Note: This will flip magnitudes (i.e., smallest will become biggest and vice versa).
     """
 
-    def _compute(data: np.ndarray):
+    def _compute(data: np.ndarray) -> np.ndarray:
         scaler = ScaleIntensity(minv=1.0, maxv=0.0)
         return np.stack([scaler(i) for i in data], axis=0)
 
