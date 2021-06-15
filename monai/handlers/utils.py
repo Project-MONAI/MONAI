@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
 import numpy as np
 import torch
 
+from monai.config import KeysCollection
 from monai.utils import ensure_tuple, exact_version, get_torch_version_tuple, optional_import
 
 idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
@@ -231,7 +232,7 @@ def write_metrics_reports(
                         f.write(f"{class_labels[i]}{deli}{deli.join([f'{_compute_op(k, c):.4f}' for k in ops])}\n")
 
 
-def from_engine(keys: Sequence[str]):
+def from_engine(keys: KeysCollection):
     """
     Utility function to simplify the `batch_transform` or `output_transform` args of ignite components
     when handling dictionary data(for example: `engine.state.batch` or `engine.state.output`).
@@ -251,6 +252,6 @@ def from_engine(keys: Sequence[str]):
     """
 
     def _wrapper(output: Dict):
-        return tuple(output[k] for k in keys)
+        return tuple(output[k] for k in ensure_tuple(keys))
 
     return _wrapper
