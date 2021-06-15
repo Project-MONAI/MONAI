@@ -23,7 +23,7 @@ from monai.config import DtypeLike
 from monai.data.image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader
 from monai.data.nifti_saver import NiftiSaver
 from monai.data.png_saver import PNGSaver
-from monai.transforms.transform import Transform
+from monai.transforms.transform import Transform, convert_data_type
 from monai.utils import GridSampleMode, GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
 from monai.utils import InterpolateMode, ensure_tuple, optional_import
@@ -171,7 +171,7 @@ class LoadImage(Transform):
 
         # convert to desired output type
         if self.as_tensor:
-            img_array = torch.Tensor(img_array)
+            img_array, *_ = convert_data_type(img_array, torch.Tensor)
 
         if self.image_only:
             return img_array

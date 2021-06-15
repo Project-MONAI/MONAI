@@ -18,6 +18,7 @@ import numpy as np
 
 from monai.data import ImageDataset
 from monai.transforms import Compose, EnsureChannelFirst, RandAdjustContrast, RandomizableTransform, Spacing
+from monai.utils.misc import dtype_convert
 
 FILENAMES = ["test1.nii.gz", "test2.nii", "test3.nii.gz"]
 
@@ -86,7 +87,7 @@ class TestImageDataset(unittest.TestCase):
             # loading no meta, int
             dataset = ImageDataset(full_names, dtype=np.float16)
             for d, _ in zip(dataset, ref_data):
-                self.assertEqual(d.dtype, np.float16)
+                self.assertEqual(d.dtype, dtype_convert(np.float16, type(d)))
 
             # loading with meta, no transform
             dataset = ImageDataset(full_names, image_only=False)
