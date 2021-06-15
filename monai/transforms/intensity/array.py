@@ -958,6 +958,7 @@ class GaussianSmooth(TorchTransform):
     def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         img_t: torch.Tensor
         img_t, orig_type, orig_device = self.pre_conv_data(img)  # type: ignore
+        img_t = img_t.to(torch.float)
 
         gaussian_filter = GaussianFilter(img.ndim - 1, self.sigma, approx=self.approx)
         out = gaussian_filter(img_t.unsqueeze(0)).squeeze(0)
