@@ -168,7 +168,7 @@ class PersistentDataset(Dataset):
         self.hash_func = hash_func
         if self.cache_dir is not None:
             if not self.cache_dir.exists():
-                self.cache_dir.mkdir(parents=True)
+                self.cache_dir.mkdir(parents=True, exist_ok=True)
             if not self.cache_dir.is_dir():
                 raise ValueError("cache_dir must be a directory.")
 

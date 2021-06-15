@@ -151,5 +151,24 @@ class TestDistDataset(DistTestCase):
         self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
 
 
+class TestDistCreateDataset(DistTestCase):
+    def setUp(self):
+        self.tempdir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.tempdir)
+
+    @DistCall(nnodes=1, nproc_per_node=2)
+    def test_mp_dataset(self):
+        print("persistent", dist.get_rank())
+        items = [[list(range(i))] for i in range(5)]
+        cache_dir = os.path.join(self.tempdir, "test")
+        ds = PersistentDataset(items, transform=_InplaceXform(), cache_dir=cache_dir)
+        self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
+        ds1 = PersistentDataset(items, transform=_InplaceXform(), cache_dir=cache_dir)
+        self.assertEqual(list(ds1), list(ds))
+        self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
+
+
 if __name__ == "__main__":
     unittest.main()
