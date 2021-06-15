@@ -58,9 +58,9 @@ class TestHandlerConfusionMatrix(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_compute(self, input_params, expected_avg):
         metric = ConfusionMatrix(**input_params)
-
-        y_pred = torch.Tensor([[[0], [1]], [[1], [0]]])
-        y = torch.Tensor([[[0], [1]], [[0], [1]]])
+        # test input a list of channel-first tensor
+        y_pred = [torch.Tensor([[0], [1]]), torch.Tensor([[1], [0]])]
+        y = [torch.Tensor([[0], [1]]), torch.Tensor([[0], [1]])]
         metric.update([y_pred, y])
 
         y_pred = torch.Tensor([[[0], [1]], [[1], [0]]])
