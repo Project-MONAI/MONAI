@@ -206,11 +206,11 @@ jobs:
     strategy:
       matrix:
         environment:
-#          - "PT16+CUDA110"
-#          - "PT17+CUDA102"
-#          - "PT17+CUDA110"
-#          - "PT18+CUDA102"
-#          - "PT18+CUDA112"
+          - "PT16+CUDA110"
+          - "PT17+CUDA102"
+          - "PT17+CUDA110"
+          - "PT18+CUDA102"
+          - "PT18+CUDA112"
           - "PT19+CUDA111"
         include:
           - environment: PT16+CUDA110
@@ -243,7 +243,8 @@ jobs:
     - name: apt install
       run: |
         if [ ${{ matrix.environment }} = "PT17+CUDA102" ] || \
-           [ ${{ matrix.environment }} = "PT18+CUDA102" ]
+           [ ${{ matrix.environment }} = "PT18+CUDA102" ] || \
+           [ ${{ matrix.environment }} = "PT19+CUDA111" ]
         then
         PYVER=3.6 PYSFX=3 DISTUTILS=python3-distutils && \
         apt-get update && apt-get install -y --no-install-recommends \
