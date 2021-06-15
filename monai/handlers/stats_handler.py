@@ -44,7 +44,7 @@ class StatsHandler:
         self,
         epoch_print_logger: Optional[Callable[[Engine], Any]] = None,
         iteration_print_logger: Optional[Callable[[Engine], Any]] = None,
-        output_transform: Callable = lambda x: x,
+        output_transform: Callable = lambda x: x[0],
         global_epoch_transform: Callable = lambda x: x,
         name: Optional[str] = None,
         tag_name: str = DEFAULT_TAG,
@@ -174,13 +174,13 @@ class StatsHandler:
         """
         Execute iteration log operation based on Ignite engine.state data.
         Print the values from Ignite state.logs dict.
-        Default behavior is to print loss from output[1], skip if output[1] is not loss.
+        Default behavior is to print loss from output[0] as output is decollated list.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
 
         """
-        loss = self.output_transform(engine.state.output[0])
+        loss = self.output_transform(engine.state.output)
         if loss is None:
             return  # no printing if the output is empty
 

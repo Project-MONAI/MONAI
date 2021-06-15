@@ -82,7 +82,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
         epoch_interval: int = 1,
         iteration_event_writer: Optional[Callable[[Engine, SummaryWriter], Any]] = None,
         iteration_interval: int = 1,
-        output_transform: Callable = lambda x: x,
+        output_transform: Callable = lambda x: x[0],
         global_epoch_transform: Callable = lambda x: x,
         tag_name: str = DEFAULT_TAG,
     ) -> None:
@@ -184,7 +184,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
             writer: TensorBoard writer, created in TensorBoardHandler.
 
         """
-        loss = self.output_transform(engine.state.output[0])
+        loss = self.output_transform(engine.state.output)
         if loss is None:
             return  # do nothing if output is empty
         if isinstance(loss, dict):
@@ -259,9 +259,9 @@ class TensorBoardImageHandler(TensorBoardHandler):
             epoch_level: plot content from engine.state every N epochs or N iterations. `True` is epoch level,
                 `False` is iteration level.
             batch_transform: a callable that is used to transform the
-                ``ignite.engine.batch`` into expected format to extract several label data.
-            output_transform: a callable that is used to transform the
-                ``ignite.engine.output`` into expected format to extract several output data.
+                ``ignite.engine.batch[index]`` into (image, label) for visualization.
+            output_transform: a callable that is used to extract the prediction data from
+                ``ignite.engine.output[index]`` for visualzation.
             global_iter_transform: a callable that is used to customize global step number for TensorBoard.
                 For example, in evaluation, the evaluator engine needs to know current epoch from trainer.
             index: plot which element in a data batch, default is the first element.
@@ -303,7 +303,7 @@ class TensorBoardImageHandler(TensorBoardHandler):
 
         """
         step = self.global_iter_transform(engine.state.epoch if self.epoch_level else engine.state.iteration)
-        show_images = self.batch_transform(engine.state.batch[self.index])
+        show_images = self.batch_transform(engine.state.batch[self.index])[0]
         if isinstance(show_images, torch.Tensor):
             show_images = show_images.detach().cpu().numpy()
         if show_images is not None:
@@ -313,7 +313,8 @@ class TensorBoardImageHandler(TensorBoardHandler):
                     f"(numpy.ndarray, torch.Tensor) but is {type(show_images).__name__}."
                 )
             plot_2d_or_3d_image(
-                show_images.unsqueeze(axis=0), step, self._writer, 0, self.max_channels, self.max_frames, "input_0"
+                # add batch dim and plot the first item
+                show_images[None], step, self._writer, 0, self.max_channels, self.max_frames, "input_0"
             )
 
         show_labels = self.batch_transform(engine.state.batch[self.index])[1]
@@ -326,7 +327,7 @@ class TensorBoardImageHandler(TensorBoardHandler):
                     f"(numpy.ndarray, torch.Tensor) but is {type(show_labels).__name__}."
                 )
             plot_2d_or_3d_image(
-                show_labels.unsqueeze(axis=0), step, self._writer, 0, self.max_channels, self.max_frames, "input_1"
+                show_labels[None], step, self._writer, 0, self.max_channels, self.max_frames, "input_1"
             )
 
         show_outputs = self.output_transform(engine.state.output[self.index])
@@ -339,7 +340,7 @@ class TensorBoardImageHandler(TensorBoardHandler):
                     f"(numpy.ndarray, torch.Tensor) but is {type(show_outputs).__name__}."
                 )
             plot_2d_or_3d_image(
-                show_outputs.unsqueeze(axis=0), step, self._writer, 0, self.max_channels, self.max_frames, "output"
+                show_outputs[None], step, self._writer, 0, self.max_channels, self.max_frames, "output"
             )
 
         self._writer.flush()
