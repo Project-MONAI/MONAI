@@ -86,7 +86,7 @@ class TestGradientClassActivationMap(unittest.TestCase):
         self.assertTupleEqual(result.shape, expected_shape)
         # check result is same whether class_idx=None is used or not
         result2 = cam(x=image, layer_idx=-1, class_idx=model(image).max(1)[-1].cpu())
-        np.testing.assert_array_almost_equal(result, result2)
+        torch.testing.assert_allclose(result, result2)
 
 
 if __name__ == "__main__":
