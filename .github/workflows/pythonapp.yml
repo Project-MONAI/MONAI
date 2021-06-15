@@ -206,11 +206,11 @@ jobs:
     strategy:
       matrix:
         environment:
-          - "PT19+CUDA111"
+          - "PT19+CUDA102"
         include:
-          - environment: PT19+CUDA111
-            pytorch: "torch==1.9.0+cu111 torchvision==0.10.0+cu111"
-            base: "nvcr.io/nvidia/cuda:11.1-devel-ubuntu18.04"
+          - environment: PT19+CUDA102
+            pytorch: "torch==1.9.0 torchvision==0.10.0"
+            base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
     container:
       image: ${{ matrix.base }}
       options: --gpus all
@@ -221,7 +221,7 @@ jobs:
       run: |
         if [ ${{ matrix.environment }} = "PT17+CUDA102" ] || \
            [ ${{ matrix.environment }} = "PT18+CUDA102" ] || \
-           [ ${{ matrix.environment }} = "PT19+CUDA111" ]
+           [ ${{ matrix.environment }} = "PT19+CUDA102" ]
         then
         PYVER=3.6 PYSFX=3 DISTUTILS=python3-distutils && \
         apt-get update && apt-get install -y --no-install-recommends \
@@ -280,7 +280,7 @@ jobs:
         python -c "import monai; monai.config.print_config()"
         # build for the current self-hosted CI Tesla V100
         BUILD_MONAI=1 TORCH_CUDA_ARCH_LIST="7.0" ./runtests.sh --quick --unittests
-        if [ ${{ matrix.environment }} = "PT18+CUDA102" ]; then
+        if [ ${{ matrix.environment }} = "PT19+CUDA102" ]; then
           # test the clang-format tool downloading once
           coverage run -m tests.clang_format_utils
         fi
