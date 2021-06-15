@@ -314,7 +314,13 @@ class TensorBoardImageHandler(TensorBoardHandler):
                 )
             plot_2d_or_3d_image(
                 # add batch dim and plot the first item
-                show_images[None], step, self._writer, 0, self.max_channels, self.max_frames, "input_0"
+                show_images[None],
+                step,
+                self._writer,
+                0,
+                self.max_channels,
+                self.max_frames,
+                "input_0",
             )
 
         show_labels = self.batch_transform(engine.state.batch[self.index])[1]
@@ -326,9 +332,7 @@ class TensorBoardImageHandler(TensorBoardHandler):
                     "batch_transform(engine.state.batch)[1] must be None or one of "
                     f"(numpy.ndarray, torch.Tensor) but is {type(show_labels).__name__}."
                 )
-            plot_2d_or_3d_image(
-                show_labels[None], step, self._writer, 0, self.max_channels, self.max_frames, "input_1"
-            )
+            plot_2d_or_3d_image(show_labels[None], step, self._writer, 0, self.max_channels, self.max_frames, "input_1")
 
         show_outputs = self.output_transform(engine.state.output[self.index])
         if isinstance(show_outputs, torch.Tensor):
@@ -339,8 +343,6 @@ class TensorBoardImageHandler(TensorBoardHandler):
                     "output_transform(engine.state.output) must be None or one of "
                     f"(numpy.ndarray, torch.Tensor) but is {type(show_outputs).__name__}."
                 )
-            plot_2d_or_3d_image(
-                show_outputs[None], step, self._writer, 0, self.max_channels, self.max_frames, "output"
-            )
+            plot_2d_or_3d_image(show_outputs[None], step, self._writer, 0, self.max_channels, self.max_frames, "output")
 
         self._writer.flush()

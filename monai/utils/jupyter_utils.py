@@ -215,8 +215,9 @@ def plot_engine_status(
     return fig, axes
 
 
-def _get_loss_from_output(output: Union[Dict[str, torch.Tensor], torch.Tensor]) -> float:
+def _get_loss_from_output(output: Union[Dict[str, torch.Tensor], torch.Tensor]):
     """Returns a single value from the network output, which is a dict or tensor."""
+
     def _get_loss(data):
         if isinstance(data, dict):
             return data["loss"].item()
