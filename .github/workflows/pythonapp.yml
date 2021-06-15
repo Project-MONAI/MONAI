@@ -7,6 +7,7 @@ on:
       - dev
       - main
       - releasing/*
+      - torch19-test
   pull_request:
 
 concurrency:
