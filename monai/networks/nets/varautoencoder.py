@@ -21,6 +21,8 @@ from monai.networks.layers.factories import Act, Norm
 from monai.networks.nets import AutoEncoder
 from monai.networks.nets.net_factory import NetworkFactory
 
+__all__ = ["VarAutoEncoder"]
+
 
 @NetworkFactory.factory_function("VarAutoEncoder")
 class VarAutoEncoder(AutoEncoder):

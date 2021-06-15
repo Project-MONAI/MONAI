@@ -52,8 +52,15 @@ def write_nifti(
     13.333x13.333 pixels. In this case `output_spatial_shape` could be specified so
     that this function writes image data to a designated shape.
 
-    When `affine` and `target_affine` are None, the data will be saved with an
-    identity matrix as the image affine.
+    The saved `affine` matrix follows:
+    - If `affine` equals to `target_affine`, save the data with `target_affine`.
+    - If `resample=False`, transform `affine` to `new_affine` based on the orientation
+    of `target_affine` and save the data with `new_affine`.
+    - If `resample=True`, save the data with `target_affine`, if explicitly specify
+    the `output_spatial_shape`, the shape of saved data is not computed by `target_affine`.
+    - If `target_affine` is None, set `target_affine=affine` and save.
+    - If `affine` and `target_affine` are None, the data will be saved with an identity
+    matrix as the image affine.
 
     This function assumes the NIfTI dimension notations.
     Spatially it supports up to three dimensions, that is, H, HW, HWD for
@@ -115,7 +122,7 @@ def write_nifti(
     data = nib.orientations.apply_orientation(data, ornt_transform)
     _affine = affine @ nib.orientations.inv_ornt_aff(ornt_transform, data_shape)
     if np.allclose(_affine, target_affine, atol=1e-3) or not resample:
-        results_img = nib.Nifti1Image(data.astype(output_dtype), to_affine_nd(3, target_affine))
+        results_img = nib.Nifti1Image(data.astype(output_dtype), to_affine_nd(3, _affine))
         nib.save(results_img, file_name)
         return
 

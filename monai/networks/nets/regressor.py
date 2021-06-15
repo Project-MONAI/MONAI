@@ -22,6 +22,8 @@ from monai.networks.layers.simplelayers import Reshape
 from monai.networks.nets.net_factory import NetworkFactory
 from monai.utils import ensure_tuple, ensure_tuple_rep
 
+__all__ = ["Regressor"]
+
 
 @NetworkFactory.factory_function("Regressor")
 class Regressor(nn.Module):

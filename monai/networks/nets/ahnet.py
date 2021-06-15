@@ -20,6 +20,8 @@ from monai.networks.blocks.fcn import FCN
 from monai.networks.layers.factories import Act, Conv, Norm, Pool
 from monai.networks.nets.net_factory import NetworkFactory
 
+__all__ = ["AHnet", "Ahnet", "ahnet", "AHNet"]
+
 
 class Bottleneck3x3x1(nn.Module):
 

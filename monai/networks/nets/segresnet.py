@@ -22,6 +22,8 @@ from monai.networks.layers.utils import get_act_layer, get_norm_layer
 from monai.networks.nets.net_factory import NetworkFactory
 from monai.utils import UpsampleMode
 
+__all__ = ["SegResNet", "SegResNetVAE"]
+
 
 @NetworkFactory.factory_function("SegResNet")
 class SegResNet(nn.Module):
@@ -39,6 +41,8 @@ class SegResNet(nn.Module):
         dropout_prob: probability of an element to be zero-ed. Defaults to ``None``.
         act: activation type and arguments. Defaults to ``RELU``.
         norm: feature normalization type and arguments. Defaults to ``GROUP``.
+        norm_name: deprecating option for feature normalization type.
+        num_groups: deprecating option for group norm. parameters.
         use_conv_final: if add a final convolution block to output. Defaults to ``True``.
         blocks_down: number of down sample blocks in each layer. Defaults to ``[1,2,2,4]``.
         blocks_up: number of up sample blocks in each layer. Defaults to ``[1,1,1]``.
@@ -61,6 +65,8 @@ class SegResNet(nn.Module):
         dropout_prob: Optional[float] = None,
         act: Union[Tuple, str] = ("RELU", {"inplace": True}),
         norm: Union[Tuple, str] = ("GROUP", {"num_groups": 8}),
+        norm_name: str = "",
+        num_groups: int = 8,
         use_conv_final: bool = True,
         blocks_down: tuple = (1, 2, 2, 4),
         blocks_up: tuple = (1, 1, 1),
@@ -78,6 +84,10 @@ class SegResNet(nn.Module):
         self.blocks_up = blocks_up
         self.dropout_prob = dropout_prob
         self.act = get_act_layer(act)
+        if norm_name:
+            if norm_name.lower() != "group":
+                raise ValueError(f"Deprecating option 'norm_name={norm_name}', please use 'norm' instead.")
+            norm = ("group", {"num_groups": num_groups})
         self.norm = norm
         self.upsample_mode = UpsampleMode(upsample_mode)
         self.use_conv_final = use_conv_final

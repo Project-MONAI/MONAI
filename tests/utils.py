@@ -126,7 +126,7 @@ class SkipIfBeforePyTorchVersion:
 
 class SkipIfAtLeastPyTorchVersion:
     """Decorator to be used if test should be skipped
-    with PyTorch versions newer than that given."""
+    with PyTorch versions newer than or equal to that given."""
 
     def __init__(self, pytorch_version_tuple):
         self.max_version = pytorch_version_tuple

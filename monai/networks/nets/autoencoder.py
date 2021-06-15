@@ -18,6 +18,8 @@ from monai.networks.blocks import Convolution, ResidualUnit
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.nets.net_factory import NetworkFactory
 
+__all__ = ["AutoEncoder"]
+
 
 @NetworkFactory.factory_function("AutoEncoder")
 class AutoEncoder(nn.Module):

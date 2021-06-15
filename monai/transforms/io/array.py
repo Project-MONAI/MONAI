@@ -13,6 +13,7 @@ A collection of "vanilla" transforms for IO functions
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
+import sys
 from typing import Dict, List, Optional, Sequence, Union
 
 import numpy as np
@@ -33,20 +34,28 @@ Image, _ = optional_import("PIL.Image")
 __all__ = ["LoadImage", "SaveImage"]
 
 
-def switch_endianness(data, old, new):
+def switch_endianness(data, new="<"):
     """
-    If any numpy arrays have `old` (e.g., ">"),
-    replace with `new` (e.g., "<").
+    Convert the input `data` endianness to `new`.
+
+    Args:
+        data: input to be converted.
+        new: the target endianness, currently support "<" or ">".
     """
     if isinstance(data, np.ndarray):
-        if data.dtype.byteorder == old:
-            data = data.newbyteorder(new)
+        # default to system endian
+        sys_native = ((sys.byteorder == "little") and "<") or ">"
+        current_ = sys_native if data.dtype.byteorder not in ("<", ">") else data.dtype.byteorder
+        if new not in ("<", ">"):
+            raise NotImplementedError(f"Not implemented option new={new}.")
+        if current_ != new:
+            data = data.byteswap().newbyteorder(new)
     elif isinstance(data, tuple):
-        data = tuple(switch_endianness(x, old, new) for x in data)
+        data = tuple(switch_endianness(x, new) for x in data)
     elif isinstance(data, list):
-        data = [switch_endianness(x, old, new) for x in data]
+        data = [switch_endianness(x, new) for x in data]
     elif isinstance(data, dict):
-        data = {k: switch_endianness(v, old, new) for k, v in data.items()}
+        data = {k: switch_endianness(v, new) for k, v in data.items()}
     elif isinstance(data, (bool, str, float, int, type(None))):
         pass
     else:
@@ -159,7 +168,7 @@ class LoadImage(Transform):
             return img_array
         meta_data[Key.FILENAME_OR_OBJ] = ensure_tuple(filename)[0]
         # make sure all elements in metadata are little endian
-        meta_data = switch_endianness(meta_data, ">", "<")
+        meta_data = switch_endianness(meta_data, "<")
 
         return img_array, meta_data
 
@@ -169,6 +178,9 @@ class SaveImage(Transform):
     Save transformed data into files, support NIfTI and PNG formats.
     It can work for both numpy array and PyTorch Tensor in both pre-transform chain
     and post transform chain.
+    The name of saved file will be `{input_image_name}_{output_postfix}{output_ext}`,
+    where the input image name is extracted from the provided meta data dictionary.
+    If no meta data provided, use index from 0 as the filename prefix.
     It can also save a list of PyTorch Tensor or numpy array without `batch dim`.
 
     Note: image should include channel dimension: [B],C,H,W,[D].

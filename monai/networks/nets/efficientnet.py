@@ -22,7 +22,7 @@ from torch.utils import model_zoo
 from monai.networks.layers.factories import Act, Conv, Norm, Pad, Pool
 from monai.networks.nets.net_factory import NetworkFactory
 
-__all__ = ["EfficientNetBN", "get_efficientnet_image_size", "drop_connect"]
+__all__ = ["EfficientNet", "EfficientNetBN", "get_efficientnet_image_size", "drop_connect"]
 
 efficientnet_params = {
     # model_name: (width_mult, depth_mult, image_size, dropout_rate, dropconnect_rate)
@@ -232,25 +232,6 @@ class EfficientNet(nn.Module):
             batch_norm_epsilon: epsilon for batch norm.
             drop_connect_rate: dropconnect rate for drop connection (individual weights) layers.
             depth_divisor: depth divisor for channel rounding.
-
-        Examples::
-
-            # for pretrained spatial 2D ImageNet
-            >>> image_size = get_efficientnet_image_size("efficientnet-b0")
-            >>> inputs = torch.rand(1, 3, image_size, image_size)
-            >>> model = EfficientNetBN("efficientnet-b0", pretrained=True)
-            >>> model.eval()
-            >>> outputs = model(inputs)
-
-            # create spatial 2D
-            >>> model = EfficientNetBN("efficientnet-b0", spatial_dims=2)
-
-            # create spatial 3D
-            >>> model = EfficientNetBN("efficientnet-b0", spatial_dims=3)
-
-            # create EfficientNetB7 for spatial 2D
-            >>> model = EfficientNetBN("efficientnet-b7", spatial_dims=2)
-
         """
         super().__init__()
 
@@ -484,6 +465,24 @@ class EfficientNetBN(EfficientNet):
             spatial_dims: number of spatial dimensions.
             in_channels: number of input channels.
             num_classes: number of output classes.
+
+        Examples::
+
+            # for pretrained spatial 2D ImageNet
+            >>> image_size = get_efficientnet_image_size("efficientnet-b0")
+            >>> inputs = torch.rand(1, 3, image_size, image_size)
+            >>> model = EfficientNetBN("efficientnet-b0", pretrained=True)
+            >>> model.eval()
+            >>> outputs = model(inputs)
+
+            # create spatial 2D
+            >>> model = EfficientNetBN("efficientnet-b0", spatial_dims=2)
+
+            # create spatial 3D
+            >>> model = EfficientNetBN("efficientnet-b0", spatial_dims=3)
+
+            # create EfficientNetB7 for spatial 2D
+            >>> model = EfficientNetBN("efficientnet-b7", spatial_dims=2)
 
         """
         # block args for EfficientNet-B0 to EfficientNet-B7

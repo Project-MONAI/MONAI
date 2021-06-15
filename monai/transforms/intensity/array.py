@@ -623,7 +623,7 @@ class AdjustContrast(Transform):
     """
     Changes image intensity by gamma. Each pixel/voxel intensity is updated as::
 
-        x' = ((x - min) / intensity_range) ^ gamma * intensity_range + min
+        x = ((x - min) / intensity_range) ^ gamma * intensity_range + min
 
     Args:
         gamma: gamma value to adjust the contrast as function.
@@ -642,16 +642,6 @@ class AdjustContrast(Transform):
         img_min = img.min()
         img_range = img.max() - img_min
         return np.power(((img - img_min) / float(img_range + epsilon)), self.gamma) * img_range + img_min
-
-    @staticmethod
-    def inverse(img: Union[np.ndarray, torch.Tensor], old_min: float, old_max: float, gamma: float):
-        """Inverse method. Pass the min and max of the original image, as well as the
-        gamma that was used. Inverse is:
-
-            x = old_min + old_range * ((x' - old_min) / old_range) ** (1/gamma)
-        """
-        _range = old_max - old_min
-        return old_min + _range * ((img - old_min) / _range) ** (1 / gamma)
 
 
 class RandAdjustContrast(RandomizableTransform):

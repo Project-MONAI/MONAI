@@ -29,9 +29,9 @@ CSV saver
     :members:
 
 
-Iteration Metric
-----------------
-.. autoclass:: IterationMetric
+Ignite Metric
+-------------
+.. autoclass:: IgniteMetric
     :members:
 
 
@@ -153,6 +153,11 @@ GarbageCollector handler
 Transform inverter
 ------------------
 .. autoclass:: TransformInverter
+    :members:
+
+Post processing
+---------------
+.. autoclass:: PostProcessing
     :members:
 
 Utilities

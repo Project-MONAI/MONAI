@@ -87,7 +87,8 @@ If you intend for any variables/functions/classes to be available outside of the
 #### Unit testing
 MONAI tests are located under `tests/`.
 
-- The unit test's file name follows `test_[module_name].py`.
+- The unit test's file name currently follows `test_[module_name].py` or `test_[module_name]_dist.py`.
+- The `test_[module_name]_dist.py` subset of unit tests requires a distributed environment to verify the module with distributed GPU-based computation.
 - The integration test's file name follows `test_integration_[workflow_name].py`.
 
 A bash script (`runtests.sh`) is provided to run all tests locally.
@@ -279,11 +280,13 @@ When major features are ready for a milestone, to prepare for a new release:
   [TestPyPI](https://test.pypi.org/project/monai/).  The packages are also available for downloading as
   repository's artifacts (e.g. the file at https://github.com/Project-MONAI/MONAI/actions/runs/66570977).
 - Check the release test at [TestPyPI](https://test.pypi.org/project/monai/), download the artifacts when the CI finishes.
-- Once the release candidate is verified, make PRs from `releasing/[version number]` to`dev` and `main` respectively.
-  Make sure all the test pipelines succeed.
-- Check out the `main` branch, tag and push a milestone, for example, `git push origin 0.1.0`.
+- Optionally run [the cron testing jobs](https://github.com/Project-MONAI/MONAI/blob/dev/.github/workflows/cron.yml) on `releasing/[version number]`.
+- Once the release candidate is verified, tag and push a milestone, for example, `git push origin 0.1.0`.
+  The tag must be with the latest commit of `releasing/[version number]`.
+- Rebase `releasing/[version number]` to `main`, make sure all the test pipelines succeed.
 - Upload the packages to [PyPI](https://pypi.org/project/monai/).
   This could be done manually by ``twine upload dist/*``, given the artifacts are unzipped to the folder ``dist/``.
+- Merge `releasing/[version number]` to `dev`, this step must make sure that the tagging commit unchanged on `dev`.
 - Publish the release note.
 
 Note that the release should be tagged with a [PEP440](https://www.python.org/dev/peps/pep-0440/) compliant

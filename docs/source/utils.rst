@@ -33,6 +33,11 @@ Profiling
 .. automodule:: monai.utils.profiling
   :members:
 
+Deprecated
+----------
+.. automodule:: monai.utils.deprecated
+  :members:
+
 
 Factories
 ---------

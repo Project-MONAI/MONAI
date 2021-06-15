@@ -19,6 +19,8 @@ from monai.networks.layers.simplelayers import ChannelPad
 from monai.networks.nets.net_factory import NetworkFactory
 from monai.utils import ChannelMatching
 
+__all__ = ["HighResBlock", "HighResNet"]
+
 DEFAULT_LAYER_PARAMS_3D = (
     # initial conv layer
     {"name": "conv_0", "n_features": 16, "kernel_size": 3},

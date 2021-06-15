@@ -18,6 +18,8 @@ from monai.networks.blocks.convolutions import Convolution
 from monai.networks.layers.factories import Act, Conv, Dropout, Norm, split_args
 from monai.networks.nets.net_factory import NetworkFactory
 
+__all__ = ["VNet"]
+
 
 def get_acti_layer(act: Union[Tuple[str, Dict], str], nchan: int = 0):
     if act == "prelu":

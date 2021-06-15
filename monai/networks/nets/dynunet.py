@@ -19,7 +19,7 @@ from torch.nn.functional import interpolate
 from monai.networks.blocks.dynunet_block import UnetBasicBlock, UnetOutBlock, UnetResBlock, UnetUpBlock
 from monai.networks.nets.net_factory import NetworkFactory
 
-__all__ = ["DynUNet", "DynUnet", "Dynunet"]
+__all__ = ["DynUNet", "DynUnet", "Dynunet", "dynunet"]
 
 
 class DynUNetSkipLayer(nn.Module):
@@ -294,14 +294,10 @@ class DynUNet(nn.Module):
 
     @staticmethod
     def initialize_weights(module):
-        name = module.__class__.__name__.lower()
-        if "conv3d" in name or "conv2d" in name:
-            nn.init.kaiming_normal_(module.weight, a=0.01)
+        if isinstance(module, (nn.Conv3d, nn.Conv2d, nn.ConvTranspose3d, nn.ConvTranspose2d)):
+            module.weight = nn.init.kaiming_normal_(module.weight, a=0.01)
             if module.bias is not None:
-                nn.init.constant_(module.bias, 0)
-        elif "norm" in name:
-            nn.init.normal_(module.weight, 1.0, 0.02)
-            nn.init.zeros_(module.bias)
+                module.bias = nn.init.constant_(module.bias, 0)
 
 
 DynUnet = Dynunet = dynunet = DynUNet

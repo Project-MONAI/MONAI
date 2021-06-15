@@ -23,6 +23,8 @@ from monai.networks.blocks.regunet_block import (
 )
 from monai.networks.nets.net_factory import NetworkFactory
 
+__all__ = ["RegUNet", "AffineHead", "GlobalNet", "LocalNet"]
+
 
 @NetworkFactory.factory_function("RegUNet")
 class RegUNet(nn.Module):
