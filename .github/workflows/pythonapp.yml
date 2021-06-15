@@ -206,8 +206,31 @@ jobs:
     strategy:
       matrix:
         environment:
+          - "PT16+CUDA110"
+          - "PT17+CUDA102"
+          - "PT17+CUDA110"
+          - "PT18+CUDA102"
+          - "PT18+CUDA112"
           - "PT19+CUDA102"
         include:
+          - environment: PT16+CUDA110
+            # we explicitly set pytorch to -h to avoid pip install error
+            pytorch: "-h"
+            base: "nvcr.io/nvidia/pytorch:20.07-py3"
+          - environment: PT17+CUDA102
+            pytorch: "torch==1.7.1 torchvision==0.8.2"
+            base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
+          - environment: PT17+CUDA110
+            # we explicitly set pytorch to -h to avoid pip install error
+            pytorch: "-h"
+            base: "nvcr.io/nvidia/pytorch:20.09-py3"
+          - environment: PT18+CUDA102
+            pytorch: "torch==1.8.1 torchvision==0.9.1"
+            base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
+          - environment: PT18+CUDA112
+            # we explicitly set pytorch to -h to avoid pip install error
+            pytorch: "-h"
+            base: "nvcr.io/nvidia/pytorch:21.04-py3"
           - environment: PT19+CUDA102
             pytorch: "torch==1.9.0 torchvision==0.10.0"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
