@@ -31,7 +31,7 @@ __all__ = [
     "evenly_divisible_all_gather",
     "string_list_all_gather",
     "write_metrics_reports",
-    "from_dict",
+    "from_engine",
 ]
 
 
@@ -231,17 +231,20 @@ def write_metrics_reports(
                         f.write(f"{class_labels[i]}{deli}{deli.join([f'{_compute_op(k, c):.4f}' for k in ops])}\n")
 
 
-def from_dict(keys: Sequence[str]):
+def from_engine(keys: Sequence[str]):
     """
-    Utility function to adapt the expected keys of `engine.state.output` to ignite metrics.
-    It can help avoid a complicated `lambda` function and make the arg more straight-forward.
-    Typically, the first key is expected to be the prediction and the second key is label. Usage example::
+    Utility function to simplify the `batch_transform` or `output_transform` args of ignite components
+    when handling dictionary data(for example: `engine.state.batch` or `engine.state.output`).
+    Users only need to set the expected keys, then it will return a callable function to extract data from
+    dictionary and construct a tuple respectively.
+    It can help avoid a complicated `lambda` function and make the arg of metrics more straight-forward.
+    For example, set the first key as the prediction and the second key as label for a metric::
 
-        from monai.handlers import MeanDice, from_dict
+        from monai.handlers import MeanDice, from_engine
 
         metric = MeanDice(
             include_background=False,
-            output_transform=from_dict(["pred", "label"])
+            output_transform=from_engine(["pred", "label"])
         )
 
     """

@@ -15,10 +15,10 @@ import torch
 from ignite.engine import Engine, Events
 from parameterized import parameterized
 
-from monai.handlers import MeanDice, from_dict
+from monai.handlers import MeanDice, from_engine
 
-TEST_CASE_1 = [{"include_background": True, "output_transform": from_dict(["pred", "label"])}, 0.75, (4, 2)]
-TEST_CASE_2 = [{"include_background": False, "output_transform": from_dict(["pred", "label"])}, 0.66666, (4, 1)]
+TEST_CASE_1 = [{"include_background": True, "output_transform": from_engine(["pred", "label"])}, 0.75, (4, 2)]
+TEST_CASE_2 = [{"include_background": False, "output_transform": from_engine(["pred", "label"])}, 0.66666, (4, 1)]
 
 
 class TestHandlerMeanDice(unittest.TestCase):

@@ -33,7 +33,7 @@ from .tensorboard_handlers import TensorBoardHandler, TensorBoardImageHandler, T
 from .transform_inverter import TransformInverter
 from .utils import (
     evenly_divisible_all_gather,
-    from_dict,
+    from_engine,
     stopping_fn_from_loss,
     stopping_fn_from_metric,
     string_list_all_gather,
