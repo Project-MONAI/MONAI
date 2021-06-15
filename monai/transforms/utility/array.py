@@ -659,7 +659,7 @@ class LabelToMask(NumpyTransform):
 
         out = np.any(data, axis=0, keepdims=True) if (merge_channels or self.merge_channels) else data
 
-        return self.post_convert_data(out, *orig_info)  # type: ignore
+        return self.post_convert_data(out, orig_type, orig_device)  # type: ignore
 
 
 class FgBgToIndices(Transform):
