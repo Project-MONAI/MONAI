@@ -368,8 +368,11 @@ def decollate_batch(
         for v in batch_data:
             if isinstance(v, torch.Tensor) and v.ndim > 0:
                 return v.shape[0]
-        warnings.warn("batch_data is not a sequence of tensors in decollate, use `len(batch_data[0])` directly.")
-        return len(batch_data[0])
+        for v in batch_data:
+            if issequenceiterable(v):
+                warnings.warn("batch_data doesn't contain Tensor data, use the length of first sequence data.")
+                return len(v)
+        raise RuntimeError("failed to automatically detect the batch size.")
 
     result: List[Any]
     if isinstance(data, dict):

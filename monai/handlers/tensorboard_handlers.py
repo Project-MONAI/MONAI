@@ -259,9 +259,9 @@ class TensorBoardImageHandler(TensorBoardHandler):
             epoch_level: plot content from engine.state every N epochs or N iterations. `True` is epoch level,
                 `False` is iteration level.
             batch_transform: a callable that is used to transform the
-                ``ignite.engine.batch[index]`` into (image, label) for visualization.
-            output_transform: a callable that is used to extract the prediction data from
-                ``ignite.engine.output[index]`` for visualzation.
+                ``ignite.engine.batch`` into (images, labels) for visualization.
+            output_transform: a callable that is used to extract the predictions from
+                ``ignite.engine.output`` for visualzation.
             global_iter_transform: a callable that is used to customize global step number for TensorBoard.
                 For example, in evaluation, the evaluator engine needs to know current epoch from trainer.
             index: plot which element in a data batch, default is the first element.
@@ -303,7 +303,7 @@ class TensorBoardImageHandler(TensorBoardHandler):
 
         """
         step = self.global_iter_transform(engine.state.epoch if self.epoch_level else engine.state.iteration)
-        show_images = self.batch_transform(engine.state.batch[self.index])[0]
+        show_images = self.batch_transform(engine.state.batch)[0][self.index]
         if isinstance(show_images, torch.Tensor):
             show_images = show_images.detach().cpu().numpy()
         if show_images is not None:
@@ -323,7 +323,7 @@ class TensorBoardImageHandler(TensorBoardHandler):
                 "input_0",
             )
 
-        show_labels = self.batch_transform(engine.state.batch[self.index])[1]
+        show_labels = self.batch_transform(engine.state.batch)[1][self.index]
         if isinstance(show_labels, torch.Tensor):
             show_labels = show_labels.detach().cpu().numpy()
         if show_labels is not None:

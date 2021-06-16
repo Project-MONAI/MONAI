@@ -11,9 +11,10 @@
 
 from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Union
 
+from monai.data import decollate_batch
 from monai.handlers.utils import write_metrics_reports
 from monai.utils import ImageMetaKey as Key
-from monai.utils import ensure_tuple, exact_version, issequenceiterable, optional_import, string_list_all_gather
+from monai.utils import ensure_tuple, exact_version, optional_import, string_list_all_gather
 
 Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
 idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
@@ -45,8 +46,8 @@ class MetricsSaver:
             "*" - save all the existing metric_details in `engine.state.metric_details` dict into separate files.
             list of strings - specify the metric_details of expected metrics to save.
             if not None, every metric_details array will save a separate `{metric name}_raw.csv` file.
-        batch_transform: callable function to extract the meta_dict from input batch data if saving metric details.
-            used to extract filenames from input dict data.
+        batch_transform: a callable that is used to extract the meta_data dictionary of input image from
+            `ignite.engine.batch`. then save metrics with the meta data: filename, etc.
         summary_ops: expected computation operations to generate the summary report.
             it can be: None, "*" or list of strings, default to None.
             None - don't generate summary report for every expected metric_details.
@@ -104,9 +105,13 @@ class MetricsSaver:
 
     def _get_filenames(self, engine: Engine) -> None:
         if self.metric_details is not None:
-            filenames = self.batch_transform(engine.state.batch).get(Key.FILENAME_OR_OBJ)
-            if issequenceiterable(filenames):
-                self._filenames.extend(filenames)
+            meta_data = self.batch_transform(engine.state.batch)
+            if isinstance(meta_data, dict):
+                meta_data = decollate_batch(meta_data)
+            for m in meta_data:
+                filename = m.get(Key.FILENAME_OR_OBJ)
+                if filename is not None:
+                    self._filenames.append(filename)
 
     def __call__(self, engine: Engine) -> None:
         """

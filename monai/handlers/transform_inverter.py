@@ -29,7 +29,7 @@ class TransformInverter:
     """
     Ignite handler to automatically invert `transforms`.
     It takes `engine.state.output` as the input data and uses the transforms information from `engine.state.batch`.
-    Expect both `engine.state.output` and `engine.state.batch` to be dictionary data.
+    Expect both `engine.state.output` and `engine.state.batch` to be list of dictionaries data.
     The inverted data is in-place saved back to `engine.state.output` with key: "{output_key}".
     And the inverted meta dict will be stored in `engine.state.batch`
     with key: "{meta_keys}" or "{key}_{meta_key_postfix}".

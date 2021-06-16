@@ -15,12 +15,11 @@ from typing import TYPE_CHECKING, Callable, List, Optional
 
 import torch
 
-from monai.data import CSVSaver
+from monai.data import CSVSaver, decollate_batch
 from monai.utils import ImageMetaKey as Key
 from monai.utils import (
     evenly_divisible_all_gather,
     exact_version,
-    issequenceiterable,
     optional_import,
     string_list_all_gather,
 )
@@ -57,8 +56,8 @@ class ClassificationSaver:
             filename: if `saver=None`, name of the saved CSV file name.
             overwrite: if `saver=None`, whether to overwriting existing file content, if True,
                 will clear the file before saving. otherwise, will apend new content to the file.
-            batch_transform: a callable that is used to transform the
-                ignite.engine.batch into expected format to extract the meta_data dictionary.
+            batch_transform: a callable that is used to extract the meta_data dictionary of input image from
+                `ignite.engine.batch`. then save with the meta data: filename, etc.
             output_transform: a callable that is used to transform the
                 ignite.engine.output into the form expected model prediction data.
                 The first dimension of this transform's output will be treated as the
@@ -108,15 +107,17 @@ class ClassificationSaver:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        filenames = [self.batch_transform(i).get(Key.FILENAME_OR_OBJ) for i in engine.state.batch]
-        if issequenceiterable(filenames):
-            self._filenames.extend(filenames)
-
-        outputs = [self.output_transform(i) for i in engine.state.output]
-        for out in outputs:
-            if isinstance(out, torch.Tensor):
-                out = out.detach()
-            self._outputs.append(out)
+        meta_data = self.batch_transform(engine.state.batch)
+        if isinstance(meta_data, dict):
+            meta_data = decollate_batch(meta_data)
+        engine_output = self.output_transform(engine.state.output)
+        for m, o in zip(meta_data, engine_output):
+            filename = m.get(Key.FILENAME_OR_OBJ)
+            if filename is not None:
+                self._filenames.append(filename)
+            if isinstance(o, torch.Tensor):
+                o = o.detach()
+            self._outputs.append(o)
 
     def _finalize(self, engine: Engine) -> None:
         """

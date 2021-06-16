@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Callable, Optional, Union
 import numpy as np
 
 from monai.config import DtypeLike
+from monai.data import decollate_batch
 from monai.transforms import SaveImage
 from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, exact_version, optional_import
 
@@ -101,9 +102,8 @@ class SegmentationSaver:
                 output_dir: /output,
                 data_root_dir: /foo/bar,
                 output will be: /output/test1/image/image_seg.nii.gz
-            batch_transform: a callable that is used to transform the
-                ignite.engine.batch into expected format to extract the meta_data dictionary.
-                it can be used to extract the input image meta data: filename, affine, original_shape, etc.
+            batch_transform: a callable that is used to extract the meta_data dictionary of input image from
+                `ignite.engine.batch`. then save with the meta data: filename, affine, original_shape, etc.
             output_transform: a callable that is used to transform the
                 ignite.engine.output into the form expected image data.
                 The first dimension of this transform's output will be treated as the
@@ -148,8 +148,11 @@ class SegmentationSaver:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        for batch, output in zip(engine.state.batch, engine.state.output):
-            meta_data = self.batch_transform(batch)
-            engine_output = self.output_transform(output)
-            self._saver(engine_output, meta_data)
+        meta_data = self.batch_transform(engine.state.batch)
+        if isinstance(meta_data, dict):
+            # decollate the `dictionary of list` to `list of dictionaries`
+            meta_data = decollate_batch(meta_data)
+        engine_output = self.output_transform(engine.state.output)
+        for m, o in zip(meta_data, engine_output):
+            self._saver(o, m)
         self.logger.info("model outputs saved into files.")
