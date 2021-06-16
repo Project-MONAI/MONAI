@@ -18,6 +18,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 from typing import Optional, Union
 
 import numpy as np
+import torch
 
 from monai.config import DtypeLike, KeysCollection
 from monai.data.image_reader import ImageReader
@@ -114,7 +115,7 @@ class LoadImaged(MapTransform):
         for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
             data = self._loader(d[key], reader)
             if self._loader.image_only:
-                if not isinstance(data, np.ndarray):
+                if not isinstance(data, (torch.Tensor, np.ndarray)):
                     raise ValueError("loader must return a numpy array (because image_only=True was used).")
                 d[key] = data
             else:
