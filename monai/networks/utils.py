@@ -31,7 +31,7 @@ __all__ = [
     "pixelshuffle",
     "eval_mode",
     "train_mode",
-    "compatible_mod_state",
+    "copy_model_state",
 ]
 
 
@@ -314,7 +314,7 @@ def train_mode(*nets: nn.Module):
             n.eval()
 
 
-def compatible_mod_state(
+def copy_model_state(
     dst: Union[torch.nn.Module, Mapping],
     src: Union[torch.nn.Module, Mapping],
     dst_prefix="",
@@ -347,11 +347,11 @@ def compatible_mod_state(
         .. code-block:: python
 
             from monai.networks.nets import BasicUNet
-            from monai.networks.utils import compatible_mod_state
+            from monai.networks.utils import copy_model_state
 
             model_a = BasicUNet(in_channels=1, out_channels=4)
             model_b = BasicUNet(in_channels=1, out_channels=2)
-            model_a_b, changed, unchanged = compatible_mod_state(
+            model_a_b, changed, unchanged = copy_model_state(
                 model_a, model_b, exclude_vars="conv_0.conv_0", inplace=False)
             # dst model updated: 76 of 82 variables.
             model_a.load_state_dict(model_a_b)

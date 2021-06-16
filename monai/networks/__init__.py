@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from .utils import (
-    compatible_mod_state,
+    copy_model_state,
     eval_mode,
     icnr_init,
     normal_init,

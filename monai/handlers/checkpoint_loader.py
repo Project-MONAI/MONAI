@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Dict, Optional
 
 import torch
 
-from monai.networks.utils import compatible_mod_state
+from monai.networks.utils import copy_model_state
 from monai.utils import exact_version, optional_import
 
 Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
@@ -99,7 +99,7 @@ class CheckpointLoader:
 
             # skip items that don't match data shape
             for k, obj in self.load_dict.items():
-                checkpoint[k] = compatible_mod_state(obj, checkpoint)[0]
+                checkpoint[k] = copy_model_state(obj, checkpoint)[0]
 
         # save current max epochs setting in the engine, don't overwrite it if larger than max_epochs in checkpoint
         prior_max_epochs = engine.state.max_epochs
