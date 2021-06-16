@@ -141,5 +141,51 @@ class TestDeCollate(unittest.TestCase):
         self.check_decollate(dataset=dataset)
 
 
+class TestBasicDeCollate(unittest.TestCase):
+    def test_decollation_examples(self):
+        out = decollate_batch(["channel", "channel"])
+        self.assertListEqual(["channel", "channel"], out)
+
+        test_0 = torch.Tensor([1, 2, 3])
+        out = decollate_batch(test_0)
+        self.assertListEqual([torch.tensor(1.0), torch.tensor(2.0), torch.tensor(3.0)], out)
+
+        test_1 = [[torch.Tensor((1.0, 2.0, 3.0)), torch.Tensor((2.0, 3.0, 1.0))]]
+        out = decollate_batch(test_1)
+        self.assertListEqual(
+            [
+                [[torch.tensor(1.0), torch.tensor(2.0)]],
+                [[torch.tensor(2.0), torch.tensor(3.0)]],
+                [[torch.tensor(3.0), torch.tensor(1.0)]],
+            ],
+            out,
+        )
+
+        test_2 = [torch.Tensor([1]), torch.Tensor([2]), torch.Tensor([3])]
+        out = decollate_batch(test_2)
+        self.assertListEqual([[torch.tensor(1.0), torch.tensor(2.0), torch.tensor(3.0)]], out)
+
+        test_3 = {
+            "meta": {"out": ["test", "test"]},
+            "image_meta_dict": {"scl_slope": torch.Tensor((0.0, 0.0))},
+        }
+        out = decollate_batch(test_3)
+        self.assertEqual(out[0]["meta"]["out"], "test")
+        self.assertEqual(out[0]["image_meta_dict"]["scl_slope"], 0.0)
+
+        test_4 = [torch.ones((2, 1, 10, 10)), torch.ones((2, 3, 5, 5))]
+        out = decollate_batch(test_4)
+        self.assertTupleEqual(out[0][0].shape, (1, 10, 10))
+        self.assertTupleEqual(out[0][1].shape, (3, 5, 5))
+
+        test_5 = torch.rand((2, 1, 10, 10))
+        out = decollate_batch(test_5)
+        self.assertTupleEqual(out[0].shape, (1, 10, 10))
+
+        test_6 = torch.Tensor((True, True, False, False))
+        out = decollate_batch(test_6)
+        self.assertListEqual(out, [1.0, 1.0, 0.0, 0.0])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -83,7 +83,7 @@ def issequenceiterable(obj: Any) -> bool:
     """
     if isinstance(obj, torch.Tensor):
         return int(obj.dim()) > 0  # a 0-d tensor is not iterable
-    return isinstance(obj, collections.abc.Iterable) and not isinstance(obj, str)
+    return isinstance(obj, collections.abc.Iterable) and not isinstance(obj, (str, bytes))
 
 
 def ensure_tuple(vals: Any) -> Tuple[Any, ...]:

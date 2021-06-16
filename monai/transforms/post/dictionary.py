@@ -354,7 +354,7 @@ class Decollated(MapTransform):
     def __init__(self, keys="") -> None:
         super().__init__(keys=keys)
 
-    def __call__(self, data: dict) -> List[dict]:
+    def __call__(self, data: dict):
         return decollate_batch(data)
 
 
