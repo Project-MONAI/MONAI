@@ -243,7 +243,13 @@ class PersistentDataset(Dataset):
             hashfile = self.cache_dir / f"{data_item_md5}.pt"
 
         if hashfile is not None and hashfile.is_file():  # cache hit
-            return torch.load(hashfile)
+            try:
+                return torch.load(hashfile)
+            except PermissionError as e:
+                if sys.platform == "win32":
+                    pass  # windows machine multiprocessing not efficiently supported
+                else:
+                    raise e
 
         _item_transformed = self._pre_transform(deepcopy(item_transformed))  # keep the original hashed
         if hashfile is not None:
