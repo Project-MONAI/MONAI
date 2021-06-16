@@ -351,12 +351,11 @@ class Decollated(MapTransform):
             it fails to determine it automatically.
     """
 
-    def __init__(self, batch_size: Optional[int] = None) -> None:
-        super().__init__(None)
-        self.batch_size = batch_size
+    def __init__(self, keys="") -> None:
+        super().__init__(keys=keys)
 
     def __call__(self, data: dict) -> List[dict]:
-        return decollate_batch(data, self.batch_size)
+        return decollate_batch(data)
 
 
 class ProbNMSd(MapTransform):
