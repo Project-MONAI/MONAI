@@ -17,6 +17,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from monai.config import NdarrayTensor
 from monai.transforms import ScaleIntensity
 from monai.utils import ensure_tuple, get_torch_version_tuple
 from monai.visualize.visualizer import default_upsampler
@@ -24,17 +25,23 @@ from monai.visualize.visualizer import default_upsampler
 __all__ = ["CAM", "GradCAM", "GradCAMpp", "ModelWithHooks", "default_normalizer"]
 
 
-def default_normalizer(x) -> np.ndarray:
+def default_normalizer(x: NdarrayTensor) -> NdarrayTensor:
     """
     A linear intensity scaling by mapping the (min, max) to (1, 0).
+    If the input data is PyTorch Tensor, the output data will be Tensor on the same device,
+    otherwise, output data will be numpy array.
 
-    N.B.: This will flip magnitudes (i.e., smallest will become biggest and vice versa).
+    Note: This will flip magnitudes (i.e., smallest will become biggest and vice versa).
     """
+
+    def _compute(data: np.ndarray) -> np.ndarray:
+        scaler = ScaleIntensity(minv=1.0, maxv=0.0)
+        return np.stack([scaler(i) for i in data], axis=0)
+
     if isinstance(x, torch.Tensor):
-        x = x.detach().cpu().numpy()
-    scaler = ScaleIntensity(minv=1.0, maxv=0.0)
-    x = [scaler(x) for x in x]
-    return np.stack(x, axis=0)
+        return torch.as_tensor(_compute(x.detach().cpu().numpy()), device=x.device)
+
+    return _compute(x)
 
 
 class ModelWithHooks:
