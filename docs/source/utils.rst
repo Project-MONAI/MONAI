@@ -27,7 +27,13 @@ Misc
 .. automodule:: monai.utils.misc
   :members:
 
+
 Profiling
 ---------
 .. automodule:: monai.utils.profiling
+  :members:
+
+Deprecated
+----------
+.. automodule:: monai.utils.deprecated
   :members:
