@@ -37,6 +37,7 @@ from monai.handlers import (
     TensorBoardImageHandler,
     TensorBoardStatsHandler,
     ValidationHandler,
+    from_engine,
 )
 from monai.inferers import SimpleInferer, SlidingWindowInferer
 from monai.transforms import (
@@ -128,7 +129,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         StatsHandler(output_transform=lambda x: None),
         TensorBoardStatsHandler(summary_writer=summary_writer, output_transform=lambda x: None),
         TensorBoardImageHandler(
-            log_dir=root_dir, batch_transform=lambda x: (x["image"], x["label"]), output_transform=lambda x: x["pred"]
+            log_dir=root_dir, batch_transform=from_engine(["image", "label"]), output_transform=from_engine("pred")
         ),
         CheckpointSaver(save_dir=root_dir, save_dict={"net": net}, save_key_metric=True),
         _TestEvalIterEvents(),
@@ -141,9 +142,12 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         inferer=SlidingWindowInferer(roi_size=(96, 96, 96), sw_batch_size=4, overlap=0.5),
         post_transform=val_post_transforms,
         key_val_metric={
-            "val_mean_dice": MeanDice(include_background=True, output_transform=lambda x: (x["pred"], x["label"]))
+            "val_mean_dice": MeanDice(include_background=True, output_transform=from_engine(["pred", "label"]))
         },
-        additional_metrics={"val_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]))},
+        additional_metrics={"val_acc": Accuracy(
+            # FIXME: will remove torch.stack() after updating to new ignite
+            output_transform=lambda x: tuple(torch.stack(i, dim=0) for i in from_engine(["pred", "label"])(x))
+        )},
         val_handlers=val_handlers,
         amp=True if amp else False,
     )
@@ -178,9 +182,9 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
     train_handlers = [
         LrScheduleHandler(lr_scheduler=lr_scheduler, print_lr=True),
         ValidationHandler(validator=evaluator, interval=2, epoch_level=True),
-        StatsHandler(tag_name="train_loss", output_transform=lambda x: x["loss"]),
+        StatsHandler(tag_name="train_loss", output_transform=lambda x: x[0]["loss"]),
         TensorBoardStatsHandler(
-            summary_writer=summary_writer, tag_name="train_loss", output_transform=lambda x: x["loss"]
+            summary_writer=summary_writer, tag_name="train_loss", output_transform=lambda x: x[0]["loss"]
         ),
         CheckpointSaver(save_dir=root_dir, save_dict={"net": net, "opt": opt}, save_interval=2, epoch_level=True),
         _TestTrainIterEvents(),
@@ -195,7 +199,10 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         loss_function=loss,
         inferer=SimpleInferer(),
         post_transform=train_post_transforms,
-        key_train_metric={"train_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]))},
+        key_train_metric={"train_acc": Accuracy(
+            # FIXME: will remove torch.stack() after updating to new ignite
+            output_transform=lambda x: tuple(torch.stack(i, dim=0) for i in from_engine(["pred", "label"])(x))
+        )},
         train_handlers=train_handlers,
         amp=True if amp else False,
     )
@@ -244,7 +251,6 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
                 meta_keys="image_meta_dict",
                 output_dir=root_dir,
                 output_postfix="seg_transform",
-                save_batch=True,
             ),
         ]
     )
@@ -254,8 +260,8 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
         SegmentationSaver(
             output_dir=root_dir,
             output_postfix="seg_handler",
-            batch_transform=lambda batch: batch["image_meta_dict"],
-            output_transform=lambda output: output["pred"],
+            batch_transform=from_engine("image_meta_dict"),
+            output_transform=from_engine("pred"),
         ),
     ]
 
@@ -266,9 +272,12 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
         inferer=SlidingWindowInferer(roi_size=(96, 96, 96), sw_batch_size=4, overlap=0.5),
         post_transform=val_post_transforms,
         key_val_metric={
-            "val_mean_dice": MeanDice(include_background=True, output_transform=lambda x: (x["pred"], x["label"]))
+            "val_mean_dice": MeanDice(include_background=True, output_transform=from_engine(["pred", "label"]))
         },
-        additional_metrics={"val_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]))},
+        additional_metrics={"val_acc": Accuracy(
+            # FIXME: will remove torch.stack() after updating to new ignite
+            output_transform=lambda x: tuple(torch.stack(i, dim=0) for i in from_engine(["pred", "label"])(x))
+        )},
         val_handlers=val_handlers,
         amp=True if amp else False,
     )

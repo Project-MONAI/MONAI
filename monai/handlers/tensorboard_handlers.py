@@ -334,7 +334,7 @@ class TensorBoardImageHandler(TensorBoardHandler):
                 )
             plot_2d_or_3d_image(show_labels[None], step, self._writer, 0, self.max_channels, self.max_frames, "input_1")
 
-        show_outputs = self.output_transform(engine.state.output[self.index])
+        show_outputs = self.output_transform(engine.state.output)[self.index]
         if isinstance(show_outputs, torch.Tensor):
             show_outputs = show_outputs.detach().cpu().numpy()
         if show_outputs is not None:
