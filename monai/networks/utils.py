@@ -323,9 +323,9 @@ def compatible_mod_state(
 ):
     """
     Compute a module state_dict, of which the keys are the same as `dst`. The values of `dst` are overwritten
-    by the ones from `src` whenever their keys match. The method provides additional `prefix` for
-    the `dst` key when matching them. `mapping` can be a {"src_key": "dst_key"} dict, indicating
-    `dst[prefix + dst_key] = src[src_key]`.
+    by the ones from `src` whenever their keys match. The method provides additional `dst_prefix` for
+    the `dst` key when matching them. `mapping` can be a `{"src_key": "dst_key"}` dict, indicating
+    `dst[dst_prefix + dst_key] = src[src_key]`.
     This function is mainly to return a model state dict
     for loading the `src` model state into the `dst` model, `src` and `dst` can have different dict keys, but
     their corresponding values normally have the same shape.
@@ -333,9 +333,10 @@ def compatible_mod_state(
     Args:
         dst: a pytorch module or state dict to be updated.
         src: a pytorch module or state dist used to get the values used for the update.
-        dst_prefix: `dst` key prefix.
-        mapping: a `{"src_key": "dst_key"}` dict, indicating that `dst[prefix + dst_key]`
-            to be written by `src[src_key]`.
+        dst_prefix: `dst` key prefix, so that `dst[dst_prefix + src_key]`
+            will be assigned to the value of `src[src_key]`.
+        mapping: a `{"src_key": "dst_key"}` dict, indicating that `dst[dst_prefix + dst_key]`
+            to be assigned to the value of `src[src_key]`.
         exclude_vars: a regular expression to match the `dst` variable names,
             so that their values are not overwritten by `src`.
 
@@ -369,17 +370,17 @@ def compatible_mod_state(
     # update dst with items from src
     all_keys, updated_keys = list(dst_dict), list()
     for s, val in src_dict.items():
-        dest_key = f"{dst_prefix}{s}"
-        if dest_key in dst_dict and dest_key not in to_skip and dst_dict[dest_key].shape == val.shape:
-            dst_dict[dest_key] = val
-            updated_keys.append(dest_key)
+        dst_key = f"{dst_prefix}{s}"
+        if dst_key in dst_dict and dst_key not in to_skip and dst_dict[dst_key].shape == val.shape:
+            dst_dict[dst_key] = val
+            updated_keys.append(dst_key)
     for s in mapping if mapping else {}:
-        dest_key = f"{dst_prefix}{mapping[s]}"
-        if dest_key in dst_dict and dest_key not in to_skip:
-            if dst_dict[dest_key].shape != src_dict[s].shape:
-                warnings.warn(f"Param. shape changed from {dst_dict[dest_key].shape} to {src_dict[s].shape}.")
-            dst_dict[dest_key] = src_dict[s]
-            updated_keys.append(dest_key)
+        dst_key = f"{dst_prefix}{mapping[s]}"
+        if dst_key in dst_dict and dst_key not in to_skip:
+            if dst_dict[dst_key].shape != src_dict[s].shape:
+                warnings.warn(f"Param. shape changed from {dst_dict[dst_key].shape} to {src_dict[s].shape}.")
+            dst_dict[dst_key] = src_dict[s]
+            updated_keys.append(dst_key)
 
     updated_keys = sorted(set(updated_keys))
     unchanged_keys = sorted(set(all_keys).difference(updated_keys))
