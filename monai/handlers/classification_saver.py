@@ -17,12 +17,7 @@ import torch
 
 from monai.data import CSVSaver, decollate_batch
 from monai.utils import ImageMetaKey as Key
-from monai.utils import (
-    evenly_divisible_all_gather,
-    exact_version,
-    optional_import,
-    string_list_all_gather,
-)
+from monai.utils import evenly_divisible_all_gather, exact_version, optional_import, string_list_all_gather
 
 idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
 Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
