@@ -52,7 +52,7 @@ def convert_data_type(
     dtype = dtype_convert(dtype or data.dtype, output_type)
 
     if output_type is torch.Tensor:
-        if orig_type is np.ndarray:
+        if orig_type is not torch.Tensor:
             data = torch.tensor(np.ascontiguousarray(data))
         if dtype != data.dtype:
             data = data.to(dtype)  # type: ignore
