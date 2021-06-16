@@ -320,6 +320,7 @@ def compatible_mod_state(
     dst_prefix="",
     mapping=None,
     exclude_vars=None,
+    inplace=True,
 ):
     """
     Compute a module state_dict, of which the keys are the same as `dst`. The values of `dst` are overwritten
@@ -339,6 +340,8 @@ def compatible_mod_state(
             to be assigned to the value of `src[src_key]`.
         exclude_vars: a regular expression to match the `dst` variable names,
             so that their values are not overwritten by `src`.
+        inplace: whether to set the `dst` module with the updated `state_dict` via `load_state_dict`.
+            This option is only available when `dst` is a `torch.nn.Module`.
 
     Examples:
         .. code-block:: python
@@ -349,7 +352,7 @@ def compatible_mod_state(
             model_a = BasicUNet(in_channels=1, out_channels=4)
             model_b = BasicUNet(in_channels=1, out_channels=2)
             model_a_b, changed, unchanged = compatible_mod_state(
-                model_a, model_b, exclude_vars="conv_0.conv_0")
+                model_a, model_b, exclude_vars="conv_0.conv_0", inplace=False)
             # dst model updated: 76 of 82 variables.
             model_a.load_state_dict(model_a_b)
             # <All keys matched successfully>
@@ -385,4 +388,8 @@ def compatible_mod_state(
     updated_keys = sorted(set(updated_keys))
     unchanged_keys = sorted(set(all_keys).difference(updated_keys))
     print(f"'dst' model updated: {len(updated_keys)} of {len(dst_dict)} variables.")
+    if inplace and isinstance(dst, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
+        dst.module.load_state_dict(dst_dict)
+    if inplace and isinstance(dst, torch.nn.Module):
+        dst.load_state_dict(dst_dict)
     return dst_dict, updated_keys, unchanged_keys

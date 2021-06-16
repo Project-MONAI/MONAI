@@ -64,7 +64,6 @@ class TestModuleState(unittest.TestCase):
         model_one.to(device_0)
         model_two.to(device_1)
         model_dict, ch, unch = compatible_mod_state(model_one, model_two)
-        model_one.load_state_dict(model_dict)
         x = np.random.randn(4, 10)
         x = torch.tensor(x, device=device_0, dtype=torch.float32)
         output = model_one(x).detach().cpu().numpy()
@@ -91,7 +90,6 @@ class TestModuleState(unittest.TestCase):
         model_dict, ch, unch = compatible_mod_state(model_one, model_two)
         # test dict input
         model_dict, ch, unch = compatible_mod_state(model_dict, model_two)
-        model_one.load_state_dict(model_dict)
         x = np.random.randn(4, 10)
         x = torch.tensor(x, device=device_0, dtype=torch.float32)
         output = model_one(x).detach().cpu().numpy()
@@ -110,7 +108,6 @@ class TestModuleState(unittest.TestCase):
         model_two.to(device_1)
         # test skip layer.bias
         model_dict, ch, unch = compatible_mod_state(model_one, model_two, exclude_vars="layer.bias")
-        model_one.load_state_dict(model_dict)
         x = np.random.randn(4, 10)
         x = torch.tensor(x, device=device_0, dtype=torch.float32)
         output = model_one(x).detach().cpu().numpy()
@@ -161,7 +158,9 @@ class TestModuleState(unittest.TestCase):
         model_one.to(device_0)
         model_two.to(device_1)
         # test skip layer.bias
-        model_dict, ch, unch = compatible_mod_state(model_one, model_two, dst_prefix="0.", exclude_vars="layer.bias")
+        model_dict, ch, unch = compatible_mod_state(
+            model_one, model_two, dst_prefix="0.", exclude_vars="layer.bias", inplace=False
+        )
         model_one.load_state_dict(model_dict)
         x = np.random.randn(4, 10)
         x = torch.tensor(x, device=device_0, dtype=torch.float32)
