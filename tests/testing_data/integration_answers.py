@@ -376,7 +376,7 @@ EXPECTED_ANSWERS = [
         },
     },
     {  # test answers for PyTorch 1.9
-        "integration_segmentation_3d": {
+        "integration_workflows": {
             "output_sums_2": [
                 0.14213180541992188,
                 0.15153264999389648,
