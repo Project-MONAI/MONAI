@@ -186,6 +186,18 @@ class TestBasicDeCollate(unittest.TestCase):
         out = decollate_batch(test_6)
         self.assertListEqual(out, [1.0, 1.0, 0.0, 0.0])
 
+        test_7 = []
+        out = decollate_batch(test_7)
+        self.assertListEqual(out, [])
+
+        test_8 = None
+        out = decollate_batch(test_8)
+        self.assertEqual(None, out)
+
+        test_9 = [None, None]
+        out = decollate_batch(test_9)
+        self.assertListEqual([None, None], out)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -335,15 +335,17 @@ def decollate_batch(batch, detach=True):
             batch = batch.detach()
         if batch.ndim == 0 and detach:
             return batch.item()
-        out_list = list(torch.unbind(batch, dim=0))
+        out_list = torch.unbind(batch, dim=0)
         if out_list[0].ndim == 0 and detach:
             return [t.item() for t in out_list]
-        return out_list
+        return list(out_list)
     if isinstance(batch, Mapping):
         _dict_list = {key: decollate_batch(batch[key]) for key in batch}
         return [dict(zip(_dict_list, item)) for item in zip(*_dict_list.values())]
-    if isinstance(batch, Iterable) and not isinstance(next(iter(batch)), (str, bytes)):
-        return [list(item) for item in zip(*(decollate_batch(b) for b in batch))]
+    if isinstance(batch, Iterable):
+        item_0 = first(batch)
+        if isinstance(item_0, Iterable) and not isinstance(item_0, (str, bytes)):
+            return [list(item) for item in zip(*(decollate_batch(b) for b in batch))]
     return batch
 
 
