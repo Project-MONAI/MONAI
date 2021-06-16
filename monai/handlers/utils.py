@@ -252,7 +252,7 @@ def from_engine(keys: KeysCollection):
     """
     keys = ensure_tuple(keys)
 
-    def _wrapper(data: Union[Dict, List[Dict]]):
+    def _wrapper(data):
         if isinstance(data, dict):
             return tuple(data[k] for k in keys)
         elif isinstance(data, list) and isinstance(data[0], dict):
