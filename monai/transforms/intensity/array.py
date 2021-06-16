@@ -1053,6 +1053,7 @@ class GaussianSharpen(TorchTransform):
     def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         img_t: torch.Tensor
         img_t, orig_type, orig_device = self.pre_conv_data(img)  # type: ignore
+        img_t = img_t.to(torch.float)
 
         gf1, gf2 = [GaussianFilter(img_t.ndim - 1, sigma, approx=self.approx) for sigma in (self.sigma1, self.sigma2)]
         blurred_f = gf1(img_t.unsqueeze(0))
