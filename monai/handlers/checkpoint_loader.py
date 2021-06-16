@@ -99,7 +99,7 @@ class CheckpointLoader:
 
             # skip items that don't match data shape
             for k, obj in self.load_dict.items():
-                checkpoint[k] = copy_model_state(obj, checkpoint)[0]
+                checkpoint[k] = copy_model_state(obj, checkpoint, inplace=False)[0]
 
         # save current max epochs setting in the engine, don't overwrite it if larger than max_epochs in checkpoint
         prior_max_epochs = engine.state.max_epochs

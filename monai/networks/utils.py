@@ -388,8 +388,6 @@ def copy_model_state(
     updated_keys = sorted(set(updated_keys))
     unchanged_keys = sorted(set(all_keys).difference(updated_keys))
     print(f"'dst' model updated: {len(updated_keys)} of {len(dst_dict)} variables.")
-    if inplace and isinstance(dst, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
-        dst.module.load_state_dict(dst_dict)
     if inplace and isinstance(dst, torch.nn.Module):
         dst.load_state_dict(dst_dict)
     return dst_dict, updated_keys, unchanged_keys
