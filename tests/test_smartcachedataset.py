@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import copy
 import os
 import tempfile
 import unittest
@@ -24,13 +25,15 @@ TEST_CASE_1 = [0.1, 0, Compose([LoadImaged(keys=["image", "label", "extra"])])]
 
 TEST_CASE_2 = [0.1, 4, Compose([LoadImaged(keys=["image", "label", "extra"])])]
 
-TEST_CASE_3 = [0.1, 4, None]
+TEST_CASE_3 = [0.1, None, Compose([LoadImaged(keys=["image", "label", "extra"])])]
 
-TEST_CASE_4 = [0.5, 2, Compose([LoadImaged(keys=["image", "label", "extra"])])]
+TEST_CASE_4 = [0.1, 4, None]
+
+TEST_CASE_5 = [0.5, 2, Compose([LoadImaged(keys=["image", "label", "extra"])])]
 
 
 class TestSmartCacheDataset(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_shape(self, replace_rate, num_replace_workers, transform):
         test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[8, 8, 8]), np.eye(4))
         with tempfile.TemporaryDirectory() as tempdir:
@@ -61,12 +64,67 @@ class TestSmartCacheDataset(unittest.TestCase):
                 dataset.start()
                 for _ in range(3):
                     dataset.update_cache()
-                    self.assertIsNotNone(dataset._cache[15])
-                    if isinstance(dataset._cache[15]["image"], np.ndarray):
-                        np.testing.assert_allclose(dataset._cache[15]["image"], dataset._cache[15]["label"])
+                    self.assertIsNotNone(dataset[15])
+                    if isinstance(dataset[15]["image"], np.ndarray):
+                        np.testing.assert_allclose(dataset[15]["image"], dataset[15]["label"])
                     else:
-                        self.assertIsInstance(dataset._cache[15]["image"], str)
+                        self.assertIsInstance(dataset[15]["image"], str)
                 dataset.shutdown()
+
+    def test_update_cache(self):
+        # Given
+        test_data = [{"image": f"test_image{i}.nii.gz", "label": f"test_image{i}.nii.gz"} for i in range(40)]
+        dataset = SmartCacheDataset(
+            data=test_data,
+            transform=None,
+            replace_rate=0.2,
+            cache_num=10,
+            num_init_workers=4,
+            num_replace_workers=4,
+            shuffle=False,
+        )
+        dataset.start()
+        start_num = int(0.2 * 10)
+        remain_num = int((1 - 0.2) * 10)
+
+        old_cache = copy.deepcopy(dataset._cache)
+        # When
+        with dataset._update_lock:
+            replacements = copy.deepcopy(dataset._replacements)
+        dataset.update_cache()
+        new_cache = dataset._cache
+        kept_cache = old_cache[start_num:]
+        # Then
+        for string1, string2 in zip(kept_cache, new_cache[0:remain_num]):
+            assert string1 == string2
+        for string_new, string_replacement in zip(replacements, new_cache[remain_num:]):
+            assert string_new == string_replacement
+
+    def test_shuffle(self):
+        test_data = [{"image": f"test_image{i}.nii.gz"} for i in range(20)]
+        dataset = SmartCacheDataset(
+            data=test_data,
+            transform=None,
+            replace_rate=0.1,
+            cache_num=16,
+            num_init_workers=4,
+            num_replace_workers=4,
+            shuffle=True,
+            seed=123,
+        )
+
+        dataset.start()
+        for i in range(3):
+            dataset.update_cache()
+
+            if i == 0:
+                self.assertEqual(dataset[15]["image"], "test_image18.nii.gz")
+            elif i == 1:
+                self.assertEqual(dataset[15]["image"], "test_image13.nii.gz")
+            else:
+                self.assertEqual(dataset[15]["image"], "test_image5.nii.gz")
+
+        dataset.shutdown()
 
 
 if __name__ == "__main__":

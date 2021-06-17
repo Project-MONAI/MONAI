@@ -15,7 +15,7 @@ limitations under the License.
 
 //#define USE_ADDITIVE_HASH
 
-// turn this on if you want to get slighly less memory consumption and slightly longer run times.
+// turn this on if you want to get slightly less memory consumption and slightly longer run times.
 //#define LINEAR_D_MEMORY
 
 #define USE_CUSTOM_MODULO

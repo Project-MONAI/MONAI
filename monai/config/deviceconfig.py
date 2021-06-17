@@ -106,10 +106,6 @@ def print_config(file=sys.stdout):
     )
 
 
-def set_visible_devices(*dev_inds):
-    os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, dev_inds))
-
-
 def _dict_append(in_dict, key, fn):
     try:
         in_dict[key] = fn() if callable(fn) else fn
@@ -131,7 +127,8 @@ def get_system_info() -> OrderedDict:
     elif output["System"] == "Darwin":
         _dict_append(output, "Mac version", lambda: platform.mac_ver()[0])
     else:
-        linux_ver = re.search(r'PRETTY_NAME="(.*)"', open("/etc/os-release", "r").read())
+        with open("/etc/os-release", "r") as rel_f:
+            linux_ver = re.search(r'PRETTY_NAME="(.*)"', rel_f.read())
         if linux_ver:
             _dict_append(output, "Linux version", lambda: linux_ver.group(1))
 
@@ -217,12 +214,6 @@ def get_gpu_info() -> OrderedDict:
         _dict_append(output, f"GPU {gpu} Is multi GPU board", lambda: bool(gpu_info.is_multi_gpu_board))
         _dict_append(output, f"GPU {gpu} Multi processor count", lambda: gpu_info.multi_processor_count)
         _dict_append(output, f"GPU {gpu} Total memory (GB)", lambda: round(gpu_info.total_memory / 1024 ** 3, 1))
-        _dict_append(
-            output, f"GPU {gpu} Cached memory (GB)", lambda: round(torch.cuda.memory_reserved(gpu) / 1024 ** 3, 1)
-        )
-        _dict_append(
-            output, f"GPU {gpu} Allocated memory (GB)", lambda: round(torch.cuda.memory_allocated(gpu) / 1024 ** 3, 1)
-        )
         _dict_append(output, f"GPU {gpu} CUDA capability (maj.min)", lambda: f"{gpu_info.major}.{gpu_info.minor}")
 
     return output
