@@ -32,8 +32,11 @@ class MeanDice(IgniteMetric):
         Args:
             include_background: whether to include dice computation on the first channel of the predicted output.
                 Defaults to True.
-            output_transform: callable to construct the `[y_pred, y]` pair from `ignite.engine.state.output`, where
-                `y_pred` and `y` can be `batch-first` Tensors or lists of `channel-first` Tensors.
+            output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
+                construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
+                lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
+                for example: if `ignite.engine.state.output` is `{"pred": xxx, "label": xxx, "other": xxx}`,
+                output_transform can be `lambda x: (x["pred"], x["label"])`.
             save_details: whether to save metric computation details per image, for example: mean dice of every image.
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 

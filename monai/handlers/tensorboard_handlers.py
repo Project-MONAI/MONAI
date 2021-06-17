@@ -98,7 +98,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
                 Must accept parameter "engine" and "summary_writer", use default event writer if None.
             iteration_interval: the iteration interval at which the iteration_event_writer is called. Defaults to 1.
             output_transform: a callable that is used to transform the
-                ``ignite.engine.output`` into a scalar to plot, or a dictionary of {key: scalar}.
+                ``ignite.engine.state.output`` into a scalar to plot, or a dictionary of {key: scalar}.
                 In the latter case, the output string will be formatted as key: value.
                 By default this value plotting happens when every iteration completed.
             global_epoch_transform: a callable that is used to customize global epoch number.
@@ -258,10 +258,12 @@ class TensorBoardImageHandler(TensorBoardHandler):
             interval: plot content from engine.state every N epochs or every N iterations, default is 1.
             epoch_level: plot content from engine.state every N epochs or N iterations. `True` is epoch level,
                 `False` is iteration level.
-            batch_transform: a callable that is used to construct `[images, labels]` pair from `engine.state.batch`.
-                then plot image from `transformed[0][index]` and plot label from `transformed[1][index]`.
-            output_transform: a callable that is used to extract the `predictions` data from `ignite.engine.output`,
-                then plot output from `predictions[index]`.
+            batch_transform: a callable that is used to extract `image` and `label` from `ignite.engine.state.batch`,
+                then construct `(image, label)` pair. for example: if `ignite.engine.state.batch` is `{"image": xxx,
+                "label": xxx, "other": xxx}`, `batch_transform` can be `lambda x: (x["image"], x["label"])`.
+                will use the result to plot image from `result[0][index]` and plot label from `result[1][index]`.
+            output_transform: a callable that is used to extract the `predictions` data from
+                `ignite.engine.state.output`, will use the result to plot output from `result[index]`.
             global_iter_transform: a callable that is used to customize global step number for TensorBoard.
                 For example, in evaluation, the evaluator engine needs to know current epoch from trainer.
             index: plot which element in a data batch, default is the first element.
