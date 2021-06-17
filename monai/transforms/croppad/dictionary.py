@@ -405,9 +405,11 @@ class CenterSpatialCropd(MapTransform, InvertibleTransform):
         return d
 
 
-class CenterScaleCropd(MapTransform, InvertibleTransform):
+class CenterScaleCropd(CenterSpatialCropd):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.CenterScaleCrop`.
+    Note: as using the same scaled ROI to crop, all the input data specified by `keys` should have
+    the same spatial shape.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -420,16 +422,21 @@ class CenterScaleCropd(MapTransform, InvertibleTransform):
     def __init__(
         self, keys: KeysCollection, roi_scale: Union[Sequence[float], float], allow_missing_keys: bool = False
     ) -> None:
-        super().__init__(keys, allow_missing_keys=allow_missing_keys)
+        super(CenterSpatialCropd, self).__init__(keys, allow_missing_keys=allow_missing_keys)
         self.roi_scale = roi_scale
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
+        # use the spatial size of first image to scale, expect all images have the same spatial size
         img_size = data[self.keys[0]].shape[1:]
         ndim = len(img_size)
         roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
-        sp_crop = CenterSpatialCropd(self.keys, roi_size=roi_size, allow_missing_keys=self.allow_missing_keys)
-        return sp_crop(data=data)
+        cropper = CenterSpatialCrop(roi_size)
+        for key in self.key_iterator(d):
+            self.push_transform(d, key, orig_size=img_size)
+            d[key] = cropper(d[key])
+
+        return d
 
 
 class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
