@@ -405,7 +405,7 @@ class CenterSpatialCropd(MapTransform, InvertibleTransform):
         return d
 
 
-class CenterScaleCropd(CenterSpatialCropd):
+class CenterScaleCropd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.CenterScaleCrop`.
     Note: as using the same scaled ROI to crop, all the input data specified by `keys` should have
@@ -422,7 +422,7 @@ class CenterScaleCropd(CenterSpatialCropd):
     def __init__(
         self, keys: KeysCollection, roi_scale: Union[Sequence[float], float], allow_missing_keys: bool = False
     ) -> None:
-        super(CenterSpatialCropd, self).__init__(keys, allow_missing_keys=allow_missing_keys)
+        super().__init__(keys, allow_missing_keys=allow_missing_keys)
         self.roi_scale = roi_scale
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
@@ -435,6 +435,27 @@ class CenterScaleCropd(CenterSpatialCropd):
         for key in self.key_iterator(d):
             self.push_transform(d, key, orig_size=img_size)
             d[key] = cropper(d[key])
+
+        return d
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+
+        for key in self.key_iterator(d):
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            orig_size = np.array(transform[InverseKeys.ORIG_SIZE])
+            current_size = np.array(d[key].shape[1:])
+            pad_to_start = np.floor((orig_size - current_size) / 2).astype(int)
+            # in each direction, if original size is even and current size is odd, += 1
+            pad_to_start[np.logical_and(orig_size % 2 == 0, current_size % 2 == 1)] += 1
+            pad_to_end = orig_size - current_size - pad_to_start
+            pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
+            inverse_transform = BorderPad(pad)
+            # Apply inverse transform
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.pop_transform(d, key)
 
         return d
 
