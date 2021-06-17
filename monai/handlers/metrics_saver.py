@@ -11,16 +11,16 @@
 
 from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Union
 
-from monai.handlers.utils import string_list_all_gather, write_metrics_reports
+from monai.handlers.utils import write_metrics_reports
 from monai.utils import ImageMetaKey as Key
-from monai.utils import ensure_tuple, exact_version, optional_import
+from monai.utils import ensure_tuple, exact_version, issequenceiterable, optional_import, string_list_all_gather
 
-Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
-idist, _ = optional_import("ignite", "0.4.2", exact_version, "distributed")
+Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
+idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
 
 
 class MetricsSaver:
@@ -47,13 +47,22 @@ class MetricsSaver:
             if not None, every metric_details array will save a separate `{metric name}_raw.csv` file.
         batch_transform: callable function to extract the meta_dict from input batch data if saving metric details.
             used to extract filenames from input dict data.
-        summary_ops: expected computation operations to generate the summary report based on specified metric_details.
-            it can be: None, "*" or list of strings.
-            None - don't generate summary report for every specified metric_details
+        summary_ops: expected computation operations to generate the summary report.
+            it can be: None, "*" or list of strings, default to None.
+            None - don't generate summary report for every expected metric_details.
             "*" - generate summary report for every metric_details with all the supported operations.
             list of strings - generate summary report for every metric_details with specified operations, they
-            should be within this list: [`mean`, `median`, `max`, `min`, `90percent`, `std`].
-            default to None.
+            should be within list: ["mean", "median", "max", "min", "<int>percentile", "std", "notnans"].
+            the number in "<int>percentile" should be [0, 100], like: "15percentile". default: "90percentile".
+            for more details, please check: https://numpy.org/doc/stable/reference/generated/numpy.nanpercentile.html.
+            note that: for the overall summary, it computes `nanmean` of all classes for each image first,
+            then compute summary. example of the generated summary report::
+
+                class    mean    median    max    5percentile 95percentile  notnans
+                class0  6.0000   6.0000   7.0000   5.1000      6.9000       2.0000
+                class1  6.0000   6.0000   6.0000   6.0000      6.0000       1.0000
+                mean    6.2500   6.2500   7.0000   5.5750      6.9250       2.0000
+
         save_rank: only the handler on specified rank will save to files in multi-gpus validation, default to 0.
         delimiter: the delimiter character in CSV file, default to "\t".
         output_type: expected output file type, supported types: ["csv"], default to "csv".
@@ -86,7 +95,7 @@ class MetricsSaver:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        engine.add_event_handler(Events.STARTED, self._started)
+        engine.add_event_handler(Events.EPOCH_STARTED, self._started)
         engine.add_event_handler(Events.ITERATION_COMPLETED, self._get_filenames)
         engine.add_event_handler(Events.EPOCH_COMPLETED, self)
 
@@ -95,8 +104,9 @@ class MetricsSaver:
 
     def _get_filenames(self, engine: Engine) -> None:
         if self.metric_details is not None:
-            _filenames = list(ensure_tuple(self.batch_transform(engine.state.batch)[Key.FILENAME_OR_OBJ]))
-            self._filenames += _filenames
+            filenames = self.batch_transform(engine.state.batch).get(Key.FILENAME_OR_OBJ)
+            if issequenceiterable(filenames):
+                self._filenames.extend(filenames)
 
     def __call__(self, engine: Engine) -> None:
         """
@@ -105,7 +115,7 @@ class MetricsSaver:
         """
         ws = idist.get_world_size()
         if self.save_rank >= ws:
-            raise ValueError("target rank is greater than the distributed group size.")
+            raise ValueError("target save rank is greater than the distributed group size.")
 
         # all gather file names across ranks
         _images = string_list_all_gather(strings=self._filenames) if ws > 1 else self._filenames
@@ -123,7 +133,7 @@ class MetricsSaver:
 
             write_metrics_reports(
                 save_dir=self.save_dir,
-                images=_images,
+                images=None if len(_images) == 0 else _images,
                 metrics=_metrics,
                 metric_details=_metric_details,
                 summary_ops=self.summary_ops,
