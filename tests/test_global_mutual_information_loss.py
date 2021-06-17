@@ -87,7 +87,7 @@ class TestGlobalMutualInformationLoss(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_data, expected_val):
         result = GlobalMutualInformationLoss(**input_param).forward(**input_data)
-        np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, rtol=1e-4)
+        np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, rtol=1e-4, atol=1e-4)
 
     def test_ill_shape(self):
         loss = GlobalMutualInformationLoss()

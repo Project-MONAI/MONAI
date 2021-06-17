@@ -95,7 +95,7 @@ class TestToNormAffine(unittest.TestCase):
             affine = torch.as_tensor(affine, device=torch.device("cuda:0"), dtype=torch.float32)
             new_affine = to_norm_affine(affine, src_size, dst_size, align_corners)
             new_affine = new_affine.detach().cpu().numpy()
-            np.testing.assert_allclose(new_affine, expected, atol=1e-4)
+            np.testing.assert_allclose(new_affine, expected, atol=1e-2, rtol=1e-2)
 
     @parameterized.expand(TEST_ILL_TO_NORM_AFFINE_CASES)
     def test_to_norm_affine_ill(self, affine, src_size, dst_size, align_corners):

@@ -97,9 +97,9 @@ class TestRand2DElastic(unittest.TestCase):
         result = g(**input_data)
         self.assertEqual(isinstance(result, torch.Tensor), isinstance(expected_val, torch.Tensor))
         if isinstance(result, torch.Tensor):
-            np.testing.assert_allclose(result.cpu().numpy(), expected_val.cpu().numpy(), rtol=1e-4, atol=1e-4)
+            np.testing.assert_allclose(result.cpu().numpy(), expected_val.cpu().numpy(), rtol=1e-2, atol=1e-2)
         else:
-            np.testing.assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
+            np.testing.assert_allclose(result, expected_val, rtol=1e-2, atol=1e-2)
 
 
 if __name__ == "__main__":
