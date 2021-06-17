@@ -56,6 +56,28 @@ TESTS_LIST.append((RandRotate90(prob=0.0, max_k=1),))
 TESTS_LIST.append((RandAffine(prob=0.0, translate_range=10),))
 
 
+TEST_BASIC = [
+    [("channel", "channel"), ["channel", "channel"]],
+    [torch.Tensor([1, 2, 3]), [torch.tensor(1.0), torch.tensor(2.0), torch.tensor(3.0)]],
+    [
+        [[torch.Tensor((1.0, 2.0, 3.0)), torch.Tensor((2.0, 3.0, 1.0))]],
+        [
+            [[torch.tensor(1.0), torch.tensor(2.0)]],
+            [[torch.tensor(2.0), torch.tensor(3.0)]],
+            [[torch.tensor(3.0), torch.tensor(1.0)]],
+        ],
+    ],
+    [torch.Tensor((True, True, False, False)), [1.0, 1.0, 0.0, 0.0]],
+    [
+        [torch.Tensor([1]), torch.Tensor([2]), torch.Tensor([3])],
+        [[torch.tensor(1.0), torch.tensor(2.0), torch.tensor(3.0)]],
+    ],
+    [[None, None], [None, None]],
+    [["test"], ["test"]],
+    [[], []],
+]
+
+
 class _ListCompose(Compose):
     def __call__(self, input_):
         img, metadata = self.transforms[0](input_)
@@ -142,61 +164,51 @@ class TestDeCollate(unittest.TestCase):
 
 
 class TestBasicDeCollate(unittest.TestCase):
-    def test_decollation_examples(self):
-        out = decollate_batch(["channel", "channel"])
-        self.assertListEqual(["channel", "channel"], out)
+    @parameterized.expand(TEST_BASIC)
+    def test_decollation_examples(self, input_val, expected_out):
+        out = decollate_batch(input_val)
+        self.assertListEqual(expected_out, out)
 
-        test_0 = torch.Tensor([1, 2, 3])
-        out = decollate_batch(test_0)
-        self.assertListEqual([torch.tensor(1.0), torch.tensor(2.0), torch.tensor(3.0)], out)
-
-        test_1 = [[torch.Tensor((1.0, 2.0, 3.0)), torch.Tensor((2.0, 3.0, 1.0))]]
-        out = decollate_batch(test_1)
-        self.assertListEqual(
-            [
-                [[torch.tensor(1.0), torch.tensor(2.0)]],
-                [[torch.tensor(2.0), torch.tensor(3.0)]],
-                [[torch.tensor(3.0), torch.tensor(1.0)]],
-            ],
-            out,
-        )
-
-        test_2 = [torch.Tensor([1]), torch.Tensor([2]), torch.Tensor([3])]
-        out = decollate_batch(test_2)
-        self.assertListEqual([[torch.tensor(1.0), torch.tensor(2.0), torch.tensor(3.0)]], out)
-
-        test_3 = {
+    def test_dict_examples(self):
+        test_case = {
             "meta": {"out": ["test", "test"]},
             "image_meta_dict": {"scl_slope": torch.Tensor((0.0, 0.0))},
         }
-        out = decollate_batch(test_3)
+        out = decollate_batch(test_case)
         self.assertEqual(out[0]["meta"]["out"], "test")
         self.assertEqual(out[0]["image_meta_dict"]["scl_slope"], 0.0)
 
-        test_4 = [torch.ones((2, 1, 10, 10)), torch.ones((2, 3, 5, 5))]
-        out = decollate_batch(test_4)
+        test_case = [torch.ones((2, 1, 10, 10)), torch.ones((2, 3, 5, 5))]
+        out = decollate_batch(test_case)
         self.assertTupleEqual(out[0][0].shape, (1, 10, 10))
         self.assertTupleEqual(out[0][1].shape, (3, 5, 5))
 
-        test_5 = torch.rand((2, 1, 10, 10))
-        out = decollate_batch(test_5)
+        test_case = torch.rand((2, 1, 10, 10))
+        out = decollate_batch(test_case)
         self.assertTupleEqual(out[0].shape, (1, 10, 10))
 
-        test_6 = torch.Tensor((True, True, False, False))
-        out = decollate_batch(test_6)
-        self.assertListEqual(out, [1.0, 1.0, 0.0, 0.0])
+        test_case = [torch.tensor(0), torch.tensor(0)]
+        out = decollate_batch(test_case, detach=True)
+        self.assertListEqual([0, 0], out)
+        self.assertFalse(isinstance(out[0], torch.Tensor))
 
-        test_7 = []
-        out = decollate_batch(test_7)
-        self.assertListEqual(out, [])
+        test_case = {"a": [torch.tensor(0), torch.tensor(0)]}
+        out = decollate_batch(test_case, detach=False)
+        self.assertListEqual([{"a": torch.tensor(0)}, {"a": torch.tensor(0)}], out)
+        self.assertTrue(isinstance(out[0]["a"], torch.Tensor))
 
-        test_8 = None
-        out = decollate_batch(test_8)
-        self.assertEqual(None, out)
+        test_case = [torch.tensor(0), torch.tensor(0)]
+        out = decollate_batch(test_case, detach=False)
+        self.assertListEqual(test_case, out)
 
-        test_9 = [None, None]
-        out = decollate_batch(test_9)
-        self.assertListEqual([None, None], out)
+        test_case = {
+            "image": torch.tensor([[[1, 2]], [[3, 4]]]),
+            "label": torch.tensor([[[5, 6]], [[7, 8]]]),
+            "pred": torch.tensor([[[9, 10]], [[11, 12]]]),
+            "out": ["test"],
+        }
+        out = decollate_batch(test_case, detach=False)
+        self.assertEqual(out[0]["out"], "test")
 
 
 if __name__ == "__main__":

@@ -15,7 +15,7 @@ import math
 import os
 import pickle
 import warnings
-from collections import abc, defaultdict
+from collections import defaultdict
 from itertools import product, starmap
 from pathlib import PurePath
 from typing import Dict, Generator, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
@@ -253,10 +253,10 @@ def list_data_collate(batch: Sequence):
     """
     elem = batch[0]
     data = [i for k in batch for i in k] if isinstance(elem, list) else batch
+    key = None
     try:
         elem = batch[0]
-        key = None
-        if isinstance(elem, abc.Mapping):
+        if isinstance(elem, Mapping):
             ret = {}
             for k in elem:
                 key = k
@@ -330,23 +330,35 @@ def decollate_batch(batch, detach=True):
         detach: whether to detach the tensors. Scalars tensors will be detached into number types
             instead of torch tensors.
     """
+    if batch is None:
+        return batch
+    if isinstance(batch, (float, int, str, bytes)):
+        return batch
     if isinstance(batch, torch.Tensor):
         if detach:
             batch = batch.detach()
-        if batch.ndim == 0 and detach:
-            return batch.item()
+        if batch.ndim == 0:
+            return batch.item() if detach else batch
         out_list = torch.unbind(batch, dim=0)
         if out_list[0].ndim == 0 and detach:
             return [t.item() for t in out_list]
         return list(out_list)
     if isinstance(batch, Mapping):
-        _dict_list = {key: decollate_batch(batch[key]) for key in batch}
+        _dict_list = {key: decollate_batch(batch[key], detach) for key in batch}
         return [dict(zip(_dict_list, item)) for item in zip(*_dict_list.values())]
     if isinstance(batch, Iterable):
         item_0 = first(batch)
-        if isinstance(item_0, Iterable) and not isinstance(item_0, (str, bytes)):
-            return [list(item) for item in zip(*(decollate_batch(b) for b in batch))]
-    return batch
+        if (
+            not isinstance(item_0, Iterable)
+            or isinstance(item_0, (str, bytes))
+            or (isinstance(item_0, torch.Tensor) and item_0.ndim == 0)
+        ):
+            # Not running the usual list decollate here:
+            # don't decollate ['test', 'test'] into [['t', 't'], ['e', 'e'], ['s', 's'], ['t', 't']]
+            # torch.tensor(0) is iterable but iter(torch.tensor(0)) raises TypeError: iteration over a 0-d tensor
+            return list(decollate_batch(b, detach) for b in batch)
+        return [list(item) for item in zip(*(decollate_batch(b, detach) for b in batch))]
+    raise NotImplementedError(f"Unable to de-collate: {batch}, type: {type(batch)}.")
 
 
 def pad_list_data_collate(
