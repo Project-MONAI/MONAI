@@ -40,7 +40,8 @@ class ConfusionMatrix(IgniteMetric):
                 ``"informedness"``, ``"markedness"``]
                 Some of the metrics have multiple aliases (as shown in the wikipedia page aforementioned),
                 and you can also input those names instead.
-            output_transform: transform the ignite.engine.state.output into [y_pred, y] pair.
+            output_transform: callable to construct the `[y_pred, y]` pair from `ignite.engine.state.output`, where
+                `y_pred` and `y` can be `batch-first` Tensors or lists of `channel-first` Tensors.
             save_details: whether to save metric computation details per image, for example: TP/TN/FP/FN of every image.
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 

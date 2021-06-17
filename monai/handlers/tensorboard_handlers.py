@@ -258,10 +258,10 @@ class TensorBoardImageHandler(TensorBoardHandler):
             interval: plot content from engine.state every N epochs or every N iterations, default is 1.
             epoch_level: plot content from engine.state every N epochs or N iterations. `True` is epoch level,
                 `False` is iteration level.
-            batch_transform: a callable that is used to transform the
-                ``ignite.engine.batch`` into expected format to extract several label data.
-            output_transform: a callable that is used to transform the
-                ``ignite.engine.output`` into expected format to extract several output data.
+            batch_transform: a callable that is used to construct `[images, labels]` pair from `engine.state.batch`.
+                then plot image from `transformed[0][index]` and plot label from `transformed[1][index]`.
+            output_transform: a callable that is used to extract the `predictions` data from `ignite.engine.output`,
+                then plot output from `predictions[index]`.
             global_iter_transform: a callable that is used to customize global step number for TensorBoard.
                 For example, in evaluation, the evaluator engine needs to know current epoch from trainer.
             index: plot which element in a data batch, default is the first element.

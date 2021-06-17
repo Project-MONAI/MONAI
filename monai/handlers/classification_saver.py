@@ -57,12 +57,12 @@ class ClassificationSaver:
             filename: if `saver=None`, name of the saved CSV file name.
             overwrite: if `saver=None`, whether to overwriting existing file content, if True,
                 will clear the file before saving. otherwise, will apend new content to the file.
-            batch_transform: a callable that is used to transform the
-                ignite.engine.batch into expected format to extract the meta_data dictionary.
-            output_transform: a callable that is used to transform the
-                ignite.engine.output into the form expected model prediction data.
-                The first dimension of this transform's output will be treated as the
-                batch dimension. Each item in the batch will be saved individually.
+            batch_transform: a callable that is used to extract the `meta_data` dictionary of
+                the input images from `ignite.engine.batch`. then get the input filenames from
+                the `meta_data` to store classification results.
+            output_transform: a callable that is used to extract the model prediction data from
+                `ignite.engine.output`. the first dimension of this transform's output will be treated
+                as the batch dimension. each item in the batch will be saved individually.
             name: identifier of logging.logger to use, defaulting to `engine.logger`.
             save_rank: only the handler on specified rank will save to CSV file in multi-gpus validation,
                 default to 0.
