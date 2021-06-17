@@ -356,7 +356,7 @@ def decollate_batch(batch, detach=True):
             # Not running the usual list decollate here:
             # don't decollate ['test', 'test'] into [['t', 't'], ['e', 'e'], ['s', 's'], ['t', 't']]
             # torch.tensor(0) is iterable but iter(torch.tensor(0)) raises TypeError: iteration over a 0-d tensor
-            return list(decollate_batch(b, detach) for b in batch)
+            return [decollate_batch(b, detach) for b in batch]
         return [list(item) for item in zip(*(decollate_batch(b, detach) for b in batch))]
     raise NotImplementedError(f"Unable to de-collate: {batch}, type: {type(batch)}.")
 
