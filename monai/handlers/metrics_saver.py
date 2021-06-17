@@ -45,8 +45,9 @@ class MetricsSaver:
             "*" - save all the existing metric_details in `engine.state.metric_details` dict into separate files.
             list of strings - specify the metric_details of expected metrics to save.
             if not None, every metric_details array will save a separate `{metric name}_raw.csv` file.
-        batch_transform: callable function to extract the meta_dict from input batch data if saving metric details.
-            used to extract filenames from input dict data.
+        batch_transform: a callable that is used to extract the `meta_data` dictionary of
+            the input images from `ignite.engine.state.batch` if saving metric details. the purpose is to get the
+            input filenames from the `meta_data` and store with metric details together.
         summary_ops: expected computation operations to generate the summary report.
             it can be: None, "*" or list of strings, default to None.
             None - don't generate summary report for every expected metric_details.
