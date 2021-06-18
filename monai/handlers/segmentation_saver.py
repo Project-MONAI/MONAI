@@ -102,12 +102,12 @@ class SegmentationSaver:
                 output_dir: /output,
                 data_root_dir: /foo/bar,
                 output will be: /output/test1/image/image_seg.nii.gz
-            batch_transform: a callable that is used to extract the meta_data dictionary of input image from
-                `ignite.engine.batch`. then save with the meta data: filename, affine, original_shape, etc.
-            output_transform: a callable that is used to transform the
-                ignite.engine.output into the form expected image data.
-                The first dimension of this transform's output will be treated as the
-                batch dimension. Each item in the batch will be saved individually.
+            batch_transform: a callable that is used to extract the `meta_data` dictionary of the input images
+                from `ignite.engine.state.batch`. the purpose is to extract necessary information from the meta data:
+                filename, affine, original_shape, etc.
+            output_transform: a callable that is used to extract the model prediction data from
+                `ignite.engine.state.output`. the first dimension of its output will be treated as the batch dimension.
+                each item in the batch will be saved individually.
             name: identifier of logging.logger to use, defaulting to `engine.logger`.
 
         """
