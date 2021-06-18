@@ -298,8 +298,8 @@ class SpatialCropd(MapTransform, InvertibleTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.SpatialCrop`.
     General purpose cropper to produce sub-volume region of interest (ROI).
     If a dimension of the expected ROI size is bigger than the input image size, will not crop that dimension.
-    So the cropped result may be smaller than expected ROI, and the cropped results of several images may not
-    have exactly same shape.
+    So the cropped result may be smaller than the expected ROI, and the cropped results of several images may
+    not have exactly the same shape.
     It can support to crop ND spatial (channel-first) data.
 
     The cropped region can be parameterised in various ways:
@@ -367,8 +367,8 @@ class CenterSpatialCropd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.CenterSpatialCrop`.
     If a dimension of the expected ROI size is bigger than the input image size, will not crop that dimension.
-    So the cropped result may be smaller than expected ROI, and the cropped results of several images may not
-    have exactly same shape.
+    So the cropped result may be smaller than the expected ROI, and the cropped results of several images may
+    not have exactly the same shape.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -478,8 +478,8 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
     generated ROI. Suppose all the expected fields specified by `keys` have same shape.
 
     Note: even `random_size=False`, if a dimension of the expected ROI size is bigger than the input image size,
-    will not crop that dimension. So the cropped result may be smaller than expected ROI, and the cropped results
-    of several images may not have exactly same shape.
+    will not crop that dimension. So the cropped result may be smaller than the expected ROI, and the cropped
+    results of several images may not have exactly the same shape.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -649,8 +649,8 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, InvertibleTransform):
     It will return a list of dictionaries for all the cropped images.
 
     Note: even `random_size=False`, if a dimension of the expected ROI size is bigger than the input image size,
-    will not crop that dimension. So the cropped result may be smaller than expected ROI, and the cropped results
-    of several images may not have exactly same shape.
+    will not crop that dimension. So the cropped result may be smaller than the expected ROI, and the cropped
+    results of several images may not have exactly the same shape.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -966,9 +966,9 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
     and add `patch_index` to the corresponding meta data.
     And will return a list of dictionaries for all the cropped images.
 
-    Note: if a dimension of the expected spatial size is bigger than the input image size,
-    will not crop that dimension. So the cropped result may be smaller than expected size, and the cropped
-    results of several images may not have exactly same shape.
+    If a dimension of the expected spatial size is bigger than the input image size,
+    will not crop that dimension. So the cropped result may be smaller than the expected size,
+    and the cropped results of several images may not have exactly the same shape.
 
     Args:
         keys: keys of the corresponding items to be transformed.

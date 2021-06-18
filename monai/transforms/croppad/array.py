@@ -216,8 +216,8 @@ class SpatialCrop(Transform):
     """
     General purpose cropper to produce sub-volume region of interest (ROI).
     If a dimension of the expected ROI size is bigger than the input image size, will not crop that dimension.
-    So the cropped result may be smaller than expected ROI, and the cropped results of several images may not
-    have exactly same shape.
+    So the cropped result may be smaller than the expected ROI, and the cropped results of several images may
+    not have exactly the same shape.
     It can support to crop ND spatial (channel-first) data.
 
     The cropped region can be parameterised in various ways:
@@ -279,8 +279,8 @@ class CenterSpatialCrop(Transform):
     """
     Crop at the center of image with specified ROI size.
     If a dimension of the expected ROI size is bigger than the input image size, will not crop that dimension.
-    So the cropped result may be smaller than expected ROI, and the cropped results of several images may not
-    have exactly same shape.
+    So the cropped result may be smaller than the expected ROI, and the cropped results of several images may
+    not have exactly the same shape.
 
     Args:
         roi_size: the spatial size of the crop region e.g. [224,224,128]
@@ -329,8 +329,8 @@ class RandSpatialCrop(Randomizable, Transform):
     or at the image center. And allows to set the minimum and maximum size to limit the randomly generated ROI.
 
     Note: even `random_size=False`, if a dimension of the expected ROI size is bigger than the input image size,
-    will not crop that dimension. So the cropped result may be smaller than expected ROI, and the cropped results
-    of several images may not have exactly same shape.
+    will not crop that dimension. So the cropped result may be smaller than the expected ROI, and the cropped results
+    of several images may not have exactly the same shape.
 
     Args:
         roi_size: if `random_size` is True, it specifies the minimum crop region.
@@ -439,8 +439,8 @@ class RandSpatialCropSamples(Randomizable, Transform):
     It will return a list of cropped images.
 
     Note: even `random_size=False`, if a dimension of the expected ROI size is bigger than the input image size,
-    will not crop that dimension. So the cropped result may be smaller than expected ROI, and the cropped results
-    of several images may not have exactly same shape.
+    will not crop that dimension. So the cropped result may be smaller than the expected ROI, and the cropped
+    results of several images may not have exactly the same shape.
 
     Args:
         roi_size: if `random_size` is True, it specifies the minimum crop region.
@@ -660,7 +660,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
           [0, 0, 0, 0, 0],             [0, 0, 0]]      [0, 0, 0]]
           [0, 0, 0, 0, 0]]]
 
-    Note: if a dimension of the expected spatial size is bigger than the input image size,
+    If a dimension of the expected spatial size is bigger than the input image size,
     will not crop that dimension. So the cropped result may be smaller than expected size, and the cropped
     results of several images may not have exactly same shape.
 
