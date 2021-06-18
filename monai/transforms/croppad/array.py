@@ -59,7 +59,7 @@ class SpatialPad(Transform):
 
     Args:
         spatial_size: the spatial size of output data after padding, if a dimension of the input
-            data size is bigger than the pad size, will not pad that dimension. 
+            data size is bigger than the pad size, will not pad that dimension.
             If its components have non-positive values, the corresponding size of input image will be used (no padding).
         method: {``"symmetric"``, ``"end"``}
             Pad image symmetric on every side or only pad at the end sides. Defaults to ``"symmetric"``.
