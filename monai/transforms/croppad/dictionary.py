@@ -119,6 +119,8 @@ class SpatialPadd(MapTransform, InvertibleTransform):
             spatial_size: the spatial size of output data after padding, if a dimension of the input
                 data size is bigger than the pad size, will not pad that dimension.
                 If its components have non-positive values, the corresponding size of input image will be used.
+                for example: if the spatial size of input data is [30, 30, 30] and `spatial_size=[32, 25, -1]`,
+                the spatial size of output data will be [32, 30, 30].
             method: {``"symmetric"``, ``"end"``}
                 Pad image symmetric on every side or only pad at the end sides. Defaults to ``"symmetric"``.
             mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
@@ -376,6 +378,8 @@ class CenterSpatialCropd(MapTransform, InvertibleTransform):
         roi_size: the size of the crop region e.g. [224,224,128]
             if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
             If its components have non-positive values, the corresponding size of input image will be used.
+            for example: if the spatial size of input data is [40, 40, 40] and `roi_size=[32, 64, -1]`,
+            the spatial size of output data will be [32, 40, 40].
         allow_missing_keys: don't raise exception if key is missing.
     """
 
@@ -488,6 +492,8 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
             if `random_size` is False, it specifies the expected ROI size to crop. e.g. [224, 224, 128]
             if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
             If its components have non-positive values, the corresponding size of input image will be used.
+            for example: if the spatial size of input data is [40, 40, 40] and `roi_size=[32, 64, -1]`,
+            the spatial size of output data will be [32, 40, 40].
         max_roi_size: if `random_size` is True and `roi_size` specifies the min crop region size, `max_roi_size`
             can specify the max crop region size. if None, defaults to the input image size.
             if its components have non-positive values, the corresponding size of input image will be used.
@@ -659,6 +665,8 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, InvertibleTransform):
             if `random_size` is False, it specifies the expected ROI size to crop. e.g. [224, 224, 128]
             if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
             If its components have non-positive values, the corresponding size of input image will be used.
+            for example: if the spatial size of input data is [40, 40, 40] and `roi_size=[32, 64, -1]`,
+            the spatial size of output data will be [32, 40, 40].
         num_samples: number of samples (crop regions) to take in the returned list.
         max_roi_size: if `random_size` is True and `roi_size` specifies the min crop region size, `max_roi_size`
             can specify the max crop region size. if None, defaults to the input image size.
@@ -977,6 +985,8 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
         spatial_size: the spatial size of the crop region e.g. [224, 224, 128].
             if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
             if its components have non-positive values, the corresponding size of `data[label_key]` will be used.
+            for example: if the spatial size of input data is [40, 40, 40] and `spatial_size=[32, 64, -1]`,
+            the spatial size of output data will be [32, 40, 40].
         pos: used with `neg` together to calculate the ratio ``pos / (pos + neg)`` for the probability
             to pick a foreground voxel as a center rather than a background voxel.
         neg: used with `pos` together to calculate the ratio ``pos / (pos + neg)`` for the probability
