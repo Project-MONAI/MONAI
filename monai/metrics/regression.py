@@ -34,8 +34,7 @@ class RegressionMetric(CumulativeIterationMetric):
             ``"mean_channel"``, ``"sum_channel"``}
             Define the mode to reduce computation result. Defaults to ``"mean"``.
         get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
-                    `not_nans` count the number of not nans for the metric,
-                    thus its shape equals to the shape of the metric.
+            Here `not_nans` count the number of not nans for the metric, thus its shape equals to the shape of the metric.
 
     """
 

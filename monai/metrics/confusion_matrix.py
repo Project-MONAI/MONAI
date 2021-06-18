@@ -51,7 +51,7 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
             ``"mean_channel"``, ``"sum_channel"``}
         get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns [(metric, not_nans), ...]. If False,
             aggregate() returns [metric, ...].
-            `not_nans` count the number of not nans for True Positive, False Positive, True Negative and False Negative.
+            Here `not_nans` count the number of not nans for True Positive, False Positive, True Negative and False Negative.
             Its shape depends on the shape of the metric, and it has one more dimension with size 4. For example, if the shape
             of the metric is [3, 3], `not_nans` has the shape [3, 3, 4].
 
