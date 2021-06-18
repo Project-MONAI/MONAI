@@ -9,9 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from copy import deepcopy
 from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Sequence, Union
-import warnings
+
 import torch
 import torch.distributed as dist
 from torch.utils.data import DataLoader
@@ -169,7 +170,6 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
 
         @self.on(IterationEvents.MODEL_COMPLETED)
         def _decollate_data(engine: Engine) -> None:
-
             def _detect_batch_size(batch_data: List):
                 """
                 Detect the batch size from a list of data, some items have batch dim, some not.
@@ -180,7 +180,9 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
                         return v.shape[0]
                 for v in batch_data:
                     if issequenceiterable(v):
-                        warnings.warn("batch_data doesn't contain batched Tensor data, use the length of first sequence data.")
+                        warnings.warn(
+                            "batch_data doesn't contain batched Tensor data, use the length of first sequence data."
+                        )
                         return len(v)
                 raise RuntimeError("failed to automatically detect the batch size.")
 
