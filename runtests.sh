@@ -439,23 +439,26 @@ if [ $doPytypeFormat = true ]
 then
     set +e  # disable exit on failure so that diagnostics can be given on failure
     echo "${separator}${blue}pytype${noColor}"
-
-    # ensure that the necessary packages for code format testing are installed
-    if ! is_pip_installed pytype
-    then
-        install_deps
-    fi
-    ${cmdPrefix}${PY_EXE} -m pytype --version
-
-    ${cmdPrefix}${PY_EXE} -m pytype -j ${NUM_PARALLEL} --python-version="$(${PY_EXE} -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")"
-
-    pytype_status=$?
-    if [ ${pytype_status} -ne 0 ]
-    then
-        echo "${red}failed!${noColor}"
-        exit ${pytype_status}
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "${red}pytype not working on macOS (https://github.com/Project-MONAI/MONAI/issues/2391), skipping the tests.${noColor}"
     else
-        echo "${green}passed!${noColor}"
+        # ensure that the necessary packages for code format testing are installed
+        if ! is_pip_installed pytype
+        then
+            install_deps
+        fi
+        ${cmdPrefix}${PY_EXE} -m pytype --version
+
+        ${cmdPrefix}${PY_EXE} -m pytype -j ${NUM_PARALLEL} --python-version="$(${PY_EXE} -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")"
+
+        pytype_status=$?
+        if [ ${pytype_status} -ne 0 ]
+        then
+            echo "${red}failed!${noColor}"
+            exit ${pytype_status}
+        else
+            echo "${green}passed!${noColor}"
+        fi
     fi
     set -e # enable exit on failure
 fi
