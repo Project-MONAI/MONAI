@@ -49,7 +49,11 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
             if ``False``, compute reduction on the confusion matrices first, defaults to ``False``.
         reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}
-        get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
+        get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns [(metric, not_nans), ...]. If False,
+            aggregate() returns [metric, ...].
+            `not_nans` count the number of not nans for True Positive, False Positive, True Negative and False Negative.
+            Its shape depends on the shape of the metric, and it has one more dimension with size 4. For example, if the shape
+            of the metric is [3, 3], `not_nans` has the shape [3, 3, 4].
 
     """
 
@@ -118,9 +122,10 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
             else:
                 f, not_nans = do_metric_reduction(data, self.reduction)
                 f = compute_confusion_matrix_metric(metric_name, f)
-            results.append(f)
             if self.get_not_nans:
-                results.append(not_nans)
+                results.append((f, not_nans))
+            else:
+                results.append(f)
         return results
 
 
