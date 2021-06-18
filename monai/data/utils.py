@@ -18,11 +18,10 @@ import warnings
 from collections import defaultdict
 from itertools import product, starmap
 from pathlib import PurePath
-from typing import Dict, Generator, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Dict, Generator, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
-from torch.utils.data import DistributedSampler as _TorchDistributedSampler
 from torch.utils.data._utils.collate import default_collate
 
 from monai.networks.layers.simplelayers import GaussianFilter
@@ -36,6 +35,7 @@ from monai.utils import (
     first,
     optional_import,
 )
+from monai.utils.enums import Method
 
 nib, _ = optional_import("nibabel")
 
@@ -59,10 +59,12 @@ __all__ = [
     "partition_dataset",
     "partition_dataset_classes",
     "select_cross_validation_folds",
-    "DistributedSampler",
     "json_hashing",
     "pickle_hashing",
     "sorted_dict",
+    "decollate_batch",
+    "pad_list_data_collate",
+    "no_collation",
 ]
 
 
@@ -170,7 +172,7 @@ def iter_patch(
     copy_back: bool = True,
     mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
     **pad_opts: Dict,
-) -> Generator[np.ndarray, None, None]:
+):
     """
     Yield successive patches from `arr` of size `patch_size`. The iteration can start from position `start_pos` in `arr`
     but drawing from a padded array extended by the `patch_size` in each dimension (so these coordinates can be negative
@@ -190,6 +192,15 @@ def iter_patch(
     Yields:
         Patches of array data from `arr` which are views into a padded array which can be modified, if `copy_back` is
         True these changes will be reflected in `arr` once the iteration completes.
+
+    Note:
+        coordinate format is:
+
+            [1st_dim_start, 1st_dim_end,
+             2nd_dim_start, 2nd_dim_end,
+             ...,
+             Nth_dim_start, Nth_dim_end]]
+
     """
     # ensure patchSize and startPos are the right length
     patch_size_ = get_valid_patch_size(arr.shape, patch_size)
@@ -206,7 +217,9 @@ def iter_patch(
     iter_size = tuple(s + p for s, p in zip(arr.shape, patch_size_))
 
     for slices in iter_patch_slices(iter_size, patch_size_, start_pos_padded):
-        yield arrpad[slices]
+        # compensate original image padding
+        coords_no_pad = tuple((coord.start - p, coord.stop - p) for coord, p in zip(slices, patch_size_))
+        yield arrpad[slices], np.asarray(coords_no_pad)  # data and coords (in numpy; works with torch loader)
 
     # copy back data from the padded image if required
     if copy_back:
@@ -240,7 +253,146 @@ def list_data_collate(batch: Sequence):
     """
     elem = batch[0]
     data = [i for k in batch for i in k] if isinstance(elem, list) else batch
-    return default_collate(data)
+    key = None
+    try:
+        elem = batch[0]
+        if isinstance(elem, Mapping):
+            ret = {}
+            for k in elem:
+                key = k
+                ret[k] = default_collate([d[k] for d in data])
+            return ret
+        return default_collate(data)
+    except RuntimeError as re:
+        re_str = str(re)
+        if "equal size" in re_str:
+            if key is not None:
+                re_str += f"\nCollate error on the key '{key}' of dictionary data."
+            re_str += (
+                "\n\nMONAI hint: if your transforms intentionally create images of different shapes, creating your "
+                + "`DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem (check its "
+                + "documentation)."
+            )
+        raise RuntimeError(re_str)
+    except TypeError as re:
+        re_str = str(re)
+        if "numpy" in re_str and "Tensor" in re_str:
+            if key is not None:
+                re_str += f"\nCollate error on the key '{key}' of dictionary data."
+            re_str += (
+                "\n\nMONAI hint: if your transforms intentionally create mixtures of torch Tensor and numpy ndarray, "
+                + "creating your `DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem "
+                + "(check its documentation)."
+            )
+        raise TypeError(re_str)
+
+
+def decollate_batch(batch, detach=True):
+    """De-collate a batch of data (for example, as produced by a `DataLoader`).
+
+    Returns a list of structures with the original tensor's 0-th dimension sliced into elements using `torch.unbind`.
+
+    Images originally stored as (B,C,H,W,[D]) will be returned as (C,H,W,[D]). Other information,
+    such as metadata, may have been stored in a list (or a list inside nested dictionaries). In
+    this case we return the element of the list corresponding to the batch idx.
+
+    Return types aren't guaranteed to be the same as the original, since numpy arrays will have been
+    converted to torch.Tensor, sequences may be converted to lists of tensors,
+    mappings may be converted into dictionaries.
+
+    For example:
+
+    .. code-block:: python
+
+        batch_data = {
+            "image": torch.rand((2,1,10,10)),
+            "image_meta_dict": {"scl_slope": torch.Tensor([0.0, 0.0])}
+        }
+        out = decollate_batch(batch_data)
+        print(len(out))
+        >>> 2
+
+        print(out[0])
+        >>> {'image': tensor([[[4.3549e-01...43e-01]]]), 'image_meta_dict': {'scl_slope': 0.0}}
+
+        batch_data = [torch.rand((2,1,10,10)), torch.rand((2,3,5,5))]
+        out = decollate_batch(batch_data)
+        print(out[0])
+        >>> [tensor([[[4.3549e-01...43e-01]]], tensor([[[5.3435e-01...45e-01]]])]
+
+        batch_data = torch.rand((2,1,10,10))
+        out = decollate_batch(batch_data)
+        print(out[0])
+        >>> tensor([[[4.3549e-01...43e-01]]])
+
+    Args:
+        batch: data to be de-collated.
+        detach: whether to detach the tensors. Scalars tensors will be detached into number types
+            instead of torch tensors.
+    """
+    if batch is None:
+        return batch
+    if isinstance(batch, (float, int, str, bytes)):
+        return batch
+    if isinstance(batch, torch.Tensor):
+        if detach:
+            batch = batch.detach()
+        if batch.ndim == 0:
+            return batch.item() if detach else batch
+        out_list = torch.unbind(batch, dim=0)
+        if out_list[0].ndim == 0 and detach:
+            return [t.item() for t in out_list]
+        return list(out_list)
+    if isinstance(batch, Mapping):
+        _dict_list = {key: decollate_batch(batch[key], detach) for key in batch}
+        return [dict(zip(_dict_list, item)) for item in zip(*_dict_list.values())]
+    if isinstance(batch, Iterable):
+        item_0 = first(batch)
+        if (
+            not isinstance(item_0, Iterable)
+            or isinstance(item_0, (str, bytes))
+            or (isinstance(item_0, torch.Tensor) and item_0.ndim == 0)
+        ):
+            # Not running the usual list decollate here:
+            # don't decollate ['test', 'test'] into [['t', 't'], ['e', 'e'], ['s', 's'], ['t', 't']]
+            # torch.tensor(0) is iterable but iter(torch.tensor(0)) raises TypeError: iteration over a 0-d tensor
+            return [decollate_batch(b, detach) for b in batch]
+        return [list(item) for item in zip(*(decollate_batch(b, detach) for b in batch))]
+    raise NotImplementedError(f"Unable to de-collate: {batch}, type: {type(batch)}.")
+
+
+def pad_list_data_collate(
+    batch: Sequence,
+    method: Union[Method, str] = Method.SYMMETRIC,
+    mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+):
+    """
+    Function version of :py:class:`monai.transforms.croppad.batch.PadListDataCollate`.
+
+    Same as MONAI's ``list_data_collate``, except any tensors are centrally padded to match the shape of the biggest
+    tensor in each dimension. This transform is useful if some of the applied transforms generate batch data of
+    different sizes.
+
+    This can be used on both list and dictionary data. In the case of the dictionary data, this transform will be added
+    to the list of invertible transforms.
+
+    The inverse can be called using the static method: `monai.transforms.croppad.batch.PadListDataCollate.inverse`.
+
+    Args:
+        batch: batch of data to pad-collate
+        method: padding method (see :py:class:`monai.transforms.SpatialPad`)
+        mode: padding mode (see :py:class:`monai.transforms.SpatialPad`)
+    """
+    from monai.transforms.croppad.batch import PadListDataCollate  # needs to be here to avoid circular import
+
+    return PadListDataCollate(method, mode)(batch)
+
+
+def no_collation(x):
+    """
+    No any collation operation.
+    """
+    return x
 
 
 def worker_init_fn(worker_id: int) -> None:
@@ -266,6 +418,8 @@ def set_rnd(obj, seed: int) -> int:
         obj.set_random_state(seed=seed % MAX_SEED)
         return seed + 1  # a different seed for the next component
     for key in obj.__dict__:
+        if key.startswith("__"):  # skip the private methods
+            continue
         seed = set_rnd(obj.__dict__[key], seed=seed)
     return seed
 
@@ -462,6 +616,7 @@ def create_file_basename(
     input_file_name: str,
     folder_path: str,
     data_root_dir: str = "",
+    patch_index: Optional[int] = None,
 ) -> str:
     """
     Utility function to create the path to the output file based on the input
@@ -470,7 +625,12 @@ def create_file_basename(
 
         `folder_path/input_file_name (no ext.) /input_file_name (no ext.)[_postfix]`
 
-    otherwise the relative path with respect to `data_root_dir` will be inserted.
+    otherwise the relative path with respect to `data_root_dir` will be inserted, for example:
+    input_file_name: /foo/bar/test1/image.png,
+    postfix: seg
+    folder_path: /output,
+    data_root_dir: /foo/bar,
+    output will be: /output/test1/image/image_seg
 
     Args:
         postfix: output name's postfix
@@ -480,6 +640,7 @@ def create_file_basename(
             absolute path. This is used to compute `input_file_rel_path`, the relative path to the file from
             `data_root_dir` to preserve folder structure when saving in case there are files in different
             folders with the same file names.
+        patch_index: if not None, append the patch index to filename.
     """
 
     # get the filename and directory
@@ -498,11 +659,15 @@ def create_file_basename(
     if not os.path.exists(subfolder_path):
         os.makedirs(subfolder_path)
 
-    if postfix:
+    if len(postfix) > 0:
         # add the sub-folder plus the postfix name to become the file basename in the output path
         output = os.path.join(subfolder_path, filename + "_" + postfix)
     else:
         output = os.path.join(subfolder_path, filename)
+
+    if patch_index is not None:
+        output += f"_{patch_index}"
+
     return os.path.abspath(output)
 
 
@@ -595,6 +760,27 @@ def partition_dataset(
     Will return a set of datasets, every dataset contains 1 partition of original dataset.
     And it can split the dataset based on specified ratios or evenly split into `num_partitions`.
     Refer to: https://github.com/pytorch/pytorch/blob/master/torch/utils/data/distributed.py.
+
+    Note:
+        It also can be used to partition dataset for ranks in distributed training.
+        For example, partition dataset before training and use `CacheDataset`, every rank trains with its own data.
+        It can avoid duplicated caching content in each rank, but will not do global shuffle before every epoch:
+
+        .. code-block:: python
+
+            data_partition = partition_dataset(
+                data=train_files,
+                num_partitions=dist.get_world_size(),
+                shuffle=True,
+                even_divisible=True,
+            )[dist.get_rank()]
+
+            train_ds = SmartCacheDataset(
+                data=data_partition,
+                transform=train_transforms,
+                replace_rate=0.2,
+                cache_num=15,
+            )
 
     Args:
         data: input dataset to split, expect a list of data.
@@ -761,34 +947,6 @@ def select_cross_validation_folds(partitions: Sequence[Iterable], folds: Union[S
         [9, 10, 5, 6]
     """
     return [data_item for fold_id in ensure_tuple(folds) for data_item in partitions[fold_id]]
-
-
-class DistributedSampler(_TorchDistributedSampler):
-    """
-    Enhance PyTorch DistributedSampler to support non-evenly divisible sampling.
-
-    Args:
-        even_divisible: if False, different ranks can have different data length.
-        for example, input data: [1, 2, 3, 4, 5], rank 0: [1, 3, 5], rank 1: [2, 4].
-
-    More information about DistributedSampler, please check:
-    https://github.com/pytorch/pytorch/blob/master/torch/utils/data/distributed.py
-
-    """
-
-    def __init__(self, even_divisible: bool = True, *args, **kwargs):
-        self.total_size: int = 0
-        self.rank: int = 0
-        self.num_samples: int = 0
-        self.num_replicas: int = 0
-        super().__init__(*args, **kwargs)
-
-        if not even_divisible:
-            data_len = len(kwargs["dataset"])
-            extra_size = self.total_size - data_len
-            if self.rank + extra_size >= self.num_replicas:
-                self.num_samples -= 1
-            self.total_size = data_len
 
 
 def json_hashing(item) -> bytes:

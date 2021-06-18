@@ -82,8 +82,8 @@ class MultiScaleLoss(_Loss):
                 else:
                     loss_list.append(
                         self.loss(
-                            separable_filtering(y_pred, [self.kernel_fn(s)] * (y_true.ndim - 2)),
-                            separable_filtering(y_true, [self.kernel_fn(s)] * (y_true.ndim - 2)),
+                            separable_filtering(y_pred, [self.kernel_fn(s).to(y_pred)] * (y_true.ndim - 2)),
+                            separable_filtering(y_true, [self.kernel_fn(s).to(y_pred)] * (y_true.ndim - 2)),
                         )
                     )
             loss = torch.stack(loss_list, dim=0)
