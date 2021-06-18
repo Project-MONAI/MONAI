@@ -63,7 +63,6 @@ class TestEnsembleEvaluator(unittest.TestCase):
                 expected_value = engine.state.iteration + i
                 torch.testing.assert_allclose(engine.state.output[0][f"pred{i}"].item(), expected_value)
 
-
         @val_engine.on(Events.EPOCH_COMPLETED)
         def trigger_custom_event():
             val_engine.fire_event(CustomEvents.FOO_EVENT)
