@@ -287,7 +287,7 @@ def list_data_collate(batch: Sequence):
         raise TypeError(re_str)
 
 
-def decollate_batch(batch, detach=True):
+def decollate_batch(batch, detach: bool = True):
     """De-collate a batch of data (for example, as produced by a `DataLoader`).
 
     Returns a list of structures with the original tensor's 0-th dimension sliced into elements using `torch.unbind`.
