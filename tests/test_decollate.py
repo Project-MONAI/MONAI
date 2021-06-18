@@ -157,27 +157,6 @@ class TestDeCollate(unittest.TestCase):
         dataset = Dataset(self.data_list, t_compose)
         self.check_decollate(dataset=dataset)
 
-    def test_decollation_non_batch_list(self):
-        data = [torch.tensor(5), torch.ones((3, 2)), "test_str", 0.8]
-        ret = decollate_batch(data, copy_non_batch=True)
-        self.assertEqual(len(ret), 3)
-        for i in ret:
-            torch.testing.assert_allclose(i[0], torch.tensor(5))
-            torch.testing.assert_allclose(i[1], torch.ones((2)))
-            self.assertEqual(i[2], "test_str")
-            self.assertEqual(i[3], 0.8)
-
-    def test_decollation_non_batch_dict(self):
-        data = {"extra": torch.tensor(5), "pred": torch.ones((3, 2)), "tag": "test_str", "loss": 0.8, "label": None}
-        ret = decollate_batch(data, copy_non_batch=True)
-        self.assertEqual(len(ret), 3)
-        for i in ret:
-            torch.testing.assert_allclose(i["extra"], torch.tensor(5))
-            torch.testing.assert_allclose(i["pred"], torch.ones((2)))
-            self.assertEqual(i["tag"], "test_str")
-            self.assertEqual(i["loss"], 0.8)
-            self.assertEqual(i["label"], None)
-
 
 class TestBasicDeCollate(unittest.TestCase):
     @parameterized.expand(TEST_BASIC)
