@@ -289,15 +289,21 @@ def list_data_collate(batch: Sequence):
 
 def decollate_batch(batch, detach=True):
     """De-collate a batch of data (for example, as produced by a `DataLoader`).
+
     Returns a list of structures with the original tensor's 0-th dimension sliced into elements using `torch.unbind`.
+
     Images originally stored as (B,C,H,W,[D]) will be returned as (C,H,W,[D]). Other information,
     such as metadata, may have been stored in a list (or a list inside nested dictionaries). In
     this case we return the element of the list corresponding to the batch idx.
+
     Return types aren't guaranteed to be the same as the original, since numpy arrays will have been
     converted to torch.Tensor, sequences may be converted to lists of tensors,
     mappings may be converted into dictionaries.
+
     For example:
+
     .. code-block:: python
+
         batch_data = {
             "image": torch.rand((2,1,10,10)),
             "image_meta_dict": {"scl_slope": torch.Tensor([0.0, 0.0])}
@@ -305,16 +311,20 @@ def decollate_batch(batch, detach=True):
         out = decollate_batch(batch_data)
         print(len(out))
         >>> 2
+
         print(out[0])
         >>> {'image': tensor([[[4.3549e-01...43e-01]]]), 'image_meta_dict': {'scl_slope': 0.0}}
+
         batch_data = [torch.rand((2,1,10,10)), torch.rand((2,3,5,5))]
         out = decollate_batch(batch_data)
         print(out[0])
         >>> [tensor([[[4.3549e-01...43e-01]]], tensor([[[5.3435e-01...45e-01]]])]
+
         batch_data = torch.rand((2,1,10,10))
         out = decollate_batch(batch_data)
         print(out[0])
         >>> tensor([[[4.3549e-01...43e-01]]])
+
     Args:
         batch: data to be de-collated.
         detach: whether to detach the tensors. Scalars tensors will be detached into number types
