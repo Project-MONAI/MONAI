@@ -36,7 +36,7 @@ class RegressionMetric(CumulativeIterationMetric):
         get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
                     `not_nans` count the number of not nans for the metric,
                     thus its shape equals to the shape of the metric.
-                    
+
     """
 
     def __init__(

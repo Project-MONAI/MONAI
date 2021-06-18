@@ -51,7 +51,7 @@ def do_metric_reduction(
     """
     This function is to do the metric reduction for calculated metrics of each example's each class.
     The function also returns `not_nans`, which counts the number of not nans for the metric.
-    
+
     Args:
         f: a tensor that contains the calculated metric scores per batch and
             per class. The first two dims should be batch and class.
