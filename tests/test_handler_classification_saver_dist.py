@@ -32,7 +32,7 @@ class DistributedHandlerClassificationSaver(DistTestCase):
 
             # set up engine
             def _train_func(engine, batch):
-                engine.state.batch = decollate_batch(batch, batch_size=8 + 2 * rank)
+                engine.state.batch = decollate_batch(batch)
                 return [torch.zeros(1) for _ in range(8 + rank * 2)]
 
             engine = Engine(_train_func)

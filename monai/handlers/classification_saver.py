@@ -104,6 +104,7 @@ class ClassificationSaver:
         """
         meta_data = self.batch_transform(engine.state.batch)
         if isinstance(meta_data, dict):
+            # decollate the `dictionary of list` to `list of dictionaries`
             meta_data = decollate_batch(meta_data)
         engine_output = self.output_transform(engine.state.output)
         for m, o in zip(meta_data, engine_output):

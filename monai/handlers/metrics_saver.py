@@ -108,6 +108,7 @@ class MetricsSaver:
         if self.metric_details is not None:
             meta_data = self.batch_transform(engine.state.batch)
             if isinstance(meta_data, dict):
+                # decollate the `dictionary of list` to `list of dictionaries`
                 meta_data = decollate_batch(meta_data)
             for m in meta_data:
                 filename = m.get(Key.FILENAME_OR_OBJ)

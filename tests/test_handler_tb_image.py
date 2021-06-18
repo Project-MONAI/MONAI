@@ -31,7 +31,7 @@ class TestHandlerTBImage(unittest.TestCase):
 
             # set up engine
             def _train_func(engine, batch):
-                engine.state.batch = decollate_batch(list(batch), batch_size=10)
+                engine.state.batch = decollate_batch(list(batch))
                 return [torch.zeros((1, 10, 10))]
 
             engine = Engine(_train_func)
@@ -40,7 +40,10 @@ class TestHandlerTBImage(unittest.TestCase):
             stats_handler = TensorBoardImageHandler(log_dir=tempdir)
             engine.add_event_handler(Events.ITERATION_COMPLETED, stats_handler)
 
-            data = zip(np.random.normal(size=(10, 4, *shape)), np.random.normal(size=(10, 4, *shape)))
+            data = zip(
+                torch.as_tensor(np.random.normal(size=(10, 4, *shape))),
+                torch.as_tensor(np.random.normal(size=(10, 4, *shape))),
+            )
             engine.run(data, epoch_length=10, max_epochs=1)
             stats_handler.close()
 
