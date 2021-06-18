@@ -220,8 +220,8 @@ def _get_loss_from_output(output: Union[Dict[str, torch.Tensor], torch.Tensor]):
 
     def _get_loss(data):
         if isinstance(data, dict):
-            return data["loss"].item()
-        return data.item()
+            return data["loss"]
+        return data
 
     if isinstance(output, list):
         return _get_loss(output[0])

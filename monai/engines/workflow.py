@@ -191,12 +191,14 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
                 Utility tp copy scalar items to construct a batch.
                 Leverage `decollate_batch(detach=False)` to filter out the scalar items.
 
+
                 """
                 if isinstance(batch_data, dict):
                     batch_size = _detect_batch_size(batch_data.values())
                     ret = {}
                     for k, v in batch_data.items():
-                        if decollate_batch(v, detach=False) == v:
+                        if decollate_batch(v, detach=False) == v and not isinstance(v, list):
+                            # if decollating a list, the result may be the same list, so should skip this case
                             ret[k] = [deepcopy(decollate_batch(v, detach=True)) for _ in range(batch_size)]
                         else:
                             ret[k] = v
@@ -205,7 +207,8 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
                     batch_size = _detect_batch_size(batch_data)
                     ret = []
                     for b in batch_data:
-                        if decollate_batch(b, detach=False) == b:
+                        if decollate_batch(b, detach=False) == b and not isinstance(b, list):
+                            # if decollating a list, the result may be the same list, so should skip this case
                             ret.append([deepcopy(decollate_batch(b, detach=True)) for _ in range(batch_size)])
                         else:
                             ret.append(b)
