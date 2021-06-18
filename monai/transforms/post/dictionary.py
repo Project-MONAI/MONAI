@@ -347,16 +347,17 @@ class Decollated(MapTransform):
     Note that unlike most MapTransforms, this will decollate all data, so keys are not needed.
 
     Args:
-        batch_size: if not supplied, we try to determine it based on array lengths. Will raise an error if
-            it fails to determine it automatically.
+        detach: whether to detach the tensors. Scalars tensors will be detached into number types
+            instead of torch tensors.
+
     """
 
-    def __init__(self, batch_size: Optional[int] = None) -> None:
-        super().__init__(None)
-        self.batch_size = batch_size
+    def __init__(self, keys="", detach: bool = True) -> None:
+        super().__init__(keys=keys)
+        self.detach = detach
 
-    def __call__(self, data: dict) -> List[dict]:
-        return decollate_batch(data, self.batch_size)
+    def __call__(self, data: dict):
+        return decollate_batch(data, detach=self.detach)
 
 
 class ProbNMSd(MapTransform):

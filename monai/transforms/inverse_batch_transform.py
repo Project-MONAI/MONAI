@@ -63,6 +63,7 @@ class BatchInverseTransform(Transform):
         loader: TorchDataLoader,
         collate_fn: Optional[Callable] = no_collation,
         num_workers: Optional[int] = 0,
+        detach: bool = True,
     ) -> None:
         """
         Args:
@@ -74,16 +75,20 @@ class BatchInverseTransform(Transform):
                 default to 0 as only run 1 iteration and multi-processing may be even slower.
                 if the transforms are really slow, set num_workers for multi-processing.
                 if set to `None`, use the `num_workers` of the transform data loader.
+            detach: whether to detach the tensors. Scalars tensors will be detached into number types
+                instead of torch tensors.
+
         """
         self.transform = transform
         self.batch_size = loader.batch_size
         self.num_workers = loader.num_workers if num_workers is None else num_workers
         self.collate_fn = collate_fn
+        self.detach = detach
         self.pad_collation_used = loader.collate_fn.__doc__ == pad_list_data_collate.__doc__
 
     def __call__(self, data: Dict[str, Any]) -> Any:
 
-        decollated_data = decollate_batch(data)
+        decollated_data = decollate_batch(data, detach=self.detach)
         inv_ds = _BatchInverseDataset(decollated_data, self.transform, self.pad_collation_used)
         inv_loader = DataLoader(
             inv_ds, batch_size=self.batch_size, num_workers=self.num_workers, collate_fn=self.collate_fn
