@@ -1,3 +1,14 @@
+# Copyright 2020 - 2021 MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from typing import Optional, Sequence, Tuple, Type, Union
 
 import torch
@@ -249,7 +260,7 @@ class LocalNetUpSampleBlock(nn.Module):
         Args:
             x: feature to be up-sampled, in shape (batch, ``in_channels``, insize_1, insize_2, [insize_3])
             mid: mid-level feature saved during down-sampling,
-                in shape (batch, ``out_channels``, midsize_1, midsize_2, [midnsize_3])
+                in shape (batch, ``out_channels``, midsize_1, midsize_2, [midsize_3])
 
         Raises:
             ValueError: when ``midsize != insize * 2``
