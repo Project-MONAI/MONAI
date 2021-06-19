@@ -16,9 +16,14 @@ from typing import TYPE_CHECKING, Callable, List, Optional
 import torch
 
 from monai.data import CSVSaver
-from monai.handlers.utils import evenly_divisible_all_gather, string_list_all_gather
 from monai.utils import ImageMetaKey as Key
-from monai.utils import exact_version, issequenceiterable, optional_import
+from monai.utils import (
+    evenly_divisible_all_gather,
+    exact_version,
+    issequenceiterable,
+    optional_import,
+    string_list_all_gather,
+)
 
 idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
 Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
@@ -52,12 +57,12 @@ class ClassificationSaver:
             filename: if `saver=None`, name of the saved CSV file name.
             overwrite: if `saver=None`, whether to overwriting existing file content, if True,
                 will clear the file before saving. otherwise, will apend new content to the file.
-            batch_transform: a callable that is used to transform the
-                ignite.engine.batch into expected format to extract the meta_data dictionary.
-            output_transform: a callable that is used to transform the
-                ignite.engine.output into the form expected model prediction data.
-                The first dimension of this transform's output will be treated as the
-                batch dimension. Each item in the batch will be saved individually.
+            batch_transform: a callable that is used to extract the `meta_data` dictionary of
+                the input images from `ignite.engine.state.batch`. the purpose is to get the input
+                filenames from the `meta_data` and store with classification results together.
+            output_transform: a callable that is used to extract the model prediction data from
+                `ignite.engine.state.output`. the first dimension of its output will be treated as
+                the batch dimension. each item in the batch will be saved individually.
             name: identifier of logging.logger to use, defaulting to `engine.logger`.
             save_rank: only the handler on specified rank will save to CSV file in multi-gpus validation,
                 default to 0.
@@ -126,7 +131,7 @@ class ClassificationSaver:
         outputs = torch.cat(self._outputs, dim=0)
         filenames = self._filenames
         if ws > 1:
-            outputs = evenly_divisible_all_gather(outputs)
+            outputs = evenly_divisible_all_gather(outputs, concat=True)
             filenames = string_list_all_gather(filenames)
 
         if len(filenames) == 0:
