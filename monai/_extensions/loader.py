@@ -17,7 +17,8 @@ from threading import Timer
 from typing import Optional
 
 import torch
-from torch.utils import cpp_extension
+
+from monai.utils.module import optional_import
 
 dir_path = path.dirname(path.realpath(__file__))
 
@@ -75,8 +76,9 @@ def load_module(
     # Ninja may be blocked by something out of our control.
     # This will error if the build takes longer than expected.
     with timeout(build_timeout, "Build appears to be blocked. Is there a stopped process building the same extension?"):
+        load, _ = optional_import("torch.utils.cpp_extension", name="load")  # main trigger some JIT config in pytorch
         # This will either run the build or return the existing .so object.
-        module = cpp_extension.load(
+        module = load(
             name=module_name,
             sources=source,
             extra_cflags=define_args,
