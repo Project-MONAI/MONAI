@@ -73,7 +73,7 @@ class TestLoadCSVDatalist(unittest.TestCase):
             )
 
             # test loading multiple CSV files, join tables with kwargs
-            result = result = load_csv_datalist([filepath1, filepath2, filepath3], on="subject_id")
+            result = load_csv_datalist([filepath1, filepath2, filepath3], on="subject_id")
             self.assertDictEqual(
                 {k: round(v, 4) if not isinstance(v, (str, np.bool_)) else v for k, v in result[3].items()},
                 {
@@ -98,7 +98,7 @@ class TestLoadCSVDatalist(unittest.TestCase):
             )
 
             # test loading selected rows and columns
-            result = result = load_csv_datalist(
+            result = load_csv_datalist(
                 filename=[filepath1, filepath2, filepath3],
                 row_indices=[[0, 2], 3],  # load row: 0, 1, 3
                 col_names=["subject_id", "image", "ehr_1", "ehr_7", "meta_1"],
@@ -116,7 +116,7 @@ class TestLoadCSVDatalist(unittest.TestCase):
             )
 
             # test group columns
-            result = result = load_csv_datalist(
+            result = load_csv_datalist(
                 filename=[filepath1, filepath2, filepath3],
                 row_indices=[1, 3],  # load row: 1, 3
                 col_names=["subject_id", "image", *[f"ehr_{i}" for i in range(11)], "meta_0", "meta_1", "meta_2"],
