@@ -20,7 +20,7 @@ from tests.utils import skip_if_no_cuda
 
 TEST_CASES = [
     [
-        # Case Descirption
+        # Case Description
         "2 batches, 1 dimensions, 1 channels, 2 classes, 2 mixtures",
         # Class Count
         2,
@@ -71,7 +71,7 @@ TEST_CASES = [
         ],
     ],
     [
-        # Case Descirption
+        # Case Description
         "1 batches, 1 dimensions, 5 channels, 2 classes, 1 mixtures",
         # Class Count
         2,
@@ -113,7 +113,7 @@ TEST_CASES = [
         ],
     ],
     [
-        # Case Descirption
+        # Case Description
         "1 batches, 2 dimensions, 2 channels, 4 classes, 4 mixtures",
         # Class Count
         4,
@@ -195,7 +195,7 @@ TEST_CASES = [
         ],
     ],
     [
-        # Case Descirption
+        # Case Description
         "1 batches, 3 dimensions, 1 channels, 2 classes, 1 mixtures",
         # Class Count
         2,

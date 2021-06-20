@@ -18,8 +18,8 @@ __all__ = ["GaussianMixtureModel"]
 
 class GaussianMixtureModel:
     """
-    Takes an initial labeling and uses a mixture of gaussians to approximate each classes
-    distribution in the feature space. Each unlabled element is then asigned a probability
+    Takes an initial labeling and uses a mixture of Gaussians to approximate each classes
+    distribution in the feature space. Each unlabeled element is then assigned a probability
     of belonging to each class based on it's fit to each classes approximated distribution.
 
     See:
@@ -30,8 +30,8 @@ class GaussianMixtureModel:
         """
         Args:
             channel_count (int): The number of features per element.
-            mixture_count (int): The number of class distibutions.
-            mixture_size (int): The number gaussian components per class distribution.
+            mixture_count (int): The number of class distributions.
+            mixture_size (int): The number Gaussian components per class distribution.
         """
         self.channel_count = channel_count
         self.mixture_count = mixture_count
@@ -53,13 +53,13 @@ class GaussianMixtureModel:
 
         Args:
             features (torch.Tensor): features for each element.
-            initial_labels (torch.Tensor): initial labeling for each element.
+            labels (torch.Tensor): initial labeling for each element.
         """
         self.compiled_extension.learn(self.params, self.scratch, features, labels)
 
     def apply(self, features):
         """
-        Applys the current model to a set of feature vectors.
+        Applies the current model to a set of feature vectors.
 
         Args:
             features (torch.Tensor): feature vectors for each element.
