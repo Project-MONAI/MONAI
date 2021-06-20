@@ -36,16 +36,16 @@ class GaussianMixtureModel:
         self.channel_count = channel_count
         self.mixture_count = mixture_count
         self.mixture_size = mixture_size
-        self.compiled_extention = load_module(
+        self.compiled_extension = load_module(
             "gmm", {"CHANNEL_COUNT": channel_count, "MIXTURE_COUNT": mixture_count, "MIXTURE_SIZE": mixture_size}
         )
-        self.params, self.scratch = self.compiled_extention.init()
+        self.params, self.scratch = self.compiled_extension.init()
 
     def reset(self):
         """
         Resets the parameters of the model.
         """
-        self.params, self.scratch = self.compiled_extention.init()
+        self.params, self.scratch = self.compiled_extension.init()
 
     def learn(self, features, labels):
         """
@@ -55,7 +55,7 @@ class GaussianMixtureModel:
             features (torch.Tensor): features for each element.
             initial_labels (torch.Tensor): initial labeling for each element.
         """
-        self.compiled_extention.learn(self.params, self.scratch, features, labels)
+        self.compiled_extension.learn(self.params, self.scratch, features, labels)
 
     def apply(self, features):
         """
@@ -67,13 +67,13 @@ class GaussianMixtureModel:
         Returns:
             output (torch.Tensor): class assignment probabilities for each element.
         """
-        return _ApplyFunc.apply(self.params, features, self.compiled_extention)
+        return _ApplyFunc.apply(self.params, features, self.compiled_extension)
 
 
 class _ApplyFunc(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, params, features, compiled_extention):
-        return compiled_extention.apply(params, features)
+    def forward(ctx, params, features, compiled_extension):
+        return compiled_extension.apply(params, features)
 
     @staticmethod
     def backward(ctx, grad_output):

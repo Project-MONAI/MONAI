@@ -134,12 +134,12 @@ def get_cmds():
     return cmds
 
 
-# Gathering source used for JIT extentions to include in package_data.
+# Gathering source used for JIT extensions to include in package_data.
 jit_extension_source = []
 
 for ext in ["cpp", "cu", "h", "cuh"]:
     glob_path = os.path.join("monai", "_extensions", "**", f"*.{ext}")
-    jit_extension_source += glob.glob(glob_path)
+    jit_extension_source += glob.glob(glob_path, recursive=True)
 
 jit_extension_source = [os.path.join("..", path) for path in jit_extension_source]
 
