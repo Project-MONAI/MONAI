@@ -97,7 +97,7 @@ __device__ void chol_inv(float in[CHANNEL_COUNT][CHANNEL_COUNT], float out[CHANN
         for (int j = 0; j < CHANNEL_COUNT; j++)
         {
             out[i][j] = 0.0f;
-            
+
             for (int k = max(i, j); k < CHANNEL_COUNT; k++)
             {
                 out[i][j] += in[k][i] * in[k][j];

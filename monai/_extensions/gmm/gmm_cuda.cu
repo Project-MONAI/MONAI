@@ -50,13 +50,13 @@ __global__ void CovarianceReductionKernel(int gaussian_index, const float* g_ima
     }
 
     for (int load = 0; load < load_count; load++)
-    { 
+    {
         global_index += load * block_size;
 
         if (global_index < element_count)
-        { 
+        {
             int my_alpha = g_batch_alpha[global_index];
-    
+
             if (my_alpha != -1)
             {
                 if (gaussian_index == (my_alpha & 15) + (my_alpha >> 4) * MIXTURE_COUNT)
@@ -101,8 +101,8 @@ __global__ void CovarianceReductionKernel(int gaussian_index, const float* g_ima
 
         __syncthreads();
 
-        if (warp_index == 0) 
-        { 
+        if (warp_index == 0)
+        {
             matrix_component = s_matrix_component[lane_index];
 
             if (warp_count >= 32) { matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 16); }
@@ -139,7 +139,7 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
     int lane_index = local_index & 31;
     int gmm_index = blockIdx.x;
     int matrix_offset = gmm_index * matrix_count;
-    
+
     int load_count = TILE(matrix_count, block_size);
 
     float norm_factor = 1.0f;
@@ -174,7 +174,7 @@ __global__ void CovarianceFinalizationKernel(const float* g_matrices, float* g_g
             __syncthreads();
 
             if (warp_index == 0)
-            { 
+            {
                 matrix_component = s_matrix_component[lane_index];
 
                 if (warp_count >= 32) { matrix_component += __shfl_down_sync(0xffffffff, matrix_component, 16); }
@@ -328,7 +328,7 @@ __global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, const float *image
             {
                 int select = my_alpha & 15;
                 int gmm_idx = my_alpha >> 4;
-    
+
                 if (gmm_idx == s_gmmSplit[select].idx)
                 {
                     // in the split cluster now
@@ -338,9 +338,9 @@ __global__ void GMMDoSplit(const GMMSplit_t *gmmSplit, int k, const float *image
                     {
                         feature[i] = g_batch_image[index + i * element_count];
                     }
-                    
+
                     float value = scalar_prod(s_gmmSplit[select].eigenvector, feature);
-    
+
                     if (value > s_gmmSplit[select].threshold)
                     {
                         // assign pixel to new cluster
@@ -510,7 +510,7 @@ void learn_cuda(const float* input, const int* labels, float* gmm, float* scratc
     float* scratch_mem = scratch_memory + batch_count * element_count;
 
     cudaMemcpyAsync(alpha, labels, batch_count * element_count * sizeof(int), cudaMemcpyDeviceToDevice);
-    
+
     GMMInitialize(input, alpha, gmm, scratch_mem, batch_count, element_count);
     GMMUpdate(input, alpha, gmm, scratch_mem, batch_count, element_count);
 }

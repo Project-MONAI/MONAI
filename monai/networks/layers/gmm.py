@@ -33,6 +33,8 @@ class GaussianMixtureModel:
             mixture_count (int): The number of class distributions.
             mixture_size (int): The number Gaussian components per class distribution.
         """
+        if not torch.cuda.is_available():
+            raise NotImplementedError("GaussianMixtureModel is currently implemented for CUDA.")
         self.channel_count = channel_count
         self.mixture_count = mixture_count
         self.mixture_size = mixture_size

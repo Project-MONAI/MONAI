@@ -81,7 +81,7 @@ torch::Tensor apply(torch::Tensor gmm_tensor, torch::Tensor input_tensor)
     return output_tensor;
 }
 
-PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) 
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
 {
     m.def("init", torch::wrap_pybind_function(init));
     m.def("learn", torch::wrap_pybind_function(learn));
