@@ -10,8 +10,8 @@
 # limitations under the License.
 
 import os
-import tempfile
 import sys
+import tempfile
 import unittest
 
 import numpy as np
