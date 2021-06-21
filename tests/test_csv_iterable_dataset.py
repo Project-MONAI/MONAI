@@ -161,8 +161,8 @@ class TestCSVIterableDataset(unittest.TestCase):
 
             # test multiple processes loading
             dataset = CSVIterableDataset(filepath1, transform=ToNumpyd(keys="label"))
-            # num workers = 0 for mac
-            num_workers = 0 if sys.platform == "darwin" else 2
+            # set num workers = 0 for mac / win
+            num_workers = 2 if sys.platform == "linux" else 0
             dataloader = DataLoader(dataset=dataset, num_workers=num_workers, batch_size=2)
             for item in dataloader:
                 # test the last item which only has 1 data
