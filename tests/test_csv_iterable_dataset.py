@@ -15,7 +15,7 @@ import unittest
 
 import numpy as np
 
-from monai.data import CSVIterableDataset
+from monai.data import CSVIterableDataset, DataLoader
 from monai.transforms import ToNumpyd
 
 
@@ -157,6 +157,16 @@ class TestCSVIterableDataset(unittest.TestCase):
             for item, exp in zip(dataset, expected):
                 self.assertTrue(isinstance(item["ehr"], np.ndarray))
                 np.testing.assert_allclose(np.around(item["ehr"], 4), exp)
+
+            # test multiple processes loading
+            dataset = CSVIterableDataset(filepath1, transform=ToNumpyd(keys="label"))
+            dataloader = DataLoader(dataset=dataset, num_workers=2, batch_size=2)
+            for i, item in enumerate(dataloader):
+                # test the last item which only has 1 data
+                if len(item) == 1:
+                    self.assertListEqual(item["subject_id"], ["s000002"])
+                    np.testing.assert_allclose(item["label"], [4])
+                    self.assertListEqual(item["image"], ["./imgs/s000002.png"])
 
 
 if __name__ == "__main__":

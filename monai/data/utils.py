@@ -19,7 +19,7 @@ from collections import defaultdict
 from functools import reduce
 from itertools import product, starmap
 from pathlib import PurePath
-from typing import TYPE_CHECKING, Dict, Generator, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, TYPE_CHECKING, Dict, Generator, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -999,7 +999,7 @@ def convert_tables_to_dicts(
     col_names: Optional[Sequence[str]] = None,
     col_groups: Optional[Dict[str, Sequence[str]]] = None,
     **kwargs,
-):
+) -> List[Dict[str, Any]]:
     """
     Utility to join pandas tables, select rows, columns and generate groups.
     Will return a list of dictionaries, every dictionary maps to a row of data in tables.
@@ -1022,7 +1022,7 @@ def convert_tables_to_dicts(
     # parse row indices
     rows: List[Union[int, str]] = []
     if row_indices is None:
-        rows = slice(df.shape[0])
+        rows = slice(df.shape[0])  # type: ignore
     else:
         for i in row_indices:
             if isinstance(i, (tuple, list)):

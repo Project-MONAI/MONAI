@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Iterable, Optional, Sequence, Union, Dict
+import math
+from typing import Callable, Dict, Iterable, Optional, Sequence, Union
+
 from torch.utils.data import IterableDataset as _TorchIterableDataset
+from torch.utils.data import get_worker_info
 
 from monai.data.utils import convert_tables_to_dicts
 from monai.transforms import apply_transform
@@ -52,6 +55,9 @@ class CSVIterableDataset(IterableDataset):
     """
     Iterable dataset to load CSV files and generate dictionary data.
     It can be helpful when loading extemely big CSV files that can't read into memory directly.
+    To accelerate the loading process, it can support multi-processing based on PyTorch DataLoader workers,
+    every process executes tranforms on part of every loaded chunk.
+    Note: the order of output data may not match data source in multi-processing mode.
 
     It can load data from multiple CSV files and join the tables with addtional `kwargs` arg.
     Support to only load specific columns.
@@ -77,6 +83,7 @@ class CSVIterableDataset(IterableDataset):
         kwargs: additional arguments for `pandas.merge()` API to join tables.
 
     """
+
     def __init__(
         self,
         filename: Union[str, Sequence[str]],
@@ -92,7 +99,7 @@ class CSVIterableDataset(IterableDataset):
         self.col_names = col_names
         self.col_groups = col_groups
         self.kwargs = kwargs
-        super().__init__(data=None, transform=transform)
+        super().__init__(data=None, transform=transform)  # type: ignore
 
     def reset(self, filename: Optional[Union[str, Sequence[str]]] = None):
         if filename is not None:
@@ -109,4 +116,11 @@ class CSVIterableDataset(IterableDataset):
                 col_groups=self.col_groups,
                 **self.kwargs,
             )
+            info = get_worker_info()
+            if info is not None:
+                length = len(self.data)
+                per_worker = int(math.ceil(length / float(info.num_workers)))
+                start = info.id * per_worker
+                self.data = self.data[start : min(start + per_worker, length)]
+
             return super().__iter__()
