@@ -9,6 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+import shutil
+import tempfile
 import unittest
 
 import numpy as np
@@ -309,6 +312,18 @@ TEST_CASES = [
 
 @skip_if_no_cuda
 class GMMTestCase(unittest.TestCase):
+    def setUp(self):
+        self._var = os.environ.get("TORCH_EXTENSIONS_DIR", None)
+        self.tempdir = tempfile.mkdtemp()
+        os.environ["TORCH_EXTENSIONS_DIR"] = self.tempdir
+
+    def tearDown(self) -> None:
+        if self._var is None:
+            os.environ.pop("TORCH_EXTENSIONS_DIR", None)
+        else:
+            os.environ["TORCH_EXTENSIONS_DIR"] = f"{self._var}"
+        shutil.rmtree(self.tempdir)
+
     @parameterized.expand(TEST_CASES)
     def test_cuda(self, test_case_description, mixture_count, class_count, features, labels, expected):
 
@@ -320,7 +335,11 @@ class GMMTestCase(unittest.TestCase):
         labels_tensor = torch.tensor(labels, dtype=torch.int32, device=device)
 
         # Create GMM
-        gmm = GaussianMixtureModel(features_tensor.size(1), mixture_count, class_count)
+        gmm = GaussianMixtureModel(features_tensor.size(1), mixture_count, class_count, verbose_build=True)
+        # reload GMM to confirm the build
+        _ = GaussianMixtureModel(features_tensor.size(1), mixture_count, class_count, verbose_build=False)
+        # reload quietly
+        _ = GaussianMixtureModel(features_tensor.size(1), mixture_count, class_count, verbose_build=True)
 
         # Apply GMM
         gmm.learn(features_tensor, labels_tensor)
