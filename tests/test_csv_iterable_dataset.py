@@ -18,8 +18,10 @@ import numpy as np
 
 from monai.data import CSVIterableDataset, DataLoader
 from monai.transforms import ToNumpyd
+from .utils import skip_if_windows
 
 
+@skip_if_windows
 class TestCSVIterableDataset(unittest.TestCase):
     def test_values(self):
         with tempfile.TemporaryDirectory() as tempdir:
