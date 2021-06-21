@@ -161,7 +161,7 @@ class TestCSVIterableDataset(unittest.TestCase):
             # test multiple processes loading
             dataset = CSVIterableDataset(filepath1, transform=ToNumpyd(keys="label"))
             dataloader = DataLoader(dataset=dataset, num_workers=2, batch_size=2)
-            for i, item in enumerate(dataloader):
+            for item in dataloader:
                 # test the last item which only has 1 data
                 if len(item) == 1:
                     self.assertListEqual(item["subject_id"], ["s000002"])
