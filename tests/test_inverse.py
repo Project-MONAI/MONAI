@@ -28,6 +28,7 @@ from monai.transforms import (
     Affined,
     BatchInverseTransform,
     BorderPadd,
+    CenterScaleCropd,
     CenterSpatialCropd,
     Compose,
     CropForegroundd,
@@ -84,6 +85,7 @@ for name in ("1D even", "1D odd"):
             partial(DivisiblePadd, k=val),
             partial(ResizeWithPadOrCropd, spatial_size=20 + val),
             partial(CenterSpatialCropd, roi_size=10 + val),
+            partial(CenterScaleCropd, roi_scale=0.8),
             partial(CropForegroundd, source_key="label"),
             partial(SpatialCropd, roi_center=10, roi_size=10 + val),
             partial(SpatialCropd, roi_center=11, roi_size=10 + val),
@@ -675,7 +677,7 @@ class TestInverse(unittest.TestCase):
         self.assertEqual(inv_seg.shape[1:], test_data[0]["label"].shape)
 
         # Inverse of batch
-        batch_inverter = BatchInverseTransform(transforms, loader, collate_fn=no_collation)
+        batch_inverter = BatchInverseTransform(transforms, loader, collate_fn=no_collation, detach=True)
         with allow_missing_keys_mode(transforms):
             inv_batch = batch_inverter(segs_dict)
         self.assertEqual(inv_batch[0]["label"].shape[1:], test_data[0]["label"].shape)

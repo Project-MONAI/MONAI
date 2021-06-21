@@ -56,6 +56,28 @@ TESTS_LIST.append((RandRotate90(prob=0.0, max_k=1),))
 TESTS_LIST.append((RandAffine(prob=0.0, translate_range=10),))
 
 
+TEST_BASIC = [
+    [("channel", "channel"), ["channel", "channel"]],
+    [torch.Tensor([1, 2, 3]), [torch.tensor(1.0), torch.tensor(2.0), torch.tensor(3.0)]],
+    [
+        [[torch.Tensor((1.0, 2.0, 3.0)), torch.Tensor((2.0, 3.0, 1.0))]],
+        [
+            [[torch.tensor(1.0), torch.tensor(2.0)]],
+            [[torch.tensor(2.0), torch.tensor(3.0)]],
+            [[torch.tensor(3.0), torch.tensor(1.0)]],
+        ],
+    ],
+    [torch.Tensor((True, True, False, False)), [1.0, 1.0, 0.0, 0.0]],
+    [
+        [torch.Tensor([1]), torch.Tensor([2]), torch.Tensor([3])],
+        [[torch.tensor(1.0), torch.tensor(2.0), torch.tensor(3.0)]],
+    ],
+    [[None, None], [None, None]],
+    [["test"], ["test"]],
+    [[], []],
+]
+
+
 class _ListCompose(Compose):
     def __call__(self, input_):
         img, metadata = self.transforms[0](input_)
@@ -104,7 +126,7 @@ class TestDeCollate(unittest.TestCase):
 
         for b, batch_data in enumerate(loader):
             decollated_1 = decollate_batch(batch_data)
-            decollated_2 = Decollated()(batch_data)
+            decollated_2 = Decollated(detach=True)(batch_data)
 
             for decollated in [decollated_1, decollated_2]:
                 for i, d in enumerate(decollated):
@@ -139,6 +161,54 @@ class TestDeCollate(unittest.TestCase):
 
         dataset = Dataset(self.data_list, t_compose)
         self.check_decollate(dataset=dataset)
+
+
+class TestBasicDeCollate(unittest.TestCase):
+    @parameterized.expand(TEST_BASIC)
+    def test_decollation_examples(self, input_val, expected_out):
+        out = decollate_batch(input_val)
+        self.assertListEqual(expected_out, out)
+
+    def test_dict_examples(self):
+        test_case = {
+            "meta": {"out": ["test", "test"]},
+            "image_meta_dict": {"scl_slope": torch.Tensor((0.0, 0.0))},
+        }
+        out = decollate_batch(test_case)
+        self.assertEqual(out[0]["meta"]["out"], "test")
+        self.assertEqual(out[0]["image_meta_dict"]["scl_slope"], 0.0)
+
+        test_case = [torch.ones((2, 1, 10, 10)), torch.ones((2, 3, 5, 5))]
+        out = decollate_batch(test_case)
+        self.assertTupleEqual(out[0][0].shape, (1, 10, 10))
+        self.assertTupleEqual(out[0][1].shape, (3, 5, 5))
+
+        test_case = torch.rand((2, 1, 10, 10))
+        out = decollate_batch(test_case)
+        self.assertTupleEqual(out[0].shape, (1, 10, 10))
+
+        test_case = [torch.tensor(0), torch.tensor(0)]
+        out = decollate_batch(test_case, detach=True)
+        self.assertListEqual([0, 0], out)
+        self.assertFalse(isinstance(out[0], torch.Tensor))
+
+        test_case = {"a": [torch.tensor(0), torch.tensor(0)]}
+        out = decollate_batch(test_case, detach=False)
+        self.assertListEqual([{"a": torch.tensor(0)}, {"a": torch.tensor(0)}], out)
+        self.assertTrue(isinstance(out[0]["a"], torch.Tensor))
+
+        test_case = [torch.tensor(0), torch.tensor(0)]
+        out = decollate_batch(test_case, detach=False)
+        self.assertListEqual(test_case, out)
+
+        test_case = {
+            "image": torch.tensor([[[1, 2]], [[3, 4]]]),
+            "label": torch.tensor([[[5, 6]], [[7, 8]]]),
+            "pred": torch.tensor([[[9, 10]], [[11, 12]]]),
+            "out": ["test"],
+        }
+        out = decollate_batch(test_case, detach=False)
+        self.assertEqual(out[0]["out"], "test")
 
 
 if __name__ == "__main__":

@@ -33,10 +33,11 @@ class ROCAUC(IgniteMetric):  # type: ignore[valid-type, misc]  # due to optional
                 indicator matrix as a label.
             - ``"none"``: the scores for each class are returned.
 
-        output_transform: a callable that is used to transform the
-            :class:`~ignite.engine.Engine` `process_function` output into the
-            form expected by the metric. This can be useful if, for example, you have a multi-output model and
-            you want to compute the metric with respect to one of the outputs.
+        output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
+            construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
+            lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
+            for example: if `ignite.engine.state.output` is `{"pred": xxx, "label": xxx, "other": xxx}`,
+            output_transform can be `lambda x: (x["pred"], x["label"])`.
 
     Note:
         ROCAUC expects y to be comprised of 0's and 1's.

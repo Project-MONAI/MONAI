@@ -241,6 +241,10 @@ Layers
 ~~~~~~~~~~~~~~~~~
 .. autoclass:: PHLFilter
 
+`GaussianMixtureModel`
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: GaussianMixtureModel
+
 `SavitzkyGolayFilter`
 ~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: SavitzkyGolayFilter
