@@ -43,3 +43,16 @@ class IterableDataset(_TorchIterableDataset):
             if self.transform is not None:
                 data = apply_transform(self.transform, data)
             yield data
+
+
+class CSVIterableDataset(IterableDataset):
+    """
+    Iterable dataset to load CSV files and generate dictionary data.
+    It can be helpful when loading extemely big CSV files that can't read into memory directly.
+
+    """
+    def __init__(self, data: Iterable, transform: Optional[Callable]) -> None:
+        super().__init__(data, transform=transform)
+
+    def __iter__(self):
+        return super().__iter__()

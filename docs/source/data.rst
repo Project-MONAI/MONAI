@@ -21,6 +21,12 @@ Generic Interfaces
   :members:
   :special-members: __next__
 
+`CSVIterableDataset`
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: CSVIterableDataset
+  :members:
+  :special-members: __next__
+
 `PersistentDataset`
 ~~~~~~~~~~~~~~~~~~~
 .. autoclass:: PersistentDataset
