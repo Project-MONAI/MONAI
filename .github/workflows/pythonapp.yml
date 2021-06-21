@@ -151,7 +151,7 @@ jobs:
       run: |
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
         python -c "import monai; monai.config.print_config()"
-        python -m tests.min_tests
+        ./runtests.sh --min
       env:
         QUICKTEST: True
 
@@ -196,7 +196,7 @@ jobs:
       run: |
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
         python -c "import monai; monai.config.print_config()"
-        python -m tests.min_tests
+        ./runtests.sh --min
       env:
         QUICKTEST: True
 
