@@ -26,12 +26,13 @@ class GaussianMixtureModel:
         https://en.wikipedia.org/wiki/Mixture_model
     """
 
-    def __init__(self, channel_count, mixture_count, mixture_size):
+    def __init__(self, channel_count: int, mixture_count: int, mixture_size: int, verbose_build: bool = False):
         """
         Args:
-            channel_count (int): The number of features per element.
-            mixture_count (int): The number of class distributions.
-            mixture_size (int): The number Gaussian components per class distribution.
+            channel_count: The number of features per element.
+            mixture_count: The number of class distributions.
+            mixture_size: The number Gaussian components per class distribution.
+            verbose_build: If ``True``, turns on verbose logging of load steps.
         """
         if not torch.cuda.is_available():
             raise NotImplementedError("GaussianMixtureModel is currently implemented for CUDA.")
@@ -39,7 +40,9 @@ class GaussianMixtureModel:
         self.mixture_count = mixture_count
         self.mixture_size = mixture_size
         self.compiled_extension = load_module(
-            "gmm", {"CHANNEL_COUNT": channel_count, "MIXTURE_COUNT": mixture_count, "MIXTURE_SIZE": mixture_size}
+            "gmm",
+            {"CHANNEL_COUNT": channel_count, "MIXTURE_COUNT": mixture_count, "MIXTURE_SIZE": mixture_size},
+            verbose_build=verbose_build,
         )
         self.params, self.scratch = self.compiled_extension.init()
 
