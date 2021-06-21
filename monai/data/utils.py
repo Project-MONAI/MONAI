@@ -40,8 +40,10 @@ from monai.utils.enums import Method
 
 if TYPE_CHECKING:
     import pandas as pd
+    from pandas import DataFrame
 else:
     pd, _ = optional_import("pandas")
+    DataFrame, _ = optional_import("pandas", name="DataFrame")
 
 nib, _ = optional_import("nibabel")
 
@@ -994,7 +996,7 @@ def sorted_dict(item, key=None, reverse=False):
 
 
 def convert_tables_to_dicts(
-    dfs: Union[Sequence[pd.DataFrame], pd.DataFrame],
+    dfs: Union[Sequence[DataFrame], DataFrame],
     row_indices: Optional[Sequence[Union[int, str]]] = None,
     col_names: Optional[Sequence[str]] = None,
     col_groups: Optional[Dict[str, Sequence[str]]] = None,
