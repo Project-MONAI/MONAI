@@ -75,6 +75,12 @@ Generic Interfaces
   :members:
   :special-members: __getitem__
 
+`CSVDataset`
+~~~~~~~~~~~~
+.. autoclass:: CSVDataset
+  :members:
+  :special-members: __getitem__
+
 Patch-based dataset
 -------------------
 
@@ -188,8 +194,3 @@ ThreadBuffer
 TestTimeAugmentation
 ~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: monai.data.TestTimeAugmentation
-
-
-CSV Datalist
-~~~~~~~~~~~~
-.. autofunction:: monai.data.load_csv_datalist

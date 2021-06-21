@@ -20,6 +20,7 @@ import threading
 import time
 import warnings
 from copy import deepcopy
+from functools import reduce
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
 from typing import IO, TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Union
@@ -31,7 +32,7 @@ from torch.utils.data import Subset
 
 from monai.data.utils import first, pickle_hashing
 from monai.transforms import Compose, Randomizable, ThreadUnsafe, Transform, apply_transform
-from monai.utils import MAX_SEED, get_seed, min_version, optional_import
+from monai.utils import MAX_SEED, ensure_tuple, get_seed, min_version, optional_import
 
 if TYPE_CHECKING:
     from tqdm import tqdm
@@ -41,6 +42,7 @@ else:
     tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 
 lmdb, _ = optional_import("lmdb")
+pd, _ = optional_import("pandas")
 
 
 class Dataset(_TorchDataset):
@@ -1061,3 +1063,77 @@ class NPZDictItemDataset(Dataset):
             data = apply_transform(self.transform, data)
 
         return data
+
+
+class CSVDataset(Dataset):
+    """
+    Dataset to load data from CSV files and generate a list of dictionaries,
+    every dictionay maps to a row of the CSV file, and the keys of dictionary
+    map to the column names of the CSV file.
+
+    It can load multiple CSV files and join the tables with addtional `kwargs` arg.
+    Support to only load specific rows and columns.
+    And it can also group several loaded columns to generate a new column, for example,
+    set `col_groups={"meta": ["meta_0", "meta_1", "meta_2"]}`, output can be::
+
+        [
+            {"image": "./image0.nii", "meta_0": 11, "meta_1": 12, "meta_2": 13, "meta": [11, 12, 13]},
+            {"image": "./image1.nii", "meta_0": 21, "meta_1": 22, "meta_2": 23, "meta": [21, 22, 23]},
+        ]
+
+    Args:
+        filename: the filename of expected CSV file to load. if providing a list
+            of filenames, it will load all the files and join tables.
+        row_indices: indices of the expected rows to load. it should be a list,
+            every item can be a int number or a range `[start, end)` for the indices.
+            for example: `row_indices=[[0, 100], 200, 201, 202, 300]`. if None,
+            load all the rows in the file.
+        col_names: names of the expected columns to load. if None, load all the columns.
+        col_groups: args to group the loaded columns to generate a new column,
+            it should be a dictionary, every item maps to a group, the `key` will
+            be the new column name, the `value` is the names of columns to combine. for example:
+            `col_groups={"ehr": [f"ehr_{i}" for i in range(10)], "meta": ["meta_1", "meta_2"]}`
+        transform: transform to apply on the loaded items of a dictionary data.
+        kwargs: additional arguments for `pandas.merge()` API to join tables.
+
+    """
+
+    def __init__(
+        self,
+        filename: Union[str, Sequence[str]],
+        row_indices: Optional[Sequence[Union[int, str]]] = None,
+        col_names: Optional[Sequence[str]] = None,
+        col_groups: Optional[Dict[str, Sequence[str]]] = None,
+        transform: Optional[Callable] = None,
+        **kwargs,
+    ):
+        files = ensure_tuple(filename)
+        # join tables with additional kwargs
+        dfs = [pd.read_csv(f) for f in files]
+        df = reduce(lambda l, r: pd.merge(l, r, **kwargs), dfs)
+
+        # parse row indices
+        rows: List[Union[int, str]] = []
+        if row_indices is None:
+            rows = list(range(df.shape[0]))
+        else:
+            for i in row_indices:
+                if isinstance(i, (tuple, list)):
+                    if len(i) != 2:
+                        raise ValueError("range of row indices must contain 2 values: start and end.")
+                    rows.extend(list(range(i[0], i[1])))
+                else:
+                    rows.append(i)
+
+        # convert to a list of dictionaries corresponding to every row
+        data: List[Dict] = (df.loc[rows] if col_names is None else df.loc[rows, col_names]).to_dict(orient="records")
+
+        # group columns to generate new column
+        if col_groups is not None:
+            groups: Dict[str, List] = {}
+            for name, cols in col_groups.items():
+                groups[name] = df.loc[rows, cols].values
+            # invert items of groups to every row of data
+            data = [dict(d, **{k: v[i] for k, v in groups.items()}) for i, d in enumerate(data)]
+
+        super().__init__(data=data, transform=transform)

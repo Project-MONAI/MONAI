@@ -15,10 +15,11 @@ import unittest
 
 import numpy as np
 
-from monai.data import load_csv_datalist
+from monai.data import CSVDataset
+from monai.transforms import ToNumpyd
 
 
-class TestLoadCSVDatalist(unittest.TestCase):
+class TestCSVDataset(unittest.TestCase):
     def test_values(self):
         with tempfile.TemporaryDirectory() as tempdir:
             test_data1 = [
@@ -58,10 +59,10 @@ class TestLoadCSVDatalist(unittest.TestCase):
             prepare_csv_file(test_data2, filepath2)
             prepare_csv_file(test_data3, filepath3)
 
-            # test loading single CSV file
-            result = load_csv_datalist(filepath1)
+            # test single CSV file
+            dataset = CSVDataset(filepath1)
             self.assertDictEqual(
-                {k: round(v, 4) if not isinstance(v, str) else v for k, v in result[2].items()},
+                {k: round(v, 4) if not isinstance(v, str) else v for k, v in dataset[2].items()},
                 {
                     "subject_id": "s000002",
                     "label": 4,
@@ -72,10 +73,10 @@ class TestLoadCSVDatalist(unittest.TestCase):
                 },
             )
 
-            # test loading multiple CSV files, join tables with kwargs
-            result = load_csv_datalist([filepath1, filepath2, filepath3], on="subject_id")
+            # test multiple CSV files, join tables with kwargs
+            dataset = CSVDataset([filepath1, filepath2, filepath3], on="subject_id")
             self.assertDictEqual(
-                {k: round(v, 4) if not isinstance(v, (str, np.bool_)) else v for k, v in result[3].items()},
+                {k: round(v, 4) if not isinstance(v, (str, np.bool_)) else v for k, v in dataset[3].items()},
                 {
                     "subject_id": "s000003",
                     "label": 1,
@@ -97,15 +98,15 @@ class TestLoadCSVDatalist(unittest.TestCase):
                 },
             )
 
-            # test loading selected rows and columns
-            result = load_csv_datalist(
+            # test selected rows and columns
+            dataset = CSVDataset(
                 filename=[filepath1, filepath2, filepath3],
                 row_indices=[[0, 2], 3],  # load row: 0, 1, 3
                 col_names=["subject_id", "image", "ehr_1", "ehr_7", "meta_1"],
             )
-            self.assertEqual(len(result), 3)
+            self.assertEqual(len(dataset), 3)
             self.assertDictEqual(
-                {k: round(v, 4) if not isinstance(v, (str, np.bool_)) else v for k, v in result[-1].items()},
+                {k: round(v, 4) if not isinstance(v, (str, np.bool_)) else v for k, v in dataset[-1].items()},
                 {
                     "subject_id": "s000003",
                     "image": "./imgs/s000003.png",
@@ -116,17 +117,35 @@ class TestLoadCSVDatalist(unittest.TestCase):
             )
 
             # test group columns
-            result = load_csv_datalist(
+            dataset = CSVDataset(
                 filename=[filepath1, filepath2, filepath3],
                 row_indices=[1, 3],  # load row: 1, 3
                 col_names=["subject_id", "image", *[f"ehr_{i}" for i in range(11)], "meta_0", "meta_1", "meta_2"],
                 col_groups={"ehr": [f"ehr_{i}" for i in range(11)], "meta12": ["meta_1", "meta_2"]},
             )
             np.testing.assert_allclose(
-                [round(i, 4) for i in result[-1]["ehr"]],
+                [round(i, 4) for i in dataset[-1]["ehr"]],
                 [3.3333, 3.2353, 3.4000, 3.1647, 3.0863, 3.7255, 3.6980, 3.6980, 3.7020, 3.3098, 3.7294],
             )
-            np.testing.assert_allclose(result[-1]["meta12"], [False, True])
+            np.testing.assert_allclose(dataset[-1]["meta12"], [False, True])
+
+            # test transform
+            dataset = CSVDataset(
+                filename=[filepath1, filepath2, filepath3],
+                col_groups={"ehr": [f"ehr_{i}" for i in range(5)]},
+                transform=ToNumpyd(keys="ehr"),
+            )
+            self.assertEqual(len(dataset), 5)
+            expected = [
+                [2.0078, 2.2902, 2.0549, 3.0196, 3.8078],
+                [6.8392, 6.4745, 5.8627, 5.1922, 5.2745],
+                [3.7725, 4.2118, 4.6353, 5.2980, 9.5451],
+                [3.3333, 3.2353, 3.4000, 3.1647, 3.0863],
+                [6.4275, 6.2549, 5.9765, 6.2627, 7.7176]
+            ]
+            for item, exp in zip(dataset, expected):
+                self.assertTrue(isinstance(item["ehr"], np.ndarray))
+                np.testing.assert_allclose(np.around(item["ehr"], 4), exp)
 
 
 if __name__ == "__main__":
