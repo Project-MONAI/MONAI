@@ -9,11 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Iterable, Optional
-
+from typing import Callable, Iterable, Optional, Sequence, Union, Dict
 from torch.utils.data import IterableDataset as _TorchIterableDataset
 
+from monai.data.utils import convert_tables_to_dicts
 from monai.transforms import apply_transform
+from monai.utils import ensure_tuple, optional_import
+
+pd, _ = optional_import("pandas")
 
 
 class IterableDataset(_TorchIterableDataset):
@@ -50,9 +53,60 @@ class CSVIterableDataset(IterableDataset):
     Iterable dataset to load CSV files and generate dictionary data.
     It can be helpful when loading extemely big CSV files that can't read into memory directly.
 
+    It can load data from multiple CSV files and join the tables with addtional `kwargs` arg.
+    Support to only load specific columns.
+    And it can also group several loaded columns to generate a new column, for example,
+    set `col_groups={"meta": ["meta_0", "meta_1", "meta_2"]}`, output can be::
+
+        [
+            {"image": "./image0.nii", "meta_0": 11, "meta_1": 12, "meta_2": 13, "meta": [11, 12, 13]},
+            {"image": "./image1.nii", "meta_0": 21, "meta_1": 22, "meta_2": 23, "meta": [21, 22, 23]},
+        ]
+
+    Args:
+        filename: the filename of expected CSV file to load. if providing a list
+            of filenames, it will load all the files and join tables.
+        chunksize: rows of a chunk when loading iterable data from CSV files, default to 1000. more details:
+            https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html.
+        col_names: names of the expected columns to load. if None, load all the columns.
+        col_groups: args to group the loaded columns to generate a new column,
+            it should be a dictionary, every item maps to a group, the `key` will
+            be the new column name, the `value` is the names of columns to combine. for example:
+            `col_groups={"ehr": [f"ehr_{i}" for i in range(10)], "meta": ["meta_1", "meta_2"]}`
+        transform: transform to apply on the loaded items of a dictionary data.
+        kwargs: additional arguments for `pandas.merge()` API to join tables.
+
     """
-    def __init__(self, data: Iterable, transform: Optional[Callable]) -> None:
-        super().__init__(data, transform=transform)
+    def __init__(
+        self,
+        filename: Union[str, Sequence[str]],
+        chunksize: int = 1000,
+        col_names: Optional[Sequence[str]] = None,
+        col_groups: Optional[Dict[str, Sequence[str]]] = None,
+        transform: Optional[Callable] = None,
+        **kwargs,
+    ):
+        self.files = ensure_tuple(filename)
+        self.chunksize = chunksize
+        self.iters = self.reset()
+        self.col_names = col_names
+        self.col_groups = col_groups
+        self.kwargs = kwargs
+        super().__init__(data=None, transform=transform)
+
+    def reset(self, filename: Optional[Union[str, Sequence[str]]] = None):
+        if filename is not None:
+            # update files if necessary
+            self.files = ensure_tuple(filename)
+        self.iters = [pd.read_csv(f, chunksize=self.chunksize) for f in self.files]
+        return self.iters
 
     def __iter__(self):
-        return super().__iter__()
+        for chunks in zip(*self.iters):
+            self.data = convert_tables_to_dicts(
+                dfs=chunks,
+                col_names=self.col_names,
+                col_groups=self.col_groups,
+                **self.kwargs,
+            )
+            return super().__iter__()

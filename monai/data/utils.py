@@ -16,9 +16,10 @@ import os
 import pickle
 import warnings
 from collections import defaultdict
+from functools import reduce
 from itertools import product, starmap
 from pathlib import PurePath
-from typing import Dict, Generator, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Dict, Generator, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -37,7 +38,13 @@ from monai.utils import (
 )
 from monai.utils.enums import Method
 
+if TYPE_CHECKING:
+    import pandas as pd
+else:
+    pd, _ = optional_import("pandas")
+
 nib, _ = optional_import("nibabel")
+
 
 __all__ = [
     "get_random_patch",
@@ -65,6 +72,7 @@ __all__ = [
     "decollate_batch",
     "pad_list_data_collate",
     "no_collation",
+    "convert_tables_to_dicts",
 ]
 
 
@@ -983,3 +991,56 @@ def sorted_dict(item, key=None, reverse=False):
     if not isinstance(item, dict):
         return item
     return {k: sorted_dict(v) if isinstance(v, dict) else v for k, v in sorted(item.items(), key=key, reverse=reverse)}
+
+
+def convert_tables_to_dicts(
+    dfs: Union[Sequence[pd.DataFrame], pd.DataFrame],
+    row_indices: Optional[Sequence[Union[int, str]]] = None,
+    col_names: Optional[Sequence[str]] = None,
+    col_groups: Optional[Dict[str, Sequence[str]]] = None,
+    **kwargs,
+):
+    """
+    Utility to join pandas tables, select rows, columns and generate groups.
+    Will return a list of dictionaries, every dictionary maps to a row of data in tables.
+
+    Args:
+        dfs: data table in pandas Dataframe format. if providing a list of tables, will join them.
+        row_indices: indices of the expected rows to load. it should be a list,
+            every item can be a int number or a range `[start, end)` for the indices.
+            for example: `row_indices=[[0, 100], 200, 201, 202, 300]`. if None,
+            load all the rows in the file.
+        col_names: names of the expected columns to load. if None, load all the columns.
+        col_groups: args to group the loaded columns to generate a new column,
+            it should be a dictionary, every item maps to a group, the `key` will
+            be the new column name, the `value` is the names of columns to combine. for example:
+            `col_groups={"ehr": [f"ehr_{i}" for i in range(10)], "meta": ["meta_1", "meta_2"]}`
+        kwargs: additional arguments for `pandas.merge()` API to join tables.
+
+    """
+    df = reduce(lambda l, r: pd.merge(l, r, **kwargs), ensure_tuple(dfs))
+    # parse row indices
+    rows: List[Union[int, str]] = []
+    if row_indices is None:
+        rows = slice(df.shape[0])
+    else:
+        for i in row_indices:
+            if isinstance(i, (tuple, list)):
+                if len(i) != 2:
+                    raise ValueError("range of row indices must contain 2 values: start and end.")
+                rows.extend(list(range(i[0], i[1])))
+            else:
+                rows.append(i)
+
+    # convert to a list of dictionaries corresponding to every row
+    data: List[Dict] = (df.loc[rows] if col_names is None else df.loc[rows, col_names]).to_dict(orient="records")
+
+    # group columns to generate new column
+    if col_groups is not None:
+        groups: Dict[str, List] = {}
+        for name, cols in col_groups.items():
+            groups[name] = df.loc[rows, cols].values
+        # invert items of groups to every row of data
+        data = [dict(d, **{k: v[i] for k, v in groups.items()}) for i, d in enumerate(data)]
+
+    return data
