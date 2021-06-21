@@ -34,6 +34,10 @@ def generate_param_groups(
         layer_matches: a list of callable functions to select or filter out network layer groups,
             for "select" type, the input will be the `network`, for "filter" type,
             the input will be every item of `network.named_parameters()`.
+            for "select", the parameters will be
+            `select_func(network).parameters()`.
+            for "filter", the parameters will be
+            `map(lambda x: x[1], filter(filter_func, network.named_parameters()))`
         match_types: a list of tags to identify the matching type corresponding to the `layer_matches` functions,
             can be "select" or "filter".
         lr_values: a list of LR values corresponding to the `layer_matches` functions.
@@ -48,7 +52,7 @@ def generate_param_groups(
         print(net.named_parameters())  # print out all the named parameters to filter out expected items
         params = generate_param_groups(
             network=net,
-            layer_matches=[lambda x: x.model[-1], lambda x: "conv.weight" in x],
+            layer_matches=[lambda x: x.model[0], lambda x: "2.0.conv" in x[0]],
             match_types=["select", "filter"],
             lr_values=[1e-2, 1e-3],
         )
@@ -71,7 +75,8 @@ def generate_param_groups(
 
     def _get_filter(f):
         def _filter():
-            return filter(f, network.named_parameters())
+            # should eventually generate a list of network parameters
+            return map(lambda x: x[1], filter(f, network.named_parameters()))
 
         return _filter
 
