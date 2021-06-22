@@ -33,6 +33,7 @@ fi
 # configuration values
 doCoverage=false
 doQuickTests=false
+doMinTests=false
 doNetTests=false
 doDryRun=false
 doZooTests=false
@@ -54,7 +55,7 @@ PY_EXE=${MONAI_PY_EXE:-$(which python)}
 
 function print_usage {
     echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--flake8] [--clangformat] [--pytype] [--mypy]"
-    echo "            [--unittests] [--disttests] [--coverage] [--quick] [--net] [--dryrun] [-j number] [--clean] [--help] [--version]"
+    echo "            [--unittests] [--disttests] [--coverage] [--quick] [--min] [--net] [--dryrun] [-j number] [--clean] [--help] [--version]"
     echo ""
     echo "MONAI unit testing utilities."
     echo ""
@@ -83,6 +84,7 @@ function print_usage {
     echo "    --disttests       : perform distributed unit testing"
     echo "    --coverage        : report testing code coverage, to be used with \"--net\", \"--unittests\""
     echo "    -q, --quick       : skip long running unit tests and integration tests"
+    echo "    -m, --min         : only run minimal unit tests which do not require optional packages"
     echo "    --net             : perform integration testing"
     echo "    --list_tests      : list unit tests and exit"
     echo ""
@@ -214,6 +216,9 @@ do
         ;;
         -q|--quick)
             doQuickTests=true
+        ;;
+        -m|--min)
+            doMinTests=true
         ;;
         --net)
             doNetTests=true
@@ -505,6 +510,12 @@ then
     echo "${separator}${blue}quick${noColor}"
     doCoverage=true
     export QUICKTEST=True
+fi
+
+if [ $doMinTests = true ]
+then
+    echo "${separator}${blue}min${noColor}"
+    ${cmdPrefix}${PY_EXE} -m tests.min_tests
 fi
 
 # set coverage command
