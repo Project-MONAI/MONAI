@@ -18,3 +18,4 @@ sphinxcontrib-jsmath
 sphinxcontrib-qthelp
 sphinxcontrib-serializinghtml
 sphinx-autodoc-typehints==1.11.1
+pandas

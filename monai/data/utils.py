@@ -16,9 +16,10 @@ import os
 import pickle
 import warnings
 from collections import defaultdict
+from functools import reduce
 from itertools import product, starmap
 from pathlib import PurePath
-from typing import Dict, Generator, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Generator, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -37,7 +38,10 @@ from monai.utils import (
 )
 from monai.utils.enums import Method
 
+pd, _ = optional_import("pandas")
+DataFrame, _ = optional_import("pandas", name="DataFrame")
 nib, _ = optional_import("nibabel")
+
 
 __all__ = [
     "get_random_patch",
@@ -65,6 +69,7 @@ __all__ = [
     "decollate_batch",
     "pad_list_data_collate",
     "no_collation",
+    "convert_tables_to_dicts",
 ]
 
 
@@ -983,3 +988,80 @@ def sorted_dict(item, key=None, reverse=False):
     if not isinstance(item, dict):
         return item
     return {k: sorted_dict(v) if isinstance(v, dict) else v for k, v in sorted(item.items(), key=key, reverse=reverse)}
+
+
+def convert_tables_to_dicts(
+    dfs,
+    row_indices: Optional[Sequence[Union[int, str]]] = None,
+    col_names: Optional[Sequence[str]] = None,
+    col_types: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
+    col_groups: Optional[Dict[str, Sequence[str]]] = None,
+    **kwargs,
+) -> List[Dict[str, Any]]:
+    """
+    Utility to join pandas tables, select rows, columns and generate groups.
+    Will return a list of dictionaries, every dictionary maps to a row of data in tables.
+
+    Args:
+        dfs: data table in pandas Dataframe format. if providing a list of tables, will join them.
+        row_indices: indices of the expected rows to load. it should be a list,
+            every item can be a int number or a range `[start, end)` for the indices.
+            for example: `row_indices=[[0, 100], 200, 201, 202, 300]`. if None,
+            load all the rows in the file.
+        col_names: names of the expected columns to load. if None, load all the columns.
+        col_types: `type` and `default value` to convert the loaded columns, if None, use original data.
+            it should be a dictionary, every item maps to an expected column, the `key` is the column
+            name and the `value` is None or a dictionary to define the default value and data type.
+            the supported keys in dictionary are: ["type", "default"], and note that the value of `default`
+            should not be `None`. for example::
+
+                col_types = {
+                    "subject_id": {"type": str},
+                    "label": {"type": int, "default": 0},
+                    "ehr_0": {"type": float, "default": 0.0},
+                    "ehr_1": {"type": float, "default": 0.0},
+                }
+
+        col_groups: args to group the loaded columns to generate a new column,
+            it should be a dictionary, every item maps to a group, the `key` will
+            be the new column name, the `value` is the names of columns to combine. for example:
+            `col_groups={"ehr": [f"ehr_{i}" for i in range(10)], "meta": ["meta_1", "meta_2"]}`
+        kwargs: additional arguments for `pandas.merge()` API to join tables.
+
+    """
+    df = reduce(lambda l, r: pd.merge(l, r, **kwargs), ensure_tuple(dfs))
+    # parse row indices
+    rows: List[Union[int, str]] = []
+    if row_indices is None:
+        rows = slice(df.shape[0])  # type: ignore
+    else:
+        for i in row_indices:
+            if isinstance(i, (tuple, list)):
+                if len(i) != 2:
+                    raise ValueError("range of row indices must contain 2 values: start and end.")
+                rows.extend(list(range(i[0], i[1])))
+            else:
+                rows.append(i)
+
+    # convert to a list of dictionaries corresponding to every row
+    data_ = df.loc[rows] if col_names is None else df.loc[rows, col_names]
+    if isinstance(col_types, dict):
+        # fill default values for NaN
+        defaults = {k: v["default"] for k, v in col_types.items() if v is not None and v.get("default") is not None}
+        if len(defaults) > 0:
+            data_ = data_.fillna(value=defaults)
+        # convert data types
+        types = {k: v["type"] for k, v in col_types.items() if v is not None and "type" in v}
+        if len(types) > 0:
+            data_ = data_.astype(dtype=types)
+    data: List[Dict] = data_.to_dict(orient="records")
+
+    # group columns to generate new column
+    if col_groups is not None:
+        groups: Dict[str, List] = {}
+        for name, cols in col_groups.items():
+            groups[name] = df.loc[rows, cols].values
+        # invert items of groups to every row of data
+        data = [dict(d, **{k: v[i] for k, v in groups.items()}) for i, d in enumerate(data)]
+
+    return data
