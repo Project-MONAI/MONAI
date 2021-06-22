@@ -32,6 +32,7 @@ from .densenet import (
 )
 from .dynunet import DynUNet, DynUnet, Dynunet, dynunet
 from .efficientnet import BlockArgs, EfficientNet, EfficientNetBN, drop_connect, get_efficientnet_image_size
+from .finetune_fc import FinetuneFC
 from .fullyconnectednet import FullyConnectedNet, VarFullyConnectedNet
 from .generator import Generator
 from .highresnet import HighResBlock, HighResNet
@@ -71,7 +72,7 @@ from .senet import (
     seresnext50,
     seresnext101,
 )
-from .torchvision_fc import TorchVisionClassificationModel, TorchVisionFullyConvModel
+from .torchvision_fc import TorchVisionFCModel
 from .unet import UNet, Unet, unet
 from .varautoencoder import VarAutoEncoder
 from .vnet import VNet

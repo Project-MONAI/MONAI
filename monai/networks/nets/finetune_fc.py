@@ -16,7 +16,7 @@ import torch
 
 class FinetuneFC(torch.nn.Module):
     """
-    Wrapper model to customize the fully connected layer of input model or replace it by convolutional layer.
+    Wrapper to customize the fully connected layer of 2D classification model or replace it by convolutional layer.
 
     Args:
         model: PyTorch model with fully connected layer at the end, typically, it can be a pretrained model in
@@ -44,24 +44,29 @@ class FinetuneFC(torch.nn.Module):
 
         # check if the model is compatible
         if not str(layers[-1]).startswith("Linear"):
-            raise ValueError(f"input model does not have a Linear layer at the end.")
+            raise ValueError("input model does not have a Linear layer at the end.")
         orig_fc = layers[-1]
+        self.fc: Union[torch.nn.Linear, torch.nn.Conv2d]
         if use_conv:
             if not str(layers[-2]).startswith("AdaptiveAvgPool2d"):
-                raise ValueError(f"input model does not have a AdaptiveAvgPool2d layer next to the end.")
+                raise ValueError("input model does not have a AdaptiveAvgPool2d layer next to the end.")
 
             # remove the last Linear layer (fully connected) and the adaptive avg pooling
             self.features = torch.nn.Sequential(*layers[:-2])
             # add 7x7 avg pooling (in place of adaptive avg pooling)
             self.pool = torch.nn.AvgPool2d(kernel_size=pool_size, stride=pool_stride)
             # add 1x1 conv (it behaves like a FC layer)
-            self.fc = torch.nn.Conv2d(orig_fc.in_features, n_classes, kernel_size=(1, 1))
+            self.fc = torch.nn.Conv2d(
+                in_channels=orig_fc.in_features,  # type: ignore
+                out_channels=n_classes,
+                kernel_size=(1, 1),
+            )
         else:
             # remove the last Linear layer (fully connected)
-            self.features = torch.nn.Sequential(*layers[:-2])
+            self.features = torch.nn.Sequential(*layers[:-1])
             # replace the out_features of FC layer
             self.fc = torch.nn.Linear(
-                in_features=orig_fc.in_features,
+                in_features=orig_fc.in_features,  # type: ignore
                 out_features=n_classes,
                 bias=True,
             )

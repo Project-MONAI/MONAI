@@ -456,14 +456,14 @@ Nets
 .. autoclass:: Critic
   :members:
 
-`TorchVisionFullyConvModel`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: TorchVisionFullyConvModel
+`FinetuneFC`
+~~~~~~~~~~~~
+.. autoclass:: FinetuneFC
   :members:
 
-`TorchVisionClassificationModel`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: TorchVisionClassificationModel
+`TorchVisionFCModel`
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TorchVisionFCModel
   :members:
 
 Utilities

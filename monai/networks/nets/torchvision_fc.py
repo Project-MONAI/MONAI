@@ -11,27 +11,30 @@
 
 from typing import Tuple, Union
 
-import torch
-
+from monai.networks.nets import FinetuneFC
 from monai.utils import optional_import
 
 models, _ = optional_import("torchvision.models")
 
 
-__all__ = ["TorchVisionFullyConvModel", "TorchVisionClassificationModel"]
+__all__ = ["TorchVisionFCModel"]
 
 
-class TorchVisionFullyConvModel(torch.nn.Module):
+class TorchVisionFCModel(FinetuneFC):
     """
-    Customize TorchVision models to replace fully connected layer by convolutional layer.
+    Customize the fully connected layer of TorchVision model or replace it by convolutional layer.
 
     Args:
-        model_name: name of any torchvision model with adaptive avg pooling and fully connected layer at the end.
+        model_name: name of any torchvision model with fully connected layer at the end.
             ``resnet18`` (default), ``resnet34m``, ``resnet50``, ``resnet101``, ``resnet152``,
             ``resnext50_32x4d``, ``resnext101_32x8d``, ``wide_resnet50_2``, ``wide_resnet101_2``.
+            model details: https://pytorch.org/vision/stable/models.html.
         n_classes: number of classes for the last classification layer. Default to 1.
-        pool_size: the kernel size for `AvgPool2d` to replace `AdaptiveAvgPool2d`. Default to (7, 7).
-        pool_stride: the stride for `AvgPool2d` to replace `AdaptiveAvgPool2d`. Default to 1.
+        use_conv: whether use convolutional layer to replace the FC layer, default to False.
+        pool_size: if using convolutional layer to replace the FC layer, it defines the kernel size for `AvgPool2d`
+            to replace `AdaptiveAvgPool2d`. Default to (7, 7).
+        pool_stride: if using convolutional layer to replace the FC layer, it defines the stride for `AvgPool2d`
+            to replace `AdaptiveAvgPool2d`. Default to 1.
         pretrained: whether to use the imagenet pretrained weights. Default to False.
     """
 
@@ -39,80 +42,16 @@ class TorchVisionFullyConvModel(torch.nn.Module):
         self,
         model_name: str = "resnet18",
         n_classes: int = 1,
+        use_conv: bool = False,
         pool_size: Union[int, Tuple[int, int]] = (7, 7),
         pool_stride: Union[int, Tuple[int, int]] = 1,
         pretrained: bool = False,
     ):
-        super().__init__()
         model = getattr(models, model_name)(pretrained=pretrained)
-        layers = list(model.children())
-
-        # check if the model is compatible
-        if not str(layers[-1]).startswith("Linear"):
-            raise ValueError(f"Model ['{model_name}'] does not have a Linear layer at the end.")
-        if not str(layers[-2]).startswith("AdaptiveAvgPool2d"):
-            raise ValueError(f"Model ['{model_name}'] does not have a AdaptiveAvgPool2d layer next to the end.")
-
-        # remove the last Linear layer (fully connected) and the adaptive avg pooling
-        self.features = torch.nn.Sequential(*layers[:-2])
-
-        # add 7x7 avg pooling (in place of adaptive avg pooling)
-        self.pool = torch.nn.AvgPool2d(kernel_size=pool_size, stride=pool_stride)
-
-        # add 1x1 conv (it behaves like a FC layer)
-        self.fc = torch.nn.Conv2d(model.fc.in_features, n_classes, kernel_size=(1, 1))
-
-    def forward(self, x):
-        x = self.features(x)
-
-        # apply 2D avg pooling
-        x = self.pool(x)
-
-        # apply last 1x1 conv layer that act like a linear layer
-        x = self.fc(x)
-
-        return x
-
-
-class TorchVisionClassificationModel(torch.nn.Module):
-    """
-    Customize TorchVision models to replace final linear/fully-connected layer to fit number of classes.
-
-    Args:
-        model_name: name of any torchvision model with fully connected layer at the end from:
-            https://pytorch.org/vision/stable/models.html.
-            ``resnet18`` (default), ``alexnet``, ``vgg16``, etc.
-        n_classes: number of classes for the last classification layer. default to 1.
-        pretrained: whether to use the imagenet pretrained weights. Default to False.
-    """
-
-    def __init__(
-        self,
-        model_name: str = "resnet18",
-        n_classes: int = 1,
-        pretrained: bool = False,
-    ):
-        super().__init__()
-        model = getattr(models, model_name)(pretrained=pretrained)
-        layers = list(model.children())
-
-        # check if the model is compatible
-        if not str(layers[-1]).startswith("Linear"):
-            raise ValueError(f"Model ['{model_name}'] does not have a Linear layer at the end.")
-
-        self.features = torch.nn.Sequential(*layers[:-1])
-        orig_fc = layers[-1]
-        self.fc = torch.nn.Linear(
-            in_features=orig_fc.in_features,
-            out_features=n_classes,
-            bias=True,
+        super().__init__(
+            model=model,
+            n_classes=n_classes,
+            use_conv=use_conv,
+            pool_size=pool_size,
+            pool_stride=pool_stride,
         )
-
-    def forward(self, x):
-        x = self.features(x)
-        x = torch.flatten(x, 1)
-
-        # apply FC layer
-        x = self.fc(x)
-
-        return x
