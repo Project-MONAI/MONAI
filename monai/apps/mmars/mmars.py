@@ -16,6 +16,7 @@ See Also:
     - https://docs.nvidia.com/clara/clara-train-sdk/pt/mmar.html
 """
 
+import json
 import os
 import warnings
 from typing import Mapping
@@ -89,7 +90,15 @@ def download_mmar(item, mmar_dir=None, progress: bool = True):
     return model_dir
 
 
-def load_from_mmar(item, mmar_dir=None, progress: bool = True, map_location=None, pretrained=True, weights_only=False):
+def load_from_mmar(
+    item,
+    mmar_dir=None,
+    progress: bool = True,
+    map_location=None,
+    pretrained=True,
+    weights_only=False,
+    model_key: str = "model",
+):
     """
     Download and extract Medical Model Archive (MMAR) model weights from Nvidia Clara Train.
 
@@ -100,6 +109,9 @@ def load_from_mmar(item, mmar_dir=None, progress: bool = True, map_location=None
         map_location: pytorch API parameter for `torch.load` or `torch.jit.load`.
         pretrained: whether to load the pretrained weights after initializing a network module.
         weights_only: whether to load only the weights instead of initializing the network module and assign weights.
+        model_key: a key to search in the model file or config file for the model dictionary.
+            Currently this function assumes that the model dictionary has
+            `{"[name|path]": "test.module", "args": {'kw': 'test'}}`.
 
     Examples::
         >>> from monai.apps import load_from_mmar
@@ -126,27 +138,65 @@ def load_from_mmar(item, mmar_dir=None, progress: bool = True, map_location=None
     # loading with `torch.load`
     model_dict = torch.load(model_file, map_location=map_location)
     if weights_only:
-        return model_dict["model"]
+        return model_dict.get("model", model_dict)  # model_dict["model"] or model_dict directly
 
-    # TODO: search for the module based on model name?
-    if not model_dict.get("train_conf", ""):
-        raise ValueError("The MMAR configuration does not have a 'train_conf' section.")
-    model_config = model_dict["train_conf"]["train"]["model"]
-    if model_config.get("name", ""):  # model config section is a "name"
+    # 1. search `model_dict['train_config]` for model config spec.
+    model_config = _get_val(dict(model_dict).get("train_conf", {}), key=model_key, default={})
+    if not model_config:
+        # 2. search json CONFIG_FILE for model config spec.
+        json_path = os.path.join(model_dir, item.get(Keys.CONFIG_FILE, "config_train.json"))
+        with open(json_path) as f:
+            conf_dict = json.load(f)
+        conf_dict = dict(conf_dict)
+        model_config = _get_val(conf_dict, key=model_key, default={})
+    if not model_config:
+        # 3. search `model_dict` for model config spec.
+        model_config = _get_val(dict(model_dict), key=model_key, default={})
+
+    if not (model_config and isinstance(model_config, Mapping)):
+        raise ValueError(
+            f"Could not load model config dictionary from config: {item.get(Keys.CONFIG_FILE)}, "
+            f"or from model file: {item.get(Keys.MODEL_FILE)}."
+        )
+
+    # parse `model_config` for model class and model parameters
+    if model_config.get("name"):  # model config section is a "name"
         model_name = model_config["name"]
         model_cls = monai_nets.__dict__[model_name]
-    else:  # model config section is a "path"
+    elif model_config.get("path"):  # model config section is a "path"
         # https://docs.nvidia.com/clara/clara-train-sdk/pt/byom.html
-        model_module, model_name = model_config.get("path", "").rsplit(".", 1)
+        model_module, model_name = model_config.get("path", ".").rsplit(".", 1)
         model_cls, has_cls = optional_import(module=model_module, name=model_name)
         if not has_cls:
             raise ValueError(f"Could not load model config {model_config.get('path', '')}.")
-    model_kwargs = model_config["args"]
-    model_inst = model_cls(**model_kwargs)
+    else:
+        raise ValueError(f"Could not load model config {model_config}.")
+
     print(f"*** Model: {model_cls}")
-    print(f"*** Model param: {model_kwargs}")
+    model_kwargs = model_config.get("args", None)
+    if model_kwargs:
+        model_inst = model_cls(**model_kwargs)
+        print(f"*** Model params: {model_kwargs}")
+    else:
+        model_inst = model_cls()
     if pretrained:
-        model_inst.load_state_dict(model_dict["model"])
+        model_inst.load_state_dict(model_dict.get("model", model_dict))
     print("\n---")
-    print(f"For more information, please visit {item['doc']}\n")
+    print(f"For more information, please visit {item[Keys.DOC]}\n")
     return model_inst
+
+
+def _get_val(input_dict: Mapping, key="model", default=None):
+    """
+    Search for the item with `key` in `config_dict`.
+    Returns: the first occurrence of `key` in a breadth first search.
+    """
+    if key in input_dict:
+        return input_dict[key]
+    for sub_dict in input_dict:
+        val = input_dict[sub_dict]
+        if isinstance(val, Mapping):
+            found_val = _get_val(val, key=key, default=None)
+            if found_val is not None:
+                return found_val
+    return default
