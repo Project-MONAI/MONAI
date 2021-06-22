@@ -48,7 +48,7 @@ def create_test_image_2d(
         random_state: the random generator to use. Defaults to `np.random`.
     """
     image = np.zeros((width, height))
-    rs = np.random if random_state is None else random_state
+    rs: np.random.RandomState = np.random if random_state is None else random_state
 
     for _ in range(num_objs):
         x = rs.randint(rad_max, width - rad_max)
