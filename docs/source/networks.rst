@@ -461,6 +461,11 @@ Nets
 .. autoclass:: TorchVisionFullyConvModel
   :members:
 
+`TorchVisionClassificationModel`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TorchVisionClassificationModel
+  :members:
+
 Utilities
 ---------
 .. automodule:: monai.networks.utils

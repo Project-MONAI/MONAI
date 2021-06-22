@@ -93,23 +93,26 @@ class TorchVisionClassificationModel(torch.nn.Module):
         pretrained: bool = False,
     ):
         super().__init__()
-        self.model = getattr(models, model_name)(pretrained=pretrained)
-        layers = list(self.model.children())
+        model = getattr(models, model_name)(pretrained=pretrained)
+        layers = list(model.children())
 
         # check if the model is compatible
-        print(f"Last layer of {model_name}: {layers[-1]}")
         if not str(layers[-1]).startswith("Linear"):
             raise ValueError(f"Model ['{model_name}'] does not have a Linear layer at the end.")
 
-        # TODO: Not all torchvision models follow the same API
-        if "fc" in dir(self.model):  # works with resnet-like torchivison models
-            self.model.fc = torch.nn.Linear(in_features=self.model.fc.in_features,
-                                            out_features=n_classes, bias=True)
-        elif "classifier" in dir(self.model):  # works with densenet-like torchvision models
-            self.model.classifier = torch.nn.Linear(in_features=self.model.classifier.in_features,
-                                                    out_features=n_classes, bias=True)
-        else:
-            raise ValueError(f"Model ['{model_name}'] does not have a supported classifier attribute.")
+        self.features = torch.nn.Sequential(*layers[:-1])
+        orig_fc = layers[-1]
+        self.fc = torch.nn.Linear(
+            in_features=orig_fc.in_features,
+            out_features=n_classes,
+            bias=True,
+        )
 
     def forward(self, x):
-        return self.model(x)
+        x = self.features(x)
+        x = torch.flatten(x, 1)
+
+        # apply FC layer
+        x = self.fc(x)
+
+        return x

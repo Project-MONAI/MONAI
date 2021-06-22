@@ -71,7 +71,7 @@ from .senet import (
     seresnext50,
     seresnext101,
 )
-from .torchvision_fc import TorchVisionFullyConvModel
+from .torchvision_fc import TorchVisionClassificationModel, TorchVisionFullyConvModel
 from .unet import UNet, Unet, unet
 from .varautoencoder import VarAutoEncoder
 from .vnet import VNet
