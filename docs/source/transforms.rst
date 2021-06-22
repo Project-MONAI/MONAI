@@ -286,6 +286,18 @@ Intensity
     :members:
     :special-members: __call__
 
+`KSpaceSpikeNoise`
+""""""""""""""""""""
+.. autoclass:: KSpaceSpikeNoise
+    :members:
+    :special-members: __call__
+
+`RandKSpaceSpikeNoise`
+""""""""""""""""""""""""
+ .. autoclass:: RandKSpaceSpikeNoise
+     :members:
+     :special-members: __call__
+
 
 IO
 ^^
@@ -779,6 +791,18 @@ Instensity (Dict)
 `RandGibbsNoised`
 """"""""""""""""""
 .. autoclass:: RandGibbsNoised
+    :members:
+    :special-members: __call__
+
+`KSpaceSpikeNoised`
+""""""""""""""""""""""
+.. autoclass:: KSpaceSpikeNoised
+    :members:
+    :special-members: __call__
+
+`RandKSpaceSpikeNoised`
+"""""""""""""""""""""""""
+.. autoclass:: RandKSpaceSpikeNoised
     :members:
     :special-members: __call__
 
