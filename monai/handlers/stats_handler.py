@@ -59,7 +59,7 @@ class StatsHandler:
             iteration_print_logger: customized callable printer for iteration level logging.
                 Must accept parameter "engine", use default printer if None.
             output_transform: a callable that is used to transform the
-                ``ignite.engine.output`` into a scalar to print, or a dictionary of {key: scalar}.
+                ``ignite.engine.state.output`` into a scalar to print, or a dictionary of {key: scalar}.
                 In the latter case, the output string will be formatted as key: value.
                 By default this value logging happens when every iteration completed.
             global_epoch_transform: a callable that is used to customize global epoch number.

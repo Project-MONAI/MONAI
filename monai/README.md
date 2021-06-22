@@ -12,7 +12,7 @@
 
 * **handlers**: defines handlers for implementing functionality at various stages in the training process.
 
-* **inferers**: defines model inference methods. 
+* **inferers**: defines model inference methods.
 
 * **losses**: classes defining loss functions.
 
@@ -28,3 +28,5 @@
 and not with Pytorch, such as namespace aliasing, auto module loading.
 
 * **visualize**: utilities for data visualization.
+
+* **_extensions**: C++/CUDA extensions to be loaded in a just-in-time manner using `torch.utils.cpp_extension.load`.

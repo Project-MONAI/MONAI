@@ -1521,7 +1521,7 @@ class Zoomd(MapTransform, InvertibleTransform):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
             zoom = np.array(self.zoomer.zoom)
-            inverse_transform = Zoom(zoom=1 / zoom, keep_size=self.zoomer.keep_size)
+            inverse_transform = Zoom(zoom=(1 / zoom).tolist(), keep_size=self.zoomer.keep_size)
             mode = transform[InverseKeys.EXTRA_INFO]["mode"]
             padding_mode = transform[InverseKeys.EXTRA_INFO]["padding_mode"]
             align_corners = transform[InverseKeys.EXTRA_INFO]["align_corners"]
@@ -1649,7 +1649,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
                 mode = transform[InverseKeys.EXTRA_INFO]["mode"]
                 padding_mode = transform[InverseKeys.EXTRA_INFO]["padding_mode"]
                 align_corners = transform[InverseKeys.EXTRA_INFO]["align_corners"]
-                inverse_transform = Zoom(zoom=1 / zoom, keep_size=self.keep_size)
+                inverse_transform = Zoom(zoom=(1 / zoom).tolist(), keep_size=self.keep_size)
                 # Apply inverse
                 d[key] = inverse_transform(
                     d[key],
