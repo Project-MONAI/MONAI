@@ -18,7 +18,7 @@ from monai.utils import optional_import
 models, _ = optional_import("torchvision.models")
 
 
-__all__ = ["TorchVisionFullyConvModel"]
+__all__ = ["TorchVisionFullyConvModel", "TorchVisionClassificationModel"]
 
 
 class TorchVisionFullyConvModel(torch.nn.Module):
@@ -26,7 +26,7 @@ class TorchVisionFullyConvModel(torch.nn.Module):
     Customize TorchVision models to replace fully connected layer by convolutional layer.
 
     Args:
-        model_name: name of any torchvision with adaptive avg pooling and fully connected layer at the end.
+        model_name: name of any torchvision model with adaptive avg pooling and fully connected layer at the end.
             ``resnet18`` (default), ``resnet34m``, ``resnet50``, ``resnet101``, ``resnet152``,
             ``resnext50_32x4d``, ``resnext101_32x8d``, ``wide_resnet50_2``, ``wide_resnet101_2``.
         n_classes: number of classes for the last classification layer. Default to 1.
@@ -72,3 +72,44 @@ class TorchVisionFullyConvModel(torch.nn.Module):
         x = self.fc(x)
 
         return x
+
+
+class TorchVisionClassificationModel(torch.nn.Module):
+    """
+    Customize TorchVision models to replace final linear/fully-connected layer to fit number of classes.
+
+    Args:
+        model_name: name of any torchvision model with fully connected layer at the end from:
+            https://pytorch.org/vision/stable/models.html.
+            ``resnet18`` (default), ``alexnet``, ``vgg16``, etc.
+        n_classes: number of classes for the last classification layer. default to 1.
+        pretrained: whether to use the imagenet pretrained weights. Default to False.
+    """
+
+    def __init__(
+        self,
+        model_name: str = "resnet18",
+        n_classes: int = 1,
+        pretrained: bool = False,
+    ):
+        super().__init__()
+        self.model = getattr(models, model_name)(pretrained=pretrained)
+        layers = list(self.model.children())
+
+        # check if the model is compatible
+        print(f"Last layer of {model_name}: {layers[-1]}")
+        if not str(layers[-1]).startswith("Linear"):
+            raise ValueError(f"Model ['{model_name}'] does not have a Linear layer at the end.")
+
+        # TODO: Not all torchvision models follow the same API
+        if "fc" in dir(self.model):  # works with resnet-like torchivison models
+            self.model.fc = torch.nn.Linear(in_features=self.model.fc.in_features,
+                                            out_features=n_classes, bias=True)
+        elif "classifier" in dir(self.model):  # works with densenet-like torchvision models
+            self.model.classifier = torch.nn.Linear(in_features=self.model.classifier.in_features,
+                                                    out_features=n_classes, bias=True)
+        else:
+            raise ValueError(f"Model ['{model_name}'] does not have a supported classifier attribute.")
+
+    def forward(self, x):
+        return self.model(x)
