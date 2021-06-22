@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import math
-from typing import Callable, Dict, Iterable, Optional, Sequence, Union
+from typing import Any, Callable, Dict, Iterable, Optional, Sequence, Union
 
 from torch.utils.data import IterableDataset as _TorchIterableDataset
 from torch.utils.data import get_worker_info
@@ -75,6 +75,19 @@ class CSVIterableDataset(IterableDataset):
         chunksize: rows of a chunk when loading iterable data from CSV files, default to 1000. more details:
             https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html.
         col_names: names of the expected columns to load. if None, load all the columns.
+        col_types: `type` and `default value` to convert the loaded columns, if None, use original data.
+            it should be a dictionary, every item maps to an expected column, the `key` is the column
+            name and the `value` is None or a dictionary to define the default value and data type.
+            the supported keys in dictionary are: ["type", "default"]. for example::
+
+                col_types = {
+                    "subject_id": {"type": str},
+                    "label": {"type": int, "default": 0},
+                    "ehr_0": {"type": float, "default": 0.0},
+                    "ehr_1": {"type": float, "default": 0.0},
+                    "image": {"type": str, "default": None},
+                }
+
         col_groups: args to group the loaded columns to generate a new column,
             it should be a dictionary, every item maps to a group, the `key` will
             be the new column name, the `value` is the names of columns to combine. for example:
@@ -89,6 +102,7 @@ class CSVIterableDataset(IterableDataset):
         filename: Union[str, Sequence[str]],
         chunksize: int = 1000,
         col_names: Optional[Sequence[str]] = None,
+        col_types: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
         col_groups: Optional[Dict[str, Sequence[str]]] = None,
         transform: Optional[Callable] = None,
         **kwargs,
@@ -97,6 +111,7 @@ class CSVIterableDataset(IterableDataset):
         self.chunksize = chunksize
         self.iters = self.reset()
         self.col_names = col_names
+        self.col_types = col_types
         self.col_groups = col_groups
         self.kwargs = kwargs
         super().__init__(data=None, transform=transform)  # type: ignore
@@ -113,6 +128,7 @@ class CSVIterableDataset(IterableDataset):
             self.data = convert_tables_to_dicts(
                 dfs=chunks,
                 col_names=self.col_names,
+                col_types=self.col_types,
                 col_groups=self.col_groups,
                 **self.kwargs,
             )

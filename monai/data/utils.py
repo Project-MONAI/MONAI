@@ -994,6 +994,7 @@ def convert_tables_to_dicts(
     dfs,
     row_indices: Optional[Sequence[Union[int, str]]] = None,
     col_names: Optional[Sequence[str]] = None,
+    col_types: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
     col_groups: Optional[Dict[str, Sequence[str]]] = None,
     **kwargs,
 ) -> List[Dict[str, Any]]:
@@ -1008,6 +1009,19 @@ def convert_tables_to_dicts(
             for example: `row_indices=[[0, 100], 200, 201, 202, 300]`. if None,
             load all the rows in the file.
         col_names: names of the expected columns to load. if None, load all the columns.
+        col_types: `type` and `default value` to convert the loaded columns, if None, use original data.
+            it should be a dictionary, every item maps to an expected column, the `key` is the column
+            name and the `value` is None or a dictionary to define the default value and data type.
+            the supported keys in dictionary are: ["type", "default"], and note that the value of `default`
+            should not be `None`. for example::
+
+                col_types = {
+                    "subject_id": {"type": str},
+                    "label": {"type": int, "default": 0},
+                    "ehr_0": {"type": float, "default": 0.0},
+                    "ehr_1": {"type": float, "default": 0.0},
+                }
+
         col_groups: args to group the loaded columns to generate a new column,
             it should be a dictionary, every item maps to a group, the `key` will
             be the new column name, the `value` is the names of columns to combine. for example:
@@ -1030,7 +1044,17 @@ def convert_tables_to_dicts(
                 rows.append(i)
 
     # convert to a list of dictionaries corresponding to every row
-    data: List[Dict] = (df.loc[rows] if col_names is None else df.loc[rows, col_names]).to_dict(orient="records")
+    data_ = df.loc[rows] if col_names is None else df.loc[rows, col_names]
+    if isinstance(col_types, dict):
+        # fill default values for NaN
+        defaults = {k: v["default"] for k, v in col_types.items() if v is not None and v.get("default") is not None}
+        if len(defaults) > 0:
+            data_ = data_.fillna(value=defaults)
+        # convert data types
+        types = {k: v["type"] for k, v in col_types.items() if v is not None and "type" in v}
+        if len(types) > 0:
+            data_ = data_.astype(dtype=types)
+    data: List[Dict] = data_.to_dict(orient="records")
 
     # group columns to generate new column
     if col_groups is not None:

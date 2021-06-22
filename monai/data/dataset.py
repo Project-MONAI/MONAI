@@ -1088,6 +1088,19 @@ class CSVDataset(Dataset):
             for example: `row_indices=[[0, 100], 200, 201, 202, 300]`. if None,
             load all the rows in the file.
         col_names: names of the expected columns to load. if None, load all the columns.
+        col_types: `type` and `default value` to convert the loaded columns, if None, use original data.
+            it should be a dictionary, every item maps to an expected column, the `key` is the column
+            name and the `value` is None or a dictionary to define the default value and data type.
+            the supported keys in dictionary are: ["type", "default"]. for example::
+
+                col_types = {
+                    "subject_id": {"type": str},
+                    "label": {"type": int, "default": 0},
+                    "ehr_0": {"type": float, "default": 0.0},
+                    "ehr_1": {"type": float, "default": 0.0},
+                    "image": {"type": str, "default": None},
+                }
+
         col_groups: args to group the loaded columns to generate a new column,
             it should be a dictionary, every item maps to a group, the `key` will
             be the new column name, the `value` is the names of columns to combine. for example:
@@ -1102,6 +1115,7 @@ class CSVDataset(Dataset):
         filename: Union[str, Sequence[str]],
         row_indices: Optional[Sequence[Union[int, str]]] = None,
         col_names: Optional[Sequence[str]] = None,
+        col_types: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
         col_groups: Optional[Dict[str, Sequence[str]]] = None,
         transform: Optional[Callable] = None,
         **kwargs,
@@ -1112,6 +1126,7 @@ class CSVDataset(Dataset):
             dfs=dfs,
             row_indices=row_indices,
             col_names=col_names,
+            col_types=col_types,
             col_groups=col_groups,
             **kwargs,
         )

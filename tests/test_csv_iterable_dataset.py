@@ -19,7 +19,7 @@ import numpy as np
 from monai.data import CSVIterableDataset, DataLoader
 from monai.transforms import ToNumpyd
 
-from .utils import skip_if_windows
+from tests.utils import skip_if_windows
 
 
 @skip_if_windows

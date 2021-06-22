@@ -45,6 +45,8 @@ class TestCSVDataset(unittest.TestCase):
                 ["s000002", 1.882352948, 2.031372547, "TRUE", "FALSE", "TRUE"],
                 ["s000003", 3.309803963, 3.729412079, "FALSE", "FALSE", "TRUE"],
                 ["s000004", 2.062745094, 2.34117651, "FALSE", "TRUE", "TRUE"],
+                # generate NaN values in the row
+                ["s000005", 3.353655643, 1.675674543, "TRUE", "TRUE", "FALSE"],
             ]
 
             def prepare_csv_file(data, filepath):
@@ -146,6 +148,18 @@ class TestCSVDataset(unittest.TestCase):
             for item, exp in zip(dataset, expected):
                 self.assertTrue(isinstance(item["ehr"], np.ndarray))
                 np.testing.assert_allclose(np.around(item["ehr"], 4), exp)
+
+            # test default values and dtype
+            dataset = CSVDataset(
+                filename=[filepath1, filepath2, filepath3],
+                col_names=["subject_id", "image", "ehr_1", "ehr_9", "meta_1"],
+                col_types={"image": {"type": str, "default": "No image"}, "ehr_1": {"type": int, "default": 0}},
+                how="outer",  # generate NaN values in this merge mode
+            )
+            self.assertEqual(len(dataset), 6)
+            self.assertEqual(dataset[-1]["image"], "No image")
+            self.assertEqual(type(dataset[-1]["ehr_1"]), int)
+            np.testing.assert_allclose(dataset[-1]["ehr_9"], 3.3537, rtol=1e-2)
 
 
 if __name__ == "__main__":
