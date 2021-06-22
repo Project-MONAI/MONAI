@@ -18,6 +18,7 @@ import numpy as np
 import torch
 from ignite.engine import Engine
 
+from monai.data.csv_saver import CSVSaver
 from monai.handlers import ClassificationSaver
 
 
@@ -32,21 +33,27 @@ class TestHandlerClassificationSaver(unittest.TestCase):
             engine = Engine(_train_func)
 
             # set up testing handler
-            saver = ClassificationSaver(output_dir=tempdir, filename="predictions.csv")
-            saver.attach(engine)
+            saver = CSVSaver(output_dir=tempdir, filename="predictions2.csv")
+            ClassificationSaver(output_dir=tempdir, filename="predictions1.csv").attach(engine)
+            ClassificationSaver(saver=saver).attach(engine)
 
             data = [{"filename_or_obj": ["testfile" + str(i) for i in range(8)]}]
             engine.run(data, max_epochs=1)
-            filepath = os.path.join(tempdir, "predictions.csv")
-            self.assertTrue(os.path.exists(filepath))
-            with open(filepath, "r") as f:
-                reader = csv.reader(f)
-                i = 0
-                for row in reader:
-                    self.assertEqual(row[0], "testfile" + str(i))
-                    self.assertEqual(np.array(row[1:]).astype(np.float32), 0.0)
-                    i += 1
-                self.assertEqual(i, 8)
+
+            def _test_file(filename):
+                filepath = os.path.join(tempdir, filename)
+                self.assertTrue(os.path.exists(filepath))
+                with open(filepath, "r") as f:
+                    reader = csv.reader(f)
+                    i = 0
+                    for row in reader:
+                        self.assertEqual(row[0], "testfile" + str(i))
+                        self.assertEqual(np.array(row[1:]).astype(np.float32), 0.0)
+                        i += 1
+                    self.assertEqual(i, 8)
+
+            _test_file("predictions1.csv")
+            _test_file("predictions2.csv")
 
 
 if __name__ == "__main__":
