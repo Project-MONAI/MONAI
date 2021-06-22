@@ -58,8 +58,11 @@ class SpatialPad(Transform):
     for additional details.
 
     Args:
-        spatial_size: the spatial size of output data after padding.
+        c: the spatial size of output data after padding, if a dimension of the input
+            data size is bigger than the pad size, will not pad that dimension.
             If its components have non-positive values, the corresponding size of input image will be used (no padding).
+            for example: if the spatial size of input data is [30, 30, 30] and `spatial_size=[32, 25, -1]`,
+            the spatial size of output data will be [32, 30, 30].
         method: {``"symmetric"``, ``"end"``}
             Pad image symmetric on every side or only pad at the end sides. Defaults to ``"symmetric"``.
         mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
@@ -214,6 +217,9 @@ class DivisiblePad(Transform):
 class SpatialCrop(Transform):
     """
     General purpose cropper to produce sub-volume region of interest (ROI).
+    If a dimension of the expected ROI size is bigger than the input image size, will not crop that dimension.
+    So the cropped result may be smaller than the expected ROI, and the cropped results of several images may
+    not have exactly the same shape.
     It can support to crop ND spatial (channel-first) data.
 
     The cropped region can be parameterised in various ways:
@@ -233,9 +239,11 @@ class SpatialCrop(Transform):
         """
         Args:
             roi_center: voxel coordinates for center of the crop ROI.
-            roi_size: size of the crop ROI.
+            roi_size: size of the crop ROI, if a dimension of ROI size is bigger than image size,
+                will not crop that dimension of the image.
             roi_start: voxel coordinates for start of the crop ROI.
-            roi_end: voxel coordinates for end of the crop ROI.
+            roi_end: voxel coordinates for end of the crop ROI, if a coordinate is out of image,
+                use the end coordinate of image.
             roi_slices: list of slices for each of the spatial dimensions.
         """
         if roi_slices:
@@ -272,10 +280,16 @@ class SpatialCrop(Transform):
 class CenterSpatialCrop(Transform):
     """
     Crop at the center of image with specified ROI size.
+    If a dimension of the expected ROI size is bigger than the input image size, will not crop that dimension.
+    So the cropped result may be smaller than the expected ROI, and the cropped results of several images may
+    not have exactly the same shape.
 
     Args:
         roi_size: the spatial size of the crop region e.g. [224,224,128]
+            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
             If its components have non-positive values, the corresponding size of input image will be used.
+            for example: if the spatial size of input data is [40, 40, 40] and `roi_size=[32, 64, -1]`,
+            the spatial size of output data will be [32, 40, 40].
     """
 
     def __init__(self, roi_size: Union[Sequence[int], int]) -> None:
@@ -318,10 +332,17 @@ class RandSpatialCrop(Randomizable, Transform):
     Crop image with random size or specific size ROI. It can crop at a random position as center
     or at the image center. And allows to set the minimum and maximum size to limit the randomly generated ROI.
 
+    Note: even `random_size=False`, if a dimension of the expected ROI size is bigger than the input image size,
+    will not crop that dimension. So the cropped result may be smaller than the expected ROI, and the cropped results
+    of several images may not have exactly the same shape.
+
     Args:
         roi_size: if `random_size` is True, it specifies the minimum crop region.
             if `random_size` is False, it specifies the expected ROI size to crop. e.g. [224, 224, 128]
+            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
             If its components have non-positive values, the corresponding size of input image will be used.
+            for example: if the spatial size of input data is [40, 40, 40] and `roi_size=[32, 64, -1]`,
+            the spatial size of output data will be [32, 40, 40].
         max_roi_size: if `random_size` is True and `roi_size` specifies the min crop region size, `max_roi_size`
             can specify the max crop region size. if None, defaults to the input image size.
             if its components have non-positive values, the corresponding size of input image will be used.
@@ -423,10 +444,17 @@ class RandSpatialCropSamples(Randomizable, Transform):
     the minimum size to limit the randomly generated ROI.
     It will return a list of cropped images.
 
+    Note: even `random_size=False`, if a dimension of the expected ROI size is bigger than the input image size,
+    will not crop that dimension. So the cropped result may be smaller than the expected ROI, and the cropped
+    results of several images may not have exactly the same shape.
+
     Args:
         roi_size: if `random_size` is True, it specifies the minimum crop region.
             if `random_size` is False, it specifies the expected ROI size to crop. e.g. [224, 224, 128]
+            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
             If its components have non-positive values, the corresponding size of input image will be used.
+            for example: if the spatial size of input data is [40, 40, 40] and `roi_size=[32, 64, -1]`,
+            the spatial size of output data will be [32, 40, 40].
         num_samples: number of samples (crop regions) to take in the returned list.
         max_roi_size: if `random_size` is True and `roi_size` specifies the min crop region size, `max_roi_size`
             can specify the max crop region size. if None, defaults to the input image size.
@@ -640,9 +668,16 @@ class RandCropByPosNegLabel(Randomizable, Transform):
           [0, 0, 0, 0, 0],             [0, 0, 0]]      [0, 0, 0]]
           [0, 0, 0, 0, 0]]]
 
+    If a dimension of the expected spatial size is bigger than the input image size,
+    will not crop that dimension. So the cropped result may be smaller than expected size, and the cropped
+    results of several images may not have exactly same shape.
+
     Args:
         spatial_size: the spatial size of the crop region e.g. [224, 224, 128].
-            If its components have non-positive values, the corresponding size of `label` will be used.
+            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
+            if its components have non-positive values, the corresponding size of `label` will be used.
+            for example: if the spatial size of input data is [40, 40, 40] and `spatial_size=[32, 64, -1]`,
+            the spatial size of output data will be [32, 40, 40].
         label: the label image that is used for finding foreground/background, if None, must set at
             `self.__call__`.  Non-zero indicates foreground, zero indicates background.
         pos: used with `neg` together to calculate the ratio ``pos / (pos + neg)`` for the probability

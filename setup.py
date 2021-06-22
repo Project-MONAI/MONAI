@@ -134,11 +134,20 @@ def get_cmds():
     return cmds
 
 
+# Gathering source used for JIT extensions to include in package_data.
+jit_extension_source = []
+
+for ext in ["cpp", "cu", "h", "cuh"]:
+    glob_path = os.path.join("monai", "_extensions", "**", f"*.{ext}")
+    jit_extension_source += glob.glob(glob_path, recursive=True)
+
+jit_extension_source = [os.path.join("..", path) for path in jit_extension_source]
+
 setup(
     version=versioneer.get_version(),
     cmdclass=get_cmds(),
     packages=find_packages(exclude=("docs", "examples", "tests")),
     zip_safe=False,
-    package_data={"monai": ["py.typed"]},
+    package_data={"monai": ["py.typed", *jit_extension_source]},
     ext_modules=get_extensions(),
 )

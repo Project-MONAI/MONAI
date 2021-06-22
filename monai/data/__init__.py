@@ -15,6 +15,7 @@ from .dataset import (
     ArrayDataset,
     CacheDataset,
     CacheNTransDataset,
+    CSVDataset,
     Dataset,
     LMDBDataset,
     NPZDictItemDataset,
@@ -26,7 +27,7 @@ from .decathlon_datalist import load_decathlon_datalist, load_decathlon_properti
 from .grid_dataset import GridPatchDataset, PatchDataset, PatchIter
 from .image_dataset import ImageDataset
 from .image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader, WSIReader
-from .iterable_dataset import IterableDataset
+from .iterable_dataset import CSVIterableDataset, IterableDataset
 from .nifti_saver import NiftiSaver
 from .nifti_writer import write_nifti
 from .png_saver import PNGSaver
@@ -38,6 +39,7 @@ from .thread_buffer import ThreadBuffer, ThreadDataLoader
 from .utils import (
     compute_importance_map,
     compute_shape_offset,
+    convert_tables_to_dicts,
     correct_nifti_header_if_necessary,
     create_file_basename,
     decollate_batch,
