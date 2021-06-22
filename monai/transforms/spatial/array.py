@@ -464,7 +464,7 @@ class Rotate(Transform, ThreadUnsafe):
             raise ValueError(f"Unsupported img dimension: {input_ndim}, available options are [2, 3].")
         _angle = ensure_tuple_rep(self.angle, 1 if input_ndim == 2 else 3)
         transform = create_rotate(input_ndim, _angle)
-        shift = create_translate(input_ndim, (im_shape - 1) / 2)
+        shift = create_translate(input_ndim, ((im_shape - 1) / 2).tolist())
         if self.keep_size:
             output_shape = im_shape
         else:
@@ -473,7 +473,7 @@ class Rotate(Transform, ThreadUnsafe):
             )
             corners = transform[:-1, :-1] @ corners
             output_shape = np.asarray(corners.ptp(axis=1) + 0.5, dtype=int)
-        shift_1 = create_translate(input_ndim, -(output_shape - 1) / 2)
+        shift_1 = create_translate(input_ndim, (-(output_shape - 1) / 2).tolist())
         transform = shift @ transform @ shift_1
 
         xform = AffineTransform(
@@ -985,6 +985,7 @@ class AffineGrid(Transform):
             else:
                 raise ValueError("Incompatible values: grid=None and spatial_size=None.")
 
+        affine: Union[torch.Tensor, np.ndarray]
         if self.affine is None:
             spatial_dims = len(grid.shape) - 1
             affine = np.eye(spatial_dims + 1)
@@ -1138,7 +1139,7 @@ class RandDeformGrid(Randomizable, Transform):
 
         self.rand_mag = 1.0
         self.as_tensor_output = as_tensor_output
-        self.random_offset = 0.0
+        self.random_offset: np.ndarray
         self.device = device
 
     def randomize(self, grid_size: Sequence[int]) -> None:
@@ -1694,7 +1695,7 @@ class Rand3DElastic(RandomizableTransform):
         self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.device = device
 
-        self.rand_offset = None
+        self.rand_offset: np.ndarray
         self.magnitude = 1.0
         self.sigma = 1.0
 

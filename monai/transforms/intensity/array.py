@@ -75,7 +75,7 @@ class RandGaussianNoise(RandomizableTransform):
         RandomizableTransform.__init__(self, prob)
         self.mean = mean
         self.std = std
-        self._noise = None
+        self._noise: np.ndarray
 
     def randomize(self, im_shape: Sequence[int]) -> None:
         super().randomize(None)
@@ -133,8 +133,8 @@ class RandRicianNoise(RandomizableTransform):
         self.channel_wise = channel_wise
         self.relative = relative
         self.sample_std = sample_std
-        self._noise1 = None
-        self._noise2 = None
+        self._noise1: np.ndarray
+        self._noise2: np.ndarray
 
     def _add_noise(self, img: Union[torch.Tensor, np.ndarray], mean: float, std: float):
         im_shape = img.shape
@@ -463,7 +463,7 @@ class RandBiasField(RandomizableTransform):
         self.spatial_shape = data.shape[1:]
         self.rank = len(self.spatial_shape)
         n_coeff = int(np.prod([(self.degree + k) / k for k in range(1, self.rank + 1)]))
-        self._coeff = self.R.uniform(*self.coeff_range, n_coeff)
+        self._coeff = self.R.uniform(*self.coeff_range, n_coeff).tolist()
 
     def __call__(self, img: np.ndarray):
         """
@@ -670,13 +670,13 @@ class RandAdjustContrast(RandomizableTransform):
                 raise AssertionError("gamma should be a number or pair of numbers.")
             self.gamma = (min(gamma), max(gamma))
 
-        self.gamma_value = None
+        self.gamma_value: float
 
     def randomize(self, data: Optional[Any] = None) -> None:
         super().randomize(None)
         self.gamma_value = self.R.uniform(low=self.gamma[0], high=self.gamma[1])
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: np.ndarray):
         """
         Apply the transform to `img`.
         """

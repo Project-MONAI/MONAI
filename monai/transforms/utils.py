@@ -224,8 +224,8 @@ def resize_center(img: np.ndarray, *resize_dims: Optional[int], fill_value: floa
 
     resize_dims = fall_back_tuple(resize_dims, img.shape)
 
-    half_img_shape = np.asarray(img.shape) // 2
-    half_dest_shape = np.asarray(resize_dims) // 2
+    half_img_shape = (np.asarray(img.shape) // 2).tolist()
+    half_dest_shape = (np.asarray(resize_dims) // 2).tolist()
     srcslices, destslices = copypaste_arrays(img.shape, resize_dims, half_img_shape, half_dest_shape, resize_dims)
 
     if not inplace:
@@ -318,7 +318,7 @@ def generate_pos_neg_label_crop_centers(
     label_spatial_shape: Sequence[int],
     fg_indices: np.ndarray,
     bg_indices: np.ndarray,
-    rand_state: np.random.RandomState = np.random,
+    rand_state: Optional[np.random.RandomState] = None,
 ) -> List[List[np.ndarray]]:
     """
     Generate valid sample locations based on the label with option for specifying foreground ratio
@@ -338,6 +338,8 @@ def generate_pos_neg_label_crop_centers(
         ValueError: When the foreground and background indices lengths are 0.
 
     """
+    if rand_state is None:
+        rand_state = np.random.random.__self__  # type: ignore
     spatial_size = fall_back_tuple(spatial_size, default=label_spatial_shape)
     if not (np.subtract(label_spatial_shape, spatial_size) >= 0).all():
         raise ValueError("The size of the proposed random crop ROI is larger than the image size.")
@@ -602,7 +604,7 @@ def get_largest_connected_component_mask(img: torch.Tensor, connectivity: Option
 
 
 def get_extreme_points(
-    img: np.ndarray, rand_state: np.random.RandomState = np.random, background: int = 0, pert: float = 0.0
+    img: np.ndarray, rand_state: Optional[np.random.RandomState] = None, background: int = 0, pert: float = 0.0
 ) -> List[Tuple[int, ...]]:
     """
     Generate extreme points from an image. These are used to generate initial segmentation
@@ -624,6 +626,8 @@ def get_extreme_points(
     Raises:
         ValueError: When the input image does not have any foreground pixel.
     """
+    if rand_state is None:
+        rand_state = np.random.random.__self__  # type: ignore
     indices = np.where(img != background)
     if np.size(indices[0]) == 0:
         raise ValueError("get_extreme_points: no foreground object in mask!")
