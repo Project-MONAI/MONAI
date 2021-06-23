@@ -98,17 +98,16 @@ def get_pool_layer(name: Union[Tuple, str], spatial_dims: Optional[int] = 1):
     """
     Create a pooling layer instance.
 
-    For example, to create normalization layers:
+    For example, to create adaptiveavg layer:
 
     .. code-block:: python
 
-        from monai.networks.layers import get_norm_layer
+        from monai.networks.layers import get_pool_layer
 
-        g_layer = get_norm_layer(name=("group", {"num_groups": 1}))
-        n_layer = get_norm_layer(name="instance", spatial_dims=2)
+        pool_layer = get_pool_layer(("adaptiveavg", {"output_size": (1, 1, 1)}), spatial_dims=3)
 
     Args:
-        name: a normalization type string or a tuple of type string and parameters.
+        name: a pooling type string or a tuple of type string and parameters.
         spatial_dims: number of spatial dimensions of the input.
 
     """

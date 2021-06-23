@@ -53,6 +53,10 @@ class TorchVisionFCModel(NetAdapter):
         pretrained: bool = False,
     ):
         model = getattr(models, model_name)(pretrained=pretrained)
+        # check if the model is compatible, should have a FC layer at the end
+        if not str(list(model.children())[-1]).startswith("Linear"):
+            raise ValueError(f"Model ['{model_name}'] does not have a Linear layer at the end.")
+
         super().__init__(
             model=model,
             n_classes=n_classes,
