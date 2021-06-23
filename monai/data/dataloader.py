@@ -19,12 +19,47 @@ __all__ = ["DataLoader"]
 
 
 class DataLoader(_TorchDataLoader):
-    """Generates images/labels for train/validation/testing from dataset.
-    It inherits from PyTorch DataLoader and adds default callbacks for `collate`
-    and `worker_fn` if user doesn't set them.
+    """
+    Provides an iterable over the given `dataset`.  It inherits the PyTorch
+    DataLoader and adds enhanced `collate_fn` and `worker_fn` by default.
 
-    More information about PyTorch DataLoader, please check:
+    Although this class could be configured to be the same as
+    `torch.utils.data.DataLoader`, its default configuration is
+    recommended, mainly for the following extra features:
+
+        - It handles MONAI randomizable objects with appropriate random state
+          managements for deterministic behaviour.
+        - It is aware of the patch-based transform (such as
+          :py:class:`monai.transforms.RandSpatialCropSamplesDict`) samples for
+          preprocessing with enhanced data collating behaviour.
+          See: :py:class:`monai.transforms.Compose`.
+
+    For more details about :py:class:`torch.utils.data.DataLoader`, please see:
     https://github.com/pytorch/pytorch/blob/master/torch/utils/data/dataloader.py
+
+    For example, to construct a randomized dataset and iterate with the data loader:
+
+    .. code-block:: python
+
+        import torch
+
+        from monai.data import DataLoader
+        from monai.transforms import Randomizable
+
+
+        class RandomDataset(torch.utils.data.Dataset, Randomizable):
+            def __getitem__(self, index):
+                return self.R.randint(0, 1000, (1,))
+
+            def __len__(self):
+                return 16
+
+
+        dataset = RandomDataset()
+        dataloader = DataLoader(dataset, batch_size=2, num_workers=4)
+        for epoch in range(2):
+            for i, batch in enumerate(dataloader):
+                print(epoch, i, batch.data.numpy().flatten().tolist())
 
     Args:
         dataset: dataset from which to load the data.
@@ -32,7 +67,6 @@ class DataLoader(_TorchDataLoader):
             loading. ``0`` means that the data will be loaded in the main process.
             (default: ``0``)
         kwargs: other parameters for PyTorch DataLoader.
-
     """
 
     def __init__(self, dataset: Dataset, num_workers: int = 0, **kwargs) -> None:

@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from typing import Tuple, Union
 
 import numpy as np
@@ -49,6 +50,8 @@ def do_metric_reduction(
 ):
     """
     This function is to do the metric reduction for calculated metrics of each example's each class.
+    The function also returns `not_nans`, which counts the number of not nans for the metric.
+
     Args:
         f: a tensor that contains the calculated metric scores per batch and
             per class. The first two dims should be batch and class.
@@ -189,9 +192,11 @@ def get_surface_distance(
 
     if not np.any(seg_gt):
         dis = np.inf * np.ones_like(seg_gt)
+        warnings.warn("ground truth is all 0, this may result in nan/inf distance.")
     else:
         if not np.any(seg_pred):
             dis = np.inf * np.ones_like(seg_gt)
+            warnings.warn("prediction is all 0, this may result in nan/inf distance.")
             return np.asarray(dis[seg_gt])
         if distance_metric == "euclidean":
             dis = distance_transform_edt(~seg_gt)

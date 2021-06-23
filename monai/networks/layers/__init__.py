@@ -12,6 +12,7 @@
 from .convutils import calculate_out_shape, gaussian_1d, polyval, same_padding, stride_minus_kernel_padding
 from .factories import Act, Conv, Dropout, LayerFactory, Norm, Pad, Pool, split_args
 from .filtering import BilateralFilter, PHLFilter
+from .gmm import GaussianMixtureModel
 from .simplelayers import (
     LLTM,
     ChannelPad,
@@ -24,3 +25,4 @@ from .simplelayers import (
     separable_filtering,
 )
 from .spatial_transforms import AffineTransform, grid_count, grid_grad, grid_pull, grid_push
+from .utils import get_act_layer, get_dropout_layer, get_norm_layer
