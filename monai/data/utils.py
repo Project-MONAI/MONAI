@@ -33,6 +33,7 @@ from monai.utils import (
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
+    fall_back_tuple,
     first,
     optional_import,
 )
@@ -500,7 +501,8 @@ def zoom_affine(affine: np.ndarray, scale: Sequence[float], diagonal: bool = Tru
 
     Args:
         affine (nxn matrix): a square matrix.
-        scale: new scaling factor along each dimension.
+        scale: new scaling factor along each dimension. if the components of the `scale` are non-positive values,
+            will use the corresponding components of the origial pixdim, which is computed from the `affine`.
         diagonal: whether to return a diagonal scaling matrix.
             Defaults to True.
 
@@ -517,13 +519,15 @@ def zoom_affine(affine: np.ndarray, scale: Sequence[float], diagonal: bool = Tru
     if len(affine) != len(affine[0]):
         raise ValueError(f"affine must be n x n, got {len(affine)} x {len(affine[0])}.")
     scale_np = np.array(scale, dtype=float, copy=True)
-    if np.any(scale_np <= 0):
-        raise ValueError("scale must contain only positive numbers.")
+
     d = len(affine) - 1
+    # compute original pixdim
+    norm = np.sqrt(np.sum(np.square(affine), 0))[:-1]
     if len(scale_np) < d:  # defaults based on affine
-        norm = np.sqrt(np.sum(np.square(affine), 0))[:-1]
         scale_np = np.append(scale_np, norm[len(scale_np) :])
     scale_np = scale_np[:d]
+    scale_np = np.asarray(fall_back_tuple(scale_np, norm))
+
     scale_np[scale_np == 0] = 1.0
     if diagonal:
         return np.diag(np.append(scale_np, [1.0]))
