@@ -466,6 +466,11 @@ Nets
 .. autoclass:: TorchVisionFCModel
   :members:
 
+`TorchVisionFullyConvModel`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TorchVisionFullyConvModel
+  :members:
+
 Utilities
 ---------
 .. automodule:: monai.networks.utils
