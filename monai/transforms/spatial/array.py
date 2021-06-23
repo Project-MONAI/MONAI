@@ -92,10 +92,10 @@ class Spacing(Transform):
     ) -> None:
         """
         Args:
-            pixdim: output voxel spacing. if providing a single number, will use it for all dimensions.
-                if providing a sequence, items map to the spatial dimensions of input image, if length
+            pixdim: output voxel spacing. if providing a single number, will use it for the first dimension.
+                items of the pixdim sequence map to the spatial dimensions of input image, if length
                 of pixdim sequence is longer than image spatial dimensions, will ignore the longer part,
-                if shorter, will pad with the original pixdim of input image.
+                if shorter, will pad with `1.0`.
                 if the components of the `pixdim` are non-positive values, the transform will use the
                 corresponding components of the origial pixdim, which is computed from the `affine`
                 matrix of input image.
@@ -124,7 +124,7 @@ class Spacing(Transform):
             image_only: if True return only the image volume, otherwise return (image, original affine, new affine).
 
         """
-        self.pixdim = pixdim
+        self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
         self.diagonal = diagonal
         self.mode: GridSampleMode = GridSampleMode(mode)
         self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
@@ -179,10 +179,10 @@ class Spacing(Transform):
             affine_ = np.eye(sr + 1, dtype=np.float64)
         else:
             affine_ = to_affine_nd(sr, affine)
-        if not issequenceiterable(self.pixdim):
-            out_d = ensure_tuple_rep(self.pixdim, sr)
-        else:
-            out_d = self.pixdim[:sr]  # type: ignore
+
+        out_d = self.pixdim[:sr]
+        if out_d.size < sr:
+            out_d = np.append(out_d, [1.0] * (sr - out_d.size))
 
         # compute output affine, shape and offset
         new_affine = zoom_affine(affine_, out_d, diagonal=self.diagonal)
