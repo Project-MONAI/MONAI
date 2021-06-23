@@ -14,7 +14,7 @@ from typing import Any, Dict, Optional, Tuple, Union
 import torch
 
 from monai.networks.nets import NetAdapter
-from monai.utils import optional_import, deprecated
+from monai.utils import deprecated, optional_import
 
 models, _ = optional_import("torchvision.models")
 
