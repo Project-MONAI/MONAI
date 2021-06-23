@@ -91,7 +91,8 @@ class Spacing(Transform):
     ) -> None:
         """
         Args:
-            pixdim: output voxel spacing. if providng a single number, will use it for all dimensions.
+            pixdim: output voxel spacing. if providing a single number, will use it for all dimensions.
+                if providing a sequence, please ensure the length matches the spatial dimensions of input image.
                 if the components of the `pixdim` are non-positive values, the transform will use the
                 corresponding components of the origial pixdim, which is computed from the `affine`
                 matrix of input image.
