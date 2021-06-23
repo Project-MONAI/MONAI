@@ -40,7 +40,6 @@ TEST_CASE_2 = [
 TEST_CASE_3 = [
     {"n_classes": 5, "use_conv": True, "pool_size": 6, "dim": 3},
     (2, 3, 224, 224, 224),
-
     (2, 5, 9, 2, 2),
 ]
 

@@ -93,6 +93,7 @@ def get_dropout_layer(name: Union[Tuple, str, float, int], dropout_dim: Optional
     drop_type = Dropout[drop_name, dropout_dim]
     return drop_type(**drop_args)
 
+
 def get_pool_layer(name: Union[Tuple, str], spatial_dims: Optional[int] = 1):
     """
     Create a pooling layer instance.
