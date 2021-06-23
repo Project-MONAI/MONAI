@@ -91,7 +91,10 @@ class Spacing(Transform):
     ) -> None:
         """
         Args:
-            pixdim: output voxel spacing.
+            pixdim: output voxel spacing. if providng a single number, will use it for all dimensions.
+                if the components of the `pixdim` are non-positive values, the transform will use the
+                corresponding components of the origial pixdim, which is computed from the `affine`
+                matrix of input image.
             diagonal: whether to resample the input to have a diagonal affine matrix.
                 If True, the input data is resampled to the following affine::
 
@@ -115,7 +118,7 @@ class Spacing(Transform):
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
         """
-        self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
+        self.pixdim = pixdim
         self.diagonal = diagonal
         self.mode: GridSampleMode = GridSampleMode(mode)
         self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
@@ -169,11 +172,8 @@ class Spacing(Transform):
             affine_ = np.eye(sr + 1, dtype=np.float64)
         else:
             affine_ = to_affine_nd(sr, affine)
-        out_d = self.pixdim[:sr]
-        if out_d.size < sr:
-            out_d = np.append(out_d, [1.0] * (out_d.size - sr))
-        if np.any(out_d <= 0):
-            raise ValueError(f"pixdim must be positive, got {out_d}.")
+        out_d = ensure_tuple_rep(self.pixdim, sr)
+
         # compute output affine, shape and offset
         new_affine = zoom_affine(affine_, out_d, diagonal=self.diagonal)
         output_shape, offset = compute_shape_offset(data_array.shape[1:], affine_, new_affine)

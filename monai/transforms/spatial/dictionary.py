@@ -146,7 +146,10 @@ class Spacingd(MapTransform, InvertibleTransform):
     ) -> None:
         """
         Args:
-            pixdim: output voxel spacing.
+            pixdim: output voxel spacing. if providng a single number, will use it for all dimensions.
+                if the components of the `pixdim` are non-positive values, the transform will use the
+                corresponding components of the origial pixdim, which is computed from the `affine`
+                matrix of input image.
             diagonal: whether to resample the input to have a diagonal affine matrix.
                 If True, the input data is resampled to the following affine::
 
