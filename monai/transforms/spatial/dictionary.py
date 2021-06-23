@@ -134,7 +134,7 @@ class Spacingd(MapTransform, InvertibleTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        pixdim: Sequence[float],
+        pixdim: Union[Sequence[float], float],
         diagonal: bool = False,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
@@ -146,7 +146,13 @@ class Spacingd(MapTransform, InvertibleTransform):
     ) -> None:
         """
         Args:
-            pixdim: output voxel spacing.
+            pixdim: output voxel spacing. if providing a single number, will use it for the first dimension.
+                items of the pixdim sequence map to the spatial dimensions of input image, if length
+                of pixdim sequence is longer than image spatial dimensions, will ignore the longer part,
+                if shorter, will pad with `1.0`.
+                if the components of the `pixdim` are non-positive values, the transform will use the
+                corresponding components of the origial pixdim, which is computed from the `affine`
+                matrix of input image.
             diagonal: whether to resample the input to have a diagonal affine matrix.
                 If True, the input data is resampled to the following affine::
 
