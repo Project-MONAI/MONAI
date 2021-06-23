@@ -138,7 +138,7 @@ def load_from_mmar(
     # loading with `torch.load`
     model_dict = torch.load(model_file, map_location=map_location)
     if weights_only:
-        return model_dict.get("model", model_dict)  # model_dict["model"] or model_dict directly
+        return model_dict.get(model_key, model_dict)  # model_dict[model_key] or model_dict directly
 
     # 1. search `model_dict['train_config]` for model config spec.
     model_config = _get_val(dict(model_dict).get("train_conf", {}), key=model_key, default={})
@@ -168,7 +168,11 @@ def load_from_mmar(
         model_module, model_name = model_config.get("path", ".").rsplit(".", 1)
         model_cls, has_cls = optional_import(module=model_module, name=model_name)
         if not has_cls:
-            raise ValueError(f"Could not load model config {model_config.get('path', '')}.")
+            raise ValueError(
+                f"Could not load MMAR model config {model_config.get('path', '')}, "
+                f"Please make sure MMAR's sub-folders in '{model_dir}' is on the PYTHONPATH."
+                "See also: https://docs.nvidia.com/clara/clara-train-sdk/pt/byom.html"
+            )
     else:
         raise ValueError(f"Could not load model config {model_config}.")
 
@@ -180,7 +184,7 @@ def load_from_mmar(
     else:
         model_inst = model_cls()
     if pretrained:
-        model_inst.load_state_dict(model_dict.get("model", model_dict))
+        model_inst.load_state_dict(model_dict.get(model_key, model_dict))
     print("\n---")
     print(f"For more information, please visit {item[Keys.DOC]}\n")
     return model_inst
