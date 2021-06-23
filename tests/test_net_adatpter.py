@@ -15,7 +15,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets import FinetuneFC, resnet18
+from monai.networks.nets import NetAdapter, resnet18
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -38,24 +38,24 @@ TEST_CASE_2 = [
 ]
 
 TEST_CASE_3 = [
-    {"n_classes": 5, "use_conv": True, "pool_size": 6, "dim": 3},
+    {"n_classes": 5, "use_conv": True, "pool": ("avg", {"kernel_size": 6, "stride": 1}), "dim": 3},
     (2, 3, 224, 224, 224),
     (2, 5, 9, 2, 2),
 ]
 
 TEST_CASE_4 = [
-    {"n_classes": 5, "use_conv": False, "dim": 3},
+    {"n_classes": 5, "use_conv": False, "pool": ("adaptiveavg", {"output_size": (1, 1, 1)}), "dim": 3},
     (2, 3, 256, 256, 256),
     (2, 5),
 ]
 
 
-class TestFinetuneFC(unittest.TestCase):
+class TestNetAdapter(unittest.TestCase):
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_shape(self, input_param, input_shape, expected_shape):
         model = resnet18(spatial_dims=input_param["dim"])
         input_param["model"] = model
-        net = FinetuneFC(**input_param).to(device)
+        net = NetAdapter(**input_param).to(device)
         with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)

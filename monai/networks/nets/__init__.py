@@ -32,10 +32,10 @@ from .densenet import (
 )
 from .dynunet import DynUNet, DynUnet, Dynunet, dynunet
 from .efficientnet import BlockArgs, EfficientNet, EfficientNetBN, drop_connect, get_efficientnet_image_size
-from .finetune_fc import FinetuneFC
 from .fullyconnectednet import FullyConnectedNet, VarFullyConnectedNet
 from .generator import Generator
 from .highresnet import HighResBlock, HighResNet
+from .netadapter import NetAdapter
 from .regressor import Regressor
 from .regunet import GlobalNet, LocalNet, RegUNet
 from .resnet import ResNet, resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200

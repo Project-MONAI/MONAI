@@ -456,9 +456,9 @@ Nets
 .. autoclass:: Critic
   :members:
 
-`FinetuneFC`
+`NetAdapter`
 ~~~~~~~~~~~~
-.. autoclass:: FinetuneFC
+.. autoclass:: NetAdapter
   :members:
 
 `TorchVisionFCModel`
