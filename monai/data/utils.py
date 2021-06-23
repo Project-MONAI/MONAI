@@ -525,7 +525,8 @@ def zoom_affine(affine: np.ndarray, scale: Sequence[float], diagonal: bool = Tru
     norm = np.sqrt(np.sum(np.square(affine), 0))[:-1]
     if len(scale_np) < d:  # defaults based on affine
         scale_np = np.append(scale_np, norm[len(scale_np) :])
-    scale_np = np.asarray(fall_back_tuple(scale_np, norm)[:d])
+    scale_np = scale_np[:d]
+    scale_np = np.asarray(fall_back_tuple(scale_np, norm))
 
     scale_np[scale_np == 0] = 1.0
     if diagonal:
