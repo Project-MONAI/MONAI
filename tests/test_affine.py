@@ -24,6 +24,11 @@ TEST_CASES = [
         np.arange(9).reshape(1, 3, 3),
     ],
     [
+        dict(padding_mode="zeros", as_tensor_output=False, device=None, image_only=True),
+        {"img": np.arange(9).reshape((1, 3, 3)), "spatial_size": (-1, 0)},
+        np.arange(9).reshape(1, 3, 3),
+    ],
+    [
         dict(padding_mode="zeros", as_tensor_output=False, device=None),
         {"img": np.arange(4).reshape((1, 2, 2))},
         np.arange(4).reshape(1, 2, 2),
@@ -78,7 +83,9 @@ class TestAffine(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_affine(self, input_param, input_data, expected_val):
         g = Affine(**input_param)
-        result, _ = g(**input_data)
+        result = g(**input_data)
+        if isinstance(result, tuple):
+            result = result[0]
         self.assertEqual(isinstance(result, torch.Tensor), isinstance(expected_val, torch.Tensor))
         np.testing.assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
 

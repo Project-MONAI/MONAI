@@ -31,6 +31,12 @@ TEST_CASES = [
         np.array([[[[1.0, 1.0]], [[1.0, 1.0]]]]),
     ],
     [
+        {"pixdim": 1.0, "padding_mode": "zeros", "dtype": float, "image_only": True},
+        np.ones((1, 2, 1, 2)),  # data
+        {"affine": np.eye(4)},
+        np.array([[[[1.0, 1.0]], [[1.0, 1.0]]]]),
+    ],
+    [
         {"pixdim": (1.0, 1.0, 1.0), "padding_mode": "zeros", "dtype": float},
         np.ones((1, 2, 1, 2)),  # data
         {"affine": np.eye(4)},
@@ -145,6 +151,9 @@ class TestSpacingCase(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_spacing(self, init_param, img, data_param, expected_output):
         res = Spacing(**init_param)(img, **data_param)
+        if not isinstance(res, tuple):
+            np.testing.assert_allclose(res, expected_output, atol=1e-6)
+            return
         np.testing.assert_allclose(res[0], expected_output, atol=1e-6)
         sr = len(res[0].shape) - 1
         if isinstance(init_param["pixdim"], float):
