@@ -135,7 +135,7 @@ class Spacing(Transform):
         align_corners: Optional[bool] = None,
         dtype: DtypeLike = None,
         output_spatial_shape: Optional[np.ndarray] = None,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray, np.ndarray]]:
         """
         Args:
             data_array: in shape (num_channels, H[, W, ...]).
@@ -254,7 +254,7 @@ class Orientation(Transform):
 
     def __call__(
         self, data_array: np.ndarray, affine: Optional[np.ndarray] = None
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray, np.ndarray]]:
         """
         original orientation of `data_array` is defined by `affine`.
 
@@ -1328,7 +1328,7 @@ class Affine(Transform):
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-    ) -> Tuple[Union[np.ndarray, torch.Tensor], Union[np.ndarray, torch.Tensor]]:
+    ):
         """
         Args:
             img: shape must be (num_channels, H, W[, D]),
