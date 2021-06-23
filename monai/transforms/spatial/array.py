@@ -93,7 +93,9 @@ class Spacing(Transform):
         """
         Args:
             pixdim: output voxel spacing. if providing a single number, will use it for all dimensions.
-                if providing a sequence, items map to the spatial dimensions of input image.
+                if providing a sequence, items map to the spatial dimensions of input image, if length
+                of pixdim sequence is longer than image spatial dimensions, will ignore the longer part,
+                if shorter, will pad with the original pixdim of input image.
                 if the components of the `pixdim` are non-positive values, the transform will use the
                 corresponding components of the origial pixdim, which is computed from the `affine`
                 matrix of input image.
@@ -177,8 +179,10 @@ class Spacing(Transform):
             affine_ = np.eye(sr + 1, dtype=np.float64)
         else:
             affine_ = to_affine_nd(sr, affine)
-
-        out_d = ensure_tuple_rep(self.pixdim, sr) if not issequenceiterable(self.pixdim) else self.pixdim[:sr]
+        if not issequenceiterable(self.pixdim):
+            out_d = ensure_tuple_rep(self.pixdim, sr)
+        else:
+            out_d = self.pixdim[:sr]  # type: ignore
 
         # compute output affine, shape and offset
         new_affine = zoom_affine(affine_, out_d, diagonal=self.diagonal)
