@@ -31,12 +31,6 @@ TEST_CASES = [
         np.array([[[[1.0, 1.0]], [[1.0, 1.0]]]]),
     ],
     [
-        {"pixdim": 1.0, "padding_mode": "zeros", "dtype": float, "image_only": True},
-        np.ones((1, 2, 1, 2)),  # data
-        {"affine": np.eye(4)},
-        np.array([[[[1.0, 1.0]], [[1.0, 1.0]]]]),
-    ],
-    [
         {"pixdim": (1.0, 1.0, 1.0), "padding_mode": "zeros", "dtype": float},
         np.ones((1, 2, 1, 2)),  # data
         {"affine": np.eye(4)},

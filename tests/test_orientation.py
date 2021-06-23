@@ -26,13 +26,6 @@ TEST_CASES = [
         "RAS",
     ],
     [
-        {"axcodes": "RAS", "image_only": True},
-        np.arange(12).reshape((2, 1, 2, 3)),
-        {"affine": np.eye(4)},
-        np.arange(12).reshape((2, 1, 2, 3)),
-        "RAS",
-    ],
-    [
         {"axcodes": "ALS"},
         np.arange(12).reshape((2, 1, 2, 3)),
         {"affine": np.diag([-1, -1, 1, 1])},
