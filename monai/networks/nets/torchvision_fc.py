@@ -35,6 +35,8 @@ class TorchVisionFCModel(FinetuneFC):
             to replace `AdaptiveAvgPool2d`. Default to (7, 7).
         pool_stride: if using convolutional layer to replace the FC layer, it defines the stride for `AvgPool2d`
             to replace `AdaptiveAvgPool2d`. Default to 1.
+        bias: the bias value when replacing FC layer. if False, the layer will not learn an additive bias,
+            default to True.
         pretrained: whether to use the imagenet pretrained weights. Default to False.
     """
 
@@ -46,6 +48,7 @@ class TorchVisionFCModel(FinetuneFC):
         pool_size: Union[int, Tuple[int, int]] = (7, 7),
         pool_stride: Union[int, Tuple[int, int]] = 1,
         pretrained: bool = False,
+        bias: bool = True,
     ):
         model = getattr(models, model_name)(pretrained=pretrained)
         super().__init__(
@@ -54,4 +57,5 @@ class TorchVisionFCModel(FinetuneFC):
             use_conv=use_conv,
             pool_size=pool_size,
             pool_stride=pool_stride,
+            bias=bias,
         )

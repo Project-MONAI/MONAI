@@ -11,10 +11,10 @@
 
 from typing import Optional, Tuple, Union
 
-from monai.networks.layers.factories import Act, Dropout, Norm, split_args
+from monai.networks.layers.factories import Act, Dropout, Norm, Pool, split_args
 from monai.utils import has_option
 
-__all__ = ["get_norm_layer", "get_act_layer", "get_dropout_layer"]
+__all__ = ["get_norm_layer", "get_act_layer", "get_dropout_layer", "get_pool_layer"]
 
 
 def get_norm_layer(name: Union[Tuple, str], spatial_dims: Optional[int] = 1, channels: Optional[int] = 1):
@@ -92,3 +92,25 @@ def get_dropout_layer(name: Union[Tuple, str, float, int], dropout_dim: Optional
         drop_name, drop_args = split_args(name)
     drop_type = Dropout[drop_name, dropout_dim]
     return drop_type(**drop_args)
+
+def get_pool_layer(name: Union[Tuple, str], spatial_dims: Optional[int] = 1):
+    """
+    Create a pooling layer instance.
+
+    For example, to create normalization layers:
+
+    .. code-block:: python
+
+        from monai.networks.layers import get_norm_layer
+
+        g_layer = get_norm_layer(name=("group", {"num_groups": 1}))
+        n_layer = get_norm_layer(name="instance", spatial_dims=2)
+
+    Args:
+        name: a normalization type string or a tuple of type string and parameters.
+        spatial_dims: number of spatial dimensions of the input.
+
+    """
+    pool_name, pool_args = split_args(name)
+    pool_type = Pool[pool_name, spatial_dims]
+    return pool_type(**pool_args)
