@@ -129,4 +129,16 @@ MODEL_DESC = (
         RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
         RemoteMMARKeys.CONFIG_FILE: os.path.join("config", "config_train.json"),
     },
+    {
+        model_desc = {
+        RemoteMMARKeys.ID: "clara_pt_brain_mri_annotation_t1c_1",
+        RemoteMMARKeys.NAME: "clara_pt_brain_mri_annotation_t1c",
+        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/med/clara_pt_brain_mri_annotation_t1c/versions/1/zip",
+        RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_brain_mri_annotation_t1c",
+        RemoteMMARKeys.FILE_TYPE: "zip",
+        RemoteMMARKeys.HASH_TYPE: "md5",
+        RemoteMMARKeys.HASH_VAL: None,
+        RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
+}
+    },
 )
