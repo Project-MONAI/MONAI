@@ -14,13 +14,13 @@
 
 * **inferers**: defines model inference methods.
 
-* **losses**: classes defining loss functions.
+* **losses**: classes defining loss functions, which follow the pattern of `torch.nn.modules.loss`.
 
 * **metrics**: defines metric tracking types.
 
 * **networks**: contains network definitions, component definitions, and Pytorch specific utilities.
 
-* **optimizers**: classes defining optimizers.
+* **optimizers**: classes defining optimizers, which follow the pattern of `torch.optim`.
 
 * **transforms**: defines data transforms for preprocessing and postprocessing.
 

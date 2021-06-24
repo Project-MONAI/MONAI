@@ -60,9 +60,11 @@ class SupervisedTrainer(Trainer):
         device: an object representing the device on which to run.
         max_epochs: the total epoch number for trainer to run.
         train_data_loader: Ignite engine use data_loader to run, must be Iterable or torch.DataLoader.
-        network: to train with this network.
-        optimizer: the optimizer associated to the network.
-        loss_function: the loss function associated to the optimizer.
+        network: network to train in the trainer, should be regular PyTorch `torch.nn.Module`.
+        optimizer: the optimizer associated to the network, should be regular PyTorch optimizer from `torch.optim`
+            or its subclass.
+        loss_function: the loss function associated to the optimizer, should be regular PyTorch loss,
+            which inherit from `torch.nn.modules.loss`.
         epoch_length: number of iterations for one epoch, default to `len(train_data_loader)`.
         non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
             with respect to the host. For other cases, this argument has no effect.

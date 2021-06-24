@@ -35,6 +35,7 @@ class RemoteMMARKeys:
     HASH_TYPE = "hash_type"  # hashing method for the compressed MMAR
     HASH_VAL = "hash_val"  # hashing value for the compressed MMAR
     MODEL_FILE = "model_file"  # within an MMAR folder, the relative path to the model file
+    CONFIG_FILE = "config_file"  # within an MMAR folder, the relative path to the config file (for model config)
 
 
 MODEL_DESC = (
@@ -71,5 +72,61 @@ MODEL_DESC = (
         RemoteMMARKeys.HASH_TYPE: "md5",
         RemoteMMARKeys.HASH_VAL: None,
         RemoteMMARKeys.MODEL_FILE: os.path.join("models", "server", "best_FL_global_model.pt"),
+    },
+    {
+        RemoteMMARKeys.ID: "clara_pt_pathology_metastasis_detection_1",
+        RemoteMMARKeys.NAME: "clara_pt_pathology_metastasis_detection",
+        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/"
+        "med/clara_pt_pathology_metastasis_detection/versions/1/zip",
+        RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_pathology_metastasis_detection",
+        RemoteMMARKeys.FILE_TYPE: "zip",
+        RemoteMMARKeys.HASH_TYPE: "md5",
+        RemoteMMARKeys.HASH_VAL: None,
+        RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
+        RemoteMMARKeys.CONFIG_FILE: os.path.join("config", "config_train.json"),
+    },
+    {
+        RemoteMMARKeys.ID: "clara_pt_brain_mri_segmentation_1",
+        RemoteMMARKeys.NAME: "clara_pt_brain_mri_segmentation",
+        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/med/clara_pt_brain_mri_segmentation/versions/1/zip",
+        RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_brain_mri_segmentation",
+        RemoteMMARKeys.FILE_TYPE: "zip",
+        RemoteMMARKeys.HASH_TYPE: "md5",
+        RemoteMMARKeys.HASH_VAL: None,
+        RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
+    },
+    {
+        RemoteMMARKeys.ID: "clara_pt_brain_mri_segmentation_t1c_1",
+        RemoteMMARKeys.NAME: "clara_pt_brain_mri_segmentation_t1c",
+        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/med/clara_pt_brain_mri_segmentation_t1c/versions/1/zip",
+        RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_brain_mri_segmentation_t1c",
+        RemoteMMARKeys.FILE_TYPE: "zip",
+        RemoteMMARKeys.HASH_TYPE: "md5",
+        RemoteMMARKeys.HASH_VAL: None,
+        RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
+    },
+    {
+        RemoteMMARKeys.ID: "clara_pt_liver_and_tumor_ct_segmentation_1",
+        RemoteMMARKeys.NAME: "clara_pt_liver_and_tumor_ct_segmentation",
+        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/"
+        "med/clara_pt_liver_and_tumor_ct_segmentation/versions/1/zip",
+        RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_liver_and_tumor_ct_segmentation",
+        RemoteMMARKeys.FILE_TYPE: "zip",
+        RemoteMMARKeys.HASH_TYPE: "md5",
+        RemoteMMARKeys.HASH_VAL: None,
+        RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
+        RemoteMMARKeys.CONFIG_FILE: os.path.join("config", "config_train.json"),
+    },
+    {
+        RemoteMMARKeys.ID: "clara_pt_pancreas_and_tumor_ct_segmentation_1",
+        RemoteMMARKeys.NAME: "clara_pt_pancreas_and_tumor_ct_segmentation",
+        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/"
+        "med/clara_pt_pancreas_and_tumor_ct_segmentation/versions/1/zip",
+        RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_pancreas_and_tumor_ct_segmentation",
+        RemoteMMARKeys.FILE_TYPE: "zip",
+        RemoteMMARKeys.HASH_TYPE: "md5",
+        RemoteMMARKeys.HASH_VAL: None,
+        RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
+        RemoteMMARKeys.CONFIG_FILE: os.path.join("config", "config_train.json"),
     },
 )
