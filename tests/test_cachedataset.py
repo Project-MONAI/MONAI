@@ -95,7 +95,7 @@ class TestCacheDataset(unittest.TestCase):
         )
 
         num_workers = 2 if sys.platform == "linux" else 0
-        dataloader = DataLoader(dataset=dataset, num_workers=num_workers, batch_size=1, persistent_workers=False)
+        dataloader = DataLoader(dataset=dataset, num_workers=num_workers, batch_size=1)
         for i, d in enumerate(dataloader):
             np.testing.assert_allclose([[data_list1[i] * 10]], d)
 
