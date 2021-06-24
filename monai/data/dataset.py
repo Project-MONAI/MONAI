@@ -183,7 +183,7 @@ class PersistentDataset(Dataset):
         """
         self.data = data
 
-        if self.cache_dir.exists():
+        if self.cache_dir is not None and self.cache_dir.exists():
             shutil.rmtree(self.cache_dir)
             self.cache_dir.mkdir(parents=True, exist_ok=True)
 
