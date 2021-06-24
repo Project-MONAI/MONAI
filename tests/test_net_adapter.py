@@ -26,26 +26,26 @@ TEST_CASE_0 = [
 ]
 
 TEST_CASE_1 = [
-    {"n_classes": 1, "use_conv": True, "dim": 3},
-    (2, 3, 256, 256, 256),
-    (2, 1, 10, 2, 2),
+    {"n_classes": 1, "use_conv": True, "dim": 3, "pool": None},
+    (2, 3, 32, 32, 32),
+    (2, 1, 1, 1, 1),
 ]
 
 TEST_CASE_2 = [
-    {"n_classes": 5, "use_conv": True, "dim": 3},
-    (2, 3, 256, 256, 256),
-    (2, 5, 10, 2, 2),
+    {"n_classes": 5, "use_conv": True, "dim": 3, "pool": None},
+    (2, 3, 32, 32, 32),
+    (2, 5, 1, 1, 1),
 ]
 
 TEST_CASE_3 = [
-    {"n_classes": 5, "use_conv": True, "pool": ("avg", {"kernel_size": 6, "stride": 1}), "dim": 3},
-    (2, 3, 224, 224, 224),
-    (2, 5, 9, 2, 2),
+    {"n_classes": 5, "use_conv": True, "pool": ("avg", {"kernel_size": 4, "stride": 1}), "dim": 3},
+    (2, 3, 128, 128, 128),
+    (2, 5, 5, 1, 1),
 ]
 
 TEST_CASE_4 = [
     {"n_classes": 5, "use_conv": False, "pool": ("adaptiveavg", {"output_size": (1, 1, 1)}), "dim": 3},
-    (2, 3, 256, 256, 256),
+    (2, 3, 32, 32, 32),
     (2, 5),
 ]
 
