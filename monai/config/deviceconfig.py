@@ -79,6 +79,7 @@ def get_optional_config_values():
     output["tqdm"] = get_package_version("tqdm")
     output["lmdb"] = get_package_version("lmdb")
     output["psutil"] = psutil_version
+    output["pandas"] = get_package_version("pandas")
 
     return output
 

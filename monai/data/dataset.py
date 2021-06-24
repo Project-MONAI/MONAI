@@ -29,9 +29,9 @@ import torch
 from torch.utils.data import Dataset as _TorchDataset
 from torch.utils.data import Subset
 
-from monai.data.utils import first, pickle_hashing
+from monai.data.utils import convert_tables_to_dicts, first, pickle_hashing
 from monai.transforms import Compose, Randomizable, ThreadUnsafe, Transform, apply_transform
-from monai.utils import MAX_SEED, get_seed, min_version, optional_import
+from monai.utils import MAX_SEED, ensure_tuple, get_seed, min_version, optional_import
 
 if TYPE_CHECKING:
     from tqdm import tqdm
@@ -41,6 +41,7 @@ else:
     tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 
 lmdb, _ = optional_import("lmdb")
+pd, _ = optional_import("pandas")
 
 
 class Dataset(_TorchDataset):
@@ -1061,3 +1062,72 @@ class NPZDictItemDataset(Dataset):
             data = apply_transform(self.transform, data)
 
         return data
+
+
+class CSVDataset(Dataset):
+    """
+    Dataset to load data from CSV files and generate a list of dictionaries,
+    every dictionay maps to a row of the CSV file, and the keys of dictionary
+    map to the column names of the CSV file.
+
+    It can load multiple CSV files and join the tables with addtional `kwargs` arg.
+    Support to only load specific rows and columns.
+    And it can also group several loaded columns to generate a new column, for example,
+    set `col_groups={"meta": ["meta_0", "meta_1", "meta_2"]}`, output can be::
+
+        [
+            {"image": "./image0.nii", "meta_0": 11, "meta_1": 12, "meta_2": 13, "meta": [11, 12, 13]},
+            {"image": "./image1.nii", "meta_0": 21, "meta_1": 22, "meta_2": 23, "meta": [21, 22, 23]},
+        ]
+
+    Args:
+        filename: the filename of expected CSV file to load. if providing a list
+            of filenames, it will load all the files and join tables.
+        row_indices: indices of the expected rows to load. it should be a list,
+            every item can be a int number or a range `[start, end)` for the indices.
+            for example: `row_indices=[[0, 100], 200, 201, 202, 300]`. if None,
+            load all the rows in the file.
+        col_names: names of the expected columns to load. if None, load all the columns.
+        col_types: `type` and `default value` to convert the loaded columns, if None, use original data.
+            it should be a dictionary, every item maps to an expected column, the `key` is the column
+            name and the `value` is None or a dictionary to define the default value and data type.
+            the supported keys in dictionary are: ["type", "default"]. for example::
+
+                col_types = {
+                    "subject_id": {"type": str},
+                    "label": {"type": int, "default": 0},
+                    "ehr_0": {"type": float, "default": 0.0},
+                    "ehr_1": {"type": float, "default": 0.0},
+                    "image": {"type": str, "default": None},
+                }
+
+        col_groups: args to group the loaded columns to generate a new column,
+            it should be a dictionary, every item maps to a group, the `key` will
+            be the new column name, the `value` is the names of columns to combine. for example:
+            `col_groups={"ehr": [f"ehr_{i}" for i in range(10)], "meta": ["meta_1", "meta_2"]}`
+        transform: transform to apply on the loaded items of a dictionary data.
+        kwargs: additional arguments for `pandas.merge()` API to join tables.
+
+    """
+
+    def __init__(
+        self,
+        filename: Union[str, Sequence[str]],
+        row_indices: Optional[Sequence[Union[int, str]]] = None,
+        col_names: Optional[Sequence[str]] = None,
+        col_types: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
+        col_groups: Optional[Dict[str, Sequence[str]]] = None,
+        transform: Optional[Callable] = None,
+        **kwargs,
+    ):
+        files = ensure_tuple(filename)
+        dfs = [pd.read_csv(f) for f in files]
+        data = convert_tables_to_dicts(
+            dfs=dfs,
+            row_indices=row_indices,
+            col_names=col_names,
+            col_types=col_types,
+            col_groups=col_groups,
+            **kwargs,
+        )
+        super().__init__(data=data, transform=transform)
