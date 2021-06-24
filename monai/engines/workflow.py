@@ -174,10 +174,12 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
 
         @self.on(IterationEvents.MODEL_COMPLETED)
         def _decollate_data(engine: Engine) -> None:
-            if isinstance(engine.state.batch, (dict, list, torch.Tensor)):
-                engine.state.batch = decollate_batch(copy_scalar_to_batch(engine.state.batch), detach=True)
-            if isinstance(engine.state.output, (dict, list, torch.Tensor)):
-                engine.state.output = decollate_batch(copy_scalar_to_batch(engine.state.output), detach=True)
+            if isinstance(engine.state.batch, (dict, list)):
+                engine.state.batch = copy_scalar_to_batch(engine.state.batch)
+            engine.state.batch = decollate_batch(engine.state.batch, detach=True)
+            if isinstance(engine.state.output, (dict, list)):
+                engine.state.output = copy_scalar_to_batch(engine.state.output)
+            engine.state.output = decollate_batch(engine.state.output, detach=True)
 
     def _register_post_transforms(self, posttrans: Callable):
         """

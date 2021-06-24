@@ -377,7 +377,7 @@ def copy_scalar_to_batch(batch_data: Union[List, Dict]) -> Union[List, Dict]:
 
     """
 
-    def _detect_batch_size(batch_data: List):
+    def _detect_batch_size(batch_data: Sequence):
         """
         Detect the batch size from a list of data, some items in the list have batch dim, some not.
 
@@ -392,26 +392,26 @@ def copy_scalar_to_batch(batch_data: Union[List, Dict]) -> Union[List, Dict]:
         raise RuntimeError("failed to automatically detect the batch size.")
 
     if isinstance(batch_data, dict):
-        batch_size = _detect_batch_size(batch_data.values())
-        ret = {}
+        batch_size = _detect_batch_size(list(batch_data.values()))
+        dict_batch = {}
         for k, v in batch_data.items():
             if decollate_batch(v, detach=False) == v and not isinstance(v, list):
                 # if decollating a list, the result may be the same list, so should skip this case
-                ret[k] = [deepcopy(decollate_batch(v, detach=True)) for _ in range(batch_size)]
+                dict_batch[k] = [deepcopy(decollate_batch(v, detach=True)) for _ in range(batch_size)]
             else:
-                ret[k] = v
+                dict_batch[k] = v
 
-        return ret
+        return dict_batch
     elif isinstance(batch_data, list):
         batch_size = _detect_batch_size(batch_data)
-        ret = []
+        list_batch = []
         for b in batch_data:
             if decollate_batch(b, detach=False) == b and not isinstance(b, list):
-                ret.append([deepcopy(decollate_batch(b, detach=True)) for _ in range(batch_size)])
+                list_batch.append([deepcopy(decollate_batch(b, detach=True)) for _ in range(batch_size)])
             else:
-                ret.append(b)
+                list_batch.append(b)
 
-        return ret
+        return list_batch
     raise ValueError(f"only support to copy scalar in a list or a dictionary, input data type: {type(batch_data)}.")
 
 
