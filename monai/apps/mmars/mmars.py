@@ -21,6 +21,7 @@ import os
 import warnings
 from typing import Mapping
 
+import requests
 import torch
 
 import monai.networks.nets as monai_nets
@@ -46,7 +47,47 @@ def _get_model_spec(idx):
     raise ValueError(f"Unknown MODEL_DESC request: {idx}")
 
 
-def download_mmar(item, mmar_dir=None, progress: bool = True):
+def _get_all_ngc_models(pattern, page_index=0, page_size=50):
+    url = "https://api.ngc.nvidia.com/v2/search/catalog/resources/MODEL"
+    query_dict = {
+        "query": "",
+        "orderBy": [{"field": "score", "value": "DESC"}],
+        "queryFields": ["all", "description", "displayName", "name", "resourceId"],
+        "fields": [
+            "isPublic",
+            "attributes",
+            "guestAccess",
+            "name",
+            "orgName",
+            "teamName",
+            "displayName",
+            "dateModified",
+            "labels",
+            "description",
+        ],
+        "page": 0,
+    }
+
+    filter = [dict(field="name", value=f"*{pattern}*")]
+    query_dict["page"] = page_index
+    query_dict["pageSize"] = page_size
+    query_dict["filters"] = filter
+    query_str = json.dumps(query_dict)
+    full_url = f"{url}?q={query_str}"
+    resp = requests.get(full_url)
+    model_list = json.loads(resp.text)
+    model_dict = dict()
+    for result in model_list["results"]:
+        for model in result["resources"]:
+            current_resId = model["resourceId"]
+            model_dict[current_resId] = {"name": model["name"]}
+            for attribute in model["attributes"]:
+                if attribute["key"] == "latestVersionIdStr":
+                    model_dict[current_resId]["latest"] = attribute["value"]
+    return model_dict
+
+
+def download_mmar(item, mmar_dir=None, progress: bool = True, api: bool = False, version: int = -1):
     """
     Download and extract Medical Model Archive (MMAR) from Nvidia Clara Train.
 
@@ -57,24 +98,54 @@ def download_mmar(item, mmar_dir=None, progress: bool = True):
 
     Args:
         item: the corresponding model item from `MODEL_DESC`.
+          Or when api is True, the substring to query NGC's model name field.
         mmar_dir: target directory to store the MMAR, default is mmars subfolder under `torch.hub get_dir()`.
         progress: whether to display a progress bar.
+        api: whether to query NGC and download via api
+        version: which version of MMAR to download.  default is -1 (latest).
 
     Examples::
         >>> from monai.apps import download_mmar
         >>> download_mmar("clara_pt_prostate_mri_segmentation_1", mmar_dir=".")
+        >>> download_mmar("prostate_mri_segmentation", mmar_dir=".", api=True)
+
 
     Returns:
         The local directory of the downloaded model.
+        If api is True, a list of local directories of downloaded models.
     """
-    if not isinstance(item, Mapping):
-        item = _get_model_spec(item)
     if not mmar_dir:
         get_dir, has_home = optional_import("torch.hub", name="get_dir")
         if has_home:
             mmar_dir = os.path.join(get_dir(), "mmars")
         else:
             raise ValueError("mmar_dir=None, but no suitable default directory computed. Upgrade Pytorch to 1.6+ ?")
+
+    if api:
+        model_dict = _get_all_ngc_models(item)
+        if len(model_dict) == 0:
+            raise ValueError(f"api query returns no item for pattern {item}.  Please change or shorten it.")
+        model_dir_list = list()
+        for k, v in model_dict.items():
+            url = f"https://api.ngc.nvidia.com/v2/models/{k}"
+            ver = v["latest"] if version == -1 else str(version)
+            download_url = f"{url}/versions/{ver}/zip"
+            model_dir = os.path.join(mmar_dir, v["name"])
+            download_and_extract(
+                url=download_url,
+                filepath=os.path.join(mmar_dir, f'{v["name"]}_{ver}.zip'),
+                output_dir=model_dir,
+                hash_val=None,
+                hash_type="md5",
+                file_type="zip",
+                has_base=False,
+                progress=progress,
+            )
+            model_dir_list.append(model_dir)
+        return model_dir_list
+
+    if not isinstance(item, Mapping):
+        item = _get_model_spec(item)
 
     model_dir = os.path.join(mmar_dir, item[Keys.ID])
     download_and_extract(
