@@ -119,7 +119,7 @@ html_context = {
     "display_github": True,
     "github_user": "Project-MONAI",
     "github_repo": "MONAI",
-    "github_version": "master",
+    "github_version": "dev",
     "conf_py_path": "/docs/",
 }
 html_scaled_image_link = False

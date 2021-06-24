@@ -70,7 +70,8 @@ class TestRotate2D(NumpyImageTestCase2D):
                 )
             )
         expected = np.stack(expected).astype(np.float32)
-        np.testing.assert_allclose(expected, rotated, atol=1e-1)
+        good = np.sum(np.isclose(expected, rotated, atol=1e-3))
+        self.assertLessEqual(np.abs(good - expected.size), 5, "diff at most 5 pixels")
 
 
 class TestRotate3D(NumpyImageTestCase3D):
@@ -102,7 +103,8 @@ class TestRotate3D(NumpyImageTestCase3D):
                 )
             )
         expected = np.stack(expected).astype(np.float32)
-        np.testing.assert_allclose(expected, rotated, atol=1e-1)
+        n_good = np.sum(np.isclose(expected, rotated, atol=1e-3))
+        self.assertLessEqual(expected.size - n_good, 5, "diff at most 5 pixels")
 
     @parameterized.expand(TEST_CASES_SHAPE_3D)
     def test_correct_shape(self, angle, mode, padding_mode, align_corners):
