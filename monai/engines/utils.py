@@ -133,7 +133,7 @@ def default_make_latent(
 
 def engine_apply_transform(batch: Any, output: Any, transform: Callable[..., Dict]):
     """
-    Apply transform for one item of the `batch` and `output`.
+    Apply transform on `batch` and `output`.
     If `batch` and `output` are dictionaries, temporarily combine them for the transform,
     otherwise, apply the transform for `output` data only.
 
