@@ -11,8 +11,6 @@
 
 from typing import Any, Dict, Optional, Tuple, Union
 
-import torch
-
 from monai.networks.nets import NetAdapter
 from monai.utils import deprecated, optional_import
 
@@ -71,7 +69,7 @@ class TorchVisionFCModel(NetAdapter):
 
 
 @deprecated(since="0.6.0", version_val="0.7.0", msg_suffix="please consider to use `TorchVisionFCModel` instead.")
-class TorchVisionFullyConvModel(torch.nn.Module):
+class TorchVisionFullyConvModel(TorchVisionFCModel):
     """
     Customize TorchVision models to replace fully connected layer by convolutional layer.
 
@@ -93,32 +91,10 @@ class TorchVisionFullyConvModel(torch.nn.Module):
         pool_stride: Union[int, Tuple[int, int]] = 1,
         pretrained: bool = False,
     ):
-        super().__init__()
-        model = getattr(models, model_name)(pretrained=pretrained)
-        layers = list(model.children())
-
-        # check if the model is compatible
-        if not str(layers[-1]).startswith("Linear"):
-            raise ValueError(f"Model ['{model_name}'] does not have a Linear layer at the end.")
-        if not str(layers[-2]).startswith("AdaptiveAvgPool2d"):
-            raise ValueError(f"Model ['{model_name}'] does not have a AdaptiveAvgPool2d layer next to the end.")
-
-        # remove the last Linear layer (fully connected) and the adaptive avg pooling
-        self.features = torch.nn.Sequential(*layers[:-2])
-
-        # add 7x7 avg pooling (in place of adaptive avg pooling)
-        self.pool = torch.nn.AvgPool2d(kernel_size=pool_size, stride=pool_stride)
-
-        # add 1x1 conv (it behaves like a FC layer)
-        self.fc = torch.nn.Conv2d(model.fc.in_features, n_classes, kernel_size=(1, 1))
-
-    def forward(self, x):
-        x = self.features(x)
-
-        # apply 2D avg pooling
-        x = self.pool(x)
-
-        # apply last 1x1 conv layer that act like a linear layer
-        x = self.fc(x)
-
-        return x
+        super().__init__(
+            model_name=model_name,
+            n_classes=n_classes,
+            use_conv=True,
+            pool=("avg", {"kernel_size": pool_size, "stride": pool_stride}),
+            pretrained=pretrained,
+        )
