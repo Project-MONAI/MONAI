@@ -111,20 +111,22 @@ class ImageDataset(Dataset, Randomizable):
         if self.transform is not None:
             if isinstance(self.transform, Randomizable):
                 self.transform.set_random_state(seed=self._seed)
-            img = apply_transform(
-                self.transform, (img, meta_data) if self.transform_with_metadata else img, map_items=False
-            )
+
             if self.transform_with_metadata:
-                img, meta_data = img
+                img, meta_data = apply_transform(self.transform, (img, meta_data), map_items=False, unpack_items=True)
+            else:
+                img = apply_transform(self.transform, img, map_items=False)
 
         if self.seg_transform is not None:
             if isinstance(self.seg_transform, Randomizable):
                 self.seg_transform.set_random_state(seed=self._seed)
-            seg = apply_transform(
-                self.seg_transform, (seg, seg_meta_data) if self.transform_with_metadata else seg, map_items=False
-            )
+
             if self.transform_with_metadata:
-                seg, seg_meta_data = seg
+                seg, seg_meta_data = apply_transform(
+                    self.seg_transform, (seg, seg_meta_data), map_items=False, unpack_items=True
+                )
+            else:
+                seg = apply_transform(self.seg_transform, seg, map_items=False)
 
         if self.labels is not None:
             label = self.labels[index]
