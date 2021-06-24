@@ -1061,12 +1061,11 @@ class NPZDictItemDataset(Dataset):
         if not self.transform:
             return data
 
-        transformed_data = apply_transform(self.transform, data)
+        result = apply_transform(self.transform, data)
 
-        if not isinstance(transformed_data, dict):
-            raise AssertionError("With a dict supplied to apply_transform a single dict return is expected.")
-
-        return transformed_data
+        if isinstance(result, dict) or (isinstance(result, list) and isinstance(result[0], dict)):
+            return result
+        raise AssertionError("With a dict supplied to apply_transform, should return a dict or a list of dicts.")
 
 
 class CSVDataset(Dataset):
