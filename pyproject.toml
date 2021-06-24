@@ -30,3 +30,15 @@ exclude = '''
   | monai/_version.py
 )
 '''
+
+[tool.poetry]
+name = "monai"
+version = "0.4.0"
+description = "Monai open source project"
+authors = ["MONAI Consortium <monai@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "*"
+
+[tool.poetry.dev-dependencies]
+pytest = "^3.4"
