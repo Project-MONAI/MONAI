@@ -130,6 +130,9 @@ class PersistentDataset(Dataset):
     Subsequent uses of a dataset directly read pre-processed results from `cache_dir`
     followed by applying the random dependant parts of transform processing.
 
+    If want to update the input data and recompute cache content during training, just call `update_data()`
+    after several epochs.
+
     Note:
         The input data must be a list of file paths and will hash them as cache keys.
 
@@ -172,6 +175,17 @@ class PersistentDataset(Dataset):
                 self.cache_dir.mkdir(parents=True, exist_ok=True)
             if not self.cache_dir.is_dir():
                 raise ValueError("cache_dir must be a directory.")
+
+    def update_data(self, data: Sequence):
+        """
+        Update the input data and delete all the out-dated cache content.
+
+        """
+        self.data = data
+
+        if self.cache_dir.exists():
+            shutil.rmtree(self.cache_dir)
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
 
     def _pre_transform(self, item_transformed):
         """
@@ -515,6 +529,9 @@ class CacheDataset(Dataset):
     ``RandCropByPosNegLabeld`` and ``ToTensord``, as ``RandCropByPosNegLabeld`` is a randomized transform
     and the outcome not cached.
 
+    If want to update the input data and recompute cache content during training, just call `update_data()`
+    after several epochs, note that it requires `persistent_workers=False` in the PyTorch DataLoader.
+
     Note:
         `CacheDataset` executes non-random transforms and prepares cache content in the main process before
         the first epoch, then all the subprocesses of DataLoader will read the same cache content in the main process
@@ -650,6 +667,9 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         2. Call `start()` to run replacement thread in background.
         3. Call `update_cache()` before every epoch to replace training items.
         4. Call `shutdown()` when training ends.
+
+    If want to update the input data and recompute cache content during training, just call
+    `shutdown()` and `update_data()` to stop and update, then call `start()` to restart.
 
     Note:
         This replacement will not work for below cases:
