@@ -40,6 +40,7 @@ from .utils import (
     compute_importance_map,
     compute_shape_offset,
     convert_tables_to_dicts,
+    copy_scalar_to_batch,
     correct_nifti_header_if_necessary,
     create_file_basename,
     decollate_batch,

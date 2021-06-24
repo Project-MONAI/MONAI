@@ -18,7 +18,7 @@ import torch.distributed as dist
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
-from monai.data import decollate_batch
+from monai.data import copy_scalar_to_batch, decollate_batch
 from monai.engines.utils import IterationEvents, default_prepare_batch
 from monai.utils import ensure_tuple, exact_version, issequenceiterable, optional_import
 
@@ -174,55 +174,10 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
 
         @self.on(IterationEvents.MODEL_COMPLETED)
         def _decollate_data(engine: Engine) -> None:
-            def _detect_batch_size(batch_data: List):
-                """
-                Detect the batch size from a list of data, some items have batch dim, some not.
-
-                """
-                for v in batch_data:
-                    if isinstance(v, torch.Tensor) and v.ndim > 0:
-                        return v.shape[0]
-                for v in batch_data:
-                    if issequenceiterable(v):
-                        warnings.warn(
-                            "batch_data doesn't contain batched Tensor data, use the length of first sequence data."
-                        )
-                        return len(v)
-                raise RuntimeError("failed to automatically detect the batch size.")
-
-            def _copy_scalar(batch_data):
-                """
-                Utility tp copy scalar items to construct a batch.
-                Leverage `decollate_batch(detach=False)` to filter out the scalar items.
-
-
-                """
-                if isinstance(batch_data, dict):
-                    batch_size = _detect_batch_size(batch_data.values())
-                    ret = {}
-                    for k, v in batch_data.items():
-                        if decollate_batch(v, detach=False) == v and not isinstance(v, list):
-                            # if decollating a list, the result may be the same list, so should skip this case
-                            ret[k] = [deepcopy(decollate_batch(v, detach=True)) for _ in range(batch_size)]
-                        else:
-                            ret[k] = v
-                    return ret
-                if isinstance(batch_data, list):
-                    batch_size = _detect_batch_size(batch_data)
-                    ret = []
-                    for b in batch_data:
-                        if decollate_batch(b, detach=False) == b and not isinstance(b, list):
-                            # if decollating a list, the result may be the same list, so should skip this case
-                            ret.append([deepcopy(decollate_batch(b, detach=True)) for _ in range(batch_size)])
-                        else:
-                            ret.append(b)
-                    return ret
-                return batch_data
-
             if isinstance(engine.state.batch, (dict, list, torch.Tensor)):
-                engine.state.batch = decollate_batch(_copy_scalar(engine.state.batch), detach=True)
+                engine.state.batch = decollate_batch(copy_scalar_to_batch(engine.state.batch), detach=True)
             if isinstance(engine.state.output, (dict, list, torch.Tensor)):
-                engine.state.output = decollate_batch(_copy_scalar(engine.state.output), detach=True)
+                engine.state.output = decollate_batch(copy_scalar_to_batch(engine.state.output), detach=True)
 
     def _register_post_transforms(self, posttrans: Callable):
         """

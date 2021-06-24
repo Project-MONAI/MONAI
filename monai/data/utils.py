@@ -16,6 +16,7 @@ import os
 import pickle
 import warnings
 from collections import defaultdict
+from copy import deepcopy
 from functools import reduce
 from itertools import product, starmap
 from pathlib import PurePath
@@ -35,6 +36,7 @@ from monai.utils import (
     ensure_tuple_size,
     fall_back_tuple,
     first,
+    issequenceiterable,
     optional_import,
 )
 from monai.utils.enums import Method
@@ -68,6 +70,7 @@ __all__ = [
     "pickle_hashing",
     "sorted_dict",
     "decollate_batch",
+    "copy_scalar_to_batch",
     "pad_list_data_collate",
     "no_collation",
     "convert_tables_to_dicts",
@@ -365,6 +368,51 @@ def decollate_batch(batch, detach: bool = True):
             return [decollate_batch(b, detach) for b in batch]
         return [list(item) for item in zip(*(decollate_batch(b, detach) for b in batch))]
     raise NotImplementedError(f"Unable to de-collate: {batch}, type: {type(batch)}.")
+
+
+def copy_scalar_to_batch(batch_data: Union[List, Dict]) -> Union[List, Dict]:
+    """
+    Utility tp copy the scalar items of a list or dictionary to ensure all the items have batch dimension.
+    It leverages `decollate_batch(detach=False)` to filter out the scalar items.
+
+    """
+
+    def _detect_batch_size(batch_data: List):
+        """
+        Detect the batch size from a list of data, some items in the list have batch dim, some not.
+
+        """
+        for v in batch_data:
+            if isinstance(v, torch.Tensor) and v.ndim > 0:
+                return v.shape[0]
+        for v in batch_data:
+            if issequenceiterable(v):
+                warnings.warn("batch_data doesn't contain batched Tensor data, use the length of first sequence data.")
+                return len(v)
+        raise RuntimeError("failed to automatically detect the batch size.")
+
+    if isinstance(batch_data, dict):
+        batch_size = _detect_batch_size(batch_data.values())
+        ret = {}
+        for k, v in batch_data.items():
+            if decollate_batch(v, detach=False) == v and not isinstance(v, list):
+                # if decollating a list, the result may be the same list, so should skip this case
+                ret[k] = [deepcopy(decollate_batch(v, detach=True)) for _ in range(batch_size)]
+            else:
+                ret[k] = v
+
+        return ret
+    elif isinstance(batch_data, list):
+        batch_size = _detect_batch_size(batch_data)
+        ret = []
+        for b in batch_data:
+            if decollate_batch(b, detach=False) == b and not isinstance(b, list):
+                ret.append([deepcopy(decollate_batch(b, detach=True)) for _ in range(batch_size)])
+            else:
+                ret.append(b)
+
+        return ret
+    raise ValueError(f"only support to copy scalar in a list or a dictionary, input data type: {type(batch_data)}.")
 
 
 def pad_list_data_collate(
