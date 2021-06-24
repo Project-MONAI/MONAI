@@ -90,7 +90,11 @@ def _get_all_ngc_models(pattern, page_index=0, page_size=50):
     return model_dict
 
 
-def download_mmar(item, mmar_dir=None, progress: bool = True, api: bool = False, version: int = -1):
+def _get_ngc_url(model_name: str, version: str):
+    return f"https://api.ngc.nvidia.com/v2/models/{model_name}/versions/{version}/zip"
+
+
+def download_mmar(item, mmar_dir=None, progress: bool = True, api: bool = False, version: int = 1):
     """
     Download and extract Medical Model Archive (MMAR) from Nvidia Clara Train.
 
@@ -105,7 +109,7 @@ def download_mmar(item, mmar_dir=None, progress: bool = True, api: bool = False,
         mmar_dir: target directory to store the MMAR, default is mmars subfolder under `torch.hub get_dir()`.
         progress: whether to display a progress bar.
         api: whether to query NGC and download via api
-        version: which version of MMAR to download.  default is -1 (latest).
+        version: which version of MMAR to download.  -1 means the latest from ngc.
 
     Examples::
         >>> from monai.apps import download_mmar
@@ -130,9 +134,8 @@ def download_mmar(item, mmar_dir=None, progress: bool = True, api: bool = False,
             raise ValueError(f"api query returns no item for pattern {item}.  Please change or shorten it.")
         model_dir_list = list()
         for k, v in model_dict.items():
-            url = f"https://api.ngc.nvidia.com/v2/models/{k}"
             ver = v["latest"] if version == -1 else str(version)
-            download_url = f"{url}/versions/{ver}/zip"
+            download_url = _get_ngc_url(k, ver)
             model_dir = os.path.join(mmar_dir, v["name"])
             download_and_extract(
                 url=download_url,
@@ -152,7 +155,7 @@ def download_mmar(item, mmar_dir=None, progress: bool = True, api: bool = False,
 
     model_dir = os.path.join(mmar_dir, item[Keys.ID])
     download_and_extract(
-        url=item[Keys.URL],
+        url=_get_ngc_url(item[Keys.NAME], str(version)),
         filepath=os.path.join(mmar_dir, f"{item[Keys.ID]}.{item[Keys.FILE_TYPE]}"),
         output_dir=model_dir,
         hash_val=item[Keys.HASH_VAL],
