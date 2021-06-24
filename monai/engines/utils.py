@@ -131,7 +131,7 @@ def default_make_latent(
     return torch.randn(num_latents, latent_size).to(device=device, non_blocking=non_blocking)
 
 
-def engine_apply_transform(batch: Any, output: Any, transform: Callable):
+def engine_apply_transform(batch: Any, output: Any, transform: Callable[..., Dict]):
     """
     Apply transform for one item of the `batch` and `output`.
     If `batch` and `output` are dictionaries, temporarily combine them for the transform,
@@ -141,9 +141,13 @@ def engine_apply_transform(batch: Any, output: Any, transform: Callable):
     if isinstance(batch, dict) and isinstance(output, dict):
         data = dict(batch)
         data.update(output)
-        data = apply_transform(transform, data)
-        for k, v in data.items():
-            # split the output data of postprocessing into `output` and `batch`,
+        transformed_data = apply_transform(transform, data)
+
+        if not isinstance(transformed_data, dict):
+            raise AssertionError("With a dict supplied to apply_transform a single dict return is expected.")
+
+        for k, v in transformed_data.items():
+            # split the output data of post transforms into `output` and `batch`,
             # `batch` should be read-only, so save the generated key-value into `output`
             if k in output or k not in batch:
                 output[k] = v
