@@ -70,6 +70,8 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             new events can be a list of str or `ignite.engine.events.EventEnum`.
         event_to_attr: a dictionary to map an event to a state attribute, then add to `engine.state`.
             for more details, check: https://github.com/pytorch/ignite/blob/v0.4.4.post1/ignite/engine/engine.py#L160
+        decollate: whether decollate the batch-first data to a list of data after model computation, default to `True`.
+            if `False`, post transforms may not work as all the transforms should apply on channel-first data.
 
     Raises:
         TypeError: When ``device`` is not a ``torch.Device``.
@@ -95,6 +97,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         amp: bool = False,
         event_names: Optional[List[Union[str, EventEnum]]] = None,
         event_to_attr: Optional[dict] = None,
+        decollate: bool = True,
     ) -> None:
         if iteration_update is not None:
             super().__init__(iteration_update)
@@ -154,7 +157,8 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             else:
                 raise ValueError("event_names must be a list or string or EventEnum.")
 
-        self._register_decollate()
+        if decollate:
+            self._register_decollate()
         if post_transform is not None:
             self._register_post_transforms(post_transform)
         if key_metric is not None:

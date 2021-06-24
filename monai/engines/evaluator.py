@@ -61,6 +61,8 @@ class Evaluator(Workflow):
             new events can be a list of str or `ignite.engine.events.EventEnum`.
         event_to_attr: a dictionary to map an event to a state attribute, then add to `engine.state`.
             for more details, check: https://github.com/pytorch/ignite/blob/v0.4.4.post1/ignite/engine/engine.py#L160
+        decollate: whether decollate the batch-first data to a list of data after model computation, default to `True`.
+            if `False`, post transforms may not work as all the transforms should apply on channel-first data.
 
     """
 
@@ -80,6 +82,7 @@ class Evaluator(Workflow):
         mode: Union[ForwardMode, str] = ForwardMode.EVAL,
         event_names: Optional[List[Union[str, EventEnum]]] = None,
         event_to_attr: Optional[dict] = None,
+        decollate: bool = True,
     ) -> None:
         super().__init__(
             device=device,
@@ -96,6 +99,7 @@ class Evaluator(Workflow):
             amp=amp,
             event_names=event_names,
             event_to_attr=event_to_attr,
+            decollate=decollate,
         )
         mode = ForwardMode(mode)
         if mode == ForwardMode.EVAL:
@@ -153,6 +157,8 @@ class SupervisedEvaluator(Evaluator):
             new events can be a list of str or `ignite.engine.events.EventEnum`.
         event_to_attr: a dictionary to map an event to a state attribute, then add to `engine.state`.
             for more details, check: https://github.com/pytorch/ignite/blob/v0.4.4.post1/ignite/engine/engine.py#L160
+        decollate: whether decollate the batch-first data to a list of data after model computation, default to `True`.
+            if `False`, post transforms may not work as all the transforms should apply on channel-first data.
 
     """
 
@@ -174,6 +180,7 @@ class SupervisedEvaluator(Evaluator):
         mode: Union[ForwardMode, str] = ForwardMode.EVAL,
         event_names: Optional[List[Union[str, EventEnum]]] = None,
         event_to_attr: Optional[dict] = None,
+        decollate: bool = True,
     ) -> None:
         super().__init__(
             device=device,
@@ -190,6 +197,7 @@ class SupervisedEvaluator(Evaluator):
             mode=mode,
             event_names=event_names,
             event_to_attr=event_to_attr,
+            decollate=decollate,
         )
 
         self.network = network
@@ -270,6 +278,8 @@ class EnsembleEvaluator(Evaluator):
             new events can be a list of str or `ignite.engine.events.EventEnum`.
         event_to_attr: a dictionary to map an event to a state attribute, then add to `engine.state`.
             for more details, check: https://github.com/pytorch/ignite/blob/v0.4.4.post1/ignite/engine/engine.py#L160
+        decollate: whether decollate the batch-first data to a list of data after model computation, default to `True`.
+            if `False`, post transforms may not work as all the transforms should apply on channel-first data.
 
     """
 
@@ -292,6 +302,7 @@ class EnsembleEvaluator(Evaluator):
         mode: Union[ForwardMode, str] = ForwardMode.EVAL,
         event_names: Optional[List[Union[str, EventEnum]]] = None,
         event_to_attr: Optional[dict] = None,
+        decollate: bool = True,
     ) -> None:
         super().__init__(
             device=device,
@@ -308,6 +319,7 @@ class EnsembleEvaluator(Evaluator):
             mode=mode,
             event_names=event_names,
             event_to_attr=event_to_attr,
+            decollate=decollate,
         )
 
         self.networks = ensure_tuple(networks)

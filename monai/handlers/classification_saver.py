@@ -108,9 +108,7 @@ class ClassificationSaver:
             meta_data = decollate_batch(meta_data)
         engine_output = self.output_transform(engine.state.output)
         for m, o in zip(meta_data, engine_output):
-            filename = m.get(Key.FILENAME_OR_OBJ)
-            if filename is not None:
-                self._filenames.append(filename)
+            self._filenames.append(f"{m.get(Key.FILENAME_OR_OBJ)}")
             if isinstance(o, torch.Tensor):
                 o = o.detach()
             self._outputs.append(o)

@@ -111,9 +111,7 @@ class MetricsSaver:
                 # decollate the `dictionary of list` to `list of dictionaries`
                 meta_data = decollate_batch(meta_data)
             for m in meta_data:
-                filename = m.get(Key.FILENAME_OR_OBJ)
-                if filename is not None:
-                    self._filenames.append(filename)
+                self._filenames.append(f"{m.get(Key.FILENAME_OR_OBJ)}")
 
     def __call__(self, engine: Engine) -> None:
         """
