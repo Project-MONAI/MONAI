@@ -90,8 +90,8 @@ def _get_all_ngc_models(pattern, page_index=0, page_size=50):
     return model_dict
 
 
-def _get_ngc_url(model_name: str, version: str):
-    return f"https://api.ngc.nvidia.com/v2/models/{model_name}/versions/{version}/zip"
+def _get_ngc_url(model_name: str, version: str, model_prefix=""):
+    return f"https://api.ngc.nvidia.com/v2/models/{model_prefix}{model_name}/versions/{version}/zip"
 
 
 def download_mmar(item, mmar_dir=None, progress: bool = True, api: bool = False, version: int = 1):
@@ -155,7 +155,7 @@ def download_mmar(item, mmar_dir=None, progress: bool = True, api: bool = False,
 
     model_dir = os.path.join(mmar_dir, item[Keys.ID])
     download_and_extract(
-        url=_get_ngc_url(item[Keys.NAME], str(version)),
+        url=_get_ngc_url(item[Keys.NAME], str(version), model_prefix="nvidia/med/"),
         filepath=os.path.join(mmar_dir, f"{item[Keys.ID]}.{item[Keys.FILE_TYPE]}"),
         output_dir=model_dir,
         hash_val=item[Keys.HASH_VAL],
