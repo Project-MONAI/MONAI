@@ -76,7 +76,7 @@ class InvertibleTransform(Transform):
         info = {
             InverseKeys.CLASS_NAME: self.__class__.__name__,
             InverseKeys.ID: id(self),
-            InverseKeys.ORIG_SIZE: orig_size or (data[key].shape[1:] if hasattr(data[key], "shape") else None),
+            InverseKeys.ORIG_SIZE: orig_size or (data[key].shape[1:] if hasattr(data[key], "shape") else -1),
         }
         if extra_info is not None:
             info[InverseKeys.EXTRA_INFO] = extra_info
