@@ -21,7 +21,6 @@ import os
 import warnings
 from typing import Mapping
 
-import requests
 import torch
 
 import monai.networks.nets as monai_nets
@@ -74,16 +73,20 @@ def _get_all_ngc_models(pattern, page_index=0, page_size=50):
     query_dict["filters"] = filter
     query_str = json.dumps(query_dict)
     full_url = f"{url}?q={query_str}"
-    resp = requests.get(full_url)
+    requests_get, has_requests = optional_import("requests", name="get")
+    if has_requests:
+        resp = requests_get(full_url)
+    else:
+        raise ValueError("NGC API requires requests package.  Please install it.")
     model_list = json.loads(resp.text)
     model_dict = dict()
     for result in model_list["results"]:
         for model in result["resources"]:
-            current_resId = model["resourceId"]
-            model_dict[current_resId] = {"name": model["name"]}
+            current_res_id = model["resourceId"]
+            model_dict[current_res_id] = {"name": model["name"]}
             for attribute in model["attributes"]:
                 if attribute["key"] == "latestVersionIdStr":
-                    model_dict[current_resId]["latest"] = attribute["value"]
+                    model_dict[current_res_id]["latest"] = attribute["value"]
     return model_dict
 
 
