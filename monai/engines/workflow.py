@@ -9,8 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
-from copy import deepcopy
 from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Sequence, Union
 
 import torch
@@ -20,7 +18,7 @@ from torch.utils.data.distributed import DistributedSampler
 
 from monai.data import copy_scalar_to_batch, decollate_batch
 from monai.engines.utils import IterationEvents, default_prepare_batch
-from monai.utils import ensure_tuple, exact_version, issequenceiterable, optional_import
+from monai.utils import ensure_tuple, exact_version, optional_import
 
 from .utils import engine_apply_transform
 
