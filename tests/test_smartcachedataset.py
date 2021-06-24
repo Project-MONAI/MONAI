@@ -11,6 +11,7 @@
 
 import copy
 import os
+import sys
 import tempfile
 import unittest
 
@@ -18,8 +19,8 @@ import nibabel as nib
 import numpy as np
 from parameterized import parameterized
 
-from monai.data import SmartCacheDataset
-from monai.transforms import Compose, LoadImaged
+from monai.data import SmartCacheDataset, DataLoader
+from monai.transforms import Compose, Lambda, LoadImaged
 
 TEST_CASE_1 = [0.1, 0, Compose([LoadImaged(keys=["image", "label", "extra"])])]
 
@@ -124,6 +125,49 @@ class TestSmartCacheDataset(unittest.TestCase):
             else:
                 self.assertEqual(dataset[15]["image"], "test_image5.nii.gz")
 
+        dataset.shutdown()
+
+    def test_update_data(self):
+        data_list1 = list(range(10))
+
+        transform = Lambda(func=lambda x: np.array([x * 10]))
+
+        dataset = SmartCacheDataset(
+            data=data_list1,
+            transform=transform,
+            cache_rate=0.5,
+            replace_rate=0.4,
+            num_init_workers=4,
+            num_replace_workers=2,
+            shuffle=False,
+            progress=True,
+        )
+
+        num_workers = 2 if sys.platform == "linux" else 0
+        dataloader = DataLoader(dataset=dataset, num_workers=num_workers, batch_size=1, persistent_workers=False)
+
+        dataset.start()
+        for i, d in enumerate(dataloader):
+            np.testing.assert_allclose([[data_list1[i] * 10]], d)
+        # replace cache content, move forward 2(5 * 0.4) items
+        dataset.update_cache()
+        for i, d in enumerate(dataloader):
+            np.testing.assert_allclose([[data_list1[i + 2] * 10]], d)
+        # shutdown to update data
+        dataset.shutdown()
+        # update the datalist and fill the cache content
+        data_list2 = list(range(-10, 0))
+        dataset.update_data(data=data_list2)
+        # restart the dataset
+        dataset.start()
+        # rerun with updated cache content
+        for i, d in enumerate(dataloader):
+            np.testing.assert_allclose([[data_list2[i] * 10]], d)
+        # replace cache content, move forward 2(5 * 0.4) items
+        dataset.update_cache()
+        for i, d in enumerate(dataloader):
+            np.testing.assert_allclose([[data_list2[i + 2] * 10]], d)
+        # finally shutdown the dataset
         dataset.shutdown()
 
 

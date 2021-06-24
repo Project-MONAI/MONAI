@@ -555,6 +555,18 @@ class CacheDataset(Dataset):
             self.num_workers = max(int(self.num_workers), 1)
         self._cache: List = self._fill_cache()
 
+    def update_data(self, data: Sequence):
+        """
+        Update the input data and re-run deterministic transforms to generate cache content.
+
+        Note: should call this func after an entire epoch and must set `persisten_workers=False`
+        in PyTorch DataLoader, because it needs to create new worker processes based on new
+        generated cache content.
+
+        """
+        self.data = data
+        self._cache = self._fill_cache()
+
     def _fill_cache(self) -> List:
         if self.cache_num <= 0:
             return []
@@ -709,6 +721,18 @@ class SmartCacheDataset(Randomizable, CacheDataset):
 
         self._compute_data_idx()
 
+    def update_data(self, data: Sequence):
+        """
+        Update the input data and re-run deterministic transforms to generate cache content.
+
+        Note: should call `shutdown()` before calling this func.
+
+        """
+        if self.is_started():
+            warnings.warn("SmartCacheDataset is not shutdown yet, shutdown it directly.")
+            self.shutdown()
+        return super().update_data(data)
+
     def randomize(self, data: Sequence) -> None:
         try:
             self.R.shuffle(data)
@@ -796,6 +820,8 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         with self._update_lock:
             if self._replace_done:
                 self._round = 0
+                self._start_pos = 0
+                self._compute_data_idx()
                 self._replace_done = False
                 return True
             return False
