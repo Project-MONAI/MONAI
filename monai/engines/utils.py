@@ -143,7 +143,7 @@ def engine_apply_transform(batch: Any, output: Any, transform: Callable):
         data.update(output)
         data = apply_transform(transform, data)
         for k, v in data.items():
-            # split the output data of post transforms into `output` and `batch`,
+            # split the output data of postprocessing into `output` and `batch`,
             # `batch` should be read-only, so save the generated key-value into `output`
             if k in output or k not in batch:
                 output[k] = v

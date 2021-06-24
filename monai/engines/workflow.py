@@ -57,7 +57,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         prepare_batch: function to parse image and label for every iteration.
         iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
-        post_transform: execute additional transformation for the model output data.
+        postprocessing: execute additional transformation for the model output data.
             Typically, several Tensor based transforms composed by `Compose`.
         key_metric: compute metric when every iteration completed, and save average value to
             engine.state.metrics when epoch completed. key_metric is the main metric to compare and save the
@@ -71,7 +71,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         event_to_attr: a dictionary to map an event to a state attribute, then add to `engine.state`.
             for more details, check: https://github.com/pytorch/ignite/blob/v0.4.4.post1/ignite/engine/engine.py#L160
         decollate: whether decollate the batch-first data to a list of data after model computation, default to `True`.
-            if `False`, post transforms may not work as all the transforms should apply on channel-first data.
+            if `False`, postprocessing may not work as all the transforms should apply on channel-first data.
 
     Raises:
         TypeError: When ``device`` is not a ``torch.Device``.
@@ -90,7 +90,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
-        post_transform: Optional[Callable] = None,
+        postprocessing: Optional[Callable] = None,
         key_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
         handlers: Optional[Sequence] = None,
@@ -159,8 +159,8 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
 
         if decollate:
             self._register_decollate()
-        if post_transform is not None:
-            self._register_post_transforms(post_transform)
+        if postprocessing is not None:
+            self._register_postprocessing(postprocessing)
         if key_metric is not None:
             self._register_metrics(key_metric, additional_metrics)
         if handlers is not None:
@@ -181,14 +181,14 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
                 engine.state.output = copy_scalar_to_batch(engine.state.output)
             engine.state.output = decollate_batch(engine.state.output, detach=True)
 
-    def _register_post_transforms(self, posttrans: Callable):
+    def _register_postprocessing(self, posttrans: Callable):
         """
-        Register the post transforms to the engine, will execute them as a chain when iteration completed.
+        Register the postprocessing logic to the engine, will execute them as a chain when iteration completed.
 
         """
 
         @self.on(IterationEvents.MODEL_COMPLETED)
-        def _run_post_transform(engine: Engine) -> None:
+        def _run_postprocessing(engine: Engine) -> None:
             for i, (b, o) in enumerate(zip(engine.state.batch, engine.state.output)):
                 engine.state.batch[i], engine.state.output[i] = engine_apply_transform(b, o, posttrans)
 

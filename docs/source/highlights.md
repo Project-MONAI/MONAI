@@ -112,8 +112,8 @@ MONAI also provides post-processing transforms for handling the model outputs. C
 - Removing segmentation noise based on Connected Component Analysis, as below figure (c).
 - Extracting contour of segmentation result, which can be used to map to original image and evaluate the model, as below figure (d) and (e).
 
-After applying the post-processing transforms, it's easier to compute metrics, save model output into files or visualize data in the TensorBoard. [Post transforms tutorial](https://github.com/Project-MONAI/tutorials/blob/master/modules/post_transforms.ipynb) shows an example with several main post transforms.
-![post-processing transforms](../images/post_transforms.png)
+After applying the post-processing transforms, it's easier to compute metrics, save model output into files or visualize data in the TensorBoard. [Postprocessing transforms tutorial](https://github.com/Project-MONAI/tutorials/blob/master/modules/postprocessing_transforms.ipynb) shows an example with several main transforms for post-processing.
+![post-processing transforms](../images/postprocessing_transforms.png)
 
 ### 9. Integrate third-party transforms
 The design of MONAI transforms emphasis code readability and usability. It works for array data or dictionary-based data. MONAI also provides `Adaptor` tools to accommodate different data format for 3rd party transforms. To convert the data shapes or types, utility transforms such as `ToTensor`, `ToNumpy`, `SqueezeDim` are also provided. So it's easy to enhance the transform chain by seamlessly integrating transforms from external packages, including: `ITK`, `BatchGenerator`, `TorchIO` and `Rising`.

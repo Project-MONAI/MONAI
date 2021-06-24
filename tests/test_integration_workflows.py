@@ -110,7 +110,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
     lr_scheduler = torch.optim.lr_scheduler.StepLR(opt, step_size=2, gamma=0.1)
     summary_writer = SummaryWriter(log_dir=root_dir)
 
-    val_post_transforms = Compose(
+    val_postprocessing = Compose(
         [
             Activationsd(keys="pred", sigmoid=True),
             AsDiscreted(keys="pred", threshold_values=True),
@@ -140,7 +140,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         val_data_loader=val_loader,
         network=net,
         inferer=SlidingWindowInferer(roi_size=(96, 96, 96), sw_batch_size=4, overlap=0.5),
-        post_transform=val_post_transforms,
+        postprocessing=val_postprocessing,
         key_val_metric={
             "val_mean_dice": MeanDice(include_background=True, output_transform=from_engine(["pred", "label"]))
         },
@@ -154,7 +154,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         amp=True if amp else False,
     )
 
-    train_post_transforms = Compose(
+    train_postprocessing = Compose(
         [
             Activationsd(keys="pred", sigmoid=True),
             AsDiscreted(keys="pred", threshold_values=True),
@@ -200,7 +200,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         optimizer=opt,
         loss_function=loss,
         inferer=SimpleInferer(),
-        post_transform=train_post_transforms,
+        postprocessing=train_postprocessing,
         key_train_metric={
             "train_acc": Accuracy(
                 # FIXME: will remove torch.stack() after updating to new ignite
@@ -244,7 +244,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
         num_res_units=2,
     ).to(device)
 
-    val_post_transforms = Compose(
+    val_postprocessing = Compose(
         [
             Activationsd(keys="pred", sigmoid=True),
             AsDiscreted(keys="pred", threshold_values=True),
@@ -274,7 +274,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
         val_data_loader=val_loader,
         network=net,
         inferer=SlidingWindowInferer(roi_size=(96, 96, 96), sw_batch_size=4, overlap=0.5),
-        post_transform=val_post_transforms,
+        postprocessing=val_postprocessing,
         key_val_metric={
             "val_mean_dice": MeanDice(include_background=True, output_transform=from_engine(["pred", "label"]))
         },

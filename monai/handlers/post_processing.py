@@ -23,8 +23,8 @@ else:
 
 class PostProcessing:
     """
-    Ignite handler to execute additional post processing after the post transforms in engines.
-    So users can insert other handlers between post transforms and this post processing handler.
+    Ignite handler to execute additional post processing after the post processing in engines.
+    So users can insert other handlers between engine postprocessing and this post processing handler.
 
     """
 
@@ -32,7 +32,7 @@ class PostProcessing:
         """
         Args:
             transform: callable function to execute on the `engine.state.batch` and `engine.state.output`.
-                can also be composed post transforms.
+                can also be composed transforms.
 
         """
         self.transform = transform

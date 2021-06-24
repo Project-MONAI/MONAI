@@ -392,11 +392,11 @@ class ProbNMSd(MapTransform):
 class Invertd(MapTransform):
     """
     Utility transform to automatically invert the previously applied transforms.
-    When applying pre-transforms on a orig_key(like: `image`, `label`, etc.), we record the context
+    When applying preprocessing transforms on a orig_key(like: `image`, `label`, etc.), we record the context
     information of applied transforms in a dictionary in the input data dictionary with the key
-    "{orig_key}_transforms". This post transform will extract the transform context information of `orig_keys`
+    "{orig_key}_transforms". This transform will extract the transform context information of `orig_keys`
     then invert the transforms(got from this context information) on the `keys` data.
-    Typical usage is to invert the pre-transforms(applied on input `image`) on the model `pred` data.
+    Typical usage is to invert the preprocessing transforms(applied on input `image`) on the model `pred` data.
 
     The output of the inverted data and metadata will be stored at `keys` and `meta_keys` respectively.
     To correctly invert the transforms, the information of the previously applied transforms should be
@@ -408,7 +408,7 @@ class Invertd(MapTransform):
 
     Note:
         According to the `collate_fn`, this transform may return a list of Tensor without batch dim,
-        thus some following post transforms may not support a list of Tensor, and users can leverage the
+        thus some following transforms may not support a list of Tensor, and users can leverage the
         `post_func` arg for basic processing logic.
 
         This transform needs to extract the context information of applied transforms and the meta data
