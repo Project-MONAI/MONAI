@@ -74,6 +74,7 @@ class TorchVisionFCModel(NetAdapter):
 class TorchVisionFullyConvModel(torch.nn.Module):
     """
     Customize TorchVision models to replace fully connected layer by convolutional layer.
+
     Args:
         model_name: name of any torchvision with adaptive avg pooling and fully connected layer at the end.
             ``resnet18`` (default), ``resnet34m``, ``resnet50``, ``resnet101``, ``resnet152``,
