@@ -134,7 +134,7 @@ class Spacingd(MapTransform, InvertibleTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        pixdim: Sequence[float],
+        pixdim: Union[Sequence[float], float],
         diagonal: bool = False,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
@@ -146,7 +146,13 @@ class Spacingd(MapTransform, InvertibleTransform):
     ) -> None:
         """
         Args:
-            pixdim: output voxel spacing.
+            pixdim: output voxel spacing. if providing a single number, will use it for the first dimension.
+                items of the pixdim sequence map to the spatial dimensions of input image, if length
+                of pixdim sequence is longer than image spatial dimensions, will ignore the longer part,
+                if shorter, will pad with `1.0`.
+                if the components of the `pixdim` are non-positive values, the transform will use the
+                corresponding components of the origial pixdim, which is computed from the `affine`
+                matrix of input image.
             diagonal: whether to resample the input to have a diagonal affine matrix.
                 If True, the input data is resampled to the following affine::
 
@@ -1521,7 +1527,7 @@ class Zoomd(MapTransform, InvertibleTransform):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
             zoom = np.array(self.zoomer.zoom)
-            inverse_transform = Zoom(zoom=1 / zoom, keep_size=self.zoomer.keep_size)
+            inverse_transform = Zoom(zoom=(1 / zoom).tolist(), keep_size=self.zoomer.keep_size)
             mode = transform[InverseKeys.EXTRA_INFO]["mode"]
             padding_mode = transform[InverseKeys.EXTRA_INFO]["padding_mode"]
             align_corners = transform[InverseKeys.EXTRA_INFO]["align_corners"]
@@ -1649,7 +1655,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
                 mode = transform[InverseKeys.EXTRA_INFO]["mode"]
                 padding_mode = transform[InverseKeys.EXTRA_INFO]["padding_mode"]
                 align_corners = transform[InverseKeys.EXTRA_INFO]["align_corners"]
-                inverse_transform = Zoom(zoom=1 / zoom, keep_size=self.keep_size)
+                inverse_transform = Zoom(zoom=(1 / zoom).tolist(), keep_size=self.keep_size)
                 # Apply inverse
                 d[key] = inverse_transform(
                     d[key],
