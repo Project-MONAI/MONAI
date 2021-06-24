@@ -89,10 +89,8 @@ class CSVSaver:
         self._data_index += 1
         data_: np.ndarray
         if isinstance(data, torch.Tensor):
-            data_ = data.detach().cpu().numpy()
-        else:
-            data_ = np.asarray(data)
-        self._cache_dict[save_key] = data_.astype(np.float32)
+            data = data.detach().cpu().numpy()
+        self._cache_dict[save_key] = np.asarray(data, dtype=float)
 
     def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
         """Save a batch of data into the cache dictionary.
