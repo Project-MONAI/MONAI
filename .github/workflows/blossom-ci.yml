@@ -17,6 +17,15 @@ concurrency:
   group: blossom-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+permissions:
+  actions: write
+  checks: write
+  contents: write
+  issues: write
+  pull-requests: write
+  repository-projects: write
+  statuses: write
+
 jobs:
   Authorization:
     name: Authorization
