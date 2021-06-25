@@ -18,41 +18,17 @@ from monai.transforms import ToTensor
 
 
 class TestToTensor(unittest.TestCase):
-    def test_numpy_input(self):
-        test_data = np.array([[1, 2], [3, 4]])
-        result = ToTensor()(test_data)
-        torch.testing.assert_allclose(result, test_data)
-        self.assertTupleEqual(result.shape, (2, 2))
-
-    def test_list_input(self):
-        test_data = [[1, 2], [3, 4]]
-        result = ToTensor()(test_data)
-        torch.testing.assert_allclose(result, test_data)
-        self.assertTupleEqual(result.shape, (2, 2))
-
-    def test_tensor_input(self):
-        test_data = torch.as_tensor([[1, 2], [3, 4]])
-        result = ToTensor()(test_data)
-        torch.testing.assert_allclose(result, test_data)
-        self.assertTupleEqual(result.shape, (2, 2))
+    def test_array_input(self):
+        for test_data in ([[1, 2], [3, 4]], np.array([[1, 2], [3, 4]]), torch.as_tensor([[1, 2], [3, 4]])):
+            result = ToTensor()(test_data)
+            torch.testing.assert_allclose(result, test_data)
+            self.assertTupleEqual(result.shape, (2, 2))
 
     def test_single_input(self):
-        test_data = 5
-        result = ToTensor()(test_data)
-        torch.testing.assert_allclose(result, test_data)
-        self.assertEqual(result.ndim, 0)
-
-    def test_single_numpy_input(self):
-        test_data = np.asarray(5)
-        result = ToTensor()(test_data)
-        torch.testing.assert_allclose(result, test_data)
-        self.assertEqual(result.ndim, 0)
-
-    def test_single_tensor_input(self):
-        test_data = np.asarray(5)
-        result = ToTensor()(test_data)
-        torch.testing.assert_allclose(result, test_data)
-        self.assertEqual(result.ndim, 0)
+        for test_data in (5, np.asarray(5), torch.tensor(5)):
+            result = ToTensor()(test_data)
+            torch.testing.assert_allclose(result, test_data)
+            self.assertEqual(result.ndim, 0)
 
 
 if __name__ == "__main__":
