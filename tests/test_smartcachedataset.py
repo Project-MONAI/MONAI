@@ -127,7 +127,7 @@ class TestSmartCacheDataset(unittest.TestCase):
         dataset.shutdown()
 
     def test_datalist(self):
-        data_list = list(np.array([i]) for i in range(5))
+        data_list = [np.array([i]) for i in range(5)]
         data_list_backup = copy.copy(data_list)
 
         SmartCacheDataset(
