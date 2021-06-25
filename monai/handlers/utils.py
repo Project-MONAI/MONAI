@@ -20,11 +20,11 @@ import torch
 from monai.config import KeysCollection
 from monai.utils import ensure_tuple, exact_version, get_torch_version_tuple, optional_import
 
-idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
+idist, _ = optional_import("ignite", "0.4.5", exact_version, "distributed")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", "0.4.5", exact_version, "Engine")
 
 __all__ = [
     "stopping_fn_from_metric",

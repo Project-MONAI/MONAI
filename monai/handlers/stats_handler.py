@@ -17,11 +17,11 @@ import torch
 
 from monai.utils import exact_version, is_scalar, optional_import
 
-Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
+Events, _ = optional_import("ignite.engine", "0.4.5", exact_version, "Events")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", "0.4.5", exact_version, "Engine")
 
 DEFAULT_KEY_VAL_FORMAT = "{}: {:.4f} "
 DEFAULT_TAG = "Loss"

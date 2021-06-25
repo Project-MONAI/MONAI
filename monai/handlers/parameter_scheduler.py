@@ -18,8 +18,8 @@ from monai.utils import exact_version, optional_import
 if TYPE_CHECKING:
     from ignite.engine import Engine, Events
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
-    Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
+    Engine, _ = optional_import("ignite.engine", "0.4.5", exact_version, "Engine")
+    Events, _ = optional_import("ignite.engine", "0.4.5", exact_version, "Events")
 
 
 class ParamSchedulerHandler:
