@@ -127,7 +127,7 @@ class TestSmartCacheDataset(unittest.TestCase):
 
         dataset.shutdown()
 
-    def test_update_data(self):
+    def test_set_data(self):
         data_list1 = list(range(10))
 
         transform = Lambda(func=lambda x: np.array([x * 10]))
@@ -157,7 +157,7 @@ class TestSmartCacheDataset(unittest.TestCase):
         dataset.shutdown()
         # update the datalist and fill the cache content
         data_list2 = list(range(-10, 0))
-        dataset.update_data(data=data_list2)
+        dataset.set_data(data=data_list2)
         # restart the dataset
         dataset.start()
         # rerun with updated cache content

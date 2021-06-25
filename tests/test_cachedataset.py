@@ -81,7 +81,7 @@ class TestCacheDataset(unittest.TestCase):
             for d in data3:
                 self.assertTupleEqual(d["image"].shape, expected_shape)
 
-    def test_update_data(self):
+    def test_set_data(self):
         data_list1 = list(range(10))
 
         transform = Lambda(func=lambda x: np.array([x * 10]))
@@ -101,7 +101,7 @@ class TestCacheDataset(unittest.TestCase):
 
         # update the datalist and fill the cache content
         data_list2 = list(range(-10, 0))
-        dataset.update_data(data=data_list2)
+        dataset.set_data(data=data_list2)
         # rerun with updated cache content
         for i, d in enumerate(dataloader):
             np.testing.assert_allclose([[data_list2[i] * 10]], d)

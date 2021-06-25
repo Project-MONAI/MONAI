@@ -176,15 +176,14 @@ class PersistentDataset(Dataset):
             if not self.cache_dir.is_dir():
                 raise ValueError("cache_dir must be a directory.")
 
-    def update_data(self, data: Sequence):
+    def set_data(self, data: Sequence):
         """
-        Update the input data and delete all the out-dated cache content.
+        Set the input data and delete all the out-dated cache content.
 
         """
         self.data = data
-
         if self.cache_dir is not None and self.cache_dir.exists():
-            shutil.rmtree(self.cache_dir)
+            shutil.rmtree(self.cache_dir, ignore_errors=True)
             self.cache_dir.mkdir(parents=True, exist_ok=True)
 
     def _pre_transform(self, item_transformed):
@@ -418,6 +417,14 @@ class LMDBDataset(PersistentDataset):
         self._read_env = None
         print(f"Accessing lmdb file: {self.db_file.absolute()}.")
 
+    def set_data(self, data: Sequence):
+        """
+        Set the input data and delete all the out-dated cache content.
+
+        """
+        super().set_data(data=data)
+        self._read_env = None
+
     def _fill_cache_start_reader(self):
         # create cache
         self.lmdb_kwargs["readonly"] = False
@@ -472,6 +479,7 @@ class LMDBDataset(PersistentDataset):
         if self._read_env is None:
             self._read_env = self._fill_cache_start_reader()
         with self._read_env.begin(write=False) as txn:
+            print("!!!!!!!!", item_transformed)
             data = txn.get(self.hash_func(item_transformed))
         if data is None:
             warnings.warn("LMDBDataset: cache key not found, running fallback caching.")
@@ -572,9 +580,9 @@ class CacheDataset(Dataset):
             self.num_workers = max(int(self.num_workers), 1)
         self._cache: List = self._fill_cache()
 
-    def update_data(self, data: Sequence):
+    def set_data(self, data: Sequence):
         """
-        Update the input data and re-run deterministic transforms to generate cache content.
+        Set the input data and run deterministic transforms to generate cache content.
 
         Note: should call this func after an entire epoch and must set `persisten_workers=False`
         in PyTorch DataLoader, because it needs to create new worker processes based on new
@@ -744,9 +752,9 @@ class SmartCacheDataset(Randomizable, CacheDataset):
 
         self._compute_data_idx()
 
-    def update_data(self, data: Sequence):
+    def set_data(self, data: Sequence):
         """
-        Update the input data and re-run deterministic transforms to generate cache content.
+        Set the input data and run deterministic transforms to generate cache content.
 
         Note: should call `shutdown()` before calling this func.
 
@@ -758,7 +766,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         if self.shuffle:
             data = copy(data)
             self.randomize(data)
-        return super().update_data(data)
+        super().set_data(data)
 
     def randomize(self, data: Sequence) -> None:
         try:
