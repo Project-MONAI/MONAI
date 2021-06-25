@@ -715,6 +715,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
             self.set_random_state(seed=seed)
             data = copy(data)
             self.randomize(data)
+        self.shuffle = shuffle
 
         super().__init__(data, transform, cache_num, cache_rate, num_init_workers, progress)
         if self._cache is None:
@@ -753,6 +754,10 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         if self.is_started():
             warnings.warn("SmartCacheDataset is not shutdown yet, shutdown it directly.")
             self.shutdown()
+
+        if self.shuffle:
+            data = copy(data)
+            self.randomize(data)
         return super().update_data(data)
 
     def randomize(self, data: Sequence) -> None:
