@@ -14,7 +14,7 @@ A collection of generic interfaces for MONAI transforms.
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Generator, Hashable, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Generator, Hashable, Iterable, List, Optional, Tuple, TypeVar, Union
 
 import numpy as np
 import torch
@@ -25,28 +25,63 @@ from monai.utils import MAX_SEED, ensure_tuple
 
 __all__ = ["ThreadUnsafe", "apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
 
+ReturnType = TypeVar("ReturnType")
 
-def apply_transform(transform: Callable, data, map_items: bool = True):
+
+def _apply_transform(
+    transform: Callable[..., ReturnType], parameters: Any, unpack_parameters: bool = False
+) -> ReturnType:
+    """
+    Perform transformation `transform` with the provided parameters `parameters`.
+
+    If `parameters` is a tuple and `unpack_items` is True, each parameter of `parameters` is unpacked
+    as arguments to `transform`.
+    Otherwise `parameters` is considered as single argument to `transform`.
+
+    Args:
+        transform (Callable[..., ReturnType]): a callable to be used to transform `data`.
+        parameters (Any): parameters for the `transform`.
+        unpack_parameters (bool, optional): whether to unpack parameters for `transform`. Defaults to False.
+
+    Returns:
+        ReturnType: The return type of `transform`.
+    """
+    if isinstance(parameters, tuple) and unpack_parameters:
+        return transform(*parameters)
+
+    return transform(parameters)
+
+
+def apply_transform(
+    transform: Callable[..., ReturnType],
+    data: Any,
+    map_items: bool = True,
+    unpack_items: bool = False,
+) -> Union[List[ReturnType], ReturnType]:
     """
     Transform `data` with `transform`.
+
     If `data` is a list or tuple and `map_data` is True, each item of `data` will be transformed
     and this method returns a list of outcomes.
     otherwise transform will be applied once with `data` as the argument.
 
     Args:
-        transform: a callable to be used to transform `data`
-        data: an object to be transformed.
-        map_items: whether to apply transform to each item in `data`,
+        transform (Callable[..., ReturnType]): a callable to be used to transform `data`.
+        data (Any): an object to be transformed.
+        map_items (bool, optional): whether to apply transform to each item in `data`,
             if `data` is a list or tuple. Defaults to True.
+        unpack_items (bool, optional): [description]. Defaults to False.
 
     Raises:
         Exception: When ``transform`` raises an exception.
 
+    Returns:
+        Union[List[ReturnType], ReturnType]: The return type of `transform` or a list thereof.
     """
     try:
         if isinstance(data, (list, tuple)) and map_items:
-            return [transform(item) for item in data]
-        return transform(data)
+            return [_apply_transform(transform, item, unpack_items) for item in data]
+        return _apply_transform(transform, data, unpack_items)
     except Exception as e:
 
         if not isinstance(transform, transforms.compose.Compose):

@@ -1031,7 +1031,7 @@ class NPZDictItemDataset(Dataset):
         self,
         npzfile: Union[str, IO],
         keys: Dict[str, str],
-        transform: Optional[Callable] = None,
+        transform: Optional[Callable[..., Dict[str, Any]]] = None,
         other_keys: Optional[Sequence[str]] = (),
     ):
         self.npzfile: Union[str, IO] = npzfile if isinstance(npzfile, str) else "STREAM"
@@ -1058,10 +1058,14 @@ class NPZDictItemDataset(Dataset):
     def _transform(self, index: int):
         data = {k: v[index] for k, v in self.arrays.items()}
 
-        if self.transform is not None:
-            data = apply_transform(self.transform, data)
+        if not self.transform:
+            return data
 
-        return data
+        result = apply_transform(self.transform, data)
+
+        if isinstance(result, dict) or (isinstance(result, list) and isinstance(result[0], dict)):
+            return result
+        raise AssertionError("With a dict supplied to apply_transform, should return a dict or a list of dicts.")
 
 
 class CSVDataset(Dataset):
