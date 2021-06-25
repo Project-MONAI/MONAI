@@ -130,8 +130,7 @@ class PersistentDataset(Dataset):
     Subsequent uses of a dataset directly read pre-processed results from `cache_dir`
     followed by applying the random dependant parts of transform processing.
 
-    If want to update the input data and recompute cache content during training, just call `update_data()`
-    after several epochs.
+    During training call update_data() to update input data and recompute cache content.
 
     Note:
         The input data must be a list of file paths and will hash them as cache keys.
@@ -479,7 +478,6 @@ class LMDBDataset(PersistentDataset):
         if self._read_env is None:
             self._read_env = self._fill_cache_start_reader()
         with self._read_env.begin(write=False) as txn:
-            print("!!!!!!!!", item_transformed)
             data = txn.get(self.hash_func(item_transformed))
         if data is None:
             warnings.warn("LMDBDataset: cache key not found, running fallback caching.")
@@ -537,8 +535,8 @@ class CacheDataset(Dataset):
     ``RandCropByPosNegLabeld`` and ``ToTensord``, as ``RandCropByPosNegLabeld`` is a randomized transform
     and the outcome not cached.
 
-    If want to update the input data and recompute cache content during training, just call `update_data()`
-    after several epochs, note that it requires `persistent_workers=False` in the PyTorch DataLoader.
+    During training call update_data() to update input data and recompute cache content, note that it requires
+    `persistent_workers=False` in the PyTorch DataLoader.
 
     Note:
         `CacheDataset` executes non-random transforms and prepares cache content in the main process before
@@ -676,8 +674,8 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         3. Call `update_cache()` before every epoch to replace training items.
         4. Call `shutdown()` when training ends.
 
-    If want to update the input data and recompute cache content during training, just call
-    `shutdown()` and `update_data()` to stop and update, then call `start()` to restart.
+    During training call update_data() to update input data and recompute cache content, note to call
+    `shutdown()` to stop first, then update data and call `start()` to restart.
 
     Note:
         This replacement will not work for below cases:
