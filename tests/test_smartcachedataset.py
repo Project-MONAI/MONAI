@@ -170,6 +170,19 @@ class TestSmartCacheDataset(unittest.TestCase):
         # finally shutdown the dataset
         dataset.shutdown()
 
+    def test_datalist(self):
+        data_list = [np.array([i]) for i in range(5)]
+        data_list_backup = copy.copy(data_list)
+
+        SmartCacheDataset(
+            data=data_list,
+            transform=None,
+            cache_rate=0.5,
+            replace_rate=0.4,
+            shuffle=True,
+        )
+        np.testing.assert_allclose(data_list, data_list_backup)
+
 
 if __name__ == "__main__":
     unittest.main()
