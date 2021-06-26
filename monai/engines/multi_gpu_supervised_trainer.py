@@ -18,7 +18,7 @@ from torch.optim.optimizer import Optimizer
 
 from monai.config import IgniteInfo
 from monai.engines.utils import get_devices_spec
-from monai.utils import  min_version, optional_import
+from monai.utils import min_version, optional_import
 
 create_supervised_trainer, _ = optional_import(
     "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "create_supervised_trainer"

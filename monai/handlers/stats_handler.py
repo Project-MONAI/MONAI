@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional
 import torch
 
 from monai.config import IgniteInfo
-from monai.utils import min_version, is_scalar, optional_import
+from monai.utils import is_scalar, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:

@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Union
 from monai.config import IgniteInfo
 from monai.handlers.utils import write_metrics_reports
 from monai.utils import ImageMetaKey as Key
-from monai.utils import ensure_tuple, min_version, issequenceiterable, optional_import, string_list_all_gather
+from monai.utils import ensure_tuple, issequenceiterable, min_version, optional_import, string_list_all_gather
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")

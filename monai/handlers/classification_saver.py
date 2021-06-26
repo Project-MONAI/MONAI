@@ -20,8 +20,8 @@ from monai.data import CSVSaver
 from monai.utils import ImageMetaKey as Key
 from monai.utils import (
     evenly_divisible_all_gather,
-    min_version,
     issequenceiterable,
+    min_version,
     optional_import,
     string_list_all_gather,
 )
