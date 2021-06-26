@@ -20,7 +20,9 @@ from monai.utils import exact_version, optional_import
 
 idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "distributed")
 Metric, _ = optional_import("ignite.metrics", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "Metric")
-reinit__is_reduced, _ = optional_import("ignite.metrics.metric", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "reinit__is_reduced")
+reinit__is_reduced, _ = optional_import(
+    "ignite.metrics.metric", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "reinit__is_reduced"
+)
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:

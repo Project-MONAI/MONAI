@@ -258,6 +258,7 @@ class IgniteInfo:
     Config information of the PyTorch ignite package.
 
     """
+
     OPT_IMPORT_VERSION = "0.4.4"
 
 

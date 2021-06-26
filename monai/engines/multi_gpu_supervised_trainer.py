@@ -20,8 +20,12 @@ from monai.config import IgniteInfo
 from monai.engines.utils import get_devices_spec
 from monai.utils import exact_version, optional_import
 
-create_supervised_trainer, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "create_supervised_trainer")
-create_supervised_evaluator, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "create_supervised_evaluator")
+create_supervised_trainer, _ = optional_import(
+    "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "create_supervised_trainer"
+)
+create_supervised_evaluator, _ = optional_import(
+    "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "create_supervised_evaluator"
+)
 _prepare_batch, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "_prepare_batch")
 if TYPE_CHECKING:
     from ignite.engine import Engine

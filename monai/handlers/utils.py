@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
 import numpy as np
 import torch
 
-from monai.config import KeysCollection, IgniteInfo
+from monai.config import IgniteInfo, KeysCollection
 from monai.utils import ensure_tuple, exact_version, get_torch_version_tuple, optional_import
 
 idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "distributed")

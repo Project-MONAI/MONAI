@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Callable, Optional, Sequence, Union
 import torch
 from torch.utils.data import DataLoader as TorchDataLoader
 
-from monai.config import KeysCollection, IgniteInfo
+from monai.config import IgniteInfo, KeysCollection
 from monai.data.utils import no_collation
 from monai.engines.utils import CommonKeys, IterationEvents
 from monai.transforms import Invertd, InvertibleTransform
