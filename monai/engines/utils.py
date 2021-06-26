@@ -15,13 +15,13 @@ import torch
 
 from monai.config import IgniteInfo
 from monai.transforms import apply_transform
-from monai.utils import exact_version, optional_import
+from monai.utils import min_version, optional_import
 from monai.utils.enums import CommonKeys
 
 if TYPE_CHECKING:
     from ignite.engine import EventEnum
 else:
-    EventEnum, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "EventEnum")
+    EventEnum, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "EventEnum")
 
 __all__ = [
     "IterationEvents",

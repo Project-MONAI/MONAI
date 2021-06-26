@@ -18,13 +18,13 @@ import numpy as np
 import torch
 
 from monai.config import IgniteInfo, KeysCollection
-from monai.utils import ensure_tuple, exact_version, get_torch_version_tuple, optional_import
+from monai.utils import ensure_tuple, min_version, get_torch_version_tuple, optional_import
 
-idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "distributed")
+idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
 __all__ = [
     "stopping_fn_from_metric",

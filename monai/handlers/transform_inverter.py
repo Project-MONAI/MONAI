@@ -18,13 +18,13 @@ from monai.config import IgniteInfo, KeysCollection
 from monai.data.utils import no_collation
 from monai.engines.utils import CommonKeys, IterationEvents
 from monai.transforms import Invertd, InvertibleTransform
-from monai.utils import ensure_tuple, ensure_tuple_rep, exact_version, optional_import
+from monai.utils import ensure_tuple, ensure_tuple_rep, min_version, optional_import
 
-Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "Events")
+Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
 
 class TransformInverter:

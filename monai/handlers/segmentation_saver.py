@@ -16,13 +16,13 @@ import numpy as np
 
 from monai.config import DtypeLike, IgniteInfo
 from monai.transforms import SaveImage
-from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, exact_version, optional_import
+from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, min_version, optional_import
 
-Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "Events")
+Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
 
 class SegmentationSaver:

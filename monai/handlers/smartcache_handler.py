@@ -13,13 +13,13 @@ from typing import TYPE_CHECKING
 
 from monai.config import IgniteInfo
 from monai.data import SmartCacheDataset
-from monai.utils import exact_version, optional_import
+from monai.utils import min_version, optional_import
 
-Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "Events")
+Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
 
 class SmartCacheHandler:

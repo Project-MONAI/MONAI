@@ -16,15 +16,15 @@ import numpy as np
 import torch
 
 from monai.config import IgniteInfo
-from monai.utils import exact_version, is_scalar, optional_import
+from monai.utils import min_version, is_scalar, optional_import
 from monai.visualize import plot_2d_or_3d_image
 
-Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "Events")
+Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
     from ignite.engine import Engine
     from torch.utils.tensorboard import SummaryWriter
 else:
-    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
     SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
 DEFAULT_TAG = "Loss"

@@ -15,13 +15,13 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 from torch.optim.lr_scheduler import ReduceLROnPlateau, _LRScheduler
 
 from monai.config import IgniteInfo
-from monai.utils import ensure_tuple, exact_version, optional_import
+from monai.utils import ensure_tuple, min_version, optional_import
 
-Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "Events")
+Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
 
 class LrScheduleHandler:

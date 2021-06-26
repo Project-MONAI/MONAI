@@ -16,13 +16,13 @@ from typing import TYPE_CHECKING, Any, Callable, Optional
 import torch
 
 from monai.config import IgniteInfo
-from monai.utils import exact_version, is_scalar, optional_import
+from monai.utils import min_version, is_scalar, optional_import
 
-Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "Events")
+Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
 DEFAULT_KEY_VAL_FORMAT = "{}: {:.4f} "
 DEFAULT_TAG = "Loss"
