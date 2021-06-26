@@ -15,14 +15,14 @@ from typing import TYPE_CHECKING, Dict, Optional
 
 import numpy as np
 
-from monai.config import DtypeLike
+from monai.config import DtypeLike, IgniteInfo
 from monai.utils import exact_version, optional_import
 
-Events, _ = optional_import("ignite.engine", "0.4.5", exact_version, "Events")
+Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "Events")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.5", exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "Engine")
 
 
 class ProbMapProducer:

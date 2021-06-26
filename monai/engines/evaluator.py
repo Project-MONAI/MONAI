@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Sequ
 import torch
 from torch.utils.data import DataLoader
 
+from monai.config import IgniteInfo
 from monai.engines.utils import IterationEvents, default_prepare_batch
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
@@ -26,9 +27,9 @@ if TYPE_CHECKING:
     from ignite.engine import Engine, EventEnum
     from ignite.metrics import Metric
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.5", exact_version, "Engine")
-    Metric, _ = optional_import("ignite.metrics", "0.4.5", exact_version, "Metric")
-    EventEnum, _ = optional_import("ignite.engine", "0.4.5", exact_version, "EventEnum")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "Engine")
+    Metric, _ = optional_import("ignite.metrics", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "Metric")
+    EventEnum, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "EventEnum")
 
 __all__ = ["Evaluator", "SupervisedEvaluator", "EnsembleEvaluator"]
 

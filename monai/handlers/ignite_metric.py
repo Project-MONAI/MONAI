@@ -14,16 +14,17 @@ from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence
 
 import torch
 
+from monai.config import IgniteInfo
 from monai.metrics import CumulativeIterationMetric
 from monai.utils import exact_version, optional_import
 
-idist, _ = optional_import("ignite", "0.4.5", exact_version, "distributed")
-Metric, _ = optional_import("ignite.metrics", "0.4.5", exact_version, "Metric")
-reinit__is_reduced, _ = optional_import("ignite.metrics.metric", "0.4.5", exact_version, "reinit__is_reduced")
+idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "distributed")
+Metric, _ = optional_import("ignite.metrics", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "Metric")
+reinit__is_reduced, _ = optional_import("ignite.metrics.metric", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "reinit__is_reduced")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.5", exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "Engine")
 
 
 class IgniteMetric(Metric):  # type: ignore[valid-type, misc] # due to optional_import

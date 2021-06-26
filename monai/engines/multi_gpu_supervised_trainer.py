@@ -16,18 +16,19 @@ import torch.nn
 from torch.nn.parallel import DataParallel, DistributedDataParallel
 from torch.optim.optimizer import Optimizer
 
+from monai.config import IgniteInfo
 from monai.engines.utils import get_devices_spec
 from monai.utils import exact_version, optional_import
 
-create_supervised_trainer, _ = optional_import("ignite.engine", "0.4.5", exact_version, "create_supervised_trainer")
-create_supervised_evaluator, _ = optional_import("ignite.engine", "0.4.5", exact_version, "create_supervised_evaluator")
-_prepare_batch, _ = optional_import("ignite.engine", "0.4.5", exact_version, "_prepare_batch")
+create_supervised_trainer, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "create_supervised_trainer")
+create_supervised_evaluator, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "create_supervised_evaluator")
+_prepare_batch, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "_prepare_batch")
 if TYPE_CHECKING:
     from ignite.engine import Engine
     from ignite.metrics import Metric
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.5", exact_version, "Engine")
-    Metric, _ = optional_import("ignite.metrics", "0.4.5", exact_version, "Metric")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "Engine")
+    Metric, _ = optional_import("ignite.metrics", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "Metric")
 
 __all__ = [
     "create_multigpu_supervised_trainer",

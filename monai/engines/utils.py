@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence,
 
 import torch
 
+from monai.config import IgniteInfo
 from monai.transforms import apply_transform
 from monai.utils import exact_version, optional_import
 from monai.utils.enums import CommonKeys
@@ -20,7 +21,7 @@ from monai.utils.enums import CommonKeys
 if TYPE_CHECKING:
     from ignite.engine import EventEnum
 else:
-    EventEnum, _ = optional_import("ignite.engine", "0.4.5", exact_version, "EventEnum")
+    EventEnum, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "EventEnum")
 
 __all__ = [
     "IterationEvents",

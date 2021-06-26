@@ -17,11 +17,12 @@ import torch
 from ignite.engine import Engine
 from parameterized import parameterized
 
+from monai.config import IgniteInfo
 from monai.data import Dataset
 from monai.handlers import GarbageCollector
 from monai.utils import exact_version, optional_import
 
-Events, has_ignite = optional_import("ignite.engine", "0.4.5", exact_version, "Events")
+Events, has_ignite = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, exact_version, "Events")
 
 
 TEST_CASE_0 = [[0, 1, 2], "epoch"]
