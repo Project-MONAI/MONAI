@@ -97,7 +97,7 @@ class DynUNet(nn.Module):
             value should be larger than 0 and less than the number of up sample layers.
             Defaults to 1.
         res_block: whether to use residual connection based convolution blocks during the network.
-            Defaults to ``True``.
+            Defaults to ``False``.
     """
 
     def __init__(
