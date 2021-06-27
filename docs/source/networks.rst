@@ -79,6 +79,11 @@ Blocks
 .. autoclass:: ResBlock
     :members:
 
+`Self-Attention Block`
+~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: SABlock
+    :members:
+
 `Squeeze-and-Excitation`
 ~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: ChannelSELayer
@@ -157,6 +162,11 @@ Blocks
 `LocalNet Feature Extractor Block`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: LocalNetFeatureExtractorBlock
+    :members:
+
+`MLP Block`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: MLPBlock
     :members:
 
 `Warp`
