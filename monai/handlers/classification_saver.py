@@ -15,16 +15,17 @@ from typing import TYPE_CHECKING, Callable, List, Optional
 
 import torch
 
+from monai.config import IgniteInfo
 from monai.data import CSVSaver, decollate_batch
 from monai.utils import ImageMetaKey as Key
-from monai.utils import evenly_divisible_all_gather, exact_version, optional_import, string_list_all_gather
+from monai.utils import evenly_divisible_all_gather, min_version, optional_import, string_list_all_gather
 
-idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
-Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
+idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")
+Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
 
 class ClassificationSaver:
