@@ -79,6 +79,26 @@ class TestCompose(unittest.TestCase):
         for item in value:
             self.assertDictEqual(item, {"a": 2, "b": 1, "c": 2})
 
+    def test_non_dict_compose_with_unpack(self):
+        def a(i, i2):
+            return i + "a", i2 + "a2"
+
+        def b(i, i2):
+            return i + "b", i2 + "b2"
+
+        c = Compose([a, b, a, b], map_items=False, unpack_items=True)
+        self.assertEqual(c(("", "")), ("abab", "a2b2a2b2"))
+
+    def test_list_non_dict_compose_with_unpack(self):
+        def a(i, i2):
+            return i + "a", i2 + "a2"
+
+        def b(i, i2):
+            return i + "b", i2 + "b2"
+
+        c = Compose([a, b, a, b], unpack_items=True)
+        self.assertEqual(c([("", ""), ("t", "t")]), [("abab", "a2b2a2b2"), ("tabab", "ta2b2a2b2")])
+
     def test_list_dict_compose_no_map(self):
         def a(d):  # transform to handle dict data
             d = dict(d)

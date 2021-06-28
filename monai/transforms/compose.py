@@ -102,12 +102,16 @@ class Compose(Randomizable, InvertibleTransform):
     """
 
     def __init__(
-        self, transforms: Optional[Union[Sequence[Callable], Callable]] = None, map_items: bool = True
+        self,
+        transforms: Optional[Union[Sequence[Callable], Callable]] = None,
+        map_items: bool = True,
+        unpack_items: bool = False,
     ) -> None:
         if transforms is None:
             transforms = []
         self.transforms = ensure_tuple(transforms)
         self.map_items = map_items
+        self.unpack_items = unpack_items
         self.set_random_state(seed=get_seed())
 
     def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None) -> "Compose":
@@ -152,7 +156,7 @@ class Compose(Randomizable, InvertibleTransform):
 
     def __call__(self, input_):
         for _transform in self.transforms:
-            input_ = apply_transform(_transform, input_, self.map_items)
+            input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items)
         return input_
 
     def inverse(self, data):
@@ -162,5 +166,5 @@ class Compose(Randomizable, InvertibleTransform):
 
         # loop backwards over transforms
         for t in reversed(invertible_transforms):
-            data = apply_transform(t.inverse, data, self.map_items)
+            data = apply_transform(t.inverse, data, self.map_items, self.unpack_items)
         return data

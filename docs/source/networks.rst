@@ -456,6 +456,16 @@ Nets
 .. autoclass:: Critic
   :members:
 
+`NetAdapter`
+~~~~~~~~~~~~
+.. autoclass:: NetAdapter
+  :members:
+
+`TorchVisionFCModel`
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TorchVisionFCModel
+  :members:
+
 `TorchVisionFullyConvModel`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: TorchVisionFullyConvModel
