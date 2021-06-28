@@ -111,6 +111,7 @@ class SpatialPadd(MapTransform, InvertibleTransform):
         method: Union[Method, str] = Method.SYMMETRIC,
         mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT,
         allow_missing_keys: bool = False,
+        **np_kwargs,
     ) -> None:
         """
         Args:
@@ -129,11 +130,13 @@ class SpatialPadd(MapTransform, InvertibleTransform):
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
+            np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
+                more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
 
         """
         super().__init__(keys, allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.padder = SpatialPad(spatial_size, method)
+        self.padder = SpatialPad(spatial_size, method, **np_kwargs)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
@@ -175,6 +178,7 @@ class BorderPadd(MapTransform, InvertibleTransform):
         spatial_border: Union[Sequence[int], int],
         mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT,
         allow_missing_keys: bool = False,
+        **np_kwargs,
     ) -> None:
         """
         Args:
@@ -197,11 +201,13 @@ class BorderPadd(MapTransform, InvertibleTransform):
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
+            np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
+                more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
 
         """
         super().__init__(keys, allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.padder = BorderPad(spatial_border=spatial_border)
+        self.padder = BorderPad(spatial_border=spatial_border, **np_kwargs)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
@@ -247,6 +253,7 @@ class DivisiblePadd(MapTransform, InvertibleTransform):
         k: Union[Sequence[int], int],
         mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT,
         allow_missing_keys: bool = False,
+        **np_kwargs,
     ) -> None:
         """
         Args:
@@ -261,13 +268,15 @@ class DivisiblePadd(MapTransform, InvertibleTransform):
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
+            np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
+                more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
 
         See also :py:class:`monai.transforms.SpatialPad`
 
         """
         super().__init__(keys, allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.padder = DivisiblePad(k=k)
+        self.padder = DivisiblePad(k=k, **np_kwargs)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
