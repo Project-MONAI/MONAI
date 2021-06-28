@@ -29,9 +29,9 @@ CSV saver
     :members:
 
 
-Iteration Metric
-----------------
-.. autoclass:: IterationMetric
+Ignite Metric
+-------------
+.. autoclass:: IgniteMetric
     :members:
 
 
@@ -62,6 +62,30 @@ Hausdorff distance metrics handler
 Surface distance metrics handler
 --------------------------------
 .. autoclass:: SurfaceDistance
+    :members:
+
+
+Mean squared error metrics handler
+----------------------------------
+.. autoclass:: MeanSquaredError
+    :members:
+
+
+Mean absolute error metrics handler
+-----------------------------------
+.. autoclass:: MeanAbsoluteError
+    :members:
+
+
+Root mean squared error metrics handler
+---------------------------------------
+.. autoclass:: RootMeanSquaredError
+    :members:
+
+
+Peak signal to noise ratio metrics handler
+------------------------------------------
+.. autoclass:: PeakSignalToNoiseRatio
     :members:
 
 
@@ -110,3 +134,33 @@ SmartCache handler
 ------------------
 .. autoclass:: SmartCacheHandler
     :members:
+
+Parameter Scheduler handler
+---------------------------
+.. autoclass:: ParamSchedulerHandler
+    :members:
+
+EarlyStop handler
+-----------------
+.. autoclass:: EarlyStopHandler
+    :members:
+
+GarbageCollector handler
+------------------------
+.. autoclass:: GarbageCollector
+    :members:
+
+Transform inverter
+------------------
+.. autoclass:: TransformInverter
+    :members:
+
+Post processing
+---------------
+.. autoclass:: PostProcessing
+    :members:
+
+Utilities
+---------
+.. automodule:: monai.handlers.utils
+  :members:

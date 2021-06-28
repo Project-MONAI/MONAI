@@ -13,7 +13,8 @@ import sys
 import unittest
 
 from monai.data import DataLoader, Dataset
-from monai.transforms import AddChannel, Compose, Randomizable
+from monai.transforms import AddChannel, Compose
+from monai.transforms.transform import Randomizable
 from monai.utils import set_determinism
 
 
@@ -78,6 +79,49 @@ class TestCompose(unittest.TestCase):
         for item in value:
             self.assertDictEqual(item, {"a": 2, "b": 1, "c": 2})
 
+    def test_non_dict_compose_with_unpack(self):
+        def a(i, i2):
+            return i + "a", i2 + "a2"
+
+        def b(i, i2):
+            return i + "b", i2 + "b2"
+
+        c = Compose([a, b, a, b], map_items=False, unpack_items=True)
+        self.assertEqual(c(("", "")), ("abab", "a2b2a2b2"))
+
+    def test_list_non_dict_compose_with_unpack(self):
+        def a(i, i2):
+            return i + "a", i2 + "a2"
+
+        def b(i, i2):
+            return i + "b", i2 + "b2"
+
+        c = Compose([a, b, a, b], unpack_items=True)
+        self.assertEqual(c([("", ""), ("t", "t")]), [("abab", "a2b2a2b2"), ("tabab", "ta2b2a2b2")])
+
+    def test_list_dict_compose_no_map(self):
+        def a(d):  # transform to handle dict data
+            d = dict(d)
+            d["a"] += 1
+            return d
+
+        def b(d):  # transform to generate a batch list of data
+            d = dict(d)
+            d["b"] += 1
+            d = [d] * 5
+            return d
+
+        def c(d):  # transform to handle dict data
+            d = [dict(di) for di in d]
+            for di in d:
+                di["c"] += 1
+            return d
+
+        transforms = Compose([a, a, b, c, c], map_items=False)
+        value = transforms({"a": 0, "b": 0, "c": 0})
+        for item in value:
+            self.assertDictEqual(item, {"a": 2, "b": 1, "c": 2})
+
     def test_random_compose(self):
         class _Acc(Randomizable):
             self.rand = 0.0
@@ -100,6 +144,9 @@ class TestCompose(unittest.TestCase):
     def test_randomize_warn(self):
         class _RandomClass(Randomizable):
             def randomize(self, foo1, foo2):
+                pass
+
+            def __call__(self, data):
                 pass
 
         c = Compose([_RandomClass(), _RandomClass()])
@@ -166,6 +213,9 @@ class TestCompose(unittest.TestCase):
 
         # test len
         self.assertEqual(len(t1), 8)
+
+    def test_backwards_compatible_imports(self):
+        from monai.transforms.compose import MapTransform, RandomizableTransform, Transform  # noqa: F401
 
 
 if __name__ == "__main__":
