@@ -13,17 +13,18 @@ import logging
 import warnings
 from typing import TYPE_CHECKING, Dict, Optional
 
-from monai.utils import exact_version, optional_import
+from monai.config import IgniteInfo
+from monai.utils import min_version, optional_import
 
-Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
-Checkpoint, _ = optional_import("ignite.handlers", "0.4.4", exact_version, "Checkpoint")
+Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
+Checkpoint, _ = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Checkpoint")
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
     from ignite.handlers import DiskSaver
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
-    DiskSaver, _ = optional_import("ignite.handlers", "0.4.4", exact_version, "DiskSaver")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
+    DiskSaver, _ = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "DiskSaver")
 
 
 class CheckpointSaver:

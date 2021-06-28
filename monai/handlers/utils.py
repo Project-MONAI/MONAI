@@ -17,14 +17,14 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
 import numpy as np
 import torch
 
-from monai.config import KeysCollection
-from monai.utils import ensure_tuple, exact_version, get_torch_version_tuple, optional_import
+from monai.config import IgniteInfo, KeysCollection
+from monai.utils import ensure_tuple, get_torch_version_tuple, min_version, optional_import
 
-idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
+idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
 __all__ = [
     "stopping_fn_from_metric",

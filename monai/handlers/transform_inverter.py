@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from typing import TYPE_CHECKING, Callable, Optional, Sequence, Union
 
 import torch
@@ -121,18 +122,21 @@ class TransformInverter:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        # combine `batch` and `output` to temporarily act as 1 dict for postprocessing
-        for i, (b, o) in enumerate(zip(engine.state.batch, engine.state.output)):
-            data = dict(b)
-            data.update(o)
-            ret = self.inverter(data)
+        if not isinstance(engine.state.batch, list) or not isinstance(engine.state.output, list):
+            warnings.warn("inverter requires `engine.state.batch` and `engine.state.outout` to be lists.")
+        else:
+            for i, (b, o) in enumerate(zip(engine.state.batch, engine.state.output)):
+                # combine `batch` and `output` to temporarily act as 1 dict for postprocessing
+                data = dict(b)
+                data.update(o)
+                ret = self.inverter(data)
 
-            for output_key, meta_key, meta_key_postfix in zip(self.output_keys, self.meta_keys, self.meta_key_postfix):
-                # save the inverted data into state.output
-                engine.state.output[i][output_key] = ret.get(output_key)
-                # save the inverted meta dict into state.batch
-                meta_key = meta_key or f"{output_key}_{meta_key_postfix}"
-                if meta_key in ret:
-                    # FIXME: we save inverted meta dict into `batch` to be compatible with `SegmentationSaver`
-                    # will deprecate both handlers soon
-                    engine.state.batch[i][meta_key] = ret.get(meta_key)
+                for output_key, meta_key, meta_key_postfix in zip(self.output_keys, self.meta_keys, self.meta_key_postfix):
+                    # save the inverted data into state.output
+                    engine.state.output[i][output_key] = ret.get(output_key)
+                    # save the inverted meta dict into state.batch
+                    meta_key = meta_key or f"{output_key}_{meta_key_postfix}"
+                    if meta_key in ret:
+                        # FIXME: we save inverted meta dict into `batch` to be compatible with `SegmentationSaver`
+                        # will deprecate both handlers soon
+                        engine.state.batch[i][meta_key] = ret.get(meta_key)

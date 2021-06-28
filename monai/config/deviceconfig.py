@@ -46,6 +46,7 @@ __all__ = [
     "print_gpu_info",
     "print_debug_info",
     "USE_COMPILED",
+    "IgniteInfo",
 ]
 
 
@@ -250,6 +251,15 @@ def print_debug_info(file=sys.stdout) -> None:
     print("Printing GPU config...")
     print("================================", file=file, flush=True)
     print_gpu_info(file)
+
+
+class IgniteInfo:
+    """
+    Config information of the PyTorch ignite package.
+
+    """
+
+    OPT_IMPORT_VERSION = "0.4.4"
 
 
 if __name__ == "__main__":
