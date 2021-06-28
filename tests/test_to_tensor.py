@@ -58,10 +58,12 @@ class TestToTensor(unittest.TestCase):
         result = ToTensor()(test_data)
         torch.testing.assert_allclose(result, test_data)
 
+    def test_single_input(self):
+        for test_data in (5, np.asarray(5), torch.tensor(5)):
+            result = ToTensor()(test_data)
+            torch.testing.assert_allclose(result, test_data)
+            self.assertEqual(result.ndim, 0)
+
 
 if __name__ == "__main__":
-    # unittest.main()
-    a = TestToTensor()
-    a.test_list_tuple()
-    a.test_numpy_input()
-    a.test_tensor_input()
+    unittest.main()

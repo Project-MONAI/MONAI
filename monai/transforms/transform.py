@@ -51,16 +51,21 @@ def convert_data_type(
     orig_device = data.device if isinstance(data, torch.Tensor) else None
 
     output_type = output_type or orig_type
-    dtype = dtype_convert(dtype or data.dtype, output_type)
+    # objects like float don't have dtype, so return their type
+    dtype = dtype_convert(dtype or data.dtype, output_type) if hasattr(data, "dtype") else type(data)
 
     if output_type is torch.Tensor:
-        if orig_type is not torch.Tensor:
-            data = torch.tensor(np.ascontiguousarray(data))
+        if orig_type is np.ndarray:
+            data = torch.as_tensor(data if data.ndim == 0 else np.ascontiguousarray(data))
+        else:
+            data = torch.as_tensor(data)
         if dtype != data.dtype:
             data = data.to(dtype)  # type: ignore
     elif output_type is np.ndarray:
         if orig_type is torch.Tensor:
             data = data.detach().cpu().numpy()  # type: ignore
+        else:
+            data = np.array(data)
         if dtype != data.dtype:
             data = data.astype(dtype)  # type: ignore
 
