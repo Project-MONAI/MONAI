@@ -144,12 +144,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         key_val_metric={
             "val_mean_dice": MeanDice(include_background=True, output_transform=from_engine(["pred", "label"]))
         },
-        additional_metrics={
-            "val_acc": Accuracy(
-                # FIXME: will remove torch.stack() after updating to new ignite
-                output_transform=lambda x: tuple(torch.stack(i, dim=0) for i in from_engine(["pred", "label"])(x))
-            )
-        },
+        additional_metrics={"val_acc": Accuracy(output_transform=from_engine(["pred", "label"]))},
         val_handlers=val_handlers,
         amp=True if amp else False,
     )
@@ -201,12 +196,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         loss_function=loss,
         inferer=SimpleInferer(),
         postprocessing=train_postprocessing,
-        key_train_metric={
-            "train_acc": Accuracy(
-                # FIXME: will remove torch.stack() after updating to new ignite
-                output_transform=lambda x: tuple(torch.stack(i, dim=0) for i in from_engine(["pred", "label"])(x))
-            )
-        },
+        key_train_metric={"train_acc": Accuracy(output_transform=from_engine(["pred", "label"]))},
         train_handlers=train_handlers,
         amp=True if amp else False,
     )
@@ -278,12 +268,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
         key_val_metric={
             "val_mean_dice": MeanDice(include_background=True, output_transform=from_engine(["pred", "label"]))
         },
-        additional_metrics={
-            "val_acc": Accuracy(
-                # FIXME: will remove torch.stack() after updating to new ignite
-                output_transform=lambda x: tuple(torch.stack(i, dim=0) for i in from_engine(["pred", "label"])(x))
-            )
-        },
+        additional_metrics={"val_acc": Accuracy(output_transform=from_engine(["pred", "label"]))},
         val_handlers=val_handlers,
         amp=True if amp else False,
     )
