@@ -19,7 +19,7 @@ from monai.data.dataloader import DataLoader
 from monai.data.utils import decollate_batch, no_collation, pad_list_data_collate
 from monai.transforms.croppad.batch import PadListDataCollate
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.transform import Transform, MapTransform
+from monai.transforms.transform import MapTransform, Transform
 from monai.utils import first
 
 __all__ = ["BatchInverseTransform", "Decollated"]
