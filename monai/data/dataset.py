@@ -130,7 +130,7 @@ class PersistentDataset(Dataset):
     Subsequent uses of a dataset directly read pre-processed results from `cache_dir`
     followed by applying the random dependant parts of transform processing.
 
-    During training call update_data() to update input data and recompute cache content.
+    During training call `set_data()` to update input data and recompute cache content.
 
     Note:
         The input data must be a list of file paths and will hash them as cache keys.
@@ -535,7 +535,7 @@ class CacheDataset(Dataset):
     ``RandCropByPosNegLabeld`` and ``ToTensord``, as ``RandCropByPosNegLabeld`` is a randomized transform
     and the outcome not cached.
 
-    During training call update_data() to update input data and recompute cache content, note that it requires
+    During training call `set_data()` to update input data and recompute cache content, note that it requires
     `persistent_workers=False` in the PyTorch DataLoader.
 
     Note:
@@ -674,7 +674,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         3. Call `update_cache()` before every epoch to replace training items.
         4. Call `shutdown()` when training ends.
 
-    During training call update_data() to update input data and recompute cache content, note to call
+    During training call `set_data()` to update input data and recompute cache content, note to call
     `shutdown()` to stop first, then update data and call `start()` to restart.
 
     Note:
