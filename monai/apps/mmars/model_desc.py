@@ -84,6 +84,7 @@ MODEL_DESC = (
         RemoteMMARKeys.HASH_TYPE: "md5",
         RemoteMMARKeys.HASH_VAL: None,
         RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
+        RemoteMMARKeys.CONFIG_FILE: os.path.join("config", "config_train.json"),
     },
     {
         RemoteMMARKeys.ID: "clara_pt_covid19_ct_lung_annotation_1",
@@ -183,6 +184,7 @@ MODEL_DESC = (
         RemoteMMARKeys.HASH_TYPE: "md5",
         RemoteMMARKeys.HASH_VAL: None,
         RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
+        RemoteMMARKeys.CONFIG_FILE: os.path.join("config", "config_train.json"),
     },
     {
         RemoteMMARKeys.ID: "clara_pt_deepgrow_3d_annotation_1",
@@ -200,6 +202,17 @@ MODEL_DESC = (
         RemoteMMARKeys.NAME: "clara_pt_deepgrow_2d_annotation",
         RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/med/clara_pt_deepgrow_2d_annotation/versions/1/zip",
         RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_deepgrow_2d_annotation",
+        RemoteMMARKeys.FILE_TYPE: "zip",
+        RemoteMMARKeys.HASH_TYPE: "md5",
+        RemoteMMARKeys.HASH_VAL: None,
+        RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
+        RemoteMMARKeys.CONFIG_FILE: os.path.join("config", "config_train.json"),
+    },
+    {
+        RemoteMMARKeys.ID: "clara_pt_covid19_ct_lung_segmentation_1",
+        RemoteMMARKeys.NAME: "clara_pt_covid19_ct_lung_segmentation",
+        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/med/clara_pt_covid19_ct_lung_segmentation/versions/1/zip",
+        RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_covid19_ct_lung_segmentation",
         RemoteMMARKeys.FILE_TYPE: "zip",
         RemoteMMARKeys.HASH_TYPE: "md5",
         RemoteMMARKeys.HASH_VAL: None,
