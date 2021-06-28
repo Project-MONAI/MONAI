@@ -58,17 +58,20 @@ class SpatialPad(Transform):
     for additional details.
 
     Args:
-        c: the spatial size of output data after padding, if a dimension of the input
+        spatial_size: the spatial size of output data after padding, if a dimension of the input
             data size is bigger than the pad size, will not pad that dimension.
-            If its components have non-positive values, the corresponding size of input image will be used (no padding).
-            for example: if the spatial size of input data is [30, 30, 30] and `spatial_size=[32, 25, -1]`,
-            the spatial size of output data will be [32, 30, 30].
+            If its components have non-positive values, the corresponding size of input image will be used
+            (no padding). for example: if the spatial size of input data is [30, 30, 30] and
+            `spatial_size=[32, 25, -1]`, the spatial size of output data will be [32, 30, 30].
         method: {``"symmetric"``, ``"end"``}
             Pad image symmetric on every side or only pad at the end sides. Defaults to ``"symmetric"``.
         mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
             ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
             One of the listed string values or a user supplied function. Defaults to ``"constant"``.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
+            more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+
     """
 
     def __init__(
@@ -76,10 +79,12 @@ class SpatialPad(Transform):
         spatial_size: Union[Sequence[int], int],
         method: Union[Method, str] = Method.SYMMETRIC,
         mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+        **np_kwargs,
     ) -> None:
         self.spatial_size = spatial_size
         self.method: Method = Method(method)
         self.mode: NumpyPadMode = NumpyPadMode(mode)
+        self.np_kwargs = np_kwargs
 
     def _determine_data_pad_width(self, data_shape: Sequence[int]) -> List[Tuple[int, int]]:
         spatial_size = fall_back_tuple(self.spatial_size, data_shape)
@@ -106,7 +111,9 @@ class SpatialPad(Transform):
         if not np.asarray(all_pad_width).any():
             # all zeros, skip padding
             return img
-        img = np.pad(img, all_pad_width, mode=self.mode.value if mode is None else NumpyPadMode(mode).value)
+
+        mode = self.mode.value if mode is None else NumpyPadMode(mode).value
+        img = np.pad(img, all_pad_width, mode=mode, **self.np_kwargs)
         return img
 
 
@@ -130,13 +137,20 @@ class BorderPad(Transform):
             ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
             One of the listed string values or a user supplied function. Defaults to ``"constant"``.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
+            more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+
     """
 
     def __init__(
-        self, spatial_border: Union[Sequence[int], int], mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT
+        self,
+        spatial_border: Union[Sequence[int], int],
+        mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+        **np_kwargs,
     ) -> None:
         self.spatial_border = spatial_border
         self.mode: NumpyPadMode = NumpyPadMode(mode)
+        self.np_kwargs = np_kwargs
 
     def __call__(self, img: np.ndarray, mode: Optional[Union[NumpyPadMode, str]] = None):
         """
@@ -172,9 +186,8 @@ class BorderPad(Transform):
                 f"[1, len(spatial_shape)={len(spatial_shape)}, 2*len(spatial_shape)={2*len(spatial_shape)}]."
             )
 
-        return np.pad(
-            img, [(0, 0)] + data_pad_width, mode=self.mode.value if mode is None else NumpyPadMode(mode).value
-        )
+        mode = self.mode.value if mode is None else NumpyPadMode(mode).value
+        return np.pad(img, [(0, 0)] + data_pad_width, mode=mode, **self.np_kwargs)
 
 
 class DivisiblePad(Transform):
@@ -182,7 +195,12 @@ class DivisiblePad(Transform):
     Pad the input data, so that the spatial sizes are divisible by `k`.
     """
 
-    def __init__(self, k: Union[Sequence[int], int], mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT) -> None:
+    def __init__(
+        self,
+        k: Union[Sequence[int], int],
+        mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+        **np_kwargs,
+    ) -> None:
         """
         Args:
             k: the target k for each spatial dimension.
@@ -192,11 +210,14 @@ class DivisiblePad(Transform):
                 ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
+                more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
 
         See also :py:class:`monai.transforms.SpatialPad`
         """
         self.k = k
         self.mode: NumpyPadMode = NumpyPadMode(mode)
+        self.np_kwargs = np_kwargs
 
     def __call__(self, img: np.ndarray, mode: Optional[Union[NumpyPadMode, str]] = None) -> np.ndarray:
         """
@@ -209,7 +230,12 @@ class DivisiblePad(Transform):
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
         """
         new_size = compute_divisible_spatial_size(spatial_shape=img.shape[1:], k=self.k)
-        spatial_pad = SpatialPad(spatial_size=new_size, method=Method.SYMMETRIC, mode=mode or self.mode)
+        spatial_pad = SpatialPad(
+            spatial_size=new_size,
+            method=Method.SYMMETRIC,
+            mode=mode or self.mode,
+            **self.np_kwargs,
+        )
 
         return spatial_pad(img)
 
