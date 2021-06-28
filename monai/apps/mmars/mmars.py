@@ -94,7 +94,7 @@ def _get_ngc_url(model_name: str, version: str, model_prefix=""):
     return f"https://api.ngc.nvidia.com/v2/models/{model_prefix}{model_name}/versions/{version}/zip"
 
 
-def download_mmar(item, mmar_dir=None, progress: bool = True, api: bool = False, version: int = 1):
+def download_mmar(item, mmar_dir=None, progress: bool = True, api: bool = False, version: int = -1):
     """
     Download and extract Medical Model Archive (MMAR) from Nvidia Clara Train.
 
@@ -106,7 +106,7 @@ def download_mmar(item, mmar_dir=None, progress: bool = True, api: bool = False,
     Args:
         item: the corresponding model item from `MODEL_DESC`.
           Or when api is True, the substring to query NGC's model name field.
-        mmar_dir: target directory to store the MMAR, default is mmars subfolder under `torch.hub get_dir()`.
+        mmar_dir: target directory to store the MMAR, default is `mmars` subfolder under `torch.hub get_dir()`.
         progress: whether to display a progress bar.
         api: whether to query NGC and download via api
         version: which version of MMAR to download.  -1 means the latest from ngc.
@@ -153,9 +153,12 @@ def download_mmar(item, mmar_dir=None, progress: bool = True, api: bool = False,
     if not isinstance(item, Mapping):
         item = _get_model_spec(item)
 
-    model_dir = os.path.join(mmar_dir, item[Keys.ID])
+    ver = item.get(Keys.VERSION, 1)
+    if version > 0:
+        ver = str(version)
+    model_dir = os.path.join(mmar_dir, f"{item[Keys.NAME]}_{ver}")
     download_and_extract(
-        url=_get_ngc_url(item[Keys.NAME], str(version), model_prefix="nvidia/med/"),
+        url=_get_ngc_url(item[Keys.NAME], version=ver, model_prefix="nvidia/med/"),
         filepath=os.path.join(mmar_dir, f"{item[Keys.ID]}.{item[Keys.FILE_TYPE]}"),
         output_dir=model_dir,
         hash_val=item[Keys.HASH_VAL],
@@ -171,6 +174,7 @@ def load_from_mmar(
     item,
     mmar_dir=None,
     progress: bool = True,
+    version: int = -1,
     map_location=None,
     pretrained=True,
     weights_only=False,
@@ -183,6 +187,7 @@ def load_from_mmar(
         item: the corresponding model item from `MODEL_DESC`.
         mmar_dir: : target directory to store the MMAR, default is mmars subfolder under `torch.hub get_dir()`.
         progress: whether to display a progress bar when downloading the content.
+        version: version number of the MMAR. Set it to `-1` to use `item[Keys.VERSION]`.
         map_location: pytorch API parameter for `torch.load` or `torch.jit.load`.
         pretrained: whether to load the pretrained weights after initializing a network module.
         weights_only: whether to load only the weights instead of initializing the network module and assign weights.
@@ -200,7 +205,7 @@ def load_from_mmar(
     """
     if not isinstance(item, Mapping):
         item = _get_model_spec(item)
-    model_dir = download_mmar(item=item, mmar_dir=mmar_dir, progress=progress)
+    model_dir = download_mmar(item=item, mmar_dir=mmar_dir, progress=progress, version=version)
     model_file = os.path.join(model_dir, item[Keys.MODEL_FILE])
     print(f'\n*** "{item[Keys.ID]}" available at {model_dir}.')
 

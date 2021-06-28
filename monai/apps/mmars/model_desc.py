@@ -36,6 +36,7 @@ class RemoteMMARKeys:
     HASH_VAL = "hash_val"  # hashing value for the compressed MMAR
     MODEL_FILE = "model_file"  # within an MMAR folder, the relative path to the model file
     CONFIG_FILE = "config_file"  # within an MMAR folder, the relative path to the config file (for model config)
+    VERSION = "version"  # version of the MMAR
 
 
 MODEL_DESC = (
@@ -50,6 +51,7 @@ MODEL_DESC = (
         RemoteMMARKeys.HASH_VAL: None,
         RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
         RemoteMMARKeys.CONFIG_FILE: os.path.join("config", "config_train.json"),
+        RemoteMMARKeys.VERSION: 1,
     },
     {
         RemoteMMARKeys.ID: "clara_pt_prostate_mri_segmentation_1",
@@ -62,6 +64,7 @@ MODEL_DESC = (
         RemoteMMARKeys.HASH_VAL: None,
         RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
         RemoteMMARKeys.CONFIG_FILE: os.path.join("config", "config_train.json"),
+        RemoteMMARKeys.VERSION: 1,
     },
     {
         RemoteMMARKeys.ID: "clara_pt_covid19_ct_lesion_segmentation_1",
@@ -73,6 +76,7 @@ MODEL_DESC = (
         RemoteMMARKeys.HASH_TYPE: "md5",
         RemoteMMARKeys.HASH_VAL: None,
         RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
+        RemoteMMARKeys.VERSION: 1,
     },
     {
         RemoteMMARKeys.ID: "clara_pt_covid19_3d_ct_classification_1",
@@ -85,6 +89,7 @@ MODEL_DESC = (
         RemoteMMARKeys.HASH_VAL: None,
         RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
         RemoteMMARKeys.CONFIG_FILE: os.path.join("config", "config_train.json"),
+        RemoteMMARKeys.VERSION: 1,
     },
     {
         RemoteMMARKeys.ID: "clara_pt_covid19_ct_lung_annotation_1",
@@ -96,6 +101,7 @@ MODEL_DESC = (
         RemoteMMARKeys.HASH_TYPE: "md5",
         RemoteMMARKeys.HASH_VAL: None,
         RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
+        RemoteMMARKeys.VERSION: 1,
     },
     {
         RemoteMMARKeys.ID: "clara_pt_fed_learning_brain_tumor_mri_segmentation_1",
@@ -108,6 +114,7 @@ MODEL_DESC = (
         RemoteMMARKeys.HASH_TYPE: "md5",
         RemoteMMARKeys.HASH_VAL: None,
         RemoteMMARKeys.MODEL_FILE: os.path.join("models", "server", "best_FL_global_model.pt"),
+        RemoteMMARKeys.VERSION: 1,
     },
     {
         RemoteMMARKeys.ID: "clara_pt_pathology_metastasis_detection_1",
@@ -120,6 +127,7 @@ MODEL_DESC = (
         RemoteMMARKeys.HASH_VAL: None,
         RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
         RemoteMMARKeys.CONFIG_FILE: os.path.join("config", "config_train.json"),
+        RemoteMMARKeys.VERSION: 1,
     },
     {
         RemoteMMARKeys.ID: "clara_pt_brain_mri_segmentation_1",
@@ -130,6 +138,7 @@ MODEL_DESC = (
         RemoteMMARKeys.HASH_TYPE: "md5",
         RemoteMMARKeys.HASH_VAL: None,
         RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
+        RemoteMMARKeys.VERSION: 1,
     },
     {
         RemoteMMARKeys.ID: "clara_pt_brain_mri_segmentation_t1c_1",
@@ -140,6 +149,7 @@ MODEL_DESC = (
         RemoteMMARKeys.HASH_TYPE: "md5",
         RemoteMMARKeys.HASH_VAL: None,
         RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
+        RemoteMMARKeys.VERSION: 1,
     },
     {
         RemoteMMARKeys.ID: "clara_pt_liver_and_tumor_ct_segmentation_1",
@@ -152,6 +162,7 @@ MODEL_DESC = (
         RemoteMMARKeys.HASH_VAL: None,
         RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
         RemoteMMARKeys.CONFIG_FILE: os.path.join("config", "config_train.json"),
+        RemoteMMARKeys.VERSION: 1,
     },
     {
         RemoteMMARKeys.ID: "clara_pt_pancreas_and_tumor_ct_segmentation_1",
@@ -164,6 +175,7 @@ MODEL_DESC = (
         RemoteMMARKeys.HASH_VAL: None,
         RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
         RemoteMMARKeys.CONFIG_FILE: os.path.join("config", "config_train.json"),
+        RemoteMMARKeys.VERSION: 1,
     },
     {
         RemoteMMARKeys.ID: "clara_pt_brain_mri_annotation_t1c_1",
@@ -174,6 +186,7 @@ MODEL_DESC = (
         RemoteMMARKeys.HASH_TYPE: "md5",
         RemoteMMARKeys.HASH_VAL: None,
         RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
+        RemoteMMARKeys.VERSION: 1,
     },
     {
         RemoteMMARKeys.ID: "clara_pt_spleen_ct_annotation_1",
@@ -185,6 +198,7 @@ MODEL_DESC = (
         RemoteMMARKeys.HASH_VAL: None,
         RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
         RemoteMMARKeys.CONFIG_FILE: os.path.join("config", "config_train.json"),
+        RemoteMMARKeys.VERSION: 1,
     },
     {
         RemoteMMARKeys.ID: "clara_pt_deepgrow_3d_annotation_1",
@@ -196,6 +210,7 @@ MODEL_DESC = (
         RemoteMMARKeys.HASH_VAL: None,
         RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
         RemoteMMARKeys.CONFIG_FILE: os.path.join("config", "config_train.json"),
+        RemoteMMARKeys.VERSION: 1,
     },
     {
         RemoteMMARKeys.ID: "clara_pt_deepgrow_2d_annotation_1",
@@ -207,6 +222,7 @@ MODEL_DESC = (
         RemoteMMARKeys.HASH_VAL: None,
         RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
         RemoteMMARKeys.CONFIG_FILE: os.path.join("config", "config_train.json"),
+        RemoteMMARKeys.VERSION: 1,
     },
     {
         RemoteMMARKeys.ID: "clara_pt_covid19_ct_lung_segmentation_1",
@@ -218,5 +234,6 @@ MODEL_DESC = (
         RemoteMMARKeys.HASH_VAL: None,
         RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
         RemoteMMARKeys.CONFIG_FILE: os.path.join("config", "config_train.json"),
+        RemoteMMARKeys.VERSION: 1,
     },
 )
