@@ -44,6 +44,17 @@ class TestSpatialPad(unittest.TestCase):
         result = padder(input_data, mode=input_param["mode"])
         np.testing.assert_allclose(result.shape, expected_val.shape)
 
+    def test_pad_kwargs(self):
+        padder = SpatialPad(
+            spatial_size=[15, 8],
+            method="end",
+            mode="constant",
+            constant_values=((0, 0,), (1, 1), (2, 2)),
+        )
+        result = padder(np.zeros((3, 8, 4)))
+        np.testing.assert_allclose(result[:, 8:, :4], np.ones((3, 7, 4)))
+        np.testing.assert_allclose(result[:, :, 4:], np.ones((3, 15, 4)) + 1)
+
 
 if __name__ == "__main__":
     unittest.main()
