@@ -9,14 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Sequence, Union
 import warnings
+from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Sequence, Union
+
 import torch
 import torch.distributed as dist
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
-from monai.data import rep_scalar_to_batch, decollate_batch
+from monai.data import decollate_batch, rep_scalar_to_batch
 from monai.engines.utils import IterationEvents, default_prepare_batch
 from monai.utils import ensure_tuple, exact_version, optional_import
 

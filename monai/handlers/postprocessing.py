@@ -9,8 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable
 import warnings
+from typing import TYPE_CHECKING, Callable
 
 from monai.engines.utils import IterationEvents, engine_apply_transform
 from monai.utils import exact_version, optional_import
