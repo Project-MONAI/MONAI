@@ -15,20 +15,21 @@ import torch
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 
+from monai.config import IgniteInfo
 from monai.engines.utils import GanKeys, IterationEvents, default_make_latent, default_prepare_batch
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import Transform
-from monai.utils import exact_version, optional_import
+from monai.utils import min_version, optional_import
 from monai.utils.enums import CommonKeys as Keys
 
 if TYPE_CHECKING:
     from ignite.engine import Engine, EventEnum
     from ignite.metrics import Metric
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
-    Metric, _ = optional_import("ignite.metrics", "0.4.4", exact_version, "Metric")
-    EventEnum, _ = optional_import("ignite.engine", "0.4.4", exact_version, "EventEnum")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
+    Metric, _ = optional_import("ignite.metrics", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Metric")
+    EventEnum, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "EventEnum")
 
 __all__ = ["Trainer", "SupervisedTrainer", "GanTrainer"]
 
