@@ -94,6 +94,10 @@ def _get_ngc_url(model_name: str, version: str, model_prefix=""):
     return f"https://api.ngc.nvidia.com/v2/models/{model_prefix}{model_name}/versions/{version}/zip"
 
 
+def _get_ngc_doc_url(model_name: str, model_prefix=""):
+    return f"https://ngc.nvidia.com/catalog/models/{model_prefix}{model_name}"
+
+
 def download_mmar(item, mmar_dir=None, progress: bool = True, api: bool = False, version: int = -1):
     """
     Download and extract Medical Model Archive (MMAR) from Nvidia Clara Train.
@@ -270,7 +274,8 @@ def load_from_mmar(
     if pretrained:
         model_inst.load_state_dict(model_dict.get(model_key, model_dict))
     print("\n---")
-    print(f"For more information, please visit {item[Keys.DOC]}\n")
+    doc_url = item.get(Keys.DOC) or _get_ngc_doc_url(item[Keys.NAME], model_prefix="nvidia:med:")
+    print(f"For more information, please visit {doc_url}\n")
     return model_inst
 
 
