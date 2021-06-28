@@ -131,7 +131,9 @@ class TransformInverter:
                 data.update(o)
                 ret = self.inverter(data)
 
-                for output_key, meta_key, meta_key_postfix in zip(self.output_keys, self.meta_keys, self.meta_key_postfix):
+                for output_key, meta_key, meta_key_postfix in zip(
+                    self.output_keys, self.meta_keys, self.meta_key_postfix
+                ):
                     # save the inverted data into state.output
                     engine.state.output[i][output_key] = ret.get(output_key)
                     # save the inverted meta dict into state.batch
