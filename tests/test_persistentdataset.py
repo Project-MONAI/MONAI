@@ -123,6 +123,26 @@ class TestDataset(unittest.TestCase):
                 for d in data3_postcached:
                     self.assertTupleEqual(d["image"].shape, expected_shape)
 
+            # update the data to cache
+            test_data_new = [
+                {
+                    "image": os.path.join(tempdir, "test_image1_new.nii.gz"),
+                    "label": os.path.join(tempdir, "test_label1_new.nii.gz"),
+                    "extra": os.path.join(tempdir, "test_extra1_new.nii.gz"),
+                },
+                {
+                    "image": os.path.join(tempdir, "test_image2_new.nii.gz"),
+                    "label": os.path.join(tempdir, "test_label2_new.nii.gz"),
+                    "extra": os.path.join(tempdir, "test_extra2_new.nii.gz"),
+                },
+            ]
+            dataset_postcached.set_data(data=test_data_new)
+            # test new exchanged cache content
+            if transform is None:
+                self.assertEqual(dataset_postcached[0]["image"], os.path.join(tempdir, "test_image1_new.nii.gz"))
+                self.assertEqual(dataset_postcached[0]["label"], os.path.join(tempdir, "test_label1_new.nii.gz"))
+                self.assertEqual(dataset_postcached[1]["extra"], os.path.join(tempdir, "test_extra2_new.nii.gz"))
+
 
 if __name__ == "__main__":
     unittest.main()

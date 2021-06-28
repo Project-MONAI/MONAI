@@ -130,6 +130,8 @@ class PersistentDataset(Dataset):
     Subsequent uses of a dataset directly read pre-processed results from `cache_dir`
     followed by applying the random dependant parts of transform processing.
 
+    During training call `set_data()` to update input data and recompute cache content.
+
     Note:
         The input data must be a list of file paths and will hash them as cache keys.
 
@@ -172,6 +174,16 @@ class PersistentDataset(Dataset):
                 self.cache_dir.mkdir(parents=True, exist_ok=True)
             if not self.cache_dir.is_dir():
                 raise ValueError("cache_dir must be a directory.")
+
+    def set_data(self, data: Sequence):
+        """
+        Set the input data and delete all the out-dated cache content.
+
+        """
+        self.data = data
+        if self.cache_dir is not None and self.cache_dir.exists():
+            shutil.rmtree(self.cache_dir, ignore_errors=True)
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
 
     def _pre_transform(self, item_transformed):
         """
@@ -404,6 +416,14 @@ class LMDBDataset(PersistentDataset):
         self._read_env = None
         print(f"Accessing lmdb file: {self.db_file.absolute()}.")
 
+    def set_data(self, data: Sequence):
+        """
+        Set the input data and delete all the out-dated cache content.
+
+        """
+        super().set_data(data=data)
+        self._read_env = None
+
     def _fill_cache_start_reader(self):
         # create cache
         self.lmdb_kwargs["readonly"] = False
@@ -515,6 +535,9 @@ class CacheDataset(Dataset):
     ``RandCropByPosNegLabeld`` and ``ToTensord``, as ``RandCropByPosNegLabeld`` is a randomized transform
     and the outcome not cached.
 
+    During training call `set_data()` to update input data and recompute cache content, note that it requires
+    `persistent_workers=False` in the PyTorch DataLoader.
+
     Note:
         `CacheDataset` executes non-random transforms and prepares cache content in the main process before
         the first epoch, then all the subprocesses of DataLoader will read the same cache content in the main process
@@ -554,6 +577,18 @@ class CacheDataset(Dataset):
         if self.num_workers is not None:
             self.num_workers = max(int(self.num_workers), 1)
         self._cache: List = self._fill_cache()
+
+    def set_data(self, data: Sequence):
+        """
+        Set the input data and run deterministic transforms to generate cache content.
+
+        Note: should call this func after an entire epoch and must set `persisten_workers=False`
+        in PyTorch DataLoader, because it needs to create new worker processes based on new
+        generated cache content.
+
+        """
+        self.data = data
+        self._cache = self._fill_cache()
 
     def _fill_cache(self) -> List:
         if self.cache_num <= 0:
@@ -639,6 +674,9 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         3. Call `update_cache()` before every epoch to replace training items.
         4. Call `shutdown()` when training ends.
 
+    During training call `set_data()` to update input data and recompute cache content, note to call
+    `shutdown()` to stop first, then update data and call `start()` to restart.
+
     Note:
         This replacement will not work for below cases:
         1. Set the `multiprocessing_context` of DataLoader to `spawn`.
@@ -683,6 +721,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
             self.set_random_state(seed=seed)
             data = copy(data)
             self.randomize(data)
+        self.shuffle = shuffle
 
         super().__init__(data, transform, cache_num, cache_rate, num_init_workers, progress)
         if self._cache is None:
@@ -710,6 +749,22 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         self._replace_mgr: Optional[threading.Thread] = None
 
         self._compute_data_idx()
+
+    def set_data(self, data: Sequence):
+        """
+        Set the input data and run deterministic transforms to generate cache content.
+
+        Note: should call `shutdown()` before calling this func.
+
+        """
+        if self.is_started():
+            warnings.warn("SmartCacheDataset is not shutdown yet, shutdown it directly.")
+            self.shutdown()
+
+        if self.shuffle:
+            data = copy(data)
+            self.randomize(data)
+        super().set_data(data)
 
     def randomize(self, data: Sequence) -> None:
         try:
@@ -798,6 +853,8 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         with self._update_lock:
             if self._replace_done:
                 self._round = 0
+                self._start_pos = 0
+                self._compute_data_idx()
                 self._replace_done = False
                 return True
             return False
