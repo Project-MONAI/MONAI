@@ -56,10 +56,7 @@ class TestBorderPad(unittest.TestCase):
             spatial_border=2,
             mode="constant",
             constant_values=(
-                (
-                    0,
-                    0,
-                ),
+                (0, 0),
                 (1, 1),
                 (2, 2),
             ),
