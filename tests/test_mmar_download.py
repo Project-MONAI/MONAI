@@ -20,6 +20,7 @@ from parameterized import parameterized
 
 from monai.apps import download_mmar, load_from_mmar
 from monai.apps.mmars import MODEL_DESC
+from monai.apps.mmars.mmars import _get_val
 from tests.utils import SkipIfAtLeastPyTorchVersion, SkipIfBeforePyTorchVersion, skip_if_quick
 
 TEST_CASES = [["clara_pt_prostate_mri_segmentation_1"], ["clara_pt_covid19_ct_lesion_segmentation_1"]]
@@ -78,6 +79,24 @@ TEST_EXTRACT_CASES = [
             ]
         ),
     ),
+    (
+        {
+            "item": "clara_pt_pathology_metastasis_detection_1",
+            "map_location": "cuda" if torch.cuda.is_available() else "cpu",
+        },
+        "TorchVisionFullyConvModel",
+        np.array(
+            [
+                [-0.00693138, -0.00441378, -0.01057985, 0.05604396, 0.03526996, -0.00399302, -0.0267504],
+                [0.00805358, 0.01016939, -0.10749951, -0.28787708, -0.27905375, -0.13328083, -0.00882593],
+                [-0.01909848, 0.04871106, 0.2957697, 0.60376877, 0.53552634, 0.24821444, 0.03773781],
+                [0.02449462, -0.07471243, -0.30943492, -0.43987238, -0.26549947, -0.00698426, 0.04395606],
+                [-0.03124012, 0.00807883, 0.06797771, -0.04612541, -0.30266526, -0.39722857, -0.25109962],
+                [0.02480375, 0.03378576, 0.06519791, 0.24546203, 0.41867673, 0.393786, 0.16055048],
+                [-0.01529332, -0.00062494, -0.016658, -0.06313603, -0.1508078, -0.09107386, -0.01239121],
+            ]
+        ),
+    ),
 ]
 
 
@@ -123,6 +142,12 @@ class TestMMMARDownload(unittest.TestCase):
     def test_no_default(self):
         with self.assertRaises(ValueError):
             download_mmar(0)
+
+    def test_search(self):
+        self.assertEqual(_get_val({"a": 1, "b": 2}, key="b"), 2)
+        self.assertEqual(_get_val({"a": {"c": {"c": 4}}, "b": {"c": 2}}, key="b"), {"c": 2})
+        self.assertEqual(_get_val({"a": {"c": 4}, "b": {"c": 2}}, key="c"), 4)
+        self.assertEqual(_get_val({"a": {"c": None}, "b": {"c": 2}}, key="c"), 2)
 
 
 if __name__ == "__main__":

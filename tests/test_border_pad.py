@@ -53,6 +53,12 @@ class TestBorderPad(unittest.TestCase):
             result = padder(p(input_data), mode=input_param["mode"])
             self.assertAlmostEqual(result.shape, expected_val.shape)
 
+    def test_pad_kwargs(self):
+        padder = BorderPad(spatial_border=2, mode="constant", constant_values=((0, 0), (1, 1), (2, 2)))
+        result = padder(np.zeros((3, 8, 4)))
+        np.testing.assert_allclose(result[:, :2, 2:6], np.ones((3, 2, 4)))
+        np.testing.assert_allclose(result[:, :, :2], np.ones((3, 12, 2)) + 1)
+
 
 if __name__ == "__main__":
     unittest.main()

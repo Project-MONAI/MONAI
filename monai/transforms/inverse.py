@@ -75,8 +75,11 @@ class InvertibleTransform(Transform):
         info = {
             InverseKeys.CLASS_NAME: self.__class__.__name__,
             InverseKeys.ID: id(self),
-            InverseKeys.ORIG_SIZE: orig_size or (data[key].shape[1:] if hasattr(data[key], "shape") else None),
         }
+        if orig_size is not None:
+            info[InverseKeys.ORIG_SIZE] = orig_size
+        elif hasattr(data[key], "shape"):
+            info[InverseKeys.ORIG_SIZE] = data[key].shape[1:]
         if extra_info is not None:
             info[InverseKeys.EXTRA_INFO] = extra_info
         # If class is randomizable transform, store whether the transform was actually performed (based on `prob`)

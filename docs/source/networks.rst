@@ -241,6 +241,10 @@ Layers
 ~~~~~~~~~~~~~~~~~
 .. autoclass:: PHLFilter
 
+`GaussianMixtureModel`
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: GaussianMixtureModel
+
 `SavitzkyGolayFilter`
 ~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: SavitzkyGolayFilter
@@ -450,6 +454,16 @@ Nets
 `Critic`
 ~~~~~~~~
 .. autoclass:: Critic
+  :members:
+
+`NetAdapter`
+~~~~~~~~~~~~
+.. autoclass:: NetAdapter
+  :members:
+
+`TorchVisionFCModel`
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TorchVisionFCModel
   :members:
 
 `TorchVisionFullyConvModel`

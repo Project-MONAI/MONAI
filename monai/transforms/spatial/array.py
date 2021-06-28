@@ -100,7 +100,13 @@ class Spacing(ToDoTransform):
     ) -> None:
         """
         Args:
-            pixdim: output voxel spacing.
+            pixdim: output voxel spacing. if providing a single number, will use it for the first dimension.
+                items of the pixdim sequence map to the spatial dimensions of input image, if length
+                of pixdim sequence is longer than image spatial dimensions, will ignore the longer part,
+                if shorter, will pad with `1.0`.
+                if the components of the `pixdim` are non-positive values, the transform will use the
+                corresponding components of the origial pixdim, which is computed from the `affine`
+                matrix of input image.
             diagonal: whether to resample the input to have a diagonal affine matrix.
                 If True, the input data is resampled to the following affine::
 
@@ -123,6 +129,7 @@ class Spacing(ToDoTransform):
             dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
+
         """
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
         self.diagonal = diagonal
@@ -178,11 +185,11 @@ class Spacing(ToDoTransform):
             affine_ = np.eye(sr + 1, dtype=np.float64)
         else:
             affine_ = to_affine_nd(sr, affine)
+
         out_d = self.pixdim[:sr]
         if out_d.size < sr:
-            out_d = np.append(out_d, [1.0] * (out_d.size - sr))
-        if np.any(out_d <= 0):
-            raise ValueError(f"pixdim must be positive, got {out_d}.")
+            out_d = np.append(out_d, [1.0] * (sr - out_d.size))
+
         # compute output affine, shape and offset
         new_affine = zoom_affine(affine_, out_d, diagonal=self.diagonal)
         output_shape, offset = compute_shape_offset(data_array.shape[1:], affine_, new_affine)
@@ -213,6 +220,7 @@ class Spacing(ToDoTransform):
         )
         output_data = np.asarray(output_data.squeeze(0).detach().cpu().numpy(), dtype=np.float32)  # type: ignore
         new_affine = to_affine_nd(affine, new_affine)
+
         return output_data, affine, new_affine
 
 
@@ -298,6 +306,7 @@ class Orientation(ToDoTransform):
         data_array = np.ascontiguousarray(nib.orientations.apply_orientation(data_array, ornt))
         new_affine = affine_ @ nib.orientations.inv_ornt_aff(spatial_ornt, shape)
         new_affine = to_affine_nd(affine, new_affine)
+
         return data_array, affine, new_affine
 
 
@@ -475,7 +484,7 @@ class Rotate(ToDoTransform, ThreadUnsafe):
             raise ValueError(f"Unsupported img dimension: {input_ndim}, available options are [2, 3].")
         _angle = ensure_tuple_rep(self.angle, 1 if input_ndim == 2 else 3)
         transform = create_rotate(input_ndim, _angle)
-        shift = create_translate(input_ndim, (im_shape - 1) / 2)
+        shift = create_translate(input_ndim, ((im_shape - 1) / 2).tolist())
         if self.keep_size:
             output_shape = im_shape
         else:
@@ -484,7 +493,7 @@ class Rotate(ToDoTransform, ThreadUnsafe):
             )
             corners = transform[:-1, :-1] @ corners
             output_shape = np.asarray(corners.ptp(axis=1) + 0.5, dtype=int)
-        shift_1 = create_translate(input_ndim, -(output_shape - 1) / 2)
+        shift_1 = create_translate(input_ndim, (-(output_shape - 1) / 2).tolist())
         transform = shift @ transform @ shift_1
 
         xform = AffineTransform(
@@ -996,6 +1005,7 @@ class AffineGrid(ToDoTransform):
             else:
                 raise ValueError("Incompatible values: grid=None and spatial_size=None.")
 
+        affine: Union[torch.Tensor, np.ndarray]
         if self.affine is None:
             spatial_dims = len(grid.shape) - 1
             affine = np.eye(spatial_dims + 1)
@@ -1149,7 +1159,7 @@ class RandDeformGrid(Randomizable, ToDoTransform):
 
         self.rand_mag = 1.0
         self.as_tensor_output = as_tensor_output
-        self.random_offset = 0.0
+        self.random_offset: np.ndarray
         self.device = device
 
     def randomize(self, grid_size: Sequence[int]) -> None:
@@ -1280,6 +1290,7 @@ class Affine(Transform):
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
         as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
+        image_only: bool = False,
     ) -> None:
         """
         The affine transformations are applied in rotate, shear, translate, scale order.
@@ -1306,6 +1317,7 @@ class Affine(Transform):
             as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
                 whether to convert it back to numpy arrays.
             device: device on which the tensor will be allocated.
+            image_only: if True return only the image volume, otherwise return (image, affine).
         """
         self.affine_grid = AffineGrid(
             rotate_params=rotate_params,
@@ -1315,6 +1327,7 @@ class Affine(Transform):
             as_tensor_output=True,
             device=device,
         )
+        self.image_only = image_only
         self.resampler = Resample(as_tensor_output=as_tensor_output, device=device)
         self.spatial_size = spatial_size
         self.mode: GridSampleMode = GridSampleMode(mode)
@@ -1344,10 +1357,9 @@ class Affine(Transform):
         """
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
         grid, affine = self.affine_grid(spatial_size=sp_size)
-        return (
-            self.resampler(img=img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode),
-            affine,
-        )
+        ret = self.resampler(img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode)
+
+        return ret if self.image_only else (ret, affine)
 
 
 class RandAffine(RandomizableTransform):
@@ -1705,7 +1717,7 @@ class Rand3DElastic(RandomizableTransform):
         self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
         self.device = device
 
-        self.rand_offset = None
+        self.rand_offset: np.ndarray
         self.magnitude = 1.0
         self.sigma = 1.0
 

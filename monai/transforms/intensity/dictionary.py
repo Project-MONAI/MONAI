@@ -27,9 +27,11 @@ from monai.transforms.intensity.array import (
     GaussianSharpen,
     GaussianSmooth,
     GibbsNoise,
+    KSpaceSpikeNoise,
     MaskIntensity,
     NormalizeIntensity,
     RandBiasField,
+    RandKSpaceSpikeNoise,
     RandRicianNoise,
     ScaleIntensity,
     ScaleIntensityRange,
@@ -66,6 +68,8 @@ __all__ = [
     "RandGaussianSharpend",
     "GibbsNoised",
     "RandGibbsNoised",
+    "KSpaceSpikeNoised",
+    "RandKSpaceSpikeNoised",
     "RandHistogramShiftd",
     "RandGaussianNoiseD",
     "RandGaussianNoiseDict",
@@ -109,6 +113,8 @@ __all__ = [
     "GibbsNoiseDict",
     "RandGibbsNoiseD",
     "RandGibbsNoiseDict",
+    "KSpaceSpikeNoiseD",
+    "KSpaceSpikeNoiseDict",
     "RandHistogramShiftD",
     "RandHistogramShiftDict",
     "RandRicianNoiseD",
@@ -1120,6 +1126,193 @@ class GibbsNoised(MapTransform):
         return d
 
 
+class KSpaceSpikeNoised(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.KSpaceSpikeNoise`.
+
+    Applies localized spikes in `k`-space at the given locations and intensities.
+    Spike (Herringbone) artifact is a type of data acquisition artifact which
+    may occur during MRI scans.
+
+    For general information on spike artifacts, please refer to:
+
+    `AAPM/RSNA physics tutorial for residents: fundamental physics of MR imaging
+    <https://pubmed.ncbi.nlm.nih.gov/16009826>`_.
+
+    `Body MRI artifacts in clinical practice: A physicist's and radiologist's
+    perspective <https://doi.org/10.1002/jmri.24288>`_.
+
+    Args:
+        keys: "image", "label", or ["image", "label"] depending
+             on which data you need to transform.
+        loc: spatial location for the spikes. For
+            images with 3D spatial dimensions, the user can provide (C, X, Y, Z)
+            to fix which channel C is affected, or (X, Y, Z) to place the same
+            spike in all channels. For 2D cases, the user can provide (C, X, Y)
+            or (X, Y).
+        k_intensity: value for the log-intensity of the
+            `k`-space version of the image. If one location is passed to ``loc`` or the
+            channel is not specified, then this argument should receive a float. If
+            ``loc`` is given a sequence of locations, then this argument should
+            receive a sequence of intensities. This value should be tested as it is
+            data-dependent. The default values are the 2.5 the mean of the
+            log-intensity for each channel.
+        as_tensor_output: if ``True`` return torch.Tensor, else return np.array.
+            Default: ``True``.
+        allow_missing_keys: do not raise exception if key is missing.
+
+    Example:
+        When working with 4D data,
+        ``KSpaceSpikeNoised("image", loc = ((3,60,64,32), (64,60,32)), k_intensity = (13,14))``
+        will place a spike at `[3, 60, 64, 32]` with `log-intensity = 13`, and
+        one spike per channel located respectively at `[: , 64, 60, 32]`
+        with `log-intensity = 14`.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        loc: Union[Tuple, Sequence[Tuple]],
+        k_intensity: Optional[Union[Sequence[float], float]] = None,
+        as_tensor_output: bool = True,
+        allow_missing_keys: bool = False,
+    ) -> None:
+
+        super().__init__(keys, allow_missing_keys)
+        self.transform = KSpaceSpikeNoise(loc, k_intensity, as_tensor_output)
+
+    def __call__(
+        self, data: Mapping[Hashable, Union[torch.Tensor, np.ndarray]]
+    ) -> Dict[Hashable, Union[torch.Tensor, np.ndarray]]:
+        """
+        Args:
+            data: Expects image/label to have dimensions (C, H, W) or
+                (C, H, W, D), where C is the channel.
+        """
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.transform(d[key])
+        return d
+
+
+class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
+    """
+    Dictionary-based version of :py:class:`monai.transforms.RandKSpaceSpikeNoise`.
+
+    Naturalistic data augmentation via spike artifacts. The transform applies
+    localized spikes in `k`-space.
+
+    For general information on spike artifacts, please refer to:
+
+    `AAPM/RSNA physics tutorial for residents: fundamental physics of MR imaging
+    <https://pubmed.ncbi.nlm.nih.gov/16009826>`_.
+
+    `Body MRI artifacts in clinical practice: A physicist's and radiologist's
+    perspective <https://doi.org/10.1002/jmri.24288>`_.
+
+    Args:
+        keys: "image", "label", or ["image", "label"] depending
+             on which data you need to transform.
+        global_prob: probability of applying transform to the dictionary.
+        prob: probability to add spike artifact to each item in the
+            dictionary provided it is realized that the noise will be applied
+            to the dictionary.
+        img_intensity_range: Intensity
+            range to sample for ``"image"`` key. Pass a tuple `(a, b)` to sample
+            the log-intensity from the interval `(a, b)` uniformly for all
+            channels. Or pass sequence of intevals `((a0, b0), (a1, b1), ...)`
+            to sample for each respective channel. In the second case, the
+            number of 2-tuples must match the number of channels.
+            Default ranges is `(0.95x, 1.10x)` where `x` is the mean
+            log-intensity for each channel.
+        label_intensity_range: Intensity range to sample for ``"label"`` key. Same
+            as behavior as ``img_intensity_range`` but ``"label"`` key.
+        channel_wise: treat each channel independently. True by
+            default.
+        common_sampling: If ``True`` same values for location and log-intensity
+             will be sampled for the image and label.
+        common_seed: Seed to be used in case ``common_sampling = True``.
+        as_tensor_output: if ``True`` return torch.Tensor, else return
+            np.array. Default: ``True``.
+        allow_missing_keys: do not raise exception if key is missing.
+
+    Example:
+        To apply `k`-space spikes randomly on the image only, with probability
+        0.5, and log-intensity sampled from the interval [13, 15] for each
+        channel independently, one uses
+        ``RandKSpaceSpikeNoised("image", prob=0.5, img_intensity_range=(13,15), channel_wise=True)``.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        global_prob: float = 1.0,
+        prob: float = 0.1,
+        img_intensity_range: Optional[Sequence[Union[Sequence[float], float]]] = None,
+        label_intensity_range: Optional[Sequence[Union[Sequence[float], float]]] = None,
+        channel_wise: bool = True,
+        common_sampling: bool = False,
+        common_seed: int = 42,
+        as_tensor_output: bool = True,
+        allow_missing_keys: bool = False,
+    ):
+
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, global_prob)
+
+        self.common_sampling = common_sampling
+        self.common_seed = common_seed
+        self.as_tensor_output = as_tensor_output
+        # the spikes artifact is amplitude dependent so we instantiate one per key
+        self.t_img = RandKSpaceSpikeNoise(prob, img_intensity_range, channel_wise, self.as_tensor_output)
+        self.t_label = RandKSpaceSpikeNoise(prob, label_intensity_range, channel_wise, self.as_tensor_output)
+
+    def __call__(
+        self, data: Mapping[Hashable, Union[torch.Tensor, np.ndarray]]
+    ) -> Dict[Hashable, Union[torch.Tensor, np.ndarray]]:
+        """
+        Args:
+            data: Expects image/label to have dimensions (C, H, W) or
+                (C, H, W, D), where C is the channel.
+        """
+        d = dict(data)
+        super().randomize(None)
+
+        # In case the same spikes are desired for both image and label.
+        if self.common_sampling:
+            self.t_img.set_random_state(self.common_seed)
+            self.t_label.set_random_state(self.common_seed)
+
+        for key in self.key_iterator(d):
+            if self._do_transform:
+                transform = self.t_img if key == "image" else self.t_label
+                d[key] = transform(d[key])
+            else:
+                if isinstance(d[key], np.ndarray) and self.as_tensor_output:
+                    d[key] = torch.Tensor(d[key])
+                elif isinstance(d[key], torch.Tensor) and not self.as_tensor_output:
+                    d[key] = self._to_numpy(d[key])
+        return d
+
+    def set_rand_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None) -> None:
+        """
+        Set the random state locally to control the randomness.
+        User should use this method instead  of ``set_random_state``.
+
+        Args:
+            seed: set the random state with an integer seed.
+            state: set the random state with a `np.random.RandomState` object."""
+
+        self.set_random_state(seed, state)
+        self.t_img.set_random_state(seed, state)
+        self.t_label.set_random_state(seed, state)
+
+    def _to_numpy(self, d: Union[torch.Tensor, np.ndarray]) -> np.ndarray:
+        if isinstance(d, torch.Tensor):
+            d_numpy: np.ndarray = d.cpu().detach().numpy()
+        return d_numpy
+
+
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
 RandRicianNoiseD = RandRicianNoiseDict = RandRicianNoised
 ShiftIntensityD = ShiftIntensityDict = ShiftIntensityd
@@ -1143,3 +1336,5 @@ RandGaussianSharpenD = RandGaussianSharpenDict = RandGaussianSharpend
 RandHistogramShiftD = RandHistogramShiftDict = RandHistogramShiftd
 RandGibbsNoiseD = RandGibbsNoiseDict = RandGibbsNoised
 GibbsNoiseD = GibbsNoiseDict = GibbsNoised
+KSpaceSpikeNoiseD = KSpaceSpikeNoiseDict = KSpaceSpikeNoised
+RandKSpaceSpikeNoiseD = RandKSpaceSpikeNoiseDict = RandKSpaceSpikeNoised

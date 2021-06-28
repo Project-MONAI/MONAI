@@ -21,7 +21,7 @@ from tests.utils import skip_if_no_cpp_extension
 
 TEST_CASES = [
     [
-        # Case Descirption
+        # Case Description
         "1 dimension, 1 channel, low spatial sigma, low color sigma",
         # Spatial and Color Sigmas
         (1, 0.2),
@@ -53,7 +53,7 @@ TEST_CASES = [
         ],
     ],
     [
-        # Case Descirption
+        # Case Description
         "1 dimension, 1 channel, low spatial sigma, high color sigma",
         # Spatial and Color Sigmas
         (1, 0.9),
@@ -85,7 +85,7 @@ TEST_CASES = [
         ],
     ],
     [
-        # Case Descirption
+        # Case Description
         "1 dimension, 1 channel, high spatial sigma, low color sigma",
         # Spatial and Color Sigmas
         (4, 0.2),
@@ -117,7 +117,7 @@ TEST_CASES = [
         ],
     ],
     [
-        # Case Descirption
+        # Case Description
         "1 dimension, 1 channel, high spatial sigma, high color sigma",
         # Sigmas
         (4, 0.9),
@@ -149,7 +149,7 @@ TEST_CASES = [
         ],
     ],
     [
-        # Case Descirption
+        # Case Description
         "1 dimension, 4 channel, low spatial sigma, high color sigma",
         # Spatial and Color Sigmas
         (1, 0.9),
@@ -183,7 +183,7 @@ TEST_CASES = [
         ],
     ],
     [
-        # Case Descirption
+        # Case Description
         "2 dimension, 1 channel, high spatial sigma, high color sigma",
         # Sigmas
         (4, 0.9),
@@ -227,7 +227,7 @@ TEST_CASES = [
         ],
     ],
     [
-        # Case Descirption
+        # Case Description
         "2 dimension, 4 channel, high spatial sigma, high color sigma",
         # Spatial and Color Sigmas
         (4, 0.9),
@@ -285,7 +285,7 @@ TEST_CASES = [
         ],
     ],
     [
-        # Case Descirption
+        # Case Description
         "3 dimension, 1 channel, high spatial sigma, high color sigma",
         # Sigmas
         (4, 0.9),

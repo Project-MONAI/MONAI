@@ -15,10 +15,11 @@ import math
 import os
 import pickle
 import warnings
-from collections import abc, defaultdict
+from collections import defaultdict
+from functools import reduce
 from itertools import product, starmap
 from pathlib import PurePath
-from typing import Any, Dict, Generator, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Generator, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -32,13 +33,16 @@ from monai.utils import (
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
+    fall_back_tuple,
     first,
     optional_import,
 )
 from monai.utils.enums import Method
-from monai.utils.misc import issequenceiterable
 
+pd, _ = optional_import("pandas")
+DataFrame, _ = optional_import("pandas", name="DataFrame")
 nib, _ = optional_import("nibabel")
+
 
 __all__ = [
     "get_random_patch",
@@ -66,6 +70,7 @@ __all__ = [
     "decollate_batch",
     "pad_list_data_collate",
     "no_collation",
+    "convert_tables_to_dicts",
 ]
 
 
@@ -254,10 +259,10 @@ def list_data_collate(batch: Sequence):
     """
     elem = batch[0]
     data = [i for k in batch for i in k] if isinstance(elem, list) else batch
+    key = None
     try:
         elem = batch[0]
-        key = None
-        if isinstance(elem, abc.Mapping):
+        if isinstance(elem, Mapping):
             ret = {}
             for k in elem:
                 key = k
@@ -288,17 +293,18 @@ def list_data_collate(batch: Sequence):
         raise TypeError(re_str)
 
 
-def decollate_batch(data: Union[dict, list, torch.Tensor], batch_size: Optional[int] = None) -> List[dict]:
+def decollate_batch(batch, detach: bool = True):
     """De-collate a batch of data (for example, as produced by a `DataLoader`).
 
-    Returns a list of dictionaries, list or Tensor, mapping to a given batch.
+    Returns a list of structures with the original tensor's 0-th dimension sliced into elements using `torch.unbind`.
 
     Images originally stored as (B,C,H,W,[D]) will be returned as (C,H,W,[D]). Other information,
     such as metadata, may have been stored in a list (or a list inside nested dictionaries). In
     this case we return the element of the list corresponding to the batch idx.
 
     Return types aren't guaranteed to be the same as the original, since numpy arrays will have been
-    converted to torch.Tensor, and tuples/lists may have been converted to lists of tensors
+    converted to torch.Tensor, sequences may be converted to lists of tensors,
+    mappings may be converted into dictionaries.
 
     For example:
 
@@ -315,63 +321,50 @@ def decollate_batch(data: Union[dict, list, torch.Tensor], batch_size: Optional[
         print(out[0])
         >>> {'image': tensor([[[4.3549e-01...43e-01]]]), 'image_meta_dict': {'scl_slope': 0.0}}
 
-        batch_data = [torch.rand((2,1,10,10), torch.rand((2,3,5,5)]
+        batch_data = [torch.rand((2,1,10,10)), torch.rand((2,3,5,5))]
         out = decollate_batch(batch_data)
         print(out[0])
         >>> [tensor([[[4.3549e-01...43e-01]]], tensor([[[5.3435e-01...45e-01]]])]
 
-        batch_data = torch.rand((2,1,10,10)
+        batch_data = torch.rand((2,1,10,10))
         out = decollate_batch(batch_data)
         print(out[0])
         >>> tensor([[[4.3549e-01...43e-01]]])
 
     Args:
-        data: data to be de-collated.
-        batch_size: number of batches in data. If `None` is passed, try to figure out batch size.
+        batch: data to be de-collated.
+        detach: whether to detach the tensors. Scalars tensors will be detached into number types
+            instead of torch tensors.
     """
-
-    def torch_to_single(d: torch.Tensor):
-        """If input is a torch.Tensor with only 1 element, return just the element."""
-        return d if d.numel() > 1 else d.item()
-
-    def decollate(data: Any, idx: int):
-        """Recursively de-collate."""
-        if isinstance(data, dict):
-            return {k: decollate(v, idx) for k, v in data.items()}
-        if isinstance(data, torch.Tensor):
-            out = data[idx]
-            return torch_to_single(out)
-        if isinstance(data, list):
-            if len(data) == 0:
-                return data
-            if isinstance(data[0], torch.Tensor):
-                return [torch_to_single(d[idx]) for d in data]
-            if issequenceiterable(data[0]):
-                return [decollate(d, idx) for d in data]
-            return data[idx]
-        raise TypeError(f"Not sure how to de-collate type: {type(data)}")
-
-    def _detect_batch_size(batch_data):
-        for v in batch_data:
-            if isinstance(v, torch.Tensor):
-                return v.shape[0]
-        warnings.warn("batch_data is not a sequence of tensors in decollate, use `len(batch_data[0])` directly.")
-        return len(batch_data[0])
-
-    result: List[Any]
-    if isinstance(data, dict):
-        batch_size = _detect_batch_size(batch_data=data.values()) if batch_size is None else batch_size
-        result = [{key: decollate(data[key], idx) for key in data.keys()} for idx in range(batch_size)]
-    elif isinstance(data, list):
-        batch_size = _detect_batch_size(batch_data=data) if batch_size is None else batch_size
-        result = [[decollate(d, idx) for d in data] for idx in range(batch_size)]
-    elif isinstance(data, torch.Tensor):
-        batch_size = data.shape[0]
-        result = [data[idx] for idx in range(batch_size)]
-    else:
-        raise NotImplementedError("Only currently implemented for dictionary, list or Tensor data.")
-
-    return result
+    if batch is None:
+        return batch
+    if isinstance(batch, (float, int, str, bytes)):
+        return batch
+    if isinstance(batch, torch.Tensor):
+        if detach:
+            batch = batch.detach()
+        if batch.ndim == 0:
+            return batch.item() if detach else batch
+        out_list = torch.unbind(batch, dim=0)
+        if out_list[0].ndim == 0 and detach:
+            return [t.item() for t in out_list]
+        return list(out_list)
+    if isinstance(batch, Mapping):
+        _dict_list = {key: decollate_batch(batch[key], detach) for key in batch}
+        return [dict(zip(_dict_list, item)) for item in zip(*_dict_list.values())]
+    if isinstance(batch, Iterable):
+        item_0 = first(batch)
+        if (
+            not isinstance(item_0, Iterable)
+            or isinstance(item_0, (str, bytes))
+            or (isinstance(item_0, torch.Tensor) and item_0.ndim == 0)
+        ):
+            # Not running the usual list decollate here:
+            # don't decollate ['test', 'test'] into [['t', 't'], ['e', 'e'], ['s', 's'], ['t', 't']]
+            # torch.tensor(0) is iterable but iter(torch.tensor(0)) raises TypeError: iteration over a 0-d tensor
+            return [decollate_batch(b, detach) for b in batch]
+        return [list(item) for item in zip(*(decollate_batch(b, detach) for b in batch))]
+    raise NotImplementedError(f"Unable to de-collate: {batch}, type: {type(batch)}.")
 
 
 def pad_list_data_collate(
@@ -508,7 +501,8 @@ def zoom_affine(affine: np.ndarray, scale: Sequence[float], diagonal: bool = Tru
 
     Args:
         affine (nxn matrix): a square matrix.
-        scale: new scaling factor along each dimension.
+        scale: new scaling factor along each dimension. if the components of the `scale` are non-positive values,
+            will use the corresponding components of the origial pixdim, which is computed from the `affine`.
         diagonal: whether to return a diagonal scaling matrix.
             Defaults to True.
 
@@ -525,13 +519,15 @@ def zoom_affine(affine: np.ndarray, scale: Sequence[float], diagonal: bool = Tru
     if len(affine) != len(affine[0]):
         raise ValueError(f"affine must be n x n, got {len(affine)} x {len(affine[0])}.")
     scale_np = np.array(scale, dtype=float, copy=True)
-    if np.any(scale_np <= 0):
-        raise ValueError("scale must contain only positive numbers.")
+
     d = len(affine) - 1
+    # compute original pixdim
+    norm = np.sqrt(np.sum(np.square(affine), 0))[:-1]
     if len(scale_np) < d:  # defaults based on affine
-        norm = np.sqrt(np.sum(np.square(affine), 0))[:-1]
         scale_np = np.append(scale_np, norm[len(scale_np) :])
     scale_np = scale_np[:d]
+    scale_np = np.asarray(fall_back_tuple(scale_np, norm))
+
     scale_np[scale_np == 0] = 1.0
     if diagonal:
         return np.diag(np.append(scale_np, [1.0]))
@@ -613,7 +609,7 @@ def to_affine_nd(r: Union[np.ndarray, int], affine: np.ndarray) -> np.ndarray:
         raise ValueError(f"affine must have 2 dimensions, got {affine_np.ndim}.")
     new_affine = np.array(r, dtype=np.float64, copy=True)
     if new_affine.ndim == 0:
-        sr = new_affine.astype(int)
+        sr: int = int(new_affine.astype(np.uint))
         if not np.isfinite(sr) or sr < 0:
             raise ValueError(f"r must be positive, got {sr}.")
         new_affine = np.eye(sr + 1, dtype=np.float64)
@@ -996,3 +992,80 @@ def sorted_dict(item, key=None, reverse=False):
     if not isinstance(item, dict):
         return item
     return {k: sorted_dict(v) if isinstance(v, dict) else v for k, v in sorted(item.items(), key=key, reverse=reverse)}
+
+
+def convert_tables_to_dicts(
+    dfs,
+    row_indices: Optional[Sequence[Union[int, str]]] = None,
+    col_names: Optional[Sequence[str]] = None,
+    col_types: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
+    col_groups: Optional[Dict[str, Sequence[str]]] = None,
+    **kwargs,
+) -> List[Dict[str, Any]]:
+    """
+    Utility to join pandas tables, select rows, columns and generate groups.
+    Will return a list of dictionaries, every dictionary maps to a row of data in tables.
+
+    Args:
+        dfs: data table in pandas Dataframe format. if providing a list of tables, will join them.
+        row_indices: indices of the expected rows to load. it should be a list,
+            every item can be a int number or a range `[start, end)` for the indices.
+            for example: `row_indices=[[0, 100], 200, 201, 202, 300]`. if None,
+            load all the rows in the file.
+        col_names: names of the expected columns to load. if None, load all the columns.
+        col_types: `type` and `default value` to convert the loaded columns, if None, use original data.
+            it should be a dictionary, every item maps to an expected column, the `key` is the column
+            name and the `value` is None or a dictionary to define the default value and data type.
+            the supported keys in dictionary are: ["type", "default"], and note that the value of `default`
+            should not be `None`. for example::
+
+                col_types = {
+                    "subject_id": {"type": str},
+                    "label": {"type": int, "default": 0},
+                    "ehr_0": {"type": float, "default": 0.0},
+                    "ehr_1": {"type": float, "default": 0.0},
+                }
+
+        col_groups: args to group the loaded columns to generate a new column,
+            it should be a dictionary, every item maps to a group, the `key` will
+            be the new column name, the `value` is the names of columns to combine. for example:
+            `col_groups={"ehr": [f"ehr_{i}" for i in range(10)], "meta": ["meta_1", "meta_2"]}`
+        kwargs: additional arguments for `pandas.merge()` API to join tables.
+
+    """
+    df = reduce(lambda l, r: pd.merge(l, r, **kwargs), ensure_tuple(dfs))
+    # parse row indices
+    rows: List[Union[int, str]] = []
+    if row_indices is None:
+        rows = slice(df.shape[0])  # type: ignore
+    else:
+        for i in row_indices:
+            if isinstance(i, (tuple, list)):
+                if len(i) != 2:
+                    raise ValueError("range of row indices must contain 2 values: start and end.")
+                rows.extend(list(range(i[0], i[1])))
+            else:
+                rows.append(i)
+
+    # convert to a list of dictionaries corresponding to every row
+    data_ = df.loc[rows] if col_names is None else df.loc[rows, col_names]
+    if isinstance(col_types, dict):
+        # fill default values for NaN
+        defaults = {k: v["default"] for k, v in col_types.items() if v is not None and v.get("default") is not None}
+        if len(defaults) > 0:
+            data_ = data_.fillna(value=defaults)
+        # convert data types
+        types = {k: v["type"] for k, v in col_types.items() if v is not None and "type" in v}
+        if len(types) > 0:
+            data_ = data_.astype(dtype=types)
+    data: List[Dict] = data_.to_dict(orient="records")
+
+    # group columns to generate new column
+    if col_groups is not None:
+        groups: Dict[str, List] = {}
+        for name, cols in col_groups.items():
+            groups[name] = df.loc[rows, cols].values
+        # invert items of groups to every row of data
+        data = [dict(d, **{k: v[i] for k, v in groups.items()}) for i, d in enumerate(data)]
+
+    return data
