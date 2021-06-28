@@ -62,6 +62,28 @@ MODEL_DESC = (
         RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
     },
     {
+        RemoteMMARKeys.ID: "clara_train_covid19_3d_ct_classification_1",
+        RemoteMMARKeys.NAME: "clara_train_covid19_3d_ct_classification",
+        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/"
+        "med/clara_train_covid19_3d_ct_classification/versions/1/zip",
+        RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_train_covid19_3d_ct_classification",
+        RemoteMMARKeys.FILE_TYPE: "zip",
+        RemoteMMARKeys.HASH_TYPE: "md5",
+        RemoteMMARKeys.HASH_VAL: None,
+        RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
+    },
+    {
+        RemoteMMARKeys.ID: "clara_pt_covid19_ct_lung_annotation_1",
+        RemoteMMARKeys.NAME: "clara_pt_covid19_ct_lung_annotation",
+        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/"
+        "med/clara_pt_covid19_ct_lung_annotation/versions/1/zip",
+        RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_covid19_ct_lung_annotation",
+        RemoteMMARKeys.FILE_TYPE: "zip",
+        RemoteMMARKeys.HASH_TYPE: "md5",
+        RemoteMMARKeys.HASH_VAL: None,
+        RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
+    },
+    {
         RemoteMMARKeys.ID: "clara_pt_fed_learning_brain_tumor_mri_segmentation_1",
         RemoteMMARKeys.NAME: "clara_pt_fed_learning_brain_tumor_mri_segmentation",
         RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/"
