@@ -44,7 +44,14 @@ class TestDivisiblePad(unittest.TestCase):
         padder = DivisiblePad(
             k=5,
             mode="constant",
-            constant_values=((0, 0,), (1, 1), (2, 2)),
+            constant_values=(
+                (
+                    0,
+                    0,
+                ),
+                (1, 1),
+                (2, 2),
+            ),
         )
         result = padder(np.zeros((3, 8, 4)))
         np.testing.assert_allclose(result[:, :1, :4], np.ones((3, 1, 4)))

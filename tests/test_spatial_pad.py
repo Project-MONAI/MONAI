@@ -49,7 +49,14 @@ class TestSpatialPad(unittest.TestCase):
             spatial_size=[15, 8],
             method="end",
             mode="constant",
-            constant_values=((0, 0,), (1, 1), (2, 2)),
+            constant_values=(
+                (
+                    0,
+                    0,
+                ),
+                (1, 1),
+                (2, 2),
+            ),
         )
         result = padder(np.zeros((3, 8, 4)))
         np.testing.assert_allclose(result[:, 8:, :4], np.ones((3, 7, 4)))
