@@ -70,7 +70,7 @@ __all__ = [
     "pickle_hashing",
     "sorted_dict",
     "decollate_batch",
-    "copy_scalar_to_batch",
+    "rep_scalar_to_batch",
     "pad_list_data_collate",
     "no_collation",
     "convert_tables_to_dicts",
@@ -370,9 +370,9 @@ def decollate_batch(batch, detach: bool = True):
     raise NotImplementedError(f"Unable to de-collate: {batch}, type: {type(batch)}.")
 
 
-def copy_scalar_to_batch(batch_data: Union[List, Dict]) -> Union[List, Dict]:
+def rep_scalar_to_batch(batch_data: Union[List, Dict]) -> Union[List, Dict]:
     """
-    Utility tp copy the scalar items of a list or dictionary to ensure all the items have batch dimension.
+    Utility tp replicate the scalar items of a list or dictionary to ensure all the items have batch dimension.
     It leverages `decollate_batch(detach=False)` to filter out the scalar items.
 
     """
@@ -412,7 +412,8 @@ def copy_scalar_to_batch(batch_data: Union[List, Dict]) -> Union[List, Dict]:
                 list_batch.append(b)
 
         return list_batch
-    raise ValueError(f"only support to copy scalar in a list or a dictionary, input data type: {type(batch_data)}.")
+    # if not dict or list, just return the original data
+    return batch_data
 
 
 def pad_list_data_collate(

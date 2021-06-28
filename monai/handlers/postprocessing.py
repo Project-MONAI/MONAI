@@ -10,6 +10,7 @@
 # limitations under the License.
 
 from typing import TYPE_CHECKING, Callable
+import warnings
 
 from monai.engines.utils import IterationEvents, engine_apply_transform
 from monai.utils import exact_version, optional_import
@@ -49,5 +50,8 @@ class PostProcessing:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        for i, (b, o) in enumerate(zip(engine.state.batch, engine.state.output)):
-            engine.state.batch[i], engine.state.output[i] = engine_apply_transform(b, o, self.transform)
+        if not isinstance(engine.state.batch, list) or not isinstance(engine.state.output, list):
+            warnings.warn("postprocessing requires `engine.state.batch` and `engine.state.outout` to be lists.")
+        else:
+            for i, (b, o) in enumerate(zip(engine.state.batch, engine.state.output)):
+                engine.state.batch[i], engine.state.output[i] = engine_apply_transform(b, o, self.transform)

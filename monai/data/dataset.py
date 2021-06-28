@@ -173,7 +173,7 @@ class PersistentDataset(Dataset):
             if not self.cache_dir.is_dir():
                 raise ValueError("cache_dir must be a directory.")
 
-    def _preprocessing(self, item_transformed):
+    def _pre_transform(self, item_transformed):
         """
         Process the data from original state up to the first random element.
 
@@ -194,7 +194,7 @@ class PersistentDataset(Dataset):
             item_transformed = apply_transform(_xform, item_transformed)
         return item_transformed
 
-    def _postprocessing(self, item_transformed):
+    def _post_transform(self, item_transformed):
         """
         Process the data from before the first random transform to the final state ready for evaluation.
 
@@ -252,7 +252,7 @@ class PersistentDataset(Dataset):
                 else:
                     raise e
 
-        _item_transformed = self._preprocessing(deepcopy(item_transformed))  # keep the original hashed
+        _item_transformed = self._pre_transform(deepcopy(item_transformed))  # keep the original hashed
         if hashfile is not None:
             # NOTE: Writing to a temporary directory and then using a nearly atomic rename operation
             #       to make the cache more robust to manual killing of parent process
@@ -271,7 +271,7 @@ class PersistentDataset(Dataset):
 
     def _transform(self, index: int):
         pre_random_item = self._cachecheck(self.data[index])
-        return self._postprocessing(pre_random_item)
+        return self._post_transform(pre_random_item)
 
 
 class CacheNTransDataset(PersistentDataset):
@@ -308,7 +308,7 @@ class CacheNTransDataset(PersistentDataset):
         super().__init__(data=data, transform=transform, cache_dir=cache_dir, hash_func=hash_func)
         self.cache_n_trans = cache_n_trans
 
-    def _preprocessing(self, item_transformed):
+    def _pre_transform(self, item_transformed):
         """
         Process the data from original state up to the N element.
 
@@ -327,7 +327,7 @@ class CacheNTransDataset(PersistentDataset):
             item_transformed = apply_transform(_xform, item_transformed)
         return item_transformed
 
-    def _postprocessing(self, item_transformed):
+    def _post_transform(self, item_transformed):
         """
         Process the data from before the N + 1 transform to the final state ready for evaluation.
 
@@ -421,7 +421,7 @@ class LMDBDataset(PersistentDataset):
                             if done:
                                 continue
                         if val is None:
-                            val = self._preprocessing(deepcopy(item))  # keep the original hashed
+                            val = self._pre_transform(deepcopy(item))  # keep the original hashed
                             val = pickle.dumps(val, protocol=self.pickle_protocol)
                         txn.put(key, val)
                     done = True

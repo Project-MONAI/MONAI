@@ -105,9 +105,11 @@ class Decollated(MapTransform):
     """
     Decollate a batch of data.
     Note that unlike most MapTransforms, this will decollate all data, so keys are not needed.
+
     Args:
         detach: whether to detach the tensors. Scalars tensors will be detached into number types
             instead of torch tensors.
+
     """
 
     def __init__(self, keys="", detach: bool = True) -> None:

@@ -10,13 +10,13 @@
 # limitations under the License.
 
 from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Sequence, Union
-
+import warnings
 import torch
 import torch.distributed as dist
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
-from monai.data import copy_scalar_to_batch, decollate_batch
+from monai.data import rep_scalar_to_batch, decollate_batch
 from monai.engines.utils import IterationEvents, default_prepare_batch
 from monai.utils import ensure_tuple, exact_version, optional_import
 
@@ -68,8 +68,9 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             new events can be a list of str or `ignite.engine.events.EventEnum`.
         event_to_attr: a dictionary to map an event to a state attribute, then add to `engine.state`.
             for more details, check: https://github.com/pytorch/ignite/blob/v0.4.4.post1/ignite/engine/engine.py#L160
-        decollate: whether decollate the batch-first data to a list of data after model computation, default to `True`.
-            if `False`, postprocessing may not work as all the transforms should apply on channel-first data.
+        decollate: whether to decollate the batch-first data to a list of data after model computation,
+            default to `True`. if `False`, postprocessing will be ignored as the `monai.transforms` module
+            assumes channel-first data.
 
     Raises:
         TypeError: When ``device`` is not a ``torch.Device``.
@@ -157,8 +158,9 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
 
         if decollate:
             self._register_decollate()
-        if postprocessing is not None:
-            self._register_postprocessing(postprocessing)
+            # postprocessing can only work if `decollate=True`
+            if postprocessing is not None:
+                self._register_postprocessing(postprocessing)
         if key_metric is not None:
             self._register_metrics(key_metric, additional_metrics)
         if handlers is not None:
@@ -172,12 +174,9 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
 
         @self.on(IterationEvents.MODEL_COMPLETED)
         def _decollate_data(engine: Engine) -> None:
-            if isinstance(engine.state.batch, (dict, list)):
-                engine.state.batch = copy_scalar_to_batch(engine.state.batch)
-            engine.state.batch = decollate_batch(engine.state.batch, detach=True)
-            if isinstance(engine.state.output, (dict, list)):
-                engine.state.output = copy_scalar_to_batch(engine.state.output)
-            engine.state.output = decollate_batch(engine.state.output, detach=True)
+            # replicate the scalar values to make sure all the items have batch dimension, then decollate
+            engine.state.batch = decollate_batch(rep_scalar_to_batch(engine.state.batch), detach=True)
+            engine.state.output = decollate_batch(rep_scalar_to_batch(engine.state.output), detach=True)
 
     def _register_postprocessing(self, posttrans: Callable):
         """
@@ -187,8 +186,11 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
 
         @self.on(IterationEvents.MODEL_COMPLETED)
         def _run_postprocessing(engine: Engine) -> None:
-            for i, (b, o) in enumerate(zip(engine.state.batch, engine.state.output)):
-                engine.state.batch[i], engine.state.output[i] = engine_apply_transform(b, o, posttrans)
+            if not isinstance(engine.state.batch, list) or not isinstance(engine.state.output, list):
+                warnings.warn("postprocessing requires `engine.state.batch` and `engine.state.outout` to be lists.")
+            else:
+                for i, (b, o) in enumerate(zip(engine.state.batch, engine.state.output)):
+                    engine.state.batch[i], engine.state.output[i] = engine_apply_transform(b, o, posttrans)
 
     def _register_metrics(self, k_metric: Dict, add_metrics: Optional[Dict] = None):
         """

@@ -61,8 +61,9 @@ class Evaluator(Workflow):
             new events can be a list of str or `ignite.engine.events.EventEnum`.
         event_to_attr: a dictionary to map an event to a state attribute, then add to `engine.state`.
             for more details, check: https://github.com/pytorch/ignite/blob/v0.4.4.post1/ignite/engine/engine.py#L160
-        decollate: whether decollate the batch-first data to a list of data after model computation, default to `True`.
-            if `False`, postprocessing may not work as all the transforms should apply on channel-first data.
+        decollate: whether to decollate the batch-first data to a list of data after model computation,
+            default to `True`. if `False`, postprocessing will be ignored as the `monai.transforms` module
+            assumes channel-first data.
 
     """
 
@@ -157,8 +158,9 @@ class SupervisedEvaluator(Evaluator):
             new events can be a list of str or `ignite.engine.events.EventEnum`.
         event_to_attr: a dictionary to map an event to a state attribute, then add to `engine.state`.
             for more details, check: https://github.com/pytorch/ignite/blob/v0.4.4.post1/ignite/engine/engine.py#L160
-        decollate: whether decollate the batch-first data to a list of data after model computation, default to `True`.
-            if `False`, postprocessing may not work as all the transforms should apply on channel-first data.
+        decollate: whether to decollate the batch-first data to a list of data after model computation,
+            default to `True`. if `False`, postprocessing will be ignored as the `monai.transforms` module
+            assumes channel-first data.
 
     """
 
@@ -278,8 +280,9 @@ class EnsembleEvaluator(Evaluator):
             new events can be a list of str or `ignite.engine.events.EventEnum`.
         event_to_attr: a dictionary to map an event to a state attribute, then add to `engine.state`.
             for more details, check: https://github.com/pytorch/ignite/blob/v0.4.4.post1/ignite/engine/engine.py#L160
-        decollate: whether decollate the batch-first data to a list of data after model computation, default to `True`.
-            if `False`, postprocessing may not work as all the transforms should apply on channel-first data.
+        decollate: whether to decollate the batch-first data to a list of data after model computation,
+            default to `True`. if `False`, postprocessing will be ignored as the `monai.transforms` module
+            assumes channel-first data.
 
     """
 
