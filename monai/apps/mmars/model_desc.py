@@ -29,7 +29,7 @@ class RemoteMMARKeys:
 
     ID = "id"  # unique MMAR
     NAME = "name"  # MMAR name for readability
-    URL = "url"  # remote location of the MMAR
+    URL = "url"  # remote location of the MMAR, see also `monai.apps.mmars.mmars._get_ngc_url`
     DOC = "doc"  # documentation page of the remote model
     FILE_TYPE = "file_type"  # type of the compressed MMAR
     HASH_TYPE = "hash_type"  # hashing method for the compressed MMAR
@@ -43,8 +43,6 @@ MODEL_DESC = (
     {
         RemoteMMARKeys.ID: "clara_pt_spleen_ct_segmentation_1",
         RemoteMMARKeys.NAME: "clara_pt_spleen_ct_segmentation",
-        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/"
-        "med/clara_pt_spleen_ct_segmentation/versions/1/zip",
         RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_spleen_ct_segmentation",
         RemoteMMARKeys.FILE_TYPE: "zip",
         RemoteMMARKeys.HASH_TYPE: "md5",
@@ -56,8 +54,6 @@ MODEL_DESC = (
     {
         RemoteMMARKeys.ID: "clara_pt_prostate_mri_segmentation_1",
         RemoteMMARKeys.NAME: "clara_pt_prostate_mri_segmentation",
-        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/"
-        "med/clara_pt_prostate_mri_segmentation/versions/1/zip",
         RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_prostate_mri_segmentation",
         RemoteMMARKeys.FILE_TYPE: "zip",
         RemoteMMARKeys.HASH_TYPE: "md5",
@@ -69,8 +65,6 @@ MODEL_DESC = (
     {
         RemoteMMARKeys.ID: "clara_pt_covid19_ct_lesion_segmentation_1",
         RemoteMMARKeys.NAME: "clara_pt_covid19_ct_lesion_segmentation",
-        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/"
-        "med/clara_pt_covid19_ct_lesion_segmentation/versions/1/zip",
         RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_covid19_ct_lesion_segmentation",
         RemoteMMARKeys.FILE_TYPE: "zip",
         RemoteMMARKeys.HASH_TYPE: "md5",
@@ -81,8 +75,6 @@ MODEL_DESC = (
     {
         RemoteMMARKeys.ID: "clara_pt_covid19_3d_ct_classification_1",
         RemoteMMARKeys.NAME: "clara_pt_covid19_3d_ct_classification",
-        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/"
-        "med/clara_pt_covid19_3d_ct_classification/versions/1/zip -O clara_pt_covid19_3d_ct_classification_1.zip",
         RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_covid19_3d_ct_classification",
         RemoteMMARKeys.FILE_TYPE: "zip",
         RemoteMMARKeys.HASH_TYPE: "md5",
@@ -94,8 +86,6 @@ MODEL_DESC = (
     {
         RemoteMMARKeys.ID: "clara_pt_covid19_ct_lung_annotation_1",
         RemoteMMARKeys.NAME: "clara_pt_covid19_ct_lung_annotation",
-        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/"
-        "med/clara_pt_covid19_ct_lung_annotation/versions/1/zip",
         RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_covid19_ct_lung_annotation",
         RemoteMMARKeys.FILE_TYPE: "zip",
         RemoteMMARKeys.HASH_TYPE: "md5",
@@ -106,8 +96,6 @@ MODEL_DESC = (
     {
         RemoteMMARKeys.ID: "clara_pt_fed_learning_brain_tumor_mri_segmentation_1",
         RemoteMMARKeys.NAME: "clara_pt_fed_learning_brain_tumor_mri_segmentation",
-        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/"
-        "med/clara_pt_fed_learning_brain_tumor_mri_segmentation/versions/1/zip",
         RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/"
         "nvidia:med:clara_pt_fed_learning_brain_tumor_mri_segmentation",
         RemoteMMARKeys.FILE_TYPE: "zip",
@@ -119,8 +107,6 @@ MODEL_DESC = (
     {
         RemoteMMARKeys.ID: "clara_pt_pathology_metastasis_detection_1",
         RemoteMMARKeys.NAME: "clara_pt_pathology_metastasis_detection",
-        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/"
-        "med/clara_pt_pathology_metastasis_detection/versions/1/zip",
         RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_pathology_metastasis_detection",
         RemoteMMARKeys.FILE_TYPE: "zip",
         RemoteMMARKeys.HASH_TYPE: "md5",
@@ -132,7 +118,6 @@ MODEL_DESC = (
     {
         RemoteMMARKeys.ID: "clara_pt_brain_mri_segmentation_1",
         RemoteMMARKeys.NAME: "clara_pt_brain_mri_segmentation",
-        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/med/clara_pt_brain_mri_segmentation/versions/1/zip",
         RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_brain_mri_segmentation",
         RemoteMMARKeys.FILE_TYPE: "zip",
         RemoteMMARKeys.HASH_TYPE: "md5",
@@ -143,7 +128,6 @@ MODEL_DESC = (
     {
         RemoteMMARKeys.ID: "clara_pt_brain_mri_segmentation_t1c_1",
         RemoteMMARKeys.NAME: "clara_pt_brain_mri_segmentation_t1c",
-        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/med/clara_pt_brain_mri_segmentation_t1c/versions/1/zip",
         RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_brain_mri_segmentation_t1c",
         RemoteMMARKeys.FILE_TYPE: "zip",
         RemoteMMARKeys.HASH_TYPE: "md5",
@@ -154,8 +138,6 @@ MODEL_DESC = (
     {
         RemoteMMARKeys.ID: "clara_pt_liver_and_tumor_ct_segmentation_1",
         RemoteMMARKeys.NAME: "clara_pt_liver_and_tumor_ct_segmentation",
-        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/"
-        "med/clara_pt_liver_and_tumor_ct_segmentation/versions/1/zip",
         RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_liver_and_tumor_ct_segmentation",
         RemoteMMARKeys.FILE_TYPE: "zip",
         RemoteMMARKeys.HASH_TYPE: "md5",
@@ -167,8 +149,6 @@ MODEL_DESC = (
     {
         RemoteMMARKeys.ID: "clara_pt_pancreas_and_tumor_ct_segmentation_1",
         RemoteMMARKeys.NAME: "clara_pt_pancreas_and_tumor_ct_segmentation",
-        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/"
-        "med/clara_pt_pancreas_and_tumor_ct_segmentation/versions/1/zip",
         RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_pancreas_and_tumor_ct_segmentation",
         RemoteMMARKeys.FILE_TYPE: "zip",
         RemoteMMARKeys.HASH_TYPE: "md5",
@@ -180,7 +160,6 @@ MODEL_DESC = (
     {
         RemoteMMARKeys.ID: "clara_pt_brain_mri_annotation_t1c_1",
         RemoteMMARKeys.NAME: "clara_pt_brain_mri_annotation_t1c",
-        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/med/clara_pt_brain_mri_annotation_t1c/versions/1/zip",
         RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_brain_mri_annotation_t1c",
         RemoteMMARKeys.FILE_TYPE: "zip",
         RemoteMMARKeys.HASH_TYPE: "md5",
@@ -191,7 +170,6 @@ MODEL_DESC = (
     {
         RemoteMMARKeys.ID: "clara_pt_spleen_ct_annotation_1",
         RemoteMMARKeys.NAME: "clara_pt_spleen_ct_annotation",
-        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/med/clara_pt_spleen_ct_annotation/versions/1/zip",
         RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_spleen_ct_annotation",
         RemoteMMARKeys.FILE_TYPE: "zip",
         RemoteMMARKeys.HASH_TYPE: "md5",
@@ -203,7 +181,6 @@ MODEL_DESC = (
     {
         RemoteMMARKeys.ID: "clara_pt_deepgrow_3d_annotation_1",
         RemoteMMARKeys.NAME: "clara_pt_deepgrow_3d_annotation",
-        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/med/clara_pt_deepgrow_3d_annotation/versions/1/zip",
         RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_deepgrow_3d_annotation",
         RemoteMMARKeys.FILE_TYPE: "zip",
         RemoteMMARKeys.HASH_TYPE: "md5",
@@ -215,7 +192,6 @@ MODEL_DESC = (
     {
         RemoteMMARKeys.ID: "clara_pt_deepgrow_2d_annotation_1",
         RemoteMMARKeys.NAME: "clara_pt_deepgrow_2d_annotation",
-        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/med/clara_pt_deepgrow_2d_annotation/versions/1/zip",
         RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_deepgrow_2d_annotation",
         RemoteMMARKeys.FILE_TYPE: "zip",
         RemoteMMARKeys.HASH_TYPE: "md5",
@@ -227,7 +203,6 @@ MODEL_DESC = (
     {
         RemoteMMARKeys.ID: "clara_pt_covid19_ct_lung_segmentation_1",
         RemoteMMARKeys.NAME: "clara_pt_covid19_ct_lung_segmentation",
-        RemoteMMARKeys.URL: "https://api.ngc.nvidia.com/v2/models/nvidia/med/clara_pt_covid19_ct_lung_segmentation/versions/1/zip",
         RemoteMMARKeys.DOC: "https://ngc.nvidia.com/catalog/models/nvidia:med:clara_pt_covid19_ct_lung_segmentation",
         RemoteMMARKeys.FILE_TYPE: "zip",
         RemoteMMARKeys.HASH_TYPE: "md5",

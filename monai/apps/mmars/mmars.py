@@ -156,10 +156,12 @@ def download_mmar(item, mmar_dir=None, progress: bool = True, api: bool = False,
     ver = item.get(Keys.VERSION, 1)
     if version > 0:
         ver = str(version)
-    model_dir = os.path.join(mmar_dir, f"{item[Keys.NAME]}_{ver}")
+    model_fullname = f"{item[Keys.NAME]}_{ver}"
+    model_dir = os.path.join(mmar_dir, model_fullname)
+    model_url = item.get(Keys.URL) or _get_ngc_url(item[Keys.NAME], version=ver, model_prefix="nvidia/med/")
     download_and_extract(
-        url=_get_ngc_url(item[Keys.NAME], version=ver, model_prefix="nvidia/med/"),
-        filepath=os.path.join(mmar_dir, f"{item[Keys.ID]}.{item[Keys.FILE_TYPE]}"),
+        url=model_url,
+        filepath=os.path.join(mmar_dir, f"{model_fullname}.{item[Keys.FILE_TYPE]}"),
         output_dir=model_dir,
         hash_val=item[Keys.HASH_VAL],
         hash_type=item[Keys.HASH_TYPE],
