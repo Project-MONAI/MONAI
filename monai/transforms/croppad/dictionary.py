@@ -20,7 +20,7 @@ from copy import deepcopy
 from enum import Enum
 from itertools import chain
 from math import ceil, floor
-from typing import Any, Callable, Dict, Hashable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 

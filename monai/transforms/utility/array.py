@@ -32,7 +32,7 @@ from monai.transforms.transform import (
     convert_data_type,
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points, map_binary_to_indices
-from monai.utils import ensure_tuple, issequenceiterable, min_version, optional_import
+from monai.utils import ensure_tuple, min_version, optional_import
 from monai.utils.enums import DataObjects
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")

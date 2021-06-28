@@ -32,14 +32,9 @@ from monai.transforms.transform import (
     convert_data_type,
 )
 from monai.transforms.utils import rescale_array
-from monai.utils import (
-    PT_BEFORE_1_7,
-    InvalidPyTorchVersionError,
-    dtype_torch_to_numpy,
-    ensure_tuple,
-    ensure_tuple_rep,
-    ensure_tuple_size,
-)
+from monai.utils import PT_BEFORE_1_7, InvalidPyTorchVersionError, ensure_tuple, ensure_tuple_rep, ensure_tuple_size
+from monai.utils.enums import DataObjects
+from monai.utils.misc import dtype_convert
 
 __all__ = [
     "RandGaussianNoise",

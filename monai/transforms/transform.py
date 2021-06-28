@@ -14,7 +14,7 @@ A collection of generic interfaces for MONAI transforms.
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Generator, Hashable, Iterable, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Callable, Generator, Hashable, Iterable, List, Optional, Tuple, Type, TypeVar, Union
 
 import numpy as np
 import torch
@@ -38,6 +38,7 @@ __all__ = [
 ]
 
 ReturnType = TypeVar("ReturnType")
+
 
 def convert_data_type(
     data: DataObjects.Images,
