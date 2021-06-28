@@ -36,6 +36,7 @@ from monai.transforms import (
     ToTensord,
 )
 from monai.transforms.spatial.dictionary import RandAffined, RandRotate90d
+from monai.transforms.inverse_batch_transform import Decollated
 from monai.utils import optional_import, set_determinism
 from monai.utils.enums import InverseKeys
 from tests.utils import make_nifti_image
@@ -124,8 +125,12 @@ class TestDeCollate(unittest.TestCase):
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
         for b, batch_data in enumerate(loader):
-            for i, d in enumerate(decollate_batch(batch_data)):
-                self.check_match(dataset[b * batch_size + i], d)
+            decollated_1 = decollate_batch(batch_data)
+            decollated_2 = Decollated(detach=True)(batch_data)
+
+            for decollated in [decollated_1, decollated_2]:
+                for i, d in enumerate(decollated):
+                    self.check_match(dataset[b * batch_size + i], d)
 
     @parameterized.expand(TESTS_DICT)
     def test_decollation_dict(self, *transforms):
