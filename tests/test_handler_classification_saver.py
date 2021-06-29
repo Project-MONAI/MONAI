@@ -18,6 +18,7 @@ import numpy as np
 import torch
 from ignite.engine import Engine
 
+from monai.data import decollate_batch
 from monai.data.csv_saver import CSVSaver
 from monai.handlers import ClassificationSaver
 
@@ -28,7 +29,8 @@ class TestHandlerClassificationSaver(unittest.TestCase):
 
             # set up engine
             def _train_func(engine, batch):
-                return torch.zeros(8)
+                engine.state.batch = decollate_batch(batch)
+                return [torch.zeros(1) for _ in range(8)]
 
             engine = Engine(_train_func)
 

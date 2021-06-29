@@ -48,6 +48,11 @@ Generic Interfaces
 .. autoclass:: BatchInverseTransform
     :members:
 
+`Decollated`
+^^^^^^^^^^^^
+.. autoclass:: Decollated
+    :members:
+
 
 Vanilla Transforms
 ------------------

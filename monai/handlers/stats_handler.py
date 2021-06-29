@@ -45,7 +45,7 @@ class StatsHandler:
         self,
         epoch_print_logger: Optional[Callable[[Engine], Any]] = None,
         iteration_print_logger: Optional[Callable[[Engine], Any]] = None,
-        output_transform: Callable = lambda x: x,
+        output_transform: Callable = lambda x: x[0],
         global_epoch_transform: Callable = lambda x: x,
         name: Optional[str] = None,
         tag_name: str = DEFAULT_TAG,
@@ -63,6 +63,8 @@ class StatsHandler:
                 ``ignite.engine.state.output`` into a scalar to print, or a dictionary of {key: scalar}.
                 In the latter case, the output string will be formatted as key: value.
                 By default this value logging happens when every iteration completed.
+                The default behavior is to print loss from output[0] as output is a decollated list
+                and we replicated loss value for every item of the decollated list.
             global_epoch_transform: a callable that is used to customize global epoch number.
                 For example, in evaluation, the evaluator engine might want to print synced epoch number
                 with the trainer engine.
@@ -175,7 +177,8 @@ class StatsHandler:
         """
         Execute iteration log operation based on Ignite engine.state data.
         Print the values from Ignite state.logs dict.
-        Default behavior is to print loss from output[1], skip if output[1] is not loss.
+        The default behavior is to print loss from output[0] as output is a decollated list and we replicated loss
+        value for every item of the decollated list.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.

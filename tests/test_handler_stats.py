@@ -32,7 +32,7 @@ class TestHandlerStats(unittest.TestCase):
 
         # set up engine
         def _train_func(engine, batch):
-            return torch.tensor(0.0)
+            return [torch.tensor(0.0)]
 
         engine = Engine(_train_func)
 
@@ -67,7 +67,7 @@ class TestHandlerStats(unittest.TestCase):
 
         # set up engine
         def _train_func(engine, batch):
-            return torch.tensor(0.0)
+            return [torch.tensor(0.0)]
 
         engine = Engine(_train_func)
 
@@ -96,7 +96,7 @@ class TestHandlerStats(unittest.TestCase):
 
         # set up engine
         def _train_func(engine, batch):
-            return torch.tensor(0.0)
+            return [torch.tensor(0.0)]
 
         engine = Engine(_train_func)
 
@@ -129,7 +129,7 @@ class TestHandlerStats(unittest.TestCase):
 
             # set up engine
             def _train_func(engine, batch):
-                return torch.tensor(0.0)
+                return [torch.tensor(0.0)]
 
             engine = Engine(_train_func)
 

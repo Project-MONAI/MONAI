@@ -73,7 +73,7 @@ class SupervisedTrainer(Trainer):
         iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
         inferer: inference method that execute model forward on input data, like: SlidingWindow, etc.
-        post_transform: execute additional transformation for the model output data.
+        postprocessing: execute additional transformation for the model output data.
             Typically, several Tensor based transforms composed by `Compose`.
         key_train_metric: compute metric when every iteration completed, and save average value to
             engine.state.metrics when epoch completed. key_train_metric is the main metric to compare and save the
@@ -86,6 +86,9 @@ class SupervisedTrainer(Trainer):
             new events can be a list of str or `ignite.engine.events.EventEnum`.
         event_to_attr: a dictionary to map an event to a state attribute, then add to `engine.state`.
             for more details, check: https://github.com/pytorch/ignite/blob/v0.4.4.post1/ignite/engine/engine.py#L160
+        decollate: whether to decollate the batch-first data to a list of data after model computation,
+            default to `True`. if `False`, postprocessing will be ignored as the `monai.transforms` module
+            assumes channel-first data.
 
     """
 
@@ -102,13 +105,14 @@ class SupervisedTrainer(Trainer):
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
         inferer: Optional[Inferer] = None,
-        post_transform: Optional[Transform] = None,
+        postprocessing: Optional[Transform] = None,
         key_train_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
         train_handlers: Optional[Sequence] = None,
         amp: bool = False,
         event_names: Optional[List[Union[str, EventEnum]]] = None,
         event_to_attr: Optional[dict] = None,
+        decollate: bool = True,
     ) -> None:
         super().__init__(
             device=device,
@@ -118,13 +122,14 @@ class SupervisedTrainer(Trainer):
             non_blocking=non_blocking,
             prepare_batch=prepare_batch,
             iteration_update=iteration_update,
-            post_transform=post_transform,
+            postprocessing=postprocessing,
             key_metric=key_train_metric,
             additional_metrics=additional_metrics,
             handlers=train_handlers,
             amp=amp,
             event_names=event_names,
             event_to_attr=event_to_attr,
+            decollate=decollate,
         )
 
         self.network = network
@@ -221,7 +226,7 @@ class GanTrainer(Trainer):
         g_update_latents: Calculate G loss with new latent codes. Defaults to ``True``.
         iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
-        post_transform: execute additional transformation for the model output data.
+        postprocessing: execute additional transformation for the model output data.
             Typically, several Tensor based transforms composed by `Compose`.
         key_train_metric: compute metric when every iteration completed, and save average value to
             engine.state.metrics when epoch completed. key_train_metric is the main metric to compare and save the
@@ -229,6 +234,9 @@ class GanTrainer(Trainer):
         additional_metrics: more Ignite metrics that also attach to Ignite Engine.
         train_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
+        decollate: whether to decollate the batch-first data to a list of data after model computation,
+            default to `True`. if `False`, postprocessing will be ignored as the `monai.transforms` module
+            assumes channel-first data.
 
     """
 
@@ -253,10 +261,11 @@ class GanTrainer(Trainer):
         g_prepare_batch: Callable = default_make_latent,
         g_update_latents: bool = True,
         iteration_update: Optional[Callable] = None,
-        post_transform: Optional[Transform] = None,
+        postprocessing: Optional[Transform] = None,
         key_train_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
         train_handlers: Optional[Sequence] = None,
+        decollate: bool = True,
     ):
         if not isinstance(train_data_loader, DataLoader):
             raise ValueError("train_data_loader must be PyTorch DataLoader.")
@@ -273,7 +282,8 @@ class GanTrainer(Trainer):
             key_metric=key_train_metric,
             additional_metrics=additional_metrics,
             handlers=train_handlers,
-            post_transform=post_transform,
+            postprocessing=postprocessing,
+            decollate=decollate,
         )
         self.g_network = g_network
         self.g_optimizer = g_optimizer
