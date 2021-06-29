@@ -19,6 +19,7 @@ from typing import Any, Callable, List, Sequence, Tuple, Union
 
 import torch
 
+from .deprecated import version_leq
 from .misc import ensure_tuple
 
 OPTIONAL_IMPORT_MSG_FMT = "{}"
@@ -270,12 +271,7 @@ def get_torch_version_tuple():
     return tuple((int(x) for x in torch.__version__.split(".")[:2]))
 
 
-PT_BEFORE_1_7 = True
-ver, has_ver = optional_import("pkg_resources", name="parse_version")
 try:
-    if has_ver:
-        PT_BEFORE_1_7 = ver(torch.__version__) < ver("1.7")
-    else:
-        PT_BEFORE_1_7 = get_torch_version_tuple() < (1, 7)
+    PT_BEFORE_1_7 = torch.__version__ != "1.7.0" and version_leq(torch.__version__, "1.7.0")
 except (AttributeError, TypeError):
-    pass
+    PT_BEFORE_1_7 = True
