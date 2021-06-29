@@ -45,7 +45,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
     It initializes all the sharable data in Ignite engine.state.
     And attach additional processing logics to Ignite engine based on Event-Handler mechanism.
 
-    Users should consider to inherit from `trainer` or `evaluator` to develop more trainers or evaluators.
+    Users should consider inheriting from `trainer` or `evaluator` to develop more trainers or evaluators.
 
     Args:
         device: an object representing the device on which to run.
