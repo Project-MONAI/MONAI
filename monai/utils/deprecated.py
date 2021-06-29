@@ -45,7 +45,7 @@ def version_leq(lhs, rhs):
     def _try_cast(val):
         val = val.strip()
         try:
-            m = re.match("(\d+)(.*)", val)
+            m = re.match("(\\d+)(.*)", val)
             if m is not None:
                 val = m.groups()[0]
 
