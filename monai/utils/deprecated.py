@@ -86,6 +86,10 @@ def deprecated(
 
     is_deprecated = since is not None and version_leq(since, version_val)
     is_removed = removed is not None and version_leq(removed, version_val)
+    is_not_yet_deprecated = since is not None and version_val != since and version_leq(version_val, since)
+    
+    if is_not_yet_deprecated:
+        return lambda obj: obj
 
     def _decorator(obj):
         is_func = isinstance(obj, FunctionType)
@@ -142,6 +146,10 @@ def deprecated_arg(
 
     is_deprecated = since is not None and version_leq(since, version_val)
     is_removed = removed is not None and version_leq(removed, version_val)
+    is_not_yet_deprecated = since is not None and version_val != since and version_leq(version_val, since)
+    
+    if is_not_yet_deprecated:
+        return lambda obj: obj
 
     def _decorator(func):
         argname = f"{func.__name__}_{name}"
