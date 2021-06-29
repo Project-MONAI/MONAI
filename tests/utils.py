@@ -33,7 +33,6 @@ from monai.config.deviceconfig import USE_COMPILED
 from monai.data import create_test_image_2d, create_test_image_3d
 from monai.utils import ensure_tuple, optional_import, set_determinism
 from monai.utils.deprecated import version_leq
-from monai.utils.module import get_torch_version_tuple
 
 nib, _ = optional_import("nibabel")
 
