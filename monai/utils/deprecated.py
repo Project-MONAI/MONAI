@@ -23,7 +23,6 @@ from .. import __version__
 __all__ = ["deprecated", "deprecated_arg", "DeprecatedError"]
 
 warned_set = set()
-warned_lock = Lock()
 
 
 class DeprecatedError(Exception):
@@ -35,6 +34,7 @@ def warn_deprecated(obj, msg):
     Issue the warning message `msg` only once per process for the given object `obj`. When this function is called
     and `obj` is not in `warned_set`, it is added and the warning issued, if it's already present nothing happens.
     """
+    global warned_set
     if obj not in warned_set:  # ensure warning is issued only once per process
         warned_set.add(obj)
         warnings.warn(msg, category=DeprecationWarning, stacklevel=2)
