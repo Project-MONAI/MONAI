@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import inspect
+import re
 import warnings
 from functools import wraps
 from threading import Lock
@@ -44,6 +45,10 @@ def version_leq(lhs, rhs):
     def _try_cast(val):
         val = val.strip()
         try:
+            m = re.match("(\d+)(.*)", val)
+            if m is not None:
+                val = m.groups()[0]
+                
             return int(val)
         except ValueError:
             return val
