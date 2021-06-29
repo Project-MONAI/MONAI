@@ -128,8 +128,8 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
                 acc_value = torch.eq(y_pred.argmax(dim=1), y)
                 acc_metric = acc_value.sum().item() / len(acc_value)
                 # compute AUC
-                y_pred = act(y_pred)
-                y = to_onehot(y)
+                y_pred = torch.stack([act(i) for i in y_pred])
+                y = torch.stack([to_onehot(i) for i in y])
                 auc_metric = compute_roc_auc(y_pred, y)
                 metric_values.append(auc_metric)
                 if auc_metric > best_metric:

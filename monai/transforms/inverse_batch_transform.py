@@ -19,10 +19,10 @@ from monai.data.dataloader import DataLoader
 from monai.data.utils import decollate_batch, no_collation, pad_list_data_collate
 from monai.transforms.croppad.batch import PadListDataCollate
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.transform import Transform
+from monai.transforms.transform import MapTransform, Transform
 from monai.utils import first
 
-__all__ = ["BatchInverseTransform"]
+__all__ = ["BatchInverseTransform", "Decollated"]
 
 
 class _BatchInverseDataset(Dataset):
@@ -87,7 +87,6 @@ class BatchInverseTransform(Transform):
         self.pad_collation_used = loader.collate_fn.__doc__ == pad_list_data_collate.__doc__
 
     def __call__(self, data: Dict[str, Any]) -> Any:
-
         decollated_data = decollate_batch(data, detach=self.detach)
         inv_ds = _BatchInverseDataset(decollated_data, self.transform, self.pad_collation_used)
         inv_loader = DataLoader(
@@ -100,3 +99,22 @@ class BatchInverseTransform(Transform):
             if "equal size" in re_str:
                 re_str += "\nMONAI hint: try creating `BatchInverseTransform` with `collate_fn=lambda x: x`."
             raise RuntimeError(re_str)
+
+
+class Decollated(MapTransform):
+    """
+    Decollate a batch of data.
+    Note that unlike most MapTransforms, this will decollate all data, so keys are not needed.
+
+    Args:
+        detach: whether to detach the tensors. Scalars tensors will be detached into number types
+            instead of torch tensors.
+
+    """
+
+    def __init__(self, keys="", detach: bool = True) -> None:
+        super().__init__(keys=keys)
+        self.detach = detach
+
+    def __call__(self, data: dict):
+        return decollate_batch(data, detach=self.detach)

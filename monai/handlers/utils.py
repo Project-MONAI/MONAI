@@ -228,7 +228,7 @@ def write_metrics_reports(
 def from_engine(keys: KeysCollection):
     """
     Utility function to simplify the `batch_transform` or `output_transform` args of ignite components
-    when handling dictionary data(for example: `engine.state.batch` or `engine.state.output`).
+    when handling dictionary or list of dictionaries(for example: `engine.state.batch` or `engine.state.output`).
     Users only need to set the expected keys, then it will return a callable function to extract data from
     dictionary and construct a tuple respectively.
     It can help avoid a complicated `lambda` function and make the arg of metrics more straight-forward.
@@ -243,8 +243,14 @@ def from_engine(keys: KeysCollection):
         )
 
     """
+    keys = ensure_tuple(keys)
 
-    def _wrapper(output: Dict):
-        return tuple(output[k] for k in ensure_tuple(keys))
+    def _wrapper(data):
+        if isinstance(data, dict):
+            return tuple(data[k] for k in keys)
+        elif isinstance(data, list) and isinstance(data[0], dict):
+            # if data is a list of dictionaries, extract expected keys and construct lists
+            ret = [[i[k] for i in data] for k in keys]
+            return tuple(ret) if len(ret) > 1 else ret[0]
 
     return _wrapper

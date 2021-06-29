@@ -16,15 +16,9 @@ from typing import TYPE_CHECKING, Callable, List, Optional
 import torch
 
 from monai.config import IgniteInfo
-from monai.data import CSVSaver
+from monai.data import CSVSaver, decollate_batch
 from monai.utils import ImageMetaKey as Key
-from monai.utils import (
-    evenly_divisible_all_gather,
-    issequenceiterable,
-    min_version,
-    optional_import,
-    string_list_all_gather,
-)
+from monai.utils import evenly_divisible_all_gather, min_version, optional_import, string_list_all_gather
 
 idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
@@ -109,14 +103,16 @@ class ClassificationSaver:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        filenames = self.batch_transform(engine.state.batch).get(Key.FILENAME_OR_OBJ)
-        if issequenceiterable(filenames):
-            self._filenames.extend(filenames)
-        outputs = self.output_transform(engine.state.output)
-        if outputs is not None:
-            if isinstance(outputs, torch.Tensor):
-                outputs = outputs.detach()
-            self._outputs.append(outputs)
+        meta_data = self.batch_transform(engine.state.batch)
+        if isinstance(meta_data, dict):
+            # decollate the `dictionary of list` to `list of dictionaries`
+            meta_data = decollate_batch(meta_data)
+        engine_output = self.output_transform(engine.state.output)
+        for m, o in zip(meta_data, engine_output):
+            self._filenames.append(f"{m.get(Key.FILENAME_OR_OBJ)}")
+            if isinstance(o, torch.Tensor):
+                o = o.detach()
+            self._outputs.append(o)
 
     def _finalize(self, engine: Engine) -> None:
         """
@@ -129,7 +125,7 @@ class ClassificationSaver:
         if self.save_rank >= ws:
             raise ValueError("target save rank is greater than the distributed group size.")
 
-        outputs = torch.cat(self._outputs, dim=0)
+        outputs = torch.stack(self._outputs, dim=0)
         filenames = self._filenames
         if ws > 1:
             outputs = evenly_divisible_all_gather(outputs, concat=True)

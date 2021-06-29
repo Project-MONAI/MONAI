@@ -338,7 +338,7 @@ class SplitChanneld(MapTransform):
         self,
         keys: KeysCollection,
         output_postfixes: Optional[Sequence[str]] = None,
-        channel_dim: Optional[int] = None,
+        channel_dim: int = 0,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -349,10 +349,7 @@ class SplitChanneld(MapTransform):
                 for example: if the key of input data is `pred` and split 2 classes, the output
                 data keys will be: pred_(output_postfixes[0]), pred_(output_postfixes[1])
                 if None, using the index number: `pred_0`, `pred_1`, ... `pred_N`.
-            channel_dim: which dimension of input image is the channel, default to None
-                to automatically select: if data is numpy array, channel_dim is 0 as
-                `numpy array` is used in the pre transforms, if PyTorch Tensor, channel_dim
-                is 1 as in most of the cases `Tensor` is uses in the post transforms.
+            channel_dim: which dimension of input image is the channel, default to 0.
             allow_missing_keys: don't raise exception if key is missing.
 
         """

@@ -47,7 +47,7 @@ class Evaluator(Workflow):
         prepare_batch: function to parse image and label for current iteration.
         iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
-        post_transform: execute additional transformation for the model output data.
+        postprocessing: execute additional transformation for the model output data.
             Typically, several Tensor based transforms composed by `Compose`.
         key_val_metric: compute metric when every iteration completed, and save average value to
             engine.state.metrics when epoch completed. key_val_metric is the main metric to compare and save the
@@ -62,6 +62,9 @@ class Evaluator(Workflow):
             new events can be a list of str or `ignite.engine.events.EventEnum`.
         event_to_attr: a dictionary to map an event to a state attribute, then add to `engine.state`.
             for more details, check: https://github.com/pytorch/ignite/blob/v0.4.4.post1/ignite/engine/engine.py#L160
+        decollate: whether to decollate the batch-first data to a list of data after model computation,
+            default to `True`. if `False`, postprocessing will be ignored as the `monai.transforms` module
+            assumes channel-first data.
 
     """
 
@@ -73,7 +76,7 @@ class Evaluator(Workflow):
         non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
-        post_transform: Optional[Transform] = None,
+        postprocessing: Optional[Transform] = None,
         key_val_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
         val_handlers: Optional[Sequence] = None,
@@ -81,6 +84,7 @@ class Evaluator(Workflow):
         mode: Union[ForwardMode, str] = ForwardMode.EVAL,
         event_names: Optional[List[Union[str, EventEnum]]] = None,
         event_to_attr: Optional[dict] = None,
+        decollate: bool = True,
     ) -> None:
         super().__init__(
             device=device,
@@ -90,13 +94,14 @@ class Evaluator(Workflow):
             non_blocking=non_blocking,
             prepare_batch=prepare_batch,
             iteration_update=iteration_update,
-            post_transform=post_transform,
+            postprocessing=postprocessing,
             key_metric=key_val_metric,
             additional_metrics=additional_metrics,
             handlers=val_handlers,
             amp=amp,
             event_names=event_names,
             event_to_attr=event_to_attr,
+            decollate=decollate,
         )
         mode = ForwardMode(mode)
         if mode == ForwardMode.EVAL:
@@ -139,7 +144,7 @@ class SupervisedEvaluator(Evaluator):
         iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
         inferer: inference method that execute model forward on input data, like: SlidingWindow, etc.
-        post_transform: execute additional transformation for the model output data.
+        postprocessing: execute additional transformation for the model output data.
             Typically, several Tensor based transforms composed by `Compose`.
         key_val_metric: compute metric when every iteration completed, and save average value to
             engine.state.metrics when epoch completed. key_val_metric is the main metric to compare and save the
@@ -154,6 +159,9 @@ class SupervisedEvaluator(Evaluator):
             new events can be a list of str or `ignite.engine.events.EventEnum`.
         event_to_attr: a dictionary to map an event to a state attribute, then add to `engine.state`.
             for more details, check: https://github.com/pytorch/ignite/blob/v0.4.4.post1/ignite/engine/engine.py#L160
+        decollate: whether to decollate the batch-first data to a list of data after model computation,
+            default to `True`. if `False`, postprocessing will be ignored as the `monai.transforms` module
+            assumes channel-first data.
 
     """
 
@@ -167,7 +175,7 @@ class SupervisedEvaluator(Evaluator):
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
         inferer: Optional[Inferer] = None,
-        post_transform: Optional[Transform] = None,
+        postprocessing: Optional[Transform] = None,
         key_val_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
         val_handlers: Optional[Sequence] = None,
@@ -175,6 +183,7 @@ class SupervisedEvaluator(Evaluator):
         mode: Union[ForwardMode, str] = ForwardMode.EVAL,
         event_names: Optional[List[Union[str, EventEnum]]] = None,
         event_to_attr: Optional[dict] = None,
+        decollate: bool = True,
     ) -> None:
         super().__init__(
             device=device,
@@ -183,7 +192,7 @@ class SupervisedEvaluator(Evaluator):
             non_blocking=non_blocking,
             prepare_batch=prepare_batch,
             iteration_update=iteration_update,
-            post_transform=post_transform,
+            postprocessing=postprocessing,
             key_val_metric=key_val_metric,
             additional_metrics=additional_metrics,
             val_handlers=val_handlers,
@@ -191,6 +200,7 @@ class SupervisedEvaluator(Evaluator):
             mode=mode,
             event_names=event_names,
             event_to_attr=event_to_attr,
+            decollate=decollate,
         )
 
         self.network = network
@@ -224,6 +234,7 @@ class SupervisedEvaluator(Evaluator):
 
         # put iteration outputs into engine.state
         engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
+
         # execute forward computation
         with self.mode(self.network):
             if self.amp:
@@ -255,7 +266,7 @@ class EnsembleEvaluator(Evaluator):
         iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
         inferer: inference method that execute model forward on input data, like: SlidingWindow, etc.
-        post_transform: execute additional transformation for the model output data.
+        postprocessing: execute additional transformation for the model output data.
             Typically, several Tensor based transforms composed by `Compose`.
         key_val_metric: compute metric when every iteration completed, and save average value to
             engine.state.metrics when epoch completed. key_val_metric is the main metric to compare and save the
@@ -270,6 +281,9 @@ class EnsembleEvaluator(Evaluator):
             new events can be a list of str or `ignite.engine.events.EventEnum`.
         event_to_attr: a dictionary to map an event to a state attribute, then add to `engine.state`.
             for more details, check: https://github.com/pytorch/ignite/blob/v0.4.4.post1/ignite/engine/engine.py#L160
+        decollate: whether to decollate the batch-first data to a list of data after model computation,
+            default to `True`. if `False`, postprocessing will be ignored as the `monai.transforms` module
+            assumes channel-first data.
 
     """
 
@@ -284,7 +298,7 @@ class EnsembleEvaluator(Evaluator):
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
         inferer: Optional[Inferer] = None,
-        post_transform: Optional[Transform] = None,
+        postprocessing: Optional[Transform] = None,
         key_val_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
         val_handlers: Optional[Sequence] = None,
@@ -292,6 +306,7 @@ class EnsembleEvaluator(Evaluator):
         mode: Union[ForwardMode, str] = ForwardMode.EVAL,
         event_names: Optional[List[Union[str, EventEnum]]] = None,
         event_to_attr: Optional[dict] = None,
+        decollate: bool = True,
     ) -> None:
         super().__init__(
             device=device,
@@ -300,7 +315,7 @@ class EnsembleEvaluator(Evaluator):
             non_blocking=non_blocking,
             prepare_batch=prepare_batch,
             iteration_update=iteration_update,
-            post_transform=post_transform,
+            postprocessing=postprocessing,
             key_val_metric=key_val_metric,
             additional_metrics=additional_metrics,
             val_handlers=val_handlers,
@@ -308,6 +323,7 @@ class EnsembleEvaluator(Evaluator):
             mode=mode,
             event_names=event_names,
             event_to_attr=event_to_attr,
+            decollate=decollate,
         )
 
         self.networks = ensure_tuple(networks)
@@ -345,6 +361,7 @@ class EnsembleEvaluator(Evaluator):
 
         # put iteration outputs into engine.state
         engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
+
         for idx, network in enumerate(self.networks):
             with self.mode(network):
                 if self.amp:

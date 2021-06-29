@@ -59,7 +59,7 @@ class TestInteractions(unittest.TestCase):
         engine.add_event_handler(IterationEvents.INNER_ITERATION_COMPLETED, add_one)
 
         engine.run()
-        self.assertIsNotNone(engine.state.batch.get("probability"), "Probability is missing")
+        self.assertIsNotNone(engine.state.batch[0].get("probability"), "Probability is missing")
         self.assertEqual(engine.state.best_metric, 9)
 
     def test_train_interaction(self):

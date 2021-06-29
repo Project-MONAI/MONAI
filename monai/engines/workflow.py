@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Sequence, Union
 
 import torch
@@ -17,6 +18,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
 from monai.config import IgniteInfo
+from monai.data import decollate_batch, rep_scalar_to_batch
 from monai.engines.utils import IterationEvents, default_prepare_batch
 from monai.utils import ensure_tuple, min_version, optional_import
 
@@ -55,7 +57,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         prepare_batch: function to parse image and label for every iteration.
         iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
-        post_transform: execute additional transformation for the model output data.
+        postprocessing: execute additional transformation for the model output data.
             Typically, several Tensor based transforms composed by `Compose`.
         key_metric: compute metric when every iteration completed, and save average value to
             engine.state.metrics when epoch completed. key_metric is the main metric to compare and save the
@@ -68,6 +70,9 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             new events can be a list of str or `ignite.engine.events.EventEnum`.
         event_to_attr: a dictionary to map an event to a state attribute, then add to `engine.state`.
             for more details, check: https://github.com/pytorch/ignite/blob/v0.4.4.post1/ignite/engine/engine.py#L160
+        decollate: whether to decollate the batch-first data to a list of data after model computation,
+            default to `True`. if `False`, postprocessing will be ignored as the `monai.transforms` module
+            assumes channel-first data.
 
     Raises:
         TypeError: When ``device`` is not a ``torch.Device``.
@@ -86,13 +91,14 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
-        post_transform: Optional[Callable] = None,
+        postprocessing: Optional[Callable] = None,
         key_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
         handlers: Optional[Sequence] = None,
         amp: bool = False,
         event_names: Optional[List[Union[str, EventEnum]]] = None,
         event_to_attr: Optional[dict] = None,
+        decollate: bool = True,
     ) -> None:
         if iteration_update is not None:
             super().__init__(iteration_update)
@@ -138,7 +144,12 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         self.prepare_batch = prepare_batch
         self.amp = amp
 
-        event_names = [IterationEvents] if event_names is None else event_names + [IterationEvents]
+        if event_names is None:
+            event_names = [IterationEvents]
+        else:
+            if not isinstance(event_names, list):
+                raise ValueError("event_names must be a list or string or EventEnum.")
+            event_names += [IterationEvents]
         for name in event_names:
             if isinstance(name, str):
                 self.register_events(name, event_to_attr=event_to_attr)
@@ -147,26 +158,41 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             else:
                 raise ValueError("event_names must be a list or string or EventEnum.")
 
-        if post_transform is not None:
-            self._register_post_transforms(post_transform)
+        if decollate:
+            self._register_decollate()
+            # postprocessing can only work if `decollate=True`
+            if postprocessing is not None:
+                self._register_postprocessing(postprocessing)
         if key_metric is not None:
             self._register_metrics(key_metric, additional_metrics)
         if handlers is not None:
             self._register_handlers(handlers)
 
-    def _register_post_transforms(self, posttrans: Callable):
+    def _register_decollate(self):
         """
-        Register the post transforms to the engine, will execute them as a chain when iteration completed.
+        Register the decollate operation for batch data, will execure after model forward and loss forward.
 
         """
 
         @self.on(IterationEvents.MODEL_COMPLETED)
-        def run_post_transform(engine: Engine) -> None:
-            engine.state.batch, engine.state.output = engine_apply_transform(
-                batch=engine.state.batch,
-                output=engine.state.output,
-                transform=posttrans,
-            )
+        def _decollate_data(engine: Engine) -> None:
+            # replicate the scalar values to make sure all the items have batch dimension, then decollate
+            engine.state.batch = decollate_batch(rep_scalar_to_batch(engine.state.batch), detach=True)
+            engine.state.output = decollate_batch(rep_scalar_to_batch(engine.state.output), detach=True)
+
+    def _register_postprocessing(self, posttrans: Callable):
+        """
+        Register the postprocessing logic to the engine, will execute them as a chain when iteration completed.
+
+        """
+
+        @self.on(IterationEvents.MODEL_COMPLETED)
+        def _run_postprocessing(engine: Engine) -> None:
+            if not isinstance(engine.state.batch, list) or not isinstance(engine.state.output, list):
+                warnings.warn("postprocessing requires `engine.state.batch` and `engine.state.outout` to be lists.")
+            else:
+                for i, (b, o) in enumerate(zip(engine.state.batch, engine.state.output)):
+                    engine.state.batch[i], engine.state.output[i] = engine_apply_transform(b, o, posttrans)
 
     def _register_metrics(self, k_metric: Dict, add_metrics: Optional[Dict] = None):
         """
