@@ -166,7 +166,7 @@ class TestDeprecated(unittest.TestCase):
 
         self.assertWarns(DeprecationWarning, lambda: afoo5(1, 2))
         self.assertWarns(DeprecationWarning, lambda: afoo5(1, 2, 3))
-        
+
     def test_future(self):
         """Test deprecated decorator with `since` set to a future version."""
 
@@ -177,5 +177,5 @@ class TestDeprecated(unittest.TestCase):
         with self.assertWarns(DeprecationWarning) as aw:
             future1()
             warnings.warn("fake warning", DeprecationWarning)
-            
+
         self.assertEqual(aw.warning.args[0], "fake warning")

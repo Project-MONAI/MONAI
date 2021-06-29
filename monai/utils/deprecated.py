@@ -48,7 +48,7 @@ def version_leq(lhs, rhs):
             m = re.match("(\d+)(.*)", val)
             if m is not None:
                 val = m.groups()[0]
-                
+
             return int(val)
         except ValueError:
             return val
@@ -92,7 +92,7 @@ def deprecated(
     is_deprecated = since is not None and version_leq(since, version_val)
     is_removed = removed is not None and version_leq(removed, version_val)
     is_not_yet_deprecated = since is not None and version_val != since and version_leq(version_val, since)
-    
+
     if is_not_yet_deprecated:
         return lambda obj: obj
 
@@ -152,7 +152,7 @@ def deprecated_arg(
     is_deprecated = since is not None and version_leq(since, version_val)
     is_removed = removed is not None and version_leq(removed, version_val)
     is_not_yet_deprecated = since is not None and version_val != since and version_leq(version_val, since)
-    
+
     if is_not_yet_deprecated:
         return lambda obj: obj
 
