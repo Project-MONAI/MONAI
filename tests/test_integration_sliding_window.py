@@ -75,7 +75,7 @@ class TestIntegrationSlidingWindow(DistTestCase):
         if os.path.exists(self.seg_name):
             os.remove(self.seg_name)
 
-    @TimedCall(seconds=10)
+    @TimedCall(seconds=20)
     def test_training(self):
         set_determinism(seed=0)
         with tempfile.TemporaryDirectory() as tempdir:
