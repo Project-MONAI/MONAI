@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import inspect
+import re
 import sys
 import warnings
 from importlib import import_module
@@ -19,7 +20,6 @@ from typing import Any, Callable, List, Sequence, Tuple, Union
 
 import torch
 
-from .deprecated import version_leq
 from .misc import ensure_tuple
 
 OPTIONAL_IMPORT_MSG_FMT = "{}"
@@ -37,6 +37,7 @@ __all__ = [
     "get_package_version",
     "get_torch_version_tuple",
     "PT_BEFORE_1_7",
+    "version_leq",
 ]
 
 
@@ -269,6 +270,39 @@ def get_torch_version_tuple():
         tuple of ints represents the pytorch major/minor version.
     """
     return tuple((int(x) for x in torch.__version__.split(".")[:2]))
+
+
+def version_leq(lhs, rhs):
+    """Returns True if version `lhs` is earlier or equal to `rhs`."""
+
+    ver, has_ver = optional_import("pkg_resources", name="parse_version")
+    if has_ver:
+        return ver(lhs) <= ver(rhs)
+
+    def _try_cast(val):
+        val = val.strip()
+        try:
+            m = re.match("(\\d+)(.*)", val)
+            if m is not None:
+                val = m.groups()[0]
+
+            return int(val)
+        except ValueError:
+            return val
+
+    # remove git version suffixes if present
+    lhs = lhs.split("+", 1)[0]
+    rhs = rhs.split("+", 1)[0]
+
+    # parse the version strings in this basic way without `packaging` package
+    lhs = map(_try_cast, lhs.split("."))
+    rhs = map(_try_cast, rhs.split("."))
+
+    for l, r in zip(lhs, rhs):
+        if l != r:
+            return l < r
+
+    return True
 
 
 try:

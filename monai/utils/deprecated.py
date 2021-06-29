@@ -10,12 +10,13 @@
 # limitations under the License.
 
 import inspect
-import re
 import warnings
 from functools import wraps
 from threading import Lock
 from types import FunctionType
 from typing import Optional
+
+from monai.utils.module import version_leq
 
 from .. import __version__
 
@@ -39,35 +40,6 @@ def warn_deprecated(obj, msg):
         warnings.warn(msg, category=DeprecationWarning, stacklevel=2)
 
 
-def version_leq(lhs, rhs):
-    """Returns True if version `lhs` is earlier or equal to `rhs`."""
-
-    def _try_cast(val):
-        val = val.strip()
-        try:
-            m = re.match("(\\d+)(.*)", val)
-            if m is not None:
-                val = m.groups()[0]
-
-            return int(val)
-        except ValueError:
-            return val
-
-    # remove git version suffixes if present
-    lhs = lhs.split("+", 1)[0]
-    rhs = rhs.split("+", 1)[0]
-
-    # parse the version strings in this basic way to avoid needing the `packaging` package
-    lhs = map(_try_cast, lhs.split("."))
-    rhs = map(_try_cast, rhs.split("."))
-
-    for l, r in zip(lhs, rhs):
-        if l != r:
-            return l < r
-
-    return True
-
-
 def deprecated(
     since: Optional[str] = None, removed: Optional[str] = None, msg_suffix: str = "", version_val: str = __version__
 ):
@@ -89,12 +61,21 @@ def deprecated(
         Decorated definition which warns or raises exception when used
     """
 
-    is_deprecated = since is not None and version_leq(since, version_val)
-    is_removed = removed is not None and version_leq(removed, version_val)
+    if since is not None and removed is not None and not version_leq(since, removed):
+        raise ValueError(f"since must be less or equal to removed, got since={since}, removed={removed}.")
     is_not_yet_deprecated = since is not None and version_val != since and version_leq(version_val, since)
-
     if is_not_yet_deprecated:
+        # smaller than `since`, do nothing
         return lambda obj: obj
+
+    if since is None and removed is None:
+        # raise a DeprecatedError directly
+        is_removed = True
+        is_deprecated = True
+    else:
+        # compare the numbers
+        is_deprecated = since is not None and version_leq(since, version_val)
+        is_removed = removed is not None and version_leq(removed, version_val)
 
     def _decorator(obj):
         is_func = isinstance(obj, FunctionType)
@@ -115,10 +96,10 @@ def deprecated(
 
         @wraps(call_obj)
         def _wrapper(*args, **kwargs):
+            if is_removed:
+                raise DeprecatedError(msg)
             if is_deprecated:
                 warn_deprecated(obj, msg)
-            else:
-                raise DeprecatedError(msg)
 
             return call_obj(*args, **kwargs)
 
@@ -152,10 +133,21 @@ def deprecated_arg(
     Returns:
         Decorated callable which warns or raises exception when deprecated argument used
     """
-
-    is_deprecated = since is not None and version_leq(since, version_val)
-    is_removed = removed is not None and version_leq(removed, version_val)
+    if since is not None and removed is not None and not version_leq(since, removed):
+        raise ValueError(f"since must be less or equal to removed, got since={since}, removed={removed}.")
     is_not_yet_deprecated = since is not None and version_val != since and version_leq(version_val, since)
+    if is_not_yet_deprecated:
+        # smaller than `since`, do nothing
+        return lambda obj: obj
+
+    if since is None and removed is None:
+        # raise a DeprecatedError directly
+        is_removed = True
+        is_deprecated = True
+    else:
+        # compare the numbers
+        is_deprecated = since is not None and version_leq(since, version_val)
+        is_removed = removed is not None and version_leq(removed, version_val)
 
     if is_not_yet_deprecated:
         return lambda obj: obj
@@ -186,10 +178,10 @@ def deprecated_arg(
             kw_found = "kwargs" in binding and name in binding["kwargs"]
 
             if positional_found or kw_found:
+                if is_removed:
+                    raise DeprecatedError(msg)
                 if is_deprecated:
                     warn_deprecated(argname, msg)
-                else:
-                    raise DeprecatedError(msg)
 
             return func(*args, **kwargs)
 
