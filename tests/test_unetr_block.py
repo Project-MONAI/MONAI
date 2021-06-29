@@ -60,6 +60,7 @@ for spatial_dims in range(2, 4):
                                 "kernel_size": kernel_size,
                                 "norm_name": norm_name,
                                 "stride": stride,
+                                "res_block": res_block,
                                 "upsample_kernel_size": stride,
                             },
                             (1, in_channels, *([in_size] * spatial_dims)),
@@ -80,7 +81,7 @@ for spatial_dims in range(2, 4):
                         for in_size in [15, 16]:
                             for num_layer in [0, 2]:
                                 in_size_tmp = in_size
-                                for num in range(num_layer + 1):
+                                for _num in range(num_layer + 1):
                                     out_size = in_size_tmp * upsample_kernel_size
                                     in_size_tmp = out_size
                             test_case = [
@@ -92,6 +93,7 @@ for spatial_dims in range(2, 4):
                                     "kernel_size": kernel_size,
                                     "norm_name": norm_name,
                                     "stride": stride,
+                                    "res_block": res_block,
                                     "upsample_kernel_size": upsample_kernel_size,
                                 },
                                 (1, in_channels, *([in_size] * spatial_dims)),

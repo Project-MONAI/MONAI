@@ -66,7 +66,7 @@ class UnetrUpBlock(nn.Module):
                 out_channels + out_channels,
                 out_channels,
                 kernel_size=kernel_size,
-                stride=stride,
+                stride=1,
                 norm_name=norm_name,
             )
         else:

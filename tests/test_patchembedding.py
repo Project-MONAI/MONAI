@@ -31,6 +31,10 @@ for dropout_rate in np.linspace(0, 1, 2):
                     for num_heads in [8, 12]:
                         for pos_embed in ["conv", "perceptron"]:
                             for classification in ["False", "True"]:
+                                if classification:
+                                    out = (2, (img_size // patch_size) ** 3 + 1, hidden_size)
+                                else:
+                                    out = (2, (img_size // patch_size) ** 3, hidden_size)
                                 test_case = [
                                     {
                                         "in_channels": in_channels,
@@ -39,7 +43,7 @@ for dropout_rate in np.linspace(0, 1, 2):
                                         "hidden_size": hidden_size,
                                         "num_heads": num_heads,
                                         "pos_embed": pos_embed,
-                                        "classification": False,
+                                        "classification": classification,
                                         "dropout_rate": dropout_rate,
                                     },
                                     (2, in_channels, img_size, *([img_size] * 2)),

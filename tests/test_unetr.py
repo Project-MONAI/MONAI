@@ -29,7 +29,7 @@ for dropout_rate in [0.4]:
                                 for norm_name in ["instance"]:
                                     for pos_embed in ["conv", "perceptron"]:
                                         for conv_block in [True]:
-                                            for res_block in [False]:
+                                            for res_block in [True, False]:
                                                 test_case = [
                                                     {
                                                         "in_channels": in_channels,
@@ -43,7 +43,7 @@ for dropout_rate in [0.4]:
                                                         "pos_embed": pos_embed,
                                                         "dropout_rate": dropout_rate,
                                                         "conv_block": conv_block,
-                                                        "res_block": conv_block,
+                                                        "res_block": res_block,
                                                     },
                                                     (2, in_channels, img_size, *([img_size] * 2)),
                                                     (2, out_channels, img_size, *([img_size] * 2)),

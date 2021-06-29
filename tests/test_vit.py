@@ -29,6 +29,10 @@ for dropout_rate in [0.6]:
                                 for num_classes in [2]:
                                     for pos_embed in ["conv", "perceptron"]:
                                         for classification in ["False", "True"]:
+                                            if classification:
+                                                out = (2, num_classes)
+                                            else:
+                                                out = (2, (img_size // patch_size) ** 3, hidden_size)
                                             test_case = [
                                                 {
                                                     "in_channels": in_channels,
@@ -39,12 +43,12 @@ for dropout_rate in [0.6]:
                                                     "num_layers": num_layers,
                                                     "num_heads": num_heads,
                                                     "pos_embed": pos_embed,
-                                                    "classification": False,
+                                                    "classification": classification,
                                                     "num_classes": num_classes,
                                                     "dropout_rate": dropout_rate,
                                                 },
                                                 (2, in_channels, img_size, *([img_size] * 2)),
-                                                (2, (img_size // patch_size) ** 3, hidden_size),
+                                                out,
                                             ]
                                             TEST_CASE_Vit.append(test_case)
 
