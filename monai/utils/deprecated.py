@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import inspect
+import re
 import warnings
 from functools import wraps
 from threading import Lock
@@ -44,6 +45,10 @@ def version_leq(lhs, rhs):
     def _try_cast(val):
         val = val.strip()
         try:
+            m = re.match("(\\d+)(.*)", val)
+            if m is not None:
+                val = m.groups()[0]
+
             return int(val)
         except ValueError:
             return val
@@ -64,7 +69,7 @@ def version_leq(lhs, rhs):
 
 
 def deprecated(
-    since: Optional[str] = None, removed: Optional[str] = None, msg_suffix: str = "", version_val=__version__
+    since: Optional[str] = None, removed: Optional[str] = None, msg_suffix: str = "", version_val: str = __version__
 ):
     """
     Marks a function or class as deprecated. If `since` is given this should be a version at or earlier than the
@@ -86,6 +91,10 @@ def deprecated(
 
     is_deprecated = since is not None and version_leq(since, version_val)
     is_removed = removed is not None and version_leq(removed, version_val)
+    is_not_yet_deprecated = since is not None and version_val != since and version_leq(version_val, since)
+
+    if is_not_yet_deprecated:
+        return lambda obj: obj
 
     def _decorator(obj):
         is_func = isinstance(obj, FunctionType)
@@ -123,7 +132,11 @@ def deprecated(
 
 
 def deprecated_arg(
-    name, since: Optional[str] = None, removed: Optional[str] = None, msg_suffix: str = "", version_val=__version__
+    name,
+    since: Optional[str] = None,
+    removed: Optional[str] = None,
+    msg_suffix: str = "",
+    version_val: str = __version__,
 ):
     """
     Marks a particular named argument of a callable as deprecated. The same conditions for `since` and `removed` as
@@ -142,6 +155,10 @@ def deprecated_arg(
 
     is_deprecated = since is not None and version_leq(since, version_val)
     is_removed = removed is not None and version_leq(removed, version_val)
+    is_not_yet_deprecated = since is not None and version_val != since and version_leq(version_val, since)
+
+    if is_not_yet_deprecated:
+        return lambda obj: obj
 
     def _decorator(func):
         argname = f"{func.__name__}_{name}"
