@@ -16,7 +16,7 @@ import numpy as np
 
 from monai.config import DtypeLike, IgniteInfo
 from monai.transforms import SaveImage
-from monai.utils import deprecated, GridSampleMode, GridSamplePadMode, InterpolateMode, min_version, optional_import
+from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, deprecated, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
