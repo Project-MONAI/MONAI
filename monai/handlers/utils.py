@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import os
-import warnings
 from collections import OrderedDict
 from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
 
@@ -18,7 +17,7 @@ import numpy as np
 import torch
 
 from monai.config import IgniteInfo, KeysCollection
-from monai.utils import ensure_tuple, get_torch_version_tuple, min_version, optional_import
+from monai.utils import deprecated, ensure_tuple, get_torch_version_tuple, min_version, optional_import
 
 idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")
 if TYPE_CHECKING:
@@ -58,6 +57,7 @@ def stopping_fn_from_loss():
     return stopping_fn
 
 
+@deprecated(since="0.6.0", version_val="0.7.0", msg_suffix="the API had been moved to monai.utils module.")
 def evenly_divisible_all_gather(data: torch.Tensor) -> torch.Tensor:
     """
     Utility function for distributed data parallel to pad at first dim to make it evenly divisible and all_gather.
@@ -69,10 +69,6 @@ def evenly_divisible_all_gather(data: torch.Tensor) -> torch.Tensor:
         The input data on different ranks must have exactly same `dtype`.
 
     """
-    warnings.warn(
-        "evenly_divisible_all_gather had been moved to monai.utils module, will deprecate this API in MONAI v0.7.",
-        DeprecationWarning,
-    )
     if not isinstance(data, torch.Tensor):
         raise ValueError("input data must be PyTorch Tensor.")
 
@@ -92,6 +88,7 @@ def evenly_divisible_all_gather(data: torch.Tensor) -> torch.Tensor:
     return torch.cat([data[i * max_len : i * max_len + l, ...] for i, l in enumerate(all_lens)], dim=0)
 
 
+@deprecated(since="0.6.0", version_val="0.7.0", msg_suffix="the API had been moved to monai.utils module.")
 def string_list_all_gather(strings: List[str]) -> List[str]:
     """
     Utility function for distributed data parallel to all gather a list of strings.
@@ -102,10 +99,6 @@ def string_list_all_gather(strings: List[str]) -> List[str]:
         strings: a list of strings to all gather.
 
     """
-    warnings.warn(
-        "string_list_all_gather had been moved to monai.utils module, will deprecate this API in MONAI v0.7.",
-        DeprecationWarning,
-    )
     world_size = idist.get_world_size()
     if world_size <= 1:
         return strings
