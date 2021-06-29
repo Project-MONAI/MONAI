@@ -74,5 +74,7 @@ from .senet import (
 )
 from .torchvision_fc import TorchVisionFCModel, TorchVisionFullyConvModel
 from .unet import UNet, Unet, unet
+from .unetr import UNETR
 from .varautoencoder import VarAutoEncoder
+from .vit import ViT
 from .vnet import VNet
