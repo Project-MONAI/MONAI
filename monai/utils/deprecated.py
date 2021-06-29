@@ -69,7 +69,7 @@ def version_leq(lhs, rhs):
 
 
 def deprecated(
-    since: Optional[str] = None, removed: Optional[str] = None, msg_suffix: str = "", version_val=__version__
+    since: Optional[str] = None, removed: Optional[str] = None, msg_suffix: str = "", version_val: str = __version__
 ):
     """
     Marks a function or class as deprecated. If `since` is given this should be a version at or earlier than the
@@ -132,7 +132,11 @@ def deprecated(
 
 
 def deprecated_arg(
-    name, since: Optional[str] = None, removed: Optional[str] = None, msg_suffix: str = "", version_val=__version__
+    name,
+    since: Optional[str] = None,
+    removed: Optional[str] = None,
+    msg_suffix: str = "",
+    version_val: str = __version__,
 ):
     """
     Marks a particular named argument of a callable as deprecated. The same conditions for `since` and `removed` as
