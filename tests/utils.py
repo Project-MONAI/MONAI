@@ -114,7 +114,7 @@ class SkipIfBeforePyTorchVersion:
     def __init__(self, pytorch_version_tuple):
         self.min_version = pytorch_version_tuple
         test_ver = ".".join(map(str, self.min_version))
-        self.version_too_new = torch.__version__ != test_ver and version_leq(torch.__version__, test_ver)
+        self.version_too_old = torch.__version__ != test_ver and version_leq(torch.__version__, test_ver)
 
     def __call__(self, obj):
         return unittest.skipIf(
