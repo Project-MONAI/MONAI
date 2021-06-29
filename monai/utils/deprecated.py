@@ -12,7 +12,6 @@
 import inspect
 import warnings
 from functools import wraps
-from threading import Lock
 from types import FunctionType
 from typing import Optional
 
