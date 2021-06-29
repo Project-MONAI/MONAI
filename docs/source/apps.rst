@@ -18,6 +18,17 @@ Applications
 .. autoclass:: CrossValidation
     :members:
 
+
+Clara MMARs
+-----------
+.. autofunction:: download_mmar
+
+.. autofunction:: load_from_mmar
+
+.. autodata:: monai.apps.MODEL_DESC
+    :annotation:
+
+
 `Utilities`
 -----------
 
@@ -46,9 +57,44 @@ Applications
     :members:
 .. autoclass:: AddRandomGuidanced
     :members:
+.. autoclass:: AddGuidanceFromPointsd
+    :members:
 .. autoclass:: SpatialCropForegroundd
+    :members:
+.. autoclass:: SpatialCropGuidanced
+    :members:
+.. autoclass:: RestoreLabeld
+    :members:
+.. autoclass:: ResizeGuidanced
     :members:
 .. autoclass:: FindDiscrepancyRegionsd
     :members:
 .. autoclass:: FindAllValidSlicesd
+    :members:
+.. autoclass:: Fetch2DSliced
+    :members:
+
+`Pathology`
+-----------
+
+.. automodule:: monai.apps.pathology.datasets
+.. autoclass:: PatchWSIDataset
+    :members:
+.. autoclass:: SmartCachePatchWSIDataset
+    :members:
+.. autoclass:: MaskedInferenceWSIDataset
+    :members:
+
+.. automodule:: monai.apps.pathology.handlers
+.. autoclass:: ProbMapProducer
+    :members:
+
+.. automodule:: monai.apps.pathology.metrics
+.. autoclass:: LesionFROC
+    :members:
+
+.. automodule:: monai.apps.pathology.utils
+.. autofunction:: compute_multi_instance_mask
+.. autofunction:: compute_isolated_tumor_cells
+.. autoclass:: PathologyProbNMS
     :members:

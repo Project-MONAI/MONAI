@@ -17,6 +17,8 @@ import torch.nn as nn
 from monai.networks.blocks.convolutions import Convolution
 from monai.networks.layers.factories import Act, Conv, Dropout, Norm, split_args
 
+__all__ = ["VNet"]
+
 
 def get_acti_layer(act: Union[Tuple[str, Dict], str], nchan: int = 0):
     if act == "prelu":

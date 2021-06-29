@@ -9,24 +9,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
 
-from monai.utils import exact_version, optional_import
+from monai.config import IgniteInfo
+from monai.transforms import apply_transform
+from monai.utils import min_version, optional_import
+from monai.utils.enums import CommonKeys
 
 if TYPE_CHECKING:
     from ignite.engine import EventEnum
 else:
-    EventEnum, _ = optional_import("ignite.engine", "0.4.2", exact_version, "EventEnum")
+    EventEnum, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "EventEnum")
 
 __all__ = [
     "IterationEvents",
-    "CommonKeys",
     "GanKeys",
     "get_devices_spec",
     "default_prepare_batch",
     "default_make_latent",
+    "engine_apply_transform",
 ]
 
 
@@ -38,30 +41,17 @@ class IterationEvents(EventEnum):
     `FORWARD_COMPLETED` is the Event when `network(image, label)` completed.
     `LOSS_COMPLETED` is the Event when `loss(pred, label)` completed.
     `BACKWARD_COMPLETED` is the Event when `loss.backward()` completed.
-
+    `MODEL_COMPLETED` is the Event when all the model related operations completed.
+    `INNER_ITERATION_STARTED` is the Event when the iteration has an inner loop and the loop is started.
+    `INNER_ITERATION_COMPLETED` is the Event when the iteration has an inner loop and the loop is completed.
     """
 
     FORWARD_COMPLETED = "forward_completed"
     LOSS_COMPLETED = "loss_completed"
     BACKWARD_COMPLETED = "backward_completed"
-    OPTIMIZER_COMPLETED = "optimizer_completed"
-
-
-class CommonKeys:
-    """
-    A set of common keys for dictionary based supervised training process.
-    `IMAGE` is the input image data.
-    `LABEL` is the training or evaluation label of segmentation or classification task.
-    `PRED` is the prediction data of model output.
-    `LOSS` is the loss value of current iteration.
-    `INFO` is some useful information during training or evaluation, like loss value, etc.
-
-    """
-
-    IMAGE = "image"
-    LABEL = "label"
-    PRED = "pred"
-    LOSS = "loss"
+    MODEL_COMPLETED = "model_completed"
+    INNER_ITERATION_STARTED = "inner_iteration_started"
+    INNER_ITERATION_COMPLETED = "inner_iteration_completed"
 
 
 class GanKeys:
@@ -123,7 +113,7 @@ def default_prepare_batch(
     """
     if not isinstance(batchdata, dict):
         raise AssertionError("default prepare_batch expects dictionary input data.")
-    if CommonKeys.LABEL in batchdata:
+    if isinstance(batchdata.get(CommonKeys.LABEL, None), torch.Tensor):
         return (
             batchdata[CommonKeys.IMAGE].to(device=device, non_blocking=non_blocking),
             batchdata[CommonKeys.LABEL].to(device=device, non_blocking=non_blocking),
@@ -140,3 +130,31 @@ def default_make_latent(
     non_blocking: bool = False,
 ) -> torch.Tensor:
     return torch.randn(num_latents, latent_size).to(device=device, non_blocking=non_blocking)
+
+
+def engine_apply_transform(batch: Any, output: Any, transform: Callable[..., Dict]):
+    """
+    Apply transform for the engine.state.batch and engine.state.output.
+    If `batch` and `output` are dictionaries, temporarily combine them for the transform,
+    otherwise, apply the transform for `output` data only.
+
+    """
+    if isinstance(batch, dict) and isinstance(output, dict):
+        data = dict(batch)
+        data.update(output)
+        transformed_data = apply_transform(transform, data)
+
+        if not isinstance(transformed_data, dict):
+            raise AssertionError("With a dict supplied to apply_transform a single dict return is expected.")
+
+        for k, v in transformed_data.items():
+            # split the output data of post transforms into `output` and `batch`,
+            # `batch` should be read-only, so save the generated key-value into `output`
+            if k in output or k not in batch:
+                output[k] = v
+            else:
+                batch[k] = v
+    else:
+        output = apply_transform(transform, output)
+
+    return batch, output

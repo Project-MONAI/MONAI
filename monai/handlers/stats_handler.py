@@ -15,13 +15,14 @@ from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import torch
 
-from monai.utils import exact_version, is_scalar, optional_import
+from monai.config import IgniteInfo
+from monai.utils import is_scalar, min_version, optional_import
 
-Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
+Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
 DEFAULT_KEY_VAL_FORMAT = "{}: {:.4f} "
 DEFAULT_TAG = "Loss"
@@ -59,7 +60,7 @@ class StatsHandler:
             iteration_print_logger: customized callable printer for iteration level logging.
                 Must accept parameter "engine", use default printer if None.
             output_transform: a callable that is used to transform the
-                ``ignite.engine.output`` into a scalar to print, or a dictionary of {key: scalar}.
+                ``ignite.engine.state.output`` into a scalar to print, or a dictionary of {key: scalar}.
                 In the latter case, the output string will be formatted as key: value.
                 By default this value logging happens when every iteration completed.
             global_epoch_transform: a callable that is used to customize global epoch number.
