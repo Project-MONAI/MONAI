@@ -27,7 +27,7 @@ else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
 
-@deprecated(since="0.6.0", version_val="0.7.0", msg_suffix="please consider using `Invertd` transform instead.")
+@deprecated(since="0.6.0", removed="0.7.0", msg_suffix="Please consider using `Invertd` transform instead.")
 class TransformInverter:
     """
     Ignite handler to automatically invert `transforms`.

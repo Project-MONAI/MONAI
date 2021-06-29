@@ -57,7 +57,7 @@ def stopping_fn_from_loss():
     return stopping_fn
 
 
-@deprecated(since="0.6.0", version_val="0.7.0", msg_suffix="the API had been moved to monai.utils module.")
+@deprecated(since="0.6.0", removed="0.7.0", msg_suffix="The API had been moved to monai.utils module.")
 def evenly_divisible_all_gather(data: torch.Tensor) -> torch.Tensor:
     """
     Utility function for distributed data parallel to pad at first dim to make it evenly divisible and all_gather.
@@ -88,7 +88,7 @@ def evenly_divisible_all_gather(data: torch.Tensor) -> torch.Tensor:
     return torch.cat([data[i * max_len : i * max_len + l, ...] for i, l in enumerate(all_lens)], dim=0)
 
 
-@deprecated(since="0.6.0", version_val="0.7.0", msg_suffix="the API had been moved to monai.utils module.")
+@deprecated(since="0.6.0", removed="0.7.0", msg_suffix="The API had been moved to monai.utils module.")
 def string_list_all_gather(strings: List[str]) -> List[str]:
     """
     Utility function for distributed data parallel to all gather a list of strings.
