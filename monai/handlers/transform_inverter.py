@@ -17,7 +17,7 @@ import torch
 from monai.config import IgniteInfo, KeysCollection
 from monai.engines.utils import CommonKeys, IterationEvents
 from monai.transforms import Invertd, InvertibleTransform
-from monai.utils import ensure_tuple, ensure_tuple_rep, min_version, optional_import
+from monai.utils import deprecated, ensure_tuple, ensure_tuple_rep, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
@@ -26,6 +26,7 @@ else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
 
+@deprecated(since="0.6.0", removed="0.7.0", msg_suffix="Please consider using `Invertd` transform instead.")
 class TransformInverter:
     """
     Ignite handler to automatically invert `transforms`.
