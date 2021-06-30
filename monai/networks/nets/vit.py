@@ -27,8 +27,8 @@ class ViT(nn.Module):
     def __init__(
         self,
         in_channels: int,
-        img_size: Tuple,
-        patch_size: Tuple,
+        img_size: Tuple,  # type: ignore
+        patch_size: Tuple,  # type: ignore
         hidden_size: int,
         mlp_dim: int,
         num_layers: int,
@@ -70,10 +70,10 @@ class ViT(nn.Module):
 
         self.classification = classification
         self.patch_embedding = PatchEmbeddingBlock(
-            in_channels, img_size, patch_size, hidden_size, num_heads, pos_embed, classification, dropout_rate
+            in_channels, img_size, patch_size, hidden_size, num_heads, pos_embed, classification, dropout_rate  # type: ignore
         )
         self.blocks = nn.ModuleList(
-            [TransformerBlock(hidden_size, mlp_dim, num_heads, dropout_rate) for i in range(num_layers)]
+            [TransformerBlock(hidden_size, mlp_dim, num_heads, dropout_rate) for i in range(num_layers)]  # type: ignore
         )
         self.norm = nn.LayerNorm(hidden_size)
         if self.classification:

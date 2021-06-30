@@ -28,7 +28,7 @@ class UNETR(nn.Module):
         self,
         in_channels: int,
         out_channels: int,
-        img_size: Tuple,
+        img_size: Tuple,  # type: ignore
         feature_size: int,
         hidden_size: int,
         mlp_dim: int,
@@ -70,9 +70,9 @@ class UNETR(nn.Module):
         self.num_layers = 12
         self.patch_size = (16, 16, 16)
         self.feat_size = (
-            img_size[0] // self.patch_size[0],
-            img_size[1] // self.patch_size[1],
-            img_size[2] // self.patch_size[2],
+            img_size[0] // self.patch_size[0],  # type: ignore
+            img_size[1] // self.patch_size[1],  # type: ignore
+            img_size[2] // self.patch_size[2],  # type: ignore
         )
         self.hidden_size = hidden_size
         self.classification = False
@@ -173,7 +173,7 @@ class UNETR(nn.Module):
             norm_name=norm_name,
             res_block=res_block,
         )
-        self.out = UnetOutBlock(spatial_dims=3, in_channels=feature_size, out_channels=out_channels)
+        self.out = UnetOutBlock(spatial_dims=3, in_channels=feature_size, out_channels=out_channels)  # type: ignore
 
     def proj_feat(self, x, hidden_size, feat_size):
         x = x.view(x.size(0), feat_size[0], feat_size[1], feat_size[2], hidden_size)
