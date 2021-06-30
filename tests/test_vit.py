@@ -32,7 +32,7 @@ for dropout_rate in [0.6]:
                                             if classification:
                                                 out = (2, num_classes)
                                             else:
-                                                out = (2, (img_size // patch_size) ** 3, hidden_size)
+                                                out = (2, (img_size // patch_size) ** 3, hidden_size) # type: ignore
                                             test_case = [
                                                 {
                                                     "in_channels": in_channels,

@@ -30,11 +30,11 @@ class PatchEmbeddingBlock(nn.Module):
     def __init__(
         self,
         in_channels: int,
-        img_size: Tuple,
-        patch_size: Tuple,
+        img_size: Union[int, Tuple[int, int, int]],
+        patch_size: Union[int, Tuple[int, int, int]],
         hidden_size: int,
         num_heads: int,
-        pos_embed: Union[Tuple, str],
+        pos_embed: Union[Tuple, str], # type: ignore
         classification: bool,
         dropout_rate: float = 0.0,
     ) -> None:
@@ -77,16 +77,16 @@ class PatchEmbeddingBlock(nn.Module):
             raise ValueError('"Requires einops.')
 
         self.n_patches = (
-            (img_size[0] // patch_size[0]) * (img_size[1] // patch_size[1]) * (img_size[2] // patch_size[2])
+            (img_size[0] // patch_size[0]) * (img_size[1] // patch_size[1]) * (img_size[2] // patch_size[2])  # type: ignore
         )
         self.patch_dim = in_channels * patch_size[0] * patch_size[1] * patch_size[2]
         self.pos_embed = pos_embed
         if self.pos_embed == "conv":
             self.patch_embeddings = nn.Conv3d(
-                in_channels=in_channels, out_channels=hidden_size, kernel_size=patch_size, stride=patch_size
+                in_channels=in_channels, out_channels=hidden_size, kernel_size=patch_size, stride=patch_size  # type: ignore
             )
         elif self.pos_embed == "perceptron":
-            self.patch_embeddings = nn.Sequential(
+            self.patch_embeddings = nn.Sequential(  # type: ignore
                 self.Rearrange(
                     "b c (h p1) (w p2) (d p3)-> b (h w d) (p1 p2 p3 c)",
                     p1=patch_size[0],
@@ -95,8 +95,6 @@ class PatchEmbeddingBlock(nn.Module):
                 ),
                 nn.Linear(self.patch_dim, hidden_size),
             )
-        if classification:
-            self.position_embeddings_cls = nn.Parameter(torch.zeros(1, self.n_patches + 1, hidden_size))
         self.position_embeddings = nn.Parameter(torch.zeros(1, self.n_patches, hidden_size))
         self.cls_token = nn.Parameter(torch.zeros(1, 1, hidden_size))
         self.dropout = nn.Dropout(dropout_rate)

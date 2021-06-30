@@ -28,7 +28,7 @@ class UnetrUpBlock(nn.Module):
         self,
         spatial_dims: int,
         in_channels: int,
-        out_channels: int,
+        out_channels: int, # type: ignore
         kernel_size: Union[Sequence[int], int],
         stride: Union[Sequence[int], int],
         upsample_kernel_size: Union[Sequence[int], int],
@@ -70,7 +70,7 @@ class UnetrUpBlock(nn.Module):
                 norm_name=norm_name,
             )
         else:
-            self.conv_block = UnetBasicBlock(
+            self.conv_block = UnetBasicBlock(  # type: ignore
                 spatial_dims,
                 out_channels + out_channels,
                 out_channels,
@@ -247,7 +247,7 @@ class UnetrBasicBlock(nn.Module):
                 norm_name=norm_name,
             )
         else:
-            self.layer = UnetBasicBlock(
+            self.layer = UnetBasicBlock( # type: ignore
                 spatial_dims=spatial_dims,
                 in_channels=in_channels,
                 out_channels=out_channels,
