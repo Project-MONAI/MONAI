@@ -274,10 +274,9 @@ def get_torch_version_tuple():
 def version_leq(lhs, rhs):
     """Returns True if version `lhs` is earlier or equal to `rhs`."""
 
-    print('lhs', lhs, 'rhs', rhs)
-    # ver, has_ver = optional_import("pkg_resources", name="parse_version")
-    # if has_ver:
-    #     return ver(lhs) <= ver(rhs)
+    ver, has_ver = optional_import("pkg_resources", name="parse_version")
+    if has_ver:
+        return ver(lhs) <= ver(rhs)
 
     def _try_cast(val):
         val = val.strip()
@@ -285,8 +284,8 @@ def version_leq(lhs, rhs):
             m = match("(\\d+)(.*)", val)
             if m is not None:
                 val = m.groups()[0]
-
-            return int(val)
+                return int(val)
+            return val
         except ValueError:
             return val
 
@@ -300,7 +299,9 @@ def version_leq(lhs, rhs):
 
     for l, r in zip(lhs, rhs):
         if l != r:
-            return l < r
+            if isinstance(l, int) and isinstance(r, int):
+                return l < r
+            return f"{l}" < f"{r}"
 
     return True
 
