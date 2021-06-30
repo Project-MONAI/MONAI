@@ -30,6 +30,7 @@ __all__ = [
     "default_prepare_batch",
     "default_make_latent",
     "engine_apply_transform",
+    "default_metric_cmp_fn",
 ]
 
 
@@ -158,3 +159,15 @@ def engine_apply_transform(batch: Any, output: Any, transform: Callable[..., Dic
         output = apply_transform(transform, output)
 
     return batch, output
+
+
+def default_metric_cmp_fn(current_metric: float, prev_best: float) -> bool:
+    """
+    The default function to compare metric values between current metric and previous best metric.
+
+    Args:
+        current_metric: metric value of current round computation.
+        prev_best: the best metric value of previous rounds to compare with.
+
+    """
+    return current_metric > prev_best

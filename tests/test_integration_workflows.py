@@ -145,6 +145,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
             "val_mean_dice": MeanDice(include_background=True, output_transform=from_engine(["pred", "label"]))
         },
         additional_metrics={"val_acc": Accuracy(output_transform=from_engine(["pred", "label"]))},
+        metric_cmp_fn=lambda cur, prev: cur >= prev,  # if greater or equal, treat as new best metric
         val_handlers=val_handlers,
         amp=True if amp else False,
     )

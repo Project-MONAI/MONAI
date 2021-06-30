@@ -19,7 +19,7 @@ from torch.utils.data.distributed import DistributedSampler
 
 from monai.config import IgniteInfo
 from monai.data import decollate_batch, rep_scalar_to_batch
-from monai.engines.utils import IterationEvents, default_prepare_batch
+from monai.engines.utils import IterationEvents, default_metric_cmp_fn, default_prepare_batch
 from monai.utils import ensure_tuple, min_version, optional_import
 
 from .utils import engine_apply_transform
@@ -63,6 +63,8 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             engine.state.metrics when epoch completed. key_metric is the main metric to compare and save the
             checkpoint into files.
         additional_metrics: more Ignite metrics that also attach to Ignite Engine.
+        metric_cmp_fn: function to compare current key metric with previous best key metric value.
+            it must accept 2 args (current_metric, previous_best) and return a bool result. default to `greater than`.
         handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
         amp: whether to enable auto-mixed-precision training or inference, default is False.
@@ -94,6 +96,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         postprocessing: Optional[Callable] = None,
         key_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
+        metric_cmp_fn: Callable = default_metric_cmp_fn,
         handlers: Optional[Sequence] = None,
         amp: bool = False,
         event_names: Optional[List[Union[str, EventEnum]]] = None,
@@ -142,6 +145,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         self.data_loader = data_loader
         self.non_blocking = non_blocking
         self.prepare_batch = prepare_batch
+        self.metric_cmp_fn = metric_cmp_fn
         self.amp = amp
 
         if event_names is None:
@@ -214,7 +218,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         def _compare_metrics(engine: Engine) -> None:
             if engine.state.key_metric_name is not None:
                 current_val_metric = engine.state.metrics[engine.state.key_metric_name]
-                if current_val_metric > engine.state.best_metric:
+                if self.metric_cmp_fn(current_val_metric, engine.state.best_metric):
                     self.logger.info(f"Got new best metric of {engine.state.key_metric_name}: {current_val_metric}")
                     engine.state.best_metric = current_val_metric
                     engine.state.best_metric_epoch = engine.state.epoch

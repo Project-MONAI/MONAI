@@ -62,6 +62,8 @@ class CheckpointSaver:
             typically, it's used to resume training and compare current metric with previous N values.
         key_metric_greater_or_equal: if `True`, the latest equally scored model is stored. Otherwise,
             save the the first equally scored model. default to `False`.
+        key_metric_score_sign: sign of the score: `1.0` or `-1.0`. For error-like metrics, e.g. smaller is better,
+            a negative score sign should be used (objects with larger score are retained). default to `1.0`.
         epoch_level: save checkpoint during training for every N epochs or every N iterations.
             `True` is epoch level, `False` is iteration level.
         save_interval: save checkpoint every N epochs, default is 0 to save no checkpoint.
@@ -93,6 +95,7 @@ class CheckpointSaver:
         key_metric_filename: Optional[str] = None,
         key_metric_save_state: bool = False,
         key_metric_greater_or_equal: bool = False,
+        key_metric_score_sign: float = 1.0,
         epoch_level: bool = True,
         save_interval: int = 0,
         n_saved: Optional[int] = None,
@@ -155,7 +158,10 @@ class CheckpointSaver:
                     raise ValueError(
                         f"Incompatible values: save_key_metric=True and key_metric_name={key_metric_name}."
                     )
-                return round(engine.state.metrics[metric_name], 4)
+                if key_metric_score_sign not in (1.0, -1.0):
+                    raise ValueError("Argument score_sign should be 1.0 or -1.0.")
+
+                return key_metric_score_sign * engine.state.metrics[metric_name]
 
             if key_metric_filename is not None and key_metric_n_saved > 1:
                 raise ValueError("if using fixed filename to save the best metric model, we should only save 1 model.")
