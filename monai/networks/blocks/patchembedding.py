@@ -34,7 +34,7 @@ class PatchEmbeddingBlock(nn.Module):
         patch_size: Union[int, Tuple[int, int, int]],
         hidden_size: int,
         num_heads: int,
-        pos_embed: Union[Tuple, str], # type: ignore
+        pos_embed: Union[Tuple, str],  # type: ignore
         classification: bool,
         dropout_rate: float = 0.0,
     ) -> None:
