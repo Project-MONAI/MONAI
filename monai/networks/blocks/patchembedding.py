@@ -59,27 +59,27 @@ class PatchEmbeddingBlock(nn.Module):
         if hidden_size % num_heads != 0:
             raise AssertionError("hidden size should be divisible by num_heads.")
 
-        if img_size < patch_size:
+        if img_size < patch_size:  # type: ignore
             raise AssertionError("patch_size should be smaller than img_size.")
 
         if pos_embed not in ["conv", "perceptron"]:
             raise KeyError(f"Position embedding layer of type {pos_embed} is not supported.")
 
         if pos_embed == "perceptron":
-            if img_size[0] % patch_size[0] != 0:
+            if img_size[0] % patch_size[0] != 0:  # type: ignore
                 raise AssertionError("img_size should be divisible by patch_size for perceptron patch embedding.")
 
-        if has_einops:
-            from einops.layers.torch import Rearrange
+        if has_einops:  # type: ignore
+            from einops.layers.torch import Rearrange  # type: ignore
 
-            self.Rearrange = Rearrange
+            self.Rearrange = Rearrange  # type: ignore
         else:
             raise ValueError('"Requires einops.')
 
         self.n_patches = (
             (img_size[0] // patch_size[0]) * (img_size[1] // patch_size[1]) * (img_size[2] // patch_size[2])  # type: ignore
         )
-        self.patch_dim = in_channels * patch_size[0] * patch_size[1] * patch_size[2]
+        self.patch_dim = in_channels * patch_size[0] * patch_size[1] * patch_size[2]  # type: ignore
         self.pos_embed = pos_embed
         if self.pos_embed == "conv":
             self.patch_embeddings = nn.Conv3d(
@@ -89,9 +89,9 @@ class PatchEmbeddingBlock(nn.Module):
             self.patch_embeddings = nn.Sequential(  # type: ignore
                 self.Rearrange(
                     "b c (h p1) (w p2) (d p3)-> b (h w d) (p1 p2 p3 c)",
-                    p1=patch_size[0],
-                    p2=patch_size[1],
-                    p3=patch_size[2],
+                    p1=patch_size[0],  # type: ignore
+                    p2=patch_size[1],  # type: ignore
+                    p3=patch_size[2],  # type: ignore
                 ),
                 nn.Linear(self.patch_dim, hidden_size),
             )
