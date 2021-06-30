@@ -39,16 +39,18 @@ def deprecated(
     """
     Marks a function or class as deprecated. If `since` is given this should be a version at or earlier than the
     current version and states at what version of the definition was marked as deprecated. If `removed` is given
-    this can be any version and marks when the definition was removed. When the decorated definition is called,
-    that is when the function is called or the class instantiated, a warning is issued if `since` is given and
-    the current version is at or later than that given. An exception is instead raised if `removed` is given and
-    the current version is at or later than that, or if neither `since` nor `removed` is provided.
+    this can be any version and marks when the definition was removed.
+
+    When the decorated definition is called, that is when the function is called or the class instantiated,
+    a `DeprecationWarning` is issued if `since` is given and the current version is at or later than that given.
+    a `DeprecatedError` exception is instead raised if `removed` is given and the current version is at or later
+    than that, or if neither `since` nor `removed` is provided.
 
     Args:
-        since: version at which the definition was marked deprecated but not removed
-        removed: version at which the definition was removed and no longer usable
-        msg_suffix: message appended to warning/exception detailing reasons for deprecation and what to use instead
-        version_val: (used for testing) version to compare since and removed against, default is MONAI version
+        since: version at which the definition was marked deprecated but not removed.
+        removed: version at which the definition was removed and no longer usable.
+        msg_suffix: message appended to warning/exception detailing reasons for deprecation and what to use instead.
+        version_val: (used for testing) version to compare since and removed against, default is MONAI version.
 
     Returns:
         Decorated definition which warns or raises exception when used
@@ -116,12 +118,17 @@ def deprecated_arg(
     Marks a particular named argument of a callable as deprecated. The same conditions for `since` and `removed` as
     described in the `deprecated` decorator.
 
+    When the decorated definition is called, that is when the function is called or the class instantiated with args,
+    a `DeprecationWarning` is issued if `since` is given and the current version is at or later than that given.
+    a `DeprecatedError` exception is instead raised if `removed` is given and the current version is at or later
+    than that, or if neither `since` nor `removed` is provided.
+
     Args:
-        name: name of position or keyword argument to mark as deprecated
-        since: version at which the argument was marked deprecated but not removed
-        removed: version at which the argument was removed and no longer usable
-        msg_suffix: message appended to warning/exception detailing reasons for deprecation and what to use instead
-        version_val: (used for testing) version to compare since and removed against, default is MONAI version
+        name: name of position or keyword argument to mark as deprecated.
+        since: version at which the argument was marked deprecated but not removed.
+        removed: version at which the argument was removed and no longer usable.
+        msg_suffix: message appended to warning/exception detailing reasons for deprecation and what to use instead.
+        version_val: (used for testing) version to compare since and removed against, default is MONAI version.
 
     Returns:
         Decorated callable which warns or raises exception when deprecated argument used

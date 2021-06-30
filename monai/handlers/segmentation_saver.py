@@ -17,7 +17,7 @@ import numpy as np
 from monai.config import DtypeLike, IgniteInfo
 from monai.data import decollate_batch
 from monai.transforms import SaveImage
-from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, min_version, optional_import
+from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, deprecated, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
@@ -26,6 +26,7 @@ else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
 
+@deprecated(since="0.6.0", removed="0.7.0", msg_suffix="Please consider using `SaveImage[d]` transform instead.")
 class SegmentationSaver:
     """
     Event handler triggered on completing every iteration to save the segmentation predictions into files.
