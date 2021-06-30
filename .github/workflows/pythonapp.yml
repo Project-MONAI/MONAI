@@ -7,7 +7,6 @@ on:
       - dev
       - main
       - releasing/*
-      - update-version-cmp
   pull_request:
 
 concurrency:
