@@ -137,7 +137,7 @@ To convert images into files or debug the transform chain, MONAI provides `SaveI
 Medical images have different shape formats. They can be `channel-last`, `channel-first` or even `no-channel`. We may, for example, want to load several `no-channel` images and stack them as `channel-first` data. To improve the user experience, MONAI provided an `EnsureChannelFirst` transform to automatically detect data shape according to the meta information and convert it to the `channel-first` format consistently.
 
 ### 13. Invert spatial transforms and test-time augmentations
-It is often desirable to invert the previously applied spatial transforms (resize, flip, rotate, zoom, crop, pad, etc.) with the deep learning workflows, for example, to resume to the original imaging space after processing the image data in a normalized data space.  We enhance almost all the spatial transforms with an `inverse` operation and release this experimental feature in v0.5. Users can easily invert all the spatial transforms for one transformed data item or a batch of data items. It also can be achieved within the workflows by using the `TransformInverter` handler.
+It is often desirable to invert the previously applied spatial transforms (resize, flip, rotate, zoom, crop, pad, etc.) with the deep learning workflows, for example, to resume to the original imaging space after processing the image data in a normalized data space.  We enhanced almost all the spatial transforms with an `inverse` operation and released this feature in v0.5. Users can easily invert all the spatial transforms for transformed data item based on `Invertd`. [Invertd tutorial](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/torch/unet_inference_dict.py) shows more details of the usage.
 
 If the pipeline includes random transformations, users may want to observe the effect that these transformations have on the output. The typical approach is that we pass the same input through the transforms multiple times with different random realizations. Then use the inverse transforms to move all the results to a common space, and calculate the metrics. MONAI provided `TestTimeAugmentation` for this feature, which by default will calculate the `mode`, `mean`, `standard deviation` and `volume variation coefficient`.
 
@@ -213,6 +213,9 @@ The common workflow of predefined datasets:
 ### 7. Partition dataset for cross validation
 The `partition_dataset` utility in MONAI can perform several kinds of mechanism to partition dataset for training and validation or cross-validation. It supports shuffling based on a specified random seed, and will return a set of datasets, each dataset contains one partition. And it can split the dataset based on specified ratios or evenly split into `num_partitions`. For given class labels, it can also make sure the same ratio of classes in every partition.
 
+### 8. CSVDataset and CSVIterableDataset
+{placeholder}
+
 ## Losses
 There are domain-specific loss functions in the medical imaging research which are not typically used in the generic computer vision tasks. As an important module of MONAI, these loss functions are implemented in PyTorch, such as `DiceLoss`, `GeneralizedDiceLoss`, `MaskedDiceLoss`, `TverskyLoss`, `FocalLoss`, `DiceCELoss`, and `DiceFocalLoss`, etc.
 
@@ -241,7 +244,13 @@ add_module('conv1', conv_type(in_channels, out_channels, kernel_size=1, bias=Fal
 ```
 
 ### 2. Implementation of generic 2D/3D networks
-And there are several 1D/2D/3D-compatible implementations of intermediate blocks and generic networks, such as UNet, DynUNet, DenseNet, GAN, AHNet, VNet, SENet(and SEResNet, SEResNeXt), SegResNet, etc. All the networks can support PyTorch serialization pipeline based on `torch.jit.script`.
+And there are several 1D/2D/3D-compatible implementations of intermediate blocks and generic networks, such as UNet, DynUNet, DenseNet, GAN, AHNet, VNet, SENet(and SEResNet, SEResNeXt), SegResNet, EfficientNet, etc. All the networks can support PyTorch serialization pipeline based on `torch.jit.script`.
+
+### 3. Transfer learning based on NVIDIA Clara MMAR
+{placeholder}
+
+### 4. Network wrapper to finetune final layers
+{placeholder}
 
 ## Evaluation
 To run model inferences and evaluate the model quality, MONAI provides reference implementations for the relevant widely-used approaches. Currently, several popular evaluation metrics and inference patterns are included:
@@ -262,6 +271,12 @@ The [Spleen 3D segmentation tutorial](https://github.com/Project-MONAI/tutorials
 Various useful evaluation metrics have been used to measure the quality of medical image specific models. MONAI already implemented many medical domain-specific metrics, such as: `Mean Dice`, `ROCAUC`, `Confusion Matrices`, `Hausdorff Distance`, `Surface Distance`, `Occlusion Sensitivity`.
 
 For example, `Mean Dice` score can be used for segmentation tasks, and the area under the ROC curve(`ROCAUC`) for classification tasks. We continue to integrate more options.
+
+1. MONAI provides flexible base APIs to easily implement new metrics
+
+2. All the metrics support data parallel computation
+
+3. All the metrics support `batch-first` Tensor and list of `channel-first` Tensors
 
 ### 3. Metrics report generation
 During evaluation, users usually save the metrics of every input image, then analyze the bad cases to improve the deep learning pipeline. To save detailed information of metrics, MONAI provided a handler `MetricsSaver`, which can save the final metric values, raw metric of every model output channel of every input image, metrics summary report of operations: `mean`, `median`, `max`, `min`, `90percentile`, `std`, etc. The `MeanDice` reports of validation with prostate dataset are as below:
