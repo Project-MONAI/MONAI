@@ -226,10 +226,10 @@ jobs:
           - environment: PT18+CUDA102
             pytorch: "torch==1.8.1 torchvision==0.9.1"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
-          - environment: PT18+CUDA112
+          - environment: PT19+CUDA112
             # we explicitly set pytorch to -h to avoid pip install error
             pytorch: "-h"
-            base: "nvcr.io/nvidia/pytorch:21.04-py3"
+            base: "nvcr.io/nvidia/pytorch:21.06-py3"
           - environment: PT19+CUDA102
             pytorch: "torch==1.9.0 torchvision==0.10.0"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
