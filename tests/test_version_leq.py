@@ -70,7 +70,7 @@ TEST_CASES = (
 ) + tuple(_pairwise(reversed(torture.split())))
 
 
-class TestVersioncmp(unittest.TestCase):
+class TestVersionCompare(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_compare(self, a, b, expected=True):
         """Test version_leq with `a` and `b`"""
