@@ -130,8 +130,8 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
                 acc_value = torch.eq(y_pred.argmax(dim=1), y)
                 acc_metric = acc_value.sum().item() / len(acc_value)
                 # decollate prediction and label and execute post processing
-                y_pred = [act(i) for i in decollate_batch(y_pred)]
-                y = [to_onehot(i) for i in decollate_batch(y)]
+                y_pred = [act(i) for i in decollate_batch(y_pred, detach=False)]
+                y = [to_onehot(i) for i in decollate_batch(y, detach=False)]
                 # compute AUC
                 auc_metric(y_pred, y)
                 auc_value = auc_metric.aggregate()

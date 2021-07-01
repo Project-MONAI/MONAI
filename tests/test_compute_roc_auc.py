@@ -88,8 +88,8 @@ class TestComputeROCAUC(unittest.TestCase):
     def test_value(self, y_pred, y, softmax, to_onehot, average, expected_value):
         act = Activations(softmax=softmax)
         dis = AsDiscrete(to_onehot=to_onehot, n_classes=2)
-        y_pred = torch.stack([act(i) for i in decollate_batch(y_pred)], dim=0)
-        y = torch.stack([dis(i) for i in decollate_batch(y)], dim=0)
+        y_pred = torch.stack([act(i) for i in decollate_batch(y_pred, detach=False)], dim=0)
+        y = torch.stack([dis(i) for i in decollate_batch(y, detach=False)], dim=0)
         result = compute_roc_auc(y_pred=y_pred, y=y, average=average)
         np.testing.assert_allclose(expected_value, result, rtol=1e-5)
 
@@ -97,8 +97,8 @@ class TestComputeROCAUC(unittest.TestCase):
     def test_class_value(self, y_pred, y, softmax, to_onehot, average, expected_value):
         act = Activations(softmax=softmax)
         dis = AsDiscrete(to_onehot=to_onehot, n_classes=2)
-        y_pred = [act(i) for i in decollate_batch(y_pred)]
-        y = [dis(i) for i in decollate_batch(y)]
+        y_pred = [act(i) for i in decollate_batch(y_pred, detach=False)]
+        y = [dis(i) for i in decollate_batch(y, detach=False)]
         metric = ROCAUCMetric(average=average)
         metric(y_pred=y_pred, y=y)
         result = metric.aggregate()
