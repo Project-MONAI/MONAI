@@ -9,26 +9,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Dict, Optional, Sequence
+import warnings
+from typing import TYPE_CHECKING, Callable, Dict, Iterable, List, Optional, Sequence, Union
 
 import torch
 import torch.distributed as dist
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
-from monai.engines.utils import default_prepare_batch
-from monai.transforms import apply_transform
-from monai.utils import ensure_tuple, exact_version, optional_import
+from monai.config import IgniteInfo
+from monai.data import decollate_batch, rep_scalar_to_batch
+from monai.engines.utils import IterationEvents, default_metric_cmp_fn, default_prepare_batch
+from monai.utils import ensure_tuple, min_version, optional_import
 
-IgniteEngine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
-State, _ = optional_import("ignite.engine", "0.4.2", exact_version, "State")
-Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
+from .utils import engine_apply_transform
+
+IgniteEngine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
+State, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "State")
+Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
+
 if TYPE_CHECKING:
-    from ignite.engine import Engine
+    from ignite.engine import Engine, EventEnum
     from ignite.metrics import Metric
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
-    Metric, _ = optional_import("ignite.metrics", "0.4.2", exact_version, "Metric")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
+    Metric, _ = optional_import("ignite.metrics", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Metric")
+    EventEnum, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "EventEnum")
 
 
 class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optional_import
@@ -39,27 +45,37 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
     It initializes all the sharable data in Ignite engine.state.
     And attach additional processing logics to Ignite engine based on Event-Handler mechanism.
 
-    Users should consider to inherit from `trainer` or `evaluator` to develop more trainers or evaluators.
+    Users should consider inheriting from `trainer` or `evaluator` to develop more trainers or evaluators.
 
     Args:
         device: an object representing the device on which to run.
         max_epochs: the total epoch number for engine to run, validator and evaluator have only 1 epoch.
-        data_loader: Ignite engine use data_loader to run, must be torch.DataLoader.
+        data_loader: Ignite engine use data_loader to run, must be Iterable or torch.DataLoader.
         epoch_length: number of iterations for one epoch, default to `len(data_loader)`.
         non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously
             with respect to the host. For other cases, this argument has no effect.
         prepare_batch: function to parse image and label for every iteration.
         iteration_update: the callable function for every iteration, expect to accept `engine`
             and `batchdata` as input parameters. if not provided, use `self._iteration()` instead.
-        post_transform: execute additional transformation for the model output data.
+        postprocessing: execute additional transformation for the model output data.
             Typically, several Tensor based transforms composed by `Compose`.
         key_metric: compute metric when every iteration completed, and save average value to
             engine.state.metrics when epoch completed. key_metric is the main metric to compare and save the
             checkpoint into files.
         additional_metrics: more Ignite metrics that also attach to Ignite Engine.
+        metric_cmp_fn: function to compare current key metric with previous best key metric value,
+            it must accept 2 args (current_metric, previous_best) and return a bool result: if `True`, will update
+            `best_metric` and `best_metric_epoch` with current metric and epoch, default to `greater than`.
         handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
         amp: whether to enable auto-mixed-precision training or inference, default is False.
+        event_names: additional custom ignite events that will register to the engine.
+            new events can be a list of str or `ignite.engine.events.EventEnum`.
+        event_to_attr: a dictionary to map an event to a state attribute, then add to `engine.state`.
+            for more details, check: https://github.com/pytorch/ignite/blob/v0.4.4.post1/ignite/engine/engine.py#L160
+        decollate: whether to decollate the batch-first data to a list of data after model computation,
+            default to `True`. if `False`, postprocessing will be ignored as the `monai.transforms` module
+            assumes channel-first data.
 
     Raises:
         TypeError: When ``device`` is not a ``torch.Device``.
@@ -73,16 +89,20 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         self,
         device: torch.device,
         max_epochs: int,
-        data_loader: DataLoader,
+        data_loader: Union[Iterable, DataLoader],
         epoch_length: Optional[int] = None,
         non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
         iteration_update: Optional[Callable] = None,
-        post_transform: Optional[Callable] = None,
+        postprocessing: Optional[Callable] = None,
         key_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
+        metric_cmp_fn: Callable = default_metric_cmp_fn,
         handlers: Optional[Sequence] = None,
         amp: bool = False,
+        event_names: Optional[List[Union[str, EventEnum]]] = None,
+        event_to_attr: Optional[dict] = None,
+        decollate: bool = True,
     ) -> None:
         if iteration_update is not None:
             super().__init__(iteration_update)
@@ -90,14 +110,20 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             super().__init__(self._iteration)
         if not isinstance(device, torch.device):
             raise TypeError(f"device must be a torch.device but is {type(device).__name__}.")
-        if not isinstance(data_loader, DataLoader):
-            raise TypeError(f"data_loader must be a torch.utils.data.DataLoader but is {type(data_loader).__name__}.")
-        sampler = data_loader.__dict__["sampler"]
-        if isinstance(sampler, DistributedSampler):
 
-            @self.on(Events.EPOCH_STARTED)
-            def set_sampler_epoch(engine: Engine):
-                sampler.set_epoch(engine.state.epoch)
+        if isinstance(data_loader, DataLoader):
+            sampler = data_loader.__dict__["sampler"]
+            if isinstance(sampler, DistributedSampler):
+
+                @self.on(Events.EPOCH_STARTED)
+                def set_sampler_epoch(engine: Engine):
+                    sampler.set_epoch(engine.state.epoch)
+
+            if epoch_length is None:
+                epoch_length = len(data_loader)
+        else:
+            if epoch_length is None:
+                raise ValueError("if data_loader is not PyTorch DataLoader, must specify the epoch_length.")
 
         # set all sharable data for the workflow based on Ignite engine.state
         self.state = State(
@@ -106,7 +132,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             iteration=0,
             epoch=0,
             max_epochs=max_epochs,
-            epoch_length=len(data_loader) if epoch_length is None else epoch_length,
+            epoch_length=epoch_length,
             output=None,
             batch=None,
             metrics={},
@@ -120,36 +146,60 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         self.data_loader = data_loader
         self.non_blocking = non_blocking
         self.prepare_batch = prepare_batch
+        self.metric_cmp_fn = metric_cmp_fn
         self.amp = amp
 
-        self._register_additional_events()
-        if post_transform is not None:
-            self._register_post_transforms(post_transform)
+        if event_names is None:
+            event_names = [IterationEvents]
+        else:
+            if not isinstance(event_names, list):
+                raise ValueError("event_names must be a list or string or EventEnum.")
+            event_names += [IterationEvents]
+        for name in event_names:
+            if isinstance(name, str):
+                self.register_events(name, event_to_attr=event_to_attr)
+            elif issubclass(name, EventEnum):
+                self.register_events(*name, event_to_attr=event_to_attr)
+            else:
+                raise ValueError("event_names must be a list or string or EventEnum.")
+
+        if decollate:
+            self._register_decollate()
+            # postprocessing can only work if `decollate=True`
+            if postprocessing is not None:
+                self._register_postprocessing(postprocessing)
         if key_metric is not None:
             self._register_metrics(key_metric, additional_metrics)
         if handlers is not None:
             self._register_handlers(handlers)
 
-    def _register_additional_events(self):
+    def _register_decollate(self):
         """
-        Register more ignite Events to the engine.
-
-        """
-        pass
-
-    def _register_post_transforms(self, posttrans):
-        """
-        Register the post transforms to the engine, will execute them as a chain when iteration completed.
+        Register the decollate operation for batch data, will execure after model forward and loss forward.
 
         """
 
-        @self.on(Events.ITERATION_COMPLETED)
-        def run_post_transform(engine: Engine) -> None:
-            if posttrans is None:
-                raise AssertionError
-            engine.state.output = apply_transform(posttrans, engine.state.output)
+        @self.on(IterationEvents.MODEL_COMPLETED)
+        def _decollate_data(engine: Engine) -> None:
+            # replicate the scalar values to make sure all the items have batch dimension, then decollate
+            engine.state.batch = decollate_batch(rep_scalar_to_batch(engine.state.batch), detach=True)
+            engine.state.output = decollate_batch(rep_scalar_to_batch(engine.state.output), detach=True)
 
-    def _register_metrics(self, k_metric, add_metrics):
+    def _register_postprocessing(self, posttrans: Callable):
+        """
+        Register the postprocessing logic to the engine, will execute them as a chain when iteration completed.
+
+        """
+
+        @self.on(IterationEvents.MODEL_COMPLETED)
+        def _run_postprocessing(engine: Engine) -> None:
+            if not isinstance(engine.state.batch, list) or not isinstance(engine.state.output, list):
+                warnings.warn("postprocessing requires `engine.state.batch` and `engine.state.outout` to be lists.")
+            else:
+                for i, (b, o) in enumerate(zip(engine.state.batch, engine.state.output)):
+                    engine.state.batch[i], engine.state.output[i] = engine_apply_transform(b, o, posttrans)
+
+    def _register_metrics(self, k_metric: Dict, add_metrics: Optional[Dict] = None):
         """
         Register the key metric and additional metrics to the engine, supports ignite Metrics.
 
@@ -169,12 +219,12 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         def _compare_metrics(engine: Engine) -> None:
             if engine.state.key_metric_name is not None:
                 current_val_metric = engine.state.metrics[engine.state.key_metric_name]
-                if current_val_metric > engine.state.best_metric:
+                if self.metric_cmp_fn(current_val_metric, engine.state.best_metric):
                     self.logger.info(f"Got new best metric of {engine.state.key_metric_name}: {current_val_metric}")
                     engine.state.best_metric = current_val_metric
                     engine.state.best_metric_epoch = engine.state.epoch
 
-    def _register_handlers(self, handlers):
+    def _register_handlers(self, handlers: Sequence):
         """
         Register the handlers to the engine, supports ignite Handlers with `attach` API.
 
