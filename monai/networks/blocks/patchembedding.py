@@ -30,12 +30,11 @@ class PatchEmbeddingBlock(nn.Module):
     def __init__(
         self,
         in_channels: int,
-        img_size: Union[int, Tuple[int, int, int]],
-        patch_size: Union[int, Tuple[int, int, int]],
+        img_size: Tuple[int, int, int],
+        patch_size: Tuple[int, int, int],
         hidden_size: int,
         num_heads: int,
         pos_embed: Union[Tuple, str],  # type: ignore
-        classification: bool,
         dropout_rate: float = 0.0,
     ) -> None:
         """
@@ -46,7 +45,6 @@ class PatchEmbeddingBlock(nn.Module):
             hidden_size: dimension of hidden layer.
             num_heads: number of attention heads.
             pos_embed: position embedding layer type.
-            classification: bool argument to determine if classification is used.
             dropout_rate: faction of the input units to drop.
 
         """
