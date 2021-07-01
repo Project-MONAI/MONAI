@@ -16,7 +16,13 @@ from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 
 from monai.config import IgniteInfo
-from monai.engines.utils import GanKeys, IterationEvents, default_make_latent, default_prepare_batch
+from monai.engines.utils import (
+    GanKeys,
+    IterationEvents,
+    default_make_latent,
+    default_metric_cmp_fn,
+    default_prepare_batch,
+)
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import Transform
@@ -79,6 +85,9 @@ class SupervisedTrainer(Trainer):
             engine.state.metrics when epoch completed. key_train_metric is the main metric to compare and save the
             checkpoint into files.
         additional_metrics: more Ignite metrics that also attach to Ignite Engine.
+        metric_cmp_fn: function to compare current key metric with previous best key metric value,
+            it must accept 2 args (current_metric, previous_best) and return a bool result: if `True`, will update
+            `best_metric` and `best_metric_epoch` with current metric and epoch, default to `greater than`.
         train_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
         amp: whether to enable auto-mixed-precision training, default is False.
@@ -108,6 +117,7 @@ class SupervisedTrainer(Trainer):
         postprocessing: Optional[Transform] = None,
         key_train_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
+        metric_cmp_fn: Callable = default_metric_cmp_fn,
         train_handlers: Optional[Sequence] = None,
         amp: bool = False,
         event_names: Optional[List[Union[str, EventEnum]]] = None,
@@ -125,6 +135,7 @@ class SupervisedTrainer(Trainer):
             postprocessing=postprocessing,
             key_metric=key_train_metric,
             additional_metrics=additional_metrics,
+            metric_cmp_fn=metric_cmp_fn,
             handlers=train_handlers,
             amp=amp,
             event_names=event_names,
@@ -232,6 +243,9 @@ class GanTrainer(Trainer):
             engine.state.metrics when epoch completed. key_train_metric is the main metric to compare and save the
             checkpoint into files.
         additional_metrics: more Ignite metrics that also attach to Ignite Engine.
+        metric_cmp_fn: function to compare current key metric with previous best key metric value,
+            it must accept 2 args (current_metric, previous_best) and return a bool result: if `True`, will update
+            `best_metric` and `best_metric_epoch` with current metric and epoch, default to `greater than`.
         train_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
         decollate: whether to decollate the batch-first data to a list of data after model computation,
@@ -264,6 +278,7 @@ class GanTrainer(Trainer):
         postprocessing: Optional[Transform] = None,
         key_train_metric: Optional[Dict[str, Metric]] = None,
         additional_metrics: Optional[Dict[str, Metric]] = None,
+        metric_cmp_fn: Callable = default_metric_cmp_fn,
         train_handlers: Optional[Sequence] = None,
         decollate: bool = True,
     ):
@@ -281,6 +296,7 @@ class GanTrainer(Trainer):
             iteration_update=iteration_update,
             key_metric=key_train_metric,
             additional_metrics=additional_metrics,
+            metric_cmp_fn=metric_cmp_fn,
             handlers=train_handlers,
             postprocessing=postprocessing,
             decollate=decollate,

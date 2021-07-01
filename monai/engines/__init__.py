@@ -16,6 +16,7 @@ from .utils import (
     GanKeys,
     IterationEvents,
     default_make_latent,
+    default_metric_cmp_fn,
     default_prepare_batch,
     engine_apply_transform,
     get_devices_spec,
