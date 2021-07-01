@@ -60,26 +60,21 @@ def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = True):
         raise ValueError("input data must be PyTorch Tensor.")
     # data of all the ranks must have same number of dimensions
     ndims = data.ndimension()
-    if ndims == 0:
-        # tensor must have batch dimension
-        data = data.unsqueeze(0)
-    length: int = data.shape[0]
+    length: int = data.shape[0] if ndims > 0 else 1
 
     def _torch_all_gather(data: torch.Tensor) -> List[torch.Tensor]:
         """
         Implementation based on native PyTorch distributed data parallel APIs.
 
         """
-        world_size = dist.get_world_size()
-        if world_size <= 1:
-            return data
-
         device = get_dist_device()
         orig_device = data.device
         data = data.to(device)
+        data = data.unsqueeze(0) if ndims == 0 else data
+
         # make sure the data is evenly-divisible on multi-GPUs
         length_tensor = torch.as_tensor([length], device=device)
-        all_lens = [torch.zeros_like(length_tensor) for _ in range(world_size)]
+        all_lens = [torch.zeros_like(length_tensor) for _ in range(dist.get_world_size())]
         dist.all_gather(all_lens, length_tensor)
         all_lens_: List[int] = [int(i.item()) for i in all_lens]
 
@@ -88,7 +83,7 @@ def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = True):
             size = [max_len - length] + list(data.shape[1:])
             data = torch.cat([data, data.new_full(size, 0)], dim=0)
         # all gather across all processes
-        output = [torch.zeros_like(data) for _ in range(world_size)]
+        output = [torch.zeros_like(data) for _ in range(dist.get_world_size())]
         dist.all_gather(output, data)
         # remove the padding items, if all the input data doesn't have batch dim, suqeeze the first dim
         return [(o.squeeze(0) if ndims == 0 else o[:l, ...]).to(orig_device) for o, l in zip(output, all_lens_)]
@@ -98,9 +93,7 @@ def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = True):
         Implementation based on PyTorch ignite package, it can support more kinds of backends.
 
         """
-        if idist.get_world_size() <= 1:
-            return data
-
+        data = data.unsqueeze(0) if ndims == 0 else data
         # make sure the data is evenly-divisible on multi-GPUs
         all_lens: List[int] = idist.all_gather(length)
         max_len: int = max(all_lens)
@@ -111,16 +104,21 @@ def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = True):
         output = idist.all_gather(data)
         # delete the padding NaN items
         if ndims == 0:
-            return torch.unbind(output, dim=0)
+            # if all the input data doesn't have batch dim, unbind to a list of 0-dim Tensors
+            return list(torch.unbind(output, dim=0))
         return [output[i * max_len : i * max_len + l, ...] for i, l in enumerate(all_lens)]
 
     output: List[torch.Tensor]
     if dist.is_available() and dist.is_initialized():
+        if dist.get_world_size() <= 1:
+            return data
         output = _torch_all_gather(data=data)
     elif has_ignite:
+        if idist.get_world_size() <= 1:
+            return data
         output = _ignite_all_gather(data=data)
     else:
-        return data.squeeze(0) if ndims == 0 else data
+        return data
 
     return torch.cat(output, dim=0) if concat else output
 

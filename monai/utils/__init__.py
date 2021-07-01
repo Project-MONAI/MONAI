@@ -13,7 +13,7 @@
 from .aliases import alias, resolve_name
 from .decorators import MethodReplacer, RestartGenerator
 from .deprecated import DeprecatedError, deprecated, deprecated_arg
-from .dist import get_dist_device, evenly_divisible_all_gather, string_list_all_gather
+from .dist import evenly_divisible_all_gather, get_dist_device, string_list_all_gather
 from .enums import (
     Activation,
     Average,
