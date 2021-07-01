@@ -11,14 +11,14 @@
 
 
 import math
-from typing import Tuple, Union
+from typing import Tuple
 
 import torch
 import torch.nn as nn
 
 from monai.utils import optional_import
 
-einops, has_einops = optional_import("einops")
+Rearrange, _ = optional_import("einops.layers.torch", name="Rearrange")
 
 
 class PatchEmbeddingBlock(nn.Module):
@@ -34,7 +34,7 @@ class PatchEmbeddingBlock(nn.Module):
         patch_size: Tuple[int, int, int],
         hidden_size: int,
         num_heads: int,
-        pos_embed: Union[Tuple, str],  # type: ignore
+        pos_embed: str,
         dropout_rate: float = 0.0,
     ) -> None:
         """
@@ -68,13 +68,6 @@ class PatchEmbeddingBlock(nn.Module):
             if img_size[0] % patch_size[0] != 0:
                 raise AssertionError("img_size should be divisible by patch_size for perceptron patch embedding.")
 
-        if has_einops:  # type: ignore
-            from einops.layers.torch import Rearrange  # type: ignore
-
-            self.Rearrange = Rearrange  # type: ignore
-        else:
-            raise ValueError('"Requires einops.')
-
         self.n_patches = (
             (img_size[0] // patch_size[0]) * (img_size[1] // patch_size[1]) * (img_size[2] // patch_size[2])
         )
@@ -85,8 +78,8 @@ class PatchEmbeddingBlock(nn.Module):
                 in_channels=in_channels, out_channels=hidden_size, kernel_size=patch_size, stride=patch_size
             )
         elif self.pos_embed == "perceptron":
-            self.patch_embeddings = nn.Sequential(  # type: ignore
-                self.Rearrange(
+            self.patch_embeddings = nn.Sequential(
+                Rearrange(
                     "b c (h p1) (w p2) (d p3)-> b (h w d) (p1 p2 p3 c)",
                     p1=patch_size[0],
                     p2=patch_size[1],
