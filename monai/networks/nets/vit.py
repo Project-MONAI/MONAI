@@ -10,7 +10,7 @@
 # limitations under the License.
 
 
-from typing import Tuple, Union
+from typing import Tuple
 
 import torch.nn as nn
 
@@ -27,13 +27,13 @@ class ViT(nn.Module):
     def __init__(
         self,
         in_channels: int,
-        img_size: Tuple,  # type: ignore
-        patch_size: Tuple,  # type: ignore
+        img_size: Tuple[int, int, int],
+        patch_size: Tuple[int, int, int],
         hidden_size: int,
         mlp_dim: int,
         num_layers: int,
         num_heads: int,
-        pos_embed: Union[Tuple, str],
+        pos_embed: str,
         classification: bool,
         num_classes: int = 2,
         dropout_rate: float = 0.0,
@@ -62,18 +62,15 @@ class ViT(nn.Module):
         if hidden_size % num_heads != 0:
             raise AssertionError("hidden size should be divisible by num_heads.")
 
-        if img_size < patch_size:
-            raise AssertionError("patch_size should be smaller than img_size.")
-
         if pos_embed not in ["conv", "perceptron"]:
             raise KeyError(f"Position embedding layer of type {pos_embed} is not supported.")
 
         self.classification = classification
         self.patch_embedding = PatchEmbeddingBlock(
-            in_channels, img_size, patch_size, hidden_size, num_heads, pos_embed, classification, dropout_rate  # type: ignore
+            in_channels, img_size, patch_size, hidden_size, num_heads, pos_embed, dropout_rate
         )
         self.blocks = nn.ModuleList(
-            [TransformerBlock(hidden_size, mlp_dim, num_heads, dropout_rate) for i in range(num_layers)]  # type: ignore
+            [TransformerBlock(hidden_size, mlp_dim, num_heads, dropout_rate) for i in range(num_layers)]
         )
         self.norm = nn.LayerNorm(hidden_size)
         if self.classification:

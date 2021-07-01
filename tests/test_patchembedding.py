@@ -43,7 +43,6 @@ for dropout_rate in np.linspace(0, 1, 2):
                                         "hidden_size": hidden_size,
                                         "num_heads": num_heads,
                                         "pos_embed": pos_embed,
-                                        "classification": classification,
                                         "dropout_rate": dropout_rate,
                                     },
                                     (2, in_channels, img_size, *([img_size] * 2)),
@@ -70,7 +69,6 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 hidden_size=128,
                 num_heads=12,
                 pos_embed="conv",
-                classification=False,
                 dropout_rate=5.0,
             )
 
@@ -82,7 +80,6 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 hidden_size=512,
                 num_heads=8,
                 pos_embed="perceptron",
-                classification=False,
                 dropout_rate=0.3,
             )
 
@@ -94,7 +91,6 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 hidden_size=512,
                 num_heads=14,
                 pos_embed="conv",
-                classification=False,
                 dropout_rate=0.3,
             )
 
@@ -106,7 +102,6 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 hidden_size=768,
                 num_heads=8,
                 pos_embed="perceptron",
-                classification=False,
                 dropout_rate=0.3,
             )
 
@@ -118,7 +113,6 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 hidden_size=768,
                 num_heads=12,
                 pos_embed="perc",
-                classification=False,
                 dropout_rate=0.3,
             )
 
