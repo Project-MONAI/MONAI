@@ -209,7 +209,7 @@ jobs:
           - "PT17+CUDA102"
           - "PT17+CUDA110"
           - "PT18+CUDA102"
-          - "PT18+CUDA112"
+          - "PT19+CUDA113"
           - "PT19+CUDA102"
         include:
           - environment: PT16+CUDA110
@@ -226,7 +226,7 @@ jobs:
           - environment: PT18+CUDA102
             pytorch: "torch==1.8.1 torchvision==0.9.1"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
-          - environment: PT19+CUDA112
+          - environment: PT19+CUDA113
             # we explicitly set pytorch to -h to avoid pip install error
             pytorch: "-h"
             base: "nvcr.io/nvidia/pytorch:21.06-py3"
