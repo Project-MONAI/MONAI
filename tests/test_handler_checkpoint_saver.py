@@ -31,6 +31,7 @@ TEST_CASE_1 = [
     None,
     False,
     False,
+    1.0,
     True,
     0,
     None,
@@ -46,6 +47,7 @@ TEST_CASE_2 = [
     None,
     False,
     True,
+    1,
     False,
     0,
     None,
@@ -61,6 +63,7 @@ TEST_CASE_3 = [
     None,
     False,
     True,
+    1.0,
     True,
     2,
     2,
@@ -76,6 +79,7 @@ TEST_CASE_4 = [
     None,
     False,
     False,
+    1.0,
     False,
     10,
     2,
@@ -91,6 +95,7 @@ TEST_CASE_5 = [
     None,
     False,
     False,
+    1.0,
     True,
     0,
     None,
@@ -98,11 +103,11 @@ TEST_CASE_5 = [
     True,
 ]
 
-TEST_CASE_6 = [True, "final_model.pt", False, None, 1, None, False, False, True, 0, None, ["final_model.pt"]]
+TEST_CASE_6 = [True, "final_model.pt", False, None, 1, None, False, False, 1.0, True, 0, None, ["final_model.pt"]]
 
-TEST_CASE_7 = [False, None, True, "val_loss", 1, "model.pt", False, False, True, 0, None, ["model.pt"]]
+TEST_CASE_7 = [False, None, True, "val_loss", 1, "model.pt", False, False, 1.0, True, 0, None, ["model.pt"]]
 
-TEST_CASE_8 = [False, None, True, "val_loss", 1, "model.pt", False, True, True, 0, None, ["model.pt"]]
+TEST_CASE_8 = [False, None, True, "val_loss", 1, "model.pt", False, True, 1.0, True, 0, None, ["model.pt"]]
 
 
 class TestHandlerCheckpointSaver(unittest.TestCase):
@@ -128,6 +133,7 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
         key_metric_filename,
         key_metric_save_state,
         key_metric_greater_or_equal,
+        key_metric_score_sign,
         epoch_level,
         save_interval,
         n_saved,
@@ -162,6 +168,7 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
                 key_metric_filename,
                 key_metric_save_state,
                 key_metric_greater_or_equal,
+                key_metric_score_sign,
                 epoch_level,
                 save_interval,
                 n_saved,
@@ -211,8 +218,9 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
                 key_metric_name="val_loss",
                 key_metric_n_saved=2,
                 key_metric_save_state=True,
+                key_metric_score_sign=-1,
             ).attach(engine)
-            engine.run(range(3), max_epochs=2)
+            engine.run(range(3), max_epochs=3)
 
             saver = CheckpointSaver(
                 save_dir=tempdir,
@@ -220,15 +228,16 @@ class TestHandlerCheckpointSaver(unittest.TestCase):
                 save_key_metric=True,
                 key_metric_name="val_loss",
                 key_metric_n_saved=2,
+                key_metric_score_sign=-1,
             )
             engine = Engine(_train_func)
-            CheckpointLoader(os.path.join(tempdir, "net_key_metric=6.pt"), {"checkpointer": saver}).attach(engine)
+            CheckpointLoader(os.path.join(tempdir, "net_key_metric=-6.pt"), {"checkpointer": saver}).attach(engine)
             engine.run(range(1), max_epochs=1)
 
             resumed = saver._key_metric_checkpoint._saved
             for i in range(2):
-                self.assertEqual(resumed[i].priority, 3 * (i + 1))
-                self.assertEqual(resumed[i].filename, f"net_key_metric={3 * (i + 1)}.pt")
+                self.assertEqual(resumed[1 - i].priority, -3 * (i + 1))
+                self.assertEqual(resumed[1 - i].filename, f"net_key_metric=-{3 * (i + 1)}.pt")
 
 
 if __name__ == "__main__":
