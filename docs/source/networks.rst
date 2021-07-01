@@ -80,7 +80,7 @@ Blocks
     :members:
 
 `SABlock Block`
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
 .. autoclass:: SABlock
     :members:
 
@@ -90,12 +90,12 @@ Blocks
     :members:
 
 `Transformer Block`
-~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 .. autoclass:: TransformerBlock
     :members:
 
 `UNETR Block`
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~
 .. autoclass:: UnetrBasicBlock
     :members:
 .. autoclass:: UnetrUpBlock
@@ -154,12 +154,12 @@ Blocks
     :members:
 
 `Registration Down Sample Block`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: RegistrationDownSampleBlock
     :members:
 
 `Registration Extraction Block`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: RegistrationExtractionBlock
     :members:
 
@@ -179,12 +179,12 @@ Blocks
     :members:
 
 `MLP Block`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~
 .. autoclass:: MLPBlock
     :members:
 
 `Patch Embedding Block`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: PatchEmbeddingBlock
     :members:
 
@@ -419,7 +419,7 @@ Nets
 .. autoclass:: unet
 
 `UNETR`
-~~~~~~~~~~~~~~~~~
+~~~~~~~
 .. autoclass:: UNETR
     :members:
 
@@ -436,7 +436,7 @@ Nets
   :members:
 
 `RegUNet`
-~~~~~~~~~~
+~~~~~~~~~
 .. autoclass:: RegUNet
   :members:
 
@@ -461,7 +461,7 @@ Nets
   :members:
 
 `ViT`
-~~~~~~
+~~~~~
 .. autoclass:: ViT
   :members:
 
