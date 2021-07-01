@@ -44,8 +44,8 @@ def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = True):
     Utility function for distributed data parallel to pad at first dim to make it evenly divisible and all_gather.
     The input data of every rank should have the same number of dimensions, only the first dim can be different.
 
-    Note: if native PyTorch distributed group initialized, it will use execute based on native PyTorch distributed
-        APIs, otherwise, if has ignite installed, will use execute based on ignite distributed APIs.
+    Note: if native PyTorch distributed group initialized, it will execute based on native PyTorch distributed APIs,
+        otherwise, if has ignite installed, will execute based on ignite distributed APIs.
 
     Args:
         data: source tensor to pad and execute all_gather in distributed data parallel.
@@ -135,13 +135,11 @@ def string_list_all_gather(strings: List[str], delimiter: str = "\t") -> List[st
             then all gather across ranks and split to a list. default to "\t".
 
     """
-    world_size: int
+    world_size: int = 1
     if dist.is_available() and dist.is_initialized():
         world_size = dist.get_world_size()
     elif has_ignite:
         world_size = idist.get_world_size()
-    else:
-        world_size = 1
 
     if world_size <= 1:
         return strings
