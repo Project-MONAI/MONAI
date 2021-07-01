@@ -190,7 +190,7 @@ class TestBasicDeCollate(unittest.TestCase):
         test_case = [torch.tensor(0), torch.tensor(0)]
         out = decollate_batch(test_case, detach=True)
         self.assertListEqual([0, 0], out)
-        self.assertFalse(isinstance(out[0], torch.Tensor))
+        self.assertTrue(isinstance(out[0], torch.Tensor))
 
         test_case = {"a": [torch.tensor(0), torch.tensor(0)]}
         out = decollate_batch(test_case, detach=False)

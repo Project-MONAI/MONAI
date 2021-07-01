@@ -336,8 +336,8 @@ def decollate_batch(batch, detach: bool = True):
 
     Args:
         batch: data to be de-collated.
-        detach: whether to detach the tensors. Scalars tensors will be detached into number types
-            instead of torch tensors.
+        detach: whether to detach the tensors.
+
     """
     if batch is None:
         return batch
@@ -347,11 +347,8 @@ def decollate_batch(batch, detach: bool = True):
         if detach:
             batch = batch.detach()
         if batch.ndim == 0:
-            return batch.item() if detach else batch
-        out_list = torch.unbind(batch, dim=0)
-        if out_list[0].ndim == 0 and detach:
-            return [t.item() for t in out_list]
-        return list(out_list)
+            return batch
+        return list(torch.unbind(batch, dim=0))
     if isinstance(batch, Mapping):
         _dict_list = {key: decollate_batch(batch[key], detach) for key in batch}
         return [dict(zip(_dict_list, item)) for item in zip(*_dict_list.values())]

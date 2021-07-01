@@ -184,9 +184,8 @@ def plot_2d_or_3d_image(
         max_frames: number of frames for 2D-t plot.
         tag: tag of the plotted image on TensorBoard.
     """
-    d = data[index]
-    if isinstance(d, torch.Tensor):
-        d = d.detach().cpu().numpy()
+    data_index = data[index]
+    d: np.ndarray = data_index.detach().cpu().numpy() if isinstance(data_index, torch.Tensor) else data_index
 
     if d.ndim == 2:
         d = rescale_array(d, 0, 1)
