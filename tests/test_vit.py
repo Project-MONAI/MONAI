@@ -19,16 +19,16 @@ from monai.networks.nets.vit import ViT
 
 TEST_CASE_Vit = []
 for dropout_rate in [0.6]:
-    for in_channels in [1, 4]:
-        for hidden_size in [360, 768]:
+    for in_channels in [4]:
+        for hidden_size in [768]:
             for img_size in [96, 128]:
-                for patch_size in [8, 16]:
-                    for num_heads in [8, 12]:
+                for patch_size in [16]:
+                    for num_heads in [12]:
                         for mlp_dim in [3072]:
                             for num_layers in [4]:
                                 for num_classes in [2]:
-                                    for pos_embed in ["conv", "perceptron"]:
-                                        for classification in ["False", "True"]:
+                                    for pos_embed in ["conv"]:
+                                        for classification in ["False"]:
                                             if classification:
                                                 out = (2, num_classes)
                                             else:

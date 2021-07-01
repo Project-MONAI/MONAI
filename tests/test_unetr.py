@@ -19,17 +19,17 @@ from monai.networks.nets.unetr import UNETR
 
 TEST_CASE_UNETR = []
 for dropout_rate in [0.4]:
-    for in_channels in [1, 4]:
-        for out_channels in [2, 3]:
+    for in_channels in [1]:
+        for out_channels in [2]:
             for hidden_size in [768]:
                 for img_size in [96, 128]:
                     for feature_size in [16]:
                         for num_heads in [8]:
                             for mlp_dim in [3072]:
                                 for norm_name in ["instance"]:
-                                    for pos_embed in ["conv", "perceptron"]:
+                                    for pos_embed in ["perceptron"]:
                                         for conv_block in [True]:
-                                            for res_block in [True, False]:
+                                            for res_block in [False]:
                                                 test_case = [
                                                     {
                                                         "in_channels": in_channels,

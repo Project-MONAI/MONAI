@@ -49,7 +49,7 @@ for spatial_dims in range(2, 4):
     for kernel_size in [1, 3]:
         for stride in [1, 2]:
             for res_block in [False, True]:
-                for norm_name in ["batch", "instance"]:
+                for norm_name in ["instance"]:
                     for in_size in [15, 16]:
                         out_size = in_size * stride
                         test_case = [
@@ -77,7 +77,7 @@ for spatial_dims in range(2, 4):
         for upsample_kernel_size in [2, 3]:
             for stride in [1, 2]:
                 for res_block in [False, True]:
-                    for norm_name in ["batch", "instance"]:
+                    for norm_name in ["instance"]:
                         for in_size in [15, 16]:
                             for num_layer in [0, 2]:
                                 in_size_tmp = in_size
