@@ -28,12 +28,12 @@ class UNETR(nn.Module):
         self,
         in_channels: int,
         out_channels: int,
-        img_size: Tuple,  # type: ignore
+        img_size: Tuple[int, int, int],
         feature_size: int,
         hidden_size: int,
         mlp_dim: int,
         num_heads: int,
-        pos_embed: Union[Tuple, str],
+        pos_embed: str,
         norm_name: Union[Tuple, str],
         conv_block: bool = False,
         res_block: bool = False,
@@ -70,9 +70,9 @@ class UNETR(nn.Module):
         self.num_layers = 12
         self.patch_size = (16, 16, 16)
         self.feat_size = (
-            img_size[0] // self.patch_size[0],  # type: ignore
-            img_size[1] // self.patch_size[1],  # type: ignore
-            img_size[2] // self.patch_size[2],  # type: ignore
+            img_size[0] // self.patch_size[0],
+            img_size[1] // self.patch_size[1],
+            img_size[2] // self.patch_size[2],
         )
         self.hidden_size = hidden_size
         self.classification = False
