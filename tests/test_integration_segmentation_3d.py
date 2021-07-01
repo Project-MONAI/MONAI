@@ -21,7 +21,7 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 
 import monai
-from monai.data import NiftiSaver, create_test_image_3d
+from monai.data import NiftiSaver, create_test_image_3d, decollate_batch
 from monai.inferers import sliding_window_inference
 from monai.metrics import DiceMetric
 from monai.networks import eval_mode
@@ -146,7 +146,10 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0):
                 for val_data in val_loader:
                     val_images, val_labels = val_data["img"].to(device), val_data["seg"].to(device)
                     sw_batch_size, roi_size = 4, (96, 96, 96)
-                    val_outputs = val_post_tran(sliding_window_inference(val_images, roi_size, sw_batch_size, model))
+                    val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model)
+                    # decollate prediction into a list and execute post processing for every item
+                    val_outputs = [val_post_tran(i) for i in decollate_batch(val_outputs)]
+                    # compute metrics
                     dice_metric(y_pred=val_outputs, y=val_labels)
 
                 metric = dice_metric.aggregate().item()
@@ -213,7 +216,10 @@ def run_inference_test(root_dir, device="cuda:0"):
             val_images, val_labels = val_data["img"].to(device), val_data["seg"].to(device)
             # define sliding window size and batch size for windows inference
             sw_batch_size, roi_size = 4, (96, 96, 96)
-            val_outputs = val_post_tran(sliding_window_inference(val_images, roi_size, sw_batch_size, model))
+            val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model)
+            # decollate prediction into a list and execute post processing for every item
+            val_outputs = [val_post_tran(i) for i in decollate_batch(val_outputs)]
+            # compute metrics
             dice_metric(y_pred=val_outputs, y=val_labels)
             saver.save_batch(val_outputs, val_data["img_meta_dict"])
 
