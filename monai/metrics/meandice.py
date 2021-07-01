@@ -17,24 +17,29 @@ import torch
 from monai.metrics.utils import do_metric_reduction, ignore_background
 from monai.utils import MetricReduction
 
+from .metric import CumulativeIterationMetric
 
-class DiceMetric:
+
+class DiceMetric(CumulativeIterationMetric):
     """
     Compute average Dice loss between two tensors. It can support both multi-classes and multi-labels tasks.
-    Input `y_pred` (BNHW[D] where N is number of classes) is compared with ground truth `y` (BNHW[D]).
+    Input `y_pred` is compared with ground truth `y`.
     `y_preds` is expected to have binarized predictions and `y` should be in one-hot format. You can use suitable transforms
     in ``monai.transforms.post`` first to achieve binarized values.
     The `include_background` parameter can be set to ``False`` for an instance of DiceLoss to exclude
     the first category (channel index 0) which is by convention assumed to be background. If the non-background
     segmentations are small compared to the total image size they can get overwhelmed by the signal from the
     background so excluding it in such cases helps convergence.
+    `y_preds` and `y` can be a list of channel-first Tensor (CHW[D]) or a batch-first Tensor (BCHW[D]).
 
     Args:
         include_background: whether to skip Dice computation on the first channel of
             the predicted output. Defaults to ``True``.
         reduction: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}
-            Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
+            Define the mode to reduce computation result. Defaults to ``"mean"``.
+        get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
+            Here `not_nans` count the number of not nans for the metric, thus its shape equals to the shape of the metric.
 
     """
 
@@ -42,12 +47,14 @@ class DiceMetric:
         self,
         include_background: bool = True,
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        get_not_nans: bool = False,
     ) -> None:
         super().__init__()
         self.include_background = include_background
         self.reduction = reduction
+        self.get_not_nans = get_not_nans
 
-    def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
         """
         Args:
             y_pred: input data to compute, typical segmentation model output.
@@ -60,23 +67,34 @@ class DiceMetric:
             ValueError: when `y` is not a binarized tensor.
             ValueError: when `y_pred` has less than three dimensions.
         """
+        if not isinstance(y_pred, torch.Tensor) or not isinstance(y, torch.Tensor):
+            raise ValueError("y_pred and y must be PyTorch Tensor.")
         if not torch.all(y_pred.byte() == y_pred):
-            warnings.warn("y_pred is not a binarized tensor here!")
+            warnings.warn("y_pred should be a binarized tensor.")
         if not torch.all(y.byte() == y):
             raise ValueError("y should be a binarized tensor.")
         dims = y_pred.ndimension()
         if dims < 3:
             raise ValueError("y_pred should have at least three dimensions.")
         # compute dice (BxC) for each channel for each batch
-        f = compute_meandice(
+        return compute_meandice(
             y_pred=y_pred,
             y=y,
             include_background=self.include_background,
         )
 
+    def aggregate(self):  # type: ignore
+        """
+        Execute reduction logic for the output of `compute_meandice`.
+
+        """
+        data = self.get_buffer()
+        if not isinstance(data, torch.Tensor):
+            raise ValueError("the data to aggregate must be PyTorch Tensor.")
+
         # do metric reduction
-        f, not_nans = do_metric_reduction(f, self.reduction)
-        return f, not_nans
+        f, not_nans = do_metric_reduction(data, self.reduction)
+        return (f, not_nans) if self.get_not_nans else f
 
 
 def compute_meandice(

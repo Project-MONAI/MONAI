@@ -15,18 +15,26 @@ import numpy as np
 import torch
 
 from monai.handlers import ROCAUC
+from monai.transforms import Activations, AsDiscrete
 
 
 class TestHandlerROCAUC(unittest.TestCase):
     def test_compute(self):
-        auc_metric = ROCAUC(to_onehot_y=True, softmax=True)
+        auc_metric = ROCAUC()
+        act = Activations(softmax=True)
+        to_onehot = AsDiscrete(to_onehot=True, n_classes=2)
 
-        y_pred = torch.Tensor([[0.1, 0.9], [0.3, 1.4]])
-        y = torch.Tensor([[0], [1]])
+        y_pred = [torch.Tensor([0.1, 0.9]), torch.Tensor([0.3, 1.4])]
+        y = [torch.Tensor([0]), torch.Tensor([1])]
+        y_pred = [act(p) for p in y_pred]
+        y = [to_onehot(y_) for y_ in y]
         auc_metric.update([y_pred, y])
 
-        y_pred = torch.Tensor([[0.2, 0.1], [0.1, 0.5]])
-        y = torch.Tensor([[0], [1]])
+        y_pred = [torch.Tensor([0.2, 0.1]), torch.Tensor([0.1, 0.5])]
+        y = [torch.Tensor([0]), torch.Tensor([1])]
+        y_pred = [act(p) for p in y_pred]
+        y = [to_onehot(y_) for y_ in y]
+
         auc_metric.update([y_pred, y])
 
         auc = auc_metric.compute()
