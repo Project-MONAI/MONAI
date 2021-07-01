@@ -11,7 +11,7 @@
 
 
 import math
-from typing import Tuple
+from typing import Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -72,7 +72,9 @@ class PatchEmbeddingBlock(nn.Module):
             (img_size[0] // patch_size[0]) * (img_size[1] // patch_size[1]) * (img_size[2] // patch_size[2])
         )
         self.patch_dim = in_channels * patch_size[0] * patch_size[1] * patch_size[2]
+
         self.pos_embed = pos_embed
+        self.patch_embeddings: Union[nn.Conv3d, nn.Sequential]
         if self.pos_embed == "conv":
             self.patch_embeddings = nn.Conv3d(
                 in_channels=in_channels, out_channels=hidden_size, kernel_size=patch_size, stride=patch_size
