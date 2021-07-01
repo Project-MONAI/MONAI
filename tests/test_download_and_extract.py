@@ -22,7 +22,7 @@ class TestDownloadAndExtract(unittest.TestCase):
     @skip_if_quick
     def test_actions(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
-        url = "https://drive.google.com/uc?id=13MhoPsNgI6qboJfLicFf_jNvsFUbIYsd"
+        url = "https://drive.google.com/uc?id=1QsnnkvZyJPcbRoV_ArW8SnE1OTuoVbKE"
         filepath = os.path.join(testing_dir, "MedNIST.tar.gz")
         output_dir = testing_dir
         md5_value = "0bc7306e7427e00ad1c5526a6677552d"
@@ -55,16 +55,16 @@ class TestDownloadAndExtract(unittest.TestCase):
     def test_default(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             try:
-                # icon.tar.gz https://drive.google.com/file/d/1aHztVYbynCCq-byTf6cRI8ViETpBWHyC/view?usp=sharing
+                # icon.tar.gz https://drive.google.com/file/d/1HrQd-AKPbts9jkTNN4pT8vLZyhM5irVn/view?usp=sharing
                 download_and_extract(
-                    "https://drive.google.com/uc?id=1aHztVYbynCCq-byTf6cRI8ViETpBWHyC",
+                    "https://drive.google.com/uc?id=1HrQd-AKPbts9jkTNN4pT8vLZyhM5irVn",
                     output_dir=tmp_dir,
                     hash_val="a55d11ad26ed9eb7277905d796205531",
                     file_type="tar",
                 )
-                # favicon.ico.zip https://drive.google.com/file/d/1YGa8N3LBddOkxBnnLndGicoW0klsAH6D/view?usp=sharing
+                # favicon.ico.zip https://drive.google.com/file/d/1TqBTJap621NO9arzXRrYi04lr9NTVF8H/view?usp=sharing
                 download_and_extract(
-                    "https://drive.google.com/uc?id=1YGa8N3LBddOkxBnnLndGicoW0klsAH6D",
+                    "https://drive.google.com/uc?id=1TqBTJap621NO9arzXRrYi04lr9NTVF8H",
                     output_dir=tmp_dir,
                     hash_val="ac6e167ee40803577d98237f2b0241e5",
                     file_type="zip",
