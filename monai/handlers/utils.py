@@ -10,21 +10,20 @@
 # limitations under the License.
 
 import os
-import warnings
 from collections import OrderedDict
 from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
 
 import numpy as np
 import torch
 
-from monai.config import KeysCollection
-from monai.utils import ensure_tuple, exact_version, get_torch_version_tuple, optional_import
+from monai.config import IgniteInfo, KeysCollection
+from monai.utils import deprecated, ensure_tuple, get_torch_version_tuple, min_version, optional_import
 
-idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
+idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
 __all__ = [
     "stopping_fn_from_metric",
@@ -58,6 +57,7 @@ def stopping_fn_from_loss():
     return stopping_fn
 
 
+@deprecated(since="0.6.0", removed="0.7.0", msg_suffix="The API had been moved to monai.utils module.")
 def evenly_divisible_all_gather(data: torch.Tensor) -> torch.Tensor:
     """
     Utility function for distributed data parallel to pad at first dim to make it evenly divisible and all_gather.
@@ -69,10 +69,6 @@ def evenly_divisible_all_gather(data: torch.Tensor) -> torch.Tensor:
         The input data on different ranks must have exactly same `dtype`.
 
     """
-    warnings.warn(
-        "evenly_divisible_all_gather had been moved to monai.utils module, will deprecate this API in MONAI v0.7.",
-        DeprecationWarning,
-    )
     if not isinstance(data, torch.Tensor):
         raise ValueError("input data must be PyTorch Tensor.")
 
@@ -92,6 +88,7 @@ def evenly_divisible_all_gather(data: torch.Tensor) -> torch.Tensor:
     return torch.cat([data[i * max_len : i * max_len + l, ...] for i, l in enumerate(all_lens)], dim=0)
 
 
+@deprecated(since="0.6.0", removed="0.7.0", msg_suffix="The API had been moved to monai.utils module.")
 def string_list_all_gather(strings: List[str]) -> List[str]:
     """
     Utility function for distributed data parallel to all gather a list of strings.
@@ -102,10 +99,6 @@ def string_list_all_gather(strings: List[str]) -> List[str]:
         strings: a list of strings to all gather.
 
     """
-    warnings.warn(
-        "string_list_all_gather had been moved to monai.utils module, will deprecate this API in MONAI v0.7.",
-        DeprecationWarning,
-    )
     world_size = idist.get_world_size()
     if world_size <= 1:
         return strings
@@ -235,7 +228,7 @@ def write_metrics_reports(
 def from_engine(keys: KeysCollection):
     """
     Utility function to simplify the `batch_transform` or `output_transform` args of ignite components
-    when handling dictionary data(for example: `engine.state.batch` or `engine.state.output`).
+    when handling dictionary or list of dictionaries(for example: `engine.state.batch` or `engine.state.output`).
     Users only need to set the expected keys, then it will return a callable function to extract data from
     dictionary and construct a tuple respectively.
     It can help avoid a complicated `lambda` function and make the arg of metrics more straight-forward.
@@ -250,8 +243,14 @@ def from_engine(keys: KeysCollection):
         )
 
     """
+    keys = ensure_tuple(keys)
 
-    def _wrapper(output: Dict):
-        return tuple(output[k] for k in ensure_tuple(keys))
+    def _wrapper(data):
+        if isinstance(data, dict):
+            return tuple(data[k] for k in keys)
+        elif isinstance(data, list) and isinstance(data[0], dict):
+            # if data is a list of dictionaries, extract expected keys and construct lists
+            ret = [[i[k] for i in data] for k in keys]
+            return tuple(ret) if len(ret) > 1 else ret[0]
 
     return _wrapper

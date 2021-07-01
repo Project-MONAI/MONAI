@@ -14,17 +14,19 @@ from typing import TYPE_CHECKING, Callable, Optional, Union
 
 import numpy as np
 
-from monai.config import DtypeLike
+from monai.config import DtypeLike, IgniteInfo
+from monai.data import decollate_batch
 from monai.transforms import SaveImage
-from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, exact_version, optional_import
+from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, deprecated, min_version, optional_import
 
-Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
+Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
 
+@deprecated(since="0.6.0", removed="0.7.0", msg_suffix="Please consider using `SaveImage[d]` transform instead.")
 class SegmentationSaver:
     """
     Event handler triggered on completing every iteration to save the segmentation predictions into files.
@@ -120,7 +122,6 @@ class SegmentationSaver:
             scale=scale,
             dtype=dtype,
             output_dtype=output_dtype,
-            save_batch=True,
             squeeze_end_dims=squeeze_end_dims,
             data_root_dir=data_root_dir,
         )
@@ -149,6 +150,10 @@ class SegmentationSaver:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
         meta_data = self.batch_transform(engine.state.batch)
+        if isinstance(meta_data, dict):
+            # decollate the `dictionary of list` to `list of dictionaries`
+            meta_data = decollate_batch(meta_data)
         engine_output = self.output_transform(engine.state.output)
-        self._saver(engine_output, meta_data)
+        for m, o in zip(meta_data, engine_output):
+            self._saver(o, m)
         self.logger.info("model outputs saved into files.")

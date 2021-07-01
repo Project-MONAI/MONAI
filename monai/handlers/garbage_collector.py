@@ -12,13 +12,14 @@
 import gc
 from typing import TYPE_CHECKING
 
-from monai.utils import exact_version, optional_import
+from monai.config import IgniteInfo
+from monai.utils import min_version, optional_import
 
 if TYPE_CHECKING:
     from ignite.engine import Engine, Events
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
-    Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
+    Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 
 
 class GarbageCollector:

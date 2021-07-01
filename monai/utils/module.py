@@ -36,6 +36,7 @@ __all__ = [
     "get_package_version",
     "get_torch_version_tuple",
     "PT_BEFORE_1_7",
+    "version_leq",
 ]
 
 
@@ -270,12 +271,42 @@ def get_torch_version_tuple():
     return tuple((int(x) for x in torch.__version__.split(".")[:2]))
 
 
-PT_BEFORE_1_7 = True
-ver, has_ver = optional_import("pkg_resources", name="parse_version")
-try:
+def version_leq(lhs, rhs):
+    """Returns True if version `lhs` is earlier or equal to `rhs`."""
+
+    ver, has_ver = optional_import("pkg_resources", name="parse_version")
     if has_ver:
-        PT_BEFORE_1_7 = ver(torch.__version__) < ver("1.7")
-    else:
-        PT_BEFORE_1_7 = get_torch_version_tuple() < (1, 7)
+        return ver(lhs) <= ver(rhs)
+
+    def _try_cast(val):
+        val = val.strip()
+        try:
+            m = match("(\\d+)(.*)", val)
+            if m is not None:
+                val = m.groups()[0]
+                return int(val)
+            return val
+        except ValueError:
+            return val
+
+    # remove git version suffixes if present
+    lhs = lhs.split("+", 1)[0]
+    rhs = rhs.split("+", 1)[0]
+
+    # parse the version strings in this basic way without `packaging` package
+    lhs = map(_try_cast, lhs.split("."))
+    rhs = map(_try_cast, rhs.split("."))
+
+    for l, r in zip(lhs, rhs):
+        if l != r:
+            if isinstance(l, int) and isinstance(r, int):
+                return l < r
+            return f"{l}" < f"{r}"
+
+    return True
+
+
+try:
+    PT_BEFORE_1_7 = torch.__version__ != "1.7.0" and version_leq(torch.__version__, "1.7.0")
 except (AttributeError, TypeError):
-    pass
+    PT_BEFORE_1_7 = True

@@ -32,10 +32,9 @@ import torch.distributed as dist
 from monai.config.deviceconfig import USE_COMPILED
 from monai.data import create_test_image_2d, create_test_image_3d
 from monai.utils import ensure_tuple, optional_import, set_determinism
-from monai.utils.module import get_torch_version_tuple
+from monai.utils.module import version_leq
 
 nib, _ = optional_import("nibabel")
-ver, has_pkg_res = optional_import("pkg_resources", name="parse_version")
 
 quick_test_var = "QUICKTEST"
 
@@ -113,10 +112,8 @@ class SkipIfBeforePyTorchVersion:
 
     def __init__(self, pytorch_version_tuple):
         self.min_version = pytorch_version_tuple
-        if has_pkg_res:
-            self.version_too_old = ver(torch.__version__) < ver(".".join(map(str, self.min_version)))
-        else:
-            self.version_too_old = get_torch_version_tuple() < self.min_version
+        test_ver = ".".join(map(str, self.min_version))
+        self.version_too_old = torch.__version__ != test_ver and version_leq(torch.__version__, test_ver)
 
     def __call__(self, obj):
         return unittest.skipIf(
@@ -130,10 +127,8 @@ class SkipIfAtLeastPyTorchVersion:
 
     def __init__(self, pytorch_version_tuple):
         self.max_version = pytorch_version_tuple
-        if has_pkg_res:
-            self.version_too_new = ver(torch.__version__) >= ver(".".join(map(str, self.max_version)))
-        else:
-            self.version_too_new = get_torch_version_tuple() >= self.max_version
+        test_ver = ".".join(map(str, self.max_version))
+        self.version_too_new = version_leq(test_ver, torch.__version__)
 
     def __call__(self, obj):
         return unittest.skipIf(

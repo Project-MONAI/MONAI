@@ -13,14 +13,15 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence,
 
 import torch
 
+from monai.config import IgniteInfo
 from monai.transforms import apply_transform
-from monai.utils import exact_version, optional_import
+from monai.utils import min_version, optional_import
 from monai.utils.enums import CommonKeys
 
 if TYPE_CHECKING:
     from ignite.engine import EventEnum
 else:
-    EventEnum, _ = optional_import("ignite.engine", "0.4.4", exact_version, "EventEnum")
+    EventEnum, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "EventEnum")
 
 __all__ = [
     "IterationEvents",
@@ -29,6 +30,7 @@ __all__ = [
     "default_prepare_batch",
     "default_make_latent",
     "engine_apply_transform",
+    "default_metric_cmp_fn",
 ]
 
 
@@ -133,7 +135,7 @@ def default_make_latent(
 
 def engine_apply_transform(batch: Any, output: Any, transform: Callable[..., Dict]):
     """
-    Apply transform for the engine.state.batch and engine.state.output.
+    Apply transform on `batch` and `output`.
     If `batch` and `output` are dictionaries, temporarily combine them for the transform,
     otherwise, apply the transform for `output` data only.
 
@@ -157,3 +159,15 @@ def engine_apply_transform(batch: Any, output: Any, transform: Callable[..., Dic
         output = apply_transform(transform, output)
 
     return batch, output
+
+
+def default_metric_cmp_fn(current_metric: float, prev_best: float) -> bool:
+    """
+    The default function to compare metric values between current metric and previous best metric.
+
+    Args:
+        current_metric: metric value of current round computation.
+        prev_best: the best metric value of previous rounds to compare with.
+
+    """
+    return current_metric > prev_best

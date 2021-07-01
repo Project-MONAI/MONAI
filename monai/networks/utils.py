@@ -37,7 +37,7 @@ __all__ = [
 
 def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.float, dim: int = 1) -> torch.Tensor:
     """
-    For a tensor `labels` of dimensions B1[spatial_dims], return a tensor of dimensions `BN[spatial_dims]`
+    For a tensor `labels` of dimensions [B]1[spatial_dims], return a tensor of dimensions `[B]N[spatial_dims]`
     for `num_classes` N number of classes.
 
     Example:
@@ -45,8 +45,9 @@ def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.f
         For every value v = labels[b,1,h,w], the value in the result at [b,v,h,w] will be 1 and all others 0.
         Note that this will include the background label, thus a binary mask should be treated as having 2 classes.
     """
-    if labels.dim() <= 0:
-        raise AssertionError("labels should have dim of 1 or more.")
+    if labels.dim() == 0:
+        # if no channel dim, add it
+        labels = labels.unsqueeze(0)
 
     # if `dim` is bigger, add singleton dim at the end
     if labels.ndim < dim + 1:
