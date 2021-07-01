@@ -77,7 +77,9 @@ class PatchEmbeddingBlock(nn.Module):
             raise ValueError('"Requires einops.')
 
         self.n_patches = (
-            (img_size[0] // patch_size[0]) * (img_size[1] // patch_size[1]) * (img_size[2] // patch_size[2])  # type: ignore
+            (img_size[0] // patch_size[0])
+            * (img_size[1] // patch_size[1])
+            * (img_size[2] // patch_size[2])  # type: ignore
         )
         self.patch_dim = in_channels * patch_size[0] * patch_size[1] * patch_size[2]  # type: ignore
         self.pos_embed = pos_embed
