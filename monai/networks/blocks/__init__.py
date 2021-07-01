@@ -18,8 +18,11 @@ from .downsample import MaxAvgPool
 from .dynunet_block import UnetBasicBlock, UnetOutBlock, UnetResBlock, UnetUpBlock, get_output_padding, get_padding
 from .fcn import FCN, GCN, MCFCN, Refine
 from .localnet_block import LocalNetDownSampleBlock, LocalNetFeatureExtractorBlock, LocalNetUpSampleBlock
+from .mlp import MLPBlock
+from .patchembedding import PatchEmbeddingBlock
 from .regunet_block import RegistrationDownSampleBlock, RegistrationExtractionBlock, RegistrationResidualConvBlock
 from .segresnet_block import ResBlock
+from .selfattention import SABlock
 from .squeeze_and_excitation import (
     ChannelSELayer,
     ResidualSELayer,
@@ -28,5 +31,7 @@ from .squeeze_and_excitation import (
     SEResNetBottleneck,
     SEResNeXtBottleneck,
 )
+from .transformerblock import TransformerBlock
+from .unetr_block import UnetrBasicBlock, UnetrPrUpBlock, UnetrUpBlock
 from .upsample import SubpixelUpsample, Subpixelupsample, SubpixelUpSample, Upsample, UpSample
 from .warp import DVF2DDF, Warp
