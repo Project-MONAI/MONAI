@@ -127,6 +127,13 @@ def run_testsuit():
         "test_write_metrics_reports",
         "test_csv_dataset",
         "test_csv_iterable_dataset",
+        "test_mlp",
+        "test_patchembedding",
+        "test_selfattention",
+        "test_transformerblock",
+        "test_unetr",
+        "test_unetr_block",
+        "test_vit",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 

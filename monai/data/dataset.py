@@ -106,8 +106,8 @@ class PersistentDataset(Dataset):
     For example, typical input data can be a list of dictionaries::
 
         [{                            {                            {
-             'img': 'image1.nii.gz',      'img': 'image2.nii.gz',      'img': 'image3.nii.gz',
-             'seg': 'label1.nii.gz',      'seg': 'label2.nii.gz',      'seg': 'label3.nii.gz',
+             'image': 'image1.nii.gz',    'image': 'image2.nii.gz',    'image': 'image3.nii.gz',
+             'label': 'label1.nii.gz',    'label': 'label2.nii.gz',    'label': 'label3.nii.gz',
              'extra': 123                 'extra': 456                 'extra': 789
          },                           },                           }]
 
