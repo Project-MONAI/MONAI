@@ -19,8 +19,8 @@ import torch
 from torch.utils.data import DataLoader
 
 import monai
-from monai.data import decollate_batch
 from monai.apps import download_and_extract
+from monai.data import decollate_batch
 from monai.metrics import ROCAUCMetric
 from monai.networks import eval_mode
 from monai.networks.nets import DenseNet121
