@@ -183,6 +183,5 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
             self.assertEqual(len(opt2.state_dict()["param_groups"][0]["params"]), 2)
 
 
-
 if __name__ == "__main__":
     unittest.main()
