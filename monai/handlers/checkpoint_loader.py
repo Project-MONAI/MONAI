@@ -47,12 +47,12 @@ class CheckpointLoader:
             first load the module to CPU and then copy each parameter to where it was
             saved, which would result in all processes on the same machine using the
             same set of devices.
-        strict: whether to strictly enforce that the keys and data shape in `state_dict` match the keys
-            returned by `torch.nn.Module.state_dict` function. default to `True`.
+        strict: whether to strictly enforce that the keys and data shape in the `state_dict` of every item
+            of `load_dict` match the `state_dict` of the corresponding items of checkpoint, default to `True`.
         strict_shape: whether to enforce the data shape of the matched layers in the checkpoint,
-            `if `False`, it will skip the layers that have different data shape with checkpoint content.
-            This can be useful advanced feature for transfer learning. users should totally
-            understand which layers will have different shape. default to `True`.
+            `if `False`, it will skip the layers that have different data shape with checkpoint content,
+            and ignore the `strict` arg. this can be useful advanced feature for transfer learning.
+            users should totally understand which layers will have different shape. default to `True`.
 
     Note: if `strict_shape=False`, will only load checkpoint for `torch.nn.Module` and skip other
         items in the `load_dict`. For example, if the shape of some layers in current model can't
@@ -113,7 +113,7 @@ class CheckpointLoader:
         if not self.strict_shape:
             pop_items: List[str] = []
             for k, obj in self.load_dict.items():
-                if isinstance(obj, (torch.nn.Module)):
+                if isinstance(obj, torch.nn.Module):
                     # skip items that don't match key name or data shape
                     checkpoint[k] = copy_model_state(obj, checkpoint, inplace=False)[0]
                 else:
