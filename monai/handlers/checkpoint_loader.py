@@ -11,7 +11,7 @@
 
 import logging
 import warnings
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import List, TYPE_CHECKING, Dict, Optional
 
 import torch
 
@@ -55,7 +55,9 @@ class CheckpointLoader:
             understand which layers will have different shape. default to `True`.
 
     Note: if `strict_shape=False`, will only load checkpoint for `torch.nn.Module` and skip other
-        items in the `load_dict`.
+        items in the `load_dict`. For example, if the shape of some layers in current model can't
+        match the checkpoint, the `parameter_group` of current optimizer may also can't match the
+        checkpoint, so skip loading checkpoint for optimizer.
 
     """
 
@@ -103,14 +105,15 @@ class CheckpointLoader:
 
         # skip items that don't match data shape
         if not self.strict_shape:
-            items = self.load_dict.keys()
-            for k in items:
-                obj = self.load_dict[k]
+            pop_items: List[str] = []
+            for k, obj in self.load_dict.items():
                 if isinstance(obj, (torch.nn.Module)):
                     checkpoint[k] = copy_model_state(obj, checkpoint, inplace=False)[0]
                 else:
-                    warnings.warn("if `strict_shape` is False, only load checkpoint for model and skip others.")
-                    self.load_dict.pop(k)
+                    warnings.warn("`strict_shape` is False, load checkpoint for model, skip others in `load_dict`.")
+                    pop_items.append(k)
+            for i in pop_items:
+                self.load_dict.pop(i)
 
         # save current max epochs setting in the engine, don't overwrite it if larger than max_epochs in checkpoint
         prior_max_epochs = engine.state.max_epochs
