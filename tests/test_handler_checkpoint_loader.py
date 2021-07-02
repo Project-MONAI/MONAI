@@ -153,20 +153,27 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
         data1["0.weight"] = torch.tensor([1, 2, 3, 4, 5])
         data1["new"] = torch.tensor(0.1)
         net1.load_state_dict(data1, strict=False)
+        opt1 = optim.SGD(net1.parameters(), lr=0.02)
 
         net2 = torch.nn.Sequential(*[torch.nn.PReLU(), torch.nn.PReLU()])
         data2 = net2.state_dict()
         data2["0.weight"] = torch.tensor([0.2])
         data2["1.weight"] = torch.tensor([0.3])
         net2.load_state_dict(data2)
+        opt2 = optim.SGD(net2.parameters(), lr=0.02)
 
         with tempfile.TemporaryDirectory() as tempdir:
             engine = Engine(lambda e, b: None)
-            CheckpointSaver(save_dir=tempdir, save_dict={"net": net1}, save_final=True).attach(engine)
+            CheckpointSaver(save_dir=tempdir, save_dict={"net": net1, "opt": opt1}, save_final=True).attach(engine)
             engine.run([0] * 8, max_epochs=5)
-            path = tempdir + "/net_final_iteration=40.pt"
+            path = tempdir + "/checkpoint_final_iteration=40.pt"
             engine = Engine(lambda e, b: None)
-            CheckpointLoader(load_path=path, load_dict={"net": net2}, strict=False, strict_shape=False).attach(engine)
+            CheckpointLoader(
+                load_path=path,
+                load_dict={"net": net2, "opt": opt2},
+                strict=False,
+                strict_shape=False,
+            ).attach(engine)
             engine.run([0] * 8, max_epochs=1)
             torch.testing.assert_allclose(net2.state_dict()["0.weight"].cpu(), torch.tensor([0.2]))
 
