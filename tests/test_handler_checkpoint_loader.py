@@ -13,7 +13,6 @@ import logging
 import sys
 import tempfile
 import unittest
-from copy import deepcopy
 
 import torch
 import torch.optim as optim
