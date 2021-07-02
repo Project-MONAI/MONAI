@@ -44,8 +44,8 @@ def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = True):
     Utility function for distributed data parallel to pad at first dim to make it evenly divisible and all_gather.
     The input data of every rank should have the same number of dimensions, only the first dim can be different.
 
-    Note: if native PyTorch distributed group initialized, it will execute based on native PyTorch distributed APIs,
-        otherwise, if has ignite installed, will execute based on ignite distributed APIs.
+    Note: If has ignite installed, will execute based on ignite distributed APIs, otherwise, if the native
+    PyTorch distributed group initialized, will execute based on native PyTorch distributed APIs.
 
     Args:
         data: source tensor to pad and execute all_gather in distributed data parallel.
@@ -109,14 +109,14 @@ def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = True):
         return [output[i * max_len : i * max_len + l, ...] for i, l in enumerate(all_lens)]
 
     output: List[torch.Tensor]
-    if dist.is_available() and dist.is_initialized():
-        if dist.get_world_size() <= 1:
-            return data
-        output = _torch_all_gather(data=data)
-    elif has_ignite:
+    if has_ignite:
         if idist.get_world_size() <= 1:
             return data
         output = _ignite_all_gather(data=data)
+    elif dist.is_available() and dist.is_initialized():
+        if dist.get_world_size() <= 1:
+            return data
+        output = _torch_all_gather(data=data)
     else:
         return data
 
@@ -129,6 +129,9 @@ def string_list_all_gather(strings: List[str], delimiter: str = "\t") -> List[st
     Refer to the idea of ignite `all_gather(string)`:
     https://github.com/pytorch/ignite/blob/master/ignite/distributed/utils.py#L346.
 
+    Note: If has ignite installed, will execute based on ignite distributed APIs, otherwise, if the native
+    PyTorch distributed group initialized, will execute based on native PyTorch distributed APIs.
+
     Args:
         strings: a list of strings to all gather.
         delimiter: use the delimiter to join the string list to be a long string,
@@ -136,10 +139,10 @@ def string_list_all_gather(strings: List[str], delimiter: str = "\t") -> List[st
 
     """
     world_size: int = 1
-    if dist.is_available() and dist.is_initialized():
-        world_size = dist.get_world_size()
-    elif has_ignite:
+    if has_ignite:
         world_size = idist.get_world_size()
+    elif dist.is_available() and dist.is_initialized():
+        world_size = dist.get_world_size()
 
     if world_size <= 1:
         return strings
