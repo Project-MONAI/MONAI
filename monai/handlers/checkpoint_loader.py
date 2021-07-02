@@ -11,7 +11,7 @@
 
 import logging
 import warnings
-from typing import List, TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 import torch
 
