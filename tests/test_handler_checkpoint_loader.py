@@ -162,7 +162,6 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
         data2["1.weight"] = torch.tensor([0.3])
         net2.load_state_dict(data2)
         opt2 = optim.SGD(net2.parameters(), lr=0.02)
-        opt2_backup = deepcopy(opt2)
 
         with tempfile.TemporaryDirectory() as tempdir:
             engine = Engine(lambda e, b: None)
@@ -179,8 +178,11 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
             ).attach(engine)
             engine.run([0] * 8, max_epochs=1)
             torch.testing.assert_allclose(net2.state_dict()["0.weight"].cpu(), torch.tensor([0.2]))
-            # test whether `op2` had been skipped when loading with `strict_shape=False`
-            self.assertDictEqual(opt2.state_dict(), opt2_backup.state_dict())
+            # test whether `opt2` had been skipped when loading with `strict_shape=False`,
+            # it should have 2 items in `params`(0.weight and 1.weight) while the checkpoint has 1 item(0.weight)
+            self.assertEqual(len(opt1.state_dict()["param_groups"][0]["params"]), 1)
+            self.assertEqual(len(opt2.state_dict()["param_groups"][0]["params"]), 2)
+
 
 
 if __name__ == "__main__":
