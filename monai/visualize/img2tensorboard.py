@@ -9,11 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Dict, Optional, Sequence
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
 
 import numpy as np
 import torch
 
+from monai.config import NdarrayTensor
 from monai.transforms import rescale_array
 from monai.utils import optional_import
 from monai.utils.enums import DataObjects
@@ -175,7 +176,8 @@ def plot_2d_or_3d_image(
 
     Args:
         data: target data to be plotted as image on the TensorBoard.
-            The data is expected to have 'NCHW[D]' dimensions, and only plot the first in the batch.
+            The data is expected to have 'NCHW[D]' dimensions or a list of data with `CHW[D]` dimensions,
+            and only plot the first in the batch.
         step: current step to plot in a chart.
         writer: specify TensorBoard SummaryWriter to plot the image.
         index: plot which element in the input data batch, default is the first element.
@@ -183,7 +185,8 @@ def plot_2d_or_3d_image(
         max_frames: number of frames for 2D-t plot.
         tag: tag of the plotted image on TensorBoard.
     """
-    d = data[index].detach().cpu().numpy() if isinstance(data, torch.Tensor) else data[index]
+    data_index = data[index]
+    d: np.ndarray = data_index.detach().cpu().numpy() if isinstance(data_index, torch.Tensor) else data_index
 
     if d.ndim == 2:
         d = rescale_array(d, 0, 1)
