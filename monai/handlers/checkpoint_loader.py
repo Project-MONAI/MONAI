@@ -59,6 +59,10 @@ class CheckpointLoader:
         match the checkpoint, the `parameter_group` of current optimizer may also can't match the
         checkpoint, so skip loading checkpoint for optimizer.
 
+        For more details about loading checkpoint, please refer to:
+        https://github.com/pytorch/ignite/blob/v0.4.5/ignite/handlers/checkpoint.py#L499.
+        https://github.com/pytorch/pytorch/blob/v1.9.0/torch/nn/modules/module.py#L1354.
+
     """
 
     def __init__(
