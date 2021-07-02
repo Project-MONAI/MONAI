@@ -10,7 +10,8 @@
 # limitations under the License.
 
 import logging
-from typing import TYPE_CHECKING, Dict, Optional
+import warnings
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 import torch
 
@@ -46,12 +47,21 @@ class CheckpointLoader:
             first load the module to CPU and then copy each parameter to where it was
             saved, which would result in all processes on the same machine using the
             same set of devices.
-        strict: whether to strictly enforce that the keys in `state_dict` match the keys
-            returned by `torch.nn.Module.state_dict` function. default to `True`.
+        strict: whether to strictly enforce that the keys and data shape in the `state_dict` of every item
+            of `load_dict` match the `state_dict` of the corresponding items of checkpoint, default to `True`.
         strict_shape: whether to enforce the data shape of the matched layers in the checkpoint,
-            `if `False`, it will skip the layers that have different data shape with checkpoint content.
-            This can be useful advanced feature for transfer learning. users should totally
-            understand which layers will have different shape. default to `True`.
+            `if `False`, it will skip the layers that have different data shape with checkpoint content,
+            and ignore the `strict` arg. this can be useful advanced feature for transfer learning.
+            users should totally understand which layers will have different shape. default to `True`.
+
+    Note: if `strict_shape=False`, will only load checkpoint for `torch.nn.Module` and skip other
+        items in the `load_dict`. For example, if the shape of some layers in current model can't
+        match the checkpoint, the `parameter_group` of current optimizer may also can't match the
+        checkpoint, so skip loading checkpoint for optimizer.
+
+        For more details about loading checkpoint, please refer to:
+        https://github.com/pytorch/ignite/blob/v0.4.5/ignite/handlers/checkpoint.py#L499.
+        https://github.com/pytorch/pytorch/blob/v1.9.0/torch/nn/modules/module.py#L1354.
 
     """
 
@@ -73,6 +83,9 @@ class CheckpointLoader:
         self.load_dict = load_dict
         self._name = name
         self.map_location = map_location
+        if strict and not strict_shape:
+            warnings.warn("as `strict_shape` is already False, change `strict` to False.")
+            strict = False
         self.strict = strict
         self.strict_shape = strict_shape
 
@@ -92,15 +105,22 @@ class CheckpointLoader:
         """
         checkpoint = torch.load(self.load_path, map_location=self.map_location)
 
-        if not self.strict_shape:
-            k, _ = list(self.load_dict.items())[0]
-            # single object and checkpoint is directly a state_dict
-            if len(self.load_dict) == 1 and k not in checkpoint:
-                checkpoint = {k: checkpoint}
+        k, _ = list(self.load_dict.items())[0]
+        # single object and checkpoint is directly a state_dict
+        if len(self.load_dict) == 1 and k not in checkpoint:
+            checkpoint = {k: checkpoint}
 
-            # skip items that don't match data shape
+        if not self.strict_shape:
+            pop_items: List[str] = []
             for k, obj in self.load_dict.items():
-                checkpoint[k] = copy_model_state(obj, checkpoint, inplace=False)[0]
+                if isinstance(obj, torch.nn.Module):
+                    # skip items that don't match key name or data shape
+                    checkpoint[k] = copy_model_state(obj, checkpoint, inplace=False)[0]
+                else:
+                    warnings.warn("`strict_shape` is False, load checkpoint for model, skip others in `load_dict`.")
+                    pop_items.append(k)
+            for i in pop_items:
+                self.load_dict.pop(i)
 
         # save current max epochs setting in the engine, don't overwrite it if larger than max_epochs in checkpoint
         prior_max_epochs = engine.state.max_epochs
