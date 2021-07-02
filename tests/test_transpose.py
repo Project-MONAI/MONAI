@@ -18,9 +18,9 @@ from parameterized import parameterized
 from monai.transforms import Transpose
 
 TEST_CASES = []
-for q in (np.arange, torch.Tensor):
-    TEST_CASES.append([q(5 * 4).reshape(5, 4), None])
-    TEST_CASES.append([q(5 * 4 * 3).reshape(5, 4, 3), [2, 0, 1]])
+for q in (np.arange, torch.arange):
+    TEST_CASES.append([q(5 * 4).reshape(5, 4), None])  # type: ignore
+    TEST_CASES.append([q(5 * 4 * 3).reshape(5, 4, 3), [2, 0, 1]])  # type: ignore
 
 
 class TestTranspose(unittest.TestCase):

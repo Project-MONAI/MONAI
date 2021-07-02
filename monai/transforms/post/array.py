@@ -257,40 +257,41 @@ class KeepLargestConnectedComponent(TorchTransform):
         Returns:
             A PyTorch Tensor with shape (C, spatial_dim1[, spatial_dim2, ...]).
         """
-        img, orig_type, orig_device = self.pre_conv_data(img)
+        img_t: torch.Tensor
+        img_t, orig_type, orig_device = self.pre_conv_data(img)  # type: ignore
 
-        if img.shape[0] == 1:
-            img = torch.squeeze(img, dim=0)
+        if img_t.shape[0] == 1:
+            img_t = torch.squeeze(img_t, dim=0)
 
             if self.independent:
                 for i in self.applied_labels:
-                    foreground = (img == i).type(torch.uint8)
+                    foreground = (img_t == i).type(torch.uint8)
                     mask = get_largest_connected_component_mask(foreground, self.connectivity)
-                    img[foreground != mask] = 0
+                    img_t[foreground != mask] = 0
             else:
-                foreground = torch.zeros_like(img)
+                foreground = torch.zeros_like(img_t)
                 for i in self.applied_labels:
-                    foreground += (img == i).type(torch.uint8)
+                    foreground += (img_t == i).type(torch.uint8)
                 mask = get_largest_connected_component_mask(foreground, self.connectivity)
-                img[foreground != mask] = 0
+                img_t[foreground != mask] = 0
 
-            output = torch.unsqueeze(img, dim=0)
+            output = torch.unsqueeze(img_t, dim=0)
         else:
             # one-hot data is assumed to have binary value in each channel
             if self.independent:
                 for i in self.applied_labels:
-                    foreground = img[i, ...].type(torch.uint8)
+                    foreground = img_t[i, ...].type(torch.uint8)
                     mask = get_largest_connected_component_mask(foreground, self.connectivity)
-                    img[i, ...][foreground != mask] = 0
+                    img_t[i, ...][foreground != mask] = 0
             else:
-                applied_img = img[self.applied_labels, ...].type(torch.uint8)
+                applied_img = img_t[self.applied_labels, ...].type(torch.uint8)
                 foreground = torch.any(applied_img, dim=0)
                 mask = get_largest_connected_component_mask(foreground, self.connectivity)
                 background_mask = torch.unsqueeze(foreground != mask, dim=0)
                 background_mask = torch.repeat_interleave(background_mask, len(self.applied_labels), dim=0)
                 applied_img[background_mask] = 0
-                img[self.applied_labels, ...] = applied_img.type(img.type())  # type: ignore
-            output = img  # type: ignore
+                img_t[self.applied_labels, ...] = applied_img.type(img_t.type())  # type: ignore
+            output = img_t  # type: ignore
 
         return self.post_convert_data(output, orig_type, orig_device)
 

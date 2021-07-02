@@ -1339,7 +1339,7 @@ class Affine(Transform):
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
-    ) -> Tuple[DataObjects.Images, DataObjects.Images]:
+    ) -> Union[DataObjects.Images, Tuple[DataObjects.Images, DataObjects.Images]]:
         """
         Args:
             img: shape must be (num_channels, H, W[, D]),

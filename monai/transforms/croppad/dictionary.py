@@ -461,7 +461,7 @@ class CenterScaleCropd(MapTransform, InvertibleTransform):
 
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, DataObjects.Images]) -> Dict[Hashable, DataObjects.Images]:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):

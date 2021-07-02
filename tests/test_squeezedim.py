@@ -19,13 +19,13 @@ from monai.transforms import SqueezeDim
 
 TESTS, TESTS_FAIL = [], []
 for r in (np.random.rand, torch.rand):
-    TESTS.append([{"dim": None}, r(1, 2, 1, 3), (2, 3)])
-    TESTS.append([{"dim": 2}, r(1, 2, 1, 8, 16), (1, 2, 8, 16)])
-    TESTS.append([{"dim": -1}, r(1, 1, 16, 8, 1), (1, 1, 16, 8)])
-    TESTS.append([{}, r(1, 2, 1, 3), (2, 1, 3)])
+    TESTS.append([{"dim": None}, r(1, 2, 1, 3), (2, 3)])  # type: ignore
+    TESTS.append([{"dim": 2}, r(1, 2, 1, 8, 16), (1, 2, 8, 16)])  # type: ignore
+    TESTS.append([{"dim": -1}, r(1, 1, 16, 8, 1), (1, 1, 16, 8)])  # type: ignore
+    TESTS.append([{}, r(1, 2, 1, 3), (2, 1, 3)])  # type: ignore
 
-    TESTS_FAIL.append([ValueError, {"dim": -2}, r(1, 1, 16, 8, 1)])
-    TESTS_FAIL.append([TypeError, {"dim": 0.5}, r(1, 1, 16, 8, 1)])
+    TESTS_FAIL.append([ValueError, {"dim": -2}, r(1, 1, 16, 8, 1)])  # type: ignore
+    TESTS_FAIL.append([TypeError, {"dim": 0.5}, r(1, 1, 16, 8, 1)])  # type: ignore
 
 
 class TestSqueezeDim(unittest.TestCase):
