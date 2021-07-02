@@ -112,6 +112,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
 
     val_postprocessing = Compose(
         [
+            ToTensord(keys=["pred", "label"]),
             Activationsd(keys="pred", sigmoid=True),
             AsDiscreted(keys="pred", threshold_values=True),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
@@ -152,6 +153,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
 
     train_postprocessing = Compose(
         [
+            ToTensord(keys=["pred", "label"]),
             Activationsd(keys="pred", sigmoid=True),
             AsDiscreted(keys="pred", threshold_values=True),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
@@ -237,6 +239,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
 
     val_postprocessing = Compose(
         [
+            ToTensord(keys=["pred", "label"]),
             Activationsd(keys="pred", sigmoid=True),
             AsDiscreted(keys="pred", threshold_values=True),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),

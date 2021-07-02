@@ -36,6 +36,7 @@ from monai.transforms import (
     RandRotate90d,
     ScaleIntensityd,
     Spacingd,
+    ToTensor,
     ToTensord,
 )
 from monai.utils import set_determinism
@@ -94,7 +95,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0):
     # create a validation data loader
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
     val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
-    val_post_tran = Compose([Activations(sigmoid=True), AsDiscrete(threshold_values=True)])
+    val_post_tran = Compose([ToTensor(), Activations(sigmoid=True), AsDiscrete(threshold_values=True)])
     dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
 
     # create UNet, DiceLoss and Adam optimizer
@@ -194,7 +195,7 @@ def run_inference_test(root_dir, device="cuda:0"):
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
     # sliding window inference need to input 1 image in every iteration
     val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
-    val_post_tran = Compose([Activations(sigmoid=True), AsDiscrete(threshold_values=True)])
+    val_post_tran = Compose([ToTensor(), Activations(sigmoid=True), AsDiscrete(threshold_values=True)])
     dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
 
     model = UNet(

@@ -75,8 +75,8 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
     )
     train_transforms.set_random_state(1234)
     val_transforms = Compose([LoadImage(image_only=True), AddChannel(), ScaleIntensity(), ToTensor()])
-    act = Activations(softmax=True)
-    to_onehot = AsDiscrete(to_onehot=True, n_classes=len(np.unique(train_y)))
+    y_pred_trans = Compose([ToTensor(), Activations(softmax=True)])
+    y_trans = Compose([ToTensor(), AsDiscrete(to_onehot=True, n_classes=len(np.unique(train_y)))])
     auc_metric = ROCAUCMetric()
 
     # create train, val data loaders
@@ -130,8 +130,8 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
                 acc_value = torch.eq(y_pred.argmax(dim=1), y)
                 acc_metric = acc_value.sum().item() / len(acc_value)
                 # decollate prediction and label and execute post processing
-                y_pred = [act(i) for i in decollate_batch(y_pred, detach=False)]
-                y = [to_onehot(i) for i in decollate_batch(y, detach=False)]
+                y_pred = [y_pred_trans(i) for i in decollate_batch(y_pred)]
+                y = [y_trans(i) for i in decollate_batch(y)]
                 # compute AUC
                 auc_metric(y_pred, y)
                 auc_value = auc_metric.aggregate()
