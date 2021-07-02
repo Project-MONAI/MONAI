@@ -30,10 +30,10 @@ from monai.utils.module import optional_import
 from .model_desc import MODEL_DESC
 from .model_desc import RemoteMMARKeys as Keys
 
-__all__ = ["download_mmar", "load_from_mmar"]
+__all__ = ["get_model_spec", "download_mmar", "load_from_mmar"]
 
 
-def _get_model_spec(idx):
+def get_model_spec(idx):
     """get model specification by `idx`. `idx` could be index of the constant tuple of dict or the actual model ID."""
     if isinstance(idx, int):
         return MODEL_DESC[idx]
@@ -155,7 +155,7 @@ def download_mmar(item, mmar_dir=None, progress: bool = True, api: bool = False,
         return model_dir_list
 
     if not isinstance(item, Mapping):
-        item = _get_model_spec(item)
+        item = get_model_spec(item)
 
     ver = item.get(Keys.VERSION, 1)
     if version > 0:
@@ -210,7 +210,7 @@ def load_from_mmar(
         https://docs.nvidia.com/clara/
     """
     if not isinstance(item, Mapping):
-        item = _get_model_spec(item)
+        item = get_model_spec(item)
     model_dir = download_mmar(item=item, mmar_dir=mmar_dir, progress=progress, version=version)
     model_file = os.path.join(model_dir, item[Keys.MODEL_FILE])
     print(f'\n*** "{item[Keys.ID]}" available at {model_dir}.')
