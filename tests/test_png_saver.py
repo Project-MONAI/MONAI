@@ -55,6 +55,25 @@ class TestPNGSaver(unittest.TestCase):
                 filepath = os.path.join("testfile" + str(i), "testfile" + str(i) + "_seg.png")
                 self.assertTrue(os.path.exists(os.path.join(tempdir, filepath)))
 
+    def test_saved_specified_root(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+
+            saver = PNGSaver(
+                output_dir=tempdir,
+                output_postfix="seg",
+                output_ext=".png",
+                scale=255,
+                data_root_dir="test",
+            )
+
+            meta_data = {
+                "filename_or_obj": [os.path.join("test", "testfile" + str(i), "image" + ".jpg") for i in range(8)]
+            }
+            saver.save_batch(torch.randint(1, 200, (8, 1, 2, 2)), meta_data)
+            for i in range(8):
+                filepath = os.path.join("testfile" + str(i), "image", "image" + "_seg.png")
+                self.assertTrue(os.path.exists(os.path.join(tempdir, filepath)))
+
 
 if __name__ == "__main__":
     unittest.main()

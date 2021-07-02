@@ -16,7 +16,15 @@ import torch
 from monai.apps.deepgrow.interaction import Interaction
 from monai.data import Dataset
 from monai.engines import SupervisedTrainer
+from monai.engines.utils import IterationEvents
 from monai.transforms import Activationsd, Compose, ToNumpyd
+
+
+def add_one(engine):
+    if engine.state.best_metric is -1:
+        engine.state.best_metric = 0
+    else:
+        engine.state.best_metric = engine.state.best_metric + 1
 
 
 class TestInteractions(unittest.TestCase):
@@ -47,9 +55,12 @@ class TestInteractions(unittest.TestCase):
             loss_function=loss,
             iteration_update=i,
         )
+        engine.add_event_handler(IterationEvents.INNER_ITERATION_STARTED, add_one)
+        engine.add_event_handler(IterationEvents.INNER_ITERATION_COMPLETED, add_one)
 
         engine.run()
-        self.assertIsNotNone(engine.state.batch.get("probability"), "Probability is missing")
+        self.assertIsNotNone(engine.state.batch[0].get("probability"), "Probability is missing")
+        self.assertEqual(engine.state.best_metric, 9)
 
     def test_train_interaction(self):
         self.run_interaction(train=True, compose=True)
