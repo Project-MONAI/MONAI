@@ -19,7 +19,7 @@ import numpy as np
 import torch
 
 import monai
-from monai.utils import OptionalImportError, get_package_version, optional_import
+from monai.utils.module import OptionalImportError, get_package_version, optional_import
 
 try:
     import itk  # type: ignore
