@@ -13,6 +13,7 @@
 from .aliases import alias, resolve_name
 from .decorators import MethodReplacer, RestartGenerator
 from .deprecated import DeprecatedError, deprecated, deprecated_arg
+from .dist import evenly_divisible_all_gather, get_dist_device, string_list_all_gather
 from .enums import (
     Activation,
     Average,
@@ -44,10 +45,8 @@ from .misc import (
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
-    evenly_divisible_all_gather,
     fall_back_tuple,
     first,
-    get_dist_device,
     get_seed,
     is_scalar,
     is_scalar_tensor,
@@ -56,7 +55,6 @@ from .misc import (
     progress_bar,
     set_determinism,
     star_zip_with,
-    string_list_all_gather,
     zip_with,
 )
 from .module import (
