@@ -19,7 +19,7 @@ import numpy as np
 import torch
 
 import monai
-from monai.utils import OptionalImportError, get_package_version, optional_import
+from monai.utils.module import OptionalImportError, get_package_version, optional_import
 
 try:
     import itk  # type: ignore
@@ -46,6 +46,7 @@ __all__ = [
     "print_gpu_info",
     "print_debug_info",
     "USE_COMPILED",
+    "IgniteInfo",
 ]
 
 
@@ -80,6 +81,7 @@ def get_optional_config_values():
     output["lmdb"] = get_package_version("lmdb")
     output["psutil"] = psutil_version
     output["pandas"] = get_package_version("pandas")
+    output["einops"] = get_package_version("einops")
 
     return output
 
@@ -250,6 +252,15 @@ def print_debug_info(file=sys.stdout) -> None:
     print("Printing GPU config...")
     print("================================", file=file, flush=True)
     print_gpu_info(file)
+
+
+class IgniteInfo:
+    """
+    Config information of the PyTorch ignite package.
+
+    """
+
+    OPT_IMPORT_VERSION = "0.4.4"
 
 
 if __name__ == "__main__":

@@ -35,7 +35,7 @@ from monai.transforms import (
     ToTensor,
     ToTensord,
 )
-from monai.transforms.post.dictionary import Decollated
+from monai.transforms.inverse_batch_transform import Decollated
 from monai.transforms.spatial.dictionary import RandAffined, RandRotate90d
 from monai.utils import optional_import, set_determinism
 from monai.utils.enums import InverseKeys

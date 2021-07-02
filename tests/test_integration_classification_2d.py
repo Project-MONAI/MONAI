@@ -39,7 +39,7 @@ from monai.utils import set_determinism
 from tests.testing_data.integration_answers import test_integration_value
 from tests.utils import DistTestCase, TimedCall, skip_if_quick
 
-TEST_DATA_URL = "https://drive.google.com/uc?id=13MhoPsNgI6qboJfLicFf_jNvsFUbIYsd"
+TEST_DATA_URL = "https://drive.google.com/uc?id=1QsnnkvZyJPcbRoV_ArW8SnE1OTuoVbKE"
 MD5_VALUE = "0bc7306e7427e00ad1c5526a6677552d"
 TASK = "integration_classification_2d"
 
@@ -128,8 +128,8 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
                 acc_value = torch.eq(y_pred.argmax(dim=1), y)
                 acc_metric = acc_value.sum().item() / len(acc_value)
                 # compute AUC
-                y_pred = act(y_pred)
-                y = to_onehot(y)
+                y_pred = torch.stack([act(i) for i in y_pred])
+                y = torch.stack([to_onehot(i) for i in y])
                 auc_metric = compute_roc_auc(y_pred, y)
                 metric_values.append(auc_metric)
                 if auc_metric > best_metric:

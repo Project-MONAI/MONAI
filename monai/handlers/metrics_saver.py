@@ -11,16 +11,18 @@
 
 from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Union
 
+from monai.config import IgniteInfo
+from monai.data import decollate_batch
 from monai.handlers.utils import write_metrics_reports
 from monai.utils import ImageMetaKey as Key
-from monai.utils import ensure_tuple, exact_version, issequenceiterable, optional_import, string_list_all_gather
+from monai.utils import ensure_tuple, min_version, optional_import, string_list_all_gather
 
-Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
-idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
+Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
+idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
 
 class MetricsSaver:
@@ -105,9 +107,12 @@ class MetricsSaver:
 
     def _get_filenames(self, engine: Engine) -> None:
         if self.metric_details is not None:
-            filenames = self.batch_transform(engine.state.batch).get(Key.FILENAME_OR_OBJ)
-            if issequenceiterable(filenames):
-                self._filenames.extend(filenames)
+            meta_data = self.batch_transform(engine.state.batch)
+            if isinstance(meta_data, dict):
+                # decollate the `dictionary of list` to `list of dictionaries`
+                meta_data = decollate_batch(meta_data)
+            for m in meta_data:
+                self._filenames.append(f"{m.get(Key.FILENAME_OR_OBJ)}")
 
     def __call__(self, engine: Engine) -> None:
         """

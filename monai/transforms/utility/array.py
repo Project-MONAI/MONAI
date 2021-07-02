@@ -254,36 +254,24 @@ class SplitChannel(TorchOrNumpyTransform):
     """
     Split Numpy array or PyTorch Tensor data according to the channel dim.
     It can help applying different following transforms to different channels.
-    Channel number must be greater than 1.
 
     Args:
-        channel_dim: which dimension of input image is the channel, default to None
-            to automatically select: if data is numpy array, channel_dim is 0 as
-            `numpy array` is used in the pre transforms, if PyTorch Tensor, channel_dim
-            is 1 as in most of the cases `Tensor` is uses in the post transforms.
+        channel_dim: which dimension of input image is the channel, default to 0.
+
     """
 
-    def __init__(self, channel_dim: Optional[int] = None) -> None:
+    def __init__(self, channel_dim: int = 0) -> None:
         self.channel_dim = channel_dim
 
     def __call__(self, img: DataObjects.Images) -> List[DataObjects.Images]:
-        if self.channel_dim is None:
-            # automatically select the default channel dim based on data type
-            if isinstance(img, torch.Tensor):
-                channel_dim = 1
-            else:
-                channel_dim = 0
-        else:
-            channel_dim = self.channel_dim
-
-        n_classes = img.shape[channel_dim]
+        n_classes = img.shape[self.channel_dim]
         if n_classes <= 1:
             raise RuntimeError("input image does not contain multiple channels.")
 
         outputs = []
         slices = [slice(None)] * len(img.shape)
         for i in range(n_classes):
-            slices[channel_dim] = slice(i, i + 1)
+            slices[self.channel_dim] = slice(i, i + 1)
             outputs.append(img[tuple(slices)])
 
         return outputs

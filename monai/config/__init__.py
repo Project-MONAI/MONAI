@@ -11,6 +11,7 @@
 
 from .deviceconfig import (
     USE_COMPILED,
+    IgniteInfo,
     get_gpu_info,
     get_system_info,
     print_config,

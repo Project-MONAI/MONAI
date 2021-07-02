@@ -20,7 +20,7 @@ from monai.transforms import Activationsd, AsDiscreted, Compose, CopyItemsd
 
 # test lambda function as `transform`
 TEST_CASE_1 = [{"transform": lambda x: dict(pred=x["pred"] + 1.0)}, torch.tensor([[[[1.9975], [1.9997]]]])]
-# test composed post transforms as `transform`
+# test composed postprocessing transforms as `transform`
 TEST_CASE_2 = [
     {
         "transform": Compose(
@@ -38,24 +38,25 @@ class TestHandlerPostProcessing(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_compute(self, input_params, expected):
         data = [
-            {"image": torch.tensor([[[[2.0], [3.0]]]]), "filename": "test1"},
-            {"image": torch.tensor([[[[6.0], [8.0]]]]), "filename": "test2"},
+            {"image": torch.tensor([[[[2.0], [3.0]]]]), "filename": ["test1"]},
+            {"image": torch.tensor([[[[6.0], [8.0]]]]), "filename": ["test2"]},
         ]
-        # set up engine, PostProcessing handler works together with post_transform of engine
+        # set up engine, PostProcessing handler works together with postprocessing transforms of engine
         engine = SupervisedEvaluator(
             device=torch.device("cpu:0"),
             val_data_loader=data,
             epoch_length=2,
             network=torch.nn.PReLU(),
-            post_transform=Compose([Activationsd(keys="pred", sigmoid=True)]),
+            postprocessing=Compose([Activationsd(keys="pred", sigmoid=True)]),
             val_handlers=[PostProcessing(**input_params)],
         )
         engine.run()
 
-        torch.testing.assert_allclose(engine.state.output["pred"], expected)
-        filename = engine.state.output.get("filename_bak")
-        if filename is not None:
-            self.assertEqual(filename, "test2")
+        for o, e in zip(engine.state.output, expected):
+            torch.testing.assert_allclose(o["pred"], e)
+            filename = o.get("filename_bak")
+            if filename is not None:
+                self.assertEqual(filename, "test2")
 
 
 if __name__ == "__main__":

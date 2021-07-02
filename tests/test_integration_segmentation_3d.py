@@ -277,7 +277,7 @@ class IntegrationSegmentation3D(DistTestCase):
         np.testing.assert_allclose(repeated[0], repeated[2])
         np.testing.assert_allclose(repeated[0], repeated[3])
 
-    @TimedCall(seconds=180, daemon=False)
+    @TimedCall(seconds=360, daemon=False)
     def test_timing(self):
         self.train_and_infer(idx=3)
 

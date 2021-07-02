@@ -158,25 +158,45 @@ class TestLMDBDataset(unittest.TestCase):
             data1_postcached = dataset_postcached[0]
             data2_postcached = dataset_postcached[1]
 
-        if transform is None:
-            self.assertEqual(data1_precached["image"], os.path.join(tempdir, "test_image1.nii.gz"))
-            self.assertEqual(data2_precached["label"], os.path.join(tempdir, "test_label2.nii.gz"))
-            self.assertEqual(data1_postcached["image"], os.path.join(tempdir, "test_image1.nii.gz"))
-            self.assertEqual(data2_postcached["extra"], os.path.join(tempdir, "test_extra2.nii.gz"))
-        else:
-            self.assertTupleEqual(data1_precached["image"].shape, expected_shape)
-            self.assertTupleEqual(data1_precached["label"].shape, expected_shape)
-            self.assertTupleEqual(data1_precached["extra"].shape, expected_shape)
-            self.assertTupleEqual(data2_precached["image"].shape, expected_shape)
-            self.assertTupleEqual(data2_precached["label"].shape, expected_shape)
-            self.assertTupleEqual(data2_precached["extra"].shape, expected_shape)
+            if transform is None:
+                self.assertEqual(data1_precached["image"], os.path.join(tempdir, "test_image1.nii.gz"))
+                self.assertEqual(data2_precached["label"], os.path.join(tempdir, "test_label2.nii.gz"))
+                self.assertEqual(data1_postcached["image"], os.path.join(tempdir, "test_image1.nii.gz"))
+                self.assertEqual(data2_postcached["extra"], os.path.join(tempdir, "test_extra2.nii.gz"))
+            else:
+                self.assertTupleEqual(data1_precached["image"].shape, expected_shape)
+                self.assertTupleEqual(data1_precached["label"].shape, expected_shape)
+                self.assertTupleEqual(data1_precached["extra"].shape, expected_shape)
+                self.assertTupleEqual(data2_precached["image"].shape, expected_shape)
+                self.assertTupleEqual(data2_precached["label"].shape, expected_shape)
+                self.assertTupleEqual(data2_precached["extra"].shape, expected_shape)
 
-            self.assertTupleEqual(data1_postcached["image"].shape, expected_shape)
-            self.assertTupleEqual(data1_postcached["label"].shape, expected_shape)
-            self.assertTupleEqual(data1_postcached["extra"].shape, expected_shape)
-            self.assertTupleEqual(data2_postcached["image"].shape, expected_shape)
-            self.assertTupleEqual(data2_postcached["label"].shape, expected_shape)
-            self.assertTupleEqual(data2_postcached["extra"].shape, expected_shape)
+                self.assertTupleEqual(data1_postcached["image"].shape, expected_shape)
+                self.assertTupleEqual(data1_postcached["label"].shape, expected_shape)
+                self.assertTupleEqual(data1_postcached["extra"].shape, expected_shape)
+                self.assertTupleEqual(data2_postcached["image"].shape, expected_shape)
+                self.assertTupleEqual(data2_postcached["label"].shape, expected_shape)
+                self.assertTupleEqual(data2_postcached["extra"].shape, expected_shape)
+
+            # update the data to cache
+            test_data_new = [
+                {
+                    "image": os.path.join(tempdir, "test_image1_new.nii.gz"),
+                    "label": os.path.join(tempdir, "test_label1_new.nii.gz"),
+                    "extra": os.path.join(tempdir, "test_extra1_new.nii.gz"),
+                },
+                {
+                    "image": os.path.join(tempdir, "test_image2_new.nii.gz"),
+                    "label": os.path.join(tempdir, "test_label2_new.nii.gz"),
+                    "extra": os.path.join(tempdir, "test_extra2_new.nii.gz"),
+                },
+            ]
+            dataset_postcached.set_data(data=test_data_new)
+            # test new exchanged cache content
+            if transform is None:
+                self.assertEqual(dataset_postcached[0]["image"], os.path.join(tempdir, "test_image1_new.nii.gz"))
+                self.assertEqual(dataset_postcached[0]["label"], os.path.join(tempdir, "test_label1_new.nii.gz"))
+                self.assertEqual(dataset_postcached[1]["extra"], os.path.join(tempdir, "test_extra2_new.nii.gz"))
 
 
 @skip_if_windows

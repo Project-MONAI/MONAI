@@ -56,6 +56,7 @@ from .utils import (
     partition_dataset_classes,
     pickle_hashing,
     rectify_header_sform_qform,
+    rep_scalar_to_batch,
     select_cross_validation_folds,
     set_rnd,
     sorted_dict,

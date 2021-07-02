@@ -11,8 +11,52 @@
 
 
 import unittest
+import warnings
 
 from monai.utils import DeprecatedError, deprecated, deprecated_arg
+
+
+class TestDeprecatedRC(unittest.TestCase):
+    def setUp(self):
+        self.test_version_rc = "0.6.0rc1"
+        self.test_version = "0.6.0"
+        self.next_version = "0.7.0"
+
+    def test_warning(self):
+        """Test deprecated decorator with `since` and `removed` set for an RC version"""
+
+        @deprecated(since=self.test_version, removed=self.next_version, version_val=self.test_version_rc)
+        def foo2():
+            pass
+
+        print(foo2())
+
+    def test_warning_milestone(self):
+        """Test deprecated decorator with `since` and `removed` set for a milestone version"""
+
+        @deprecated(since=self.test_version, removed=self.next_version, version_val=self.test_version)
+        def foo2():
+            pass
+
+        self.assertWarns(DeprecationWarning, foo2)
+
+    def test_warning_last(self):
+        """Test deprecated decorator with `since` and `removed` set, for the last version"""
+
+        @deprecated(since=self.test_version, removed=self.next_version, version_val=self.next_version)
+        def foo3():
+            pass
+
+        self.assertRaises(DeprecatedError, foo3)
+
+    def test_warning_beyond(self):
+        """Test deprecated decorator with `since` and `removed` set, beyond the last version"""
+
+        @deprecated(since=self.test_version_rc, removed=self.test_version, version_val=self.next_version)
+        def foo3():
+            pass
+
+        self.assertRaises(DeprecatedError, foo3)
 
 
 class TestDeprecated(unittest.TestCase):
@@ -165,3 +209,16 @@ class TestDeprecated(unittest.TestCase):
 
         self.assertWarns(DeprecationWarning, lambda: afoo5(1, 2))
         self.assertWarns(DeprecationWarning, lambda: afoo5(1, 2, 3))
+
+    def test_future(self):
+        """Test deprecated decorator with `since` set to a future version."""
+
+        @deprecated(since=self.next_version, version_val=self.test_version)
+        def future1():
+            pass
+
+        with self.assertWarns(DeprecationWarning) as aw:
+            future1()
+            warnings.warn("fake warning", DeprecationWarning)
+
+        self.assertEqual(aw.warning.args[0], "fake warning")

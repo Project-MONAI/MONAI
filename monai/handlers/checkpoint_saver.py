@@ -13,17 +13,18 @@ import logging
 import warnings
 from typing import TYPE_CHECKING, Dict, Optional
 
-from monai.utils import exact_version, optional_import
+from monai.config import IgniteInfo
+from monai.utils import min_version, optional_import
 
-Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
-Checkpoint, _ = optional_import("ignite.handlers", "0.4.4", exact_version, "Checkpoint")
+Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
+Checkpoint, _ = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Checkpoint")
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
     from ignite.handlers import DiskSaver
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
-    DiskSaver, _ = optional_import("ignite.handlers", "0.4.4", exact_version, "DiskSaver")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
+    DiskSaver, _ = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "DiskSaver")
 
 
 class CheckpointSaver:
@@ -61,6 +62,9 @@ class CheckpointSaver:
             typically, it's used to resume training and compare current metric with previous N values.
         key_metric_greater_or_equal: if `True`, the latest equally scored model is stored. Otherwise,
             save the the first equally scored model. default to `False`.
+        key_metric_negative_sign: whether adding a negative sign to the metric score to compare metrics,
+            because for error-like metrics, smaller is better(objects with larger score are retained).
+            default to `False`.
         epoch_level: save checkpoint during training for every N epochs or every N iterations.
             `True` is epoch level, `False` is iteration level.
         save_interval: save checkpoint every N epochs, default is 0 to save no checkpoint.
@@ -92,6 +96,7 @@ class CheckpointSaver:
         key_metric_filename: Optional[str] = None,
         key_metric_save_state: bool = False,
         key_metric_greater_or_equal: bool = False,
+        key_metric_negative_sign: bool = False,
         epoch_level: bool = True,
         save_interval: int = 0,
         n_saved: Optional[int] = None,
@@ -154,7 +159,8 @@ class CheckpointSaver:
                     raise ValueError(
                         f"Incompatible values: save_key_metric=True and key_metric_name={key_metric_name}."
                     )
-                return round(engine.state.metrics[metric_name], 4)
+
+                return (-1 if key_metric_negative_sign else 1) * engine.state.metrics[metric_name]
 
             if key_metric_filename is not None and key_metric_n_saved > 1:
                 raise ValueError("if using fixed filename to save the best metric model, we should only save 1 model.")
