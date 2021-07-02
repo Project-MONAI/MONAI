@@ -13,6 +13,7 @@ import logging
 import sys
 import tempfile
 import unittest
+from copy import deepcopy
 
 import torch
 import torch.optim as optim
@@ -161,6 +162,7 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
         data2["1.weight"] = torch.tensor([0.3])
         net2.load_state_dict(data2)
         opt2 = optim.SGD(net2.parameters(), lr=0.02)
+        opt2_backup = deepcopy(opt2)
 
         with tempfile.TemporaryDirectory() as tempdir:
             engine = Engine(lambda e, b: None)
@@ -170,12 +172,15 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
             engine = Engine(lambda e, b: None)
             CheckpointLoader(
                 load_path=path,
+                # expect to print a warning because it loads not only `net` but also `opt` with `strict_shape=False`
                 load_dict={"net": net2, "opt": opt2},
                 strict=False,
                 strict_shape=False,
             ).attach(engine)
             engine.run([0] * 8, max_epochs=1)
             torch.testing.assert_allclose(net2.state_dict()["0.weight"].cpu(), torch.tensor([0.2]))
+            # test whether `op2` had been skipped when loading with `strict_shape=False`
+            self.assertDictEqual(opt2.state_dict(), opt2_backup.state_dict())
 
 
 if __name__ == "__main__":
