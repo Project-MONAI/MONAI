@@ -18,7 +18,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.apps import download_mmar, load_from_mmar
+from monai.apps import download_mmar, get_model_spec, load_from_mmar, RemoteMMARKeys
 from monai.apps.mmars import MODEL_DESC
 from monai.apps.mmars.mmars import _get_val
 from tests.utils import SkipIfAtLeastPyTorchVersion, SkipIfBeforePyTorchVersion, skip_if_quick
@@ -106,6 +106,9 @@ class TestMMMARDownload(unittest.TestCase):
     @SkipIfBeforePyTorchVersion((1, 6))
     def test_download(self, idx):
         try:
+            # test model specification
+            cand = get_model_spec(idx)
+            self.assertEqual(cand[RemoteMMARKeys.ID], idx)
             download_mmar(idx)
             download_mmar(idx, progress=False)  # repeated to check caching
             with tempfile.TemporaryDirectory() as tmp_dir:

@@ -19,7 +19,7 @@ See Also:
 import json
 import os
 import warnings
-from typing import Mapping
+from typing import Mapping, Union
 
 import torch
 
@@ -33,14 +33,14 @@ from .model_desc import RemoteMMARKeys as Keys
 __all__ = ["get_model_spec", "download_mmar", "load_from_mmar"]
 
 
-def get_model_spec(idx):
+def get_model_spec(idx: Union[int, str]):
     """get model specification by `idx`. `idx` could be index of the constant tuple of dict or the actual model ID."""
     if isinstance(idx, int):
         return MODEL_DESC[idx]
     if isinstance(idx, str):
         key = idx.strip().lower()
         for cand in MODEL_DESC:
-            if cand[Keys.ID].strip().lower() == key:
+            if str(cand[Keys.ID]).strip().lower() == key:
                 return cand
     print(f"Available specs are: {MODEL_DESC}.")
     raise ValueError(f"Unknown MODEL_DESC request: {idx}")
