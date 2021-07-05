@@ -326,6 +326,9 @@ MONAI provided `CheckpointLoader` to load a checkpoint for the workflow before t
 ### 4. Transfer learning based on NVIDIA Clara MMAR
 [The MMAR (Medical Model ARchive)](https://docs.nvidia.com/clara/clara-train-sdk/pt/mmar.html) defines a standard structure for organizing all artifacts produced during the model development life cycle. NVIDIA Clara provides rich existing MMARs of medical domain-specific models. And these MMARs include all the information about the model including configurations and scripts to provide a work space to perform all model development tasks. To leverage the models of NVIDIA Clara MMARs as pretrained weights in the transfer learning program, MONAI provides utility APIs to automatically download any MMAR and load model weights or create model instance directly.
 
+### 5. Easy to integrate into popular workflows
+Except for ignite specific trainers and event handlers, almost all the regular modules of MONAI are flexible to be applied independently or composed and only depend on PyTorch or numpy packages, so besides pytorch-ignite, it can be also easily integrated into other popular workflow frameworks, like PyTorch-Lightning, Catalyst, etc. [Lightning segmentation](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/spleen_segmentation_3d_lightning.ipynb) and [Lightning + TorchIO](https://github.com/Project-MONAI/tutorials/blob/master/modules/TorchIO_MONAI_PyTorch_Lightning.ipynb) tutorials show the PyTorch Lightning program with MONAI modules, and [Catalyst segmentation](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/unet_segmentation_3d_catalyst.ipynb) shows the Catalyst program with MONAI modules.
+
 ## Research
 There are several research prototypes in MONAI corresponding to the recently published papers that address advanced research problems.
 We always welcome contributions in forms of comments, suggestions, and code implementations.
