@@ -9,12 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Dict, Optional, Sequence
 
 import numpy as np
 import torch
 
-from monai.config import NdarrayTensor
 from monai.transforms import rescale_array
 from monai.utils import optional_import
 from monai.utils.enums import DataObjects
@@ -189,7 +188,7 @@ def plot_2d_or_3d_image(
     d: np.ndarray = data_index.detach().cpu().numpy() if isinstance(data_index, torch.Tensor) else data_index
 
     if d.ndim == 2:
-        d = rescale_array(d, 0, 1)
+        d = rescale_array(d, 0, 1)  # type: ignore
         dataformats = "HW"
         writer.add_image(f"{tag}_{dataformats}", d, step, dataformats=dataformats)
         return
