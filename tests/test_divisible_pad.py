@@ -15,24 +15,28 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import DivisiblePad
+from tests.utils import TEST_NDARRAYS
 
-# pad first dim to be divisible by 7, the second unchanged.
-TEST_CASE_1 = [
-    {"k": (7, -1), "mode": "constant"},
-    np.zeros((3, 8, 7)),
-    np.zeros((3, 14, 7)),
-]
+TESTS = []
 
-# pad all dimensions to be divisible by 5
-TEST_CASE_2 = [
-    {"k": 5, "mode": "constant"},
-    np.zeros((3, 10, 5, 17)),
-    np.zeros((3, 10, 5, 20)),
-]
+for p in TEST_NDARRAYS:
+    # pad first dim to be divisible by 7, the second unchanged.
+    TESTS.append([
+        {"k": (7, -1), "mode": "constant"},
+        p(np.zeros((3, 8, 7))),
+        p(np.zeros((3, 14, 7))),
+    ])
+
+    # pad all dimensions to be divisible by 5
+    TESTS.append([
+        {"k": 5, "mode": "constant"},
+        p(np.zeros((3, 10, 5, 17))),
+        p(np.zeros((3, 10, 5, 20))),
+    ])
 
 
 class TestDivisiblePad(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    @parameterized.expand(TESTS)
     def test_pad_shape(self, input_param, input_data, expected_val):
         padder = DivisiblePad(**input_param)
         result = padder(input_data)
@@ -42,9 +46,10 @@ class TestDivisiblePad(unittest.TestCase):
 
     def test_pad_kwargs(self):
         padder = DivisiblePad(k=5, mode="constant", constant_values=((0, 0), (1, 1), (2, 2)))
-        result = padder(np.zeros((3, 8, 4)))
-        np.testing.assert_allclose(result[:, :1, :4], np.ones((3, 1, 4)))
-        np.testing.assert_allclose(result[:, :, 4:5], np.ones((3, 10, 1)) + 1)
+        for p in TEST_NDARRAYS:
+            result = padder(p(np.zeros((3, 8, 4))))
+            np.testing.assert_allclose(result[:, :1, :4], np.ones((3, 1, 4)))
+            np.testing.assert_allclose(result[:, :, 4:5], np.ones((3, 10, 1)) + 1)
 
 
 if __name__ == "__main__":

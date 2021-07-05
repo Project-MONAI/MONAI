@@ -75,22 +75,24 @@ class Pad(TorchOrNumpyTransform):
         self,
         to_pad: List[Tuple[int, int]],
         mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+        **np_kwargs,
     ) -> None:
         self.to_pad = to_pad
         self.mode = mode
+        self.np_kwargs = np_kwargs
 
     @staticmethod
-    def _np_pad(img: DataObjects.Images, all_pad_width, mode) -> DataObjects.Images:
+    def _np_pad(img: DataObjects.Images, all_pad_width, mode, **np_kwargs) -> DataObjects.Images:
         out, orig_type, orig_device = convert_data_type(img, np.ndarray)
-        out = np.pad(out, all_pad_width, mode=mode)
+        out = np.pad(out, all_pad_width, mode=mode, **np_kwargs)
         out, *_ = convert_data_type(out, orig_type, orig_device)
         return out
 
     @staticmethod
-    def _pt_pad(img: DataObjects.Images, all_pad_width, mode) -> DataObjects.Images:
+    def _pt_pad(img: DataObjects.Images, all_pad_width, mode, **np_kwargs) -> DataObjects.Images:
         out, orig_type, orig_device = convert_data_type(img, torch.Tensor)
         pt_pad_width = [val for sublist in all_pad_width for val in sublist[::-1]][::-1]
-        out = pad_pt(out, pt_pad_width, mode=mode)  # type: ignore
+        out = pad_pt(out, pt_pad_width, mode=mode, **np_kwargs)  # type: ignore
         out, *_ = convert_data_type(out, orig_type, orig_device)
         return out
 
@@ -109,8 +111,11 @@ class Pad(TorchOrNumpyTransform):
             return img
         mode = mode or self.mode
         mode = mode.value if isinstance(mode, NumpyPadMode) else mode
-        pad = self._pt_pad if isinstance(img, torch.Tensor) and mode == "constant" else self._np_pad
-        return pad(img, self.to_pad, mode)
+        if isinstance(img, torch.Tensor) and mode == "constant" and not self.np_kwargs:
+            pad = self._pt_pad
+        else:
+            pad = self._np_pad
+        return pad(img, self.to_pad, mode, **self.np_kwargs)
 
 
 class SpatialPad(TorchOrNumpyTransform):
@@ -171,12 +176,13 @@ class SpatialPad(TorchOrNumpyTransform):
                 One of the listed string values or a user supplied function. Defaults to ``self.mode``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
         """
+        mode = NumpyPadMode(mode or self.mode)
         data_pad_width = self._determine_data_pad_width(img.shape[1:])
         all_pad_width = [(0, 0)] + data_pad_width
         if not np.asarray(all_pad_width).any():
             # all zeros, skip padding
             return img
-        padder = Pad(all_pad_width, mode or self.mode)
+        padder = Pad(all_pad_width, mode or self.mode, **self.np_kwargs)
         return padder(img)
 
 
@@ -279,7 +285,7 @@ class DivisiblePad(TorchOrNumpyTransform):
         See also :py:class:`monai.transforms.SpatialPad`
         """
         self.k = k
-        self.mode: NumpyPadMode = NumpyPadMode(mode)
+        self.mode = mode
         self.np_kwargs = np_kwargs
 
     def __call__(self, img: DataObjects.Images, mode: Optional[Union[NumpyPadMode, str]] = None) -> DataObjects.Images:
