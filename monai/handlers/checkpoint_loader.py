@@ -60,8 +60,9 @@ class CheckpointLoader:
         checkpoint, so skip loading checkpoint for optimizer.
 
         For more details about loading checkpoint, please refer to:
-        https://github.com/pytorch/ignite/blob/v0.4.5/ignite/handlers/checkpoint.py#L499.
-        https://github.com/pytorch/pytorch/blob/v1.9.0/torch/nn/modules/module.py#L1354.
+        https://pytorch.org/ignite/v0.4.5/generated/ignite.handlers.checkpoint.Checkpoint.html
+        #ignite.handlers.checkpoint.Checkpoint.load_objects.
+        https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module.load_state_dict.
 
     """
 

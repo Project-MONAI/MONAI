@@ -34,7 +34,7 @@ class DistributedSampler(_TorchDistributedSampler):
         kwargs: additional arguments for `DistributedSampler` super class, can be `seed` and `drop_last`.
 
     More information about DistributedSampler, please check:
-    https://github.com/pytorch/pytorch/blob/master/torch/utils/data/distributed.py
+    https://pytorch.org/docs/stable/data.html#torch.utils.data.distributed.DistributedSampler.
 
     """
 
@@ -61,7 +61,7 @@ class DistributedWeightedRandomSampler(DistributedSampler):
     """
     Extend the `DistributedSampler` to support weighted sampling.
     Refer to `torch.utils.data.WeightedRandomSampler`, for more details please check:
-    https://github.com/pytorch/pytorch/blob/master/torch/utils/data/sampler.py#L150
+    https://pytorch.org/docs/stable/data.html#torch.utils.data.WeightedRandomSampler.
 
     Args:
         dataset: Dataset used for sampling.

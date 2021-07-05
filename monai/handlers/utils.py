@@ -93,7 +93,7 @@ def string_list_all_gather(strings: List[str]) -> List[str]:
     """
     Utility function for distributed data parallel to all gather a list of strings.
     Note that if the item in `strings` is longer than 1024 chars, it will be truncated to 1024:
-    https://github.com/pytorch/ignite/blob/master/ignite/distributed/comp_models/base.py#L92
+    https://pytorch.org/ignite/v0.4.5/distributed.html#ignite.distributed.utils.all_gather.
 
     Args:
         strings: a list of strings to all gather.
