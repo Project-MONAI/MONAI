@@ -5,10 +5,53 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.6.0] - 2021-07-08
+### Added
+* 10 new transforms, a masked loss wrapper, and a network adaptor for transfer learning
+* APIs to load networks and pre-trained weights from Clara Train Medical Model ARchives (MMARs)
+* Base metric and cumulative metric APIs, 4 new regression metrics
+* Initial CSV dataset support
+* Decollating mini-batch as the default first postprocessing step
+* Initial backward compatibility support via `monai.utils.deprecated`
+* Attention-based vision modules and `UNETR` for segmentation
+* Generic module loaders and Gaussian mixture models using the PyTorch JIT compilation
+* Inverse of image patch sampling transforms
+* Network block utilities `get_[norm, act, dropout, pool]_layer`
+* `unpack_items` mode for `apply_transform` and `Compose`
+* New event `INNER_ITERATION_STARTED` in the deepgrow interactive workflow
+* `set_data` API for cache-based datasets to dynamically update the dataset content
+* Fully compatible with PyTorch 1.9
+* `--disttests` and `--min` options for `runtests.sh`
+* Initial support of pre-merge tests with Nvidia Blossom system
+### Changed
+* Base Docker image upgraded to `nvcr.io/nvidia/pytorch:21.06-py3` from
+  `nvcr.io/nvidia/pytorch:21.04-py3`
+* Optionally depend on PyTorch-Ignite v0.4.5 instead of v0.4.4
+* Unified the demo, tutorial, testing data to the project shared drive, and
+  [`Project-MONAI/MONAI-extra-test-data`](https://github.com/Project-MONAI/MONAI-extra-test-data)
+* Unified the terms: `post_transform` is renamed to `postprocessing`, `pre_transform` is renamed to `preprocessing`
+* Unified the postprocessing transforms and event handlers to accept the "channel-first" data format
+### Removed
+* Support of 'batched' input for postprocessing transforms and event handlers
+* `TorchVisionFullyConvModel`
+* `set_visible_devices`
+### Fixed
+* Issue of handling big-endian image headers
+* Multi-thread issue for non-random transforms in the cache-based datasets
+* Persistent dataset issue when multiple processes sharing a non-exist cache location
+* Typing issue with Numpy 1.21.0
+* Loading model dictionary with `CheckpointLoader` when `strict_shape=False`
+* `SplitChannel` has different behaviour depending on numpy/torch inputs
+* Transform pickling issue caused by the Lambda functions
+* Issue of filtering by name in `generate_param_groups`
+* Inconsistencies in the return value types of `class_activation_maps`
+* Various docstring typos
+* Various usability enhancements in `monai.transforms`
+
 ## [0.5.3] - 2021-05-28
 ### Changed
 * Project default branch renamed to `dev` from `master`
-* Base Docker image upgraded to `nvcr.io/nvidia/pytorch:21.02-py3` from `nvcr.io/nvidia/pytorch:21.04-py3`
+* Base Docker image upgraded to `nvcr.io/nvidia/pytorch:21.04-py3` from `nvcr.io/nvidia/pytorch:21.02-py3`
 * Enhanced type checks for the `iteration_metric` handler
 * Enhanced `PersistentDataset` to use `tempfile` during caching computation
 * Enhanced various info/error messages
@@ -289,7 +332,8 @@ the postprocessing steps should be used before calling the metrics methods
 
 [highlights]: https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md
 
-[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/0.5.0...HEAD
+[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/0.6.0...HEAD
+[0.6.0]: https://github.com/Project-MONAI/MONAI/compare/0.5.3...0.6.0
 [0.5.3]: https://github.com/Project-MONAI/MONAI/compare/0.5.0...0.5.3
 [0.5.0]: https://github.com/Project-MONAI/MONAI/compare/0.4.0...0.5.0
 [0.4.0]: https://github.com/Project-MONAI/MONAI/compare/0.3.0...0.4.0
