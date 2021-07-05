@@ -15,31 +15,34 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import AsDiscrete
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASE_1 = [
-    {"argmax": True, "to_onehot": False, "n_classes": None, "threshold_values": False, "logit_thresh": 0.5},
-    torch.tensor([[[0.0, 1.0]], [[2.0, 3.0]]]),
-    torch.tensor([[[1.0, 1.0]]]),
-    (1, 1, 2),
-]
+TESTS = []
+for p in TEST_NDARRAYS:
+    TESTS.append([
+        {"argmax": True, "to_onehot": False, "n_classes": None, "threshold_values": False, "logit_thresh": 0.5},
+        p([[[0.0, 1.0]], [[2.0, 3.0]]]),
+        p([[[1.0, 1.0]]]),
+        (1, 1, 2),
+    ])
 
-TEST_CASE_2 = [
-    {"argmax": True, "to_onehot": True, "n_classes": 2, "threshold_values": False, "logit_thresh": 0.5},
-    torch.tensor([[[0.0, 1.0]], [[2.0, 3.0]]]),
-    torch.tensor([[[0.0, 0.0]], [[1.0, 1.0]]]),
-    (2, 1, 2),
-]
+    TESTS.append([
+        {"argmax": True, "to_onehot": True, "n_classes": 2, "threshold_values": False, "logit_thresh": 0.5},
+        p([[[0.0, 1.0]], [[2.0, 3.0]]]),
+        p([[[0.0, 0.0]], [[1.0, 1.0]]]),
+        (2, 1, 2),
+    ])
 
-TEST_CASE_3 = [
-    {"argmax": False, "to_onehot": False, "n_classes": None, "threshold_values": True, "logit_thresh": 0.6},
-    torch.tensor([[[0.0, 1.0], [2.0, 3.0]]]),
-    torch.tensor([[[0.0, 1.0], [1.0, 1.0]]]),
-    (1, 2, 2),
-]
+    TESTS.append([
+        {"argmax": False, "to_onehot": False, "n_classes": None, "threshold_values": True, "logit_thresh": 0.6},
+        p([[[0.0, 1.0], [2.0, 3.0]]]),
+        p([[[0.0, 1.0], [1.0, 1.0]]]),
+        (1, 2, 2),
+    ])
 
 
 class TestAsDiscrete(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    @parameterized.expand(TESTS)
     def test_value_shape(self, input_param, img, out, expected_shape):
         result = AsDiscrete(**input_param)(img)
         torch.testing.assert_allclose(result, out)

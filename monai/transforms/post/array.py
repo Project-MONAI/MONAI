@@ -169,7 +169,7 @@ class AsDiscrete(TorchTransform):
         img_t, orig_type, orig_device = self.pre_conv_data(img)  # type: ignore
 
         if argmax or self.argmax:
-            img_t = torch.argmax(img_t, dim=1, keepdim=True)
+            img_t = torch.argmax(img_t, dim=0, keepdim=True)
 
         if to_onehot or self.to_onehot:
             _nclasses = self.n_classes if n_classes is None else n_classes
