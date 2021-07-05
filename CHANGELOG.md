@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 ## [0.6.0] - 2021-07-08
 ### Added
-* 10 new transforms, a masked loss wrapper, and a network adaptor for transfer learning
+* 10 new transforms, a masked loss wrapper, and a `NetAdapter` for transfer learning
 * APIs to load networks and pre-trained weights from Clara Train Medical Model ARchives (MMARs)
 * Base metric and cumulative metric APIs, 4 new regression metrics
 * Initial CSV dataset support
@@ -31,16 +31,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   [`Project-MONAI/MONAI-extra-test-data`](https://github.com/Project-MONAI/MONAI-extra-test-data)
 * Unified the terms: `post_transform` is renamed to `postprocessing`, `pre_transform` is renamed to `preprocessing`
 * Unified the postprocessing transforms and event handlers to accept the "channel-first" data format
+* `evenly_divisible_all_gather` and `string_list_all_gather` moved to `monai.utils.dist`
 ### Removed
 * Support of 'batched' input for postprocessing transforms and event handlers
 * `TorchVisionFullyConvModel`
-* `set_visible_devices`
+* `set_visible_devices` utility function
+* `SegmentationSaver` and `TransformsInverter` handlers 
+* `ToTensor` transform
 ### Fixed
 * Issue of handling big-endian image headers
 * Multi-thread issue for non-random transforms in the cache-based datasets
 * Persistent dataset issue when multiple processes sharing a non-exist cache location
 * Typing issue with Numpy 1.21.0
-* Loading model dictionary with `CheckpointLoader` when `strict_shape=False`
+* Loading checkpoint with both `model` and `optmizier` using `CheckpointLoader` when `strict_shape=False`
 * `SplitChannel` has different behaviour depending on numpy/torch inputs
 * Transform pickling issue caused by the Lambda functions
 * Issue of filtering by name in `generate_param_groups`
