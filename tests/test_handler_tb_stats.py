@@ -25,7 +25,7 @@ class TestHandlerTBStats(unittest.TestCase):
 
             # set up engine
             def _train_func(engine, batch):
-                return batch + 1.0
+                return [batch + 1.0]
 
             engine = Engine(_train_func)
 
@@ -48,7 +48,7 @@ class TestHandlerTBStats(unittest.TestCase):
 
             # set up engine
             def _train_func(engine, batch):
-                return batch + 1.0
+                return [batch + 1.0]
 
             engine = Engine(_train_func)
 
@@ -61,7 +61,7 @@ class TestHandlerTBStats(unittest.TestCase):
             # set up testing handler
             writer = SummaryWriter(log_dir=tempdir)
             stats_handler = TensorBoardStatsHandler(
-                writer, output_transform=lambda x: {"loss": x * 2.0}, global_epoch_transform=lambda x: x * 3.0
+                writer, output_transform=lambda x: {"loss": x[0] * 2.0}, global_epoch_transform=lambda x: x * 3.0
             )
             stats_handler.attach(engine)
             engine.run(range(3), max_epochs=2)
