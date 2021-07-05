@@ -628,6 +628,12 @@ Utility
     :members:
     :special-members: __call__
 
+`EnsureTensor`
+""""""""""""""
+.. autoclass:: EnsureTensor
+    :members:
+    :special-members: __call__
+
 Dictionary Transforms
 ---------------------
 

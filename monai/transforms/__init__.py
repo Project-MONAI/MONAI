@@ -308,6 +308,7 @@ from .utility.array import (
     ConvertToMultiChannelBasedOnBratsClasses,
     DataStats,
     EnsureChannelFirst,
+    EnsureTensor,
     FgBgToIndices,
     Identity,
     LabelToMask,

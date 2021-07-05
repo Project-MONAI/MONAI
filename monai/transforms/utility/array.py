@@ -14,6 +14,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 import logging
+import re
 import sys
 import time
 import warnings
@@ -25,7 +26,7 @@ import torch
 from monai.config import DtypeLike, NdarrayTensor
 from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points, map_binary_to_indices
-from monai.utils import ensure_tuple, issequenceiterable, min_version, optional_import
+from monai.utils import deprecated, ensure_tuple, issequenceiterable, min_version, optional_import
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
@@ -38,6 +39,7 @@ __all__ = [
     "AsChannelLast",
     "AddChannel",
     "EnsureChannelFirst",
+    "EnsureTensor",
     "RepeatChannel",
     "RemoveRepeatedChannel",
     "SplitChannel",
@@ -297,6 +299,7 @@ class CastToType(Transform):
         raise TypeError(f"img must be one of (numpy.ndarray, torch.Tensor) but is {type(img).__name__}.")
 
 
+@deprecated(since="0.6.0", removed="0.7.0", msg_suffix="Please consider using `EnsureTensor` transform instead.")
 class ToTensor(Transform):
     """
     Converts the input image to a tensor without applying any other transformations.
@@ -314,6 +317,44 @@ class ToTensor(Transform):
                 # `ascontiguousarray` will add 1 dim if img has no dim, so we only apply on data with dims
                 img = np.ascontiguousarray(img)
         return torch.as_tensor(img)
+
+
+class EnsureTensor(Transform):
+    """
+    Ensure the input image to be a PyTorch Tensor.
+    If passing a dictionary or list, recursively check every item and ensure to be PyTorch Tensors.
+
+    """
+
+    def __call__(self, data):
+        """
+        Args:
+            data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, etc.
+                will ensure Tensor, Numpy array, float, int as Tensors, strings and objects keep the original data.
+                for dictionay or list, ensure every item as a Tensor if possible.
+
+        """
+        if isinstance(data, torch.Tensor):
+            return data.contiguous()
+        elif isinstance(data, np.ndarray):
+            # skip array of string classes and object
+            if re.search(r'^[SaUO]', data.dtype.str) is not None:
+                return data
+            if data.ndim == 0:
+                # numpy array with 0 dims is also sequence iterable,
+                # `ascontiguousarray` will add 1 dim if img has no dim, so we only apply on data with dims
+                return torch.as_tensor(data)
+            return torch.as_tensor(np.ascontiguousarray(data))
+        elif isinstance(data, (float, int)):
+            return torch.as_tensor(data)
+        elif isinstance(data, dict):
+            return {k: self.__call__(v) for k, v in data.items()}
+        elif isinstance(data, list):
+            return [self.__call__(i) for i in data]
+        elif isinstance(data, tuple):
+            return tuple([self.__call__(i) for i in data])
+        else:
+            return data
 
 
 class ToNumpy(Transform):
