@@ -9,8 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import torch
 import horovod.torch as hvd
+import torch
 
 from monai.utils import evenly_divisible_all_gather
 
