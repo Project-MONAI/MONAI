@@ -219,7 +219,7 @@ class TestFocalLoss(unittest.TestCase):
     def test_ill_shape(self):
         chn_input = torch.ones((1, 2, 3))
         chn_target = torch.ones((1, 3))
-        with self.assertRaisesRegex(AssertionError, ""):
+        with self.assertRaisesRegex(ValueError, ""):
             FocalLoss(reduction="mean")(chn_input, chn_target)
 
     def test_ill_class_weight(self):

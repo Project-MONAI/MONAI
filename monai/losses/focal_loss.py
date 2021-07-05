@@ -77,12 +77,12 @@ class FocalLoss(_Loss):
         """
         Args:
             input: the shape should be BNH[WD], where N is the number of classes.
-                The input should be the original logits since it will be transferred by
+                The input should be the original logits since it will be transformed by
                 a sigmoid in the forward function.
             target: the shape should be BNH[WD] or B1H[WD], where N is the number of classes.
 
         Raises:
-            AssertionError: When input and target (after one hot transform if setted)
+            ValueError: When input and target (after one hot transform if set)
                 have different shapes.
             ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
             ValueError: When ``self.weight`` is a sequence and the length is not equal to the
@@ -107,7 +107,7 @@ class FocalLoss(_Loss):
                 input = input[:, 1:]
 
         if target.shape != input.shape:
-            raise AssertionError(f"ground truth has different shape ({target.shape}) from input ({input.shape})")
+            raise ValueError(f"ground truth has different shape ({target.shape}) from input ({input.shape})")
 
         i = input
         t = target
