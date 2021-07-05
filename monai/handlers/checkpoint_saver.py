@@ -57,8 +57,9 @@ class CheckpointSaver:
         key_metric_filename: set a fixed filename to set the best metric model, if not None,
             `key_metric_n_saved` should be 1 and only keep the best metric model.
         key_metric_save_state: whether to save the tracking list of key metric in the checkpoint file.
-            if `True`, then will save an object in the checkpoint file with key `checkpointer` to be consistent
-            with ignite: https://github.com/pytorch/ignite/blob/master/ignite/handlers/checkpoint.py#L99.
+            if `True`, then will save an object in the checkpoint file with key `checkpointer` to be
+            consistent with the `include_self` arg of `Checkpoint` in ignite:
+            https://pytorch.org/ignite/v0.4.5/generated/ignite.handlers.checkpoint.Checkpoint.html.
             typically, it's used to resume training and compare current metric with previous N values.
         key_metric_greater_or_equal: if `True`, the latest equally scored model is stored. Otherwise,
             save the the first equally scored model. default to `False`.

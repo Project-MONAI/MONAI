@@ -37,7 +37,7 @@ __all__ = [
 class IterationEvents(EventEnum):
     """
     Additional Events engine can register and trigger in the iteration process.
-    Refer to the example in ignite: https://github.com/pytorch/ignite/blob/master/ignite/engine/events.py#L146
+    Refer to the example in ignite: https://pytorch.org/ignite/generated/ignite.engine.events.EventEnum.html.
     These Events can be triggered during training iteration:
     `FORWARD_COMPLETED` is the Event when `network(image, label)` completed.
     `LOSS_COMPLETED` is the Event when `loss(pred, label)` completed.
@@ -106,7 +106,8 @@ def default_prepare_batch(
 ) -> Union[Tuple[torch.Tensor, Optional[torch.Tensor]], torch.Tensor]:
     """
     Default function to prepare the data for current iteration.
-    Refer to ignite: https://github.com/pytorch/ignite/blob/v0.4.2/ignite/engine/__init__.py#L28.
+    Refer to ignite: https://pytorch.org/ignite/v0.4.5/generated/ignite.engine.create_supervised_trainer.html
+    #ignite.engine.create_supervised_trainer.
 
     Returns:
         image, label(optional).

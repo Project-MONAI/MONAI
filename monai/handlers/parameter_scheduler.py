@@ -123,8 +123,8 @@ class ParamSchedulerHandler:
         """
         Decays the parameter value by gamma every step.
 
-        Based on the closed form of ExponentialLR from Pytorch
-        https://github.com/pytorch/pytorch/blob/master/torch/optim/lr_scheduler.py#L457
+        Based on the closed form of ExponentialLR from Pytorch:
+        https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.ExponentialLR.html.
 
         Args:
             initial_value (float): Starting value of the parameter.
@@ -141,8 +141,8 @@ class ParamSchedulerHandler:
         """
         Decays the parameter value by gamma every step_size.
 
-        Based on StepLR from Pytorch.
-        https://github.com/pytorch/pytorch/blob/master/torch/optim/lr_scheduler.py#L377
+        Based on StepLR from Pytorch:
+        https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.StepLR.html.
 
         Args:
             initial_value (float): Starting value of the parameter.
@@ -161,7 +161,7 @@ class ParamSchedulerHandler:
         Decays the parameter value by gamma once the number of steps reaches one of the milestones.
 
         Based on MultiStepLR from Pytorch.
-        https://github.com/pytorch/pytorch/blob/master/torch/optim/lr_scheduler.py#L424
+        https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.MultiStepLR.html.
 
         Args:
             initial_value (float): Starting value of the parameter.

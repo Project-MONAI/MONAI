@@ -154,9 +154,9 @@ class SubpixelUpsample(nn.Module):
     https://arxiv.org/abs/1609.05158
 
     The pixel shuffle mechanism refers to:
-    https://github.com/pytorch/pytorch/blob/master/aten/src/ATen/native/PixelShuffle.cpp
+    https://pytorch.org/docs/stable/generated/torch.nn.PixelShuffle.html#torch.nn.PixelShuffle.
     and:
-    https://github.com/pytorch/pytorch/pull/6340/files
+    https://github.com/pytorch/pytorch/pull/6340.
 
     """
 

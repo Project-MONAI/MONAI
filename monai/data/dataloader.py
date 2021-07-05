@@ -35,7 +35,7 @@ class DataLoader(_TorchDataLoader):
           See: :py:class:`monai.transforms.Compose`.
 
     For more details about :py:class:`torch.utils.data.DataLoader`, please see:
-    https://github.com/pytorch/pytorch/blob/master/torch/utils/data/dataloader.py
+    https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader.
 
     For example, to construct a randomized dataset and iterate with the data loader:
 
