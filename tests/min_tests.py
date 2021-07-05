@@ -134,6 +134,7 @@ def run_testsuit():
         "test_unetr",
         "test_unetr_block",
         "test_vit",
+        "test_evenly_divisible_all_gather_hvd",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
