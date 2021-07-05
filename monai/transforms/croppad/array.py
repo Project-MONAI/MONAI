@@ -255,7 +255,7 @@ class BorderPad(TorchOrNumpyTransform):
                 f"[1, len(spatial_shape)={len(spatial_shape)}, 2*len(spatial_shape)={2*len(spatial_shape)}]."
             )
         all_pad_width = [(0, 0)] + data_pad_width
-        padder = Pad(all_pad_width, mode or self.mode)
+        padder = Pad(all_pad_width, mode or self.mode, **self.np_kwargs)
         return padder(img)
 
 
