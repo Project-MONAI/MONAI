@@ -14,6 +14,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 import logging
+from monai.utils.misc import dtype_convert
 import sys
 import time
 import warnings
@@ -303,10 +304,11 @@ class CastToType(TorchOrNumpyTransform):
             TypeError: When ``img`` type is not in ``Union[numpy.ndarray, torch.Tensor]``.
 
         """
+        dtype = dtype_convert(dtype or self.dtype, type(img))
         if isinstance(img, np.ndarray):
-            return img.astype(dtype or self.dtype)  # type: ignore
+            return img.astype(dtype)  # type: ignore
         if isinstance(img, torch.Tensor):
-            return img.to(dtype=dtype or self.dtype)  # type: ignore
+            return img.to(dtype=dtype)  # type: ignore
         raise TypeError(f"img must be one of (numpy.ndarray, torch.Tensor) but is {type(img).__name__}.")
 
 
