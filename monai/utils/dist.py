@@ -127,7 +127,7 @@ def string_list_all_gather(strings: List[str], delimiter: str = "\t") -> List[st
     """
     Utility function for distributed data parallel to all gather a list of strings.
     Refer to the idea of ignite `all_gather(string)`:
-    https://github.com/pytorch/ignite/blob/master/ignite/distributed/utils.py#L346.
+    https://pytorch.org/ignite/v0.4.5/distributed.html#ignite.distributed.utils.all_gather.
 
     Note: If has ignite installed, will execute based on ignite distributed APIs, otherwise, if the native
     PyTorch distributed group initialized, will execute based on native PyTorch distributed APIs.
