@@ -11,6 +11,7 @@
 
 import unittest
 
+import torch
 import numpy as np
 
 from monai.transforms import ShiftIntensity, StdShiftIntensity
@@ -27,18 +28,17 @@ class TestStdShiftIntensity(NumpyImageTestCase2D):
             expected = shifter(imt)
             std_shifter = StdShiftIntensity(factor=factor)
             result = std_shifter(imt)
-            np.testing.assert_allclose(result, expected, rtol=1e-5)
+            torch.testing.assert_allclose(result, expected, atol=0, rtol=1e-5)
 
     def test_zerostd(self):
-        image = np.ones([2, 3, 3])
         for p in TEST_NDARRAYS:
-            image = p(image)
+            image = p(np.ones([2, 3, 3], dtype=np.float32))
             for nonzero in [True, False]:
                 for channel_wise in [True, False]:
                     factor = np.random.rand()
                     std_shifter = StdShiftIntensity(factor=factor, nonzero=nonzero, channel_wise=channel_wise)
                     result = std_shifter(image)
-                    np.testing.assert_allclose(result, image, rtol=1e-5)
+                    torch.testing.assert_allclose(result, image, atol=0, rtol=1e-5)
 
     def test_nonzero(self):
         for p in TEST_NDARRAYS:
@@ -46,8 +46,8 @@ class TestStdShiftIntensity(NumpyImageTestCase2D):
             factor = np.random.rand()
             std_shifter = StdShiftIntensity(factor=factor, nonzero=True)
             result = std_shifter(image)
-            expected = np.asarray([[4 + factor, 0, 2 + factor], [0, 2 + factor, 4 + factor]])
-            np.testing.assert_allclose(result, expected, rtol=1e-5)
+            expected = p(np.asarray([[4 + factor, 0, 2 + factor], [0, 2 + factor, 4 + factor]], dtype=np.float32))
+            torch.testing.assert_allclose(result, expected, atol=0, rtol=1e-5)
 
     def test_channel_wise(self):
         for p in TEST_NDARRAYS:
@@ -55,8 +55,8 @@ class TestStdShiftIntensity(NumpyImageTestCase2D):
             factor = np.random.rand()
             std_shifter = StdShiftIntensity(factor=factor, channel_wise=True)
             result = std_shifter(image)
-            expected = np.stack((np.asarray([1 + 0.5 * factor, 2 + 0.5 * factor]), np.asarray([1, 1])))
-            np.testing.assert_allclose(result, expected, rtol=1e-5)
+            expected = p(np.stack((np.asarray([1 + 0.5 * factor, 2 + 0.5 * factor]), np.asarray([1, 1]))).astype(np.float32))
+            torch.testing.assert_allclose(result, expected, atol=0, rtol=1e-5)
 
     def test_dtype(self):
         trans_dtype = np.float32
