@@ -14,6 +14,7 @@ from typing import List
 
 import numpy as np
 from parameterized import parameterized
+import torch
 
 from monai.transforms import SpatialPad
 from monai.utils.enums import NumpyPadMode
@@ -79,15 +80,16 @@ class TestSpatialPad(unittest.TestCase):
             for results in (results_1, results_2):
                 np.testing.assert_allclose(results[-1].shape, expected_shape)
                 if input_param["mode"] not in ("empty", NumpyPadMode.EMPTY):
-                    np.testing.assert_allclose(results[0], results[-1], rtol=1e-5)
+                    torch.testing.assert_allclose(p(results[0]), results[-1], atol=0, rtol=1e-5)
 
     def test_pad_kwargs(self):
         padder = SpatialPad(
             spatial_size=[15, 8], method="end", mode="constant", constant_values=((0, 0), (1, 1), (2, 2))
         )
-        result = padder(np.zeros((3, 8, 4)))
-        np.testing.assert_allclose(result[:, 8:, :4], np.ones((3, 7, 4)))
-        np.testing.assert_allclose(result[:, :, 4:], np.ones((3, 15, 4)) + 1)
+        for p in TEST_NDARRAYS:
+            result = padder(p(np.zeros((3, 8, 4))))
+            torch.testing.assert_allclose(result[:, 8:, :4], p(np.ones((3, 7, 4))), rtol=1e-7, atol=0)
+            torch.testing.assert_allclose(result[:, :, 4:], p(np.ones((3, 15, 4)) + 1), rtol=1e-7, atol=0)
 
 
 if __name__ == "__main__":
