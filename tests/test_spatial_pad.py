@@ -13,8 +13,8 @@ import unittest
 from typing import List
 
 import numpy as np
-from parameterized import parameterized
 import torch
+from parameterized import parameterized
 
 from monai.transforms import SpatialPad
 from monai.utils.enums import NumpyPadMode

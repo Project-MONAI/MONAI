@@ -12,8 +12,8 @@
 import unittest
 
 import numpy as np
-from parameterized import parameterized
 import torch
+from parameterized import parameterized
 
 from monai.transforms import SavitzkyGolaySmooth
 from tests.utils import TEST_NDARRAYS
@@ -72,6 +72,7 @@ class TestSavitzkyGolaySmoothREP(unittest.TestCase):
         for p in TEST_NDARRAYS:
             result = SavitzkyGolaySmooth(**arguments)(p(image))
             torch.testing.assert_allclose(result, p(expected_data.astype(np.float32)), rtol=1e-7, atol=atol)
+
 
 if __name__ == "__main__":
     unittest.main()

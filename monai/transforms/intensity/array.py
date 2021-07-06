@@ -851,7 +851,9 @@ class MaskIntensity(TorchOrNumpyTransform):
                 "When mask_data is not single channel, mask_data channels must match img, "
                 f"got img={img.shape[0]} mask_data={mask_data_.shape[0]}."
             )
-        mask_data_, *_ = convert_data_type(mask_data_, type(img), device=img.device if isinstance(img, torch.Tensor) else None)
+        mask_data_, *_ = convert_data_type(
+            mask_data_, type(img), device=img.device if isinstance(img, torch.Tensor) else None
+        )
         return img * mask_data_
 
 
@@ -1057,7 +1059,10 @@ class GaussianSharpen(TorchTransform):
         img_t, orig_type, orig_device = self.pre_conv_data(img)  # type: ignore
         img_t = img_t.to(torch.float)
 
-        gf1, gf2 = [GaussianFilter(img_t.ndim - 1, sigma, approx=self.approx).to(img_t.device) for sigma in (self.sigma1, self.sigma2)]
+        gf1, gf2 = [
+            GaussianFilter(img_t.ndim - 1, sigma, approx=self.approx).to(img_t.device)
+            for sigma in (self.sigma1, self.sigma2)
+        ]
         blurred_f = gf1(img_t.unsqueeze(0))
         filter_blurred_f = gf2(blurred_f)
         out = (blurred_f + self.alpha * (blurred_f - filter_blurred_f)).squeeze(0)

@@ -11,8 +11,8 @@
 
 import unittest
 
-import torch
 import numpy as np
+import torch
 
 from monai.transforms import ShiftIntensity, StdShiftIntensity
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D
@@ -55,7 +55,9 @@ class TestStdShiftIntensity(NumpyImageTestCase2D):
             factor = np.random.rand()
             std_shifter = StdShiftIntensity(factor=factor, channel_wise=True)
             result = std_shifter(image)
-            expected = p(np.stack((np.asarray([1 + 0.5 * factor, 2 + 0.5 * factor]), np.asarray([1, 1]))).astype(np.float32))
+            expected = p(
+                np.stack((np.asarray([1 + 0.5 * factor, 2 + 0.5 * factor]), np.asarray([1, 1]))).astype(np.float32)
+            )
             torch.testing.assert_allclose(result, expected, atol=0, rtol=1e-5)
 
     def test_dtype(self):
