@@ -1213,6 +1213,12 @@ Utility (Dict)
     :members:
     :special-members: __call__
 
+`EnsureTensord`
+"""""""""""""""
+.. autoclass:: EnsureTensord
+    :members:
+    :special-members: __call__
+
 Transform Adaptors
 ------------------
 .. automodule:: monai.transforms.adaptors

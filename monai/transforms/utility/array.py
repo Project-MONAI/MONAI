@@ -337,15 +337,13 @@ class EnsureTensor(Transform):
         if isinstance(data, torch.Tensor):
             return data.contiguous()
         elif isinstance(data, np.ndarray):
-            # skip array of string classes and object
-            if re.search(r'^[SaUO]', data.dtype.str) is not None:
-                return data
-            if data.ndim == 0:
+            # skip array of string classes and object, refer to:
+            # https://github.com/pytorch/pytorch/blob/v1.9.0/torch/utils/data/_utils/collate.py#L13
+            if re.search(r"[SaUO]", data.dtype.str) is None:
                 # numpy array with 0 dims is also sequence iterable,
                 # `ascontiguousarray` will add 1 dim if img has no dim, so we only apply on data with dims
-                return torch.as_tensor(data)
-            return torch.as_tensor(np.ascontiguousarray(data))
-        elif isinstance(data, (float, int)):
+                return torch.as_tensor(data if data.ndim == 0 else np.ascontiguousarray(data))
+        elif isinstance(data, (float, int, bool)):
             return torch.as_tensor(data)
         elif isinstance(data, dict):
             return {k: self.__call__(v) for k, v in data.items()}
@@ -353,8 +351,8 @@ class EnsureTensor(Transform):
             return [self.__call__(i) for i in data]
         elif isinstance(data, tuple):
             return tuple([self.__call__(i) for i in data])
-        else:
-            return data
+
+        return data
 
 
 class ToNumpy(Transform):

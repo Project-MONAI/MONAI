@@ -34,6 +34,7 @@ from monai.transforms.utility.array import (
     ConvertToMultiChannelBasedOnBratsClasses,
     DataStats,
     EnsureChannelFirst,
+    EnsureTensor,
     FgBgToIndices,
     Identity,
     LabelToMask,
@@ -89,6 +90,9 @@ __all__ = [
     "EnsureChannelFirstD",
     "EnsureChannelFirstDict",
     "EnsureChannelFirstd",
+    "EnsureTensorD",
+    "EnsureTensorDict",
+    "EnsureTensord",
     "FgBgToIndicesD",
     "FgBgToIndicesDict",
     "FgBgToIndicesd",
@@ -439,6 +443,51 @@ class ToTensord(MapTransform, InvertibleTransform):
             inverse_transform = ToNumpy()
             # Apply inverse
             d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.pop_transform(d, key)
+        return d
+
+
+class EnsureTensord(MapTransform, InvertibleTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.EnsureTensor`.
+    """
+
+    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.converter = EnsureTensor()
+
+    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            self.push_transform(d, key)
+            d[key] = self.converter(d[key])
+        return d
+
+    def inverse(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+        d = deepcopy(dict(data))
+
+        def _convert(data):
+            if isinstance(data, torch.Tensor):
+                # invert Tensor to numpy, if scalar data, convert to number
+                return data.item() if data.ndim == 0 else ToNumpy()(data)
+            elif isinstance(data, dict):
+                return {k: _convert(v) for k, v in data.items()}
+            elif isinstance(data, list):
+                return [_convert(i) for i in data]
+            elif isinstance(data, tuple):
+                return tuple([_convert(i) for i in data])
+            return data
+
+        for key in self.key_iterator(d):
+            # Apply inverse
+            d[key] = _convert(d[key])
             # Remove the applied transform
             self.pop_transform(d, key)
         return d
@@ -1143,6 +1192,7 @@ RepeatChannelD = RepeatChannelDict = RepeatChanneld
 SplitChannelD = SplitChannelDict = SplitChanneld
 CastToTypeD = CastToTypeDict = CastToTyped
 ToTensorD = ToTensorDict = ToTensord
+EnsureTensorD = EnsureTensorDict = EnsureTensord
 ToNumpyD = ToNumpyDict = ToNumpyd
 ToCupyD = ToCupyDict = ToCupyd
 ToPILD = ToPILDict = ToPILd
