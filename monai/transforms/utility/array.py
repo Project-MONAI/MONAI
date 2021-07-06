@@ -25,12 +25,7 @@ import torch
 
 from monai.config import DtypeLike, NdarrayTensor
 from monai.transforms.transform import Randomizable, Transform
-from monai.transforms.utils import (
-    convert_to_tensor,
-    extreme_points_to_image,
-    get_extreme_points,
-    map_binary_to_indices,
-)
+from monai.transforms.utils import convert_to_tensor, extreme_points_to_image, get_extreme_points, map_binary_to_indices
 from monai.utils import deprecated, ensure_tuple, issequenceiterable, min_version, optional_import
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
