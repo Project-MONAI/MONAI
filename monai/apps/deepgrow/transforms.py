@@ -231,9 +231,7 @@ class FindDiscrepancyRegionsd(Transform):
 
     """
 
-    def __init__(
-        self, label: str = "label", pred: str = "pred", discrepancy: str = "discrepancy", batched: bool = True
-    ):
+    def __init__(self, label: str = "label", pred: str = "pred", discrepancy: str = "discrepancy"):
         self.label = label
         self.pred = pred
         self.discrepancy = discrepancy
