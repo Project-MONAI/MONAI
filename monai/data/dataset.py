@@ -413,7 +413,8 @@ class LMDBDataset(PersistentDataset):
         self.lmdb_kwargs = lmdb_kwargs or {}
         if not self.lmdb_kwargs.get("map_size", 0):
             self.lmdb_kwargs["map_size"] = 1024 ** 4  # default map_size
-        self._read_env = None
+        self._env = None
+        self._read_env = self._fill_cache_start_reader()
         print(f"Accessing lmdb file: {self.db_file.absolute()}.")
 
     def set_data(self, data: Sequence):
@@ -422,43 +423,49 @@ class LMDBDataset(PersistentDataset):
 
         """
         super().set_data(data=data)
-        self._read_env = None
+        self._env = None
+        self._read_env = self._fill_cache_start_reader()
 
     def _fill_cache_start_reader(self):
         # create cache
         self.lmdb_kwargs["readonly"] = False
-        env = lmdb.open(path=f"{self.db_file}", subdir=False, **self.lmdb_kwargs)
+        if self._env is None:
+            self._env = lmdb.open(path=f"{self.db_file}", subdir=False, **self.lmdb_kwargs)
+        env = self._env
         if self.progress and not has_tqdm:
             warnings.warn("LMDBDataset: tqdm is not installed. not displaying the caching progress.")
-        for item in tqdm(self.data) if has_tqdm and self.progress else self.data:
-            key = self.hash_func(item)
-            done, retry, val = False, 5, None
-            while not done and retry > 0:
-                try:
-                    with env.begin(write=True) as txn:
-                        with txn.cursor() as cursor:
+        with env.begin(write=False) as search_txn:
+            for item in tqdm(self.data) if has_tqdm and self.progress else self.data:
+                key = self.hash_func(item)
+                done, retry, val = False, 5, None
+                while not done and retry > 0:
+                    try:
+                        with search_txn.cursor() as cursor:
                             done = cursor.set_key(key)
-                            if done:
-                                continue
+                        if done:
+                            continue
                         if val is None:
                             val = self._pre_transform(deepcopy(item))  # keep the original hashed
                             val = pickle.dumps(val, protocol=self.pickle_protocol)
-                        txn.put(key, val)
-                    done = True
-                except lmdb.MapFullError:
-                    done, retry = False, retry - 1
+                        with env.begin(write=True) as txn:
+                            txn.put(key, val)
+                        done = True
+                    except lmdb.MapFullError:
+                        done, retry = False, retry - 1
+                        size = env.info()["map_size"]
+                        new_size = size * 2
+                        warnings.warn(
+                            f"Resizing the cache database from {int(size) >> 20}MB" f" to {int(new_size) >> 20}MB."
+                        )
+                        env.set_mapsize(new_size)
+                    except lmdb.MapResizedError:
+                        # the mapsize is increased by another process
+                        # set_mapsize with a size of 0 to adopt the new size
+                        env.set_mapsize(0)
+                if not done:  # still has the map full error
                     size = env.info()["map_size"]
-                    new_size = size * 2
-                    warnings.warn(f"Resizing the cache database from {int(size) >> 20}MB to {int(new_size) >> 20}MB.")
-                    env.set_mapsize(new_size)
-                except lmdb.MapResizedError:
-                    # the mapsize is increased by another process
-                    # set_mapsize with a size of 0 to adopt the new size,
-                    env.set_mapsize(0)
-            if not done:  # still has the map full error
-                size = env.info()["map_size"]
-                env.close()
-                raise ValueError(f"LMDB map size reached, increase size above current size of {size}.")
+                    env.close()
+                    raise ValueError(f"LMDB map size reached, increase size above current size of {size}.")
         size = env.info()["map_size"]
         env.close()
         # read-only database env
