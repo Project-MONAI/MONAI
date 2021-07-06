@@ -55,7 +55,7 @@ class TestInteractions(unittest.TestCase):
 
         iteration_transforms = [
             Activationsd(keys="pred", sigmoid=True),
-            ToNumpyd(keys=["image", "label", "pred", "guidance"]),
+            ToNumpyd(keys=["image", "label", "pred"]),
             FindDiscrepancyRegionsd(label="label", pred="pred", discrepancy="discrepancy"),
             AddRandomGuidanced(guidance='guidance', discrepancy='discrepancy', probability='probability'),
             AddGuidanceSignald(image="image", guidance="guidance"),

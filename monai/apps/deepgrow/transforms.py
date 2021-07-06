@@ -12,7 +12,7 @@ from typing import Callable, Dict, Optional, Sequence, Union
 
 import numpy as np
 import torch
-
+import json
 from monai.config import IndexSelection, KeysCollection
 from monai.networks.layers import GaussianFilter
 from monai.transforms import Resize, SpatialCrop
@@ -144,7 +144,7 @@ class AddInitialSeedPointd(Randomizable, Transform):
     def __call__(self, data):
         d = dict(data)
         self.randomize(data)
-        d[self.guidance] = self._apply(d[self.label], self.sid)
+        d[self.guidance] = json.dumps(self._apply(d[self.label], self.sid).astype(int).tolist())
         return d
 
 
@@ -177,6 +177,7 @@ class AddGuidanceSignald(Transform):
     def _get_signal(self, image, guidance):
         dimensions = 3 if len(image.shape) > 3 else 2
         guidance = guidance.tolist() if isinstance(guidance, np.ndarray) else guidance
+        guidance = json.loads(guidance) if isinstance(guidance, str) else guidance
         if dimensions == 3:
             signal = np.zeros((len(guidance), image.shape[-3], image.shape[-2], image.shape[-1]), dtype=np.float32)
         else:
@@ -323,6 +324,7 @@ class AddRandomGuidanced(Randomizable, Transform):
 
     def _apply(self, guidance, discrepancy):
         guidance = guidance.tolist() if isinstance(guidance, np.ndarray) else guidance
+        guidance = json.loads(guidance) if isinstance(guidance, str) else guidance
         pos, neg = self.add_guidance(discrepancy, self._will_interact)
         if pos:
             guidance[0].append(pos)
@@ -331,7 +333,7 @@ class AddRandomGuidanced(Randomizable, Transform):
             guidance[0].append([-1] * len(neg))
             guidance[1].append(neg)
 
-        return np.asarray(guidance)
+        return json.dumps(np.asarray(guidance).astype(int).tolist())
 
     def __call__(self, data):
         d = dict(data)
