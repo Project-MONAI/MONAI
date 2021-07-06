@@ -428,8 +428,8 @@ class LMDBDataset(PersistentDataset):
 
     def _fill_cache_start_reader(self, show_progress=True):
         """
-        Write the LMDB cache. py-lmdb doesn't have good support of concurrent write
-        this method could be used with multiple processes, but it may have an impact on the performance.
+        Check the LMDB cache and write the cache if needed. py-lmdb doesn't have a good support for concurrent write.
+        This method can be used with multiple processes, but it may have a negative impact on the performance.
 
         Args:
             show_progress: whether to show the progress bar if possible.
