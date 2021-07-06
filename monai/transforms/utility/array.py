@@ -321,17 +321,17 @@ class ToTensor(Transform):
 
 class EnsureTensor(Transform):
     """
-    Ensure the input image to be a PyTorch Tensor.
-    If passing a dictionary or list, recursively check every item and ensure to be PyTorch Tensors.
+    Ensure the input data to be a PyTorch Tensor, support: `numpy array`, `PyTorch Tensor`, `float`, `int`, `bool`.
+    If passing a dictionary, list or tuple, recursively check every item and ensure it to be PyTorch Tensors.
 
     """
 
     def __call__(self, data):
         """
         Args:
-            data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, etc.
-                will ensure Tensor, Numpy array, float, int as Tensors, strings and objects keep the original data.
-                for dictionay or list, ensure every item as a Tensor if possible.
+            data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
+                will ensure Tensor, Numpy array, float, int, bool as Tensors, strings and objects keep the original.
+                for dictionay, list or tuple, ensure every item as a Tensor if applicable.
 
         """
         if isinstance(data, torch.Tensor):
