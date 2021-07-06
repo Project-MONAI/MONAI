@@ -15,15 +15,16 @@ from typing import TYPE_CHECKING, Any, Callable, Optional
 import numpy as np
 import torch
 
-from monai.utils import exact_version, is_scalar, optional_import
+from monai.config import IgniteInfo
+from monai.utils import is_scalar, min_version, optional_import
 from monai.visualize import plot_2d_or_3d_image
 
-Events, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Events")
+Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
     from ignite.engine import Engine
     from torch.utils.tensorboard import SummaryWriter
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.2", exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
     SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
 DEFAULT_TAG = "Loss"
@@ -79,8 +80,10 @@ class TensorBoardStatsHandler(TensorBoardHandler):
         summary_writer: Optional[SummaryWriter] = None,
         log_dir: str = "./runs",
         epoch_event_writer: Optional[Callable[[Engine, SummaryWriter], Any]] = None,
+        epoch_interval: int = 1,
         iteration_event_writer: Optional[Callable[[Engine, SummaryWriter], Any]] = None,
-        output_transform: Callable = lambda x: x,
+        iteration_interval: int = 1,
+        output_transform: Callable = lambda x: x[0],
         global_epoch_transform: Callable = lambda x: x,
         tag_name: str = DEFAULT_TAG,
     ) -> None:
@@ -91,12 +94,16 @@ class TensorBoardStatsHandler(TensorBoardHandler):
             log_dir: if using default SummaryWriter, write logs to this directory, default is `./runs`.
             epoch_event_writer: customized callable TensorBoard writer for epoch level.
                 Must accept parameter "engine" and "summary_writer", use default event writer if None.
+            epoch_interval: the epoch interval at which the epoch_event_writer is called. Defaults to 1.
             iteration_event_writer: customized callable TensorBoard writer for iteration level.
                 Must accept parameter "engine" and "summary_writer", use default event writer if None.
+            iteration_interval: the iteration interval at which the iteration_event_writer is called. Defaults to 1.
             output_transform: a callable that is used to transform the
-                ``ignite.engine.output`` into a scalar to plot, or a dictionary of {key: scalar}.
+                ``ignite.engine.state.output`` into a scalar to plot, or a dictionary of {key: scalar}.
                 In the latter case, the output string will be formatted as key: value.
                 By default this value plotting happens when every iteration completed.
+                The default behavior is to print loss from output[0] as output is a decollated list
+                and we replicated loss value for every item of the decollated list.
             global_epoch_transform: a callable that is used to customize global epoch number.
                 For example, in evaluation, the evaluator engine might want to use trainer engines epoch number
                 when plotting epoch vs metric curves.
@@ -104,7 +111,9 @@ class TensorBoardStatsHandler(TensorBoardHandler):
         """
         super().__init__(summary_writer=summary_writer, log_dir=log_dir)
         self.epoch_event_writer = epoch_event_writer
+        self.epoch_interval = epoch_interval
         self.iteration_event_writer = iteration_event_writer
+        self.iteration_interval = iteration_interval
         self.output_transform = output_transform
         self.global_epoch_transform = global_epoch_transform
         self.tag_name = tag_name
@@ -118,9 +127,11 @@ class TensorBoardStatsHandler(TensorBoardHandler):
 
         """
         if not engine.has_event_handler(self.iteration_completed, Events.ITERATION_COMPLETED):
-            engine.add_event_handler(Events.ITERATION_COMPLETED, self.iteration_completed)
+            engine.add_event_handler(
+                Events.ITERATION_COMPLETED(every=self.iteration_interval), self.iteration_completed
+            )
         if not engine.has_event_handler(self.epoch_completed, Events.EPOCH_COMPLETED):
-            engine.add_event_handler(Events.EPOCH_COMPLETED, self.epoch_completed)
+            engine.add_event_handler(Events.EPOCH_COMPLETED(every=self.epoch_interval), self.epoch_completed)
 
     def epoch_completed(self, engine: Engine) -> None:
         """
@@ -169,7 +180,8 @@ class TensorBoardStatsHandler(TensorBoardHandler):
     def _default_iteration_writer(self, engine: Engine, writer: SummaryWriter) -> None:
         """
         Execute iteration level event write operation based on Ignite engine.state data.
-        Default is to write the loss value of current iteration.
+        The default behavior is to print loss from output[0] as output is a decollated list and we replicated loss
+        value for every item of the decollated list.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
@@ -250,10 +262,12 @@ class TensorBoardImageHandler(TensorBoardHandler):
             interval: plot content from engine.state every N epochs or every N iterations, default is 1.
             epoch_level: plot content from engine.state every N epochs or N iterations. `True` is epoch level,
                 `False` is iteration level.
-            batch_transform: a callable that is used to transform the
-                ``ignite.engine.batch`` into expected format to extract several label data.
-            output_transform: a callable that is used to transform the
-                ``ignite.engine.output`` into expected format to extract several output data.
+            batch_transform: a callable that is used to extract `image` and `label` from `ignite.engine.state.batch`,
+                then construct `(image, label)` pair. for example: if `ignite.engine.state.batch` is `{"image": xxx,
+                "label": xxx, "other": xxx}`, `batch_transform` can be `lambda x: (x["image"], x["label"])`.
+                will use the result to plot image from `result[0][index]` and plot label from `result[1][index]`.
+            output_transform: a callable that is used to extract the `predictions` data from
+                `ignite.engine.state.output`, will use the result to plot output from `result[index]`.
             global_iter_transform: a callable that is used to customize global step number for TensorBoard.
                 For example, in evaluation, the evaluator engine needs to know current epoch from trainer.
             index: plot which element in a data batch, default is the first element.
@@ -295,7 +309,7 @@ class TensorBoardImageHandler(TensorBoardHandler):
 
         """
         step = self.global_iter_transform(engine.state.epoch if self.epoch_level else engine.state.iteration)
-        show_images = self.batch_transform(engine.state.batch)[0]
+        show_images = self.batch_transform(engine.state.batch)[0][self.index]
         if isinstance(show_images, torch.Tensor):
             show_images = show_images.detach().cpu().numpy()
         if show_images is not None:
@@ -305,10 +319,17 @@ class TensorBoardImageHandler(TensorBoardHandler):
                     f"(numpy.ndarray, torch.Tensor) but is {type(show_images).__name__}."
                 )
             plot_2d_or_3d_image(
-                show_images, step, self._writer, self.index, self.max_channels, self.max_frames, "input_0"
+                # add batch dim and plot the first item
+                show_images[None],
+                step,
+                self._writer,
+                0,
+                self.max_channels,
+                self.max_frames,
+                "input_0",
             )
 
-        show_labels = self.batch_transform(engine.state.batch)[1]
+        show_labels = self.batch_transform(engine.state.batch)[1][self.index]
         if isinstance(show_labels, torch.Tensor):
             show_labels = show_labels.detach().cpu().numpy()
         if show_labels is not None:
@@ -317,11 +338,9 @@ class TensorBoardImageHandler(TensorBoardHandler):
                     "batch_transform(engine.state.batch)[1] must be None or one of "
                     f"(numpy.ndarray, torch.Tensor) but is {type(show_labels).__name__}."
                 )
-            plot_2d_or_3d_image(
-                show_labels, step, self._writer, self.index, self.max_channels, self.max_frames, "input_1"
-            )
+            plot_2d_or_3d_image(show_labels[None], step, self._writer, 0, self.max_channels, self.max_frames, "input_1")
 
-        show_outputs = self.output_transform(engine.state.output)
+        show_outputs = self.output_transform(engine.state.output)[self.index]
         if isinstance(show_outputs, torch.Tensor):
             show_outputs = show_outputs.detach().cpu().numpy()
         if show_outputs is not None:
@@ -330,8 +349,6 @@ class TensorBoardImageHandler(TensorBoardHandler):
                     "output_transform(engine.state.output) must be None or one of "
                     f"(numpy.ndarray, torch.Tensor) but is {type(show_outputs).__name__}."
                 )
-            plot_2d_or_3d_image(
-                show_outputs, step, self._writer, self.index, self.max_channels, self.max_frames, "output"
-            )
+            plot_2d_or_3d_image(show_outputs[None], step, self._writer, 0, self.max_channels, self.max_frames, "output")
 
         self._writer.flush()

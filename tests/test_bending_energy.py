@@ -17,30 +17,32 @@ from parameterized import parameterized
 
 from monai.losses.deform import BendingEnergyLoss
 
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
 TEST_CASES = [
     [
         {},
-        {"pred": torch.ones((1, 3, 5, 5, 5))},
+        {"pred": torch.ones((1, 3, 5, 5, 5), device=device)},
         0.0,
     ],
     [
         {},
-        {"pred": torch.arange(0, 5)[None, None, None, None, :].expand(1, 3, 5, 5, 5)},
+        {"pred": torch.arange(0, 5, device=device)[None, None, None, None, :].expand(1, 3, 5, 5, 5)},
         0.0,
     ],
     [
         {},
-        {"pred": torch.arange(0, 5)[None, None, None, None, :].expand(1, 3, 5, 5, 5) ** 2},
+        {"pred": torch.arange(0, 5, device=device)[None, None, None, None, :].expand(1, 3, 5, 5, 5) ** 2},
         4.0,
     ],
     [
         {},
-        {"pred": torch.arange(0, 5)[None, None, None, :].expand(1, 3, 5, 5) ** 2},
+        {"pred": torch.arange(0, 5, device=device)[None, None, None, :].expand(1, 3, 5, 5) ** 2},
         4.0,
     ],
     [
         {},
-        {"pred": torch.arange(0, 5)[None, None, :].expand(1, 3, 5) ** 2},
+        {"pred": torch.arange(0, 5, device=device)[None, None, :].expand(1, 3, 5) ** 2},
         4.0,
     ],
 ]
@@ -56,19 +58,19 @@ class TestBendingEnergy(unittest.TestCase):
         loss = BendingEnergyLoss()
         # not in 3-d, 4-d, 5-d
         with self.assertRaisesRegex(ValueError, ""):
-            loss.forward(torch.ones((1, 3)))
+            loss.forward(torch.ones((1, 3), device=device))
         with self.assertRaisesRegex(ValueError, ""):
-            loss.forward(torch.ones((1, 3, 5, 5, 5, 5)))
+            loss.forward(torch.ones((1, 3, 5, 5, 5, 5), device=device))
         # spatial_dim < 5
         with self.assertRaisesRegex(ValueError, ""):
-            loss.forward(torch.ones((1, 3, 4, 5, 5)))
+            loss.forward(torch.ones((1, 3, 4, 5, 5), device=device))
         with self.assertRaisesRegex(ValueError, ""):
             loss.forward(torch.ones((1, 3, 5, 4, 5)))
         with self.assertRaisesRegex(ValueError, ""):
             loss.forward(torch.ones((1, 3, 5, 5, 4)))
 
     def test_ill_opts(self):
-        pred = torch.rand(1, 3, 5, 5, 5)
+        pred = torch.rand(1, 3, 5, 5, 5).to(device=device)
         with self.assertRaisesRegex(ValueError, ""):
             BendingEnergyLoss(reduction="unknown")(pred)
         with self.assertRaisesRegex(ValueError, ""):

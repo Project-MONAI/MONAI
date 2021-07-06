@@ -21,6 +21,8 @@ from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.simplelayers import Reshape
 from monai.utils import ensure_tuple, ensure_tuple_rep
 
+__all__ = ["Regressor"]
+
 
 class Regressor(nn.Module):
     """
