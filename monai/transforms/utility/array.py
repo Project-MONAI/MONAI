@@ -14,7 +14,6 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 import logging
-import re
 import sys
 import time
 import warnings
