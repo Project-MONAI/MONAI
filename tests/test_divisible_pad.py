@@ -21,18 +21,22 @@ TESTS = []
 
 for p in TEST_NDARRAYS:
     # pad first dim to be divisible by 7, the second unchanged.
-    TESTS.append([
-        {"k": (7, -1), "mode": "constant"},
-        p(np.zeros((3, 8, 7))),
-        p(np.zeros((3, 14, 7))),
-    ])
+    TESTS.append(
+        [
+            {"k": (7, -1), "mode": "constant"},
+            p(np.zeros((3, 8, 7))),
+            p(np.zeros((3, 14, 7))),
+        ]
+    )
 
     # pad all dimensions to be divisible by 5
-    TESTS.append([
-        {"k": 5, "mode": "constant"},
-        p(np.zeros((3, 10, 5, 17))),
-        p(np.zeros((3, 10, 5, 20))),
-    ])
+    TESTS.append(
+        [
+            {"k": 5, "mode": "constant"},
+            p(np.zeros((3, 10, 5, 17))),
+            p(np.zeros((3, 10, 5, 20))),
+        ]
+    )
 
 
 class TestDivisiblePad(unittest.TestCase):

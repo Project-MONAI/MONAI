@@ -595,20 +595,19 @@ class Zoom(TorchTransform):
 
         if self.keep_size and not np.allclose(img_t.shape, zoomed.shape):
 
-            pad_vec = [[0, 0]] * len(img_t.shape)
+            pad_vec = [(0, 0)] * len(img_t.shape)
             slice_vec = [slice(None)] * len(img_t.shape)
             for idx, (od, zd) in enumerate(zip(img_t.shape, zoomed.shape)):
                 diff = od - zd
                 half = abs(diff) // 2
                 if diff > 0:  # need padding
-                    pad_vec[idx] = [half, diff - half]
+                    pad_vec[idx] = (half, diff - half)
                 elif diff < 0:  # need slicing
                     slice_vec[idx] = slice(half, half + od)
 
             padder = Pad(pad_vec, padding_mode or self.padding_mode)
             zoomed = padder(zoomed)
             zoomed = zoomed[tuple(slice_vec)]
-
 
         return self.post_convert_data(zoomed, orig_type, orig_device)
 
@@ -921,17 +920,24 @@ class RandZoom(TorchTransform, RandomizableTransform):
         """
         # match the spatial image dim
         self.randomize()
+
         if not self._do_transform:
             return img
-        if self._do_transform:
-            if len(self._zoom) == 1:
-                # to keep the spatial shape ratio, use same random zoom factor for all dims
-                self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 1)
-            elif len(self._zoom) == 2 and img.ndim > 3:
-                # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
-                self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 2) + ensure_tuple(self._zoom[-1])
-            zoomer = Zoom(self._zoom, keep_size=self.keep_size, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode, align_corners=align_corners or self.align_corners)
-            return zoomer(img)
+
+        if len(self._zoom) == 1:
+            # to keep the spatial shape ratio, use same random zoom factor for all dims
+            self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 1)
+        elif len(self._zoom) == 2 and img.ndim > 3:
+            # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
+            self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 2) + ensure_tuple(self._zoom[-1])
+        zoomer = Zoom(
+            self._zoom,
+            keep_size=self.keep_size,
+            mode=mode or self.mode,
+            padding_mode=padding_mode or self.padding_mode,
+            align_corners=align_corners or self.align_corners,
+        )
+        return zoomer(img)
 
 
 class AffineGrid(ToDoTransform):

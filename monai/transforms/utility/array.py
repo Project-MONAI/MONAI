@@ -14,7 +14,6 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 import logging
-from monai.utils.misc import dtype_convert
 import sys
 import time
 import warnings
@@ -35,6 +34,7 @@ from monai.transforms.transform import (
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points, map_binary_to_indices
 from monai.utils import ensure_tuple, min_version, optional_import
 from monai.utils.enums import DataObjects
+from monai.utils.misc import dtype_convert
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
