@@ -11,13 +11,13 @@
 
 import unittest
 
-import torch
 import numpy as np
+import torch
 
 from monai.apps.deepgrow.interaction import Interaction
 from monai.apps.deepgrow.transforms import (
-    AddInitialSeedPointd,
     AddGuidanceSignald,
+    AddInitialSeedPointd,
     FindAllValidSlicesd,
     FindDiscrepancyRegionsd,
 )
@@ -43,20 +43,22 @@ class TestInteractions(unittest.TestCase):
         lr = 1e-3
         opt = torch.optim.SGD(network.parameters(), lr)
         loss = torch.nn.L1Loss()
-        train_transforms = Compose([
-            FindAllValidSlicesd(label='label', sids='sids'),
-            AddInitialSeedPointd(label='label', guidance='guidance', sids='sids'),
-            AddGuidanceSignald(image='image', guidance='guidance'),
-            ToTensord(keys=('image', 'label')),
-        ])
+        train_transforms = Compose(
+            [
+                FindAllValidSlicesd(label="label", sids="sids"),
+                AddInitialSeedPointd(label="label", guidance="guidance", sids="sids"),
+                AddGuidanceSignald(image="image", guidance="guidance"),
+                ToTensord(keys=("image", "label")),
+            ]
+        )
         dataset = Dataset(data, transform=train_transforms)
         data_loader = torch.utils.data.DataLoader(dataset, batch_size=5)
 
         iteration_transforms = [
             Activationsd(keys="pred", sigmoid=True),
-            ToNumpyd(keys=['image', 'label', 'pred', 'guidance']),
-            FindDiscrepancyRegionsd(label='label', pred='pred', discrepancy='discrepancy'),
-            AddGuidanceSignald(image='image', guidance='guidance'),
+            ToNumpyd(keys=["image", "label", "pred", "guidance"]),
+            FindDiscrepancyRegionsd(label="label", pred="pred", discrepancy="discrepancy"),
+            AddGuidanceSignald(image="image", guidance="guidance"),
         ]
         iteration_transforms = Compose(iteration_transforms) if compose else iteration_transforms
 
