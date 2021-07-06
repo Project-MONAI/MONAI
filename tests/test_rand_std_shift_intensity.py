@@ -12,6 +12,7 @@
 import unittest
 
 import numpy as np
+import torch
 
 from monai.transforms import RandStdShiftIntensity
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D
@@ -26,8 +27,8 @@ class TestRandStdShiftIntensity(NumpyImageTestCase2D):
             np.random.seed(0)
             factor = np.random.uniform(low=-1.0, high=1.0)
             offset = factor * np.std(self.imt)
-            expected = self.imt + offset
-            np.testing.assert_allclose(result, expected, rtol=1e-5)
+            expected = p(self.imt + offset)
+            torch.testing.assert_allclose(result, expected, atol=0, rtol=1e-5)
 
 
 if __name__ == "__main__":
