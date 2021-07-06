@@ -117,6 +117,8 @@ class FocalLoss(_Loss):
         i = i.reshape(b, n, -1)
         t = t.reshape(b, n, -1)
 
+        # computing binary cross entropy with logits
+        # see also https://github.com/pytorch/pytorch/blob/v1.9.0/aten/src/ATen/native/Loss.cpp#L231
         max_val = (-i).clamp(min=0)
         ce = i - i * t + max_val + ((-max_val).exp() + (-i - max_val).exp()).log()
 
@@ -143,6 +145,7 @@ class FocalLoss(_Loss):
             ce = ce * at
 
         # Compute the loss mini-batch.
+        # (1-p_t)^gamma * log(p_t) with reduced chance of overflow
         p = F.logsigmoid(-i * (t * 2.0 - 1.0))
         loss = torch.mean((p * self.gamma).exp() * ce, dim=-1)
 
