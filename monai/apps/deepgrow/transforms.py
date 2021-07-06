@@ -209,6 +209,7 @@ class AddGuidanceSignald(Transform):
 
     def _apply(self, image, guidance):
         signal = self._get_signal(image, guidance)
+        image = image[0 : 0 + self.number_intensity_ch, ...]
         return np.concatenate([image, signal], axis=0)
 
     def __call__(self, data):
