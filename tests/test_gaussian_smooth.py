@@ -11,6 +11,7 @@
 
 import unittest
 
+import torch
 import numpy as np
 from parameterized import parameterized
 
@@ -24,7 +25,7 @@ for p in TEST_NDARRAYS:
         [
             {"sigma": 1.5},
             p([[[1, 1, 1], [2, 2, 2], [3, 3, 3]], [[4, 4, 4], [5, 5, 5], [6, 6, 6]]]),  # type: ignore
-            np.array(
+            p(
                 [
                     [
                         [0.59167546, 0.69312394, 0.59167546],
@@ -45,7 +46,7 @@ for p in TEST_NDARRAYS:
         [
             {"sigma": 0.5},
             p([[[1, 1, 1], [2, 2, 2], [3, 3, 3]], [[4, 4, 4], [5, 5, 5], [6, 6, 6]]]),  # type: ignore
-            np.array(
+            p(
                 [
                     [
                         [0.8424794, 0.99864554, 0.8424794],
@@ -66,7 +67,7 @@ for p in TEST_NDARRAYS:
         [
             {"sigma": [1.5, 0.5]},
             p([[[1, 1, 1], [2, 2, 2], [3, 3, 3]], [[4, 4, 4], [5, 5, 5], [6, 6, 6]]]),  # type: ignore
-            np.array(
+            p(
                 [
                     [
                         [0.8542037, 1.0125432, 0.8542037],
@@ -88,7 +89,7 @@ class TestGaussianSmooth(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_value(self, argments, image, expected_data):
         result = GaussianSmooth(**argments)(image)
-        np.testing.assert_allclose(result, expected_data, rtol=1e-4)
+        torch.testing.assert_allclose(result, expected_data, atol=0, rtol=1e-4)
 
 
 if __name__ == "__main__":

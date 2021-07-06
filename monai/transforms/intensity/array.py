@@ -962,7 +962,7 @@ class GaussianSmooth(TorchTransform):
         img_t, orig_type, orig_device = self.pre_conv_data(img)  # type: ignore
         img_t = img_t.to(torch.float)
 
-        gaussian_filter = GaussianFilter(img.ndim - 1, self.sigma, approx=self.approx)
+        gaussian_filter = GaussianFilter(img.ndim - 1, self.sigma, approx=self.approx).to(img_t.device)
         out = gaussian_filter(img_t.unsqueeze(0)).squeeze(0)
         return self.post_convert_data(out, orig_type, orig_device)
 
