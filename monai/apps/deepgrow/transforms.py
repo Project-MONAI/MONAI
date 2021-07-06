@@ -8,11 +8,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import json
 from typing import Callable, Dict, Optional, Sequence, Union
 
 import numpy as np
 import torch
-import json
+
 from monai.config import IndexSelection, KeysCollection
 from monai.networks.layers import GaussianFilter
 from monai.transforms import Resize, SpatialCrop

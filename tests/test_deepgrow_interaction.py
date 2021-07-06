@@ -57,9 +57,9 @@ class TestInteractions(unittest.TestCase):
             Activationsd(keys="pred", sigmoid=True),
             ToNumpyd(keys=["image", "label", "pred"]),
             FindDiscrepancyRegionsd(label="label", pred="pred", discrepancy="discrepancy"),
-            AddRandomGuidanced(guidance='guidance', discrepancy='discrepancy', probability='probability'),
+            AddRandomGuidanced(guidance="guidance", discrepancy="discrepancy", probability="probability"),
             AddGuidanceSignald(image="image", guidance="guidance"),
-            ToTensord(keys=('image', 'label')),
+            ToTensord(keys=("image", "label")),
         ]
         iteration_transforms = Compose(iteration_transforms) if compose else iteration_transforms
 
