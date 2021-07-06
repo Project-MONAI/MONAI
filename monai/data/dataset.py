@@ -414,7 +414,7 @@ class LMDBDataset(PersistentDataset):
         if not self.lmdb_kwargs.get("map_size", 0):
             self.lmdb_kwargs["map_size"] = 1024 ** 4  # default map_size
         self._env = None
-        self._read_env = self._fill_cache_start_reader()
+        self._read_env = self._fill_cache_start_reader(show_progress=self.progress)
         print(f"Accessing lmdb file: {self.db_file.absolute()}.")
 
     def set_data(self, data: Sequence):
@@ -424,18 +424,25 @@ class LMDBDataset(PersistentDataset):
         """
         super().set_data(data=data)
         self._env = None
-        self._read_env = self._fill_cache_start_reader()
+        self._read_env = self._fill_cache_start_reader(show_progress=self.progress)
 
-    def _fill_cache_start_reader(self):
+    def _fill_cache_start_reader(self, show_progress=True):
+        """
+        Write the LMDB cache. py-lmdb doesn't have good support of concurrent write
+        this method could be used with multiple processes, but it may have an impact on the performance.
+
+        Args:
+            show_progress: whether to show the progress bar if possible.
+        """
         # create cache
         self.lmdb_kwargs["readonly"] = False
         if self._env is None:
             self._env = lmdb.open(path=f"{self.db_file}", subdir=False, **self.lmdb_kwargs)
         env = self._env
-        if self.progress and not has_tqdm:
+        if show_progress and not has_tqdm:
             warnings.warn("LMDBDataset: tqdm is not installed. not displaying the caching progress.")
         with env.begin(write=False) as search_txn:
-            for item in tqdm(self.data) if has_tqdm and self.progress else self.data:
+            for item in tqdm(self.data) if has_tqdm and show_progress else self.data:
                 key = self.hash_func(item)
                 done, retry, val = False, 5, None
                 while not done and retry > 0:
@@ -483,7 +490,7 @@ class LMDBDataset(PersistentDataset):
 
         """
         if self._read_env is None:
-            self._read_env = self._fill_cache_start_reader()
+            self._read_env = self._fill_cache_start_reader(show_progress=False)
         with self._read_env.begin(write=False) as txn:
             data = txn.get(self.hash_func(item_transformed))
         if data is None:
