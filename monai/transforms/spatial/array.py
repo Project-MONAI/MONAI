@@ -22,7 +22,7 @@ import torch
 from monai.config import USE_COMPILED, DtypeLike
 from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
-from monai.transforms.croppad.array import CenterSpatialCrop
+from monai.transforms.croppad.array import CenterSpatialCrop, Pad
 from monai.transforms.transform import (
     Randomizable,
     RandomizableTransform,
@@ -519,7 +519,7 @@ class Rotate(ToDoTransform, ThreadUnsafe):
         return self._rotation_matrix
 
 
-class Zoom(ToDoTransform):
+class Zoom(TorchTransform):
     """
     Zooms an ND image using :py:class:`torch.nn.functional.interpolate`.
     For details, please see https://pytorch.org/docs/stable/nn.functional.html#interpolate.
@@ -560,11 +560,11 @@ class Zoom(ToDoTransform):
 
     def __call__(
         self,
-        img: np.ndarray,
+        img: DataObjects.Images,
         mode: Optional[Union[InterpolateMode, str]] = None,
         padding_mode: Optional[Union[NumpyPadMode, str]] = None,
         align_corners: Optional[bool] = None,
-    ):
+    ) -> DataObjects.Images:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]).
@@ -580,31 +580,37 @@ class Zoom(ToDoTransform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
 
         """
-        _zoom = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
+        img_t: torch.Tensor
+        img_t, orig_type, orig_device = self.pre_conv_data(img)  # type: ignore
+
+        _zoom = ensure_tuple_rep(self.zoom, img_t.ndim - 1)  # match the spatial image dim
         zoomed = torch.nn.functional.interpolate(  # type: ignore
             recompute_scale_factor=True,
-            input=torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0),
+            input=img_t.float().unsqueeze(0),
             scale_factor=list(_zoom),
             mode=self.mode.value if mode is None else InterpolateMode(mode).value,
             align_corners=self.align_corners if align_corners is None else align_corners,
         )
-        zoomed = zoomed.squeeze(0).detach().cpu().numpy()
-        if not self.keep_size or np.allclose(img.shape, zoomed.shape):
-            return zoomed
+        zoomed = zoomed.squeeze(0)
 
-        pad_vec = [[0, 0]] * len(img.shape)
-        slice_vec = [slice(None)] * len(img.shape)
-        for idx, (od, zd) in enumerate(zip(img.shape, zoomed.shape)):
-            diff = od - zd
-            half = abs(diff) // 2
-            if diff > 0:  # need padding
-                pad_vec[idx] = [half, diff - half]
-            elif diff < 0:  # need slicing
-                slice_vec[idx] = slice(half, half + od)
+        if self.keep_size and not np.allclose(img_t.shape, zoomed.shape):
 
-        padding_mode = self.padding_mode if padding_mode is None else NumpyPadMode(padding_mode)
-        zoomed = np.pad(zoomed, pad_vec, mode=padding_mode.value)
-        return zoomed[tuple(slice_vec)]
+            pad_vec = [[0, 0]] * len(img_t.shape)
+            slice_vec = [slice(None)] * len(img_t.shape)
+            for idx, (od, zd) in enumerate(zip(img_t.shape, zoomed.shape)):
+                diff = od - zd
+                half = abs(diff) // 2
+                if diff > 0:  # need padding
+                    pad_vec[idx] = [half, diff - half]
+                elif diff < 0:  # need slicing
+                    slice_vec[idx] = slice(half, half + od)
+
+            padder = Pad(pad_vec, padding_mode or self.padding_mode)
+            zoomed = padder(zoomed)
+            zoomed = zoomed[tuple(slice_vec)]
+
+
+        return self.post_convert_data(zoomed, orig_type, orig_device)
 
 
 class Rotate90(TorchOrNumpyTransform):
@@ -837,7 +843,7 @@ class RandAxisFlip(TorchTransform, RandomizableTransform):
         return flipper(img)
 
 
-class RandZoom(ToDoTransform, RandomizableTransform):
+class RandZoom(TorchTransform, RandomizableTransform):
     """
     Randomly zooms input arrays with given probability within given zoom range.
 
@@ -894,11 +900,11 @@ class RandZoom(ToDoTransform, RandomizableTransform):
 
     def __call__(
         self,
-        img: np.ndarray,
+        img: DataObjects.Images,
         mode: Optional[Union[InterpolateMode, str]] = None,
         padding_mode: Optional[Union[NumpyPadMode, str]] = None,
         align_corners: Optional[bool] = None,
-    ) -> np.ndarray:
+    ) -> DataObjects.Images:
         """
         Args:
             img: channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
@@ -915,25 +921,17 @@ class RandZoom(ToDoTransform, RandomizableTransform):
         """
         # match the spatial image dim
         self.randomize()
-        _dtype = np.float32
         if not self._do_transform:
-            return img.astype(_dtype)
-        if len(self._zoom) == 1:
-            # to keep the spatial shape ratio, use same random zoom factor for all dims
-            self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 1)
-        elif len(self._zoom) == 2 and img.ndim > 3:
-            # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
-            self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 2) + ensure_tuple(self._zoom[-1])
-        zoomer = Zoom(self._zoom, keep_size=self.keep_size)
-        return np.asarray(
-            zoomer(
-                img,
-                mode=mode or self.mode,
-                padding_mode=padding_mode or self.padding_mode,
-                align_corners=self.align_corners if align_corners is None else align_corners,
-            ),
-            dtype=_dtype,
-        )
+            return img
+        if self._do_transform:
+            if len(self._zoom) == 1:
+                # to keep the spatial shape ratio, use same random zoom factor for all dims
+                self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 1)
+            elif len(self._zoom) == 2 and img.ndim > 3:
+                # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
+                self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 2) + ensure_tuple(self._zoom[-1])
+            zoomer = Zoom(self._zoom, keep_size=self.keep_size, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode, align_corners=align_corners or self.align_corners)
+            return zoomer(img)
 
 
 class AffineGrid(ToDoTransform):
