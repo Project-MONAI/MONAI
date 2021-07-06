@@ -12,6 +12,7 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import RandGaussianSharpen
@@ -24,7 +25,7 @@ for p in TEST_NDARRAYS:
         [
             {"prob": 1.0},
             p([[[1, 1, 1], [2, 2, 2], [3, 3, 3]], [[4, 4, 4], [5, 5, 5], [6, 6, 6]]]),
-            np.array(
+            p(
                 [
                     [
                         [5.2919216, 5.5854445, 5.29192],
@@ -53,7 +54,7 @@ for p in TEST_NDARRAYS:
                 "prob": 1.0,
             },
             p([[[1, 1, 1], [2, 2, 2], [3, 3, 3]], [[4, 4, 4], [5, 5, 5], [6, 6, 6]]]),
-            np.array(
+            p(
                 [
                     [
                         [4.1071496, 3.597953, 4.1071477],
@@ -82,7 +83,7 @@ for p in TEST_NDARRAYS:
                 "prob": 1.0,
             },
             p([[[1, 1, 1], [2, 2, 2], [3, 3, 3]], [[4, 4, 4], [5, 5, 5], [6, 6, 6]]]),
-            np.array(
+            p(
                 [
                     [
                         [4.81077, 4.4237204, 4.81077],
@@ -112,7 +113,7 @@ for p in TEST_NDARRAYS:
                 "prob": 1.0,
             },
             p([[[1, 1, 1], [2, 2, 2], [3, 3, 3]], [[4, 4, 4], [5, 5, 5], [6, 6, 6]]]),
-            np.array(
+            p(
                 [
                     [
                         [4.430213, 3.2278745, 4.4302144],
@@ -132,7 +133,7 @@ class TestRandGaussianSharpen(unittest.TestCase):
         converter = RandGaussianSharpen(**argments)
         converter.set_random_state(seed=0)
         result = converter(image)
-        np.testing.assert_allclose(result, expected_data, rtol=1e-4)
+        torch.testing.assert_allclose(result, expected_data, atol=0, rtol=1e-4)
         self.assertIsInstance(result, type(image))
 
 
