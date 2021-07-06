@@ -69,6 +69,9 @@ jobs:
       #       PROJECTS=$(mvn -am dependency:tree | grep maven-dependency-plugin | awk '{ out="com.nvidia:"$(NF-1);print out }' | grep rapids | xargs | sed -e 's/ /,/g')
       #       echo detect.maven.build.command="-pl=$PROJECTS -am" >> application.properties
       #       echo detect.maven.included.scopes=compile >> application.properties
+      - name: Setup blackduck properties
+        run: |
+             echo detect.excluded.detector.types=PIP >> application.properties
 
       - name: Run blossom action
         uses: NVIDIA/blossom-action@main
