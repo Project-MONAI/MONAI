@@ -70,7 +70,7 @@ def convert_data_type(
             data = data.astype(dtype)  # type: ignore
 
     if isinstance(data, torch.Tensor) and device is not None:
-        data.to(device)
+        data = data.to(device)
 
     return data, orig_type, orig_device
 

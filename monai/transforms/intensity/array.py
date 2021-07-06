@@ -851,7 +851,7 @@ class MaskIntensity(TorchOrNumpyTransform):
                 "When mask_data is not single channel, mask_data channels must match img, "
                 f"got img={img.shape[0]} mask_data={mask_data_.shape[0]}."
             )
-        mask_data_, *_ = convert_data_type(mask_data_, type(img))
+        mask_data_, *_ = convert_data_type(mask_data_, type(img), device=img.device if isinstance(img, torch.Tensor) else None)
         return img * mask_data_
 
 
