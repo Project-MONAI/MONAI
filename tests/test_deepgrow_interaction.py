@@ -18,6 +18,7 @@ from monai.apps.deepgrow.interaction import Interaction
 from monai.apps.deepgrow.transforms import (
     AddGuidanceSignald,
     AddInitialSeedPointd,
+    AddRandomGuidanced,
     FindAllValidSlicesd,
     FindDiscrepancyRegionsd,
 )
@@ -56,12 +57,13 @@ class TestInteractions(unittest.TestCase):
             Activationsd(keys="pred", sigmoid=True),
             ToNumpyd(keys=["image", "label", "pred", "guidance"]),
             FindDiscrepancyRegionsd(label="label", pred="pred", discrepancy="discrepancy"),
+            AddRandomGuidanced(guidance='guidance', discrepancy='discrepancy', probability='probability'),
             AddGuidanceSignald(image="image", guidance="guidance"),
         ]
         iteration_transforms = Compose(iteration_transforms) if compose else iteration_transforms
 
         i = Interaction(transforms=iteration_transforms, train=train, max_interactions=5)
-        self.assertEqual(len(i.transforms.transforms), 4, "Mismatch in expected transforms")
+        self.assertEqual(len(i.transforms.transforms), 5, "Mismatch in expected transforms")
 
         # set up engine
         engine = SupervisedTrainer(

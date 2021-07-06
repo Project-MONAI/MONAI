@@ -224,12 +224,6 @@ class FindDiscrepancyRegionsd(Transform):
     """
     Find discrepancy between prediction and actual during click interactions during training.
 
-    If batched is true:
-
-        label is in shape (B, C, D, H, W) or (B, C, H, W)
-        pred has same shape as label
-        discrepancy will have shape (B, 2, C, D, H, W) or (B, 2, C, H, W)
-
     Args:
         label: key to label source.
         pred: key to prediction source.
@@ -269,23 +263,9 @@ class FindDiscrepancyRegionsd(Transform):
 class AddRandomGuidanced(Randomizable, Transform):
     """
     Add random guidance based on discrepancies that were found between label and prediction.
-
-    If batched is True, input shape is as below:
-
-        Guidance is of shape (B, 2, N, # of dim) where B is batch size, 2 means positive and negative,
-        N means how many guidance points, # of dim is the total number of dimensions of the image
-        (for example if the image is CDHW, then # of dim would be 4).
-
-        Discrepancy is of shape (B, 2, C, D, H, W) or (B, 2, C, H, W)
-
-        Probability is of shape (B, 1)
-
-    else:
-
+    input shape is as below:
         Guidance is of shape (2, N, # of dim)
-
         Discrepancy is of shape (2, C, D, H, W) or (2, C, H, W)
-
         Probability is of shape (1)
 
     Args:
