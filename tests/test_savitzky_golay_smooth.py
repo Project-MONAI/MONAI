@@ -13,6 +13,7 @@ import unittest
 
 import numpy as np
 from parameterized import parameterized
+import torch
 
 from monai.transforms import SavitzkyGolaySmooth
 from tests.utils import TEST_NDARRAYS
@@ -60,8 +61,9 @@ TEST_CASE_SINE_SMOOTH = [
 class TestSavitzkyGolaySmooth(unittest.TestCase):
     @parameterized.expand([TEST_CASE_SINGLE_VALUE, TEST_CASE_2D_AXIS_2, TEST_CASE_SINE_SMOOTH])
     def test_value(self, arguments, image, expected_data, atol):
-        result = SavitzkyGolaySmooth(**arguments)(image)
-        np.testing.assert_allclose(result, expected_data, atol=atol)
+        for p in TEST_NDARRAYS:
+            result = SavitzkyGolaySmooth(**arguments)(p(image))
+            torch.testing.assert_allclose(result, p(expected_data.astype(np.float32)), rtol=1e-7, atol=atol)
 
 
 class TestSavitzkyGolaySmoothREP(unittest.TestCase):
@@ -69,4 +71,7 @@ class TestSavitzkyGolaySmoothREP(unittest.TestCase):
     def test_value(self, arguments, image, expected_data, atol):
         for p in TEST_NDARRAYS:
             result = SavitzkyGolaySmooth(**arguments)(p(image))
-            np.testing.assert_allclose(result, expected_data, atol=atol)
+            torch.testing.assert_allclose(result, p(expected_data.astype(np.float32)), rtol=1e-7, atol=atol)
+
+if __name__ == "__main__":
+    unittest.main()
