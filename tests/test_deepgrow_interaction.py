@@ -12,16 +12,23 @@
 import unittest
 
 import torch
+import numpy as np
 
 from monai.apps.deepgrow.interaction import Interaction
+from monai.apps.deepgrow.transforms import (
+    AddInitialSeedPointd,
+    AddGuidanceSignald,
+    FindAllValidSlicesd,
+    FindDiscrepancyRegionsd,
+)
 from monai.data import Dataset
 from monai.engines import SupervisedTrainer
 from monai.engines.utils import IterationEvents
-from monai.transforms import Activationsd, Compose, ToNumpyd
+from monai.transforms import Activationsd, Compose, ToNumpyd, ToTensord
 
 
 def add_one(engine):
-    if engine.state.best_metric is -1:
+    if engine.state.best_metric == -1:
         engine.state.best_metric = 0
     else:
         engine.state.best_metric = engine.state.best_metric + 1
@@ -31,19 +38,30 @@ class TestInteractions(unittest.TestCase):
     def run_interaction(self, train, compose):
         data = []
         for i in range(5):
-            data.append({"image": torch.tensor([float(i)]), "label": torch.tensor([float(i)])})
-        network = torch.nn.Linear(1, 1)
+            data.append({"image": np.ones((1, 2, 2, 2)).astype(np.float32), "label": np.ones((1, 2, 2, 2))})
+        network = torch.nn.PReLU()
         lr = 1e-3
         opt = torch.optim.SGD(network.parameters(), lr)
         loss = torch.nn.L1Loss()
-        dataset = Dataset(data, transform=None)
+        train_transforms = Compose([
+            FindAllValidSlicesd(label='label', sids='sids'),
+            AddInitialSeedPointd(label='label', guidance='guidance', sids='sids'),
+            AddGuidanceSignald(image='image', guidance='guidance'),
+            ToTensord(keys=('image', 'label')),
+        ])
+        dataset = Dataset(data, transform=train_transforms)
         data_loader = torch.utils.data.DataLoader(dataset, batch_size=5)
 
-        iteration_transforms = [Activationsd(keys="pred", sigmoid=True), ToNumpyd(keys="pred")]
+        iteration_transforms = [
+            Activationsd(keys="pred", sigmoid=True),
+            ToNumpyd(keys=['image', 'label', 'pred', 'guidance']),
+            FindDiscrepancyRegionsd(label='label', pred='pred', discrepancy='discrepancy'),
+            AddGuidanceSignald(image='image', guidance='guidance'),
+        ]
         iteration_transforms = Compose(iteration_transforms) if compose else iteration_transforms
 
         i = Interaction(transforms=iteration_transforms, train=train, max_interactions=5)
-        self.assertEqual(len(i.transforms.transforms), 2, "Mismatch in expected transforms")
+        self.assertEqual(len(i.transforms.transforms), 4, "Mismatch in expected transforms")
 
         # set up engine
         engine = SupervisedTrainer(

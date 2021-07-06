@@ -159,7 +159,7 @@ class AddGuidanceSignald(Transform):
         guidance: key to store guidance.
         sigma: standard deviation for Gaussian kernel.
         number_intensity_ch: channel index.
-        batched: whether input is batched or not.
+
     """
 
     def __init__(
@@ -168,13 +168,11 @@ class AddGuidanceSignald(Transform):
         guidance: str = "guidance",
         sigma: int = 2,
         number_intensity_ch: int = 1,
-        batched: bool = False,
     ):
         self.image = image
         self.guidance = guidance
         self.sigma = sigma
         self.number_intensity_ch = number_intensity_ch
-        self.batched = batched
 
     def _get_signal(self, image, guidance):
         dimensions = 3 if len(image.shape) > 3 else 2
@@ -210,16 +208,8 @@ class AddGuidanceSignald(Transform):
         return signal
 
     def _apply(self, image, guidance):
-        if not self.batched:
-            signal = self._get_signal(image, guidance)
-            return np.concatenate([image, signal], axis=0)
-
-        images = []
-        for i, g in zip(image, guidance):
-            i = i[0 : 0 + self.number_intensity_ch, ...]
-            signal = self._get_signal(i, g)
-            images.append(np.concatenate([i, signal], axis=0))
-        return images
+        signal = self._get_signal(image, guidance)
+        return np.concatenate([image, signal], axis=0)
 
     def __call__(self, data):
         d = dict(data)
@@ -244,7 +234,7 @@ class FindDiscrepancyRegionsd(Transform):
         label: key to label source.
         pred: key to prediction source.
         discrepancy: key to store discrepancies found between label and prediction.
-        batched: whether input is batched or not.
+
     """
 
     def __init__(
@@ -253,7 +243,6 @@ class FindDiscrepancyRegionsd(Transform):
         self.label = label
         self.pred = pred
         self.discrepancy = discrepancy
-        self.batched = batched
 
     @staticmethod
     def disparity(label, pred):
@@ -266,13 +255,7 @@ class FindDiscrepancyRegionsd(Transform):
         return [pos_disparity, neg_disparity]
 
     def _apply(self, label, pred):
-        if not self.batched:
-            return self.disparity(label, pred)
-
-        disparity = []
-        for la, pr in zip(label, pred):
-            disparity.append(self.disparity(la, pr))
-        return disparity
+        return self.disparity(label, pred)
 
     def __call__(self, data):
         d = dict(data)
@@ -309,7 +292,7 @@ class AddRandomGuidanced(Randomizable, Transform):
         guidance: key to guidance source.
         discrepancy: key that represents discrepancies found between label and prediction.
         probability: key that represents click/interaction probability.
-        batched: whether input is batched or not.
+
     """
 
     def __init__(
@@ -317,22 +300,15 @@ class AddRandomGuidanced(Randomizable, Transform):
         guidance: str = "guidance",
         discrepancy: str = "discrepancy",
         probability: str = "probability",
-        batched: bool = True,
     ):
         self.guidance = guidance
         self.discrepancy = discrepancy
         self.probability = probability
-        self.batched = batched
         self._will_interact = None
 
     def randomize(self, data=None):
         probability = data[self.probability]
-        if not self.batched:
-            self._will_interact = self.R.choice([True, False], p=[probability, 1.0 - probability])
-        else:
-            self._will_interact = []
-            for p in probability:
-                self._will_interact.append(self.R.choice([True, False], p=[p, 1.0 - p]))
+        self._will_interact = self.R.choice([True, False], p=[probability, 1.0 - probability])
 
     def find_guidance(self, discrepancy):
         distance = distance_transform_cdt(discrepancy).flatten()
@@ -368,23 +344,14 @@ class AddRandomGuidanced(Randomizable, Transform):
 
     def _apply(self, guidance, discrepancy):
         guidance = guidance.tolist() if isinstance(guidance, np.ndarray) else guidance
-        if not self.batched:
-            pos, neg = self.add_guidance(discrepancy, self._will_interact)
-            if pos:
-                guidance[0].append(pos)
-                guidance[1].append([-1] * len(pos))
-            if neg:
-                guidance[0].append([-1] * len(neg))
-                guidance[1].append(neg)
-        else:
-            for g, d, w in zip(guidance, discrepancy, self._will_interact):
-                pos, neg = self.add_guidance(d, w)
-                if pos:
-                    g[0].append(pos)
-                    g[1].append([-1] * len(pos))
-                if neg:
-                    g[0].append([-1] * len(neg))
-                    g[1].append(neg)
+        pos, neg = self.add_guidance(discrepancy, self._will_interact)
+        if pos:
+            guidance[0].append(pos)
+            guidance[1].append([-1] * len(pos))
+        if neg:
+            guidance[0].append([-1] * len(neg))
+            guidance[1].append(neg)
+
         return np.asarray(guidance)
 
     def __call__(self, data):
