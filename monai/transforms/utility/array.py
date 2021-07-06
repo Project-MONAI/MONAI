@@ -25,7 +25,7 @@ import torch
 from monai.config import DtypeLike, NdarrayTensor
 from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import convert_to_tensor, extreme_points_to_image, get_extreme_points, map_binary_to_indices
-from monai.utils import deprecated, ensure_tuple, issequenceiterable, min_version, optional_import
+from monai.utils import ensure_tuple, issequenceiterable, min_version, optional_import
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
@@ -298,7 +298,6 @@ class CastToType(Transform):
         raise TypeError(f"img must be one of (numpy.ndarray, torch.Tensor) but is {type(img).__name__}.")
 
 
-@deprecated(since="0.6.0", removed="0.7.0", msg_suffix="Please consider using `EnsureTensor` transform instead.")
 class ToTensor(Transform):
     """
     Converts the input image to a tensor without applying any other transformations.

@@ -53,7 +53,7 @@ from monai.transforms.utility.array import (
     Transpose,
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points, tensor_to_numpy
-from monai.utils import deprecated, ensure_tuple, ensure_tuple_rep
+from monai.utils import ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import InverseKeys
 
 __all__ = [
@@ -413,7 +413,6 @@ class CastToTyped(MapTransform):
         return d
 
 
-@deprecated(since="0.6.0", removed="0.7.0", msg_suffix="Please consider using `EnsureTensord` transform instead.")
 class ToTensord(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ToTensor`.
