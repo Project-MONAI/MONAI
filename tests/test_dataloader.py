@@ -48,7 +48,7 @@ class TestDataLoader(unittest.TestCase):
             ]
         )
         dataset = CacheDataset(data=datalist, transform=transform, cache_rate=0.5, cache_num=1)
-        n_workers = 0 if sys.platform == "win32" else 2
+        n_workers = 2 if sys.platform == "linux" else 0
         dataloader = DataLoader(dataset=dataset, batch_size=2, num_workers=n_workers)
         for d in dataloader:
             self.assertEqual(d["image"][0], "spleen_19.nii.gz")

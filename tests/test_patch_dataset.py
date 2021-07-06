@@ -32,7 +32,7 @@ class TestPatchDataset(unittest.TestCase):
         result = PatchDataset(dataset=test_dataset, patch_func=identity, samples_per_image=n_per_image)
 
         output = []
-        n_workers = 0 if sys.platform == "win32" else 2
+        n_workers = 2 if sys.platform == "linux" else 0
         for item in DataLoader(result, batch_size=3, num_workers=n_workers):
             output.append("".join(item))
         expected = ["vwx", "yzh", "ell", "owo", "rld"]

@@ -634,7 +634,7 @@ class TestInverse(unittest.TestCase):
 
         batch_size = 10
         # num workers = 0 for mac
-        num_workers = 2 if sys.platform != "darwin" else 0
+        num_workers = 2 if sys.platform == "linux" else 0
         transforms = Compose(
             [
                 AddChanneld(KEYS),

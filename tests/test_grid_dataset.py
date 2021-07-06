@@ -36,7 +36,7 @@ class TestGridPatchDataset(unittest.TestCase):
         test_dataset = ["vwxyz", "helloworld", "worldfoobar"]
         result = GridPatchDataset(dataset=test_dataset, patch_iter=identity_generator, with_coordinates=False)
         output = []
-        n_workers = 0 if sys.platform == "win32" else 2
+        n_workers = 2 if sys.platform == "linux" else 0
         for item in DataLoader(result, batch_size=3, num_workers=n_workers):
             output.append("".join(item))
         expected = ["vwx", "wor", "yzh", "ldf", "ell", "oob", "owo", "ar", "rld"]
