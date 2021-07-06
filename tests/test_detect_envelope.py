@@ -12,6 +12,7 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import DetectEnvelope
@@ -133,7 +134,7 @@ class TestDetectEnvelope(unittest.TestCase):
     def test_value(self, arguments, image, expected_data, atol):
         for p in TEST_NDARRAYS:
             result = DetectEnvelope(**arguments)(p(image))
-            np.testing.assert_allclose(result, expected_data, atol=atol)
+            torch.testing.assert_allclose(result, p(expected_data.astype(np.float32)), atol=atol, rtol=1e-7)
 
     @parameterized.expand(
         [
