@@ -12,6 +12,7 @@
 import unittest
 
 import numpy as np
+import torch
 
 from monai.transforms import RandScaleIntensity
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D
@@ -24,8 +25,8 @@ class TestRandScaleIntensity(NumpyImageTestCase2D):
             scaler.set_random_state(seed=0)
             result = scaler(p(self.imt))
             np.random.seed(0)
-            expected = (self.imt * (1 + np.random.uniform(low=-0.5, high=0.5))).astype(np.float32)
-            np.testing.assert_allclose(result, expected)
+            expected = p((self.imt * (1 + np.random.uniform(low=-0.5, high=0.5))).astype(np.float32))
+            torch.testing.assert_allclose(result, expected, rtol=1e-7, atol=0)
 
 
 if __name__ == "__main__":
