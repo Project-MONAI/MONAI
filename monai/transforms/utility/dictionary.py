@@ -52,7 +52,7 @@ from monai.transforms.utility.array import (
     ToTensor,
     Transpose,
 )
-from monai.transforms.utils import extreme_points_to_image, get_extreme_points
+from monai.transforms.utils import extreme_points_to_image, get_extreme_points, tensor_to_numpy
 from monai.utils import deprecated, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import InverseKeys
 
@@ -472,22 +472,9 @@ class EnsureTensord(MapTransform, InvertibleTransform):
 
     def inverse(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
         d = deepcopy(dict(data))
-
-        def _convert(data):
-            if isinstance(data, torch.Tensor):
-                # invert Tensor to numpy, if scalar data, convert to number
-                return data.item() if data.ndim == 0 else ToNumpy()(data)
-            elif isinstance(data, dict):
-                return {k: _convert(v) for k, v in data.items()}
-            elif isinstance(data, list):
-                return [_convert(i) for i in data]
-            elif isinstance(data, tuple):
-                return tuple([_convert(i) for i in data])
-            return data
-
         for key in self.key_iterator(d):
             # Apply inverse
-            d[key] = _convert(d[key])
+            d[key] = tensor_to_numpy(d[key])
             # Remove the applied transform
             self.pop_transform(d, key)
         return d

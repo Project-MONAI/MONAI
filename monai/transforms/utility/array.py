@@ -25,7 +25,12 @@ import torch
 
 from monai.config import DtypeLike, NdarrayTensor
 from monai.transforms.transform import Randomizable, Transform
-from monai.transforms.utils import extreme_points_to_image, get_extreme_points, map_binary_to_indices
+from monai.transforms.utils import (
+    convert_to_tensor,
+    extreme_points_to_image,
+    get_extreme_points,
+    map_binary_to_indices,
+)
 from monai.utils import deprecated, ensure_tuple, issequenceiterable, min_version, optional_import
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
@@ -334,25 +339,7 @@ class EnsureTensor(Transform):
                 for dictionay, list or tuple, ensure every item as a Tensor if applicable.
 
         """
-        if isinstance(data, torch.Tensor):
-            return data.contiguous()
-        elif isinstance(data, np.ndarray):
-            # skip array of string classes and object, refer to:
-            # https://github.com/pytorch/pytorch/blob/v1.9.0/torch/utils/data/_utils/collate.py#L13
-            if re.search(r"[SaUO]", data.dtype.str) is None:
-                # numpy array with 0 dims is also sequence iterable,
-                # `ascontiguousarray` will add 1 dim if img has no dim, so we only apply on data with dims
-                return torch.as_tensor(data if data.ndim == 0 else np.ascontiguousarray(data))
-        elif isinstance(data, (float, int, bool)):
-            return torch.as_tensor(data)
-        elif isinstance(data, dict):
-            return {k: self.__call__(v) for k, v in data.items()}
-        elif isinstance(data, list):
-            return [self.__call__(i) for i in data]
-        elif isinstance(data, tuple):
-            return tuple([self.__call__(i) for i in data])
-
-        return data
+        return convert_to_tensor(data)
 
 
 class ToNumpy(Transform):

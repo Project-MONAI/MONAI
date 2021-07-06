@@ -425,6 +425,7 @@ from .utils import (
     allow_missing_keys_mode,
     compute_divisible_spatial_size,
     convert_inverse_interp_mode,
+    convert_to_tensor,
     copypaste_arrays,
     create_control_grid,
     create_grid,
@@ -448,6 +449,7 @@ from .utils import (
     rescale_array_int_max,
     rescale_instance_array,
     resize_center,
+    tensor_to_numpy,
     weighted_patch_samples,
     zero_margins,
 )
