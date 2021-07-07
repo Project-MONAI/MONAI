@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [0.6.0] - 2021-07-08
 ### Added
 * 10 new transforms, a masked loss wrapper, and a `NetAdapter` for transfer learning
-* APIs to load networks and pre-trained weights from Clara Train Medical Model ARchives (MMARs)
+* APIs to load networks and pre-trained weights from Clara Train [Medical Model ARchives (MMARs)](https://docs.nvidia.com/clara/clara-train-sdk/pt/mmar.html)
 * Base metric and cumulative metric APIs, 4 new regression metrics
 * Initial CSV dataset support
 * Decollating mini-batch as the default first postprocessing step
@@ -36,8 +36,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Support of 'batched' input for postprocessing transforms and event handlers
 * `TorchVisionFullyConvModel`
 * `set_visible_devices` utility function
-* `SegmentationSaver` and `TransformsInverter` handlers 
-* `ToTensor` transform
+* `SegmentationSaver` and `TransformsInverter` handlers
 ### Fixed
 * Issue of handling big-endian image headers
 * Multi-thread issue for non-random transforms in the cache-based datasets
