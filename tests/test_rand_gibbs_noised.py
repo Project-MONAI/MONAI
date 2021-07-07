@@ -19,12 +19,16 @@ from parameterized import parameterized
 from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 from monai.transforms import RandGibbsNoised
 from monai.utils.misc import set_determinism
+from monai.utils.module import optional_import
+from tests.utils import TEST_NDARRAYS
+
+has_torch_fft, _ = optional_import("torch.fft")
 
 TEST_CASES = []
 for shape in ((128, 64), (64, 48, 80)):
     for as_tensor_output in (True, False):
-        for as_tensor_input in (True, False):
-            TEST_CASES.append((shape, as_tensor_output, as_tensor_input))
+        for input_type in TEST_NDARRAYS if has_torch_fft else [np.array]:
+            TEST_CASES.append((shape, as_tensor_output, input_type))
 
 KEYS = ["im", "label"]
 
@@ -38,24 +42,22 @@ class TestRandGibbsNoised(unittest.TestCase):
         set_determinism(None)
 
     @staticmethod
-    def get_data(im_shape, as_tensor_input):
+    def get_data(im_shape, input_type):
         create_test_image = create_test_image_2d if len(im_shape) == 2 else create_test_image_3d
-        ims = create_test_image(*im_shape, 4, 20, 0, 5)
-        ims = [torch.Tensor(im) for im in ims] if as_tensor_input else ims
-        return {k: v for k, v in zip(KEYS, ims)}
+        return {k: input_type(create_test_image(*im_shape, 4, 20, 0, 5)[0]) for k in KEYS}
 
     @parameterized.expand(TEST_CASES)
-    def test_0_prob(self, im_shape, as_tensor_output, as_tensor_input):
-        data = self.get_data(im_shape, as_tensor_input)
+    def test_0_prob(self, im_shape, as_tensor_output, input_type):
+        data = self.get_data(im_shape, input_type)
         alpha = [0.5, 1.0]
         t = RandGibbsNoised(KEYS, 0.0, alpha, as_tensor_output)
         out = t(data)
         for k in KEYS:
-            np.testing.assert_allclose(data[k], out[k])
+            torch.testing.assert_allclose(data[k], out[k], rtol=1e-7, atol=0)
 
     @parameterized.expand(TEST_CASES)
-    def test_same_result(self, im_shape, as_tensor_output, as_tensor_input):
-        data = self.get_data(im_shape, as_tensor_input)
+    def test_same_result(self, im_shape, as_tensor_output, input_type):
+        data = self.get_data(im_shape, input_type)
         alpha = [0.5, 0.8]
         t = RandGibbsNoised(KEYS, 1.0, alpha, as_tensor_output)
         t.set_random_state(42)
@@ -63,45 +65,44 @@ class TestRandGibbsNoised(unittest.TestCase):
         t.set_random_state(42)
         out2 = t(deepcopy(data))
         for k in KEYS:
-            np.testing.assert_allclose(out1[k], out2[k])
+            torch.testing.assert_allclose(out1[k], out2[k], rtol=1e-7, atol=0)
             self.assertIsInstance(out1[k], type(data[k]))
 
     @parameterized.expand(TEST_CASES)
-    def test_identity(self, im_shape, _, as_tensor_input):
-        data = self.get_data(im_shape, as_tensor_input)
+    def test_identity(self, im_shape, _, input_type):
+        data = self.get_data(im_shape, input_type)
         alpha = [0.0, 0.0]
         t = RandGibbsNoised(KEYS, 1.0, alpha)
         out = t(deepcopy(data))
         for k in KEYS:
-            np.testing.assert_allclose(data[k], out[k], atol=1e-2)
+            torch.testing.assert_allclose(data[k], out[k], atol=1e-2, rtol=1e-7)
 
     @parameterized.expand(TEST_CASES)
-    def test_alpha_1(self, im_shape, _, as_tensor_input):
-        data = self.get_data(im_shape, as_tensor_input)
+    def test_alpha_1(self, im_shape, _, input_type):
+        data = self.get_data(im_shape, input_type)
         alpha = [1.0, 1.0]
         t = RandGibbsNoised(KEYS, 1.0, alpha)
         out = t(deepcopy(data))
         for k in KEYS:
-            np.testing.assert_allclose(0 * data[k], out[k])
+            torch.testing.assert_allclose(0 * data[k], out[k], rtol=1e-7, atol=0)
 
     @parameterized.expand(TEST_CASES)
-    def test_dict_matches(self, im_shape, _, as_tensor_input):
-        data = self.get_data(im_shape, as_tensor_input)
+    def test_dict_matches(self, im_shape, _, input_type):
+        data = self.get_data(im_shape, input_type)
         # use same image for both dictionary entries to check same trans is applied to them
         data = {KEYS[0]: deepcopy(data[KEYS[0]]), KEYS[1]: deepcopy(data[KEYS[0]])}
         alpha = [0.5, 1.0]
         t = RandGibbsNoised(KEYS, 1.0, alpha)
         out = t(deepcopy(data))
-        np.testing.assert_allclose(out[KEYS[0]], out[KEYS[1]])
+        torch.testing.assert_allclose(out[KEYS[0]], out[KEYS[1]], rtol=1e-7, atol=0)
 
     @parameterized.expand(TEST_CASES)
-    def test_alpha(self, im_shape, _, as_tensor_input):
-        data = self.get_data(im_shape, as_tensor_input)
+    def test_alpha(self, im_shape, _, input_type):
+        data = self.get_data(im_shape, input_type)
         alpha = [0.5, 0.51]
         t = RandGibbsNoised(KEYS, 1.0, alpha)
         _ = t(deepcopy(data))
-        self.assertGreaterEqual(t.sampled_alpha, 0.5)
-        self.assertLessEqual(t.sampled_alpha, 0.51)
+        self.assertTrue(0.5 <= t.sampled_alpha <= 0.51)
 
 
 if __name__ == "__main__":

@@ -1323,7 +1323,7 @@ class GibbsNoise(TorchOrNumpyTransform):
         mask = np.repeat(mask[None], k.shape[0], axis=0)
 
         if data_type is torch.Tensor:
-            mask = torch.Tensor(mask)
+            mask = torch.Tensor(mask).to(k.device)  # type: ignore
 
         # apply binary mask
         out: DataObjects.Images = k * mask  # type: ignore
