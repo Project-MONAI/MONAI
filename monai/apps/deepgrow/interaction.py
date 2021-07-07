@@ -74,12 +74,14 @@ class Interaction:
             batchdata.update({CommonKeys.PRED: predictions})
 
             # decollate batch data to execute click transforms
-            batchdata = decollate_batch(batchdata, detach=True)
-            for i in range(len(batchdata)):
-                batchdata[i][self.key_probability] = (1.0 - ((1.0 / self.max_interactions) * j)) if self.train else 1.0
-                batchdata[i] = self.transforms(batchdata[i])
+            batchdata_list = decollate_batch(batchdata, detach=True)
+            for i in range(len(batchdata_list)):
+                batchdata_list[i][self.key_probability] = (
+                    (1.0 - ((1.0 / self.max_interactions) * j)) if self.train else 1.0
+                )
+                batchdata_list[i] = self.transforms(batchdata_list[i])
 
             # collate list into a batch for next round interaction
-            batchdata = list_data_collate(batchdata)
+            batchdata = list_data_collate(batchdata_list)
 
         return engine._iteration(engine, batchdata)
