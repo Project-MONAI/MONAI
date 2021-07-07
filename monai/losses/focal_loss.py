@@ -22,7 +22,7 @@ from monai.utils import LossReduction
 
 class FocalLoss(_Loss):
     """
-    Reimplementation of the Focal Loss described in:
+    Reimplementation of the Focal Loss (with a build-in sigmoid activation) described in:
 
         - "Focal Loss for Dense Object Detection", T. Lin et al., ICCV 2017
         - "AnatomyNet: Deep learning for fast and fully automated whole‐volume segmentation of head and neck anatomy",
@@ -77,12 +77,12 @@ class FocalLoss(_Loss):
         """
         Args:
             input: the shape should be BNH[WD], where N is the number of classes.
-                The input should be the original logits since it will be transferred by
-                `F.log_softmax` in the forward function.
+                The input should be the original logits since it will be transformed by
+                a sigmoid in the forward function.
             target: the shape should be BNH[WD] or B1H[WD], where N is the number of classes.
 
         Raises:
-            AssertionError: When input and target (after one hot transform if setted)
+            ValueError: When input and target (after one hot transform if set)
                 have different shapes.
             ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
             ValueError: When ``self.weight`` is a sequence and the length is not equal to the
@@ -107,7 +107,7 @@ class FocalLoss(_Loss):
                 input = input[:, 1:]
 
         if target.shape != input.shape:
-            raise AssertionError(f"ground truth has different shape ({target.shape}) from input ({input.shape})")
+            raise ValueError(f"ground truth has different shape ({target.shape}) from input ({input.shape})")
 
         i = input
         t = target
@@ -117,10 +117,10 @@ class FocalLoss(_Loss):
         i = i.reshape(b, n, -1)
         t = t.reshape(b, n, -1)
 
-        # Compute the log proba.
-        logpt = F.log_softmax(i, dim=1)
-        # Get the proba
-        pt = torch.exp(logpt)  # B,H*W or B,N,H*W
+        # computing binary cross entropy with logits
+        # see also https://github.com/pytorch/pytorch/blob/v1.9.0/aten/src/ATen/native/Loss.cpp#L231
+        max_val = (-i).clamp(min=0)
+        ce = i - i * t + max_val + ((-max_val).exp() + (-i - max_val).exp()).log()
 
         if self.weight is not None:
             class_weight: Optional[torch.Tensor] = None
@@ -142,11 +142,13 @@ class FocalLoss(_Loss):
             at = class_weight[None, :, None]  # N => 1,N,1
             at = at.expand((t.size(0), -1, t.size(2)))  # 1,N,1 => B,N,H*W
             # Multiply the log proba by their weights.
-            logpt = logpt * at
+            ce = ce * at
 
         # Compute the loss mini-batch.
-        weight = torch.pow(-pt + 1.0, self.gamma)
-        loss = torch.mean(-weight * t * logpt, dim=-1)
+        # (1-p_t)^gamma * log(p_t) with reduced chance of overflow
+        p = F.logsigmoid(-i * (t * 2.0 - 1.0))
+        loss = torch.mean((p * self.gamma).exp() * ce, dim=-1)
+
         if self.reduction == LossReduction.SUM.value:
             return loss.sum()
         if self.reduction == LossReduction.NONE.value:
