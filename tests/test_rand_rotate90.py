@@ -12,6 +12,7 @@
 import unittest
 
 import numpy as np
+import torch
 
 from monai.transforms import RandRotate90
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D
@@ -26,8 +27,8 @@ class TestRandRotate90(NumpyImageTestCase2D):
             expected = []
             for channel in self.imt[0]:
                 expected.append(np.rot90(channel, 0, (0, 1)))
-            expected = np.stack(expected)
-            self.assertTrue(np.allclose(rotated, expected))
+            expected = p(np.stack(expected))
+            torch.testing.assert_allclose(rotated, expected, rtol=1.0e-5, atol=1.0e-8)
 
     def test_k(self):
         rotate = RandRotate90(max_k=2)
@@ -37,8 +38,8 @@ class TestRandRotate90(NumpyImageTestCase2D):
             expected = []
             for channel in self.imt[0]:
                 expected.append(np.rot90(channel, 0, (0, 1)))
-            expected = np.stack(expected)
-            self.assertTrue(np.allclose(rotated, expected))
+            expected = p(np.stack(expected))
+            torch.testing.assert_allclose(rotated, expected, rtol=1.0e-5, atol=1.0e-8)
 
     def test_spatial_axes(self):
         rotate = RandRotate90(spatial_axes=(0, 1))
@@ -48,8 +49,8 @@ class TestRandRotate90(NumpyImageTestCase2D):
             expected = []
             for channel in self.imt[0]:
                 expected.append(np.rot90(channel, 0, (0, 1)))
-            expected = np.stack(expected)
-            self.assertTrue(np.allclose(rotated, expected))
+            expected = p(np.stack(expected))
+            torch.testing.assert_allclose(rotated, expected, rtol=1.0e-5, atol=1.0e-8)
 
     def test_prob_k_spatial_axes(self):
         rotate = RandRotate90(prob=1.0, max_k=2, spatial_axes=(0, 1))
@@ -59,8 +60,8 @@ class TestRandRotate90(NumpyImageTestCase2D):
             expected = []
             for channel in self.imt[0]:
                 expected.append(np.rot90(channel, 1, (0, 1)))
-            expected = np.stack(expected)
-            self.assertTrue(np.allclose(rotated, expected))
+            expected = p(np.stack(expected))
+            torch.testing.assert_allclose(rotated, expected, rtol=1.0e-5, atol=1.0e-8)
 
 
 if __name__ == "__main__":
