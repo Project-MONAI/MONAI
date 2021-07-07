@@ -49,7 +49,7 @@ class TestSetDeterminism(unittest.TestCase):
         self.assertTrue(not torch.backends.cudnn.benchmark)
         set_determinism(seed=None)
 
-    @SkipIfBeforePyTorchVersion((1, 6))
+    @SkipIfBeforePyTorchVersion((1, 8))
     @skip_if_no_cuda
     def test_algo_flag(self):
         set_determinism(1, use_deterministic_algorithms=True)

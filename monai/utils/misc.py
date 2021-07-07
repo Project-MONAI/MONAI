@@ -262,9 +262,9 @@ def set_determinism(
         if torch_ver >= (1, 9):
             torch.use_deterministic_algorithms(True)
         elif torch_ver >= (1, 7):
-            torch.set_deterministic(True)
+            torch.set_deterministic(True)  # beta feature
         else:
-            warnings.warn("use_deterministic_algorithms=True, but PyTorch version is too low to set the mode.")
+            warnings.warn("use_deterministic_algorithms=True, but PyTorch version is too old to set the mode.")
 
 
 def list_to_dict(items):
