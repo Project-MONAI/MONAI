@@ -376,6 +376,8 @@ To further accelerate the domain-specific routines in the workflows, MONAI C++/C
 MONAI provides the modules using [the two ways of building C++ extensions from PyTorch](https://pytorch.org/tutorials/advanced/cpp_extension.html#jit-compiling-extensions):
 - via `setuptools`, for modules such as `Resampler`, `Conditional random field (CRF)`, `Fast bilateral filtering using the permutohedral lattice`,
 - via just-in-time (JIT) compilation, for the `Gaussian mixtures` module. This approach allows for dynamic optimisation according to the user-specified parameters and local system environments.
+The following figure shows results of MONAI's Gaussian mixture models applied to tissue and surgical tools segmentation:
+![Gaussian mixture models as a postprocessing step](../images/gmm_feature_set_comparison_s.png)
 
 ## Applications
 The research area of medical image deep learning is expanding fast. To apply the latest achievements into applications, MONAI contains many application components to build end-to-end solutions or prototypes for other similar use cases.
