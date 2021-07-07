@@ -14,7 +14,8 @@ import unittest
 import numpy as np
 import torch
 
-from monai.utils import get_seed, set_determinism
+from monai.utils import get_seed, get_torch_version_tuple, set_determinism
+from tests.utils import SkipIfBeforePyTorchVersion, skip_if_no_cuda
 
 
 class TestSetDeterminism(unittest.TestCase):
@@ -47,6 +48,20 @@ class TestSetDeterminism(unittest.TestCase):
         self.assertTrue(torch.backends.cudnn.deterministic)
         self.assertTrue(not torch.backends.cudnn.benchmark)
         set_determinism(seed=None)
+
+    @SkipIfBeforePyTorchVersion((1, 7))
+    @skip_if_no_cuda
+    def test_algo_flag(self):
+        if get_torch_version_tuple() <= (1, 8, 0):
+            current_val = torch.is_deterministic()
+        else:
+            current_val = torch.are_deterministic_algorithms_enabled()
+        set_determinism(1, use_deterministic_algorithms=True)
+        with self.assertRaises(RuntimeError):
+            torch.randn(10, requires_grad=True, device="cuda").index_select(
+                0, torch.tensor([0], device="cuda")
+            ).backward()
+        set_determinism(None, use_deterministic_algorithms=current_val)
 
 
 if __name__ == "__main__":
