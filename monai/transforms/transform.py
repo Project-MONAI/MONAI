@@ -46,7 +46,19 @@ def convert_data_type(
     device: Optional[torch.device] = None,
     dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
 ) -> Tuple[DataObjects.Images, type, Optional[torch.device]]:
-    """Convert to torch.Tensor/np.ndarray."""
+    """Convert to `torch.Tensor`/`np.ndarray` from `torch.Tensor`/`np.ndarray`/`float`/`int` etc.
+
+    Args:
+        data: data to be converted
+        output_type: `torch.Tensor` or `np.ndarray` (if blank, unchanged)
+        device: if output is `torch.Tensor`, select device (if blank, unchanged)
+        dtype: dtype of output data. Converted to correct library type (e.g.,
+            `np.float32` is converted to `torch.float32` if output type is `torch.Tensor`).
+            If left blank, it remains unchanged.
+
+    Returns:
+        modified data, orig_type, orig_device
+    """
     orig_type = type(data)
     orig_device = data.device if isinstance(data, torch.Tensor) else None
 
