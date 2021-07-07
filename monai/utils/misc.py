@@ -216,7 +216,7 @@ def get_seed() -> Optional[int]:
 
 def set_determinism(
     seed: Optional[int] = np.iinfo(np.uint32).max,
-    use_deterministic_algorithms: [bool] = False,
+    use_deterministic_algorithms: bool = False,
     additional_settings: Optional[Union[Sequence[Callable[[int], Any]], Callable[[int], Any]]] = None,
 ) -> None:
     """
