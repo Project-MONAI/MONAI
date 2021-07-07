@@ -259,9 +259,9 @@ def set_determinism(
 
     if use_deterministic_algorithms:
         torch_ver = get_torch_version_tuple()
-        if torch_ver >= (1, 9, 0):
+        if torch_ver >= (1, 9):
             torch.use_deterministic_algorithms(True)
-        elif torch_ver >= (1, 7, 0):
+        elif torch_ver >= (1, 7):
             torch.set_deterministic(True)
         else:
             warnings.warn("use_deterministic_algorithms=True, but PyTorch version is too low to set the mode.")
