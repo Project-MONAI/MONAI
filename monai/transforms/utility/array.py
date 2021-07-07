@@ -24,7 +24,13 @@ import torch
 
 from monai.config import DtypeLike, NdarrayTensor
 from monai.transforms.transform import Randomizable, Transform
-from monai.transforms.utils import extreme_points_to_image, get_extreme_points, map_binary_to_indices
+from monai.transforms.utils import (
+    convert_to_numpy,
+    convert_to_tensor,
+    extreme_points_to_image,
+    get_extreme_points,
+    map_binary_to_indices,
+)
 from monai.utils import ensure_tuple, issequenceiterable, min_version, optional_import
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
@@ -38,6 +44,7 @@ __all__ = [
     "AsChannelLast",
     "AddChannel",
     "EnsureChannelFirst",
+    "EnsureType",
     "RepeatChannel",
     "RemoveRepeatedChannel",
     "SplitChannel",
@@ -314,6 +321,37 @@ class ToTensor(Transform):
                 # `ascontiguousarray` will add 1 dim if img has no dim, so we only apply on data with dims
                 img = np.ascontiguousarray(img)
         return torch.as_tensor(img)
+
+
+class EnsureType(Transform):
+    """
+    Ensure the input data to be a PyTorch Tensor or numpy array, support: `numpy array`, `PyTorch Tensor`,
+    `float`, `int`, `bool`, `string` and `object` keep the original.
+    If passing a dictionary, list or tuple, still return dictionary, list or tuple and recursively convert
+    every item to the expected data type.
+
+    Args:
+        data_type: target data type to convert, should be "tensor" or "numpy".
+
+    """
+
+    def __init__(self, data_type: str = "tensor") -> None:
+        data_type = data_type.lower()
+        if data_type not in ("tensor", "numpy"):
+            raise ValueError("`data type` must be 'tensor' or 'numpy'.")
+
+        self.data_type = data_type
+
+    def __call__(self, data):
+        """
+        Args:
+            data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
+                will ensure Tensor, Numpy array, float, int, bool as Tensors or numpy arrays, strings and
+                objects keep the original. for dictionay, list or tuple, ensure every item as expected type
+                if applicable.
+
+        """
+        return convert_to_tensor(data) if self.data_type == "tensor" else convert_to_numpy(data)
 
 
 class ToNumpy(Transform):

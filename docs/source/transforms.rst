@@ -628,6 +628,12 @@ Utility
     :members:
     :special-members: __call__
 
+`EnsureType`
+""""""""""""
+.. autoclass:: EnsureType
+    :members:
+    :special-members: __call__
+
 Dictionary Transforms
 ---------------------
 
@@ -1204,6 +1210,12 @@ Utility (Dict)
 `MapLabelValued`
 """"""""""""""""
 .. autoclass:: MapLabelValued
+    :members:
+    :special-members: __call__
+
+`EnsureTyped`
+"""""""""""""
+.. autoclass:: EnsureTyped
     :members:
     :special-members: __call__
 

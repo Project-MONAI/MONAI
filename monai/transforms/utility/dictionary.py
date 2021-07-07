@@ -34,6 +34,7 @@ from monai.transforms.utility.array import (
     ConvertToMultiChannelBasedOnBratsClasses,
     DataStats,
     EnsureChannelFirst,
+    EnsureType,
     FgBgToIndices,
     Identity,
     LabelToMask,
@@ -51,7 +52,7 @@ from monai.transforms.utility.array import (
     ToTensor,
     Transpose,
 )
-from monai.transforms.utils import extreme_points_to_image, get_extreme_points
+from monai.transforms.utils import extreme_points_to_image, get_extreme_points, tensor_to_numpy
 from monai.utils import ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import InverseKeys
 
@@ -89,6 +90,9 @@ __all__ = [
     "EnsureChannelFirstD",
     "EnsureChannelFirstDict",
     "EnsureChannelFirstd",
+    "EnsureTypeD",
+    "EnsureTypeDict",
+    "EnsureTyped",
     "FgBgToIndicesD",
     "FgBgToIndicesDict",
     "FgBgToIndicesd",
@@ -438,6 +442,48 @@ class ToTensord(MapTransform, InvertibleTransform):
             inverse_transform = ToNumpy()
             # Apply inverse
             d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.pop_transform(d, key)
+        return d
+
+
+class EnsureTyped(MapTransform, InvertibleTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.EnsureType`.
+
+    Ensure the input data to be a PyTorch Tensor or numpy array, support: `numpy array`, `PyTorch Tensor`,
+    `float`, `int`, `bool`, `string` and `object` keep the original.
+    If passing a dictionary, list or tuple, still return dictionary, list or tuple and recursively convert
+    every item to the expected data type.
+
+    Note: Currently, we only convert tensor data to numpy array or scalar number in the inverse operation.
+
+    """
+
+    def __init__(self, keys: KeysCollection, data_type: str = "tensor", allow_missing_keys: bool = False) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            data_type: target data type to convert, should be "tensor" or "numpy".
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.converter = EnsureType(data_type=data_type)
+
+    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            self.push_transform(d, key)
+            d[key] = self.converter(d[key])
+        return d
+
+    def inverse(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            # FIXME: currently, only convert tensor data to numpy array or scalar number,
+            # need to also invert numpy array but it's not easy to determine the previous data type
+            d[key] = tensor_to_numpy(d[key])
             # Remove the applied transform
             self.pop_transform(d, key)
         return d
@@ -1142,6 +1188,7 @@ RepeatChannelD = RepeatChannelDict = RepeatChanneld
 SplitChannelD = SplitChannelDict = SplitChanneld
 CastToTypeD = CastToTypeDict = CastToTyped
 ToTensorD = ToTensorDict = ToTensord
+EnsureTypeD = EnsureTypeDict = EnsureTyped
 ToNumpyD = ToNumpyDict = ToNumpyd
 ToCupyD = ToCupyDict = ToCupyd
 ToPILD = ToPILDict = ToPILd
