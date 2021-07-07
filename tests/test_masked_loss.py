@@ -32,7 +32,7 @@ TEST_CASES = [
             "to_onehot_y": True,
             "reduction": "sum",
         },
-        [(12.105497, 18.805185), (10.636354, 6.3138)],
+        [(14.538666, 20.191753), (13.17672, 8.251623)],
     ],
 ]
 
@@ -50,7 +50,6 @@ class TestMaskedLoss(unittest.TestCase):
         label = torch.randint(low=0, high=2, size=size)
         label = torch.argmax(label, dim=1, keepdim=True)
         pred = torch.randn(size)
-        print(label[0, 0, 0])
         result = MaskedLoss(**input_param)(pred, label, None)
         out = result.detach().cpu().numpy()
         checked = np.allclose(out, expected_val[0][0]) or np.allclose(out, expected_val[0][1])
