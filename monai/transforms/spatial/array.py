@@ -31,6 +31,7 @@ from monai.transforms.transform import (
     TorchOrNumpyTransform,
     TorchTransform,
     Transform,
+    convert_data_type,
 )
 from monai.transforms.utils import (
     create_control_grid,
@@ -409,7 +410,7 @@ class Resize(ToDoTransform):
         return np.asarray(resized)
 
 
-class Rotate(ToDoTransform, ThreadUnsafe):
+class Rotate(TorchTransform, ThreadUnsafe):
     """
     Rotates an input image by given angle using :py:class:`monai.networks.layers.AffineTransform`.
 
@@ -450,12 +451,12 @@ class Rotate(ToDoTransform, ThreadUnsafe):
 
     def __call__(
         self,
-        img: np.ndarray,
+        img: DataObjects.Images,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
         dtype: DtypeLike = None,
-    ) -> np.ndarray:
+    ) -> DataObjects.Images:
         """
         Args:
             img: channel first array, must have shape: [chns, H, W] or [chns, H, W, D].
@@ -478,7 +479,10 @@ class Rotate(ToDoTransform, ThreadUnsafe):
 
         """
         _dtype = dtype or self.dtype or img.dtype
-        im_shape = np.asarray(img.shape[1:])  # spatial dimensions
+        img_t: torch.Tensor
+        img_t, orig_type, orig_device = convert_data_type(img, torch.Tensor, dtype=_dtype)  # type: ignore
+
+        im_shape = np.asarray(img_t.shape[1:])  # spatial dimensions
         input_ndim = len(im_shape)
         if input_ndim not in (2, 3):
             raise ValueError(f"Unsupported img dimension: {input_ndim}, available options are [2, 3].")
@@ -495,6 +499,8 @@ class Rotate(ToDoTransform, ThreadUnsafe):
             output_shape = np.asarray(corners.ptp(axis=1) + 0.5, dtype=int)
         shift_1 = create_translate(input_ndim, (-(output_shape - 1) / 2).tolist())
         transform = shift @ transform @ shift_1
+        transform_t: torch.Tensor
+        transform_t, *_ = convert_data_type(transform, torch.Tensor, dtype=_dtype, device=img_t.device)  # type: ignore
 
         xform = AffineTransform(
             normalized=False,
@@ -504,12 +510,10 @@ class Rotate(ToDoTransform, ThreadUnsafe):
             reverse_indexing=True,
         )
         output = xform(
-            torch.as_tensor(np.ascontiguousarray(img).astype(_dtype)).unsqueeze(0),
-            torch.as_tensor(np.ascontiguousarray(transform).astype(_dtype)),
-            spatial_size=output_shape,
+            img_t.unsqueeze(0), transform_t, spatial_size=output_shape,
         )
         self._rotation_matrix = transform
-        return np.asarray(output.squeeze(0).detach().cpu().numpy(), dtype=np.float32)
+        return self.post_convert_data(output.squeeze(0).float(), orig_type, orig_device)
 
     def get_rotation_matrix(self) -> Optional[np.ndarray]:
         """
@@ -681,7 +685,7 @@ class RandRotate90(TorchOrNumpyTransform, RandomizableTransform):
         return rotator(img)
 
 
-class RandRotate(ToDoTransform, RandomizableTransform):
+class RandRotate(TorchTransform, RandomizableTransform):
     """
     Randomly rotate the input arrays.
 
@@ -750,12 +754,12 @@ class RandRotate(ToDoTransform, RandomizableTransform):
 
     def __call__(
         self,
-        img: np.ndarray,
+        img: DataObjects.Images,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
         dtype: DtypeLike = None,
-    ) -> np.ndarray:
+    ) -> DataObjects.Images:
         """
         Args:
             img: channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
@@ -780,9 +784,9 @@ class RandRotate(ToDoTransform, RandomizableTransform):
             mode=mode or self.mode,
             padding_mode=padding_mode or self.padding_mode,
             align_corners=self.align_corners if align_corners is None else align_corners,
-            dtype=dtype or self.dtype or img.dtype,
+            dtype=dtype or self.dtype or img.dtype,  # type: ignore
         )
-        return np.array(rotator(img))
+        return rotator(img)
 
 
 class RandFlip(TorchTransform, RandomizableTransform):
