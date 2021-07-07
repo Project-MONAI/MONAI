@@ -333,8 +333,19 @@ The following figure compares the loss curves and validation scores for (1) trai
 
 ![transfer_mmar](../images/transfer_mmar.png)
 
+### 5. Decollate batch data for more flexible operations
+`decollate batch` is introduced in MONAI v0.6, which simplified the post processing transforms and provides more flexible following operations on a batch of data with various data shape. It can decollate the batch data of model predictions and labels into list of tensors for the benefits:
+1. Now we can execute postprocessing transforms for every item independently, some random transforms should apply different random behavior for every prediction.
+2. Both the preprocessing transforms and postprocessing transforms only need to support channel-first shape of input data, easier to extend and develop more transforms.
+3. It allows to apply Invertd transform for the predictions and the inverted data can have different shape, because they are in a list, not a batch tensor anymore.
+4. All the MONAI metrics can support both batch-first tensor and list of channel-first tensors, so we can compute metrics for the inverted data directly.
 
-### 5. Easy to integrate into popular workflows
+The typical logic of `decollate batch`:
+![decollate_batch](../images/decollate_batch.png)
+
+[decollate batch tutorial](https://github.com/Project-MONAI/tutorials/blob/master/modules/decollate_batch.ipynb) shows detailed usage example based on the regular PyTorch program.
+
+### 6. Easy to integrate into popular workflows
 Except for the pytorch-ignite based `monai.engines`, most of the MONAI modules could be used independently or combined with other software packages. For example, MONAI can be easily integrated into popular frameworks such as PyTorch-Lightning and Catalyst: [Lightning segmentation](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/spleen_segmentation_3d_lightning.ipynb) and [Lightning + TorchIO](https://github.com/Project-MONAI/tutorials/blob/master/modules/TorchIO_MONAI_PyTorch_Lightning.ipynb) tutorials show the PyTorch Lightning programs with MONAI modules, and [Catalyst segmentation](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/unet_segmentation_3d_catalyst.ipynb) shows the Catalyst program with MONAI modules.
 
 ## Research
