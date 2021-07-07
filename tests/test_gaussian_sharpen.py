@@ -11,7 +11,7 @@
 
 import unittest
 
-import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import GaussianSharpen
@@ -24,7 +24,7 @@ for p in TEST_NDARRAYS:
         [
             {},
             p([[[1, 1, 1], [2, 2, 2], [3, 3, 3]], [[4, 4, 4], [5, 5, 5], [6, 6, 6]]]),
-            np.array(
+            p(
                 [
                     [
                         [4.1081963, 3.4950666, 4.1081963],
@@ -41,7 +41,7 @@ for p in TEST_NDARRAYS:
         [
             {"sigma1": 1.0, "sigma2": 0.75, "alpha": 20},
             p([[[1, 1, 1], [2, 2, 2], [3, 3, 3]], [[4, 4, 4], [5, 5, 5], [6, 6, 6]]]),
-            np.array(
+            p(
                 [
                     [
                         [4.513644, 4.869134, 4.513644],
@@ -62,7 +62,7 @@ for p in TEST_NDARRAYS:
         [
             {"sigma1": (0.5, 1.0), "sigma2": (0.5, 0.75), "alpha": 20},
             p([[[1, 1, 1], [2, 2, 2], [3, 3, 3]], [[4, 4, 4], [5, 5, 5], [6, 6, 6]]]),
-            np.array(
+            p(
                 [
                     [
                         [3.3324685, 3.335536, 3.3324673],
@@ -84,7 +84,7 @@ class TestGaussianSharpen(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_value(self, argments, image, expected_data):
         result = GaussianSharpen(**argments)(image)
-        np.testing.assert_allclose(result, expected_data, rtol=1e-4)
+        torch.testing.assert_allclose(result, expected_data, atol=0, rtol=1e-4)
 
 
 if __name__ == "__main__":
