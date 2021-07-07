@@ -29,7 +29,7 @@ from monai.transforms.transform import (  # noqa: F401
 )
 from monai.utils import MAX_SEED, ensure_tuple, get_seed
 
-__all__ = ["Compose"]
+__all__ = ["Compose", "OneOf"]
 
 
 class Compose(Randomizable, InvertibleTransform):
@@ -168,3 +168,64 @@ class Compose(Randomizable, InvertibleTransform):
         for t in reversed(invertible_transforms):
             data = apply_transform(t.inverse, data, self.map_items, self.unpack_items)
         return data
+
+
+class OneOf(Compose):
+    """
+    ``OneOf`` provides the ability to radomly choose one transform out of a
+    list of callables with predfined probabilities for each.
+
+    Args:
+        transforms: sequence of callables.
+        weights: probabilities corresponding to each callable in transforms.
+            Probabilities are normalized to sum to one.
+
+    OneOf inherits from Compose and uses args map_items and unpack_items in
+    the same way.
+    """
+
+    def __init__(
+        self,
+        transforms: Optional[Sequence[Callable]] = None,
+        weights: Optional[Sequence[float]] = None,
+        map_items: bool = True,
+        unpack_items: bool = False,
+    ) -> None:
+        if transforms is None:
+            transforms = []
+        self.transforms = ensure_tuple(transforms)
+        if weights is None:
+            if len(transforms) == 0:
+                weights = []
+            else:
+                weights = [1.0 / len(transforms)] * len(transforms)
+        if len(weights) != len(transforms):
+            raise AssertionError("transforms and weights should be same size if both specified as sequences.")
+        self.weights = ensure_tuple(self._normalize_probabilities(weights))
+        self.map_items = map_items
+        self.unpack_items = unpack_items
+        self.set_random_state(seed=get_seed())
+
+    def _normalize_probabilities(self, weights):
+        if len(weights) == 0:
+            return weights
+        else:
+            weights = np.array(weights)
+            if np.any(weights < 0):
+                raise AssertionError("Probabilities must be greater than or equal to zero.")
+            if np.all(weights == 0):
+                raise AssertionError("At least one probability must be greater than zero.")
+            weights = weights / weights.sum()
+            return list(weights)
+
+    def __call__(self, input_):
+        if len(self.transforms) == 0:
+            return input_
+        else:
+            index = self.R.multinomial(1, self.weights).argmax()
+            _transform = self.transforms[index]
+            input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items)
+            return input_
+
+    def inverse(self, data):
+        raise NotImplementedError("inverse method not yet implemented for OneOf class.")
