@@ -47,6 +47,7 @@ Technical documentation is available at `docs.monai.io <https://docs.monai.io>`_
 
    whatsnew.md
    highlights.md
+   decollate.md
 
 .. toctree::
    :maxdepth: 1
