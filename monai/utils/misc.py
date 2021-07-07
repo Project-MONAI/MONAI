@@ -216,7 +216,7 @@ def get_seed() -> Optional[int]:
 
 def set_determinism(
     seed: Optional[int] = np.iinfo(np.uint32).max,
-    use_deterministic_algorithms: bool = False,
+    use_deterministic_algorithms: Optional[bool] = None,
     additional_settings: Optional[Union[Sequence[Callable[[int], Any]], Callable[[int], Any]]] = None,
 ) -> None:
     """
@@ -257,12 +257,12 @@ def set_determinism(
         torch.backends.cudnn.deterministic = _flag_deterministic
         torch.backends.cudnn.benchmark = _flag_cudnn_benchmark
 
-    if use_deterministic_algorithms:
+    if use_deterministic_algorithms is not None:
         torch_ver = get_torch_version_tuple()
         if torch_ver >= (1, 9):
-            torch.use_deterministic_algorithms(True)
+            torch.use_deterministic_algorithms(use_deterministic_algorithms)
         elif torch_ver >= (1, 7):
-            torch.set_deterministic(True)  # beta feature
+            torch.set_deterministic(use_deterministic_algorithms)  # beta feature
         else:
             warnings.warn("use_deterministic_algorithms=True, but PyTorch version is too old to set the mode.")
 
