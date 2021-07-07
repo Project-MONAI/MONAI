@@ -72,12 +72,14 @@ class Interaction:
             engine.fire_event(IterationEvents.INNER_ITERATION_COMPLETED)
 
             batchdata.update({CommonKeys.PRED: predictions})
-            batchdata[self.key_probability] = torch.as_tensor(
-                ([1.0 - ((1.0 / self.max_interactions) * j)] if self.train else [1.0]) * len(inputs)
-            )
+
             # decollate batch data to execute click transforms
-            batchdata_list = [self.transforms(i) for i in decollate_batch(batchdata, detach=True)]
+            batchdata = decollate_batch(batchdata, detach=True)
+            for i in range(len(batchdata)):
+                batchdata[i][self.key_probability] = (1.0 - ((1.0 / self.max_interactions) * j)) if self.train else 1.0
+                batchdata[i] = self.transforms(batchdata[i])
+
             # collate list into a batch for next round interaction
-            batchdata = list_data_collate(batchdata_list)
+            batchdata = list_data_collate(batchdata)
 
         return engine._iteration(engine, batchdata)
