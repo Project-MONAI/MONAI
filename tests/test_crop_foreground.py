@@ -12,6 +12,7 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import CropForeground
@@ -24,7 +25,7 @@ for p in TEST_NDARRAYS:
         [
             {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 0},
             p([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),  # type: ignore
-            np.array([[[1, 2, 1], [2, 3, 2], [1, 2, 1]]]),
+            p([[[1, 2, 1], [2, 3, 2], [1, 2, 1]]]),
         ]
     )
 
@@ -32,7 +33,7 @@ for p in TEST_NDARRAYS:
         [
             {"select_fn": lambda x: x > 1, "channel_indices": None, "margin": 0},
             p([[[0, 0, 0, 0, 0], [0, 1, 1, 1, 0], [0, 1, 3, 1, 0], [0, 1, 1, 1, 0], [0, 0, 0, 0, 0]]]),  # type: ignore
-            np.array([[[3]]]),
+            p([[[3]]]),
         ]
     )
 
@@ -40,7 +41,7 @@ for p in TEST_NDARRAYS:
         [
             {"select_fn": lambda x: x > 0, "channel_indices": 0, "margin": 0},
             p([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),  # type: ignore
-            np.array([[[1, 2, 1], [2, 3, 2], [1, 2, 1]]]),
+            p([[[1, 2, 1], [2, 3, 2], [1, 2, 1]]]),
         ]
     )
 
@@ -48,7 +49,7 @@ for p in TEST_NDARRAYS:
         [
             {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 1},
             p([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),  # type: ignore
-            np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0]]]),
+            p([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0]]]),
         ]
     )
 
@@ -56,7 +57,7 @@ for p in TEST_NDARRAYS:
         [
             {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": [2, 1]},
             p([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),  # type: ignore
-            np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),
+            p([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),
         ]
     )
 
@@ -64,7 +65,7 @@ for p in TEST_NDARRAYS:
         [
             {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 0, "k_divisible": 4},
             p([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),  # type: ignore
-            np.array([[[1, 2, 1, 0], [2, 3, 2, 0], [1, 2, 1, 0], [0, 0, 0, 0]]]),
+            p([[[1, 2, 1, 0], [2, 3, 2, 0], [1, 2, 1, 0], [0, 0, 0, 0]]]),
         ]
     )
 
@@ -72,7 +73,7 @@ for p in TEST_NDARRAYS:
         [
             {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 0, "k_divisible": 10},
             p([[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),  # type: ignore
-            np.zeros((1, 0, 0)),
+            p(np.zeros((1, 0, 0), dtype=np.int64)),
         ]
     )
 
@@ -81,7 +82,7 @@ class TestCropForeground(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_value(self, argments, image, expected_data):
         result = CropForeground(**argments)(image)
-        np.testing.assert_allclose(result, expected_data)
+        torch.testing.assert_allclose(result, expected_data, rtol=1e-7, atol=0)
 
     @parameterized.expand([TESTS[0]])
     def test_return_coords(self, argments, image, _):
