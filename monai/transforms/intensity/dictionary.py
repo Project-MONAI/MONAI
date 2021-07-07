@@ -22,27 +22,37 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike, KeysCollection
-from monai.transforms.compose import MapTransform, Randomizable
 from monai.transforms.intensity.array import (
     AdjustContrast,
     GaussianSharpen,
     GaussianSmooth,
+    GibbsNoise,
+    KSpaceSpikeNoise,
     MaskIntensity,
     NormalizeIntensity,
+    RandBiasField,
+    RandKSpaceSpikeNoise,
+    RandRicianNoise,
     ScaleIntensity,
     ScaleIntensityRange,
     ScaleIntensityRangePercentiles,
     ShiftIntensity,
+    StdShiftIntensity,
     ThresholdIntensity,
 )
+from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.utils import dtype_torch_to_numpy, ensure_tuple_rep, ensure_tuple_size
 
 __all__ = [
     "RandGaussianNoised",
+    "RandRicianNoised",
     "ShiftIntensityd",
     "RandShiftIntensityd",
     "ScaleIntensityd",
     "RandScaleIntensityd",
+    "StdShiftIntensityd",
+    "RandStdShiftIntensityd",
+    "RandBiasFieldd",
     "NormalizeIntensityd",
     "ThresholdIntensityd",
     "ScaleIntensityRanged",
@@ -54,6 +64,10 @@ __all__ = [
     "RandGaussianSmoothd",
     "GaussianSharpend",
     "RandGaussianSharpend",
+    "GibbsNoised",
+    "RandGibbsNoised",
+    "KSpaceSpikeNoised",
+    "RandKSpaceSpikeNoised",
     "RandHistogramShiftd",
     "RandGaussianNoiseD",
     "RandGaussianNoiseDict",
@@ -63,8 +77,14 @@ __all__ = [
     "RandShiftIntensityDict",
     "ScaleIntensityD",
     "ScaleIntensityDict",
+    "StdShiftIntensityD",
+    "StdShiftIntensityDict",
     "RandScaleIntensityD",
     "RandScaleIntensityDict",
+    "RandStdShiftIntensityD",
+    "RandStdShiftIntensityDict",
+    "RandBiasFieldD",
+    "RandBiasFieldDict",
     "NormalizeIntensityD",
     "NormalizeIntensityDict",
     "ThresholdIntensityD",
@@ -87,12 +107,20 @@ __all__ = [
     "GaussianSharpenDict",
     "RandGaussianSharpenD",
     "RandGaussianSharpenDict",
+    "GibbsNoiseD",
+    "GibbsNoiseDict",
+    "RandGibbsNoiseD",
+    "RandGibbsNoiseDict",
+    "KSpaceSpikeNoiseD",
+    "KSpaceSpikeNoiseDict",
     "RandHistogramShiftD",
     "RandHistogramShiftDict",
+    "RandRicianNoiseD",
+    "RandRicianNoiseDict",
 ]
 
 
-class RandGaussianNoised(Randomizable, MapTransform):
+class RandGaussianNoised(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandGaussianNoise`.
     Add Gaussian noise to image. This transform assumes all the expected fields have same shape.
@@ -103,20 +131,25 @@ class RandGaussianNoised(Randomizable, MapTransform):
         prob: Probability to add Gaussian noise.
         mean: Mean or “centre” of the distribution.
         std: Standard deviation (spread) of distribution.
+        allow_missing_keys: don't raise exception if key is missing.
     """
 
     def __init__(
-        self, keys: KeysCollection, prob: float = 0.1, mean: Union[Sequence[float], float] = 0.0, std: float = 0.1
+        self,
+        keys: KeysCollection,
+        prob: float = 0.1,
+        mean: Union[Sequence[float], float] = 0.0,
+        std: float = 0.1,
+        allow_missing_keys: bool = False,
     ) -> None:
-        super().__init__(keys)
-        self.prob = prob
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
         self.mean = ensure_tuple_rep(mean, len(self.keys))
         self.std = std
-        self._do_transform = False
         self._noise: List[np.ndarray] = []
 
     def randomize(self, im_shape: Sequence[int]) -> None:
-        self._do_transform = self.R.random() < self.prob
+        super().randomize(None)
         self._noise.clear()
         for m in self.mean:
             self._noise.append(self.R.normal(m, self.R.uniform(0, self.std), size=im_shape))
@@ -130,9 +163,61 @@ class RandGaussianNoised(Randomizable, MapTransform):
             raise AssertionError
         if not self._do_transform:
             return d
-        for noise, key in zip(self._noise, self.keys):
+        for key, noise in self.key_iterator(d, self._noise):
             dtype = dtype_torch_to_numpy(d[key].dtype) if isinstance(d[key], torch.Tensor) else d[key].dtype
             d[key] = d[key] + noise.astype(dtype)
+        return d
+
+
+class RandRicianNoised(RandomizableTransform, MapTransform):
+    """
+    Dictionary-based version :py:class:`monai.transforms.RandRicianNoise`.
+    Add Rician noise to image. This transform assumes all the expected fields have same shape.
+
+    Args:
+        keys: Keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        global_prob: Probability to add Rician noise to the dictionary.
+        prob: Probability to add Rician noise to each item in the dictionary,
+            once asserted that noise will be added to the dictionary at all.
+        mean: Mean or "centre" of the Gaussian distributions sampled to make up
+            the Rician noise.
+        std: Standard deviation (spread) of the Gaussian distributions sampled
+            to make up the Rician noise.
+        channel_wise: If True, treats each channel of the image separately.
+        relative: If True, the spread of the sampled Gaussian distributions will
+            be std times the standard deviation of the image or channel's intensity
+            histogram.
+        sample_std: If True, sample the spread of the Gaussian distributions
+            uniformly from 0 to std.
+        allow_missing_keys: Don't raise exception if key is missing.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        global_prob: float = 0.1,
+        prob: float = 1.0,
+        mean: Union[Sequence[float], float] = 0.0,
+        std: Union[Sequence[float], float] = 1.0,
+        channel_wise: bool = False,
+        relative: bool = False,
+        sample_std: bool = True,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, global_prob)
+        self.rand_rician_noise = RandRicianNoise(prob, mean, std, channel_wise, relative, sample_std)
+
+    def __call__(
+        self, data: Mapping[Hashable, Union[torch.Tensor, np.ndarray]]
+    ) -> Dict[Hashable, Union[torch.Tensor, np.ndarray]]:
+        d = dict(data)
+        super().randomize(None)
+        if not self._do_transform:
+            return d
+        for key in self.key_iterator(d):
+            d[key] = self.rand_rician_noise(d[key])
         return d
 
 
@@ -141,29 +226,36 @@ class ShiftIntensityd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.ShiftIntensity`.
     """
 
-    def __init__(self, keys: KeysCollection, offset: float) -> None:
+    def __init__(self, keys: KeysCollection, offset: float, allow_missing_keys: bool = False) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             offset: offset value to shift the intensity of image.
+            allow_missing_keys: don't raise exception if key is missing.
         """
-        super().__init__(keys)
+        super().__init__(keys, allow_missing_keys)
         self.shifter = ShiftIntensity(offset)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        for key in self.keys:
+        for key in self.key_iterator(d):
             d[key] = self.shifter(d[key])
         return d
 
 
-class RandShiftIntensityd(Randomizable, MapTransform):
+class RandShiftIntensityd(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandShiftIntensity`.
     """
 
-    def __init__(self, keys: KeysCollection, offsets: Union[Tuple[float, float], float], prob: float = 0.1) -> None:
+    def __init__(
+        self,
+        keys: KeysCollection,
+        offsets: Union[Tuple[float, float], float],
+        prob: float = 0.1,
+        allow_missing_keys: bool = False,
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -172,8 +264,10 @@ class RandShiftIntensityd(Randomizable, MapTransform):
                 if single number, offset value is picked from (-offsets, offsets).
             prob: probability of rotating.
                 (Default 0.1, with 10% probability it returns a rotated array.)
+            allow_missing_keys: don't raise exception if key is missing.
         """
-        super().__init__(keys)
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
 
         if isinstance(offsets, (int, float)):
             self.offsets = (min(-offsets, offsets), max(-offsets, offsets))
@@ -181,13 +275,11 @@ class RandShiftIntensityd(Randomizable, MapTransform):
             if len(offsets) != 2:
                 raise AssertionError("offsets should be a number or pair of numbers.")
             self.offsets = (min(offsets), max(offsets))
-
-        self.prob = prob
-        self._do_transform = False
+        self._offset = self.offsets[0]
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
-        self._do_transform = self.R.random() < self.prob
+        super().randomize(None)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
@@ -195,7 +287,98 @@ class RandShiftIntensityd(Randomizable, MapTransform):
         if not self._do_transform:
             return d
         shifter = ShiftIntensity(self._offset)
-        for key in self.keys:
+        for key in self.key_iterator(d):
+            d[key] = shifter(d[key])
+        return d
+
+
+class StdShiftIntensityd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.StdShiftIntensity`.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        factor: float,
+        nonzero: bool = False,
+        channel_wise: bool = False,
+        dtype: DtypeLike = np.float32,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            factor: factor shift by ``v = v + factor * std(v)``.
+            nonzero: whether only count non-zero values.
+            channel_wise: if True, calculate on each channel separately. Please ensure
+                that the first dimension represents the channel of the image if True.
+            dtype: output data type, defaults to float32.
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.shifter = StdShiftIntensity(factor, nonzero, channel_wise, dtype)
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.shifter(d[key])
+        return d
+
+
+class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
+    """
+    Dictionary-based version :py:class:`monai.transforms.RandStdShiftIntensity`.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        factors: Union[Tuple[float, float], float],
+        prob: float = 0.1,
+        nonzero: bool = False,
+        channel_wise: bool = False,
+        dtype: DtypeLike = np.float32,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            factors: if tuple, the randomly picked range is (min(factors), max(factors)).
+                If single number, the range is (-factors, factors).
+            prob: probability of std shift.
+            nonzero: whether only count non-zero values.
+            channel_wise: if True, calculate on each channel separately.
+            dtype: output data type, defaults to float32.
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+
+        if isinstance(factors, (int, float)):
+            self.factors = (min(-factors, factors), max(-factors, factors))
+        else:
+            if len(factors) != 2:
+                raise AssertionError("factors should be a number or pair of numbers.")
+            self.factors = (min(factors), max(factors))
+        self.factor = self.factors[0]
+        self.nonzero = nonzero
+        self.channel_wise = channel_wise
+        self.dtype = dtype
+
+    def randomize(self, data: Optional[Any] = None) -> None:
+        self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
+        super().randomize(None)
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = dict(data)
+        self.randomize()
+        if not self._do_transform:
+            return d
+        shifter = StdShiftIntensity(self.factor, self.nonzero, self.channel_wise, self.dtype)
+        for key in self.key_iterator(d):
             d[key] = shifter(d[key])
         return d
 
@@ -208,7 +391,12 @@ class ScaleIntensityd(MapTransform):
     """
 
     def __init__(
-        self, keys: KeysCollection, minv: float = 0.0, maxv: float = 1.0, factor: Optional[float] = None
+        self,
+        keys: KeysCollection,
+        minv: Optional[float] = 0.0,
+        maxv: Optional[float] = 1.0,
+        factor: Optional[float] = None,
+        allow_missing_keys: bool = False,
     ) -> None:
         """
         Args:
@@ -216,25 +404,33 @@ class ScaleIntensityd(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             minv: minimum value of output data.
             maxv: maximum value of output data.
-            factor: factor scale by ``v = v * (1 + factor)``.
+            factor: factor scale by ``v = v * (1 + factor)``. In order to use
+                this parameter, please set `minv` and `maxv` into None.
+            allow_missing_keys: don't raise exception if key is missing.
 
         """
-        super().__init__(keys)
+        super().__init__(keys, allow_missing_keys)
         self.scaler = ScaleIntensity(minv, maxv, factor)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        for key in self.keys:
+        for key in self.key_iterator(d):
             d[key] = self.scaler(d[key])
         return d
 
 
-class RandScaleIntensityd(Randomizable, MapTransform):
+class RandScaleIntensityd(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandScaleIntensity`.
     """
 
-    def __init__(self, keys: KeysCollection, factors: Union[Tuple[float, float], float], prob: float = 0.1) -> None:
+    def __init__(
+        self,
+        keys: KeysCollection,
+        factors: Union[Tuple[float, float], float],
+        prob: float = 0.1,
+        allow_missing_keys: bool = False,
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -243,9 +439,11 @@ class RandScaleIntensityd(Randomizable, MapTransform):
                 if single number, factor value is picked from (-factors, factors).
             prob: probability of rotating.
                 (Default 0.1, with 10% probability it returns a rotated array.)
+            allow_missing_keys: don't raise exception if key is missing.
 
         """
-        super().__init__(keys)
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
 
         if isinstance(factors, (int, float)):
             self.factors = (min(-factors, factors), max(-factors, factors))
@@ -253,13 +451,11 @@ class RandScaleIntensityd(Randomizable, MapTransform):
             if len(factors) != 2:
                 raise AssertionError("factors should be a number or pair of numbers.")
             self.factors = (min(factors), max(factors))
-
-        self.prob = prob
-        self._do_transform = False
+        self.factor = self.factors[0]
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
-        self._do_transform = self.R.random() < self.prob
+        super().randomize(None)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
@@ -267,8 +463,52 @@ class RandScaleIntensityd(Randomizable, MapTransform):
         if not self._do_transform:
             return d
         scaler = ScaleIntensity(minv=None, maxv=None, factor=self.factor)
-        for key in self.keys:
+        for key in self.key_iterator(d):
             d[key] = scaler(d[key])
+        return d
+
+
+class RandBiasFieldd(RandomizableTransform, MapTransform):
+    """
+    Dictionary-based version :py:class:`monai.transforms.RandBiasField`.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        degree: int = 3,
+        coeff_range: Tuple[float, float] = (0.0, 0.1),
+        dtype: DtypeLike = np.float32,
+        prob: float = 1.0,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            degree: degree of freedom of the polynomials. The value should be no less than 1.
+                Defaults to 3.
+            coeff_range: range of the random coefficients. Defaults to (0.0, 0.1).
+            dtype: output data type, defaults to float32.
+            prob: probability to do random bias field.
+            allow_missing_keys: don't raise exception if key is missing.
+
+        """
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+
+        self.rand_bias_field = RandBiasField(degree, coeff_range, dtype, prob)
+
+    def randomize(self, data: Optional[Any] = None) -> None:
+        super().randomize(None)
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = dict(data)
+        self.randomize()
+        if not self._do_transform:
+            return d
+        for key in self.key_iterator(d):
+            d[key] = self.rand_bias_field(d[key])
         return d
 
 
@@ -286,7 +526,8 @@ class NormalizeIntensityd(MapTransform):
         nonzero: whether only normalize non-zero values.
         channel_wise: if using calculated mean and std, calculate on each channel separately
             or calculate on the entire image directly.
-        dtype: output data type, defaut to float32.
+        dtype: output data type, defaults to float32.
+        allow_missing_keys: don't raise exception if key is missing.
     """
 
     def __init__(
@@ -297,13 +538,14 @@ class NormalizeIntensityd(MapTransform):
         nonzero: bool = False,
         channel_wise: bool = False,
         dtype: DtypeLike = np.float32,
+        allow_missing_keys: bool = False,
     ) -> None:
-        super().__init__(keys)
+        super().__init__(keys, allow_missing_keys)
         self.normalizer = NormalizeIntensity(subtrahend, divisor, nonzero, channel_wise, dtype)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        for key in self.keys:
+        for key in self.key_iterator(d):
             d[key] = self.normalizer(d[key])
         return d
 
@@ -318,15 +560,23 @@ class ThresholdIntensityd(MapTransform):
         threshold: the threshold to filter intensity values.
         above: filter values above the threshold or below the threshold, default is True.
         cval: value to fill the remaining parts of the image, default is 0.
+        allow_missing_keys: don't raise exception if key is missing.
     """
 
-    def __init__(self, keys: KeysCollection, threshold: float, above: bool = True, cval: float = 0.0) -> None:
-        super().__init__(keys)
+    def __init__(
+        self,
+        keys: KeysCollection,
+        threshold: float,
+        above: bool = True,
+        cval: float = 0.0,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
         self.filter = ThresholdIntensity(threshold, above, cval)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        for key in self.keys:
+        for key in self.key_iterator(d):
             d[key] = self.filter(d[key])
         return d
 
@@ -343,17 +593,25 @@ class ScaleIntensityRanged(MapTransform):
         b_min: intensity target range min.
         b_max: intensity target range max.
         clip: whether to perform clip after scaling.
+        allow_missing_keys: don't raise exception if key is missing.
     """
 
     def __init__(
-        self, keys: KeysCollection, a_min: float, a_max: float, b_min: float, b_max: float, clip: bool = False
+        self,
+        keys: KeysCollection,
+        a_min: float,
+        a_max: float,
+        b_min: float,
+        b_max: float,
+        clip: bool = False,
+        allow_missing_keys: bool = False,
     ) -> None:
-        super().__init__(keys)
+        super().__init__(keys, allow_missing_keys)
         self.scaler = ScaleIntensityRange(a_min, a_max, b_min, b_max, clip)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        for key in self.keys:
+        for key in self.key_iterator(d):
             d[key] = self.scaler(d[key])
         return d
 
@@ -369,20 +627,21 @@ class AdjustContrastd(MapTransform):
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
         gamma: gamma value to adjust the contrast as function.
+        allow_missing_keys: don't raise exception if key is missing.
     """
 
-    def __init__(self, keys: KeysCollection, gamma: float) -> None:
-        super().__init__(keys)
+    def __init__(self, keys: KeysCollection, gamma: float, allow_missing_keys: bool = False) -> None:
+        super().__init__(keys, allow_missing_keys)
         self.adjuster = AdjustContrast(gamma)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        for key in self.keys:
+        for key in self.key_iterator(d):
             d[key] = self.adjuster(d[key])
         return d
 
 
-class RandAdjustContrastd(Randomizable, MapTransform):
+class RandAdjustContrastd(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandAdjustContrast`.
     Randomly changes image intensity by gamma. Each pixel/voxel intensity is updated as:
@@ -395,13 +654,18 @@ class RandAdjustContrastd(Randomizable, MapTransform):
         prob: Probability of adjustment.
         gamma: Range of gamma values.
             If single number, value is picked from (0.5, gamma), default is (0.5, 4.5).
+        allow_missing_keys: don't raise exception if key is missing.
     """
 
     def __init__(
-        self, keys: KeysCollection, prob: float = 0.1, gamma: Union[Tuple[float, float], float] = (0.5, 4.5)
+        self,
+        keys: KeysCollection,
+        prob: float = 0.1,
+        gamma: Union[Tuple[float, float], float] = (0.5, 4.5),
+        allow_missing_keys: bool = False,
     ) -> None:
-        super().__init__(keys)
-        self.prob: float = prob
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
 
         if isinstance(gamma, (int, float)):
             if gamma <= 0.5:
@@ -414,11 +678,10 @@ class RandAdjustContrastd(Randomizable, MapTransform):
                 raise AssertionError("gamma should be a number or pair of numbers.")
             self.gamma = (min(gamma), max(gamma))
 
-        self._do_transform = False
         self.gamma_value: Optional[float] = None
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        self._do_transform = self.R.random_sample() < self.prob
+        super().randomize(None)
         self.gamma_value = self.R.uniform(low=self.gamma[0], high=self.gamma[1])
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
@@ -429,7 +692,7 @@ class RandAdjustContrastd(Randomizable, MapTransform):
         if not self._do_transform:
             return d
         adjuster = AdjustContrast(self.gamma_value)
-        for key in self.keys:
+        for key in self.key_iterator(d):
             d[key] = adjuster(d[key])
         return d
 
@@ -447,6 +710,7 @@ class ScaleIntensityRangePercentilesd(MapTransform):
         b_max: intensity target range max.
         clip: whether to perform clip after scaling.
         relative: whether to scale to the corresponding percentiles of [b_min, b_max]
+        allow_missing_keys: don't raise exception if key is missing.
     """
 
     def __init__(
@@ -458,13 +722,14 @@ class ScaleIntensityRangePercentilesd(MapTransform):
         b_max: float,
         clip: bool = False,
         relative: bool = False,
+        allow_missing_keys: bool = False,
     ) -> None:
-        super().__init__(keys)
+        super().__init__(keys, allow_missing_keys)
         self.scaler = ScaleIntensityRangePercentiles(lower, upper, b_min, b_max, clip, relative)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        for key in self.keys:
+        for key in self.key_iterator(d):
             d[key] = self.scaler(d[key])
         return d
 
@@ -483,6 +748,7 @@ class MaskIntensityd(MapTransform):
             if None, will extract the mask data from input data based on `mask_key`.
         mask_key: the key to extract mask data from input dictionary, only works
             when `mask_data` is None.
+        allow_missing_keys: don't raise exception if key is missing.
 
     """
 
@@ -491,14 +757,15 @@ class MaskIntensityd(MapTransform):
         keys: KeysCollection,
         mask_data: Optional[np.ndarray] = None,
         mask_key: Optional[str] = None,
+        allow_missing_keys: bool = False,
     ) -> None:
-        super().__init__(keys)
+        super().__init__(keys, allow_missing_keys)
         self.converter = MaskIntensity(mask_data)
         self.mask_key = mask_key if mask_data is None else None
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        for key in self.keys:
+        for key in self.key_iterator(d):
             d[key] = self.converter(d[key], d[self.mask_key]) if self.mask_key is not None else self.converter(d[key])
         return d
 
@@ -515,21 +782,28 @@ class GaussianSmoothd(MapTransform):
             use it for all spatial dimensions.
         approx: discrete Gaussian kernel type, available options are "erf", "sampled", and "scalespace".
             see also :py:meth:`monai.networks.layers.GaussianFilter`.
+        allow_missing_keys: don't raise exception if key is missing.
 
     """
 
-    def __init__(self, keys: KeysCollection, sigma: Union[Sequence[float], float], approx: str = "erf") -> None:
-        super().__init__(keys)
+    def __init__(
+        self,
+        keys: KeysCollection,
+        sigma: Union[Sequence[float], float],
+        approx: str = "erf",
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
         self.converter = GaussianSmooth(sigma, approx=approx)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        for key in self.keys:
+        for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
         return d
 
 
-class RandGaussianSmoothd(Randomizable, MapTransform):
+class RandGaussianSmoothd(RandomizableTransform, MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.GaussianSmooth`.
 
@@ -542,6 +816,7 @@ class RandGaussianSmoothd(Randomizable, MapTransform):
         approx: discrete Gaussian kernel type, available options are "erf", "sampled", and "scalespace".
             see also :py:meth:`monai.networks.layers.GaussianFilter`.
         prob: probability of Gaussian smooth.
+        allow_missing_keys: don't raise exception if key is missing.
 
     """
 
@@ -553,17 +828,17 @@ class RandGaussianSmoothd(Randomizable, MapTransform):
         sigma_z: Tuple[float, float] = (0.25, 1.5),
         approx: str = "erf",
         prob: float = 0.1,
+        allow_missing_keys: bool = False,
     ) -> None:
-        super().__init__(keys)
-        self.sigma_x = sigma_x
-        self.sigma_y = sigma_y
-        self.sigma_z = sigma_z
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+        self.sigma_x, self.sigma_y, self.sigma_z = sigma_x, sigma_y, sigma_z
         self.approx = approx
-        self.prob = prob
-        self._do_transform = False
+
+        self.x, self.y, self.z = self.sigma_x[0], self.sigma_y[0], self.sigma_z[0]
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        self._do_transform = self.R.random_sample() < self.prob
+        super().randomize(None)
         self.x = self.R.uniform(low=self.sigma_x[0], high=self.sigma_x[1])
         self.y = self.R.uniform(low=self.sigma_y[0], high=self.sigma_y[1])
         self.z = self.R.uniform(low=self.sigma_z[0], high=self.sigma_z[1])
@@ -573,7 +848,7 @@ class RandGaussianSmoothd(Randomizable, MapTransform):
         self.randomize()
         if not self._do_transform:
             return d
-        for key in self.keys:
+        for key in self.key_iterator(d):
             sigma = ensure_tuple_size(tup=(self.x, self.y, self.z), dim=d[key].ndim - 1)
             d[key] = GaussianSmooth(sigma=sigma, approx=self.approx)(d[key])
         return d
@@ -595,6 +870,7 @@ class GaussianSharpend(MapTransform):
         alpha: weight parameter to compute the final result.
         approx: discrete Gaussian kernel type, available options are "erf", "sampled", and "scalespace".
             see also :py:meth:`monai.networks.layers.GaussianFilter`.
+        allow_missing_keys: don't raise exception if key is missing.
 
     """
 
@@ -605,18 +881,19 @@ class GaussianSharpend(MapTransform):
         sigma2: Union[Sequence[float], float] = 1.0,
         alpha: float = 30.0,
         approx: str = "erf",
+        allow_missing_keys: bool = False,
     ) -> None:
-        super().__init__(keys)
+        super().__init__(keys, allow_missing_keys)
         self.converter = GaussianSharpen(sigma1, sigma2, alpha, approx=approx)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        for key in self.keys:
+        for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
         return d
 
 
-class RandGaussianSharpend(Randomizable, MapTransform):
+class RandGaussianSharpend(RandomizableTransform, MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.GaussianSharpen`.
 
@@ -636,6 +913,7 @@ class RandGaussianSharpend(Randomizable, MapTransform):
         approx: discrete Gaussian kernel type, available options are "erf", "sampled", and "scalespace".
             see also :py:meth:`monai.networks.layers.GaussianFilter`.
         prob: probability of Gaussian sharpen.
+        allow_missing_keys: don't raise exception if key is missing.
 
     """
 
@@ -651,8 +929,10 @@ class RandGaussianSharpend(Randomizable, MapTransform):
         alpha: Tuple[float, float] = (10.0, 30.0),
         approx: str = "erf",
         prob: float = 0.1,
+        allow_missing_keys: bool = False,
     ):
-        super().__init__(keys)
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
         self.sigma1_x = sigma1_x
         self.sigma1_y = sigma1_y
         self.sigma1_z = sigma1_z
@@ -661,11 +941,9 @@ class RandGaussianSharpend(Randomizable, MapTransform):
         self.sigma2_z = sigma2_z
         self.alpha = alpha
         self.approx = approx
-        self.prob = prob
-        self._do_transform = False
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        self._do_transform = self.R.random_sample() < self.prob
+        super().randomize(None)
         self.x1 = self.R.uniform(low=self.sigma1_x[0], high=self.sigma1_x[1])
         self.y1 = self.R.uniform(low=self.sigma1_y[0], high=self.sigma1_y[1])
         self.z1 = self.R.uniform(low=self.sigma1_z[0], high=self.sigma1_z[1])
@@ -682,14 +960,14 @@ class RandGaussianSharpend(Randomizable, MapTransform):
         self.randomize()
         if not self._do_transform:
             return d
-        for key in self.keys:
+        for key in self.key_iterator(d):
             sigma1 = ensure_tuple_size(tup=(self.x1, self.y1, self.z1), dim=d[key].ndim - 1)
             sigma2 = ensure_tuple_size(tup=(self.x2, self.y2, self.z2), dim=d[key].ndim - 1)
             d[key] = GaussianSharpen(sigma1=sigma1, sigma2=sigma2, alpha=self.a, approx=self.approx)(d[key])
         return d
 
 
-class RandHistogramShiftd(Randomizable, MapTransform):
+class RandHistogramShiftd(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandHistogramShift`.
     Apply random nonlinear transform the the image's intensity histogram.
@@ -701,12 +979,18 @@ class RandHistogramShiftd(Randomizable, MapTransform):
             a smaller number of control points allows for larger intensity shifts. if two values provided, number of
             control points selecting from range (min_value, max_value).
         prob: probability of histogram shift.
+        allow_missing_keys: don't raise exception if key is missing.
     """
 
     def __init__(
-        self, keys: KeysCollection, num_control_points: Union[Tuple[int, int], int] = 10, prob: float = 0.1
+        self,
+        keys: KeysCollection,
+        num_control_points: Union[Tuple[int, int], int] = 10,
+        prob: float = 0.1,
+        allow_missing_keys: bool = False,
     ) -> None:
-        super().__init__(keys)
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
         if isinstance(num_control_points, int):
             if num_control_points <= 2:
                 raise AssertionError("num_control_points should be greater than or equal to 3")
@@ -717,11 +1001,9 @@ class RandHistogramShiftd(Randomizable, MapTransform):
             if min(num_control_points) <= 2:
                 raise AssertionError("num_control_points should be greater than or equal to 3")
             self.num_control_points = (min(num_control_points), max(num_control_points))
-        self.prob = prob
-        self._do_transform = False
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        self._do_transform = self.R.random() < self.prob
+        super().randomize(None)
         num_control_point = self.R.randint(self.num_control_points[0], self.num_control_points[1] + 1)
         self.reference_control_points = np.linspace(0, 1, num_control_point)
         self.floating_control_points = np.copy(self.reference_control_points)
@@ -735,7 +1017,7 @@ class RandHistogramShiftd(Randomizable, MapTransform):
         self.randomize()
         if not self._do_transform:
             return d
-        for key in self.keys:
+        for key in self.key_iterator(d):
             img_min, img_max = d[key].min(), d[key].max()
             reference_control_points_scaled = self.reference_control_points * (img_max - img_min) + img_min
             floating_control_points_scaled = self.floating_control_points * (img_max - img_min) + img_min
@@ -744,9 +1026,311 @@ class RandHistogramShiftd(Randomizable, MapTransform):
         return d
 
 
+class RandGibbsNoised(RandomizableTransform, MapTransform):
+    """
+    Dictionary-based version of RandGibbsNoise.
+
+    Naturalistic image augmentation via Gibbs artifacts. The transform
+    randomly applies Gibbs noise to 2D/3D MRI images. Gibbs artifacts
+    are one of the common type of type artifacts appearing in MRI scans.
+
+    The transform is applied to all the channels in the data.
+
+    For general information on Gibbs artifacts, please refer to:
+    https://pubs.rsna.org/doi/full/10.1148/rg.313105115
+    https://pubs.rsna.org/doi/full/10.1148/radiographics.22.4.g02jl14949
+
+    Args:
+        keys: 'image', 'label', or ['image', 'label'] depending on which data
+                you need to transform.
+        prob (float): probability of applying the transform.
+        alpha (float, List[float]): Parametrizes the intensity of the Gibbs noise filter applied. Takes
+            values in the interval [0,1] with alpha = 0 acting as the identity mapping.
+            If a length-2 list is given as [a,b] then the value of alpha will be sampled
+            uniformly from the interval [a,b].
+        as_tensor_output: if true return torch.Tensor, else return np.array. default: True.
+        allow_missing_keys: do not raise exception if key is missing.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        prob: float = 0.1,
+        alpha: Sequence[float] = (0.0, 1.0),
+        as_tensor_output: bool = True,
+        allow_missing_keys: bool = False,
+    ) -> None:
+
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob=prob)
+        self.alpha = alpha
+        self.sampled_alpha = -1.0  # stores last alpha sampled by randomize()
+        self.as_tensor_output = as_tensor_output
+
+    def __call__(
+        self, data: Mapping[Hashable, Union[torch.Tensor, np.ndarray]]
+    ) -> Dict[Hashable, Union[torch.Tensor, np.ndarray]]:
+
+        d = dict(data)
+        self._randomize(None)
+
+        for i, key in enumerate(self.key_iterator(d)):
+            if self._do_transform:
+                if i == 0:
+                    transform = GibbsNoise(self.sampled_alpha, self.as_tensor_output)
+                d[key] = transform(d[key])
+            else:
+                if isinstance(d[key], np.ndarray) and self.as_tensor_output:
+                    d[key] = torch.Tensor(d[key])
+                elif isinstance(d[key], torch.Tensor) and not self.as_tensor_output:
+                    d[key] = self._to_numpy(d[key])
+        return d
+
+    def _randomize(self, _: Any) -> None:
+        """
+        (1) Set random variable to apply the transform.
+        (2) Get alpha from uniform distribution.
+        """
+        super().randomize(None)
+        self.sampled_alpha = self.R.uniform(self.alpha[0], self.alpha[1])
+
+    def _to_numpy(self, d: Union[torch.Tensor, np.ndarray]) -> np.ndarray:
+        if isinstance(d, torch.Tensor):
+            d_numpy: np.ndarray = d.cpu().detach().numpy()
+        return d_numpy
+
+
+class GibbsNoised(MapTransform):
+    """
+    Dictionary-based version of GibbsNoise.
+
+    The transform applies Gibbs noise to 2D/3D MRI images. Gibbs artifacts
+    are one of the common type of type artifacts appearing in MRI scans.
+
+    For general information on Gibbs artifacts, please refer to:
+    https://pubs.rsna.org/doi/full/10.1148/rg.313105115
+    https://pubs.rsna.org/doi/full/10.1148/radiographics.22.4.g02jl14949
+
+    Args:
+        keys: 'image', 'label', or ['image', 'label'] depending on which data
+                you need to transform.
+        alpha (float): Parametrizes the intensity of the Gibbs noise filter applied. Takes
+            values in the interval [0,1] with alpha = 0 acting as the identity mapping.
+        as_tensor_output: if true return torch.Tensor, else return np.array. default: True.
+        allow_missing_keys: do not raise exception if key is missing.
+    """
+
+    def __init__(
+        self, keys: KeysCollection, alpha: float = 0.5, as_tensor_output: bool = True, allow_missing_keys: bool = False
+    ) -> None:
+
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        self.transform = GibbsNoise(alpha, as_tensor_output)
+
+    def __call__(
+        self, data: Mapping[Hashable, Union[torch.Tensor, np.ndarray]]
+    ) -> Dict[Hashable, Union[torch.Tensor, np.ndarray]]:
+
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.transform(d[key])
+        return d
+
+
+class KSpaceSpikeNoised(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.KSpaceSpikeNoise`.
+
+    Applies localized spikes in `k`-space at the given locations and intensities.
+    Spike (Herringbone) artifact is a type of data acquisition artifact which
+    may occur during MRI scans.
+
+    For general information on spike artifacts, please refer to:
+
+    `AAPM/RSNA physics tutorial for residents: fundamental physics of MR imaging
+    <https://pubmed.ncbi.nlm.nih.gov/16009826>`_.
+
+    `Body MRI artifacts in clinical practice: A physicist's and radiologist's
+    perspective <https://doi.org/10.1002/jmri.24288>`_.
+
+    Args:
+        keys: "image", "label", or ["image", "label"] depending
+             on which data you need to transform.
+        loc: spatial location for the spikes. For
+            images with 3D spatial dimensions, the user can provide (C, X, Y, Z)
+            to fix which channel C is affected, or (X, Y, Z) to place the same
+            spike in all channels. For 2D cases, the user can provide (C, X, Y)
+            or (X, Y).
+        k_intensity: value for the log-intensity of the
+            `k`-space version of the image. If one location is passed to ``loc`` or the
+            channel is not specified, then this argument should receive a float. If
+            ``loc`` is given a sequence of locations, then this argument should
+            receive a sequence of intensities. This value should be tested as it is
+            data-dependent. The default values are the 2.5 the mean of the
+            log-intensity for each channel.
+        as_tensor_output: if ``True`` return torch.Tensor, else return np.array.
+            Default: ``True``.
+        allow_missing_keys: do not raise exception if key is missing.
+
+    Example:
+        When working with 4D data,
+        ``KSpaceSpikeNoised("image", loc = ((3,60,64,32), (64,60,32)), k_intensity = (13,14))``
+        will place a spike at `[3, 60, 64, 32]` with `log-intensity = 13`, and
+        one spike per channel located respectively at `[: , 64, 60, 32]`
+        with `log-intensity = 14`.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        loc: Union[Tuple, Sequence[Tuple]],
+        k_intensity: Optional[Union[Sequence[float], float]] = None,
+        as_tensor_output: bool = True,
+        allow_missing_keys: bool = False,
+    ) -> None:
+
+        super().__init__(keys, allow_missing_keys)
+        self.transform = KSpaceSpikeNoise(loc, k_intensity, as_tensor_output)
+
+    def __call__(
+        self, data: Mapping[Hashable, Union[torch.Tensor, np.ndarray]]
+    ) -> Dict[Hashable, Union[torch.Tensor, np.ndarray]]:
+        """
+        Args:
+            data: Expects image/label to have dimensions (C, H, W) or
+                (C, H, W, D), where C is the channel.
+        """
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.transform(d[key])
+        return d
+
+
+class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
+    """
+    Dictionary-based version of :py:class:`monai.transforms.RandKSpaceSpikeNoise`.
+
+    Naturalistic data augmentation via spike artifacts. The transform applies
+    localized spikes in `k`-space.
+
+    For general information on spike artifacts, please refer to:
+
+    `AAPM/RSNA physics tutorial for residents: fundamental physics of MR imaging
+    <https://pubmed.ncbi.nlm.nih.gov/16009826>`_.
+
+    `Body MRI artifacts in clinical practice: A physicist's and radiologist's
+    perspective <https://doi.org/10.1002/jmri.24288>`_.
+
+    Args:
+        keys: "image", "label", or ["image", "label"] depending
+             on which data you need to transform.
+        global_prob: probability of applying transform to the dictionary.
+        prob: probability to add spike artifact to each item in the
+            dictionary provided it is realized that the noise will be applied
+            to the dictionary.
+        img_intensity_range: Intensity
+            range to sample for ``"image"`` key. Pass a tuple `(a, b)` to sample
+            the log-intensity from the interval `(a, b)` uniformly for all
+            channels. Or pass sequence of intevals `((a0, b0), (a1, b1), ...)`
+            to sample for each respective channel. In the second case, the
+            number of 2-tuples must match the number of channels.
+            Default ranges is `(0.95x, 1.10x)` where `x` is the mean
+            log-intensity for each channel.
+        label_intensity_range: Intensity range to sample for ``"label"`` key. Same
+            as behavior as ``img_intensity_range`` but ``"label"`` key.
+        channel_wise: treat each channel independently. True by
+            default.
+        common_sampling: If ``True`` same values for location and log-intensity
+             will be sampled for the image and label.
+        common_seed: Seed to be used in case ``common_sampling = True``.
+        as_tensor_output: if ``True`` return torch.Tensor, else return
+            np.array. Default: ``True``.
+        allow_missing_keys: do not raise exception if key is missing.
+
+    Example:
+        To apply `k`-space spikes randomly on the image only, with probability
+        0.5, and log-intensity sampled from the interval [13, 15] for each
+        channel independently, one uses
+        ``RandKSpaceSpikeNoised("image", prob=0.5, img_intensity_range=(13,15), channel_wise=True)``.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        global_prob: float = 1.0,
+        prob: float = 0.1,
+        img_intensity_range: Optional[Sequence[Union[Sequence[float], float]]] = None,
+        label_intensity_range: Optional[Sequence[Union[Sequence[float], float]]] = None,
+        channel_wise: bool = True,
+        common_sampling: bool = False,
+        common_seed: int = 42,
+        as_tensor_output: bool = True,
+        allow_missing_keys: bool = False,
+    ):
+
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, global_prob)
+
+        self.common_sampling = common_sampling
+        self.common_seed = common_seed
+        self.as_tensor_output = as_tensor_output
+        # the spikes artifact is amplitude dependent so we instantiate one per key
+        self.t_img = RandKSpaceSpikeNoise(prob, img_intensity_range, channel_wise, self.as_tensor_output)
+        self.t_label = RandKSpaceSpikeNoise(prob, label_intensity_range, channel_wise, self.as_tensor_output)
+
+    def __call__(
+        self, data: Mapping[Hashable, Union[torch.Tensor, np.ndarray]]
+    ) -> Dict[Hashable, Union[torch.Tensor, np.ndarray]]:
+        """
+        Args:
+            data: Expects image/label to have dimensions (C, H, W) or
+                (C, H, W, D), where C is the channel.
+        """
+        d = dict(data)
+        super().randomize(None)
+
+        # In case the same spikes are desired for both image and label.
+        if self.common_sampling:
+            self.t_img.set_random_state(self.common_seed)
+            self.t_label.set_random_state(self.common_seed)
+
+        for key in self.key_iterator(d):
+            if self._do_transform:
+                transform = self.t_img if key == "image" else self.t_label
+                d[key] = transform(d[key])
+            else:
+                if isinstance(d[key], np.ndarray) and self.as_tensor_output:
+                    d[key] = torch.Tensor(d[key])
+                elif isinstance(d[key], torch.Tensor) and not self.as_tensor_output:
+                    d[key] = self._to_numpy(d[key])
+        return d
+
+    def set_rand_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None) -> None:
+        """
+        Set the random state locally to control the randomness.
+        User should use this method instead  of ``set_random_state``.
+
+        Args:
+            seed: set the random state with an integer seed.
+            state: set the random state with a `np.random.RandomState` object."""
+
+        self.set_random_state(seed, state)
+        self.t_img.set_random_state(seed, state)
+        self.t_label.set_random_state(seed, state)
+
+    def _to_numpy(self, d: Union[torch.Tensor, np.ndarray]) -> np.ndarray:
+        if isinstance(d, torch.Tensor):
+            d_numpy: np.ndarray = d.cpu().detach().numpy()
+        return d_numpy
+
+
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
+RandRicianNoiseD = RandRicianNoiseDict = RandRicianNoised
 ShiftIntensityD = ShiftIntensityDict = ShiftIntensityd
 RandShiftIntensityD = RandShiftIntensityDict = RandShiftIntensityd
+StdShiftIntensityD = StdShiftIntensityDict = StdShiftIntensityd
+RandStdShiftIntensityD = RandStdShiftIntensityDict = RandStdShiftIntensityd
+RandBiasFieldD = RandBiasFieldDict = RandBiasFieldd
 ScaleIntensityD = ScaleIntensityDict = ScaleIntensityd
 RandScaleIntensityD = RandScaleIntensityDict = RandScaleIntensityd
 NormalizeIntensityD = NormalizeIntensityDict = NormalizeIntensityd
@@ -761,3 +1345,7 @@ RandGaussianSmoothD = RandGaussianSmoothDict = RandGaussianSmoothd
 GaussianSharpenD = GaussianSharpenDict = GaussianSharpend
 RandGaussianSharpenD = RandGaussianSharpenDict = RandGaussianSharpend
 RandHistogramShiftD = RandHistogramShiftDict = RandHistogramShiftd
+RandGibbsNoiseD = RandGibbsNoiseDict = RandGibbsNoised
+GibbsNoiseD = GibbsNoiseDict = GibbsNoised
+KSpaceSpikeNoiseD = KSpaceSpikeNoiseDict = KSpaceSpikeNoised
+RandKSpaceSpikeNoiseD = RandKSpaceSpikeNoiseDict = RandKSpaceSpikeNoised
