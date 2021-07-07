@@ -34,7 +34,7 @@ from monai.transforms.utility.array import (
     ConvertToMultiChannelBasedOnBratsClasses,
     DataStats,
     EnsureChannelFirst,
-    EnsureTensor,
+    EnsureType,
     FgBgToIndices,
     Identity,
     LabelToMask,
@@ -90,9 +90,9 @@ __all__ = [
     "EnsureChannelFirstD",
     "EnsureChannelFirstDict",
     "EnsureChannelFirstd",
-    "EnsureTensorD",
-    "EnsureTensorDict",
-    "EnsureTensord",
+    "EnsureTypeD",
+    "EnsureTypeDict",
+    "EnsureTyped",
     "FgBgToIndicesD",
     "FgBgToIndicesDict",
     "FgBgToIndicesd",
@@ -447,20 +447,25 @@ class ToTensord(MapTransform, InvertibleTransform):
         return d
 
 
-class EnsureTensord(MapTransform, InvertibleTransform):
+class EnsureTyped(MapTransform, InvertibleTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.EnsureTensor`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.EnsureType`.
+
+    Note: Currently, we only convert tensor data to numpy array or scalar number in the inverse operation.
+
     """
 
-    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
+    def __init__(self, keys: KeysCollection, dtype: str = "tensor", allow_missing_keys: bool = False) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
+            dtype: target data type to convert, should be "tensor" or "numpy".
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = EnsureTensor()
+        self.converter = EnsureType(dtype=dtype)
+        self.dtype = dtype
 
     def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
         d = dict(data)
@@ -472,7 +477,8 @@ class EnsureTensord(MapTransform, InvertibleTransform):
     def inverse(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
-            # Apply inverse
+            # FIXME: currently, only convert tensor data to numpy array or scalar number,
+            # need to also invert numpy array but it's not easy to determine the previous data type
             d[key] = tensor_to_numpy(d[key])
             # Remove the applied transform
             self.pop_transform(d, key)
@@ -1178,7 +1184,7 @@ RepeatChannelD = RepeatChannelDict = RepeatChanneld
 SplitChannelD = SplitChannelDict = SplitChanneld
 CastToTypeD = CastToTypeDict = CastToTyped
 ToTensorD = ToTensorDict = ToTensord
-EnsureTensorD = EnsureTensorDict = EnsureTensord
+EnsureTypeD = EnsureTypeDict = EnsureTyped
 ToNumpyD = ToNumpyDict = ToNumpyd
 ToCupyD = ToCupyDict = ToCupyd
 ToPILD = ToPILDict = ToPILd

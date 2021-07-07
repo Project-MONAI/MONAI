@@ -21,7 +21,7 @@ from monai.transforms import (
     CastToTyped,
     Compose,
     CopyItemsd,
-    EnsureTensord,
+    EnsureTyped,
     Invertd,
     LoadImaged,
     Orientationd,
@@ -62,7 +62,7 @@ class TestInvertd(unittest.TestCase):
                 # test EnsureTensor for complicated dict data and invert it
                 CopyItemsd("image_meta_dict", times=1, names="test_dict"),
                 # test to support Tensor, Numpy array and dictionary when inverting
-                EnsureTensord(keys=["image", "test_dict"]),
+                EnsureTyped(keys=["image", "test_dict"]),
                 CastToTyped(KEYS, dtype=[torch.uint8, np.uint8]),
                 CopyItemsd("label", times=1, names="label_inverted"),
             ]

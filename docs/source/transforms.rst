@@ -628,9 +628,9 @@ Utility
     :members:
     :special-members: __call__
 
-`EnsureTensor`
-""""""""""""""
-.. autoclass:: EnsureTensor
+`EnsureType`
+""""""""""""
+.. autoclass:: EnsureType
     :members:
     :special-members: __call__
 
@@ -1213,9 +1213,9 @@ Utility (Dict)
     :members:
     :special-members: __call__
 
-`EnsureTensord`
-"""""""""""""""
-.. autoclass:: EnsureTensord
+`EnsureTyped`
+"""""""""""""
+.. autoclass:: EnsureTyped
     :members:
     :special-members: __call__
 
