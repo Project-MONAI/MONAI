@@ -21,7 +21,7 @@ class TestEnsureType(unittest.TestCase):
     def test_array_input(self):
         for test_data in (np.array([[1, 2], [3, 4]]), torch.as_tensor([[1, 2], [3, 4]])):
             for dtype in ("tensor", "NUMPY"):
-                result = EnsureType(dtype=dtype)(test_data)
+                result = EnsureType(data_type=dtype)(test_data)
                 self.assertTrue(isinstance(result, torch.Tensor if dtype == "tensor" else np.ndarray))
                 torch.testing.assert_allclose(result, test_data)
                 self.assertTupleEqual(result.shape, (2, 2))
@@ -29,7 +29,7 @@ class TestEnsureType(unittest.TestCase):
     def test_single_input(self):
         for test_data in (5, 5.0, False, np.asarray(5), torch.tensor(5)):
             for dtype in ("tensor", "numpy"):
-                result = EnsureType(dtype=dtype)(test_data)
+                result = EnsureType(data_type=dtype)(test_data)
                 self.assertTrue(isinstance(result, torch.Tensor if dtype == "tensor" else np.ndarray))
                 torch.testing.assert_allclose(result, test_data)
                 self.assertEqual(result.ndim, 0)
@@ -37,22 +37,22 @@ class TestEnsureType(unittest.TestCase):
     def test_string(self):
         for dtype in ("tensor", "numpy"):
             # string input
-            result = EnsureType(dtype=dtype)("test_string")
+            result = EnsureType(data_type=dtype)("test_string")
             self.assertTrue(isinstance(result, str))
             self.assertEqual(result, "test_string")
             # numpy array of string
-            result = EnsureType(dtype=dtype)(np.array(["test_string0", "test_string1"]))
+            result = EnsureType(data_type=dtype)(np.array(["test_string0", "test_string1"]))
             self.assertTrue(isinstance(result, np.ndarray))
             self.assertEqual(result[1], "test_string1")
 
     def test_list_tuple(self):
         for dtype in ("tensor", "numpy"):
-            result = EnsureType(dtype=dtype)([[1, 2], [3, 4]])
+            result = EnsureType(data_type=dtype)([[1, 2], [3, 4]])
             self.assertTrue(isinstance(result, list))
             self.assertTrue(isinstance(result[0][1], torch.Tensor if dtype == "tensor" else np.ndarray))
             torch.testing.assert_allclose(result[1][0], torch.as_tensor(3))
             # tuple of numpy arrays
-            result = EnsureType(dtype=dtype)((np.array([1, 2]), np.array([3, 4])))
+            result = EnsureType(data_type=dtype)((np.array([1, 2]), np.array([3, 4])))
             self.assertTrue(isinstance(result, tuple))
             self.assertTrue(isinstance(result[0], torch.Tensor if dtype == "tensor" else np.ndarray))
             torch.testing.assert_allclose(result[1], torch.as_tensor([3, 4]))
@@ -65,7 +65,7 @@ class TestEnsureType(unittest.TestCase):
             "extra": None,
         }
         for dtype in ("tensor", "numpy"):
-            result = EnsureType(dtype=dtype)(test_data)
+            result = EnsureType(data_type=dtype)(test_data)
             self.assertTrue(isinstance(result, dict))
             self.assertTrue(isinstance(result["img"], torch.Tensor if dtype == "tensor" else np.ndarray))
             torch.testing.assert_allclose(result["img"], torch.as_tensor([1.0, 2.0]))

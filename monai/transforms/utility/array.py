@@ -326,20 +326,21 @@ class ToTensor(Transform):
 class EnsureType(Transform):
     """
     Ensure the input data to be a PyTorch Tensor or numpy array, support: `numpy array`, `PyTorch Tensor`,
-    `float`, `int`, `bool`. If passing a dictionary, list or tuple, recursively check every item and ensure
-    it to be expected data type.
+    `float`, `int`, `bool`, `string` and `object` keep the original.
+    If passing a dictionary, list or tuple, still return dictionary, list or tuple and recursively convert
+    every item to the expected data type.
 
     Args:
-        dtype: target data type to convert, should be "tensor" or "numpy".
+        data_type: target data type to convert, should be "tensor" or "numpy".
 
     """
 
-    def __init__(self, dtype: str = "tensor") -> None:
-        dtype = dtype.lower()
-        if dtype not in ("tensor", "numpy"):
-            raise ValueError("`dtype` must be 'tensor' or 'numpy'.")
+    def __init__(self, data_type: str = "tensor") -> None:
+        data_type = data_type.lower()
+        if data_type not in ("tensor", "numpy"):
+            raise ValueError("`data type` must be 'tensor' or 'numpy'.")
 
-        self.dtype = dtype
+        self.data_type = data_type
 
     def __call__(self, data):
         """
@@ -350,7 +351,7 @@ class EnsureType(Transform):
                 if applicable.
 
         """
-        return convert_to_tensor(data) if self.dtype == "tensor" else convert_to_numpy(data)
+        return convert_to_tensor(data) if self.data_type == "tensor" else convert_to_numpy(data)
 
 
 class ToNumpy(Transform):
