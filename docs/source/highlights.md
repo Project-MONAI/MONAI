@@ -37,7 +37,9 @@ Medical images require highly specialized methods for I/O, preprocessing, and au
 
 There is a rich set of transforms in six categories: Crop & Pad, Intensity, IO, Post-processing, Spatial, and Utilities. For more details, please visit [all the transforms in MONAI](https://docs.monai.io/en/latest/transforms.html).
 
-Almost all the transforms expect input data with channel-first shape: `[C, spatial dim 1, spatial dim 2, ...]`. Users can easily extend more preprocessing or postprocessing features based on transform mechanism and only need to handle channel-first data.
+Almost all the transforms expect the input data to have a channel-first shape format: `[Channel dim, spatial dim 1, spatial dim 2, ...]`.
+Flexible [base APIs](https://github.com/Project-MONAI/MONAI/tree/dev/monai/transforms) are also provided. The `monai.transforms` module is
+easily extensible.
 
 ### 2. Medical specific transforms
 MONAI aims at providing a comprehensive medical image specific
@@ -139,7 +141,7 @@ To convert images into files or debug the transform chain, MONAI provides `SaveI
 Medical images have different shape formats. They can be `channel-last`, `channel-first` or even `no-channel`. We may, for example, want to load several `no-channel` images and stack them as `channel-first` data. To improve the user experience, MONAI provided an `EnsureChannelFirst` transform to automatically detect data shape according to the meta information and convert it to the `channel-first` format consistently.
 
 ### 13. Invert spatial transforms and test-time augmentations
-It is often desirable to invert the previously applied spatial transforms (resize, flip, rotate, zoom, crop, pad, etc.) with the deep learning workflows, for example, to resume to the original imaging space after processing the image data in a normalized data space.  We enhanced almost all the spatial transforms with an `inverse` operation and released this feature in v0.5. Users can easily invert all the spatial transforms for transformed data item based on `Invertd` transform. [Invertd tutorial](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/torch/unet_inference_dict.py) shows more details of the usage.
+It is often desirable to invert the previously applied spatial transforms (resize, flip, rotate, zoom, crop, pad, etc.) within the deep learning workflows, for example, to resume to the original imaging space after processing the image data in a normalized data space.  Many spatial transforms are enhanced with an `inverse` operation since in v0.5. The [model inference tutorial](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/torch/unet_inference_dict.py) shows a basic example.
 
 If the pipeline includes random transformations, users may want to observe the effect that these transformations have on the output. The typical approach is that we pass the same input through the transforms multiple times with different random realizations. Then use the inverse transforms to move all the results to a common space, and calculate the metrics. MONAI provided `TestTimeAugmentation` for this feature, which by default will calculate the `mode`, `mean`, `standard deviation` and `volume variation coefficient`.
 
@@ -215,8 +217,9 @@ The common workflow of predefined datasets:
 ### 7. Partition dataset for cross validation
 The `partition_dataset` utility in MONAI can perform several kinds of mechanism to partition dataset for training and validation or cross-validation. It supports shuffling based on a specified random seed, and will return a set of datasets, each dataset contains one partition. And it can split the dataset based on specified ratios or evenly split into `num_partitions`. For given class labels, it can also make sure the same ratio of classes in every partition.
 
-### 8. CSVDataset and CSVIterableDataset
-As CSV tables are widely used in medical datasets to store the detailed meta data, MONAI provides `CSVDataset` to load CSV files and `CSVIterableDataset` to load extremely big CSV files with iterable chunks. It can load several CSV files together and join the tables and select rows and columns to construct a dataset. And also support to fill in missing items with default values, group columns to construct new column, execute transforms on the loaded data. [CSVDatasets tutorial](https://github.com/Project-MONAI/tutorials/blob/master/modules/csv_datasets.ipynb) shows detailed usage examples.
+### 8. CSV `Dataset` and `IterableDataset`
+CSV tables are often used in additional to image data to incorporate adjunct information, such as patient demographics, lab results, image acquisition parameters and other non-image data, MONAI provides `CSVDataset` to load CSV files and `CSVIterableDataset` to load large CSV files with scalable data access.
+In addition to the regular preprocessing transform while loading, it also supports multiple CSV files loading, joining tables, rows and columns selection and grouping. [CSVDatasets tutorial](https://github.com/Project-MONAI/tutorials/blob/master/modules/csv_datasets.ipynb) shows detailed usage examples.
 
 ## Losses
 There are domain-specific loss functions in the medical imaging research which are not typically used in the generic computer vision tasks. As an important module of MONAI, these loss functions are implemented in PyTorch, such as `DiceLoss`, `GeneralizedDiceLoss`, `MaskedDiceLoss`, `TverskyLoss`, `FocalLoss`, `DiceCELoss`, and `DiceFocalLoss`, etc.
@@ -246,7 +249,7 @@ add_module('conv1', conv_type(in_channels, out_channels, kernel_size=1, bias=Fal
 ```
 
 ### 2. Implementation of generic 2D/3D networks
-And there are several 1D/2D/3D-compatible implementations of intermediate blocks and generic networks, such as UNet, DynUNet, DenseNet, GAN, AHNet, VNet, SENet(and SEResNet, SEResNeXt), SegResNet, EfficientNet, Attention based networks, etc. All the networks can support PyTorch serialization pipeline based on `torch.jit.script`.
+And there are several 1D/2D/3D-compatible implementations of intermediate blocks and generic networks, such as UNet, DynUNet, DenseNet, GAN, AHNet, VNet, SENet(and SEResNet, SEResNeXt), SegResNet, EfficientNet, Attention-based networks. All the networks can support PyTorch serialization pipeline based on `torch.jit.script`.
 
 ### 3. Network adapter to finetune final layers
 To leverage existing public networks in our own projects, we usually need to finetune the last few layers of network to adapt to our dataset. MONAI provides `NetAdapter` to easily replace the last layer of model by convolutional layer or FC layer. A typical usage example is to adapt [Torchvision models](https://pytorch.org/vision/stable/models.html) for other datasets.
@@ -271,12 +274,11 @@ Various useful evaluation metrics have been used to measure the quality of medic
 
 For example, `Mean Dice` score can be used for segmentation tasks, and the area under the ROC curve(`ROCAUC`) for classification tasks. We continue to integrate more options.
 
-1. MONAI provides flexible base APIs to easily implement new metrics
-The base classes of MONAI metrics already implemented the basic computation logic for iteration / epoch based metrics, so users just need to implement the real specific computation progress when developing a new metric.
+1. MONAI provides flexible base APIs for metrics
+The base classes of MONAI metrics implement the basic computation logic for both iteration and epoch-based metrics. They are a good starting point for customized metrics.
 2. All the metrics support data parallel computation
-With the `Cumulative` base class, metrics can automatically cumulate tensors in the buffer, then sync across distributed ranks and aggregate the final results. [Multi-processing computation example](https://github.com/Project-MONAI/tutorials/blob/master/modules/compute_metric.py) shows how to compute metrics based on saved predictions and labels in multi-processing environment.
-3. All the metrics support `batch-first` Tensor and list of `channel-first` Tensors
-To support the input data with different shapes, we usually organize a batch data in a list. MONAI metrics support both `batch Tensor` and list of `channel-first` Tensors.
+With a `Cumulative` base class, intermediate metric outcomes can be automatically buffered, cumulated, synced across distributed processes, and aggregated for the final results. [Multi-processing computation example](https://github.com/Project-MONAI/tutorials/blob/master/modules/compute_metric.py) shows how to compute metrics based on saved predictions and labels in multi-processing environment.
+3. All the metrics module can handle `batch-first` Tensors and list of `channel-first` Tensors
 
 ### 3. Metrics report generation
 During evaluation, users usually save the metrics of every input image, then analyze the bad cases to improve the deep learning pipeline. To save detailed information of metrics, MONAI provided a handler `MetricsSaver`, which can save the final metric values, raw metric of every model output channel of every input image, metrics summary report of operations: `mean`, `median`, `max`, `min`, `<int>percentile`, `std`, etc. The `MeanDice` reports of validation with prostate dataset are as below:
@@ -324,10 +326,10 @@ More details of practice is at [Model ensemble tutorial](https://github.com/Proj
 MONAI provided `CheckpointLoader` to load a checkpoint for the workflow before training, and it allows some `layer names` of the current network don't match the checkpoint, or some `layer shapes` don't match the checkpoint, which can be useful if the current task has different input image classes or output classes.
 
 ### 4. Transfer learning based on NVIDIA Clara MMAR
-[The MMAR (Medical Model ARchive)](https://docs.nvidia.com/clara/clara-train-sdk/pt/mmar.html) defines a standard structure for organizing all artifacts produced during the model development life cycle. NVIDIA Clara provides rich existing MMARs of medical domain-specific models. And these MMARs include all the information about the model including configurations and scripts to provide a work space to perform all model development tasks. To leverage the models of NVIDIA Clara MMARs as pretrained weights in the transfer learning program, MONAI provides utility APIs to automatically download any MMAR and load model weights or create model instance directly.
+[The MMAR (Medical Model ARchive)](https://docs.nvidia.com/clara/clara-train-sdk/pt/mmar.html) defines a data structure for organizing all artifacts produced during the model development life cycle. NVIDIA Clara provides rich existing MMARs of medical domain-specific models. And these MMARs include all the information about the model including configurations and scripts to provide a work space to perform all model development tasks. To better leverage the pretrained MMARs released on Nvidia GPU cloud, MONAI provides pythonic APIs to access the MMARs.
 
 ### 5. Easy to integrate into popular workflows
-Except for ignite specific trainers and event handlers, almost all the regular modules of MONAI are flexible to be applied independently or composed and only depend on PyTorch or numpy packages, so besides pytorch-ignite, it can be also easily integrated into other popular workflow frameworks, like PyTorch-Lightning, Catalyst, etc. [Lightning segmentation](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/spleen_segmentation_3d_lightning.ipynb) and [Lightning + TorchIO](https://github.com/Project-MONAI/tutorials/blob/master/modules/TorchIO_MONAI_PyTorch_Lightning.ipynb) tutorials show the PyTorch Lightning program with MONAI modules, and [Catalyst segmentation](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/unet_segmentation_3d_catalyst.ipynb) shows the Catalyst program with MONAI modules.
+Except for the pytorch-ignite based `monai.engines`, most of the MONAI modules could be used independently or combined with other software packages. For example, MONAI can be easily integrated into popular frameworks such as PyTorch-Lightning and Catalyst: [Lightning segmentation](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/spleen_segmentation_3d_lightning.ipynb) and [Lightning + TorchIO](https://github.com/Project-MONAI/tutorials/blob/master/modules/TorchIO_MONAI_PyTorch_Lightning.ipynb) tutorials show the PyTorch Lightning programs with MONAI modules, and [Catalyst segmentation](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/unet_segmentation_3d_catalyst.ipynb) shows the Catalyst program with MONAI modules.
 
 ## Research
 There are several research prototypes in MONAI corresponding to the recently published papers that address advanced research problems.
