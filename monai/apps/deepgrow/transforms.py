@@ -265,9 +265,9 @@ class AddRandomGuidanced(Randomizable, Transform):
     """
     Add random guidance based on discrepancies that were found between label and prediction.
     input shape is as below:
-        Guidance is of shape (2, N, # of dim)
-        Discrepancy is of shape (2, C, D, H, W) or (2, C, H, W)
-        Probability is of shape (1)
+    Guidance is of shape (2, N, # of dim)
+    Discrepancy is of shape (2, C, D, H, W) or (2, C, H, W)
+    Probability is of shape (1)
 
     Args:
         guidance: key to guidance source.

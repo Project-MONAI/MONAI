@@ -76,8 +76,8 @@ class Interaction:
                 ([1.0 - ((1.0 / self.max_interactions) * j)] if self.train else [1.0]) * len(inputs)
             )
             # decollate batch data to execute click transforms
-            batchdata = [self.transforms(i) for i in decollate_batch(batchdata, detach=True)]
+            batchdata_list = [self.transforms(i) for i in decollate_batch(batchdata, detach=True)]
             # collate list into a batch for next round interaction
-            batchdata = list_data_collate(batchdata)
+            batchdata = list_data_collate(batchdata_list)
 
         return engine._iteration(engine, batchdata)
