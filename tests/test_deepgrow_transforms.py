@@ -188,7 +188,7 @@ CROP_TEST_CASE_2 = [
 ADD_INITIAL_POINT_TEST_CASE_1 = [
     {"label": "label", "guidance": "guidance", "sids": "sids"},
     DATA_1,
-    np.array([[[1, 0, 2, 2]], [[-1, -1, -1, -1]]]),
+    "[[[1, 0, 2, 2]], [[-1, -1, -1, -1]]]",
 ]
 
 ADD_GUIDANCE_TEST_CASE_1 = [
@@ -238,7 +238,7 @@ FIND_DISCREPANCY_TEST_CASE_1 = [
 ADD_RANDOM_GUIDANCE_TEST_CASE_1 = [
     {"guidance": "guidance", "discrepancy": "discrepancy", "probability": "probability"},
     DATA_4,
-    np.array([[[1, 0, 2, 2], [1, 0, 1, 3]], [[-1, -1, -1, -1], [-1, -1, -1, -1]]]),
+    "[[[1, 0, 2, 2], [1, 0, 1, 3]], [[-1, -1, -1, -1], [-1, -1, -1, -1]]]",
 ]
 
 ADD_GUIDANCE_FROM_POINTS_TEST_CASE_1 = [
@@ -392,7 +392,7 @@ class TestAddInitialSeedPointd(unittest.TestCase):
         add_fn = AddInitialSeedPointd(**arguments)
         add_fn.set_random_state(seed)
         result = add_fn(input_data)
-        np.testing.assert_allclose(result[arguments["guidance"]], expected_result)
+        self.assertEqual(result[arguments["guidance"]], expected_result)
 
 
 class TestAddGuidanceSignald(unittest.TestCase):
@@ -416,7 +416,7 @@ class TestAddRandomGuidanced(unittest.TestCase):
         add_fn = AddRandomGuidanced(**arguments)
         add_fn.set_random_state(seed)
         result = add_fn(input_data)
-        np.testing.assert_allclose(result[arguments["guidance"]], expected_result, rtol=1e-5)
+        self.assertEqual(result[arguments["guidance"]], expected_result)
 
 
 class TestAddGuidanceFromPointsd(unittest.TestCase):
