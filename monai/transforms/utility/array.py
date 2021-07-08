@@ -368,8 +368,8 @@ class ToNumpy(Transform):
         elif has_cp and isinstance(img, cp_ndarray):
             img = cp.asnumpy(img)
 
-        img = np.asarray(img)
-        return np.ascontiguousarray(img) if img.ndim > 0 else img
+        array: np.ndarray = np.asarray(img)
+        return np.ascontiguousarray(array) if array.ndim > 0 else array
 
 
 class ToCupy(Transform):
