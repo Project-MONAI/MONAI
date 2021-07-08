@@ -58,6 +58,13 @@ class TestToNumpy(unittest.TestCase):
         result = ToNumpy()(test_data)
         np.testing.assert_allclose(result, np.asarray(test_data))
 
+    def test_single_value(self):
+        for test_data in [5, np.array(5)]:
+            result = ToNumpy()(test_data)
+            self.assertTrue(isinstance(result, np.ndarray))
+            np.testing.assert_allclose(result, np.asarray(test_data))
+            self.assertEqual(result.ndim, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

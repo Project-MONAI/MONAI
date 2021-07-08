@@ -364,10 +364,12 @@ class ToNumpy(Transform):
         Apply the transform to `img` and make it contiguous.
         """
         if isinstance(img, torch.Tensor):
-            img = img.detach().cpu().numpy()  # type: ignore
+            img = img.detach().cpu().numpy()
         elif has_cp and isinstance(img, cp_ndarray):
-            img = cp.asnumpy(img)  # type: ignore
-        return np.ascontiguousarray(img)
+            img = cp.asnumpy(img)
+
+        img = np.asarray(img)
+        return np.ascontiguousarray(img) if img.ndim > 0 else img
 
 
 class ToCupy(Transform):
@@ -380,7 +382,7 @@ class ToCupy(Transform):
         Apply the transform to `img` and make it contiguous.
         """
         if isinstance(img, torch.Tensor):
-            img = img.detach().cpu().numpy()  # type: ignore
+            img = img.detach().cpu().numpy()
         return cp.ascontiguousarray(cp.asarray(img))
 
 
