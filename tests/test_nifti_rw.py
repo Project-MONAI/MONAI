@@ -124,6 +124,18 @@ class TestNiftiLoadRead(unittest.TestCase):
         np.testing.assert_allclose(saved_data, np.arange(64).reshape(1, 8, 8), atol=1e-7)
         if os.path.exists(test_image):
             os.remove(test_image)
+        # test the case that only correct orientation but don't resample
+        write_nifti(data[0], test_image, new_affine, original_affine, resample=False)
+        saved = nib.load(test_image)
+        # compute expected affine
+        start_ornt = nib.orientations.io_orientation(new_affine)
+        target_ornt = nib.orientations.io_orientation(original_affine)
+        ornt_transform = nib.orientations.ornt_transform(start_ornt, target_ornt)
+        data_shape = data[0].shape
+        expected_affine = new_affine @ nib.orientations.inv_ornt_aff(ornt_transform, data_shape)
+        np.testing.assert_allclose(saved.affine, expected_affine)
+        if os.path.exists(test_image):
+            os.remove(test_image)
 
     def test_write_2d(self):
         with tempfile.TemporaryDirectory() as out_dir:

@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import os
+import shutil
 import tempfile
 import unittest
 
@@ -19,7 +20,7 @@ from parameterized import parameterized
 
 from monai.data import LMDBDataset, json_hashing
 from monai.transforms import Compose, LoadImaged, SimulateDelayd, Transform
-from tests.utils import skip_if_windows
+from tests.utils import DistCall, DistTestCase, skip_if_windows
 
 TEST_CASE_1 = [
     Compose(
@@ -78,19 +79,20 @@ TEST_CASE_7 = [
 ]
 
 
+class _InplaceXform(Transform):
+    def __call__(self, data):
+        if data:
+            data[0] = data[0] + np.pi
+        else:
+            data.append(1)
+        return data
+
+
 @skip_if_windows
 class TestLMDBDataset(unittest.TestCase):
     def test_cache(self):
         """testing no inplace change to the hashed item"""
         items = [[list(range(i))] for i in range(5)]
-
-        class _InplaceXform(Transform):
-            def __call__(self, data):
-                if data:
-                    data[0] = data[0] + np.pi
-                else:
-                    data.append(1)
-                return data
 
         with tempfile.TemporaryDirectory() as tempdir:
             ds = LMDBDataset(items, transform=_InplaceXform(), cache_dir=tempdir, lmdb_kwargs={"map_size": 10 * 1024})
@@ -156,25 +158,84 @@ class TestLMDBDataset(unittest.TestCase):
             data1_postcached = dataset_postcached[0]
             data2_postcached = dataset_postcached[1]
 
-        if transform is None:
-            self.assertEqual(data1_precached["image"], os.path.join(tempdir, "test_image1.nii.gz"))
-            self.assertEqual(data2_precached["label"], os.path.join(tempdir, "test_label2.nii.gz"))
-            self.assertEqual(data1_postcached["image"], os.path.join(tempdir, "test_image1.nii.gz"))
-            self.assertEqual(data2_postcached["extra"], os.path.join(tempdir, "test_extra2.nii.gz"))
-        else:
-            self.assertTupleEqual(data1_precached["image"].shape, expected_shape)
-            self.assertTupleEqual(data1_precached["label"].shape, expected_shape)
-            self.assertTupleEqual(data1_precached["extra"].shape, expected_shape)
-            self.assertTupleEqual(data2_precached["image"].shape, expected_shape)
-            self.assertTupleEqual(data2_precached["label"].shape, expected_shape)
-            self.assertTupleEqual(data2_precached["extra"].shape, expected_shape)
+            if transform is None:
+                self.assertEqual(data1_precached["image"], os.path.join(tempdir, "test_image1.nii.gz"))
+                self.assertEqual(data2_precached["label"], os.path.join(tempdir, "test_label2.nii.gz"))
+                self.assertEqual(data1_postcached["image"], os.path.join(tempdir, "test_image1.nii.gz"))
+                self.assertEqual(data2_postcached["extra"], os.path.join(tempdir, "test_extra2.nii.gz"))
+            else:
+                self.assertTupleEqual(data1_precached["image"].shape, expected_shape)
+                self.assertTupleEqual(data1_precached["label"].shape, expected_shape)
+                self.assertTupleEqual(data1_precached["extra"].shape, expected_shape)
+                self.assertTupleEqual(data2_precached["image"].shape, expected_shape)
+                self.assertTupleEqual(data2_precached["label"].shape, expected_shape)
+                self.assertTupleEqual(data2_precached["extra"].shape, expected_shape)
 
-            self.assertTupleEqual(data1_postcached["image"].shape, expected_shape)
-            self.assertTupleEqual(data1_postcached["label"].shape, expected_shape)
-            self.assertTupleEqual(data1_postcached["extra"].shape, expected_shape)
-            self.assertTupleEqual(data2_postcached["image"].shape, expected_shape)
-            self.assertTupleEqual(data2_postcached["label"].shape, expected_shape)
-            self.assertTupleEqual(data2_postcached["extra"].shape, expected_shape)
+                self.assertTupleEqual(data1_postcached["image"].shape, expected_shape)
+                self.assertTupleEqual(data1_postcached["label"].shape, expected_shape)
+                self.assertTupleEqual(data1_postcached["extra"].shape, expected_shape)
+                self.assertTupleEqual(data2_postcached["image"].shape, expected_shape)
+                self.assertTupleEqual(data2_postcached["label"].shape, expected_shape)
+                self.assertTupleEqual(data2_postcached["extra"].shape, expected_shape)
+
+            # update the data to cache
+            test_data_new = [
+                {
+                    "image": os.path.join(tempdir, "test_image1_new.nii.gz"),
+                    "label": os.path.join(tempdir, "test_label1_new.nii.gz"),
+                    "extra": os.path.join(tempdir, "test_extra1_new.nii.gz"),
+                },
+                {
+                    "image": os.path.join(tempdir, "test_image2_new.nii.gz"),
+                    "label": os.path.join(tempdir, "test_label2_new.nii.gz"),
+                    "extra": os.path.join(tempdir, "test_extra2_new.nii.gz"),
+                },
+            ]
+            dataset_postcached.set_data(data=test_data_new)
+            # test new exchanged cache content
+            if transform is None:
+                self.assertEqual(dataset_postcached[0]["image"], os.path.join(tempdir, "test_image1_new.nii.gz"))
+                self.assertEqual(dataset_postcached[0]["label"], os.path.join(tempdir, "test_label1_new.nii.gz"))
+                self.assertEqual(dataset_postcached[1]["extra"], os.path.join(tempdir, "test_extra2_new.nii.gz"))
+
+
+@skip_if_windows
+class TestMPLMDBDataset(DistTestCase):
+    def setUp(self):
+        self.tempdir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.tempdir)
+
+    @DistCall(nnodes=1, nproc_per_node=1)
+    def test_mp_cache(self):
+        items = [[list(range(i))] for i in range(5)]
+
+        ds = LMDBDataset(items, transform=_InplaceXform(), cache_dir=self.tempdir, lmdb_kwargs={"map_size": 10 * 1024})
+        self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
+        ds1 = LMDBDataset(items, transform=_InplaceXform(), cache_dir=self.tempdir, lmdb_kwargs={"map_size": 10 * 1024})
+        self.assertEqual(list(ds1), list(ds))
+        self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
+
+        ds = LMDBDataset(
+            items,
+            transform=_InplaceXform(),
+            cache_dir=self.tempdir,
+            lmdb_kwargs={"map_size": 10 * 1024},
+            hash_func=json_hashing,
+        )
+        self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
+        ds1 = LMDBDataset(
+            items,
+            transform=_InplaceXform(),
+            cache_dir=self.tempdir,
+            lmdb_kwargs={"map_size": 10 * 1024},
+            hash_func=json_hashing,
+        )
+        self.assertEqual(list(ds1), list(ds))
+        self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
+
+        self.assertTrue(isinstance(ds1.info(), dict))
 
 
 if __name__ == "__main__":
