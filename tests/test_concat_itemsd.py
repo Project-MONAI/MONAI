@@ -38,6 +38,20 @@ class TestConcatItemsd(unittest.TestCase):
         np.testing.assert_allclose(result["img1"], np.array([[0, 1], [1, 2]]))
         np.testing.assert_allclose(result["cat_img"], np.array([[1, 2], [2, 3], [1, 2], [2, 3]]))
 
+    def test_single_numpy(self):
+        input_data = {"img": np.array([[0, 1], [1, 2]])}
+        result = ConcatItemsd(keys="img", name="cat_img")(input_data)
+        result["cat_img"] += 1
+        np.testing.assert_allclose(result["img"], np.array([[0, 1], [1, 2]]))
+        np.testing.assert_allclose(result["cat_img"], np.array([[1, 2], [2, 3]]))
+
+    def test_single_tensor(self):
+        input_data = {"img": torch.tensor([[0, 1], [1, 2]])}
+        result = ConcatItemsd(keys="img", name="cat_img")(input_data)
+        result["cat_img"] += 1
+        torch.testing.assert_allclose(result["img"], torch.tensor([[0, 1], [1, 2]]))
+        torch.testing.assert_allclose(result["cat_img"], torch.tensor([[1, 2], [2, 3]]))
+
 
 if __name__ == "__main__":
     unittest.main()
