@@ -4,6 +4,7 @@ on:
   # quick tests for pull requests and the releasing branches
   push:
     branches:
+      - dev
       - main
       - releasing/*
   pull_request:
