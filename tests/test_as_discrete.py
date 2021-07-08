@@ -37,9 +37,16 @@ TEST_CASE_3 = [
     (1, 2, 2),
 ]
 
+TEST_CASE_4 = [
+    {"argmax": False, "to_onehot": True, "n_classes": 3},
+    torch.tensor(1),
+    torch.tensor([0.0, 1.0, 0.0]),
+    (3,),
+]
+
 
 class TestAsDiscrete(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_value_shape(self, input_param, img, out, expected_shape):
         result = AsDiscrete(**input_param)(img)
         torch.testing.assert_allclose(result, out)
