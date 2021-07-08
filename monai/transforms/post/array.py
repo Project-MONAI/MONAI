@@ -169,7 +169,7 @@ class AsDiscrete(Transform):
             _nclasses = self.n_classes if n_classes is None else n_classes
             if not isinstance(_nclasses, int):
                 raise AssertionError("One of self.n_classes or n_classes must be an integer")
-            img = one_hot(img.unsqueeze(0) if img.ndim == 0 else img, num_classes=_nclasses, dim=0)
+            img = one_hot(img, num_classes=_nclasses, dim=0)
 
         if threshold_values or self.threshold_values:
             img = img >= (self.logit_thresh if logit_thresh is None else logit_thresh)
