@@ -27,12 +27,19 @@ class TestEnsureTyped(unittest.TestCase):
                 self.assertTupleEqual(result.shape, (2, 2))
 
     def test_single_input(self):
-        for test_data in (5, 5.0, False, np.asarray(5), torch.tensor(5)):
+        for test_data in (5, 5.0, np.asarray(5), torch.tensor(5)):
             for dtype in ("tensor", "numpy"):
                 result = EnsureTyped(keys="data", data_type=dtype)({"data": test_data})["data"]
                 self.assertTrue(isinstance(result, torch.Tensor if dtype == "tensor" else np.ndarray))
                 torch.testing.assert_allclose(result, test_data)
                 self.assertEqual(result.ndim, 0)
+
+    def test_bool_input(self):
+        for dtype in ("tensor", "numpy"):
+            result = EnsureTyped(keys="data", data_type=dtype)(data={"data": False})["data"]
+            self.assertTrue(isinstance(result, torch.Tensor if dtype == "tensor" else np.ndarray))
+            self.assertFalse(result)
+            self.assertEqual(result.ndim, 0)
 
     def test_string(self):
         for dtype in ("tensor", "numpy"):
