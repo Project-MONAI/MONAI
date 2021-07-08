@@ -10,10 +10,10 @@
 ## Decollating mini-batches as an essential post-processing step
 `decollate batch` is introduced in MONAI v0.6, to simplify the post-processing transforms and enable flexible following operations on a batch of model outputs.
 It can decollate batched data (e.g. model inference predictions) into a list of tensors -- as an 'inverse' operation of `collate_fn` of the PyTorch data loader -- for the benefits such as:
-1. enabling postprocessing transforms for each item independently, for example, randomised transforms could be applied differently for each predicted item in a batch.
-2. simplifying the transform APIs and reducing the input validation burdens, because both the preprocessing and postprocessing transforms now only support the "channel-first" input format.
-3. enabling the `Invertd` transform for the predictions and the inverted data with different shapes, as the data items are decollated to a list, instead of being stacked in a single tensor.
-4. allowing for both a "batch-first" tensor and a list of "channel-first" tensors for flexible metric computation.
+- enabling postprocessing transforms for each item independently, for example, randomised transforms could be applied differently for each predicted item in a batch.
+- simplifying the transform APIs and reducing the input validation burdens, because both the preprocessing and postprocessing transforms now only support the "channel-first" input format.
+- enabling the `Invertd` transform for the predictions and the inverted data with different shapes, as the data items are decollated to a list, instead of being stacked in a single tensor.
+- allowing for both a "batch-first" tensor and a list of "channel-first" tensors for flexible metric computation.
 
 A typical process of `decollate batch` is illustrated as follows (with a `batch_size=N` model predictions and labels as an example):
 ![decollate_batch](../images/decollate_batch.png)
@@ -30,10 +30,11 @@ These MMARs include all the information about the model including configurations
 To demonstrate this new feature, a medical image segmentation tutorial is created within
 [`project-monai/tutorials`](https://github.com/Project-MONAI/tutorials/blob/master/modules/transfer_mmar.ipynb)).
 It mainly produces the following figure to compare the loss curves and validation scores for
-(1) training from scratch (the green line),
-(2) applying pretrained MMAR weights without training (the magenta line),
-(3) training from the MMAR model weights (the blue
+- training from scratch (the green line),
+- applying pretrained MMAR weights without training (the magenta line),
+- training from the MMAR model weights (the blue
 line), according to the number of training epochs:
+
 ![transfer_mmar](../images/transfer_mmar.png)
 
 The tutorial shows the capability of encapsulating the details of MMAR parsing, as well as the potential of using pretrained MMARs for transfer learning.
