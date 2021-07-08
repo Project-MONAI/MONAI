@@ -12,7 +12,7 @@
 It can decollate batched data (e.g. model inference predictions) into a list of tensors -- as an 'inverse' operation of `collate_fn` of the PyTorch data loader -- for the benefits such as:
 - enabling postprocessing transforms for each item independently, for example, randomised transforms could be applied differently for each predicted item in a batch.
 - simplifying the transform APIs and reducing the input validation burdens, because both the preprocessing and postprocessing transforms now only support the "channel-first" input format.
-- enabling the `Invertd` transform for the predictions and the inverted data with different shapes, as the data items are decollated to a list, instead of being stacked in a single tensor.
+- enabling the transform inverse operation for data items in different original shapes, as the inverted items are in a list, instead of being stacked in a single tensor.
 - allowing for both a "batch-first" tensor and a list of "channel-first" tensors for flexible metric computation.
 
 A typical process of `decollate batch` is illustrated as follows (with a `batch_size=N` model predictions and labels as an example):
