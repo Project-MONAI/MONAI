@@ -1,5 +1,10 @@
 # What's new in 0.5
 
+- Invert spatial transforms and test-time augmentations
+- Lesion detection in digital pathology
+- DeepGrow modules for interactive segmentation
+- Various usability improvements
+
 ## Invert spatial transforms and test-time augmentations
 It is often desirable to invert the previously applied spatial transforms (resize, flip, rotate, zoom, crop, pad, etc.) with the deep learning workflows, for example, to resume to the original imaging space after processing the image data in a normalized data space.  We enhance almost all the spatial transforms with an `inverse` operation and release this experimental feature in v0.5. Users can easily invert all the spatial transforms for one transformed data item or a batch of data items. It also can be achieved within the workflows by using the `TransformInverter` handler.
 

@@ -1,4 +1,12 @@
 # What's new in 0.6 🎉🎉
+
+- Decollating mini-batches as an essential post-processing step
+- Pythonic APIs to load the pretrained models from Clara Train MMARs
+- Enhancements of the base metric interfaces
+- C++/CUDA extension modules via PyTorch JIT compilation
+- Backward compatibility and enhanced continuous integration/continuous delivery
+
+
 ## Decollating mini-batches as an essential post-processing step
 `decollate batch` is introduced in MONAI v0.6, to simplify the post-processing transforms and enable flexible following operations on a batch of model outputs.
 It can decollate batched data (e.g. model inference predictions) into a list of tensors -- as an 'inverse' operation of `collate_fn` of the PyTorch data loader -- for the benefits such as:
