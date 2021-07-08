@@ -59,7 +59,7 @@ class TestToNumpy(unittest.TestCase):
         np.testing.assert_allclose(result, np.asarray(test_data))
 
     def test_single_value(self):
-        for test_data in [5, np.array(5)]:
+        for test_data in [5, np.array(5), torch.tensor(5)]:
             result = ToNumpy()(test_data)
             self.assertTrue(isinstance(result, np.ndarray))
             np.testing.assert_allclose(result, np.asarray(test_data))
