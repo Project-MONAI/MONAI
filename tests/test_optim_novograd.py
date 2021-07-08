@@ -74,8 +74,9 @@ if torch.cuda.device_count() > 1:
 
 class TestNovograd(unittest.TestCase):
     """
-    This class takes `Pytorch's test_optim function
-    <https://github.com/pytorch/pytorch/blob/master/test/test_optim.py>`_ for reference.
+    This class takes `Pytorch's test_optim function:
+    https://github.com/pytorch/pytorch/blob/v1.9.0/test/test_optim.py for reference.
+
     """
 
     @parameterized.expand(TEST_CASES_ALL)

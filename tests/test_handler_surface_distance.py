@@ -49,7 +49,8 @@ def create_spherical_seg_3d(
 
 
 sampler_sphere = torch.Tensor(create_spherical_seg_3d(radius=20, centre=(20, 20, 20))).unsqueeze(0).unsqueeze(0)
-sampler_sphere_gt = torch.Tensor(create_spherical_seg_3d(radius=20, centre=(10, 20, 20))).unsqueeze(0).unsqueeze(0)
+# test input a list of channel-first tensor
+sampler_sphere_gt = [torch.Tensor(create_spherical_seg_3d(radius=20, centre=(10, 20, 20))).unsqueeze(0)]
 sampler_sphere_zeros = torch.zeros_like(sampler_sphere)
 
 TEST_SAMPLE_1 = [sampler_sphere, sampler_sphere_gt]
