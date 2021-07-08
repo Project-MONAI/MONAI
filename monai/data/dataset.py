@@ -414,6 +414,8 @@ class LMDBDataset(PersistentDataset):
         if not self.lmdb_kwargs.get("map_size", 0):
             self.lmdb_kwargs["map_size"] = 1024 ** 4  # default map_size
         self._env = None
+        # lmdb is single-writer multi-reader by default
+        # the cache is created without multi-threading
         self._read_env = self._fill_cache_start_reader(show_progress=self.progress)
         print(f"Accessing lmdb file: {self.db_file.absolute()}.")
 
