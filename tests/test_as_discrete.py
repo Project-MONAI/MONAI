@@ -40,7 +40,7 @@ TEST_CASE_3 = [
 TEST_CASE_4 = [
     {"argmax": False, "to_onehot": True, "n_classes": 3},
     torch.tensor(1),
-    torch.tensor([0., 1., 0.]),
+    torch.tensor([0.0, 1.0, 0.0]),
     (3,),
 ]
 
