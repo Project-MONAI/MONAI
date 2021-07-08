@@ -9,16 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import inspect
 import sys
+import warnings
 from importlib import import_module
 from pkgutil import walk_packages
 from re import match
-from typing import Any, Callable, List, Sequence, Tuple, Union
+from typing import Any, Callable, List, Tuple
 
 import torch
-
-from .misc import ensure_tuple
 
 OPTIONAL_IMPORT_MSG_FMT = "{}"
 
@@ -31,10 +29,10 @@ __all__ = [
     "optional_import",
     "load_submodules",
     "get_full_type_name",
-    "has_option",
     "get_package_version",
     "get_torch_version_tuple",
     "PT_BEFORE_1_7",
+    "version_leq",
 ]
 
 
@@ -95,17 +93,21 @@ def min_version(the_module, min_version_str: str = "") -> bool:
     Returns True if the module's version is greater or equal to the 'min_version'.
     When min_version_str is not provided, it always returns True.
     """
-    if min_version_str:
-        mod_version = tuple(int(x) for x in the_module.__version__.split(".")[:2])
-        required = tuple(int(x) for x in min_version_str.split(".")[:2])
-        return mod_version >= required
-    return True  # always valid version
+    if not min_version_str or not hasattr(the_module, "__version__"):
+        return True  # always valid version
+
+    mod_version = tuple(int(x) for x in the_module.__version__.split(".")[:2])
+    required = tuple(int(x) for x in min_version_str.split(".")[:2])
+    return mod_version >= required
 
 
 def exact_version(the_module, version_str: str = "") -> bool:
     """
     Returns True if the module's __version__ matches version_str
     """
+    if not hasattr(the_module, "__version__"):
+        warnings.warn(f"{the_module} has no attribute __version__ in exact_version check.")
+        return False
     return bool(the_module.__version__ == version_str)
 
 
@@ -237,34 +239,14 @@ def optional_import(
     return _LazyRaise(), False
 
 
-def has_option(obj, keywords: Union[str, Sequence[str]]) -> bool:
-    """
-    Return a boolean indicating whether the given callable `obj` has the `keywords` in its signature.
-    """
-    if not callable(obj):
-        return False
-    sig = inspect.signature(obj)
-    return all(key in sig.parameters for key in ensure_tuple(keywords))
-
-
 def get_package_version(dep_name, default="NOT INSTALLED or UNKNOWN VERSION."):
     """
     Try to load package and get version. If not found, return `default`.
-
-    If the package was already loaded, leave it. If wasn't previously loaded, unload it.
     """
-    dep_ver = default
-    dep_already_loaded = dep_name not in sys.modules
-
     dep, has_dep = optional_import(dep_name)
-    if has_dep:
-        if hasattr(dep, "__version__"):
-            dep_ver = dep.__version__
-        # if not previously loaded, unload it
-        if not dep_already_loaded:
-            del dep
-            del sys.modules[dep_name]
-    return dep_ver
+    if has_dep and hasattr(dep, "__version__"):
+        return dep.__version__
+    return default
 
 
 def get_torch_version_tuple():
@@ -275,12 +257,42 @@ def get_torch_version_tuple():
     return tuple((int(x) for x in torch.__version__.split(".")[:2]))
 
 
-PT_BEFORE_1_7 = True
-ver, has_ver = optional_import("pkg_resources", name="parse_version")
-try:
+def version_leq(lhs, rhs):
+    """Returns True if version `lhs` is earlier or equal to `rhs`."""
+
+    ver, has_ver = optional_import("pkg_resources", name="parse_version")
     if has_ver:
-        PT_BEFORE_1_7 = ver(torch.__version__) < ver("1.7")
-    else:
-        PT_BEFORE_1_7 = get_torch_version_tuple() < (1, 7)
+        return ver(lhs) <= ver(rhs)
+
+    def _try_cast(val):
+        val = val.strip()
+        try:
+            m = match("(\\d+)(.*)", val)
+            if m is not None:
+                val = m.groups()[0]
+                return int(val)
+            return val
+        except ValueError:
+            return val
+
+    # remove git version suffixes if present
+    lhs = lhs.split("+", 1)[0]
+    rhs = rhs.split("+", 1)[0]
+
+    # parse the version strings in this basic way without `packaging` package
+    lhs = map(_try_cast, lhs.split("."))
+    rhs = map(_try_cast, rhs.split("."))
+
+    for l, r in zip(lhs, rhs):
+        if l != r:
+            if isinstance(l, int) and isinstance(r, int):
+                return l < r
+            return f"{l}" < f"{r}"
+
+    return True
+
+
+try:
+    PT_BEFORE_1_7 = torch.__version__ != "1.7.0" and version_leq(torch.__version__, "1.7.0")
 except (AttributeError, TypeError):
-    pass
+    PT_BEFORE_1_7 = True

@@ -66,7 +66,7 @@ class TestRandRotate90d(NumpyImageTestCase2D):
         key = "unknown"
         rotate = RandRotate90d(keys=key, prob=1.0, max_k=2, spatial_axes=(0, 1))
         with self.assertRaisesRegex(KeyError, ""):
-            rotated = rotate({"test": self.imt[0]})
+            rotate({"test": self.imt[0]})
 
 
 if __name__ == "__main__":

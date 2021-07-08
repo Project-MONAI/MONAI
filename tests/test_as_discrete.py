@@ -18,23 +18,23 @@ from monai.transforms import AsDiscrete
 
 TEST_CASE_1 = [
     {"argmax": True, "to_onehot": False, "n_classes": None, "threshold_values": False, "logit_thresh": 0.5},
-    torch.tensor([[[[0.0, 1.0]], [[2.0, 3.0]]]]),
-    torch.tensor([[[[1.0, 1.0]]]]),
-    (1, 1, 1, 2),
+    torch.tensor([[[0.0, 1.0]], [[2.0, 3.0]]]),
+    torch.tensor([[[1.0, 1.0]]]),
+    (1, 1, 2),
 ]
 
 TEST_CASE_2 = [
     {"argmax": True, "to_onehot": True, "n_classes": 2, "threshold_values": False, "logit_thresh": 0.5},
-    torch.tensor([[[[0.0, 1.0]], [[2.0, 3.0]]]]),
-    torch.tensor([[[[0.0, 0.0]], [[1.0, 1.0]]]]),
-    (1, 2, 1, 2),
+    torch.tensor([[[0.0, 1.0]], [[2.0, 3.0]]]),
+    torch.tensor([[[0.0, 0.0]], [[1.0, 1.0]]]),
+    (2, 1, 2),
 ]
 
 TEST_CASE_3 = [
     {"argmax": False, "to_onehot": False, "n_classes": None, "threshold_values": True, "logit_thresh": 0.6},
-    torch.tensor([[[[0.0, 1.0], [2.0, 3.0]]]]),
-    torch.tensor([[[[0.0, 1.0], [1.0, 1.0]]]]),
-    (1, 1, 2, 2),
+    torch.tensor([[[0.0, 1.0], [2.0, 3.0]]]),
+    torch.tensor([[[0.0, 1.0], [1.0, 1.0]]]),
+    (1, 2, 2),
 ]
 
 
