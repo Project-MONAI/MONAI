@@ -444,6 +444,7 @@ from .utils import (
     is_empty,
     is_positive,
     map_binary_to_indices,
+    map_classes_to_indices,
     map_spatial_axes,
     rand_choice,
     rescale_array,

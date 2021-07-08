@@ -54,6 +54,7 @@ __all__ = [
     "compute_divisible_spatial_size",
     "resize_center",
     "map_binary_to_indices",
+    "map_classes_to_indices",
     "weighted_patch_samples",
     "generate_pos_neg_label_crop_centers",
     "create_grid",
@@ -270,7 +271,64 @@ def map_binary_to_indices(
         bg_indices = np.nonzero(np.logical_and(img_flat, ~label_flat))[0]
     else:
         bg_indices = np.nonzero(~label_flat)[0]
+
     return fg_indices, bg_indices
+
+
+def map_classes_to_indices(
+    label: np.ndarray,
+    num_classes: Optional[int] = None,
+    image: Optional[np.ndarray] = None,
+    image_threshold: float = 0.0,
+) -> List[np.ndarray]:
+    """
+    Filter out indices of every class of the input label data, return the indices after fattening.
+    It can handle both One-Hot format label and Argmax format label, must provide `num_classes` for
+    Argmax label.
+
+    For example:
+    ``label = np.array([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]])`` and `num_classes=3`, will return a list
+    which contains the indices of the 3 classes:
+    ``[np.array([0, 4, 8]), np.array([1, 5, 6]), np.array([2, 3, 7])]``
+
+    Args:
+        label: use the label data to get the indices of every class.
+        num_classes: number of classes for argmax label, not necessary for One-Hot label.
+        image: if image is not None, only return the indices of every class that are within the valid
+            region of the image (``image > image_threshold``).
+        image_threshold: if enabled `image`, use ``image > image_threshold`` to
+            determine the valid image content area and select class indices only in this area.
+
+    """
+    img_flat: Optional[np.ndarray] = None
+    if image is not None:
+        img_flat = np.any(image > image_threshold, axis=0).ravel()
+
+    indices: List[np.ndarray] = []
+    channels = len(label)
+
+    def _add_indices(label_flat: np.ndarray):
+        """
+        Compute the indices of a class and add to the list.
+
+        """
+        label_flat = np.logical_and(img_flat, label_flat) if img_flat is not None else label_flat
+        indices.append(np.nonzero(label_flat)[0])
+
+    if channels > 1:
+        # One-Hot format label
+        for c in range(channels):
+            label_flat = np.any(label[c: c + 1], axis=0).ravel()
+            _add_indices(label_flat=label_flat)
+    else:
+        # Argmax label
+        if num_classes is None:
+            raise ValueError("if not One-Hot format label, must provide the num_classes.")
+        for c in range(num_classes):
+            label_flat = np.any(label == c, axis=0).ravel()
+            _add_indices(label_flat=label_flat)
+
+    return indices
 
 
 def weighted_patch_samples(
