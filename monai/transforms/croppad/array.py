@@ -25,10 +25,12 @@ from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import (
     compute_divisible_spatial_size,
+    generate_classes_label_crop_centers,
     generate_pos_neg_label_crop_centers,
     generate_spatial_bounding_box,
     is_positive,
     map_binary_to_indices,
+    map_classes_to_indices,
     weighted_patch_samples,
 )
 from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
@@ -46,6 +48,7 @@ __all__ = [
     "CropForeground",
     "RandWeightedCrop",
     "RandCropByPosNegLabel",
+    "RandCropByClassesLabel",
     "ResizeWithPadOrCrop",
     "BoundingRect",
 ]
@@ -809,6 +812,81 @@ class RandCropByPosNegLabel(Randomizable, Transform):
             else:
                 fg_indices, bg_indices = map_binary_to_indices(label, image, self.image_threshold)
         self.randomize(label, fg_indices, bg_indices, image)
+        results: List[np.ndarray] = []
+        if self.centers is not None:
+            for center in self.centers:
+                cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)  # type: ignore
+                results.append(cropper(img))
+
+        return results
+
+
+class RandCropByClassesLabel(Randomizable, Transform):
+    def __init__(
+        self,
+        spatial_size: Union[Sequence[int], int],
+        ratios: Sequence[float],
+        label: Optional[np.ndarray] = None,
+        num_samples: int = 1,
+        image: Optional[np.ndarray] = None,
+        image_threshold: float = 0.0,
+        indices: Optional[List[np.ndarray]] = None,
+    ) -> None:
+        self.spatial_size = ensure_tuple(spatial_size)
+        self.ratios = ratios
+        self.label = label
+        self.num_samples = num_samples
+        self.image = image
+        self.image_threshold = image_threshold
+        self.centers: Optional[List[List[np.ndarray]]] = None
+        self.indices = indices
+
+    def randomize(
+        self,
+        label: np.ndarray,
+        indices: Optional[List[np.ndarray]] = None,
+        image: Optional[np.ndarray] = None,
+    ) -> None:
+        self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
+        indices_: List[np.ndarray]
+        if indices is None:
+            indices_ = map_classes_to_indices(label, image, self.image_threshold)
+        else:
+            indices_ = indices
+        self.centers = generate_classes_label_crop_centers(
+            self.spatial_size, self.num_samples, self.ratios, label.shape[1:], indices_, self.R
+        )
+
+    def __call__(
+        self,
+        img: np.ndarray,
+        label: Optional[np.ndarray] = None,
+        image: Optional[np.ndarray] = None,
+        indices: Optional[List[np.ndarray]] = None,
+    ) -> List[np.ndarray]:
+        """
+        Args:
+            img: input data to crop samples from based on the ratios of every class, assumes `img` is a
+                channel-first array.
+            label: the label image that is used for finding indices of every class, if None, use `self.label`.
+            image: optional image data to help select valid area, can be same as `img` or another image array.
+                use ``image > image_threshold`` to select the centers only in valid region. if None, use `self.image`.
+            indices: list of indices for every class in the image, used to randomly select crop centers.
+
+        """
+        if label is None:
+            label = self.label
+        if label is None:
+            raise ValueError("label should be provided.")
+        if image is None:
+            image = self.image
+        if indices is None:
+            if self.indices is not None:
+                indices = self.indices
+            else:
+                indices = map_classes_to_indices(label, image, self.image_threshold)
+
+        self.randomize(label, indices, image)
         results: List[np.ndarray] = []
         if self.centers is not None:
             for center in self.centers:

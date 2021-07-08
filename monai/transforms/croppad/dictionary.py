@@ -40,9 +40,11 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable
 from monai.transforms.utils import (
     allow_missing_keys_mode,
+    generate_classes_label_crop_centers,
     generate_pos_neg_label_crop_centers,
     is_positive,
     map_binary_to_indices,
+    map_classes_to_indices,
     weighted_patch_samples,
 )
 from monai.utils import ImageMetaKey as Key
@@ -1140,6 +1142,108 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
         return d
 
 
+class RandCropByClassesLabeld(Randomizable, MapTransform, InvertibleTransform):
+    def __init__(
+        self,
+        keys: KeysCollection,
+        label_key: str,
+        spatial_size: Union[Sequence[int], int],
+        ratios: Sequence[float],
+        num_samples: int = 1,
+        image_key: Optional[str] = None,
+        image_threshold: float = 0.0,
+        indices_key: Optional[str] = None,
+        meta_keys: Optional[KeysCollection] = None,
+        meta_key_postfix: str = "meta_dict",
+        allow_missing_keys: bool = False,
+    ) -> None:
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        self.label_key = label_key
+        self.spatial_size: Union[Tuple[int, ...], Sequence[int], int] = spatial_size
+        self.ratios = ratios
+        self.num_samples = num_samples
+        self.image_key = image_key
+        self.image_threshold = image_threshold
+        self.indices_key = indices_key
+        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
+        self.centers: Optional[List[List[np.ndarray]]] = None
+
+    def randomize(
+        self,
+        label: np.ndarray,
+        indices: Optional[List[np.ndarray]] = None,
+        image: Optional[np.ndarray] = None,
+    ) -> None:
+        self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
+        indices_: List[np.ndarray]
+        if indices is None:
+            indices_ = map_classes_to_indices(label, image, self.image_threshold)
+        else:
+            indices_ = indices
+        self.centers = generate_classes_label_crop_centers(
+            self.spatial_size, self.num_samples, self.ratios, label.shape[1:], indices_, self.R
+        )
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> List[Dict[Hashable, np.ndarray]]:
+        d = dict(data)
+        label = d[self.label_key]
+        image = d[self.image_key] if self.image_key else None
+        indices = d.get(self.indices_key) if self.indices_key is not None else None
+
+        self.randomize(label, indices, image)
+        if not isinstance(self.spatial_size, tuple):
+            raise AssertionError
+        if self.centers is None:
+            raise AssertionError
+
+        # initialize returned list with shallow copy to preserve key ordering
+        results: List[Dict[Hashable, np.ndarray]] = [dict(data) for _ in range(self.num_samples)]
+
+        for i, center in enumerate(self.centers):
+            # fill in the extra keys with unmodified data
+            for key in set(data.keys()).difference(set(self.keys)):
+                results[i][key] = deepcopy(data[key])
+            for key in self.key_iterator(d):
+                img = d[key]
+                cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)  # type: ignore
+                orig_size = img.shape[1:]
+                results[i][key] = cropper(img)
+                self.push_transform(results[i], key, extra_info={"center": center}, orig_size=orig_size)
+            # add `patch_index` to the meta data
+            for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
+                meta_key = meta_key or f"{key}_{meta_key_postfix}"
+                if meta_key not in results[i]:
+                    results[i][meta_key] = {}  # type: ignore
+                results[i][meta_key][Key.PATCH_INDEX] = i
+
+        return results
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            orig_size = np.asarray(transform[InverseKeys.ORIG_SIZE])
+            current_size = np.asarray(d[key].shape[1:])
+            center = transform[InverseKeys.EXTRA_INFO]["center"]
+            cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)  # type: ignore
+            # get required pad to start and end
+            pad_to_start = np.array([s.indices(o)[0] for s, o in zip(cropper.slices, orig_size)])
+            pad_to_end = orig_size - current_size - pad_to_start
+            # interleave mins and maxes
+            pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
+            inverse_transform = BorderPad(pad)
+            # Apply inverse transform
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.pop_transform(d, key)
+
+        return d
+
+
 class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ResizeWithPadOrCrop`.
@@ -1270,5 +1374,6 @@ RandSpatialCropSamplesD = RandSpatialCropSamplesDict = RandSpatialCropSamplesd
 CropForegroundD = CropForegroundDict = CropForegroundd
 RandWeightedCropD = RandWeightedCropDict = RandWeightedCropd
 RandCropByPosNegLabelD = RandCropByPosNegLabelDict = RandCropByPosNegLabeld
+RandCropByClassesLabelD = RandCropByClassesLabelDict = RandCropByClassesLabeld
 ResizeWithPadOrCropD = ResizeWithPadOrCropDict = ResizeWithPadOrCropd
 BoundingRectD = BoundingRectDict = BoundingRectd

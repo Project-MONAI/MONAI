@@ -120,6 +120,12 @@ Crop and Pad
     :members:
     :special-members: __call__
 
+`RandCropByClassesLabel`
+""""""""""""""""""""""""
+.. autoclass:: RandCropByClassesLabel
+    :members:
+    :special-members: __call__
+
 `ResizeWithPadOrCrop`
 """""""""""""""""""""
 .. autoclass:: ResizeWithPadOrCrop
@@ -604,6 +610,12 @@ Utility
     :members:
     :special-members: __call__
 
+`ClassesToIndices`
+""""""""""""""""""
+.. autoclass:: ClassesToIndices
+    :members:
+    :special-members: __call__
+
 `ConvertToMultiChannelBasedOnBratsClasses`
 """"""""""""""""""""""""""""""""""""""""""
 .. autoclass:: ConvertToMultiChannelBasedOnBratsClasses
@@ -697,6 +709,12 @@ Crop and Pad (Dict)
 `RandCropByPosNegLabeld`
 """"""""""""""""""""""""
 .. autoclass:: RandCropByPosNegLabeld
+    :members:
+    :special-members: __call__
+
+`RandCropByClassesLabeld`
+"""""""""""""""""""""""""
+.. autoclass:: RandCropByClassesLabeld
     :members:
     :special-members: __call__
 
@@ -1180,6 +1198,12 @@ Utility (Dict)
 `FgBgToIndicesd`
 """"""""""""""""
 .. autoclass:: FgBgToIndicesd
+    :members:
+    :special-members: __call__
+
+`ClassesToIndicesd`
+"""""""""""""""""""
+.. autoclass:: ClassesToIndicesd
     :members:
     :special-members: __call__
 
