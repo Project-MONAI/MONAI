@@ -64,9 +64,33 @@ TEST_CASE_4 = [
     [np.array([0, 8]), np.array([1, 5, 6]), np.array([3])]
 ]
 
+TEST_CASE_5 = [
+    # test empty class
+    {"label": np.array([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]]), "num_classes": 5, "image": None, "image_threshold": 0.0},
+    [np.array([0, 4, 8]), np.array([1, 5, 6]), np.array([2, 3, 7]), np.array([]), np.array([])],
+]
+
+TEST_CASE_6 = [
+    # test empty class
+    {
+        "label": np.array(
+            [
+                [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+                [[0, 1, 0], [0, 0, 1], [1, 0, 0]],
+                [[0, 0, 1], [1, 0, 0], [0, 1, 0]],
+                [[0, 0, 0], [0, 0, 0], [0, 0, 0]],
+                [[0, 0, 0], [0, 0, 0], [0, 0, 0]],
+            ]
+        ),
+        "image": None,
+        "image_threshold": 0.0,
+    },
+    [np.array([0, 4, 8]), np.array([1, 5, 6]), np.array([2, 3, 7]), np.array([]), np.array([])],
+]
+
 
 class TestMapClassesToIndices(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
     def test_value(self, input_data, expected_indices):
         indices = map_classes_to_indices(**input_data)
         for i, e in zip(indices, expected_indices):
