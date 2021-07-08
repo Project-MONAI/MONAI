@@ -15,17 +15,17 @@ from typing import TYPE_CHECKING, Callable, List, Optional
 
 import torch
 
-from monai.data import CSVSaver
-from monai.handlers.utils import evenly_divisible_all_gather, string_list_all_gather
+from monai.config import IgniteInfo
+from monai.data import CSVSaver, decollate_batch
 from monai.utils import ImageMetaKey as Key
-from monai.utils import exact_version, issequenceiterable, optional_import
+from monai.utils import evenly_divisible_all_gather, min_version, optional_import, string_list_all_gather
 
-idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
-Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
+idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")
+Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
 
 class ClassificationSaver:
@@ -44,22 +44,25 @@ class ClassificationSaver:
         output_transform: Callable = lambda x: x,
         name: Optional[str] = None,
         save_rank: int = 0,
+        saver: Optional[CSVSaver] = None,
     ) -> None:
         """
         Args:
-            output_dir: output CSV file directory.
-            filename: name of the saved CSV file name.
-            overwrite: whether to overwriting existing CSV file content. If we are not overwriting,
-                then we check if the results have been previously saved, and load them to the prediction_dict.
-            batch_transform: a callable that is used to transform the
-                ignite.engine.batch into expected format to extract the meta_data dictionary.
-            output_transform: a callable that is used to transform the
-                ignite.engine.output into the form expected model prediction data.
-                The first dimension of this transform's output will be treated as the
-                batch dimension. Each item in the batch will be saved individually.
+            output_dir: if `saver=None`, output CSV file directory.
+            filename: if `saver=None`, name of the saved CSV file name.
+            overwrite: if `saver=None`, whether to overwriting existing file content, if True,
+                will clear the file before saving. otherwise, will apend new content to the file.
+            batch_transform: a callable that is used to extract the `meta_data` dictionary of
+                the input images from `ignite.engine.state.batch`. the purpose is to get the input
+                filenames from the `meta_data` and store with classification results together.
+            output_transform: a callable that is used to extract the model prediction data from
+                `ignite.engine.state.output`. the first dimension of its output will be treated as
+                the batch dimension. each item in the batch will be saved individually.
             name: identifier of logging.logger to use, defaulting to `engine.logger`.
             save_rank: only the handler on specified rank will save to CSV file in multi-gpus validation,
                 default to 0.
+            saver: the saver instance to save classification results, if None, create a CSVSaver internally.
+                the saver must provide `save_batch(batch_data, meta_data)` and `finalize()` APIs.
 
         """
         self.save_rank = save_rank
@@ -68,6 +71,7 @@ class ClassificationSaver:
         self.overwrite = overwrite
         self.batch_transform = batch_transform
         self.output_transform = output_transform
+        self.saver = saver
 
         self.logger = logging.getLogger(name)
         self._name = name
@@ -99,14 +103,16 @@ class ClassificationSaver:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        filenames = self.batch_transform(engine.state.batch).get(Key.FILENAME_OR_OBJ)
-        if issequenceiterable(filenames):
-            self._filenames.extend(filenames)
-        outputs = self.output_transform(engine.state.output)
-        if outputs is not None:
-            if isinstance(outputs, torch.Tensor):
-                outputs = outputs.detach()
-            self._outputs.append(outputs)
+        meta_data = self.batch_transform(engine.state.batch)
+        if isinstance(meta_data, dict):
+            # decollate the `dictionary of list` to `list of dictionaries`
+            meta_data = decollate_batch(meta_data)
+        engine_output = self.output_transform(engine.state.output)
+        for m, o in zip(meta_data, engine_output):
+            self._filenames.append(f"{m.get(Key.FILENAME_OR_OBJ)}")
+            if isinstance(o, torch.Tensor):
+                o = o.detach()
+            self._outputs.append(o)
 
     def _finalize(self, engine: Engine) -> None:
         """
@@ -119,10 +125,10 @@ class ClassificationSaver:
         if self.save_rank >= ws:
             raise ValueError("target save rank is greater than the distributed group size.")
 
-        outputs = torch.cat(self._outputs, dim=0)
+        outputs = torch.stack(self._outputs, dim=0)
         filenames = self._filenames
         if ws > 1:
-            outputs = evenly_divisible_all_gather(outputs)
+            outputs = evenly_divisible_all_gather(outputs, concat=True)
             filenames = string_list_all_gather(filenames)
 
         if len(filenames) == 0:
@@ -134,6 +140,6 @@ class ClassificationSaver:
 
         # save to CSV file only in the expected rank
         if idist.get_rank() == self.save_rank:
-            saver = CSVSaver(self.output_dir, self.filename, self.overwrite)
+            saver = self.saver or CSVSaver(self.output_dir, self.filename, self.overwrite)
             saver.save_batch(outputs, meta_dict)
             saver.finalize()

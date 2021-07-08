@@ -12,8 +12,9 @@
 A collection of generic interfaces for MONAI transforms.
 """
 
+import logging
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Generator, Hashable, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Generator, Hashable, Iterable, List, Optional, Tuple, TypeVar, Union
 
 import numpy as np
 import torch
@@ -22,36 +23,72 @@ from monai import transforms
 from monai.config import KeysCollection
 from monai.utils import MAX_SEED, ensure_tuple
 
-__all__ = ["apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
+__all__ = ["ThreadUnsafe", "apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
+
+ReturnType = TypeVar("ReturnType")
 
 
-def apply_transform(transform: Callable, data, map_items: bool = True):
+def _apply_transform(
+    transform: Callable[..., ReturnType], parameters: Any, unpack_parameters: bool = False
+) -> ReturnType:
+    """
+    Perform transformation `transform` with the provided parameters `parameters`.
+
+    If `parameters` is a tuple and `unpack_items` is True, each parameter of `parameters` is unpacked
+    as arguments to `transform`.
+    Otherwise `parameters` is considered as single argument to `transform`.
+
+    Args:
+        transform (Callable[..., ReturnType]): a callable to be used to transform `data`.
+        parameters (Any): parameters for the `transform`.
+        unpack_parameters (bool, optional): whether to unpack parameters for `transform`. Defaults to False.
+
+    Returns:
+        ReturnType: The return type of `transform`.
+    """
+    if isinstance(parameters, tuple) and unpack_parameters:
+        return transform(*parameters)
+
+    return transform(parameters)
+
+
+def apply_transform(
+    transform: Callable[..., ReturnType],
+    data: Any,
+    map_items: bool = True,
+    unpack_items: bool = False,
+) -> Union[List[ReturnType], ReturnType]:
     """
     Transform `data` with `transform`.
+
     If `data` is a list or tuple and `map_data` is True, each item of `data` will be transformed
     and this method returns a list of outcomes.
     otherwise transform will be applied once with `data` as the argument.
 
     Args:
-        transform: a callable to be used to transform `data`
-        data: an object to be transformed.
-        map_items: whether to apply transform to each item in `data`,
+        transform (Callable[..., ReturnType]): a callable to be used to transform `data`.
+        data (Any): an object to be transformed.
+        map_items (bool, optional): whether to apply transform to each item in `data`,
             if `data` is a list or tuple. Defaults to True.
+        unpack_items (bool, optional): [description]. Defaults to False.
 
     Raises:
         Exception: When ``transform`` raises an exception.
 
+    Returns:
+        Union[List[ReturnType], ReturnType]: The return type of `transform` or a list thereof.
     """
     try:
         if isinstance(data, (list, tuple)) and map_items:
-            return [transform(item) for item in data]
-        return transform(data)
+            return [_apply_transform(transform, item, unpack_items) for item in data]
+        return _apply_transform(transform, data, unpack_items)
     except Exception as e:
 
         if not isinstance(transform, transforms.compose.Compose):
             # log the input data information of exact transform in the transform chain
             datastats = transforms.utility.array.DataStats(data_shape=False, value_range=False)
-            datastats._logger.info("input data information of the runtime error transform:")
+            logger = logging.getLogger(datastats._logger_name)
+            logger.info(f"\n=== Transform input info -- {type(transform).__name__} ===")
             if isinstance(data, (list, tuple)):
                 data = data[0]
 
@@ -71,14 +108,29 @@ def apply_transform(transform: Callable, data, map_items: bool = True):
         raise RuntimeError(f"applying transform {transform}") from e
 
 
-class Randomizable(ABC):
+class ThreadUnsafe:
+    """
+    A class to denote that the transform will mutate its member variables,
+    when being applied. Transforms inheriting this class should be used
+    cautiously in a multi-thread context.
+
+    This type is typically used by :py:class:`monai.data.CacheDataset` and
+    its extensions, where the transform cache is built with multiple threads.
+    """
+
+    pass
+
+
+class Randomizable(ABC, ThreadUnsafe):
     """
     An interface for handling random state locally, currently based on a class
     variable `R`, which is an instance of `np.random.RandomState`.  This
     provides the flexibility of component-specific determinism without
     affecting the global states.  It is recommended to use this API with
     :py:class:`monai.data.DataLoader` for deterministic behaviour of the
-    preprocessing pipelines.
+    preprocessing pipelines. This API is not thread-safe. Additionally,
+    deepcopying instance of this class often causes insufficient randomness as
+    the random states will be duplicated.
     """
 
     R: np.random.RandomState = np.random.RandomState()
@@ -142,6 +194,7 @@ class Transform(ABC):
 
         #. thread safety when mutating its own states.
            When used from a multi-process context, transform's instance variables are read-only.
+           thread-unsafe transforms should inherit :py:class:`monai.transforms.ThreadUnsafe`.
         #. ``data`` content unused by this transform may still be used in the
            subsequent transforms in a composed transform.
         #. storing too much information in ``data`` may not scale.

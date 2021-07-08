@@ -24,16 +24,17 @@ class TestHandlerROCAUC(unittest.TestCase):
         act = Activations(softmax=True)
         to_onehot = AsDiscrete(to_onehot=True, n_classes=2)
 
-        y_pred = torch.Tensor([[0.1, 0.9], [0.3, 1.4]])
-        y = torch.Tensor([[0], [1]])
-        y_pred = act(y_pred)
-        y = to_onehot(y)
+        y_pred = [torch.Tensor([0.1, 0.9]), torch.Tensor([0.3, 1.4])]
+        y = [torch.Tensor([0]), torch.Tensor([1])]
+        y_pred = [act(p) for p in y_pred]
+        y = [to_onehot(y_) for y_ in y]
         auc_metric.update([y_pred, y])
 
-        y_pred = torch.Tensor([[0.2, 0.1], [0.1, 0.5]])
-        y = torch.Tensor([[0], [1]])
-        y_pred = act(y_pred)
-        y = to_onehot(y)
+        y_pred = [torch.Tensor([0.2, 0.1]), torch.Tensor([0.1, 0.5])]
+        y = [torch.Tensor([0]), torch.Tensor([1])]
+        y_pred = [act(p) for p in y_pred]
+        y = [to_onehot(y_) for y_ in y]
+
         auc_metric.update([y_pred, y])
 
         auc = auc_metric.compute()

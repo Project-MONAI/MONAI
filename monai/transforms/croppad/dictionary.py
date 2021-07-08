@@ -15,6 +15,7 @@ defined in :py:class:`monai.transforms.croppad.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
+import contextlib
 from copy import deepcopy
 from enum import Enum
 from itertools import chain
@@ -38,6 +39,7 @@ from monai.transforms.croppad.array import (
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable
 from monai.transforms.utils import (
+    allow_missing_keys_mode,
     generate_pos_neg_label_crop_centers,
     is_positive,
     map_binary_to_indices,
@@ -54,6 +56,7 @@ __all__ = [
     "DivisiblePadd",
     "SpatialCropd",
     "CenterSpatialCropd",
+    "CenterScaleCropd",
     "RandScaleCropd",
     "RandSpatialCropd",
     "RandSpatialCropSamplesd",
@@ -72,6 +75,8 @@ __all__ = [
     "SpatialCropDict",
     "CenterSpatialCropD",
     "CenterSpatialCropDict",
+    "CenterScaleCropD",
+    "CenterScaleCropDict",
     "RandScaleCropD",
     "RandScaleCropDict",
     "RandSpatialCropD",
@@ -106,13 +111,17 @@ class SpatialPadd(MapTransform, InvertibleTransform):
         method: Union[Method, str] = Method.SYMMETRIC,
         mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT,
         allow_missing_keys: bool = False,
+        **np_kwargs,
     ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            spatial_size: the spatial size of output data after padding.
+            spatial_size: the spatial size of output data after padding, if a dimension of the input
+                data size is bigger than the pad size, will not pad that dimension.
                 If its components have non-positive values, the corresponding size of input image will be used.
+                for example: if the spatial size of input data is [30, 30, 30] and `spatial_size=[32, 25, -1]`,
+                the spatial size of output data will be [32, 30, 30].
             method: {``"symmetric"``, ``"end"``}
                 Pad image symmetric on every side or only pad at the end sides. Defaults to ``"symmetric"``.
             mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
@@ -121,11 +130,13 @@ class SpatialPadd(MapTransform, InvertibleTransform):
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
+            np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
+                more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
 
         """
         super().__init__(keys, allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.padder = SpatialPad(spatial_size, method)
+        self.padder = SpatialPad(spatial_size, method, **np_kwargs)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
@@ -167,6 +178,7 @@ class BorderPadd(MapTransform, InvertibleTransform):
         spatial_border: Union[Sequence[int], int],
         mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT,
         allow_missing_keys: bool = False,
+        **np_kwargs,
     ) -> None:
         """
         Args:
@@ -189,11 +201,13 @@ class BorderPadd(MapTransform, InvertibleTransform):
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
+            np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
+                more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
 
         """
         super().__init__(keys, allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.padder = BorderPad(spatial_border=spatial_border)
+        self.padder = BorderPad(spatial_border=spatial_border, **np_kwargs)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
@@ -239,6 +253,7 @@ class DivisiblePadd(MapTransform, InvertibleTransform):
         k: Union[Sequence[int], int],
         mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT,
         allow_missing_keys: bool = False,
+        **np_kwargs,
     ) -> None:
         """
         Args:
@@ -253,13 +268,15 @@ class DivisiblePadd(MapTransform, InvertibleTransform):
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
+            np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
+                more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
 
         See also :py:class:`monai.transforms.SpatialPad`
 
         """
         super().__init__(keys, allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.padder = DivisiblePad(k=k)
+        self.padder = DivisiblePad(k=k, **np_kwargs)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
@@ -291,6 +308,9 @@ class SpatialCropd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SpatialCrop`.
     General purpose cropper to produce sub-volume region of interest (ROI).
+    If a dimension of the expected ROI size is bigger than the input image size, will not crop that dimension.
+    So the cropped result may be smaller than the expected ROI, and the cropped results of several images may
+    not have exactly the same shape.
     It can support to crop ND spatial (channel-first) data.
 
     The cropped region can be parameterised in various ways:
@@ -314,9 +334,11 @@ class SpatialCropd(MapTransform, InvertibleTransform):
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             roi_center: voxel coordinates for center of the crop ROI.
-            roi_size: size of the crop ROI.
+            roi_size: size of the crop ROI, if a dimension of ROI size is bigger than image size,
+                will not crop that dimension of the image.
             roi_start: voxel coordinates for start of the crop ROI.
-            roi_end: voxel coordinates for end of the crop ROI.
+            roi_end: voxel coordinates for end of the crop ROI, if a coordinate is out of image,
+                use the end coordinate of image.
             roi_slices: list of slices for each of the spatial dimensions.
             allow_missing_keys: don't raise exception if key is missing.
         """
@@ -355,12 +377,18 @@ class SpatialCropd(MapTransform, InvertibleTransform):
 class CenterSpatialCropd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.CenterSpatialCrop`.
+    If a dimension of the expected ROI size is bigger than the input image size, will not crop that dimension.
+    So the cropped result may be smaller than the expected ROI, and the cropped results of several images may
+    not have exactly the same shape.
 
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
         roi_size: the size of the crop region e.g. [224,224,128]
+            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
             If its components have non-positive values, the corresponding size of input image will be used.
+            for example: if the spatial size of input data is [40, 40, 40] and `roi_size=[32, 64, -1]`,
+            the spatial size of output data will be [32, 40, 40].
         allow_missing_keys: don't raise exception if key is missing.
     """
 
@@ -400,6 +428,61 @@ class CenterSpatialCropd(MapTransform, InvertibleTransform):
         return d
 
 
+class CenterScaleCropd(MapTransform, InvertibleTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.CenterScaleCrop`.
+    Note: as using the same scaled ROI to crop, all the input data specified by `keys` should have
+    the same spatial shape.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: monai.transforms.MapTransform
+        roi_scale: specifies the expected scale of image size to crop. e.g. [0.3, 0.4, 0.5] or a number for all dims.
+            If its components have non-positive values, will use `1.0` instead, which means the input image size.
+        allow_missing_keys: don't raise exception if key is missing.
+    """
+
+    def __init__(
+        self, keys: KeysCollection, roi_scale: Union[Sequence[float], float], allow_missing_keys: bool = False
+    ) -> None:
+        super().__init__(keys, allow_missing_keys=allow_missing_keys)
+        self.roi_scale = roi_scale
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = dict(data)
+        # use the spatial size of first image to scale, expect all images have the same spatial size
+        img_size = data[self.keys[0]].shape[1:]
+        ndim = len(img_size)
+        roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
+        cropper = CenterSpatialCrop(roi_size)
+        for key in self.key_iterator(d):
+            self.push_transform(d, key, orig_size=img_size)
+            d[key] = cropper(d[key])
+
+        return d
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+
+        for key in self.key_iterator(d):
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            orig_size = np.array(transform[InverseKeys.ORIG_SIZE])
+            current_size = np.array(d[key].shape[1:])
+            pad_to_start = np.floor((orig_size - current_size) / 2).astype(int)
+            # in each direction, if original size is even and current size is odd, += 1
+            pad_to_start[np.logical_and(orig_size % 2 == 0, current_size % 2 == 1)] += 1
+            pad_to_end = orig_size - current_size - pad_to_start
+            pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
+            inverse_transform = BorderPad(pad)
+            # Apply inverse transform
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.pop_transform(d, key)
+
+        return d
+
+
 class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandSpatialCrop`.
@@ -407,12 +490,19 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
     center or at the image center. And allows to set the minimum and maximum size to limit the randomly
     generated ROI. Suppose all the expected fields specified by `keys` have same shape.
 
+    Note: even `random_size=False`, if a dimension of the expected ROI size is bigger than the input image size,
+    will not crop that dimension. So the cropped result may be smaller than the expected ROI, and the cropped
+    results of several images may not have exactly the same shape.
+
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
         roi_size: if `random_size` is True, it specifies the minimum crop region.
             if `random_size` is False, it specifies the expected ROI size to crop. e.g. [224, 224, 128]
+            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
             If its components have non-positive values, the corresponding size of input image will be used.
+            for example: if the spatial size of input data is [40, 40, 40] and `roi_size=[32, 64, -1]`,
+            the spatial size of output data will be [32, 40, 40].
         max_roi_size: if `random_size` is True and `roi_size` specifies the min crop region size, `max_roi_size`
             can specify the max crop region size. if None, defaults to the input image size.
             if its components have non-positive values, the corresponding size of input image will be used.
@@ -512,8 +602,7 @@ class RandScaleCropd(RandSpatialCropd):
             See also: monai.transforms.MapTransform
         roi_scale: if `random_size` is True, it specifies the minimum crop size: `roi_scale * image spatial size`.
             if `random_size` is False, it specifies the expected scale of image size to crop. e.g. [0.3, 0.4, 0.5].
-            If its components have non-positive values or very small scale value causes the crop size to be zero,
-            will use `1.0` instead, which means the input image size.
+            If its components have non-positive values, will use `1.0` instead, which means the input image size.
         max_roi_size: if `random_size` is True and `roi_scale` specifies the min crop region size, `max_roi_scale`
             can specify the max crop region size: `max_roi_scale * image spatial size`.
             if None, defaults to the input image size. if its components have non-positive values,
@@ -557,7 +646,15 @@ class RandScaleCropd(RandSpatialCropd):
         return super().__call__(data=data)
 
 
-class RandSpatialCropSamplesd(Randomizable, MapTransform):
+@contextlib.contextmanager
+def _nullcontext(x):
+    """
+    This is just like contextlib.nullcontext but also works in Python 3.6.
+    """
+    yield x
+
+
+class RandSpatialCropSamplesd(Randomizable, MapTransform, InvertibleTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandSpatialCropSamples`.
     Crop image with random size or specific size ROI to generate a list of N samples.
@@ -566,12 +663,19 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
     specified by `keys` have same shape, and add `patch_index` to the corresponding meta data.
     It will return a list of dictionaries for all the cropped images.
 
+    Note: even `random_size=False`, if a dimension of the expected ROI size is bigger than the input image size,
+    will not crop that dimension. So the cropped result may be smaller than the expected ROI, and the cropped
+    results of several images may not have exactly the same shape.
+
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
         roi_size: if `random_size` is True, it specifies the minimum crop region.
             if `random_size` is False, it specifies the expected ROI size to crop. e.g. [224, 224, 128]
+            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
             If its components have non-positive values, the corresponding size of input image will be used.
+            for example: if the spatial size of input data is [40, 40, 40] and `roi_size=[32, 64, -1]`,
+            the spatial size of output data will be [32, 40, 40].
         num_samples: number of samples (crop regions) to take in the returned list.
         max_roi_size: if `random_size` is True and `roi_size` specifies the min crop region size, `max_roi_size`
             can specify the max crop region size. if None, defaults to the input image size.
@@ -579,8 +683,14 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specific size ROI.
             The actual size is sampled from `randint(roi_size, img_size)`.
-        meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
-            default is `meta_dict`, the meta data is a dictionary object.
+        meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+            used to add `patch_index` to the meta dict.
+            for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+            the meta data is a dictionary object which contains: filename, original_shape, etc.
+            it can be a sequence of string, map to the `keys`.
+            if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+            to the key data, default is `meta_dict`, the meta data is a dictionary object.
             used to add `patch_index` to the meta dict.
         allow_missing_keys: don't raise exception if key is missing.
 
@@ -597,6 +707,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
         max_roi_size: Optional[Union[Sequence[int], int]] = None,
         random_center: bool = True,
         random_size: bool = True,
+        meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
         allow_missing_keys: bool = False,
     ) -> None:
@@ -605,7 +716,10 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
             raise ValueError(f"num_samples must be positive, got {num_samples}.")
         self.num_samples = num_samples
         self.cropper = RandSpatialCropd(keys, roi_size, max_roi_size, random_center, random_size, allow_missing_keys)
-        self.meta_key_postfix = meta_key_postfix
+        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
@@ -625,14 +739,29 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
             for key in set(data.keys()).difference(set(self.keys)):
                 d[key] = deepcopy(data[key])
             cropped = self.cropper(d)
+            # self.cropper will have added RandSpatialCropd to the list. Change to RandSpatialCropSamplesd
+            for key in self.key_iterator(cropped):
+                cropped[str(key) + InverseKeys.KEY_SUFFIX][-1][InverseKeys.CLASS_NAME] = self.__class__.__name__
+                cropped[str(key) + InverseKeys.KEY_SUFFIX][-1][InverseKeys.ID] = id(self)
             # add `patch_index` to the meta data
-            for key in self.key_iterator(d):
-                meta_data_key = f"{key}_{self.meta_key_postfix}"
-                if meta_data_key not in cropped:
-                    cropped[meta_data_key] = {}  # type: ignore
-                cropped[meta_data_key][Key.PATCH_INDEX] = i
+            for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
+                meta_key = meta_key or f"{key}_{meta_key_postfix}"
+                if meta_key not in cropped:
+                    cropped[meta_key] = {}  # type: ignore
+                cropped[meta_key][Key.PATCH_INDEX] = i
             ret.append(cropped)
         return ret
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        # We changed the transform name from RandSpatialCropd to RandSpatialCropSamplesd
+        # Need to revert that since we're calling RandSpatialCropd's inverse
+        for key in self.key_iterator(d):
+            d[key + InverseKeys.KEY_SUFFIX][-1][InverseKeys.CLASS_NAME] = self.cropper.__class__.__name__
+            d[key + InverseKeys.KEY_SUFFIX][-1][InverseKeys.ID] = id(self.cropper)
+        context_manager = allow_missing_keys_mode if self.allow_missing_keys else _nullcontext
+        with context_manager(self.cropper):
+            return self.cropper.inverse(d)
 
 
 class CropForegroundd(MapTransform, InvertibleTransform):
@@ -654,7 +783,7 @@ class CropForegroundd(MapTransform, InvertibleTransform):
         source_key: str,
         select_fn: Callable = is_positive,
         channel_indices: Optional[IndexSelection] = None,
-        margin: int = 0,
+        margin: Union[Sequence[int], int] = 0,
         k_divisible: Union[Sequence[int], int] = 1,
         mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
         start_coord_key: str = "foreground_start_coord",
@@ -731,7 +860,7 @@ class CropForegroundd(MapTransform, InvertibleTransform):
         return d
 
 
-class RandWeightedCropd(Randomizable, MapTransform):
+class RandWeightedCropd(Randomizable, MapTransform, InvertibleTransform):
     """
     Samples a list of `num_samples` image patches according to the provided `weight_map`.
 
@@ -744,8 +873,14 @@ class RandWeightedCropd(Randomizable, MapTransform):
             If its components have non-positive values, the corresponding size of `img` will be used.
         num_samples: number of samples (image patches) to take in the returned list.
         center_coord_key: if specified, the actual sampling location will be stored with the corresponding key.
-        meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
-            default is `meta_dict`, the meta data is a dictionary object.
+        meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+            used to add `patch_index` to the meta dict.
+            for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+            the meta data is a dictionary object which contains: filename, original_shape, etc.
+            it can be a sequence of string, map to the `keys`.
+            if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+            to the key data, default is `meta_dict`, the meta data is a dictionary object.
             used to add `patch_index` to the meta dict.
         allow_missing_keys: don't raise exception if key is missing.
 
@@ -760,6 +895,7 @@ class RandWeightedCropd(Randomizable, MapTransform):
         spatial_size: Union[Sequence[int], int],
         num_samples: int = 1,
         center_coord_key: Optional[str] = None,
+        meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
         allow_missing_keys: bool = False,
     ):
@@ -768,7 +904,10 @@ class RandWeightedCropd(Randomizable, MapTransform):
         self.w_key = w_key
         self.num_samples = int(num_samples)
         self.center_coord_key = center_coord_key
-        self.meta_key_postfix = meta_key_postfix
+        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.centers: List[np.ndarray] = []
 
     def randomize(self, weight_map: np.ndarray) -> None:
@@ -781,7 +920,12 @@ class RandWeightedCropd(Randomizable, MapTransform):
         self.randomize(d[self.w_key])
         _spatial_size = fall_back_tuple(self.spatial_size, d[self.w_key].shape[1:])
 
-        results: List[Dict[Hashable, np.ndarray]] = [{} for _ in range(self.num_samples)]
+        # initialize returned list with shallow copy to preserve key ordering
+        results: List[Dict[Hashable, np.ndarray]] = [dict(data) for _ in range(self.num_samples)]
+        # fill in the extra keys with unmodified data
+        for i in range(self.num_samples):
+            for key in set(data.keys()).difference(set(self.keys)):
+                results[i][key] = deepcopy(data[key])
         for key in self.key_iterator(d):
             img = d[key]
             if img.shape[1:] != d[self.w_key].shape[1:]:
@@ -791,24 +935,46 @@ class RandWeightedCropd(Randomizable, MapTransform):
                 )
             for i, center in enumerate(self.centers):
                 cropper = SpatialCrop(roi_center=center, roi_size=_spatial_size)
+                orig_size = img.shape[1:]
                 results[i][key] = cropper(img)
+                self.push_transform(results[i], key, extra_info={"center": center}, orig_size=orig_size)
                 if self.center_coord_key:
                     results[i][self.center_coord_key] = center
         # fill in the extra keys with unmodified data
         for i in range(self.num_samples):
-            for key in set(data.keys()).difference(set(self.keys)):
-                results[i][key] = deepcopy(data[key])
             # add `patch_index` to the meta data
-            for key in self.key_iterator(d):
-                meta_data_key = f"{key}_{self.meta_key_postfix}"
-                if meta_data_key not in results[i]:
-                    results[i][meta_data_key] = {}  # type: ignore
-                results[i][meta_data_key][Key.PATCH_INDEX] = i
+            for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
+                meta_key = meta_key or f"{key}_{meta_key_postfix}"
+                if meta_key not in results[i]:
+                    results[i][meta_key] = {}  # type: ignore
+                results[i][meta_key][Key.PATCH_INDEX] = i
 
         return results
 
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            orig_size = np.asarray(transform[InverseKeys.ORIG_SIZE])
+            current_size = np.asarray(d[key].shape[1:])
+            center = transform[InverseKeys.EXTRA_INFO]["center"]
+            cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)
+            # get required pad to start and end
+            pad_to_start = np.array([s.indices(o)[0] for s, o in zip(cropper.slices, orig_size)])
+            pad_to_end = orig_size - current_size - pad_to_start
+            # interleave mins and maxes
+            pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
+            inverse_transform = BorderPad(pad)
+            # Apply inverse transform
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.pop_transform(d, key)
 
-class RandCropByPosNegLabeld(Randomizable, MapTransform):
+        return d
+
+
+class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandCropByPosNegLabel`.
     Crop random fixed sized regions with the center being a foreground or background voxel
@@ -817,12 +983,19 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
     and add `patch_index` to the corresponding meta data.
     And will return a list of dictionaries for all the cropped images.
 
+    If a dimension of the expected spatial size is bigger than the input image size,
+    will not crop that dimension. So the cropped result may be smaller than the expected size,
+    and the cropped results of several images may not have exactly the same shape.
+
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         label_key: name of key for label image, this will be used for finding foreground/background.
         spatial_size: the spatial size of the crop region e.g. [224, 224, 128].
-            If its components have non-positive values, the corresponding size of `data[label_key]` will be used.
+            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
+            if its components have non-positive values, the corresponding size of `data[label_key]` will be used.
+            for example: if the spatial size of input data is [40, 40, 40] and `spatial_size=[32, 64, -1]`,
+            the spatial size of output data will be [32, 40, 40].
         pos: used with `neg` together to calculate the ratio ``pos / (pos + neg)`` for the probability
             to pick a foreground voxel as a center rather than a background voxel.
         neg: used with `pos` together to calculate the ratio ``pos / (pos + neg)`` for the probability
@@ -840,8 +1013,14 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
             `image_threshold`, and randomly select crop centers based on them, need to provide `fg_indices_key`
             and `bg_indices_key` together, expect to be 1 dim array of spatial indices after flattening.
             a typical usage is to call `FgBgToIndicesd` transform first and cache the results.
-        meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
-            default is `meta_dict`, the meta data is a dictionary object.
+        meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+            used to add `patch_index` to the meta dict.
+            for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+            the meta data is a dictionary object which contains: filename, original_shape, etc.
+            it can be a sequence of string, map to the `keys`.
+            if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+            to the key data, default is `meta_dict`, the meta data is a dictionary object.
             used to add `patch_index` to the meta dict.
         allow_missing_keys: don't raise exception if key is missing.
 
@@ -863,6 +1042,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         image_threshold: float = 0.0,
         fg_indices_key: Optional[str] = None,
         bg_indices_key: Optional[str] = None,
+        meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
         allow_missing_keys: bool = False,
     ) -> None:
@@ -879,7 +1059,10 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         self.image_threshold = image_threshold
         self.fg_indices_key = fg_indices_key
         self.bg_indices_key = bg_indices_key
-        self.meta_key_postfix = meta_key_postfix
+        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.centers: Optional[List[List[np.ndarray]]] = None
 
     def randomize(
@@ -911,24 +1094,50 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
             raise AssertionError
         if self.centers is None:
             raise AssertionError
-        results: List[Dict[Hashable, np.ndarray]] = [{} for _ in range(self.num_samples)]
+
+        # initialize returned list with shallow copy to preserve key ordering
+        results: List[Dict[Hashable, np.ndarray]] = [dict(data) for _ in range(self.num_samples)]
 
         for i, center in enumerate(self.centers):
-            for key in self.key_iterator(d):
-                img = d[key]
-                cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)  # type: ignore
-                results[i][key] = cropper(img)
             # fill in the extra keys with unmodified data
             for key in set(data.keys()).difference(set(self.keys)):
                 results[i][key] = deepcopy(data[key])
-            # add `patch_index` to the meta data
             for key in self.key_iterator(d):
-                meta_data_key = f"{key}_{self.meta_key_postfix}"
-                if meta_data_key not in results[i]:
-                    results[i][meta_data_key] = {}  # type: ignore
-                results[i][meta_data_key][Key.PATCH_INDEX] = i
+                img = d[key]
+                cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)  # type: ignore
+                orig_size = img.shape[1:]
+                results[i][key] = cropper(img)
+                self.push_transform(results[i], key, extra_info={"center": center}, orig_size=orig_size)
+            # add `patch_index` to the meta data
+            for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
+                meta_key = meta_key or f"{key}_{meta_key_postfix}"
+                if meta_key not in results[i]:
+                    results[i][meta_key] = {}  # type: ignore
+                results[i][meta_key][Key.PATCH_INDEX] = i
 
         return results
+
+    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            transform = self.get_most_recent_transform(d, key)
+            # Create inverse transform
+            orig_size = np.asarray(transform[InverseKeys.ORIG_SIZE])
+            current_size = np.asarray(d[key].shape[1:])
+            center = transform[InverseKeys.EXTRA_INFO]["center"]
+            cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)  # type: ignore
+            # get required pad to start and end
+            pad_to_start = np.array([s.indices(o)[0] for s, o in zip(cropper.slices, orig_size)])
+            pad_to_end = orig_size - current_size - pad_to_start
+            # interleave mins and maxes
+            pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
+            inverse_transform = BorderPad(pad)
+            # Apply inverse transform
+            d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.pop_transform(d, key)
+
+        return d
 
 
 class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
@@ -1054,6 +1263,7 @@ BorderPadD = BorderPadDict = BorderPadd
 DivisiblePadD = DivisiblePadDict = DivisiblePadd
 SpatialCropD = SpatialCropDict = SpatialCropd
 CenterSpatialCropD = CenterSpatialCropDict = CenterSpatialCropd
+CenterScaleCropD = CenterScaleCropDict = CenterScaleCropd
 RandSpatialCropD = RandSpatialCropDict = RandSpatialCropd
 RandScaleCropD = RandScaleCropDict = RandScaleCropd
 RandSpatialCropSamplesD = RandSpatialCropSamplesDict = RandSpatialCropSamplesd

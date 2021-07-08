@@ -57,7 +57,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
 
     """
 
-    resource = "https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz?dl=1"
+    resource = "https://drive.google.com/uc?id=1QsnnkvZyJPcbRoV_ArW8SnE1OTuoVbKE"
     md5 = "0bc7306e7427e00ad1c5526a6677552d"
     compressed_file_name = "MedNIST.tar.gz"
     dataset_folder_name = "MedNIST"

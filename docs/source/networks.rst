@@ -79,9 +79,28 @@ Blocks
 .. autoclass:: ResBlock
     :members:
 
+`SABlock Block`
+~~~~~~~~~~~~~~~
+.. autoclass:: SABlock
+    :members:
+
 `Squeeze-and-Excitation`
 ~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: ChannelSELayer
+    :members:
+
+`Transformer Block`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TransformerBlock
+    :members:
+
+`UNETR Block`
+~~~~~~~~~~~~~
+.. autoclass:: UnetrBasicBlock
+    :members:
+.. autoclass:: UnetrUpBlock
+    :members:
+.. autoclass:: UnetrPrUpBlock
     :members:
 
 `Residual Squeeze-and-Excitation`
@@ -135,12 +154,12 @@ Blocks
     :members:
 
 `Registration Down Sample Block`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: RegistrationDownSampleBlock
     :members:
 
 `Registration Extraction Block`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: RegistrationExtractionBlock
     :members:
 
@@ -157,6 +176,16 @@ Blocks
 `LocalNet Feature Extractor Block`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: LocalNetFeatureExtractorBlock
+    :members:
+
+`MLP Block`
+~~~~~~~~~~~
+.. autoclass:: MLPBlock
+    :members:
+
+`Patch Embedding Block`
+~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: PatchEmbeddingBlock
     :members:
 
 `Warp`
@@ -241,6 +270,10 @@ Layers
 ~~~~~~~~~~~~~~~~~
 .. autoclass:: PHLFilter
 
+`GaussianMixtureModel`
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: GaussianMixtureModel
+
 `SavitzkyGolayFilter`
 ~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: SavitzkyGolayFilter
@@ -299,9 +332,30 @@ Nets
 .. autoclass:: DenseNet
   :members:
 
+`DenseNet121`
+~~~~~~~~~~~~~
+.. autoclass:: DenseNet121
+
+`DenseNet169`
+~~~~~~~~~~~~~
+.. autoclass:: DenseNet169
+
+`DenseNet201`
+~~~~~~~~~~~~~
+.. autoclass:: DenseNet201
+
+`DenseNet264`
+~~~~~~~~~~~~~
+.. autoclass:: DenseNet264
+
 `EfficientNet`
 ~~~~~~~~~~~~~~
 .. autoclass:: EfficientNet
+  :members:
+
+`EfficientNetBN`
+~~~~~~~~~~~~~~~~
+.. autoclass:: EfficientNetBN
   :members:
 
 `SegResNet`
@@ -318,6 +372,30 @@ Nets
 ~~~~~~~
 .. autoclass:: SENet
   :members:
+
+`SENet154`
+~~~~~~~~~~
+.. autoclass:: SENet154
+
+`SEResNet50`
+~~~~~~~~~~~~
+.. autoclass:: SEResNet50
+
+`SEResNet101`
+~~~~~~~~~~~~~
+.. autoclass:: SEResNet101
+
+`SEResNet152`
+~~~~~~~~~~~~~
+.. autoclass:: SEResNet152
+
+`SEResNext50`
+~~~~~~~~~~~~~
+.. autoclass:: SEResNext50
+
+`SEResNext101`
+~~~~~~~~~~~~~~
+.. autoclass:: SEResNext101
 
 `HighResNet`
 ~~~~~~~~~~~~
@@ -340,6 +418,11 @@ Nets
 .. autoclass:: Unet
 .. autoclass:: unet
 
+`UNETR`
+~~~~~~~
+.. autoclass:: UNETR
+    :members:
+
 `BasicUNet`
 ~~~~~~~~~~~
 .. autoclass:: BasicUNet
@@ -353,7 +436,7 @@ Nets
   :members:
 
 `RegUNet`
-~~~~~~~~~~
+~~~~~~~~~
 .. autoclass:: RegUNet
   :members:
 
@@ -375,6 +458,11 @@ Nets
 `VarAutoEncoder`
 ~~~~~~~~~~~~~~~~
 .. autoclass:: VarAutoEncoder
+  :members:
+
+`ViT`
+~~~~~
+.. autoclass:: ViT
   :members:
 
 `FullyConnectedNet`
@@ -405,6 +493,16 @@ Nets
 `Critic`
 ~~~~~~~~
 .. autoclass:: Critic
+  :members:
+
+`NetAdapter`
+~~~~~~~~~~~~
+.. autoclass:: NetAdapter
+  :members:
+
+`TorchVisionFCModel`
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TorchVisionFCModel
   :members:
 
 `TorchVisionFullyConvModel`

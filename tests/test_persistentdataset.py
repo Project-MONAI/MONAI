@@ -10,18 +10,15 @@
 # limitations under the License.
 
 import os
-import shutil
 import tempfile
 import unittest
 
 import nibabel as nib
 import numpy as np
-import torch.distributed as dist
 from parameterized import parameterized
 
 from monai.data import PersistentDataset, json_hashing
 from monai.transforms import Compose, LoadImaged, SimulateDelayd, Transform
-from tests.utils import DistCall, DistTestCase
 
 TEST_CASE_1 = [
     Compose(
@@ -126,29 +123,25 @@ class TestDataset(unittest.TestCase):
                 for d in data3_postcached:
                     self.assertTupleEqual(d["image"].shape, expected_shape)
 
-
-class TestDistDataset(DistTestCase):
-    def setUp(self):
-        self.tempdir = tempfile.mkdtemp()
-
-    def tearDown(self):
-        shutil.rmtree(self.tempdir)
-
-    @DistCall(nnodes=1, nproc_per_node=2)
-    def test_mp_dataset(self):
-        print("persistent", dist.get_rank())
-        items = [[list(range(i))] for i in range(5)]
-        ds = PersistentDataset(items, transform=_InplaceXform(), cache_dir=self.tempdir)
-        self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
-        ds1 = PersistentDataset(items, transform=_InplaceXform(), cache_dir=self.tempdir)
-        self.assertEqual(list(ds1), list(ds))
-        self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
-
-        ds = PersistentDataset(items, transform=_InplaceXform(), cache_dir=self.tempdir, hash_func=json_hashing)
-        self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
-        ds1 = PersistentDataset(items, transform=_InplaceXform(), cache_dir=self.tempdir, hash_func=json_hashing)
-        self.assertEqual(list(ds1), list(ds))
-        self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
+            # update the data to cache
+            test_data_new = [
+                {
+                    "image": os.path.join(tempdir, "test_image1_new.nii.gz"),
+                    "label": os.path.join(tempdir, "test_label1_new.nii.gz"),
+                    "extra": os.path.join(tempdir, "test_extra1_new.nii.gz"),
+                },
+                {
+                    "image": os.path.join(tempdir, "test_image2_new.nii.gz"),
+                    "label": os.path.join(tempdir, "test_label2_new.nii.gz"),
+                    "extra": os.path.join(tempdir, "test_extra2_new.nii.gz"),
+                },
+            ]
+            dataset_postcached.set_data(data=test_data_new)
+            # test new exchanged cache content
+            if transform is None:
+                self.assertEqual(dataset_postcached[0]["image"], os.path.join(tempdir, "test_image1_new.nii.gz"))
+                self.assertEqual(dataset_postcached[0]["label"], os.path.join(tempdir, "test_label1_new.nii.gz"))
+                self.assertEqual(dataset_postcached[1]["extra"], os.path.join(tempdir, "test_extra2_new.nii.gz"))
 
 
 if __name__ == "__main__":

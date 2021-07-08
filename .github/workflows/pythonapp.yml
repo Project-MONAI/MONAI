@@ -1,11 +1,18 @@
 name: build
 
 on:
-  # quick tests for every pull request
+  # quick tests for pull requests and the releasing branches
   push:
     branches:
       - dev
+      - main
+      - releasing/*
   pull_request:
+
+concurrency:
+  # automatically cancel the previously triggered workflows when there's a newer version
+  group: build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   # caching of these jobs:
@@ -80,12 +87,10 @@ jobs:
     - if: runner.os == 'windows'
       name: Install torch cpu from pytorch.org (Windows only)
       run: |
-        python -m pip install torch==1.8.1+cpu torchvision==0.9.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
-        # min. requirements for windows instances
-        python -c "f=open('requirements-dev.txt', 'r'); txt=f.readlines(); f.close(); print(txt); f=open('requirements-dev.txt', 'w'); f.writelines(txt[1:12]); f.close()"
+        python -m pip install torch==1.9.0+cpu torchvision==0.10.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
     - name: Install the dependencies
       run: |
-        python -m pip install torch==1.8.1 torchvision==0.9.1
+        python -m pip install torch==1.9.0 torchvision==0.10.0
         cat "requirements-dev.txt"
         python -m pip install -r requirements-dev.txt
         python -m pip list
@@ -133,11 +138,11 @@ jobs:
     - if: runner.os == 'windows'
       name: Install torch cpu from pytorch.org (Windows only)
       run: |
-        python -m pip install torch==1.8.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
+        python -m pip install torch==1.9.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
     - name: Install the dependencies
       run: |
         # min. requirements
-        python -m pip install torch==1.8.1
+        python -m pip install torch==1.9.0
         python -m pip install -r requirements-min.txt
         python -m pip list
         BUILD_MONAI=0 python setup.py develop  # no compile of extensions
@@ -146,7 +151,7 @@ jobs:
       run: |
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
         python -c "import monai; monai.config.print_config()"
-        python -m tests.min_tests
+        ./runtests.sh --min
       env:
         QUICKTEST: True
 
@@ -182,7 +187,7 @@ jobs:
     - name: Install the dependencies
       run: |
         # min. requirements
-        python -m pip install torch==1.8.1
+        python -m pip install torch==1.9.0
         python -m pip install -r requirements-min.txt
         python -m pip list
         BUILD_MONAI=0 python setup.py develop  # no compile of extensions
@@ -191,7 +196,7 @@ jobs:
       run: |
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
         python -c "import monai; monai.config.print_config()"
-        python -m tests.min_tests
+        ./runtests.sh --min
       env:
         QUICKTEST: True
 
@@ -200,16 +205,13 @@ jobs:
     strategy:
       matrix:
         environment:
-          - "PT16+CUDA102"
           - "PT16+CUDA110"
           - "PT17+CUDA102"
           - "PT17+CUDA110"
           - "PT18+CUDA102"
-          - "PT18+CUDA112"
+          - "PT19+CUDA113"
+          - "PT19+CUDA102"
         include:
-          - environment: PT16+CUDA102
-            pytorch: "torch==1.6.0 torchvision==0.7.0"
-            base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
           - environment: PT16+CUDA110
             # we explicitly set pytorch to -h to avoid pip install error
             pytorch: "-h"
@@ -224,10 +226,13 @@ jobs:
           - environment: PT18+CUDA102
             pytorch: "torch==1.8.1 torchvision==0.9.1"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
-          - environment: PT18+CUDA112
+          - environment: PT19+CUDA113
             # we explicitly set pytorch to -h to avoid pip install error
             pytorch: "-h"
-            base: "nvcr.io/nvidia/pytorch:21.04-py3"
+            base: "nvcr.io/nvidia/pytorch:21.06-py3"
+          - environment: PT19+CUDA102
+            pytorch: "torch==1.9.0 torchvision==0.10.0"
+            base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
     container:
       image: ${{ matrix.base }}
       options: --gpus all
@@ -236,9 +241,9 @@ jobs:
     - uses: actions/checkout@v2
     - name: apt install
       run: |
-        if [ ${{ matrix.environment }} = "PT16+CUDA102" ] || \
-           [ ${{ matrix.environment }} = "PT17+CUDA102" ] || \
-           [ ${{ matrix.environment }} = "PT18+CUDA102" ]
+        if [ ${{ matrix.environment }} = "PT17+CUDA102" ] || \
+           [ ${{ matrix.environment }} = "PT18+CUDA102" ] || \
+           [ ${{ matrix.environment }} = "PT19+CUDA102" ]
         then
         PYVER=3.6 PYSFX=3 DISTUTILS=python3-distutils && \
         apt-get update && apt-get install -y --no-install-recommends \
@@ -297,7 +302,7 @@ jobs:
         python -c "import monai; monai.config.print_config()"
         # build for the current self-hosted CI Tesla V100
         BUILD_MONAI=1 TORCH_CUDA_ARCH_LIST="7.0" ./runtests.sh --quick --unittests
-        if [ ${{ matrix.environment }} = "PT18+CUDA112" ]; then
+        if [ ${{ matrix.environment }} = "PT19+CUDA102" ]; then
           # test the clang-format tool downloading once
           coverage run -m tests.clang_format_utils
         fi
@@ -340,6 +345,8 @@ jobs:
         python -m pip install torch>=1.5 torchvision
     - name: Test source archive and wheel file
       run: |
+        pip uninstall monai
+        pip list | grep -iv monai
         git fetch --depth=1 origin +refs/tags/*:refs/tags/*
         root_dir=$PWD
         echo "$root_dir"
@@ -365,15 +372,22 @@ jobs:
         rm monai*.whl
 
         # install from tar.gz
-        python -m pip install monai*.tar.gz
+        name=$(ls *.tar.gz | head -n1)
+        echo $name
+        python -m pip install $name[all]
         python -c 'import monai; monai.config.print_config()' 2>&1 | grep -iv "unknown"
         python -c 'import monai; print(monai.__file__)'
-        python -m pip uninstall -y monai
-        rm monai*.tar.gz
 
-        # clean up
-        cd "$root_dir"
-        rm -r "$tmp_dir"
+        # run min tests
+        cp $root_dir/requirements*.txt "$tmp_dir"
+        cp -r $root_dir/tests "$tmp_dir"
+        pwd
+        ls -al
+        python -m pip install -r requirements-dev.txt
+        python -m unittest -v
+      env:
+        QUICKTEST: True
+        shell: bash
 
   build-docs:
     runs-on: ubuntu-latest

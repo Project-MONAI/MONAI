@@ -12,6 +12,8 @@
 # have to explicitly bring these in here to resolve circular import issues
 from .aliases import alias, resolve_name
 from .decorators import MethodReplacer, RestartGenerator
+from .deprecated import DeprecatedError, deprecated, deprecated_arg
+from .dist import evenly_divisible_all_gather, get_dist_device, string_list_all_gather
 from .enums import (
     Activation,
     Average,
@@ -46,6 +48,7 @@ from .misc import (
     fall_back_tuple,
     first,
     get_seed,
+    has_option,
     is_scalar,
     is_scalar_tensor,
     issequenceiterable,
@@ -64,10 +67,10 @@ from .module import (
     get_full_type_name,
     get_package_version,
     get_torch_version_tuple,
-    has_option,
     load_submodules,
     min_version,
     optional_import,
+    version_leq,
 )
 from .profiling import PerfContext, torch_profiler_full, torch_profiler_time_cpu_gpu, torch_profiler_time_end_to_end
 from .state_cacher import StateCacher

@@ -27,7 +27,7 @@ class TestSpacingDCase(unittest.TestCase):
 
     def test_spacingd_2d(self):
         data = {"image": np.ones((2, 10, 20)), "image_meta_dict": {"affine": np.eye(3)}}
-        spacing = Spacingd(keys="image", pixdim=(1, 2, 1.4))
+        spacing = Spacingd(keys="image", pixdim=(1, 2))
         res = spacing(data)
         self.assertEqual(("image", "image_meta_dict", "image_transforms"), tuple(sorted(res)))
         np.testing.assert_allclose(res["image"].shape, (2, 10, 10))
@@ -35,7 +35,7 @@ class TestSpacingDCase(unittest.TestCase):
 
     def test_spacingd_2d_no_metadata(self):
         data = {"image": np.ones((2, 10, 20))}
-        spacing = Spacingd(keys="image", pixdim=(1, 2, 1.4))
+        spacing = Spacingd(keys="image", pixdim=(1, 2))
         res = spacing(data)
         self.assertEqual(("image", "image_meta_dict", "image_transforms"), tuple(sorted(res)))
         np.testing.assert_allclose(res["image"].shape, (2, 10, 10))

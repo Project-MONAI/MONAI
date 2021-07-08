@@ -19,7 +19,7 @@ import tempfile
 import threading
 import time
 import warnings
-from copy import deepcopy
+from copy import copy, deepcopy
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
 from typing import IO, TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Union
@@ -29,9 +29,9 @@ import torch
 from torch.utils.data import Dataset as _TorchDataset
 from torch.utils.data import Subset
 
-from monai.data.utils import first, pickle_hashing
-from monai.transforms import Compose, Randomizable, Transform, apply_transform
-from monai.utils import MAX_SEED, get_seed, min_version, optional_import
+from monai.data.utils import convert_tables_to_dicts, first, pickle_hashing
+from monai.transforms import Compose, Randomizable, ThreadUnsafe, Transform, apply_transform
+from monai.utils import MAX_SEED, ensure_tuple, get_seed, min_version, optional_import
 
 if TYPE_CHECKING:
     from tqdm import tqdm
@@ -41,6 +41,7 @@ else:
     tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 
 lmdb, _ = optional_import("lmdb")
+pd, _ = optional_import("pandas")
 
 
 class Dataset(_TorchDataset):
@@ -105,8 +106,8 @@ class PersistentDataset(Dataset):
     For example, typical input data can be a list of dictionaries::
 
         [{                            {                            {
-             'img': 'image1.nii.gz',      'img': 'image2.nii.gz',      'img': 'image3.nii.gz',
-             'seg': 'label1.nii.gz',      'seg': 'label2.nii.gz',      'seg': 'label3.nii.gz',
+             'image': 'image1.nii.gz',    'image': 'image2.nii.gz',    'image': 'image3.nii.gz',
+             'label': 'label1.nii.gz',    'label': 'label2.nii.gz',    'label': 'label3.nii.gz',
              'extra': 123                 'extra': 456                 'extra': 789
          },                           },                           }]
 
@@ -129,8 +130,14 @@ class PersistentDataset(Dataset):
     Subsequent uses of a dataset directly read pre-processed results from `cache_dir`
     followed by applying the random dependant parts of transform processing.
 
+    During training call `set_data()` to update input data and recompute cache content.
+
     Note:
         The input data must be a list of file paths and will hash them as cache keys.
+
+        When loading persistent cache content, it can't guarantee the cached data matches current
+        transform chain, so please make sure to use exactly the same non-random transforms and the
+        args as the cache content, otherwise, it may cause unexpected errors.
 
     """
 
@@ -164,9 +171,19 @@ class PersistentDataset(Dataset):
         self.hash_func = hash_func
         if self.cache_dir is not None:
             if not self.cache_dir.exists():
-                self.cache_dir.mkdir(parents=True)
+                self.cache_dir.mkdir(parents=True, exist_ok=True)
             if not self.cache_dir.is_dir():
                 raise ValueError("cache_dir must be a directory.")
+
+    def set_data(self, data: Sequence):
+        """
+        Set the input data and delete all the out-dated cache content.
+
+        """
+        self.data = data
+        if self.cache_dir is not None and self.cache_dir.exists():
+            shutil.rmtree(self.cache_dir, ignore_errors=True)
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
 
     def _pre_transform(self, item_transformed):
         """
@@ -180,13 +197,13 @@ class PersistentDataset(Dataset):
             random transform object
 
         """
-        if not isinstance(self.transform, Compose):
-            raise ValueError("transform must be an instance of monai.transforms.Compose.")
-        for _transform in self.transform.transforms:
+        for _transform in self.transform.transforms:  # type:ignore
             # execute all the deterministic transforms
             if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
                 break
-            item_transformed = apply_transform(_transform, item_transformed)
+            # this is to be consistent with CacheDataset even though it's not in a multi-thread situation.
+            _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
+            item_transformed = apply_transform(_xform, item_transformed)
         return item_transformed
 
     def _post_transform(self, item_transformed):
@@ -239,7 +256,13 @@ class PersistentDataset(Dataset):
             hashfile = self.cache_dir / f"{data_item_md5}.pt"
 
         if hashfile is not None and hashfile.is_file():  # cache hit
-            return torch.load(hashfile)
+            try:
+                return torch.load(hashfile)
+            except PermissionError as e:
+                if sys.platform == "win32":
+                    pass  # windows machine multiprocessing not efficiently supported
+                else:
+                    raise e
 
         _item_transformed = self._pre_transform(deepcopy(item_transformed))  # keep the original hashed
         if hashfile is not None:
@@ -312,7 +335,8 @@ class CacheNTransDataset(PersistentDataset):
         for i, _transform in enumerate(self.transform.transforms):
             if i == self.cache_n_trans:
                 break
-            item_transformed = apply_transform(_transform, item_transformed)
+            _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
+            item_transformed = apply_transform(_xform, item_transformed)
         return item_transformed
 
     def _post_transform(self, item_transformed):
@@ -391,6 +415,14 @@ class LMDBDataset(PersistentDataset):
             self.lmdb_kwargs["map_size"] = 1024 ** 4  # default map_size
         self._read_env = None
         print(f"Accessing lmdb file: {self.db_file.absolute()}.")
+
+    def set_data(self, data: Sequence):
+        """
+        Set the input data and delete all the out-dated cache content.
+
+        """
+        super().set_data(data=data)
+        self._read_env = None
 
     def _fill_cache_start_reader(self):
         # create cache
@@ -502,6 +534,17 @@ class CacheDataset(Dataset):
     can be cached. During training, the dataset will load the cached results and run
     ``RandCropByPosNegLabeld`` and ``ToTensord``, as ``RandCropByPosNegLabeld`` is a randomized transform
     and the outcome not cached.
+
+    During training call `set_data()` to update input data and recompute cache content, note that it requires
+    `persistent_workers=False` in the PyTorch DataLoader.
+
+    Note:
+        `CacheDataset` executes non-random transforms and prepares cache content in the main process before
+        the first epoch, then all the subprocesses of DataLoader will read the same cache content in the main process
+        during training. it may take a long time to prepare cache content according to the size of expected cache data.
+        So to debug or verify the program before real training, users can set `cache_rate=0.0` or `cache_num=0` to
+        temporarily skip caching.
+
     """
 
     def __init__(
@@ -535,6 +578,18 @@ class CacheDataset(Dataset):
             self.num_workers = max(int(self.num_workers), 1)
         self._cache: List = self._fill_cache()
 
+    def set_data(self, data: Sequence):
+        """
+        Set the input data and run deterministic transforms to generate cache content.
+
+        Note: should call this func after an entire epoch and must set `persisten_workers=False`
+        in PyTorch DataLoader, because it needs to create new worker processes based on new
+        generated cache content.
+
+        """
+        self.data = data
+        self._cache = self._fill_cache()
+
     def _fill_cache(self) -> List:
         if self.cache_num <= 0:
             return []
@@ -557,13 +612,12 @@ class CacheDataset(Dataset):
             idx: the index of the input data sequence.
         """
         item = self.data[idx]
-        if not isinstance(self.transform, Compose):
-            raise ValueError("transform must be an instance of monai.transforms.Compose.")
-        for _transform in self.transform.transforms:
+        for _transform in self.transform.transforms:  # type:ignore
             # execute all the deterministic transforms
             if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
                 break
-            item = apply_transform(_transform, item)
+            _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
+            item = apply_transform(_xform, item)
         return item
 
     def _transform(self, index: int):
@@ -620,6 +674,9 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         3. Call `update_cache()` before every epoch to replace training items.
         4. Call `shutdown()` when training ends.
 
+    During training call `set_data()` to update input data and recompute cache content, note to call
+    `shutdown()` to stop first, then update data and call `start()` to restart.
+
     Note:
         This replacement will not work for below cases:
         1. Set the `multiprocessing_context` of DataLoader to `spawn`.
@@ -643,6 +700,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
             If num_replace_workers is None then the number returned by os.cpu_count() is used.
         progress: whether to display a progress bar when caching for the first epoch.
         shuffle: whether to shuffle the whole data list before preparing the cache content for first epoch.
+            it will not modify the original input data sequence in-place.
         seed: random seed if shuffle is `True`, default to `0`.
     """
 
@@ -661,15 +719,19 @@ class SmartCacheDataset(Randomizable, CacheDataset):
     ) -> None:
         if shuffle:
             self.set_random_state(seed=seed)
+            data = copy(data)
             self.randomize(data)
+        self.shuffle = shuffle
 
         super().__init__(data, transform, cache_num, cache_rate, num_init_workers, progress)
         if self._cache is None:
             self._cache = self._fill_cache()
         if self.cache_num >= len(data):
-            warnings.warn("cache_num is greater or equal than dataset length, fall back to regular CacheDataset.")
+            warnings.warn(
+                "cache_num is greater or equal than dataset length, fall back to regular monai.data.CacheDataset."
+            )
         if replace_rate <= 0:
-            raise ValueError("replace_rate must be greater than 0, otherwise, please use CacheDataset.")
+            raise ValueError("replace_rate must be greater than 0, otherwise, please use monai.data.CacheDataset.")
 
         self.num_replace_workers: Optional[int] = num_replace_workers
         if self.num_replace_workers is not None:
@@ -687,6 +749,22 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         self._replace_mgr: Optional[threading.Thread] = None
 
         self._compute_data_idx()
+
+    def set_data(self, data: Sequence):
+        """
+        Set the input data and run deterministic transforms to generate cache content.
+
+        Note: should call `shutdown()` before calling this func.
+
+        """
+        if self.is_started():
+            warnings.warn("SmartCacheDataset is not shutdown yet, shutdown it directly.")
+            self.shutdown()
+
+        if self.shuffle:
+            data = copy(data)
+            self.randomize(data)
+        super().set_data(data)
 
     def randomize(self, data: Sequence) -> None:
         try:
@@ -775,6 +853,8 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         with self._update_lock:
             if self._replace_done:
                 self._round = 0
+                self._start_pos = 0
+                self._compute_data_idx()
                 self._replace_done = False
                 return True
             return False
@@ -1010,7 +1090,7 @@ class NPZDictItemDataset(Dataset):
         self,
         npzfile: Union[str, IO],
         keys: Dict[str, str],
-        transform: Optional[Callable] = None,
+        transform: Optional[Callable[..., Dict[str, Any]]] = None,
         other_keys: Optional[Sequence[str]] = (),
     ):
         self.npzfile: Union[str, IO] = npzfile if isinstance(npzfile, str) else "STREAM"
@@ -1037,7 +1117,80 @@ class NPZDictItemDataset(Dataset):
     def _transform(self, index: int):
         data = {k: v[index] for k, v in self.arrays.items()}
 
-        if self.transform is not None:
-            data = apply_transform(self.transform, data)
+        if not self.transform:
+            return data
 
-        return data
+        result = apply_transform(self.transform, data)
+
+        if isinstance(result, dict) or (isinstance(result, list) and isinstance(result[0], dict)):
+            return result
+        raise AssertionError("With a dict supplied to apply_transform, should return a dict or a list of dicts.")
+
+
+class CSVDataset(Dataset):
+    """
+    Dataset to load data from CSV files and generate a list of dictionaries,
+    every dictionay maps to a row of the CSV file, and the keys of dictionary
+    map to the column names of the CSV file.
+
+    It can load multiple CSV files and join the tables with addtional `kwargs` arg.
+    Support to only load specific rows and columns.
+    And it can also group several loaded columns to generate a new column, for example,
+    set `col_groups={"meta": ["meta_0", "meta_1", "meta_2"]}`, output can be::
+
+        [
+            {"image": "./image0.nii", "meta_0": 11, "meta_1": 12, "meta_2": 13, "meta": [11, 12, 13]},
+            {"image": "./image1.nii", "meta_0": 21, "meta_1": 22, "meta_2": 23, "meta": [21, 22, 23]},
+        ]
+
+    Args:
+        filename: the filename of expected CSV file to load. if providing a list
+            of filenames, it will load all the files and join tables.
+        row_indices: indices of the expected rows to load. it should be a list,
+            every item can be a int number or a range `[start, end)` for the indices.
+            for example: `row_indices=[[0, 100], 200, 201, 202, 300]`. if None,
+            load all the rows in the file.
+        col_names: names of the expected columns to load. if None, load all the columns.
+        col_types: `type` and `default value` to convert the loaded columns, if None, use original data.
+            it should be a dictionary, every item maps to an expected column, the `key` is the column
+            name and the `value` is None or a dictionary to define the default value and data type.
+            the supported keys in dictionary are: ["type", "default"]. for example::
+
+                col_types = {
+                    "subject_id": {"type": str},
+                    "label": {"type": int, "default": 0},
+                    "ehr_0": {"type": float, "default": 0.0},
+                    "ehr_1": {"type": float, "default": 0.0},
+                    "image": {"type": str, "default": None},
+                }
+
+        col_groups: args to group the loaded columns to generate a new column,
+            it should be a dictionary, every item maps to a group, the `key` will
+            be the new column name, the `value` is the names of columns to combine. for example:
+            `col_groups={"ehr": [f"ehr_{i}" for i in range(10)], "meta": ["meta_1", "meta_2"]}`
+        transform: transform to apply on the loaded items of a dictionary data.
+        kwargs: additional arguments for `pandas.merge()` API to join tables.
+
+    """
+
+    def __init__(
+        self,
+        filename: Union[str, Sequence[str]],
+        row_indices: Optional[Sequence[Union[int, str]]] = None,
+        col_names: Optional[Sequence[str]] = None,
+        col_types: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
+        col_groups: Optional[Dict[str, Sequence[str]]] = None,
+        transform: Optional[Callable] = None,
+        **kwargs,
+    ):
+        files = ensure_tuple(filename)
+        dfs = [pd.read_csv(f) for f in files]
+        data = convert_tables_to_dicts(
+            dfs=dfs,
+            row_indices=row_indices,
+            col_names=col_names,
+            col_types=col_types,
+            col_groups=col_groups,
+            **kwargs,
+        )
+        super().__init__(data=data, transform=transform)

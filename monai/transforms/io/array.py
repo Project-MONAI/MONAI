@@ -13,6 +13,7 @@ A collection of "vanilla" transforms for IO functions
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
+import sys
 from typing import Dict, List, Optional, Sequence, Union
 
 import numpy as np
@@ -33,20 +34,28 @@ Image, _ = optional_import("PIL.Image")
 __all__ = ["LoadImage", "SaveImage"]
 
 
-def switch_endianness(data, old, new):
+def switch_endianness(data, new="<"):
     """
-    If any numpy arrays have `old` (e.g., ">"),
-    replace with `new` (e.g., "<").
+    Convert the input `data` endianness to `new`.
+
+    Args:
+        data: input to be converted.
+        new: the target endianness, currently support "<" or ">".
     """
     if isinstance(data, np.ndarray):
-        if data.dtype.byteorder == old:
-            data = data.newbyteorder(new)
+        # default to system endian
+        sys_native = ((sys.byteorder == "little") and "<") or ">"
+        current_ = sys_native if data.dtype.byteorder not in ("<", ">") else data.dtype.byteorder
+        if new not in ("<", ">"):
+            raise NotImplementedError(f"Not implemented option new={new}.")
+        if current_ != new:
+            data = data.byteswap().newbyteorder(new)
     elif isinstance(data, tuple):
-        data = tuple(switch_endianness(x, old, new) for x in data)
+        data = tuple(switch_endianness(x, new) for x in data)
     elif isinstance(data, list):
-        data = [switch_endianness(x, old, new) for x in data]
+        data = [switch_endianness(x, new) for x in data]
     elif isinstance(data, dict):
-        data = {k: switch_endianness(v, old, new) for k, v in data.items()}
+        data = {k: switch_endianness(v, new) for k, v in data.items()}
     elif isinstance(data, (bool, str, float, int, type(None))):
         pass
     else:
@@ -159,7 +168,7 @@ class LoadImage(Transform):
             return img_array
         meta_data[Key.FILENAME_OR_OBJ] = ensure_tuple(filename)[0]
         # make sure all elements in metadata are little endian
-        meta_data = switch_endianness(meta_data, ">", "<")
+        meta_data = switch_endianness(meta_data, "<")
 
         return img_array, meta_data
 
@@ -167,11 +176,14 @@ class LoadImage(Transform):
 class SaveImage(Transform):
     """
     Save transformed data into files, support NIfTI and PNG formats.
-    It can work for both numpy array and PyTorch Tensor in both pre-transform chain
-    and post transform chain.
+    It can work for both numpy array and PyTorch Tensor in both preprocessing transform
+    chain and postprocessing transform chain.
+    The name of saved file will be `{input_image_name}_{output_postfix}{output_ext}`,
+    where the input image name is extracted from the provided meta data dictionary.
+    If no meta data provided, use index from 0 as the filename prefix.
     It can also save a list of PyTorch Tensor or numpy array without `batch dim`.
 
-    Note: image should include channel dimension: [B],C,H,W,[D].
+    Note: image should be channel-first shape: [C,H,W,[D]].
 
     Args:
         output_dir: output image directory.
@@ -206,8 +218,6 @@ class SaveImage(Transform):
             it's used for NIfTI format only.
         output_dtype: data type for saving data. Defaults to ``np.float32``.
             it's used for NIfTI format only.
-        save_batch: whether the import image is a batch data, default to `False`.
-            usually pre-transforms run for channel first data, while post-transforms run for batch data.
         squeeze_end_dims: if True, any trailing singleton dimensions will be removed (after the channel
             has been moved to the end). So if input is (C,H,W,D), this will be altered to (H,W,D,C), and
             then if C==1, it will be saved as (H,W,D). If D also ==1, it will be saved as (H,W). If false,
@@ -223,6 +233,7 @@ class SaveImage(Transform):
             output_dir: /output,
             data_root_dir: /foo/bar,
             output will be: /output/test1/image/image_seg.nii.gz
+        print_log: whether to print log about the saved file path, etc. default to `True`.
 
     """
 
@@ -237,9 +248,9 @@ class SaveImage(Transform):
         scale: Optional[int] = None,
         dtype: DtypeLike = np.float64,
         output_dtype: DtypeLike = np.float32,
-        save_batch: bool = False,
         squeeze_end_dims: bool = True,
         data_root_dir: str = "",
+        print_log: bool = True,
     ) -> None:
         self.saver: Union[NiftiSaver, PNGSaver]
         if output_ext in (".nii.gz", ".nii"):
@@ -254,6 +265,7 @@ class SaveImage(Transform):
                 output_dtype=output_dtype,
                 squeeze_end_dims=squeeze_end_dims,
                 data_root_dir=data_root_dir,
+                print_log=print_log,
             )
         elif output_ext == ".png":
             self.saver = PNGSaver(
@@ -264,11 +276,10 @@ class SaveImage(Transform):
                 mode=InterpolateMode(mode),
                 scale=scale,
                 data_root_dir=data_root_dir,
+                print_log=print_log,
             )
         else:
             raise ValueError(f"unsupported output extension: {output_ext}.")
-
-        self.save_batch = save_batch
 
     def __call__(self, img: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None):
         """
@@ -277,19 +288,4 @@ class SaveImage(Transform):
             meta_data: key-value pairs of meta_data corresponding to the data.
 
         """
-        if isinstance(img, (tuple, list)):
-            # if a list of data in shape: [channel, H, W, [D]], save every item separately
-            meta_: Optional[Dict] = None
-            for i, d in enumerate(img):
-                if isinstance(meta_data, dict):
-                    meta_ = {k: meta_data[k][i] for k in meta_data}
-                elif isinstance(meta_data, (list, tuple)):
-                    meta_ = meta_data[i]
-                else:
-                    meta_ = meta_data
-                self.saver.save(d, meta_)
-        else:
-            if self.save_batch:
-                self.saver.save_batch(img, meta_data)
-            else:
-                self.saver.save(img, meta_data)
+        self.saver.save(img, meta_data)

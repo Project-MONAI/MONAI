@@ -8,6 +8,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import json
 from typing import Callable, Dict, Optional, Sequence, Union
 
 import numpy as np
@@ -18,7 +19,7 @@ from monai.networks.layers import GaussianFilter
 from monai.transforms import Resize, SpatialCrop
 from monai.transforms.transform import MapTransform, Randomizable, Transform
 from monai.transforms.utils import generate_spatial_bounding_box
-from monai.utils import InterpolateMode, ensure_tuple_rep, min_version, optional_import
+from monai.utils import InterpolateMode, ensure_tuple, ensure_tuple_rep, min_version, optional_import
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_cdt")
@@ -61,7 +62,7 @@ class FindAllValidSlicesd(Transform):
         return d
 
 
-class AddInitialSeedPointd(Randomizable):
+class AddInitialSeedPointd(Randomizable, Transform):
     """
     Add random guidance as initial seed point for a given label.
 
@@ -144,7 +145,7 @@ class AddInitialSeedPointd(Randomizable):
     def __call__(self, data):
         d = dict(data)
         self.randomize(data)
-        d[self.guidance] = self._apply(d[self.label], self.sid)
+        d[self.guidance] = json.dumps(self._apply(d[self.label], self.sid).astype(int).tolist())
         return d
 
 
@@ -159,7 +160,7 @@ class AddGuidanceSignald(Transform):
         guidance: key to store guidance.
         sigma: standard deviation for Gaussian kernel.
         number_intensity_ch: channel index.
-        batched: whether input is batched or not.
+
     """
 
     def __init__(
@@ -168,17 +169,16 @@ class AddGuidanceSignald(Transform):
         guidance: str = "guidance",
         sigma: int = 2,
         number_intensity_ch: int = 1,
-        batched: bool = False,
     ):
         self.image = image
         self.guidance = guidance
         self.sigma = sigma
         self.number_intensity_ch = number_intensity_ch
-        self.batched = batched
 
     def _get_signal(self, image, guidance):
         dimensions = 3 if len(image.shape) > 3 else 2
         guidance = guidance.tolist() if isinstance(guidance, np.ndarray) else guidance
+        guidance = json.loads(guidance) if isinstance(guidance, str) else guidance
         if dimensions == 3:
             signal = np.zeros((len(guidance), image.shape[-3], image.shape[-2], image.shape[-1]), dtype=np.float32)
         else:
@@ -210,16 +210,9 @@ class AddGuidanceSignald(Transform):
         return signal
 
     def _apply(self, image, guidance):
-        if not self.batched:
-            signal = self._get_signal(image, guidance)
-            return np.concatenate([image, signal], axis=0)
-
-        images = []
-        for i, g in zip(image, guidance):
-            i = i[0 : 0 + self.number_intensity_ch, ...]
-            signal = self._get_signal(i, g)
-            images.append(np.concatenate([i, signal], axis=0))
-        return images
+        signal = self._get_signal(image, guidance)
+        image = image[0 : 0 + self.number_intensity_ch, ...]
+        return np.concatenate([image, signal], axis=0)
 
     def __call__(self, data):
         d = dict(data)
@@ -234,26 +227,17 @@ class FindDiscrepancyRegionsd(Transform):
     """
     Find discrepancy between prediction and actual during click interactions during training.
 
-    If batched is true:
-
-        label is in shape (B, C, D, H, W) or (B, C, H, W)
-        pred has same shape as label
-        discrepancy will have shape (B, 2, C, D, H, W) or (B, 2, C, H, W)
-
     Args:
         label: key to label source.
         pred: key to prediction source.
         discrepancy: key to store discrepancies found between label and prediction.
-        batched: whether input is batched or not.
+
     """
 
-    def __init__(
-        self, label: str = "label", pred: str = "pred", discrepancy: str = "discrepancy", batched: bool = True
-    ):
+    def __init__(self, label: str = "label", pred: str = "pred", discrepancy: str = "discrepancy"):
         self.label = label
         self.pred = pred
         self.discrepancy = discrepancy
-        self.batched = batched
 
     @staticmethod
     def disparity(label, pred):
@@ -266,13 +250,7 @@ class FindDiscrepancyRegionsd(Transform):
         return [pos_disparity, neg_disparity]
 
     def _apply(self, label, pred):
-        if not self.batched:
-            return self.disparity(label, pred)
-
-        disparity = []
-        for la, pr in zip(label, pred):
-            disparity.append(self.disparity(la, pr))
-        return disparity
+        return self.disparity(label, pred)
 
     def __call__(self, data):
         d = dict(data)
@@ -283,33 +261,19 @@ class FindDiscrepancyRegionsd(Transform):
         return d
 
 
-class AddRandomGuidanced(Randomizable):
+class AddRandomGuidanced(Randomizable, Transform):
     """
     Add random guidance based on discrepancies that were found between label and prediction.
-
-    If batched is True, input shape is as below:
-
-        Guidance is of shape (B, 2, N, # of dim) where B is batch size, 2 means positive and negative,
-        N means how many guidance points, # of dim is the total number of dimensions of the image
-        (for example if the image is CDHW, then # of dim would be 4).
-
-        Discrepancy is of shape (B, 2, C, D, H, W) or (B, 2, C, H, W)
-
-        Probability is of shape (B, 1)
-
-    else:
-
-        Guidance is of shape (2, N, # of dim)
-
-        Discrepancy is of shape (2, C, D, H, W) or (2, C, H, W)
-
-        Probability is of shape (1)
+    input shape is as below:
+    Guidance is of shape (2, N, # of dim)
+    Discrepancy is of shape (2, C, D, H, W) or (2, C, H, W)
+    Probability is of shape (1)
 
     Args:
         guidance: key to guidance source.
         discrepancy: key that represents discrepancies found between label and prediction.
         probability: key that represents click/interaction probability.
-        batched: whether input is batched or not.
+
     """
 
     def __init__(
@@ -317,22 +281,15 @@ class AddRandomGuidanced(Randomizable):
         guidance: str = "guidance",
         discrepancy: str = "discrepancy",
         probability: str = "probability",
-        batched: bool = True,
     ):
         self.guidance = guidance
         self.discrepancy = discrepancy
         self.probability = probability
-        self.batched = batched
         self._will_interact = None
 
     def randomize(self, data=None):
         probability = data[self.probability]
-        if not self.batched:
-            self._will_interact = self.R.choice([True, False], p=[probability, 1.0 - probability])
-        else:
-            self._will_interact = []
-            for p in probability:
-                self._will_interact.append(self.R.choice([True, False], p=[p, 1.0 - p]))
+        self._will_interact = self.R.choice([True, False], p=[probability, 1.0 - probability])
 
     def find_guidance(self, discrepancy):
         distance = distance_transform_cdt(discrepancy).flatten()
@@ -368,24 +325,16 @@ class AddRandomGuidanced(Randomizable):
 
     def _apply(self, guidance, discrepancy):
         guidance = guidance.tolist() if isinstance(guidance, np.ndarray) else guidance
-        if not self.batched:
-            pos, neg = self.add_guidance(discrepancy, self._will_interact)
-            if pos:
-                guidance[0].append(pos)
-                guidance[1].append([-1] * len(pos))
-            if neg:
-                guidance[0].append([-1] * len(neg))
-                guidance[1].append(neg)
-        else:
-            for g, d, w in zip(guidance, discrepancy, self._will_interact):
-                pos, neg = self.add_guidance(d, w)
-                if pos:
-                    g[0].append(pos)
-                    g[1].append([-1] * len(pos))
-                if neg:
-                    g[0].append([-1] * len(neg))
-                    g[1].append(neg)
-        return np.asarray(guidance)
+        guidance = json.loads(guidance) if isinstance(guidance, str) else guidance
+        pos, neg = self.add_guidance(discrepancy, self._will_interact)
+        if pos:
+            guidance[0].append(pos)
+            guidance[1].append([-1] * len(pos))
+        if neg:
+            guidance[0].append([-1] * len(neg))
+            guidance[1].append(neg)
+
+        return json.dumps(np.asarray(guidance).astype(int).tolist())
 
     def __call__(self, data):
         d = dict(data)
@@ -428,8 +377,13 @@ class SpatialCropForegroundd(MapTransform):
         channel_indices: if defined, select foreground only on the specified channels
             of image. if None, select foreground on the whole image.
         margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
-        meta_key_postfix: use `{key}_{meta_key_postfix}` to to fetch/store the meta data according to the key data,
-            default is `meta_dict`, the meta data is a dictionary object.
+        meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+            for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+            the meta data is a dictionary object which contains: filename, original_shape, etc.
+            it can be a sequence of string, map to the `keys`.
+            if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
+        meta_key_postfix: if meta_keys is None, use `{key}_{meta_key_postfix}` to to fetch/store the meta data according
+            to the key data, default is `meta_dict`, the meta data is a dictionary object.
             For example, to handle key `image`,  read/write affine matrices from the
             metadata `image_meta_dict` dictionary's `affine` field.
         start_coord_key: key to record the start coordinate of spatial bounding box for foreground.
@@ -447,6 +401,7 @@ class SpatialCropForegroundd(MapTransform):
         select_fn: Callable = lambda x: x > 0,
         channel_indices: Optional[IndexSelection] = None,
         margin: int = 0,
+        meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix="meta_dict",
         start_coord_key: str = "foreground_start_coord",
         end_coord_key: str = "foreground_end_coord",
@@ -461,7 +416,10 @@ class SpatialCropForegroundd(MapTransform):
         self.select_fn = select_fn
         self.channel_indices = channel_indices
         self.margin = margin
-        self.meta_key_postfix = meta_key_postfix
+        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.start_coord_key = start_coord_key
         self.end_coord_key = end_coord_key
         self.original_shape_key = original_shape_key
@@ -483,8 +441,8 @@ class SpatialCropForegroundd(MapTransform):
         else:
             cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
 
-        for key in self.key_iterator(d):
-            meta_key = f"{key}_{self.meta_key_postfix}"
+        for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
+            meta_key = meta_key or f"{key}_{meta_key_postfix}"
             d[meta_key][self.start_coord_key] = box_start
             d[meta_key][self.end_coord_key] = box_end
             d[meta_key][self.original_shape_key] = d[key].shape
@@ -520,8 +478,12 @@ class AddGuidanceFromPointsd(Transform):
         depth_first: if depth (slices) is positioned at first dimension.
         dimensions: dimensions based on model used for deepgrow (2D vs 3D).
         slice_key: key that represents applicable slice to add guidance.
-        meta_key_postfix: use `{ref_image}_{postfix}` to to fetch the meta data according to the key data,
-            default is `meta_dict`, the meta data is a dictionary object.
+        meta_keys: explicitly indicate the key of the meta data dictionary of `ref_image`.
+            for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+            the meta data is a dictionary object which contains: filename, original_shape, etc.
+            if None, will try to construct meta_keys by `{ref_image}_{meta_key_postfix}`.
+        meta_key_postfix: if meta_key is None, use `{ref_image}_{meta_key_postfix}` to to fetch the meta data according
+            to the key data, default is `meta_dict`, the meta data is a dictionary object.
             For example, to handle key `image`,  read/write affine matrices from the
             metadata `image_meta_dict` dictionary's `affine` field.
     """
@@ -536,6 +498,7 @@ class AddGuidanceFromPointsd(Transform):
         depth_first: bool = True,
         dimensions: int = 2,
         slice_key: str = "slice",
+        meta_keys: Optional[str] = None,
         meta_key_postfix: str = "meta_dict",
     ):
         self.ref_image = ref_image
@@ -546,6 +509,7 @@ class AddGuidanceFromPointsd(Transform):
         self.depth_first = depth_first
         self.dimensions = dimensions
         self.slice = slice_key
+        self.meta_keys = meta_keys
         self.meta_key_postfix = meta_key_postfix
 
     def _apply(self, pos_clicks, neg_clicks, factor, slice_num):
@@ -577,7 +541,7 @@ class AddGuidanceFromPointsd(Transform):
 
     def __call__(self, data):
         d = dict(data)
-        meta_dict_key = f"{self.ref_image}_{self.meta_key_postfix}"
+        meta_dict_key = self.meta_keys or f"{self.ref_image}_{self.meta_key_postfix}"
         if meta_dict_key not in d:
             raise RuntimeError(f"Missing meta_dict {meta_dict_key} in data!")
         if "spatial_shape" not in d[meta_dict_key]:
@@ -622,8 +586,13 @@ class SpatialCropGuidanced(MapTransform):
         guidance: key to the guidance. It is used to generate the bounding box of foreground
         spatial_size: minimal spatial size of the image patch e.g. [128, 128, 128] to fit in.
         margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
-        meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
-            default is `meta_dict`, the meta data is a dictionary object.
+        meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+            for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+            the meta data is a dictionary object which contains: filename, original_shape, etc.
+            it can be a sequence of string, map to the `keys`.
+            if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+            to the key data, default is `meta_dict`, the meta data is a dictionary object.
             For example, to handle key `image`,  read/write affine matrices from the
             metadata `image_meta_dict` dictionary's `affine` field.
         start_coord_key: key to record the start coordinate of spatial bounding box for foreground.
@@ -639,6 +608,7 @@ class SpatialCropGuidanced(MapTransform):
         guidance: str,
         spatial_size,
         margin=20,
+        meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix="meta_dict",
         start_coord_key: str = "foreground_start_coord",
         end_coord_key: str = "foreground_end_coord",
@@ -651,7 +621,10 @@ class SpatialCropGuidanced(MapTransform):
         self.guidance = guidance
         self.spatial_size = list(spatial_size)
         self.margin = margin
-        self.meta_key_postfix = meta_key_postfix
+        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.start_coord_key = start_coord_key
         self.end_coord_key = end_coord_key
         self.original_shape_key = original_shape_key
@@ -702,10 +675,10 @@ class SpatialCropGuidanced(MapTransform):
         # update bounding box in case it was corrected by the SpatialCrop constructor
         box_start = np.array([s.start for s in cropper.slices])
         box_end = np.array([s.stop for s in cropper.slices])
-        for key in self.key_iterator(d):
+        for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
             if not np.array_equal(d[key].shape[1:], original_spatial_shape):
                 raise RuntimeError("All the image specified in keys should have same spatial shape")
-            meta_key = f"{key}_{self.meta_key_postfix}"
+            meta_key = meta_key or f"{key}_{meta_key_postfix}"
             d[meta_key][self.start_coord_key] = box_start
             d[meta_key][self.end_coord_key] = box_end
             d[meta_key][self.original_shape_key] = d[key].shape
@@ -732,8 +705,12 @@ class ResizeGuidanced(Transform):
     Args:
         guidance: key to guidance
         ref_image: key to reference image to fetch current and original image details
-        meta_key_postfix: use `{ref_image}_{postfix}` to to fetch the meta data according to the key data,
-            default is `meta_dict`, the meta data is a dictionary object.
+        meta_keys: explicitly indicate the key of the meta data dictionary of `ref_image`.
+            for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+            the meta data is a dictionary object which contains: filename, original_shape, etc.
+            if None, will try to construct meta_keys by `{ref_image}_{meta_key_postfix}`.
+        meta_key_postfix: if meta_key is None, use `{ref_image}_{meta_key_postfix}` to to fetch the meta data according
+            to the key data, default is `meta_dict`, the meta data is a dictionary object.
             For example, to handle key `image`,  read/write affine matrices from the
             metadata `image_meta_dict` dictionary's `affine` field.
         cropped_shape_key: key that records cropped shape for foreground.
@@ -743,18 +720,20 @@ class ResizeGuidanced(Transform):
         self,
         guidance: str,
         ref_image: str,
-        meta_key_postfix="meta_dict",
+        meta_keys: Optional[str] = None,
+        meta_key_postfix: str = "meta_dict",
         cropped_shape_key: str = "foreground_cropped_shape",
     ) -> None:
         self.guidance = guidance
         self.ref_image = ref_image
+        self.meta_keys = meta_keys
         self.meta_key_postfix = meta_key_postfix
         self.cropped_shape_key = cropped_shape_key
 
     def __call__(self, data):
         d = dict(data)
         guidance = d[self.guidance]
-        meta_dict: Dict = d[f"{self.ref_image}_{self.meta_key_postfix}"]
+        meta_dict: Dict = d[self.meta_keys or f"{self.ref_image}_{self.meta_key_postfix}"]
         current_shape = d[self.ref_image].shape[1:]
         cropped_shape = meta_dict[self.cropped_shape_key][1:]
         factor = np.divide(current_shape, cropped_shape)
@@ -801,8 +780,13 @@ class RestoreLabeld(MapTransform):
         align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
             See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             It also can be a sequence of bool, each element corresponds to a key in ``keys``.
-        meta_key_postfix: use `{ref_image}_{meta_key_postfix}` to to fetch the meta data according to the key data,
-            default is `meta_dict`, the meta data is a dictionary object.
+        meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+            for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+            the meta data is a dictionary object which contains: filename, original_shape, etc.
+            it can be a sequence of string, map to the `keys`.
+            if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
+        meta_key_postfix: if meta_key is None, use `key_{meta_key_postfix} to to fetch the meta data according
+            to the key data, default is `meta_dict`, the meta data is a dictionary object.
             For example, to handle key `image`,  read/write affine matrices from the
             metadata `image_meta_dict` dictionary's `affine` field.
         start_coord_key: key that records the start coordinate of spatial bounding box for foreground.
@@ -819,6 +803,7 @@ class RestoreLabeld(MapTransform):
         slice_only: bool = False,
         mode: Union[Sequence[Union[InterpolateMode, str]], InterpolateMode, str] = InterpolateMode.NEAREST,
         align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
+        meta_keys: Optional[str] = None,
         meta_key_postfix: str = "meta_dict",
         start_coord_key: str = "foreground_start_coord",
         end_coord_key: str = "foreground_end_coord",
@@ -831,6 +816,9 @@ class RestoreLabeld(MapTransform):
         self.slice_only = slice_only
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
+        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = meta_key_postfix
         self.start_coord_key = start_coord_key
         self.end_coord_key = end_coord_key
@@ -841,7 +829,7 @@ class RestoreLabeld(MapTransform):
         d = dict(data)
         meta_dict: Dict = d[f"{self.ref_image}_{self.meta_key_postfix}"]
 
-        for key, mode, align_corners in self.key_iterator(d, self.mode, self.align_corners):
+        for key, mode, align_corners, meta_key in self.key_iterator(d, self.mode, self.align_corners, self.meta_keys):
             image = d[key]
 
             # Undo Resize
@@ -882,10 +870,11 @@ class RestoreLabeld(MapTransform):
                 final_result[slice_idx] = result
             d[key] = final_result
 
-            meta = d.get(f"{key}_{self.meta_key_postfix}")
+            meta_key = meta_key or f"{key}_{self.meta_key_postfix}"
+            meta = d.get(meta_key)
             if meta is None:
                 meta = dict()
-                d[f"{key}_{self.meta_key_postfix}"] = meta
+                d[meta_key] = meta
             meta["slice_idx"] = slice_idx
             meta["affine"] = meta_dict["original_affine"]
         return d
@@ -901,6 +890,11 @@ class Fetch2DSliced(MapTransform):
         keys: keys of the corresponding items to be transformed.
         guidance: key that represents guidance.
         axis: axis that represents slice in 3D volume.
+        meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+            for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+            the meta data is a dictionary object which contains: filename, original_shape, etc.
+            it can be a sequence of string, map to the `keys`.
+            if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
         meta_key_postfix: use `key_{meta_key_postfix}` to to fetch the meta data according to the key data,
             default is `meta_dict`, the meta data is a dictionary object.
             For example, to handle key `image`,  read/write affine matrices from the
@@ -913,13 +907,17 @@ class Fetch2DSliced(MapTransform):
         keys,
         guidance="guidance",
         axis: int = 0,
+        meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
         allow_missing_keys: bool = False,
     ):
         super().__init__(keys, allow_missing_keys)
         self.guidance = guidance
         self.axis = axis
-        self.meta_key_postfix = meta_key_postfix
+        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
     def _apply(self, image, guidance):
         slice_idx = guidance[2]  # (pos, neg, slice_idx)
@@ -935,8 +933,8 @@ class Fetch2DSliced(MapTransform):
         guidance = d[self.guidance]
         if len(guidance) < 3:
             raise RuntimeError("Guidance does not container slice_idx!")
-        for key in self.key_iterator(d):
+        for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
             img_slice, idx = self._apply(d[key], guidance)
             d[key] = img_slice
-            d[f"{key}_{self.meta_key_postfix}"]["slice_idx"] = idx
+            d[meta_key or f"{key}_{meta_key_postfix}"]["slice_idx"] = idx
         return d

@@ -12,15 +12,16 @@ from typing import Callable, Dict, Sequence, Union
 
 import torch
 
+from monai.data import decollate_batch, list_data_collate
 from monai.engines import SupervisedEvaluator, SupervisedTrainer
-from monai.engines.workflow import Events
+from monai.engines.utils import IterationEvents
 from monai.transforms import Compose
 from monai.utils.enums import CommonKeys
 
 
 class Interaction:
     """
-    Ignite handler used to introduce interactions (simulation of clicks) for Deepgrow Training/Evaluation.
+    Ignite process_function used to introduce interactions (simulation of clicks) for Deepgrow Training/Evaluation.
     This implementation is based on:
 
         Sakinis et al., Interactive segmentation of medical images through
@@ -50,10 +51,6 @@ class Interaction:
         self.train = train
         self.key_probability = key_probability
 
-    def attach(self, engine: Union[SupervisedTrainer, SupervisedEvaluator]) -> None:
-        if not engine.has_event_handler(self, Events.ITERATION_STARTED):
-            engine.add_event_handler(Events.ITERATION_STARTED, self)
-
     def __call__(self, engine: Union[SupervisedTrainer, SupervisedEvaluator], batchdata: Dict[str, torch.Tensor]):
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
@@ -61,6 +58,8 @@ class Interaction:
         for j in range(self.max_interactions):
             inputs, _ = engine.prepare_batch(batchdata)
             inputs = inputs.to(engine.state.device)
+
+            engine.fire_event(IterationEvents.INNER_ITERATION_STARTED)
 
             engine.network.eval()
             with torch.no_grad():
@@ -70,10 +69,19 @@ class Interaction:
                 else:
                     predictions = engine.inferer(inputs, engine.network)
 
+            engine.fire_event(IterationEvents.INNER_ITERATION_COMPLETED)
+
             batchdata.update({CommonKeys.PRED: predictions})
-            batchdata[self.key_probability] = torch.as_tensor(
-                ([1.0 - ((1.0 / self.max_interactions) * j)] if self.train else [1.0]) * len(inputs)
-            )
-            batchdata = self.transforms(batchdata)
+
+            # decollate batch data to execute click transforms
+            batchdata_list = decollate_batch(batchdata, detach=True)
+            for i in range(len(batchdata_list)):
+                batchdata_list[i][self.key_probability] = (
+                    (1.0 - ((1.0 / self.max_interactions) * j)) if self.train else 1.0
+                )
+                batchdata_list[i] = self.transforms(batchdata_list[i])
+
+            # collate list into a batch for next round interaction
+            batchdata = list_data_collate(batchdata_list)
 
         return engine._iteration(engine, batchdata)

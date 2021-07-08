@@ -16,13 +16,14 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
 import numpy as np
 import torch
 
-from monai.utils import ensure_tuple, exact_version, get_torch_version_tuple, optional_import
+from monai.config import IgniteInfo, KeysCollection
+from monai.utils import deprecated, ensure_tuple, get_torch_version_tuple, min_version, optional_import
 
-idist, _ = optional_import("ignite", "0.4.4", exact_version, "distributed")
+idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
 __all__ = [
     "stopping_fn_from_metric",
@@ -30,6 +31,7 @@ __all__ = [
     "evenly_divisible_all_gather",
     "string_list_all_gather",
     "write_metrics_reports",
+    "from_engine",
 ]
 
 
@@ -55,6 +57,7 @@ def stopping_fn_from_loss():
     return stopping_fn
 
 
+@deprecated(since="0.6.0", removed="0.7.0", msg_suffix="The API had been moved to monai.utils module.")
 def evenly_divisible_all_gather(data: torch.Tensor) -> torch.Tensor:
     """
     Utility function for distributed data parallel to pad at first dim to make it evenly divisible and all_gather.
@@ -85,11 +88,12 @@ def evenly_divisible_all_gather(data: torch.Tensor) -> torch.Tensor:
     return torch.cat([data[i * max_len : i * max_len + l, ...] for i, l in enumerate(all_lens)], dim=0)
 
 
+@deprecated(since="0.6.0", removed="0.7.0", msg_suffix="The API had been moved to monai.utils module.")
 def string_list_all_gather(strings: List[str]) -> List[str]:
     """
     Utility function for distributed data parallel to all gather a list of strings.
     Note that if the item in `strings` is longer than 1024 chars, it will be truncated to 1024:
-    https://github.com/pytorch/ignite/blob/master/ignite/distributed/comp_models/base.py#L92
+    https://pytorch.org/ignite/v0.4.5/distributed.html#ignite.distributed.utils.all_gather.
 
     Args:
         strings: a list of strings to all gather.
@@ -195,12 +199,12 @@ def write_metrics_reports(
             if summary_ops is not None:
                 supported_ops = OrderedDict(
                     {
-                        "mean": np.nanmean,
-                        "median": np.nanmedian,
-                        "max": np.nanmax,
-                        "min": np.nanmin,
+                        "mean": lambda x: np.nanmean(x),
+                        "median": lambda x: np.nanmedian(x),
+                        "max": lambda x: np.nanmax(x),
+                        "min": lambda x: np.nanmin(x),
                         "90percentile": lambda x: np.nanpercentile(x[0], x[1]),
-                        "std": np.nanstd,
+                        "std": lambda x: np.nanstd(x),
                         "notnans": lambda x: (~np.isnan(x)).sum(),
                     }
                 )
@@ -219,3 +223,46 @@ def write_metrics_reports(
                     f.write(f"class{deli}{deli.join(ops)}\n")
                     for i, c in enumerate(np.transpose(v)):
                         f.write(f"{class_labels[i]}{deli}{deli.join([f'{_compute_op(k, c):.4f}' for k in ops])}\n")
+
+
+def from_engine(keys: KeysCollection, first: bool = False):
+    """
+    Utility function to simplify the `batch_transform` or `output_transform` args of ignite components
+    when handling dictionary or list of dictionaries(for example: `engine.state.batch` or `engine.state.output`).
+    Users only need to set the expected keys, then it will return a callable function to extract data from
+    dictionary and construct a tuple respectively.
+
+    If data is a list of dictionaries after decollating, extract expected keys and construct lists respectively,
+    for example, if data is `[{"A": 1, "B": 2}, {"A": 3, "B": 4}]`, from_engine(["A", "B"]): `([1, 3], [2, 4])`.
+
+    It can help avoid a complicated `lambda` function and make the arg of metrics more straight-forward.
+    For example, set the first key as the prediction and the second key as label to get the expected data
+    from `engine.state.output` for a metric::
+
+        from monai.handlers import MeanDice, from_engine
+
+        metric = MeanDice(
+            include_background=False,
+            output_transform=from_engine(["pred", "label"])
+        )
+
+    Args:
+        keys: specified keys to extract data from dictionary or decollated list of dictionaries.
+        first: whether only extract sepcified keys from the first item if input data is a list of dictionaries,
+            it's used to extract the scalar data which doesn't have batch dim and was replicated into every
+            dictionary when decollating, like `loss`, etc.
+
+
+    """
+    keys = ensure_tuple(keys)
+
+    def _wrapper(data):
+        if isinstance(data, dict):
+            return tuple(data[k] for k in keys)
+        elif isinstance(data, list) and isinstance(data[0], dict):
+            # if data is a list of dictionaries, extract expected keys and construct lists,
+            # if `first=True`, only extract keys from the first item of the list
+            ret = [data[0][k] if first else [i[k] for i in data] for k in keys]
+            return tuple(ret) if len(ret) > 1 else ret[0]
+
+    return _wrapper

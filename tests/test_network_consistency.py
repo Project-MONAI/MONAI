@@ -13,6 +13,7 @@ import json
 import os
 import unittest
 from glob import glob
+from typing import Sequence
 from unittest.case import skipIf
 
 import torch
@@ -61,7 +62,14 @@ class TestNetworkConsistency(unittest.TestCase):
 
         actual_out_data = model(in_data)
 
-        torch.testing.assert_allclose(actual_out_data, expected_out_data)
+        self.check_output_consistency(actual_out_data, expected_out_data)
+
+    def check_output_consistency(self, actual, expected):
+        if isinstance(actual, Sequence):
+            for a, e in zip(actual, expected):
+                self.check_output_consistency(a, e)
+        else:
+            torch.testing.assert_allclose(actual, expected)
 
 
 if __name__ == "__main__":

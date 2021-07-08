@@ -16,15 +16,22 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 import logging
 import sys
 import time
-from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
+import warnings
+from typing import Callable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
 from monai.config import DtypeLike, NdarrayTensor
 from monai.transforms.transform import Randomizable, Transform
-from monai.transforms.utils import extreme_points_to_image, get_extreme_points, map_binary_to_indices
-from monai.utils import ensure_tuple, min_version, optional_import
+from monai.transforms.utils import (
+    convert_to_numpy,
+    convert_to_tensor,
+    extreme_points_to_image,
+    get_extreme_points,
+    map_binary_to_indices,
+)
+from monai.utils import ensure_tuple, issequenceiterable, min_version, optional_import
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
@@ -37,6 +44,7 @@ __all__ = [
     "AsChannelLast",
     "AddChannel",
     "EnsureChannelFirst",
+    "EnsureType",
     "RepeatChannel",
     "RemoveRepeatedChannel",
     "SplitChannel",
@@ -155,20 +163,34 @@ class EnsureChannelFirst(Transform):
     It extracts the `original_channel_dim` info from provided meta_data dictionary.
     Typical values of `original_channel_dim` can be: "no_channel", 0, -1.
     Convert the data to `channel_first` based on the `original_channel_dim` information.
-
     """
 
-    def __call__(self, img: np.ndarray, meta_dict: Optional[Dict] = None):
+    def __init__(self, strict_check: bool = True):
+        """
+        Args:
+            strict_check: whether to raise an error when the meta information is insufficient.
+        """
+        self.strict_check = strict_check
+
+    def __call__(self, img: np.ndarray, meta_dict: Optional[Mapping] = None):
         """
         Apply the transform to `img`.
         """
-        if not isinstance(meta_dict, dict):
-            raise ValueError("meta_dict must be a dictionary data.")
+        if not isinstance(meta_dict, Mapping):
+            msg = "meta_dict not available, EnsureChannelFirst is not in use."
+            if self.strict_check:
+                raise ValueError(msg)
+            warnings.warn(msg)
+            return img
 
-        channel_dim = meta_dict.get("original_channel_dim", None)
+        channel_dim = meta_dict.get("original_channel_dim")
 
         if channel_dim is None:
-            raise ValueError("meta_dict must contain `original_channel_dim` information.")
+            msg = "Unknown original_channel_dim in the meta_dict, EnsureChannelFirst is not in use."
+            if self.strict_check:
+                raise ValueError(msg)
+            warnings.warn(msg)
+            return img
         if channel_dim == "no_channel":
             return AddChannel()(img)
         return AsChannelFirst(channel_dim=channel_dim)(img)
@@ -226,36 +248,24 @@ class SplitChannel(Transform):
     """
     Split Numpy array or PyTorch Tensor data according to the channel dim.
     It can help applying different following transforms to different channels.
-    Channel number must be greater than 1.
 
     Args:
-        channel_dim: which dimension of input image is the channel, default to None
-            to automatically select: if data is numpy array, channel_dim is 0 as
-            `numpy array` is used in the pre transforms, if PyTorch Tensor, channel_dim
-            is 1 as in most of the cases `Tensor` is uses in the post transforms.
+        channel_dim: which dimension of input image is the channel, default to 0.
+
     """
 
-    def __init__(self, channel_dim: Optional[int] = None) -> None:
+    def __init__(self, channel_dim: int = 0) -> None:
         self.channel_dim = channel_dim
 
     def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> List[Union[np.ndarray, torch.Tensor]]:
-        if self.channel_dim is None:
-            # automatically select the default channel dim based on data type
-            if isinstance(img, torch.Tensor):
-                channel_dim = 1
-            else:
-                channel_dim = 0
-        else:
-            channel_dim = self.channel_dim
-
-        n_classes = img.shape[channel_dim]
+        n_classes = img.shape[self.channel_dim]
         if n_classes <= 1:
             raise RuntimeError("input image does not contain multiple channels.")
 
         outputs = []
         slices = [slice(None)] * len(img.shape)
         for i in range(n_classes):
-            slices[channel_dim] = slice(i, i + 1)
+            slices[self.channel_dim] = slice(i, i + 1)
             outputs.append(img[tuple(slices)])
 
         return outputs
@@ -305,7 +315,43 @@ class ToTensor(Transform):
         """
         if isinstance(img, torch.Tensor):
             return img.contiguous()
-        return torch.as_tensor(np.ascontiguousarray(img))
+        if issequenceiterable(img):
+            # numpy array with 0 dims is also sequence iterable
+            if not (isinstance(img, np.ndarray) and img.ndim == 0):
+                # `ascontiguousarray` will add 1 dim if img has no dim, so we only apply on data with dims
+                img = np.ascontiguousarray(img)
+        return torch.as_tensor(img)
+
+
+class EnsureType(Transform):
+    """
+    Ensure the input data to be a PyTorch Tensor or numpy array, support: `numpy array`, `PyTorch Tensor`,
+    `float`, `int`, `bool`, `string` and `object` keep the original.
+    If passing a dictionary, list or tuple, still return dictionary, list or tuple and recursively convert
+    every item to the expected data type.
+
+    Args:
+        data_type: target data type to convert, should be "tensor" or "numpy".
+
+    """
+
+    def __init__(self, data_type: str = "tensor") -> None:
+        data_type = data_type.lower()
+        if data_type not in ("tensor", "numpy"):
+            raise ValueError("`data type` must be 'tensor' or 'numpy'.")
+
+        self.data_type = data_type
+
+    def __call__(self, data):
+        """
+        Args:
+            data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
+                will ensure Tensor, Numpy array, float, int, bool as Tensors or numpy arrays, strings and
+                objects keep the original. for dictionay, list or tuple, ensure every item as expected type
+                if applicable.
+
+        """
+        return convert_to_tensor(data) if self.data_type == "tensor" else convert_to_numpy(data)
 
 
 class ToNumpy(Transform):
@@ -318,10 +364,12 @@ class ToNumpy(Transform):
         Apply the transform to `img` and make it contiguous.
         """
         if isinstance(img, torch.Tensor):
-            img = img.detach().cpu().numpy()  # type: ignore
+            img = img.detach().cpu().numpy()
         elif has_cp and isinstance(img, cp_ndarray):
-            img = cp.asnumpy(img)  # type: ignore
-        return np.ascontiguousarray(img)
+            img = cp.asnumpy(img)
+
+        array: np.ndarray = np.asarray(img)
+        return np.ascontiguousarray(array) if array.ndim > 0 else array
 
 
 class ToCupy(Transform):
@@ -334,7 +382,7 @@ class ToCupy(Transform):
         Apply the transform to `img` and make it contiguous.
         """
         if isinstance(img, torch.Tensor):
-            img = img.detach().cpu().numpy()  # type: ignore
+            img = img.detach().cpu().numpy()
         return cp.ascontiguousarray(cp.asarray(img))
 
 
@@ -441,14 +489,14 @@ class DataStats(Transform):
         if additional_info is not None and not callable(additional_info):
             raise TypeError(f"additional_info must be None or callable but is {type(additional_info).__name__}.")
         self.additional_info = additional_info
-        self.output: Optional[str] = None
-        self._logger = logging.getLogger("DataStats")
-        self._logger.setLevel(logging.INFO)
+        self._logger_name = "DataStats"
+        _logger = logging.getLogger(self._logger_name)
+        _logger.setLevel(logging.INFO)
         console = logging.StreamHandler(sys.stdout)  # always stdout
         console.setLevel(logging.INFO)
-        self._logger.addHandler(console)
+        _logger.addHandler(console)
         if logger_handler is not None:
-            self._logger.addHandler(logger_handler)
+            _logger.addHandler(logger_handler)
 
     def __call__(
         self,
@@ -482,9 +530,8 @@ class DataStats(Transform):
         if additional_info is not None:
             lines.append(f"Additional info: {additional_info(img)}")
         separator = "\n"
-        self.output = f"{separator.join(lines)}"
-        self._logger.info(self.output)
-
+        output = f"{separator.join(lines)}"
+        logging.getLogger(self._logger_name).info(output)
         return img
 
 
@@ -686,7 +733,7 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
         return np.stack(result, axis=0)
 
 
-class AddExtremePointsChannel(Randomizable):
+class AddExtremePointsChannel(Randomizable, Transform):
     """
     Add extreme points of label to the image as a new channel. This transform generates extreme
     point from label and applies a gaussian filter. The pixel values in points image are rescaled

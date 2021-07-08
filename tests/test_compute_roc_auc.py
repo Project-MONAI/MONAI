@@ -15,8 +15,9 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.metrics import compute_roc_auc
-from monai.transforms import Activations, AsDiscrete
+from monai.data import decollate_batch
+from monai.metrics import ROCAUCMetric, compute_roc_auc
+from monai.transforms import Activations, AsDiscrete, Compose, ToTensor
 
 TEST_CASE_1 = [
     torch.tensor([[0.1, 0.9], [0.3, 1.4], [0.2, 0.1], [0.1, 0.5]]),
@@ -85,9 +86,23 @@ TEST_CASE_7 = [
 class TestComputeROCAUC(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7])
     def test_value(self, y_pred, y, softmax, to_onehot, average, expected_value):
-        y_pred = Activations(softmax=softmax)(y_pred)
-        y = AsDiscrete(to_onehot=to_onehot, n_classes=2)(y)
+        y_pred_trans = Compose([ToTensor(), Activations(softmax=softmax)])
+        y_trans = Compose([ToTensor(), AsDiscrete(to_onehot=to_onehot, n_classes=2)])
+        y_pred = torch.stack([y_pred_trans(i) for i in decollate_batch(y_pred)], dim=0)
+        y = torch.stack([y_trans(i) for i in decollate_batch(y)], dim=0)
         result = compute_roc_auc(y_pred=y_pred, y=y, average=average)
+        np.testing.assert_allclose(expected_value, result, rtol=1e-5)
+
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7])
+    def test_class_value(self, y_pred, y, softmax, to_onehot, average, expected_value):
+        y_pred_trans = Compose([ToTensor(), Activations(softmax=softmax)])
+        y_trans = Compose([ToTensor(), AsDiscrete(to_onehot=to_onehot, n_classes=2)])
+        y_pred = [y_pred_trans(i) for i in decollate_batch(y_pred)]
+        y = [y_trans(i) for i in decollate_batch(y)]
+        metric = ROCAUCMetric(average=average)
+        metric(y_pred=y_pred, y=y)
+        result = metric.aggregate()
+        metric.reset()
         np.testing.assert_allclose(expected_value, result, rtol=1e-5)
 
 

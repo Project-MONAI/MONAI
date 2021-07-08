@@ -11,6 +11,7 @@
 
 import itertools
 import random
+import re
 import warnings
 from contextlib import contextmanager
 from typing import Callable, List, Optional, Sequence, Tuple, Union
@@ -36,6 +37,8 @@ from monai.utils import (
 )
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
+cp, has_cp = optional_import("cupy")
+cp_ndarray, _ = optional_import("cupy", name="ndarray")
 
 __all__ = [
     "rand_choice",
@@ -66,6 +69,9 @@ __all__ = [
     "map_spatial_axes",
     "allow_missing_keys_mode",
     "convert_inverse_interp_mode",
+    "convert_to_tensor",
+    "convert_to_numpy",
+    "tensor_to_numpy",
 ]
 
 
@@ -224,8 +230,8 @@ def resize_center(img: np.ndarray, *resize_dims: Optional[int], fill_value: floa
 
     resize_dims = fall_back_tuple(resize_dims, img.shape)
 
-    half_img_shape = np.asarray(img.shape) // 2
-    half_dest_shape = np.asarray(resize_dims) // 2
+    half_img_shape = (np.asarray(img.shape) // 2).tolist()
+    half_dest_shape = (np.asarray(resize_dims) // 2).tolist()
     srcslices, destslices = copypaste_arrays(img.shape, resize_dims, half_img_shape, half_dest_shape, resize_dims)
 
     if not inplace:
@@ -318,7 +324,7 @@ def generate_pos_neg_label_crop_centers(
     label_spatial_shape: Sequence[int],
     fg_indices: np.ndarray,
     bg_indices: np.ndarray,
-    rand_state: np.random.RandomState = np.random,
+    rand_state: Optional[np.random.RandomState] = None,
 ) -> List[List[np.ndarray]]:
     """
     Generate valid sample locations based on the label with option for specifying foreground ratio
@@ -338,6 +344,8 @@ def generate_pos_neg_label_crop_centers(
         ValueError: When the foreground and background indices lengths are 0.
 
     """
+    if rand_state is None:
+        rand_state = np.random.random.__self__  # type: ignore
     spatial_size = fall_back_tuple(spatial_size, default=label_spatial_shape)
     if not (np.subtract(label_spatial_shape, spatial_size) >= 0).all():
         raise ValueError("The size of the proposed random crop ROI is larger than the image size.")
@@ -587,22 +595,22 @@ def get_largest_connected_component_mask(img: torch.Tensor, connectivity: Option
     Gets the largest connected component mask of an image.
 
     Args:
-        img: Image to get largest connected component from. Shape is (batch_size, spatial_dim1 [, spatial_dim2, ...])
+        img: Image to get largest connected component from. Shape is (spatial_dim1 [, spatial_dim2, ...])
         connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
             Accepted values are ranging from  1 to input.ndim. If ``None``, a full
             connectivity of ``input.ndim`` is used.
     """
     img_arr = img.detach().cpu().numpy()
     largest_cc = np.zeros(shape=img_arr.shape, dtype=img_arr.dtype)
-    for i, item in enumerate(img_arr):
-        item = measure.label(item, connectivity=connectivity)
-        if item.max() != 0:
-            largest_cc[i, ...] = item == (np.argmax(np.bincount(item.flat)[1:]) + 1)
+    img_arr = measure.label(img_arr, connectivity=connectivity)
+    if img_arr.max() != 0:
+        largest_cc[...] = img_arr == (np.argmax(np.bincount(img_arr.flat)[1:]) + 1)
+
     return torch.as_tensor(largest_cc, device=img.device)
 
 
 def get_extreme_points(
-    img: np.ndarray, rand_state: np.random.RandomState = np.random, background: int = 0, pert: float = 0.0
+    img: np.ndarray, rand_state: Optional[np.random.RandomState] = None, background: int = 0, pert: float = 0.0
 ) -> List[Tuple[int, ...]]:
     """
     Generate extreme points from an image. These are used to generate initial segmentation
@@ -624,6 +632,8 @@ def get_extreme_points(
     Raises:
         ValueError: When the input image does not have any foreground pixel.
     """
+    if rand_state is None:
+        rand_state = np.random.random.__self__  # type: ignore
     indices = np.where(img != background)
     if np.size(indices[0]) == 0:
         raise ValueError("get_extreme_points: no foreground object in mask!")
@@ -833,3 +843,90 @@ def compute_divisible_spatial_size(spatial_shape: Sequence[int], k: Union[Sequen
         new_size.append(new_dim)
 
     return new_size
+
+
+def convert_to_tensor(data):
+    """
+    Utility to convert the input data to a PyTorch Tensor. If passing a dictionary, list or tuple,
+    recursively check every item and convert it to PyTorch Tensor.
+
+    Args:
+        data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
+            will convert Tensor, Numpy array, float, int, bool to Tensors, strings and objects keep the original.
+            for dictionay, list or tuple, convert every item to a Tensor if applicable.
+
+    """
+    if isinstance(data, torch.Tensor):
+        return data.contiguous()
+    elif isinstance(data, np.ndarray):
+        # skip array of string classes and object, refer to:
+        # https://github.com/pytorch/pytorch/blob/v1.9.0/torch/utils/data/_utils/collate.py#L13
+        if re.search(r"[SaUO]", data.dtype.str) is None:
+            # numpy array with 0 dims is also sequence iterable,
+            # `ascontiguousarray` will add 1 dim if img has no dim, so we only apply on data with dims
+            return torch.as_tensor(data if data.ndim == 0 else np.ascontiguousarray(data))
+    elif isinstance(data, (float, int, bool)):
+        return torch.as_tensor(data)
+    elif isinstance(data, dict):
+        return {k: convert_to_tensor(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [convert_to_tensor(i) for i in data]
+    elif isinstance(data, tuple):
+        return tuple([convert_to_tensor(i) for i in data])
+
+    return data
+
+
+def convert_to_numpy(data):
+    """
+    Utility to convert the input data to a numpy array. If passing a dictionary, list or tuple,
+    recursively check every item and convert it to numpy array.
+
+    Args:
+        data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
+            will convert Tensor, Numpy array, float, int, bool to numpy arrays, strings and objects keep the original.
+            for dictionay, list or tuple, convert every item to a numpy array if applicable.
+
+    """
+    if isinstance(data, torch.Tensor):
+        data = data.detach().cpu().numpy()
+    elif has_cp and isinstance(data, cp_ndarray):
+        data = cp.asnumpy(data)
+    elif isinstance(data, (float, int, bool)):
+        data = np.asarray(data)
+    elif isinstance(data, dict):
+        return {k: convert_to_numpy(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [convert_to_numpy(i) for i in data]
+    elif isinstance(data, tuple):
+        return tuple([convert_to_numpy(i) for i in data])
+
+    if isinstance(data, np.ndarray) and data.ndim > 0:
+        data = np.ascontiguousarray(data)
+
+    return data
+
+
+def tensor_to_numpy(data):
+    """
+    Utility to convert the input PyTorch Tensor data to numpy array, if scalar Tensor, convert to regular number.
+    If passing a dictionary, list or tuple, recursively check every PyTorch Tensor item and convert it to numpy arrays.
+
+    Args:
+        data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
+            will convert the Tensor data to numpy array, others keep the original. for dictionay, list or tuple,
+            convert every Tensor item to numpy array if applicable.
+
+    """
+
+    if isinstance(data, torch.Tensor):
+        # invert Tensor to numpy, if scalar data, convert to number
+        return data.item() if data.ndim == 0 else np.ascontiguousarray(data.detach().cpu().numpy())
+    elif isinstance(data, dict):
+        return {k: tensor_to_numpy(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [tensor_to_numpy(i) for i in data]
+    elif isinstance(data, tuple):
+        return tuple([tensor_to_numpy(i) for i in data])
+
+    return data

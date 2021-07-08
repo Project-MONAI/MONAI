@@ -13,13 +13,14 @@ import logging
 from bisect import bisect_right
 from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Union
 
-from monai.utils import exact_version, optional_import
+from monai.config import IgniteInfo
+from monai.utils import min_version, optional_import
 
 if TYPE_CHECKING:
     from ignite.engine import Engine, Events
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
-    Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
+    Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 
 
 class ParamSchedulerHandler:
@@ -122,8 +123,8 @@ class ParamSchedulerHandler:
         """
         Decays the parameter value by gamma every step.
 
-        Based on the closed form of ExponentialLR from Pytorch
-        https://github.com/pytorch/pytorch/blob/master/torch/optim/lr_scheduler.py#L457
+        Based on the closed form of ExponentialLR from Pytorch:
+        https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.ExponentialLR.html.
 
         Args:
             initial_value (float): Starting value of the parameter.
@@ -140,8 +141,8 @@ class ParamSchedulerHandler:
         """
         Decays the parameter value by gamma every step_size.
 
-        Based on StepLR from Pytorch.
-        https://github.com/pytorch/pytorch/blob/master/torch/optim/lr_scheduler.py#L377
+        Based on StepLR from Pytorch:
+        https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.StepLR.html.
 
         Args:
             initial_value (float): Starting value of the parameter.
@@ -160,7 +161,7 @@ class ParamSchedulerHandler:
         Decays the parameter value by gamma once the number of steps reaches one of the milestones.
 
         Based on MultiStepLR from Pytorch.
-        https://github.com/pytorch/pytorch/blob/master/torch/optim/lr_scheduler.py#L424
+        https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.MultiStepLR.html.
 
         Args:
             initial_value (float): Starting value of the parameter.

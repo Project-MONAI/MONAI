@@ -48,6 +48,11 @@ Generic Interfaces
 .. autoclass:: BatchInverseTransform
     :members:
 
+`Decollated`
+^^^^^^^^^^^^
+.. autoclass:: Decollated
+    :members:
+
 
 Vanilla Transforms
 ------------------
@@ -130,6 +135,12 @@ Crop and Pad
 `RandScaleCrop`
 """""""""""""""
 .. autoclass:: RandScaleCrop
+    :members:
+    :special-members: __call__
+
+`CenterScaleCrop`
+"""""""""""""""""
+.. autoclass:: CenterScaleCrop
     :members:
     :special-members: __call__
 
@@ -279,6 +290,18 @@ Intensity
 .. autoclass:: RandGibbsNoise
     :members:
     :special-members: __call__
+
+`KSpaceSpikeNoise`
+""""""""""""""""""""
+.. autoclass:: KSpaceSpikeNoise
+    :members:
+    :special-members: __call__
+
+`RandKSpaceSpikeNoise`
+""""""""""""""""""""""""
+ .. autoclass:: RandKSpaceSpikeNoise
+     :members:
+     :special-members: __call__
 
 
 IO
@@ -463,6 +486,12 @@ Spatial
     :members:
     :special-members: __call__
 
+`AddCoordinateChannels`
+"""""""""""""""""""""""
+.. autoclass:: AddCoordinateChannels
+    :members:
+    :special-members: __call__
+
 Utility
 ^^^^^^^
 
@@ -599,6 +628,12 @@ Utility
     :members:
     :special-members: __call__
 
+`EnsureType`
+""""""""""""
+.. autoclass:: EnsureType
+    :members:
+    :special-members: __call__
+
 Dictionary Transforms
 ---------------------
 
@@ -683,6 +718,12 @@ Crop and Pad (Dict)
     :members:
     :special-members: __call__
 
+`CenterScaleCropd`
+""""""""""""""""""
+.. autoclass:: CenterScaleCropd
+    :members:
+    :special-members: __call__
+
 Instensity (Dict)
 ^^^^^^^^^^^^^^^^^
 
@@ -761,6 +802,18 @@ Instensity (Dict)
 `RandGibbsNoised`
 """"""""""""""""""
 .. autoclass:: RandGibbsNoised
+    :members:
+    :special-members: __call__
+
+`KSpaceSpikeNoised`
+""""""""""""""""""""""
+.. autoclass:: KSpaceSpikeNoised
+    :members:
+    :special-members: __call__
+
+`RandKSpaceSpikeNoised`
+"""""""""""""""""""""""""
+.. autoclass:: RandKSpaceSpikeNoised
     :members:
     :special-members: __call__
 
@@ -884,6 +937,12 @@ Post-processing (Dict)
     :members:
     :special-members: __call__
 
+`SaveClassificationd`
+"""""""""""""""""""""
+.. autoclass:: SaveClassificationd
+    :members:
+    :special-members: __call__
+
 Spatial (Dict)
 ^^^^^^^^^^^^^^
 
@@ -980,6 +1039,12 @@ Spatial (Dict)
 `Rand3DElasticd`
 """"""""""""""""
 .. autoclass:: Rand3DElasticd
+    :members:
+    :special-members: __call__
+
+`AddCoordinateChannelsd`
+""""""""""""""""""""""""
+.. autoclass:: AddCoordinateChannelsd
     :members:
     :special-members: __call__
 
@@ -1145,6 +1210,12 @@ Utility (Dict)
 `MapLabelValued`
 """"""""""""""""
 .. autoclass:: MapLabelValued
+    :members:
+    :special-members: __call__
+
+`EnsureTyped`
+"""""""""""""
+.. autoclass:: EnsureTyped
     :members:
     :special-members: __call__
 

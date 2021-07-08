@@ -21,13 +21,10 @@ from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Seque
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader as TorchDataLoader
 
-import monai.data
 from monai.config import KeysCollection
-from monai.data.utils import no_collation
+from monai.data.csv_saver import CSVSaver
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.inverse_batch_transform import BatchInverseTransform
 from monai.transforms.post.array import (
     Activations,
     AsDiscrete,
@@ -40,7 +37,7 @@ from monai.transforms.post.array import (
 from monai.transforms.transform import MapTransform
 from monai.transforms.utility.array import ToTensor
 from monai.transforms.utils import allow_missing_keys_mode, convert_inverse_interp_mode
-from monai.utils import ensure_tuple_rep
+from monai.utils import ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import InverseKeys
 
 __all__ = [
@@ -66,12 +63,12 @@ __all__ = [
     "MeanEnsembleDict",
     "VoteEnsembleD",
     "VoteEnsembleDict",
-    "DecollateD",
-    "DecollateDict",
-    "Decollated",
     "ProbNMSd",
     "ProbNMSD",
     "ProbNMSDict",
+    "SaveClassificationd",
+    "SaveClassificationD",
+    "SaveClassificationDict",
 ]
 
 
@@ -299,16 +296,16 @@ class MeanEnsembled(Ensembled):
                 if only 1 key provided, suppose it's a PyTorch Tensor with data stacked on dimension `E`.
             output_key: the key to store ensemble result in the dictionary.
                 if only 1 key provided in `keys`, `output_key` can be None and use `keys` as default.
-            weights: can be a list or tuple of numbers for input data with shape: [E, B, C, H, W[, D]].
+            weights: can be a list or tuple of numbers for input data with shape: [E, C, H, W[, D]].
                 or a Numpy ndarray or a PyTorch Tensor data.
                 the `weights` will be added to input data from highest dimension, for example:
                 1. if the `weights` only has 1 dimension, it will be added to the `E` dimension of input data.
-                2. if the `weights` has 3 dimensions, it will be added to `E`, `B` and `C` dimensions.
+                2. if the `weights` has 2 dimensions, it will be added to `E` and `C` dimensions.
                 it's a typical practice to add weights for different classes:
                 to ensemble 3 segmentation model outputs, every output has 4 channels(classes),
-                so the input data shape can be: [3, B, 4, H, W, D].
-                and add different `weights` for different classes, so the `weights` shape can be: [3, 1, 4].
-                for example: `weights = [[[1, 2, 3, 4]], [[4, 3, 2, 1]], [[1, 1, 1, 1]]]`.
+                so the input data shape can be: [3, 4, H, W, D].
+                and add different `weights` for different classes, so the `weights` shape can be: [3, 4].
+                for example: `weights = [[1, 2, 3, 4], [4, 3, 2, 1], [1, 1, 1, 1]]`.
 
         """
         ensemble = MeanEnsemble(weights=weights)
@@ -335,25 +332,6 @@ class VoteEnsembled(Ensembled):
         """
         ensemble = VoteEnsemble(num_classes=num_classes)
         super().__init__(keys, ensemble, output_key)
-
-
-class Decollated(MapTransform):
-    """
-    Decollate a batch of data.
-
-    Note that unlike most MapTransforms, this will decollate all data, so keys are not needed.
-
-    Args:
-        batch_size: if not supplied, we try to determine it based on array lengths. Will raise an error if
-            it fails to determine it automatically.
-    """
-
-    def __init__(self, batch_size: Optional[int] = None) -> None:
-        super().__init__(None)
-        self.batch_size = batch_size
-
-    def __call__(self, data: dict) -> List[dict]:
-        return monai.data.decollate_batch(data, self.batch_size)
 
 
 class ProbNMSd(MapTransform):
@@ -413,20 +391,29 @@ class ProbNMSd(MapTransform):
 
 class Invertd(MapTransform):
     """
-    Utility transform to automatically invert the previous transforms based on transform information.
-    It extracts the transform information applied on the data with `orig_keys`, then inverts the transforms
-    on the data with `keys`. several `keys` can share one `orig_keys`.
-    A typical usage is to invert the pre-transforms (appplied on input `image`) on the model `pred` data.
+    Utility transform to automatically invert the previously applied transforms.
+    When applying preprocessing transforms on a orig_key(like: `image`, `label`, etc.), we record the context
+    information of applied transforms in a dictionary in the input data dictionary with the key
+    "{orig_key}_transforms". This transform will extract the transform context information of `orig_keys`
+    then invert the transforms(got from this context information) on the `keys` data.
+    Typical usage is to invert the preprocessing transforms(applied on input `image`) on the model `pred` data.
+
+    The output of the inverted data and metadata will be stored at `keys` and `meta_keys` respectively.
+    To correctly invert the transforms, the information of the previously applied transforms should be
+    available at `orig_keys`, and the original metadata at `orig_meta_keys`.
+    (`meta_key_postfix` is an optional string to conveniently construct "meta_keys" and/or "orig_meta_keys".)
+
+    A detailed usage example is available in the tutorial:
+    https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/torch/unet_inference_dict.py
 
     Note:
         According to the `collate_fn`, this transform may return a list of Tensor without batch dim,
-        thus some following post transforms may not support a list of Tensor, and users can leverage the
+        thus some following transforms may not support a list of Tensor, and users can leverage the
         `post_func` arg for basic processing logic.
 
-        As this transform only accepts 1 input dict while ignite stores model input data in `state.batch`
-        and stores model output data in `state.output`, so it's not compatible with MONAI engines so far.
-        For MONAI workflow engines, please use the `TransformInverter` handler instead.
-        Users can use this transform in a regular PyTorch program which uses dict data for transforms.
+        This transform needs to extract the context information of applied transforms and the meta data
+        dictionary from the input data dictionary, then use some numpy arrays in them to computes the inverse
+        logic, so please don't move `data["{orig_key}_transforms"]` and `data["{orig_meta_key}"]` to GPU device.
 
     """
 
@@ -434,11 +421,10 @@ class Invertd(MapTransform):
         self,
         keys: KeysCollection,
         transform: InvertibleTransform,
-        loader: TorchDataLoader,
-        orig_keys: Union[str, Sequence[str]],
+        orig_keys: KeysCollection,
+        meta_keys: Optional[KeysCollection] = None,
+        orig_meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
-        collate_fn: Optional[Callable] = no_collation,
-        postfix: str = "inverted",
         nearest_interp: Union[bool, Sequence[bool]] = True,
         to_tensor: Union[bool, Sequence[bool]] = True,
         device: Union[Union[str, torch.device], Sequence[Union[str, torch.device]]] = "cpu",
@@ -448,20 +434,27 @@ class Invertd(MapTransform):
     ) -> None:
         """
         Args:
-            keys: the key of expected data in the dict, invert transforms on it.
+            keys: the key of expected data in the dict, invert transforms on it, in-place operation.
                 it also can be a list of keys, will invert transform for each of them, like: ["pred", "pred_class2"].
             transform: the previous callable transform that applied on input data.
-            loader: data loader used to run transforms and generate the batch of data.
             orig_keys: the key of the original input data in the dict. will get the applied transform information
                 for this input data, then invert them for the expected data with `keys`.
                 It can also be a list of keys, each matches to the `keys` data.
-            meta_key_postfix: use `{orig_key}_{postfix}` to to fetch the meta data from dict,
+            meta_keys: explicitly indicate the key for the inverted meta data dictionary.
+                the meta data is a dictionary object which contains: filename, original_shape, etc.
+                it can be a sequence of string, map to the `keys`.
+                if None, will try to construct meta_keys by `{key}_{meta_key_postfix}`.
+            orig_meta_keys: the key of the meta data of original input data, will get the `affine`, `data_shape`, etc.
+                the meta data is a dictionary object which contains: filename, original_shape, etc.
+                it can be a sequence of string, map to the `keys`.
+                if None, will try to construct meta_keys by `{orig_key}_{meta_key_postfix}`.
+                meta data will also be inverted and stored in `meta_keys`.
+            meta_key_postfix: if `orig_meta_keys` is None, use `{orig_key}_{meta_key_postfix}` to to fetch the
+                meta data from dict, if `meta_keys` is None, use `{key}_{meta_key_postfix}`.
                 default is `meta_dict`, the meta data is a dictionary object.
                 For example, to handle orig_key `image`,  read/write `affine` matrices from the
                 metadata `image_meta_dict` dictionary's `affine` field.
-            collate_fn: how to collate data after inverse transformations. default won't do any collation,
-                so the output will be a list of PyTorch Tensor or numpy array without batch dim.
-            postfix: will save the inverted result into dict with key `{key}_{postfix}`.
+                the inverted meta dict will be stored with key: "{key}_{meta_key_postfix}".
             nearest_interp: whether to use `nearest` interpolation mode when inverting the spatial transforms,
                 default to `True`. If `False`, use the same interpolation mode as the original transform.
                 it also can be a list of bool, each matches to the `keys` data.
@@ -479,16 +472,15 @@ class Invertd(MapTransform):
 
         """
         super().__init__(keys, allow_missing_keys)
+        if not isinstance(transform, InvertibleTransform):
+            raise ValueError("transform is not invertible, can't invert transform for the data.")
         self.transform = transform
-        self.inverter = BatchInverseTransform(
-            transform=transform,
-            loader=loader,
-            collate_fn=collate_fn,
-            num_workers=num_workers,
-        )
         self.orig_keys = ensure_tuple_rep(orig_keys, len(self.keys))
-        self.meta_key_postfix = meta_key_postfix
-        self.postfix = postfix
+        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
+        self.orig_meta_keys = ensure_tuple_rep(orig_meta_keys, len(self.keys))
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.nearest_interp = ensure_tuple_rep(nearest_interp, len(self.keys))
         self.to_tensor = ensure_tuple_rep(to_tensor, len(self.keys))
         self.device = ensure_tuple_rep(device, len(self.keys))
@@ -497,10 +489,28 @@ class Invertd(MapTransform):
 
     def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
         d = dict(data)
-        for key, orig_key, nearest_interp, to_tensor, device, post_func in self.key_iterator(
-            d, self.orig_keys, self.nearest_interp, self.to_tensor, self.device, self.post_func
+        for (
+            key,
+            orig_key,
+            meta_key,
+            orig_meta_key,
+            meta_key_postfix,
+            nearest_interp,
+            to_tensor,
+            device,
+            post_func,
+        ) in self.key_iterator(
+            d,
+            self.orig_keys,
+            self.meta_keys,
+            self.orig_meta_keys,
+            self.meta_key_postfix,
+            self.nearest_interp,
+            self.to_tensor,
+            self.device,
+            self.post_func,
         ):
-            transform_key = orig_key + InverseKeys.KEY_SUFFIX
+            transform_key = f"{orig_key}{InverseKeys.KEY_SUFFIX}"
             if transform_key not in d:
                 warnings.warn(f"transform info of `{orig_key}` is not available or no InvertibleTransform applied.")
                 continue
@@ -521,30 +531,95 @@ class Invertd(MapTransform):
                 orig_key: input,
                 transform_key: transform_info,
             }
-            meta_dict_key = f"{orig_key}_{self.meta_key_postfix}"
-            if meta_dict_key in d:
-                input_dict[meta_dict_key] = d[meta_dict_key]
+            orig_meta_key = orig_meta_key or f"{orig_key}_{meta_key_postfix}"
+            meta_key = meta_key or f"{key}_{meta_key_postfix}"
+            if orig_meta_key in d:
+                input_dict[orig_meta_key] = d[orig_meta_key]
 
             with allow_missing_keys_mode(self.transform):  # type: ignore
-                inverted = self.inverter(input_dict)
+                inverted = self.transform.inverse(input_dict)
 
             # save the inverted data
-            inverted_key = f"{key}_{self.postfix}"
-            if isinstance(inverted, (tuple, list)):
-                d[inverted_key] = [
-                    post_func(self._totensor(i[orig_key]).to(device) if to_tensor else i[orig_key]) for i in inverted
-                ]
-                # save the inverted meta dict
-                if meta_dict_key in d:
-                    d[f"{inverted_key}_{self.meta_key_postfix}"] = [i.get(meta_dict_key) for i in inverted]
-            else:
-                d[inverted_key] = post_func(
-                    self._totensor(inverted[orig_key]).to(device) if to_tensor else inverted[orig_key]
-                )
-                # save the inverted meta dict
-                if meta_dict_key in d:
-                    d[f"{inverted_key}_{self.meta_key_postfix}"] = inverted.get(meta_dict_key)
+            d[key] = post_func(self._totensor(inverted[orig_key]).to(device) if to_tensor else inverted[orig_key])
+            # save the inverted meta dict
+            if orig_meta_key in d:
+                d[meta_key] = inverted.get(orig_meta_key)
+
         return d
+
+
+class SaveClassificationd(MapTransform):
+    """
+    Save the classification results and meta data into CSV file or other storage.
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        meta_keys: Optional[KeysCollection] = None,
+        meta_key_postfix: str = "meta_dict",
+        saver: Optional[CSVSaver] = None,
+        output_dir: str = "./",
+        filename: str = "predictions.csv",
+        overwrite: bool = True,
+        flush: bool = True,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to model output, this transform only supports 1 key.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+                for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+                the meta data is a dictionary object which contains: filename, original_shape, etc.
+                it can be a sequence of string, map to the `keys`.
+                if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
+                will extract the filename of input image to save classifcation results.
+            meta_key_postfix: `key_{postfix}` was used to store the metadata in `LoadImaged`.
+                so need the key to extract the metadata of input image, like filename, etc. default is `meta_dict`.
+                for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+                the meta data is a dictionary object which contains: filename, original_shape, etc.
+                this arg only works when `meta_keys=None`. if no corresponding metadata, set to `None`.
+            saver: the saver instance to save classification results, if None, create a CSVSaver internally.
+                the saver must provide `save(data, meta_data)` and `finalize()` APIs.
+            output_dir: if `saver=None`, specify the directory to save the CSV file.
+            filename: if `saver=None`, specify the name of the saved CSV file.
+            overwrite: if `saver=None`, indicate whether to overwriting existing CSV file content, if True,
+                will clear the file before saving. otherwise, will apend new content to the CSV file.
+            flush: if `saver=None`, indicate whether to write the cache data to CSV file immediately
+                in this transform and clear the cache. default to True.
+                If False, may need user to call `saver.finalize()` manually or use `ClassificationSaver` handler.
+            allow_missing_keys: don't raise exception if key is missing.
+
+        """
+        super().__init__(keys, allow_missing_keys)
+        if len(self.keys) != 1:
+            raise ValueError("only 1 key is allowed when saving the classification result.")
+        self.saver = saver or CSVSaver(output_dir, filename, overwrite, flush)
+        self.flush = flush
+        self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
+
+    def __call__(self, data):
+        d = dict(data)
+        for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
+            if meta_key is None and meta_key_postfix is not None:
+                meta_key = f"{key}_{meta_key_postfix}"
+            meta_data = d[meta_key] if meta_key is not None else None
+            self.saver.save(data=d[key], meta_data=meta_data)
+            if self.flush:
+                self.saver.finalize()
+
+        return d
+
+    def get_saver(self):
+        """
+        If want to write content into file, may need to call `finalize` of saver when epoch completed.
+        Or users can also get the cache content from `saver` instead of writing into file.
+
+        """
+        return self.saver
 
 
 ActivationsD = ActivationsDict = Activationsd
@@ -554,5 +629,5 @@ LabelToContourD = LabelToContourDict = LabelToContourd
 MeanEnsembleD = MeanEnsembleDict = MeanEnsembled
 ProbNMSD = ProbNMSDict = ProbNMSd
 VoteEnsembleD = VoteEnsembleDict = VoteEnsembled
-DecollateD = DecollateDict = Decollated
 InvertD = InvertDict = Invertd
+SaveClassificationD = SaveClassificationDict = SaveClassificationd

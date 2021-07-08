@@ -19,6 +19,24 @@ from torch.hub import load_state_dict_from_url
 
 from monai.networks.layers.factories import Conv, Dropout, Norm, Pool
 
+__all__ = [
+    "DenseNet",
+    "densenet",
+    "Densenet",
+    "DenseNet121",
+    "densenet121",
+    "Densenet121",
+    "DenseNet169",
+    "densenet169",
+    "Densenet169",
+    "DenseNet201",
+    "densenet201",
+    "Densenet201",
+    "DenseNet264",
+    "densenet264",
+    "Densenet264",
+]
+
 
 class _DenseLayer(nn.Module):
     def __init__(
@@ -102,8 +120,7 @@ class _Transition(nn.Sequential):
 class DenseNet(nn.Module):
     """
     Densenet based on: `Densely Connected Convolutional Networks <https://arxiv.org/pdf/1608.06993.pdf>`_.
-    Adapted from `PyTorch Hub 2D version
-    <https://github.com/pytorch/vision/blob/master/torchvision/models/densenet.py>`_.
+    Adapted from PyTorch Hub 2D version: https://pytorch.org/vision/stable/models.html#id16.
 
     Args:
         spatial_dims: number of spatial dimensions of the input image.
@@ -199,8 +216,8 @@ class DenseNet(nn.Module):
 def _load_state_dict(model, arch, progress):
     """
     This function is used to load pretrained models.
-    Adapted from `PyTorch Hub 2D version
-    <https://github.com/pytorch/vision/blob/master/torchvision/models/densenet.py>`_
+    Adapted from PyTorch Hub 2D version: https://pytorch.org/vision/stable/models.html#id16.
+
     """
     model_urls = {
         "densenet121": "https://download.pytorch.org/models/densenet121-a639ec97.pth",
@@ -234,6 +251,8 @@ def _load_state_dict(model, arch, progress):
 
 
 class DenseNet121(DenseNet):
+    """DenseNet121 with optional pretrained support when `spatial_dims` is 2."""
+
     def __init__(
         self,
         init_features: int = 64,
@@ -255,6 +274,8 @@ class DenseNet121(DenseNet):
 
 
 class DenseNet169(DenseNet):
+    """DenseNet169 with optional pretrained support when `spatial_dims` is 2."""
+
     def __init__(
         self,
         init_features: int = 64,
@@ -276,6 +297,8 @@ class DenseNet169(DenseNet):
 
 
 class DenseNet201(DenseNet):
+    """DenseNet201 with optional pretrained support when `spatial_dims` is 2."""
+
     def __init__(
         self,
         init_features: int = 64,
@@ -297,6 +320,8 @@ class DenseNet201(DenseNet):
 
 
 class DenseNet264(DenseNet):
+    """DenseNet264"""
+
     def __init__(
         self,
         init_features: int = 64,
@@ -313,7 +338,7 @@ class DenseNet264(DenseNet):
             **kwargs,
         )
         if pretrained:
-            print("Currently PyTorch Hub does not provide densenet264 pretrained models.")
+            raise NotImplementedError("Currently PyTorch Hub does not provide densenet264 pretrained models.")
 
 
 Densenet = densenet = DenseNet

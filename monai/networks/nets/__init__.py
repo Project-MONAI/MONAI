@@ -35,8 +35,10 @@ from .efficientnet import BlockArgs, EfficientNet, EfficientNetBN, drop_connect,
 from .fullyconnectednet import FullyConnectedNet, VarFullyConnectedNet
 from .generator import Generator
 from .highresnet import HighResBlock, HighResNet
+from .netadapter import NetAdapter
 from .regressor import Regressor
 from .regunet import GlobalNet, LocalNet, RegUNet
+from .resnet import ResNet, resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200
 from .segresnet import SegResNet, SegResNetVAE
 from .senet import (
     SENet,
@@ -70,7 +72,9 @@ from .senet import (
     seresnext50,
     seresnext101,
 )
-from .torchvision_fc import TorchVisionFullyConvModel
+from .torchvision_fc import TorchVisionFCModel, TorchVisionFullyConvModel
 from .unet import UNet, Unet, unet
+from .unetr import UNETR
 from .varautoencoder import VarAutoEncoder
+from .vit import ViT
 from .vnet import VNet

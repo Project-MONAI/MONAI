@@ -1,10 +1,18 @@
 name: deploy
 
 on:
-  # dev branch only tests
+  # full tests for all the important branches
   push:
     branches:
       - dev
+      - main
+      - releasing/*
+      - feature/*
+
+concurrency:
+  # automatically cancel the previously triggered workflows when there's a newer version
+  group: deploy-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   # caching of these jobs:
@@ -36,7 +44,7 @@ jobs:
         which python
         python -m pip install --upgrade pip wheel
         python -m pip uninstall -y torch torchvision
-        python -m pip install torch==1.8.1 torchvision==0.9.1
+        python -m pip install torch==1.9.0 torchvision==0.10.0
         python -m pip install -r requirements-dev.txt
     - name: Run unit tests report coverage
       run: |
@@ -90,7 +98,7 @@ jobs:
     - name: Install the dependencies
       run: |
         python -m pip install --upgrade pip wheel
-        python -m pip install torch==1.8.1 torchvision==0.9.1
+        python -m pip install torch==1.9.0 torchvision==0.10.0
         python -m pip install -r requirements-dev.txt
     - name: Run quick tests CPU ubuntu
       run: |
@@ -104,7 +112,7 @@ jobs:
         fail_ci_if_error: false
         file: ./coverage.xml
 
-  install:  # pip install from github url
+  install:  # pip install from github url, the default branch is dev
     runs-on: ubuntu-latest
     steps:
     - name: Set up Python 3.8
@@ -123,21 +131,26 @@ jobs:
           ~/.cache/pip
           ~/.cache/torch
         key: ${{ runner.os }}-pip-${{ steps.pip-cache.outputs.datew }}
-    - name: Install the default branch no build
+    - name: Install the default branch no build (dev branch only)
+      if: github.ref == 'refs/heads/dev'
       run: |
         BUILD_MONAI=0 pip install git+https://github.com/Project-MONAI/MONAI#egg=MONAI
         python -c 'import monai; monai.config.print_config()'
         cd $(python -c 'import monai; import os; print(os.path.dirname(monai.__file__))')
         ls .
         pip uninstall -y monai
-    - name: Install the default branch with build
+    - name: Install the default branch with build (dev branch only)
+      if: github.ref == 'refs/heads/dev'
       run: |
         BUILD_MONAI=1 pip install git+https://github.com/Project-MONAI/MONAI#egg=MONAI
         python -c 'import monai; monai.config.print_config()'
-    - uses: actions/checkout@v2
+    - name: Get the test cases (dev branch only)
+      if: github.ref == 'refs/heads/dev'
+      uses: actions/checkout@v2
       with:
         ref: dev
-    - name: Quick test installed
+    - name: Quick test installed (dev branch only)
+      if: github.ref == 'refs/heads/dev'
       run: |
         cd $GITHUB_WORKSPACE
         rm -rf monai/

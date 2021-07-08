@@ -143,13 +143,13 @@ def tensor_to_images(name: str, tensor: torch.Tensor):
     color channels RGB or RGBA. This allows multiple images to be created from a single tensor, ie. to show
     each channel separately.
     """
+    if tensor.ndim == 3 and tensor.shape[1] > 2 and tensor.shape[2] > 2:
+        return tensor.cpu().data.numpy()
     if tensor.ndim == 4 and tensor.shape[2] > 2 and tensor.shape[3] > 2:
-        return tuple(tensor[0].cpu().data.numpy())
-    if tensor.ndim == 5 and tensor.shape[3] > 2 and tensor.shape[4] > 2:
-        dmid = tensor.shape[2] // 2
-        return tuple(tensor[0, :, dmid].cpu().data.numpy())
+        dmid = tensor.shape[1] // 2
+        return tensor[:, dmid].cpu().data.numpy()
 
-    return ()
+    return None
 
 
 def plot_engine_status(
@@ -190,22 +190,22 @@ def plot_engine_status(
     graphmap.update(logger.metrics)
 
     imagemap = {}
-
     if image_fn is not None and engine.state is not None and engine.state.batch is not None:
         for src in (engine.state.batch, engine.state.output):
-            if isinstance(src, dict):
-                for k, v in src.items():
-                    if isinstance(v, torch.Tensor):
-                        images = image_fn(k, v)
-
-                        for i, im in enumerate(images):
-                            imagemap[f"{k}_{i}"] = im
-            else:
-                label = "Batch" if src is engine.state.batch else "Output"
-                images = image_fn(label, src)
-
-                for i, im in enumerate(images):
-                    imagemap[f"{label}_{i}"] = im
+            if isinstance(src, list):
+                for i, s in enumerate(src):
+                    if isinstance(s, dict):
+                        for k, v in s.items():
+                            if isinstance(v, torch.Tensor):
+                                image = image_fn(k, v)
+                                if image is not None:
+                                    imagemap[f"{k}_{i}"] = image
+                    else:
+                        label = "Batch" if src is engine.state.batch else "Output"
+                        if isinstance(s, torch.Tensor):
+                            image = image_fn(label, s)
+                            if image is not None:
+                                imagemap[f"{label}_{i}"] = image
 
     axes = plot_metric_images(fig, title, graphmap, imagemap, yscale, avg_keys, window_fraction)
 
@@ -215,11 +215,18 @@ def plot_engine_status(
     return fig, axes
 
 
-def _get_loss_from_output(output: Union[Dict[str, torch.Tensor], torch.Tensor]) -> float:
+def _get_loss_from_output(output: Union[Dict[str, torch.Tensor], torch.Tensor]):
     """Returns a single value from the network output, which is a dict or tensor."""
-    if isinstance(output, dict):
-        return output["loss"].item()
-    return output.item()
+
+    def _get_loss(data):
+        if isinstance(data, dict):
+            return data["loss"]
+        return data
+
+    if isinstance(output, list):
+        return _get_loss(output[0])
+    else:
+        return _get_loss(output)
 
 
 class StatusMembers(Enum):

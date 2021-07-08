@@ -14,22 +14,27 @@ from typing import TYPE_CHECKING, Callable, Optional, Union
 
 import numpy as np
 
-from monai.config import DtypeLike
+from monai.config import DtypeLike, IgniteInfo
+from monai.data import decollate_batch
 from monai.transforms import SaveImage
-from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, exact_version, optional_import
+from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, deprecated, min_version, optional_import
 
-Events, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Events")
+Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", "0.4.4", exact_version, "Engine")
+    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
 
+@deprecated(since="0.6.0", removed="0.7.0", msg_suffix="Please consider using `SaveImage[d]` transform instead.")
 class SegmentationSaver:
     """
     Event handler triggered on completing every iteration to save the segmentation predictions into files.
     It can extract the input image meta data(filename, affine, original_shape, etc.) and resample the predictions
     based on the meta data.
+    The name of saved file will be `{input_image_name}_{output_postfix}{output_ext}`,
+    where the input image name is extracted from the meta data dictionary. If no meta data provided,
+    use index from 0 as the filename prefix.
     The predictions can be PyTorch Tensor with [B, C, H, W, [D]] shape or a list of Tensor without batch dim.
 
     """
@@ -98,13 +103,12 @@ class SegmentationSaver:
                 output_dir: /output,
                 data_root_dir: /foo/bar,
                 output will be: /output/test1/image/image_seg.nii.gz
-            batch_transform: a callable that is used to transform the
-                ignite.engine.batch into expected format to extract the meta_data dictionary.
-                it can be used to extract the input image meta data: filename, affine, original_shape, etc.
-            output_transform: a callable that is used to transform the
-                ignite.engine.output into the form expected image data.
-                The first dimension of this transform's output will be treated as the
-                batch dimension. Each item in the batch will be saved individually.
+            batch_transform: a callable that is used to extract the `meta_data` dictionary of the input images
+                from `ignite.engine.state.batch`. the purpose is to extract necessary information from the meta data:
+                filename, affine, original_shape, etc.
+            output_transform: a callable that is used to extract the model prediction data from
+                `ignite.engine.state.output`. the first dimension of its output will be treated as the batch dimension.
+                each item in the batch will be saved individually.
             name: identifier of logging.logger to use, defaulting to `engine.logger`.
 
         """
@@ -118,7 +122,6 @@ class SegmentationSaver:
             scale=scale,
             dtype=dtype,
             output_dtype=output_dtype,
-            save_batch=True,
             squeeze_end_dims=squeeze_end_dims,
             data_root_dir=data_root_dir,
         )
@@ -147,6 +150,10 @@ class SegmentationSaver:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
         meta_data = self.batch_transform(engine.state.batch)
+        if isinstance(meta_data, dict):
+            # decollate the `dictionary of list` to `list of dictionaries`
+            meta_data = decollate_batch(meta_data)
         engine_output = self.output_transform(engine.state.output)
-        self._saver(engine_output, meta_data)
+        for m, o in zip(meta_data, engine_output):
+            self._saver(o, m)
         self.logger.info("model outputs saved into files.")

@@ -33,6 +33,7 @@ fi
 # configuration values
 doCoverage=false
 doQuickTests=false
+doMinTests=false
 doNetTests=false
 doDryRun=false
 doZooTests=false
@@ -46,6 +47,7 @@ doClangFormat=false
 doPytypeFormat=false
 doMypyFormat=false
 doCleanup=false
+doDistTests=false
 
 NUM_PARALLEL=1
 
@@ -53,7 +55,7 @@ PY_EXE=${MONAI_PY_EXE:-$(which python)}
 
 function print_usage {
     echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--flake8] [--clangformat] [--pytype] [--mypy]"
-    echo "            [--unittests] [--coverage] [--quick] [--net] [--dryrun] [-j number] [--clean] [--help] [--version]"
+    echo "            [--unittests] [--disttests] [--coverage] [--quick] [--min] [--net] [--dryrun] [-j number] [--clean] [--help] [--version]"
     echo ""
     echo "MONAI unit testing utilities."
     echo ""
@@ -79,8 +81,10 @@ function print_usage {
     echo ""
     echo "MONAI unit testing options:"
     echo "    -u, --unittests   : perform unit testing"
+    echo "    --disttests       : perform distributed unit testing"
     echo "    --coverage        : report testing code coverage, to be used with \"--net\", \"--unittests\""
     echo "    -q, --quick       : skip long running unit tests and integration tests"
+    echo "    -m, --min         : only run minimal unit tests which do not require optional packages"
     echo "    --net             : perform integration testing"
     echo "    --list_tests      : list unit tests and exit"
     echo ""
@@ -213,6 +217,9 @@ do
         -q|--quick)
             doQuickTests=true
         ;;
+        -m|--min)
+            doMinTests=true
+        ;;
         --net)
             doNetTests=true
         ;;
@@ -231,6 +238,9 @@ do
             doFlake8Format=true
             doPytypeFormat=true
             doMypyFormat=true
+        ;;
+        --disttests)
+            doDistTests=true
         ;;
         --black)
             doBlackFormat=true
@@ -434,23 +444,26 @@ if [ $doPytypeFormat = true ]
 then
     set +e  # disable exit on failure so that diagnostics can be given on failure
     echo "${separator}${blue}pytype${noColor}"
-
-    # ensure that the necessary packages for code format testing are installed
-    if ! is_pip_installed pytype
-    then
-        install_deps
-    fi
-    ${cmdPrefix}${PY_EXE} -m pytype --version
-
-    ${cmdPrefix}${PY_EXE} -m pytype -j ${NUM_PARALLEL} --python-version="$(${PY_EXE} -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")"
-
-    pytype_status=$?
-    if [ ${pytype_status} -ne 0 ]
-    then
-        echo "${red}failed!${noColor}"
-        exit ${pytype_status}
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "${red}pytype not working on macOS (https://github.com/Project-MONAI/MONAI/issues/2391), skipping the tests.${noColor}"
     else
-        echo "${green}passed!${noColor}"
+        # ensure that the necessary packages for code format testing are installed
+        if ! is_pip_installed pytype
+        then
+            install_deps
+        fi
+        ${cmdPrefix}${PY_EXE} -m pytype --version
+
+        ${cmdPrefix}${PY_EXE} -m pytype -j ${NUM_PARALLEL} --python-version="$(${PY_EXE} -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")"
+
+        pytype_status=$?
+        if [ ${pytype_status} -ne 0 ]
+        then
+            echo "${red}failed!${noColor}"
+            exit ${pytype_status}
+        else
+            echo "${green}passed!${noColor}"
+        fi
     fi
     set -e # enable exit on failure
 fi
@@ -499,6 +512,12 @@ then
     export QUICKTEST=True
 fi
 
+if [ $doMinTests = true ]
+then
+    echo "${separator}${blue}min${noColor}"
+    ${cmdPrefix}${PY_EXE} -m tests.min_tests
+fi
+
 # set coverage command
 if [ $doCoverage = true ]
 then
@@ -517,6 +536,14 @@ then
     echo "${separator}${blue}unittests${noColor}"
     torch_validate
     ${cmdPrefix}${cmd} ./tests/runner.py -p "test_((?!integration).)"
+fi
+
+# distributed test only
+if [ $doDistTests = true ]
+then
+    echo "${separator}${blue}run distributed unit test cases${noColor}"
+    torch_validate
+    ${cmdPrefix}${cmd} ./tests/runner.py -p "test_.*_dist$"
 fi
 
 # network training/inference/eval integration tests

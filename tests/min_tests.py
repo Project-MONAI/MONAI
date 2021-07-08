@@ -110,7 +110,6 @@ def run_testsuit():
         "test_randtorchvisiond",
         "test_handler_metrics_saver",
         "test_handler_metrics_saver_dist",
-        "test_evenly_divisible_all_gather_dist",
         "test_handler_classification_saver_dist",
         "test_deepgrow_transforms",
         "test_deepgrow_interaction",
@@ -124,6 +123,17 @@ def run_testsuit():
         "test_testtimeaugmentation",
         "test_cachedataset_persistent_workers",
         "test_invertd",
+        "test_handler_post_processing",
+        "test_write_metrics_reports",
+        "test_csv_dataset",
+        "test_csv_iterable_dataset",
+        "test_mlp",
+        "test_patchembedding",
+        "test_selfattention",
+        "test_transformerblock",
+        "test_unetr",
+        "test_unetr_block",
+        "test_vit",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 

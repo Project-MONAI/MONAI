@@ -21,6 +21,12 @@ Generic Interfaces
   :members:
   :special-members: __next__
 
+`CSVIterableDataset`
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: CSVIterableDataset
+  :members:
+  :special-members: __next__
+
 `PersistentDataset`
 ~~~~~~~~~~~~~~~~~~~
 .. autoclass:: PersistentDataset
@@ -72,6 +78,12 @@ Generic Interfaces
 `NPZDictItemDataset`
 ~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: NPZDictItemDataset
+  :members:
+  :special-members: __getitem__
+
+`CSVDataset`
+~~~~~~~~~~~~
+.. autoclass:: CSVDataset
   :members:
   :special-members: __getitem__
 

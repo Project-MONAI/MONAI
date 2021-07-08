@@ -11,10 +11,11 @@
 """
 Utilities and types for defining networks, these depend on PyTorch.
 """
-
+import re
 import warnings
+from collections import OrderedDict
 from contextlib import contextmanager
-from typing import Any, Callable, Optional, Sequence
+from typing import Any, Callable, Mapping, Optional, Sequence, Union
 
 import torch
 import torch.nn as nn
@@ -30,21 +31,44 @@ __all__ = [
     "pixelshuffle",
     "eval_mode",
     "train_mode",
+    "copy_model_state",
 ]
 
 
 def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.float, dim: int = 1) -> torch.Tensor:
     """
-    For a tensor `labels` of dimensions B1[spatial_dims], return a tensor of dimensions `BN[spatial_dims]`
-    for `num_classes` N number of classes.
+    For every value v in `labels`, the value in the output will be either 1 or 0. Each vector along the `dim`-th
+    dimension has the "one-hot" format, i.e., it has a total length of `num_classes`,
+    with a one and `num_class-1` zeros.
+    Note that this will include the background label, thus a binary mask should be treated as having two classes.
+
+    Args:
+        labels: input tensor of integers to be converted into the 'one-hot' format. Internally `labels` will be
+            converted into integers `labels.long()`.
+        num_classes: number of output channels, the corresponding length of `labels[dim]` will be converted to
+            `num_classes` from `1`.
+        dtype: the data type of the output one_hot label.
+        dim: the dimension to be converted to `num_classes` channels from `1` channel, should be non-negative number.
 
     Example:
 
-        For every value v = labels[b,1,h,w], the value in the result at [b,v,h,w] will be 1 and all others 0.
-        Note that this will include the background label, thus a binary mask should be treated as having 2 classes.
+    For a tensor `labels` of dimensions [B]1[spatial_dims], return a tensor of dimensions `[B]N[spatial_dims]`
+    when `num_classes=N` number of classes and `dim=1`.
+
+    .. code-block:: python
+
+        from monai.networks.utils import one_hot
+        import torch
+
+        a = torch.randint(0, 2, size=(1, 2, 2, 2))
+        out = one_hot(a, num_classes=2, dim=0)
+        print(out.shape)  # torch.Size([2, 2, 2, 2])
+
+        a = torch.randint(0, 2, size=(2, 1, 2, 2, 2))
+        out = one_hot(a, num_classes=2, dim=1)
+        print(out.shape)  # torch.Size([2, 2, 2, 2, 2])
+
     """
-    if labels.dim() <= 0:
-        raise AssertionError("labels should have dim of 1 or more.")
 
     # if `dim` is bigger, add singleton dim at the end
     if labels.ndim < dim + 1:
@@ -310,3 +334,82 @@ def train_mode(*nets: nn.Module):
         # Return required networks to eval_list
         for n in eval_list:
             n.eval()
+
+
+def copy_model_state(
+    dst: Union[torch.nn.Module, Mapping],
+    src: Union[torch.nn.Module, Mapping],
+    dst_prefix="",
+    mapping=None,
+    exclude_vars=None,
+    inplace=True,
+):
+    """
+    Compute a module state_dict, of which the keys are the same as `dst`. The values of `dst` are overwritten
+    by the ones from `src` whenever their keys match. The method provides additional `dst_prefix` for
+    the `dst` key when matching them. `mapping` can be a `{"src_key": "dst_key"}` dict, indicating
+    `dst[dst_prefix + dst_key] = src[src_key]`.
+    This function is mainly to return a model state dict
+    for loading the `src` model state into the `dst` model, `src` and `dst` can have different dict keys, but
+    their corresponding values normally have the same shape.
+
+    Args:
+        dst: a pytorch module or state dict to be updated.
+        src: a pytorch module or state dist used to get the values used for the update.
+        dst_prefix: `dst` key prefix, so that `dst[dst_prefix + src_key]`
+            will be assigned to the value of `src[src_key]`.
+        mapping: a `{"src_key": "dst_key"}` dict, indicating that `dst[dst_prefix + dst_key]`
+            to be assigned to the value of `src[src_key]`.
+        exclude_vars: a regular expression to match the `dst` variable names,
+            so that their values are not overwritten by `src`.
+        inplace: whether to set the `dst` module with the updated `state_dict` via `load_state_dict`.
+            This option is only available when `dst` is a `torch.nn.Module`.
+
+    Examples:
+        .. code-block:: python
+
+            from monai.networks.nets import BasicUNet
+            from monai.networks.utils import copy_model_state
+
+            model_a = BasicUNet(in_channels=1, out_channels=4)
+            model_b = BasicUNet(in_channels=1, out_channels=2)
+            model_a_b, changed, unchanged = copy_model_state(
+                model_a, model_b, exclude_vars="conv_0.conv_0", inplace=False)
+            # dst model updated: 76 of 82 variables.
+            model_a.load_state_dict(model_a_b)
+            # <All keys matched successfully>
+
+    Returns: an OrderedDict of the updated `dst` state, the changed, and unchanged keys.
+    """
+
+    if isinstance(src, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
+        src = src.module
+    if isinstance(dst, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
+        dst = dst.module
+    src_dict = src.state_dict() if isinstance(src, torch.nn.Module) else src
+    dst_dict = dst.state_dict() if isinstance(dst, torch.nn.Module) else dst
+    dst_dict = OrderedDict(dst_dict)
+
+    to_skip = {s_key for s_key in src_dict if exclude_vars and re.compile(exclude_vars).search(s_key)}
+
+    # update dst with items from src
+    all_keys, updated_keys = list(dst_dict), list()
+    for s, val in src_dict.items():
+        dst_key = f"{dst_prefix}{s}"
+        if dst_key in dst_dict and dst_key not in to_skip and dst_dict[dst_key].shape == val.shape:
+            dst_dict[dst_key] = val
+            updated_keys.append(dst_key)
+    for s in mapping if mapping else {}:
+        dst_key = f"{dst_prefix}{mapping[s]}"
+        if dst_key in dst_dict and dst_key not in to_skip:
+            if dst_dict[dst_key].shape != src_dict[s].shape:
+                warnings.warn(f"Param. shape changed from {dst_dict[dst_key].shape} to {src_dict[s].shape}.")
+            dst_dict[dst_key] = src_dict[s]
+            updated_keys.append(dst_key)
+
+    updated_keys = sorted(set(updated_keys))
+    unchanged_keys = sorted(set(all_keys).difference(updated_keys))
+    print(f"'dst' model updated: {len(updated_keys)} of {len(dst_dict)} variables.")
+    if inplace and isinstance(dst, torch.nn.Module):
+        dst.load_state_dict(dst_dict)
+    return dst_dict, updated_keys, unchanged_keys

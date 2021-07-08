@@ -18,6 +18,17 @@ Applications
 .. autoclass:: CrossValidation
     :members:
 
+
+Clara MMARs
+-----------
+.. autofunction:: download_mmar
+
+.. autofunction:: load_from_mmar
+
+.. autodata:: monai.apps.MODEL_DESC
+    :annotation:
+
+
 `Utilities`
 -----------
 

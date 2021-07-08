@@ -34,6 +34,7 @@ from monai.transforms.utility.array import (
     ConvertToMultiChannelBasedOnBratsClasses,
     DataStats,
     EnsureChannelFirst,
+    EnsureType,
     FgBgToIndices,
     Identity,
     LabelToMask,
@@ -51,7 +52,7 @@ from monai.transforms.utility.array import (
     ToTensor,
     Transpose,
 )
-from monai.transforms.utils import extreme_points_to_image, get_extreme_points
+from monai.transforms.utils import extreme_points_to_image, get_extreme_points, tensor_to_numpy
 from monai.utils import ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import InverseKeys
 
@@ -89,6 +90,9 @@ __all__ = [
     "EnsureChannelFirstD",
     "EnsureChannelFirstDict",
     "EnsureChannelFirstd",
+    "EnsureTypeD",
+    "EnsureTypeDict",
+    "EnsureTyped",
     "FgBgToIndicesD",
     "FgBgToIndicesDict",
     "FgBgToIndicesd",
@@ -247,24 +251,37 @@ class EnsureChannelFirstd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.EnsureChannelFirst`.
     """
 
-    def __init__(self, keys: KeysCollection, meta_key_postfix: str = "meta_dict") -> None:
+    def __init__(
+        self,
+        keys: KeysCollection,
+        meta_keys: Optional[KeysCollection] = None,
+        meta_key_postfix: str = "meta_dict",
+        strict_check: bool = True,
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            meta_key_postfix: `key_{postfix}` was used to store the metadata in `LoadImaged`.
+            meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+                for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+                the meta data is a dictionary object which contains: filename, original_shape, etc.
+                it can be a sequence of string, map to the `keys`.
+                if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
+            meta_key_postfix: if meta_keys is None and `key_{postfix}` was used to store the metadata in `LoadImaged`.
                 So need the key to extract metadata for channel dim information, default is `meta_dict`.
                 For example, for data with key `image`, metadata by default is in `image_meta_dict`.
+            strict_check: whether to raise an error when the meta information is insufficient.
 
         """
         super().__init__(keys)
-        self.adjuster = EnsureChannelFirst()
-        self.meta_key_postfix = meta_key_postfix
+        self.adjuster = EnsureChannelFirst(strict_check=strict_check)
+        self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
     def __call__(self, data) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        for key in self.keys:
-            d[key] = self.adjuster(d[key], d[f"{key}_{self.meta_key_postfix}"])
+        for key, meta_key, meta_key_postfix in zip(self.keys, self.meta_keys, self.meta_key_postfix):
+            d[key] = self.adjuster(d[key], d[meta_key or f"{key}_{meta_key_postfix}"])
         return d
 
 
@@ -325,7 +342,7 @@ class SplitChanneld(MapTransform):
         self,
         keys: KeysCollection,
         output_postfixes: Optional[Sequence[str]] = None,
-        channel_dim: Optional[int] = None,
+        channel_dim: int = 0,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -336,10 +353,7 @@ class SplitChanneld(MapTransform):
                 for example: if the key of input data is `pred` and split 2 classes, the output
                 data keys will be: pred_(output_postfixes[0]), pred_(output_postfixes[1])
                 if None, using the index number: `pred_0`, `pred_1`, ... `pred_N`.
-            channel_dim: which dimension of input image is the channel, default to None
-                to automatically select: if data is numpy array, channel_dim is 0 as
-                `numpy array` is used in the pre transforms, if PyTorch Tensor, channel_dim
-                is 1 as in most of the cases `Tensor` is uses in the post transforms.
+            channel_dim: which dimension of input image is the channel, default to 0.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
@@ -428,6 +442,48 @@ class ToTensord(MapTransform, InvertibleTransform):
             inverse_transform = ToNumpy()
             # Apply inverse
             d[key] = inverse_transform(d[key])
+            # Remove the applied transform
+            self.pop_transform(d, key)
+        return d
+
+
+class EnsureTyped(MapTransform, InvertibleTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.EnsureType`.
+
+    Ensure the input data to be a PyTorch Tensor or numpy array, support: `numpy array`, `PyTorch Tensor`,
+    `float`, `int`, `bool`, `string` and `object` keep the original.
+    If passing a dictionary, list or tuple, still return dictionary, list or tuple and recursively convert
+    every item to the expected data type.
+
+    Note: Currently, we only convert tensor data to numpy array or scalar number in the inverse operation.
+
+    """
+
+    def __init__(self, keys: KeysCollection, data_type: str = "tensor", allow_missing_keys: bool = False) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            data_type: target data type to convert, should be "tensor" or "numpy".
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.converter = EnsureType(data_type=data_type)
+
+    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            self.push_transform(d, key)
+            d[key] = self.converter(d[key])
+        return d
+
+    def inverse(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            # FIXME: currently, only convert tensor data to numpy array or scalar number,
+            # need to also invert numpy array but it's not easy to determine the previous data type
+            d[key] = tensor_to_numpy(d[key])
             # Remove the applied transform
             self.pop_transform(d, key)
         return d
@@ -719,10 +775,11 @@ class CopyItemsd(MapTransform):
 
         """
         d = dict(data)
-        for new_key in self.names:
-            if new_key in d:
-                raise KeyError(f"Key {new_key} already exists in data.")
-            for key in self.key_iterator(d):
+        key_len = len(self.keys)
+        for i in range(self.times):
+            for key, new_key in self.key_iterator(d, self.names[i * key_len : (i + 1) * key_len]):
+                if new_key in d:
+                    raise KeyError(f"Key {new_key} already exists in data.")
                 if isinstance(d[key], torch.Tensor):
                     d[new_key] = d[key].detach().clone()
                 else:
@@ -1131,6 +1188,7 @@ RepeatChannelD = RepeatChannelDict = RepeatChanneld
 SplitChannelD = SplitChannelDict = SplitChanneld
 CastToTypeD = CastToTypeDict = CastToTyped
 ToTensorD = ToTensorDict = ToTensord
+EnsureTypeD = EnsureTypeDict = EnsureTyped
 ToNumpyD = ToNumpyDict = ToNumpyd
 ToCupyD = ToCupyDict = ToCupyd
 ToPILD = ToPILDict = ToPILd

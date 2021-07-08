@@ -14,6 +14,7 @@ from .compose import Compose
 from .croppad.array import (
     BorderPad,
     BoundingRect,
+    CenterScaleCrop,
     CenterSpatialCrop,
     CropForeground,
     DivisiblePad,
@@ -34,6 +35,9 @@ from .croppad.dictionary import (
     BoundingRectd,
     BoundingRectD,
     BoundingRectDict,
+    CenterScaleCropd,
+    CenterScaleCropD,
+    CenterScaleCropDict,
     CenterSpatialCropd,
     CenterSpatialCropD,
     CenterSpatialCropDict,
@@ -75,6 +79,7 @@ from .intensity.array import (
     GaussianSharpen,
     GaussianSmooth,
     GibbsNoise,
+    KSpaceSpikeNoise,
     MaskIntensity,
     NormalizeIntensity,
     RandAdjustContrast,
@@ -84,6 +89,7 @@ from .intensity.array import (
     RandGaussianSmooth,
     RandGibbsNoise,
     RandHistogramShift,
+    RandKSpaceSpikeNoise,
     RandRicianNoise,
     RandScaleIntensity,
     RandShiftIntensity,
@@ -109,6 +115,9 @@ from .intensity.dictionary import (
     GibbsNoised,
     GibbsNoiseD,
     GibbsNoiseDict,
+    KSpaceSpikeNoised,
+    KSpaceSpikeNoiseD,
+    KSpaceSpikeNoiseDict,
     MaskIntensityd,
     MaskIntensityD,
     MaskIntensityDict,
@@ -136,6 +145,9 @@ from .intensity.dictionary import (
     RandHistogramShiftd,
     RandHistogramShiftD,
     RandHistogramShiftDict,
+    RandKSpaceSpikeNoised,
+    RandKSpaceSpikeNoiseD,
+    RandKSpaceSpikeNoiseDict,
     RandRicianNoised,
     RandRicianNoiseD,
     RandRicianNoiseDict,
@@ -168,7 +180,7 @@ from .intensity.dictionary import (
     ThresholdIntensityDict,
 )
 from .inverse import InvertibleTransform
-from .inverse_batch_transform import BatchInverseTransform
+from .inverse_batch_transform import BatchInverseTransform, Decollated
 from .io.array import LoadImage, SaveImage
 from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict
 from .post.array import (
@@ -187,9 +199,6 @@ from .post.dictionary import (
     AsDiscreted,
     AsDiscreteD,
     AsDiscreteDict,
-    Decollated,
-    DecollateD,
-    DecollateDict,
     Ensembled,
     Invertd,
     InvertD,
@@ -206,11 +215,15 @@ from .post.dictionary import (
     ProbNMSd,
     ProbNMSD,
     ProbNMSDict,
+    SaveClassificationd,
+    SaveClassificationD,
+    SaveClassificationDict,
     VoteEnsembled,
     VoteEnsembleD,
     VoteEnsembleDict,
 )
 from .spatial.array import (
+    AddCoordinateChannels,
     Affine,
     AffineGrid,
     Flip,
@@ -233,6 +246,9 @@ from .spatial.array import (
     Zoom,
 )
 from .spatial.dictionary import (
+    AddCoordinateChannelsd,
+    AddCoordinateChannelsD,
+    AddCoordinateChannelsDict,
     Affined,
     AffineD,
     AffineDict,
@@ -282,7 +298,7 @@ from .spatial.dictionary import (
     ZoomD,
     ZoomDict,
 )
-from .transform import MapTransform, Randomizable, RandomizableTransform, Transform, apply_transform
+from .transform import MapTransform, Randomizable, RandomizableTransform, ThreadUnsafe, Transform, apply_transform
 from .utility.array import (
     AddChannel,
     AddExtremePointsChannel,
@@ -292,6 +308,7 @@ from .utility.array import (
     ConvertToMultiChannelBasedOnBratsClasses,
     DataStats,
     EnsureChannelFirst,
+    EnsureType,
     FgBgToIndices,
     Identity,
     LabelToMask,
@@ -343,6 +360,9 @@ from .utility.dictionary import (
     EnsureChannelFirstd,
     EnsureChannelFirstD,
     EnsureChannelFirstDict,
+    EnsureTyped,
+    EnsureTypeD,
+    EnsureTypeDict,
     FgBgToIndicesd,
     FgBgToIndicesD,
     FgBgToIndicesDict,
@@ -405,6 +425,8 @@ from .utils import (
     allow_missing_keys_mode,
     compute_divisible_spatial_size,
     convert_inverse_interp_mode,
+    convert_to_numpy,
+    convert_to_tensor,
     copypaste_arrays,
     create_control_grid,
     create_grid,
@@ -428,6 +450,7 @@ from .utils import (
     rescale_array_int_max,
     rescale_instance_array,
     resize_center,
+    tensor_to_numpy,
     weighted_patch_samples,
     zero_margins,
 )
