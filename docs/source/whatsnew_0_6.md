@@ -8,8 +8,8 @@
 
 
 ## Decollating mini-batches as an essential post-processing step
-`decollate batch` is introduced in MONAI v0.6, to simplify the post-processing transforms and enable flexible following operations on a batch of model outputs.
-It can decollate batched data (e.g. model inference predictions) into a list of tensors -- as an 'inverse' operation of `collate_fn` of the PyTorch data loader -- for the benefits such as:
+`decollate batch` is introduced in MONAI v0.6, to simplify the post-processing transforms and enable flexible operations on a batch of model outputs.
+It can decollate batched data (e.g. model inference results) into a list of tensors -- as an 'inverse' operation of `collate_fn` of the PyTorch data loader. It has the benefits such as:
 - enabling postprocessing transforms for each item independently, for example, randomised transforms could be applied differently for each predicted item in a batch.
 - simplifying the transform APIs and reducing the input validation burdens, because both the preprocessing and postprocessing transforms now only support the "channel-first" input format.
 - enabling the transform inverse operation for data items in different original shapes, as the inverted items are in a list, instead of being stacked in a single tensor.
@@ -28,12 +28,14 @@ NVIDIA Clara provides [various MMARs of medical domain-specific models](https://
 These MMARs include all the information about the model including configurations and scripts to provide a workspace to perform model development tasks. To better leverage the trained MMARs released on Nvidia GPU cloud, MONAI provides pythonic APIs to access them.
 
 To demonstrate this new feature, a medical image segmentation tutorial is created within
-[`project-monai/tutorials`](https://github.com/Project-MONAI/tutorials/blob/master/modules/transfer_mmar.ipynb)).
+[`project-monai/tutorials`](https://github.com/Project-MONAI/tutorials/blob/master/modules/transfer_mmar.ipynb).
 It mainly produces the following figure to compare the loss curves and validation scores for
 - training from scratch (the green line),
 - applying pretrained MMAR weights without training (the magenta line),
 - training from the MMAR model weights (the blue
-line), according to the number of training epochs:
+line),
+
+according to the number of training epochs:
 
 ![transfer_mmar](../images/transfer_mmar.png)
 
@@ -59,4 +61,4 @@ New utilities are introduced on top of the existing semantic versioning modules,
 
 At the same time, we actively analyze efficient, scalable, and secure CI/CD solutions to accommodate fast and collaborative codebase development.
 
-Although a complete mechanism is still under development, These provide another essential step towards API-stable versions of MONAI, sustainable release cycles, and efficient open-source collaborations.
+Although a complete mechanism is still under development, these provide another essential step towards API-stable versions of MONAI, sustainable release cycles, and efficient open-source collaborations.

@@ -19,7 +19,7 @@ Its ambitions are:
 
 ## Features
 > _The codebase is currently under active development._
-> _Please see [the technical highlights](https://docs.monai.io/en/latest/highlights.html) and [What's New](https://docs.monai.io/en/latest/whatsnew.html) of the current milestone release._
+> _Please see [the technical highlights](https://docs.monai.io/en/latest/highlights.html) and [What's New in 0.6](https://docs.monai.io/en/latest/whatsnew_0_6.html) of the current milestone release._
 
 - flexible pre-processing for multi-dimensional medical imaging data;
 - compositional & portable APIs for ease of integration in existing workflows;
