@@ -21,14 +21,13 @@ TEST_CASE_RESBLOCK = []
 for spatial_dims in range(2, 4):
     for in_channels in range(1, 4):
         for kernel_size in [1, 3]:
-            for norm_name in ["group", "batch", "instance"]:
+            for norm in ["group", "batch", "instance"]:
                 test_case = [
                     {
                         "spatial_dims": spatial_dims,
                         "in_channels": in_channels,
                         "kernel_size": kernel_size,
-                        "norm_name": norm_name,
-                        "num_groups": in_channels,
+                        "norm": norm,
                     },
                     (2, in_channels, *([16] * spatial_dims)),
                     (2, in_channels, *([16] * spatial_dims)),
@@ -46,11 +45,9 @@ class TestResBlock(unittest.TestCase):
 
     def test_ill_arg(self):
         with self.assertRaises(AssertionError):
-            ResBlock(spatial_dims=3, in_channels=8, kernel_size=2, num_groups=8)
-        with self.assertRaises(ValueError):
-            ResBlock(spatial_dims=3, in_channels=8, norm_name="norm", num_groups=8)
-        with self.assertRaises(AssertionError):
-            ResBlock(spatial_dims=3, in_channels=8, num_groups=3)
+            ResBlock(spatial_dims=3, in_channels=8, norm="group", kernel_size=2)
+        with self.assertRaises(KeyError):
+            ResBlock(spatial_dims=3, in_channels=8, norm="norm")
 
 
 if __name__ == "__main__":
