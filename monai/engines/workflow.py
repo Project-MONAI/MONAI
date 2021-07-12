@@ -76,8 +76,8 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             for more details, check: https://pytorch.org/ignite/generated/ignite.engine.engine.Engine.html
             #ignite.engine.engine.Engine.register_events.
         decollate: whether to decollate the batch-first data to a list of data after model computation,
-            default to `True`. if `False`, as the `monai.transforms` module assumes channel-first data,
-            please don't set `monai.transforms` for `postprocessing`.
+            recommend `decollate=True` when `postprocessing` uses components from `monai.transforms`.
+            default to `True`.
 
     Raises:
         TypeError: When ``device`` is not a ``torch.Device``.

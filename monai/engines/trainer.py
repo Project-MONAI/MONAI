@@ -97,8 +97,8 @@ class SupervisedTrainer(Trainer):
             for more details, check: https://pytorch.org/ignite/generated/ignite.engine.engine.Engine.html
             #ignite.engine.engine.Engine.register_events.
         decollate: whether to decollate the batch-first data to a list of data after model computation,
-            default to `True`. if `False`, as the `monai.transforms` module assumes channel-first data,
-            please don't set `monai.transforms` for `postprocessing`.
+            recommend `decollate=True` when `postprocessing` uses components from `monai.transforms`.
+            default to `True`.
 
     """
 
@@ -250,8 +250,8 @@ class GanTrainer(Trainer):
         train_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
             CheckpointHandler, StatsHandler, SegmentationSaver, etc.
         decollate: whether to decollate the batch-first data to a list of data after model computation,
-            default to `True`. if `False`, as the `monai.transforms` module assumes channel-first data,
-            please don't set `monai.transforms` for `postprocessing`.
+            recommend `decollate=True` when `postprocessing` uses components from `monai.transforms`.
+            default to `True`.
 
     """
 
