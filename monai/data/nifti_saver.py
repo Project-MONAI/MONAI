@@ -47,6 +47,7 @@ class NiftiSaver:
         output_dtype: DtypeLike = np.float32,
         squeeze_end_dims: bool = True,
         data_root_dir: str = "",
+        separate_folder: bool = True,
         print_log: bool = True,
     ) -> None:
         """
@@ -82,6 +83,9 @@ class NiftiSaver:
                 output_dir: /output,
                 data_root_dir: /foo/bar,
                 output will be: /output/test1/image/image_seg.nii.gz
+            separate_folder: whether to save every file in a separate folder, for example: if input filename is
+                `image.nii`, postfix is `seg` and folder_path is `output`, if `True`, save as:
+                `output/image/image_seg.nii`, if `False`, save as `output/image_seg.nii`. default to `True`.
             print_log: whether to print log about the saved NIfTI file path, etc. default to `True`.
 
         """
@@ -97,6 +101,7 @@ class NiftiSaver:
         self._data_index = 0
         self.squeeze_end_dims = squeeze_end_dims
         self.data_root_dir = data_root_dir
+        self.separate_folder = separate_folder
         self.print_log = print_log
 
     def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
@@ -133,7 +138,14 @@ class NiftiSaver:
         if isinstance(data, torch.Tensor):
             data = data.detach().cpu().numpy()
 
-        path = create_file_basename(self.output_postfix, filename, self.output_dir, self.data_root_dir, patch_index)
+        path = create_file_basename(
+            postfix=self.output_postfix,
+            input_file_name=filename,
+            folder_path=self.output_dir,
+            data_root_dir=self.data_root_dir,
+            separate_folder=self.separate_folder,
+            patch_index=patch_index,
+        )
         path = f"{path}{self.output_ext}"
         # change data shape to be (channel, h, w, d)
         while len(data.shape) < 4:
