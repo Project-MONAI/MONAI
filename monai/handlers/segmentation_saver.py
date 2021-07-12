@@ -52,6 +52,7 @@ class SegmentationSaver:
         output_dtype: DtypeLike = np.float32,
         squeeze_end_dims: bool = True,
         data_root_dir: str = "",
+        separate_folder: bool = True,
         batch_transform: Callable = lambda x: x,
         output_transform: Callable = lambda x: x,
         name: Optional[str] = None,
@@ -103,6 +104,9 @@ class SegmentationSaver:
                 output_dir: /output,
                 data_root_dir: /foo/bar,
                 output will be: /output/test1/image/image_seg.nii.gz
+            separate_folder: whether to save every file in a separate folder, for example: if input filename is
+                `image.nii`, postfix is `seg` and folder_path is `output`, if `True`, save as:
+                `output/image/image_seg.nii`, if `False`, save as `output/image_seg.nii`. default to `True`.
             batch_transform: a callable that is used to extract the `meta_data` dictionary of the input images
                 from `ignite.engine.state.batch`. the purpose is to extract necessary information from the meta data:
                 filename, affine, original_shape, etc.
@@ -124,6 +128,7 @@ class SegmentationSaver:
             output_dtype=output_dtype,
             squeeze_end_dims=squeeze_end_dims,
             data_root_dir=data_root_dir,
+            separate_folder=separate_folder,
         )
         self.batch_transform = batch_transform
         self.output_transform = output_transform
