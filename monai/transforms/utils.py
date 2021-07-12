@@ -319,7 +319,7 @@ def map_classes_to_indices(
     if channels > 1:
         # One-Hot format label
         for c in range(channels):
-            label_flat = np.any(label[c: c + 1], axis=0).ravel()
+            label_flat = np.any(label[c : c + 1], axis=0).ravel()
             _add_indices(label_flat=label_flat)
     else:
         # Argmax label
@@ -471,7 +471,7 @@ def generate_pos_neg_label_crop_centers(
 def generate_label_classes_crop_centers(
     spatial_size: Union[Sequence[int], int],
     num_samples: int,
-    ratios: Sequence[float],
+    ratios: List[Union[float, int]],
     label_spatial_shape: Sequence[int],
     indices: List[np.ndarray],
     rand_state: Optional[np.random.RandomState] = None,

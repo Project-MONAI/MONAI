@@ -18,7 +18,6 @@ from monai.transforms import ClassesToIndicesd
 
 TEST_CASE_1 = [
     # test Argmax data
-
     {"keys": "label", "num_classes": 3, "image_threshold": 0.0},
     {"label": np.array([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]])},
     [np.array([0, 4, 8]), np.array([1, 5, 6]), np.array([2, 3, 7])],
@@ -30,19 +29,21 @@ TEST_CASE_2 = [
         "label": np.array([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]]),
         "image": np.array([[[132, 1434, 51], [61, 0, 133], [523, 44, 232]]]),
     },
-    [np.array([0, 8]), np.array([1, 5, 6]), np.array([3])]
+    [np.array([0, 8]), np.array([1, 5, 6]), np.array([3])],
 ]
 
 TEST_CASE_3 = [
     # test One-Hot data
     {"keys": "label", "image_threshold": 0.0},
-    {"label": np.array(
-        [
-            [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
-            [[0, 1, 0], [0, 0, 1], [1, 0, 0]],
-            [[0, 0, 1], [1, 0, 0], [0, 1, 0]],
-        ]
-    )},
+    {
+        "label": np.array(
+            [
+                [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+                [[0, 1, 0], [0, 0, 1], [1, 0, 0]],
+                [[0, 0, 1], [1, 0, 0], [0, 1, 0]],
+            ]
+        )
+    },
     [np.array([0, 4, 8]), np.array([1, 5, 6]), np.array([2, 3, 7])],
 ]
 
@@ -58,12 +59,11 @@ TEST_CASE_4 = [
         ),
         "image": np.array([[[132, 1434, 51], [61, 0, 133], [523, 44, 232]]]),
     },
-    [np.array([0, 8]), np.array([1, 5, 6]), np.array([3])]
+    [np.array([0, 8]), np.array([1, 5, 6]), np.array([3])],
 ]
 
 TEST_CASE_5 = [
     # test output_shape
-
     {"keys": "label", "indices_postfix": "cls", "num_classes": 3, "image_threshold": 0.0, "output_shape": [3, 3]},
     {"label": np.array([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]])},
     [np.array([[0, 0], [1, 1], [2, 2]]), np.array([[0, 1], [1, 2], [2, 0]]), np.array([[0, 2], [1, 0], [2, 1]])],

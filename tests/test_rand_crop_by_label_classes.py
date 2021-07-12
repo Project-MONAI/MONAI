@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms import RandCropByLabelClasses, ClassesToIndices
+from monai.transforms import ClassesToIndices, RandCropByLabelClasses
 
 TEST_CASE_0 = [
     # One-Hot label

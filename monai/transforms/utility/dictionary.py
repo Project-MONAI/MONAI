@@ -1012,7 +1012,7 @@ class ClassesToIndicesd(MapTransform):
         self.image_key = image_key
         self.converter = ClassesToIndices(num_classes, image_threshold, output_shape)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         image = d[self.image_key] if self.image_key else None
         for key in self.key_iterator(d):

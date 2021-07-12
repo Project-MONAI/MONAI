@@ -18,7 +18,6 @@ from monai.transforms import ClassesToIndices
 
 TEST_CASE_1 = [
     # test Argmax data
-
     {"num_classes": 3, "image_threshold": 0.0},
     np.array([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]]),
     None,
@@ -29,7 +28,7 @@ TEST_CASE_2 = [
     {"num_classes": 3, "image_threshold": 60},
     np.array([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]]),
     np.array([[[132, 1434, 51], [61, 0, 133], [523, 44, 232]]]),
-    [np.array([0, 8]), np.array([1, 5, 6]), np.array([3])]
+    [np.array([0, 8]), np.array([1, 5, 6]), np.array([3])],
 ]
 
 TEST_CASE_3 = [
@@ -56,12 +55,11 @@ TEST_CASE_4 = [
         ]
     ),
     np.array([[[132, 1434, 51], [61, 0, 133], [523, 44, 232]]]),
-    [np.array([0, 8]), np.array([1, 5, 6]), np.array([3])]
+    [np.array([0, 8]), np.array([1, 5, 6]), np.array([3])],
 ]
 
 TEST_CASE_5 = [
     # test output_shape
-
     {"num_classes": 3, "image_threshold": 0.0, "output_shape": [3, 3]},
     np.array([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]]),
     None,

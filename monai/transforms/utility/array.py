@@ -740,7 +740,7 @@ class ClassesToIndices(Transform):
         label: np.ndarray,
         image: Optional[np.ndarray] = None,
         output_shape: Optional[Sequence[int]] = None,
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> List[np.ndarray]:
         """
         Args:
             label: input data to compute the indices of every class.

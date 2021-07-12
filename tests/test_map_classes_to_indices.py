@@ -29,7 +29,7 @@ TEST_CASE_2 = [
         "image": np.array([[[132, 1434, 51], [61, 0, 133], [523, 44, 232]]]),
         "image_threshold": 60,
     },
-    [np.array([0, 8]), np.array([1, 5, 6]), np.array([3])]
+    [np.array([0, 8]), np.array([1, 5, 6]), np.array([3])],
 ]
 
 TEST_CASE_3 = [
@@ -61,7 +61,7 @@ TEST_CASE_4 = [
         "image": np.array([[[132, 1434, 51], [61, 0, 133], [523, 44, 232]]]),
         "image_threshold": 60,
     },
-    [np.array([0, 8]), np.array([1, 5, 6]), np.array([3])]
+    [np.array([0, 8]), np.array([1, 5, 6]), np.array([3])],
 ]
 
 TEST_CASE_5 = [

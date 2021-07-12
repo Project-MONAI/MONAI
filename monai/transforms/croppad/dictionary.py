@@ -1191,12 +1191,13 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
         allow_missing_keys: don't raise exception if key is missing.
 
     """
+
     def __init__(
         self,
         keys: KeysCollection,
         label_key: str,
         spatial_size: Union[Sequence[int], int],
-        ratios: Sequence[float],
+        ratios: List[Union[float, int]],
         num_classes: Optional[int] = None,
         num_samples: int = 1,
         image_key: Optional[str] = None,
@@ -1237,7 +1238,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
             self.spatial_size, self.num_samples, self.ratios, label.shape[1:], indices_, self.R
         )
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> List[Dict[Hashable, np.ndarray]]:
+    def __call__(self, data: Mapping[Hashable, Any]) -> List[Dict[Hashable, np.ndarray]]:
         d = dict(data)
         label = d[self.label_key]
         image = d[self.image_key] if self.image_key else None

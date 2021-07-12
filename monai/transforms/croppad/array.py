@@ -856,10 +856,11 @@ class RandCropByLabelClasses(Randomizable, Transform):
             and cache the results for better performance.
 
     """
+
     def __init__(
         self,
         spatial_size: Union[Sequence[int], int],
-        ratios: Sequence[float],
+        ratios: List[Union[float, int]],
         label: Optional[np.ndarray] = None,
         num_classes: Optional[int] = None,
         num_samples: int = 1,
