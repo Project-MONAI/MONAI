@@ -23,7 +23,6 @@ A typical process of `decollate batch` is illustrated as follows (with a `batch_
 
 [Migrating your v0.5 code to v0.6](https://github.com/Project-MONAI/MONAI/wiki/v0.5-to-v0.6-migration-guide) wiki shows how to migrate an existing program from v0.5 to v0.6.
 
-
 ## Pythonic APIs to load the pretrained models from Clara Train MMARs
 [The MMAR (Medical Model ARchive)](https://docs.nvidia.com/clara/clara-train-sdk/pt/mmar.html)
 defines a data structure for organizing all artifacts produced during the model development life cycle.
