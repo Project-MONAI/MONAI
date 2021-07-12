@@ -27,6 +27,8 @@ class PostProcessing:
     """
     Ignite handler to execute additional post processing after the post processing in engines.
     So users can insert other handlers between engine postprocessing and this post processing handler.
+    If using components from `monai.transforms` as the `transform`, recommend to decollate `engine.state.batch`
+    and `engine.state.batch` in the engine(set `decollate=True`) or in the `DecollateBatch` handler first.
 
     """
 

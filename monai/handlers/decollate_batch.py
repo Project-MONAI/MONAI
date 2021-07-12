@@ -26,7 +26,7 @@ else:
 class DecollateBatch:
     """
     Ignite handler to execute the `decollate batch` logic for `engine.state.batch` and `engine.state.output`.
-    So users can set `decollate=False` in the engine and execute some postprocessing logic first
+    Typical usage is to set `decollate=False` in the engine and execute some postprocessing logic first
     then decollate the batch, otherwise, engine will decollate batch before the postprocessing.
 
     Args:
