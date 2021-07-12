@@ -34,6 +34,7 @@ class DecollateBatch:
             default to "MODEL_COMPLETED".
 
     """
+
     def __init__(self, event: str = "MODEL_COMPLETED"):
         event = event.upper()
         if event not in ("MODEL_COMPLETED", "ITERATION_COMPLETED"):
