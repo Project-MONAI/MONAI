@@ -119,7 +119,7 @@ class AsChannelFirst(TorchOrNumpyTransform):
             return torch.moveaxis(img, self.channel_dim, 0)
 
         img, orig_type, orig_device = convert_data_type(img, np.ndarray)
-        img = np.moveaxis(img, self.channel_dim, 0)
+        img = np.moveaxis(img, self.channel_dim, 0)  # type: ignore
         return convert_data_type(img, orig_type, orig_device)[0]
 
 
@@ -151,7 +151,7 @@ class AsChannelLast(TorchOrNumpyTransform):
             return torch.moveaxis(img, self.channel_dim, -1)
 
         img, orig_type, orig_device = convert_data_type(img, np.ndarray)
-        img = np.moveaxis(img, self.channel_dim, -1)
+        img = np.moveaxis(img, self.channel_dim, -1)  # type: ignore
         return convert_data_type(img, orig_type, orig_device)[0]
 
 
@@ -384,7 +384,7 @@ class ToNumpy(NumpyTransform):
         """
         array: np.ndarray
         if not isinstance(img, Sequence):
-            array, *_ = convert_data_type(img, np.ndarray)
+            array, *_ = convert_data_type(img, np.ndarray)  # type: ignore
         else:
             array = np.asarray(img)
 

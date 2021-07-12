@@ -9,13 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from tests.utils import TEST_NDARRAYS
 import unittest
 
 import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import AsChannelFirstd
+from tests.utils import TEST_NDARRAYS
 
 TESTS = []
 for p in TEST_NDARRAYS:
