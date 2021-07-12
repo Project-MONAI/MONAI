@@ -721,9 +721,8 @@ def create_file_basename(
 
     if separate_folder:
         output = os.path.join(output, filename)
-
-    if not os.path.exists(output):
-        os.makedirs(output)
+    # create target folder if no existing
+    os.makedirs(output, exist_ok=True)
 
     # add the sub-folder plus the postfix name to become the file basename in the output path
     output = os.path.join(output, (filename + "_" + postfix) if len(postfix) > 0 else filename)
