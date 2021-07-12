@@ -376,14 +376,12 @@ class ToNumpy(NumpyTransform):
         """
         Apply the transform to `img` and make it contiguous.
         """
-        if isinstance(img, Sequence):
-            img = np.array(img)
+        array: np.ndarray
+        if not isinstance(img, Sequence):
+            array, *_ = convert_data_type(img, np.ndarray)
         else:
-            img, *_ = convert_data_type(img, np.ndarray)
-            img = np.ascontiguousarray(img)
-        return img
+            array = np.asarray(img)
 
-        array: np.ndarray = np.asarray(img)
         return np.ascontiguousarray(array) if array.ndim > 0 else array
 
 
