@@ -41,6 +41,8 @@ TEST_CASE_LRSCHEDULER = [
 class TestLRSCHEDULER(unittest.TestCase):
     @parameterized.expand(TEST_CASE_LRSCHEDULER)
     def test_shape(self, input_param, expected_lr):
+        net = SchedulerTestNet()
+        optimizer = torch.optim.Adam(net.parameters(), lr=1.0)
         scheduler = WarmupCosineSchedule(optimizer, **input_param)
         self.assertEqual(len([scheduler.get_last_lr()[0]]), 1)
         lrs_1 = []
@@ -53,6 +55,4 @@ class TestLRSCHEDULER(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    net = SchedulerTestNet()
-    optimizer = torch.optim.Adam(net.parameters(), lr=1.0)
     unittest.main()
