@@ -1093,9 +1093,9 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
 
         self.randomize(label, fg_indices, bg_indices, image)
         if not isinstance(self.spatial_size, tuple):
-            raise AssertionError
+            raise ValueError("spatial_size must be a valid tuple.")
         if self.centers is None:
-            raise AssertionError
+            raise ValueError("no available ROI centers to crop.")
 
         # initialize returned list with shallow copy to preserve key ordering
         results: List[Dict[Hashable, np.ndarray]] = [dict(data) for _ in range(self.num_samples)]
@@ -1143,12 +1143,61 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
 
 
 class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
+    """
+    Dictionary-based version :py:class:`monai.transforms.RandCropByLabelClasses`.
+    Crop random fixed sized regions with the center being a class based on the specified ratios of every class.
+    The label data can be One-Hot format array or Argmax data. And will return a list of arrays for all the
+    cropped images. For example, crop two (3 x 3) arrays from (5 x 5) array with `ratios=[1, 2, 3, 1]` can be::
+
+        [[[0, 0, 0, 0, 0],
+          [0, 1, 2, 1, 0],            [[0, 1, 2],     [[0, 0, 0],
+          [0, 1, 3, 0, 0],     -->     [0, 1, 3],      [1, 2, 1],
+          [0, 0, 0, 0, 0],             [0, 0, 0]]      [1, 3, 0]]
+          [0, 0, 0, 0, 0]]]
+
+    If a dimension of the expected spatial size is bigger than the input image size,
+    will not crop that dimension. So the cropped result may be smaller than expected size, and the cropped
+    results of several images may not have exactly same shape.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        label_key: name of key for label image, this will be used for finding indices of every class.
+        spatial_size: the spatial size of the crop region e.g. [224, 224, 128].
+            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
+            if its components have non-positive values, the corresponding size of `label` will be used.
+            for example: if the spatial size of input data is [40, 40, 40] and `spatial_size=[32, 64, -1]`,
+            the spatial size of output data will be [32, 40, 40].
+        ratios: specified ratios of every class in the label to generate crop centers, including background class.
+        num_classes: number of classes for argmax label, not necessary for One-Hot label.
+        num_samples: number of samples (crop regions) to take in each list.
+        image_key: if image_key is not None, only return the indices of every class that are within the valid
+            region of the image (``image > image_threshold``).
+        image_threshold: if enabled `image_key`, use ``image > image_threshold`` to
+            determine the valid image content area and select class indices only in this area.
+        indices_key: if provided pre-computed indices of every class, will ignore above `image` and
+            `image_threshold`, and randomly select crop centers based on them, expect to be 1 dim array
+            of spatial indices after flattening. a typical usage is to call `ClassesToIndices` transform first
+            and cache the results for better performance.
+        meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+            used to add `patch_index` to the meta dict.
+            for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+            the meta data is a dictionary object which contains: filename, original_shape, etc.
+            it can be a sequence of string, map to the `keys`.
+            if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+            to the key data, default is `meta_dict`, the meta data is a dictionary object.
+            used to add `patch_index` to the meta dict.
+        allow_missing_keys: don't raise exception if key is missing.
+
+    """
     def __init__(
         self,
         keys: KeysCollection,
         label_key: str,
         spatial_size: Union[Sequence[int], int],
         ratios: Sequence[float],
+        num_classes: Optional[int] = None,
         num_samples: int = 1,
         image_key: Optional[str] = None,
         image_threshold: float = 0.0,
@@ -1161,6 +1210,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
         self.label_key = label_key
         self.spatial_size: Union[Tuple[int, ...], Sequence[int], int] = spatial_size
         self.ratios = ratios
+        self.num_classes = num_classes
         self.num_samples = num_samples
         self.image_key = image_key
         self.image_threshold = image_threshold
@@ -1180,7 +1230,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
         self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
         indices_: List[np.ndarray]
         if indices is None:
-            indices_ = map_classes_to_indices(label, image, self.image_threshold)
+            indices_ = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
         else:
             indices_ = indices
         self.centers = generate_label_classes_crop_centers(
@@ -1195,9 +1245,9 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
 
         self.randomize(label, indices, image)
         if not isinstance(self.spatial_size, tuple):
-            raise AssertionError
+            raise ValueError("spatial_size must be a valid tuple.")
         if self.centers is None:
-            raise AssertionError
+            raise ValueError("no available ROI centers to crop.")
 
         # initialize returned list with shallow copy to preserve key ordering
         results: List[Dict[Hashable, np.ndarray]] = [dict(data) for _ in range(self.num_samples)]

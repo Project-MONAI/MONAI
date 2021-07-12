@@ -769,7 +769,11 @@ class RandCropByPosNegLabel(Randomizable, Transform):
     ) -> None:
         self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
         if fg_indices is None or bg_indices is None:
-            fg_indices_, bg_indices_ = map_binary_to_indices(label, image, self.image_threshold)
+            if self.fg_indices is not None and self.bg_indices is not None:
+                fg_indices_ = self.fg_indices
+                bg_indices_ = self.bg_indices
+            else:
+                fg_indices_, bg_indices_ = map_binary_to_indices(label, image, self.image_threshold)
         else:
             fg_indices_ = fg_indices
             bg_indices_ = bg_indices
@@ -805,12 +809,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
             raise ValueError("label should be provided.")
         if image is None:
             image = self.image
-        if fg_indices is None or bg_indices is None:
-            if self.fg_indices is not None and self.bg_indices is not None:
-                fg_indices = self.fg_indices
-                bg_indices = self.bg_indices
-            else:
-                fg_indices, bg_indices = map_binary_to_indices(label, image, self.image_threshold)
+
         self.randomize(label, fg_indices, bg_indices, image)
         results: List[np.ndarray] = []
         if self.centers is not None:
@@ -822,11 +821,47 @@ class RandCropByPosNegLabel(Randomizable, Transform):
 
 
 class RandCropByLabelClasses(Randomizable, Transform):
+    """
+    Crop random fixed sized regions with the center being a class based on the specified ratios of every class.
+    The label data can be One-Hot format array or Argmax data. And will return a list of arrays for all the
+    cropped images. For example, crop two (3 x 3) arrays from (5 x 5) array with `ratios=[1, 2, 3, 1]` can be::
+
+        [[[0, 0, 0, 0, 0],
+          [0, 1, 2, 1, 0],            [[0, 1, 2],     [[0, 0, 0],
+          [0, 1, 3, 0, 0],     -->     [0, 1, 3],      [1, 2, 1],
+          [0, 0, 0, 0, 0],             [0, 0, 0]]      [1, 3, 0]]
+          [0, 0, 0, 0, 0]]]
+
+    If a dimension of the expected spatial size is bigger than the input image size,
+    will not crop that dimension. So the cropped result may be smaller than expected size, and the cropped
+    results of several images may not have exactly same shape.
+
+    Args:
+        spatial_size: the spatial size of the crop region e.g. [224, 224, 128].
+            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
+            if its components have non-positive values, the corresponding size of `label` will be used.
+            for example: if the spatial size of input data is [40, 40, 40] and `spatial_size=[32, 64, -1]`,
+            the spatial size of output data will be [32, 40, 40].
+        ratios: specified ratios of every class in the label to generate crop centers, including background class.
+        label: the label image that is used for finding every classes, if None, must set at `self.__call__`.
+        num_classes: number of classes for argmax label, not necessary for One-Hot label.
+        num_samples: number of samples (crop regions) to take in each list.
+        image: if image is not None, only return the indices of every class that are within the valid
+            region of the image (``image > image_threshold``).
+        image_threshold: if enabled `image`, use ``image > image_threshold`` to
+            determine the valid image content area and select class indices only in this area.
+        indices: if provided pre-computed indices of every class, will ignore above `image` and
+            `image_threshold`, and randomly select crop centers based on them, expect to be 1 dim array
+            of spatial indices after flattening. a typical usage is to call `ClassesToIndices` transform first
+            and cache the results for better performance.
+
+    """
     def __init__(
         self,
         spatial_size: Union[Sequence[int], int],
         ratios: Sequence[float],
         label: Optional[np.ndarray] = None,
+        num_classes: Optional[int] = None,
         num_samples: int = 1,
         image: Optional[np.ndarray] = None,
         image_threshold: float = 0.0,
@@ -835,6 +870,7 @@ class RandCropByLabelClasses(Randomizable, Transform):
         self.spatial_size = ensure_tuple(spatial_size)
         self.ratios = ratios
         self.label = label
+        self.num_classes = num_classes
         self.num_samples = num_samples
         self.image = image
         self.image_threshold = image_threshold
@@ -850,7 +886,10 @@ class RandCropByLabelClasses(Randomizable, Transform):
         self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
         indices_: List[np.ndarray]
         if indices is None:
-            indices_ = map_classes_to_indices(label, image, self.image_threshold)
+            if self.indices is not None:
+                indices_ = self.indices
+            else:
+                indices_ = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
         else:
             indices_ = indices
         self.centers = generate_label_classes_crop_centers(
@@ -880,11 +919,6 @@ class RandCropByLabelClasses(Randomizable, Transform):
             raise ValueError("label should be provided.")
         if image is None:
             image = self.image
-        if indices is None:
-            if self.indices is not None:
-                indices = self.indices
-            else:
-                indices = map_classes_to_indices(label, image, self.image_threshold)
 
         self.randomize(label, indices, image)
         results: List[np.ndarray] = []

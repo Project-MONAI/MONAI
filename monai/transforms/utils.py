@@ -377,8 +377,17 @@ def weighted_patch_samples(
 
 
 def correct_crop_centers(
-    center_ori: List[np.ndarray], spatial_size: Union[Sequence[int], int], label_spatial_shape: Sequence[int]
+    centers: List[np.ndarray], spatial_size: Union[Sequence[int], int], label_spatial_shape: Sequence[int]
 ) -> List[np.ndarray]:
+    """
+    Utility to correct the crop center if the crop size is bigger than the image size.
+
+    Args:
+        ceters: pre-computed crop centers, will correct based on the valid region.
+        spatial_size: spatial size of the ROIs to be sampled.
+        label_spatial_shape: spatial shape of the original label data to compare with ROI.
+
+    """
     spatial_size = fall_back_tuple(spatial_size, default=label_spatial_shape)
     if not (np.subtract(label_spatial_shape, spatial_size) >= 0).all():
         raise ValueError("The size of the proposed random crop ROI is larger than the image size.")
@@ -395,15 +404,15 @@ def correct_crop_centers(
         if valid_s == valid_end[i]:
             valid_end[i] += 1
 
-    for i, c in enumerate(center_ori):
+    for i, c in enumerate(centers):
         center_i = c
         if c < valid_start[i]:
             center_i = valid_start[i]
         if c >= valid_end[i]:
             center_i = valid_end[i] - 1
-        center_ori[i] = center_i
+        centers[i] = center_i
 
-    return center_ori
+    return centers
 
 
 def generate_pos_neg_label_crop_centers(
@@ -474,7 +483,7 @@ def generate_label_classes_crop_centers(
     Args:
         spatial_size: spatial size of the ROIs to be sampled.
         num_samples: total sample centers to be generated.
-        ratios: ratio of every class in the label to generate crop centers, including background class.
+        ratios: ratios of every class in the label to generate crop centers, including background class.
         label_spatial_shape: spatial shape of the original label data to unravel selected centers.
         indices: sequence of pre-computed foreground indices of every class in 1 dimension.
         rand_state: numpy randomState object to align with other modules.
@@ -489,7 +498,7 @@ def generate_label_classes_crop_centers(
     indices = [np.asarray(i) for i in indices]
     for i, array in enumerate(indices):
         if len(array) == 0:
-            warnings.warn(f"no available indices to crop for class {i}, set the crop ratio to zero.")
+            warnings.warn(f"no available indices of class {i} to crop, set the crop ratio of this class to zero.")
             ratios[i] = 0
 
     centers = []
