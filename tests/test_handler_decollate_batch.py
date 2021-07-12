@@ -12,35 +12,30 @@
 import unittest
 
 import torch
-from parameterized import parameterized
 
 from monai.engines import SupervisedEvaluator
-from monai.handlers import PostProcessing
+from monai.handlers import DecollateBatch, PostProcessing
 from monai.transforms import Activationsd, AsDiscreted, Compose, CopyItemsd
 
-# test lambda function as `transform`
-TEST_CASE_1 = [{"transform": lambda x: dict(pred=x["pred"] + 1.0)}, torch.tensor([[[[1.9975], [1.9997]]]])]
-# test composed postprocessing transforms as `transform`
-TEST_CASE_2 = [
-    {
-        "transform": Compose(
-            [
-                CopyItemsd(keys="filename", times=1, names="filename_bak"),
-                AsDiscreted(keys="pred", threshold_values=True, to_onehot=True, n_classes=2),
-            ]
-        ),
-        "event": "iteration_completed",
-    },
-    torch.tensor([[[[1.0], [1.0]], [[0.0], [0.0]]]]),
-]
 
-
-class TestHandlerPostProcessing(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
-    def test_compute(self, input_params, expected):
+class TestHandlerDecollateBatch(unittest.TestCase):
+    def test_compute(self):
         data = [
             {"image": torch.tensor([[[[2.0], [3.0]]]]), "filename": ["test1"]},
             {"image": torch.tensor([[[[6.0], [8.0]]]]), "filename": ["test2"]},
+        ]
+
+        handlers = [
+            DecollateBatch(event="MODEL_COMPLETED"),
+            PostProcessing(
+                transform=Compose(
+                    [
+                        Activationsd(keys="pred", sigmoid=True),
+                        CopyItemsd(keys="filename", times=1, names="filename_bak"),
+                        AsDiscreted(keys="pred", threshold_values=True, to_onehot=True, n_classes=2),
+                    ]
+                )
+            ),
         ]
         # set up engine, PostProcessing handler works together with postprocessing transforms of engine
         engine = SupervisedEvaluator(
@@ -48,10 +43,14 @@ class TestHandlerPostProcessing(unittest.TestCase):
             val_data_loader=data,
             epoch_length=2,
             network=torch.nn.PReLU(),
-            postprocessing=Compose([Activationsd(keys="pred", sigmoid=True)]),
-            val_handlers=[PostProcessing(**input_params)],
+            # set decollate=False and execute some postprocessing first, then decollate in handlers
+            postprocessing=lambda x: dict(pred=x["pred"] + 1.0),
+            decollate=False,
+            val_handlers=handlers,
         )
         engine.run()
+
+        expected = torch.tensor([[[[1.0], [1.0]], [[0.0], [0.0]]]])
 
         for o, e in zip(engine.state.output, expected):
             torch.testing.assert_allclose(o["pred"], e)

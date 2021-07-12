@@ -9,12 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 from monai.config import IgniteInfo
 from monai.data import decollate_batch, rep_scalar_to_batch
-from monai.engines.utils import IterationEvents, engine_apply_transform
+from monai.engines.utils import IterationEvents
 from monai.utils import min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
@@ -30,14 +29,26 @@ class DecollateBatch:
     So users can set `decollate=False` in the engine and execute some postprocessing logic first
     then decollate the batch, otherwise, engine will decollate batch before the postprocessing.
 
+    Args:
+        event: expected EVENT to attach the handler, should be "MODEL_COMPLETED" or "ITERATION_COMPLETED".
+            default to "MODEL_COMPLETED".
+
     """
+    def __init__(self, event: str = "MODEL_COMPLETED"):
+        event = event.upper()
+        if event not in ("MODEL_COMPLETED", "ITERATION_COMPLETED"):
+            raise ValueError("event should be `MODEL_COMPLETED` or `ITERATION_COMPLETED`.")
+        self.event = event
 
     def attach(self, engine: Engine) -> None:
         """
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        engine.add_event_handler(IterationEvents.MODEL_COMPLETED, self)
+        if self.event == "MODEL_COMPLETED":
+            engine.add_event_handler(IterationEvents.MODEL_COMPLETED, self)
+        else:
+            engine.add_event_handler(Events.ITERATION_COMPLETED, self)
 
     def __call__(self, engine: Engine) -> None:
         """
