@@ -29,12 +29,12 @@ class ViT(nn.Module):
         in_channels: int,
         img_size: Tuple[int, int, int],
         patch_size: Tuple[int, int, int],
-        hidden_size: int,
-        mlp_dim: int,
-        num_layers: int,
-        num_heads: int,
-        pos_embed: str,
-        classification: bool,
+        hidden_size: int = 768,
+        mlp_dim: int = 3072,
+        num_layers: int = 12,
+        num_heads: int = 12,
+        pos_embed: str = "perceptron",
+        classification: bool = False,
         num_classes: int = 2,
         dropout_rate: float = 0.0,
     ) -> None:
@@ -51,6 +51,14 @@ class ViT(nn.Module):
             classification: bool argument to determine if classification is used.
             num_classes: number of classes if classification is used.
             dropout_rate: faction of the input units to drop.
+
+        Examples::
+
+            # for single channel input with patch size of (96,96,96), conv position embedding and segmentation backbone
+            >>> net = ViT(in_channels=1, img_size=(96,96,96), pos_embed='conv')
+
+            # for 3-channel with patch size of (128,128,128), 24 layers and classification backbone
+            >>> net = ViT(in_channels=3, img_size=(128,128,128), pos_embed='conv', classification= True)
 
         """
 
