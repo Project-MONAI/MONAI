@@ -413,10 +413,10 @@ class LMDBDataset(PersistentDataset):
         self.lmdb_kwargs = lmdb_kwargs or {}
         if not self.lmdb_kwargs.get("map_size", 0):
             self.lmdb_kwargs["map_size"] = 1024 ** 4  # default map_size
-        self._env = None
         # lmdb is single-writer multi-reader by default
         # the cache is created without multi-threading
-        self._read_env = self._fill_cache_start_reader(show_progress=self.progress)
+        self._read_env = None
+        self._fill_cache_start_reader(show_progress=self.progress)
         print(f"Accessing lmdb file: {self.db_file.absolute()}.")
 
     def set_data(self, data: Sequence):
@@ -425,7 +425,6 @@ class LMDBDataset(PersistentDataset):
 
         """
         super().set_data(data=data)
-        self._env = None
         self._read_env = self._fill_cache_start_reader(show_progress=self.progress)
 
     def _fill_cache_start_reader(self, show_progress=True):
@@ -438,9 +437,7 @@ class LMDBDataset(PersistentDataset):
         """
         # create cache
         self.lmdb_kwargs["readonly"] = False
-        if self._env is None:
-            self._env = lmdb.open(path=f"{self.db_file}", subdir=False, **self.lmdb_kwargs)
-        env = self._env
+        env = lmdb.open(path=f"{self.db_file}", subdir=False, **self.lmdb_kwargs)
         if show_progress and not has_tqdm:
             warnings.warn("LMDBDataset: tqdm is not installed. not displaying the caching progress.")
         with env.begin(write=False) as search_txn:
