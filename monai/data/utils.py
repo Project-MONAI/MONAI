@@ -674,6 +674,7 @@ def create_file_basename(
     input_file_name: str,
     folder_path: str,
     data_root_dir: str = "",
+    separate_folder: bool = True,
     patch_index: Optional[int] = None,
 ) -> str:
     """
@@ -698,6 +699,9 @@ def create_file_basename(
             absolute path. This is used to compute `input_file_rel_path`, the relative path to the file from
             `data_root_dir` to preserve folder structure when saving in case there are files in different
             folders with the same file names.
+        separate_folder: whether to save every file in a separate folder, for example: if input filename is
+            `image.nii`, postfix is `seg` and folder_path is `output`, if `True`, save as:
+            `output/image/image_seg.nii`, if `False`, save as `output/image_seg.nii`. default to `True`.
         patch_index: if not None, append the patch index to filename.
     """
 
@@ -712,16 +716,17 @@ def create_file_basename(
     if data_root_dir and filedir:
         filedir_rel_path = os.path.relpath(filedir, data_root_dir)
 
-    # sub-folder path will be original name without the extension
-    subfolder_path = os.path.join(folder_path, filedir_rel_path, filename)
-    if not os.path.exists(subfolder_path):
-        os.makedirs(subfolder_path)
+    # output folder path will be original name without the extension
+    output = os.path.join(folder_path, filedir_rel_path)
 
-    if len(postfix) > 0:
-        # add the sub-folder plus the postfix name to become the file basename in the output path
-        output = os.path.join(subfolder_path, filename + "_" + postfix)
-    else:
-        output = os.path.join(subfolder_path, filename)
+    if separate_folder:
+        output = os.path.join(output, filename)
+
+    if not os.path.exists(output):
+        os.makedirs(output)
+
+    # add the sub-folder plus the postfix name to become the file basename in the output path
+    output = os.path.join(output, (filename + "_" + postfix) if len(postfix) > 0 else filename)
 
     if patch_index is not None:
         output += f"_{patch_index}"
