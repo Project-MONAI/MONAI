@@ -390,8 +390,8 @@ Distributed data parallel is an important feature of PyTorch to connect multiple
 
 ### 3. C++/CUDA optimized modules
 To further accelerate the domain-specific routines in the workflows, MONAI C++/CUDA implementation are introduced as extensions of the PyTorch native implementations.
-MONAI provides the modules using [the two ways of building C++ extensions from PyTorch](https://pytorch.org/tutorials/advanced/cpp_extension.html#jit-compiling-extensions):
-- via `setuptools`, for modules such as `Resampler`, `Conditional random field (CRF)`, `Fast bilateral filtering using the permutohedral lattice`,
+MONAI provides the modules using [the two ways of building C++ extensions from PyTorch](https://pytorch.org/tutorials/advanced/cpp_extension.html#custom-c-and-cuda-extensions):
+- via `setuptools`, for modules including `Resampler`, `Conditional random field (CRF)`, `Fast bilateral filtering using the permutohedral lattice`.
 - via just-in-time (JIT) compilation, for the `Gaussian mixtures` module. This approach allows for dynamic optimisation according to the user-specified parameters and local system environments.
 The following figure shows results of MONAI's Gaussian mixture models applied to tissue and surgical tools segmentation:
 ![Gaussian mixture models as a postprocessing step](../images/gmm_feature_set_comparison_s.png)

@@ -31,7 +31,10 @@ class TestEnsureTyped(unittest.TestCase):
             for dtype in ("tensor", "numpy"):
                 result = EnsureTyped(keys="data", data_type=dtype)({"data": test_data})["data"]
                 self.assertTrue(isinstance(result, torch.Tensor if dtype == "tensor" else np.ndarray))
-                torch.testing.assert_allclose(result, test_data)
+                if isinstance(test_data, bool):
+                    self.assertFalse(result)
+                else:
+                    torch.testing.assert_allclose(result, test_data)
                 self.assertEqual(result.ndim, 0)
 
     def test_string(self):
