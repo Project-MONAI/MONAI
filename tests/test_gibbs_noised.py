@@ -22,7 +22,7 @@ from monai.utils.misc import set_determinism
 from monai.utils.module import optional_import
 from tests.utils import TEST_NDARRAYS
 
-has_torch_fft, _ = optional_import("torch.fft")
+_, has_torch_fft = optional_import("torch.fft")
 
 TEST_CASES = []
 for shape in ((128, 64), (64, 48, 80)):
