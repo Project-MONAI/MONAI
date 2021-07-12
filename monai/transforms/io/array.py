@@ -289,3 +289,5 @@ class SaveImage(Transform):
 
         """
         self.saver.save(img, meta_data)
+
+        return img
