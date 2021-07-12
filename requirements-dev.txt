@@ -1,11 +1,11 @@
 # Full requirements for developments
 -r requirements-min.txt
-pytorch-ignite==0.4.2
+pytorch-ignite==0.4.5
 gdown>=3.6.4
 scipy
-itk>=5.0
+itk>=5.0, <=5.1.2
 nibabel
-pillow
+pillow!=8.3.0  # https://github.com/python-pillow/Pillow/issues/5571
 tensorboard
 scikit-image>=0.14.2
 tqdm>=4.47.0
@@ -21,12 +21,18 @@ pycodestyle
 pyflakes
 black
 isort
-pytype>=2020.6.1
+pytype>=2020.6.1; platform_system != "Windows"
+types-pkg_resources
 mypy>=0.790
 ninja
 torchvision
 psutil
-Sphinx==3.3.0
+Sphinx==3.5.3
 recommonmark==0.6.0
 sphinx-autodoc-typehints==1.11.1
-sphinx-rtd-theme==0.5.0
+sphinx-rtd-theme==0.5.2
+cucim~=0.19.0; platform_system == "Linux"
+openslide-python==1.1.2
+pandas
+requests
+einops
