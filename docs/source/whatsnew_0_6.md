@@ -5,6 +5,7 @@
 - Enhancements of the base metric interfaces
 - C++/CUDA extension modules via PyTorch JIT compilation
 - Backward compatibility and enhanced continuous integration/continuous delivery
+- Collaboration with Project-MONAI/MONAILabel for smooth integration
 
 
 ## Decollating mini-batches as an essential post-processing step
@@ -32,8 +33,7 @@ To demonstrate this new feature, a medical image segmentation tutorial is create
 It mainly produces the following figure to compare the loss curves and validation scores for
 - training from scratch (the green line),
 - applying pretrained MMAR weights without training (the magenta line),
-- training from the MMAR model weights (the blue
-line),
+- training from the MMAR model weights (the blue line),
 
 according to the number of training epochs:
 
@@ -62,3 +62,13 @@ New utilities are introduced on top of the existing semantic versioning modules,
 At the same time, we actively analyze efficient, scalable, and secure CI/CD solutions to accommodate fast and collaborative codebase development.
 
 Although a complete mechanism is still under development, these provide another essential step towards API-stable versions of MONAI, sustainable release cycles, and efficient open-source collaborations.
+
+## Collaboration with [`Project-MONAI/MONAILabel`](https://github.com/Project-MONAI/MONAILabel) for smooth integration
+Since MONAI v0.6, we welcome [`MONAILabel`](https://github.com/Project-MONAI/MONAILabel) under [`Project-MONAI`](https://github.com/Project-MONAI).
+
+MONAI Label is an intelligent open source image labeling and learning tool that enables users to create annotated datasets and build AI annotation models for clinical evaluation.
+MONAI Label enables application developers to build labeling apps in a serverless way,
+where custom labeling apps are exposed as a service through the MONAI Label Server.
+
+Please visit MONAILabel documentation website for details:
+https://docs.monai.io/projects/label/en/latest/
