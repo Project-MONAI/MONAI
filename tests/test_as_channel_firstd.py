@@ -19,18 +19,18 @@ from monai.transforms import AsChannelFirstd
 
 TESTS = []
 for p in TEST_NDARRAYS:
-    TESTS.append([{"keys": ["image", "label", "extra"], "channel_dim": -1}, (4, 1, 2, 3)])
-    TESTS.append([{"keys": ["image", "label", "extra"], "channel_dim": 3}, (4, 1, 2, 3)])
-    TESTS.append([{"keys": ["image", "label", "extra"], "channel_dim": 2}, (3, 1, 2, 4)])
+    TESTS.append([p, {"keys": ["image", "label", "extra"], "channel_dim": -1}, (4, 1, 2, 3)])
+    TESTS.append([p, {"keys": ["image", "label", "extra"], "channel_dim": 3}, (4, 1, 2, 3)])
+    TESTS.append([p, {"keys": ["image", "label", "extra"], "channel_dim": 2}, (3, 1, 2, 4)])
 
 
 class TestAsChannelFirstd(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_shape(self, input_param, expected_shape):
+    def test_shape(self, in_type, input_param, expected_shape):
         test_data = {
-            "image": np.random.randint(0, 2, size=[1, 2, 3, 4]),
-            "label": np.random.randint(0, 2, size=[1, 2, 3, 4]),
-            "extra": np.random.randint(0, 2, size=[1, 2, 3, 4]),
+            "image": in_type(np.random.randint(0, 2, size=[1, 2, 3, 4])),
+            "label": in_type(np.random.randint(0, 2, size=[1, 2, 3, 4])),
+            "extra": in_type(np.random.randint(0, 2, size=[1, 2, 3, 4])),
         }
         result = AsChannelFirstd(**input_param)(test_data)
         self.assertTupleEqual(result["image"].shape, expected_shape)
