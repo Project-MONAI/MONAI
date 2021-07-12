@@ -467,6 +467,19 @@ def generate_label_classes_crop_centers(
     indices: List[np.ndarray],
     rand_state: Optional[np.random.RandomState] = None,
 ) -> List[List[np.ndarray]]:
+    """
+    Generate valid sample locations based on the specified ratios of label classes.
+    Valid: samples sitting entirely within image, expected input shape: [C, H, W, D] or [C, H, W]
+
+    Args:
+        spatial_size: spatial size of the ROIs to be sampled.
+        num_samples: total sample centers to be generated.
+        ratios: ratio of every class in the label to generate crop centers, including background class.
+        label_spatial_shape: spatial shape of the original label data to unravel selected centers.
+        indices: sequence of pre-computed foreground indices of every class in 1 dimension.
+        rand_state: numpy randomState object to align with other modules.
+
+    """
     if rand_state is None:
         rand_state = np.random.random.__self__  # type: ignore
 

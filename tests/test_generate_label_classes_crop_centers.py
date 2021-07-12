@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms import generate_classes_label_crop_centers
+from monai.transforms import generate_label_classes_crop_centers
 
 TEST_CASE_1 = [
     {
@@ -31,10 +31,10 @@ TEST_CASE_1 = [
 ]
 
 
-class TestGenerateClassesLabelCropCenters(unittest.TestCase):
+class TestGenerateLabelClassesCropCenters(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1])
     def test_type_shape(self, input_data, expected_type, expected_count, expected_shape):
-        result = generate_classes_label_crop_centers(**input_data)
+        result = generate_label_classes_crop_centers(**input_data)
         self.assertIsInstance(result, expected_type)
         self.assertEqual(len(result), expected_count)
         self.assertEqual(len(result[0]), expected_shape)
