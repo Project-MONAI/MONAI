@@ -197,6 +197,9 @@ class SaveImaged(MapTransform):
             output_dir: /output,
             data_root_dir: /foo/bar,
             output will be: /output/test1/image/image_seg.nii.gz
+        separate_folder: whether to save every file in a separate folder, for example: if input filename is
+            `image.nii`, postfix is `seg` and folder_path is `output`, if `True`, save as:
+            `output/image/image_seg.nii`, if `False`, save as `output/image_seg.nii`. default to `True`.
         print_log: whether to print log about the saved file path, etc. default to `True`.
 
     """
@@ -218,6 +221,7 @@ class SaveImaged(MapTransform):
         allow_missing_keys: bool = False,
         squeeze_end_dims: bool = True,
         data_root_dir: str = "",
+        separate_folder: bool = True,
         print_log: bool = True,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -235,6 +239,7 @@ class SaveImaged(MapTransform):
             output_dtype=output_dtype,
             squeeze_end_dims=squeeze_end_dims,
             data_root_dir=data_root_dir,
+            separate_folder=separate_folder,
             print_log=print_log,
         )
 
