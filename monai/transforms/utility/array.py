@@ -22,16 +22,6 @@ from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Uni
 import numpy as np
 import torch
 
-from monai.config import DtypeLike, NdarrayTensor
-from monai.transforms.transform import Randomizable, Transform
-from monai.transforms.utils import (
-    convert_to_numpy,
-    convert_to_tensor,
-    extreme_points_to_image,
-    get_extreme_points,
-    map_binary_to_indices,
-)
-from monai.utils import ensure_tuple, issequenceiterable, min_version, optional_import
 from monai.config import DtypeLike
 from monai.transforms.transform import (
     NumpyTransform,
@@ -41,7 +31,13 @@ from monai.transforms.transform import (
     Transform,
     convert_data_type,
 )
-from monai.transforms.utils import extreme_points_to_image, get_extreme_points, map_binary_to_indices
+from monai.transforms.utils import (
+    convert_to_numpy,
+    convert_to_tensor,
+    extreme_points_to_image,
+    get_extreme_points,
+    map_binary_to_indices,
+)
 from monai.utils import ensure_tuple, min_version, optional_import
 from monai.utils.enums import DataObjects
 from monai.utils.misc import dtype_convert

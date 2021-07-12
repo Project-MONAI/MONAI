@@ -510,7 +510,9 @@ class Rotate(TorchTransform, ThreadUnsafe):
             reverse_indexing=True,
         )
         output = xform(
-            img_t.unsqueeze(0), transform_t, spatial_size=output_shape,
+            img_t.unsqueeze(0),
+            transform_t,
+            spatial_size=output_shape,
         )
         self._rotation_matrix = transform
         return self.post_convert_data(output.squeeze(0).float(), orig_type, orig_device)
