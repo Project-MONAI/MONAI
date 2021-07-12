@@ -61,17 +61,15 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
 
     def __init__(
         self,
-        in_channels: int,
         ndim: int = 3,
         kernel_size: int = 3,
         kernel_type: str = "rectangular",
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
-        smooth_nr: float = 1e-7,
-        smooth_dr: float = 1e-7,
+        smooth_nr: float = 1e-5,
+        smooth_dr: float = 1e-5,
     ) -> None:
         """
         Args:
-            in_channels: number of input channels
             ndim: number of spatial ndimensions, {``1``, ``2``, ``3``}. Defaults to 3.
             kernel_size: kernel spatial size, must be odd.
             kernel_type: {``"rectangular"``, ``"triangular"``, ``"gaussian"``}. Defaults to ``"rectangular"``.
@@ -85,7 +83,6 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
             smooth_dr: a small constant added to the denominator to avoid nan.
         """
         super(LocalNormalizedCrossCorrelationLoss, self).__init__(reduction=LossReduction(reduction).value)
-        self.in_channels = in_channels
 
         self.ndim = ndim
         if self.ndim not in [1, 2, 3]:
@@ -119,8 +116,6 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         Raises:
             ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
         """
-        if pred.shape[1] != self.in_channels:
-            raise ValueError(f"expecting pred with {self.in_channels} channels, got pred of shape {pred.shape}")
         if pred.ndim - 2 != self.ndim:
             raise ValueError(f"expecting pred with {self.ndim} spatial dimensions, got pred of shape {pred.shape}")
         if target.shape != pred.shape:
@@ -129,11 +124,11 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         t2, p2, tp = target ** 2, pred ** 2, target * pred
         kernel, kernel_vol = self.kernel.to(pred), self.kernel_vol.to(pred)
         # sum over kernel
-        t_sum = separable_filtering(target, kernels=[kernel] * self.ndim)
-        p_sum = separable_filtering(pred, kernels=[kernel] * self.ndim)
-        t2_sum = separable_filtering(t2, kernels=[kernel] * self.ndim)
-        p2_sum = separable_filtering(p2, kernels=[kernel] * self.ndim)
-        tp_sum = separable_filtering(tp, kernels=[kernel] * self.ndim)
+        t_sum = separable_filtering(target, kernels=[kernel.to(pred)] * self.ndim)
+        p_sum = separable_filtering(pred, kernels=[kernel.to(pred)] * self.ndim)
+        t2_sum = separable_filtering(t2, kernels=[kernel.to(pred)] * self.ndim)
+        p2_sum = separable_filtering(p2, kernels=[kernel.to(pred)] * self.ndim)
+        tp_sum = separable_filtering(tp, kernels=[kernel.to(pred)] * self.ndim)
 
         # average over kernel
         t_avg = t_sum / kernel_vol
@@ -151,6 +146,8 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         cross = tp_sum - p_avg * t_sum
         t_var = t2_sum - t_avg * t_sum  # std[t] ** 2
         p_var = p2_sum - p_avg * p_sum  # std[p] ** 2
+        t_var = torch.max(t_var, torch.zeros_like(t_var))
+        p_var = torch.max(p_var, torch.zeros_like(p_var))
         ncc: torch.Tensor = (cross * cross + self.smooth_nr) / (t_var * p_var + self.smooth_dr)
         # shape = (batch, 1, D, H, W)
 
