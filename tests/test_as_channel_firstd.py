@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from tests.utils import TEST_NDARRAYS
 import unittest
 
 import numpy as np
@@ -16,15 +17,15 @@ from parameterized import parameterized
 
 from monai.transforms import AsChannelFirstd
 
-TEST_CASE_1 = [{"keys": ["image", "label", "extra"], "channel_dim": -1}, (4, 1, 2, 3)]
-
-TEST_CASE_2 = [{"keys": ["image", "label", "extra"], "channel_dim": 3}, (4, 1, 2, 3)]
-
-TEST_CASE_3 = [{"keys": ["image", "label", "extra"], "channel_dim": 2}, (3, 1, 2, 4)]
+TESTS = []
+for p in TEST_NDARRAYS:
+    TESTS.append([{"keys": ["image", "label", "extra"], "channel_dim": -1}, (4, 1, 2, 3)])
+    TESTS.append([{"keys": ["image", "label", "extra"], "channel_dim": 3}, (4, 1, 2, 3)])
+    TESTS.append([{"keys": ["image", "label", "extra"], "channel_dim": 2}, (3, 1, 2, 4)])
 
 
 class TestAsChannelFirstd(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    @parameterized.expand(TESTS)
     def test_shape(self, input_param, expected_shape):
         test_data = {
             "image": np.random.randint(0, 2, size=[1, 2, 3, 4]),

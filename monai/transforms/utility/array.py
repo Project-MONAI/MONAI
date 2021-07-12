@@ -90,7 +90,7 @@ class Identity(TorchOrNumpyTransform):
         return img
 
 
-class AsChannelFirst(TorchTransform):
+class AsChannelFirst(TorchOrNumpyTransform):
     """
     Change the channel dimension of the image to the first dimension.
 
@@ -115,9 +115,12 @@ class AsChannelFirst(TorchTransform):
         """
         Apply the transform to `img`.
         """
-        img, orig_type, orig_device = self.pre_conv_data(img)
-        img = torch.moveaxis(img, self.channel_dim, 0)  # type: ignore
-        return self.post_convert_data(img, orig_type, orig_device)
+        if isinstance(img, torch.Tensor) and hasattr(torch, "moveaxis"):
+            return torch.moveaxis(img, self.channel_dim, 0)
+
+        img, orig_type, _ = convert_data_type(img, np.ndarray)
+        img = np.moveaxis(img, self.channel_dim, 0)
+        return convert_data_type(img, orig_type)[0]
 
 
 class AsChannelLast(TorchTransform):
