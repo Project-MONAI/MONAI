@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
 from typing import TYPE_CHECKING, Callable
 
 from monai.config import IgniteInfo
@@ -52,7 +51,11 @@ class PostProcessing:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
         if not isinstance(engine.state.batch, list) or not isinstance(engine.state.output, list):
-            warnings.warn("postprocessing requires `engine.state.batch` and `engine.state.outout` to be lists.")
+            engine.state.batch, engine.state.output = engine_apply_transform(
+                batch=engine.state.batch,
+                output=engine.state.output,
+                transform=self.transform,
+            )
         else:
             for i, (b, o) in enumerate(zip(engine.state.batch, engine.state.output)):
                 engine.state.batch[i], engine.state.output[i] = engine_apply_transform(b, o, self.transform)

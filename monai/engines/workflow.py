@@ -20,6 +20,7 @@ from torch.utils.data.distributed import DistributedSampler
 from monai.config import IgniteInfo
 from monai.data import decollate_batch, rep_scalar_to_batch
 from monai.engines.utils import IterationEvents, default_metric_cmp_fn, default_prepare_batch
+from monai.transforms import Transform
 from monai.utils import ensure_tuple, min_version, optional_import
 
 from .utils import engine_apply_transform
@@ -75,8 +76,8 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             for more details, check: https://pytorch.org/ignite/generated/ignite.engine.engine.Engine.html
             #ignite.engine.engine.Engine.register_events.
         decollate: whether to decollate the batch-first data to a list of data after model computation,
-            default to `True`. if `False`, postprocessing will be ignored as the `monai.transforms` module
-            assumes channel-first data.
+            default to `True`. if `False`, as the `monai.transforms` module assumes channel-first data,
+            please don't set `monai.transforms` for `postprocessing`.
 
     Raises:
         TypeError: When ``device`` is not a ``torch.Device``.
@@ -166,9 +167,11 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
 
         if decollate:
             self._register_decollate()
-            # postprocessing can only work if `decollate=True`
-            if postprocessing is not None:
-                self._register_postprocessing(postprocessing)
+
+        if postprocessing is not None:
+            if not decollate and isinstance(postprocessing, Transform):
+                warnings.warn("MONAI transforms expect `channel-first` data, `decollate=False` may not work here.")
+            self._register_postprocessing(postprocessing)
         if key_metric is not None:
             self._register_metrics(key_metric, additional_metrics)
         if handlers is not None:
@@ -195,7 +198,11 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         @self.on(IterationEvents.MODEL_COMPLETED)
         def _run_postprocessing(engine: Engine) -> None:
             if not isinstance(engine.state.batch, list) or not isinstance(engine.state.output, list):
-                warnings.warn("postprocessing requires `engine.state.batch` and `engine.state.outout` to be lists.")
+                engine.state.batch, engine.state.output = engine_apply_transform(
+                    batch=engine.state.batch,
+                    output=engine.state.output,
+                    transform=posttrans,
+                )
             else:
                 for i, (b, o) in enumerate(zip(engine.state.batch, engine.state.output)):
                     engine.state.batch[i], engine.state.output[i] = engine_apply_transform(b, o, posttrans)
