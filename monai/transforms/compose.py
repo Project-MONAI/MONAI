@@ -186,25 +186,19 @@ class OneOf(Compose):
 
     def __init__(
         self,
-        transforms: Optional[Sequence[Callable]] = None,
-        weights: Optional[Sequence[float]] = None,
+        transforms: Optional[Union[Sequence[Callable], Callable]] = None,
+        weights: Optional[Union[Sequence[float], float]] = None,
         map_items: bool = True,
         unpack_items: bool = False,
     ) -> None:
-        if transforms is None:
-            transforms = []
-        self.transforms = ensure_tuple(transforms)
-        if weights is None:
-            if len(transforms) == 0:
-                weights = []
-            else:
-                weights = [1.0 / len(transforms)] * len(transforms)
-        if len(weights) != len(transforms):
+        super().__init__(transforms, map_items, unpack_items)
+        if len(self.transforms) == 0:
+            weights = []
+        elif weights is None or isinstance(weights, float):
+            weights = [1.0 / len(self.transforms)] * len(self.transforms)
+        if len(weights) != len(self.transforms):
             raise AssertionError("transforms and weights should be same size if both specified as sequences.")
         self.weights = ensure_tuple(self._normalize_probabilities(weights))
-        self.map_items = map_items
-        self.unpack_items = unpack_items
-        self.set_random_state(seed=get_seed())
 
     def _normalize_probabilities(self, weights):
         if len(weights) == 0:
