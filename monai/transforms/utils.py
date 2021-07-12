@@ -57,7 +57,7 @@ __all__ = [
     "map_classes_to_indices",
     "weighted_patch_samples",
     "generate_pos_neg_label_crop_centers",
-    "generate_classes_label_crop_centers",
+    "generate_label_classes_crop_centers",
     "create_grid",
     "create_control_grid",
     "create_rotate",
@@ -459,7 +459,7 @@ def generate_pos_neg_label_crop_centers(
     return centers
 
 
-def generate_classes_label_crop_centers(
+def generate_label_classes_crop_centers(
     spatial_size: Union[Sequence[int], int],
     num_samples: int,
     ratios: Sequence[float],

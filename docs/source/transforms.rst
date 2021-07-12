@@ -120,9 +120,9 @@ Crop and Pad
     :members:
     :special-members: __call__
 
-`RandCropByClassesLabel`
+`RandCropByLabelClasses`
 """"""""""""""""""""""""
-.. autoclass:: RandCropByClassesLabel
+.. autoclass:: RandCropByLabelClasses
     :members:
     :special-members: __call__
 
@@ -712,9 +712,9 @@ Crop and Pad (Dict)
     :members:
     :special-members: __call__
 
-`RandCropByClassesLabeld`
+`RandCropByLabelClassesd`
 """""""""""""""""""""""""
-.. autoclass:: RandCropByClassesLabeld
+.. autoclass:: RandCropByLabelClassesd
     :members:
     :special-members: __call__
 

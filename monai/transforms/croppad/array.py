@@ -25,7 +25,7 @@ from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import (
     compute_divisible_spatial_size,
-    generate_classes_label_crop_centers,
+    generate_label_classes_crop_centers,
     generate_pos_neg_label_crop_centers,
     generate_spatial_bounding_box,
     is_positive,
@@ -48,7 +48,7 @@ __all__ = [
     "CropForeground",
     "RandWeightedCrop",
     "RandCropByPosNegLabel",
-    "RandCropByClassesLabel",
+    "RandCropByLabelClasses",
     "ResizeWithPadOrCrop",
     "BoundingRect",
 ]
@@ -821,7 +821,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         return results
 
 
-class RandCropByClassesLabel(Randomizable, Transform):
+class RandCropByLabelClasses(Randomizable, Transform):
     def __init__(
         self,
         spatial_size: Union[Sequence[int], int],
@@ -853,7 +853,7 @@ class RandCropByClassesLabel(Randomizable, Transform):
             indices_ = map_classes_to_indices(label, image, self.image_threshold)
         else:
             indices_ = indices
-        self.centers = generate_classes_label_crop_centers(
+        self.centers = generate_label_classes_crop_centers(
             self.spatial_size, self.num_samples, self.ratios, label.shape[1:], indices_, self.R
         )
 

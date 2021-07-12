@@ -40,7 +40,7 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable
 from monai.transforms.utils import (
     allow_missing_keys_mode,
-    generate_classes_label_crop_centers,
+    generate_label_classes_crop_centers,
     generate_pos_neg_label_crop_centers,
     is_positive,
     map_binary_to_indices,
@@ -1142,7 +1142,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
         return d
 
 
-class RandCropByClassesLabeld(Randomizable, MapTransform, InvertibleTransform):
+class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
     def __init__(
         self,
         keys: KeysCollection,
@@ -1183,7 +1183,7 @@ class RandCropByClassesLabeld(Randomizable, MapTransform, InvertibleTransform):
             indices_ = map_classes_to_indices(label, image, self.image_threshold)
         else:
             indices_ = indices
-        self.centers = generate_classes_label_crop_centers(
+        self.centers = generate_label_classes_crop_centers(
             self.spatial_size, self.num_samples, self.ratios, label.shape[1:], indices_, self.R
         )
 
@@ -1374,6 +1374,6 @@ RandSpatialCropSamplesD = RandSpatialCropSamplesDict = RandSpatialCropSamplesd
 CropForegroundD = CropForegroundDict = CropForegroundd
 RandWeightedCropD = RandWeightedCropDict = RandWeightedCropd
 RandCropByPosNegLabelD = RandCropByPosNegLabelDict = RandCropByPosNegLabeld
-RandCropByClassesLabelD = RandCropByClassesLabelDict = RandCropByClassesLabeld
+RandCropByLabelClassesD = RandCropByLabelClassesDict = RandCropByLabelClassesd
 ResizeWithPadOrCropD = ResizeWithPadOrCropDict = ResizeWithPadOrCropd
 BoundingRectD = BoundingRectDict = BoundingRectd
