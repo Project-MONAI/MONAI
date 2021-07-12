@@ -29,14 +29,14 @@ class UNETR(nn.Module):
         in_channels: int,
         out_channels: int,
         img_size: Tuple[int, int, int],
-        feature_size: int,
-        hidden_size: int,
-        mlp_dim: int,
-        num_heads: int,
-        pos_embed: str,
-        norm_name: Union[Tuple, str],
+        feature_size: int = 16,
+        hidden_size: int = 768,
+        mlp_dim: int = 3072,
+        num_heads: int = 12,
+        pos_embed: str = "perceptron",
+        norm_name: Union[Tuple, str] = "instance",
         conv_block: bool = False,
-        res_block: bool = False,
+        res_block: bool = True,
         dropout_rate: float = 0.0,
     ) -> None:
         """
@@ -53,6 +53,14 @@ class UNETR(nn.Module):
             conv_block: bool argument to determine if convolutional block is used.
             res_block: bool argument to determine if residual block is used.
             dropout_rate: faction of the input units to drop.
+
+        Examples::
+
+            # for single channel input 4-channel output with patch size of (96,96,96), feature size of 32 and batch norm
+            >>> net = UNETR(in_channels=1, out_channels=4, img_size=(96,96,96), feature_size=32, norm_name='batch')
+
+            # for 4-channel input 3-channel output with patch size of (128,128,128), conv position embedding and instance norm
+            >>> net = UNETR(in_channels=4, out_channels=3, img_size=(128,128,128), pos_embed='conv', norm_name='instance')
 
         """
 

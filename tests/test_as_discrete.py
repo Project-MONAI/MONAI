@@ -46,6 +46,15 @@ for p in TEST_NDARRAYS:
         ]
     )
 
+    TESTS.append(
+        [
+            {"argmax": False, "to_onehot": True, "n_classes": 3},
+            p(1),
+            p([0.0, 1.0, 0.0]),
+            (3,),
+        ]
+    )
+
 
 class TestAsDiscrete(unittest.TestCase):
     @parameterized.expand(TESTS)

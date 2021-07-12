@@ -153,6 +153,8 @@ class AsDiscrete(TorchTransform):
     ) -> DataObjects.Images:
         """
         Args:
+            img: the input tensor data to convert, if no channel dimension when converting to `One-Hot`,
+                will automatically add it.
             argmax: whether to execute argmax function on input data before transform.
                 Defaults to ``self.argmax``.
             to_onehot: whether to convert input data into the one-hot format.

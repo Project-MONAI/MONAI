@@ -48,7 +48,7 @@ def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.f
         num_classes: number of output channels, the corresponding length of `labels[dim]` will be converted to
             `num_classes` from `1`.
         dtype: the data type of the output one_hot label.
-        dim: the dimension to be converted to `num_classes` channels from `1` channel.
+        dim: the dimension to be converted to `num_classes` channels from `1` channel, should be non-negative number.
 
     Example:
 
@@ -69,9 +69,6 @@ def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.f
         print(out.shape)  # torch.Size([2, 2, 2, 2, 2])
 
     """
-    if labels.dim() == 0:
-        # if no channel dim, add it
-        labels = labels.unsqueeze(0)
 
     # if `dim` is bigger, add singleton dim at the end
     if labels.ndim < dim + 1:

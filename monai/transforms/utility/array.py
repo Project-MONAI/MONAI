@@ -22,6 +22,16 @@ from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Uni
 import numpy as np
 import torch
 
+from monai.config import DtypeLike, NdarrayTensor
+from monai.transforms.transform import Randomizable, Transform
+from monai.transforms.utils import (
+    convert_to_numpy,
+    convert_to_tensor,
+    extreme_points_to_image,
+    get_extreme_points,
+    map_binary_to_indices,
+)
+from monai.utils import ensure_tuple, issequenceiterable, min_version, optional_import
 from monai.config import DtypeLike
 from monai.transforms.transform import (
     NumpyTransform,
@@ -47,6 +57,7 @@ __all__ = [
     "AsChannelLast",
     "AddChannel",
     "EnsureChannelFirst",
+    "EnsureType",
     "RepeatChannel",
     "RemoveRepeatedChannel",
     "SplitChannel",
@@ -329,6 +340,37 @@ class ToTensor(TorchTransform):
         return img
 
 
+class EnsureType(Transform):
+    """
+    Ensure the input data to be a PyTorch Tensor or numpy array, support: `numpy array`, `PyTorch Tensor`,
+    `float`, `int`, `bool`, `string` and `object` keep the original.
+    If passing a dictionary, list or tuple, still return dictionary, list or tuple and recursively convert
+    every item to the expected data type.
+
+    Args:
+        data_type: target data type to convert, should be "tensor" or "numpy".
+
+    """
+
+    def __init__(self, data_type: str = "tensor") -> None:
+        data_type = data_type.lower()
+        if data_type not in ("tensor", "numpy"):
+            raise ValueError("`data type` must be 'tensor' or 'numpy'.")
+
+        self.data_type = data_type
+
+    def __call__(self, data):
+        """
+        Args:
+            data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
+                will ensure Tensor, Numpy array, float, int, bool as Tensors or numpy arrays, strings and
+                objects keep the original. for dictionay, list or tuple, ensure every item as expected type
+                if applicable.
+
+        """
+        return convert_to_tensor(data) if self.data_type == "tensor" else convert_to_numpy(data)
+
+
 class ToNumpy(NumpyTransform):
     """
     Converts the input data to numpy array, can support list or tuple of numbers and PyTorch Tensor.
@@ -345,6 +387,9 @@ class ToNumpy(NumpyTransform):
             img = np.ascontiguousarray(img)
         return img
 
+        array: np.ndarray = np.asarray(img)
+        return np.ascontiguousarray(array) if array.ndim > 0 else array
+
 
 class ToCupy(Transform):
     """
@@ -356,7 +401,7 @@ class ToCupy(Transform):
         Apply the transform to `img` and make it contiguous.
         """
         if isinstance(img, torch.Tensor):
-            img = img.detach().cpu().numpy()  # type: ignore
+            img = img.detach().cpu().numpy()
         return cp.ascontiguousarray(cp.asarray(img))
 
 

@@ -11,6 +11,7 @@
 
 import itertools
 import random
+import re
 import warnings
 from contextlib import contextmanager
 from typing import Callable, List, Optional, Sequence, Tuple, Union
@@ -37,6 +38,8 @@ from monai.utils import (
 from monai.utils.enums import DataObjects
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
+cp, has_cp = optional_import("cupy")
+cp_ndarray, _ = optional_import("cupy", name="ndarray")
 
 __all__ = [
     "rand_choice",
@@ -67,6 +70,9 @@ __all__ = [
     "map_spatial_axes",
     "allow_missing_keys_mode",
     "convert_inverse_interp_mode",
+    "convert_to_tensor",
+    "convert_to_numpy",
+    "tensor_to_numpy",
 ]
 
 
@@ -843,3 +849,90 @@ def compute_divisible_spatial_size(spatial_shape: Sequence[int], k: Union[Sequen
         new_size.append(new_dim)
 
     return new_size
+
+
+def convert_to_tensor(data):
+    """
+    Utility to convert the input data to a PyTorch Tensor. If passing a dictionary, list or tuple,
+    recursively check every item and convert it to PyTorch Tensor.
+
+    Args:
+        data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
+            will convert Tensor, Numpy array, float, int, bool to Tensors, strings and objects keep the original.
+            for dictionay, list or tuple, convert every item to a Tensor if applicable.
+
+    """
+    if isinstance(data, torch.Tensor):
+        return data.contiguous()
+    elif isinstance(data, np.ndarray):
+        # skip array of string classes and object, refer to:
+        # https://github.com/pytorch/pytorch/blob/v1.9.0/torch/utils/data/_utils/collate.py#L13
+        if re.search(r"[SaUO]", data.dtype.str) is None:
+            # numpy array with 0 dims is also sequence iterable,
+            # `ascontiguousarray` will add 1 dim if img has no dim, so we only apply on data with dims
+            return torch.as_tensor(data if data.ndim == 0 else np.ascontiguousarray(data))
+    elif isinstance(data, (float, int, bool)):
+        return torch.as_tensor(data)
+    elif isinstance(data, dict):
+        return {k: convert_to_tensor(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [convert_to_tensor(i) for i in data]
+    elif isinstance(data, tuple):
+        return tuple([convert_to_tensor(i) for i in data])
+
+    return data
+
+
+def convert_to_numpy(data):
+    """
+    Utility to convert the input data to a numpy array. If passing a dictionary, list or tuple,
+    recursively check every item and convert it to numpy array.
+
+    Args:
+        data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
+            will convert Tensor, Numpy array, float, int, bool to numpy arrays, strings and objects keep the original.
+            for dictionay, list or tuple, convert every item to a numpy array if applicable.
+
+    """
+    if isinstance(data, torch.Tensor):
+        data = data.detach().cpu().numpy()
+    elif has_cp and isinstance(data, cp_ndarray):
+        data = cp.asnumpy(data)
+    elif isinstance(data, (float, int, bool)):
+        data = np.asarray(data)
+    elif isinstance(data, dict):
+        return {k: convert_to_numpy(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [convert_to_numpy(i) for i in data]
+    elif isinstance(data, tuple):
+        return tuple([convert_to_numpy(i) for i in data])
+
+    if isinstance(data, np.ndarray) and data.ndim > 0:
+        data = np.ascontiguousarray(data)
+
+    return data
+
+
+def tensor_to_numpy(data):
+    """
+    Utility to convert the input PyTorch Tensor data to numpy array, if scalar Tensor, convert to regular number.
+    If passing a dictionary, list or tuple, recursively check every PyTorch Tensor item and convert it to numpy arrays.
+
+    Args:
+        data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
+            will convert the Tensor data to numpy array, others keep the original. for dictionay, list or tuple,
+            convert every Tensor item to numpy array if applicable.
+
+    """
+
+    if isinstance(data, torch.Tensor):
+        # invert Tensor to numpy, if scalar data, convert to number
+        return data.item() if data.ndim == 0 else np.ascontiguousarray(data.detach().cpu().numpy())
+    elif isinstance(data, dict):
+        return {k: tensor_to_numpy(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [tensor_to_numpy(i) for i in data]
+    elif isinstance(data, tuple):
+        return tuple([tensor_to_numpy(i) for i in data])
+
+    return data

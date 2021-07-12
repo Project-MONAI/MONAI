@@ -22,6 +22,8 @@ from typing import Any, Callable, Optional, Sequence, Tuple, Union, cast
 import numpy as np
 import torch
 
+from monai.utils.module import get_torch_version_tuple
+
 __all__ = [
     "zip_with",
     "star_zip_with",
@@ -215,6 +217,7 @@ def get_seed() -> Optional[int]:
 
 def set_determinism(
     seed: Optional[int] = np.iinfo(np.uint32).max,
+    use_deterministic_algorithms: Optional[bool] = None,
     additional_settings: Optional[Union[Sequence[Callable[[int], Any]], Callable[[int], Any]]] = None,
 ) -> None:
     """
@@ -225,8 +228,8 @@ def set_determinism(
             It is recommended to set a large seed, i.e. a number that has a good balance
             of 0 and 1 bits. Avoid having many 0 bits in the seed.
             if set to None, will disable deterministic training.
-        additional_settings: additional settings
-            that need to set random seed.
+        use_deterministic_algorithms: Set whether PyTorch operations must use "deterministic" algorithms.
+        additional_settings: additional settings that need to set random seed.
 
     """
     if seed is None:
@@ -254,6 +257,15 @@ def set_determinism(
     else:  # restore the original flags
         torch.backends.cudnn.deterministic = _flag_deterministic
         torch.backends.cudnn.benchmark = _flag_cudnn_benchmark
+
+    if use_deterministic_algorithms is not None:
+        torch_ver = get_torch_version_tuple()
+        if torch_ver >= (1, 9):
+            torch.use_deterministic_algorithms(use_deterministic_algorithms)
+        elif torch_ver >= (1, 7):
+            torch.set_deterministic(use_deterministic_algorithms)  # beta feature
+        else:
+            warnings.warn("use_deterministic_algorithms=True, but PyTorch version is too old to set the mode.")
 
 
 def list_to_dict(items):
@@ -379,3 +391,13 @@ class ImageMetaKey:
 
     FILENAME_OR_OBJ = "filename_or_obj"
     PATCH_INDEX = "patch_index"
+
+
+def has_option(obj, keywords: Union[str, Sequence[str]]) -> bool:
+    """
+    Return a boolean indicating whether the given callable `obj` has the `keywords` in its signature.
+    """
+    if not callable(obj):
+        return False
+    sig = inspect.signature(obj)
+    return all(key in sig.parameters for key in ensure_tuple(keywords))
