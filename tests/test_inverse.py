@@ -39,6 +39,7 @@ from monai.transforms import (
     Orientationd,
     RandAffined,
     RandAxisFlipd,
+    RandCropByLabelClassesd,
     RandCropByPosNegLabeld,
     RandFlipd,
     Randomizable,
@@ -447,6 +448,15 @@ TESTS.append(
 
 TESTS.append(
     (
+        "RandCropByLabelClassesd 2d",
+        "2D",
+        1e-7,
+        RandCropByLabelClassesd(KEYS, "label", (99, 96), ratios=[1, 2, 3, 4, 5], num_classes=5, num_samples=10),
+    )
+)
+
+TESTS.append(
+    (
         "RandCropByPosNegLabeld 2d",
         "2D",
         1e-7,
@@ -478,6 +488,7 @@ TESTS = TESTS + TESTS_COMPOSE_X2  # type: ignore
 
 NUM_SAMPLES = 5
 N_SAMPLES_TESTS = [
+    [RandCropByLabelClassesd(KEYS, "label", (110, 99), [1, 2, 3, 4, 5], num_classes=5, num_samples=NUM_SAMPLES)],
     [RandCropByPosNegLabeld(KEYS, "label", (110, 99), num_samples=NUM_SAMPLES)],
     [RandSpatialCropSamplesd(KEYS, (90, 91), num_samples=NUM_SAMPLES, random_size=False)],
     [RandWeightedCropd(KEYS, "label", (90, 91), num_samples=NUM_SAMPLES)],
