@@ -495,9 +495,10 @@ def generate_label_classes_crop_centers(
             ratios[i] = 0
 
     centers = []
-    for _ in range(num_samples):
+    classes = rand_state.choice(len(ratios), size=num_samples, p=np.asarray(ratios) / np.sum(ratios))
+    for i in classes:
         # randomly select the indices of a class based on the ratios
-        indices_to_use = indices[rand_state.choice(len(ratios), p=np.asarray(ratios) / np.sum(ratios))]
+        indices_to_use = indices[i]
         random_int = rand_state.randint(len(indices_to_use))
         center = np.unravel_index(indices_to_use[random_int], label_spatial_shape)
         # shift center to range of valid centers
