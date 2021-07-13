@@ -25,9 +25,9 @@ TEST_CASE_1 = [
         "threshold_values": False,
         "logit_thresh": 0.5,
     },
-    {"pred": torch.tensor([[[[0.0, 1.0]], [[2.0, 3.0]]]]), "label": torch.tensor([[[[0, 1]]]])},
-    {"pred": torch.tensor([[[[0.0, 0.0]], [[1.0, 1.0]]]]), "label": torch.tensor([[[[1.0, 0.0]], [[0.0, 1.0]]]])},
-    (1, 2, 1, 2),
+    {"pred": torch.tensor([[[0.0, 1.0]], [[2.0, 3.0]]]), "label": torch.tensor([[[0, 1]]])},
+    {"pred": torch.tensor([[[0.0, 0.0]], [[1.0, 1.0]]]), "label": torch.tensor([[[1.0, 0.0]], [[0.0, 1.0]]])},
+    (2, 1, 2),
 ]
 
 TEST_CASE_2 = [
@@ -39,9 +39,9 @@ TEST_CASE_2 = [
         "threshold_values": [True, False],
         "logit_thresh": 0.6,
     },
-    {"pred": torch.tensor([[[[0.0, 1.0], [2.0, 3.0]]]]), "label": torch.tensor([[[[0, 1], [1, 1]]]])},
-    {"pred": torch.tensor([[[[0.0, 1.0], [1.0, 1.0]]]]), "label": torch.tensor([[[[0.0, 1.0], [1.0, 1.0]]]])},
-    (1, 1, 2, 2),
+    {"pred": torch.tensor([[[0.0, 1.0], [2.0, 3.0]]]), "label": torch.tensor([[[0, 1], [1, 1]]])},
+    {"pred": torch.tensor([[[0.0, 1.0], [1.0, 1.0]]]), "label": torch.tensor([[[0.0, 1.0], [1.0, 1.0]]])},
+    (1, 2, 2),
 ]
 
 TEST_CASE_3 = [
@@ -53,9 +53,9 @@ TEST_CASE_3 = [
         "threshold_values": False,
         "logit_thresh": 0.5,
     },
-    {"pred": torch.tensor([[[[0.0, 1.0]], [[2.0, 3.0]]]])},
-    {"pred": torch.tensor([[[[0.0, 0.0]], [[1.0, 1.0]]]])},
-    (1, 2, 1, 2),
+    {"pred": torch.tensor([[[0.0, 1.0]], [[2.0, 3.0]]])},
+    {"pred": torch.tensor([[[0.0, 0.0]], [[1.0, 1.0]]])},
+    (2, 1, 2),
 ]
 
 

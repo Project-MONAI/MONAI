@@ -16,13 +16,14 @@ import os
 import pickle
 import warnings
 from collections import defaultdict
+from copy import deepcopy
+from functools import reduce
 from itertools import product, starmap
 from pathlib import PurePath
-from typing import Dict, Generator, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Generator, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
-from torch.utils.data import DistributedSampler as _TorchDistributedSampler
 from torch.utils.data._utils.collate import default_collate
 
 from monai.networks.layers.simplelayers import GaussianFilter
@@ -33,11 +34,17 @@ from monai.utils import (
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
+    fall_back_tuple,
     first,
+    issequenceiterable,
     optional_import,
 )
+from monai.utils.enums import Method
 
+pd, _ = optional_import("pandas")
+DataFrame, _ = optional_import("pandas", name="DataFrame")
 nib, _ = optional_import("nibabel")
+
 
 __all__ = [
     "get_random_patch",
@@ -59,10 +66,14 @@ __all__ = [
     "partition_dataset",
     "partition_dataset_classes",
     "select_cross_validation_folds",
-    "DistributedSampler",
     "json_hashing",
     "pickle_hashing",
     "sorted_dict",
+    "decollate_batch",
+    "rep_scalar_to_batch",
+    "pad_list_data_collate",
+    "no_collation",
+    "convert_tables_to_dicts",
 ]
 
 
@@ -170,7 +181,7 @@ def iter_patch(
     copy_back: bool = True,
     mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
     **pad_opts: Dict,
-) -> Generator[np.ndarray, None, None]:
+):
     """
     Yield successive patches from `arr` of size `patch_size`. The iteration can start from position `start_pos` in `arr`
     but drawing from a padded array extended by the `patch_size` in each dimension (so these coordinates can be negative
@@ -190,6 +201,15 @@ def iter_patch(
     Yields:
         Patches of array data from `arr` which are views into a padded array which can be modified, if `copy_back` is
         True these changes will be reflected in `arr` once the iteration completes.
+
+    Note:
+        coordinate format is:
+
+            [1st_dim_start, 1st_dim_end,
+             2nd_dim_start, 2nd_dim_end,
+             ...,
+             Nth_dim_start, Nth_dim_end]]
+
     """
     # ensure patchSize and startPos are the right length
     patch_size_ = get_valid_patch_size(arr.shape, patch_size)
@@ -206,7 +226,9 @@ def iter_patch(
     iter_size = tuple(s + p for s, p in zip(arr.shape, patch_size_))
 
     for slices in iter_patch_slices(iter_size, patch_size_, start_pos_padded):
-        yield arrpad[slices]
+        # compensate original image padding
+        coords_no_pad = tuple((coord.start - p, coord.stop - p) for coord, p in zip(slices, patch_size_))
+        yield arrpad[slices], np.asarray(coords_no_pad)  # data and coords (in numpy; works with torch loader)
 
     # copy back data from the padded image if required
     if copy_back:
@@ -240,7 +262,192 @@ def list_data_collate(batch: Sequence):
     """
     elem = batch[0]
     data = [i for k in batch for i in k] if isinstance(elem, list) else batch
-    return default_collate(data)
+    key = None
+    try:
+        elem = batch[0]
+        if isinstance(elem, Mapping):
+            ret = {}
+            for k in elem:
+                key = k
+                ret[k] = default_collate([d[k] for d in data])
+            return ret
+        return default_collate(data)
+    except RuntimeError as re:
+        re_str = str(re)
+        if "equal size" in re_str:
+            if key is not None:
+                re_str += f"\nCollate error on the key '{key}' of dictionary data."
+            re_str += (
+                "\n\nMONAI hint: if your transforms intentionally create images of different shapes, creating your "
+                + "`DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem (check its "
+                + "documentation)."
+            )
+        raise RuntimeError(re_str)
+    except TypeError as re:
+        re_str = str(re)
+        if "numpy" in re_str and "Tensor" in re_str:
+            if key is not None:
+                re_str += f"\nCollate error on the key '{key}' of dictionary data."
+            re_str += (
+                "\n\nMONAI hint: if your transforms intentionally create mixtures of torch Tensor and numpy ndarray, "
+                + "creating your `DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem "
+                + "(check its documentation)."
+            )
+        raise TypeError(re_str)
+
+
+def decollate_batch(batch, detach: bool = True):
+    """De-collate a batch of data (for example, as produced by a `DataLoader`).
+
+    Returns a list of structures with the original tensor's 0-th dimension sliced into elements using `torch.unbind`.
+
+    Images originally stored as (B,C,H,W,[D]) will be returned as (C,H,W,[D]). Other information,
+    such as metadata, may have been stored in a list (or a list inside nested dictionaries). In
+    this case we return the element of the list corresponding to the batch idx.
+
+    Return types aren't guaranteed to be the same as the original, since numpy arrays will have been
+    converted to torch.Tensor, sequences may be converted to lists of tensors,
+    mappings may be converted into dictionaries.
+
+    For example:
+
+    .. code-block:: python
+
+        batch_data = {
+            "image": torch.rand((2,1,10,10)),
+            "image_meta_dict": {"scl_slope": torch.Tensor([0.0, 0.0])}
+        }
+        out = decollate_batch(batch_data)
+        print(len(out))
+        >>> 2
+
+        print(out[0])
+        >>> {'image': tensor([[[4.3549e-01...43e-01]]]), 'image_meta_dict': {'scl_slope': 0.0}}
+
+        batch_data = [torch.rand((2,1,10,10)), torch.rand((2,3,5,5))]
+        out = decollate_batch(batch_data)
+        print(out[0])
+        >>> [tensor([[[4.3549e-01...43e-01]]], tensor([[[5.3435e-01...45e-01]]])]
+
+        batch_data = torch.rand((2,1,10,10))
+        out = decollate_batch(batch_data)
+        print(out[0])
+        >>> tensor([[[4.3549e-01...43e-01]]])
+
+    Args:
+        batch: data to be de-collated.
+        detach: whether to detach the tensors. Scalars tensors will be detached into number types
+            instead of torch tensors.
+    """
+    if batch is None:
+        return batch
+    if isinstance(batch, (float, int, str, bytes)):
+        return batch
+    if isinstance(batch, torch.Tensor):
+        if detach:
+            batch = batch.detach()
+        if batch.ndim == 0:
+            return batch.item() if detach else batch
+        out_list = torch.unbind(batch, dim=0)
+        if out_list[0].ndim == 0 and detach:
+            return [t.item() for t in out_list]
+        return list(out_list)
+    if isinstance(batch, Mapping):
+        _dict_list = {key: decollate_batch(batch[key], detach) for key in batch}
+        return [dict(zip(_dict_list, item)) for item in zip(*_dict_list.values())]
+    if isinstance(batch, Iterable):
+        item_0 = first(batch)
+        if (
+            not isinstance(item_0, Iterable)
+            or isinstance(item_0, (str, bytes))
+            or (isinstance(item_0, torch.Tensor) and item_0.ndim == 0)
+        ):
+            # Not running the usual list decollate here:
+            # don't decollate ['test', 'test'] into [['t', 't'], ['e', 'e'], ['s', 's'], ['t', 't']]
+            # torch.tensor(0) is iterable but iter(torch.tensor(0)) raises TypeError: iteration over a 0-d tensor
+            return [decollate_batch(b, detach) for b in batch]
+        return [list(item) for item in zip(*(decollate_batch(b, detach) for b in batch))]
+    raise NotImplementedError(f"Unable to de-collate: {batch}, type: {type(batch)}.")
+
+
+def rep_scalar_to_batch(batch_data: Union[List, Dict]) -> Union[List, Dict]:
+    """
+    Utility tp replicate the scalar items of a list or dictionary to ensure all the items have batch dimension.
+    It leverages `decollate_batch(detach=False)` to filter out the scalar items.
+
+    """
+
+    def _detect_batch_size(batch_data: Sequence):
+        """
+        Detect the batch size from a list of data, some items in the list have batch dim, some not.
+
+        """
+        for v in batch_data:
+            if isinstance(v, torch.Tensor) and v.ndim > 0:
+                return v.shape[0]
+        for v in batch_data:
+            if issequenceiterable(v):
+                warnings.warn("batch_data doesn't contain batched Tensor data, use the length of first sequence data.")
+                return len(v)
+        raise RuntimeError("failed to automatically detect the batch size.")
+
+    if isinstance(batch_data, dict):
+        batch_size = _detect_batch_size(list(batch_data.values()))
+        dict_batch = {}
+        for k, v in batch_data.items():
+            if decollate_batch(v, detach=False) == v and not isinstance(v, list):
+                # if decollating a list, the result may be the same list, so should skip this case
+                dict_batch[k] = [deepcopy(decollate_batch(v, detach=True)) for _ in range(batch_size)]
+            else:
+                dict_batch[k] = v
+
+        return dict_batch
+    elif isinstance(batch_data, list):
+        batch_size = _detect_batch_size(batch_data)
+        list_batch = []
+        for b in batch_data:
+            if decollate_batch(b, detach=False) == b and not isinstance(b, list):
+                list_batch.append([deepcopy(decollate_batch(b, detach=True)) for _ in range(batch_size)])
+            else:
+                list_batch.append(b)
+
+        return list_batch
+    # if not dict or list, just return the original data
+    return batch_data
+
+
+def pad_list_data_collate(
+    batch: Sequence,
+    method: Union[Method, str] = Method.SYMMETRIC,
+    mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+):
+    """
+    Function version of :py:class:`monai.transforms.croppad.batch.PadListDataCollate`.
+
+    Same as MONAI's ``list_data_collate``, except any tensors are centrally padded to match the shape of the biggest
+    tensor in each dimension. This transform is useful if some of the applied transforms generate batch data of
+    different sizes.
+
+    This can be used on both list and dictionary data. In the case of the dictionary data, this transform will be added
+    to the list of invertible transforms.
+
+    The inverse can be called using the static method: `monai.transforms.croppad.batch.PadListDataCollate.inverse`.
+
+    Args:
+        batch: batch of data to pad-collate
+        method: padding method (see :py:class:`monai.transforms.SpatialPad`)
+        mode: padding mode (see :py:class:`monai.transforms.SpatialPad`)
+    """
+    from monai.transforms.croppad.batch import PadListDataCollate  # needs to be here to avoid circular import
+
+    return PadListDataCollate(method, mode)(batch)
+
+
+def no_collation(x):
+    """
+    No any collation operation.
+    """
+    return x
 
 
 def worker_init_fn(worker_id: int) -> None:
@@ -266,6 +473,8 @@ def set_rnd(obj, seed: int) -> int:
         obj.set_random_state(seed=seed % MAX_SEED)
         return seed + 1  # a different seed for the next component
     for key in obj.__dict__:
+        if key.startswith("__"):  # skip the private methods
+            continue
         seed = set_rnd(obj.__dict__[key], seed=seed)
     return seed
 
@@ -341,7 +550,8 @@ def zoom_affine(affine: np.ndarray, scale: Sequence[float], diagonal: bool = Tru
 
     Args:
         affine (nxn matrix): a square matrix.
-        scale: new scaling factor along each dimension.
+        scale: new scaling factor along each dimension. if the components of the `scale` are non-positive values,
+            will use the corresponding components of the origial pixdim, which is computed from the `affine`.
         diagonal: whether to return a diagonal scaling matrix.
             Defaults to True.
 
@@ -358,13 +568,15 @@ def zoom_affine(affine: np.ndarray, scale: Sequence[float], diagonal: bool = Tru
     if len(affine) != len(affine[0]):
         raise ValueError(f"affine must be n x n, got {len(affine)} x {len(affine[0])}.")
     scale_np = np.array(scale, dtype=float, copy=True)
-    if np.any(scale_np <= 0):
-        raise ValueError("scale must contain only positive numbers.")
+
     d = len(affine) - 1
+    # compute original pixdim
+    norm = np.sqrt(np.sum(np.square(affine), 0))[:-1]
     if len(scale_np) < d:  # defaults based on affine
-        norm = np.sqrt(np.sum(np.square(affine), 0))[:-1]
         scale_np = np.append(scale_np, norm[len(scale_np) :])
     scale_np = scale_np[:d]
+    scale_np = np.asarray(fall_back_tuple(scale_np, norm))
+
     scale_np[scale_np == 0] = 1.0
     if diagonal:
         return np.diag(np.append(scale_np, [1.0]))
@@ -446,7 +658,7 @@ def to_affine_nd(r: Union[np.ndarray, int], affine: np.ndarray) -> np.ndarray:
         raise ValueError(f"affine must have 2 dimensions, got {affine_np.ndim}.")
     new_affine = np.array(r, dtype=np.float64, copy=True)
     if new_affine.ndim == 0:
-        sr = new_affine.astype(int)
+        sr: int = int(new_affine.astype(np.uint))
         if not np.isfinite(sr) or sr < 0:
             raise ValueError(f"r must be positive, got {sr}.")
         new_affine = np.eye(sr + 1, dtype=np.float64)
@@ -462,6 +674,8 @@ def create_file_basename(
     input_file_name: str,
     folder_path: str,
     data_root_dir: str = "",
+    separate_folder: bool = True,
+    patch_index: Optional[int] = None,
 ) -> str:
     """
     Utility function to create the path to the output file based on the input
@@ -470,7 +684,12 @@ def create_file_basename(
 
         `folder_path/input_file_name (no ext.) /input_file_name (no ext.)[_postfix]`
 
-    otherwise the relative path with respect to `data_root_dir` will be inserted.
+    otherwise the relative path with respect to `data_root_dir` will be inserted, for example:
+    input_file_name: /foo/bar/test1/image.png,
+    postfix: seg
+    folder_path: /output,
+    data_root_dir: /foo/bar,
+    output will be: /output/test1/image/image_seg
 
     Args:
         postfix: output name's postfix
@@ -480,6 +699,10 @@ def create_file_basename(
             absolute path. This is used to compute `input_file_rel_path`, the relative path to the file from
             `data_root_dir` to preserve folder structure when saving in case there are files in different
             folders with the same file names.
+        separate_folder: whether to save every file in a separate folder, for example: if input filename is
+            `image.nii`, postfix is `seg` and folder_path is `output`, if `True`, save as:
+            `output/image/image_seg.nii`, if `False`, save as `output/image_seg.nii`. default to `True`.
+        patch_index: if not None, append the patch index to filename.
     """
 
     # get the filename and directory
@@ -493,16 +716,20 @@ def create_file_basename(
     if data_root_dir and filedir:
         filedir_rel_path = os.path.relpath(filedir, data_root_dir)
 
-    # sub-folder path will be original name without the extension
-    subfolder_path = os.path.join(folder_path, filedir_rel_path, filename)
-    if not os.path.exists(subfolder_path):
-        os.makedirs(subfolder_path)
+    # output folder path will be original name without the extension
+    output = os.path.join(folder_path, filedir_rel_path)
 
-    if postfix:
-        # add the sub-folder plus the postfix name to become the file basename in the output path
-        output = os.path.join(subfolder_path, filename + "_" + postfix)
-    else:
-        output = os.path.join(subfolder_path, filename)
+    if separate_folder:
+        output = os.path.join(output, filename)
+    # create target folder if no existing
+    os.makedirs(output, exist_ok=True)
+
+    # add the sub-folder plus the postfix name to become the file basename in the output path
+    output = os.path.join(output, (filename + "_" + postfix) if len(postfix) > 0 else filename)
+
+    if patch_index is not None:
+        output += f"_{patch_index}"
+
     return os.path.abspath(output)
 
 
@@ -594,7 +821,28 @@ def partition_dataset(
     Split the dataset into N partitions. It can support shuffle based on specified random seed.
     Will return a set of datasets, every dataset contains 1 partition of original dataset.
     And it can split the dataset based on specified ratios or evenly split into `num_partitions`.
-    Refer to: https://github.com/pytorch/pytorch/blob/master/torch/utils/data/distributed.py.
+    Refer to: https://pytorch.org/docs/stable/distributed.html#module-torch.distributed.launch.
+
+    Note:
+        It also can be used to partition dataset for ranks in distributed training.
+        For example, partition dataset before training and use `CacheDataset`, every rank trains with its own data.
+        It can avoid duplicated caching content in each rank, but will not do global shuffle before every epoch:
+
+        .. code-block:: python
+
+            data_partition = partition_dataset(
+                data=train_files,
+                num_partitions=dist.get_world_size(),
+                shuffle=True,
+                even_divisible=True,
+            )[dist.get_rank()]
+
+            train_ds = SmartCacheDataset(
+                data=data_partition,
+                transform=train_transforms,
+                replace_rate=0.2,
+                cache_num=15,
+            )
 
     Args:
         data: input dataset to split, expect a list of data.
@@ -763,34 +1011,6 @@ def select_cross_validation_folds(partitions: Sequence[Iterable], folds: Union[S
     return [data_item for fold_id in ensure_tuple(folds) for data_item in partitions[fold_id]]
 
 
-class DistributedSampler(_TorchDistributedSampler):
-    """
-    Enhance PyTorch DistributedSampler to support non-evenly divisible sampling.
-
-    Args:
-        even_divisible: if False, different ranks can have different data length.
-        for example, input data: [1, 2, 3, 4, 5], rank 0: [1, 3, 5], rank 1: [2, 4].
-
-    More information about DistributedSampler, please check:
-    https://github.com/pytorch/pytorch/blob/master/torch/utils/data/distributed.py
-
-    """
-
-    def __init__(self, even_divisible: bool = True, *args, **kwargs):
-        self.total_size: int = 0
-        self.rank: int = 0
-        self.num_samples: int = 0
-        self.num_replicas: int = 0
-        super().__init__(*args, **kwargs)
-
-        if not even_divisible:
-            data_len = len(kwargs["dataset"])
-            extra_size = self.total_size - data_len
-            if self.rank + extra_size >= self.num_replicas:
-                self.num_samples -= 1
-            self.total_size = data_len
-
-
 def json_hashing(item) -> bytes:
     """
 
@@ -825,3 +1045,80 @@ def sorted_dict(item, key=None, reverse=False):
     if not isinstance(item, dict):
         return item
     return {k: sorted_dict(v) if isinstance(v, dict) else v for k, v in sorted(item.items(), key=key, reverse=reverse)}
+
+
+def convert_tables_to_dicts(
+    dfs,
+    row_indices: Optional[Sequence[Union[int, str]]] = None,
+    col_names: Optional[Sequence[str]] = None,
+    col_types: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
+    col_groups: Optional[Dict[str, Sequence[str]]] = None,
+    **kwargs,
+) -> List[Dict[str, Any]]:
+    """
+    Utility to join pandas tables, select rows, columns and generate groups.
+    Will return a list of dictionaries, every dictionary maps to a row of data in tables.
+
+    Args:
+        dfs: data table in pandas Dataframe format. if providing a list of tables, will join them.
+        row_indices: indices of the expected rows to load. it should be a list,
+            every item can be a int number or a range `[start, end)` for the indices.
+            for example: `row_indices=[[0, 100], 200, 201, 202, 300]`. if None,
+            load all the rows in the file.
+        col_names: names of the expected columns to load. if None, load all the columns.
+        col_types: `type` and `default value` to convert the loaded columns, if None, use original data.
+            it should be a dictionary, every item maps to an expected column, the `key` is the column
+            name and the `value` is None or a dictionary to define the default value and data type.
+            the supported keys in dictionary are: ["type", "default"], and note that the value of `default`
+            should not be `None`. for example::
+
+                col_types = {
+                    "subject_id": {"type": str},
+                    "label": {"type": int, "default": 0},
+                    "ehr_0": {"type": float, "default": 0.0},
+                    "ehr_1": {"type": float, "default": 0.0},
+                }
+
+        col_groups: args to group the loaded columns to generate a new column,
+            it should be a dictionary, every item maps to a group, the `key` will
+            be the new column name, the `value` is the names of columns to combine. for example:
+            `col_groups={"ehr": [f"ehr_{i}" for i in range(10)], "meta": ["meta_1", "meta_2"]}`
+        kwargs: additional arguments for `pandas.merge()` API to join tables.
+
+    """
+    df = reduce(lambda l, r: pd.merge(l, r, **kwargs), ensure_tuple(dfs))
+    # parse row indices
+    rows: List[Union[int, str]] = []
+    if row_indices is None:
+        rows = slice(df.shape[0])  # type: ignore
+    else:
+        for i in row_indices:
+            if isinstance(i, (tuple, list)):
+                if len(i) != 2:
+                    raise ValueError("range of row indices must contain 2 values: start and end.")
+                rows.extend(list(range(i[0], i[1])))
+            else:
+                rows.append(i)
+
+    # convert to a list of dictionaries corresponding to every row
+    data_ = df.loc[rows] if col_names is None else df.loc[rows, col_names]
+    if isinstance(col_types, dict):
+        # fill default values for NaN
+        defaults = {k: v["default"] for k, v in col_types.items() if v is not None and v.get("default") is not None}
+        if len(defaults) > 0:
+            data_ = data_.fillna(value=defaults)
+        # convert data types
+        types = {k: v["type"] for k, v in col_types.items() if v is not None and "type" in v}
+        if len(types) > 0:
+            data_ = data_.astype(dtype=types)
+    data: List[Dict] = data_.to_dict(orient="records")
+
+    # group columns to generate new column
+    if col_groups is not None:
+        groups: Dict[str, List] = {}
+        for name, cols in col_groups.items():
+            groups[name] = df.loc[rows, cols].values
+        # invert items of groups to every row of data
+        data = [dict(d, **{k: v[i] for k, v in groups.items()}) for i, d in enumerate(data)]
+
+    return data

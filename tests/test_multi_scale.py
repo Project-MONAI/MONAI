@@ -16,25 +16,33 @@ from parameterized import parameterized
 
 from monai.losses import DiceLoss
 from monai.losses.multi_scale import MultiScaleLoss
+from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
 
 dice_loss = DiceLoss(include_background=True, sigmoid=True, smooth_nr=1e-5, smooth_dr=1e-5)
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 TEST_CASES = [
     [
         {"loss": dice_loss, "scales": None, "kernel": "gaussian"},
-        {"y_pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]), "y_true": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]])},
+        {
+            "y_pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]], device=device),
+            "y_true": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]], device=device),
+        },
         0.307576,
     ],
     [
         {"loss": dice_loss, "scales": [0, 1], "kernel": "gaussian"},
-        {"y_pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]]), "y_true": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]])},
+        {
+            "y_pred": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]], device=device),
+            "y_true": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]], device=device),
+        },
         0.463116,
     ],
     [
         {"loss": dice_loss, "scales": [0, 1, 2], "kernel": "cauchy"},
         {
-            "y_pred": torch.tensor([[[[[1.0, -1.0], [-1.0, 1.0]]]]]),
-            "y_true": torch.tensor([[[[[1.0, 0.0], [1.0, 1.0]]]]]),
+            "y_pred": torch.tensor([[[[[1.0, -1.0], [-1.0, 1.0]]]]], device=device),
+            "y_true": torch.tensor([[[[[1.0, 0.0], [1.0, 1.0]]]]], device=device),
         },
         0.715228,
     ],
@@ -51,9 +59,19 @@ class TestMultiScale(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, ""):
             MultiScaleLoss(loss=dice_loss, kernel="none")
         with self.assertRaisesRegex(ValueError, ""):
-            MultiScaleLoss(loss=dice_loss, scales=[-1])(torch.ones((1, 1, 3)), torch.ones((1, 1, 3)))
+            MultiScaleLoss(loss=dice_loss, scales=[-1])(
+                torch.ones((1, 1, 3), device=device), torch.ones((1, 1, 3), device=device)
+            )
         with self.assertRaisesRegex(ValueError, ""):
-            MultiScaleLoss(loss=dice_loss, scales=[-1], reduction="none")(torch.ones((1, 1, 3)), torch.ones((1, 1, 3)))
+            MultiScaleLoss(loss=dice_loss, scales=[-1], reduction="none")(
+                torch.ones((1, 1, 3), device=device), torch.ones((1, 1, 3), device=device)
+            )
+
+    @SkipIfBeforePyTorchVersion((1, 7, 0))
+    def test_script(self):
+        input_param, input_data, expected_val = TEST_CASES[0]
+        loss = MultiScaleLoss(**input_param)
+        test_script_save(loss, input_data["y_pred"], input_data["y_true"])
 
 
 if __name__ == "__main__":
