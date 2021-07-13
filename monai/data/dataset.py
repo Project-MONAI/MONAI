@@ -416,6 +416,7 @@ class LMDBDataset(PersistentDataset):
         # lmdb is single-writer multi-reader by default
         # the cache is created without multi-threading
         self._read_env = None
+        # this runs on the primary thread/process
         self._fill_cache_start_reader(show_progress=self.progress)
         print(f"Accessing lmdb file: {self.db_file.absolute()}.")
 
@@ -489,6 +490,7 @@ class LMDBDataset(PersistentDataset):
 
         """
         if self._read_env is None:
+            # this runs on multiple processes, each one should have its own env.
             self._read_env = self._fill_cache_start_reader(show_progress=False)
         with self._read_env.begin(write=False) as txn:
             data = txn.get(self.hash_func(item_transformed))
