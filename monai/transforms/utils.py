@@ -461,9 +461,9 @@ def generate_pos_neg_label_crop_centers(
 def generate_label_classes_crop_centers(
     spatial_size: Union[Sequence[int], int],
     num_samples: int,
-    ratios: List[Union[float, int]],
     label_spatial_shape: Sequence[int],
     indices: List[np.ndarray],
+    ratios: Optional[List[Union[float, int]]] = None,
     rand_state: Optional[np.random.RandomState] = None,
 ) -> List[List[np.ndarray]]:
     """
@@ -473,9 +473,10 @@ def generate_label_classes_crop_centers(
     Args:
         spatial_size: spatial size of the ROIs to be sampled.
         num_samples: total sample centers to be generated.
-        ratios: ratios of every class in the label to generate crop centers, including background class.
         label_spatial_shape: spatial shape of the original label data to unravel selected centers.
         indices: sequence of pre-computed foreground indices of every class in 1 dimension.
+        ratios: ratios of every class in the label to generate crop centers, including background class.
+            if None, every class will have the same ratio to generate crop centers.
         rand_state: numpy randomState object to align with other modules.
 
     """
@@ -484,9 +485,10 @@ def generate_label_classes_crop_centers(
 
     if num_samples < 1:
         raise ValueError("num_samples must be an int number and greater than 0.")
-    if len(ratios) != len(indices):
+    ratios_: List[Union[float, int]] = ([1] * len(indices)) if ratios is None else ratios
+    if len(ratios_) != len(indices):
         raise ValueError("random crop radios must match the number of indices of classes.")
-    if any([i < 0 for i in ratios]):
+    if any([i < 0 for i in ratios_]):
         raise ValueError("ratios should not contain negative number.")
 
     # ensure indices are numpy array
@@ -494,10 +496,10 @@ def generate_label_classes_crop_centers(
     for i, array in enumerate(indices):
         if len(array) == 0:
             warnings.warn(f"no available indices of class {i} to crop, set the crop ratio of this class to zero.")
-            ratios[i] = 0
+            ratios_[i] = 0
 
     centers = []
-    classes = rand_state.choice(len(ratios), size=num_samples, p=np.asarray(ratios) / np.sum(ratios))
+    classes = rand_state.choice(len(ratios_), size=num_samples, p=np.asarray(ratios_) / np.sum(ratios_))
     for i in classes:
         # randomly select the indices of a class based on the ratios
         indices_to_use = indices[i]

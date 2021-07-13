@@ -30,9 +30,23 @@ TEST_CASE_1 = [
     3,
 ]
 
+TEST_CASE_2 = [
+    {
+        "spatial_size": [2, 2, 2],
+        "num_samples": 1,
+        "ratios": None,
+        "label_spatial_shape": [3, 3, 3],
+        "indices": [[3, 12, 21], [1, 9, 18]],
+        "rand_state": np.random.RandomState(),
+    },
+    list,
+    1,
+    3,
+]
+
 
 class TestGenerateLabelClassesCropCenters(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_type_shape(self, input_data, expected_type, expected_count, expected_shape):
         result = generate_label_classes_crop_centers(**input_data)
         self.assertIsInstance(result, expected_type)

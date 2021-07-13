@@ -1194,6 +1194,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
             for example: if the spatial size of input data is [40, 40, 40] and `spatial_size=[32, 64, -1]`,
             the spatial size of output data will be [32, 40, 40].
         ratios: specified ratios of every class in the label to generate crop centers, including background class.
+            if None, every class will have the same ratio to generate crop centers.
         num_classes: number of classes for argmax label, not necessary for One-Hot label.
         num_samples: number of samples (crop regions) to take in each list.
         image_key: if image_key is not None, only return the indices of every class that are within the valid
@@ -1222,7 +1223,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
         keys: KeysCollection,
         label_key: str,
         spatial_size: Union[Sequence[int], int],
-        ratios: List[Union[float, int]],
+        ratios: Optional[List[Union[float, int]]] = None,
         num_classes: Optional[int] = None,
         num_samples: int = 1,
         image_key: Optional[str] = None,
@@ -1260,7 +1261,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
         else:
             indices_ = indices
         self.centers = generate_label_classes_crop_centers(
-            self.spatial_size, self.num_samples, self.ratios, label.shape[1:], indices_, self.R
+            self.spatial_size, self.num_samples, label.shape[1:], indices_, self.ratios, self.R
         )
 
     def __call__(self, data: Mapping[Hashable, Any]) -> List[Dict[Hashable, np.ndarray]]:
