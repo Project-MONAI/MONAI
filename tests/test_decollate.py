@@ -217,14 +217,14 @@ class TestBasicDeCollate(unittest.TestCase):
             "image_meta_dict": {"scl_slope": torch.Tensor((0.0, 0.0))},
             "loss": 0.85,
         }
-        transform = Decollated(keys=["meta", "image_meta_dict"], detach=False, rep_scalar=False)
+        transform = Decollated(keys=["meta", "image_meta_dict"], detach=False)
         out = transform(test_case)
         self.assertFalse("loss" in out)
         self.assertEqual(out[0]["meta"]["out"], "test")
         self.assertEqual(out[0]["image_meta_dict"]["scl_slope"], 0.0)
         self.assertTrue(isinstance(out[0]["image_meta_dict"]["scl_slope"], torch.Tensor))
-        # decollate all data with rep_scalar=True
-        transform = Decollated(keys=None, detach=True, rep_scalar=True)
+        # decollate all data with keys=None
+        transform = Decollated(keys=None, detach=True)
         out = transform(test_case)
         self.assertEqual(out[1]["loss"], 0.85)
         self.assertEqual(out[0]["meta"]["out"], "test")
@@ -238,7 +238,7 @@ class TestBasicDeCollate(unittest.TestCase):
             {"scl_slope": torch.Tensor((0.0, 0.0))},
             0.85,
         ]
-        transform = Decollated(keys=None, detach=False, rep_scalar=True)
+        transform = Decollated(keys=None, detach=False)
         out = transform(test_case)
         # the 4th item in the list is scalar loss value
         self.assertEqual(out[1][3], 0.85)

@@ -185,7 +185,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         @self.on(IterationEvents.MODEL_COMPLETED)
         def _decollate_data(engine: Engine) -> None:
             # replicate the scalar values to make sure all the items have batch dimension, then decollate
-            transform = Decollated(keys=None, detach=True, rep_scalar=True)
+            transform = Decollated(keys=None, detach=True)
             engine.state.batch = transform(engine.state.batch)
             engine.state.output = transform(engine.state.output)
 

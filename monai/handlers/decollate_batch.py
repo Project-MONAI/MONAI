@@ -34,15 +34,14 @@ class DecollateBatch:
             default to "MODEL_COMPLETED".
         detach: whether to detach the tensors. scalars tensors will be detached into number types
             instead of torch tensors.
-        rep_scalar: whether to replicate the scalar values to every decollated item of the list.
         decollate_batch: whether to decollate `engine.state.batch` of ignite engine.
         batch_keys: if `decollate_batch=True`, specify the keys of the corresponding items to decollate
             in `engine.state.batch`, note that it will delete other keys not specified. if None,
-            will decollate all the keys.
+            will decollate all the keys. it replicates the scalar values to every item of the decollated list.
         decollate_output: whether to decollate `engine.state.output` of ignite engine.
         output_keys: if `decollate_output=True`, specify the keys of the corresponding items to decollate
             in `engine.state.output`, note that it will delete other keys not specified. if None,
-            will decollate all the keys.
+            will decollate all the keys. it replicates the scalar values to every item of the decollated list.
         allow_missing_keys: don't raise exception if key is missing.
 
     """
@@ -51,7 +50,6 @@ class DecollateBatch:
         self,
         event: str = "MODEL_COMPLETED",
         detach: bool = True,
-        rep_scalar: bool = True,
         decollate_batch: bool = True,
         batch_keys: Optional[KeysCollection] = None,
         decollate_output: bool = True,
@@ -64,23 +62,13 @@ class DecollateBatch:
         self.event = event
 
         self.batch_transform = (
-            Decollated(
-                keys=batch_keys,
-                detach=detach,
-                rep_scalar=rep_scalar,
-                allow_missing_keys=allow_missing_keys,
-            )
+            Decollated(keys=batch_keys, detach=detach, allow_missing_keys=allow_missing_keys)
             if decollate_batch
             else None
         )
 
         self.output_transform = (
-            Decollated(
-                keys=output_keys,
-                detach=detach,
-                rep_scalar=rep_scalar,
-                allow_missing_keys=allow_missing_keys,
-            )
+            Decollated(keys=output_keys, detach=detach, allow_missing_keys=allow_missing_keys)
             if decollate_output
             else None
         )

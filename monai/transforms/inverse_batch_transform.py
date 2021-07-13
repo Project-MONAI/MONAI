@@ -107,13 +107,13 @@ class Decollated(MapTransform):
     Decollate a batch of data, if input a dictionary, it can also support to only decollate specified keys.
     Note that unlike most MapTransforms, it will delete other keys not specified and if keys=None, will decollate
     all the data in the input.
+    And it replicates the scalar values to every item of the decollated list.
 
     Args:
         keys: keys of the corresponding items to decollate, note that it will delete other keys not specified.
             if None, will decollate all the keys. see also: :py:class:`monai.transforms.compose.MapTransform`.
         detach: whether to detach the tensors. Scalars tensors will be detached into number types
             instead of torch tensors.
-        rep_scalar: whether to replicate the scalar values to every decollated item of the list.
         allow_missing_keys: don't raise exception if key is missing.
 
     """
@@ -122,12 +122,10 @@ class Decollated(MapTransform):
         self,
         keys: Optional[KeysCollection] = None,
         detach: bool = True,
-        rep_scalar: bool = True,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.detach = detach
-        self.rep_scalar = rep_scalar
 
     def __call__(self, data: Union[Dict, List]):
         d: Union[Dict, List]
@@ -141,7 +139,4 @@ class Decollated(MapTransform):
             for key in self.key_iterator(data):
                 d[key] = data[key]
 
-        if self.rep_scalar:
-            d = rep_scalar_to_batch(d)
-
-        return decollate_batch(d, detach=self.detach)
+        return decollate_batch(rep_scalar_to_batch(d), detach=self.detach)
