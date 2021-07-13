@@ -19,7 +19,7 @@ from monai.handlers import PostProcessing
 from monai.transforms import Activationsd, AsDiscreted, Compose, CopyItemsd
 
 # test lambda function as `transform`
-TEST_CASE_1 = [{"transform": lambda x: dict(pred=x["pred"] + 1.0)}, torch.tensor([[[[1.9975], [1.9997]]]])]
+TEST_CASE_1 = [{"transform": lambda x: dict(pred=x["pred"] + 1.0)}, False, torch.tensor([[[[1.9975], [1.9997]]]])]
 # test composed postprocessing transforms as `transform`
 TEST_CASE_2 = [
     {
@@ -31,13 +31,14 @@ TEST_CASE_2 = [
         ),
         "event": "iteration_completed",
     },
+    True,
     torch.tensor([[[[1.0], [1.0]], [[0.0], [0.0]]]]),
 ]
 
 
 class TestHandlerPostProcessing(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
-    def test_compute(self, input_params, expected):
+    def test_compute(self, input_params, decollate, expected):
         data = [
             {"image": torch.tensor([[[[2.0], [3.0]]]]), "filename": ["test1"]},
             {"image": torch.tensor([[[[6.0], [8.0]]]]), "filename": ["test2"]},
@@ -50,14 +51,20 @@ class TestHandlerPostProcessing(unittest.TestCase):
             network=torch.nn.PReLU(),
             postprocessing=Compose([Activationsd(keys="pred", sigmoid=True)]),
             val_handlers=[PostProcessing(**input_params)],
+            decollate=decollate,
         )
         engine.run()
 
-        for o, e in zip(engine.state.output, expected):
-            torch.testing.assert_allclose(o["pred"], e)
-            filename = o.get("filename_bak")
-            if filename is not None:
-                self.assertEqual(filename, "test2")
+        if isinstance(engine.state.output, list):
+            # test decollated list items
+            for o, e in zip(engine.state.output, expected):
+                torch.testing.assert_allclose(o["pred"], e)
+                filename = o.get("filename_bak")
+                if filename is not None:
+                    self.assertEqual(filename, "test2")
+        else:
+            # test batch data
+            torch.testing.assert_allclose(engine.state.output["pred"], expected)
 
 
 if __name__ == "__main__":
