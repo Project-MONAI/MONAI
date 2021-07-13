@@ -482,6 +482,8 @@ def generate_label_classes_crop_centers(
     if rand_state is None:
         rand_state = np.random.random.__self__  # type: ignore
 
+    if num_samples < 1:
+        raise ValueError("num_samples must be an int number and greater than 0.")
     if len(ratios) != len(indices):
         raise ValueError("random crop radios must match the number of indices of classes.")
     if any([i < 0 for i in ratios]):
