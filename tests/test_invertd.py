@@ -70,7 +70,7 @@ class TestInvertd(unittest.TestCase):
         data = [{"image": im_fname, "label": seg_fname} for _ in range(12)]
 
         # num workers = 0 for mac or gpu transforms
-        num_workers = 0 if sys.platform == "darwin" or torch.cuda.is_available() else 2
+        num_workers = 0 if sys.platform != "linux" or torch.cuda.is_available() else 2
 
         dataset = CacheDataset(data, transform=transform, progress=False)
         loader = DataLoader(dataset, num_workers=num_workers, batch_size=5)
@@ -84,7 +84,7 @@ class TestInvertd(unittest.TestCase):
             nearest_interp=True,
             to_tensor=[True, False, False],
             device="cpu",
-            num_workers=0 if sys.platform == "darwin" or torch.cuda.is_available() else 2,
+            num_workers=num_workers,
         )
 
         # execute 1 epoch

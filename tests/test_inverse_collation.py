@@ -117,7 +117,7 @@ class TestInverseCollation(unittest.TestCase):
             modified_transform = Compose([transform, ResizeWithPadOrCropd(KEYS, 100), ToTensord(KEYS)])
 
         # num workers = 0 for mac or gpu transforms
-        num_workers = 0 if sys.platform == "darwin" or torch.cuda.is_available() else 2
+        num_workers = 0 if sys.platform != "linux" or torch.cuda.is_available() else 2
 
         dataset = CacheDataset(data, transform=modified_transform, progress=False)
         loader = DataLoader(dataset, num_workers, batch_size=self.batch_size, collate_fn=collate_fn)
