@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * APIs to load networks and pre-trained weights from Clara Train [Medical Model ARchives (MMARs)](https://docs.nvidia.com/clara/clara-train-sdk/pt/mmar.html)
 * Base metric and cumulative metric APIs, 4 new regression metrics
 * Initial CSV dataset support
-* Decollating mini-batch as the default first postprocessing step
+* Decollating mini-batch as the default first postprocessing step, [Migrating your v0.5 code to v0.6](https://github.com/Project-MONAI/MONAI/wiki/v0.5-to-v0.6-migration-guide) wiki shows how to adapt to the breaking changes
 * Initial backward compatibility support via `monai.utils.deprecated`
 * Attention-based vision modules and `UNETR` for segmentation
 * Generic module loaders and Gaussian mixture models using the PyTorch JIT compilation
