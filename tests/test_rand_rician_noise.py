@@ -45,16 +45,17 @@ class TestRandRicianNoiseTorch(TorchImageTestCase2D):
     @parameterized.expand(TESTS)
     def test_correct_results(self, _, mean, std):
         seed = 0
-        rician_fn = RandRicianNoise(prob=1.0, mean=mean, std=std)
-        rician_fn.set_random_state(seed)
-        noised = rician_fn(self.imt)
-        torch.manual_seed(seed)
-        _std = float(torch.rand(1)) * std
-        expected = torch.sqrt(
-            (self.imt + torch.normal(mean, _std, size=self.imt.shape)) ** 2
-            + torch.normal(mean, _std, size=self.imt.shape) ** 2
-        )
-        np.testing.assert_allclose(expected, noised, atol=1e-5)
+        for device in ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"]:
+            rician_fn = RandRicianNoise(prob=1.0, mean=mean, std=std)
+            rician_fn.set_random_state(seed)
+            noised = rician_fn(self.imt.to(device))
+            torch.manual_seed(seed)
+            _std = float(torch.rand(1)) * std
+            expected = torch.sqrt(
+                (self.imt + torch.normal(mean, _std, size=self.imt.shape)) ** 2
+                + torch.normal(mean, _std, size=self.imt.shape) ** 2
+            ).to(device)
+            torch.testing.assert_allclose(expected, noised, rtol=1e-7, atol=1e-5)
 
 
 if __name__ == "__main__":

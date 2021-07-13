@@ -146,8 +146,8 @@ class RandRicianNoise(TorchOrNumpyTransform, RandomizableTransform):
         im_shape = img.shape
         if isinstance(img, torch.Tensor):
             _std = float(torch.rand(1, generator=self.R_torch)) * std if self.sample_std else std
-            self._noise1 = torch.normal(mean, _std, size=im_shape, generator=self.R_torch).to(img.dtype)
-            self._noise2 = torch.normal(mean, _std, size=im_shape, generator=self.R_torch).to(img.dtype)
+            self._noise1 = torch.normal(mean, _std, size=im_shape, generator=self.R_torch).to(img.dtype).to(img.device)
+            self._noise2 = torch.normal(mean, _std, size=im_shape, generator=self.R_torch).to(img.dtype).to(img.device)
             return torch.sqrt((img + self._noise1) ** 2 + self._noise2 ** 2)
         else:
             _std = self.R.uniform(0, std) if self.sample_std else std
