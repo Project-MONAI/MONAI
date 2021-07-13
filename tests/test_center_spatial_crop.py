@@ -16,34 +16,30 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import CenterSpatialCrop
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASE_0 = [{"roi_size": [2, 2, -1]}, np.random.randint(0, 2, size=[3, 3, 3, 3]), (3, 2, 2, 3)]
+TEST_SHAPES, TEST_VALUES = [], []
+for p in TEST_NDARRAYS:
+    TEST_SHAPES.append([{"roi_size": [2, 2, -1]}, p(np.random.randint(0, 2, size=[3, 3, 3, 3])), (3, 2, 2, 3)])
 
-TEST_CASE_1 = [{"roi_size": [2, 2, 2]}, np.random.randint(0, 2, size=[3, 3, 3, 3]), (3, 2, 2, 2)]
+    TEST_SHAPES.append([{"roi_size": [2, 2, 2]}, p(np.random.randint(0, 2, size=[3, 3, 3, 3])), (3, 2, 2, 2)])
 
-TEST_CASE_2 = [
-    {"roi_size": [2, 2]},
-    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
-    np.array([[[1, 2], [2, 3]]]),
-]
-
-TEST_CASE_3 = [
-    {"roi_size": [2, 2, 2]},
-    torch.randint(0, 2, size=[3, 3, 3, 3], device="cuda" if torch.cuda.is_available() else "cpu"),
-    (3, 2, 2, 2),
-]
-
+    TEST_VALUES.append([
+        {"roi_size": [2, 2]},
+        p(np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]])),
+        p(np.array([[[1, 2], [2, 3]]])),
+    ])
 
 class TestCenterSpatialCrop(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_3])
+    @parameterized.expand(TEST_SHAPES)
     def test_shape(self, input_param, input_data, expected_shape):
         result = CenterSpatialCrop(**input_param)(input_data)
         np.testing.assert_allclose(result.shape, expected_shape)
 
-    @parameterized.expand([TEST_CASE_2])
+    @parameterized.expand(TEST_VALUES)
     def test_value(self, input_param, input_data, expected_value):
         result = CenterSpatialCrop(**input_param)(input_data)
-        np.testing.assert_allclose(result, expected_value)
+        torch.testing.assert_allclose(result, expected_value, rtol=1e-7, atol=0)
 
 
 if __name__ == "__main__":

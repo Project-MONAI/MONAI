@@ -579,9 +579,9 @@ def query_memory(n=2):
     return ",".join([f"{int(x)}" for x in ids])
 
 
-TEST_NDARRAYS: Tuple[Callable] = (np.array, torch.tensor)  # type: ignore
+TEST_NDARRAYS: Tuple[Callable] = (np.array, torch.as_tensor)  # type: ignore
 if torch.cuda.is_available():
-    gpu_tensor: Callable = partial(torch.tensor, device="cuda")
+    gpu_tensor: Callable = partial(torch.as_tensor, device="cuda")
     TEST_NDARRAYS = TEST_NDARRAYS + (gpu_tensor,)  # type: ignore
 
 
