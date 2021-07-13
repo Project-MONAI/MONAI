@@ -12,7 +12,6 @@
 import warnings
 from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
-import torch
 from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader as TorchDataLoader
 
