@@ -24,11 +24,14 @@ for p in TEST_NDARRAYS:
 
     TEST_SHAPES.append([{"roi_size": [2, 2, 2]}, p(np.random.randint(0, 2, size=[3, 3, 3, 3])), (3, 2, 2, 2)])
 
-    TEST_VALUES.append([
-        {"roi_size": [2, 2]},
-        p(np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]])),
-        p(np.array([[[1, 2], [2, 3]]])),
-    ])
+    TEST_VALUES.append(
+        [
+            {"roi_size": [2, 2]},
+            p(np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]])),
+            p(np.array([[[1, 2], [2, 3]]])),
+        ]
+    )
+
 
 class TestCenterSpatialCrop(unittest.TestCase):
     @parameterized.expand(TEST_SHAPES)
