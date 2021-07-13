@@ -11,6 +11,7 @@
 
 from .deviceconfig import (
     USE_COMPILED,
+    IgniteInfo,
     get_gpu_info,
     get_system_info,
     print_config,
@@ -18,4 +19,4 @@ from .deviceconfig import (
     print_gpu_info,
     print_system_info,
 )
-from .type_definitions import DtypeLike, IndexSelection, KeysCollection, NdarrayTensor
+from .type_definitions import DtypeLike, IndexSelection, KeysCollection, NdarrayTensor, TensorOrList
