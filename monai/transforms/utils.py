@@ -306,28 +306,19 @@ def map_classes_to_indices(
         img_flat = np.any(image > image_threshold, axis=0).ravel()
 
     indices: List[np.ndarray] = []
+    # assuming the first dimension is channel
     channels = len(label)
 
-    def _add_indices(label_flat: np.ndarray):
-        """
-        Compute the indices of a class and add to the list.
-
-        """
-        label_flat = np.logical_and(img_flat, label_flat) if img_flat is not None else label_flat
-        indices.append(np.nonzero(label_flat)[0])
-
-    if channels > 1:
-        # One-Hot format label
-        for c in range(channels):
-            label_flat = np.any(label[c : c + 1], axis=0).ravel()
-            _add_indices(label_flat=label_flat)
-    else:
-        # Argmax label
+    num_classes_: int = channels
+    if channels == 1:
         if num_classes is None:
             raise ValueError("if not One-Hot format label, must provide the num_classes.")
-        for c in range(num_classes):
-            label_flat = np.any(label == c, axis=0).ravel()
-            _add_indices(label_flat=label_flat)
+        num_classes_ = num_classes
+
+    for c in range(num_classes_):
+        label_flat = np.any(label[c : c + 1] if channels > 1 else label == c, axis=0).ravel()
+        label_flat = np.logical_and(img_flat, label_flat) if img_flat is not None else label_flat
+        indices.append(np.nonzero(label_flat)[0])
 
     return indices
 
@@ -398,9 +389,8 @@ def correct_crop_centers(
     valid_end = np.subtract(label_spatial_shape + np.array(1), spatial_size / np.array(2)).astype(np.uint16)
     # int generation to have full range on upper side, but subtract unfloored size/2 to prevent rounded range
     # from being too high
-    for i, valid_s in enumerate(
-        valid_start
-    ):  # need this because np.random.randint does not work with same start and end
+    for i, valid_s in enumerate(valid_start):
+        # need this because np.random.randint does not work with same start and end
         if valid_s == valid_end[i]:
             valid_end[i] += 1
 
@@ -494,6 +484,9 @@ def generate_label_classes_crop_centers(
 
     if len(ratios) != len(indices):
         raise ValueError("random crop radios must match the number of indices of classes.")
+    if any([i < 0 for i in ratios]):
+        raise ValueError("ratios should not contain negative number.")
+
     # ensure indices are numpy array
     indices = [np.asarray(i) for i in indices]
     for i, array in enumerate(indices):

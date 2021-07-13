@@ -824,13 +824,34 @@ class RandCropByLabelClasses(Randomizable, Transform):
     """
     Crop random fixed sized regions with the center being a class based on the specified ratios of every class.
     The label data can be One-Hot format array or Argmax data. And will return a list of arrays for all the
-    cropped images. For example, crop two (3 x 3) arrays from (5 x 5) array with `ratios=[1, 2, 3, 1]` can be::
+    cropped images. For example, crop two (3 x 3) arrays from (5 x 5) array with `ratios=[1, 2, 3, 1]`::
 
-        [[[0, 0, 0, 0, 0],
-          [0, 1, 2, 1, 0],            [[0, 1, 2],     [[0, 0, 0],
-          [0, 1, 3, 0, 0],     -->     [0, 1, 3],      [1, 2, 1],
-          [0, 0, 0, 0, 0],             [0, 0, 0]]      [1, 3, 0]]
-          [0, 0, 0, 0, 0]]]
+        image = np.array([
+            [[0.0, 0.3, 0.4, 0.2, 0.0],
+            [0.0, 0.1, 0.2, 0.1, 0.4],
+            [0.0, 0.3, 0.5, 0.2, 0.0],
+            [0.1, 0.2, 0.1, 0.1, 0.0],
+            [0.0, 0.1, 0.2, 0.1, 0.0]]
+        ])
+        label = np.array([
+            [[0, 0, 0, 0, 0],
+            [0, 1, 2, 1, 0],
+            [0, 1, 3, 0, 0],
+            [0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0]]
+        ])
+        cropper = RandCropByLabelClasses(
+            spatial_size=[3, 3],
+            ratios=[1, 2, 3, 1],
+            num_classes=4,
+            num_samples=2,
+        )
+        label_samples = cropper(img=label, label=label, image=image)
+
+        The 2 randomly cropped samples of `label` can be:
+        [[0, 1, 2],     [[0, 0, 0],
+         [0, 1, 3],      [1, 2, 1],
+         [0, 0, 0]]      [1, 3, 0]]
 
     If a dimension of the expected spatial size is bigger than the input image size,
     will not crop that dimension. So the cropped result may be smaller than expected size, and the cropped
