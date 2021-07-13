@@ -37,6 +37,7 @@ from monai.transforms.utils import (
     extreme_points_to_image,
     get_extreme_points,
     map_binary_to_indices,
+    map_classes_to_indices,
 )
 from monai.utils import ensure_tuple, min_version, optional_import
 from monai.utils.enums import DataObjects
@@ -68,6 +69,7 @@ __all__ = [
     "Lambda",
     "LabelToMask",
     "FgBgToIndices",
+    "ClassesToIndices",
     "ConvertToMultiChannelBasedOnBratsClasses",
     "AddExtremePointsChannel",
     "TorchVision",
@@ -737,6 +739,54 @@ class FgBgToIndices(Transform):
             bg_indices = np.stack([np.unravel_index(i, output_shape) for i in bg_indices])
 
         return fg_indices, bg_indices
+
+
+class ClassesToIndices(Transform):
+    def __init__(
+        self,
+        num_classes: Optional[int] = None,
+        image_threshold: float = 0.0,
+        output_shape: Optional[Sequence[int]] = None,
+    ) -> None:
+        """
+        Compute indices of every class of the input label data, return a list of indices.
+        If no output_shape specified, output data will be 1 dim indices after flattening.
+        This transform can help pre-compute indices of the class regions for other transforms.
+        A typical usage is to randomly select indices of classes to crop.
+        The main logic is based on :py:class:`monai.transforms.utils.map_classes_to_indices`.
+
+        Args:
+            num_classes: number of classes for argmax label, not necessary for One-Hot label.
+            image_threshold: if enabled `image` at runtime, use ``image > image_threshold`` to
+                determine the valid image content area and select only the indices of classes in this area.
+            output_shape: expected shape of output indices. if not None, unravel indices to specified shape.
+
+        """
+        self.num_classes = num_classes
+        self.image_threshold = image_threshold
+        self.output_shape = output_shape
+
+    def __call__(
+        self,
+        label: np.ndarray,
+        image: Optional[np.ndarray] = None,
+        output_shape: Optional[Sequence[int]] = None,
+    ) -> List[np.ndarray]:
+        """
+        Args:
+            label: input data to compute the indices of every class.
+            image: if image is not None, use ``image > image_threshold`` to define valid region, and only select
+                the indices within the valid region.
+            output_shape: expected shape of output indices. if None, use `self.output_shape` instead.
+
+        """
+        if output_shape is None:
+            output_shape = self.output_shape
+        indices = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
+        if output_shape is not None:
+            indices = [np.stack([np.unravel_index(i, output_shape) for i in array]) for array in indices]
+
+        return indices
 
 
 class ConvertToMultiChannelBasedOnBratsClasses(Transform):

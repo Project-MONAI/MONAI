@@ -55,8 +55,10 @@ __all__ = [
     "compute_divisible_spatial_size",
     "resize_center",
     "map_binary_to_indices",
+    "map_classes_to_indices",
     "weighted_patch_samples",
     "generate_pos_neg_label_crop_centers",
+    "generate_label_classes_crop_centers",
     "create_grid",
     "create_control_grid",
     "create_rotate",
@@ -276,7 +278,55 @@ def map_binary_to_indices(
         bg_indices = np.nonzero(np.logical_and(img_flat, ~label_flat))[0]
     else:
         bg_indices = np.nonzero(~label_flat)[0]
+
     return fg_indices, bg_indices
+
+
+def map_classes_to_indices(
+    label: np.ndarray,
+    num_classes: Optional[int] = None,
+    image: Optional[np.ndarray] = None,
+    image_threshold: float = 0.0,
+) -> List[np.ndarray]:
+    """
+    Filter out indices of every class of the input label data, return the indices after fattening.
+    It can handle both One-Hot format label and Argmax format label, must provide `num_classes` for
+    Argmax label.
+
+    For example:
+    ``label = np.array([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]])`` and `num_classes=3`, will return a list
+    which contains the indices of the 3 classes:
+    ``[np.array([0, 4, 8]), np.array([1, 5, 6]), np.array([2, 3, 7])]``
+
+    Args:
+        label: use the label data to get the indices of every class.
+        num_classes: number of classes for argmax label, not necessary for One-Hot label.
+        image: if image is not None, only return the indices of every class that are within the valid
+            region of the image (``image > image_threshold``).
+        image_threshold: if enabled `image`, use ``image > image_threshold`` to
+            determine the valid image content area and select class indices only in this area.
+
+    """
+    img_flat: Optional[np.ndarray] = None
+    if image is not None:
+        img_flat = np.any(image > image_threshold, axis=0).ravel()
+
+    indices: List[np.ndarray] = []
+    # assuming the first dimension is channel
+    channels = len(label)
+
+    num_classes_: int = channels
+    if channels == 1:
+        if num_classes is None:
+            raise ValueError("if not One-Hot format label, must provide the num_classes.")
+        num_classes_ = num_classes
+
+    for c in range(num_classes_):
+        label_flat = np.any(label[c : c + 1] if channels > 1 else label == c, axis=0).ravel()
+        label_flat = np.logical_and(img_flat, label_flat) if img_flat is not None else label_flat
+        indices.append(np.nonzero(label_flat)[0])
+
+    return indices
 
 
 def weighted_patch_samples(
@@ -323,6 +373,44 @@ def weighted_patch_samples(
     return [np.unravel_index(i, v_size) + diff for i in np.asarray(idx, dtype=int)]
 
 
+def correct_crop_centers(
+    centers: List[np.ndarray], spatial_size: Union[Sequence[int], int], label_spatial_shape: Sequence[int]
+) -> List[np.ndarray]:
+    """
+    Utility to correct the crop center if the crop size is bigger than the image size.
+
+    Args:
+        ceters: pre-computed crop centers, will correct based on the valid region.
+        spatial_size: spatial size of the ROIs to be sampled.
+        label_spatial_shape: spatial shape of the original label data to compare with ROI.
+
+    """
+    spatial_size = fall_back_tuple(spatial_size, default=label_spatial_shape)
+    if not (np.subtract(label_spatial_shape, spatial_size) >= 0).all():
+        raise ValueError("The size of the proposed random crop ROI is larger than the image size.")
+
+    # Select subregion to assure valid roi
+    valid_start = np.floor_divide(spatial_size, 2)
+    # add 1 for random
+    valid_end = np.subtract(label_spatial_shape + np.array(1), spatial_size / np.array(2)).astype(np.uint16)
+    # int generation to have full range on upper side, but subtract unfloored size/2 to prevent rounded range
+    # from being too high
+    for i, valid_s in enumerate(valid_start):
+        # need this because np.random.randint does not work with same start and end
+        if valid_s == valid_end[i]:
+            valid_end[i] += 1
+
+    for i, c in enumerate(centers):
+        center_i = c
+        if c < valid_start[i]:
+            center_i = valid_start[i]
+        if c >= valid_end[i]:
+            center_i = valid_end[i] - 1
+        centers[i] = center_i
+
+    return centers
+
+
 def generate_pos_neg_label_crop_centers(
     spatial_size: Union[Sequence[int], int],
     num_samples: int,
@@ -352,33 +440,6 @@ def generate_pos_neg_label_crop_centers(
     """
     if rand_state is None:
         rand_state = np.random.random.__self__  # type: ignore
-    spatial_size = fall_back_tuple(spatial_size, default=label_spatial_shape)
-    if not (np.subtract(label_spatial_shape, spatial_size) >= 0).all():
-        raise ValueError("The size of the proposed random crop ROI is larger than the image size.")
-
-    # Select subregion to assure valid roi
-    valid_start = np.floor_divide(spatial_size, 2)
-    # add 1 for random
-    valid_end = np.subtract(label_spatial_shape + np.array(1), spatial_size / np.array(2)).astype(np.uint16)
-    # int generation to have full range on upper side, but subtract unfloored size/2 to prevent rounded range
-    # from being too high
-    for i, valid_s in enumerate(
-        valid_start
-    ):  # need this because np.random.randint does not work with same start and end
-        if valid_s == valid_end[i]:
-            valid_end[i] += 1
-
-    def _correct_centers(
-        center_ori: List[np.ndarray], valid_start: np.ndarray, valid_end: np.ndarray
-    ) -> List[np.ndarray]:
-        for i, c in enumerate(center_ori):
-            center_i = c
-            if c < valid_start[i]:
-                center_i = valid_start[i]
-            if c >= valid_end[i]:
-                center_i = valid_end[i] - 1
-            center_ori[i] = center_i
-        return center_ori
 
     centers = []
     fg_indices, bg_indices = np.asarray(fg_indices), np.asarray(bg_indices)
@@ -398,7 +459,61 @@ def generate_pos_neg_label_crop_centers(
         center = np.unravel_index(indices_to_use[random_int], label_spatial_shape)
         # shift center to range of valid centers
         center_ori = list(center)
-        centers.append(_correct_centers(center_ori, valid_start, valid_end))
+        centers.append(correct_crop_centers(center_ori, spatial_size, label_spatial_shape))
+
+    return centers
+
+
+def generate_label_classes_crop_centers(
+    spatial_size: Union[Sequence[int], int],
+    num_samples: int,
+    label_spatial_shape: Sequence[int],
+    indices: List[np.ndarray],
+    ratios: Optional[List[Union[float, int]]] = None,
+    rand_state: Optional[np.random.RandomState] = None,
+) -> List[List[np.ndarray]]:
+    """
+    Generate valid sample locations based on the specified ratios of label classes.
+    Valid: samples sitting entirely within image, expected input shape: [C, H, W, D] or [C, H, W]
+
+    Args:
+        spatial_size: spatial size of the ROIs to be sampled.
+        num_samples: total sample centers to be generated.
+        label_spatial_shape: spatial shape of the original label data to unravel selected centers.
+        indices: sequence of pre-computed foreground indices of every class in 1 dimension.
+        ratios: ratios of every class in the label to generate crop centers, including background class.
+            if None, every class will have the same ratio to generate crop centers.
+        rand_state: numpy randomState object to align with other modules.
+
+    """
+    if rand_state is None:
+        rand_state = np.random.random.__self__  # type: ignore
+
+    if num_samples < 1:
+        raise ValueError("num_samples must be an int number and greater than 0.")
+    ratios_: List[Union[float, int]] = ([1] * len(indices)) if ratios is None else ratios
+    if len(ratios_) != len(indices):
+        raise ValueError("random crop radios must match the number of indices of classes.")
+    if any([i < 0 for i in ratios_]):
+        raise ValueError("ratios should not contain negative number.")
+
+    # ensure indices are numpy array
+    indices = [np.asarray(i) for i in indices]
+    for i, array in enumerate(indices):
+        if len(array) == 0:
+            warnings.warn(f"no available indices of class {i} to crop, set the crop ratio of this class to zero.")
+            ratios_[i] = 0
+
+    centers = []
+    classes = rand_state.choice(len(ratios_), size=num_samples, p=np.asarray(ratios_) / np.sum(ratios_))
+    for i in classes:
+        # randomly select the indices of a class based on the ratios
+        indices_to_use = indices[i]
+        random_int = rand_state.randint(len(indices_to_use))
+        center = np.unravel_index(indices_to_use[random_int], label_spatial_shape)
+        # shift center to range of valid centers
+        center_ori = list(center)
+        centers.append(correct_crop_centers(center_ori, spatial_size, label_spatial_shape))
 
     return centers
 
