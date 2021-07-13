@@ -210,6 +210,42 @@ class TestBasicDeCollate(unittest.TestCase):
         out = decollate_batch(test_case, detach=False)
         self.assertEqual(out[0]["out"], "test")
 
+    def test_decollated(self):
+        test_case = {
+            "image": torch.tensor([[[1, 2]], [[3, 4]]]),
+            "meta": {"out": ["test", "test"]},
+            "image_meta_dict": {"scl_slope": torch.Tensor((0.0, 0.0))},
+            "loss": 0.85,
+        }
+        transform = Decollated(keys=["meta", "image_meta_dict"], detach=False, rep_scalar=False)
+        out = transform(test_case)
+        self.assertFalse("loss" in out)
+        self.assertEqual(out[0]["meta"]["out"], "test")
+        self.assertEqual(out[0]["image_meta_dict"]["scl_slope"], 0.0)
+        self.assertTrue(isinstance(out[0]["image_meta_dict"]["scl_slope"], torch.Tensor))
+        # decollate all data with rep_scalar=True
+        transform = Decollated(keys=None, detach=True, rep_scalar=True)
+        out = transform(test_case)
+        self.assertEqual(out[1]["loss"], 0.85)
+        self.assertEqual(out[0]["meta"]["out"], "test")
+        self.assertEqual(out[0]["image_meta_dict"]["scl_slope"], 0.0)
+        self.assertTrue(isinstance(out[0]["image_meta_dict"]["scl_slope"], float))
+
+        # test list input
+        test_case = [
+            torch.tensor([[[1, 2]], [[3, 4]]]),
+            {"out": ["test", "test"]},
+            {"scl_slope": torch.Tensor((0.0, 0.0))},
+            0.85,
+        ]
+        transform = Decollated(keys=None, detach=False, rep_scalar=True)
+        out = transform(test_case)
+        # the 4th item in the list is scalar loss value
+        self.assertEqual(out[1][3], 0.85)
+        self.assertEqual(out[0][1]["out"], "test")
+        self.assertEqual(out[0][2]["scl_slope"], 0.0)
+        self.assertTrue(isinstance(out[0][2]["scl_slope"], torch.Tensor))
+
 
 if __name__ == "__main__":
     unittest.main()

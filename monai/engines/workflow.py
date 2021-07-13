@@ -18,9 +18,8 @@ from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
 from monai.config import IgniteInfo
-from monai.data import decollate_batch, rep_scalar_to_batch
 from monai.engines.utils import IterationEvents, default_metric_cmp_fn, default_prepare_batch
-from monai.transforms import Transform
+from monai.transforms import Decollated, Transform
 from monai.utils import ensure_tuple, min_version, optional_import
 
 from .utils import engine_apply_transform
@@ -186,8 +185,9 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         @self.on(IterationEvents.MODEL_COMPLETED)
         def _decollate_data(engine: Engine) -> None:
             # replicate the scalar values to make sure all the items have batch dimension, then decollate
-            engine.state.batch = decollate_batch(rep_scalar_to_batch(engine.state.batch), detach=True)
-            engine.state.output = decollate_batch(rep_scalar_to_batch(engine.state.output), detach=True)
+            transform = Decollated(keys=None, detach=True, rep_scalar=True)
+            engine.state.batch = transform(engine.state.batch)
+            engine.state.output = transform(engine.state.output)
 
     def _register_postprocessing(self, posttrans: Callable):
         """

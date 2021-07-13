@@ -9,11 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
-from monai.config import IgniteInfo
-from monai.data import decollate_batch, rep_scalar_to_batch
+from monai.config import IgniteInfo, KeysCollection
 from monai.engines.utils import IterationEvents
+from monai.transforms import Decollated
 from monai.utils import min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
@@ -32,14 +32,58 @@ class DecollateBatch:
     Args:
         event: expected EVENT to attach the handler, should be "MODEL_COMPLETED" or "ITERATION_COMPLETED".
             default to "MODEL_COMPLETED".
+        detach: whether to detach the tensors. scalars tensors will be detached into number types
+            instead of torch tensors.
+        rep_scalar: whether to replicate the scalar values to every decollated item of the list.
+        decollate_batch: whether to decollate `engine.state.batch` of ignite engine.
+        batch_keys: if `decollate_batch=True`, specify the keys of the corresponding items to decollate
+            in `engine.state.batch`, note that it will delete other keys not specified. if None,
+            will decollate all the keys.
+        decollate_output: whether to decollate `engine.state.output` of ignite engine.
+        output_keys: if `decollate_output=True`, specify the keys of the corresponding items to decollate
+            in `engine.state.output`, note that it will delete other keys not specified. if None,
+            will decollate all the keys.
+        allow_missing_keys: don't raise exception if key is missing.
 
     """
 
-    def __init__(self, event: str = "MODEL_COMPLETED"):
+    def __init__(
+        self,
+        event: str = "MODEL_COMPLETED",
+        detach: bool = True,
+        rep_scalar: bool = True,
+        decollate_batch: bool = True,
+        batch_keys: Optional[KeysCollection] = None,
+        decollate_output: bool = True,
+        output_keys: Optional[KeysCollection] = None,
+        allow_missing_keys: bool = False,
+    ):
         event = event.upper()
         if event not in ("MODEL_COMPLETED", "ITERATION_COMPLETED"):
             raise ValueError("event should be `MODEL_COMPLETED` or `ITERATION_COMPLETED`.")
         self.event = event
+
+        self.batch_transform = (
+            Decollated(
+                keys=batch_keys,
+                detach=detach,
+                rep_scalar=rep_scalar,
+                allow_missing_keys=allow_missing_keys,
+            )
+            if decollate_batch
+            else None
+        )
+
+        self.output_transform = (
+            Decollated(
+                keys=output_keys,
+                detach=detach,
+                rep_scalar=rep_scalar,
+                allow_missing_keys=allow_missing_keys,
+            )
+            if decollate_output
+            else None
+        )
 
     def attach(self, engine: Engine) -> None:
         """
@@ -56,6 +100,7 @@ class DecollateBatch:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        # replicate the scalar values to make sure all the items have batch dimension, then decollate
-        engine.state.batch = decollate_batch(rep_scalar_to_batch(engine.state.batch), detach=True)
-        engine.state.output = decollate_batch(rep_scalar_to_batch(engine.state.output), detach=True)
+        if self.batch_transform is not None:
+            engine.state.batch = self.batch_transform(engine.state.batch)
+        if self.output_transform is not None:
+            engine.state.output = self.output_transform(engine.state.output)

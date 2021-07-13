@@ -10,13 +10,15 @@
 # limitations under the License.
 
 import warnings
-from typing import Any, Callable, Dict, Optional, Sequence
+from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
+import torch
 from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader as TorchDataLoader
 
+from monai.config import KeysCollection
 from monai.data.dataloader import DataLoader
-from monai.data.utils import decollate_batch, no_collation, pad_list_data_collate
+from monai.data.utils import decollate_batch, no_collation, pad_list_data_collate, rep_scalar_to_batch
 from monai.transforms.croppad.batch import PadListDataCollate
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Transform
@@ -103,18 +105,44 @@ class BatchInverseTransform(Transform):
 
 class Decollated(MapTransform):
     """
-    Decollate a batch of data.
-    Note that unlike most MapTransforms, this will decollate all data, so keys are not needed.
+    Decollate a batch of data, if input a dictionary, it can also support to only decollate specified keys.
+    Note that unlike most MapTransforms, it will delete other keys not specified and if keys=None, will decollate
+    all the data in the input.
 
     Args:
+        keys: keys of the corresponding items to decollate, note that it will delete other keys not specified.
+            if None, will decollate all the keys. see also: :py:class:`monai.transforms.compose.MapTransform`.
         detach: whether to detach the tensors. Scalars tensors will be detached into number types
             instead of torch tensors.
+        rep_scalar: whether to replicate the scalar values to every decollated item of the list.
+        allow_missing_keys: don't raise exception if key is missing.
 
     """
 
-    def __init__(self, keys="", detach: bool = True) -> None:
-        super().__init__(keys=keys)
+    def __init__(
+        self,
+        keys: Optional[KeysCollection] = None,
+        detach: bool = True,
+        rep_scalar: bool = True,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
         self.detach = detach
+        self.rep_scalar = rep_scalar
 
-    def __call__(self, data: dict):
-        return decollate_batch(data, detach=self.detach)
+    def __call__(self, data: Union[Dict, List]):
+        d: Union[Dict, List]
+        if len(self.keys) == 1 and self.keys[0] is None:
+            # it doesn't support `None` as the key
+            d = data
+        else:
+            if not isinstance(data, dict):
+                raise TypeError("input data is not a dictionary, but specified keys to decollate.")
+            d = {}
+            for key in self.key_iterator(data):
+                d[key] = data[key]
+
+        if self.rep_scalar:
+            d = rep_scalar_to_batch(d)
+
+        return decollate_batch(d, detach=self.detach)
