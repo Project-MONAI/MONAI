@@ -458,7 +458,7 @@ class RandBiasField(RandomizableTransform):
             coeff_mat[np_pts[:, 0], np_pts[:, 1], np_pts[:, 2]] = coeff
             field = np.polynomial.legendre.leggrid3d(coords[0], coords[1], coords[2], coeff_mat)
         else:
-            raise NotImplementedError("only supoprts 2D or 3D fields")
+            raise NotImplementedError("only supports 2D or 3D fields")
         return field
 
     def randomize(self, data: np.ndarray) -> None:
@@ -1482,7 +1482,7 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
             channels at once, or channel-wise if ``channel_wise = True``.
         intensity_range: pass a tuple
             (a, b) to sample the log-intensity from the interval (a, b)
-            uniformly for all channels. Or pass sequence of intevals
+            uniformly for all channels. Or pass sequence of intervals
             ((a0, b0), (a1, b1), ...) to sample for each respective channel.
             In the second case, the number of 2-tuples must match the number of
             channels.
@@ -1543,7 +1543,7 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
         intensity_range = self._make_sequence(x)
         self._randomize(x, intensity_range)
 
-        # build/appy transform only if there are spike locations
+        # build/apply transform only if there are spike locations
         if self.sampled_locs:
             transform = KSpaceSpikeNoise(self.sampled_locs, self.sampled_k_intensity, self.as_tensor_output)
             return transform(x)

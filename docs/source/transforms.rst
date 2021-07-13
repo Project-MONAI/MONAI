@@ -742,8 +742,8 @@ Crop and Pad (Dict)
     :members:
     :special-members: __call__
 
-Instensity (Dict)
-^^^^^^^^^^^^^^^^^
+Intensity (Dict)
+^^^^^^^^^^^^^^^^
 
 `RandGaussianNoised`
 """"""""""""""""""""

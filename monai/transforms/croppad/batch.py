@@ -86,7 +86,7 @@ class PadListDataCollate(InvertibleTransform):
                     break
                 max_shapes.append(elem[key_or_idx].shape[1:])
             # len > 0 if objects were arrays, else skip as no padding to be done
-            if len(max_shapes) == 0:
+            if not max_shapes:
                 continue
             max_shape = np.array(max_shapes).max(axis=0)
             # If all same size, skip
@@ -121,9 +121,9 @@ class PadListDataCollate(InvertibleTransform):
             raise RuntimeError("Inverse can only currently be applied on dictionaries.")
 
         d = deepcopy(data)
-        for key in d.keys():
+        for key in d:
             transform_key = str(key) + InverseKeys.KEY_SUFFIX
-            if transform_key in d.keys():
+            if transform_key in d:
                 transform = d[transform_key][-1]
                 if transform[InverseKeys.CLASS_NAME] == PadListDataCollate.__name__:
                     d[key] = CenterSpatialCrop(transform["orig_size"])(d[key])

@@ -71,9 +71,7 @@ def _append_paths(base_dir: str, is_segmentation: bool, items: List[Dict]) -> Li
         if not isinstance(item, dict):
             raise TypeError(f"Every item in items must be a dict but got {type(item).__name__}.")
         for k, v in item.items():
-            if k == "image":
-                item[k] = _compute_path(base_dir, v, check_path=False)
-            elif is_segmentation and k == "label":
+            if k == "image" or is_segmentation and k == "label":
                 item[k] = _compute_path(base_dir, v, check_path=False)
             else:
                 # for other items, auto detect whether it's a valid path
