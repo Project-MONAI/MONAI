@@ -1024,7 +1024,7 @@ class RandCropByLabelClasses(Randomizable, Transform):
         if self.centers is not None:
             for center in self.centers:
                 cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)  # type: ignore
-                results.append(cropper(img))
+                results.append(cropper(img))  # type: ignore
 
         return results
 

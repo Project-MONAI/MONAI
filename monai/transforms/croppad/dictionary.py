@@ -1113,7 +1113,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
                 img = d[key]
                 cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)  # type: ignore
                 orig_size = img.shape[1:]
-                results[i][key] = cropper(img)
+                results[i][key] = cropper(img)  # type: ignore
                 self.push_transform(results[i], key, extra_info={"center": center}, orig_size=orig_size)
             # add `patch_index` to the meta data
             for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
@@ -1140,7 +1140,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
             pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
             inverse_transform = BorderPad(pad)
             # Apply inverse transform
-            d[key] = inverse_transform(d[key])
+            d[key] = inverse_transform(d[key])  # type: ignore
             # Remove the applied transform
             self.pop_transform(d, key)
 
