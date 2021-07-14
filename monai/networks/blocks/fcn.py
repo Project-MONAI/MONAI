@@ -91,8 +91,7 @@ class Refine(nn.Module):
         x = self.relu(x)
         x = self.conv2(x)
 
-        out = residual + x
-        return out
+        return residual + x
 
 
 class FCN(nn.Module):
@@ -191,7 +190,7 @@ class FCN(nn.Module):
             fs2 = self.refine7(self.up_conv(fs1) + gcfm3)
             fs3 = self.refine8(self.up_conv(fs2) + gcfm4)
             fs4 = self.refine9(self.up_conv(fs3) + gcfm5)
-            out = self.refine10(self.up_conv(fs4))
+            return self.refine10(self.up_conv(fs4))
         else:
             fs1 = self.refine6(
                 F.interpolate(gcfm1, fm3.size()[2:], mode=self.upsample_mode, align_corners=True) + gcfm2
@@ -203,8 +202,14 @@ class FCN(nn.Module):
             fs4 = self.refine9(
                 F.interpolate(fs3, conv_x.size()[2:], mode=self.upsample_mode, align_corners=True) + gcfm5
             )
-            out = self.refine10(F.interpolate(fs4, org_input.size()[2:], mode=self.upsample_mode, align_corners=True))
-        return out
+            return self.refine10(
+                F.interpolate(
+                    fs4,
+                    org_input.size()[2:],
+                    mode=self.upsample_mode,
+                    align_corners=True,
+                )
+            )
 
 
 class MCFCN(FCN):
@@ -253,5 +258,4 @@ class MCFCN(FCN):
             x: in shape (batch, in_channels, spatial_1, spatial_2).
         """
         x = self.init_proj(x)
-        out = super(MCFCN, self).forward(x)
-        return out
+        return super(MCFCN, self).forward(x)

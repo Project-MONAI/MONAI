@@ -115,14 +115,12 @@ def _copy_compatible_dict(from_dict: Dict, to_dict: Dict):
 
 
 def _stack_images(image_list: List, meta_dict: Dict):
-    if len(image_list) > 1:
-        if meta_dict.get("original_channel_dim", None) not in ("no_channel", None):
-            raise RuntimeError("can not read a list of images which already have channel dimension.")
-        meta_dict["original_channel_dim"] = 0
-        img_array = np.stack(image_list, axis=0)
-    else:
-        img_array = image_list[0]
-    return img_array
+    if len(image_list) <= 1:
+        return image_list[0]
+    if meta_dict.get("original_channel_dim", None) not in ("no_channel", None):
+        raise RuntimeError("can not read a list of images which already have channel dimension.")
+    meta_dict["original_channel_dim"] = 0
+    return np.stack(image_list, axis=0)
 
 
 class ITKReader(ImageReader):

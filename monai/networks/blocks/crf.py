@@ -54,7 +54,8 @@ class CRF(torch.nn.Module):
             bilateral_color_sigma: standard deviation in color space for the bilateral term.
             gaussian_spatial_sigma: standard deviation in spatial coordinates for the gaussian term.
             update_factor: determines the magnitude of each update.
-            compatibility_matrix: a matrix describing class compatibility, should be NxN where N is the numer of classes.
+            compatibility_matrix: a matrix describing class compatibility,
+                should be NxN where N is the number of classes.
         """
         super(CRF, self).__init__()
         self.iterations = iterations
@@ -92,11 +93,11 @@ class CRF(torch.nn.Module):
         for _ in range(self.iterations):
 
             # message passing step for both kernels
-            bliateral_output = PHLFilter.apply(output_tensor, bilateral_features)
+            bilateral_output = PHLFilter.apply(output_tensor, bilateral_features)
             gaussian_output = PHLFilter.apply(output_tensor, gaussian_features)
 
             # combining filter outputs
-            combined_output = self.bilateral_weight * bliateral_output + self.gaussian_weight * gaussian_output
+            combined_output = self.bilateral_weight * bilateral_output + self.gaussian_weight * gaussian_output
 
             # optionally running a compatibility transform
             if self.compatibility_matrix is not None:

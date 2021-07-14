@@ -79,7 +79,7 @@ def _get_all_ngc_models(pattern, page_index=0, page_size=50):
     else:
         raise ValueError("NGC API requires requests package.  Please install it.")
     model_list = json.loads(resp.text)
-    model_dict = dict()
+    model_dict = {}
     for result in model_list["results"]:
         for model in result["resources"]:
             current_res_id = model["resourceId"]
@@ -136,7 +136,7 @@ def download_mmar(item, mmar_dir=None, progress: bool = True, api: bool = False,
         model_dict = _get_all_ngc_models(item)
         if len(model_dict) == 0:
             raise ValueError(f"api query returns no item for pattern {item}.  Please change or shorten it.")
-        model_dir_list = list()
+        model_dir_list = []
         for k, v in model_dict.items():
             ver = v["latest"] if version == -1 else str(version)
             download_url = _get_ngc_url(k, ver)

@@ -41,7 +41,7 @@ class MetricsSaver:
             typically, it's some intermediate values in metric computation.
             for example: mean dice of every channel of every image in the validation dataset.
             it must contain at least 2 dims: (batch, classes, ...),
-            if not, will unsequeeze to 2 dims.
+            if not, will unsqueeze to 2 dims.
             this arg can be: None, "*" or list of strings.
             None - don't save any metric_details into files.
             "*" - save all the existing metric_details in `engine.state.metric_details` dict into separate files.

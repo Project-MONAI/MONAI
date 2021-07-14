@@ -420,6 +420,7 @@ def pad_list_data_collate(
     batch: Sequence,
     method: Union[Method, str] = Method.SYMMETRIC,
     mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+    **np_kwargs,
 ):
     """
     Function version of :py:class:`monai.transforms.croppad.batch.PadListDataCollate`.
@@ -437,10 +438,13 @@ def pad_list_data_collate(
         batch: batch of data to pad-collate
         method: padding method (see :py:class:`monai.transforms.SpatialPad`)
         mode: padding mode (see :py:class:`monai.transforms.SpatialPad`)
+        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
+            more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+
     """
     from monai.transforms.croppad.batch import PadListDataCollate  # needs to be here to avoid circular import
 
-    return PadListDataCollate(method, mode)(batch)
+    return PadListDataCollate(method=method, mode=mode, **np_kwargs)(batch)
 
 
 def no_collation(x):
@@ -551,7 +555,7 @@ def zoom_affine(affine: np.ndarray, scale: Sequence[float], diagonal: bool = Tru
     Args:
         affine (nxn matrix): a square matrix.
         scale: new scaling factor along each dimension. if the components of the `scale` are non-positive values,
-            will use the corresponding components of the origial pixdim, which is computed from the `affine`.
+            will use the corresponding components of the original pixdim, which is computed from the `affine`.
         diagonal: whether to return a diagonal scaling matrix.
             Defaults to True.
 
@@ -1105,11 +1109,11 @@ def convert_tables_to_dicts(
     if isinstance(col_types, dict):
         # fill default values for NaN
         defaults = {k: v["default"] for k, v in col_types.items() if v is not None and v.get("default") is not None}
-        if len(defaults) > 0:
+        if defaults:
             data_ = data_.fillna(value=defaults)
         # convert data types
         types = {k: v["type"] for k, v in col_types.items() if v is not None and "type" in v}
-        if len(types) > 0:
+        if types:
             data_ = data_.astype(dtype=types)
     data: List[Dict] = data_.to_dict(orient="records")
 

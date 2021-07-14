@@ -254,6 +254,7 @@ class DivisiblePadd(MapTransform, InvertibleTransform):
         keys: KeysCollection,
         k: Union[Sequence[int], int],
         mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT,
+        method: Union[Method, str] = Method.SYMMETRIC,
         allow_missing_keys: bool = False,
         **np_kwargs,
     ) -> None:
@@ -269,6 +270,8 @@ class DivisiblePadd(MapTransform, InvertibleTransform):
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
+            method: {``"symmetric"``, ``"end"``}
+                Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
             allow_missing_keys: don't raise exception if key is missing.
             np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
                 more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
@@ -278,7 +281,7 @@ class DivisiblePadd(MapTransform, InvertibleTransform):
         """
         super().__init__(keys, allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.padder = DivisiblePad(k=k, **np_kwargs)
+        self.padder = DivisiblePad(k=k, method=method, **np_kwargs)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)

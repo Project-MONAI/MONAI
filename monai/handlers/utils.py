@@ -110,17 +110,16 @@ def string_list_all_gather(strings: List[str]) -> List[str]:
     max_len = max(all_lens)
     # pad the item to make sure the same length
     if length < max_len:
-        strings = strings + ["" for _ in range(max_len - length)]
+        strings += ["" for _ in range(max_len - length)]
 
-    if get_torch_version_tuple() > (1, 6):
-        for s in strings:
-            gathered = idist.all_gather(s)
-            for i, g in enumerate(gathered):
-                if len(g) > 0:
-                    result[i].append(g)
-    else:
+    if get_torch_version_tuple() <= (1, 6):
         raise RuntimeError("string all_gather can not be supported in PyTorch < 1.7.0.")
 
+    for s in strings:
+        gathered = idist.all_gather(s)
+        for i, g in enumerate(gathered):
+            if len(g) > 0:
+                result[i].append(g)
     return [i for k in result for i in k]
 
 
@@ -213,11 +212,11 @@ def write_metrics_reports(
                     ops = tuple(supported_ops.keys())
 
                 def _compute_op(op: str, d: np.ndarray):
-                    if op.endswith("percentile"):
-                        threshold = int(op.split("percentile")[0])
-                        return supported_ops["90percentile"]((d, threshold))
-                    else:
+                    if not op.endswith("percentile"):
                         return supported_ops[op](d)
+
+                    threshold = int(op.split("percentile")[0])
+                    return supported_ops["90percentile"]((d, threshold))
 
                 with open(os.path.join(save_dir, f"{k}_summary.csv"), "w") as f:
                     f.write(f"class{deli}{deli.join(ops)}\n")
@@ -248,7 +247,7 @@ def from_engine(keys: KeysCollection, first: bool = False):
 
     Args:
         keys: specified keys to extract data from dictionary or decollated list of dictionaries.
-        first: whether only extract sepcified keys from the first item if input data is a list of dictionaries,
+        first: whether only extract specified keys from the first item if input data is a list of dictionaries,
             it's used to extract the scalar data which doesn't have batch dim and was replicated into every
             dictionary when decollating, like `loss`, etc.
 
