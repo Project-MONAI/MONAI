@@ -26,7 +26,7 @@ from monai.engines.utils import (
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import Transform
-from monai.utils import min_version, optional_import, PT_BEFORE_1_7
+from monai.utils import PT_BEFORE_1_7, min_version, optional_import
 from monai.utils.enums import CommonKeys as Keys
 
 if TYPE_CHECKING:
