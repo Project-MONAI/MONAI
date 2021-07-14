@@ -43,7 +43,7 @@ class CSVSaver:
             output_dir: output CSV file directory.
             filename: name of the saved CSV file name.
             overwrite: whether to overwriting existing CSV file content, if True, will clear the file before saving.
-                otherwise, will apend new content to the CSV file.
+                otherwise, will append new content to the CSV file.
             flush: whether to write the cache data to CSV file immediately when `save_batch` and clear the cache.
                 default to False.
 

@@ -178,7 +178,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
 
     def _register_decollate(self):
         """
-        Register the decollate operation for batch data, will execure after model forward and loss forward.
+        Register the decollate operation for batch data, will execute after model forward and loss forward.
 
         """
 

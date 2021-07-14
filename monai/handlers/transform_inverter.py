@@ -124,7 +124,7 @@ class TransformInverter:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
         if not isinstance(engine.state.batch, list) or not isinstance(engine.state.output, list):
-            warnings.warn("inverter requires `engine.state.batch` and `engine.state.outout` to be lists.")
+            warnings.warn("inverter requires `engine.state.batch` and `engine.state.output` to be lists.")
         else:
             for i, (b, o) in enumerate(zip(engine.state.batch, engine.state.output)):
                 # combine `batch` and `output` to temporarily act as 1 dict for postprocessing

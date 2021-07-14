@@ -259,9 +259,7 @@ class PersistentDataset(Dataset):
             try:
                 return torch.load(hashfile)
             except PermissionError as e:
-                if sys.platform == "win32":
-                    pass  # windows machine multiprocessing not efficiently supported
-                else:
+                if sys.platform != "win32":
                     raise e
 
         _item_transformed = self._pre_transform(deepcopy(item_transformed))  # keep the original hashed
@@ -597,7 +595,7 @@ class CacheDataset(Dataset):
         """
         Set the input data and run deterministic transforms to generate cache content.
 
-        Note: should call this func after an entire epoch and must set `persisten_workers=False`
+        Note: should call this func after an entire epoch and must set `persistent_workers=False`
         in PyTorch DataLoader, because it needs to create new worker processes based on new
         generated cache content.
 
@@ -1145,10 +1143,10 @@ class NPZDictItemDataset(Dataset):
 class CSVDataset(Dataset):
     """
     Dataset to load data from CSV files and generate a list of dictionaries,
-    every dictionay maps to a row of the CSV file, and the keys of dictionary
+    every dictionary maps to a row of the CSV file, and the keys of dictionary
     map to the column names of the CSV file.
 
-    It can load multiple CSV files and join the tables with addtional `kwargs` arg.
+    It can load multiple CSV files and join the tables with additional `kwargs` arg.
     Support to only load specific rows and columns.
     And it can also group several loaded columns to generate a new column, for example,
     set `col_groups={"meta": ["meta_0", "meta_1", "meta_2"]}`, output can be::

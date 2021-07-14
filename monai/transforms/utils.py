@@ -847,7 +847,8 @@ def map_spatial_axes(
 
     """
     if spatial_axes is None:
-        spatial_axes_ = list(range(1, img_ndim) if channel_first else range(0, img_ndim - 1))
+        spatial_axes_ = list(range(1, img_ndim) if channel_first else range(img_ndim - 1))
+
     else:
         spatial_axes_ = []
         for a in ensure_tuple(spatial_axes):
@@ -968,7 +969,7 @@ def convert_to_tensor(data):
     Args:
         data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
             will convert Tensor, Numpy array, float, int, bool to Tensors, strings and objects keep the original.
-            for dictionay, list or tuple, convert every item to a Tensor if applicable.
+            for dictionary, list or tuple, convert every item to a Tensor if applicable.
 
     """
     if isinstance(data, torch.Tensor):
@@ -987,7 +988,7 @@ def convert_to_tensor(data):
     elif isinstance(data, list):
         return [convert_to_tensor(i) for i in data]
     elif isinstance(data, tuple):
-        return tuple([convert_to_tensor(i) for i in data])
+        return tuple(convert_to_tensor(i) for i in data)
 
     return data
 
@@ -1000,7 +1001,7 @@ def convert_to_numpy(data):
     Args:
         data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
             will convert Tensor, Numpy array, float, int, bool to numpy arrays, strings and objects keep the original.
-            for dictionay, list or tuple, convert every item to a numpy array if applicable.
+            for dictionary, list or tuple, convert every item to a numpy array if applicable.
 
     """
     if isinstance(data, torch.Tensor):
@@ -1029,7 +1030,7 @@ def tensor_to_numpy(data):
 
     Args:
         data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
-            will convert the Tensor data to numpy array, others keep the original. for dictionay, list or tuple,
+            will convert the Tensor data to numpy array, others keep the original. for dictionary, list or tuple,
             convert every Tensor item to numpy array if applicable.
 
     """
@@ -1042,6 +1043,6 @@ def tensor_to_numpy(data):
     elif isinstance(data, list):
         return [tensor_to_numpy(i) for i in data]
     elif isinstance(data, tuple):
-        return tuple([tensor_to_numpy(i) for i in data])
+        return tuple(tensor_to_numpy(i) for i in data)
 
     return data
