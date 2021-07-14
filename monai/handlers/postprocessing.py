@@ -26,24 +26,35 @@ class PostProcessing:
     """
     Ignite handler to execute additional post processing after the post processing in engines.
     So users can insert other handlers between engine postprocessing and this post processing handler.
+    If using components from `monai.transforms` as the `transform`, recommend to decollate `engine.state.batch`
+    and `engine.state.batch` in the engine(set `decollate=True`) or in the `DecollateBatch` handler first.
 
     """
 
-    def __init__(self, transform: Callable) -> None:
+    def __init__(self, transform: Callable, event: str = "MODEL_COMPLETED") -> None:
         """
         Args:
             transform: callable function to execute on the `engine.state.batch` and `engine.state.output`.
                 can also be composed transforms.
+            event: expected EVENT to attach the handler, should be "MODEL_COMPLETED" or "ITERATION_COMPLETED".
+                default to "MODEL_COMPLETED".
 
         """
         self.transform = transform
+        event = event.upper()
+        if event not in ("MODEL_COMPLETED", "ITERATION_COMPLETED"):
+            raise ValueError("event should be `MODEL_COMPLETED` or `ITERATION_COMPLETED`.")
+        self.event = event
 
     def attach(self, engine: Engine) -> None:
         """
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        engine.add_event_handler(IterationEvents.MODEL_COMPLETED, self)
+        if self.event == "MODEL_COMPLETED":
+            engine.add_event_handler(IterationEvents.MODEL_COMPLETED, self)
+        else:
+            engine.add_event_handler(Events.ITERATION_COMPLETED, self)
 
     def __call__(self, engine: Engine) -> None:
         """
