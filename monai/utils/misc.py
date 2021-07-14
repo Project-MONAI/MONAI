@@ -181,9 +181,7 @@ def fall_back_tuple(
 
 
 def is_scalar_tensor(val: Any) -> bool:
-    if isinstance(val, torch.Tensor) and val.ndim == 0:
-        return True
-    return False
+    return isinstance(val, torch.Tensor) and val.ndim == 0
 
 
 def is_scalar(val: Any) -> bool:
@@ -202,7 +200,7 @@ def progress_bar(index: int, count: int, desc: Optional[str] = None, bar_len: in
         bar_len: the total length of the bar on screen, default is 30 char.
         newline: whether to print in a new line for every index.
     """
-    end = "\r" if newline is False else "\r\n"
+    end = "\r" if not newline else "\r\n"
     filled_len = int(bar_len * index // count)
     bar = f"{desc} " if desc is not None else ""
     bar += "[" + "=" * filled_len + " " * (bar_len - filled_len) + "]"

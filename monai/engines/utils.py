@@ -87,7 +87,7 @@ def get_devices_spec(devices: Optional[Sequence[torch.device]] = None) -> List[t
     if devices is None:
         devices = [torch.device(f"cuda:{d:d}") for d in range(torch.cuda.device_count())]
 
-        if len(devices) == 0:
+        if not devices:
             raise RuntimeError("No GPU devices available.")
 
     elif len(devices) == 0:
@@ -115,7 +115,7 @@ def default_prepare_batch(
     """
     if not isinstance(batchdata, dict):
         raise AssertionError("default prepare_batch expects dictionary input data.")
-    if isinstance(batchdata.get(CommonKeys.LABEL, None), torch.Tensor):
+    if isinstance(batchdata.get(CommonKeys.LABEL), torch.Tensor):
         return (
             batchdata[CommonKeys.IMAGE].to(device=device, non_blocking=non_blocking),
             batchdata[CommonKeys.LABEL].to(device=device, non_blocking=non_blocking),

@@ -575,7 +575,7 @@ class SaveClassificationd(MapTransform):
                 the meta data is a dictionary object which contains: filename, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-                will extract the filename of input image to save classifcation results.
+                will extract the filename of input image to save classification results.
             meta_key_postfix: `key_{postfix}` was used to store the metadata in `LoadImaged`.
                 so need the key to extract the metadata of input image, like filename, etc. default is `meta_dict`.
                 for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
@@ -586,7 +586,7 @@ class SaveClassificationd(MapTransform):
             output_dir: if `saver=None`, specify the directory to save the CSV file.
             filename: if `saver=None`, specify the name of the saved CSV file.
             overwrite: if `saver=None`, indicate whether to overwriting existing CSV file content, if True,
-                will clear the file before saving. otherwise, will apend new content to the CSV file.
+                will clear the file before saving. otherwise, will append new content to the CSV file.
             flush: if `saver=None`, indicate whether to write the cache data to CSV file immediately
                 in this transform and clear the cache. default to True.
                 If False, may need user to call `saver.finalize()` manually or use `ClassificationSaver` handler.

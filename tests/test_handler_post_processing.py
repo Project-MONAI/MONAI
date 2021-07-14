@@ -28,7 +28,8 @@ TEST_CASE_2 = [
                 CopyItemsd(keys="filename", times=1, names="filename_bak"),
                 AsDiscreted(keys="pred", threshold_values=True, to_onehot=True, n_classes=2),
             ]
-        )
+        ),
+        "event": "iteration_completed",
     },
     True,
     torch.tensor([[[[1.0], [1.0]], [[0.0], [0.0]]]]),

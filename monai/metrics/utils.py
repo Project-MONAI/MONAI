@@ -201,7 +201,7 @@ def get_surface_distance(
             return np.asarray(dis[seg_gt])
         if distance_metric == "euclidean":
             dis = distance_transform_edt(~seg_gt)
-        elif distance_metric in ["chessboard", "taxicab"]:
+        elif distance_metric in {"chessboard", "taxicab"}:
             dis = distance_transform_cdt(~seg_gt, metric=distance_metric)
         else:
             raise ValueError(f"distance_metric {distance_metric} is not implemented.")

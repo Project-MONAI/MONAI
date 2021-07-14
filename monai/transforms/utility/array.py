@@ -368,7 +368,7 @@ class EnsureType(Transform):
         Args:
             data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
                 will ensure Tensor, Numpy array, float, int, bool as Tensors or numpy arrays, strings and
-                objects keep the original. for dictionay, list or tuple, ensure every item as expected type
+                objects keep the original. for dictionary, list or tuple, ensure every item as expected type
                 if applicable.
 
         """

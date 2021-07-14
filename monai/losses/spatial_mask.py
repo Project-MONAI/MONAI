@@ -36,11 +36,7 @@ class MaskedLoss(_Loss):
             loss_kwargs: keyword arguments to the loss function's constructor if `loss` is a class.
         """
         super().__init__()
-        if inspect.isclass(loss):  # call the loss function's constructor if it's a class
-            self.loss = loss(*loss_args, **loss_kwargs)
-        else:
-            self.loss = loss  # loss is a callable loss function instance.
-
+        self.loss = loss(*loss_args, **loss_kwargs) if inspect.isclass(loss) else loss
         if not callable(self.loss):
             raise ValueError("The loss function is not callable.")
 
@@ -57,7 +53,7 @@ class MaskedLoss(_Loss):
 
         if input.dim() != mask.dim():
             warnings.warn(f"Dim of input ({input.shape}) is different from mask ({mask.shape}).")
-        if not (input.shape[0] == mask.shape[0] or mask.shape[0] == 1):
+        if input.shape[0] != mask.shape[0] and mask.shape[0] != 1:
             raise ValueError(f"Batch size of mask ({mask.shape}) must be one or equal to input ({input.shape}).")
         if target.dim() > 1:
             if mask.shape[1] != 1:

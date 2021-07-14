@@ -1220,7 +1220,7 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
         img_intensity_range: Intensity
             range to sample for ``"image"`` key. Pass a tuple `(a, b)` to sample
             the log-intensity from the interval `(a, b)` uniformly for all
-            channels. Or pass sequence of intevals `((a0, b0), (a1, b1), ...)`
+            channels. Or pass sequence of intervals `((a0, b0), (a1, b1), ...)`
             to sample for each respective channel. In the second case, the
             number of 2-tuples must match the number of channels.
             Default ranges is `(0.95x, 1.10x)` where `x` is the mean
