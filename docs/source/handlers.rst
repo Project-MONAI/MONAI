@@ -160,6 +160,11 @@ Post processing
 .. autoclass:: PostProcessing
     :members:
 
+Decollate batch
+---------------
+.. autoclass:: DecollateBatch
+    :members:
+
 Utilities
 ---------
 .. automodule:: monai.handlers.utils
