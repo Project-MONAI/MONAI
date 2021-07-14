@@ -11,7 +11,9 @@
 
 import itertools
 import random
+import re
 import warnings
+from contextlib import contextmanager
 from typing import Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -19,25 +21,43 @@ import torch
 
 from monai.config import DtypeLike, IndexSelection
 from monai.networks.layers import GaussianFilter
-from monai.utils import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple, min_version, optional_import
+from monai.transforms.compose import Compose
+from monai.transforms.transform import MapTransform
+from monai.utils import (
+    GridSampleMode,
+    InterpolateMode,
+    InverseKeys,
+    ensure_tuple,
+    ensure_tuple_rep,
+    ensure_tuple_size,
+    fall_back_tuple,
+    issequenceiterable,
+    min_version,
+    optional_import,
+)
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
+cp, has_cp = optional_import("cupy")
+cp_ndarray, _ = optional_import("cupy", name="ndarray")
 
 __all__ = [
     "rand_choice",
     "img_bounds",
     "in_bounds",
     "is_empty",
+    "is_positive",
     "zero_margins",
     "rescale_array",
     "rescale_instance_array",
     "rescale_array_int_max",
     "copypaste_arrays",
+    "compute_divisible_spatial_size",
     "resize_center",
     "map_binary_to_indices",
+    "map_classes_to_indices",
     "weighted_patch_samples",
     "generate_pos_neg_label_crop_centers",
-    "apply_transform",
+    "generate_label_classes_crop_centers",
     "create_grid",
     "create_control_grid",
     "create_rotate",
@@ -49,6 +69,11 @@ __all__ = [
     "get_extreme_points",
     "extreme_points_to_image",
     "map_spatial_axes",
+    "allow_missing_keys_mode",
+    "convert_inverse_interp_mode",
+    "convert_to_tensor",
+    "convert_to_numpy",
+    "tensor_to_numpy",
 ]
 
 
@@ -80,6 +105,13 @@ def is_empty(img: Union[np.ndarray, torch.Tensor]) -> bool:
     Returns True if `img` is empty, that is its maximum value is not greater than its minimum.
     """
     return not (img.max() > img.min())  # use > instead of <= so that an image full of NaNs will result in True
+
+
+def is_positive(img):
+    """
+    Returns a boolean version of `img` where the positive values are converted into True, the other values are False.
+    """
+    return img > 0
 
 
 def zero_margins(img: np.ndarray, margin: int) -> bool:
@@ -200,8 +232,8 @@ def resize_center(img: np.ndarray, *resize_dims: Optional[int], fill_value: floa
 
     resize_dims = fall_back_tuple(resize_dims, img.shape)
 
-    half_img_shape = np.asarray(img.shape) // 2
-    half_dest_shape = np.asarray(resize_dims) // 2
+    half_img_shape = (np.asarray(img.shape) // 2).tolist()
+    half_dest_shape = (np.asarray(resize_dims) // 2).tolist()
     srcslices, destslices = copypaste_arrays(img.shape, resize_dims, half_img_shape, half_dest_shape, resize_dims)
 
     if not inplace:
@@ -240,7 +272,55 @@ def map_binary_to_indices(
         bg_indices = np.nonzero(np.logical_and(img_flat, ~label_flat))[0]
     else:
         bg_indices = np.nonzero(~label_flat)[0]
+
     return fg_indices, bg_indices
+
+
+def map_classes_to_indices(
+    label: np.ndarray,
+    num_classes: Optional[int] = None,
+    image: Optional[np.ndarray] = None,
+    image_threshold: float = 0.0,
+) -> List[np.ndarray]:
+    """
+    Filter out indices of every class of the input label data, return the indices after fattening.
+    It can handle both One-Hot format label and Argmax format label, must provide `num_classes` for
+    Argmax label.
+
+    For example:
+    ``label = np.array([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]])`` and `num_classes=3`, will return a list
+    which contains the indices of the 3 classes:
+    ``[np.array([0, 4, 8]), np.array([1, 5, 6]), np.array([2, 3, 7])]``
+
+    Args:
+        label: use the label data to get the indices of every class.
+        num_classes: number of classes for argmax label, not necessary for One-Hot label.
+        image: if image is not None, only return the indices of every class that are within the valid
+            region of the image (``image > image_threshold``).
+        image_threshold: if enabled `image`, use ``image > image_threshold`` to
+            determine the valid image content area and select class indices only in this area.
+
+    """
+    img_flat: Optional[np.ndarray] = None
+    if image is not None:
+        img_flat = np.any(image > image_threshold, axis=0).ravel()
+
+    indices: List[np.ndarray] = []
+    # assuming the first dimension is channel
+    channels = len(label)
+
+    num_classes_: int = channels
+    if channels == 1:
+        if num_classes is None:
+            raise ValueError("if not One-Hot format label, must provide the num_classes.")
+        num_classes_ = num_classes
+
+    for c in range(num_classes_):
+        label_flat = np.any(label[c : c + 1] if channels > 1 else label == c, axis=0).ravel()
+        label_flat = np.logical_and(img_flat, label_flat) if img_flat is not None else label_flat
+        indices.append(np.nonzero(label_flat)[0])
+
+    return indices
 
 
 def weighted_patch_samples(
@@ -287,6 +367,44 @@ def weighted_patch_samples(
     return [np.unravel_index(i, v_size) + diff for i in np.asarray(idx, dtype=int)]
 
 
+def correct_crop_centers(
+    centers: List[np.ndarray], spatial_size: Union[Sequence[int], int], label_spatial_shape: Sequence[int]
+) -> List[np.ndarray]:
+    """
+    Utility to correct the crop center if the crop size is bigger than the image size.
+
+    Args:
+        ceters: pre-computed crop centers, will correct based on the valid region.
+        spatial_size: spatial size of the ROIs to be sampled.
+        label_spatial_shape: spatial shape of the original label data to compare with ROI.
+
+    """
+    spatial_size = fall_back_tuple(spatial_size, default=label_spatial_shape)
+    if not (np.subtract(label_spatial_shape, spatial_size) >= 0).all():
+        raise ValueError("The size of the proposed random crop ROI is larger than the image size.")
+
+    # Select subregion to assure valid roi
+    valid_start = np.floor_divide(spatial_size, 2)
+    # add 1 for random
+    valid_end = np.subtract(label_spatial_shape + np.array(1), spatial_size / np.array(2)).astype(np.uint16)
+    # int generation to have full range on upper side, but subtract unfloored size/2 to prevent rounded range
+    # from being too high
+    for i, valid_s in enumerate(valid_start):
+        # need this because np.random.randint does not work with same start and end
+        if valid_s == valid_end[i]:
+            valid_end[i] += 1
+
+    for i, c in enumerate(centers):
+        center_i = c
+        if c < valid_start[i]:
+            center_i = valid_start[i]
+        if c >= valid_end[i]:
+            center_i = valid_end[i] - 1
+        centers[i] = center_i
+
+    return centers
+
+
 def generate_pos_neg_label_crop_centers(
     spatial_size: Union[Sequence[int], int],
     num_samples: int,
@@ -294,7 +412,7 @@ def generate_pos_neg_label_crop_centers(
     label_spatial_shape: Sequence[int],
     fg_indices: np.ndarray,
     bg_indices: np.ndarray,
-    rand_state: np.random.RandomState = np.random,
+    rand_state: Optional[np.random.RandomState] = None,
 ) -> List[List[np.ndarray]]:
     """
     Generate valid sample locations based on the label with option for specifying foreground ratio
@@ -314,31 +432,8 @@ def generate_pos_neg_label_crop_centers(
         ValueError: When the foreground and background indices lengths are 0.
 
     """
-    spatial_size = fall_back_tuple(spatial_size, default=label_spatial_shape)
-    if not (np.subtract(label_spatial_shape, spatial_size) >= 0).all():
-        raise ValueError("The proposed roi is larger than the image.")
-
-    # Select subregion to assure valid roi
-    valid_start = np.floor_divide(spatial_size, 2)
-    # add 1 for random
-    valid_end = np.subtract(label_spatial_shape + np.array(1), spatial_size / np.array(2)).astype(np.uint16)
-    # int generation to have full range on upper side, but subtract unfloored size/2 to prevent rounded range
-    # from being too high
-    for i in range(len(valid_start)):  # need this because np.random.randint does not work with same start and end
-        if valid_start[i] == valid_end[i]:
-            valid_end[i] += 1
-
-    def _correct_centers(
-        center_ori: List[np.ndarray], valid_start: np.ndarray, valid_end: np.ndarray
-    ) -> List[np.ndarray]:
-        for i, c in enumerate(center_ori):
-            center_i = c
-            if c < valid_start[i]:
-                center_i = valid_start[i]
-            if c >= valid_end[i]:
-                center_i = valid_end[i] - 1
-            center_ori[i] = center_i
-        return center_ori
+    if rand_state is None:
+        rand_state = np.random.random.__self__  # type: ignore
 
     centers = []
     fg_indices, bg_indices = np.asarray(fg_indices), np.asarray(bg_indices)
@@ -358,34 +453,63 @@ def generate_pos_neg_label_crop_centers(
         center = np.unravel_index(indices_to_use[random_int], label_spatial_shape)
         # shift center to range of valid centers
         center_ori = list(center)
-        centers.append(_correct_centers(center_ori, valid_start, valid_end))
+        centers.append(correct_crop_centers(center_ori, spatial_size, label_spatial_shape))
 
     return centers
 
 
-def apply_transform(transform: Callable, data, map_items: bool = True):
+def generate_label_classes_crop_centers(
+    spatial_size: Union[Sequence[int], int],
+    num_samples: int,
+    label_spatial_shape: Sequence[int],
+    indices: List[np.ndarray],
+    ratios: Optional[List[Union[float, int]]] = None,
+    rand_state: Optional[np.random.RandomState] = None,
+) -> List[List[np.ndarray]]:
     """
-    Transform `data` with `transform`.
-    If `data` is a list or tuple and `map_data` is True, each item of `data` will be transformed
-    and this method returns a list of outcomes.
-    otherwise transform will be applied once with `data` as the argument.
+    Generate valid sample locations based on the specified ratios of label classes.
+    Valid: samples sitting entirely within image, expected input shape: [C, H, W, D] or [C, H, W]
 
     Args:
-        transform: a callable to be used to transform `data`
-        data: an object to be transformed.
-        map_items: whether to apply transform to each item in `data`,
-            if `data` is a list or tuple. Defaults to True.
-
-    Raises:
-        Exception: When ``transform`` raises an exception.
+        spatial_size: spatial size of the ROIs to be sampled.
+        num_samples: total sample centers to be generated.
+        label_spatial_shape: spatial shape of the original label data to unravel selected centers.
+        indices: sequence of pre-computed foreground indices of every class in 1 dimension.
+        ratios: ratios of every class in the label to generate crop centers, including background class.
+            if None, every class will have the same ratio to generate crop centers.
+        rand_state: numpy randomState object to align with other modules.
 
     """
-    try:
-        if isinstance(data, (list, tuple)) and map_items:
-            return [transform(item) for item in data]
-        return transform(data)
-    except Exception as e:
-        raise RuntimeError(f"applying transform {transform}") from e
+    if rand_state is None:
+        rand_state = np.random.random.__self__  # type: ignore
+
+    if num_samples < 1:
+        raise ValueError("num_samples must be an int number and greater than 0.")
+    ratios_: List[Union[float, int]] = ([1] * len(indices)) if ratios is None else ratios
+    if len(ratios_) != len(indices):
+        raise ValueError("random crop radios must match the number of indices of classes.")
+    if any([i < 0 for i in ratios_]):
+        raise ValueError("ratios should not contain negative number.")
+
+    # ensure indices are numpy array
+    indices = [np.asarray(i) for i in indices]
+    for i, array in enumerate(indices):
+        if len(array) == 0:
+            warnings.warn(f"no available indices of class {i} to crop, set the crop ratio of this class to zero.")
+            ratios_[i] = 0
+
+    centers = []
+    classes = rand_state.choice(len(ratios_), size=num_samples, p=np.asarray(ratios_) / np.sum(ratios_))
+    for i in classes:
+        # randomly select the indices of a class based on the ratios
+        indices_to_use = indices[i]
+        random_int = rand_state.randint(len(indices_to_use))
+        center = np.unravel_index(indices_to_use[random_int], label_spatial_shape)
+        # shift center to range of valid centers
+        center_ori = list(center)
+        centers.append(correct_crop_centers(center_ori, spatial_size, label_spatial_shape))
+
+    return centers
 
 
 def create_grid(
@@ -534,7 +658,7 @@ def create_translate(spatial_dims: int, shift: Union[Sequence[float], float]) ->
 
 def generate_spatial_bounding_box(
     img: np.ndarray,
-    select_fn: Callable = lambda x: x > 0,
+    select_fn: Callable = is_positive,
     channel_indices: Optional[IndexSelection] = None,
     margin: Union[Sequence[int], int] = 0,
 ) -> Tuple[List[int], List[int]]:
@@ -571,7 +695,8 @@ def generate_spatial_bounding_box(
     for di, ax in enumerate(itertools.combinations(reversed(range(ndim)), ndim - 1)):
         dt = data.any(axis=ax)
         if not np.any(dt):
-            return [-1] * ndim, [-1] * ndim
+            # if no foreground, return all zero bounding box coords
+            return [0] * ndim, [0] * ndim
 
         min_d = max(np.argmax(dt) - margin[di], 0)
         max_d = max(data.shape[di] - max(np.argmax(dt[::-1]) - margin[di], 0), min_d + 1)
@@ -585,22 +710,22 @@ def get_largest_connected_component_mask(img: torch.Tensor, connectivity: Option
     Gets the largest connected component mask of an image.
 
     Args:
-        img: Image to get largest connected component from. Shape is (batch_size, spatial_dim1 [, spatial_dim2, ...])
+        img: Image to get largest connected component from. Shape is (spatial_dim1 [, spatial_dim2, ...])
         connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
             Accepted values are ranging from  1 to input.ndim. If ``None``, a full
             connectivity of ``input.ndim`` is used.
     """
     img_arr = img.detach().cpu().numpy()
     largest_cc = np.zeros(shape=img_arr.shape, dtype=img_arr.dtype)
-    for i, item in enumerate(img_arr):
-        item = measure.label(item, connectivity=connectivity)
-        if item.max() != 0:
-            largest_cc[i, ...] = item == (np.argmax(np.bincount(item.flat)[1:]) + 1)
+    img_arr = measure.label(img_arr, connectivity=connectivity)
+    if img_arr.max() != 0:
+        largest_cc[...] = img_arr == (np.argmax(np.bincount(img_arr.flat)[1:]) + 1)
+
     return torch.as_tensor(largest_cc, device=img.device)
 
 
 def get_extreme_points(
-    img: np.ndarray, rand_state: np.random.RandomState = np.random, background: int = 0, pert: float = 0.0
+    img: np.ndarray, rand_state: Optional[np.random.RandomState] = None, background: int = 0, pert: float = 0.0
 ) -> List[Tuple[int, ...]]:
     """
     Generate extreme points from an image. These are used to generate initial segmentation
@@ -622,6 +747,8 @@ def get_extreme_points(
     Raises:
         ValueError: When the input image does not have any foreground pixel.
     """
+    if rand_state is None:
+        rand_state = np.random.random.__self__  # type: ignore
     indices = np.where(img != background)
     if np.size(indices[0]) == 0:
         raise ValueError("get_extreme_points: no foreground object in mask!")
@@ -716,11 +843,12 @@ def map_spatial_axes(
             The default `None` will convert to all the spatial axes of the image.
             If axis is negative it counts from the last to the first axis.
             If axis is a tuple of ints.
-        channel_first: the image data is channel first or channel last, defaut to channel first.
+        channel_first: the image data is channel first or channel last, default to channel first.
 
     """
     if spatial_axes is None:
-        spatial_axes_ = list(range(1, img_ndim) if channel_first else range(0, img_ndim - 1))
+        spatial_axes_ = list(range(1, img_ndim) if channel_first else range(img_ndim - 1))
+
     else:
         spatial_axes_ = []
         for a in ensure_tuple(spatial_axes):
@@ -730,3 +858,191 @@ def map_spatial_axes(
                 spatial_axes_.append(a - 1 if a < 0 else a)
 
     return spatial_axes_
+
+
+@contextmanager
+def allow_missing_keys_mode(transform: Union[MapTransform, Compose, Tuple[MapTransform], Tuple[Compose]]):
+    """Temporarily set all MapTransforms to not throw an error if keys are missing. After, revert to original states.
+
+    Args:
+        transform: either MapTransform or a Compose
+
+    Example:
+
+    .. code-block:: python
+
+        data = {"image": np.arange(16, dtype=float).reshape(1, 4, 4)}
+        t = SpatialPadd(["image", "label"], 10, allow_missing_keys=False)
+        _ = t(data)  # would raise exception
+        with allow_missing_keys_mode(t):
+            _ = t(data)  # OK!
+    """
+    # If given a sequence of transforms, Compose them to get a single list
+    if issequenceiterable(transform):
+        transform = Compose(transform)
+
+    # Get list of MapTransforms
+    transforms = []
+    if isinstance(transform, MapTransform):
+        transforms = [transform]
+    elif isinstance(transform, Compose):
+        # Only keep contained MapTransforms
+        transforms = [t for t in transform.flatten().transforms if isinstance(t, MapTransform)]
+    if len(transforms) == 0:
+        raise TypeError(
+            "allow_missing_keys_mode expects either MapTransform(s) or Compose(s) containing MapTransform(s)"
+        )
+
+    # Get the state of each `allow_missing_keys`
+    orig_states = [t.allow_missing_keys for t in transforms]
+
+    try:
+        # Set all to True
+        for t in transforms:
+            t.allow_missing_keys = True
+        yield
+    finally:
+        # Revert
+        for t, o_s in zip(transforms, orig_states):
+            t.allow_missing_keys = o_s
+
+
+def convert_inverse_interp_mode(trans_info: List, mode: str = "nearest", align_corners: Optional[bool] = None):
+    """
+    Change the interpolation mode when inverting spatial transforms, default to "nearest".
+    This function modifies trans_info's `InverseKeys.EXTRA_INFO`.
+
+    See also: :py:class:`monai.transform.inverse.InvertibleTransform`
+
+    Args:
+        trans_info: transforms inverse information list, contains context of every invertible transform.
+        mode: target interpolation mode to convert, default to "nearest" as it's usually used to save the mode output.
+        align_corners: target align corner value in PyTorch interpolation API, need to align with the `mode`.
+
+    """
+    interp_modes = [i.value for i in InterpolateMode] + [i.value for i in GridSampleMode]
+
+    # set to string for DataLoader collation
+    align_corners_ = "none" if align_corners is None else align_corners
+
+    for item in ensure_tuple(trans_info):
+        if InverseKeys.EXTRA_INFO in item:
+            orig_mode = item[InverseKeys.EXTRA_INFO].get("mode", None)
+            if orig_mode is not None:
+                if orig_mode[0] in interp_modes:
+                    item[InverseKeys.EXTRA_INFO]["mode"] = [mode for _ in range(len(mode))]
+                elif orig_mode in interp_modes:
+                    item[InverseKeys.EXTRA_INFO]["mode"] = mode
+            if "align_corners" in item[InverseKeys.EXTRA_INFO]:
+                if issequenceiterable(item[InverseKeys.EXTRA_INFO]["align_corners"]):
+                    item[InverseKeys.EXTRA_INFO]["align_corners"] = [align_corners_ for _ in range(len(mode))]
+                else:
+                    item[InverseKeys.EXTRA_INFO]["align_corners"] = align_corners_
+    return trans_info
+
+
+def compute_divisible_spatial_size(spatial_shape: Sequence[int], k: Union[Sequence[int], int]):
+    """
+    Compute the target spatial size which should be divisible by `k`.
+
+    Args:
+        spatial_shape: original spatial shape.
+        k: the target k for each spatial dimension.
+            if `k` is negative or 0, the original size is preserved.
+            if `k` is an int, the same `k` be applied to all the input spatial dimensions.
+
+    """
+    k = fall_back_tuple(k, (1,) * len(spatial_shape))
+    new_size = []
+    for k_d, dim in zip(k, spatial_shape):
+        new_dim = int(np.ceil(dim / k_d) * k_d) if k_d > 0 else dim
+        new_size.append(new_dim)
+
+    return new_size
+
+
+def convert_to_tensor(data):
+    """
+    Utility to convert the input data to a PyTorch Tensor. If passing a dictionary, list or tuple,
+    recursively check every item and convert it to PyTorch Tensor.
+
+    Args:
+        data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
+            will convert Tensor, Numpy array, float, int, bool to Tensors, strings and objects keep the original.
+            for dictionary, list or tuple, convert every item to a Tensor if applicable.
+
+    """
+    if isinstance(data, torch.Tensor):
+        return data.contiguous()
+    elif isinstance(data, np.ndarray):
+        # skip array of string classes and object, refer to:
+        # https://github.com/pytorch/pytorch/blob/v1.9.0/torch/utils/data/_utils/collate.py#L13
+        if re.search(r"[SaUO]", data.dtype.str) is None:
+            # numpy array with 0 dims is also sequence iterable,
+            # `ascontiguousarray` will add 1 dim if img has no dim, so we only apply on data with dims
+            return torch.as_tensor(data if data.ndim == 0 else np.ascontiguousarray(data))
+    elif isinstance(data, (float, int, bool)):
+        return torch.as_tensor(data)
+    elif isinstance(data, dict):
+        return {k: convert_to_tensor(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [convert_to_tensor(i) for i in data]
+    elif isinstance(data, tuple):
+        return tuple(convert_to_tensor(i) for i in data)
+
+    return data
+
+
+def convert_to_numpy(data):
+    """
+    Utility to convert the input data to a numpy array. If passing a dictionary, list or tuple,
+    recursively check every item and convert it to numpy array.
+
+    Args:
+        data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
+            will convert Tensor, Numpy array, float, int, bool to numpy arrays, strings and objects keep the original.
+            for dictionary, list or tuple, convert every item to a numpy array if applicable.
+
+    """
+    if isinstance(data, torch.Tensor):
+        data = data.detach().cpu().numpy()
+    elif has_cp and isinstance(data, cp_ndarray):
+        data = cp.asnumpy(data)
+    elif isinstance(data, (float, int, bool)):
+        data = np.asarray(data)
+    elif isinstance(data, dict):
+        return {k: convert_to_numpy(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [convert_to_numpy(i) for i in data]
+    elif isinstance(data, tuple):
+        return tuple([convert_to_numpy(i) for i in data])
+
+    if isinstance(data, np.ndarray) and data.ndim > 0:
+        data = np.ascontiguousarray(data)
+
+    return data
+
+
+def tensor_to_numpy(data):
+    """
+    Utility to convert the input PyTorch Tensor data to numpy array, if scalar Tensor, convert to regular number.
+    If passing a dictionary, list or tuple, recursively check every PyTorch Tensor item and convert it to numpy arrays.
+
+    Args:
+        data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
+            will convert the Tensor data to numpy array, others keep the original. for dictionary, list or tuple,
+            convert every Tensor item to numpy array if applicable.
+
+    """
+
+    if isinstance(data, torch.Tensor):
+        # invert Tensor to numpy, if scalar data, convert to number
+        return data.item() if data.ndim == 0 else np.ascontiguousarray(data.detach().cpu().numpy())
+    elif isinstance(data, dict):
+        return {k: tensor_to_numpy(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [tensor_to_numpy(i) for i in data]
+    elif isinstance(data, tuple):
+        return tuple(tensor_to_numpy(i) for i in data)
+
+    return data
