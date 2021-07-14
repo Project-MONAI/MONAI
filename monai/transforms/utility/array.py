@@ -741,7 +741,7 @@ class FgBgToIndices(Transform):
         return fg_indices, bg_indices
 
 
-class ClassesToIndices(Transform):
+class ClassesToIndices(TorchOrNumpyTransform):
     def __init__(
         self,
         num_classes: Optional[int] = None,
@@ -768,10 +768,10 @@ class ClassesToIndices(Transform):
 
     def __call__(
         self,
-        label: np.ndarray,
-        image: Optional[np.ndarray] = None,
+        label: DataObjects.Images,
+        image: Optional[DataObjects.Images] = None,
         output_shape: Optional[Sequence[int]] = None,
-    ) -> List[np.ndarray]:
+    ) -> List[DataObjects.Images]:
         """
         Args:
             label: input data to compute the indices of every class.
@@ -784,7 +784,10 @@ class ClassesToIndices(Transform):
             output_shape = self.output_shape
         indices = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
         if output_shape is not None:
-            indices = [np.stack([np.unravel_index(i, output_shape) for i in array]) for array in indices]
+            indices = [
+                np.stack([np.unravel_index(i.cpu() if isinstance(i, torch.Tensor) else i, output_shape) for i in array])
+                for array in indices
+            ]
 
         return indices
 

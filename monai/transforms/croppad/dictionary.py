@@ -1256,11 +1256,11 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
     def randomize(
         self,
         label: np.ndarray,
-        indices: Optional[List[np.ndarray]] = None,
+        indices: Optional[List[DataObjects.Images]] = None,
         image: Optional[np.ndarray] = None,
     ) -> None:
         self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
-        indices_: List[np.ndarray]
+        indices_: List[DataObjects.Images]
         if indices is None:
             indices_ = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
         else:
@@ -1269,7 +1269,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
             self.spatial_size, self.num_samples, label.shape[1:], indices_, self.ratios, self.R
         )
 
-    def __call__(self, data: Mapping[Hashable, Any]) -> List[Dict[Hashable, np.ndarray]]:
+    def __call__(self, data: Mapping[Hashable, Any]) -> List[Dict[Hashable, DataObjects.Images]]:
         d = dict(data)
         label = d[self.label_key]
         image = d[self.image_key] if self.image_key else None

@@ -12,88 +12,149 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import map_classes_to_indices
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASE_1 = [
-    # test Argmax data
-    {"label": np.array([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]]), "num_classes": 3, "image": None, "image_threshold": 0.0},
-    [np.array([0, 4, 8]), np.array([1, 5, 6]), np.array([2, 3, 7])],
-]
-
-TEST_CASE_2 = [
-    {
-        "label": np.array([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]]),
-        "num_classes": 3,
-        "image": np.array([[[132, 1434, 51], [61, 0, 133], [523, 44, 232]]]),
-        "image_threshold": 60,
-    },
-    [np.array([0, 8]), np.array([1, 5, 6]), np.array([3])],
-]
-
-TEST_CASE_3 = [
-    # test One-Hot data
-    {
-        "label": np.array(
+TESTS = []
+for p in TEST_NDARRAYS:
+    TESTS.append(
+        [
+            # test Argmax data
+            {
+                "label": p(np.array([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]])),
+                "num_classes": 3,
+                "image": None,
+                "image_threshold": 0.0,
+            },
             [
-                [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
-                [[0, 1, 0], [0, 0, 1], [1, 0, 0]],
-                [[0, 0, 1], [1, 0, 0], [0, 1, 0]],
-            ]
-        ),
-        "image": None,
-        "image_threshold": 0.0,
-    },
-    [np.array([0, 4, 8]), np.array([1, 5, 6]), np.array([2, 3, 7])],
-]
+                np.array([0, 4, 8]),
+                np.array([1, 5, 6]),
+                np.array([2, 3, 7]),
+            ],
+        ]
+    )
 
-TEST_CASE_4 = [
-    {
-        "label": np.array(
+    TESTS.append(
+        [
+            {
+                "label": p(np.array([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]])),
+                "num_classes": 3,
+                "image": p(np.array([[[132, 1434, 51], [61, 0, 133], [523, 44, 232]]])),
+                "image_threshold": 60,
+            },
             [
-                [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
-                [[0, 1, 0], [0, 0, 1], [1, 0, 0]],
-                [[0, 0, 1], [1, 0, 0], [0, 1, 0]],
-            ]
-        ),
-        "num_classes": None,
-        "image": np.array([[[132, 1434, 51], [61, 0, 133], [523, 44, 232]]]),
-        "image_threshold": 60,
-    },
-    [np.array([0, 8]), np.array([1, 5, 6]), np.array([3])],
-]
+                np.array([0, 8]),
+                np.array([1, 5, 6]),
+                np.array([3]),
+            ],
+        ]
+    )
 
-TEST_CASE_5 = [
-    # test empty class
-    {"label": np.array([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]]), "num_classes": 5, "image": None, "image_threshold": 0.0},
-    [np.array([0, 4, 8]), np.array([1, 5, 6]), np.array([2, 3, 7]), np.array([]), np.array([])],
-]
-
-TEST_CASE_6 = [
-    # test empty class
-    {
-        "label": np.array(
+    TESTS.append(
+        [
+            # test One-Hot data
+            {
+                "label": p(
+                    np.array(
+                        [
+                            [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+                            [[0, 1, 0], [0, 0, 1], [1, 0, 0]],
+                            [[0, 0, 1], [1, 0, 0], [0, 1, 0]],
+                        ]
+                    )
+                ),
+                "image": None,
+                "image_threshold": 0.0,
+            },
             [
-                [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
-                [[0, 1, 0], [0, 0, 1], [1, 0, 0]],
-                [[0, 0, 1], [1, 0, 0], [0, 1, 0]],
-                [[0, 0, 0], [0, 0, 0], [0, 0, 0]],
-                [[0, 0, 0], [0, 0, 0], [0, 0, 0]],
-            ]
-        ),
-        "image": None,
-        "image_threshold": 0.0,
-    },
-    [np.array([0, 4, 8]), np.array([1, 5, 6]), np.array([2, 3, 7]), np.array([]), np.array([])],
-]
+                np.array([0, 4, 8]),
+                np.array([1, 5, 6]),
+                np.array([2, 3, 7]),
+            ],
+        ]
+    )
+
+    TESTS.append(
+        [
+            {
+                "label": p(
+                    np.array(
+                        [
+                            [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+                            [[0, 1, 0], [0, 0, 1], [1, 0, 0]],
+                            [[0, 0, 1], [1, 0, 0], [0, 1, 0]],
+                        ]
+                    )
+                ),
+                "num_classes": None,
+                "image": p(np.array([[[132, 1434, 51], [61, 0, 133], [523, 44, 232]]])),
+                "image_threshold": 60,
+            },
+            [
+                np.array([0, 8]),
+                np.array([1, 5, 6]),
+                np.array([3]),
+            ],
+        ]
+    )
+
+    TESTS.append(
+        [
+            # test empty class
+            {
+                "label": p(np.array([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]])),
+                "num_classes": 5,
+                "image": None,
+                "image_threshold": 0.0,
+            },
+            [
+                np.array([0, 4, 8]),
+                np.array([1, 5, 6]),
+                np.array([2, 3, 7]),
+                np.array([]),
+                np.array([]),
+            ],
+        ]
+    )
+
+    TESTS.append(
+        [
+            # test empty class
+            {
+                "label": p(
+                    np.array(
+                        [
+                            [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+                            [[0, 1, 0], [0, 0, 1], [1, 0, 0]],
+                            [[0, 0, 1], [1, 0, 0], [0, 1, 0]],
+                            [[0, 0, 0], [0, 0, 0], [0, 0, 0]],
+                            [[0, 0, 0], [0, 0, 0], [0, 0, 0]],
+                        ]
+                    )
+                ),
+                "image": None,
+                "image_threshold": 0.0,
+            },
+            [
+                np.array([0, 4, 8]),
+                np.array([1, 5, 6]),
+                np.array([2, 3, 7]),
+                np.array([]),
+                np.array([]),
+            ],
+        ]
+    )
 
 
 class TestMapClassesToIndices(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
+    @parameterized.expand(TESTS)
     def test_value(self, input_data, expected_indices):
         indices = map_classes_to_indices(**input_data)
         for i, e in zip(indices, expected_indices):
+            i = i.cpu() if isinstance(i, torch.Tensor) else i
             np.testing.assert_allclose(i, e)
 
 

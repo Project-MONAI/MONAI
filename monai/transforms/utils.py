@@ -283,11 +283,11 @@ def map_binary_to_indices(
 
 
 def map_classes_to_indices(
-    label: np.ndarray,
+    label: DataObjects.Images,
     num_classes: Optional[int] = None,
-    image: Optional[np.ndarray] = None,
+    image: Optional[DataObjects.Images] = None,
     image_threshold: float = 0.0,
-) -> List[np.ndarray]:
+) -> List[DataObjects.Images]:
     """
     Filter out indices of every class of the input label data, return the indices after fattening.
     It can handle both One-Hot format label and Argmax format label, must provide `num_classes` for
@@ -307,11 +307,11 @@ def map_classes_to_indices(
             determine the valid image content area and select class indices only in this area.
 
     """
-    img_flat: Optional[np.ndarray] = None
+    img_flat: Optional[DataObjects.Images] = None
     if image is not None:
-        img_flat = np.any(image > image_threshold, axis=0).ravel()
+        img_flat = (image > image_threshold).any(axis=0).ravel()  # type: ignore
 
-    indices: List[np.ndarray] = []
+    indices: List[DataObjects.Images] = []
     # assuming the first dimension is channel
     channels = len(label)
 
@@ -322,9 +322,10 @@ def map_classes_to_indices(
         num_classes_ = num_classes
 
     for c in range(num_classes_):
-        label_flat = np.any(label[c : c + 1] if channels > 1 else label == c, axis=0).ravel()
-        label_flat = np.logical_and(img_flat, label_flat) if img_flat is not None else label_flat
-        indices.append(np.nonzero(label_flat)[0])
+        label_flat = (label[c : c + 1] if channels > 1 else label == c).any(axis=0).ravel()  # type: ignore
+        label_flat = img_flat & label_flat if img_flat is not None else label_flat
+        idx = label_flat.nonzero()
+        indices.append(idx[0] if isinstance(idx, tuple) else idx.squeeze(1))
 
     return indices
 
@@ -468,7 +469,7 @@ def generate_label_classes_crop_centers(
     spatial_size: Union[Sequence[int], int],
     num_samples: int,
     label_spatial_shape: Sequence[int],
-    indices: List[np.ndarray],
+    indices: List[DataObjects.Images],
     ratios: Optional[List[Union[float, int]]] = None,
     rand_state: Optional[np.random.RandomState] = None,
 ) -> List[List[np.ndarray]]:
@@ -497,8 +498,6 @@ def generate_label_classes_crop_centers(
     if any([i < 0 for i in ratios_]):
         raise ValueError("ratios should not contain negative number.")
 
-    # ensure indices are numpy array
-    indices = [np.asarray(i) for i in indices]
     for i, array in enumerate(indices):
         if len(array) == 0:
             warnings.warn(f"no available indices of class {i} to crop, set the crop ratio of this class to zero.")
@@ -510,7 +509,8 @@ def generate_label_classes_crop_centers(
         # randomly select the indices of a class based on the ratios
         indices_to_use = indices[i]
         random_int = rand_state.randint(len(indices_to_use))
-        center = np.unravel_index(indices_to_use[random_int], label_spatial_shape)
+        idx, *_ = convert_data_type(indices_to_use[random_int], np.ndarray)
+        center = np.unravel_index(idx, label_spatial_shape)
         # shift center to range of valid centers
         center_ori = list(center)
         centers.append(correct_crop_centers(center_ori, spatial_size, label_spatial_shape))
