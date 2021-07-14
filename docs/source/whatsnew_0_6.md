@@ -2,6 +2,7 @@
 
 - Decollating mini-batches as an essential post-processing step
 - Pythonic APIs to load the pretrained models from Clara Train MMARs
+- UNETR: Transformers for Medical Image Segmentation
 - Enhancements of the base metric interfaces
 - C++/CUDA extension modules via PyTorch JIT compilation
 - Backward compatibility and enhanced continuous integration/continuous delivery
@@ -22,6 +23,23 @@ A typical process of `decollate batch` is illustrated as follows (with a `batch_
 [decollate batch tutorial](https://github.com/Project-MONAI/tutorials/blob/master/modules/decollate_batch.ipynb) shows a detailed usage example based on a PyTorch native workflow.
 
 [Migrating your v0.5 code to v0.6](https://github.com/Project-MONAI/MONAI/wiki/v0.5-to-v0.6-migration-guide) wiki shows how to migrate an existing program from v0.5 to v0.6 to adapt to the `decollate batch` logic.
+
+## UNETR: Transformers for Medical Image Segmentation
+[UNETR](https://arxiv.org/abs/2103.10504) is a transformer-based model for volumetric (3D) medical image segmentation and is currently the state-of-the-art on [BTCV dataset](https://www.synapse.org/#!Synapse:syn3193805/wiki/217752) test server for the task of multi-organ semantic segmentation. UNETR is introduced in MONAI v0.6 and its flexible implementation supports various segmentation tasks.
+![UNETR](../images/UNETR.png)
+
+A tutorial for the task of 3D multi-organ semantic segmentation using UNETR is provided within
+[`project-monai/tutorials`](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/unetr_btcv_segmentation_3d.ipynb).
+And it contains the following features:
+- Transforms for dictionary format data,
+- Defining a new transform according to MONAI transform API,
+- Loading Nifti image with metadata, loading a list of images and stacking them,
+- Randomly adjusting the intensity for data augmentation,
+- Optimized cache IO and transforms to accelerate training and validation,
+- 3D UNETR model, DiceCE loss function and Mean Dice metric for multi-organ segmentation task,
+
+The following illustrates target body organs that are segmentation in this tutorial:
+![BTCV_organs](../images/BTCV_organs.png)
 
 ## Pythonic APIs to load the pretrained models from Clara Train MMARs
 [The MMAR (Medical Model ARchive)](https://docs.nvidia.com/clara/clara-train-sdk/pt/mmar.html)
