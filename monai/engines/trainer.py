@@ -26,7 +26,7 @@ from monai.engines.utils import (
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import Transform
-from monai.utils import get_torch_version_tuple, min_version, optional_import
+from monai.utils import min_version, optional_import, version_leq
 from monai.utils.enums import CommonKeys as Keys
 
 if TYPE_CHECKING:
@@ -189,7 +189,8 @@ class SupervisedTrainer(Trainer):
             engine.fire_event(IterationEvents.LOSS_COMPLETED)
 
         self.network.train()
-        if get_torch_version_tuple() < (1, 7):
+        # `set_to_none` only work from PyTorch 1.7.0
+        if torch.__version__ != "1.7.0" and version_leq(torch.__version__, "1.7.0"):
             self.optimizer.zero_grad()
         else:
             self.optimizer.zero_grad(set_to_none=self.optim_set_to_none)
@@ -354,7 +355,8 @@ class GanTrainer(Trainer):
             1,
         )
         for _ in range(self.d_train_steps):
-            if get_torch_version_tuple() < (1, 7):
+            # `set_to_none` only work from PyTorch 1.7.0
+            if torch.__version__ != "1.7.0" and version_leq(torch.__version__, "1.7.0"):
                 self.d_optimizer.zero_grad()
             else:
                 self.d_optimizer.zero_grad(set_to_none=self.optim_set_to_none)
@@ -367,7 +369,7 @@ class GanTrainer(Trainer):
         if self.g_update_latents:
             g_input = self.g_prepare_batch(batch_size, self.latent_shape, engine.state.device, engine.non_blocking)
         g_output = self.g_inferer(g_input, self.g_network)
-        if get_torch_version_tuple() < (1, 7, 0):
+        if torch.__version__ != "1.7.0" and version_leq(torch.__version__, "1.7.0"):
             self.g_optimizer.zero_grad()
         else:
             self.g_optimizer.zero_grad(set_to_none=self.optim_set_to_none)
