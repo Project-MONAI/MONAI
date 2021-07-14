@@ -39,6 +39,8 @@ class TestDiceFocalLoss(unittest.TestCase):
                     result = dice_focal(pred, label)
                     expected_val = dice(pred, label) + lambda_focal * focal(pred, label)
                     np.testing.assert_allclose(result, expected_val)
+                    details = dice_focal.get_loss_details()
+                    np.testing.assert_allclose(details["total_loss"], expected_val)
 
     def test_result_no_onehot_no_bg(self):
         size = [3, 3, 5, 5]
@@ -59,6 +61,8 @@ class TestDiceFocalLoss(unittest.TestCase):
                     result = dice_focal(pred, label)
                     expected_val = dice(pred, label) + lambda_focal * focal(pred, label)
                     np.testing.assert_allclose(result, expected_val)
+                    details = dice_focal.get_loss_details()
+                    np.testing.assert_allclose(details["total_loss"], expected_val)
 
     def test_ill_shape(self):
         loss = DiceFocalLoss()
