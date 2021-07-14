@@ -24,6 +24,7 @@ for p in TEST_NDARRAYS:
     # pad first dim to be divisible by 7, the second unchanged.
     TESTS.append(
         [
+            {"k": (7, -1), "mode": "constant"},
             p(np.zeros((3, 8, 7))),
             p(np.zeros((3, 14, 7))),
         ]
