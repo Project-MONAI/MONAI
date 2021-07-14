@@ -420,6 +420,7 @@ def pad_list_data_collate(
     batch: Sequence,
     method: Union[Method, str] = Method.SYMMETRIC,
     mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+    **np_kwargs,
 ):
     """
     Function version of :py:class:`monai.transforms.croppad.batch.PadListDataCollate`.
@@ -437,10 +438,13 @@ def pad_list_data_collate(
         batch: batch of data to pad-collate
         method: padding method (see :py:class:`monai.transforms.SpatialPad`)
         mode: padding mode (see :py:class:`monai.transforms.SpatialPad`)
+        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
+            more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+
     """
     from monai.transforms.croppad.batch import PadListDataCollate  # needs to be here to avoid circular import
 
-    return PadListDataCollate(method, mode)(batch)
+    return PadListDataCollate(method=method, mode=mode, **np_kwargs)(batch)
 
 
 def no_collation(x):
