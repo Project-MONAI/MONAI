@@ -67,7 +67,7 @@ class SpatialPad(Transform):
             (no padding). for example: if the spatial size of input data is [30, 30, 30] and
             `spatial_size=[32, 25, -1]`, the spatial size of output data will be [32, 30, 30].
         method: {``"symmetric"``, ``"end"``}
-            Pad image symmetric on every side or only pad at the end sides. Defaults to ``"symmetric"``.
+            Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
         mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
             ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
             One of the listed string values or a user supplied function. Defaults to ``"constant"``.
@@ -967,6 +967,10 @@ class ResizeWithPadOrCrop(Transform):
             ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
             One of the listed string values or a user supplied function for padding. Defaults to ``"constant"``.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        method: {``"symmetric"``, ``"end"``}
+            Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
+        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
+            more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
 
     """
 
@@ -974,8 +978,10 @@ class ResizeWithPadOrCrop(Transform):
         self,
         spatial_size: Union[Sequence[int], int],
         mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+        method: Union[Method, str] = Method.SYMMETRIC,
+        **np_kwargs,
     ):
-        self.padder = SpatialPad(spatial_size=spatial_size, mode=mode)
+        self.padder = SpatialPad(spatial_size=spatial_size, method=method, mode=mode, **np_kwargs)
         self.cropper = CenterSpatialCrop(roi_size=spatial_size)
 
     def __call__(self, img: np.ndarray, mode: Optional[Union[NumpyPadMode, str]] = None) -> np.ndarray:
