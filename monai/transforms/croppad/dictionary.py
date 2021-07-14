@@ -1336,6 +1336,10 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
         allow_missing_keys: don't raise exception if key is missing.
+        method: {``"symmetric"``, ``"end"``}
+            Pad image symmetric on every side or only pad at the end sides. Defaults to ``"symmetric"``.
+        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
+            more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
 
     """
 
@@ -1345,10 +1349,12 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
         spatial_size: Union[Sequence[int], int],
         mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT,
         allow_missing_keys: bool = False,
+        method: Union[Method, str] = Method.SYMMETRIC,
+        **np_kwargs,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.padcropper = ResizeWithPadOrCrop(spatial_size=spatial_size)
+        self.padcropper = ResizeWithPadOrCrop(spatial_size=spatial_size, method=method, **np_kwargs)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
