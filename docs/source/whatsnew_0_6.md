@@ -41,6 +41,9 @@ And it contains the following features:
 The following illustrates target body organs that are segmentation in this tutorial:
 ![BTCV_organs](../images/BTCV_organs.png)
 
+Please visit UNETR repository for more details:
+https://monai.io/research/unetr-btcv-multi-organ-segmentation
+
 ## Pythonic APIs to load the pretrained models from Clara Train MMARs
 [The MMAR (Medical Model ARchive)](https://docs.nvidia.com/clara/clara-train-sdk/pt/mmar.html)
 defines a data structure for organizing all artifacts produced during the model development life cycle.
