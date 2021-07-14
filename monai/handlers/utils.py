@@ -112,7 +112,7 @@ def string_list_all_gather(strings: List[str]) -> List[str]:
     if length < max_len:
         strings = strings + ["" for _ in range(max_len - length)]
 
-    if get_torch_version_tuple() > (1, 6, 0):
+    if get_torch_version_tuple() > (1, 6):
         for s in strings:
             gathered = idist.all_gather(s)
             for i, g in enumerate(gathered):

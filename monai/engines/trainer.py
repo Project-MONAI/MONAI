@@ -189,7 +189,7 @@ class SupervisedTrainer(Trainer):
             engine.fire_event(IterationEvents.LOSS_COMPLETED)
 
         self.network.train()
-        if get_torch_version_tuple() < (1, 7, 0):
+        if get_torch_version_tuple() < (1, 7):
             self.optimizer.zero_grad()
         else:
             self.optimizer.zero_grad(set_to_none=self.optim_set_to_none)
@@ -354,7 +354,7 @@ class GanTrainer(Trainer):
             1,
         )
         for _ in range(self.d_train_steps):
-            if get_torch_version_tuple() < (1, 7, 0):
+            if get_torch_version_tuple() < (1, 7):
                 self.d_optimizer.zero_grad()
             else:
                 self.d_optimizer.zero_grad(set_to_none=self.optim_set_to_none)
