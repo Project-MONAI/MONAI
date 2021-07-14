@@ -271,6 +271,7 @@ class DivisiblePad(TorchOrNumpyTransform):
         self,
         k: Union[Sequence[int], int],
         mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+        method: Union[Method, str] = Method.SYMMETRIC,
         **np_kwargs,
     ) -> None:
         """
@@ -282,13 +283,16 @@ class DivisiblePad(TorchOrNumpyTransform):
                 ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            method: {``"symmetric"``, ``"end"``}
+                Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
             np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
                 more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
 
         See also :py:class:`monai.transforms.SpatialPad`
         """
         self.k = k
-        self.mode = mode
+        self.mode: NumpyPadMode = NumpyPadMode(mode)
+        self.method: Method = Method(method)
         self.np_kwargs = np_kwargs
 
     def __call__(self, img: DataObjects.Images, mode: Optional[Union[NumpyPadMode, str]] = None) -> DataObjects.Images:
@@ -304,7 +308,7 @@ class DivisiblePad(TorchOrNumpyTransform):
         new_size = compute_divisible_spatial_size(spatial_shape=img.shape[1:], k=self.k)
         spatial_pad = SpatialPad(
             spatial_size=new_size,
-            method=Method.SYMMETRIC,
+            method=self.method,
             mode=mode or self.mode,
             **self.np_kwargs,
         )

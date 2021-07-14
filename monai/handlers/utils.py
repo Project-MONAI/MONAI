@@ -113,7 +113,7 @@ def string_list_all_gather(strings: List[str]) -> List[str]:
     if length < max_len:
         strings += ["" for _ in range(max_len - length)]
 
-    if get_torch_version_tuple() <= (1, 6, 0):
+    if get_torch_version_tuple() <= (1, 6):
         raise RuntimeError("string all_gather can not be supported in PyTorch < 1.7.0.")
 
     for s in strings:
