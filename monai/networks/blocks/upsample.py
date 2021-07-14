@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -40,6 +40,7 @@ class UpSample(nn.Sequential):
         in_channels: Optional[int] = None,
         out_channels: Optional[int] = None,
         scale_factor: Union[Sequence[float], float] = 2,
+        size: Optional[Union[Tuple[int], int]] = None,
         mode: Union[UpsampleMode, str] = UpsampleMode.DECONV,
         pre_conv: Optional[Union[nn.Module, str]] = "default",
         interp_mode: Union[InterpolateMode, str] = InterpolateMode.LINEAR,
@@ -53,6 +54,11 @@ class UpSample(nn.Sequential):
             in_channels: number of channels of the input image.
             out_channels: number of channels of the output image. Defaults to `in_channels`.
             scale_factor: multiplier for spatial size. Has to match input size if it is a tuple. Defaults to 2.
+            size: spatial size of the output image.
+                Only used when ``mode`` is ``UpsampleMode.NONTRAINABLE``.
+                In torch.nn.functional.interpolate, only one of `size` or `scale_factor` should be defined,
+                thus if size is defined, `scale_factor` will not be used.
+                Defaults to None.
             mode: {``"deconv"``, ``"nontrainable"``, ``"pixelshuffle"``}. Defaults to ``"deconv"``.
             pre_conv: a conv block applied before upsampling. Defaults to None.
                 When ``conv_block`` is ``"default"``, one reserved conv layer will be utilized when
@@ -105,7 +111,12 @@ class UpSample(nn.Sequential):
                 interp_mode = linear_mode[dimensions - 1]
             self.add_module(
                 "upsample_non_trainable",
-                nn.Upsample(scale_factor=scale_factor_, mode=interp_mode.value, align_corners=align_corners),
+                nn.Upsample(
+                    size=size,
+                    scale_factor=None if size else scale_factor_,
+                    mode=interp_mode.value,
+                    align_corners=align_corners,
+                ),
             )
         elif up_mode == UpsampleMode.PIXELSHUFFLE:
             self.add_module(
@@ -143,9 +154,9 @@ class SubpixelUpsample(nn.Module):
     https://arxiv.org/abs/1609.05158
 
     The pixel shuffle mechanism refers to:
-    https://github.com/pytorch/pytorch/blob/master/aten/src/ATen/native/PixelShuffle.cpp
+    https://pytorch.org/docs/stable/generated/torch.nn.PixelShuffle.html#torch.nn.PixelShuffle.
     and:
-    https://github.com/pytorch/pytorch/pull/6340/files
+    https://github.com/pytorch/pytorch/pull/6340.
 
     """
 
