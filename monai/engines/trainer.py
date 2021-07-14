@@ -26,7 +26,7 @@ from monai.engines.utils import (
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import Transform
-from monai.utils import min_version, optional_import
+from monai.utils import get_torch_version_tuple, min_version, optional_import
 from monai.utils.enums import CommonKeys as Keys
 
 if TYPE_CHECKING:
@@ -99,6 +99,8 @@ class SupervisedTrainer(Trainer):
         decollate: whether to decollate the batch-first data to a list of data after model computation,
             recommend `decollate=True` when `postprocessing` uses components from `monai.transforms`.
             default to `True`.
+        optim_set_to_none: when calling `optimizer.zero_grad()`, instead of setting to zero, set the grads to None.
+            more details: https://pytorch.org/docs/stable/generated/torch.optim.Optimizer.zero_grad.html.
 
     """
 
@@ -124,6 +126,7 @@ class SupervisedTrainer(Trainer):
         event_names: Optional[List[Union[str, EventEnum]]] = None,
         event_to_attr: Optional[dict] = None,
         decollate: bool = True,
+        optim_set_to_none: bool = False,
     ) -> None:
         super().__init__(
             device=device,
@@ -148,6 +151,7 @@ class SupervisedTrainer(Trainer):
         self.optimizer = optimizer
         self.loss_function = loss_function
         self.inferer = SimpleInferer() if inferer is None else inferer
+        self.optim_set_to_none = optim_set_to_none
 
     def _iteration(self, engine: Engine, batchdata: Dict[str, torch.Tensor]):
         """
@@ -185,7 +189,11 @@ class SupervisedTrainer(Trainer):
             engine.fire_event(IterationEvents.LOSS_COMPLETED)
 
         self.network.train()
-        self.optimizer.zero_grad()
+        if get_torch_version_tuple() < (1, 7, 0):
+            self.optimizer.zero_grad()
+        else:
+            self.optimizer.zero_grad(set_to_none=self.optim_set_to_none)
+
         if self.amp and self.scaler is not None:
             with torch.cuda.amp.autocast():
                 _compute_pred_loss()
@@ -252,6 +260,8 @@ class GanTrainer(Trainer):
         decollate: whether to decollate the batch-first data to a list of data after model computation,
             recommend `decollate=True` when `postprocessing` uses components from `monai.transforms`.
             default to `True`.
+        optim_set_to_none: when calling `optimizer.zero_grad()`, instead of setting to zero, set the grads to None.
+            more details: https://pytorch.org/docs/stable/generated/torch.optim.Optimizer.zero_grad.html.
 
     """
 
@@ -282,6 +292,7 @@ class GanTrainer(Trainer):
         metric_cmp_fn: Callable = default_metric_cmp_fn,
         train_handlers: Optional[Sequence] = None,
         decollate: bool = True,
+        optim_set_to_none: bool = False,
     ):
         if not isinstance(train_data_loader, DataLoader):
             raise ValueError("train_data_loader must be PyTorch DataLoader.")
@@ -314,6 +325,7 @@ class GanTrainer(Trainer):
         self.latent_shape = latent_shape
         self.g_prepare_batch = g_prepare_batch
         self.g_update_latents = g_update_latents
+        self.optim_set_to_none = optim_set_to_none
 
     def _iteration(
         self, engine: Engine, batchdata: Union[Dict, Sequence]
@@ -342,7 +354,10 @@ class GanTrainer(Trainer):
             1,
         )
         for _ in range(self.d_train_steps):
-            self.d_optimizer.zero_grad()
+            if get_torch_version_tuple() < (1, 7, 0):
+                self.d_optimizer.zero_grad()
+            else:
+                self.d_optimizer.zero_grad(set_to_none=self.optim_set_to_none)
             dloss = self.d_loss_function(g_output, d_input)
             dloss.backward()
             self.d_optimizer.step()
@@ -352,7 +367,10 @@ class GanTrainer(Trainer):
         if self.g_update_latents:
             g_input = self.g_prepare_batch(batch_size, self.latent_shape, engine.state.device, engine.non_blocking)
         g_output = self.g_inferer(g_input, self.g_network)
-        self.g_optimizer.zero_grad()
+        if get_torch_version_tuple() < (1, 7, 0):
+            self.g_optimizer.zero_grad()
+        else:
+            self.g_optimizer.zero_grad(set_to_none=self.optim_set_to_none)
         g_loss = self.g_loss_function(g_output)
         g_loss.backward()
         self.g_optimizer.step()
