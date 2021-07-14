@@ -167,10 +167,13 @@ class StatsHandler:
             out_str += self.key_var_format.format(name, value)
         self.logger.info(out_str)
 
-        if hasattr(engine.state, "key_metric_name"):
-            if hasattr(engine.state, "best_metric") and hasattr(engine.state, "best_metric_epoch"):
-                out_str = f"Key metric: {engine.state.key_metric_name} "
-                out_str += f"best value: {engine.state.best_metric} at epoch: {engine.state.best_metric_epoch}"
+        if (
+            hasattr(engine.state, "key_metric_name")
+            and hasattr(engine.state, "best_metric")
+            and hasattr(engine.state, "best_metric_epoch")
+        ):
+            out_str = f"Key metric: {engine.state.key_metric_name} "
+            out_str += f"best value: {engine.state.best_metric} at epoch: {engine.state.best_metric_epoch}"
         self.logger.info(out_str)
 
     def _default_iteration_print(self, engine: Engine) -> None:
@@ -201,18 +204,17 @@ class StatsHandler:
                     )
                     continue  # not printing multi dimensional output
                 out_str += self.key_var_format.format(name, value.item() if isinstance(value, torch.Tensor) else value)
+        elif is_scalar(loss):  # not printing multi dimensional output
+            out_str += self.key_var_format.format(
+                self.tag_name, loss.item() if isinstance(loss, torch.Tensor) else loss
+            )
         else:
-            if is_scalar(loss):  # not printing multi dimensional output
-                out_str += self.key_var_format.format(
-                    self.tag_name, loss.item() if isinstance(loss, torch.Tensor) else loss
-                )
-            else:
-                warnings.warn(
-                    "ignoring non-scalar output in StatsHandler,"
-                    " make sure `output_transform(engine.state.output)` returns"
-                    " a scalar or a dictionary of key and scalar pairs to avoid this warning."
-                    " {}".format(type(loss))
-                )
+            warnings.warn(
+                "ignoring non-scalar output in StatsHandler,"
+                " make sure `output_transform(engine.state.output)` returns"
+                " a scalar or a dictionary of key and scalar pairs to avoid this warning."
+                " {}".format(type(loss))
+            )
 
         if not out_str:
             return  # no value to print

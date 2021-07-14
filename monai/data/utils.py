@@ -551,7 +551,7 @@ def zoom_affine(affine: np.ndarray, scale: Sequence[float], diagonal: bool = Tru
     Args:
         affine (nxn matrix): a square matrix.
         scale: new scaling factor along each dimension. if the components of the `scale` are non-positive values,
-            will use the corresponding components of the origial pixdim, which is computed from the `affine`.
+            will use the corresponding components of the original pixdim, which is computed from the `affine`.
         diagonal: whether to return a diagonal scaling matrix.
             Defaults to True.
 
@@ -1105,11 +1105,11 @@ def convert_tables_to_dicts(
     if isinstance(col_types, dict):
         # fill default values for NaN
         defaults = {k: v["default"] for k, v in col_types.items() if v is not None and v.get("default") is not None}
-        if len(defaults) > 0:
+        if defaults:
             data_ = data_.fillna(value=defaults)
         # convert data types
         types = {k: v["type"] for k, v in col_types.items() if v is not None and "type" in v}
-        if len(types) > 0:
+        if types:
             data_ = data_.astype(dtype=types)
     data: List[Dict] = data_.to_dict(orient="records")
 

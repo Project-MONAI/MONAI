@@ -51,7 +51,7 @@ class ClassificationSaver:
             output_dir: if `saver=None`, output CSV file directory.
             filename: if `saver=None`, name of the saved CSV file name.
             overwrite: if `saver=None`, whether to overwriting existing file content, if True,
-                will clear the file before saving. otherwise, will apend new content to the file.
+                will clear the file before saving. otherwise, will append new content to the file.
             batch_transform: a callable that is used to extract the `meta_data` dictionary of
                 the input images from `ignite.engine.state.batch`. the purpose is to get the input
                 filenames from the `meta_data` and store with classification results together.

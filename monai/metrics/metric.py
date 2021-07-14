@@ -38,7 +38,7 @@ class IterationMetric(Metric):
     """
     Base class of Metrics interface for computation on a batch of tensors, usually the data of 1 iteration.
     `__call__` is supposed to compute independent logic for several samples of `y_pred` and `y`(optional).
-    Ususally, subclass only needs to implement the `_compute_tensor` function for computation process.
+    Usually, subclass only needs to implement the `_compute_tensor` function for computation process.
     The input data shape should be `list of channel-first tensors` or a `batch-first tensor`.
 
     """
@@ -85,7 +85,7 @@ class IterationMetric(Metric):
         # concat the list of results
         if isinstance(ret[0], torch.Tensor):
             ret = torch.cat(ret, dim=0)
-        elif isinstance(ret[0], (list, tuple)) and all([isinstance(i, torch.Tensor) for i in ret[0]]):
+        elif isinstance(ret[0], (list, tuple)) and all(isinstance(i, torch.Tensor) for i in ret[0]):
             # if _compute_tensor() returned not only 1 Tensor, concat them separately
             ret = [torch.cat([k[i] for k in ret], dim=0) for i in range(len(ret[0]))]
 
@@ -119,7 +119,7 @@ class Cumulative(ABC):
         cum.add(x, y)
         cum.add(a, b)
         cum.add(c, d)
-        cum.agrregate()
+        cum.aggregate()
         result = cum.get_buffer()
         cum.reset()
 

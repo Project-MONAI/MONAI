@@ -107,7 +107,7 @@ class DiceLoss(_Loss):
             target: the shape should be BNH[WD] or B1H[WD], where N is the number of classes.
 
         Raises:
-            AssertionError: When input and target (after one hot transform if setted)
+            AssertionError: When input and target (after one hot transform if set)
                 have different shapes.
             ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
 
@@ -168,9 +168,7 @@ class DiceLoss(_Loss):
             f = torch.mean(f)  # the batch and channel average
         elif self.reduction == LossReduction.SUM.value:
             f = torch.sum(f)  # sum over the batch and channel dims
-        elif self.reduction == LossReduction.NONE.value:
-            pass  # returns [N, n_classes] losses
-        else:
+        elif self.reduction != LossReduction.NONE.value:
             raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
 
         return f
@@ -345,9 +343,7 @@ class GeneralizedDiceLoss(_Loss):
             f = torch.mean(f)  # the batch and channel average
         elif self.reduction == LossReduction.SUM.value:
             f = torch.sum(f)  # sum over the batch and channel dims
-        elif self.reduction == LossReduction.NONE.value:
-            pass  # returns [N, n_classes] losses
-        else:
+        elif self.reduction != LossReduction.NONE.value:
             raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
 
         return f
@@ -461,7 +457,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         # Compute the values of alpha to use
         alpha = self._compute_alpha_generalized_true_positives(flat_target)
 
-        # Compute the nemerator and denominator of the generalized Wasserstein Dice loss
+        # Compute the numerator and denominator of the generalized Wasserstein Dice loss
         if self.alpha_mode == "GDL":
             # use GDL-style alpha weights (i.e. normalize by the volume of each class)
             # contrary to the original definition we also use alpha in the "generalized all error".
@@ -482,9 +478,7 @@ class GeneralizedWassersteinDiceLoss(_Loss):
             wass_dice_loss = torch.mean(wass_dice_loss)  # the batch and channel average
         elif self.reduction == LossReduction.SUM.value:
             wass_dice_loss = torch.sum(wass_dice_loss)  # sum over the batch and channel dims
-        elif self.reduction == LossReduction.NONE.value:
-            pass  # returns [N, n_classes] losses
-        else:
+        elif self.reduction != LossReduction.NONE.value:
             raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
 
         return wass_dice_loss
@@ -542,12 +536,10 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         flat_target_extended = torch.unsqueeze(flat_target, dim=1)
         alpha_extended = torch.gather(alpha_extended, index=flat_target_extended, dim=1)
 
-        # Compute the generalized true positive as in eq. 9
-        generalized_true_pos = torch.sum(
+        return torch.sum(
             alpha_extended * (1.0 - wasserstein_distance_map),
             dim=[1, 2],
         )
-        return generalized_true_pos
 
     def _compute_denominator(
         self, alpha: torch.Tensor, flat_target: torch.Tensor, wasserstein_distance_map: torch.Tensor
@@ -564,12 +556,10 @@ class GeneralizedWassersteinDiceLoss(_Loss):
         flat_target_extended = torch.unsqueeze(flat_target, dim=1)
         alpha_extended = torch.gather(alpha_extended, index=flat_target_extended, dim=1)
 
-        # Compute the generalized true positive as in eq. 9
-        generalized_true_pos = torch.sum(
+        return torch.sum(
             alpha_extended * (2.0 - wasserstein_distance_map),
             dim=[1, 2],
         )
-        return generalized_true_pos
 
     def _compute_alpha_generalized_true_positives(self, flat_target: torch.Tensor) -> torch.Tensor:
         """

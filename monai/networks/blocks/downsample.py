@@ -58,5 +58,4 @@ class MaxAvgPool(nn.Module):
         Returns:
             Tensor in shape (batch, 2*channel, spatial_1[, spatial_2, ...]).
         """
-        x_d = torch.cat([self.max_pool(x), self.avg_pool(x)], dim=1)
-        return x_d
+        return torch.cat([self.max_pool(x), self.avg_pool(x)], dim=1)

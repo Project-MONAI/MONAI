@@ -54,12 +54,12 @@ class IterableDataset(_TorchIterableDataset):
 class CSVIterableDataset(IterableDataset):
     """
     Iterable dataset to load CSV files and generate dictionary data.
-    It can be helpful when loading extemely big CSV files that can't read into memory directly.
+    It can be helpful when loading extremely big CSV files that can't read into memory directly.
     To accelerate the loading process, it can support multi-processing based on PyTorch DataLoader workers,
-    every process executes tranforms on part of every loaded chunk.
+    every process executes transforms on part of every loaded chunk.
     Note: the order of output data may not match data source in multi-processing mode.
 
-    It can load data from multiple CSV files and join the tables with addtional `kwargs` arg.
+    It can load data from multiple CSV files and join the tables with additional `kwargs` arg.
     Support to only load specific columns.
     And it can also group several loaded columns to generate a new column, for example,
     set `col_groups={"meta": ["meta_0", "meta_1", "meta_2"]}`, output can be::

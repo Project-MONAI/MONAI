@@ -107,8 +107,7 @@ class MSEMetric(RegressionMetric):
         y_pred = y_pred.float()
         y = y.float()
 
-        mse_out = compute_mean_error_metrics(y_pred, y, func=self.sq_func)
-        return mse_out
+        return compute_mean_error_metrics(y_pred, y, func=self.sq_func)
 
 
 class MAEMetric(RegressionMetric):
@@ -142,8 +141,7 @@ class MAEMetric(RegressionMetric):
         y_pred = y_pred.float()
         y = y.float()
 
-        mae_out = compute_mean_error_metrics(y_pred, y, func=self.abs_func)
-        return mae_out
+        return compute_mean_error_metrics(y_pred, y, func=self.abs_func)
 
 
 class RMSEMetric(RegressionMetric):
@@ -179,8 +177,7 @@ class RMSEMetric(RegressionMetric):
         y = y.float()
 
         mse_out = compute_mean_error_metrics(y_pred, y, func=self.sq_func)
-        rmse_out = torch.sqrt(mse_out)
-        return rmse_out
+        return torch.sqrt(mse_out)
 
 
 class PSNRMetric(RegressionMetric):
@@ -223,14 +220,11 @@ class PSNRMetric(RegressionMetric):
         y = y.float()
 
         mse_out = compute_mean_error_metrics(y_pred, y, func=self.sq_func)
-        psnr_val = 20 * math.log10(self.max_val) - 10 * torch.log10(mse_out)
-        return psnr_val
+        return 20 * math.log10(self.max_val) - 10 * torch.log10(mse_out)
 
 
 def compute_mean_error_metrics(y_pred: torch.Tensor, y: torch.Tensor, func) -> torch.Tensor:
     # reducing in only channel + spatial dimensions (not batch)
-    # reducion of batch handled inside __call__() using do_metric_reduction() in respective calling class
+    # reduction of batch handled inside __call__() using do_metric_reduction() in respective calling class
     flt = partial(torch.flatten, start_dim=1)
-    error_metric = torch.mean(flt(func(y - y_pred)), dim=-1, keepdim=True)
-
-    return error_metric
+    return torch.mean(flt(func(y - y_pred)), dim=-1, keepdim=True)

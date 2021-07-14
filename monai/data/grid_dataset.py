@@ -146,7 +146,7 @@ class GridPatchDataset(IterableDataset):
         if worker_info is not None:
             # split workload
             per_worker = int(np.ceil((iter_end - iter_start) / float(worker_info.num_workers)))
-            iter_start = iter_start + worker_info.id * per_worker
+            iter_start += worker_info.id * per_worker
             iter_end = min(iter_start + per_worker, iter_end)
 
         for index in range(iter_start, iter_end):
