@@ -39,7 +39,8 @@ from monai.utils import (
     issequenceiterable,
     optional_import,
 )
-from monai.utils.enums import Method
+from monai.utils.enums import DataObjects, Method
+from monai.utils.misc import convert_data_type
 
 pd, _ = optional_import("pandas")
 DataFrame, _ = optional_import("pandas", name="DataFrame")
@@ -542,7 +543,7 @@ def rectify_header_sform_qform(img_nii):
     return img_nii
 
 
-def zoom_affine(affine: np.ndarray, scale: Sequence[float], diagonal: bool = True):
+def zoom_affine(affine: DataObjects.Images, scale: Sequence[float], diagonal: bool = True):
     """
     To make column norm of `affine` the same as `scale`.  If diagonal is False,
     returns an affine that combines orthogonal rotation and the new scale.
@@ -567,8 +568,7 @@ def zoom_affine(affine: np.ndarray, scale: Sequence[float], diagonal: bool = Tru
         the updated `n x n` affine.
 
     """
-
-    affine = np.array(affine, dtype=float, copy=True)
+    affine, *_ = convert_data_type(deepcopy(affine), np.ndarray, dtype=float)
     if len(affine) != len(affine[0]):
         raise ValueError(f"affine must be n x n, got {len(affine)} x {len(affine[0])}.")
     scale_np = np.array(scale, dtype=float, copy=True)
@@ -583,14 +583,15 @@ def zoom_affine(affine: np.ndarray, scale: Sequence[float], diagonal: bool = Tru
 
     scale_np[scale_np == 0] = 1.0
     if diagonal:
-        return np.diag(np.append(scale_np, [1.0]))
-    rzs = affine[:-1, :-1]  # rotation zoom scale
-    zs = np.linalg.cholesky(rzs.T @ rzs).T
-    rotation = rzs @ np.linalg.inv(zs)
-    s = np.sign(np.diag(zs)) * np.abs(scale_np)
-    # construct new affine with rotation and zoom
-    new_affine = np.eye(len(affine))
-    new_affine[:-1, :-1] = rotation @ np.diag(s)
+        new_affine = np.diag(np.append(scale_np, [1.0]))
+    else:
+        rzs = affine[:-1, :-1]  # rotation zoom scale
+        zs = np.linalg.cholesky(rzs.T @ rzs).T
+        rotation = rzs @ np.linalg.inv(zs)
+        s = np.sign(np.diag(zs)) * np.abs(scale_np)
+        # construct new affine with rotation and zoom
+        new_affine = np.eye(len(affine))
+        new_affine[:-1, :-1] = rotation @ np.diag(s)
     return new_affine
 
 
@@ -610,8 +611,8 @@ def compute_shape_offset(
     """
     shape = np.array(spatial_shape, copy=True, dtype=float)
     sr = len(shape)
-    in_affine = to_affine_nd(sr, in_affine)
-    out_affine = to_affine_nd(sr, out_affine)
+    in_affine = to_affine_nd(sr, in_affine)  # type: ignore
+    out_affine = to_affine_nd(sr, out_affine)  # type: ignore
     in_coords = [(0.0, dim - 1.0) for dim in shape]
     corners = np.asarray(np.meshgrid(*in_coords, indexing="ij")).reshape((len(shape), -1))
     corners = np.concatenate((corners, np.ones_like(corners[:1])))
@@ -630,7 +631,7 @@ def compute_shape_offset(
     return out_shape.astype(int), offset
 
 
-def to_affine_nd(r: Union[np.ndarray, int], affine: np.ndarray) -> np.ndarray:
+def to_affine_nd(r: Union[DataObjects.Images, int], affine: DataObjects.Images) -> DataObjects.Images:
     """
     Using elements from affine, to create a new affine matrix by
     assigning the rotation/zoom/scaling matrix and the translation vector.
@@ -657,19 +658,20 @@ def to_affine_nd(r: Union[np.ndarray, int], affine: np.ndarray) -> np.ndarray:
         an (r+1) x (r+1) matrix
 
     """
-    affine_np = np.array(affine, dtype=np.float64)
-    if affine_np.ndim != 2:
-        raise ValueError(f"affine must have 2 dimensions, got {affine_np.ndim}.")
-    new_affine = np.array(r, dtype=np.float64, copy=True)
+    if affine.ndim != 2:
+        raise ValueError(f"affine must have 2 dimensions, got {affine.ndim}.")
+    device = affine.device if isinstance(affine, torch.Tensor) else None
+    new_affine, *_ = convert_data_type(deepcopy(r), type(affine), dtype=np.float64, device=device)
     if new_affine.ndim == 0:
-        sr: int = int(new_affine.astype(np.uint))
+        sr: int = int(new_affine)
         if not np.isfinite(sr) or sr < 0:
             raise ValueError(f"r must be positive, got {sr}.")
         new_affine = np.eye(sr + 1, dtype=np.float64)
-    d = max(min(len(new_affine) - 1, len(affine_np) - 1), 1)
-    new_affine[:d, :d] = affine_np[:d, :d]
+        new_affine, *_ = convert_data_type(new_affine, type(affine), device=device)
+    d = max(min(len(new_affine) - 1, len(affine) - 1), 1)
+    new_affine[:d, :d] = affine[:d, :d]
     if d > 1:
-        new_affine[:d, -1] = affine_np[:d, -1]
+        new_affine[:d, -1] = affine[:d, -1]
     return new_affine
 
 

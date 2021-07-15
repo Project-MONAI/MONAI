@@ -37,7 +37,7 @@ from monai.transforms.croppad.array import (
     SpatialPad,
 )
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.transform import MapTransform, Randomizable, convert_data_type
+from monai.transforms.transform import MapTransform, Randomizable
 from monai.transforms.utils import (
     allow_missing_keys_mode,
     generate_label_classes_crop_centers,
@@ -50,6 +50,7 @@ from monai.transforms.utils import (
 from monai.utils import ImageMetaKey as Key
 from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
 from monai.utils.enums import DataObjects, InverseKeys
+from monai.utils.misc import convert_data_type
 
 __all__ = [
     "NumpyPadModeSequence",

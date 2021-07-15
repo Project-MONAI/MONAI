@@ -16,8 +16,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.transforms.transform import convert_data_type
-from monai.utils.misc import dtype_convert
+from monai.utils.misc import convert_data_type, dtype_convert
 
 TESTS: List[Tuple] = []
 TESTS.append((np.array, torch.Tensor, np.float32, torch.float32))

@@ -18,7 +18,8 @@ import numpy as np
 from nibabel.processing import resample_to_output
 from parameterized import parameterized
 
-from monai.transforms import AddChanneld, LoadImaged, Orientationd, Spacingd, convert_data_type
+from monai.transforms import AddChanneld, LoadImaged, Orientationd, Spacingd
+from monai.utils.misc import convert_data_type
 
 FILES = tuple(
     os.path.join(os.path.dirname(__file__), "testing_data", filename)

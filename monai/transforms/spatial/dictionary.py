@@ -206,9 +206,7 @@ class Spacingd(MapTransform, InvertibleTransform):
             raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
-    def __call__(
-        self, data: Mapping[Union[Hashable, str], Dict[str, np.ndarray]]
-    ) -> Dict[Union[Hashable, str], Union[np.ndarray, Dict[str, np.ndarray]]]:
+    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
         d: Dict = dict(data)
         for key, mode, padding_mode, align_corners, dtype, meta_key, meta_key_postfix in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype, self.meta_keys, self.meta_key_postfix
@@ -222,7 +220,7 @@ class Spacingd(MapTransform, InvertibleTransform):
             # using affine fetched from d[affine_key]
             original_spatial_shape = d[key].shape[1:]
             d[key], old_affine, new_affine = self.spacing_transform(
-                data_array=np.asarray(d[key]),
+                data_array=d[key],
                 affine=meta_data["affine"],
                 mode=mode,
                 padding_mode=padding_mode,

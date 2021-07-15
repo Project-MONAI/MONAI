@@ -40,6 +40,7 @@ from .jupyter_utils import StatusMembers, ThreadContainer
 from .misc import (
     MAX_SEED,
     ImageMetaKey,
+    convert_data_type,
     copy_to_device,
     dtype_convert,
     dtype_numpy_to_torch,

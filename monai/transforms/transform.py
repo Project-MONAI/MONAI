@@ -21,10 +21,9 @@ import torch
 
 from monai import transforms
 from monai.config import KeysCollection
-from monai.config.type_definitions import DtypeLike
 from monai.utils import MAX_SEED, ensure_tuple
 from monai.utils.enums import DataObjects
-from monai.utils.misc import dtype_convert
+from monai.utils.misc import convert_data_type
 
 __all__ = [
     "ThreadUnsafe",
@@ -33,58 +32,10 @@ __all__ = [
     "RandomizableTransform",
     "Transform",
     "MapTransform",
-    "convert_data_type",
     "NumpyTransform",
 ]
 
 ReturnType = TypeVar("ReturnType")
-
-
-def convert_data_type(
-    data: DataObjects.Images,
-    output_type: Optional[type] = None,
-    device: Optional[torch.device] = None,
-    dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
-) -> Tuple[DataObjects.Images, type, Optional[torch.device]]:
-    """Convert to `torch.Tensor`/`np.ndarray` from `torch.Tensor`/`np.ndarray`/`float`/`int` etc.
-
-    Args:
-        data: data to be converted
-        output_type: `torch.Tensor` or `np.ndarray` (if blank, unchanged)
-        device: if output is `torch.Tensor`, select device (if blank, unchanged)
-        dtype: dtype of output data. Converted to correct library type (e.g.,
-            `np.float32` is converted to `torch.float32` if output type is `torch.Tensor`).
-            If left blank, it remains unchanged.
-
-    Returns:
-        modified data, orig_type, orig_device
-    """
-    orig_type = type(data)
-    orig_device = data.device if isinstance(data, torch.Tensor) else None
-
-    output_type = output_type or orig_type
-    # objects like float don't have dtype, so return their type
-    dtype = dtype_convert(dtype or data.dtype, output_type) if hasattr(data, "dtype") else type(data)
-
-    if output_type is torch.Tensor:
-        if orig_type is np.ndarray:
-            data = torch.as_tensor(data if data.ndim == 0 else np.ascontiguousarray(data))
-        else:
-            data = torch.as_tensor(data)
-        if dtype != data.dtype:
-            data = data.to(dtype)  # type: ignore
-    elif output_type is np.ndarray:
-        if orig_type is torch.Tensor:
-            data = data.detach().cpu().numpy()  # type: ignore
-        else:
-            data = np.array(data)
-        if dtype != data.dtype:
-            data = data.astype(dtype)  # type: ignore
-
-    if isinstance(data, torch.Tensor) and device is not None:
-        data = data.to(device)
-
-    return data, orig_type, orig_device
 
 
 def _apply_transform(

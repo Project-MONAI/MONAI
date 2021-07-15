@@ -23,14 +23,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike
-from monai.transforms.transform import (
-    NumpyTransform,
-    Randomizable,
-    TorchOrNumpyTransform,
-    TorchTransform,
-    Transform,
-    convert_data_type,
-)
+from monai.transforms.transform import NumpyTransform, Randomizable, TorchOrNumpyTransform, TorchTransform, Transform
 from monai.transforms.utils import (
     convert_to_numpy,
     convert_to_tensor,
@@ -41,7 +34,7 @@ from monai.transforms.utils import (
 )
 from monai.utils import ensure_tuple, min_version, optional_import
 from monai.utils.enums import DataObjects
-from monai.utils.misc import dtype_convert
+from monai.utils.misc import convert_data_type, dtype_convert
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")

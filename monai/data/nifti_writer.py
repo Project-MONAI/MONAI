@@ -17,9 +17,9 @@ import torch
 from monai.config import DtypeLike
 from monai.data.utils import compute_shape_offset, to_affine_nd
 from monai.networks.layers import AffineTransform
-from monai.transforms.transform import convert_data_type
 from monai.utils import GridSampleMode, GridSamplePadMode, optional_import
 from monai.utils.enums import DataObjects
+from monai.utils.misc import convert_data_type
 
 nib, _ = optional_import("nibabel")
 
@@ -108,11 +108,11 @@ def write_nifti(
     sr = min(data_np.ndim, 3)
     if affine is None:
         affine = np.eye(4, dtype=np.float64)
-    affine = to_affine_nd(sr, affine)
+    affine = to_affine_nd(sr, affine)  # type: ignore
 
     if target_affine is None:
         target_affine = affine
-    target_affine = to_affine_nd(sr, target_affine)
+    target_affine = to_affine_nd(sr, target_affine)  # type: ignore
 
     if np.allclose(affine, target_affine, atol=1e-3):
         # no affine changes, save (data, affine)

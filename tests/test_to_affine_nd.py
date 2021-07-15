@@ -15,21 +15,22 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.utils.misc import dtype_convert
-from tests.utils import TEST_NDARRAYS
-
-DTYPES = [torch.float32, np.float32, np.dtype(np.float32)]
+from monai.data.utils import to_affine_nd
+from tests.test_dtype_convert import TEST_NDARRAYS
 
 TESTS = []
-for im_type in TEST_NDARRAYS:
-    for im_dtype in DTYPES:
-        TESTS.append((im_type, im_dtype))
+TESTS.append([2, np.eye(4)])
 
 
-class TestDtypeConvert(unittest.TestCase):
+class TestToAffinend(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_dtype_convert(self, im_type, desired_dtype):
-        out = dtype_convert(desired_dtype, im_type)
+    def test_to_affine_nd(self, r, affine):
+        outs = []
+        for p in TEST_NDARRAYS:
+            for q in TEST_NDARRAYS:
+                res = to_affine_nd(p(r), q(affine))
+                outs.append(res.cpu() if isinstance(res, torch.Tensor) else res)
+                np.testing.assert_allclose(outs[-1], outs[0])
 
 
 if __name__ == "__main__":

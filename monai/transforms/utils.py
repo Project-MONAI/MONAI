@@ -22,7 +22,7 @@ import torch
 from monai.config import DtypeLike, IndexSelection
 from monai.networks.layers import GaussianFilter
 from monai.transforms.compose import Compose
-from monai.transforms.transform import MapTransform, convert_data_type
+from monai.transforms.transform import MapTransform
 from monai.utils import (
     GridSampleMode,
     InterpolateMode,
@@ -36,6 +36,7 @@ from monai.utils import (
     optional_import,
 )
 from monai.utils.enums import DataObjects
+from monai.utils.misc import convert_data_type
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 cp, has_cp = optional_import("cupy")

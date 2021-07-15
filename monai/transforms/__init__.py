@@ -311,7 +311,6 @@ from .transform import (
     ThreadUnsafe,
     Transform,
     apply_transform,
-    convert_data_type,
 )
 from .utility.array import (
     AddChannel,

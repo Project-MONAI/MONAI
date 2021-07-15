@@ -23,7 +23,7 @@ from torch.nn.functional import pad as pad_pt
 
 from monai.config import IndexSelection
 from monai.data.utils import get_random_patch, get_valid_patch_size
-from monai.transforms.transform import NumpyTransform, Randomizable, TorchOrNumpyTransform, Transform, convert_data_type
+from monai.transforms.transform import NumpyTransform, Randomizable, TorchOrNumpyTransform, Transform
 from monai.transforms.utils import (
     compute_divisible_spatial_size,
     generate_label_classes_crop_centers,
@@ -36,6 +36,7 @@ from monai.transforms.utils import (
 )
 from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
 from monai.utils.enums import DataObjects
+from monai.utils.misc import convert_data_type
 
 __all__ = [
     "Pad",
