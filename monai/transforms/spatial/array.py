@@ -189,8 +189,8 @@ class Spacing(TorchTransform):
             affine = np.eye(sr + 1, dtype=np.float64)
             affine_ = np.eye(sr + 1, dtype=np.float64)
         else:
-            affine_ = to_affine_nd(sr, affine)
-            affine_, *_ = convert_data_type(affine_, np.ndarray)
+            affine_ = to_affine_nd(sr, affine)  # type: ignore
+            affine_, *_ = convert_data_type(affine_, np.ndarray)  # type: ignore
 
         out_d = self.pixdim[:sr]
         if out_d.size < sr:
@@ -293,7 +293,7 @@ class Orientation(ToDoTransform):
             affine = np.eye(sr + 1, dtype=np.float64)
             affine_ = np.eye(sr + 1, dtype=np.float64)
         else:
-            affine_ = to_affine_nd(sr, affine)
+            affine_ = to_affine_nd(sr, affine)  # type: ignore
         src = nib.io_orientation(affine_)
         if self.as_closest_canonical:
             spatial_ornt = src
