@@ -309,6 +309,12 @@ def map_classes_to_indices(
 
     """
     img_flat: Optional[DataObjects.Images] = None
+    # if older pytorch, switch to numpy
+    if not hasattr(label, "ravel"):
+        label, *_ = convert_data_type(label, np.ndarray)
+        if image is not None:
+            image, *_ = convert_data_type(image, np.ndarray)
+
     if image is not None:
         img_flat = (image > image_threshold).any(axis=0).ravel()  # type: ignore
 
@@ -323,9 +329,7 @@ def map_classes_to_indices(
         num_classes_ = num_classes
 
     for c in range(num_classes_):
-        label_flat = (label[c : c + 1] if channels > 1 else label == c).any(axis=0)  # type: ignore
-        # ravel with support for pytorch1.6 (flatten)
-        label_flat = label_flat.ravel() if hasattr(label_flat, "ravel") else label_flat.flatten()
+        label_flat = (label[c : c + 1] if channels > 1 else label == c).any(axis=0).ravel()  # type: ignore
         label_flat = img_flat & label_flat if img_flat is not None else label_flat
         idx = label_flat.nonzero()
         indices.append(idx[0] if isinstance(idx, tuple) else idx.squeeze(1))
