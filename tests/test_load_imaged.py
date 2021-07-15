@@ -53,8 +53,8 @@ class TestLoadImaged(unittest.TestCase):
             loader = LoadImaged(keys="img")
             loader.register(ITKReader())
             result = loader({"img": filename})
-            self.assertTupleEqual(tuple(result["img_meta_dict"]["spatial_shape"]), spatial_size)
-            self.assertTupleEqual(result["img"].shape, spatial_size)
+            self.assertTupleEqual(tuple(result["img_meta_dict"]["spatial_shape"]), spatial_size[::-1])
+            self.assertTupleEqual(result["img"].shape, spatial_size[::-1])
 
 
 if __name__ == "__main__":

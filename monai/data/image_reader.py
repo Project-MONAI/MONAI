@@ -230,25 +230,13 @@ class ITKReader(ImageReader):
 
         """
         img_meta_dict = img.GetMetaDataDictionary()
-        meta_dict = {}
-        for key in img_meta_dict.GetKeys():
-            # ignore deprecated, legacy members that cause issues
-            if key.startswith("ITK_original_"):
-                continue
-            if (
-                key == "NRRD_measurement frame"
-                and int(itk.Version.GetITKMajorVersion()) == 5
-                and int(itk.Version.GetITKMinorVersion()) < 2
-            ):
-                warnings.warn(
-                    "Ignoring 'measurement frame' field. "
-                    "Correct reading of NRRD05 files requires ITK >= 5.2: `pip install --upgrade --pre itk`"
-                )
-                continue
-            meta_dict[key] = img_meta_dict[key]
-        meta_dict["origin"] = np.asarray(img.GetOrigin())
+        meta_dict = {
+            key: img_meta_dict[key]
+            for key in img_meta_dict.GetKeys()
+            if not key.startswith("ITK_original_")
+        }
+
         meta_dict["spacing"] = np.asarray(img.GetSpacing())
-        meta_dict["direction"] = itk.array_from_matrix(img.GetDirection())
         return meta_dict
 
     def _get_affine(self, img):
@@ -256,7 +244,6 @@ class ITKReader(ImageReader):
         Get or construct the affine matrix of the image, it can be used to correct
         spacing, orientation or execute spatial transforms.
         Construct Affine matrix based on direction, spacing, origin information.
-        Refer to: https://github.com/RSIP-Vision/medio
 
         Args:
             img: a ITK image object loaded from a image file.
@@ -268,8 +255,10 @@ class ITKReader(ImageReader):
 
         direction = np.asarray(direction)
         affine: np.ndarray = np.eye(direction.shape[0] + 1)
-        affine[(slice(-1), slice(-1))] = direction @ np.diag(spacing)
-        affine[(slice(-1), -1)] = origin
+        affine[:-1, :-1] = direction @ np.diag(spacing)
+        affine[:-1, -1] = origin
+        flip_diag = [[-1, 1], [-1, -1, 1], [-1, -1, 1, 1]][direction.shape[0] - 1]
+        affine = np.diag(flip_diag) @ affine
         return affine
 
     def _get_spatial_shape(self, img):
@@ -282,7 +271,6 @@ class ITKReader(ImageReader):
         """
         # the img data should have no channel dim or the last dim is channel
         shape = list(itk.size(img))
-        shape.reverse()
         return np.asarray(shape)
 
     def _get_array_data(self, img):
@@ -298,17 +286,10 @@ class ITKReader(ImageReader):
 
         """
         channels = img.GetNumberOfComponentsPerPixel()
-        if channels == 1:
-            return itk.array_view_from_image(img, keep_axes=False)
-        # The memory layout of itk.Image has all pixel's channels adjacent
-        # in memory, i.e. R1G1B1R2G2B2R3G3B3. For PyTorch/MONAI, we need
-        # channels to be contiguous, i.e. R1R2R3G1G2G3B1B2B3.
-        arr = itk.array_view_from_image(img, keep_axes=False)
-        dest = list(range(img.ndim))
-        source = dest.copy()
-        end = source.pop()
-        source.insert(0, end)
-        return np.moveaxis(arr, source, dest)
+        np_data = itk.array_view_from_image(img).T
+        if 1 < channels != np_data.shape[0]:
+            warnings.warn("itk_img.GetNumberOfComponentsPerPixel != numpy data.shape[0]")
+        return np_data
 
 
 class NibabelReader(ImageReader):
