@@ -143,17 +143,17 @@ class RandRicianNoise(TorchOrNumpyTransform, RandomizableTransform):
         self._noise2: DataObjects.Images
 
     def _add_noise(self, img: DataObjects.Images, mean: float, std: float):
+        dtype_np = dtype_convert(img.dtype, np.ndarray)
         im_shape = img.shape
+        _std = self.R.uniform(0, std) if self.sample_std else std
+        self._noise1 = self.R.normal(mean, _std, size=im_shape).astype(dtype_np)
+        self._noise2 = self.R.normal(mean, _std, size=im_shape).astype(dtype_np)
         if isinstance(img, torch.Tensor):
-            _std = float(torch.rand(1, generator=self.R_torch)) * std if self.sample_std else std
-            self._noise1 = torch.normal(mean, _std, size=im_shape, generator=self.R_torch).to(img.dtype).to(img.device)
-            self._noise2 = torch.normal(mean, _std, size=im_shape, generator=self.R_torch).to(img.dtype).to(img.device)
-            return torch.sqrt((img + self._noise1) ** 2 + self._noise2 ** 2)
-        else:
-            _std = self.R.uniform(0, std) if self.sample_std else std
-            self._noise1 = self.R.normal(mean, _std, size=im_shape).astype(img.dtype)
-            self._noise2 = self.R.normal(mean, _std, size=im_shape).astype(img.dtype)
-            return np.sqrt((img + self._noise1) ** 2 + self._noise2 ** 2)  # type: ignore
+            n1 = torch.tensor(self._noise1, device=img.device)
+            n2 = torch.tensor(self._noise2, device=img.device)
+            return torch.sqrt((img + n1) ** 2 + n2 ** 2)
+
+        return np.sqrt((img + self._noise1) ** 2 + self._noise2 ** 2)  # type: ignore
 
     def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
