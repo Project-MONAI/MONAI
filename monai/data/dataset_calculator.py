@@ -20,11 +20,14 @@ from monai.transforms import LoadImaged
 
 class DatasetCalculator:
     """
-    This class contains several functions that can collect data such as voxel spacings
-    and intensities of the input dataset, then target spacings and intensity statistics (min, max, mean, std)
-    can be calculated via calling the corresponding functions.
+    This class provides a way to calculate a reasonable output voxel spacing according to
+    the input dataset. The achieved values can used to resample the input in 3d segmentation tasks
+    (like using as the `pixel` parameter in `monai.transforms.Spacingd`).
+    In addition, it also supports to count the mean, std, min and max intensities of the input,
+    and these statistics are helpful for image normalization
+    (like using in `monai.transforms.ScaleIntensityRanged` and `monai.transforms.NormalizeIntensityd`).
 
-    This class refers to:
+    The algorithm for calculation refers to:
     `Automated Design of Deep Learning Methods for Biomedical Image Segmentation <https://arxiv.org/abs/1904.08128>`_.
 
     """
