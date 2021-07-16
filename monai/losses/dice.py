@@ -705,6 +705,10 @@ class DiceCELoss(_Loss):
     def get_loss_details(self) -> Dict[str, torch.Tensor]:
         """
         Get the raw values of DiceLoss, CELoss and the total loss.
+        It's mainly used to visualize the loss values of `DiceLoss`, `CELoss` and `TotalLoss` to tune
+        the weights for them.
+        Note: printing a GPU tensor will potentially move it to CPU and may impact the training performance:
+        https://pytorch.org/tutorials/recipes/recipes/tuning_guide.html#avoid-unnecessary-cpu-gpu-synchronization.
 
         """
         return self.loss_details
@@ -832,6 +836,10 @@ class DiceFocalLoss(_Loss):
     def get_loss_details(self) -> Dict[str, torch.Tensor]:
         """
         Get the raw values of DiceLoss, FocalLoss and the total loss.
+        It's mainly used to visualize the loss values of `DiceLoss`, `FocalLoss` and `TotalLoss` to tune
+        the weights for them.
+        Note: printing a GPU tensor will potentially move it to CPU and may impact the training performance:
+        https://pytorch.org/tutorials/recipes/recipes/tuning_guide.html#avoid-unnecessary-cpu-gpu-synchronization.
 
         """
         return self.loss_details
