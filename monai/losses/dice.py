@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Callable, Dict, List, Optional, Sequence, Union
+from typing import Callable, List, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -667,11 +667,22 @@ class DiceCELoss(_Loss):
             raise ValueError("lambda_ce should be no less than 0.0.")
         self.lambda_dice = lambda_dice
         self.lambda_ce = lambda_ce
-        self.loss_details: Dict[str, torch.Tensor] = {
-            "total_loss": torch.zeros(0),
-            "dice_loss": torch.zeros(0),
-            "ce_loss": torch.zeros(0),
-        }
+
+    def ce(self, input: torch.Tensor, target: torch.Tensor):
+        """
+        Compute CrossEntropy loss for the input and target.
+        Will remove the channel dim according to PyTorch CrossEntropyLoss:
+        https://pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html?#torch.nn.CrossEntropyLoss.
+
+        """
+        n_pred_ch, n_target_ch = input.shape[1], target.shape[1]
+        if n_pred_ch == n_target_ch:
+            # target is in the one-hot format, convert to BH[WD] format to calculate ce loss
+            target = torch.argmax(target, dim=1)
+        else:
+            target = torch.squeeze(target, dim=1)
+        target = target.long()
+        return self.cross_entropy(input, target)
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -688,32 +699,10 @@ class DiceCELoss(_Loss):
             raise ValueError("the number of dimensions for input and target should be the same.")
 
         dice_loss = self.dice(input, target)
-        self.loss_details["dice_loss"] = dice_loss.detach()
-
-        n_pred_ch, n_target_ch = input.shape[1], target.shape[1]
-        if n_pred_ch == n_target_ch:
-            # target is in the one-hot format, convert to BH[WD] format to calculate ce loss
-            target = torch.argmax(target, dim=1)
-        else:
-            target = torch.squeeze(target, dim=1)
-        target = target.long()
-        ce_loss = self.cross_entropy(input, target)
-        self.loss_details["ce_loss"] = ce_loss.detach()
+        ce_loss = self.ce(input, target)
         total_loss: torch.Tensor = self.lambda_dice * dice_loss + self.lambda_ce * ce_loss
-        self.loss_details["total_loss"] = total_loss.detach()
 
         return total_loss
-
-    def get_loss_details(self) -> Dict[str, torch.Tensor]:
-        """
-        Get the raw values of DiceLoss, CELoss and the total loss.
-        It's mainly used to visualize the loss values of `DiceLoss`, `CELoss` and `TotalLoss` to tune
-        the weights for them.
-        Note: printing a GPU tensor will potentially move it to CPU and may impact the training performance:
-        https://pytorch.org/tutorials/recipes/recipes/tuning_guide.html#avoid-unnecessary-cpu-gpu-synchronization.
-
-        """
-        return self.loss_details
 
 
 class DiceFocalLoss(_Loss):
@@ -807,11 +796,6 @@ class DiceFocalLoss(_Loss):
             raise ValueError("lambda_focal should be no less than 0.0.")
         self.lambda_dice = lambda_dice
         self.lambda_focal = lambda_focal
-        self.loss_details: Dict[str, torch.Tensor] = {
-            "total_loss": torch.zeros(0),
-            "dice_loss": torch.zeros(0),
-            "ce_loss": torch.zeros(0),
-        }
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -829,24 +813,10 @@ class DiceFocalLoss(_Loss):
             raise ValueError("the number of dimensions for input and target should be the same.")
 
         dice_loss = self.dice(input, target)
-        self.loss_details["dice_loss"] = dice_loss.detach()
         focal_loss = self.focal(input, target)
-        self.loss_details["focal_loss"] = focal_loss.detach()
         total_loss: torch.Tensor = self.lambda_dice * dice_loss + self.lambda_focal * focal_loss
-        self.loss_details["total_loss"] = total_loss.detach()
 
         return total_loss
-
-    def get_loss_details(self) -> Dict[str, torch.Tensor]:
-        """
-        Get the raw values of DiceLoss, FocalLoss and the total loss.
-        It's mainly used to visualize the loss values of `DiceLoss`, `FocalLoss` and `TotalLoss` to tune
-        the weights for them.
-        Note: printing a GPU tensor will potentially move it to CPU and may impact the training performance:
-        https://pytorch.org/tutorials/recipes/recipes/tuning_guide.html#avoid-unnecessary-cpu-gpu-synchronization.
-
-        """
-        return self.loss_details
 
 
 dice = Dice = DiceLoss

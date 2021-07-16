@@ -74,8 +74,6 @@ class TestDiceCELoss(unittest.TestCase):
         diceceloss = DiceCELoss(**input_param)
         result = diceceloss(**input_data)
         np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, atol=1e-4, rtol=1e-4)
-        details = diceceloss.get_loss_details()
-        np.testing.assert_allclose(details["total_loss"], expected_val, atol=1e-4, rtol=1e-4)
 
     def test_ill_shape(self):
         loss = DiceCELoss()
