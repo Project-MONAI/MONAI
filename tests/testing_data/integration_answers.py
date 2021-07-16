@@ -316,9 +316,9 @@ EXPECTED_ANSWERS = [
     },
     {  # test answers for PyTorch 21.04, cuda 11.3
         "integration_classification_2d": {
-            "losses": [0.7772567988770782, 0.16357883198815545, 0.0748426011840629, 0.045560025710873545],
-            "best_metric": 0.9999362036681547,
-            "infer_prop": [1030, 898, 981, 1033, 960, 1046],
+            "losses": [0.730298058147643, 0.14734010284493684, 0.0655633374621534, 0.038824451399172184],
+            "best_metric": 0.9999577490764245,
+            "infer_prop": [1032, 901, 984, 1033, 963, 1049],
         },
         "integration_segmentation_3d": {
             "losses": [
@@ -425,10 +425,11 @@ EXPECTED_ANSWERS = [
 
 
 def test_integration_value(test_name, key, data, rtol=1e-2):
-    for expected in EXPECTED_ANSWERS:
+    for (idx, expected) in enumerate(EXPECTED_ANSWERS):
         if test_name not in expected:
             continue
         value = expected[test_name][key]
         if np.allclose(data, value, rtol=rtol):
+            print(f"matched {idx} result of {test_name}, {key}.")
             return True
     raise ValueError(f"no matched results for {test_name}, {key}. {data}.")
