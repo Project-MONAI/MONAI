@@ -96,9 +96,6 @@ class TestZoomAffine(unittest.TestCase):
     def test_correct(self, in_type, affine, scale, expected):
         _affine = in_type(affine)
         output = zoom_affine(_affine, scale, diagonal=False)
-        if isinstance(_affine, torch.Tensor):
-            self.assertEqual(_affine.device, output.device)
-            output = output.cpu()
         ornt_affine = nib.orientations.ornt2axcodes(nib.orientations.io_orientation(output))
         ornt_output = nib.orientations.ornt2axcodes(nib.orientations.io_orientation(affine))
         np.testing.assert_array_equal(ornt_affine, ornt_output)
@@ -107,8 +104,6 @@ class TestZoomAffine(unittest.TestCase):
     @parameterized.expand(DIAGONAL_CASES)
     def test_diagonal(self, in_type, affine, scale, expected):
         output = zoom_affine(in_type(affine), scale, diagonal=True)
-        if isinstance(output, torch.Tensor):
-            output = output.cpu().numpy()
         np.testing.assert_allclose(output, expected, rtol=1e-6, atol=1e-6)
 
 

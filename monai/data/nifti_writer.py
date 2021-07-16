@@ -103,6 +103,8 @@ def write_nifti(
     # if torch, convert to numpy
     data_np: np.ndarray
     data_np, *_ = convert_data_type(data, np.ndarray)  # type: ignore
+    if target_affine is not None:
+        target_affine, *_ = convert_data_type(target_affine, np.ndarray)  # type: ignore
 
     dtype = dtype or data_np.dtype
     sr = min(data_np.ndim, 3)
