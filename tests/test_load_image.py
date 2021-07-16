@@ -150,8 +150,8 @@ class TestLoadImage(unittest.TestCase):
             Image.fromarray(test_image.astype("uint8")).save(filename)
             result, header = LoadImage(image_only=False)(filename)
             self.assertTupleEqual(tuple(header["spatial_shape"]), spatial_size[::-1])
-            self.assertTupleEqual(result.shape, spatial_size)
-            np.testing.assert_allclose(result, test_image)
+            self.assertTupleEqual(result.shape, spatial_size[::-1])
+            np.testing.assert_allclose(result.T, test_image)
 
     def test_register(self):
         spatial_size = (32, 64, 128)

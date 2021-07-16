@@ -157,7 +157,6 @@ class NiftiSaver:
         if self.squeeze_end_dims:
             while data.shape[-1] == 1:
                 data = np.squeeze(data, -1)
-
         write_nifti(
             data,
             file_name=path,

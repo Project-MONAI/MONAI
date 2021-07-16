@@ -85,7 +85,7 @@ class ImageReader(ABC):
         This function must return 2 objects, first is numpy array of image data, second is dict of meta data.
 
         Args:
-            img: an image object loaded from a image file or a list of image objects.
+            img: an image object loaded from an image file or a list of image objects.
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
@@ -203,20 +203,20 @@ class ITKReader(ImageReader):
         and use the meta data of the first image to represent the stacked result.
 
         Args:
-            img: a ITK image object loaded from a image file or a list of ITK image objects.
+            img: an ITK image object loaded from an image file or a list of ITK image objects.
 
         """
         img_array: List[np.ndarray] = []
         compatible_meta: Dict = {}
 
         for i in ensure_tuple(img):
+            data = self._get_array_data(i)
+            img_array.append(data)
             header = self._get_meta_dict(i)
             header["original_affine"] = self._get_affine(i)
             header["affine"] = header["original_affine"].copy()
             header["spatial_shape"] = self._get_spatial_shape(i)
-            data = self._get_array_data(i)
-            img_array.append(data)
-            header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else -1
+            header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else 0
             _copy_compatible_dict(header, compatible_meta)
 
         return _stack_images(img_array, compatible_meta), compatible_meta
@@ -226,15 +226,11 @@ class ITKReader(ImageReader):
         Get all the meta data of the image and convert to dict type.
 
         Args:
-            img: a ITK image object loaded from a image file.
+            img: an ITK image object loaded from an image file.
 
         """
         img_meta_dict = img.GetMetaDataDictionary()
-        meta_dict = {
-            key: img_meta_dict[key]
-            for key in img_meta_dict.GetKeys()
-            if not key.startswith("ITK_original_")
-        }
+        meta_dict = {key: img_meta_dict[key] for key in img_meta_dict.GetKeys() if not key.startswith("ITK_original_")}
 
         meta_dict["spacing"] = np.asarray(img.GetSpacing())
         return meta_dict
@@ -243,10 +239,9 @@ class ITKReader(ImageReader):
         """
         Get or construct the affine matrix of the image, it can be used to correct
         spacing, orientation or execute spatial transforms.
-        Construct Affine matrix based on direction, spacing, origin information.
 
         Args:
-            img: a ITK image object loaded from a image file.
+            img: an ITK image object loaded from an image file.
 
         """
         direction = itk.array_from_matrix(img.GetDirection())
@@ -254,24 +249,25 @@ class ITKReader(ImageReader):
         origin = np.asarray(img.GetOrigin())
 
         direction = np.asarray(direction)
-        affine: np.ndarray = np.eye(direction.shape[0] + 1)
-        affine[:-1, :-1] = direction @ np.diag(spacing)
-        affine[:-1, -1] = origin
-        flip_diag = [[-1, 1], [-1, -1, 1], [-1, -1, 1, 1]][direction.shape[0] - 1]
+        sr = min(max(direction.shape[0], 1), 3)
+        affine: np.ndarray = np.eye(sr + 1)
+        affine[:-1, :-1] = direction[:sr, :sr] @ np.diag(spacing[:sr])
+        affine[:-1, -1] = origin[:sr]
+        flip_diag = [[-1, 1], [-1, -1, 1], [-1, -1, 1, 1]][sr - 1]
         affine = np.diag(flip_diag) @ affine
         return affine
 
     def _get_spatial_shape(self, img):
         """
-        Get the spatial shape of image data, it doesn't contain the channel dim.
+        Get the spatial shape of `img`.
 
         Args:
-            img: a ITK image object loaded from a image file.
+            img: an ITK image object loaded from an image file.
 
         """
         # the img data should have no channel dim or the last dim is channel
-        shape = list(itk.size(img))
-        return np.asarray(shape)
+        sr = min(img.__dict__.get("dim[0]", 3), 3)
+        return np.asarray(list(itk.size(img))[:sr])
 
     def _get_array_data(self, img):
         """
@@ -282,7 +278,7 @@ class ITKReader(ImageReader):
         The first axis of the returned array is the channel axis.
 
         Args:
-            img: a ITK image object loaded from a image file.
+            img: an ITK image object loaded from an image file.
 
         """
         channels = img.GetNumberOfComponentsPerPixel()
@@ -353,7 +349,7 @@ class NibabelReader(ImageReader):
         and use the meta data of the first image to represent the stacked result.
 
         Args:
-            img: a Nibabel image object loaded from a image file or a list of Nibabel image objects.
+            img: a Nibabel image object loaded from an image file or a list of Nibabel image objects.
 
         """
         img_array: List[np.ndarray] = []
@@ -380,7 +376,7 @@ class NibabelReader(ImageReader):
         Get the all the meta data of the image and convert to dict type.
 
         Args:
-            img: a Nibabel image object loaded from a image file.
+            img: a Nibabel image object loaded from an image file.
 
         """
         # swap to little endian as PyTorch doesn't support big endian
@@ -393,7 +389,7 @@ class NibabelReader(ImageReader):
         spacing, orientation or execute spatial transforms.
 
         Args:
-            img: a Nibabel image object loaded from a image file.
+            img: a Nibabel image object loaded from an image file.
 
         """
         return np.array(img.affine, copy=True)
@@ -403,7 +399,7 @@ class NibabelReader(ImageReader):
         Get the spatial shape of image data, it doesn't contain the channel dim.
 
         Args:
-            img: a Nibabel image object loaded from a image file.
+            img: a Nibabel image object loaded from an image file.
 
         """
         # swap to little endian as PyTorch doesn't support big endian
@@ -418,7 +414,7 @@ class NibabelReader(ImageReader):
         Get the raw array data of the image, converted to Numpy array.
 
         Args:
-            img: a Nibabel image object loaded from a image file.
+            img: a Nibabel image object loaded from an image file.
 
         """
         _array = np.array(img.get_fdata(dtype=self.dtype))
@@ -585,7 +581,7 @@ class PILReader(ImageReader):
         for i in ensure_tuple(img):
             header = self._get_meta_dict(i)
             header["spatial_shape"] = self._get_spatial_shape(i)
-            data = np.asarray(i)
+            data = np.moveaxis(np.asarray(i), 0, 1)
             img_array.append(data)
             header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else -1
             _copy_compatible_dict(header, compatible_meta)
@@ -596,7 +592,7 @@ class PILReader(ImageReader):
         """
         Get the all the meta data of the image and convert to dict type.
         Args:
-            img: a PIL Image object loaded from a image file.
+            img: a PIL Image object loaded from an image file.
 
         """
         return {
@@ -610,9 +606,8 @@ class PILReader(ImageReader):
         """
         Get the spatial shape of image data, it doesn't contain the channel dim.
         Args:
-            img: a PIL Image object loaded from a image file.
+            img: a PIL Image object loaded from an image file.
         """
-        # the img data should have no channel dim or the last dim is channel
         return np.asarray((img.width, img.height))
 
 
