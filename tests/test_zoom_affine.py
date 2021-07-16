@@ -14,7 +14,6 @@ from typing import List, Tuple
 
 import nibabel as nib
 import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.data.utils import zoom_affine
