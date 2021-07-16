@@ -107,6 +107,7 @@ def write_nifti(
     if target_affine is None:
         target_affine = affine
     target_affine = to_affine_nd(sr, target_affine)
+
     if np.allclose(affine, target_affine, atol=1e-3):
         # no affine changes, save (data, affine)
         results_img = nib.Nifti1Image(data.astype(output_dtype), to_affine_nd(3, target_affine))
@@ -135,7 +136,7 @@ def write_nifti(
     output_spatial_shape_ = list(output_spatial_shape) if output_spatial_shape is not None else []
     if data.ndim > 3:  # multi channel, resampling each channel
         while len(output_spatial_shape_) < 3:
-            output_spatial_shape_ += [1]
+            output_spatial_shape_ = output_spatial_shape_ + [1]
         spatial_shape, channel_shape = data.shape[:3], data.shape[3:]
         data_np = data.reshape(list(spatial_shape) + [-1])
         data_np = np.moveaxis(data_np, -1, 0)  # channel first for pytorch
@@ -149,7 +150,7 @@ def write_nifti(
         data_np = data_np.reshape(list(data_np.shape[:3]) + list(channel_shape))
     else:  # single channel image, need to expand to have batch and channel
         while len(output_spatial_shape_) < len(data.shape):
-            output_spatial_shape_ += [1]
+            output_spatial_shape_ = output_spatial_shape_ + [1]
         data_torch = affine_xform(
             torch.as_tensor(np.ascontiguousarray(data).astype(dtype)[None, None]),
             torch.as_tensor(np.ascontiguousarray(transform).astype(dtype)),
