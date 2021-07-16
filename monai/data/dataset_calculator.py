@@ -10,10 +10,10 @@
 # limitations under the License.
 
 import itertools
+import multiprocessing as mp
 from typing import Dict, Sequence
 
 import numpy as np
-from joblib import Parallel, delayed
 
 from monai.transforms import LoadImaged
 
@@ -38,7 +38,7 @@ class DatasetCalculator:
         image_key: str = "image",
         label_key: str = "label",
         meta_key_postfix: str = "meta_dict",
-        num_workers: int = -1,
+        num_processes: int = 1,
     ):
         """
         Args:
@@ -58,7 +58,7 @@ class DatasetCalculator:
         self.image_key = image_key
         self.label_key = label_key
         self.meta_key_postfix = meta_key_postfix
-        self.num_workers = num_workers
+        self.num_processes = num_processes
         self.loader = LoadImaged(keys=[image_key, label_key], meta_key_postfix=meta_key_postfix)
 
     def _run_parallel(self, function):
@@ -66,8 +66,9 @@ class DatasetCalculator:
         Parallelly running the function for all data in the datalist.
 
         """
-
-        return Parallel(n_jobs=self.num_workers)(delayed(function)(data) for data in self.datalist)
+        with mp.Pool(processes=self.num_processes) as pool:
+            result = pool.map(function, self.datalist)
+            return result
 
     def _load_spacing(self, path_dict: Dict):
         """

@@ -39,7 +39,7 @@ class TestDatasetCalculator(unittest.TestCase):
                 {"image": image_name, "label": label_name} for image_name, label_name in zip(train_images, train_labels)
             ]
 
-            calculator = DatasetCalculator(data_dicts)
+            calculator = DatasetCalculator(data_dicts, num_processes=2)
             target_spacing = calculator._get_target_spacing(anisotropic_threshold=3, percentile=10.0)
             self.assertEqual(target_spacing, (1.0, 1.0, 1.0))
             intensity_stats = calculator._get_intensity_stats(lower=0.5, upper=99.5)
