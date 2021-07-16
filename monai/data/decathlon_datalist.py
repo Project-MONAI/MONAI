@@ -17,34 +17,43 @@ from monai.utils import ensure_tuple
 
 
 @overload
-def _compute_path(base_dir: str, element: str) -> str:
+def _compute_path(base_dir: str, element: str, check_path: bool = False) -> str:
     ...
 
 
 @overload
-def _compute_path(base_dir: str, element: List[str]) -> List[str]:
+def _compute_path(base_dir: str, element: List[str], check_path: bool = False) -> List[str]:
     ...
 
 
-def _compute_path(base_dir, element):
+def _compute_path(base_dir, element, check_path=False):
     """
     Args:
         base_dir: the base directory of the dataset.
         element: file path(s) to append to directory.
+        check_path: if `True`, only compute when the result is an existing path.
 
     Raises:
         TypeError: When ``element`` contains a non ``str``.
         TypeError: When ``element`` type is not in ``Union[list, str]``.
 
     """
+
+    def _join_path(base_dir: str, item: str):
+        result = os.path.normpath(os.path.join(base_dir, item))
+        if check_path and not os.path.exists(result):
+            # if not an existing path, don't join with base dir
+            return item
+        return result
+
     if isinstance(element, str):
-        return os.path.normpath(os.path.join(base_dir, element))
+        return _join_path(base_dir, element)
     if isinstance(element, list):
         for e in element:
             if not isinstance(e, str):
-                raise TypeError(f"Every file path in element must be a str but got {type(element).__name__}.")
-        return [os.path.normpath(os.path.join(base_dir, e)) for e in element]
-    raise TypeError(f"element must be one of (str, list) but is {type(element).__name__}.")
+                return element
+        return [_join_path(base_dir, e) for e in element]
+    return element
 
 
 def _append_paths(base_dir: str, is_segmentation: bool, items: List[Dict]) -> List[Dict]:
@@ -62,10 +71,11 @@ def _append_paths(base_dir: str, is_segmentation: bool, items: List[Dict]) -> Li
         if not isinstance(item, dict):
             raise TypeError(f"Every item in items must be a dict but got {type(item).__name__}.")
         for k, v in item.items():
-            if k == "image":
-                item[k] = _compute_path(base_dir, v)
-            elif is_segmentation and k == "label":
-                item[k] = _compute_path(base_dir, v)
+            if k == "image" or is_segmentation and k == "label":
+                item[k] = _compute_path(base_dir, v, check_path=False)
+            else:
+                # for other items, auto detect whether it's a valid path
+                item[k] = _compute_path(base_dir, v, check_path=True)
     return items
 
 
