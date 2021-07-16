@@ -614,12 +614,12 @@ class DiceCELoss(_Loss):
             include_background: if False channel index 0 (background category) is excluded from the calculation.
             to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
             sigmoid: if True, apply a sigmoid function to the prediction, only used by the `DiceLoss`,
-                `CrossEntropyLoss` doesn't need activation function.
+                don't need to specify activation function for `CrossEntropyLoss`.
             softmax: if True, apply a softmax function to the prediction, only used by the `DiceLoss`,
-                `CrossEntropyLoss` doesn't need activation function.
+                don't need to specify activation function for `CrossEntropyLoss`.
             other_act: if don't want to use `sigmoid` or `softmax`, use other callable function to execute
                 other activation layers, Defaults to ``None``. for example: `other_act = torch.tanh`.
-                only used by the `DiceLoss`, `CrossEntropyLoss` doesn't need activation function.
+                only used by the `DiceLoss`, don't need to specify activation function for `CrossEntropyLoss`.
             squared_pred: use squared versions of targets and predictions in the denominator or not.
             jaccard: compute Jaccard Index (soft IoU) instead of dice or not.
             reduction: {``"mean"``, ``"sum"``}
@@ -730,12 +730,12 @@ class DiceFocalLoss(_Loss):
             include_background: if False channel index 0 (background category) is excluded from the calculation.
             to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
             sigmoid: if True, apply a sigmoid function to the prediction, only used by the `DiceLoss`,
-                 `FocalLoss` doesn't need activation function.
+                don't need to specify activation function for `FocalLoss`.
             softmax: if True, apply a softmax function to the prediction, only used by the `DiceLoss`,
-                 `FocalLoss` doesn't need activation function.
+                don't need to specify activation function for `FocalLoss`.
             other_act: if don't want to use `sigmoid` or `softmax`, use other callable function to execute
                 other activation layers, Defaults to ``None``. for example: `other_act = torch.tanh`.
-                only used by the `DiceLoss`, `FocalLoss` doesn't need activation function.
+                only used by the `DiceLoss`, don't need to specify activation function for `FocalLoss`.
             squared_pred: use squared versions of targets and predictions in the denominator or not.
             jaccard: compute Jaccard Index (soft IoU) instead of dice or not.
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
