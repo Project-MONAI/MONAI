@@ -76,7 +76,9 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
         ]
     )
     train_transforms.set_random_state(1234)
-    val_transforms = Compose([LoadImage(image_only=True), AddChannel(), Transpose(indices=[0, 2, 1]), ScaleIntensity(), ToTensor()])
+    val_transforms = Compose(
+        [LoadImage(image_only=True), AddChannel(), Transpose(indices=[0, 2, 1]), ScaleIntensity(), ToTensor()]
+    )
     y_pred_trans = Compose([ToTensor(), Activations(softmax=True)])
     y_trans = Compose([ToTensor(), AsDiscrete(to_onehot=True, n_classes=len(np.unique(train_y)))])
     auc_metric = ROCAUCMetric()
