@@ -138,9 +138,9 @@ class TestLoadImage(unittest.TestCase):
             result, header = LoadImage(reader=ITKReader())(filename)
 
             self.assertTupleEqual(tuple(header["spatial_shape"]), (224, 256))
-            np.testing.assert_allclose(result[0, :, :], test_image[:, :, 0].T)
-            np.testing.assert_allclose(result[1, :, :], test_image[:, :, 1].T)
-            np.testing.assert_allclose(result[2, :, :], test_image[:, :, 2].T)
+            np.testing.assert_allclose(result[:, :, 0], test_image[:, :, 0].T)
+            np.testing.assert_allclose(result[:, :, 1], test_image[:, :, 1].T)
+            np.testing.assert_allclose(result[:, :, 2], test_image[:, :, 2].T)
 
     def test_load_png(self):
         spatial_size = (256, 224)
