@@ -182,6 +182,10 @@ DistributedWeightedRandomSampler
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: monai.data.DistributedWeightedRandomSampler
 
+DatasetCalculator
+~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.DatasetCalculator
+
 Decathlon Datalist
 ~~~~~~~~~~~~~~~~~~
 .. autofunction:: monai.data.load_decathlon_datalist
