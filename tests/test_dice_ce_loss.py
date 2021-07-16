@@ -71,7 +71,8 @@ TEST_CASES = [
 class TestDiceCELoss(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_result(self, input_param, input_data, expected_val):
-        result = DiceCELoss(**input_param)(**input_data)
+        diceceloss = DiceCELoss(**input_param)
+        result = diceceloss(**input_data)
         np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, atol=1e-4, rtol=1e-4)
 
     def test_ill_shape(self):

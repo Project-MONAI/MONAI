@@ -668,6 +668,22 @@ class DiceCELoss(_Loss):
         self.lambda_dice = lambda_dice
         self.lambda_ce = lambda_ce
 
+    def ce(self, input: torch.Tensor, target: torch.Tensor):
+        """
+        Compute CrossEntropy loss for the input and target.
+        Will remove the channel dim according to PyTorch CrossEntropyLoss:
+        https://pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html?#torch.nn.CrossEntropyLoss.
+
+        """
+        n_pred_ch, n_target_ch = input.shape[1], target.shape[1]
+        if n_pred_ch == n_target_ch:
+            # target is in the one-hot format, convert to BH[WD] format to calculate ce loss
+            target = torch.argmax(target, dim=1)
+        else:
+            target = torch.squeeze(target, dim=1)
+        target = target.long()
+        return self.cross_entropy(input, target)
+
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Args:
@@ -683,16 +699,9 @@ class DiceCELoss(_Loss):
             raise ValueError("the number of dimensions for input and target should be the same.")
 
         dice_loss = self.dice(input, target)
-
-        n_pred_ch, n_target_ch = input.shape[1], target.shape[1]
-        if n_pred_ch == n_target_ch:
-            # target is in the one-hot format, convert to BH[WD] format to calculate ce loss
-            target = torch.argmax(target, dim=1)
-        else:
-            target = torch.squeeze(target, dim=1)
-        target = target.long()
-        ce_loss = self.cross_entropy(input, target)
+        ce_loss = self.ce(input, target)
         total_loss: torch.Tensor = self.lambda_dice * dice_loss + self.lambda_ce * ce_loss
+
         return total_loss
 
 
@@ -806,6 +815,7 @@ class DiceFocalLoss(_Loss):
         dice_loss = self.dice(input, target)
         focal_loss = self.focal(input, target)
         total_loss: torch.Tensor = self.lambda_dice * dice_loss + self.lambda_focal * focal_loss
+
         return total_loss
 
 
