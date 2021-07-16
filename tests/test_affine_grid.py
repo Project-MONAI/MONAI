@@ -16,88 +16,110 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import AffineGrid
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASES = [
-    [
-        {"as_tensor_output": False, "device": torch.device("cpu:0")},
-        {"spatial_size": (2, 2)},
-        np.array([[[-0.5, -0.5], [0.5, 0.5]], [[-0.5, 0.5], [-0.5, 0.5]], [[1.0, 1.0], [1.0, 1.0]]]),
-    ],
-    [
-        {"as_tensor_output": True, "device": None},
-        {"spatial_size": (2, 2)},
-        torch.tensor([[[-0.5, -0.5], [0.5, 0.5]], [[-0.5, 0.5], [-0.5, 0.5]], [[1.0, 1.0], [1.0, 1.0]]]),
-    ],
-    [{"as_tensor_output": False, "device": None}, {"grid": np.ones((3, 3, 3))}, np.ones((3, 3, 3))],
-    [{"as_tensor_output": True, "device": torch.device("cpu:0")}, {"grid": np.ones((3, 3, 3))}, torch.ones((3, 3, 3))],
-    [{"as_tensor_output": False, "device": None}, {"grid": torch.ones((3, 3, 3))}, np.ones((3, 3, 3))],
-    [
-        {"as_tensor_output": True, "device": torch.device("cpu:0")},
-        {"grid": torch.ones((3, 3, 3))},
-        torch.ones((3, 3, 3)),
-    ],
-    [
-        {
-            "rotate_params": (1.0, 1.0),
-            "scale_params": (-20, 10),
-            "as_tensor_output": True,
-            "device": torch.device("cpu:0"),
-        },
-        {"grid": torch.ones((3, 3, 3))},
-        torch.tensor(
+TESTS = []
+for p in TEST_NDARRAYS:
+    for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
+        TESTS.append(
             [
-                [[-19.2208, -19.2208, -19.2208], [-19.2208, -19.2208, -19.2208], [-19.2208, -19.2208, -19.2208]],
-                [[-11.4264, -11.4264, -11.4264], [-11.4264, -11.4264, -11.4264], [-11.4264, -11.4264, -11.4264]],
-                [[1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0]],
+                {"device": device},
+                {"spatial_size": (2, 2)},
+                np.array([[[-0.5, -0.5], [0.5, 0.5]], [[-0.5, 0.5], [-0.5, 0.5]], [[1.0, 1.0], [1.0, 1.0]]]),
             ]
-        ),
-    ],
-    [
-        {
-            "rotate_params": (1.0, 1.0, 1.0),
-            "scale_params": (-20, 10),
-            "as_tensor_output": True,
-            "device": torch.device("cpu:0"),
-        },
-        {"grid": torch.ones((4, 3, 3, 3))},
-        torch.tensor(
+        )
+
+        TESTS.append([{"device": device}, {"grid": p(np.ones((3, 3, 3)))}, p(np.ones((3, 3, 3)))])
+        TESTS.append([{"device": device}, {"grid": p(torch.ones((3, 3, 3)))}, p(np.ones((3, 3, 3)))])
+        TESTS.append(
             [
-                [
-                    [[-9.5435, -9.5435, -9.5435], [-9.5435, -9.5435, -9.5435], [-9.5435, -9.5435, -9.5435]],
-                    [[-9.5435, -9.5435, -9.5435], [-9.5435, -9.5435, -9.5435], [-9.5435, -9.5435, -9.5435]],
-                    [[-9.5435, -9.5435, -9.5435], [-9.5435, -9.5435, -9.5435], [-9.5435, -9.5435, -9.5435]],
-                ],
-                [
-                    [[-20.2381, -20.2381, -20.2381], [-20.2381, -20.2381, -20.2381], [-20.2381, -20.2381, -20.2381]],
-                    [[-20.2381, -20.2381, -20.2381], [-20.2381, -20.2381, -20.2381], [-20.2381, -20.2381, -20.2381]],
-                    [[-20.2381, -20.2381, -20.2381], [-20.2381, -20.2381, -20.2381], [-20.2381, -20.2381, -20.2381]],
-                ],
-                [
-                    [[-0.5844, -0.5844, -0.5844], [-0.5844, -0.5844, -0.5844], [-0.5844, -0.5844, -0.5844]],
-                    [[-0.5844, -0.5844, -0.5844], [-0.5844, -0.5844, -0.5844], [-0.5844, -0.5844, -0.5844]],
-                    [[-0.5844, -0.5844, -0.5844], [-0.5844, -0.5844, -0.5844], [-0.5844, -0.5844, -0.5844]],
-                ],
-                [
-                    [[1.0000, 1.0000, 1.0000], [1.0000, 1.0000, 1.0000], [1.0000, 1.0000, 1.0000]],
-                    [[1.0000, 1.0000, 1.0000], [1.0000, 1.0000, 1.0000], [1.0000, 1.0000, 1.0000]],
-                    [[1.0000, 1.0000, 1.0000], [1.0000, 1.0000, 1.0000], [1.0000, 1.0000, 1.0000]],
-                ],
+                {
+                    "rotate_params": (1.0, 1.0),
+                    "scale_params": (-20, 10),
+                    "device": device,
+                },
+                {"grid": p(torch.ones((3, 3, 3)))},
+                p(
+                    torch.tensor(
+                        [
+                            [
+                                [-19.2208, -19.2208, -19.2208],
+                                [-19.2208, -19.2208, -19.2208],
+                                [-19.2208, -19.2208, -19.2208],
+                            ],
+                            [
+                                [-11.4264, -11.4264, -11.4264],
+                                [-11.4264, -11.4264, -11.4264],
+                                [-11.4264, -11.4264, -11.4264],
+                            ],
+                            [[1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0]],
+                        ]
+                    )
+                ),
             ]
-        ),
-    ],
-]
+        )
+        TESTS.append(
+            [
+                {
+                    "rotate_params": (1.0, 1.0, 1.0),
+                    "scale_params": (-20, 10),
+                    "device": device,
+                },
+                {"grid": p(torch.ones((4, 3, 3, 3)))},
+                p(
+                    torch.tensor(
+                        [
+                            [
+                                [[-9.5435, -9.5435, -9.5435], [-9.5435, -9.5435, -9.5435], [-9.5435, -9.5435, -9.5435]],
+                                [[-9.5435, -9.5435, -9.5435], [-9.5435, -9.5435, -9.5435], [-9.5435, -9.5435, -9.5435]],
+                                [[-9.5435, -9.5435, -9.5435], [-9.5435, -9.5435, -9.5435], [-9.5435, -9.5435, -9.5435]],
+                            ],
+                            [
+                                [
+                                    [-20.2381, -20.2381, -20.2381],
+                                    [-20.2381, -20.2381, -20.2381],
+                                    [-20.2381, -20.2381, -20.2381],
+                                ],
+                                [
+                                    [-20.2381, -20.2381, -20.2381],
+                                    [-20.2381, -20.2381, -20.2381],
+                                    [-20.2381, -20.2381, -20.2381],
+                                ],
+                                [
+                                    [-20.2381, -20.2381, -20.2381],
+                                    [-20.2381, -20.2381, -20.2381],
+                                    [-20.2381, -20.2381, -20.2381],
+                                ],
+                            ],
+                            [
+                                [[-0.5844, -0.5844, -0.5844], [-0.5844, -0.5844, -0.5844], [-0.5844, -0.5844, -0.5844]],
+                                [[-0.5844, -0.5844, -0.5844], [-0.5844, -0.5844, -0.5844], [-0.5844, -0.5844, -0.5844]],
+                                [[-0.5844, -0.5844, -0.5844], [-0.5844, -0.5844, -0.5844], [-0.5844, -0.5844, -0.5844]],
+                            ],
+                            [
+                                [[1.0000, 1.0000, 1.0000], [1.0000, 1.0000, 1.0000], [1.0000, 1.0000, 1.0000]],
+                                [[1.0000, 1.0000, 1.0000], [1.0000, 1.0000, 1.0000], [1.0000, 1.0000, 1.0000]],
+                                [[1.0000, 1.0000, 1.0000], [1.0000, 1.0000, 1.0000], [1.0000, 1.0000, 1.0000]],
+                            ],
+                        ]
+                    )
+                ),
+            ]
+        )
 
 
 class TestAffineGrid(unittest.TestCase):
-    @parameterized.expand(TEST_CASES)
+    @parameterized.expand(TESTS)
     def test_affine_grid(self, input_param, input_data, expected_val):
         g = AffineGrid(**input_param)
         result, _ = g(**input_data)
-        self.assertEqual(isinstance(result, torch.Tensor), isinstance(expected_val, torch.Tensor))
-        if isinstance(result, torch.Tensor):
-            np.testing.assert_allclose(result.cpu().numpy(), expected_val.cpu().numpy(), rtol=1e-4, atol=1e-4)
-        else:
-            np.testing.assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
+        if "grid" in input_data:
+            self.assertEqual(type(result), type(expected_val))
+            if isinstance(result, torch.Tensor):
+                self.assertEqual(result.device, expected_val.device)
+                result = result.cpu()
+                expected_val = expected_val.cpu()
+        np.testing.assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
 
 
 if __name__ == "__main__":

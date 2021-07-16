@@ -16,90 +16,105 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import Rand2DElastic
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASES = [
-    [
-        {"spacing": (0.3, 0.3), "magnitude_range": (1.0, 2.0), "prob": 0.0, "as_tensor_output": False, "device": None},
-        {"img": torch.ones((3, 3, 3)), "spatial_size": (2, 2)},
-        np.ones((3, 2, 2)),
-    ],
-    [
-        {"spacing": (0.3, 0.3), "magnitude_range": (1.0, 2.0), "prob": 0.0, "as_tensor_output": False, "device": None},
-        {"img": torch.arange(27).reshape((3, 3, 3))},
-        np.arange(27).reshape((3, 3, 3)),
-    ],
-    [
-        {
-            "spacing": (0.3, 0.3),
-            "magnitude_range": (1.0, 2.0),
-            "prob": 0.9,
-            "as_tensor_output": False,
-            "device": None,
-            "padding_mode": "zeros",
-        },
-        {"img": torch.ones((3, 3, 3)), "spatial_size": (2, 2), "mode": "bilinear"},
-        np.array(
+TESTS = []
+for p in TEST_NDARRAYS:
+    for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
+        TESTS.append(
             [
-                [[0.45531988, 0.0], [0.0, 0.71558857]],
-                [[0.45531988, 0.0], [0.0, 0.71558857]],
-                [[0.45531988, 0.0], [0.0, 0.71558857]],
+                {"spacing": (0.3, 0.3), "magnitude_range": (1.0, 2.0), "prob": 0.0, "device": device},
+                {"img": p(torch.ones((3, 3, 3))), "spatial_size": (2, 2)},
+                p(np.ones((3, 2, 2))),
             ]
-        ),
-    ],
-    [
-        {
-            "spacing": (1.0, 1.0),
-            "magnitude_range": (1.0, 1.0),
-            "scale_range": [1.2, 2.2],
-            "prob": 0.9,
-            "padding_mode": "border",
-            "as_tensor_output": True,
-            "device": None,
-            "spatial_size": (2, 2),
-        },
-        {"img": torch.arange(27).reshape((3, 3, 3))},
-        torch.tensor(
+        )
+        TESTS.append(
             [
-                [[3.0793, 2.6141], [4.0568, 5.9978]],
-                [[12.0793, 11.6141], [13.0568, 14.9978]],
-                [[21.0793, 20.6141], [22.0568, 23.9978]],
+                {"spacing": (0.3, 0.3), "magnitude_range": (1.0, 2.0), "prob": 0.0, "device": device},
+                {"img": p(torch.arange(27).reshape((3, 3, 3)))},
+                p(np.arange(27).reshape((3, 3, 3))),
             ]
-        ),
-    ],
-    [
-        {
-            "spacing": (0.3, 0.3),
-            "magnitude_range": (0.1, 0.2),
-            "translate_range": [-0.01, 0.01],
-            "scale_range": [0.01, 0.02],
-            "prob": 0.9,
-            "as_tensor_output": False,
-            "device": "cuda" if torch.cuda.is_available() else "cpu",
-            "spatial_size": (2, 2),
-        },
-        {"img": torch.arange(27).reshape((3, 3, 3))},
-        np.array(
+        )
+        TESTS.append(
             [
-                [[1.3584113, 1.9251312], [5.626623, 6.642721]],
-                [[10.358411, 10.925131], [14.626623, 15.642721]],
-                [[19.358412, 19.92513], [23.626623, 24.642721]],
+                {
+                    "spacing": (0.3, 0.3),
+                    "magnitude_range": (1.0, 2.0),
+                    "prob": 0.9,
+                    "device": device,
+                    "padding_mode": "zeros",
+                },
+                {"img": p(torch.ones((3, 3, 3))), "spatial_size": (2, 2), "mode": "bilinear"},
+                p(
+                    np.array(
+                        [
+                            [[0.45531988, 0.0], [0.0, 0.71558857]],
+                            [[0.45531988, 0.0], [0.0, 0.71558857]],
+                            [[0.45531988, 0.0], [0.0, 0.71558857]],
+                        ]
+                    )
+                ),
             ]
-        ),
-    ],
-]
+        )
+        TESTS.append(
+            [
+                {
+                    "spacing": (1.0, 1.0),
+                    "magnitude_range": (1.0, 1.0),
+                    "scale_range": [1.2, 2.2],
+                    "prob": 0.9,
+                    "padding_mode": "border",
+                    "device": device,
+                    "spatial_size": (2, 2),
+                },
+                {"img": p(torch.arange(27).reshape((3, 3, 3)))},
+                p(
+                    torch.tensor(
+                        [
+                            [[3.0793, 2.6141], [4.0568, 5.9978]],
+                            [[12.0793, 11.6141], [13.0568, 14.9978]],
+                            [[21.0793, 20.6141], [22.0568, 23.9978]],
+                        ]
+                    )
+                ),
+            ]
+        )
+        TESTS.append(
+            [
+                {
+                    "spacing": (0.3, 0.3),
+                    "magnitude_range": (0.1, 0.2),
+                    "translate_range": [-0.01, 0.01],
+                    "scale_range": [0.01, 0.02],
+                    "prob": 0.9,
+                    "device": device,
+                    "spatial_size": (2, 2),
+                },
+                {"img": p(torch.arange(27).reshape((3, 3, 3)))},
+                p(
+                    np.array(
+                        [
+                            [[1.3584113, 1.9251312], [5.626623, 6.642721]],
+                            [[10.358411, 10.925131], [14.626623, 15.642721]],
+                            [[19.358412, 19.92513], [23.626623, 24.642721]],
+                        ]
+                    )
+                ),
+            ]
+        )
 
 
 class TestRand2DElastic(unittest.TestCase):
-    @parameterized.expand(TEST_CASES)
+    @parameterized.expand(TESTS)
     def test_rand_2d_elastic(self, input_param, input_data, expected_val):
         g = Rand2DElastic(**input_param)
         g.set_random_state(123)
         result = g(**input_data)
-        self.assertEqual(isinstance(result, torch.Tensor), isinstance(expected_val, torch.Tensor))
+        self.assertEqual(type(result), type(expected_val))
         if isinstance(result, torch.Tensor):
-            np.testing.assert_allclose(result.cpu().numpy(), expected_val.cpu().numpy(), rtol=1e-4, atol=1e-4)
-        else:
-            np.testing.assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
+            self.assertEqual(result.device, expected_val.device)
+            result, expected_val = result.cpu(), expected_val.cpu()
+        np.testing.assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
 
 
 if __name__ == "__main__":

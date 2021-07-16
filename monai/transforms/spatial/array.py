@@ -952,7 +952,7 @@ class RandZoom(TorchTransform, RandomizableTransform):
         return zoomer(img)
 
 
-class AffineGrid(ToDoTransform):
+class AffineGrid(TorchTransform):
     """
     Affine transforms on the coordinates.
 
@@ -987,7 +987,6 @@ class AffineGrid(ToDoTransform):
         shear_params: Optional[Union[Sequence[float], float]] = None,
         translate_params: Optional[Union[Sequence[float], float]] = None,
         scale_params: Optional[Union[Sequence[float], float]] = None,
-        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
         affine: Optional[DataObjects.Images] = None,
     ) -> None:
@@ -995,10 +994,7 @@ class AffineGrid(ToDoTransform):
         self.shear_params = shear_params
         self.translate_params = translate_params
         self.scale_params = scale_params
-
-        self.as_tensor_output = as_tensor_output
         self.device = device
-
         self.affine = affine
 
     def __call__(
@@ -1021,7 +1017,7 @@ class AffineGrid(ToDoTransform):
             else:
                 raise ValueError("Incompatible values: grid=None and spatial_size=None.")
 
-        affine: Union[torch.Tensor, np.ndarray]
+        affine: DataObjects.Images
         if self.affine is None:
             spatial_dims = len(grid.shape) - 1
             affine = np.eye(spatial_dims + 1)
@@ -1036,17 +1032,14 @@ class AffineGrid(ToDoTransform):
         else:
             affine = self.affine
 
-        if isinstance(affine, np.ndarray):
-            affine = torch.as_tensor(np.ascontiguousarray(affine))
+        grid, orig_type, orig_device = convert_data_type(grid, torch.Tensor, dtype=float, device=self.device)
+        affine, *_ = convert_data_type(affine, torch.Tensor, dtype=float, device=grid.device)  # type: ignore
 
-        grid = torch.tensor(grid) if not isinstance(grid, torch.Tensor) else grid.detach().clone()
-        if self.device:
-            affine = affine.to(self.device)
-            grid = grid.to(self.device)
-        grid = (affine.float() @ grid.reshape((grid.shape[0], -1)).float()).reshape([-1] + list(grid.shape[1:]))
+        grid = (affine @ grid.reshape((grid.shape[0], -1))).reshape([-1] + list(grid.shape[1:]))
         if grid is None or not isinstance(grid, torch.Tensor):
             raise ValueError("Unknown grid.")
-        return grid if self.as_tensor_output else np.asarray(grid.cpu().numpy()), affine
+        grid, *_ = convert_data_type(grid, orig_type, orig_device)
+        return grid, affine
 
 
 class RandAffineGrid(Randomizable, ToDoTransform):
@@ -1060,7 +1053,6 @@ class RandAffineGrid(Randomizable, ToDoTransform):
         shear_range: RandRange = None,
         translate_range: RandRange = None,
         scale_range: RandRange = None,
-        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
     ) -> None:
         """
@@ -1075,8 +1067,6 @@ class RandAffineGrid(Randomizable, ToDoTransform):
             translate_range: translate_range with format matching `rotate_range`.
             scale_range: scaling_range with format matching `rotate_range`. A value of 1.0 is added to the result.
                 This allows 0 to correspond to no change (i.e., a scaling of 1).
-            as_tensor_output: whether to output tensor instead of numpy array.
-                defaults to True.
             device: device to store the output grid data.
 
         See also:
@@ -1095,7 +1085,6 @@ class RandAffineGrid(Randomizable, ToDoTransform):
         self.translate_params: Optional[List[float]] = None
         self.scale_params: Optional[List[float]] = None
 
-        self.as_tensor_output = as_tensor_output
         self.device = device
         self.affine: Optional[DataObjects.Images] = None
 
@@ -1135,7 +1124,6 @@ class RandAffineGrid(Randomizable, ToDoTransform):
             shear_params=self.shear_params,
             translate_params=self.translate_params,
             scale_params=self.scale_params,
-            as_tensor_output=self.as_tensor_output,
             device=self.device,
         )
         grid, self.affine = affine_grid(spatial_size, grid)
@@ -1146,7 +1134,7 @@ class RandAffineGrid(Randomizable, ToDoTransform):
         return self.affine
 
 
-class RandDeformGrid(Randomizable, ToDoTransform):
+class RandDeformGrid(Randomizable, Transform):
     """
     Generate random deformation grid.
     """
@@ -1196,12 +1184,11 @@ class RandDeformGrid(Randomizable, ToDoTransform):
         return control_grid
 
 
-class Resample(ToDoTransform):
+class Resample(TorchTransform):
     def __init__(
         self,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
-        as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ) -> None:
         """
@@ -1215,12 +1202,10 @@ class Resample(ToDoTransform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"border"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-            as_tensor_output: whether to return a torch tensor. Defaults to False.
             device: device on which the tensor will be allocated.
         """
         self.mode: GridSampleMode = GridSampleMode(mode)
         self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
-        self.as_tensor_output = as_tensor_output
         self.device = device
 
     def __call__(
@@ -1241,18 +1226,15 @@ class Resample(ToDoTransform):
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
-
-        if not isinstance(img, torch.Tensor):
-            img = torch.as_tensor(np.ascontiguousarray(img))
         if grid is None:
             raise AssertionError("Error, grid argument must be supplied as an ndarray or tensor ")
-        grid = torch.tensor(grid) if not isinstance(grid, torch.Tensor) else grid.detach().clone()
-        if self.device:
-            img = img.to(self.device)
-            grid = grid.to(self.device)
+
+        img_t: torch.Tensor
+        img_t, orig_type, orig_device = convert_data_type(img, torch.Tensor, device=self.device, dtype=float)  # type: ignore
+        grid, *_ = convert_data_type(deepcopy(grid), torch.Tensor, device=img_t.device, dtype=float)
 
         if USE_COMPILED:
-            for i, dim in enumerate(img.shape[1:]):
+            for i, dim in enumerate(img_t.shape[1:]):
                 grid[i] += (dim - 1.0) / 2.0
             grid = grid[:-1] / grid[-1:]
             grid = grid.permute(list(range(grid.ndimension()))[1:] + [0])
@@ -1265,32 +1247,32 @@ class Resample(ToDoTransform):
                 bound = 1
             _interp_mode = self.mode.value if mode is None else GridSampleMode(mode).value
             out = grid_pull(
-                img.unsqueeze(0).float(),
+                img_t.unsqueeze(0).float(),
                 grid.unsqueeze(0).float(),
                 bound=bound,
                 extrapolate=True,
                 interpolation=1 if _interp_mode == "bilinear" else _interp_mode,
             )[0]
         else:
-            for i, dim in enumerate(img.shape[1:]):
+            for i, dim in enumerate(img_t.shape[1:]):
                 grid[i] = 2.0 * grid[i] / (dim - 1.0)
             grid = grid[:-1] / grid[-1:]
-            index_ordering: List[int] = list(range(img.ndimension() - 2, -1, -1))
+            index_ordering: List[int] = list(range(img_t.ndimension() - 2, -1, -1))
             grid = grid[index_ordering]
             grid = grid.permute(list(range(grid.ndimension()))[1:] + [0])
             out = torch.nn.functional.grid_sample(
-                img.unsqueeze(0).float(),
+                img_t.unsqueeze(0).float(),
                 grid.unsqueeze(0).float(),
                 mode=self.mode.value if mode is None else GridSampleMode(mode).value,
                 padding_mode=self.padding_mode.value if padding_mode is None else GridSamplePadMode(padding_mode).value,
                 align_corners=True,
             )[0]
-        if self.as_tensor_output:
-            return torch.as_tensor(out)
-        return np.asarray(out.cpu().numpy())
+
+        out, *_ = convert_data_type(out, orig_type, orig_device)
+        return out  # type: ignore
 
 
-class Affine(Transform):
+class Affine(TorchTransform):
     """
     Transform ``img`` given the affine parameters.
     """
@@ -1304,7 +1286,6 @@ class Affine(Transform):
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
-        as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
         image_only: bool = False,
     ) -> None:
@@ -1330,8 +1311,6 @@ class Affine(Transform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-            as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
-                whether to convert it back to numpy arrays.
             device: device on which the tensor will be allocated.
             image_only: if True return only the image volume, otherwise return (image, affine).
         """
@@ -1340,11 +1319,10 @@ class Affine(Transform):
             shear_params=shear_params,
             translate_params=translate_params,
             scale_params=scale_params,
-            as_tensor_output=True,
             device=device,
         )
         self.image_only = image_only
-        self.resampler = Resample(as_tensor_output=as_tensor_output, device=device)
+        self.resampler = Resample(device=device)
         self.spatial_size = spatial_size
         self.mode: GridSampleMode = GridSampleMode(mode)
         self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
@@ -1378,7 +1356,7 @@ class Affine(Transform):
         return ret if self.image_only else (ret, affine)
 
 
-class RandAffine(RandomizableTransform):
+class RandAffine(RandomizableTransform, TorchTransform):
     """
     Random affine transform.
     """
@@ -1394,7 +1372,6 @@ class RandAffine(RandomizableTransform):
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
         cache_grid: bool = False,
-        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
     ) -> None:
         """
@@ -1426,8 +1403,6 @@ class RandAffine(RandomizableTransform):
             cache_grid: whether to cache the identity sampling grid.
                 If the spatial size is not dynamically defined by input image, enabling this option could
                 accelerate the transform.
-            as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
-                whether to convert it back to numpy arrays.
             device: device on which the tensor will be allocated.
 
         See also:
@@ -1441,10 +1416,9 @@ class RandAffine(RandomizableTransform):
             shear_range=shear_range,
             translate_range=translate_range,
             scale_range=scale_range,
-            as_tensor_output=True,
             device=device,
         )
-        self.resampler = Resample(as_tensor_output=as_tensor_output, device=device)
+        self.resampler = Resample(device=device)
 
         self.spatial_size = spatial_size
         self.cache_grid = cache_grid
@@ -1527,8 +1501,8 @@ class RandAffine(RandomizableTransform):
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
         do_resampling = self._do_transform or (sp_size != ensure_tuple(img.shape[1:]))
         if not do_resampling:
-            img = img.float() if isinstance(img, torch.Tensor) else img.astype("float32")
-            return torch.Tensor(img) if self.resampler.as_tensor_output else np.array(img)
+            img, *_ = convert_data_type(img, dtype=np.float32)
+            return img
         grid = self.get_identity_grid(sp_size)
         if self._do_transform:
             grid = self.rand_affine_grid(grid=grid)
@@ -1537,7 +1511,7 @@ class RandAffine(RandomizableTransform):
         )
 
 
-class Rand2DElastic(RandomizableTransform):
+class Rand2DElastic(TorchTransform, RandomizableTransform):
     """
     Random elastic deformation and affine in 2D
     """
@@ -1554,7 +1528,6 @@ class Rand2DElastic(RandomizableTransform):
         spatial_size: Optional[Union[Tuple[int, int], int]] = None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
-        as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ) -> None:
         """
@@ -1586,8 +1559,6 @@ class Rand2DElastic(RandomizableTransform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-            as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
-                whether to convert it back to numpy arrays.
             device: device on which the tensor will be allocated.
 
         See also:
@@ -1603,10 +1574,9 @@ class Rand2DElastic(RandomizableTransform):
             shear_range=shear_range,
             translate_range=translate_range,
             scale_range=scale_range,
-            as_tensor_output=True,
             device=device,
         )
-        self.resampler = Resample(as_tensor_output=as_tensor_output, device=device)
+        self.resampler = Resample(device=device)
 
         self.spatial_size = spatial_size
         self.mode: GridSampleMode = GridSampleMode(mode)
@@ -1663,7 +1633,7 @@ class Rand2DElastic(RandomizableTransform):
         return self.resampler(img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode)
 
 
-class Rand3DElastic(RandomizableTransform):
+class Rand3DElastic(TorchTransform, RandomizableTransform):
     """
     Random elastic deformation and affine in 3D
     """
@@ -1680,7 +1650,6 @@ class Rand3DElastic(RandomizableTransform):
         spatial_size: Optional[Union[Tuple[int, int, int], int]] = None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
-        as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ) -> None:
         """
@@ -1714,8 +1683,6 @@ class Rand3DElastic(RandomizableTransform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-            as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
-                whether to convert it back to numpy arrays.
             device: device on which the tensor will be allocated.
 
         See also:
@@ -1723,8 +1690,8 @@ class Rand3DElastic(RandomizableTransform):
             - :py:class:`Affine` for the affine transformation parameters configurations.
         """
         RandomizableTransform.__init__(self, prob)
-        self.rand_affine_grid = RandAffineGrid(rotate_range, shear_range, translate_range, scale_range, True, device)
-        self.resampler = Resample(as_tensor_output=as_tensor_output, device=device)
+        self.rand_affine_grid = RandAffineGrid(rotate_range, shear_range, translate_range, scale_range, device)
+        self.resampler = Resample(device=device)
 
         self.sigma_range = sigma_range
         self.magnitude_range = magnitude_range
@@ -1778,9 +1745,10 @@ class Rand3DElastic(RandomizableTransform):
         if self._do_transform:
             if self.rand_offset is None:
                 raise AssertionError
-            grid = torch.as_tensor(np.ascontiguousarray(grid), device=self.device)
+            grid, *_ = convert_data_type(grid, torch.Tensor, device=self.device)
+            offset, *_ = convert_data_type(self.rand_offset, torch.Tensor, device=self.device)
+            offset = offset.unsqueeze(0)  # type: ignore
             gaussian = GaussianFilter(3, self.sigma, 3.0).to(device=self.device)
-            offset = torch.as_tensor(self.rand_offset, device=self.device).unsqueeze(0)
             grid[:3] += gaussian(offset)[0] * self.magnitude
             grid = self.rand_affine_grid(grid=grid)
         return self.resampler(img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode)

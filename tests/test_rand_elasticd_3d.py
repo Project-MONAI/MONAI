@@ -16,98 +16,128 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import Rand3DElasticd
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASES = [
-    [
-        {
-            "keys": ("img", "seg"),
-            "magnitude_range": (0.3, 2.3),
-            "sigma_range": (1.0, 20.0),
-            "prob": 0.0,
-            "as_tensor_output": False,
-            "device": None,
-            "spatial_size": (2, 2, 2),
-        },
-        {"img": torch.ones((2, 3, 3, 3)), "seg": torch.ones((2, 3, 3, 3))},
-        np.ones((2, 2, 2, 2)),
-    ],
-    [
-        {
-            "keys": ("img", "seg"),
-            "magnitude_range": (0.3, 2.3),
-            "sigma_range": (1.0, 20.0),
-            "prob": 0.0,
-            "as_tensor_output": False,
-            "device": None,
-            "spatial_size": (2, -1, -1),
-        },
-        {"img": torch.ones((2, 3, 3, 3)), "seg": torch.ones((2, 3, 3, 3))},
-        np.ones((2, 2, 3, 3)),
-    ],
-    [
-        {
-            "keys": ("img", "seg"),
-            "magnitude_range": (0.3, 2.3),
-            "sigma_range": (1.0, 20.0),
-            "prob": 0.0,
-            "as_tensor_output": False,
-            "device": None,
-            "spatial_size": -1,
-        },
-        {"img": torch.arange(8).reshape((1, 2, 2, 2)), "seg": torch.arange(8).reshape((1, 2, 2, 2))},
-        np.arange(8).reshape((1, 2, 2, 2)),
-    ],
-    [
-        {
-            "keys": ("img", "seg"),
-            "magnitude_range": (0.3, 0.3),
-            "sigma_range": (1.0, 2.0),
-            "prob": 0.9,
-            "as_tensor_output": False,
-            "device": None,
-            "spatial_size": (2, 2, 2),
-        },
-        {"img": torch.arange(27).reshape((1, 3, 3, 3)), "seg": torch.arange(27).reshape((1, 3, 3, 3))},
-        np.array([[[[6.4939356, 7.50289], [9.518351, 10.522849]], [[15.512375, 16.523542], [18.531467, 19.53646]]]]),
-    ],
-    [
-        {
-            "keys": ("img", "seg"),
-            "magnitude_range": (0.3, 0.3),
-            "sigma_range": (1.0, 2.0),
-            "prob": 0.9,
-            "rotate_range": [1, 1, 1],
-            "as_tensor_output": False,
-            "device": None,
-            "spatial_size": (2, 2, 2),
-            "mode": "bilinear",
-        },
-        {"img": torch.arange(27).reshape((1, 3, 3, 3)), "seg": torch.arange(27).reshape((1, 3, 3, 3))},
-        np.array([[[[5.0069294, 9.463932], [9.287769, 13.739735]], [[12.319424, 16.777205], [16.594296, 21.045748]]]]),
-    ],
-    [
-        {
-            "keys": ("img", "seg"),
-            "mode": ("bilinear", "nearest"),
-            "magnitude_range": (0.3, 0.3),
-            "sigma_range": (1.0, 2.0),
-            "prob": 0.9,
-            "rotate_range": [1, 1, 1],
-            "as_tensor_output": True,
-            "device": torch.device("cpu:0"),
-            "spatial_size": (2, 2, 2),
-        },
-        {"img": torch.arange(27).reshape((1, 3, 3, 3)), "seg": torch.arange(27).reshape((1, 3, 3, 3))},
-        {
-            "img": torch.tensor([[[[5.0069, 9.4639], [9.2878, 13.7397]], [[12.3194, 16.7772], [16.5943, 21.0457]]]]),
-            "seg": torch.tensor([[[[4.0, 14.0], [7.0, 14.0]], [[9.0, 19.0], [12.0, 22.0]]]]),
-        },
-    ],
-]
+TESTS = []
+for p in TEST_NDARRAYS:
+    for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
+        TESTS.append(
+            [
+                {
+                    "keys": ("img", "seg"),
+                    "magnitude_range": (0.3, 2.3),
+                    "sigma_range": (1.0, 20.0),
+                    "prob": 0.0,
+                    "device": device,
+                    "spatial_size": (2, 2, 2),
+                },
+                {"img": p(torch.ones((2, 3, 3, 3))), "seg": p(torch.ones((2, 3, 3, 3)))},
+                p(np.ones((2, 2, 2, 2))),
+            ]
+        )
+        TESTS.append(
+            [
+                {
+                    "keys": ("img", "seg"),
+                    "magnitude_range": (0.3, 2.3),
+                    "sigma_range": (1.0, 20.0),
+                    "prob": 0.0,
+                    "device": device,
+                    "spatial_size": (2, -1, -1),
+                },
+                {"img": p(torch.ones((2, 3, 3, 3))), "seg": p(torch.ones((2, 3, 3, 3)))},
+                p(np.ones((2, 2, 3, 3))),
+            ]
+        )
+        TESTS.append(
+            [
+                {
+                    "keys": ("img", "seg"),
+                    "magnitude_range": (0.3, 2.3),
+                    "sigma_range": (1.0, 20.0),
+                    "prob": 0.0,
+                    "device": device,
+                    "spatial_size": -1,
+                },
+                {"img": p(torch.arange(8).reshape((1, 2, 2, 2))), "seg": p(torch.arange(8).reshape((1, 2, 2, 2)))},
+                p(np.arange(8).reshape((1, 2, 2, 2))),
+            ]
+        )
+        TESTS.append(
+            [
+                {
+                    "keys": ("img", "seg"),
+                    "magnitude_range": (0.3, 0.3),
+                    "sigma_range": (1.0, 2.0),
+                    "prob": 0.9,
+                    "device": device,
+                    "spatial_size": (2, 2, 2),
+                },
+                {"img": p(torch.arange(27).reshape((1, 3, 3, 3))), "seg": p(torch.arange(27).reshape((1, 3, 3, 3)))},
+                p(
+                    np.array(
+                        [
+                            [
+                                [[6.4939356, 7.50289], [9.518351, 10.522849]],
+                                [[15.512375, 16.523542], [18.531467, 19.53646]],
+                            ]
+                        ]
+                    )
+                ),
+            ]
+        )
+        TESTS.append(
+            [
+                {
+                    "keys": ("img", "seg"),
+                    "magnitude_range": (0.3, 0.3),
+                    "sigma_range": (1.0, 2.0),
+                    "prob": 0.9,
+                    "rotate_range": [1, 1, 1],
+                    "device": device,
+                    "spatial_size": (2, 2, 2),
+                    "mode": "bilinear",
+                },
+                {"img": p(torch.arange(27).reshape((1, 3, 3, 3))), "seg": p(torch.arange(27).reshape((1, 3, 3, 3)))},
+                p(
+                    np.array(
+                        [
+                            [
+                                [[5.0069294, 9.463932], [9.287769, 13.739735]],
+                                [[12.319424, 16.777205], [16.594296, 21.045748]],
+                            ]
+                        ]
+                    )
+                ),
+            ]
+        )
+        TESTS.append(
+            [
+                {
+                    "keys": ("img", "seg"),
+                    "mode": ("bilinear", "nearest"),
+                    "magnitude_range": (0.3, 0.3),
+                    "sigma_range": (1.0, 2.0),
+                    "prob": 0.9,
+                    "rotate_range": [1, 1, 1],
+                    "device": device,
+                    "spatial_size": (2, 2, 2),
+                },
+                {"img": p(torch.arange(27).reshape((1, 3, 3, 3))), "seg": p(torch.arange(27).reshape((1, 3, 3, 3)))},
+                {
+                    "img": p(
+                        torch.tensor(
+                            [[[[5.0069, 9.4639], [9.2878, 13.7397]], [[12.3194, 16.7772], [16.5943, 21.0457]]]]
+                        )
+                    ),
+                    "seg": p(torch.tensor([[[[4.0, 14.0], [7.0, 14.0]], [[9.0, 19.0], [12.0, 22.0]]]])),
+                },
+            ]
+        )
 
 
 class TestRand3DElasticd(unittest.TestCase):
-    @parameterized.expand(TEST_CASES)
+    @parameterized.expand(TESTS)
     def test_rand_3d_elasticd(self, input_param, input_data, expected_val):
         g = Rand3DElasticd(**input_param)
         g.set_random_state(123)
@@ -115,11 +145,11 @@ class TestRand3DElasticd(unittest.TestCase):
         for key in res:
             result = res[key]
             expected = expected_val[key] if isinstance(expected_val, dict) else expected_val
-            self.assertEqual(isinstance(result, torch.Tensor), isinstance(expected, torch.Tensor))
+            self.assertEqual(type(result), type(expected))
             if isinstance(result, torch.Tensor):
-                np.testing.assert_allclose(result.cpu().numpy(), expected.cpu().numpy(), rtol=1e-4, atol=1e-4)
-            else:
-                np.testing.assert_allclose(result, expected, rtol=1e-4, atol=1e-4)
+                self.assertEqual(result.device, expected.device)
+                result, expected = result.cpu(), expected.cpu()
+            np.testing.assert_allclose(result, expected, rtol=1e-4, atol=1e-4)
 
 
 if __name__ == "__main__":

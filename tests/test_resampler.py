@@ -17,69 +17,128 @@ from parameterized import parameterized
 
 from monai.transforms import Resample
 from monai.transforms.utils import create_grid
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASES = [
-    [
-        dict(padding_mode="zeros", as_tensor_output=False, device=None),
-        {"grid": create_grid((2, 2)), "img": np.arange(4).reshape((1, 2, 2))},
-        np.array([[[0.0, 1.0], [2.0, 3.0]]]),
-    ],
-    [
-        dict(padding_mode="zeros", as_tensor_output=False, device=None),
-        {"grid": create_grid((4, 4)), "img": np.arange(4).reshape((1, 2, 2))},
-        np.array([[[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 2.0, 3.0, 0.0], [0.0, 0.0, 0.0, 0.0]]]),
-    ],
-    [
-        dict(padding_mode="border", as_tensor_output=False, device=None),
-        {"grid": create_grid((4, 4)), "img": np.arange(4).reshape((1, 2, 2))},
-        np.array([[[0.0, 0.0, 1.0, 1.0], [0.0, 0.0, 1.0, 1.0], [2.0, 2.0, 3, 3.0], [2.0, 2.0, 3.0, 3.0]]]),
-    ],
-    [
-        dict(padding_mode="reflection", as_tensor_output=False, device=None),
-        {"grid": create_grid((4, 4)), "img": np.arange(4).reshape((1, 2, 2)), "mode": "nearest"},
-        np.array([[[3.0, 2.0, 3.0, 2.0], [1.0, 0.0, 1.0, 0.0], [3.0, 2.0, 3.0, 2.0], [1.0, 0.0, 1.0, 0.0]]]),
-    ],
-    [
-        dict(padding_mode="zeros", as_tensor_output=False, device=None),
-        {"grid": create_grid((4, 4, 4)), "img": np.arange(8).reshape((1, 2, 2, 2)), "mode": "bilinear"},
-        np.array(
+TESTS = []
+for p in TEST_NDARRAYS:
+    for q in TEST_NDARRAYS:
+        TESTS.append(
             [
-                [
-                    [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]],
-                    [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 2.0, 3.0, 0.0], [0.0, 0.0, 0.0, 0.0]],
-                    [[0.0, 0.0, 0.0, 0.0], [0.0, 4.0, 5.0, 0.0], [0.0, 6.0, 7.0, 0.0], [0.0, 0.0, 0.0, 0.0]],
-                    [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]],
-                ]
+                dict(padding_mode="zeros", device=None),
+                {"grid": p(create_grid((2, 2))), "img": q(np.arange(4).reshape((1, 2, 2)))},
+                q(np.array([[[0.0, 1.0], [2.0, 3.0]]])),
             ]
-        ),
-    ],
-    [
-        dict(padding_mode="border", as_tensor_output=False, device=None),
-        {"grid": create_grid((4, 4, 4)), "img": np.arange(8).reshape((1, 2, 2, 2)), "mode": "bilinear"},
-        np.array(
+        )
+        TESTS.append(
             [
-                [
-                    [[0.0, 0.0, 1.0, 1.0], [0.0, 0.0, 1.0, 1.0], [2.0, 2.0, 3.0, 3.0], [2.0, 2.0, 3.0, 3.0]],
-                    [[0.0, 0.0, 1.0, 1.0], [0.0, 0.0, 1.0, 1.0], [2.0, 2.0, 3.0, 3.0], [2.0, 2.0, 3.0, 3.0]],
-                    [[4.0, 4.0, 5.0, 5.0], [4.0, 4.0, 5.0, 5.0], [6.0, 6.0, 7.0, 7.0], [6.0, 6.0, 7.0, 7.0]],
-                    [[4.0, 4.0, 5.0, 5.0], [4.0, 4.0, 5.0, 5.0], [6.0, 6.0, 7.0, 7.0], [6.0, 6.0, 7.0, 7.0]],
-                ]
+                dict(padding_mode="zeros", device=None),
+                {"grid": p(create_grid((4, 4))), "img": q(np.arange(4).reshape((1, 2, 2)))},
+                q(np.array([[[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 2.0, 3.0, 0.0], [0.0, 0.0, 0.0, 0.0]]])),
             ]
-        ),
-    ],
-]
+        )
+        TESTS.append(
+            [
+                dict(padding_mode="border", device=None),
+                {"grid": p(create_grid((4, 4))), "img": q(np.arange(4).reshape((1, 2, 2)))},
+                q(np.array([[[0.0, 0.0, 1.0, 1.0], [0.0, 0.0, 1.0, 1.0], [2.0, 2.0, 3, 3.0], [2.0, 2.0, 3.0, 3.0]]])),
+            ]
+        )
+        TESTS.append(
+            [
+                dict(padding_mode="reflection", device=None),
+                {"grid": p(create_grid((4, 4))), "img": q(np.arange(4).reshape((1, 2, 2))), "mode": "nearest"},
+                q(np.array([[[3.0, 2.0, 3.0, 2.0], [1.0, 0.0, 1.0, 0.0], [3.0, 2.0, 3.0, 2.0], [1.0, 0.0, 1.0, 0.0]]])),
+            ]
+        )
+        TESTS.append(
+            [
+                dict(padding_mode="zeros", device=None),
+                {"grid": p(create_grid((4, 4, 4))), "img": q(np.arange(8).reshape((1, 2, 2, 2))), "mode": "bilinear"},
+                q(
+                    np.array(
+                        [
+                            [
+                                [
+                                    [0.0, 0.0, 0.0, 0.0],
+                                    [0.0, 0.0, 0.0, 0.0],
+                                    [0.0, 0.0, 0.0, 0.0],
+                                    [0.0, 0.0, 0.0, 0.0],
+                                ],
+                                [
+                                    [0.0, 0.0, 0.0, 0.0],
+                                    [0.0, 0.0, 1.0, 0.0],
+                                    [0.0, 2.0, 3.0, 0.0],
+                                    [0.0, 0.0, 0.0, 0.0],
+                                ],
+                                [
+                                    [0.0, 0.0, 0.0, 0.0],
+                                    [0.0, 4.0, 5.0, 0.0],
+                                    [0.0, 6.0, 7.0, 0.0],
+                                    [0.0, 0.0, 0.0, 0.0],
+                                ],
+                                [
+                                    [0.0, 0.0, 0.0, 0.0],
+                                    [0.0, 0.0, 0.0, 0.0],
+                                    [0.0, 0.0, 0.0, 0.0],
+                                    [0.0, 0.0, 0.0, 0.0],
+                                ],
+                            ]
+                        ]
+                    )
+                ),
+            ]
+        )
+        TESTS.append(
+            [
+                dict(padding_mode="border", device=None),
+                {"grid": p(create_grid((4, 4, 4))), "img": q(np.arange(8).reshape((1, 2, 2, 2))), "mode": "bilinear"},
+                q(
+                    np.array(
+                        [
+                            [
+                                [
+                                    [0.0, 0.0, 1.0, 1.0],
+                                    [0.0, 0.0, 1.0, 1.0],
+                                    [2.0, 2.0, 3.0, 3.0],
+                                    [2.0, 2.0, 3.0, 3.0],
+                                ],
+                                [
+                                    [0.0, 0.0, 1.0, 1.0],
+                                    [0.0, 0.0, 1.0, 1.0],
+                                    [2.0, 2.0, 3.0, 3.0],
+                                    [2.0, 2.0, 3.0, 3.0],
+                                ],
+                                [
+                                    [4.0, 4.0, 5.0, 5.0],
+                                    [4.0, 4.0, 5.0, 5.0],
+                                    [6.0, 6.0, 7.0, 7.0],
+                                    [6.0, 6.0, 7.0, 7.0],
+                                ],
+                                [
+                                    [4.0, 4.0, 5.0, 5.0],
+                                    [4.0, 4.0, 5.0, 5.0],
+                                    [6.0, 6.0, 7.0, 7.0],
+                                    [6.0, 6.0, 7.0, 7.0],
+                                ],
+                            ]
+                        ]
+                    )
+                ),
+            ]
+        )
 
 
 class TestResample(unittest.TestCase):
-    @parameterized.expand(TEST_CASES)
+    @parameterized.expand(TESTS)
     def test_resample(self, input_param, input_data, expected_val):
         g = Resample(**input_param)
         result = g(**input_data)
-        self.assertEqual(isinstance(result, torch.Tensor), isinstance(expected_val, torch.Tensor))
+        self.assertEqual(type(result), type(expected_val))
         if isinstance(result, torch.Tensor):
-            np.testing.assert_allclose(result.cpu().numpy(), expected_val.cpu().numpy(), rtol=1e-4, atol=1e-4)
-        else:
-            np.testing.assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
+            self.assertEqual(result.device, expected_val.device)
+            result = result.cpu()
+            expected_val = expected_val.cpu()
+        np.testing.assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
 
 
 if __name__ == "__main__":
