@@ -14,7 +14,8 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 import warnings
-from typing import Callable, Optional, Sequence, Union
+from copy import deepcopy
+from typing import Callable, List, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -438,7 +439,7 @@ class VoteEnsemble(Transform):
         return torch.round(img_)
 
 
-class ProbNMS(Transform):
+class ProbNMS(TorchTransform):
     """
     Performs probability based non-maximum suppression (NMS) on the probabilities map via
     iteratively selecting the coordinate with highest probability and then move it as well
@@ -498,28 +499,22 @@ class ProbNMS(Transform):
     def __call__(
         self,
         prob_map: DataObjects.Images,
-    ):
+    ) -> List[List]:
         """
         prob_map: the input probabilities map, it must have shape (H[, W, ...]).
         """
+        prob_map_t: torch.Tensor
+        prob_map_t, *_ = convert_data_type(deepcopy(prob_map), torch.Tensor, dtype=float)  # type: ignore
         if self.sigma != 0:
-            if not isinstance(prob_map, torch.Tensor):
-                prob_map = torch.as_tensor(prob_map, dtype=torch.float)
-            self.filter.to(prob_map)
-            prob_map = self.filter(prob_map)
-        else:
-            if not isinstance(prob_map, torch.Tensor):
-                prob_map = prob_map.copy()
+            self.filter.to(prob_map_t)
+            prob_map_t = self.filter(prob_map_t)
 
-        if isinstance(prob_map, torch.Tensor):
-            prob_map = prob_map.detach().cpu().numpy()
-
-        prob_map_shape = prob_map.shape
+        prob_map_shape = prob_map_t.shape
 
         outputs = []
-        while np.max(prob_map) > self.prob_threshold:
-            max_idx = np.unravel_index(prob_map.argmax(), prob_map_shape)
-            prob_max = prob_map[max_idx]
+        while prob_map_t.max() > self.prob_threshold:
+            max_idx = np.unravel_index(prob_map_t.argmax().cpu(), prob_map_shape)
+            prob_max = prob_map_t[max_idx].item()
             max_idx_arr = np.asarray(max_idx)
             outputs.append([prob_max] + list(max_idx_arr))
 
@@ -527,6 +522,6 @@ class ProbNMS(Transform):
             idx_max_range = (max_idx_arr + self.box_upper_bd).clip(None, prob_map_shape)
             # for each dimension, set values during index ranges to 0
             slices = tuple(slice(idx_min_range[i], idx_max_range[i]) for i in range(self.spatial_dims))
-            prob_map[slices] = 0
+            prob_map_t[slices] = 0
 
         return outputs
