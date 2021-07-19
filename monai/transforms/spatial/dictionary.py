@@ -759,7 +759,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         if do_resampling:  # need to prepare grid
             grid = self.rand_affine.get_identity_grid(sp_size)
             if self._do_transform:  # add some random factors
-                grid = self.rand_affine.rand_affine_grid(grid=grid).clone()  # type: ignore
+                grid = deepcopy(self.rand_affine.rand_affine_grid(grid=grid))
                 affine = self.rand_affine.rand_affine_grid.get_transformation_matrix()  # type: ignore[assignment]
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
