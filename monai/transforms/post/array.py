@@ -185,7 +185,7 @@ class AsDiscrete(TorchTransform):
         if threshold_values or self.threshold_values:
             img_t = img_t >= (logit_thresh or self.logit_thresh)
 
-        out, *_ = convert_data_type(img, orig_type, orig_device, dtype=float)
+        out, *_ = convert_data_type(img_t, orig_type, orig_device, dtype=float)
         return out
 
 

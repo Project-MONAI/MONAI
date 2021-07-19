@@ -156,6 +156,6 @@ def compute_roc_auc(
     if average == Average.MACRO:
         return np.mean(auc_values)
     if average == Average.WEIGHTED:
-        weights = [sum(y_) for y_ in y]
+        weights = [sum(y_.cpu()) for y_ in y]
         return np.average(auc_values, weights=weights)
     raise ValueError(f'Unsupported average: {average}, available options are ["macro", "weighted", "micro", "none"].')

@@ -353,6 +353,10 @@ def decollate_batch(batch, detach: bool = True):
         if out_list[0].ndim == 0 and detach:
             return [t.item() for t in out_list]
         return list(out_list)
+    if isinstance(batch, np.ndarray):
+        if batch.ndim == 0:
+            return batch
+        return list(batch)
     if isinstance(batch, Mapping):
         _dict_list = {key: decollate_batch(batch[key], detach) for key in batch}
         return [dict(zip(_dict_list, item)) for item in zip(*_dict_list.values())]

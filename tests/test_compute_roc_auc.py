@@ -18,73 +18,85 @@ from parameterized import parameterized
 from monai.data import decollate_batch
 from monai.metrics import ROCAUCMetric, compute_roc_auc
 from monai.transforms import Activations, AsDiscrete, Compose, ToTensor
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASE_1 = [
-    torch.tensor([[0.1, 0.9], [0.3, 1.4], [0.2, 0.1], [0.1, 0.5]]),
-    torch.tensor([[0], [1], [0], [1]]),
-    True,
-    True,
-    "macro",
-    0.75,
-]
-
-TEST_CASE_2 = [
-    torch.tensor([[0.5], [0.5], [0.2], [8.3]]),
-    torch.tensor([[0], [1], [0], [1]]),
-    False,
-    False,
-    "macro",
-    0.875,
-]
-
-TEST_CASE_3 = [
-    torch.tensor([[0.5], [0.5], [0.2], [8.3]]),
-    torch.tensor([0, 1, 0, 1]),
-    False,
-    False,
-    "macro",
-    0.875,
-]
-
-TEST_CASE_4 = [
-    torch.tensor([0.5, 0.5, 0.2, 8.3]),
-    torch.tensor([0, 1, 0, 1]),
-    False,
-    False,
-    "macro",
-    0.875,
-]
-
-TEST_CASE_5 = [
-    torch.tensor([[0.1, 0.9], [0.3, 1.4], [0.2, 0.1], [0.1, 0.5]]),
-    torch.tensor([[0], [1], [0], [1]]),
-    True,
-    True,
-    "none",
-    [0.75, 0.75],
-]
-
-TEST_CASE_6 = [
-    torch.tensor([[0.1, 0.9], [0.3, 1.4], [0.2, 0.1], [0.1, 0.5], [0.1, 0.5]]),
-    torch.tensor([[1, 0], [0, 1], [0, 0], [1, 1], [0, 1]]),
-    True,
-    False,
-    "weighted",
-    0.56667,
-]
-
-TEST_CASE_7 = [
-    torch.tensor([[0.1, 0.9], [0.3, 1.4], [0.2, 0.1], [0.1, 0.5], [0.1, 0.5]]),
-    torch.tensor([[1, 0], [0, 1], [0, 0], [1, 1], [0, 1]]),
-    True,
-    False,
-    "micro",
-    0.62,
-]
+TESTS = []
+for p in TEST_NDARRAYS:
+    for q in TEST_NDARRAYS:
+        TESTS.append(
+            [
+                p(torch.tensor([[0.1, 0.9], [0.3, 1.4], [0.2, 0.1], [0.1, 0.5]])),
+                q(torch.tensor([[0], [1], [0], [1]])),
+                True,
+                True,
+                "macro",
+                0.75,
+            ]
+        )
+        TESTS.append(
+            [
+                p(torch.tensor([[0.5], [0.5], [0.2], [8.3]])),
+                q(torch.tensor([[0], [1], [0], [1]])),
+                False,
+                False,
+                "macro",
+                0.875,
+            ]
+        )
+        TESTS.append(
+            [
+                p(torch.tensor([[0.5], [0.5], [0.2], [8.3]])),
+                q(torch.tensor([0, 1, 0, 1])),
+                False,
+                False,
+                "macro",
+                0.875,
+            ]
+        )
+        TESTS.append(
+            [
+                p(torch.tensor([0.5, 0.5, 0.2, 8.3])),
+                q(torch.tensor([0, 1, 0, 1])),
+                False,
+                False,
+                "macro",
+                0.875,
+            ]
+        )
+        TESTS.append(
+            [
+                p(torch.tensor([[0.1, 0.9], [0.3, 1.4], [0.2, 0.1], [0.1, 0.5]])),
+                q(torch.tensor([[0], [1], [0], [1]])),
+                True,
+                True,
+                "none",
+                [0.75, 0.75],
+            ]
+        )
+        TESTS.append(
+            [
+                p(torch.tensor([[0.1, 0.9], [0.3, 1.4], [0.2, 0.1], [0.1, 0.5], [0.1, 0.5]])),
+                q(torch.tensor([[1, 0], [0, 1], [0, 0], [1, 1], [0, 1]])),
+                True,
+                False,
+                "weighted",
+                0.56667,
+            ]
+        )
+        TESTS.append(
+            [
+                p(torch.tensor([[0.1, 0.9], [0.3, 1.4], [0.2, 0.1], [0.1, 0.5], [0.1, 0.5]])),
+                q(torch.tensor([[1, 0], [0, 1], [0, 0], [1, 1], [0, 1]])),
+                True,
+                False,
+                "micro",
+                0.62,
+            ]
+        )
 
 
 class TestComputeROCAUC(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7])
+    @parameterized.expand(TESTS)
     def test_value(self, y_pred, y, softmax, to_onehot, average, expected_value):
         y_pred_trans = Compose([ToTensor(), Activations(softmax=softmax)])
         y_trans = Compose([ToTensor(), AsDiscrete(to_onehot=to_onehot, n_classes=2)])
@@ -93,7 +105,7 @@ class TestComputeROCAUC(unittest.TestCase):
         result = compute_roc_auc(y_pred=y_pred, y=y, average=average)
         np.testing.assert_allclose(expected_value, result, rtol=1e-5)
 
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7])
+    @parameterized.expand(TESTS)
     def test_class_value(self, y_pred, y, softmax, to_onehot, average, expected_value):
         y_pred_trans = Compose([ToTensor(), Activations(softmax=softmax)])
         y_trans = Compose([ToTensor(), AsDiscrete(to_onehot=to_onehot, n_classes=2)])
