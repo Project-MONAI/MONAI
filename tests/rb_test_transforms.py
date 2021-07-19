@@ -2,7 +2,7 @@ from inspect import getmembers, isclass
 
 from monai import transforms
 from monai.transforms import MapTransform, Transform
-from monai.transforms.transform import NumpyTransform, ToDoTransform, TorchOrNumpyTransform, TorchTransform
+from monai.transforms.transform import NumpyTransform, TorchOrNumpyTransform, TorchTransform
 
 
 class Colours:
@@ -49,9 +49,6 @@ for n, obj in getmembers(transforms):
         elif issubclass(obj, NumpyTransform):
             tr_np += 1
             print_colour(f"Numpy:         {n}", Colours.yellow)
-        elif issubclass(obj, ToDoTransform):
-            tr_todo += 1
-            print_colour(f"ToDoTransform: {n}", Colours.purple)
         else:
             tr_uncategorised += 1
             print_colour(f"Uncategorised: {n}", Colours.red)
@@ -59,5 +56,4 @@ print("Total number of transforms:", tr_total)
 print_colour(f"Number of TorchOrNumpyTransform: {tr_t_or_np}", Colours.green)
 print_colour(f"Number of TorchTransform: {tr_t}", Colours.green)
 print_colour(f"Number of NumpyTransform: {tr_np}", Colours.yellow)
-print_colour(f"Number of ToDoTransform: {tr_todo}", Colours.purple)
 print_colour(f"Number of uncategorised: {tr_uncategorised}", Colours.red)

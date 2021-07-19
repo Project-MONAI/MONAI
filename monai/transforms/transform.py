@@ -283,12 +283,6 @@ class NumpyTransform(Transform):
     array_class = np.ndarray
 
 
-class ToDoTransform(Transform):
-    """Transforms that inherit from this class are still to be updated. This is a temporary class."""
-
-    pass
-
-
 class RandomizableTransform(Randomizable, Transform):
     """
     An interface for handling random state locally, currently based on a class variable `R`,
