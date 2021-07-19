@@ -278,7 +278,9 @@ class ITKReader(ImageReader):
 
         """
         # the img data should have no channel dim
-        sr = min(img.__dict__.get("dim[0]", 3), 3)
+
+        sr = itk.array_from_matrix(img.GetDirection()).shape[0]
+        sr = max(min(sr, 3), 1)
         _size = list(itk.size(img))
         if self.channel_dim is not None:
             # channel_dim is given in the numpy convention, which is different from ITK
