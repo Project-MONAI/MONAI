@@ -38,7 +38,7 @@ class TestGibbsNoise(unittest.TestCase):
     @staticmethod
     def get_data(im_shape, as_tensor_input):
         create_test_image = create_test_image_2d if len(im_shape) == 2 else create_test_image_3d
-        im = create_test_image(*im_shape, 4, 20, 0, 5)[0][None]
+        im = create_test_image(*im_shape, num_objs=4, rad_max=20, noise_max=0.0, num_seg_classes=5)[0][None]
         return torch.Tensor(im) if as_tensor_input else im
 
     @parameterized.expand(TEST_CASES)
