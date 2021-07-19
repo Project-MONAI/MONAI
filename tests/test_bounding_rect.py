@@ -12,37 +12,39 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 import monai
 from monai.transforms import BoundingRect
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASE_1 = [(2, 3), [[0, 0], [1, 2]]]
+SEED = 1
 
-TEST_CASE_2 = [(1, 8, 10), [[0, 7, 1, 9]]]
-
-TEST_CASE_3 = [(2, 16, 20, 18), [[0, 16, 0, 20, 0, 18], [0, 16, 0, 20, 0, 18]]]
+TESTS = []
+for p in TEST_NDARRAYS:
+    TESTS.append([p, {}, (2, 3), [[0, 0], [1, 2]]])
+    TESTS.append([p, {}, (1, 8, 10), [[0, 7, 1, 9]]])
+    TESTS.append([p, {}, (2, 16, 20, 18), [[0, 16, 0, 20, 0, 18], [0, 16, 0, 20, 0, 18]]])
+    TESTS.append([p, {"select_fn": lambda x: x < 1}, (2, 3), [[0, 3], [0, 3]]])
 
 
 class TestBoundingRect(unittest.TestCase):
     def setUp(self):
-        monai.utils.set_determinism(1)
+        monai.utils.set_determinism(SEED)
 
     def tearDown(self):
         monai.utils.set_determinism(None)
 
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
-    def test_shape(self, input_shape, expected):
-        test_data = np.random.randint(0, 8, size=input_shape)
+    @parameterized.expand(TESTS)
+    def test_result(self, im_type, input_args, input_shape, expected):
+        np.random.seed(SEED)
+        test_data = im_type(np.random.randint(0, 8, size=input_shape))
         test_data = test_data == 7
-        result = BoundingRect()(test_data)
+        result = BoundingRect(**input_args)(test_data)
+        if isinstance(result, torch.Tensor):
+            result = result.cpu()
         np.testing.assert_allclose(result, expected)
-
-    def test_select_fn(self):
-        test_data = np.random.randint(0, 8, size=(2, 3))
-        test_data = test_data == 7
-        bbox = BoundingRect(select_fn=lambda x: x < 1)(test_data)
-        np.testing.assert_allclose(bbox, [[0, 3], [0, 3]])
 
 
 if __name__ == "__main__":

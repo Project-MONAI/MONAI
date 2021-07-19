@@ -1078,7 +1078,7 @@ class ResizeWithPadOrCrop(Transform):
         return self.padder(self.cropper(img), mode=mode)  # type: ignore
 
 
-class BoundingRect(Transform):
+class BoundingRect(TorchTransform, NumpyTransform):
     """
     Compute coordinates of axis-aligned bounding rectangles from input image `img`.
     The output format of the coordinates is (shape is [channel, 2 * spatial dims]):
@@ -1105,7 +1105,7 @@ class BoundingRect(Transform):
     def __init__(self, select_fn: Callable = is_positive) -> None:
         self.select_fn = select_fn
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         See also: :py:class:`monai.transforms.utils.generate_spatial_bounding_box`.
         """
@@ -1114,5 +1114,5 @@ class BoundingRect(Transform):
         for channel in range(img.shape[0]):
             start_, end_ = generate_spatial_bounding_box(img, select_fn=self.select_fn, channel_indices=channel)
             bbox.append([i for k in zip(start_, end_) for i in k])
-
+        bbox = [[j.cpu() if isinstance(j, torch.Tensor) else j for j in i] for i in bbox]  # type: ignore
         return np.stack(bbox, axis=0)
