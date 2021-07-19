@@ -16,20 +16,26 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import Transpose
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASES = []
-for q in (np.arange, torch.arange):
-    TEST_CASES.append([q(5 * 4).reshape(5, 4), None])  # type: ignore
-    TEST_CASES.append([q(5 * 4 * 3).reshape(5, 4, 3), [2, 0, 1]])  # type: ignore
+TESTS = []
+for p in TEST_NDARRAYS:
+    TESTS.append([p(np.arange(5 * 4).reshape(5, 4)), None])
+    TESTS.append([p(np.arange(5 * 4 * 3).reshape(5, 4, 3)), [2, 0, 1]])
 
 
 class TestTranspose(unittest.TestCase):
-    @parameterized.expand(TEST_CASES)
+    @parameterized.expand(TESTS)
     def test_transpose(self, im, indices):
         tr = Transpose(indices)
 
         out1 = tr(im)
-        out2 = np.transpose(im, indices)
+        im_cpu = im if isinstance(im, np.ndarray) else im.cpu()
+        out2 = np.transpose(im_cpu, indices)
+        self.assertEqual(type(im), type(out1))
+        if isinstance(out1, torch.Tensor):
+            self.assertEqual(im.device, out1.device)
+            out1 = out1.cpu()
         np.testing.assert_array_equal(out1, out2)
 
 

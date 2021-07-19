@@ -13,44 +13,72 @@ import unittest
 from copy import deepcopy
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import Transposed
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASE_0 = [
-    np.arange(5 * 4).reshape(5, 4),
-    [1, 0],
-]
-TEST_CASE_1 = [
-    np.arange(5 * 4).reshape(5, 4),
-    None,
-]
-TEST_CASE_2 = [
-    np.arange(5 * 4 * 3).reshape(5, 4, 3),
-    [2, 0, 1],
-]
-TEST_CASE_3 = [
-    np.arange(5 * 4 * 3).reshape(5, 4, 3),
-    None,
-]
-TEST_CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3]
+KEYS = ("i", "j")
+
+TESTS = []
+for p in TEST_NDARRAYS:
+    TESTS.append(
+        [
+            p(np.arange(5 * 4).reshape(5, 4)),
+            [1, 0],
+        ]
+    )
+    TESTS.append(
+        [
+            p(np.arange(5 * 4).reshape(5, 4)),
+            None,
+        ]
+    )
+    TESTS.append(
+        [
+            p(np.arange(5 * 4 * 3).reshape(5, 4, 3)),
+            [2, 0, 1],
+        ]
+    )
+    TESTS.append(
+        [
+            p(np.arange(5 * 4 * 3).reshape(5, 4, 3)),
+            None,
+        ]
+    )
 
 
 class TestTranspose(unittest.TestCase):
-    @parameterized.expand(TEST_CASES)
+    @parameterized.expand(TESTS)
     def test_transpose(self, im, indices):
-        data = {"i": deepcopy(im), "j": deepcopy(im)}
-        tr = Transposed(["i", "j"], indices)
+        im_cpu = deepcopy(im if isinstance(im, np.ndarray) else im.cpu())
+        out_gt = np.transpose(im_cpu, indices)
+
+        data = {k: deepcopy(im) for k in KEYS}
+        tr = Transposed(KEYS, indices)
         out_data = tr(data)
-        out_im1, out_im2 = out_data["i"], out_data["j"]
-        out_gt = np.transpose(im, indices)
-        np.testing.assert_array_equal(out_im1, out_gt)
-        np.testing.assert_array_equal(out_im2, out_gt)
+
+        for k, v in out_data.items():
+            if k not in KEYS:
+                continue
+            self.assertEqual(type(im), type(v))
+            if isinstance(v, torch.Tensor):
+                self.assertEqual(im.device, v.device)
+                v = v.cpu()
+            np.testing.assert_array_equal(v, out_gt)
 
         # test inverse
         fwd_inv_data = tr.inverse(out_data)
-        for i, j in zip(data.values(), fwd_inv_data.values()):
-            np.testing.assert_array_equal(i, j)
+
+        for k, v in fwd_inv_data.items():
+            if k not in KEYS:
+                continue
+            self.assertEqual(type(im), type(v))
+            if isinstance(v, torch.Tensor):
+                self.assertEqual(im.device, v.device)
+                v = v.cpu()
+            np.testing.assert_array_equal(v, im_cpu)
 
 
 if __name__ == "__main__":

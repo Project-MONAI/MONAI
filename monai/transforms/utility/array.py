@@ -368,7 +368,7 @@ class EnsureType(Transform):
         return convert_to_tensor(data) if self.data_type == "tensor" else convert_to_numpy(data)
 
 
-class ToNumpy(NumpyTransform):
+class ToNumpy(TorchTransform, NumpyTransform):
     """
     Converts the input data to numpy array, can support list or tuple of numbers and PyTorch Tensor.
     """
@@ -414,7 +414,7 @@ class ToPIL(Transform):
         return pil_image_fromarray(ToNumpy()(img))
 
 
-class Transpose(NumpyTransform):
+class Transpose(TorchTransform, NumpyTransform):
     """
     Transposes the input image based on the given `indices` dimension ordering.
     """
@@ -426,11 +426,9 @@ class Transpose(NumpyTransform):
         """
         Apply the transform to `img`.
         """
-        img_np: np.ndarray
-        img_np, orig_type, orig_device = convert_data_type(img, np.ndarray)  # type: ignore
-        img_np = img_np.transpose(self.indices)  # type: ignore
-        out, *_ = convert_data_type(img_np, orig_type, orig_device)
-        return out
+        if isinstance(img, torch.Tensor):
+            return img.permute(self.indices or tuple(range(img.ndim)[::-1]))
+        return img.transpose(self.indices)  # type: ignore
 
 
 class SqueezeDim(TorchTransform, NumpyTransform):
