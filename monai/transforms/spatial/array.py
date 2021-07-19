@@ -25,6 +25,7 @@ from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.transforms.croppad.array import CenterSpatialCrop, Pad
 from monai.transforms.transform import (
+    NumpyTransform,
     Randomizable,
     RandomizableTransform,
     ThreadUnsafe,
@@ -231,7 +232,7 @@ class Spacing(TorchTransform):
         return output_data, affine, new_affine
 
 
-class Orientation(ToDoTransform):
+class Orientation(NumpyTransform):
     """
     Change the input image's orientation into the specified based on `axcodes`.
     """
@@ -269,8 +270,8 @@ class Orientation(ToDoTransform):
         self.labels = labels
 
     def __call__(
-        self, data_array: np.ndarray, affine: Optional[np.ndarray] = None
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        self, data_array: DataObjects.Images, affine: Optional[DataObjects.Images] = None
+    ) -> Tuple[DataObjects.Images, DataObjects.Images, np.ndarray]:
         """
         original orientation of `data_array` is defined by `affine`.
 
@@ -286,13 +287,16 @@ class Orientation(ToDoTransform):
             data_array (reoriented in `self.axcodes`), original axcodes, current axcodes.
 
         """
-        sr = data_array.ndim - 1
+        data_np: np.ndarray
+        data_np, orig_type, orig_device = convert_data_type(data_array, np.ndarray)  # type: ignore
+        sr = data_np.ndim - 1
         if sr <= 0:
             raise ValueError("data_array must have at least one spatial dimension.")
         if affine is None:
             affine = np.eye(sr + 1, dtype=np.float64)
             affine_ = np.eye(sr + 1, dtype=np.float64)
         else:
+            affine, *_ = convert_data_type(affine, np.ndarray)
             affine_ = to_affine_nd(sr, affine)  # type: ignore
         src = nib.io_orientation(affine_)
         if self.as_closest_canonical:
@@ -309,12 +313,14 @@ class Orientation(ToDoTransform):
         ornt = spatial_ornt.copy()
         ornt[:, 0] += 1  # skip channel dim
         ornt = np.concatenate([np.array([[0, 1]]), ornt])
-        shape = data_array.shape[1:]
-        data_array = np.ascontiguousarray(nib.orientations.apply_orientation(data_array, ornt))
+        shape = data_np.shape[1:]
+        data_np = np.ascontiguousarray(nib.orientations.apply_orientation(data_np, ornt))
         new_affine = affine_ @ nib.orientations.inv_ornt_aff(spatial_ornt, shape)
         new_affine = to_affine_nd(affine, new_affine)
 
-        return data_array, affine, new_affine
+        data_out, *_ = convert_data_type(data_np, orig_type, orig_device)
+
+        return data_out, affine, new_affine
 
 
 class Flip(TorchTransform):
@@ -1045,7 +1051,7 @@ class AffineGrid(TorchTransform):
         return grid, affine
 
 
-class RandAffineGrid(Randomizable, ToDoTransform):
+class RandAffineGrid(Randomizable, TorchTransform):
     """
     Generate randomised affine grid.
     """

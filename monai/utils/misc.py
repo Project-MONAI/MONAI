@@ -385,6 +385,8 @@ def convert_data_type(
 
     if output_type is torch.Tensor:
         if orig_type is np.ndarray:
+            if (np.array(data.strides) < 0).any():  # copy if -ve stride
+                data = data.copy()
             data = torch.as_tensor(data if data.ndim == 0 else np.ascontiguousarray(data))
         else:
             data = torch.as_tensor(data)
