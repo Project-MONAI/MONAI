@@ -1076,7 +1076,7 @@ class AddExtremePointsChanneld(Randomizable, MapTransform):
         self.rescale_min = rescale_min
         self.rescale_max = rescale_max
 
-    def randomize(self, label: np.ndarray) -> None:
+    def randomize(self, label: DataObjects.Images) -> None:
         self.points = get_extreme_points(label, rand_state=self.R, background=self.background, pert=self.pert)
 
     def __call__(self, data):
@@ -1096,8 +1096,12 @@ class AddExtremePointsChanneld(Randomizable, MapTransform):
                 sigma=self.sigma,
                 rescale_min=self.rescale_min,
                 rescale_max=self.rescale_max,
+                device=img.device if isinstance(img, torch.Tensor) else None,
             )
-            d[key] = np.concatenate([img, points_image], axis=0)
+            if isinstance(img, np.ndarray):
+                d[key] = np.concatenate([img, points_image], axis=0)
+            else:
+                d[key] = torch.cat((img, points_image), dim=0)
         return d
 
 

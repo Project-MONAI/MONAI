@@ -837,17 +837,17 @@ class AddExtremePointsChannel(Randomizable, TorchTransform):
         self._pert = pert
         self._points: List[Tuple[int, ...]] = []
 
-    def randomize(self, label: np.ndarray) -> None:
+    def randomize(self, label: DataObjects.Images) -> None:
         self._points = get_extreme_points(label, rand_state=self.R, background=self._background, pert=self._pert)
 
     def __call__(
         self,
-        img: np.ndarray,
-        label: Optional[np.ndarray] = None,
+        img: DataObjects.Images,
+        label: Optional[DataObjects.Images] = None,
         sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 3.0,
         rescale_min: float = -1.0,
         rescale_max: float = 1.0,
-    ):
+    ) -> DataObjects.Images:
         """
         Args:
             img: the image that we want to add new channel to.
@@ -864,14 +864,23 @@ class AddExtremePointsChannel(Randomizable, TorchTransform):
         if label.shape[0] != 1:
             raise ValueError("Only supports single channel labels!")
 
+        img_t: torch.Tensor
+        img_t, orig_type, orig_device = convert_data_type(img, torch.Tensor)  # type: ignore
+
         # Generate extreme points
         self.randomize(label[0, :])
 
-        points_image = extreme_points_to_image(
-            points=self._points, label=label, sigma=sigma, rescale_min=rescale_min, rescale_max=rescale_max
+        points_image_t = extreme_points_to_image(
+            points=self._points,
+            label=label,
+            sigma=sigma,
+            rescale_min=rescale_min,
+            rescale_max=rescale_max,
+            device=img_t.device,
         )
-
-        return np.concatenate([img, points_image], axis=0)
+        out_t = torch.cat((img_t, points_image_t), dim=0)
+        out, *_ = convert_data_type(out_t, orig_type, orig_device)
+        return out
 
 
 class TorchVision:

@@ -738,7 +738,7 @@ def get_largest_connected_component_mask(img: torch.Tensor, connectivity: Option
 
 
 def get_extreme_points(
-    img: np.ndarray, rand_state: Optional[np.random.RandomState] = None, background: int = 0, pert: float = 0.0
+    img: DataObjects.Images, rand_state: Optional[np.random.RandomState] = None, background: int = 0, pert: float = 0.0
 ) -> List[Tuple[int, ...]]:
     """
     Generate extreme points from an image. These are used to generate initial segmentation
@@ -762,9 +762,12 @@ def get_extreme_points(
     """
     if rand_state is None:
         rand_state = np.random.random.__self__  # type: ignore
-    indices = np.where(img != background)
+    where = np.where if isinstance(img, np.ndarray) else torch.where
+    indices = where(img != background)
     if np.size(indices[0]) == 0:
         raise ValueError("get_extreme_points: no foreground object in mask!")
+    if isinstance(img, torch.Tensor):
+        indices = tuple(i.cpu() for i in indices)
 
     def _get_point(val, dim):
         """
@@ -786,19 +789,20 @@ def get_extreme_points(
 
     points = []
     for i in range(img.ndim):
-        points.append(tuple(_get_point(np.min(indices[i][...]), i)))
-        points.append(tuple(_get_point(np.max(indices[i][...]), i)))
+        points.append(tuple(_get_point(indices[i][...].min(), i)))
+        points.append(tuple(_get_point(indices[i][...].max(), i)))
 
     return points
 
 
 def extreme_points_to_image(
     points: List[Tuple[int, ...]],
-    label: np.ndarray,
+    label: DataObjects.Images,
     sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 0.0,
     rescale_min: float = -1.0,
     rescale_max: float = 1.0,
-):
+    device: Optional[Union[torch.device, str]] = None,
+) -> torch.Tensor:
     """
     Please refer to :py:class:`monai.transforms.AddExtremePointsChannel` for the usage.
 
@@ -814,20 +818,21 @@ def extreme_points_to_image(
             use it for all spatial dimensions.
         rescale_min: minimum value of output data.
         rescale_max: maximum value of output data.
+        device: device on which to return result
     """
     # points to image
-    points_image = torch.zeros(label.shape[1:], dtype=torch.float)
+    points_image = torch.zeros(label.shape[1:], dtype=torch.float, device=device)
     for p in points:
         points_image[p] = 1.0
 
     # add channel and add batch
     points_image = points_image.unsqueeze(0).unsqueeze(0)
-    gaussian_filter = GaussianFilter(label.ndim - 1, sigma=sigma)
-    points_image = gaussian_filter(points_image).squeeze(0).detach().numpy()
+    gaussian_filter = GaussianFilter(label.ndim - 1, sigma=sigma).to(device)
+    points_image = gaussian_filter(points_image).squeeze(0).detach()
 
     # rescale the points image to [rescale_min, rescale_max]
-    min_intensity = np.min(points_image)
-    max_intensity = np.max(points_image)
+    min_intensity = points_image.min()
+    max_intensity = points_image.max()
     points_image = (points_image - min_intensity) / (max_intensity - min_intensity)
     points_image = points_image * (rescale_max - rescale_min) + rescale_min
     return points_image
