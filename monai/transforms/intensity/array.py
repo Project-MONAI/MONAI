@@ -577,7 +577,7 @@ class NormalizeIntensity(Transform):
         return img.astype(self.dtype)
 
 
-class ThresholdIntensity(Transform):
+class ThresholdIntensity(TorchTransform, NumpyTransform):
     """
     Filter the intensity values of whole image to below threshold or above threshold.
     And fill the remaining parts of the image to the `cval` value.
@@ -595,13 +595,15 @@ class ThresholdIntensity(Transform):
         self.above = above
         self.cval = cval
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Apply the transform to `img`.
         """
-        return np.asarray(
-            np.where(img > self.threshold if self.above else img < self.threshold, img, self.cval), dtype=img.dtype
-        )
+        where = np.where if isinstance(img, np.ndarray) else torch.where
+        cval = self.cval if isinstance(img, np.ndarray) else torch.tensor(self.cval, dtype=img.dtype, device=img.device)
+        res = where(img > self.threshold if self.above else img < self.threshold, img, cval)
+        res, *_ = convert_data_type(res, dtype=img.dtype)
+        return res  # type: ignore
 
 
 class ScaleIntensityRange(TorchTransform, NumpyTransform):

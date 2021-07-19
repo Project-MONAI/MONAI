@@ -12,22 +12,26 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import ThresholdIntensity
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASE_1 = [{"threshold": 5, "above": True, "cval": 0}, (0, 0, 0, 0, 0, 0, 6, 7, 8, 9)]
-
-TEST_CASE_2 = [{"threshold": 5, "above": False, "cval": 0}, (0, 1, 2, 3, 4, 0, 0, 0, 0, 0)]
-
-TEST_CASE_3 = [{"threshold": 5, "above": True, "cval": 5}, (5, 5, 5, 5, 5, 5, 6, 7, 8, 9)]
+TESTS = []
+for p in TEST_NDARRAYS:
+    TESTS.append([p, {"threshold": 5, "above": True, "cval": 0}, (0, 0, 0, 0, 0, 0, 6, 7, 8, 9)])
+    TESTS.append([p, {"threshold": 5, "above": False, "cval": 0}, (0, 1, 2, 3, 4, 0, 0, 0, 0, 0)])
+    TESTS.append([p, {"threshold": 5, "above": True, "cval": 5}, (5, 5, 5, 5, 5, 5, 6, 7, 8, 9)])
 
 
 class TestThresholdIntensity(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
-    def test_value(self, input_param, expected_value):
-        test_data = np.arange(10)
+    @parameterized.expand(TESTS)
+    def test_value(self, in_type, input_param, expected_value):
+        test_data = in_type(np.arange(10))
         result = ThresholdIntensity(**input_param)(test_data)
+        if isinstance(result, torch.Tensor):
+            result = result.cpu()
         np.testing.assert_allclose(result, expected_value)
 
 
