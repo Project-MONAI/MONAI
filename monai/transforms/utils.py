@@ -791,8 +791,8 @@ def get_extreme_points(
 
     points = []
     for i in range(img.ndim):
-        points.append(tuple(_get_point(indices[i][...].min(), i)))
-        points.append(tuple(_get_point(indices[i][...].max(), i)))
+        points.append(tuple(_get_point(indices[i].min(), i)))
+        points.append(tuple(_get_point(indices[i].max(), i)))
 
     return points
 
