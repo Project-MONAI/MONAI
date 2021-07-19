@@ -29,7 +29,6 @@ from monai.transforms.transform import (
     Randomizable,
     RandomizableTransform,
     ThreadUnsafe,
-    ToDoTransform,
     TorchOrNumpyTransform,
     TorchTransform,
     Transform,
@@ -1763,7 +1762,7 @@ class Rand3DElastic(TorchTransform, RandomizableTransform):
         return self.resampler(img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode)
 
 
-class AddCoordinateChannels(ToDoTransform):
+class AddCoordinateChannels(TorchOrNumpyTransform):
     """
     Appends additional channels encoding coordinates of the input. Useful when e.g. training using patch-based sampling,
     to allow feeding of the patch's location into the network.
@@ -1785,7 +1784,7 @@ class AddCoordinateChannels(ToDoTransform):
         """
         self.spatial_channels = spatial_channels
 
-    def __call__(self, img: DataObjects.Images):
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Args:
             img: data to be transformed, assuming `img` is channel first.
@@ -1799,8 +1798,15 @@ class AddCoordinateChannels(ToDoTransform):
             raise ValueError("cannot add AddCoordinateChannels channel for dimension 0, as 0 is channel dim.")
 
         spatial_dims = img.shape[1:]
-        coord_channels = np.array(np.meshgrid(*tuple(np.linspace(-0.5, 0.5, s) for s in spatial_dims), indexing="ij"))
+        coord_channels = np.meshgrid(*tuple(np.linspace(-0.5, 0.5, s) for s in spatial_dims), indexing="ij")
+        coord_channels, *_ = convert_data_type(
+            coord_channels, type(img), device=img.device if isinstance(img, torch.Tensor) else None
+        )
         # only keep required dimensions. need to subtract 1 since im will be 0-based
         # but user input is 1-based (because channel dim is 0)
         coord_channels = coord_channels[[s - 1 for s in self.spatial_channels]]
-        return np.concatenate((img, coord_channels), axis=0)
+        if isinstance(img, torch.Tensor):
+            out = torch.cat((img, coord_channels), dim=0)
+        else:
+            out = np.concatenate((img, coord_channels), axis=0)
+        return out

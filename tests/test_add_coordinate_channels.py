@@ -12,32 +12,38 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import AddCoordinateChannels
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASE_1 = [{"spatial_channels": (1, 2, 3)}, np.random.randint(0, 2, size=(1, 3, 3, 3)), (4, 3, 3, 3)]
-
-TEST_CASE_2 = [{"spatial_channels": (1,)}, np.random.randint(0, 2, size=(1, 3, 3, 3)), (2, 3, 3, 3)]
-
-TEST_CASE_ERROR_3 = [{"spatial_channels": (3,)}, np.random.randint(0, 2, size=(1, 3, 3))]
-
-TEST_CASE_ERROR_4 = [{"spatial_channels": (0, 1, 2)}, np.random.randint(0, 2, size=(1, 3, 3))]
+TESTS, TEST_CASES_ERROR_1, TEST_CASES_ERROR_2 = [], [], []
+for p in TEST_NDARRAYS:
+    TESTS.append([{"spatial_channels": (1, 2, 3)}, p(np.random.randint(0, 2, size=(1, 3, 3, 3))), (4, 3, 3, 3)])
+    TESTS.append([{"spatial_channels": (1,)}, p(np.random.randint(0, 2, size=(1, 3, 3, 3))), (2, 3, 3, 3)])
+    TEST_CASES_ERROR_1.append([{"spatial_channels": (3,)}, p(np.random.randint(0, 2, size=(1, 3, 3)))])
+    TEST_CASES_ERROR_2.append([{"spatial_channels": (0, 1, 2)}, p(np.random.randint(0, 2, size=(1, 3, 3)))])
 
 
 class TestAddCoordinateChannels(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    @parameterized.expand(TESTS)
     def test_shape(self, input_param, input, expected_shape):
         result = AddCoordinateChannels(**input_param)(input)
+        self.assertEqual(type(result), type(input))
+        if isinstance(result, torch.Tensor):
+            self.assertEqual(result.device, input.device)
+            input = input.cpu()
+            result = result.cpu()
         self.assertEqual(list(result.shape), list(expected_shape))
         np.testing.assert_array_equal(input[0, ...], result[0, ...])
 
-    @parameterized.expand([TEST_CASE_ERROR_3])
+    @parameterized.expand(TEST_CASES_ERROR_1)
     def test_max_channel(self, input_param, input):
         with self.assertRaises(ValueError):
             AddCoordinateChannels(**input_param)(input)
 
-    @parameterized.expand([TEST_CASE_ERROR_4])
+    @parameterized.expand(TEST_CASES_ERROR_2)
     def test_channel_dim(self, input_param, input):
         with self.assertRaises(ValueError):
             AddCoordinateChannels(**input_param)(input)

@@ -54,8 +54,11 @@ class TestResize(NumpyImageTestCase2D):
                 )
             )
         expected = np.stack(expected).astype(np.float32)
-        out = resize(in_type(self.imt[0]))
+        im = in_type(self.imt[0])
+        out = resize(im)
+        self.assertEqual(type(im), type(out))
         if isinstance(out, torch.Tensor):
+            self.assertEqual(im.device, out.device)
             out = out.cpu()
         np.testing.assert_allclose(out, expected, atol=0.9)
 
