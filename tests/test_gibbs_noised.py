@@ -44,6 +44,9 @@ class TestGibbsNoised(unittest.TestCase):
     @staticmethod
     def get_data(im_shape, input_type):
         create_test_image = create_test_image_2d if len(im_shape) == 2 else create_test_image_3d
+        ims = create_test_image(*im_shape, rad_max=20, noise_max=0.0, num_seg_classes=5)
+        ims = [torch.Tensor(im) for im in ims] if as_tensor_input else ims
+        return {k: v for k, v in zip(KEYS, ims)}
         return {k: input_type(create_test_image(*im_shape, 4, 20, 0, 5)[0]) for k in KEYS}
 
     @parameterized.expand(TEST_CASES)
