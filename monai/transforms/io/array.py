@@ -23,7 +23,7 @@ from monai.config import DtypeLike
 from monai.data.image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader
 from monai.data.nifti_saver import NiftiSaver
 from monai.data.png_saver import PNGSaver
-from monai.transforms.transform import Transform
+from monai.transforms.transform import NumpyTransform, TorchTransform, Transform
 from monai.utils import GridSampleMode, GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
 from monai.utils import InterpolateMode, ensure_tuple, optional_import
@@ -183,7 +183,7 @@ class LoadImage(Transform):
         return img_array, meta_data
 
 
-class SaveImage(Transform):
+class SaveImage(TorchTransform, NumpyTransform):
     """
     Save transformed data into files, support NIfTI and PNG formats.
     It can work for both numpy array and PyTorch Tensor in both preprocessing transform

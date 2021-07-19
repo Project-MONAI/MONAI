@@ -17,24 +17,37 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import SaveImage
+from monai.utils.module import optional_import
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASE_1 = [
-    torch.randint(0, 255, (1, 2, 3, 4)),
-    {"filename_or_obj": "testfile0.nii.gz"},
-    ".nii.gz",
-    False,
-]
+_, has_pil = optional_import("PIL")
+_, has_nib = optional_import("nibabel")
 
-TEST_CASE_2 = [
-    torch.randint(0, 255, (1, 2, 3, 4)),
-    None,
-    ".nii.gz",
-    False,
-]
+exts = [ext for has_lib, ext in zip((has_nib, has_pil), (".nii.gz", ".png")) if has_lib]
+
+TESTS = []
+for p in TEST_NDARRAYS:
+    for ext in exts:
+        TESTS.append(
+            [
+                p(torch.randint(0, 255, (1, 2, 3, 4))),
+                {"filename_or_obj": "testfile0" + ext},
+                ext,
+                False,
+            ]
+        )
+        TESTS.append(
+            [
+                p(torch.randint(0, 255, (1, 2, 3, 4))),
+                None,
+                ext,
+                False,
+            ]
+        )
 
 
 class TestSaveImage(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    @parameterized.expand(TESTS, skip_on_empty=True)
     def test_saved_content(self, test_data, meta_data, output_ext, resample):
         with tempfile.TemporaryDirectory() as tempdir:
             trans = SaveImage(
