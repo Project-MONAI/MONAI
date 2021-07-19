@@ -2,7 +2,7 @@ from inspect import getmembers, isclass
 
 from monai import transforms
 from monai.transforms import MapTransform, Transform
-from monai.transforms.transform import NumpyTransform, TorchOrNumpyTransform, TorchTransform
+from monai.transforms.transform import NumpyTransform, TorchTransform
 
 
 class Colours:
@@ -40,7 +40,7 @@ for n, obj in getmembers(transforms):
         ]:
             continue
         tr_total += 1
-        if issubclass(obj, TorchOrNumpyTransform):
+        if issubclass(obj, TorchTransform) and issubclass(obj, NumpyTransform):
             tr_t_or_np += 1
             print_colour(f"TorchOrNumpy:  {n}", Colours.green)
         elif issubclass(obj, TorchTransform):
@@ -53,7 +53,7 @@ for n, obj in getmembers(transforms):
             tr_uncategorised += 1
             print_colour(f"Uncategorised: {n}", Colours.red)
 print("Total number of transforms:", tr_total)
-print_colour(f"Number of TorchOrNumpyTransform: {tr_t_or_np}", Colours.green)
+print_colour(f"Number transforms allowing both torch and numpy: {tr_t_or_np}", Colours.green)
 print_colour(f"Number of TorchTransform: {tr_t}", Colours.green)
 print_colour(f"Number of NumpyTransform: {tr_np}", Colours.yellow)
 print_colour(f"Number of uncategorised: {tr_uncategorised}", Colours.red)

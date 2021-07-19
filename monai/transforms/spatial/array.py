@@ -24,15 +24,7 @@ from monai.config import USE_COMPILED, DtypeLike
 from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.transforms.croppad.array import CenterSpatialCrop, Pad
-from monai.transforms.transform import (
-    NumpyTransform,
-    Randomizable,
-    RandomizableTransform,
-    ThreadUnsafe,
-    TorchOrNumpyTransform,
-    TorchTransform,
-    Transform,
-)
+from monai.transforms.transform import NumpyTransform, Randomizable, RandomizableTransform, ThreadUnsafe, TorchTransform
 from monai.transforms.utils import (
     create_control_grid,
     create_grid,
@@ -636,7 +628,7 @@ class Zoom(TorchTransform):
         return out
 
 
-class Rotate90(TorchOrNumpyTransform):
+class Rotate90(TorchTransform, NumpyTransform):
     """
     Rotate an array by 90 degrees in the plane specified by `axes`.
     See np.rot90 for additional details:
@@ -668,7 +660,7 @@ class Rotate90(TorchOrNumpyTransform):
         return np.rot90(img, self.k, map_spatial_axes(img.ndim, self.spatial_axes)).astype(img.dtype)  # type: ignore
 
 
-class RandRotate90(TorchOrNumpyTransform, RandomizableTransform):
+class RandRotate90(TorchTransform, NumpyTransform, RandomizableTransform):
     """
     With probability `prob`, input arrays are rotated by 90 degrees
     in the plane specified by `spatial_axes`.
@@ -1146,7 +1138,7 @@ class RandAffineGrid(Randomizable, TorchTransform):
         return self.affine
 
 
-class RandDeformGrid(Randomizable, Transform):
+class RandDeformGrid(Randomizable, TorchTransform, NumpyTransform):
     """
     Generate random deformation grid.
     """
@@ -1766,7 +1758,7 @@ class Rand3DElastic(TorchTransform, RandomizableTransform):
         return self.resampler(img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode)
 
 
-class AddCoordinateChannels(TorchOrNumpyTransform):
+class AddCoordinateChannels(TorchTransform, NumpyTransform):
     """
     Appends additional channels encoding coordinates of the input. Useful when e.g. training using patch-based sampling,
     to allow feeding of the patch's location into the network.

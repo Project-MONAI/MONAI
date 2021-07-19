@@ -23,7 +23,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike
-from monai.transforms.transform import NumpyTransform, Randomizable, TorchOrNumpyTransform, TorchTransform, Transform
+from monai.transforms.transform import NumpyTransform, Randomizable, TorchTransform, Transform
 from monai.transforms.utils import (
     convert_to_numpy,
     convert_to_tensor,
@@ -70,7 +70,7 @@ __all__ = [
 ]
 
 
-class Identity(TorchOrNumpyTransform):
+class Identity(TorchTransform, NumpyTransform):
     """
     Convert the input to an np.ndarray, if input data is np.ndarray or subclasses, return unchanged data.
     As the output value is same as input, it can be used as a testing tool to verify the transform chain,
@@ -85,7 +85,7 @@ class Identity(TorchOrNumpyTransform):
         return img
 
 
-class AsChannelFirst(TorchOrNumpyTransform):
+class AsChannelFirst(TorchTransform, NumpyTransform):
     """
     Change the channel dimension of the image to the first dimension.
 
@@ -118,7 +118,7 @@ class AsChannelFirst(TorchOrNumpyTransform):
         return convert_data_type(img, orig_type, orig_device)[0]
 
 
-class AsChannelLast(TorchOrNumpyTransform):
+class AsChannelLast(TorchTransform, NumpyTransform):
     """
     Change the channel dimension of the image to the last dimension.
 
@@ -150,7 +150,7 @@ class AsChannelLast(TorchOrNumpyTransform):
         return convert_data_type(img, orig_type, orig_device)[0]
 
 
-class AddChannel(TorchOrNumpyTransform):
+class AddChannel(TorchTransform, NumpyTransform):
     """
     Adds a 1-length channel dimension to the input image.
 
@@ -210,7 +210,7 @@ class EnsureChannelFirst(TorchTransform):
         return AsChannelFirst(channel_dim=channel_dim)(img)
 
 
-class RepeatChannel(TorchOrNumpyTransform):
+class RepeatChannel(TorchTransform, NumpyTransform):
     """
     Repeat channel data to construct expected input shape for models.
     The `repeats` count includes the origin data, for example:
@@ -233,7 +233,7 @@ class RepeatChannel(TorchOrNumpyTransform):
         return repeeat_fn(img, self.repeats, 0)  # type: ignore
 
 
-class RemoveRepeatedChannel(TorchOrNumpyTransform):
+class RemoveRepeatedChannel(TorchTransform, NumpyTransform):
     """
     RemoveRepeatedChannel data to undo RepeatChannel
     The `repeats` count specifies the deletion of the origin data, for example:
@@ -259,7 +259,7 @@ class RemoveRepeatedChannel(TorchOrNumpyTransform):
         return img[:: self.repeats, :]
 
 
-class SplitChannel(TorchOrNumpyTransform):
+class SplitChannel(TorchTransform, NumpyTransform):
     """
     Split Numpy array or PyTorch Tensor data according to the channel dim.
     It can help applying different following transforms to different channels.
@@ -286,7 +286,7 @@ class SplitChannel(TorchOrNumpyTransform):
         return outputs
 
 
-class CastToType(TorchOrNumpyTransform):
+class CastToType(TorchTransform, NumpyTransform):
     """
     Cast the Numpy data to specified numpy data type, or cast the PyTorch Tensor to
     specified PyTorch data type.
@@ -433,7 +433,7 @@ class Transpose(NumpyTransform):
         return out
 
 
-class SqueezeDim(TorchOrNumpyTransform):
+class SqueezeDim(TorchTransform, NumpyTransform):
     """
     Squeeze a unitary dimension.
     """
@@ -465,7 +465,7 @@ class SqueezeDim(TorchOrNumpyTransform):
         return img.squeeze(self.dim)
 
 
-class DataStats(TorchOrNumpyTransform):
+class DataStats(TorchTransform, NumpyTransform):
     """
     Utility transform to show the statistics of data for debug or analysis.
     It can be inserted into any place of a transform chain and check results of previous transforms.
@@ -556,7 +556,7 @@ class DataStats(TorchOrNumpyTransform):
         return img
 
 
-class SimulateDelay(TorchOrNumpyTransform):
+class SimulateDelay(TorchTransform, NumpyTransform):
     """
     This is a pass through transform to be used for testing purposes. It allows
     adding fake behaviors that are useful for testing purposes to simulate
@@ -736,7 +736,7 @@ class FgBgToIndices(Transform):
         return fg_indices, bg_indices
 
 
-class ClassesToIndices(TorchOrNumpyTransform):
+class ClassesToIndices(TorchTransform, NumpyTransform):
     def __init__(
         self,
         num_classes: Optional[int] = None,
@@ -812,7 +812,7 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
         return np.stack(result, axis=0)
 
 
-class AddExtremePointsChannel(Randomizable, Transform):
+class AddExtremePointsChannel(Randomizable, TorchTransform):
     """
     Add extreme points of label to the image as a new channel. This transform generates extreme
     point from label and applies a gaussian filter. The pixel values in points image are rescaled

@@ -242,13 +242,6 @@ class Transform(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
-class TorchOrNumpyTransform(Transform):
-    """Transforms that inherit from this class process the input the same regardless of whether
-    the input is torch or numpy. No conversions are needed."""
-
-    pass
-
-
 class TorchTransform(Transform):
     """Most transforms use torch. If the transforms inherits from this class, then that is the case.
     If the input is not torch, convert to torch and then convert back at the end."""

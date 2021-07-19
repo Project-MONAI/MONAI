@@ -24,7 +24,7 @@ import torch
 
 from monai.config import DtypeLike
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
-from monai.transforms.transform import RandomizableTransform, TorchOrNumpyTransform, TorchTransform, Transform
+from monai.transforms.transform import NumpyTransform, RandomizableTransform, TorchTransform, Transform
 from monai.transforms.utils import rescale_array
 from monai.utils import PT_BEFORE_1_7, InvalidPyTorchVersionError, ensure_tuple, ensure_tuple_rep, ensure_tuple_size
 from monai.utils.enums import DataObjects
@@ -94,7 +94,7 @@ class RandGaussianNoise(RandomizableTransform):
         return img + self._noise.astype(dtype)
 
 
-class RandRicianNoise(TorchOrNumpyTransform, RandomizableTransform):
+class RandRicianNoise(TorchTransform, NumpyTransform, RandomizableTransform):
     """
     Add Rician noise to image.
     Rician noise in MRI is the result of performing a magnitude operation on complex
@@ -173,7 +173,7 @@ class RandRicianNoise(TorchOrNumpyTransform, RandomizableTransform):
         return img
 
 
-class ShiftIntensity(TorchOrNumpyTransform):
+class ShiftIntensity(TorchTransform, NumpyTransform):
     """
     Shift intensity uniformly for the entire image with specified `offset`.
 
@@ -194,7 +194,7 @@ class ShiftIntensity(TorchOrNumpyTransform):
         return out.astype(img.dtype)  # type: ignore
 
 
-class RandShiftIntensity(RandomizableTransform, TorchOrNumpyTransform):
+class RandShiftIntensity(RandomizableTransform, TorchTransform, NumpyTransform):
     """
     Randomly shift intensity with randomly picked offset.
     """
@@ -230,7 +230,7 @@ class RandShiftIntensity(RandomizableTransform, TorchOrNumpyTransform):
         return shifter(img)
 
 
-class StdShiftIntensity(TorchOrNumpyTransform):
+class StdShiftIntensity(TorchTransform, NumpyTransform):
     """
     Shift intensity for the image with a factor and the standard deviation of the image
     by: ``v = v + factor * std(v)``.
@@ -284,7 +284,7 @@ class StdShiftIntensity(TorchOrNumpyTransform):
         return img
 
 
-class RandStdShiftIntensity(TorchOrNumpyTransform, RandomizableTransform):
+class RandStdShiftIntensity(TorchTransform, NumpyTransform, RandomizableTransform):
     """
     Shift intensity for the image with a factor and the standard deviation of the image
     by: ``v = v + factor * std(v)`` where the `factor` is randomly picked.
@@ -337,7 +337,7 @@ class RandStdShiftIntensity(TorchOrNumpyTransform, RandomizableTransform):
         return shifter(img)
 
 
-class ScaleIntensity(TorchOrNumpyTransform):
+class ScaleIntensity(TorchTransform, NumpyTransform):
     """
     Scale the intensity of input image to the given value range (minv, maxv).
     If `minv` and `maxv` not provided, use `factor` to scale image by ``v = v * (1 + factor)``.
@@ -376,7 +376,7 @@ class ScaleIntensity(TorchOrNumpyTransform):
         raise ValueError("Incompatible values: minv=None or maxv=None and factor=None.")
 
 
-class RandScaleIntensity(TorchOrNumpyTransform, RandomizableTransform):
+class RandScaleIntensity(TorchTransform, NumpyTransform, RandomizableTransform):
     """
     Randomly scale the intensity of input image by ``v = v * (1 + factor)`` where the `factor`
     is randomly picked.
@@ -604,7 +604,7 @@ class ThresholdIntensity(Transform):
         )
 
 
-class ScaleIntensityRange(TorchOrNumpyTransform):
+class ScaleIntensityRange(TorchTransform, NumpyTransform):
     """
     Apply specific intensity scaling to the whole numpy array.
     Scaling from [a_min, a_max] to [b_min, b_max] with clip option.
@@ -640,7 +640,7 @@ class ScaleIntensityRange(TorchOrNumpyTransform):
         return img
 
 
-class AdjustContrast(TorchOrNumpyTransform):
+class AdjustContrast(TorchTransform, NumpyTransform):
     """
     Changes image intensity by gamma. Each pixel/voxel intensity is updated as::
 
@@ -665,7 +665,7 @@ class AdjustContrast(TorchOrNumpyTransform):
         return ((img - img_min) / float(img_range + epsilon)) ** self.gamma * img_range + img_min
 
 
-class RandAdjustContrast(TorchOrNumpyTransform, RandomizableTransform):
+class RandAdjustContrast(TorchTransform, NumpyTransform, RandomizableTransform):
     """
     Randomly changes image intensity by gamma. Each pixel/voxel intensity is updated as::
 
@@ -710,7 +710,7 @@ class RandAdjustContrast(TorchOrNumpyTransform, RandomizableTransform):
         return adjuster(img)
 
 
-class ScaleIntensityRangePercentiles(TorchOrNumpyTransform):
+class ScaleIntensityRangePercentiles(TorchTransform, NumpyTransform):
     """
     Apply range scaling to a numpy array based on the intensity distribution of the input.
 
@@ -802,7 +802,7 @@ class ScaleIntensityRangePercentiles(TorchOrNumpyTransform):
         return img
 
 
-class MaskIntensity(TorchOrNumpyTransform):
+class MaskIntensity(TorchTransform, NumpyTransform):
     """
     Mask the intensity values of input image with the specified mask data.
     Mask data must have the same spatial size as the input image, and all
@@ -1179,7 +1179,7 @@ class RandHistogramShift(RandomizableTransform):
         )
 
 
-class RandGibbsNoise(TorchOrNumpyTransform, RandomizableTransform):
+class RandGibbsNoise(TorchTransform, NumpyTransform, RandomizableTransform):
     """
     Naturalistic image augmentation via Gibbs artifacts. The transform
     randomly applies Gibbs noise to 2D/3D MRI images. Gibbs artifacts
@@ -1234,7 +1234,7 @@ class RandGibbsNoise(TorchOrNumpyTransform, RandomizableTransform):
         self.sampled_alpha = self.R.uniform(self.alpha[0], self.alpha[1])
 
 
-class GibbsNoise(TorchOrNumpyTransform):
+class GibbsNoise(TorchTransform, NumpyTransform):
     """
     The transform applies Gibbs noise to 2D/3D MRI images. Gibbs artifacts
     are one of the common type of type artifacts appearing in MRI scans.

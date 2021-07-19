@@ -23,7 +23,7 @@ from torch.nn.functional import pad as pad_pt
 
 from monai.config import IndexSelection
 from monai.data.utils import get_random_patch, get_valid_patch_size
-from monai.transforms.transform import NumpyTransform, Randomizable, TorchOrNumpyTransform, Transform
+from monai.transforms.transform import NumpyTransform, Randomizable, TorchTransform, Transform
 from monai.transforms.utils import (
     compute_divisible_spatial_size,
     generate_label_classes_crop_centers,
@@ -58,7 +58,7 @@ __all__ = [
 ]
 
 
-class Pad(TorchOrNumpyTransform):
+class Pad(TorchTransform, NumpyTransform):
     """
     Perform padding for a given an amount of padding in each dimension.
 
@@ -122,7 +122,7 @@ class Pad(TorchOrNumpyTransform):
         return pad(img, self.to_pad, mode, **self.np_kwargs)
 
 
-class SpatialPad(TorchOrNumpyTransform):
+class SpatialPad(TorchTransform, NumpyTransform):
     """
     Performs padding to the data, symmetric for all sides or all on one side for each dimension.
 
@@ -190,7 +190,7 @@ class SpatialPad(TorchOrNumpyTransform):
         return padder(img)
 
 
-class BorderPad(TorchOrNumpyTransform):
+class BorderPad(TorchTransform, NumpyTransform):
     """
     Pad the input data by adding specified borders to every dimension.
 
@@ -263,7 +263,7 @@ class BorderPad(TorchOrNumpyTransform):
         return padder(img)
 
 
-class DivisiblePad(TorchOrNumpyTransform):
+class DivisiblePad(TorchTransform, NumpyTransform):
     """
     Pad the input data, so that the spatial sizes are divisible by `k`.
     """
@@ -317,7 +317,7 @@ class DivisiblePad(TorchOrNumpyTransform):
         return spatial_pad(img)
 
 
-class SpatialCrop(TorchOrNumpyTransform):
+class SpatialCrop(TorchTransform, NumpyTransform):
     """
     General purpose cropper to produce sub-volume region of interest (ROI).
     If a dimension of the expected ROI size is bigger than the input image size, will not crop that dimension.
@@ -380,7 +380,7 @@ class SpatialCrop(TorchOrNumpyTransform):
         return img[tuple(slices)]
 
 
-class CenterSpatialCrop(TorchOrNumpyTransform):
+class CenterSpatialCrop(TorchTransform, NumpyTransform):
     """
     Crop at the center of image with specified ROI size.
     If a dimension of the expected ROI size is bigger than the input image size, will not crop that dimension.
@@ -901,7 +901,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         return results
 
 
-class RandCropByLabelClasses(Randomizable, TorchOrNumpyTransform):
+class RandCropByLabelClasses(Randomizable, TorchTransform, NumpyTransform):
     """
     Crop random fixed sized regions with the center being a class based on the specified ratios of every class.
     The label data can be One-Hot format array or Argmax data. And will return a list of arrays for all the
