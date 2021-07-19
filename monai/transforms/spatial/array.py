@@ -347,7 +347,7 @@ class Flip(TorchTransform):
         return self.post_convert_data(result, orig_type, orig_device)
 
 
-class Resize(ToDoTransform):
+class Resize(TorchTransform):
     """
     Resize the input image to given spatial size (with scaling, not cropping/padding).
     Implemented using :py:class:`torch.nn.functional.interpolate`.
@@ -377,10 +377,10 @@ class Resize(ToDoTransform):
 
     def __call__(
         self,
-        img: np.ndarray,
+        img: DataObjects.Images,
         mode: Optional[Union[InterpolateMode, str]] = None,
         align_corners: Optional[bool] = None,
-    ) -> np.ndarray:
+    ) -> DataObjects.Images:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]).
@@ -395,25 +395,28 @@ class Resize(ToDoTransform):
             ValueError: When ``self.spatial_size`` length is less than ``img`` spatial dimensions.
 
         """
-        input_ndim = img.ndim - 1  # spatial ndim
+        img_t: torch.Tensor
+        img_t, orig_type, orig_device = convert_data_type(img, torch.Tensor, dtype=float)  # type: ignore
+        input_ndim = img_t.ndim - 1  # spatial ndim
         output_ndim = len(self.spatial_size)
         if output_ndim > input_ndim:
-            input_shape = ensure_tuple_size(img.shape, output_ndim + 1, 1)
-            img = img.reshape(input_shape)
+            input_shape = ensure_tuple_size(img_t.shape, output_ndim + 1, 1)
+            img_t = img_t.reshape(input_shape)
         elif output_ndim < input_ndim:
             raise ValueError(
                 "len(spatial_size) must be greater or equal to img spatial dimensions, "
                 f"got spatial_size={output_ndim} img={input_ndim}."
             )
-        spatial_size = fall_back_tuple(self.spatial_size, img.shape[1:])
-        resized = torch.nn.functional.interpolate(  # type: ignore
-            input=torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0),
+        spatial_size = fall_back_tuple(self.spatial_size, img_t.shape[1:])
+        resized = torch.nn.functional.interpolate(
+            input=img_t.unsqueeze(0),
             size=spatial_size,
             mode=self.mode.value if mode is None else InterpolateMode(mode).value,
             align_corners=self.align_corners if align_corners is None else align_corners,
         )
-        resized = resized.squeeze(0).detach().cpu().numpy()
-        return np.asarray(resized)
+        resized = resized.squeeze(0)
+        out, *_ = convert_data_type(resized, orig_type, orig_device)
+        return out
 
 
 class Rotate(TorchTransform, ThreadUnsafe):

@@ -12,15 +12,18 @@
 from typing import Optional, Sequence, Union
 
 import numpy as np
+import torch
 
 from monai.transforms.spatial.array import Resize
 from monai.utils import InterpolateMode, ensure_tuple_rep, optional_import
+from monai.utils.enums import DataObjects
+from monai.utils.misc import convert_data_type
 
 Image, _ = optional_import("PIL", name="Image")
 
 
 def write_png(
-    data: np.ndarray,
+    data: DataObjects.Images,
     file_name: str,
     output_spatial_shape: Optional[Sequence[int]] = None,
     mode: Union[InterpolateMode, str] = InterpolateMode.BICUBIC,
@@ -47,39 +50,42 @@ def write_png(
         ValueError: When ``scale`` is not one of [255, 65535].
 
     """
-    if not isinstance(data, np.ndarray):
-        raise AssertionError("input data must be numpy array.")
-    if len(data.shape) == 3 and data.shape[2] == 1:  # PIL Image can't save image with 1 channel
-        data = data.squeeze(2)
+    if not isinstance(data, (np.ndarray, torch.Tensor)):
+        raise AssertionError("input data must be np.ndarray/torch.Tensor.")
+    data_np: np.ndarray
+    data_np, *_ = convert_data_type(data, np.ndarray)  # type: ignore
+    if len(data_np.shape) == 3 and data_np.shape[2] == 1:  # PIL Image can't save image with 1 channel
+        data_np = data_np.squeeze(2)
     if output_spatial_shape is not None:
         output_spatial_shape_ = ensure_tuple_rep(output_spatial_shape, 2)
         mode = InterpolateMode(mode)
         align_corners = None if mode in (InterpolateMode.NEAREST, InterpolateMode.AREA) else False
         xform = Resize(spatial_size=output_spatial_shape_, mode=mode, align_corners=align_corners)
-        _min, _max = np.min(data), np.max(data)
-        if len(data.shape) == 3:
-            data = np.moveaxis(data, -1, 0)  # to channel first
-            data = xform(data)
-            data = np.moveaxis(data, 0, -1)
+        _min, _max = np.min(data_np), np.max(data_np)
+        if len(data_np.shape) == 3:
+            data_np = np.moveaxis(data_np, -1, 0)  # to channel first
+            data_np = xform(data_np)  # type: ignore
+            data_np = np.moveaxis(data_np, 0, -1)
         else:  # (H, W)
-            data = np.expand_dims(data, 0)  # make a channel
-            data = xform(data)[0]  # first channel
+            data_np = np.expand_dims(data_np, 0)  # make a channel
+            # first channel
+            data_np = xform(data_np)[0]  # type: ignore
         if mode != InterpolateMode.NEAREST:
-            data = np.clip(data, _min, _max)  # type: ignore
+            data_np = np.clip(data_np, _min, _max)  # type: ignore
 
     if scale is not None:
-        data = np.clip(data, 0.0, 1.0)  # type: ignore # png writer only can scale data in range [0, 1]
+        data_np = np.clip(data_np, 0.0, 1.0)  # type: ignore # png writer only can scale data in range [0, 1]
         if scale == np.iinfo(np.uint8).max:
-            data = (scale * data).astype(np.uint8)
+            data_np = (scale * data_np).astype(np.uint8)
         elif scale == np.iinfo(np.uint16).max:
-            data = (scale * data).astype(np.uint16)
+            data_np = (scale * data_np).astype(np.uint16)
         else:
             raise ValueError(f"Unsupported scale: {scale}, available options are [255, 65535]")
 
     # PNG data must be int number
-    if data.dtype not in (np.uint8, np.uint16):  # type: ignore
-        data = data.astype(np.uint8)
+    if data_np.dtype not in (np.uint8, np.uint16):  # type: ignore
+        data_np = data_np.astype(np.uint8)
 
-    img = Image.fromarray(data)
+    img = Image.fromarray(data_np)
     img.save(file_name, "PNG")
     return

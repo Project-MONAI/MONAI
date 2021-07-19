@@ -10,13 +10,22 @@
 # limitations under the License.
 
 import unittest
+from typing import List, Tuple
 
 import numpy as np
 import skimage.transform
+import torch
 from parameterized import parameterized
 
 from monai.transforms import Resized
-from tests.utils import NumpyImageTestCase2D
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D
+
+TESTS: List[Tuple] = []
+for p in TEST_NDARRAYS:
+    TESTS.append((p, (32, -1), "area"))
+    TESTS.append((p, (64, 64), "area"))
+    TESTS.append((p, (32, 32, 32), "area"))
+    TESTS.append((p, (256, 256), "bilinear"))
 
 
 class TestResized(NumpyImageTestCase2D):
@@ -29,8 +38,8 @@ class TestResized(NumpyImageTestCase2D):
             resize = Resized(keys="img", spatial_size=(128,), mode="order")
             resize({"img": self.imt[0]})
 
-    @parameterized.expand([((32, -1), "area"), ((64, 64), "area"), ((32, 32, 32), "area"), ((256, 256), "bilinear")])
-    def test_correct_results(self, spatial_size, mode):
+    @parameterized.expand(TESTS)
+    def test_correct_results(self, in_type, spatial_size, mode):
         resize = Resized("img", spatial_size, mode)
         _order = 0
         if mode.endswith("linear"):
@@ -45,7 +54,9 @@ class TestResized(NumpyImageTestCase2D):
                 )
             )
         expected = np.stack(expected).astype(np.float32)
-        out = resize({"img": self.imt[0]})["img"]
+        out = resize({"img": in_type(self.imt[0])})["img"]
+        if isinstance(out, torch.Tensor):
+            out = out.cpu()
         np.testing.assert_allclose(out, expected, atol=0.9)
 
 

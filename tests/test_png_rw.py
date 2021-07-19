@@ -14,62 +14,75 @@ import tempfile
 import unittest
 
 import numpy as np
+from parameterized import parameterized
 from PIL import Image
 
 from monai.data import write_png
+from tests.utils import TEST_NDARRAYS
+
+TESTS = []
+for p in TEST_NDARRAYS:
+    TESTS.append((p,))
+# TESTS = [[np.array]]
 
 
 class TestPngWrite(unittest.TestCase):
-    def test_write_gray(self):
+    @parameterized.expand(TESTS)
+    def test_write_gray(self, in_type):
         with tempfile.TemporaryDirectory() as out_dir:
             image_name = os.path.join(out_dir, "test.png")
             img = np.random.rand(2, 3)
             img_save_val = (255 * img).astype(np.uint8)
-            write_png(img, image_name, scale=255)
+            write_png(in_type(img), image_name, scale=255)
             out = np.asarray(Image.open(image_name))
             np.testing.assert_allclose(out, img_save_val)
 
-    def test_write_gray_1height(self):
+    @parameterized.expand(TESTS)
+    def test_write_gray_1height(self, in_type):
         with tempfile.TemporaryDirectory() as out_dir:
             image_name = os.path.join(out_dir, "test.png")
             img = np.random.rand(1, 3)
             img_save_val = (65535 * img).astype(np.uint16)
-            write_png(img, image_name, scale=65535)
+            write_png(in_type(img), image_name, scale=65535)
             out = np.asarray(Image.open(image_name))
             np.testing.assert_allclose(out, img_save_val)
 
-    def test_write_gray_1channel(self):
+    @parameterized.expand(TESTS)
+    def test_write_gray_1channel(self, in_type):
         with tempfile.TemporaryDirectory() as out_dir:
             image_name = os.path.join(out_dir, "test.png")
             img = np.random.rand(2, 3, 1)
             img_save_val = (255 * img).astype(np.uint8).squeeze(2)
-            write_png(img, image_name, scale=255)
+            write_png(in_type(img), image_name, scale=255)
             out = np.asarray(Image.open(image_name))
             np.testing.assert_allclose(out, img_save_val)
 
-    def test_write_rgb(self):
+    @parameterized.expand(TESTS)
+    def test_write_rgb(self, in_type):
         with tempfile.TemporaryDirectory() as out_dir:
             image_name = os.path.join(out_dir, "test.png")
             img = np.random.rand(2, 3, 3)
             img_save_val = (255 * img).astype(np.uint8)
-            write_png(img, image_name, scale=255)
+            write_png(in_type(img), image_name, scale=255)
             out = np.asarray(Image.open(image_name))
             np.testing.assert_allclose(out, img_save_val)
 
-    def test_write_2channels(self):
+    @parameterized.expand(TESTS)
+    def test_write_2channels(self, in_type):
         with tempfile.TemporaryDirectory() as out_dir:
             image_name = os.path.join(out_dir, "test.png")
             img = np.random.rand(2, 3, 2)
             img_save_val = (255 * img).astype(np.uint8)
-            write_png(img, image_name, scale=255)
+            write_png(in_type(img), image_name, scale=255)
             out = np.asarray(Image.open(image_name))
             np.testing.assert_allclose(out, img_save_val)
 
-    def test_write_output_shape(self):
+    @parameterized.expand(TESTS)
+    def test_write_output_shape(self, in_type):
         with tempfile.TemporaryDirectory() as out_dir:
             image_name = os.path.join(out_dir, "test.png")
             img = np.random.rand(2, 2, 3)
-            write_png(img, image_name, (4, 4), scale=255)
+            write_png(in_type(img), image_name, (4, 4), scale=255)
             out = np.asarray(Image.open(image_name))
             np.testing.assert_allclose(out.shape, (4, 4, 3))
 
