@@ -395,7 +395,7 @@ class MeanEnsemble(Transform):
         return torch.mean(img_, dim=0)
 
 
-class VoteEnsemble(Transform):
+class VoteEnsemble(TorchTransform):
     """
     Execute vote ensemble on the input data.
     The input data can be a list or tuple of PyTorch Tensor with shape: [C[, H, W, D]],
@@ -419,7 +419,9 @@ class VoteEnsemble(Transform):
         self.num_classes = num_classes
 
     def __call__(self, img: Union[Sequence[torch.Tensor], torch.Tensor]) -> torch.Tensor:
-        img_ = torch.stack(img) if isinstance(img, (tuple, list)) else torch.as_tensor(img)
+        img_ = (
+            torch.stack([torch.as_tensor(i) for i in img]) if isinstance(img, (tuple, list)) else torch.as_tensor(img)
+        )
         if self.num_classes is not None:
             has_ch_dim = True
             if img_.ndimension() > 1 and img_.shape[1] > 1:
