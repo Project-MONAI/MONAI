@@ -883,13 +883,14 @@ class SavitzkyGolaySmooth(TorchTransform):
 
         """
         img_t: torch.Tensor
-        img_t, orig_type, orig_device = self.pre_conv_data(img)  # type: ignore
+        img_t, orig_type, orig_device = convert_data_type(img, torch.Tensor)  # type: ignore
 
         # add one to transform axis because a batch axis will be added at dimension 0
         savgol_filter = SavitzkyGolayFilter(self.window_length, self.order, self.axis + 1, self.mode)
         # convert to Tensor and add Batch axis expected by HilbertTransform
-        out = savgol_filter(img_t.unsqueeze(0)).squeeze(0)
-        return self.post_convert_data(out, orig_type, orig_device)
+        out_t = savgol_filter(img_t.unsqueeze(0)).squeeze(0)
+        out, *_ = convert_data_type(out_t, orig_type, orig_device)
+        return out
 
 
 class DetectEnvelope(TorchTransform):
@@ -926,13 +927,14 @@ class DetectEnvelope(TorchTransform):
 
         """
         img_t: torch.Tensor
-        img_t, orig_type, orig_device = self.pre_conv_data(img)  # type: ignore
+        img_t, orig_type, orig_device = convert_data_type(img, torch.Tensor)  # type: ignore
 
         # add one to transform axis because a batch axis will be added at dimension 0
         hilbert_transform = HilbertTransform(self.axis + 1, self.n)
         # convert to Tensor and add Batch axis expected by HilbertTransform
-        out = torch.abs(hilbert_transform(img_t.unsqueeze(0))).squeeze(0)
-        return self.post_convert_data(out, orig_type, orig_device)
+        out_t = torch.abs(hilbert_transform(img_t.unsqueeze(0))).squeeze(0)
+        out, *_ = convert_data_type(out_t, orig_type, orig_device)
+        return out
 
 
 class GaussianSmooth(TorchTransform):
@@ -955,12 +957,13 @@ class GaussianSmooth(TorchTransform):
 
     def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         img_t: torch.Tensor
-        img_t, orig_type, orig_device = self.pre_conv_data(img)  # type: ignore
+        img_t, orig_type, orig_device = convert_data_type(img, torch.Tensor)  # type: ignore
         img_t = img_t.to(torch.float)
 
         gaussian_filter = GaussianFilter(img.ndim - 1, self.sigma, approx=self.approx).to(img_t.device)
-        out = gaussian_filter(img_t.unsqueeze(0)).squeeze(0)
-        return self.post_convert_data(out, orig_type, orig_device)
+        out_t = gaussian_filter(img_t.unsqueeze(0)).squeeze(0)
+        out, *_ = convert_data_type(out_t, orig_type, orig_device)
+        return out
 
 
 class RandGaussianSmooth(TorchTransform, RandomizableTransform):
@@ -1050,8 +1053,7 @@ class GaussianSharpen(TorchTransform):
 
     def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         img_t: torch.Tensor
-        img_t, orig_type, orig_device = self.pre_conv_data(img)  # type: ignore
-        img_t = img_t.to(torch.float)
+        img_t, orig_type, orig_device = convert_data_type(img, torch.Tensor, dtype=float)  # type: ignore
 
         gf1, gf2 = [
             GaussianFilter(img_t.ndim - 1, sigma, approx=self.approx).to(img_t.device)
@@ -1059,8 +1061,9 @@ class GaussianSharpen(TorchTransform):
         ]
         blurred_f = gf1(img_t.unsqueeze(0))
         filter_blurred_f = gf2(blurred_f)
-        out = (blurred_f + self.alpha * (blurred_f - filter_blurred_f)).squeeze(0)
-        return self.post_convert_data(out, orig_type, orig_device)
+        out_t = (blurred_f + self.alpha * (blurred_f - filter_blurred_f)).squeeze(0)
+        out, *_ = convert_data_type(out_t, orig_type, orig_device)
+        return out
 
 
 class RandGaussianSharpen(TorchTransform, RandomizableTransform):

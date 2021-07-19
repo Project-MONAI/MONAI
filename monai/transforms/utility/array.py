@@ -426,9 +426,11 @@ class Transpose(NumpyTransform):
         """
         Apply the transform to `img`.
         """
-        img, orig_type, orig_device = self.pre_conv_data(img)
-        img = img.transpose(self.indices)  # type: ignore
-        return self.post_convert_data(img, orig_type, orig_device)
+        img_np: np.ndarray
+        img_np, orig_type, orig_device = convert_data_type(img, np.ndarray)  # type: ignore
+        img_np = img_np.transpose(self.indices)  # type: ignore
+        out, *_ = convert_data_type(img_np, orig_type, orig_device)
+        return out
 
 
 class SqueezeDim(TorchOrNumpyTransform):
@@ -675,7 +677,7 @@ class LabelToMask(NumpyTransform):
             merge_channels: whether to use `np.any()` to merge the result on channel dim. if yes,
                 will return a single channel mask with binary data.
         """
-        img, orig_type, orig_device = self.pre_conv_data(img)
+        img, orig_type, orig_device = convert_data_type(img, np.ndarray)
 
         if select_labels is None:
             select_labels = self.select_labels
@@ -687,9 +689,9 @@ class LabelToMask(NumpyTransform):
         else:
             data = np.where(np.in1d(img, select_labels), True, False).reshape(img.shape)
 
-        out = np.any(data, axis=0, keepdims=True) if (merge_channels or self.merge_channels) else data
-
-        return self.post_convert_data(out, orig_type, orig_device)  # type: ignore
+        out_np = np.any(data, axis=0, keepdims=True) if (merge_channels or self.merge_channels) else data
+        out, *_ = convert_data_type(out_np, orig_type, orig_device)
+        return out
 
 
 class FgBgToIndices(Transform):

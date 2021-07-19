@@ -345,11 +345,13 @@ class Flip(TorchTransform):
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-        img, orig_type, orig_device = self.pre_conv_data(img)
+        img_t: torch.Tensor
+        img_t, orig_type, orig_device = convert_data_type(img, torch.Tensor)  # type: ignore
 
-        result = torch.flip(img, map_spatial_axes(img.ndim, self.spatial_axis)).to(img.dtype)  # type: ignore
+        result_t = torch.flip(img_t, map_spatial_axes(img.ndim, self.spatial_axis))
 
-        return self.post_convert_data(result, orig_type, orig_device)
+        result, *_ = convert_data_type(result_t, orig_type, orig_device)
+        return result
 
 
 class Resize(TorchTransform):
@@ -529,7 +531,8 @@ class Rotate(TorchTransform, ThreadUnsafe):
             spatial_size=output_shape,
         )
         self._rotation_matrix = transform
-        return self.post_convert_data(output.squeeze(0).float(), orig_type, orig_device)
+        out, *_ = convert_data_type(output.squeeze(0).float(), orig_type, orig_device)
+        return out
 
     def get_rotation_matrix(self) -> Optional[np.ndarray]:
         """
@@ -601,7 +604,7 @@ class Zoom(TorchTransform):
 
         """
         img_t: torch.Tensor
-        img_t, orig_type, orig_device = self.pre_conv_data(img)  # type: ignore
+        img_t, orig_type, orig_device = convert_data_type(img, torch.Tensor)  # type: ignore
 
         _zoom = ensure_tuple_rep(self.zoom, img_t.ndim - 1)  # match the spatial image dim
         zoomed = torch.nn.functional.interpolate(  # type: ignore
@@ -629,7 +632,8 @@ class Zoom(TorchTransform):
             zoomed = padder(zoomed)
             zoomed = zoomed[tuple(slice_vec)]
 
-        return self.post_convert_data(zoomed, orig_type, orig_device)
+        out, *_ = convert_data_type(zoomed, orig_type, orig_device)
+        return out
 
 
 class Rotate90(TorchOrNumpyTransform):

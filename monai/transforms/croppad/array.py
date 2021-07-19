@@ -701,12 +701,12 @@ class CropForeground(NumpyTransform):
         slicing doesn't change the channel dim.
         """
         img_np: np.ndarray
-        img_np, orig_type, orig_device = self.pre_conv_data(img)  # type: ignore
+        img_np, orig_type, orig_device = convert_data_type(img, np.ndarray)  # type: ignore
 
         box_start, box_end = self.compute_bounding_box(img_np)
         cropped = self.crop_pad(img_np, box_start, box_end)
 
-        cropped = self.post_convert_data(cropped, orig_type, orig_device)
+        cropped, *_ = convert_data_type(cropped, orig_type, orig_device)
 
         if self.return_coords:
             return cropped, box_start, box_end

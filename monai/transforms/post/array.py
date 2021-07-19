@@ -26,6 +26,7 @@ from monai.transforms.transform import TorchTransform, Transform
 from monai.transforms.utils import get_largest_connected_component_mask
 from monai.utils import ensure_tuple
 from monai.utils.enums import DataObjects
+from monai.utils.misc import convert_data_type
 
 __all__ = [
     "Activations",
@@ -89,20 +90,21 @@ class Activations(TorchTransform):
         if other is not None and not callable(other):
             raise TypeError(f"other must be None or callable but is {type(other).__name__}.")
 
-        img, orig_type, orig_device = self.pre_conv_data(img)
+        img_t: torch.Tensor
+        img_t, orig_type, orig_device = convert_data_type(img, torch.Tensor, dtype=float)  # type: ignore
 
         # convert to float as activation must operate on float tensor
-        img = img.float()  # type: ignore
         if sigmoid or self.sigmoid:
-            img = torch.sigmoid(img)
+            img_t = torch.sigmoid(img_t)
         if softmax or self.softmax:
-            img = torch.softmax(img, dim=0)
+            img_t = torch.softmax(img_t, dim=0)
 
         act_func = self.other if other is None else other
         if act_func is not None:
-            img = act_func(img)
+            img_t = act_func(img_t)
 
-        return self.post_convert_data(img, orig_type, orig_device)
+        out, *_ = convert_data_type(img_t, orig_type, orig_device)
+        return out
 
 
 class AsDiscrete(TorchTransform):
@@ -168,7 +170,7 @@ class AsDiscrete(TorchTransform):
 
         """
         img_t: torch.Tensor
-        img_t, orig_type, orig_device = self.pre_conv_data(img)  # type: ignore
+        img_t, orig_type, orig_device = convert_data_type(img, torch.Tensor)  # type: ignore
 
         if argmax or self.argmax:
             img_t = torch.argmax(img_t, dim=0, keepdim=True)
@@ -182,7 +184,8 @@ class AsDiscrete(TorchTransform):
         if threshold_values or self.threshold_values:
             img_t = img_t >= (logit_thresh or self.logit_thresh)
 
-        return self.post_convert_data(img_t.float(), orig_type, orig_device)
+        out, *_ = convert_data_type(img, orig_type, orig_device, dtype=float)
+        return out
 
 
 class KeepLargestConnectedComponent(TorchTransform):
@@ -260,7 +263,7 @@ class KeepLargestConnectedComponent(TorchTransform):
             A PyTorch Tensor with shape (C, spatial_dim1[, spatial_dim2, ...]).
         """
         img_t: torch.Tensor
-        img_t, orig_type, orig_device = self.pre_conv_data(img)  # type: ignore
+        img_t, orig_type, orig_device = convert_data_type(img, torch.Tensor)  # type: ignore
 
         if img_t.shape[0] == 1:
             img_t = torch.squeeze(img_t, dim=0)
@@ -293,9 +296,10 @@ class KeepLargestConnectedComponent(TorchTransform):
                 background_mask = torch.repeat_interleave(background_mask, len(self.applied_labels), dim=0)
                 applied_img[background_mask] = 0
                 img_t[self.applied_labels, ...] = applied_img.type(img_t.type())  # type: ignore
-            output = img_t  # type: ignore
+            output = img_t
 
-        return self.post_convert_data(output, orig_type, orig_device)
+        out, *_ = convert_data_type(output, orig_type, orig_device)
+        return out
 
 
 class LabelToContour(Transform):
