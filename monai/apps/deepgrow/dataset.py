@@ -17,6 +17,7 @@ import numpy as np
 
 from monai.transforms import AsChannelFirstd, Compose, LoadImaged, Orientationd, Spacingd
 from monai.utils import GridSampleMode
+from monai.utils.misc import convert_data_type
 
 
 def create_dataset(
@@ -82,7 +83,7 @@ def create_dataset(
     if not len(datalist):
         raise ValueError("Input datalist is empty")
 
-    transforms = _default_transforms(image_key, label_key, pixdim) if transforms is None else transforms
+    transforms = transforms or _default_transforms(image_key, label_key, pixdim)
     new_datalist = []
     for idx in range(len(datalist)):
         if limit and idx >= limit:
@@ -133,25 +134,34 @@ def _default_transforms(image_key, label_key, pixdim):
 
 
 def _save_data_2d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
+    if vol_image is not None:
+        vol_image_np, *_ = convert_data_type(vol_image, np.ndarray)
+    else:
+        vol_image_np = vol_image
+    if vol_label is not None:
+        vol_label_np, *_ = convert_data_type(vol_label, np.ndarray)
+    else:
+        vol_label_np = vol_label
+
     data_list = []
 
-    if len(vol_image.shape) == 4:
+    if len(vol_image_np.shape) == 4:
         logging.info(
             "4D-Image, pick only first series; Image: {}; Label: {}".format(
-                vol_image.shape, vol_label.shape if vol_label is not None else None
+                vol_image_np.shape, vol_label_np.shape if vol_label_np is not None else None
             )
         )
-        vol_image = vol_image[0]
-        vol_image = np.moveaxis(vol_image, -1, 0)
+        vol_image_np = vol_image_np[0]
+        vol_image_np = np.moveaxis(vol_image_np, -1, 0)
 
     image_count = 0
     label_count = 0
     unique_labels_count = 0
-    for sid in range(vol_image.shape[0]):
-        image = vol_image[sid, ...]
-        label = vol_label[sid, ...] if vol_label is not None else None
+    for sid in range(vol_image_np.shape[0]):
+        image = vol_image_np[sid, ...]
+        label = vol_label_np[sid, ...] if vol_label_np is not None else None
 
-        if vol_label is not None and np.sum(label) == 0:
+        if vol_label_np is not None and np.sum(label) == 0:
             continue
 
         image_file_prefix = "vol_idx_{:0>4d}_slice_{:0>3d}".format(vol_idx, sid)
@@ -163,7 +173,7 @@ def _save_data_2d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
         image_count += 1
 
         # Test Data
-        if vol_label is None:
+        if vol_label_np is None:
             data_list.append(
                 {
                     "image": image_file.replace(dataset_dir + os.pathsep, "") if relative_path else image_file,
@@ -200,9 +210,9 @@ def _save_data_2d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
     logging.info(
         "{} => Image Shape: {} => {}; Label Shape: {} => {}; Unique Labels: {}".format(
             vol_idx,
-            vol_image.shape,
+            vol_image_np.shape,
             image_count,
-            vol_label.shape if vol_label is not None else None,
+            vol_label_np.shape if vol_label_np is not None else None,
             label_count,
             unique_labels_count,
         )
@@ -211,16 +221,25 @@ def _save_data_2d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
 
 
 def _save_data_3d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
+    if vol_image is not None:
+        vol_image_np, *_ = convert_data_type(vol_image, np.ndarray)
+    else:
+        vol_image_np = vol_image
+    if vol_label is not None:
+        vol_label_np, *_ = convert_data_type(vol_label, np.ndarray)
+    else:
+        vol_label_np = vol_label
+
     data_list = []
 
-    if len(vol_image.shape) == 4:
+    if len(vol_image_np.shape) == 4:
         logging.info(
             "4D-Image, pick only first series; Image: {}; Label: {}".format(
-                vol_image.shape, vol_label.shape if vol_label is not None else None
+                vol_image_np.shape, vol_label_np.shape if vol_label_np is not None else None
             )
         )
-        vol_image = vol_image[0]
-        vol_image = np.moveaxis(vol_image, -1, 0)
+        vol_image_np = vol_image_np[0]
+        vol_image_np = np.moveaxis(vol_image_np, -1, 0)
 
     image_count = 0
     label_count = 0
@@ -231,11 +250,11 @@ def _save_data_3d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
     image_file += ".npy"
 
     os.makedirs(os.path.join(dataset_dir, "images"), exist_ok=True)
-    np.save(image_file, vol_image)
+    np.save(image_file, vol_image_np)
     image_count += 1
 
     # Test Data
-    if vol_label is None:
+    if vol_label_np is None:
         data_list.append(
             {
                 "image": image_file.replace(dataset_dir + os.pathsep, "") if relative_path else image_file,
@@ -243,7 +262,7 @@ def _save_data_3d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
         )
     else:
         # For all Labels
-        unique_labels = np.unique(vol_label.flatten())
+        unique_labels = np.unique(vol_label_np.flatten())
         unique_labels = unique_labels[unique_labels != 0]
         unique_labels_count = max(unique_labels_count, len(unique_labels))
 
@@ -252,7 +271,7 @@ def _save_data_3d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
             label_file = os.path.join(dataset_dir, "labels", label_file_prefix)
             label_file += ".npy"
 
-            curr_label = (vol_label == idx).astype(np.float32)
+            curr_label = (vol_label_np == idx).astype(np.float32)
             os.makedirs(os.path.join(dataset_dir, "labels"), exist_ok=True)
             np.save(label_file, curr_label)
 
@@ -271,9 +290,9 @@ def _save_data_3d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
     logging.info(
         "{} => Image Shape: {} => {}; Label Shape: {} => {}; Unique Labels: {}".format(
             vol_idx,
-            vol_image.shape,
+            vol_image_np.shape,
             image_count,
-            vol_label.shape if vol_label is not None else None,
+            vol_label_np.shape if vol_label_np is not None else None,
             label_count,
             unique_labels_count,
         )

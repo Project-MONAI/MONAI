@@ -21,30 +21,25 @@ from parameterized import parameterized
 from monai.apps.deepgrow.dataset import create_dataset
 from monai.utils import set_determinism
 
-TEST_CASE_1 = [{"dimension": 2, "pixdim": (1, 1)}, {"length": 3}, 9, 1]
-
-TEST_CASE_2 = [{"dimension": 2, "pixdim": (1, 1), "limit": 1}, {"length": 3}, 3, 1]
-
-TEST_CASE_3 = [{"dimension": 2, "pixdim": (1, 1)}, {"length": 1}, 3, 1]
-
-TEST_CASE_4 = [{"dimension": 3, "pixdim": (1, 1, 1)}, {"length": 1}, 1, 1]
-
-TEST_CASE_5 = [{"dimension": 3, "pixdim": (1, 1, 1)}, {"length": 1, "image_channel": 4}, 1, 1]
-
-TEST_CASE_6 = [{"dimension": 2, "pixdim": (1, 1)}, {"length": 1, "image_channel": 4}, 3, 1]
-
-TEST_CASE_7 = [
-    {"dimension": 2, "pixdim": (1, 1), "label_key": None},
-    {"length": 1, "image_channel": 4, "with_label": False},
-    40,
-    None,
-]
-
-TEST_CASE_8 = [
-    {"dimension": 3, "pixdim": (1, 1, 1), "label_key": None},
-    {"length": 1, "image_channel": 4, "with_label": False},
-    1,
-    None,
+TESTS = [
+    [{"dimension": 2, "pixdim": (1, 1)}, {"length": 3}, 9, 1],
+    [{"dimension": 2, "pixdim": (1, 1), "limit": 1}, {"length": 3}, 3, 1],
+    [{"dimension": 2, "pixdim": (1, 1)}, {"length": 1}, 3, 1],
+    [{"dimension": 3, "pixdim": (1, 1, 1)}, {"length": 1}, 1, 1],
+    [{"dimension": 3, "pixdim": (1, 1, 1)}, {"length": 1, "image_channel": 4}, 1, 1],
+    [{"dimension": 2, "pixdim": (1, 1)}, {"length": 1, "image_channel": 4}, 3, 1],
+    [
+        {"dimension": 2, "pixdim": (1, 1), "label_key": None},
+        {"length": 1, "image_channel": 4, "with_label": False},
+        40,
+        None,
+    ],
+    [
+        {"dimension": 3, "pixdim": (1, 1, 1), "label_key": None},
+        {"length": 1, "image_channel": 4, "with_label": False},
+        1,
+        None,
+    ],
 ]
 
 
@@ -79,9 +74,7 @@ class TestCreateDataset(unittest.TestCase):
 
         return datalist
 
-    @parameterized.expand(
-        [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8]
-    )
+    @parameterized.expand(TESTS)
     def test_create_dataset(self, args, data_args, expected_length, expected_region):
         datalist = self._create_data(**data_args)
         deepgrow_datalist = create_dataset(datalist=datalist, output_dir=self.tempdir, **args)
