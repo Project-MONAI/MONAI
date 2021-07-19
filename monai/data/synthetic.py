@@ -30,7 +30,7 @@ def create_test_image_2d(
     random_state: Optional[np.random.RandomState] = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Return a noisy 2D image with `num_objs` circles and a 2D mask image. The maximum and minimum radiuses of the circles
+    Return a noisy 2D image with `num_objs` circles and a 2D mask image. The maximum and minimum radii of the circles
     are given as `rad_max` and `rad_min`. The mask will have `num_seg_classes` number of classes for segmentations labeled
     sequentially from 1, plus a background class represented as 0. If `noise_max` is greater than 0 then noise will be
     added to the image taken from the uniform distribution on range `[0,noise_max)`. If `channel_dim` is None, will create
