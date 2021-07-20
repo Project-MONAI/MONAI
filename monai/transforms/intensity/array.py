@@ -61,7 +61,7 @@ __all__ = [
 ]
 
 
-class RandGaussianNoise(RandomizableTransform):
+class RandGaussianNoise(TorchTransform, NumpyTransform, RandomizableTransform):
     """
     Add Gaussian noise to image.
 
@@ -86,12 +86,15 @@ class RandGaussianNoise(RandomizableTransform):
         Apply the transform to `img`.
         """
         self.randomize(img.shape)
+
         if self._noise is None:
             raise AssertionError
         if not self._do_transform:
             return img
-        dtype = dtype_convert(img.dtype, np.array)
-        return img + self._noise.astype(dtype)
+        noise, *_ = convert_data_type(
+            self._noise, type(img), dtype=img.dtype, device=img.device if isinstance(img, torch.Tensor) else None
+        )
+        return img + noise
 
 
 class RandRicianNoise(TorchTransform, NumpyTransform, RandomizableTransform):

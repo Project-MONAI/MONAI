@@ -43,7 +43,7 @@ from monai.transforms.intensity.array import (
 from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.utils import ensure_tuple_rep, ensure_tuple_size
 from monai.utils.enums import DataObjects
-from monai.utils.misc import dtype_convert
+from monai.utils.misc import convert_data_type
 
 __all__ = [
     "RandGaussianNoised",
@@ -166,8 +166,13 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         if not self._do_transform:
             return d
         for key, noise in self.key_iterator(d, self._noise):
-            dtype = dtype_convert(d[key].dtype, np.array)
-            d[key] = d[key] + noise.astype(dtype)
+            noise, *_ = convert_data_type(
+                noise,
+                type(d[key]),
+                dtype=d[key].dtype,
+                device=d[key].device if isinstance(d[key], torch.Tensor) else None,
+            )
+            d[key] = d[key] + noise
         return d
 
 
