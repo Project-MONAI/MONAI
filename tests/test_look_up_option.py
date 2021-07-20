@@ -59,6 +59,12 @@ class TestLookUpOption(unittest.TestCase):
             look_up_option("empy", _CaseEnum)
         with self.assertRaisesRegex(ValueError, "Unsupported"):
             look_up_option(_CaseEnum1.EMPTY, _CaseEnum)
+        with self.assertRaisesRegex(ValueError, "Unsupported"):
+            look_up_option(None, _CaseEnum)
+        with self.assertRaisesRegex(ValueError, "No"):
+            look_up_option(None, None)
+        with self.assertRaisesRegex(ValueError, "No"):
+            look_up_option("test", None)
 
 
 if __name__ == "__main__":

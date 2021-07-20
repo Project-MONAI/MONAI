@@ -41,7 +41,7 @@ __all__ = [
 
 def look_up_option(opt_str, supported, default="no_default"):
     """
-    Look up the option in the supported collection.
+    Look up the option in the supported collection and return the matched item.
     Raise a value error possibly with a guess of the closest match.
 
     Args:
@@ -59,11 +59,11 @@ def look_up_option(opt_str, supported, default="no_default"):
             RED = "red"
             BLUE = "blue"
         look_up_option("red", Color)  # <Color.RED: 'red'>
-        look_up_option(Color.READ, Color)  # <Color.RED: 'red'>
+        look_up_option(Color.RED, Color)  # <Color.RED: 'red'>
         look_up_option("read", Color)
         # ValueError: By 'read', did you mean 'red'?
         # 'read' is not a valid option.
-        # Avaliable options are {'blue', 'red'}.
+        # Available options are {'blue', 'red'}.
         look_up_option("red", {"red", "blue"})  # "red"
 
     Adapted from https://github.com/NifTK/NiftyNet/blob/v0.6.0/niftynet/utilities/util_common.py#L249
@@ -93,7 +93,9 @@ def look_up_option(opt_str, supported, default="no_default"):
     if isinstance(supported, enum.EnumMeta):
         set_to_check = {item.value for item in supported}
     else:
-        set_to_check = set(supported)
+        set_to_check = set(supported) if supported is not None else set()
+    if not set_to_check:
+        raise ValueError(f"No options available: {supported}.")
     edit_dists = {}
     opt_str = f"{opt_str}"
     for key in set_to_check:
