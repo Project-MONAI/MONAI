@@ -18,10 +18,10 @@ from parameterized import parameterized
 from monai.transforms import CropForeground
 from tests.utils import TEST_NDARRAYS
 
-TESTS = []
+TEST_COORDS, TESTS = [], []
 
 for p in TEST_NDARRAYS:
-    TESTS.append(
+    TEST_COORDS.append(
         [
             {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 0},
             p([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
@@ -79,12 +79,12 @@ for p in TEST_NDARRAYS:
 
 
 class TestCropForeground(unittest.TestCase):
-    @parameterized.expand(TESTS)
+    @parameterized.expand(TEST_COORDS + TESTS)
     def test_value(self, argments, image, expected_data):
         result = CropForeground(**argments)(image)
         torch.testing.assert_allclose(result, expected_data, rtol=1e-7, atol=0)
 
-    @parameterized.expand([TESTS[0]])
+    @parameterized.expand(TEST_COORDS)
     def test_return_coords(self, argments, image, _):
         argments["return_coords"] = True
         _, start_coord, end_coord = CropForeground(**argments)(image)
