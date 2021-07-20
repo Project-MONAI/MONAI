@@ -1234,7 +1234,7 @@ class Resample(TorchTransform):
             raise AssertionError("Error, grid argument must be supplied as an ndarray or tensor ")
 
         img_t: torch.Tensor
-        img_t, orig_type, orig_device = convert_data_type(img, torch.Tensor, device=self.device, dtype=float)  # type: ignore
+        img_t, orig_type, orig_device = convert_data_type(img, torch.Tensor, device=self.device, dtype=torch.float32)  # type: ignore
         grid, *_ = convert_data_type(deepcopy(grid), torch.Tensor, device=img_t.device, dtype=float)
 
         if USE_COMPILED:

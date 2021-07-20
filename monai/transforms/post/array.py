@@ -506,7 +506,7 @@ class ProbNMS(TorchTransform):
         prob_map: the input probabilities map, it must have shape (H[, W, ...]).
         """
         prob_map_t: torch.Tensor
-        prob_map_t, *_ = convert_data_type(deepcopy(prob_map), torch.Tensor, dtype=float)  # type: ignore
+        prob_map_t, *_ = convert_data_type(deepcopy(prob_map), torch.Tensor, dtype=torch.float32)  # type: ignore
         if self.sigma != 0:
             self.filter.to(prob_map_t)
             prob_map_t = self.filter(prob_map_t)

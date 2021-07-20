@@ -1055,7 +1055,7 @@ class GaussianSharpen(TorchTransform):
 
     def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         img_t: torch.Tensor
-        img_t, orig_type, orig_device = convert_data_type(img, torch.Tensor, dtype=float)  # type: ignore
+        img_t, orig_type, orig_device = convert_data_type(img, torch.Tensor, dtype=torch.float32)  # type: ignore
 
         gf1, gf2 = [
             GaussianFilter(img_t.ndim - 1, sigma, approx=self.approx).to(img_t.device)
