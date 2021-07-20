@@ -12,6 +12,7 @@
 import unittest
 
 import torch
+import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import AsDiscrete
@@ -23,7 +24,7 @@ for p in TEST_NDARRAYS:
         [
             {"argmax": True, "to_onehot": False, "n_classes": None, "threshold_values": False, "logit_thresh": 0.5},
             p([[[0.0, 1.0]], [[2.0, 3.0]]]),
-            p([[[1.0, 1.0]]]),
+            ([[[1.0, 1.0]]]),
             (1, 1, 2),
         ]
     )
@@ -32,7 +33,7 @@ for p in TEST_NDARRAYS:
         [
             {"argmax": True, "to_onehot": True, "n_classes": 2, "threshold_values": False, "logit_thresh": 0.5},
             p([[[0.0, 1.0]], [[2.0, 3.0]]]),
-            p([[[0.0, 0.0]], [[1.0, 1.0]]]),
+            ([[[0.0, 0.0]], [[1.0, 1.0]]]),
             (2, 1, 2),
         ]
     )
@@ -41,7 +42,7 @@ for p in TEST_NDARRAYS:
         [
             {"argmax": False, "to_onehot": False, "n_classes": None, "threshold_values": True, "logit_thresh": 0.6},
             p([[[0.0, 1.0], [2.0, 3.0]]]),
-            p([[[0.0, 1.0], [1.0, 1.0]]]),
+            ([[[0.0, 1.0], [1.0, 1.0]]]),
             (1, 2, 2),
         ]
     )
@@ -50,7 +51,7 @@ for p in TEST_NDARRAYS:
         [
             {"argmax": False, "to_onehot": True, "n_classes": 3},
             p(1),
-            p([0.0, 1.0, 0.0]),
+            ([0.0, 1.0, 0.0]),
             (3,),
         ]
     )
@@ -60,7 +61,11 @@ class TestAsDiscrete(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_value_shape(self, input_param, img, out, expected_shape):
         result = AsDiscrete(**input_param)(img)
-        torch.testing.assert_allclose(result, out)
+        self.assertEqual(type(img), type(result))
+        if isinstance(result, torch.Tensor):
+            self.assertEqual(img.device, result.device)
+            result = result.cpu()
+        np.testing.assert_allclose(result, out)
         self.assertTupleEqual(result.shape, expected_shape)
 
 
