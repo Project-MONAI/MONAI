@@ -15,6 +15,7 @@ import numpy as np
 import torch
 
 from monai.transforms import LabelToContour
+from tests.utils import TEST_NDARRAYS
 
 expected_output_for_cube = np.array(
     [
@@ -144,34 +145,37 @@ def gen_fixed_img():
 class TestContour(unittest.TestCase):
     def test_contour(self):
         input_param = {"kernel_type": "Laplace"}
+        for p in TEST_NDARRAYS:
 
-        # check 5-dim input data
-        test_cube, expected_output = gen_fixed_cube()
-        for cube in test_cube:
-            test_result_cube = LabelToContour(**input_param)(cube)
-            self.assertEqual(test_result_cube.shape, cube.shape)
+            # check 5-dim input data
+            test_cube, expected_output = gen_fixed_cube()
+            for cube in p(test_cube):
+                test_result_cube = LabelToContour(**input_param)(cube)
+                self.assertEqual(test_result_cube.shape, cube.shape)
+                self.assertEqual(type(cube), type(test_result_cube))
+                if isinstance(test_result_cube, torch.Tensor):
+                    test_result_cube = test_result_cube.cpu()
+                channels = cube.shape[0]
+                for channel in range(channels):
+                    np.testing.assert_allclose(test_result_cube[channel, ...], expected_output)
 
-            test_result_np = test_result_cube.cpu().numpy()
-            channels = cube.shape[0]
-            for channel in range(channels):
-                np.testing.assert_allclose(test_result_np[channel, ...], expected_output)
+            # check 4-dim input data
+            test_img, expected_output = gen_fixed_img()
+            for img in p(test_img):
+                channels = img.shape[0]
+                test_result_img = LabelToContour(**input_param)(img)
+                self.assertEqual(test_result_img.shape, img.shape)
+                self.assertEqual(type(test_result_img), type(img))
+                if isinstance(test_result_img, torch.Tensor):
+                    test_result_img = test_result_img.cpu()
+                for channel in range(channels):
+                    np.testing.assert_allclose(test_result_img[channel, ...], expected_output)
 
-        # check 4-dim input data
-        test_img, expected_output = gen_fixed_img()
-        for img in test_img:
-            channels = img.shape[0]
-            test_result_img = LabelToContour(**input_param)(img)
-            self.assertEqual(test_result_img.shape, img.shape)
-
-            test_result_np = test_result_img.cpu().numpy()
-            for channel in range(channels):
-                np.testing.assert_allclose(test_result_np[channel, ...], expected_output)
-
-        # check invalid input data
-        error_input = torch.rand(1, 2)
-        self.assertRaises(ValueError, LabelToContour(**input_param), error_input)
-        error_input = torch.rand(1, 2, 3, 4, 5)
-        self.assertRaises(ValueError, LabelToContour(**input_param), error_input)
+            # check invalid input data
+            error_input = p(torch.rand(1, 2))
+            self.assertRaises(ValueError, LabelToContour(**input_param), error_input)
+            error_input = p(torch.rand(1, 2, 3, 4, 5))
+            self.assertRaises(ValueError, LabelToContour(**input_param), error_input)
 
 
 if __name__ == "__main__":

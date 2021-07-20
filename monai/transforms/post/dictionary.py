@@ -225,7 +225,7 @@ class LabelToContourd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = LabelToContour(kernel_type=kernel_type)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
