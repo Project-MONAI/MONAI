@@ -1,8 +1,6 @@
 name: crons
 
 on:
-  schedule:
-    - cron: "0 2 * * *"  # at 02:00 UTC
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
