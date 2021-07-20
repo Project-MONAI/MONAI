@@ -10,11 +10,13 @@
 # limitations under the License.
 
 import unittest
+from copy import deepcopy
 
 import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import RandCropByPosNegLabeld
+from tests.utils import TEST_NDARRAYS
 
 TEST_CASE_0 = [
     {
@@ -33,7 +35,6 @@ TEST_CASE_0 = [
         "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
         "image_meta_dict": {"affine": np.eye(3), "shape": "CHWD"},
     },
-    list,
     (3, 3, 2, 2),
 ]
 
@@ -54,7 +55,6 @@ TEST_CASE_1 = [
         "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
         "label_meta_dict": {"affine": np.eye(3), "shape": "CHWD"},
     },
-    list,
     (3, 2, 2, 2),
 ]
 
@@ -75,25 +75,36 @@ TEST_CASE_2 = [
         "label": np.ones([3, 3, 3, 3]),
         "extra_meta_dict": {"affine": np.eye(3), "shape": "CHWD"},
     },
-    list,
     (3, 2, 2, 2),
 ]
 
 
 class TestRandCropByPosNegLabeld(unittest.TestCase):
+    @staticmethod
+    def convert_data_type(im_type, d, keys=("img", "image", "label")):
+        out = deepcopy(d)
+        for k, v in out.items():
+            if k in keys and isinstance(v, np.ndarray):
+                out[k] = im_type(v)
+        return out
+
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2])
-    def test_type_shape(self, input_param, input_data, expected_type, expected_shape):
-        result = RandCropByPosNegLabeld(**input_param)(input_data)
-        self.assertIsInstance(result, expected_type)
-        self.assertTupleEqual(result[0]["image"].shape, expected_shape)
-        self.assertTupleEqual(result[0]["extra"].shape, expected_shape)
-        self.assertTupleEqual(result[0]["label"].shape, expected_shape)
-        _len = len(tuple(input_data.keys()))
-        self.assertTupleEqual(tuple(result[0].keys())[:_len], tuple(input_data.keys()))
-        for i, item in enumerate(result):
-            self.assertEqual(item["image_meta_dict"]["patch_index"], i)
-            self.assertEqual(item["label_meta_dict"]["patch_index"], i)
-            self.assertEqual(item["extra_meta_dict"]["patch_index"], i)
+    def test_type_shape(self, input_param, input_data, expected_shape):
+        for p in TEST_NDARRAYS:
+            input_param_mod = self.convert_data_type(p, input_param)
+            input_data_mod = self.convert_data_type(p, input_data)
+            cropper = RandCropByPosNegLabeld(**input_param_mod)
+            cropper.set_random_state(0)
+            result = cropper(input_data_mod)
+
+            self.assertIsInstance(result, list)
+
+            _len = len(tuple(input_data.keys()))
+            self.assertTupleEqual(tuple(result[0].keys())[:_len], tuple(input_data.keys()))
+            for k in ("image", "extra", "label"):
+                self.assertTupleEqual(result[0][k].shape, expected_shape)
+                for i, item in enumerate(result):
+                    self.assertEqual(item[k + "_meta_dict"]["patch_index"], i)
 
 
 if __name__ == "__main__":

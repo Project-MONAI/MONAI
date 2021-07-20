@@ -725,7 +725,7 @@ class FgBgToIndices(Transform):
         label: np.ndarray,
         image: Optional[np.ndarray] = None,
         output_shape: Optional[Sequence[int]] = None,
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> Tuple[DataObjects.Images, DataObjects.Images]:
         """
         Args:
             label: input data to compute foreground and background indices.

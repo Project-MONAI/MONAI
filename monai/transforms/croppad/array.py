@@ -760,7 +760,7 @@ class RandWeightedCrop(Randomizable, Transform):
         return results
 
 
-class RandCropByPosNegLabel(Randomizable, Transform):
+class RandCropByPosNegLabel(Randomizable, TorchTransform, NumpyTransform):
     """
     Crop random fixed sized regions with the center being a foreground or background voxel
     based on the Pos Neg Ratio.
@@ -813,14 +813,14 @@ class RandCropByPosNegLabel(Randomizable, Transform):
     def __init__(
         self,
         spatial_size: Union[Sequence[int], int],
-        label: Optional[np.ndarray] = None,
+        label: Optional[DataObjects.Images] = None,
         pos: float = 1.0,
         neg: float = 1.0,
         num_samples: int = 1,
-        image: Optional[np.ndarray] = None,
+        image: Optional[DataObjects.Images] = None,
         image_threshold: float = 0.0,
-        fg_indices: Optional[np.ndarray] = None,
-        bg_indices: Optional[np.ndarray] = None,
+        fg_indices: Optional[DataObjects.Images] = None,
+        bg_indices: Optional[DataObjects.Images] = None,
     ) -> None:
         self.spatial_size = ensure_tuple(spatial_size)
         self.label = label
@@ -838,10 +838,10 @@ class RandCropByPosNegLabel(Randomizable, Transform):
 
     def randomize(
         self,
-        label: np.ndarray,
-        fg_indices: Optional[np.ndarray] = None,
-        bg_indices: Optional[np.ndarray] = None,
-        image: Optional[np.ndarray] = None,
+        label: DataObjects.Images,
+        fg_indices: Optional[DataObjects.Images] = None,
+        bg_indices: Optional[DataObjects.Images] = None,
+        image: Optional[DataObjects.Images] = None,
     ) -> None:
         self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
         if fg_indices is None or bg_indices is None:
@@ -859,12 +859,12 @@ class RandCropByPosNegLabel(Randomizable, Transform):
 
     def __call__(
         self,
-        img: np.ndarray,
-        label: Optional[np.ndarray] = None,
-        image: Optional[np.ndarray] = None,
-        fg_indices: Optional[np.ndarray] = None,
-        bg_indices: Optional[np.ndarray] = None,
-    ) -> List[np.ndarray]:
+        img: DataObjects.Images,
+        label: Optional[DataObjects.Images] = None,
+        image: Optional[DataObjects.Images] = None,
+        fg_indices: Optional[DataObjects.Images] = None,
+        bg_indices: Optional[DataObjects.Images] = None,
+    ) -> List[DataObjects.Images]:
         """
         Args:
             img: input data to crop samples from based on the pos/neg ratio of `label` and `image`.
@@ -887,11 +887,11 @@ class RandCropByPosNegLabel(Randomizable, Transform):
             image = self.image
 
         self.randomize(label, fg_indices, bg_indices, image)
-        results: List[np.ndarray] = []
+        results: List[DataObjects.Images] = []
         if self.centers is not None:
             for center in self.centers:
                 cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)  # type: ignore
-                results.append(cropper(img))  # type: ignore
+                results.append(cropper(img))
 
         return results
 
