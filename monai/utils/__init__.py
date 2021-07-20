@@ -15,7 +15,6 @@ from .decorators import MethodReplacer, RestartGenerator
 from .deprecated import DeprecatedError, deprecated, deprecated_arg
 from .dist import evenly_divisible_all_gather, get_dist_device, string_list_all_gather
 from .enums import (
-    Activation,
     Average,
     BlendMode,
     ChannelMatching,
@@ -28,7 +27,6 @@ from .enums import (
     LossReduction,
     Method,
     MetricReduction,
-    Normalization,
     NumpyPadMode,
     PytorchPadMode,
     SkipMode,

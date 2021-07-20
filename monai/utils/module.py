@@ -39,7 +39,7 @@ __all__ = [
 ]
 
 
-def look_up_option(opt_str, supported: Collection, default="no_default"):
+def look_up_option(opt_str, supported, default="no_default"):
     """
     Look up the option in the supported collection.
     Raise a value error possibly with a guess of the closest match.
@@ -80,6 +80,7 @@ def look_up_option(opt_str, supported: Collection, default="no_default"):
             # such as: MyEnum.EXAMPLE in MyEnum
             return opt_str
     elif isinstance(supported, Mapping) and opt_str in supported:
+        # such as: MyDict[key]
         return supported[opt_str]
     elif isinstance(supported, Collection) and opt_str in supported:
         return opt_str
@@ -88,6 +89,7 @@ def look_up_option(opt_str, supported: Collection, default="no_default"):
         return default
 
     # find a close match
+    set_to_check: set
     if isinstance(supported, enum.EnumMeta):
         set_to_check = {item.value for item in supported}
     else:
@@ -99,9 +101,9 @@ def look_up_option(opt_str, supported: Collection, default="no_default"):
         if edit_dist <= 3:
             edit_dists[key] = edit_dist
 
-    supported_msg = f"Avaliable options are {set_to_check}.\n"
+    supported_msg = f"Available options are {set_to_check}.\n"
     if edit_dists:
-        guess_at_spelling = min(edit_dists, key=edit_dists.get)
+        guess_at_spelling = min(edit_dists, key=edit_dists.get)  # type: ignore
         raise ValueError(
             f"By '{opt_str}', did you mean '{guess_at_spelling}'?\n"
             + f"'{opt_str}' is not a valid option.\n"

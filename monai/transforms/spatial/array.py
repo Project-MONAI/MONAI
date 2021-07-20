@@ -125,8 +125,8 @@ class Spacing(Transform):
         """
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
         self.diagonal = diagonal
-        self.mode: GridSampleMode = GridSampleMode(mode)
-        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
+        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
         self.align_corners = align_corners
         self.dtype = dtype
 
@@ -199,8 +199,8 @@ class Spacing(Transform):
         # resample
         affine_xform = AffineTransform(
             normalized=False,
-            mode=mode or self.mode,
-            padding_mode=padding_mode or self.padding_mode,
+            mode=look_up_option(mode or self.mode, GridSampleMode),
+            padding_mode=look_up_option(padding_mode or self.padding_mode, GridSamplePadMode),
             align_corners=self.align_corners if align_corners is None else align_corners,
             reverse_indexing=True,
         )
@@ -392,7 +392,7 @@ class Resize(Transform):
         resized = torch.nn.functional.interpolate(  # type: ignore
             input=torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0),
             size=spatial_size,
-            mode=look_up_option(self.mode if mode is None else mode, InterpolateMode),
+            mode=look_up_option(self.mode if mode is None else mode, InterpolateMode).value,
             align_corners=self.align_corners if align_corners is None else align_corners,
         )
         resized = resized.squeeze(0).detach().cpu().numpy()
@@ -432,8 +432,8 @@ class Rotate(Transform, ThreadUnsafe):
     ) -> None:
         self.angle = angle
         self.keep_size = keep_size
-        self.mode: GridSampleMode = GridSampleMode(mode)
-        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
+        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
         self.align_corners = align_corners
         self.dtype = dtype
         self._rotation_matrix: Optional[np.ndarray] = None
@@ -488,8 +488,8 @@ class Rotate(Transform, ThreadUnsafe):
 
         xform = AffineTransform(
             normalized=False,
-            mode=mode or self.mode,
-            padding_mode=padding_mode or self.padding_mode,
+            mode=look_up_option(mode or self.mode, GridSampleMode),
+            padding_mode=look_up_option(padding_mode or self.padding_mode, GridSamplePadMode),
             align_corners=self.align_corners if align_corners is None else align_corners,
             reverse_indexing=True,
         )
@@ -575,7 +575,7 @@ class Zoom(Transform):
             recompute_scale_factor=True,
             input=torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0),
             scale_factor=list(_zoom),
-            mode=self.mode.value if mode is None else InterpolateMode(mode).value,
+            mode=look_up_option(self.mode if mode is None else mode, InterpolateMode).value,
             align_corners=self.align_corners if align_corners is None else align_corners,
         )
         zoomed = zoomed.squeeze(0).detach().cpu().numpy()
@@ -592,8 +592,8 @@ class Zoom(Transform):
             elif diff < 0:  # need slicing
                 slice_vec[idx] = slice(half, half + od)
 
-        padding_mode = self.padding_mode if padding_mode is None else NumpyPadMode(padding_mode)
-        zoomed = np.pad(zoomed, pad_vec, mode=padding_mode.value)
+        padding_mode = look_up_option(self.padding_mode if padding_mode is None else padding_mode, NumpyPadMode)
+        zoomed = np.pad(zoomed, pad_vec, mode=padding_mode.value)  # type: ignore
         return zoomed[tuple(slice_vec)]
 
 
@@ -718,8 +718,8 @@ class RandRotate(RandomizableTransform):
             self.range_z = tuple(sorted([-self.range_z[0], self.range_z[0]]))
 
         self.keep_size = keep_size
-        self.mode: GridSampleMode = GridSampleMode(mode)
-        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
+        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
         self.align_corners = align_corners
         self.dtype = dtype
 
@@ -762,8 +762,8 @@ class RandRotate(RandomizableTransform):
         rotator = Rotate(
             angle=self.x if img.ndim == 3 else (self.x, self.y, self.z),
             keep_size=self.keep_size,
-            mode=mode or self.mode,
-            padding_mode=padding_mode or self.padding_mode,
+            mode=look_up_option(mode or self.mode, GridSampleMode),
+            padding_mode=look_up_option(padding_mode or self.padding_mode, GridSamplePadMode),
             align_corners=self.align_corners if align_corners is None else align_corners,
             dtype=dtype or self.dtype or img.dtype,
         )
@@ -871,8 +871,8 @@ class RandZoom(RandomizableTransform):
         self.max_zoom = ensure_tuple(max_zoom)
         if len(self.min_zoom) != len(self.max_zoom):
             raise AssertionError("min_zoom and max_zoom must have same length.")
-        self.mode: InterpolateMode = InterpolateMode(mode)
-        self.padding_mode: NumpyPadMode = NumpyPadMode(padding_mode)
+        self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
+        self.padding_mode: NumpyPadMode = look_up_option(padding_mode, NumpyPadMode)
         self.align_corners = align_corners
         self.keep_size = keep_size
 
@@ -918,8 +918,8 @@ class RandZoom(RandomizableTransform):
         return np.asarray(
             zoomer(
                 img,
-                mode=mode or self.mode,
-                padding_mode=padding_mode or self.padding_mode,
+                mode=look_up_option(mode or self.mode, InterpolateMode),
+                padding_mode=look_up_option(padding_mode or self.padding_mode, NumpyPadMode),
                 align_corners=self.align_corners if align_corners is None else align_corners,
             ),
             dtype=_dtype,
@@ -1192,8 +1192,8 @@ class Resample(Transform):
             as_tensor_output: whether to return a torch tensor. Defaults to False.
             device: device on which the tensor will be allocated.
         """
-        self.mode: GridSampleMode = GridSampleMode(mode)
-        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
+        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
         self.as_tensor_output = as_tensor_output
         self.device = device
 
@@ -1230,14 +1230,16 @@ class Resample(Transform):
                 grid[i] += (dim - 1.0) / 2.0
             grid = grid[:-1] / grid[-1:]
             grid = grid.permute(list(range(grid.ndimension()))[1:] + [0])
-            _padding_mode = self.padding_mode.value if padding_mode is None else GridSamplePadMode(padding_mode).value
+            _padding_mode = look_up_option(
+                self.padding_mode if padding_mode is None else padding_mode, GridSamplePadMode
+            ).value
             if _padding_mode == "zeros":
                 bound = 7
             elif _padding_mode == "border":
                 bound = 0
             else:
                 bound = 1
-            _interp_mode = self.mode.value if mode is None else GridSampleMode(mode).value
+            _interp_mode = look_up_option(self.mode if mode is None else mode, GridSampleMode).value
             out = grid_pull(
                 img.unsqueeze(0).float(),
                 grid.unsqueeze(0).float(),
@@ -1320,8 +1322,8 @@ class Affine(Transform):
         self.image_only = image_only
         self.resampler = Resample(as_tensor_output=as_tensor_output, device=device)
         self.spatial_size = spatial_size
-        self.mode: GridSampleMode = GridSampleMode(mode)
-        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
+        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
 
     def __call__(
         self,
@@ -1583,8 +1585,8 @@ class Rand2DElastic(RandomizableTransform):
         self.resampler = Resample(as_tensor_output=as_tensor_output, device=device)
 
         self.spatial_size = spatial_size
-        self.mode: GridSampleMode = GridSampleMode(mode)
-        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
+        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
@@ -1703,8 +1705,8 @@ class Rand3DElastic(RandomizableTransform):
         self.sigma_range = sigma_range
         self.magnitude_range = magnitude_range
         self.spatial_size = spatial_size
-        self.mode: GridSampleMode = GridSampleMode(mode)
-        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
+        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
         self.device = device
 
         self.rand_offset: np.ndarray

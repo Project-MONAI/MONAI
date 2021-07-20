@@ -17,7 +17,7 @@ import torch
 from monai.data.png_writer import write_png
 from monai.data.utils import create_file_basename
 from monai.utils import ImageMetaKey as Key
-from monai.utils import InterpolateMode
+from monai.utils import InterpolateMode, look_up_option
 
 
 class PNGSaver:
@@ -74,7 +74,7 @@ class PNGSaver:
         self.output_postfix = output_postfix
         self.output_ext = output_ext
         self.resample = resample
-        self.mode: InterpolateMode = InterpolateMode(mode)
+        self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
         self.scale = scale
         self.data_root_dir = data_root_dir
         self.separate_folder = separate_folder
