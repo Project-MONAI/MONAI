@@ -12,45 +12,59 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import LabelToMask
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASE_1 = [
-    {"select_labels": [2, 3], "merge_channels": False},
-    np.array([[[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4], [5, 5, 5], [6, 6, 6]]]),
-    np.array([[[0, 0, 0], [1, 1, 1], [1, 1, 1], [0, 0, 0], [0, 0, 0], [0, 0, 0]]]),
-]
-
-TEST_CASE_2 = [
-    {"select_labels": 2, "merge_channels": False},
-    np.array([[[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4], [5, 5, 5], [6, 6, 6]]]),
-    np.array([[[0, 0, 0], [1, 1, 1], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]]),
-]
-
-TEST_CASE_3 = [
-    {"select_labels": [1, 2], "merge_channels": False},
-    np.array([[[0, 0, 1], [0, 1, 0]], [[1, 0, 0], [0, 1, 1]], [[1, 0, 1], [1, 1, 0]]]),
-    np.array([[[1, 0, 0], [0, 1, 1]], [[1, 0, 1], [1, 1, 0]]]),
-]
-
-TEST_CASE_4 = [
-    {"select_labels": 2, "merge_channels": False},
-    np.array([[[0, 0, 1], [0, 1, 0]], [[1, 0, 0], [0, 1, 1]], [[1, 0, 1], [1, 1, 0]]]),
-    np.array([[[1, 0, 1], [1, 1, 0]]]),
-]
-
-TEST_CASE_5 = [
-    {"select_labels": [1, 2], "merge_channels": True},
-    np.array([[[0, 0, 1], [0, 1, 0]], [[1, 0, 0], [0, 1, 1]], [[1, 0, 1], [1, 1, 0]]]),
-    np.array([[[1, 0, 1], [1, 1, 1]]]),
-]
+TESTS = []
+for p in TEST_NDARRAYS:
+    TESTS.append(
+        [
+            {"select_labels": [2, 3], "merge_channels": False},
+            p(np.array([[[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4], [5, 5, 5], [6, 6, 6]]])),
+            np.array([[[0, 0, 0], [1, 1, 1], [1, 1, 1], [0, 0, 0], [0, 0, 0], [0, 0, 0]]]),
+        ]
+    )
+    TESTS.append(
+        [
+            {"select_labels": 2, "merge_channels": False},
+            p(np.array([[[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4], [5, 5, 5], [6, 6, 6]]])),
+            np.array([[[0, 0, 0], [1, 1, 1], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]]),
+        ]
+    )
+    TESTS.append(
+        [
+            {"select_labels": [1, 2], "merge_channels": False},
+            p(np.array([[[0, 0, 1], [0, 1, 0]], [[1, 0, 0], [0, 1, 1]], [[1, 0, 1], [1, 1, 0]]])),
+            np.array([[[1, 0, 0], [0, 1, 1]], [[1, 0, 1], [1, 1, 0]]]),
+        ]
+    )
+    TESTS.append(
+        [
+            {"select_labels": 2, "merge_channels": False},
+            p(np.array([[[0, 0, 1], [0, 1, 0]], [[1, 0, 0], [0, 1, 1]], [[1, 0, 1], [1, 1, 0]]])),
+            np.array([[[1, 0, 1], [1, 1, 0]]]),
+        ]
+    )
+    TESTS.append(
+        [
+            {"select_labels": [1, 2], "merge_channels": True},
+            p(np.array([[[0, 0, 1], [0, 1, 0]], [[1, 0, 0], [0, 1, 1]], [[1, 0, 1], [1, 1, 0]]])),
+            np.array([[[1, 0, 1], [1, 1, 1]]]),
+        ]
+    )
 
 
 class TestLabelToMask(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
+    @parameterized.expand(TESTS)
     def test_value(self, argments, image, expected_data):
         result = LabelToMask(**argments)(image)
+        self.assertEqual(type(result), type(image))
+        if isinstance(result, torch.Tensor):
+            self.assertEqual(result.device, image.device)
+            result = result.cpu()
         np.testing.assert_allclose(result, expected_data)
 
 

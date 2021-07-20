@@ -634,7 +634,7 @@ class Lambda(Transform):
         raise ValueError("Incompatible values: func=None and self.func=None.")
 
 
-class LabelToMask(NumpyTransform):
+class LabelToMask(TorchTransform, NumpyTransform):
     """
     Convert labels to mask for other tasks. A typical usage is to convert segmentation labels
     to mask data to pre-process images and then feed the images into classification network.
@@ -661,6 +661,13 @@ class LabelToMask(NumpyTransform):
         self.select_labels = ensure_tuple(select_labels)
         self.merge_channels = merge_channels
 
+    @staticmethod
+    def _in1d(x, y):
+        if isinstance(x, np.ndarray):
+            return np.in1d(x, y)
+        else:
+            return (x[..., None] == torch.tensor(y, device=x.device)).any(-1).view(-1)
+
     def __call__(
         self,
         img: DataObjects.Images,
@@ -675,7 +682,6 @@ class LabelToMask(NumpyTransform):
             merge_channels: whether to use `np.any()` to merge the result on channel dim. if yes,
                 will return a single channel mask with binary data.
         """
-        img, orig_type, orig_device = convert_data_type(img, np.ndarray)
 
         if select_labels is None:
             select_labels = self.select_labels
@@ -685,11 +691,15 @@ class LabelToMask(NumpyTransform):
         if img.shape[0] > 1:
             data = img[[*select_labels]]
         else:
-            data = np.where(np.in1d(img, select_labels), True, False).reshape(img.shape)
+            where = np.where if isinstance(img, np.ndarray) else torch.where
+            data = where(self._in1d(img, select_labels), True, False).reshape(img.shape)
 
-        out_np = np.any(data, axis=0, keepdims=True) if (merge_channels or self.merge_channels) else data
-        out, *_ = convert_data_type(out_np, orig_type, orig_device)
-        return out
+        if merge_channels or self.merge_channels:
+            if isinstance(data, np.ndarray):
+                return np.any(data, axis=0, keepdims=True)  # type: ignore
+            else:
+                return torch.any(data, dim=0, keepdim=True)
+        return data
 
 
 class FgBgToIndices(Transform):
