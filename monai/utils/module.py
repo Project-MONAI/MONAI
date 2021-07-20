@@ -49,6 +49,23 @@ def look_up_option(opt_str, supported: Collection, default="no_default"):
         supported: The collection of supported options, it can be list, tuple, set, dict, or Enum.
         default: The default value to return if the option is not found.
 
+    Examples:
+
+    .. code-block:: python
+
+        from enum import Enum
+        from monai.utils import look_up_option
+        class Color(Enum):
+            RED = "red"
+            BLUE = "blue"
+        look_up_option("red", Color)  # <Color.RED: 'red'>
+        look_up_option(Color.READ, Color)  # <Color.RED: 'red'>
+        look_up_option("read", Color)
+        # ValueError: By 'read', did you mean 'red'?
+        # 'read' is not a valid option.
+        # Avaliable options are {'blue', 'red'}.
+        look_up_option("red", {"red", "blue"})  # "red"
+
     Adapted from https://github.com/NifTK/NiftyNet/blob/v0.6.0/niftynet/utilities/util_common.py#L249
     """
     if not isinstance(opt_str, Hashable):
