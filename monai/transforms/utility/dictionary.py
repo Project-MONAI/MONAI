@@ -31,6 +31,7 @@ from monai.transforms.utility.array import (
     AsChannelFirst,
     AsChannelLast,
     CastToType,
+    ClassesToIndices,
     ConvertToMultiChannelBasedOnBratsClasses,
     DataStats,
     EnsureChannelFirst,
@@ -977,6 +978,49 @@ class FgBgToIndicesd(MapTransform):
         return d
 
 
+class ClassesToIndicesd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.ClassesToIndices`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        indices_postfix: postfix to save the computed indices of all classes in dict.
+            for example, if computed on `label` and `postfix = "_cls_indices"`, the key will be `label_cls_indices`.
+        num_classes: number of classes for argmax label, not necessary for One-Hot label.
+        image_key: if image_key is not None, use ``image > image_threshold`` to define valid region, and only select
+            the indices within the valid region.
+        image_threshold: if enabled image_key, use ``image > image_threshold`` to determine the valid image content
+            area and select only the indices of classes in this area.
+        output_shape: expected shape of output indices. if not None, unravel indices to specified shape.
+        allow_missing_keys: don't raise exception if key is missing.
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        indices_postfix: str = "_cls_indices",
+        num_classes: Optional[int] = None,
+        image_key: Optional[str] = None,
+        image_threshold: float = 0.0,
+        output_shape: Optional[Sequence[int]] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.indices_postfix = indices_postfix
+        self.image_key = image_key
+        self.converter = ClassesToIndices(num_classes, image_threshold, output_shape)
+
+    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, np.ndarray]:
+        d = dict(data)
+        image = d[self.image_key] if self.image_key else None
+        for key in self.key_iterator(d):
+            d[str(key) + self.indices_postfix] = self.converter(d[key], image)
+
+        return d
+
+
 class ConvertToMultiChannelBasedOnBratsClassesd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ConvertToMultiChannelBasedOnBratsClasses`.
@@ -1203,6 +1247,7 @@ ConcatItemsD = ConcatItemsDict = ConcatItemsd
 LambdaD = LambdaDict = Lambdad
 LabelToMaskD = LabelToMaskDict = LabelToMaskd
 FgBgToIndicesD = FgBgToIndicesDict = FgBgToIndicesd
+ClassesToIndicesD = ClassesToIndicesDict = ClassesToIndicesd
 ConvertToMultiChannelBasedOnBratsClassesD = (
     ConvertToMultiChannelBasedOnBratsClassesDict
 ) = ConvertToMultiChannelBasedOnBratsClassesd

@@ -40,6 +40,7 @@ class PNGSaver:
         mode: Union[InterpolateMode, str] = InterpolateMode.NEAREST,
         scale: Optional[int] = None,
         data_root_dir: str = "",
+        separate_folder: bool = True,
         print_log: bool = True,
     ) -> None:
         """
@@ -63,6 +64,9 @@ class PNGSaver:
                 output_dir: /output,
                 data_root_dir: /foo/bar,
                 output will be: /output/test1/image/image_seg.png
+            separate_folder: whether to save every file in a separate folder, for example: if input filename is
+                `image.png`, postfix is `seg` and folder_path is `output`, if `True`, save as:
+                `output/image/image_seg.png`, if `False`, save as `output/image_seg.nii`. default to `True`.
             print_log: whether to print log about the saved PNG file path, etc. default to `True`.
 
         """
@@ -73,6 +77,7 @@ class PNGSaver:
         self.mode: InterpolateMode = InterpolateMode(mode)
         self.scale = scale
         self.data_root_dir = data_root_dir
+        self.separate_folder = separate_folder
         self.print_log = print_log
 
         self._data_index = 0
@@ -110,7 +115,14 @@ class PNGSaver:
         if isinstance(data, torch.Tensor):
             data = data.detach().cpu().numpy()
 
-        path = create_file_basename(self.output_postfix, filename, self.output_dir, self.data_root_dir, patch_index)
+        path = create_file_basename(
+            postfix=self.output_postfix,
+            input_file_name=filename,
+            folder_path=self.output_dir,
+            data_root_dir=self.data_root_dir,
+            separate_folder=self.separate_folder,
+            patch_index=patch_index,
+        )
         path = f"{path}{self.output_ext}"
 
         if data.shape[0] == 1:

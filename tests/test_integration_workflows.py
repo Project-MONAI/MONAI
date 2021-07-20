@@ -202,6 +202,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         key_train_metric={"train_acc": Accuracy(output_transform=from_engine(["pred", "label"]))},
         train_handlers=train_handlers,
         amp=True if amp else False,
+        optim_set_to_none=True,
     )
     trainer.run()
 

@@ -58,9 +58,8 @@ class StateCacher:
 
         if self.cache_dir is None:
             self.cache_dir = tempfile.gettempdir()
-        else:
-            if not os.path.isdir(self.cache_dir):
-                raise ValueError("Given `cache_dir` is not a valid directory.")
+        elif not os.path.isdir(self.cache_dir):
+            raise ValueError("Given `cache_dir` is not a valid directory.")
 
         self.cached: Dict[str, str] = {}
 

@@ -154,7 +154,7 @@ class ResNet(nn.Module):
     Args:
         block: which ResNet block to use, either Basic or Bottleneck.
         layers: how many layers to use.
-        block_inplanes: determine the size of planes at each step. Also tuneable with widen_factor.
+        block_inplanes: determine the size of planes at each step. Also tunable with widen_factor.
         spatial_dims: number of spatial dimensions of the input image.
         n_input_channels: number of input channels for first convolutional layer.
         conv1_t_size: size of first convolution layer, determines kernel and padding.

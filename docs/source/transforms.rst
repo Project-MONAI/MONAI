@@ -120,6 +120,12 @@ Crop and Pad
     :members:
     :special-members: __call__
 
+`RandCropByLabelClasses`
+""""""""""""""""""""""""
+.. autoclass:: RandCropByLabelClasses
+    :members:
+    :special-members: __call__
+
 `ResizeWithPadOrCrop`
 """""""""""""""""""""
 .. autoclass:: ResizeWithPadOrCrop
@@ -604,6 +610,12 @@ Utility
     :members:
     :special-members: __call__
 
+`ClassesToIndices`
+""""""""""""""""""
+.. autoclass:: ClassesToIndices
+    :members:
+    :special-members: __call__
+
 `ConvertToMultiChannelBasedOnBratsClasses`
 """"""""""""""""""""""""""""""""""""""""""
 .. autoclass:: ConvertToMultiChannelBasedOnBratsClasses
@@ -700,6 +712,12 @@ Crop and Pad (Dict)
     :members:
     :special-members: __call__
 
+`RandCropByLabelClassesd`
+"""""""""""""""""""""""""
+.. autoclass:: RandCropByLabelClassesd
+    :members:
+    :special-members: __call__
+
 `ResizeWithPadOrCropd`
 """"""""""""""""""""""
 .. autoclass:: ResizeWithPadOrCropd
@@ -724,8 +742,8 @@ Crop and Pad (Dict)
     :members:
     :special-members: __call__
 
-Instensity (Dict)
-^^^^^^^^^^^^^^^^^
+Intensity (Dict)
+^^^^^^^^^^^^^^^^
 
 `RandGaussianNoised`
 """"""""""""""""""""
@@ -1180,6 +1198,12 @@ Utility (Dict)
 `FgBgToIndicesd`
 """"""""""""""""
 .. autoclass:: FgBgToIndicesd
+    :members:
+    :special-members: __call__
+
+`ClassesToIndicesd`
+"""""""""""""""""""
+.. autoclass:: ClassesToIndicesd
     :members:
     :special-members: __call__
 
