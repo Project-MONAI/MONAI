@@ -700,13 +700,14 @@ class CropForeground(NumpyTransform):
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't change the channel dim.
         """
-        img_np: np.ndarray
-        img_np, orig_type, orig_device = convert_data_type(img, np.ndarray)  # type: ignore
+        img_np = img
+        # img_np: np.ndarray
+        # img_np, orig_type, orig_device = convert_data_type(img, np.ndarray)  # type: ignore
 
         box_start, box_end = self.compute_bounding_box(img_np)
         cropped = self.crop_pad(img_np, box_start, box_end)
 
-        cropped, *_ = convert_data_type(cropped, orig_type, orig_device)
+        # cropped, *_ = convert_data_type(cropped, orig_type, orig_device)
 
         if self.return_coords:
             return cropped, box_start, box_end

@@ -508,7 +508,7 @@ class RandBiasField(RandomizableTransform):
         return (img * _bias_fields).astype(self.dtype)
 
 
-class NormalizeIntensity(Transform):
+class NormalizeIntensity(TorchTransform, NumpyTransform):
     """
     Normalize input based on provided args, using calculated mean and std if not provided.
     This transform can normalize only non-zero values or entire image, and can also calculate
@@ -527,8 +527,8 @@ class NormalizeIntensity(Transform):
 
     def __init__(
         self,
-        subtrahend: Union[Sequence, np.ndarray, None] = None,
-        divisor: Union[Sequence, np.ndarray, None] = None,
+        subtrahend: Optional[Union[Sequence, DataObjects.Images]] = None,
+        divisor: Optional[Union[Sequence, DataObjects.Images]] = None,
         nonzero: bool = False,
         channel_wise: bool = False,
         dtype: DtypeLike = np.float32,
@@ -539,26 +539,59 @@ class NormalizeIntensity(Transform):
         self.channel_wise = channel_wise
         self.dtype = dtype
 
-    def _normalize(self, img: np.ndarray, sub=None, div=None) -> np.ndarray:
-        slices = (img != 0) if self.nonzero else np.ones(img.shape, dtype=bool)
-        if not np.any(slices):
+    @staticmethod
+    def _mean(x):
+        if isinstance(x, np.ndarray):
+            return np.mean(x)
+        x = torch.mean(x.float())
+        return x.item() if x.numel() == 1 else x
+
+    @staticmethod
+    def _std(x):
+        if isinstance(x, np.ndarray):
+            return np.std(x)
+        x = torch.std(x.float(), unbiased=False)
+        return x.item() if x.numel() == 1 else x
+
+    def _normalize(self, img: DataObjects.Images, sub=None, div=None) -> DataObjects.Images:
+        img, *_ = convert_data_type(img, dtype=torch.float32)
+
+        if self.nonzero:
+            slices = img != 0
+        else:
+            if isinstance(img, np.ndarray):
+                slices = np.ones_like(img, dtype=bool)
+            else:
+                slices = torch.ones_like(img, dtype=torch.bool)
+        if not slices.any():
             return img
 
-        _sub = sub if sub is not None else np.mean(img[slices])
-        if isinstance(_sub, np.ndarray):
+        _sub = sub if sub is not None else self._mean(img[slices])
+        if isinstance(_sub, (np.ndarray, torch.Tensor)):
+            _sub, *_ = convert_data_type(
+                _sub, type(img), dtype=img.dtype, device=img.device if isinstance(img, torch.Tensor) else None
+            )
             _sub = _sub[slices]
 
-        _div = div if div is not None else np.std(img[slices])
+        _div = div if div is not None else self._std(img[slices])
         if np.isscalar(_div):
             if _div == 0.0:
                 _div = 1.0
-        elif isinstance(_div, np.ndarray):
+        elif isinstance(_div, (np.ndarray, torch.Tensor)):
+            _div, *_ = convert_data_type(
+                _div, type(img), dtype=img.dtype, device=img.device if isinstance(img, torch.Tensor) else None
+            )
             _div = _div[slices]
             _div[_div == 0.0] = 1.0
         img[slices] = (img[slices] - _sub) / _div
+
+        if isinstance(img, torch.Tensor):
+            if img.dtype != torch.float32:
+                print("hi")
+
         return img
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Apply the transform to `img`, assuming `img` is a channel-first array if `self.channel_wise` is True,
         """
@@ -569,7 +602,7 @@ class NormalizeIntensity(Transform):
                 raise ValueError(f"img has {len(img)} channels, but divisor has {len(self.divisor)} components.")
 
             for i, d in enumerate(img):
-                img[i] = self._normalize(
+                img[i] = self._normalize(  # type: ignore
                     d,
                     sub=self.subtrahend[i] if self.subtrahend is not None else None,
                     div=self.divisor[i] if self.divisor is not None else None,
@@ -577,7 +610,8 @@ class NormalizeIntensity(Transform):
         else:
             img = self._normalize(img, self.subtrahend, self.divisor)
 
-        return img.astype(self.dtype)
+        out, *_ = convert_data_type(img, dtype=self.dtype)
+        return out
 
 
 class ThresholdIntensity(TorchTransform, NumpyTransform):
