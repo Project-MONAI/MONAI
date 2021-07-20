@@ -45,6 +45,7 @@ from monai.utils import (
     issequenceiterable,
     optional_import,
 )
+from monai.utils.module import look_up_option
 
 nib, _ = optional_import("nibabel")
 
@@ -354,7 +355,7 @@ class Resize(Transform):
         align_corners: Optional[bool] = None,
     ) -> None:
         self.spatial_size = ensure_tuple(spatial_size)
-        self.mode: InterpolateMode = InterpolateMode(mode)
+        self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
         self.align_corners = align_corners
 
     def __call__(
@@ -391,7 +392,7 @@ class Resize(Transform):
         resized = torch.nn.functional.interpolate(  # type: ignore
             input=torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0),
             size=spatial_size,
-            mode=self.mode.value if mode is None else InterpolateMode(mode).value,
+            mode=look_up_option(self.mode if mode is None else mode, InterpolateMode),
             align_corners=self.align_corners if align_corners is None else align_corners,
         )
         resized = resized.squeeze(0).detach().cpu().numpy()
