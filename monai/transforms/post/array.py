@@ -92,7 +92,7 @@ class Activations(TorchTransform):
             raise TypeError(f"other must be None or callable but is {type(other).__name__}.")
 
         img_t: torch.Tensor
-        img_t, orig_type, orig_device = convert_data_type(img, torch.Tensor, dtype=float)  # type: ignore
+        img_t, orig_type, orig_device = convert_data_type(img, torch.Tensor, dtype=torch.float32)  # type: ignore
 
         # convert to float as activation must operate on float tensor
         if sigmoid or self.sigmoid:
