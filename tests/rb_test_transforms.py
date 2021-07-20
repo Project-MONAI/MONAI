@@ -35,6 +35,8 @@ for n, obj in getmembers(transforms):
             "LoadImage",
             "Compose",
             "RandomizableTransform",
+            "NumpyTransform",
+            "TorchTransform",
             "ToPIL",
             "ToCupy",
         ]:
