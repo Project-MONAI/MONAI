@@ -22,7 +22,7 @@ from monai.utils.misc import set_determinism
 from monai.utils.module import optional_import
 from tests.utils import TEST_NDARRAYS
 
-_, has_torch_fft = optional_import("torch.fft.fftshift")
+_, has_torch_fft = optional_import("torch.fft", name="fftshift")
 
 TEST_CASES = []
 for shape in ((128, 64), (64, 48, 80)):
@@ -42,8 +42,6 @@ class TestGibbsNoise(unittest.TestCase):
     def get_data(im_shape, input_type):
         create_test_image = create_test_image_2d if len(im_shape) == 2 else create_test_image_3d
         im = create_test_image(*im_shape, num_objs=4, rad_max=20, noise_max=0.0, num_seg_classes=5)[0][None]
-        return torch.Tensor(im) if as_tensor_input else im
-        im = create_test_image(*im_shape, 4, 20, 0, 5)[0][None]
         return input_type(im)
 
     @parameterized.expand(TEST_CASES)
@@ -53,6 +51,9 @@ class TestGibbsNoise(unittest.TestCase):
         t = GibbsNoise(alpha)
         out1 = t(deepcopy(im))
         out2 = t(deepcopy(im))
+        self.assertEqual(type(out1), type(im))
+        if isinstance(out1, torch.Tensor):
+            self.assertEqual(out1.device, im.device)
         torch.testing.assert_allclose(out1, out2, rtol=1e-7, atol=0)
         self.assertIsInstance(out1, type(im))
 
