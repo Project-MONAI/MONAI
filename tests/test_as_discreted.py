@@ -9,55 +9,62 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from tests.utils import TEST_NDARRAYS
 import unittest
+
 import numpy as np
 import torch
 from parameterized import parameterized
 
 from monai.transforms import AsDiscreted
+from tests.utils import TEST_NDARRAYS
 
 TESTS = []
 for p in TEST_NDARRAYS:
-    TESTS.append([
-        {
-            "keys": ["pred", "label"],
-            "argmax": [True, False],
-            "to_onehot": True,
-            "n_classes": 2,
-            "threshold_values": False,
-            "logit_thresh": 0.5,
-        },
-        {"pred": p(torch.tensor([[[0.0, 1.0]], [[2.0, 3.0]]])), "label": p(torch.tensor([[[0, 1]]]))},
-        {"pred": torch.tensor([[[0.0, 0.0]], [[1.0, 1.0]]]), "label": torch.tensor([[[1.0, 0.0]], [[0.0, 1.0]]])},
-        (2, 1, 2),
-    ])
-    TESTS.append([
-        {
-            "keys": ["pred", "label"],
-            "argmax": False,
-            "to_onehot": False,
-            "n_classes": None,
-            "threshold_values": [True, False],
-            "logit_thresh": 0.6,
-        },
-        {"pred": p(torch.tensor([[[0.0, 1.0], [2.0, 3.0]]])), "label": p(torch.tensor([[[0, 1], [1, 1]]]))},
-        {"pred": torch.tensor([[[0.0, 1.0], [1.0, 1.0]]]), "label": torch.tensor([[[0.0, 1.0], [1.0, 1.0]]])},
-        (1, 2, 2),
-    ])
-    TESTS.append([
-        {
-            "keys": ["pred"],
-            "argmax": True,
-            "to_onehot": True,
-            "n_classes": 2,
-            "threshold_values": False,
-            "logit_thresh": 0.5,
-        },
-        {"pred": p(torch.tensor([[[0.0, 1.0]], [[2.0, 3.0]]]))},
-        {"pred": torch.tensor([[[0.0, 0.0]], [[1.0, 1.0]]])},
-        (2, 1, 2),
-    ])
+    TESTS.append(
+        [
+            {
+                "keys": ["pred", "label"],
+                "argmax": [True, False],
+                "to_onehot": True,
+                "n_classes": 2,
+                "threshold_values": False,
+                "logit_thresh": 0.5,
+            },
+            {"pred": p(torch.tensor([[[0.0, 1.0]], [[2.0, 3.0]]])), "label": p(torch.tensor([[[0, 1]]]))},
+            {"pred": torch.tensor([[[0.0, 0.0]], [[1.0, 1.0]]]), "label": torch.tensor([[[1.0, 0.0]], [[0.0, 1.0]]])},
+            (2, 1, 2),
+        ]
+    )
+    TESTS.append(
+        [
+            {
+                "keys": ["pred", "label"],
+                "argmax": False,
+                "to_onehot": False,
+                "n_classes": None,
+                "threshold_values": [True, False],
+                "logit_thresh": 0.6,
+            },
+            {"pred": p(torch.tensor([[[0.0, 1.0], [2.0, 3.0]]])), "label": p(torch.tensor([[[0, 1], [1, 1]]]))},
+            {"pred": torch.tensor([[[0.0, 1.0], [1.0, 1.0]]]), "label": torch.tensor([[[0.0, 1.0], [1.0, 1.0]]])},
+            (1, 2, 2),
+        ]
+    )
+    TESTS.append(
+        [
+            {
+                "keys": ["pred"],
+                "argmax": True,
+                "to_onehot": True,
+                "n_classes": 2,
+                "threshold_values": False,
+                "logit_thresh": 0.5,
+            },
+            {"pred": p(torch.tensor([[[0.0, 1.0]], [[2.0, 3.0]]]))},
+            {"pred": torch.tensor([[[0.0, 0.0]], [[1.0, 1.0]]])},
+            (2, 1, 2),
+        ]
+    )
 
 
 class TestAsDiscreted(unittest.TestCase):
