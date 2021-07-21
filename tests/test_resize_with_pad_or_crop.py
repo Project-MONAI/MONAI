@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import torch
+from tests.utils import TEST_NDARRAYS
 import unittest
 
 import numpy as np
@@ -48,12 +50,22 @@ TEST_CASES = [
 class TestResizeWithPadOrCrop(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_pad_shape(self, input_param, input_shape, expected_shape):
-        paddcroper = ResizeWithPadOrCrop(**input_param)
-        result = paddcroper(np.zeros(input_shape))
-        np.testing.assert_allclose(result.shape, expected_shape)
-        result = paddcroper(np.zeros(input_shape), mode="constant")
-        np.testing.assert_allclose(result.shape, expected_shape)
-
+        results1, results2 = [], []
+        for p in TEST_NDARRAYS:
+            im = p(np.zeros(input_shape))
+            paddcroper = ResizeWithPadOrCrop(**input_param)
+            result1 = paddcroper(im)
+            result2 = paddcroper(im, mode="constant")
+            for result, results in zip((result1, result2), (results1, results2)):
+                self.assertEqual(type(im), type(result))
+                if isinstance(result, torch.Tensor):
+                    self.assertEqual(result.device, im.device)
+                    result = result.cpu().numpy()
+                np.testing.assert_allclose(result.shape, expected_shape)
+                results.append(result)
+                # check output from numpy torch and torch.cuda match
+                if len(results) > 1:
+                    np.testing.assert_allclose(results[0], results[-1])
 
 if __name__ == "__main__":
     unittest.main()

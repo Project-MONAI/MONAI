@@ -1028,7 +1028,7 @@ class RandCropByLabelClasses(Randomizable, TorchTransform, NumpyTransform):
         return results
 
 
-class ResizeWithPadOrCrop(Transform):
+class ResizeWithPadOrCrop(TorchTransform, NumpyTransform):
     """
     Resize an image to a target spatial size by either centrally cropping the image or
     padding it evenly with a user-specified mode.
@@ -1059,7 +1059,7 @@ class ResizeWithPadOrCrop(Transform):
         self.padder = SpatialPad(spatial_size=spatial_size, method=method, mode=mode, **np_kwargs)
         self.cropper = CenterSpatialCrop(roi_size=spatial_size)
 
-    def __call__(self, img: np.ndarray, mode: Optional[Union[NumpyPadMode, str]] = None) -> np.ndarray:
+    def __call__(self, img: DataObjects.Images, mode: Optional[Union[NumpyPadMode, str]] = None) -> DataObjects.Images:
         """
         Args:
             img: data to pad or crop, assuming `img` is channel-first and
@@ -1070,7 +1070,7 @@ class ResizeWithPadOrCrop(Transform):
                 If None, defaults to the ``mode`` in construction.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
         """
-        return self.padder(self.cropper(img), mode=mode)  # type: ignore
+        return self.padder(self.cropper(img), mode=mode)
 
 
 class BoundingRect(TorchTransform, NumpyTransform):
