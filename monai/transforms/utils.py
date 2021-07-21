@@ -343,9 +343,19 @@ def map_classes_to_indices(
     return indices
 
 
+def _unravel_index(idx, shape):
+    if isinstance(idx, torch.Tensor):
+        coord = []
+        for dim in reversed(shape):
+            coord.insert(0, idx % dim)
+            idx = torch.div(idx, dim, rounding_mode="floor")
+        return torch.stack(coord)
+    return np.unravel_index(np.asarray(idx, dtype=int), shape)
+
+
 def weighted_patch_samples(
     spatial_size: Union[int, Sequence[int]],
-    w: np.ndarray,
+    w: DataObjects.Images,
     n_samples: int = 1,
     r_state: Optional[np.random.RandomState] = None,
 ) -> List:
@@ -375,16 +385,25 @@ def weighted_patch_samples(
     v = w[s]  # weight map in the 'valid' mode
     v_size = v.shape
     v = v.ravel()
-    if np.any(v < 0):
+    if (v < 0).any():
         v -= np.min(v)  # shifting to non-negative
-    v = v.cumsum()
-    if not v[-1] or not np.isfinite(v[-1]) or v[-1] < 0:  # uniform sampling
+    v = v.cumsum(0)
+    if not v[-1] or not torch.as_tensor(v[-1]).isfinite() or v[-1] < 0:  # uniform sampling
         idx = r_state.randint(0, len(v), size=n_samples)
+        if isinstance(v, torch.Tensor):
+            idx = torch.as_tensor(idx, device=v.device)
     else:
-        idx = v.searchsorted(r_state.random(n_samples) * v[-1], side="right")
+        r = r_state.random(n_samples)
+        if isinstance(v, np.ndarray):
+            idx = v.searchsorted(r * v[-1], side="right")
+        else:
+            r = torch.as_tensor(r, device=v.device)
+            idx = torch.searchsorted(v, r * v[-1], right=True)
     # compensate 'valid' mode
     diff = np.minimum(win_size, img_size) // 2
-    return [np.unravel_index(i, v_size) + diff for i in np.asarray(idx, dtype=int)]
+    if isinstance(v, torch.Tensor):
+        diff = torch.as_tensor(diff, device=v.device)
+    return [_unravel_index(i, v_size) + diff for i in idx]
 
 
 def correct_crop_centers(

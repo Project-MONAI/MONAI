@@ -333,10 +333,10 @@ class SpatialCrop(TorchTransform, NumpyTransform):
 
     def __init__(
         self,
-        roi_center: Union[Sequence[int], np.ndarray, None] = None,
-        roi_size: Union[Sequence[int], np.ndarray, None] = None,
-        roi_start: Union[Sequence[int], np.ndarray, None] = None,
-        roi_end: Union[Sequence[int], np.ndarray, None] = None,
+        roi_center: Optional[Union[Sequence[int], DataObjects.Images]] = None,
+        roi_size: Optional[Union[Sequence[int], DataObjects.Images]] = None,
+        roi_start: Optional[Union[Sequence[int], DataObjects.Images]] = None,
+        roi_end: Optional[Union[Sequence[int], DataObjects.Images]] = None,
         roi_slices: Optional[Sequence[slice]] = None,
     ) -> None:
         """
@@ -355,20 +355,21 @@ class SpatialCrop(TorchTransform, NumpyTransform):
             self.slices = list(roi_slices)
         else:
             if roi_center is not None and roi_size is not None:
-                roi_center = np.asarray(roi_center, dtype=np.int16)
-                roi_size = np.asarray(roi_size, dtype=np.int16)
-                roi_start_np = np.maximum(roi_center - np.floor_divide(roi_size, 2), 0)
-                roi_end_np = np.maximum(roi_start_np + roi_size, roi_start_np)
+                roi_center = torch.as_tensor(roi_center, dtype=torch.int16)
+                roi_size = torch.as_tensor(roi_size, dtype=torch.int16, device=roi_center.device)
+                roi_start = torch.maximum(
+                    roi_center - torch.div(roi_size, 2, rounding_mode="floor"),
+                    torch.tensor(0, device=roi_center.device),
+                )
+                roi_end = torch.maximum(roi_start + roi_size, roi_start)
             else:
                 if roi_start is None or roi_end is None:
                     raise ValueError("Please specify either roi_center, roi_size or roi_start, roi_end.")
-                roi_start_np = np.maximum(np.asarray(roi_start, dtype=np.int16), 0)
-                roi_end_np = np.maximum(np.asarray(roi_end, dtype=np.int16), roi_start_np)
-            # Allow for 1D by converting back to np.array (since np.maximum will convert to int)
-            roi_start_np = roi_start_np if isinstance(roi_start_np, np.ndarray) else np.array([roi_start_np])
-            roi_end_np = roi_end_np if isinstance(roi_end_np, np.ndarray) else np.array([roi_end_np])
+                roi_start = torch.as_tensor(roi_start, dtype=torch.int16)
+                roi_start = torch.maximum(roi_start, torch.tensor(0, device=roi_start.device))
+                roi_end = torch.maximum(torch.as_tensor(roi_end, dtype=torch.int16), roi_start)
             # convert to slices
-            self.slices = [slice(s, e) for s, e in zip(roi_start_np, roi_end_np)]
+            self.slices = [slice(s, e) for s, e in zip(roi_start, roi_end)]
 
     def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
@@ -708,7 +709,7 @@ class CropForeground(TorchTransform, NumpyTransform):
         return cropped
 
 
-class RandWeightedCrop(Randomizable, Transform):
+class RandWeightedCrop(Randomizable, TorchTransform, NumpyTransform):
     """
     Samples a list of `num_samples` image patches according to the provided `weight_map`.
 
@@ -722,19 +723,24 @@ class RandWeightedCrop(Randomizable, Transform):
     """
 
     def __init__(
-        self, spatial_size: Union[Sequence[int], int], num_samples: int = 1, weight_map: Optional[np.ndarray] = None
+        self,
+        spatial_size: Union[Sequence[int], int],
+        num_samples: int = 1,
+        weight_map: Optional[DataObjects.Images] = None,
     ):
         self.spatial_size = ensure_tuple(spatial_size)
         self.num_samples = int(num_samples)
         self.weight_map = weight_map
-        self.centers: List[np.ndarray] = []
+        self.centers: List[DataObjects.Images] = []
 
-    def randomize(self, weight_map: np.ndarray) -> None:
+    def randomize(self, weight_map: DataObjects.Images) -> None:
         self.centers = weighted_patch_samples(
             spatial_size=self.spatial_size, w=weight_map[0], n_samples=self.num_samples, r_state=self.R
         )  # using only the first channel as weight map
 
-    def __call__(self, img: np.ndarray, weight_map: Optional[np.ndarray] = None) -> List[np.ndarray]:
+    def __call__(
+        self, img: DataObjects.Images, weight_map: Optional[DataObjects.Images] = None
+    ) -> List[DataObjects.Images]:
         """
         Args:
             img: input image to sample patches from. assuming `img` is a channel-first array.
@@ -753,10 +759,10 @@ class RandWeightedCrop(Randomizable, Transform):
             raise ValueError(f"image and weight map spatial shape mismatch: {img.shape[1:]} vs {weight_map.shape[1:]}.")
         self.randomize(weight_map)
         _spatial_size = fall_back_tuple(self.spatial_size, weight_map.shape[1:])
-        results: List[np.ndarray] = []
+        results: List[DataObjects.Images] = []
         for center in self.centers:
             cropper = SpatialCrop(roi_center=center, roi_size=_spatial_size)
-            results.append(cropper(img))  # type: ignore
+            results.append(cropper(img))
         return results
 
 
