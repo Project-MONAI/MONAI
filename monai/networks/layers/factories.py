@@ -64,6 +64,8 @@ from typing import Any, Callable, Dict, Tuple, Type, Union
 
 import torch.nn as nn
 
+from monai.utils import look_up_option
+
 __all__ = ["LayerFactory", "Dropout", "Norm", "Act", "Conv", "Pool", "Pad", "split_args"]
 
 
@@ -120,8 +122,8 @@ class LayerFactory:
         if not isinstance(factory_name, str):
             raise TypeError(f"factory_name must a str but is {type(factory_name).__name__}.")
 
-        fact = self.factories[factory_name.upper()]
-        return fact(*args)
+        func = look_up_option(factory_name.upper(), self.factories)
+        return func(*args)
 
     def __getitem__(self, args) -> Any:
         """

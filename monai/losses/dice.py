@@ -21,7 +21,7 @@ from torch.nn.modules.loss import _Loss
 from monai.losses.focal_loss import FocalLoss
 from monai.losses.spatial_mask import MaskedLoss
 from monai.networks import one_hot
-from monai.utils import LossReduction, Weight
+from monai.utils import LossReduction, Weight, look_up_option
 
 
 class DiceLoss(_Loss):
@@ -266,7 +266,7 @@ class GeneralizedDiceLoss(_Loss):
         self.softmax = softmax
         self.other_act = other_act
 
-        self.w_type = Weight(w_type)
+        self.w_type = look_up_option(w_type, Weight)
 
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)

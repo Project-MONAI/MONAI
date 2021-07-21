@@ -15,7 +15,6 @@ from .decorators import MethodReplacer, RestartGenerator
 from .deprecated import DeprecatedError, deprecated, deprecated_arg
 from .dist import evenly_divisible_all_gather, get_dist_device, string_list_all_gather
 from .enums import (
-    Activation,
     Average,
     BlendMode,
     ChannelMatching,
@@ -28,7 +27,6 @@ from .enums import (
     LossReduction,
     Method,
     MetricReduction,
-    Normalization,
     NumpyPadMode,
     PytorchPadMode,
     SkipMode,
@@ -62,12 +60,14 @@ from .module import (
     PT_BEFORE_1_7,
     InvalidPyTorchVersionError,
     OptionalImportError,
+    damerau_levenshtein_distance,
     exact_version,
     export,
     get_full_type_name,
     get_package_version,
     get_torch_version_tuple,
     load_submodules,
+    look_up_option,
     min_version,
     optional_import,
     version_leq,
