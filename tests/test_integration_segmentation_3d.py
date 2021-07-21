@@ -48,7 +48,6 @@ TASK = "integration_segmentation_3d"
 
 
 def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, None)):
-    print(TASK)
     monai.config.print_config()
     images = sorted(glob(os.path.join(root_dir, "img*.nii.gz")))
     segs = sorted(glob(os.path.join(root_dir, "seg*.nii.gz")))

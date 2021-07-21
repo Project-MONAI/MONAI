@@ -144,11 +144,11 @@ class ITKReader(ImageReader):
 
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, channel_dim: Optional[int] = None, series_name: str = "", **kwargs):
         super().__init__()
         self.kwargs = kwargs
-        self.channel_dim = self.kwargs.pop("channel_dim", None)
-        self.series_name = self.kwargs.pop("series_name", "")
+        self.channel_dim = channel_dim
+        self.series_name = series_name
         if has_itk and int(itk.Version.GetITKMajorVersion()) == 5 and int(itk.Version.GetITKMinorVersion()) < 2:
             # warning the ITK LazyLoading mechanism was not threadsafe until version 5.2.0,
             # requesting access to the itk.imread function triggers the lazy loading of the relevant itk modules
@@ -265,7 +265,7 @@ class ITKReader(ImageReader):
         affine: np.ndarray = np.eye(sr + 1)
         affine[:sr, :sr] = direction[:sr, :sr] @ np.diag(spacing[:sr])
         affine[:sr, -1] = origin[:sr]
-        flip_diag = [[-1, 1], [-1, -1, 1], [-1, -1, 1, 1]][sr - 1]
+        flip_diag = [[-1, 1], [-1, -1, 1], [-1, -1, 1, 1]][sr - 1]  # itk to nibabel affine
         affine = np.diag(flip_diag) @ affine
         return affine
 
