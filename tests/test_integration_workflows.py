@@ -37,6 +37,7 @@ from monai.handlers import (
     TensorBoardImageHandler,
     TensorBoardStatsHandler,
     ValidationHandler,
+    from_engine,
 )
 from monai.inferers import SimpleInferer, SlidingWindowInferer
 from monai.transforms import (
@@ -48,6 +49,7 @@ from monai.transforms import (
     LoadImaged,
     RandCropByPosNegLabeld,
     RandRotate90d,
+    SaveImaged,
     ScaleIntensityd,
     ToTensord,
 )
@@ -108,8 +110,9 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
     lr_scheduler = torch.optim.lr_scheduler.StepLR(opt, step_size=2, gamma=0.1)
     summary_writer = SummaryWriter(log_dir=root_dir)
 
-    val_post_transforms = Compose(
+    val_postprocessing = Compose(
         [
+            ToTensord(keys=["pred", "label"]),
             Activationsd(keys="pred", sigmoid=True),
             AsDiscreted(keys="pred", threshold_values=True),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
@@ -127,7 +130,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         StatsHandler(output_transform=lambda x: None),
         TensorBoardStatsHandler(summary_writer=summary_writer, output_transform=lambda x: None),
         TensorBoardImageHandler(
-            log_dir=root_dir, batch_transform=lambda x: (x["image"], x["label"]), output_transform=lambda x: x["pred"]
+            log_dir=root_dir, batch_transform=from_engine(["image", "label"]), output_transform=from_engine("pred")
         ),
         CheckpointSaver(save_dir=root_dir, save_dict={"net": net}, save_key_metric=True),
         _TestEvalIterEvents(),
@@ -138,17 +141,19 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         val_data_loader=val_loader,
         network=net,
         inferer=SlidingWindowInferer(roi_size=(96, 96, 96), sw_batch_size=4, overlap=0.5),
-        post_transform=val_post_transforms,
+        postprocessing=val_postprocessing,
         key_val_metric={
-            "val_mean_dice": MeanDice(include_background=True, output_transform=lambda x: (x["pred"], x["label"]))
+            "val_mean_dice": MeanDice(include_background=True, output_transform=from_engine(["pred", "label"]))
         },
-        additional_metrics={"val_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]))},
+        additional_metrics={"val_acc": Accuracy(output_transform=from_engine(["pred", "label"]))},
+        metric_cmp_fn=lambda cur, prev: cur >= prev,  # if greater or equal, treat as new best metric
         val_handlers=val_handlers,
         amp=True if amp else False,
     )
 
-    train_post_transforms = Compose(
+    train_postprocessing = Compose(
         [
+            ToTensord(keys=["pred", "label"]),
             Activationsd(keys="pred", sigmoid=True),
             AsDiscreted(keys="pred", threshold_values=True),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
@@ -160,7 +165,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
             engine.add_event_handler(IterationEvents.FORWARD_COMPLETED, self._forward_completed)
             engine.add_event_handler(IterationEvents.LOSS_COMPLETED, self._loss_completed)
             engine.add_event_handler(IterationEvents.BACKWARD_COMPLETED, self._backward_completed)
-            engine.add_event_handler(IterationEvents.OPTIMIZER_COMPLETED, self._optimizer_completed)
+            engine.add_event_handler(IterationEvents.MODEL_COMPLETED, self._model_completed)
 
         def _forward_completed(self, engine):
             pass
@@ -171,15 +176,15 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         def _backward_completed(self, engine):
             pass
 
-        def _optimizer_completed(self, engine):
+        def _model_completed(self, engine):
             pass
 
     train_handlers = [
         LrScheduleHandler(lr_scheduler=lr_scheduler, print_lr=True),
         ValidationHandler(validator=evaluator, interval=2, epoch_level=True),
-        StatsHandler(tag_name="train_loss", output_transform=lambda x: x["loss"]),
+        StatsHandler(tag_name="train_loss", output_transform=from_engine("loss", first=True)),
         TensorBoardStatsHandler(
-            summary_writer=summary_writer, tag_name="train_loss", output_transform=lambda x: x["loss"]
+            summary_writer=summary_writer, tag_name="train_loss", output_transform=from_engine("loss", first=True)
         ),
         CheckpointSaver(save_dir=root_dir, save_dict={"net": net, "opt": opt}, save_interval=2, epoch_level=True),
         _TestTrainIterEvents(),
@@ -193,10 +198,11 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         optimizer=opt,
         loss_function=loss,
         inferer=SimpleInferer(),
-        post_transform=train_post_transforms,
-        key_train_metric={"train_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]))},
+        postprocessing=train_postprocessing,
+        key_train_metric={"train_acc": Accuracy(output_transform=from_engine(["pred", "label"]))},
         train_handlers=train_handlers,
         amp=True if amp else False,
+        optim_set_to_none=True,
     )
     trainer.run()
 
@@ -232,11 +238,19 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
         num_res_units=2,
     ).to(device)
 
-    val_post_transforms = Compose(
+    val_postprocessing = Compose(
         [
+            ToTensord(keys=["pred", "label"]),
             Activationsd(keys="pred", sigmoid=True),
             AsDiscreted(keys="pred", threshold_values=True),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
+            # test the case that `pred` in `engine.state.output`, while `image_meta_dict` in `engine.state.batch`
+            SaveImaged(
+                keys="pred",
+                meta_keys="image_meta_dict",
+                output_dir=root_dir,
+                output_postfix="seg_transform",
+            ),
         ]
     )
     val_handlers = [
@@ -244,8 +258,9 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
         CheckpointLoader(load_path=f"{model_file}", load_dict={"net": net}),
         SegmentationSaver(
             output_dir=root_dir,
-            batch_transform=lambda batch: batch["image_meta_dict"],
-            output_transform=lambda output: output["pred"],
+            output_postfix="seg_handler",
+            batch_transform=from_engine("image_meta_dict"),
+            output_transform=from_engine("pred"),
         ),
     ]
 
@@ -254,11 +269,11 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
         val_data_loader=val_loader,
         network=net,
         inferer=SlidingWindowInferer(roi_size=(96, 96, 96), sw_batch_size=4, overlap=0.5),
-        post_transform=val_post_transforms,
+        postprocessing=val_postprocessing,
         key_val_metric={
-            "val_mean_dice": MeanDice(include_background=True, output_transform=lambda x: (x["pred"], x["label"]))
+            "val_mean_dice": MeanDice(include_background=True, output_transform=from_engine(["pred", "label"]))
         },
-        additional_metrics={"val_acc": Accuracy(output_transform=lambda x: (x["pred"], x["label"]))},
+        additional_metrics={"val_acc": Accuracy(output_transform=from_engine(["pred", "label"]))},
         val_handlers=val_handlers,
         amp=True if amp else False,
     )
@@ -308,14 +323,20 @@ class IntegrationWorkflows(DistTestCase):
             self.assertTrue(test_integration_value(TASK, key="infer_metric", data=infer_metric, rtol=1e-2))
         results.append(best_metric)
         results.append(infer_metric)
-        output_files = sorted(glob(os.path.join(self.data_dir, "img*", "*.nii.gz")))
-        for output in output_files:
-            ave = np.mean(nib.load(output).get_fdata())
-            results.append(ave)
-        if idx == 2:
-            self.assertTrue(test_integration_value(TASK, key="output_sums_2", data=results[2:], rtol=1e-2))
-        else:
-            self.assertTrue(test_integration_value(TASK, key="output_sums", data=results[2:], rtol=1e-2))
+
+        def _test_saved_files(postfix):
+            output_files = sorted(glob(os.path.join(self.data_dir, "img*", f"*{postfix}.nii.gz")))
+            values = []
+            for output in output_files:
+                ave = np.mean(nib.load(output).get_fdata())
+                values.append(ave)
+            if idx == 2:
+                self.assertTrue(test_integration_value(TASK, key="output_sums_2", data=values, rtol=1e-2))
+            else:
+                self.assertTrue(test_integration_value(TASK, key="output_sums", data=values, rtol=1e-2))
+
+        _test_saved_files(postfix="seg_handler")
+        _test_saved_files(postfix="seg_transform")
         try:
             os.remove(model_file)
         except Exception as e:
