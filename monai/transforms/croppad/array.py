@@ -33,7 +33,7 @@ from monai.transforms.utils import (
     map_classes_to_indices,
     weighted_patch_samples,
 )
-from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
+from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple, look_up_option
 
 __all__ = [
     "SpatialPad",
@@ -85,8 +85,8 @@ class SpatialPad(Transform):
         **np_kwargs,
     ) -> None:
         self.spatial_size = spatial_size
-        self.method: Method = Method(method)
-        self.mode: NumpyPadMode = NumpyPadMode(mode)
+        self.method: Method = look_up_option(method, Method)
+        self.mode: NumpyPadMode = look_up_option(mode, NumpyPadMode)
         self.np_kwargs = np_kwargs
 
     def _determine_data_pad_width(self, data_shape: Sequence[int]) -> List[Tuple[int, int]]:
@@ -115,7 +115,7 @@ class SpatialPad(Transform):
             # all zeros, skip padding
             return img
 
-        mode = self.mode.value if mode is None else NumpyPadMode(mode).value
+        mode = look_up_option(self.mode if mode is None else mode, NumpyPadMode).value
         img = np.pad(img, all_pad_width, mode=mode, **self.np_kwargs)
         return img
 
@@ -152,7 +152,7 @@ class BorderPad(Transform):
         **np_kwargs,
     ) -> None:
         self.spatial_border = spatial_border
-        self.mode: NumpyPadMode = NumpyPadMode(mode)
+        self.mode: NumpyPadMode = look_up_option(mode, NumpyPadMode)
         self.np_kwargs = np_kwargs
 
     def __call__(self, img: np.ndarray, mode: Optional[Union[NumpyPadMode, str]] = None):
@@ -189,7 +189,7 @@ class BorderPad(Transform):
                 f"[1, len(spatial_shape)={len(spatial_shape)}, 2*len(spatial_shape)={2*len(spatial_shape)}]."
             )
 
-        mode = self.mode.value if mode is None else NumpyPadMode(mode).value
+        mode = look_up_option(self.mode if mode is None else mode, NumpyPadMode).value
         return np.pad(img, [(0, 0)] + data_pad_width, mode=mode, **self.np_kwargs)
 
 
@@ -593,7 +593,7 @@ class CropForeground(Transform):
         self.margin = margin
         self.return_coords = return_coords
         self.k_divisible = k_divisible
-        self.mode: NumpyPadMode = NumpyPadMode(mode)
+        self.mode: NumpyPadMode = look_up_option(mode, NumpyPadMode)
 
     def compute_bounding_box(self, img: np.ndarray):
         """

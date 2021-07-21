@@ -111,7 +111,7 @@ class TestResBasicBlock(unittest.TestCase):
                 self.assertEqual(result.shape, expected_shape)
 
     def test_ill_arg(self):
-        with self.assertRaises(KeyError):
+        with self.assertRaises(ValueError):
             UnetrBasicBlock(3, 4, 2, kernel_size=3, stride=1, norm_name="norm")
         with self.assertRaises(AssertionError):
             UnetrBasicBlock(3, 4, 2, kernel_size=1, stride=4, norm_name="batch")

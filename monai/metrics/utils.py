@@ -16,7 +16,7 @@ import torch
 
 from monai.transforms.croppad.array import SpatialCrop
 from monai.transforms.utils import generate_spatial_bounding_box
-from monai.utils import MetricReduction, optional_import
+from monai.utils import MetricReduction, look_up_option, optional_import
 
 binary_erosion, _ = optional_import("scipy.ndimage.morphology", name="binary_erosion")
 distance_transform_edt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_edt")
@@ -69,7 +69,7 @@ def do_metric_reduction(
     not_nans = (~nans).float()
 
     t_zero = torch.zeros(1, device=f.device, dtype=f.dtype)
-    reduction = MetricReduction(reduction)
+    reduction = look_up_option(reduction, MetricReduction)
     if reduction == MetricReduction.NONE:
         return f, not_nans
 

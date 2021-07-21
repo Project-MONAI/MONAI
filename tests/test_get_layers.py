@@ -51,5 +51,11 @@ class TestGetLayers(unittest.TestCase):
         self.assertEqual(f"{layer}", expected)
 
 
+class TestSuggestion(unittest.TestCase):
+    def test_suggested(self):
+        with self.assertRaisesRegex(ValueError, "did you mean 'GROUP'?"):
+            get_norm_layer(name="grop", spatial_dims=2)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -14,7 +14,7 @@ from typing import Optional, Sequence, Union
 import numpy as np
 
 from monai.transforms.spatial.array import Resize
-from monai.utils import InterpolateMode, ensure_tuple_rep, optional_import
+from monai.utils import InterpolateMode, ensure_tuple_rep, look_up_option, optional_import
 
 Image, _ = optional_import("PIL", name="Image")
 
@@ -53,7 +53,7 @@ def write_png(
         data = data.squeeze(2)
     if output_spatial_shape is not None:
         output_spatial_shape_ = ensure_tuple_rep(output_spatial_shape, 2)
-        mode = InterpolateMode(mode)
+        mode = look_up_option(mode, InterpolateMode)
         align_corners = None if mode in (InterpolateMode.NEAREST, InterpolateMode.AREA) else False
         xform = Resize(spatial_size=output_spatial_shape_, mode=mode, align_corners=align_corners)
         _min, _max = np.min(data), np.max(data)
