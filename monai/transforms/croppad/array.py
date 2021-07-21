@@ -78,11 +78,11 @@ class Pad(TorchTransform, NumpyTransform):
     def __init__(
         self,
         to_pad: List[Tuple[int, int]],
-        mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+        mode: Union[NumpyPadMode, str, None] = NumpyPadMode.CONSTANT,
         **np_kwargs,
     ) -> None:
         self.to_pad = to_pad
-        self.mode = mode
+        self.mode = mode or NumpyPadMode.CONSTANT
         self.np_kwargs = np_kwargs
 
     @staticmethod

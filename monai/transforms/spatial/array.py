@@ -202,23 +202,23 @@ class Spacing(TorchTransform):
         if np.allclose(transform, np.diag(np.ones(len(transform))), atol=1e-3):
             output_data, *_ = convert_data_type(deepcopy(data_array), dtype=_dtype)
             new_affine = to_affine_nd(affine, new_affine)
-
-        # resample
-        affine_xform = AffineTransform(
-            normalized=False,
-            mode=look_up_option(mode or self.mode, GridSampleMode),
-            padding_mode=look_up_option(padding_mode or self.padding_mode, GridSamplePadMode),
-            align_corners=self.align_corners if align_corners is None else align_corners,
-            reverse_indexing=True,
-        )
-        output_data = affine_xform(
-            # AffineTransform requires a batch dim
-            torch.as_tensor(np.ascontiguousarray(data_array).astype(_dtype)).unsqueeze(0),
-            torch.as_tensor(np.ascontiguousarray(transform).astype(_dtype)),
-            spatial_size=output_shape if output_spatial_shape is None else output_spatial_shape,
-        )
-        output_data = np.asarray(output_data.squeeze(0).detach().cpu().numpy(), dtype=np.float32)  # type: ignore
-        new_affine = to_affine_nd(affine, new_affine)
+        else:
+            # resample
+            affine_xform = AffineTransform(
+                normalized=False,
+                mode=look_up_option(mode or self.mode, GridSampleMode),
+                padding_mode=look_up_option(padding_mode or self.padding_mode, GridSamplePadMode),
+                align_corners=self.align_corners if align_corners is None else align_corners,
+                reverse_indexing=True,
+            )
+            output_data = affine_xform(
+                # AffineTransform requires a batch dim
+                data_array_torch.unsqueeze(0),
+                convert_data_type(transform, torch.Tensor, data_array_torch.device, dtype=_dtype)[0],
+                spatial_size=output_shape if output_spatial_shape is None else output_spatial_shape,
+            ).squeeze(0)
+            output_data, *_ = convert_data_type(output_data, orig_type, dtype=np.float32)  # type: ignore
+            new_affine = to_affine_nd(affine, new_affine)
 
         return output_data, affine, new_affine
 
