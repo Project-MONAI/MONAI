@@ -29,14 +29,12 @@ if TYPE_CHECKING:
     import itk  # type: ignore
     import nibabel as nib
     import openslide
-    from itk import Image  # type: ignore
     from nibabel.nifti1 import Nifti1Image
     from PIL import Image as PILImage
 
     has_itk = has_nib = has_pil = has_cim = has_osl = True
 else:
     itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
-    Image, _ = optional_import("itk", allow_namespace_pkg=True, name="Image")
     nib, has_nib = optional_import("nibabel")
     Nifti1Image, _ = optional_import("nibabel.nifti1", name="Nifti1Image")
     PILImage, has_pil = optional_import("PIL.Image")
@@ -149,11 +147,6 @@ class ITKReader(ImageReader):
         self.kwargs = kwargs
         self.channel_dim = channel_dim
         self.series_name = series_name
-        if has_itk and int(itk.Version.GetITKMajorVersion()) == 5 and int(itk.Version.GetITKMinorVersion()) < 2:
-            # warning the ITK LazyLoading mechanism was not threadsafe until version 5.2.0,
-            # requesting access to the itk.imread function triggers the lazy loading of the relevant itk modules
-            # before the parallel use of the function.
-            _ = itk.imread
 
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
         """
@@ -178,7 +171,7 @@ class ITKReader(ImageReader):
                 https://github.com/InsightSoftwareConsortium/ITK/blob/master/Wrapping/Generators/Python/itkExtras.py
 
         """
-        img_: List[Image] = []
+        img_ = []
 
         filenames: Sequence[str] = ensure_tuple(data)
         kwargs_ = self.kwargs.copy()
@@ -284,7 +277,7 @@ class ITKReader(ImageReader):
         _size = list(itk.size(img))
         if self.channel_dim is not None:
             # channel_dim is given in the numpy convention, which is different from ITK
-            # itk.size is reversed
+            # size is reversed
             _size.pop(-self.channel_dim)
         return np.asarray(_size[:sr])
 
