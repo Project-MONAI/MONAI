@@ -585,10 +585,6 @@ class NormalizeIntensity(TorchTransform, NumpyTransform):
             _div[_div == 0.0] = 1.0
         img[slices] = (img[slices] - _sub) / _div
 
-        if isinstance(img, torch.Tensor):
-            if img.dtype != torch.float32:
-                print("hi")
-
         return img
 
     def __call__(self, img: DataObjects.Images) -> DataObjects.Images:

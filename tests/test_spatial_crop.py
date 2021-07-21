@@ -16,8 +16,9 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import SpatialCrop
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASES = [
+TESTS = [
     [
         {"roi_center": [1, 1, 1], "roi_size": [2, 2, 2]},
         (3, 3, 3, 3),
@@ -53,17 +54,25 @@ TEST_ERRORS = [
 
 
 class TestSpatialCrop(unittest.TestCase):
-    @parameterized.expand(TEST_CASES)
+    @parameterized.expand(TESTS)
     def test_shape(self, input_param, input_shape, expected_shape):
+        results = []
         input_data = np.random.randint(0, 2, size=input_shape)
-        result = SpatialCrop(**input_param)(input_data)
-        self.assertTupleEqual(result.shape, expected_shape)
-
-    @parameterized.expand(TEST_CASES)
-    def test_tensor_shape(self, input_param, input_shape, expected_shape):
-        input_data = torch.randint(0, 2, size=input_shape, device="cuda" if torch.cuda.is_available() else "cpu")
-        result = SpatialCrop(**input_param)(input_data)
-        self.assertTupleEqual(result.shape, expected_shape)
+        for p in TEST_NDARRAYS:
+            for q in TEST_NDARRAYS + (None,):
+                input_param_mod = {
+                    k: q(v) if k != "roi_slices" and q is not None else v for k, v in input_param.items()
+                }
+                im = p(input_data)
+                result = SpatialCrop(**input_param_mod)(im)
+                self.assertEqual(type(im), type(result))
+                if isinstance(result, torch.Tensor):
+                    self.assertEqual(result.device, im.device)
+                    result = result.cpu().numpy()
+                self.assertTupleEqual(result.shape, expected_shape)
+                results.append(result)
+                if len(results) > 1:
+                    np.testing.assert_allclose(results[0], results[-1])
 
     @parameterized.expand(TEST_ERRORS)
     def test_error(self, input_param):

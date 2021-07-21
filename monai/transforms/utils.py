@@ -14,7 +14,6 @@ import random
 import re
 import warnings
 from contextlib import contextmanager
-from functools import partial
 from typing import Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -345,13 +344,13 @@ def map_classes_to_indices(
 
 
 def _unravel_index(idx, shape):
-    if isinstance(idx, np.ndarray):
-        return np.unravel_index(idx, shape)
-    coord = []
-    for dim in reversed(shape):
-        coord.append(idx % dim)
-        idx = idx // dim
-    return torch.as_tensor(coord)
+    if isinstance(idx, torch.Tensor):
+        coord = []
+        for dim in reversed(shape):
+            coord.insert(0, idx % dim)
+            idx = torch.div(idx, dim, rounding_mode="floor")
+        return torch.stack(coord)
+    return np.unravel_index(np.asarray(idx, dtype=int), shape)
 
 
 def weighted_patch_samples(
@@ -387,28 +386,23 @@ def weighted_patch_samples(
     v_size = v.shape
     v = v.ravel()
     if (v < 0).any():
-        v -= v.min()  # shifting to non-negative
+        v -= np.min(v)  # shifting to non-negative
     v = v.cumsum(0)
-    if not v[-1] or not v[-1].isfinite() or v[-1] < 0:  # uniform sampling
+    if not v[-1] or not torch.as_tensor(v[-1]).isfinite() or v[-1] < 0:  # uniform sampling
         idx = r_state.randint(0, len(v), size=n_samples)
-    else:
-        r, *_ = convert_data_type(
-            r_state.random(n_samples), type(v), device=v.device if isinstance(v, torch.Tensor) else None
-        )
-        searchsorted = (
-            partial(np.searchsorted, side="right")
-            if isinstance(v, np.ndarray)
-            else partial(torch.searchsorted, right=True)
-        )
-        idx = searchsorted(v, r * v[-1])  # type: ignore
         if isinstance(v, torch.Tensor):
-            idx2 = idx.cpu().numpy()
-            v_size2 = v.cpu().numpy().shape
+            idx = torch.as_tensor(idx, device=v.device)
+    else:
+        r = r_state.random(n_samples)
+        if isinstance(v, np.ndarray):
+            idx = v.searchsorted(r * v[-1], side="right")
+        else:
+            r = torch.as_tensor(r, device=v.device)
+            idx = torch.searchsorted(v, r * v[-1], right=True)
     # compensate 'valid' mode
     diff = np.minimum(win_size, img_size) // 2
-    for i, i2 in zip(idx, idx2):
-        a2 = _unravel_index(i2, v_size2) + diff
-        a = _unravel_index(i, v_size) + diff
+    if isinstance(v, torch.Tensor):
+        diff = torch.as_tensor(diff, device=v.device)
     return [_unravel_index(i, v_size) + diff for i in idx]
 
 

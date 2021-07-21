@@ -10,154 +10,164 @@
 # limitations under the License.
 
 import unittest
-from functools import partial
 
 import numpy as np
 import torch
-from parameterized import parameterized
+from parameterized.parameterized import parameterized
 
-from monai.data.synthetic import create_test_image_2d
 from monai.transforms.croppad.array import RandWeightedCrop
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, NumpyImageTestCase3D
 
-IM_GEN = NumpyImageTestCase2D()
-IM_GEN.setUp()
-IMT = IM_GEN.imt[0]
-SEG1 = IM_GEN.seg1[0]
+
+def get_data(ndim):
+    im_gen = NumpyImageTestCase2D() if ndim == 2 else NumpyImageTestCase3D()
+    im_gen.setUp()
+    return im_gen.imt[0], im_gen.seg1[0], im_gen.segn[0]
+
+
+IMT_2D, SEG1_2D, SEGN_2D = get_data(ndim=2)
+IMT_3D, SEG1_3D, SEGN_3D = get_data(ndim=3)
+
 
 TESTS = []
-for p in [partial(torch.tensor, device="cuda")]:  # TEST_NDARRAYS:
-    weight = np.zeros_like(SEG1)
+for p in TEST_NDARRAYS:
+    im = SEG1_2D
+    weight = np.zeros_like(im)
     weight[0, 30, 17] = 1.1
     weight[0, 40, 31] = 1
     weight[0, 80, 21] = 1
     TESTS.append(
         [
+            "small roi 2d",
             dict(spatial_size=(10, 12), num_samples=3),
-            p(SEG1),
+            p(im),
             p(weight),
             (1, 10, 12),
             [[80, 21], [30, 17], [40, 31]],
         ]
     )
+    im = IMT_2D
+    TESTS.append(
+        [
+            "default roi 2d",
+            dict(spatial_size=(10, -1), num_samples=3),
+            p(im),
+            p(weight),
+            (1, 10, 64),
+            [[14, 32], [105, 32], [20, 32]],
+        ]
+    )
+    im = SEGN_2D
+    weight = np.zeros_like(im)
+    weight[0, 30, 17] = 1.1
+    weight[0, 10, 1] = 1
+    TESTS.append(
+        [
+            "large roi 2d",
+            dict(spatial_size=(10000, 400), num_samples=3),
+            p(im),
+            p(weight),
+            (1, 128, 64),
+            [[64, 32], [64, 32], [64, 32]],
+        ]
+    )
+    im = IMT_2D
+    weight = np.zeros_like(im)
+    weight[0, 30, 17] = np.inf
+    weight[0, 10, 1] = -np.inf
+    weight[0, 10, 20] = -np.nan
+    TESTS.append(
+        [
+            "bad w 2d",
+            dict(spatial_size=(20, 40), num_samples=3),
+            p(im),
+            p(weight),
+            (1, 20, 40),
+            [[63, 37], [31, 43], [66, 20]],
+        ]
+    )
+    im = SEG1_3D
+    weight = np.zeros_like(im)
+    weight[0, 5, 30, 17] = 1.1
+    weight[0, 8, 40, 31] = 1
+    weight[0, 11, 23, 21] = 1
+    TESTS.append(
+        [
+            "small roi 3d",
+            dict(spatial_size=(8, 10, 12), num_samples=3),
+            p(im),
+            p(weight),
+            (1, 8, 10, 12),
+            [[11, 23, 21], [5, 30, 17], [8, 40, 31]],
+        ]
+    )
+    im = IMT_3D
+    weight = np.zeros_like(im)
+    weight[0, 7, 17] = 1.1
+    weight[0, 13, 31] = 1.1
+    weight[0, 24, 21] = 1
+    TESTS.append(
+        [
+            "default roi 3d",
+            dict(spatial_size=(10, -1, -1), num_samples=3),
+            p(im),
+            p(weight),
+            (1, 10, 64, 80),
+            [[14, 32, 40], [41, 32, 40], [20, 32, 40]],
+        ]
+    )
+    im = SEGN_3D
+    weight = np.zeros_like(im)
+    weight[0, 30, 17, 20] = 1.1
+    weight[0, 10, 1, 17] = 1
+    TESTS.append(
+        [
+            "large roi 3d",
+            dict(spatial_size=(10000, 400, 80), num_samples=3),
+            p(im),
+            p(weight),
+            (1, 48, 64, 80),
+            [[24, 32, 40], [24, 32, 40], [24, 32, 40]],
+        ]
+    )
+    im = IMT_3D
+    weight = np.zeros_like(im)
+    weight[0, 30, 17] = np.inf
+    weight[0, 10, 1] = -np.inf
+    weight[0, 10, 20] = -np.nan
+    TESTS.append(
+        [
+            "bad w 3d",
+            dict(spatial_size=(48, 64, 80), num_samples=3),
+            p(im),
+            p(weight),
+            (1, 48, 64, 80),
+            [[24, 32, 40], [24, 32, 40], [24, 32, 40]],
+        ]
+    )
 
 
-class TestRandWeightedCrop2D(unittest.TestCase):
-    # @parameterized.expand(TESTS)
-    def test_rand_weighted_crop_small_roi(self, input_params, img, weight, expected_shape, expected_vals):
+class TestRandWeightedCrop(unittest.TestCase):
+    @parameterized.expand(TESTS)
+    def test_rand_weighted_crop(self, _, input_params, img, weight, expected_shape, expected_vals):
         crop = RandWeightedCrop(**input_params)
         crop.set_random_state(10)
         result = crop(img, weight)
         self.assertTrue(len(result) == input_params["num_samples"])
         np.testing.assert_allclose(result[0].shape, expected_shape)
-        np.testing.assert_allclose(np.asarray(crop.centers), expected_vals)
-
-
-#     def test_rand_weighted_crop_default_roi(self):
-#         img = self.imt[0]
-#         n_samples = 3
-#         crop = RandWeightedCrop((10, -1), n_samples)
-#         weight = np.zeros_like(img)
-#         weight[0, 30, 17] = 1.1
-#         weight[0, 40, 31] = 1
-#         weight[0, 80, 21] = 1
-#         crop.set_random_state(10)
-#         result = crop(img, weight)
-#         self.assertTrue(len(result) == n_samples)
-#         np.testing.assert_allclose(result[0].shape, (1, 10, 64))
-#         np.testing.assert_allclose(np.asarray(crop.centers), [[14, 32], [105, 32], [20, 32]])
-
-#     def test_rand_weighted_crop_large_roi(self):
-#         img = self.segn[0]
-#         n_samples = 3
-#         crop = RandWeightedCrop((10000, 400), n_samples)
-#         weight = np.zeros_like(img)
-#         weight[0, 30, 17] = 1.1
-#         weight[0, 10, 1] = 1
-#         crop.set_random_state(10)
-#         result = crop(img, weight)
-#         self.assertTrue(len(result) == n_samples)
-#         np.testing.assert_allclose(result[0].shape, (1, 128, 64))
-#         np.testing.assert_allclose(np.asarray(crop.centers), [[64, 32], [64, 32], [64, 32]])
-#         for res in result:
-#             np.testing.assert_allclose(res, self.segn[0])
-
-#     def test_rand_weighted_crop_bad_w(self):
-#         img = self.imt[0]
-#         n_samples = 3
-#         crop = RandWeightedCrop((20, 40), n_samples)
-#         weight = np.zeros_like(img)
-#         weight[0, 30, 17] = np.inf
-#         weight[0, 10, 1] = -np.inf
-#         weight[0, 10, 20] = -np.nan
-#         crop.set_random_state(10)
-#         result = crop(img, weight)
-#         self.assertTrue(len(result) == n_samples)
-#         np.testing.assert_allclose(result[0].shape, (1, 20, 40))
-#         np.testing.assert_allclose(np.asarray(crop.centers), [[63, 37], [31, 43], [66, 20]])
-
-
-# class TestRandWeightedCrop(NumpyImageTestCase3D):
-#     def test_rand_weighted_crop_small_roi(self):
-#         img = self.seg1[0]
-#         n_samples = 3
-#         crop = RandWeightedCrop((8, 10, 12), n_samples)
-#         weight = np.zeros_like(img)
-#         weight[0, 5, 30, 17] = 1.1
-#         weight[0, 8, 40, 31] = 1
-#         weight[0, 11, 23, 21] = 1
-#         crop.set_random_state(10)
-#         result = crop(img, weight)
-#         self.assertTrue(len(result) == n_samples)
-#         np.testing.assert_allclose(result[0].shape, (1, 8, 10, 12))
-#         np.testing.assert_allclose(np.asarray(crop.centers), [[11, 23, 21], [5, 30, 17], [8, 40, 31]])
-
-#     def test_rand_weighted_crop_default_roi(self):
-#         img = self.imt[0]
-#         n_samples = 3
-#         crop = RandWeightedCrop((10, -1, -1), n_samples)
-#         weight = np.zeros_like(img)
-#         weight[0, 7, 17] = 1.1
-#         weight[0, 13, 31] = 1.1
-#         weight[0, 24, 21] = 1
-#         crop.set_random_state(10)
-#         result = crop(img, weight)
-#         self.assertTrue(len(result) == n_samples)
-#         np.testing.assert_allclose(result[0].shape, (1, 10, 64, 80))
-#         np.testing.assert_allclose(np.asarray(crop.centers), [[14, 32, 40], [41, 32, 40], [20, 32, 40]])
-
-#     def test_rand_weighted_crop_large_roi(self):
-#         img = self.segn[0]
-#         n_samples = 3
-#         crop = RandWeightedCrop((10000, 400, 80), n_samples)
-#         weight = np.zeros_like(img)
-#         weight[0, 30, 17, 20] = 1.1
-#         weight[0, 10, 1, 17] = 1
-#         crop.set_random_state(10)
-#         result = crop(img, weight)
-#         self.assertTrue(len(result) == n_samples)
-#         np.testing.assert_allclose(result[0].shape, (1, 48, 64, 80))
-#         np.testing.assert_allclose(np.asarray(crop.centers), [[24, 32, 40], [24, 32, 40], [24, 32, 40]])
-#         for res in result:
-#             np.testing.assert_allclose(res, self.segn[0])
-
-#     def test_rand_weighted_crop_bad_w(self):
-#         img = self.imt[0]
-#         n_samples = 3
-#         crop = RandWeightedCrop((48, 64, 80), n_samples)
-#         weight = np.zeros_like(img)
-#         weight[0, 30, 17] = np.inf
-#         weight[0, 10, 1] = -np.inf
-#         weight[0, 10, 20] = -np.nan
-#         crop.set_random_state(10)
-#         result = crop(img, weight)
-#         self.assertTrue(len(result) == n_samples)
-#         np.testing.assert_allclose(result[0].shape, (1, 48, 64, 80))
-#         np.testing.assert_allclose(np.asarray(crop.centers), [[24, 32, 40], [24, 32, 40], [24, 32, 40]])
+        for c, e in zip(crop.centers, expected_vals):
+            if isinstance(c, torch.Tensor):
+                c = c.cpu()
+            np.testing.assert_allclose(c, e)
+        # if desired ROI is larger than image, check image is unchanged
+        if all(s >= i for i, s in zip(img.shape[1:], input_params["spatial_size"])):
+            for res in result:
+                self.assertEqual(type(img), type(res))
+                if isinstance(img, torch.Tensor):
+                    self.assertEqual(res.device, img.device)
+                    res = res.cpu()
+                np.testing.assert_allclose(res, img if isinstance(img, np.ndarray) else img.cpu())
 
 
 if __name__ == "__main__":
-    # unittest.main()
-    a = TestRandWeightedCrop2D()
-    for t in TESTS:
-        a.test_rand_weighted_crop_small_roi(*t)
+    unittest.main()
