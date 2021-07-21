@@ -8,14 +8,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import enum
 import sys
 import warnings
 from importlib import import_module
 from pkgutil import walk_packages
 from re import match
-from typing import Any, Callable, Collection, Hashable, List, Mapping, Tuple
+from typing import Any, Callable, Collection, Hashable, Iterable, List, Mapping, Tuple, cast
 
 import torch
 
@@ -39,7 +38,7 @@ __all__ = [
 ]
 
 
-def look_up_option(opt_str, supported, default="no_default"):
+def look_up_option(opt_str, supported: Collection, default="no_default"):
     """
     Look up the option in the supported collection and return the matched item.
     Raise a value error possibly with a guess of the closest match.
@@ -47,7 +46,9 @@ def look_up_option(opt_str, supported, default="no_default"):
     Args:
         opt_str: The option string or Enum to look up.
         supported: The collection of supported options, it can be list, tuple, set, dict, or Enum.
-        default: The default value to return if the option is not found.
+        default: If it is given, this method will return `default` when `opt_str` is not found,
+            instead of raising a `ValueError`. Otherwise, it defaults to `"no_default"`,
+            so that the method may raise a `ValueError`.
 
     Examples:
 
@@ -73,7 +74,7 @@ def look_up_option(opt_str, supported, default="no_default"):
     if isinstance(opt_str, str):
         opt_str = opt_str.strip()
     if isinstance(supported, enum.EnumMeta):
-        if isinstance(opt_str, str) and opt_str in {item.value for item in supported}:
+        if isinstance(opt_str, str) and opt_str in {item.value for item in cast(Iterable[enum.Enum], supported)}:
             # such as: "example" in MyEnum
             return supported(opt_str)
         if isinstance(opt_str, enum.Enum) and opt_str in supported:
@@ -91,7 +92,7 @@ def look_up_option(opt_str, supported, default="no_default"):
     # find a close match
     set_to_check: set
     if isinstance(supported, enum.EnumMeta):
-        set_to_check = {item.value for item in supported}
+        set_to_check = {item.value for item in cast(Iterable[enum.Enum], supported)}
     else:
         set_to_check = set(supported) if supported is not None else set()
     if not set_to_check:
@@ -119,8 +120,14 @@ def damerau_levenshtein_distance(s1: str, s2: str):
     Calculates the Damerau–Levenshtein distance between two strings for spelling correction.
     https://en.wikipedia.org/wiki/Damerau–Levenshtein_distance
     """
+    if s1 == s2:
+        return 0
     string_1_length = len(s1)
     string_2_length = len(s2)
+    if not s1:
+        return string_2_length
+    if not s2:
+        return string_1_length
     d = {(i, -1): i + 1 for i in range(-1, string_1_length + 1)}
     for j in range(-1, string_2_length + 1):
         d[(-1, j)] = j + 1
