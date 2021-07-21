@@ -9,14 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import torch
-from tests.utils import TEST_NDARRAYS
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import ResizeWithPadOrCropd
+from tests.utils import TEST_NDARRAYS
 
 TEST_CASES = [
     [

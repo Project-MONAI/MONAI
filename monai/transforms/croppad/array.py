@@ -34,7 +34,7 @@ from monai.transforms.utils import (
     map_classes_to_indices,
     weighted_patch_samples,
 )
-from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
+from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple, look_up_option
 from monai.utils.enums import DataObjects
 from monai.utils.misc import convert_data_type
 
@@ -156,8 +156,8 @@ class SpatialPad(TorchTransform, NumpyTransform):
         **np_kwargs,
     ) -> None:
         self.spatial_size = spatial_size
-        self.method: Method = Method(method)
-        self.mode: NumpyPadMode = NumpyPadMode(mode)
+        self.method: Method = look_up_option(method, Method)
+        self.mode: NumpyPadMode = look_up_option(mode, NumpyPadMode)
         self.np_kwargs = np_kwargs
 
     def _determine_data_pad_width(self, data_shape: Sequence[int]) -> List[Tuple[int, int]]:
@@ -180,13 +180,13 @@ class SpatialPad(TorchTransform, NumpyTransform):
                 One of the listed string values or a user supplied function. Defaults to ``self.mode``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
         """
-        mode = NumpyPadMode(mode or self.mode)
         data_pad_width = self._determine_data_pad_width(img.shape[1:])
         all_pad_width = [(0, 0)] + data_pad_width
         if not np.asarray(all_pad_width).any():
             # all zeros, skip padding
             return img
-        padder = Pad(all_pad_width, mode or self.mode, **self.np_kwargs)
+        mode = look_up_option(mode or self.mode, NumpyPadMode)
+        padder = Pad(all_pad_width, mode, **self.np_kwargs)
         return padder(img)
 
 
@@ -222,7 +222,7 @@ class BorderPad(TorchTransform, NumpyTransform):
         **np_kwargs,
     ) -> None:
         self.spatial_border = spatial_border
-        self.mode: NumpyPadMode = NumpyPadMode(mode)
+        self.mode: NumpyPadMode = look_up_option(mode, NumpyPadMode)
         self.np_kwargs = np_kwargs
 
     def __call__(self, img: DataObjects.Images, mode: Optional[Union[NumpyPadMode, str]] = None) -> DataObjects.Images:
@@ -259,7 +259,8 @@ class BorderPad(TorchTransform, NumpyTransform):
                 f"[1, len(spatial_shape)={len(spatial_shape)}, 2*len(spatial_shape)={2*len(spatial_shape)}]."
             )
         all_pad_width = [(0, 0)] + data_pad_width
-        padder = Pad(all_pad_width, mode or self.mode, **self.np_kwargs)
+        mode = look_up_option(mode or self.mode, NumpyPadMode)
+        padder = Pad(all_pad_width, mode, **self.np_kwargs)
         return padder(img)
 
 
@@ -663,7 +664,7 @@ class CropForeground(TorchTransform, NumpyTransform):
         self.margin = margin
         self.return_coords = return_coords
         self.k_divisible = k_divisible
-        self.mode: NumpyPadMode = NumpyPadMode(mode)
+        self.mode: NumpyPadMode = look_up_option(mode, NumpyPadMode)
 
     def compute_bounding_box(self, img: DataObjects.Images) -> Tuple[np.ndarray, np.ndarray]:
         """

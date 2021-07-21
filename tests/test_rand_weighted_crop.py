@@ -9,17 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import unittest
 from functools import partial
 
-import torch
-from monai.data.synthetic import create_test_image_2d
-import unittest
-
 import numpy as np
-
-from monai.transforms.croppad.array import RandWeightedCrop
-from tests.utils import NumpyImageTestCase2D, NumpyImageTestCase3D, TEST_NDARRAYS
+import torch
 from parameterized import parameterized
+
+from monai.data.synthetic import create_test_image_2d
+from monai.transforms.croppad.array import RandWeightedCrop
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, NumpyImageTestCase3D
 
 IM_GEN = NumpyImageTestCase2D()
 IM_GEN.setUp()
@@ -52,6 +51,7 @@ class TestRandWeightedCrop2D(unittest.TestCase):
         self.assertTrue(len(result) == input_params["num_samples"])
         np.testing.assert_allclose(result[0].shape, expected_shape)
         np.testing.assert_allclose(np.asarray(crop.centers), expected_vals)
+
 
 #     def test_rand_weighted_crop_default_roi(self):
 #         img = self.imt[0]

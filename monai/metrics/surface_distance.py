@@ -153,6 +153,11 @@ def compute_average_surface_distance(
 
     for b, c in np.ndindex(batch_size, n_class):
         (edges_pred, edges_gt) = get_mask_edges(y_pred[b, c], y[b, c])
+        if not np.any(edges_gt):
+            warnings.warn(f"the ground truth of class {c} is all 0, this may result in nan/inf distance.")
+        if not np.any(edges_pred):
+            warnings.warn(f"the prediction of class {c} is all 0, this may result in nan/inf distance.")
+
         surface_distance = get_surface_distance(edges_pred, edges_gt, distance_metric=distance_metric)
         if surface_distance.shape == (0,):
             avg_surface_distance = np.nan

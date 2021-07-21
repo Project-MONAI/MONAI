@@ -16,7 +16,7 @@ import torch.nn as nn
 
 from monai.networks.layers.factories import Conv, Pad, Pool
 from monai.networks.utils import icnr_init, pixelshuffle
-from monai.utils import InterpolateMode, UpsampleMode, ensure_tuple_rep
+from monai.utils import InterpolateMode, UpsampleMode, ensure_tuple_rep, look_up_option
 
 __all__ = ["Upsample", "UpSample", "SubpixelUpsample", "Subpixelupsample", "SubpixelUpSample"]
 
@@ -78,7 +78,7 @@ class UpSample(nn.Sequential):
         """
         super().__init__()
         scale_factor_ = ensure_tuple_rep(scale_factor, dimensions)
-        up_mode = UpsampleMode(mode)
+        up_mode = look_up_option(mode, UpsampleMode)
         if up_mode == UpsampleMode.DECONV:
             if not in_channels:
                 raise ValueError(f"in_channels needs to be specified in the '{mode}' mode.")

@@ -29,6 +29,7 @@ from monai.utils import ImageMetaKey as Key
 from monai.utils import InterpolateMode, ensure_tuple, optional_import
 from monai.utils.enums import DataObjects
 from monai.utils.misc import convert_data_type
+from monai.utils.module import look_up_option
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
@@ -112,10 +113,8 @@ class LoadImage(Transform):
                     "itkreader": ITKReader,
                     "numpyreader": NumpyReader,
                 }
-                reader = reader.lower()
-                if reader not in supported_readers:
-                    raise ValueError(f"unsupported reader type: {reader}, available options: {supported_readers}.")
-                self.register(supported_readers[reader](*args, **kwargs))
+                the_reader = look_up_option(reader.lower(), supported_readers)
+                self.register(the_reader(*args, **kwargs))
             else:
                 self.register(reader)
 

@@ -9,12 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from functools import partial
 import itertools
 import random
 import re
 import warnings
 from contextlib import contextmanager
+from functools import partial
 from typing import Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -343,6 +343,7 @@ def map_classes_to_indices(
 
     return indices
 
+
 def _unravel_index(idx, shape):
     if isinstance(idx, np.ndarray):
         return np.unravel_index(idx, shape)
@@ -391,8 +392,14 @@ def weighted_patch_samples(
     if not v[-1] or not v[-1].isfinite() or v[-1] < 0:  # uniform sampling
         idx = r_state.randint(0, len(v), size=n_samples)
     else:
-        r, *_ = convert_data_type(r_state.random(n_samples), type(v), device=v.device if isinstance(v, torch.Tensor) else None)
-        searchsorted = partial(np.searchsorted, side="right") if isinstance(v, np.ndarray) else partial(torch.searchsorted, right=True)
+        r, *_ = convert_data_type(
+            r_state.random(n_samples), type(v), device=v.device if isinstance(v, torch.Tensor) else None
+        )
+        searchsorted = (
+            partial(np.searchsorted, side="right")
+            if isinstance(v, np.ndarray)
+            else partial(torch.searchsorted, right=True)
+        )
         idx = searchsorted(v, r * v[-1])  # type: ignore
         if isinstance(v, torch.Tensor):
             idx2 = idx.cpu().numpy()

@@ -9,14 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import torch
-from tests.utils import TEST_NDARRAYS
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import ResizeWithPadOrCrop
+from tests.utils import TEST_NDARRAYS
 
 TEST_CASES = [
     [
@@ -66,6 +66,7 @@ class TestResizeWithPadOrCrop(unittest.TestCase):
                 # check output from numpy torch and torch.cuda match
                 if len(results) > 1:
                     np.testing.assert_allclose(results[0], results[-1])
+
 
 if __name__ == "__main__":
     unittest.main()

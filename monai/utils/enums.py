@@ -27,8 +27,6 @@ __all__ = [
     "MetricReduction",
     "LossReduction",
     "Weight",
-    "Normalization",
-    "Activation",
     "ChannelMatching",
     "SkipMode",
     "Method",
@@ -175,31 +173,6 @@ class Weight(Enum):
     SQUARE = "square"
     SIMPLE = "simple"
     UNIFORM = "uniform"
-
-
-class Normalization(Enum):
-    """
-    See also:
-        - :py:class:`monai.networks.nets.ConvNormActi`
-        - :py:class:`monai.networks.nets.HighResBlock`
-        - :py:class:`monai.networks.nets.HighResNet`
-    """
-
-    BATCH = "batch"
-    INSTANCE = "instance"
-
-
-class Activation(Enum):
-    """
-    See also:
-        - :py:class:`monai.networks.nets.ConvNormActi`
-        - :py:class:`monai.networks.nets.HighResBlock`
-        - :py:class:`monai.networks.nets.HighResNet`
-    """
-
-    RELU = "relu"
-    PRELU = "prelu"
-    RELU6 = "relu6"
 
 
 class ChannelMatching(Enum):
