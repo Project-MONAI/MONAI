@@ -16,33 +16,44 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import CenterScaleCrop
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASE_0 = [{"roi_scale": [0.6, 0.3, -1]}, np.random.randint(0, 2, size=[3, 3, 3, 3]), (3, 2, 1, 3)]
+TESTS, TEST_VALUES = [], []
+for p in TEST_NDARRAYS:
+    TESTS.append([{"roi_scale": [0.6, 0.3, -1]}, p(np.random.randint(0, 2, size=[3, 3, 3, 3])), (3, 2, 1, 3)])
 
-TEST_CASE_1 = [{"roi_scale": 0.6}, np.random.randint(0, 2, size=[3, 3, 3, 3]), (3, 2, 2, 2)]
+    TESTS.append([{"roi_scale": 0.6}, p(np.random.randint(0, 2, size=[3, 3, 3, 3])), (3, 2, 2, 2)])
 
-TEST_CASE_2 = [
-    {"roi_scale": [0.4, 0.4]},
-    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
-    np.array([[[1, 2], [2, 3]]]),
-]
+    TESTS.append(
+        [
+            {"roi_scale": 0.5},
+            p(torch.randint(0, 2, size=[3, 3, 3, 3])),
+            (3, 2, 2, 2),
+        ]
+    )
 
-TEST_CASE_3 = [
-    {"roi_scale": 0.5},
-    torch.randint(0, 2, size=[3, 3, 3, 3], device="cuda" if torch.cuda.is_available() else "cpu"),
-    (3, 2, 2, 2),
-]
+    TEST_VALUES.append(
+        [
+            {"roi_scale": [0.4, 0.4]},
+            p(np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]])),
+            np.array([[[1, 2], [2, 3]]]),
+        ]
+    )
 
 
 class TestCenterScaleCrop(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_3])
+    @parameterized.expand(TESTS)
     def test_shape(self, input_param, input_data, expected_shape):
         result = CenterScaleCrop(**input_param)(input_data)
         np.testing.assert_allclose(result.shape, expected_shape)
 
-    @parameterized.expand([TEST_CASE_2])
+    @parameterized.expand(TEST_VALUES)
     def test_value(self, input_param, input_data, expected_value):
         result = CenterScaleCrop(**input_param)(input_data)
+        self.assertEqual(type(result), type(input_data))
+        if isinstance(result, torch.Tensor):
+            self.assertEqual(result.device, input_data.device)
+            result = result.cpu()
         np.testing.assert_allclose(result, expected_value)
 
 

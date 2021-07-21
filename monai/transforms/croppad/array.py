@@ -409,7 +409,7 @@ class CenterSpatialCrop(TorchTransform, NumpyTransform):
         return cropper(img)
 
 
-class CenterScaleCrop(Transform):
+class CenterScaleCrop(TorchTransform, NumpyTransform):
     """
     Crop at the center of image with specified scale of ROI size.
 
@@ -422,7 +422,7 @@ class CenterScaleCrop(Transform):
     def __init__(self, roi_scale: Union[Sequence[float], float]):
         self.roi_scale = roi_scale
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         img_size = img.shape[1:]
         ndim = len(img_size)
         roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
