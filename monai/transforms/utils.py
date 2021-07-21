@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from functools import partial
 import itertools
 import random
 import re
@@ -342,10 +343,19 @@ def map_classes_to_indices(
 
     return indices
 
+def _unravel_index(idx, shape):
+    if isinstance(idx, np.ndarray):
+        return np.unravel_index(idx, shape)
+    coord = []
+    for dim in reversed(shape):
+        coord.append(idx % dim)
+        idx = idx // dim
+    return torch.as_tensor(coord)
+
 
 def weighted_patch_samples(
     spatial_size: Union[int, Sequence[int]],
-    w: np.ndarray,
+    w: DataObjects.Images,
     n_samples: int = 1,
     r_state: Optional[np.random.RandomState] = None,
 ) -> List:
@@ -375,16 +385,24 @@ def weighted_patch_samples(
     v = w[s]  # weight map in the 'valid' mode
     v_size = v.shape
     v = v.ravel()
-    if np.any(v < 0):
-        v -= np.min(v)  # shifting to non-negative
-    v = v.cumsum()
-    if not v[-1] or not np.isfinite(v[-1]) or v[-1] < 0:  # uniform sampling
+    if (v < 0).any():
+        v -= v.min()  # shifting to non-negative
+    v = v.cumsum(0)
+    if not v[-1] or not v[-1].isfinite() or v[-1] < 0:  # uniform sampling
         idx = r_state.randint(0, len(v), size=n_samples)
     else:
-        idx = v.searchsorted(r_state.random(n_samples) * v[-1], side="right")
+        r, *_ = convert_data_type(r_state.random(n_samples), type(v), device=v.device if isinstance(v, torch.Tensor) else None)
+        searchsorted = partial(np.searchsorted, side="right") if isinstance(v, np.ndarray) else partial(torch.searchsorted, right=True)
+        idx = searchsorted(v, r * v[-1])  # type: ignore
+        if isinstance(v, torch.Tensor):
+            idx2 = idx.cpu().numpy()
+            v_size2 = v.cpu().numpy().shape
     # compensate 'valid' mode
     diff = np.minimum(win_size, img_size) // 2
-    return [np.unravel_index(i, v_size) + diff for i in np.asarray(idx, dtype=int)]
+    for i, i2 in zip(idx, idx2):
+        a2 = _unravel_index(i2, v_size2) + diff
+        a = _unravel_index(i, v_size) + diff
+    return [_unravel_index(i, v_size) + diff for i in idx]
 
 
 def correct_crop_centers(
