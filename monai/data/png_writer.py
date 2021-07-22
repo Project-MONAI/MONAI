@@ -15,7 +15,7 @@ import numpy as np
 import torch
 
 from monai.transforms.spatial.array import Resize
-from monai.utils import InterpolateMode, ensure_tuple_rep, optional_import
+from monai.utils import InterpolateMode, ensure_tuple_rep, look_up_option, optional_import
 from monai.utils.enums import DataObjects
 from monai.utils.misc import convert_data_type
 
@@ -58,7 +58,7 @@ def write_png(
         data_np = data_np.squeeze(2)
     if output_spatial_shape is not None:
         output_spatial_shape_ = ensure_tuple_rep(output_spatial_shape, 2)
-        mode = InterpolateMode(mode)
+        mode = look_up_option(mode, InterpolateMode)
         align_corners = None if mode in (InterpolateMode.NEAREST, InterpolateMode.AREA) else False
         xform = Resize(spatial_size=output_spatial_shape_, mode=mode, align_corners=align_corners)
         _min, _max = np.min(data_np), np.max(data_np)

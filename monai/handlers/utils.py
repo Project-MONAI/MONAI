@@ -17,7 +17,7 @@ import numpy as np
 import torch
 
 from monai.config import IgniteInfo, KeysCollection
-from monai.utils import deprecated, ensure_tuple, get_torch_version_tuple, min_version, optional_import
+from monai.utils import deprecated, ensure_tuple, get_torch_version_tuple, look_up_option, min_version, optional_import
 from monai.utils.enums import DataObjects
 
 idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")
@@ -214,7 +214,8 @@ def write_metrics_reports(
 
                 def _compute_op(op: str, d: np.ndarray):
                     if not op.endswith("percentile"):
-                        return supported_ops[op](d)
+                        c_op = look_up_option(op, supported_ops)
+                        return c_op(d)
 
                     threshold = int(op.split("percentile")[0])
                     return supported_ops["90percentile"]((d, threshold))

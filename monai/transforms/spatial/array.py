@@ -48,6 +48,7 @@ from monai.utils import (
 )
 from monai.utils.enums import DataObjects
 from monai.utils.misc import convert_data_type
+from monai.utils.module import look_up_option
 
 nib, _ = optional_import("nibabel")
 
@@ -127,8 +128,8 @@ class Spacing(TorchTransform):
         """
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
         self.diagonal = diagonal
-        self.mode: GridSampleMode = GridSampleMode(mode)
-        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
+        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
         self.align_corners = align_corners
         self.dtype = dtype
 
@@ -201,13 +202,12 @@ class Spacing(TorchTransform):
         if np.allclose(transform, np.diag(np.ones(len(transform))), atol=1e-3):
             output_data, *_ = convert_data_type(deepcopy(data_array), dtype=_dtype)
             new_affine = to_affine_nd(affine, new_affine)
-
         else:
             # resample
             affine_xform = AffineTransform(
                 normalized=False,
-                mode=mode or self.mode,
-                padding_mode=padding_mode or self.padding_mode,
+                mode=look_up_option(mode or self.mode, GridSampleMode),
+                padding_mode=look_up_option(padding_mode or self.padding_mode, GridSamplePadMode),
                 align_corners=self.align_corners if align_corners is None else align_corners,
                 reverse_indexing=True,
             )
@@ -371,7 +371,7 @@ class Resize(TorchTransform):
         align_corners: Optional[bool] = None,
     ) -> None:
         self.spatial_size = ensure_tuple(spatial_size)
-        self.mode: InterpolateMode = InterpolateMode(mode)
+        self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
         self.align_corners = align_corners
 
     def __call__(
@@ -410,7 +410,7 @@ class Resize(TorchTransform):
         resized = torch.nn.functional.interpolate(
             input=img_t.unsqueeze(0),
             size=spatial_size,
-            mode=self.mode.value if mode is None else InterpolateMode(mode).value,
+            mode=look_up_option(self.mode if mode is None else mode, InterpolateMode).value,
             align_corners=self.align_corners if align_corners is None else align_corners,
         )
         resized = resized.squeeze(0)
@@ -451,8 +451,8 @@ class Rotate(TorchTransform, ThreadUnsafe):
     ) -> None:
         self.angle = angle
         self.keep_size = keep_size
-        self.mode: GridSampleMode = GridSampleMode(mode)
-        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
+        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
         self.align_corners = align_corners
         self.dtype = dtype
         self._rotation_matrix: Optional[np.ndarray] = None
@@ -512,8 +512,8 @@ class Rotate(TorchTransform, ThreadUnsafe):
 
         xform = AffineTransform(
             normalized=False,
-            mode=mode or self.mode,
-            padding_mode=padding_mode or self.padding_mode,
+            mode=look_up_option(mode or self.mode, GridSampleMode),
+            padding_mode=look_up_option(padding_mode or self.padding_mode, GridSamplePadMode),
             align_corners=self.align_corners if align_corners is None else align_corners,
             reverse_indexing=True,
         )
@@ -603,7 +603,7 @@ class Zoom(TorchTransform):
             recompute_scale_factor=True,
             input=img_t.float().unsqueeze(0),
             scale_factor=list(_zoom),
-            mode=self.mode.value if mode is None else InterpolateMode(mode).value,
+            mode=look_up_option(self.mode if mode is None else mode, InterpolateMode).value,
             align_corners=self.align_corners if align_corners is None else align_corners,
         )
         zoomed = zoomed.squeeze(0)
@@ -620,7 +620,8 @@ class Zoom(TorchTransform):
                 elif diff < 0:  # need slicing
                     slice_vec[idx] = slice(half, half + od)
 
-            padder = Pad(pad_vec, padding_mode or self.padding_mode)
+            padding_mode = look_up_option(padding_mode or self.padding_mode, NumpyPadMode)
+            padder = Pad(pad_vec, padding_mode)
             zoomed = padder(zoomed)
             zoomed = zoomed[tuple(slice_vec)]
 
@@ -749,8 +750,8 @@ class RandRotate(TorchTransform, RandomizableTransform):
             self.range_z = tuple(sorted([-self.range_z[0], self.range_z[0]]))
 
         self.keep_size = keep_size
-        self.mode: GridSampleMode = GridSampleMode(mode)
-        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
+        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
         self.align_corners = align_corners
         self.dtype = dtype
 
@@ -793,8 +794,8 @@ class RandRotate(TorchTransform, RandomizableTransform):
         rotator = Rotate(
             angle=self.x if img.ndim == 3 else (self.x, self.y, self.z),
             keep_size=self.keep_size,
-            mode=mode or self.mode,
-            padding_mode=padding_mode or self.padding_mode,
+            mode=look_up_option(mode or self.mode, GridSampleMode),
+            padding_mode=look_up_option(padding_mode or self.padding_mode, GridSamplePadMode),
             align_corners=self.align_corners if align_corners is None else align_corners,
             dtype=dtype or self.dtype or img.dtype,  # type: ignore
         )
@@ -902,8 +903,8 @@ class RandZoom(TorchTransform, RandomizableTransform):
         self.max_zoom = ensure_tuple(max_zoom)
         if len(self.min_zoom) != len(self.max_zoom):
             raise AssertionError("min_zoom and max_zoom must have same length.")
-        self.mode: InterpolateMode = InterpolateMode(mode)
-        self.padding_mode: NumpyPadMode = NumpyPadMode(padding_mode)
+        self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
+        self.padding_mode: NumpyPadMode = look_up_option(padding_mode, NumpyPadMode)
         self.align_corners = align_corners
         self.keep_size = keep_size
 
@@ -949,8 +950,8 @@ class RandZoom(TorchTransform, RandomizableTransform):
         zoomer = Zoom(
             self._zoom,
             keep_size=self.keep_size,
-            mode=mode or self.mode,
-            padding_mode=padding_mode or self.padding_mode,
+            mode=look_up_option(mode or self.mode, InterpolateMode),
+            padding_mode=look_up_option(padding_mode or self.padding_mode, NumpyPadMode),
             align_corners=align_corners or self.align_corners,
         )
         return zoomer(img)
@@ -1208,8 +1209,9 @@ class Resample(TorchTransform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
             device: device on which the tensor will be allocated.
         """
-        self.mode: GridSampleMode = GridSampleMode(mode)
-        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
+        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
+        self.as_tensor_output = as_tensor_output
         self.device = device
 
     def __call__(
@@ -1244,14 +1246,16 @@ class Resample(TorchTransform):
                 grid[i] += (dim - 1.0) / 2.0
             grid = grid[:-1] / grid[-1:]
             grid = grid.permute(list(range(grid.ndimension()))[1:] + [0])
-            _padding_mode = self.padding_mode.value if padding_mode is None else GridSamplePadMode(padding_mode).value
+            _padding_mode = look_up_option(
+                self.padding_mode if padding_mode is None else padding_mode, GridSamplePadMode
+            ).value
             if _padding_mode == "zeros":
                 bound = 7
             elif _padding_mode == "border":
                 bound = 0
             else:
                 bound = 1
-            _interp_mode = self.mode.value if mode is None else GridSampleMode(mode).value
+            _interp_mode = look_up_option(self.mode if mode is None else mode, GridSampleMode).value
             out = grid_pull(
                 img_t.unsqueeze(0).float(),
                 grid.unsqueeze(0).float(),
@@ -1330,8 +1334,8 @@ class Affine(TorchTransform):
         self.image_only = image_only
         self.resampler = Resample(device=device)
         self.spatial_size = spatial_size
-        self.mode: GridSampleMode = GridSampleMode(mode)
-        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
+        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
 
     def __call__(
         self,
@@ -1585,8 +1589,8 @@ class Rand2DElastic(TorchTransform, RandomizableTransform):
         self.resampler = Resample(device=device)
 
         self.spatial_size = spatial_size
-        self.mode: GridSampleMode = GridSampleMode(mode)
-        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
+        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
@@ -1702,8 +1706,8 @@ class Rand3DElastic(TorchTransform, RandomizableTransform):
         self.sigma_range = sigma_range
         self.magnitude_range = magnitude_range
         self.spatial_size = spatial_size
-        self.mode: GridSampleMode = GridSampleMode(mode)
-        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
+        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
         self.device = device
 
         self.rand_offset: np.ndarray

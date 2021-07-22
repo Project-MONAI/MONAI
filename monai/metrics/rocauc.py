@@ -14,7 +14,7 @@ from typing import Union, cast
 import numpy as np
 import torch
 
-from monai.utils import Average
+from monai.utils import Average, look_up_option
 
 from .metric import CumulativeIterationMetric
 
@@ -146,7 +146,7 @@ def compute_roc_auc(
     if y.shape != y_pred.shape:
         raise AssertionError("data shapes of y_pred and y do not match.")
 
-    average = Average(average)
+    average = look_up_option(average, Average)
     if average == Average.MICRO:
         return _calculate(y_pred.flatten(), y.flatten())
     y, y_pred = y.transpose(0, 1), y_pred.transpose(0, 1)

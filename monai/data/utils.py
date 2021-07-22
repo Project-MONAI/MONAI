@@ -37,6 +37,7 @@ from monai.utils import (
     fall_back_tuple,
     first,
     issequenceiterable,
+    look_up_option,
     optional_import,
 )
 from monai.utils.enums import DataObjects, Method
@@ -217,7 +218,7 @@ def iter_patch(
     start_pos = ensure_tuple_size(start_pos, arr.ndim)
 
     # pad image by maximum values needed to ensure patches are taken from inside an image
-    arrpad = np.pad(arr, tuple((p, p) for p in patch_size_), NumpyPadMode(mode).value, **pad_opts)
+    arrpad = np.pad(arr, tuple((p, p) for p in patch_size_), look_up_option(mode, NumpyPadMode).value, **pad_opts)
 
     # choose a start position in the padded image
     start_pos_padded = tuple(s + p for s, p in zip(start_pos, patch_size_))
@@ -770,7 +771,7 @@ def compute_importance_map(
         Tensor of size patch_size.
 
     """
-    mode = BlendMode(mode)
+    mode = look_up_option(mode, BlendMode)
     device = torch.device(device)  # type: ignore[arg-type]
     if mode == BlendMode.CONSTANT:
         importance_map = torch.ones(patch_size, device=device).float()
