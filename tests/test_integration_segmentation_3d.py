@@ -28,9 +28,9 @@ from monai.networks import eval_mode
 from monai.networks.nets import UNet
 from monai.transforms import (
     Activations,
-    AsChannelFirstd,
     AsDiscrete,
     Compose,
+    EnsureChannelFirstd,
     LoadImaged,
     RandCropByPosNegLabeld,
     RandRotate90d,
@@ -47,7 +47,7 @@ from tests.utils import DistTestCase, TimedCall, skip_if_quick
 TASK = "integration_segmentation_3d"
 
 
-def run_training_test(root_dir, device="cuda:0", cachedataset=0):
+def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, None)):
     monai.config.print_config()
     images = sorted(glob(os.path.join(root_dir, "img*.nii.gz")))
     segs = sorted(glob(os.path.join(root_dir, "seg*.nii.gz")))
@@ -57,8 +57,8 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0):
     # define transforms for image and segmentation
     train_transforms = Compose(
         [
-            LoadImaged(keys=["img", "seg"]),
-            AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
+            LoadImaged(keys=["img", "seg"], reader=readers[0]),
+            EnsureChannelFirstd(keys=["img", "seg"]),
             # resampling with align_corners=True or dtype=float64 will generate
             # slight different results between PyTorch 1.5 an 1.6
             Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], dtype=np.float32),
@@ -73,8 +73,8 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0):
     train_transforms.set_random_state(1234)
     val_transforms = Compose(
         [
-            LoadImaged(keys=["img", "seg"]),
-            AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
+            LoadImaged(keys=["img", "seg"], reader=readers[1]),
+            EnsureChannelFirstd(keys=["img", "seg"]),
             # resampling with align_corners=True or dtype=float64 will generate
             # slight different results between PyTorch 1.5 an 1.6
             Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], dtype=np.float32),
@@ -184,7 +184,7 @@ def run_inference_test(root_dir, device="cuda:0"):
     val_transforms = Compose(
         [
             LoadImaged(keys=["img", "seg"]),
-            AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
+            EnsureChannelFirstd(keys=["img", "seg"]),
             # resampling with align_corners=True or dtype=float64 will generate
             # slight different results between PyTorch 1.5 an 1.6
             Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], dtype=np.float32),
@@ -249,21 +249,25 @@ class IntegrationSegmentation3D(DistTestCase):
     def train_and_infer(self, idx=0):
         results = []
         set_determinism(0)
-        losses, best_metric, best_metric_epoch = run_training_test(self.data_dir, device=self.device, cachedataset=idx)
+        _readers = (None, None)
+        if idx == 1:
+            _readers = ("itkreader", "itkreader")
+        elif idx == 2:
+            _readers = ("itkreader", "nibabelreader")
+        losses, best_metric, best_metric_epoch = run_training_test(
+            self.data_dir, device=self.device, cachedataset=idx, readers=_readers
+        )
         infer_metric = run_inference_test(self.data_dir, device=self.device)
 
         # check training properties
         print("losses", losses)
         print("best metric", best_metric)
         print("infer metric", infer_metric)
-        self.assertTrue(test_integration_value(TASK, key="losses", data=losses, rtol=1e-3))
-        self.assertTrue(test_integration_value(TASK, key="best_metric", data=best_metric, rtol=1e-2))
         self.assertTrue(len(glob(os.path.join(self.data_dir, "runs"))) > 0)
         model_file = os.path.join(self.data_dir, "best_metric_model.pth")
         self.assertTrue(os.path.exists(model_file))
 
         # check inference properties
-        self.assertTrue(test_integration_value(TASK, key="infer_metric", data=infer_metric, rtol=1e-2))
         output_files = sorted(glob(os.path.join(self.data_dir, "output", "img*", "*.nii.gz")))
         print([np.mean(nib.load(output).get_fdata()) for output in output_files])
         results.extend(losses)
@@ -272,6 +276,9 @@ class IntegrationSegmentation3D(DistTestCase):
         for output in output_files:
             ave = np.mean(nib.load(output).get_fdata())
             results.append(ave)
+        self.assertTrue(test_integration_value(TASK, key="losses", data=results[:6], rtol=1e-3))
+        self.assertTrue(test_integration_value(TASK, key="best_metric", data=results[6], rtol=1e-2))
+        self.assertTrue(test_integration_value(TASK, key="infer_metric", data=results[7], rtol=1e-2))
         self.assertTrue(test_integration_value(TASK, key="output_sums", data=results[8:], rtol=1e-2))
         return results
 

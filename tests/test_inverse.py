@@ -623,7 +623,7 @@ class TestInverse(unittest.TestCase):
                     self.check_inverse(name, data.keys(), forwards[-i - 2], fwd_bck, forwards[-1], acceptable_diff)
 
     # skip this test if multiprocessing uses 'spawn', as the check is only basic anyway
-    @skipUnless(torch.multiprocessing.get_start_method(allow_none=False) == "spawn", "requires spawn")
+    @skipUnless(torch.multiprocessing.get_start_method() == "spawn", "requires spawn")
     def test_fail(self):
 
         t1 = SpatialPadd("image", [10, 5])

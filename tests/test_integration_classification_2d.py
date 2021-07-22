@@ -35,6 +35,7 @@ from monai.transforms import (
     RandZoom,
     ScaleIntensity,
     ToTensor,
+    Transpose,
 )
 from monai.utils import set_determinism
 from tests.testing_data.integration_answers import test_integration_value
@@ -66,6 +67,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
         [
             LoadImage(image_only=True),
             AddChannel(),
+            Transpose(indices=[0, 2, 1]),
             ScaleIntensity(),
             RandRotate(range_x=np.pi / 12, prob=0.5, keep_size=True),
             RandFlip(spatial_axis=0, prob=0.5),
@@ -74,7 +76,9 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
         ]
     )
     train_transforms.set_random_state(1234)
-    val_transforms = Compose([LoadImage(image_only=True), AddChannel(), ScaleIntensity(), ToTensor()])
+    val_transforms = Compose(
+        [LoadImage(image_only=True), AddChannel(), Transpose(indices=[0, 2, 1]), ScaleIntensity(), ToTensor()]
+    )
     y_pred_trans = Compose([ToTensor(), Activations(softmax=True)])
     y_trans = Compose([ToTensor(), AsDiscrete(to_onehot=True, n_classes=len(np.unique(train_y)))])
     auc_metric = ROCAUCMetric()

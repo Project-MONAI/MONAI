@@ -46,7 +46,7 @@ class TestResBlock(unittest.TestCase):
     def test_ill_arg(self):
         with self.assertRaises(AssertionError):
             ResBlock(spatial_dims=3, in_channels=8, norm="group", kernel_size=2)
-        with self.assertRaises(KeyError):
+        with self.assertRaises(ValueError):
             ResBlock(spatial_dims=3, in_channels=8, norm="norm")
 
 
