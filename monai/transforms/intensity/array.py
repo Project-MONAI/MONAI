@@ -24,7 +24,7 @@ import torch
 
 from monai.config import DtypeLike
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
-from monai.transforms.transform import NumpyTransform, RandomizableTransform, TorchTransform, Transform
+from monai.transforms.transform import NumpyTransform, RandomizableTransform, TorchTransform
 from monai.transforms.utils import rescale_array
 from monai.utils import PT_BEFORE_1_7, InvalidPyTorchVersionError, ensure_tuple, ensure_tuple_rep, ensure_tuple_size
 from monai.utils.enums import DataObjects
@@ -1362,7 +1362,7 @@ class GibbsNoise(TorchTransform, NumpyTransform):
         return out
 
 
-class KSpaceSpikeNoise(Transform):
+class KSpaceSpikeNoise(TorchTransform, NumpyTransform):
     """
     Apply localized spikes in `k`-space at the given locations and intensities.
     Spike (Herringbone) artifact is a type of data acquisition artifact which
@@ -1389,8 +1389,6 @@ class KSpaceSpikeNoise(Transform):
             receive a sequence of intensities. This value should be tested as it is
             data-dependent. The default values are the 2.5 the mean of the
             log-intensity for each channel.
-        as_tensor_output: if ``True`` return torch.Tensor, else return np.array.
-            Default: ``True``.
 
     Example:
         When working with 4D data, ``KSpaceSpikeNoise(loc = ((3,60,64,32), (64,60,32)), k_intensity = (13,14))``
@@ -1403,11 +1401,9 @@ class KSpaceSpikeNoise(Transform):
         self,
         loc: Union[Tuple, Sequence[Tuple]],
         k_intensity: Optional[Union[Sequence[float], float]] = None,
-        as_tensor_output: bool = True,
     ):
 
         self.loc = ensure_tuple(loc)
-        self.as_tensor_output = as_tensor_output
         self.k_intensity = k_intensity
 
         # assert one-to-one relationship between factors and locations
@@ -1422,7 +1418,7 @@ class KSpaceSpikeNoise(Transform):
             if not isinstance(self.k_intensity, Sequence):
                 raise AssertionError("There must be one intensity_factor value for each tuple of indices in loc.")
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> Union[torch.Tensor, np.ndarray]:
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Args:
             img (np.array or torch.tensor): image with dimensions (C, H, W) or (C, H, W, D)
@@ -1438,23 +1434,17 @@ class KSpaceSpikeNoise(Transform):
             raise AssertionError("Input images of dimension 4 need location tuple to be length 3 or 4")
 
         n_dims = len(img.shape[1:])
-
-        # convert to ndarray to work with np.fft
-        if isinstance(img, torch.Tensor):
-            device = img.device
-            img = img.cpu().detach().numpy()
-        else:
-            device = torch.device("cpu")
+        data_type = type(img)
 
         # FT
-        k = self._shift_fourier(img, n_dims)
-        log_abs = np.log(np.absolute(k) + 1e-10)
-        phase = np.angle(k)
+        k = self._shift_fourier(img, n_dims, data_type)
+        log_abs = lib.log(lib.absolute(k) + 1e-10)  # type: ignore
+        phase = lib.angle(k)  # type: ignore
 
         k_intensity = self.k_intensity
         # default log intensity
         if k_intensity is None:
-            k_intensity = tuple(np.mean(log_abs, axis=tuple(range(-n_dims, 0))) * 2.5)
+            k_intensity = tuple(lib.mean(log_abs, axis=tuple(range(-n_dims, 0))) * 2.5)  # type: ignore
 
         # highlight
         if isinstance(self.loc[0], Sequence):
@@ -1463,9 +1453,10 @@ class KSpaceSpikeNoise(Transform):
         else:
             self._set_spike(log_abs, self.loc, k_intensity)
         # map back
-        k = np.exp(log_abs) * np.exp(1j * phase)
-        img = self._inv_shift_fourier(k, n_dims)
-        return torch.Tensor(img, device=device) if self.as_tensor_output else img
+        k = lib.exp(log_abs) * lib.exp(1j * phase)  # type: ignore
+        img = self._inv_shift_fourier(k, n_dims, data_type)
+
+        return img
 
     def _check_indices(self, img) -> None:
         """Helper method to check consistency of self.loc and input image.
@@ -1485,7 +1476,7 @@ class KSpaceSpikeNoise(Transform):
                     f"The index value at position {i} of one of the tuples in loc = {self.loc} is out of bounds for current image."
                 )
 
-    def _set_spike(self, k: np.ndarray, idx: Tuple, val: Union[Sequence[float], float]):
+    def _set_spike(self, k: DataObjects.Images, idx: Tuple, val: Union[Sequence[float], float]):
         """
         Helper function to introduce a given intensity at given location.
 
@@ -1504,7 +1495,7 @@ class KSpaceSpikeNoise(Transform):
         elif len(k.shape) == 3 and len(idx) == 2:
             k[:, idx[0], idx[1]] = val
 
-    def _shift_fourier(self, x: Union[np.ndarray, torch.Tensor], n_dims: int) -> np.ndarray:
+    def _shift_fourier(self, x: DataObjects.Images, n_dims: int, data_type: type) -> DataObjects.Images:
         """
         Applies fourier transform and shifts its output.
         Only the spatial dimensions get transformed.
@@ -1512,21 +1503,27 @@ class KSpaceSpikeNoise(Transform):
         Args:
             x (np.ndarray): tensor to fourier transform.
         """
-        out: np.ndarray = np.fft.fftshift(np.fft.fftn(x, axes=tuple(range(-n_dims, 0))), axes=tuple(range(-n_dims, 0)))
+        # argument is dim if torch, else axes
+        mod, arg = (torch, "dim") if data_type is torch.Tensor else (np, "axes")
+        arg_dict = {arg: tuple(range(-n_dims, 0))}
+        out: DataObjects.Images = mod.fft.fftshift(mod.fft.fftn(x, **arg_dict), **arg_dict)  # type: ignore
         return out
 
-    def _inv_shift_fourier(self, k: Union[np.ndarray, torch.Tensor], n_dims: int) -> np.ndarray:
+    def _inv_shift_fourier(self, k: DataObjects.Images, n_dims: int, data_type: type) -> DataObjects.Images:
         """
         Applies inverse shift and fourier transform. Only the spatial
         dimensions are transformed.
         """
-        out: np.ndarray = np.fft.ifftn(
-            np.fft.ifftshift(k, axes=tuple(range(-n_dims, 0))), axes=tuple(range(-n_dims, 0))
-        ).real
-        return out
+        dims = tuple(range(-n_dims, 0))
+        out: DataObjects.Images
+        if data_type is torch.Tensor:
+            out = torch.fft.ifftn(torch.fft.ifftshift(k, dim=dims), dim=dims, norm="backward")
+        else:
+            out = np.fft.ifftn(np.fft.ifftshift(k, axes=dims), axes=dims)
+        return out.real
 
 
-class RandKSpaceSpikeNoise(RandomizableTransform):
+class RandKSpaceSpikeNoise(RandomizableTransform, TorchTransform, NumpyTransform):
     """
     Naturalistic data augmentation via spike artifacts. The transform applies
     localized spikes in `k`-space, and it is the random version of
@@ -1555,8 +1552,6 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
             log-intensity for each channel.
         channel_wise: treat each channel independently. True by
             default.
-        as_tensor_output: if True return torch.Tensor, else
-            return np.array. default: True.
 
     Example:
         To apply `k`-space spikes randomly with probability 0.5, and
@@ -1570,12 +1565,10 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
         prob: float = 0.1,
         intensity_range: Optional[Sequence[Union[Sequence[float], float]]] = None,
         channel_wise=True,
-        as_tensor_output: bool = True,
     ):
 
         self.intensity_range = intensity_range
         self.channel_wise = channel_wise
-        self.as_tensor_output = as_tensor_output
         self.sampled_k_intensity: List[float] = []
         self.sampled_locs: List[Tuple] = []
 
@@ -1587,7 +1580,7 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
 
         super().__init__(prob)
 
-    def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> Union[torch.Tensor, np.ndarray]:
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Apply transform to `img`. Assumes data is in channel-first form.
 
@@ -1603,19 +1596,16 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
         self.sampled_k_intensity = []
         self.sampled_locs = []
 
-        # convert to ndarray to work with np.fft
-        x, device = self._to_numpy(img)
-        intensity_range = self._make_sequence(x)
-        self._randomize(x, intensity_range)
+        intensity_range = self._make_sequence(img)
+        self._randomize(img, intensity_range)
 
         # build/apply transform only if there are spike locations
         if self.sampled_locs:
-            transform = KSpaceSpikeNoise(self.sampled_locs, self.sampled_k_intensity, self.as_tensor_output)
-            return transform(x)
+            transform = KSpaceSpikeNoise(self.sampled_locs, self.sampled_k_intensity)
+            return transform(img)
+        return img
 
-        return torch.Tensor(x, device=device) if self.as_tensor_output else x
-
-    def _randomize(self, img: np.ndarray, intensity_range: Sequence[Sequence[float]]) -> None:
+    def _randomize(self, img: DataObjects.Images, intensity_range: Sequence[Sequence[float]]) -> None:
         """
         Helper method to sample both the location and intensity of the spikes.
         When not working channel wise (channel_wise=False) it use the random
@@ -1643,7 +1633,7 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
                 else:
                     self.sampled_k_intensity = [self.R.uniform(*self.intensity_range)] * len(img)  # type: ignore
 
-    def _make_sequence(self, x: np.ndarray) -> Sequence[Sequence[float]]:
+    def _make_sequence(self, x: DataObjects.Images) -> Sequence[Sequence[float]]:
         """
         Formats the sequence of intensities ranges to Sequence[Sequence[float]].
         """
@@ -1657,23 +1647,20 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
             # set default range if one not provided
             return self._set_default_range(x)
 
-    def _set_default_range(self, x: np.ndarray) -> Sequence[Sequence[float]]:
+    def _set_default_range(self, x: DataObjects.Images) -> Sequence[Sequence[float]]:
         """
         Sets default intensity ranges to be sampled.
 
         Args:
-            x (np.ndarray): tensor to fourier transform.
+            x: tensor to fourier transform.
         """
         n_dims = len(x.shape[1:])
 
-        k = np.fft.fftshift(np.fft.fftn(x, axes=tuple(range(-n_dims, 0))), axes=tuple(range(-n_dims, 0)))
-        log_abs = np.log(np.absolute(k) + 1e-10)
-        shifted_means = np.mean(log_abs, axis=tuple(range(-n_dims, 0))) * 2.5
+        mod, arg = (torch, "dim") if type(x) is torch.Tensor else (np, "axes")
+        arg_dict = {arg: tuple(range(-n_dims, 0))}
+        k: DataObjects.Images = mod.fft.fftshift(mod.fft.fftn(x, **arg_dict), **arg_dict)  # type: ignore
+
+        log_abs = mod.log(mod.absolute(k) + 1e-10)  # type: ignore
+        shifted_means = mod.mean(log_abs, axis=tuple(range(-n_dims, 0))) * 2.5  # type: ignore
         intensity_sequence = tuple((i * 0.95, i * 1.1) for i in shifted_means)
         return intensity_sequence
-
-    def _to_numpy(self, img: Union[np.ndarray, torch.Tensor]) -> Tuple[np.ndarray, torch.device]:
-        if isinstance(img, torch.Tensor):
-            return img.cpu().detach().numpy(), img.device
-        else:
-            return img, torch.device("cpu")

@@ -16,7 +16,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
 from collections.abc import Iterable
-from typing import Any, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Hashable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -1162,8 +1162,6 @@ class KSpaceSpikeNoised(MapTransform):
             receive a sequence of intensities. This value should be tested as it is
             data-dependent. The default values are the 2.5 the mean of the
             log-intensity for each channel.
-        as_tensor_output: if ``True`` return torch.Tensor, else return np.array.
-            Default: ``True``.
         allow_missing_keys: do not raise exception if key is missing.
 
     Example:
@@ -1179,16 +1177,13 @@ class KSpaceSpikeNoised(MapTransform):
         keys: KeysCollection,
         loc: Union[Tuple, Sequence[Tuple]],
         k_intensity: Optional[Union[Sequence[float], float]] = None,
-        as_tensor_output: bool = True,
         allow_missing_keys: bool = False,
     ) -> None:
 
         super().__init__(keys, allow_missing_keys)
-        self.transform = KSpaceSpikeNoise(loc, k_intensity, as_tensor_output)
+        self.transform = KSpaceSpikeNoise(loc, k_intensity)
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[torch.Tensor, np.ndarray]]
-    ) -> Dict[Hashable, Union[torch.Tensor, np.ndarray]]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         """
         Args:
             data: Expects image/label to have dimensions (C, H, W) or
@@ -1237,8 +1232,6 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
         common_sampling: If ``True`` same values for location and log-intensity
              will be sampled for the image and label.
         common_seed: Seed to be used in case ``common_sampling = True``.
-        as_tensor_output: if ``True`` return torch.Tensor, else return
-            np.array. Default: ``True``.
         allow_missing_keys: do not raise exception if key is missing.
 
     Example:
@@ -1258,7 +1251,6 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
         channel_wise: bool = True,
         common_sampling: bool = False,
         common_seed: int = 42,
-        as_tensor_output: bool = True,
         allow_missing_keys: bool = False,
     ):
 
@@ -1267,14 +1259,11 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
 
         self.common_sampling = common_sampling
         self.common_seed = common_seed
-        self.as_tensor_output = as_tensor_output
         # the spikes artifact is amplitude dependent so we instantiate one per key
-        self.t_img = RandKSpaceSpikeNoise(prob, img_intensity_range, channel_wise, self.as_tensor_output)
-        self.t_label = RandKSpaceSpikeNoise(prob, label_intensity_range, channel_wise, self.as_tensor_output)
+        self.t_img = RandKSpaceSpikeNoise(prob, img_intensity_range, channel_wise)
+        self.t_label = RandKSpaceSpikeNoise(prob, label_intensity_range, channel_wise)
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[torch.Tensor, np.ndarray]]
-    ) -> Dict[Hashable, Union[torch.Tensor, np.ndarray]]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         """
         Args:
             data: Expects image/label to have dimensions (C, H, W) or
@@ -1292,11 +1281,6 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
             if self._do_transform:
                 transform = self.t_img if key == "image" else self.t_label
                 d[key] = transform(d[key])
-            else:
-                if isinstance(d[key], np.ndarray) and self.as_tensor_output:
-                    d[key] = torch.Tensor(d[key])
-                elif isinstance(d[key], torch.Tensor) and not self.as_tensor_output:
-                    d[key] = self._to_numpy(d[key])
         return d
 
     def set_rand_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None) -> None:

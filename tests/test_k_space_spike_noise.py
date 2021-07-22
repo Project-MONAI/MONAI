@@ -20,12 +20,12 @@ from parameterized import parameterized
 from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 from monai.transforms import KSpaceSpikeNoise
 from monai.utils.misc import set_determinism
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASES = []
+TESTS = []
 for shape in ((128, 64), (64, 48, 80)):
-    for as_tensor_output in (True, False):
-        for as_tensor_input in (True, False):
-            TEST_CASES.append((shape, as_tensor_output, as_tensor_input))
+    for p in TEST_NDARRAYS:
+        TESTS.append((shape, p))
 
 
 class TestKSpaceSpikeNoise(unittest.TestCase):
@@ -37,33 +37,43 @@ class TestKSpaceSpikeNoise(unittest.TestCase):
         set_determinism(None)
 
     @staticmethod
-    def get_data(im_shape, as_tensor_input):
+    def get_data(im_shape, im_type):
         create_test_image = create_test_image_2d if len(im_shape) == 2 else create_test_image_3d
-        im = create_test_image(*im_shape, rad_max=20, noise_max=0.0, num_seg_classes=5)[0][None]
-        return torch.Tensor(im) if as_tensor_input else im
+        im, _ = create_test_image(*im_shape, rad_max=20, noise_max=0.0, num_seg_classes=5)
+        return im_type(im[None])
 
-    @parameterized.expand(TEST_CASES)
-    def test_same_result(self, im_shape, as_tensor_output, as_tensor_input):
+    @parameterized.expand(TESTS)
+    def test_same_result(self, im_shape, im_type):
 
-        im = self.get_data(im_shape, as_tensor_input)
+        im = self.get_data(im_shape, im_type)
         loc = [0, int(im.shape[1] / 2), 0] if len(im_shape) == 2 else [0, int(im.shape[1] / 2), 0, 0]
         k_intensity = 10
-        t = KSpaceSpikeNoise(loc, k_intensity, as_tensor_output)
+        t = KSpaceSpikeNoise(loc, k_intensity)
 
         out1 = t(deepcopy(im))
         out2 = t(deepcopy(im))
 
-        np.testing.assert_allclose(out1, out2)
-        self.assertIsInstance(out1, torch.Tensor if as_tensor_output else np.ndarray)
+        self.assertEqual(type(im), type(out1))
+        if isinstance(out1, torch.Tensor):
+            self.assertEqual(im.device, out1.device)
+            out1 = out1.cpu()
+            out2 = out2.cpu()
 
-    @parameterized.expand(TEST_CASES)
-    def test_highlighted_kspace_pixel(self, im_shape, as_tensor_output, as_tensor_input):
+        np.testing.assert_allclose(out1, out2)
+
+    @parameterized.expand(TESTS)
+    def test_highlighted_kspace_pixel(self, im_shape, as_tensor_input):
 
         im = self.get_data(im_shape, as_tensor_input)
         loc = [0, int(im.shape[1] / 2), 0] if len(im_shape) == 2 else [0, int(im.shape[1] / 2), 0, 0]
         k_intensity = 10
-        t = KSpaceSpikeNoise(loc, k_intensity, as_tensor_output)
+        t = KSpaceSpikeNoise(loc, k_intensity)
         out = t(im)
+
+        self.assertEqual(type(im), type(out))
+        if isinstance(out, torch.Tensor):
+            self.assertEqual(im.device, out.device)
+            out = out.cpu()
 
         n_dims = len(im_shape)
         out_k = fftshift(fftn(out, axes=tuple(range(-n_dims, 0))), axes=tuple(range(-n_dims, 0)))

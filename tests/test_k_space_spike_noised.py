@@ -20,12 +20,12 @@ from parameterized import parameterized
 from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 from monai.transforms import KSpaceSpikeNoised
 from monai.utils.misc import set_determinism
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASES = []
+TESTS = []
 for shape in ((128, 64), (64, 48, 80)):
-    for as_tensor_output in (True, False):
-        for as_tensor_input in (True, False):
-            TEST_CASES.append((shape, as_tensor_output, as_tensor_input))
+    for p in TEST_NDARRAYS:
+        TESTS.append((shape, p))
 
 KEYS = ["image", "label"]
 
@@ -39,54 +39,68 @@ class TestKSpaceSpikeNoised(unittest.TestCase):
         set_determinism(None)
 
     @staticmethod
-    def get_data(im_shape, as_tensor_input):
+    def get_data(im_shape, im_type):
         create_test_image = create_test_image_2d if len(im_shape) == 2 else create_test_image_3d
         ims = create_test_image(*im_shape, rad_max=20, noise_max=0.0, num_seg_classes=5)
-        ims = [im[None] for im in ims]
-        ims = [torch.Tensor(im) for im in ims] if as_tensor_input else ims
+        ims = [im_type(im[None]) for im in ims]
         return {k: v for k, v in zip(KEYS, ims)}
 
-    @parameterized.expand(TEST_CASES)
-    def test_same_result(self, im_shape, as_tensor_output, as_tensor_input):
+    @parameterized.expand(TESTS)
+    def test_same_result(self, im_shape, im_type):
 
-        data = self.get_data(im_shape, as_tensor_input)
+        data = self.get_data(im_shape, im_type)
         loc = [0] + [int(im_shape[i] / 2) for i in range(len(im_shape))]
         k_intensity = 10
 
-        t = KSpaceSpikeNoised(KEYS, loc, k_intensity, as_tensor_output)
+        t = KSpaceSpikeNoised(KEYS, loc, k_intensity)
         out1 = t(deepcopy(data))
         out2 = t(deepcopy(data))
 
         for k in KEYS:
+            self.assertEqual(type(out1[k]), type(data[k]))
+            if isinstance(out1[k], torch.Tensor):
+                self.assertEqual(out1[k].device, data[k].device)
+                out1[k] = out1[k].cpu()
+                out2[k] = out2[k].cpu()
             np.testing.assert_allclose(out1[k], out2[k])
-            self.assertIsInstance(out1[k], torch.Tensor if as_tensor_output else np.ndarray)
 
-    @parameterized.expand(TEST_CASES)
-    def test_highlighted_kspace_pixel(self, im_shape, as_tensor_output, as_tensor_input):
+    @parameterized.expand(TESTS)
+    def test_highlighted_kspace_pixel(self, im_shape, im_type):
 
-        data = self.get_data(im_shape, as_tensor_input)
+        data = self.get_data(im_shape, im_type)
         loc = [0] + [int(im_shape[i] / 2) for i in range(len(im_shape))]
         k_intensity = 10
 
-        t = KSpaceSpikeNoised(KEYS, loc, k_intensity, as_tensor_output)
+        t = KSpaceSpikeNoised(KEYS, loc, k_intensity)
         out = t(data)
 
         for k in KEYS:
+            self.assertEqual(type(out[k]), type(data[k]))
+            if isinstance(out[k], torch.Tensor):
+                self.assertEqual(out[k].device, data[k].device)
+                out[k] = out[k].cpu()
+
             n_dims = len(im_shape)
             out_k = fftshift(fftn(out[k], axes=tuple(range(-n_dims, 0))), axes=tuple(range(-n_dims, 0)))
             log_mag = np.log(np.absolute(out_k))
             np.testing.assert_allclose(k_intensity, log_mag[tuple(loc)], 1e-1)
 
-    @parameterized.expand(TEST_CASES)
-    def test_dict_matches(self, im_shape, _, as_tensor_input):
-        data = self.get_data(im_shape, as_tensor_input)
+    @parameterized.expand(TESTS)
+    def test_dict_matches(self, im_shape, im_type):
+        data = self.get_data(im_shape, im_type)
         # use same image for both dictionary entries to check same trans is applied to them
         data = {KEYS[0]: deepcopy(data[KEYS[0]]), KEYS[1]: deepcopy(data[KEYS[0]])}
         loc = [0] + [int(im_shape[i] / 2) for i in range(len(im_shape))]
         k_intensity = 10
 
-        t = KSpaceSpikeNoised(KEYS, loc, k_intensity, as_tensor_output)
+        t = KSpaceSpikeNoised(KEYS, loc, k_intensity)
         out = t(deepcopy(data))
+
+        for k in KEYS:
+            self.assertEqual(type(out[k]), type(data[k]))
+            if isinstance(out[k], torch.Tensor):
+                self.assertEqual(out[k].device, data[k].device)
+                out[k] = out[k].cpu()
 
         np.testing.assert_allclose(out[KEYS[0]], out[KEYS[1]])
 
