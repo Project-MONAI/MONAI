@@ -12,6 +12,7 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import RandBiasFieldd
@@ -34,6 +35,12 @@ class TestRandBiasFieldd(unittest.TestCase):
         bias_field = RandBiasFieldd(keys=[key], **class_args)
         img = np.random.rand(*img_shape)
         output = bias_field({key: img})
+
+        self.assertEqual(type(img), type(output[key]))
+        if isinstance(output[key], torch.Tensor):
+            self.assertEqual(output[key].device, img.device)
+            output = output[key].cpu().numpy()
+
         np.testing.assert_equal(output[key].shape, img_shape)
         np.testing.assert_equal(output[key].dtype, bias_field.rand_bias_field.dtype)
 
@@ -43,6 +50,12 @@ class TestRandBiasFieldd(unittest.TestCase):
         bias_field = RandBiasFieldd(keys=[key], **class_args)
         img = np.random.rand(*img_shape)
         output = bias_field({key: img})
+
+        self.assertEqual(type(img), type(output[key]))
+        if isinstance(output[key], torch.Tensor):
+            self.assertEqual(output[key].device, img.device)
+            output = output[key].cpu().numpy()
+
         np.testing.assert_equal(output[key], np.zeros(img_shape))
 
     @parameterized.expand([TEST_CASES_2D_ONES])
@@ -51,6 +64,12 @@ class TestRandBiasFieldd(unittest.TestCase):
         bias_field = RandBiasFieldd(keys=[key], **class_args)
         img = np.ones([1, 2, 2])
         output = bias_field({key: img})
+
+        self.assertEqual(type(img), type(output[key]))
+        if isinstance(output[key], torch.Tensor):
+            self.assertEqual(output[key].device, img.device)
+            output = output[key].cpu().numpy()
+
         np.testing.assert_equal(output[key], expected.astype(bias_field.rand_bias_field.dtype))
 
     def test_zero_prob(self):
@@ -58,6 +77,12 @@ class TestRandBiasFieldd(unittest.TestCase):
         bias_field = RandBiasFieldd(keys=[key], prob=0.0)
         img = np.random.rand(3, 32, 32)
         output = bias_field({key: img})
+
+        self.assertEqual(type(img), type(output[key]))
+        if isinstance(output[key], torch.Tensor):
+            self.assertEqual(output[key].device, img.device)
+            output = output[key].cpu().numpy()
+
         np.testing.assert_equal(output[key], img)
 
 

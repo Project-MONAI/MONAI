@@ -12,9 +12,11 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import RandBiasField
+from tests.utils import TEST_NDARRAYS
 
 TEST_CASES_2D = [{}, (3, 32, 32)]
 TEST_CASES_3D = [{}, (3, 32, 32, 32)]
@@ -30,36 +32,60 @@ class TestRandBiasField(unittest.TestCase):
         ]
     )
     def test_output_shape(self, class_args, img_shape):
-        for degree in [1, 2, 3]:
-            bias_field = RandBiasField(degree=degree, **class_args)
-            img = np.random.rand(*img_shape)
-            output = bias_field(img)
-            np.testing.assert_equal(output.shape, img_shape)
-            np.testing.assert_equal(output.dtype, bias_field.dtype)
+        for p in TEST_NDARRAYS:
+            for degree in [1, 2, 3]:
+                bias_field = RandBiasField(degree=degree, **class_args)
+                img = p(np.random.rand(*img_shape))
+                output = bias_field(img)
 
-            img_zero = np.zeros([*img_shape])
-            output_zero = bias_field(img_zero)
-            np.testing.assert_equal(output_zero, img_zero)
+                self.assertEqual(type(img), type(output))
+                if isinstance(output, torch.Tensor):
+                    self.assertEqual(output.device, img.device)
+                    output = output.cpu().numpy()
+
+                np.testing.assert_equal(output.shape, img_shape)
+                np.testing.assert_equal(output.dtype, bias_field.dtype)
+
+                img_zero = np.zeros([*img_shape])
+                output_zero = bias_field(img_zero)
+                np.testing.assert_equal(output_zero, img_zero)
 
     @parameterized.expand([TEST_CASES_2D_ZERO_RANGE])
     def test_zero_range(self, class_args, img_shape):
-        bias_field = RandBiasField(**class_args)
-        img = np.random.rand(*img_shape)
-        output = bias_field(img)
-        np.testing.assert_equal(output, np.zeros(img_shape))
+        for p in TEST_NDARRAYS:
+            bias_field = RandBiasField(**class_args)
+            img = p(np.random.rand(*img_shape))
+            output = bias_field(img)
+
+            self.assertEqual(type(img), type(output))
+            if isinstance(output, torch.Tensor):
+                self.assertEqual(output.device, img.device)
+                output = output.cpu().numpy()
+            np.testing.assert_equal(output, np.zeros(img_shape))
 
     @parameterized.expand([TEST_CASES_2D_ONES])
     def test_one_range_input(self, class_args, expected):
-        bias_field = RandBiasField(**class_args)
-        img = np.ones([1, 2, 2])
-        output = bias_field(img)
-        np.testing.assert_equal(output, expected.astype(bias_field.dtype))
+        for p in TEST_NDARRAYS:
+            bias_field = RandBiasField(**class_args)
+            img = p(np.ones([1, 2, 2]))
+            output = bias_field(img)
+            self.assertEqual(type(img), type(output))
+            if isinstance(output, torch.Tensor):
+                self.assertEqual(output.device, img.device)
+                output = output.cpu().numpy()
+            np.testing.assert_equal(output, expected.astype(bias_field.dtype))
 
     def test_zero_prob(self):
-        bias_field = RandBiasField(prob=0.0)
-        img = np.random.rand(3, 32, 32)
-        output = bias_field(img)
-        np.testing.assert_equal(output, img)
+        for p in TEST_NDARRAYS:
+            bias_field = RandBiasField(prob=0.0)
+            img = p(np.random.rand(3, 32, 32))
+            output = bias_field(img)
+            self.assertEqual(type(img), type(output))
+            if isinstance(output, torch.Tensor):
+                self.assertEqual(output.device, img.device)
+                output = output.cpu().numpy()
+                img = img.cpu().numpy()
+            np.testing.assert_equal(output, img)
 
 
 if __name__ == "__main__":

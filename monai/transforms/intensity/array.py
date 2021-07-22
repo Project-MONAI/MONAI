@@ -417,7 +417,7 @@ class RandScaleIntensity(TorchTransform, NumpyTransform, RandomizableTransform):
         return scaler(img)
 
 
-class RandBiasField(RandomizableTransform):
+class RandBiasField(RandomizableTransform, TorchTransform, NumpyTransform):
     """
     Random bias field augmentation for MR images.
     The bias field is considered as a linear combination of smoothly varying basis (polynomial)
@@ -481,14 +481,14 @@ class RandBiasField(RandomizableTransform):
             raise NotImplementedError("only supports 2D or 3D fields")
         return field
 
-    def randomize(self, data: np.ndarray) -> None:
+    def randomize(self, data: DataObjects.Images) -> None:
         super().randomize(None)
         self.spatial_shape = data.shape[1:]
         self.rank = len(self.spatial_shape)
         n_coeff = int(np.prod([(self.degree + k) / k for k in range(1, self.rank + 1)]))
         self._coeff = self.R.uniform(*self.coeff_range, n_coeff).tolist()
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Apply the transform to `img`.
         """
@@ -496,6 +496,7 @@ class RandBiasField(RandomizableTransform):
         if not self._do_transform:
             return img
         num_channels = img.shape[0]
+        _bias_fields: DataObjects.Images
         _bias_fields = np.stack(
             [
                 self._generate_random_field(
@@ -505,7 +506,12 @@ class RandBiasField(RandomizableTransform):
             ],
             axis=0,
         )
-        return (img * _bias_fields).astype(self.dtype)
+        _bias_fields, *_ = convert_data_type(
+            _bias_fields, type(img), dtype=self.dtype, device=img.device if isinstance(img, torch.Tensor) else None
+        )
+        out = img * _bias_fields
+        out, *_ = convert_data_type(out, dtype=self.dtype)
+        return out
 
 
 class NormalizeIntensity(TorchTransform, NumpyTransform):
