@@ -12,9 +12,11 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import RandScaleCrop
+from tests.utils import TEST_NDARRAYS
 
 TEST_CASE_1 = [
     {"roi_scale": [1.0, 1.0, -1.0], "random_center": True},
@@ -55,22 +57,45 @@ TEST_CASE_6 = [
 class TestRandScaleCrop(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape(self, input_param, input_data, expected_shape):
-        result = RandScaleCrop(**input_param)(input_data)
-        self.assertTupleEqual(result.shape, expected_shape)
+        results = []
+        for p in TEST_NDARRAYS:
+            im = p(input_data)
+            cropper = RandScaleCrop(**input_param)
+            cropper.set_random_state(0)
+            result = cropper(im)
+            if isinstance(result, torch.Tensor):
+                result = result.cpu().numpy()
+            self.assertTupleEqual(result.shape, expected_shape)
+            results.append(result)
+            if len(results) > 1:
+                np.testing.assert_allclose(results[0], results[-1])
 
     @parameterized.expand([TEST_CASE_3])
     def test_value(self, input_param, input_data):
-        cropper = RandScaleCrop(**input_param)
-        result = cropper(input_data)
-        roi = [(2 - i // 2, 2 + i - i // 2) for i in cropper._size]
-        np.testing.assert_allclose(result, input_data[:, roi[0][0] : roi[0][1], roi[1][0] : roi[1][1]])
+        for p in TEST_NDARRAYS:
+            im = p(input_data)
+            cropper = RandScaleCrop(**input_param)
+            cropper.set_random_state(0)
+            result = cropper(im)
+            if isinstance(result, torch.Tensor):
+                result = result.cpu().numpy()
+            roi = [(2 - i // 2, 2 + i - i // 2) for i in cropper._size]
+            np.testing.assert_allclose(result, input_data[:, roi[0][0] : roi[0][1], roi[1][0] : roi[1][1]])
 
     @parameterized.expand([TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
     def test_random_shape(self, input_param, input_data, expected_shape):
-        cropper = RandScaleCrop(**input_param)
-        cropper.set_random_state(seed=123)
-        result = cropper(input_data)
-        self.assertTupleEqual(result.shape, expected_shape)
+        results = []
+        for p in TEST_NDARRAYS:
+            im = p(input_data)
+            cropper = RandScaleCrop(**input_param)
+            cropper.set_random_state(123)
+            result = cropper(im)
+            if isinstance(result, torch.Tensor):
+                result = result.cpu().numpy()
+            self.assertTupleEqual(result.shape, expected_shape)
+            results.append(result)
+            if len(results) > 1:
+                np.testing.assert_allclose(results[0], results[-1])
 
 
 if __name__ == "__main__":

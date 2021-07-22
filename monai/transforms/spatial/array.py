@@ -1211,7 +1211,6 @@ class Resample(TorchTransform):
         """
         self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
         self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
-        self.as_tensor_output = as_tensor_output
         self.device = device
 
     def __call__(

@@ -23,7 +23,7 @@ from torch.nn.functional import pad as pad_pt
 
 from monai.config import IndexSelection
 from monai.data.utils import get_random_patch, get_valid_patch_size
-from monai.transforms.transform import NumpyTransform, Randomizable, TorchTransform, Transform
+from monai.transforms.transform import NumpyTransform, Randomizable, TorchTransform
 from monai.transforms.utils import (
     compute_divisible_spatial_size,
     generate_label_classes_crop_centers,
@@ -432,7 +432,7 @@ class CenterScaleCrop(TorchTransform, NumpyTransform):
         return sp_crop(img=img)
 
 
-class RandSpatialCrop(Randomizable, Transform):
+class RandSpatialCrop(Randomizable, TorchTransform, NumpyTransform):
     """
     Crop image with random size or specific size ROI. It can crop at a random position as center
     or at the image center. And allows to set the minimum and maximum size to limit the randomly generated ROI.
@@ -481,7 +481,7 @@ class RandSpatialCrop(Randomizable, Transform):
             valid_size = get_valid_patch_size(img_size, self._size)
             self._slices = (slice(None),) + get_random_patch(img_size, valid_size, self.R)
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
@@ -527,7 +527,7 @@ class RandScaleCrop(RandSpatialCrop):
         self.roi_scale = roi_scale
         self.max_roi_scale = max_roi_scale
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
@@ -542,7 +542,7 @@ class RandScaleCrop(RandSpatialCrop):
         return super().__call__(img=img)
 
 
-class RandSpatialCropSamples(Randomizable, Transform):
+class RandSpatialCropSamples(Randomizable, TorchTransform, NumpyTransform):
     """
     Crop image with random size or specific size ROI to generate a list of N samples.
     It can crop at a random position as center or at the image center. And allows to set
@@ -593,10 +593,10 @@ class RandSpatialCropSamples(Randomizable, Transform):
         self.cropper.set_random_state(state=self.R)
         return self
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, _: Optional[Any] = None) -> None:
         pass
 
-    def __call__(self, img: np.ndarray) -> List[np.ndarray]:
+    def __call__(self, img: DataObjects.Images) -> List[DataObjects.Images]:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         cropping doesn't change the channel dim.

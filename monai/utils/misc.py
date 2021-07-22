@@ -129,6 +129,10 @@ def ensure_tuple_rep(tup: Any, dim: int) -> Tuple[Any, ...]:
         ValueError: Sequence must have length 3, got length 2.
 
     """
+    if isinstance(tup, torch.Tensor):
+        tup = tup.cpu().numpy()
+    if isinstance(tup, np.ndarray):
+        tup = tup.tolist()
     if not issequenceiterable(tup):
         return (tup,) * dim
     if len(tup) == dim:
