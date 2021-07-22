@@ -153,7 +153,7 @@ class TestUNET(unittest.TestCase):
             strides=(2, 2),
         )
         with eval_mode(net):
-            with self.assertRaisesRegex(RuntimeError, r"torch.cat\(\): Sizes of tensors must match"):
+            with self.assertRaisesRegex(RuntimeError, "Sizes of tensors must match"):
                 net.forward(torch.randn(2, 1, 16, 5))
 
 
