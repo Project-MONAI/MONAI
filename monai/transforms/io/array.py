@@ -13,6 +13,7 @@ A collection of "vanilla" transforms for IO functions
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
+import sys
 from typing import Dict, List, Optional, Sequence, Union
 
 import numpy as np
@@ -22,15 +23,45 @@ from monai.config import DtypeLike
 from monai.data.image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader
 from monai.data.nifti_saver import NiftiSaver
 from monai.data.png_saver import PNGSaver
-from monai.transforms.compose import Transform
+from monai.transforms.transform import Transform
 from monai.utils import GridSampleMode, GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
 from monai.utils import InterpolateMode, ensure_tuple, optional_import
+from monai.utils.module import look_up_option
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
 
 __all__ = ["LoadImage", "SaveImage"]
+
+
+def switch_endianness(data, new="<"):
+    """
+    Convert the input `data` endianness to `new`.
+
+    Args:
+        data: input to be converted.
+        new: the target endianness, currently support "<" or ">".
+    """
+    if isinstance(data, np.ndarray):
+        # default to system endian
+        sys_native = ((sys.byteorder == "little") and "<") or ">"
+        current_ = sys_native if data.dtype.byteorder not in ("<", ">") else data.dtype.byteorder
+        if new not in ("<", ">"):
+            raise NotImplementedError(f"Not implemented option new={new}.")
+        if current_ != new:
+            data = data.byteswap().newbyteorder(new)
+    elif isinstance(data, tuple):
+        data = tuple(switch_endianness(x, new) for x in data)
+    elif isinstance(data, list):
+        data = [switch_endianness(x, new) for x in data]
+    elif isinstance(data, dict):
+        data = {k: switch_endianness(v, new) for k, v in data.items()}
+    elif isinstance(data, (bool, str, float, int, type(None))):
+        pass
+    else:
+        raise AssertionError(f"Unknown type: {type(data).__name__}")
+    return data
 
 
 class LoadImage(Transform):
@@ -57,7 +88,7 @@ class LoadImage(Transform):
             reader: register reader to load image file and meta data, if None, still can register readers
                 at runtime or use the default readers. If a string of reader name provided, will construct
                 a reader object with the `*args` and `**kwargs` parameters, supported reader name: "NibabelReader",
-                "PILReader", "ITKReader", "NumpyReader"
+                "PILReader", "ITKReader", "NumpyReader".
             image_only: if True return only the image volume, otherwise return image data array and header dict.
             dtype: if not None convert the loaded image to this data type.
             args: additional parameters for reader if providing a reader name.
@@ -78,10 +109,8 @@ class LoadImage(Transform):
                     "itkreader": ITKReader,
                     "numpyreader": NumpyReader,
                 }
-                reader = reader.lower()
-                if reader not in supported_readers:
-                    raise ValueError(f"unsupported reader type: {reader}, available options: {supported_readers}.")
-                self.register(supported_readers[reader](*args, **kwargs))
+                the_reader = look_up_option(reader.lower(), supported_readers)
+                self.register(the_reader(*args, **kwargs))
             else:
                 self.register(reader)
 
@@ -123,7 +152,12 @@ class LoadImage(Transform):
                     break
 
         if reader is None:
-            raise RuntimeError(f"can not find suitable reader for this file: {filename}.")
+            raise RuntimeError(
+                f"can not find suitable reader for this file: {filename}. \
+                Please install dependency libraries: (nii, nii.gz) -> Nibabel, (png, jpg, bmp) -> PIL, \
+                (npz, npy) -> Numpy, others -> ITK. Refer to the installation instruction: \
+                https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies."
+            )
 
         img = reader.read(filename)
         img_array, meta_data = reader.get_data(img)
@@ -132,14 +166,23 @@ class LoadImage(Transform):
         if self.image_only:
             return img_array
         meta_data[Key.FILENAME_OR_OBJ] = ensure_tuple(filename)[0]
+        # make sure all elements in metadata are little endian
+        meta_data = switch_endianness(meta_data, "<")
+
         return img_array, meta_data
 
 
 class SaveImage(Transform):
     """
     Save transformed data into files, support NIfTI and PNG formats.
-    It can work for both numpy array and PyTorch Tensor in both pre-transform chain
-    and post transform chain.
+    It can work for both numpy array and PyTorch Tensor in both preprocessing transform
+    chain and postprocessing transform chain.
+    The name of saved file will be `{input_image_name}_{output_postfix}{output_ext}`,
+    where the input image name is extracted from the provided meta data dictionary.
+    If no meta data provided, use index from 0 as the filename prefix.
+    It can also save a list of PyTorch Tensor or numpy array without `batch dim`.
+
+    Note: image should be channel-first shape: [C,H,W,[D]].
 
     Args:
         output_dir: output image directory.
@@ -174,8 +217,25 @@ class SaveImage(Transform):
             it's used for NIfTI format only.
         output_dtype: data type for saving data. Defaults to ``np.float32``.
             it's used for NIfTI format only.
-        save_batch: whether the import image is a batch data, default to `False`.
-            usually pre-transforms run for channel first data, while post-transforms run for batch data.
+        squeeze_end_dims: if True, any trailing singleton dimensions will be removed (after the channel
+            has been moved to the end). So if input is (C,H,W,D), this will be altered to (H,W,D,C), and
+            then if C==1, it will be saved as (H,W,D). If D also ==1, it will be saved as (H,W). If false,
+            image will always be saved as (H,W,D,C).
+            it's used for NIfTI format only.
+        data_root_dir: if not empty, it specifies the beginning parts of the input file's
+            absolute path. it's used to compute `input_file_rel_path`, the relative path to the file from
+            `data_root_dir` to preserve folder structure when saving in case there are files in different
+            folders with the same file names. for example:
+            input_file_name: /foo/bar/test1/image.nii,
+            output_postfix: seg
+            output_ext: nii.gz
+            output_dir: /output,
+            data_root_dir: /foo/bar,
+            output will be: /output/test1/image/image_seg.nii.gz
+        separate_folder: whether to save every file in a separate folder, for example: if input filename is
+            `image.nii`, postfix is `seg` and folder_path is `output`, if `True`, save as:
+            `output/image/image_seg.nii`, if `False`, save as `output/image_seg.nii`. default to `True`.
+        print_log: whether to print log about the saved file path, etc. default to `True`.
 
     """
 
@@ -190,7 +250,10 @@ class SaveImage(Transform):
         scale: Optional[int] = None,
         dtype: DtypeLike = np.float64,
         output_dtype: DtypeLike = np.float32,
-        save_batch: bool = False,
+        squeeze_end_dims: bool = True,
+        data_root_dir: str = "",
+        separate_folder: bool = True,
+        print_log: bool = True,
     ) -> None:
         self.saver: Union[NiftiSaver, PNGSaver]
         if output_ext in (".nii.gz", ".nii"):
@@ -203,6 +266,10 @@ class SaveImage(Transform):
                 padding_mode=padding_mode,
                 dtype=dtype,
                 output_dtype=output_dtype,
+                squeeze_end_dims=squeeze_end_dims,
+                data_root_dir=data_root_dir,
+                separate_folder=separate_folder,
+                print_log=print_log,
             )
         elif output_ext == ".png":
             self.saver = PNGSaver(
@@ -212,14 +279,20 @@ class SaveImage(Transform):
                 resample=resample,
                 mode=InterpolateMode(mode),
                 scale=scale,
+                data_root_dir=data_root_dir,
+                separate_folder=separate_folder,
+                print_log=print_log,
             )
         else:
             raise ValueError(f"unsupported output extension: {output_ext}.")
 
-        self.save_batch = save_batch
-
     def __call__(self, img: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None):
-        if self.save_batch:
-            self.saver.save_batch(img, meta_data)
-        else:
-            self.saver.save(img, meta_data)
+        """
+        Args:
+            img: target data content that save into file.
+            meta_data: key-value pairs of meta_data corresponding to the data.
+
+        """
+        self.saver.save(img, meta_data)
+
+        return img
