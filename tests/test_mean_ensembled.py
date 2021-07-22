@@ -16,49 +16,66 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import MeanEnsembled
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASE_1 = [
-    {"keys": ["pred0", "pred1"], "output_key": "output", "weights": None},
-    {"pred0": torch.ones(2, 2, 2), "pred1": torch.ones(2, 2, 2) + 2},
-    torch.ones(2, 2, 2) + 1,
-]
+TESTS = []
+for p in TEST_NDARRAYS:
+    TESTS.append(
+        [
+            {"keys": ["pred0", "pred1"], "output_key": "output", "weights": None},
+            {"pred0": p(torch.ones(2, 2, 2)), "pred1": p(torch.ones(2, 2, 2) + 2)},
+            torch.ones(2, 2, 2) + 1,
+        ]
+    )
 
-TEST_CASE_2 = [
-    {"keys": "output", "weights": None},
-    {"output": torch.stack([torch.ones(2, 2, 2), torch.ones(2, 2, 2) + 2])},
-    torch.ones(2, 2, 2) + 1,
-]
+    TESTS.append(
+        [
+            {"keys": "output", "weights": None},
+            {"output": p(torch.stack([torch.ones(2, 2, 2), torch.ones(2, 2, 2) + 2]))},
+            torch.ones(2, 2, 2) + 1,
+        ]
+    )
 
-TEST_CASE_3 = [
-    {"keys": ["pred0", "pred1"], "output_key": "output", "weights": [1, 3]},
-    {"pred0": torch.ones(2, 2, 2, 2), "pred1": torch.ones(2, 2, 2, 2) + 2},
-    torch.ones(2, 2, 2, 2) * 2.5,
-]
+    TESTS.append(
+        [
+            {"keys": ["pred0", "pred1"], "output_key": "output", "weights": [1, 3]},
+            {"pred0": p(torch.ones(2, 2, 2, 2)), "pred1": p(torch.ones(2, 2, 2, 2) + 2)},
+            torch.ones(2, 2, 2, 2) * 2.5,
+        ]
+    )
 
-TEST_CASE_4 = [
-    {"keys": ["pred0", "pred1"], "output_key": "output", "weights": [[1, 3], [3, 1]]},
-    {"pred0": torch.ones(2, 2, 2), "pred1": torch.ones(2, 2, 2) + 2},
-    torch.ones(2, 2, 2) * torch.tensor([2.5, 1.5]).reshape(2, 1, 1),
-]
+    TESTS.append(
+        [
+            {"keys": ["pred0", "pred1"], "output_key": "output", "weights": [[1, 3], [3, 1]]},
+            {"pred0": p(torch.ones(2, 2, 2)), "pred1": p(torch.ones(2, 2, 2) + 2)},
+            torch.ones(2, 2, 2) * torch.tensor([2.5, 1.5]).reshape(2, 1, 1),
+        ]
+    )
 
-TEST_CASE_5 = [
-    {"keys": ["pred0", "pred1"], "output_key": "output", "weights": np.array([[[1, 3]], [[3, 1]]])},
-    {"pred0": torch.ones(2, 2, 2, 2), "pred1": torch.ones(2, 2, 2, 2) + 2},
-    torch.ones(2, 2, 2, 2) * torch.tensor([2.5, 1.5]).reshape(1, 2, 1, 1),
-]
+    TESTS.append(
+        [
+            {"keys": ["pred0", "pred1"], "output_key": "output", "weights": np.array([[[1, 3]], [[3, 1]]])},
+            {"pred0": p(torch.ones(2, 2, 2, 2)), "pred1": p(torch.ones(2, 2, 2, 2) + 2)},
+            torch.ones(2, 2, 2, 2) * torch.tensor([2.5, 1.5]).reshape(1, 2, 1, 1),
+        ]
+    )
 
-TEST_CASE_6 = [
-    {"keys": ["pred0", "pred1"], "output_key": "output", "weights": torch.tensor([[[1, 3]], [[3, 1]]])},
-    {"pred0": torch.ones(2, 2, 2, 2), "pred1": torch.ones(2, 2, 2, 2) + 2},
-    torch.ones(2, 2, 2, 2) * torch.tensor([2.5, 1.5]).reshape(1, 2, 1, 1),
-]
+    TESTS.append(
+        [
+            {"keys": ["pred0", "pred1"], "output_key": "output", "weights": torch.tensor([[[1, 3]], [[3, 1]]])},
+            {"pred0": p(torch.ones(2, 2, 2, 2)), "pred1": p(torch.ones(2, 2, 2, 2) + 2)},
+            torch.ones(2, 2, 2, 2) * torch.tensor([2.5, 1.5]).reshape(1, 2, 1, 1),
+        ]
+    )
 
 
 class TestMeanEnsembled(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
+    @parameterized.expand(TESTS)
     def test_value(self, input_param, data, expected_value):
         result = MeanEnsembled(**input_param)(data)
-        torch.testing.assert_allclose(result["output"], expected_value)
+        if isinstance(result["output"], torch.Tensor):
+            result["output"] = result["output"].cpu()
+        np.testing.assert_allclose(result["output"], expected_value)
 
     def test_cuda_value(self):
         img = torch.stack([torch.ones(2, 2, 2, 2), torch.ones(2, 2, 2, 2) + 2])

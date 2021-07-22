@@ -23,7 +23,7 @@ import torch.nn.functional as F
 
 from monai.networks import one_hot
 from monai.networks.layers import GaussianFilter
-from monai.transforms.transform import TorchTransform, Transform
+from monai.transforms.transform import NumpyTransform, TorchTransform, Transform
 from monai.transforms.utils import get_largest_connected_component_mask
 from monai.utils import ensure_tuple
 from monai.utils.enums import DataObjects
@@ -361,7 +361,7 @@ class LabelToContour(TorchTransform):
         return out
 
 
-class MeanEnsemble(Transform):
+class MeanEnsemble(TorchTransform, NumpyTransform):
     """
     Execute mean ensemble on the input data.
     The input data can be a list or tuple of PyTorch Tensor with shape: [C[, H, W, D]],
@@ -384,24 +384,41 @@ class MeanEnsemble(Transform):
 
     """
 
-    def __init__(self, weights: Optional[Union[Sequence[float], torch.Tensor, np.ndarray]] = None) -> None:
-        self.weights = torch.as_tensor(weights, dtype=torch.float) if weights is not None else None
+    def __init__(self, weights: Optional[Union[Sequence[float], DataObjects.Images]] = None) -> None:
+        if weights is None:
+            self.weights = None
+        elif isinstance(weights, (torch.Tensor, np.ndarray)):
+            self.weights = weights
+        else:
+            self.weights = torch.as_tensor(weights, dtype=torch.float)
 
-    def __call__(self, img: Union[Sequence[torch.Tensor], torch.Tensor]) -> torch.Tensor:
-        img_ = torch.stack(img) if isinstance(img, (tuple, list)) else torch.as_tensor(img)
+    def __call__(self, img: Union[Sequence[DataObjects.Images], DataObjects.Images]) -> DataObjects.Images:
+        if isinstance(img, (torch.Tensor, np.ndarray)):
+            img_ = img
+        elif isinstance(img[0], torch.Tensor):
+            img_ = torch.stack(img)  # type: ignore
+        else:
+            img_ = np.stack(img)
+
         if self.weights is not None:
-            self.weights = self.weights.to(img_.device)
+            self.weights, *_ = convert_data_type(
+                self.weights, type(img_), device=img_.device if isinstance(img_, torch.Tensor) else None
+            )
             shape = tuple(self.weights.shape)
-            for _ in range(img_.ndimension() - self.weights.ndimension()):
+            for _ in range(img_.ndim - self.weights.ndim):
                 shape += (1,)
             weights = self.weights.reshape(*shape)
 
-            img_ = img_ * weights / weights.mean(dim=0, keepdim=True)
+            if isinstance(img_, torch.Tensor):
+                # torch can only do the mean on floats
+                img_ = img_ * weights / weights.float().mean(dim=0, keepdim=True)  # type: ignore
+            else:
+                img_ = img_ * weights / weights.mean(axis=0, keepdims=True)  # type: ignore
 
-        return torch.mean(img_, dim=0)
+        return img_.mean(0)  # type: ignore
 
 
-class VoteEnsemble(TorchTransform):
+class VoteEnsemble(Transform):
     """
     Execute vote ensemble on the input data.
     The input data can be a list or tuple of PyTorch Tensor with shape: [C[, H, W, D]],
@@ -424,7 +441,7 @@ class VoteEnsemble(TorchTransform):
     def __init__(self, num_classes: Optional[int] = None) -> None:
         self.num_classes = num_classes
 
-    def __call__(self, img: Union[Sequence[torch.Tensor], torch.Tensor]) -> torch.Tensor:
+    def __call__(self, img: Union[Sequence[DataObjects.Images], DataObjects.Images]) -> DataObjects.Images:
         img_ = (
             torch.stack([torch.as_tensor(i) for i in img]) if isinstance(img, (tuple, list)) else torch.as_tensor(img)
         )
