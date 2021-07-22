@@ -9,17 +9,60 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
-from typing import Callable, Optional, Union, cast
+from typing import Union, cast
 
 import numpy as np
 import torch
 
-from monai.networks import one_hot
-from monai.utils import Average
+from monai.utils import Average, look_up_option
+
+from .metric import CumulativeIterationMetric
 
 
-def _calculate(y: torch.Tensor, y_pred: torch.Tensor) -> float:
+class ROCAUCMetric(CumulativeIterationMetric):
+    """
+    Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC). Referring to:
+    `sklearn.metrics.roc_auc_score <https://scikit-learn.org/stable/modules/generated/
+    sklearn.metrics.roc_auc_score.html#sklearn.metrics.roc_auc_score>`_.
+    The input `y_pred` and `y` can be a list of `channel-first` Tensor or a `batch-first` Tensor.
+
+    Args:
+        average: {``"macro"``, ``"weighted"``, ``"micro"``, ``"none"``}
+            Type of averaging performed if not binary classification.
+            Defaults to ``"macro"``.
+
+            - ``"macro"``: calculate metrics for each label, and find their unweighted mean.
+                This does not take label imbalance into account.
+            - ``"weighted"``: calculate metrics for each label, and find their average,
+                weighted by support (the number of true instances for each label).
+            - ``"micro"``: calculate metrics globally by considering each element of the label
+                indicator matrix as a label.
+            - ``"none"``: the scores for each class are returned.
+
+    """
+
+    def __init__(self, average: Union[Average, str] = Average.MACRO) -> None:
+        super().__init__()
+        self.average = average
+
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
+        return y_pred, y
+
+    def aggregate(self):  # type: ignore
+        """
+        As AUC metric needs to execute on the overall data, so usually users accumulate `y_pred` and `y`
+        of every iteration, then execute real computation and reduction on the accumulated data.
+
+        """
+        y_pred, y = self.get_buffer()
+        # compute final value and do metric reduction
+        if not isinstance(y_pred, torch.Tensor) or not isinstance(y, torch.Tensor):
+            raise ValueError("y_pred and y must be PyTorch Tensor.")
+
+        return compute_roc_auc(y_pred=y_pred, y=y, average=self.average)
+
+
+def _calculate(y_pred: torch.Tensor, y: torch.Tensor) -> float:
     if not (y.ndimension() == y_pred.ndimension() == 1 and len(y) == len(y_pred)):
         raise AssertionError("y and y_pred must be 1 dimension data with same length.")
     if not y.unique().equal(torch.tensor([0, 1], dtype=y.dtype, device=y.device)):
@@ -53,9 +96,6 @@ def _calculate(y: torch.Tensor, y_pred: torch.Tensor) -> float:
 def compute_roc_auc(
     y_pred: torch.Tensor,
     y: torch.Tensor,
-    to_onehot_y: bool = False,
-    softmax: bool = False,
-    other_act: Optional[Callable] = None,
     average: Union[Average, str] = Average.MACRO,
 ):
     """Computes Area Under the Receiver Operating Characteristic Curve (ROC AUC). Referring to:
@@ -67,10 +107,6 @@ def compute_roc_auc(
             it must be One-Hot format and first dim is batch, example shape: [16] or [16, 2].
         y: ground truth to compute ROC AUC metric, the first dim is batch.
             example shape: [16, 1] will be converted into [16, 2] (where `2` is inferred from `y_pred`).
-        to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
-        softmax: whether to add softmax function to `y_pred` before computation. Defaults to False.
-        other_act: callable function to replace `softmax` as activation layer if needed, Defaults to ``None``.
-            for example: `other_act = lambda x: torch.log_softmax(x)`.
         average: {``"macro"``, ``"weighted"``, ``"micro"``, ``"none"``}
             Type of averaging performed if not binary classification.
             Defaults to ``"macro"``.
@@ -86,8 +122,6 @@ def compute_roc_auc(
     Raises:
         ValueError: When ``y_pred`` dimension is not one of [1, 2].
         ValueError: When ``y`` dimension is not one of [1, 2].
-        ValueError: When ``softmax=True`` and ``other_act is not None``. Incompatible values.
-        TypeError: When ``other_act`` is not an ``Optional[Callable]``.
         ValueError: When ``average`` is not one of ["macro", "weighted", "micro", "none"].
 
     Note:
@@ -107,31 +141,16 @@ def compute_roc_auc(
         y = y.squeeze(dim=-1)
 
     if y_pred_ndim == 1:
-        if to_onehot_y:
-            warnings.warn("y_pred has only one channel, to_onehot_y=True ignored.")
-        if softmax:
-            warnings.warn("y_pred has only one channel, softmax=True ignored.")
-        return _calculate(y, y_pred)
-    n_classes = y_pred.shape[1]
-    if to_onehot_y:
-        y = one_hot(y, n_classes)
-    if softmax and other_act is not None:
-        raise ValueError("Incompatible values: softmax=True and other_act is not None.")
-    if softmax:
-        y_pred = y_pred.float().softmax(dim=1)
-    if other_act is not None:
-        if not callable(other_act):
-            raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
-        y_pred = other_act(y_pred)
+        return _calculate(y_pred, y)
 
     if y.shape != y_pred.shape:
         raise AssertionError("data shapes of y_pred and y do not match.")
 
-    average = Average(average)
+    average = look_up_option(average, Average)
     if average == Average.MICRO:
-        return _calculate(y.flatten(), y_pred.flatten())
+        return _calculate(y_pred.flatten(), y.flatten())
     y, y_pred = y.transpose(0, 1), y_pred.transpose(0, 1)
-    auc_values = [_calculate(y_, y_pred_) for y_, y_pred_ in zip(y, y_pred)]
+    auc_values = [_calculate(y_pred_, y_) for y_pred_, y_ in zip(y_pred, y)]
     if average == Average.NONE:
         return auc_values
     if average == Average.MACRO:

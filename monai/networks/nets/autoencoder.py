@@ -17,6 +17,8 @@ import torch.nn as nn
 from monai.networks.blocks import Convolution, ResidualUnit
 from monai.networks.layers.factories import Act, Norm
 
+__all__ = ["AutoEncoder"]
+
 
 class AutoEncoder(nn.Module):
     def __init__(

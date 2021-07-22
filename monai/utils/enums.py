@@ -23,11 +23,12 @@ __all__ = [
     "MetricReduction",
     "LossReduction",
     "Weight",
-    "Normalization",
-    "Activation",
     "ChannelMatching",
     "SkipMode",
     "Method",
+    "InverseKeys",
+    "CommonKeys",
+    "ForwardMode",
 ]
 
 
@@ -52,13 +53,19 @@ class NumpyPadMode(Enum):
 class GridSampleMode(Enum):
     """
     See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+
+    interpolation mode of `torch.nn.functional.grid_sample`
+
+    Note:
+        (documentation from `torch.nn.functional.grid_sample`)
+        `mode='bicubic'` supports only 4-D input.
+        When `mode='bilinear'` and the input is 5-D, the interpolation mode used internally will actually be trilinear.
+        However, when the input is 4-D, the interpolation mode will legitimately be bilinear.
     """
 
     NEAREST = "nearest"
     BILINEAR = "bilinear"
-    QUADRATIC = "quadratic"
-    CUBIC = "cubic"
-    FOURTH = "fourth"
+    BICUBIC = "bicubic"
 
 
 class InterpolateMode(Enum):
@@ -163,31 +170,6 @@ class Weight(Enum):
     UNIFORM = "uniform"
 
 
-class Normalization(Enum):
-    """
-    See also:
-        - :py:class:`monai.networks.nets.ConvNormActi`
-        - :py:class:`monai.networks.nets.HighResBlock`
-        - :py:class:`monai.networks.nets.HighResNet`
-    """
-
-    BATCH = "batch"
-    INSTANCE = "instance"
-
-
-class Activation(Enum):
-    """
-    See also:
-        - :py:class:`monai.networks.nets.ConvNormActi`
-        - :py:class:`monai.networks.nets.HighResBlock`
-        - :py:class:`monai.networks.nets.HighResNet`
-    """
-
-    RELU = "relu"
-    PRELU = "prelu"
-    RELU6 = "relu6"
-
-
 class ChannelMatching(Enum):
     """
     See also: :py:class:`monai.networks.nets.HighResBlock`
@@ -214,3 +196,40 @@ class Method(Enum):
 
     SYMMETRIC = "symmetric"
     END = "end"
+
+
+class ForwardMode(Enum):
+    """
+    See also: :py:class:`monai.transforms.engines.evaluator.Evaluator`
+    """
+
+    TRAIN = "train"
+    EVAL = "eval"
+
+
+class InverseKeys:
+    """Extra meta data keys used for inverse transforms."""
+
+    CLASS_NAME = "class"
+    ID = "id"
+    ORIG_SIZE = "orig_size"
+    EXTRA_INFO = "extra_info"
+    DO_TRANSFORM = "do_transforms"
+    KEY_SUFFIX = "_transforms"
+
+
+class CommonKeys:
+    """
+    A set of common keys for dictionary based supervised training process.
+    `IMAGE` is the input image data.
+    `LABEL` is the training or evaluation label of segmentation or classification task.
+    `PRED` is the prediction data of model output.
+    `LOSS` is the loss value of current iteration.
+    `INFO` is some useful information during training or evaluation, like loss value, etc.
+
+    """
+
+    IMAGE = "image"
+    LABEL = "label"
+    PRED = "pred"
+    LOSS = "loss"

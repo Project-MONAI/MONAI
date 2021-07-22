@@ -12,15 +12,15 @@
 
 * **handlers**: defines handlers for implementing functionality at various stages in the training process.
 
-* **inferers**: defines model inference methods. 
+* **inferers**: defines model inference methods.
 
-* **losses**: classes defining loss functions.
+* **losses**: classes defining loss functions, which follow the pattern of `torch.nn.modules.loss`.
 
 * **metrics**: defines metric tracking types.
 
 * **networks**: contains network definitions, component definitions, and Pytorch specific utilities.
 
-* **optimizers**: classes defining optimizers.
+* **optimizers**: classes defining optimizers, which follow the pattern of `torch.optim`.
 
 * **transforms**: defines data transforms for preprocessing and postprocessing.
 
@@ -28,3 +28,5 @@
 and not with Pytorch, such as namespace aliasing, auto module loading.
 
 * **visualize**: utilities for data visualization.
+
+* **_extensions**: C++/CUDA extensions to be loaded in a just-in-time manner using `torch.utils.cpp_extension.load`.

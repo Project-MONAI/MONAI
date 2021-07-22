@@ -20,15 +20,28 @@ from torch.utils.data import DataLoader
 
 import monai
 from monai.apps import download_and_extract
-from monai.metrics import compute_roc_auc
+from monai.data import decollate_batch
+from monai.metrics import ROCAUCMetric
 from monai.networks import eval_mode
-from monai.networks.nets import densenet121
-from monai.transforms import AddChannel, Compose, LoadImage, RandFlip, RandRotate, RandZoom, ScaleIntensity, ToTensor
+from monai.networks.nets import DenseNet121
+from monai.transforms import (
+    Activations,
+    AddChannel,
+    AsDiscrete,
+    Compose,
+    LoadImage,
+    RandFlip,
+    RandRotate,
+    RandZoom,
+    ScaleIntensity,
+    ToTensor,
+    Transpose,
+)
 from monai.utils import set_determinism
 from tests.testing_data.integration_answers import test_integration_value
 from tests.utils import DistTestCase, TimedCall, skip_if_quick
 
-TEST_DATA_URL = "https://www.dropbox.com/s/5wwskxctvcxiuea/MedNIST.tar.gz?dl=1"
+TEST_DATA_URL = "https://drive.google.com/uc?id=1QsnnkvZyJPcbRoV_ArW8SnE1OTuoVbKE"
 MD5_VALUE = "0bc7306e7427e00ad1c5526a6677552d"
 TASK = "integration_classification_2d"
 
@@ -54,6 +67,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
         [
             LoadImage(image_only=True),
             AddChannel(),
+            Transpose(indices=[0, 2, 1]),
             ScaleIntensity(),
             RandRotate(range_x=np.pi / 12, prob=0.5, keep_size=True),
             RandFlip(spatial_axis=0, prob=0.5),
@@ -62,7 +76,12 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
         ]
     )
     train_transforms.set_random_state(1234)
-    val_transforms = Compose([LoadImage(image_only=True), AddChannel(), ScaleIntensity(), ToTensor()])
+    val_transforms = Compose(
+        [LoadImage(image_only=True), AddChannel(), Transpose(indices=[0, 2, 1]), ScaleIntensity(), ToTensor()]
+    )
+    y_pred_trans = Compose([ToTensor(), Activations(softmax=True)])
+    y_trans = Compose([ToTensor(), AsDiscrete(to_onehot=True, n_classes=len(np.unique(train_y)))])
+    auc_metric = ROCAUCMetric()
 
     # create train, val data loaders
     train_ds = MedNISTDataset(train_x, train_y, train_transforms)
@@ -71,7 +90,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
     val_ds = MedNISTDataset(val_x, val_y, val_transforms)
     val_loader = DataLoader(val_ds, batch_size=300, num_workers=num_workers)
 
-    model = densenet121(spatial_dims=2, in_channels=1, out_channels=len(np.unique(train_y))).to(device)
+    model = DenseNet121(spatial_dims=2, in_channels=1, out_channels=len(np.unique(train_y))).to(device)
     loss_function = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), 1e-5)
     epoch_num = 4
@@ -110,17 +129,25 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
                     val_images, val_labels = val_data[0].to(device), val_data[1].to(device)
                     y_pred = torch.cat([y_pred, model(val_images)], dim=0)
                     y = torch.cat([y, val_labels], dim=0)
-                auc_metric = compute_roc_auc(y_pred, y, to_onehot_y=True, softmax=True)
-                metric_values.append(auc_metric)
+
+                # compute accuracy
                 acc_value = torch.eq(y_pred.argmax(dim=1), y)
                 acc_metric = acc_value.sum().item() / len(acc_value)
-                if auc_metric > best_metric:
-                    best_metric = auc_metric
+                # decollate prediction and label and execute post processing
+                y_pred = [y_pred_trans(i) for i in decollate_batch(y_pred)]
+                y = [y_trans(i) for i in decollate_batch(y)]
+                # compute AUC
+                auc_metric(y_pred, y)
+                auc_value = auc_metric.aggregate()
+                auc_metric.reset()
+                metric_values.append(auc_value)
+                if auc_value > best_metric:
+                    best_metric = auc_value
                     best_metric_epoch = epoch + 1
                     torch.save(model.state_dict(), model_filename)
                     print("saved new best metric model")
                 print(
-                    f"current epoch {epoch +1} current AUC: {auc_metric:0.4f} "
+                    f"current epoch {epoch +1} current AUC: {auc_value:0.4f} "
                     f"current accuracy: {acc_metric:0.4f} best AUC: {best_metric:0.4f} at epoch {best_metric_epoch}"
                 )
     print(f"train completed, best_metric: {best_metric:0.4f}  at epoch: {best_metric_epoch}")
@@ -133,7 +160,7 @@ def run_inference_test(root_dir, test_x, test_y, device="cuda:0", num_workers=10
     val_ds = MedNISTDataset(test_x, test_y, val_transforms)
     val_loader = DataLoader(val_ds, batch_size=300, num_workers=num_workers)
 
-    model = densenet121(spatial_dims=2, in_channels=1, out_channels=len(np.unique(test_y))).to(device)
+    model = DenseNet121(spatial_dims=2, in_channels=1, out_channels=len(np.unique(test_y))).to(device)
 
     model_filename = os.path.join(root_dir, "best_metric_model.pth")
     model.load_state_dict(torch.load(model_filename))
