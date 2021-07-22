@@ -141,7 +141,7 @@ class TestUNET(unittest.TestCase):
             num_res_units=0,
             norm=("batch", {"track_running_stats": False}),
         )
-        test_data = torch.randn(16, 1, 16, 8)
+        test_data = torch.randn(16, 1, 16, 4)
         test_script_save(net, test_data)
 
 

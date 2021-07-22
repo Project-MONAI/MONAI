@@ -57,6 +57,12 @@ class UNet(nn.Module):
             act: activation type and arguments. Defaults to PReLU.
             norm: feature normalization type and arguments. Defaults to instance norm.
             dropout: dropout ratio. Defaults to no dropout.
+
+        Note: Usually, UNet will decrease the spatial size of feature maps in every down block based on
+            the `strides` arg, please ensure the spatial size of input data can be divided by the product of `strides`,
+            for example, `strides=[2, 2, 2]` and input data shape can be `[16, 1, 16, 8]`. Typically, applying
+            `resize`, `pad` or `crop` transforms to adjust the spatial size.
+
         """
         super().__init__()
 
