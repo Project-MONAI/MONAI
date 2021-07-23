@@ -43,7 +43,7 @@ class ImageWriter(ABC):
         self.separate_folder = separate_folder
         self.print_log = print_log
 
-    def save(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
+    def write(self, data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
         filename = meta_data[Key.FILENAME_OR_OBJ] if meta_data else str(self._data_index)
         self._data_index += 1
         patch_index = meta_data.get(Key.PATCH_INDEX, None) if meta_data else None
@@ -69,17 +69,17 @@ class ImageWriter(ABC):
             while data.shape[-1] == 1:
                 data = np.squeeze(data, -1)
 
-        self.write(data=data, meta_data=meta_data, filename=path)
+        self._write_file(data=data, meta_data=meta_data, filename=path)
 
         if self.print_log:
             print(f"file written: {path}.")
 
-    def save_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
-        for i, data in enumerate(batch_data):  # save a batch of files
-            self.save(data=data, meta_data={k: meta_data[k][i] for k in meta_data} if meta_data is not None else None)
+    def write_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
+        for i, data in enumerate(batch_data):  # write a batch of data to files
+            self.write(data=data, meta_data={k: meta_data[k][i] for k in meta_data} if meta_data is not None else None)
 
     @abstractmethod
-    def write(self, data, meta_data, filename):
+    def _write_file(self, data, meta_data, filename):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
