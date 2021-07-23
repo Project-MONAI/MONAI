@@ -85,7 +85,7 @@ class ImageWriter(ABC):
             self.write(data=data, meta_data={k: meta_data[k][i] for k in meta_data} if meta_data is not None else None)
 
     @abstractmethod
-    def _write_file(self, data: np.ndarray, filename: str, meta_data: Optional[np.ndarray] = None):
+    def _write_file(self, data: np.ndarray, filename: str, meta_data: Optional[Dict] = None):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
@@ -122,7 +122,7 @@ class ITKWriter(ImageWriter):
         self.dtype = dtype
         self.output_dtype = output_dtype
 
-    def _write_file(self, data: np.ndarray, filename: str, meta_data: Optional[np.ndarray] = None):
+    def _write_file(self, data: np.ndarray, filename: str, meta_data: Optional[Dict] = None):
         target_affine = meta_data.get("original_affine", None) if meta_data else None
         affine = meta_data.get("affine", None) if meta_data else None
         spatial_shape = meta_data.get("spatial_shape", None) if meta_data else None
