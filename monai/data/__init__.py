@@ -38,6 +38,8 @@ from .synthetic import create_test_image_2d, create_test_image_3d
 from .test_time_augmentation import TestTimeAugmentation
 from .thread_buffer import ThreadBuffer, ThreadDataLoader
 from .utils import (
+    adjust_orientation_by_affine,
+    adjust_spatial_shape_by_affine,
     compute_importance_map,
     compute_shape_offset,
     convert_tables_to_dicts,

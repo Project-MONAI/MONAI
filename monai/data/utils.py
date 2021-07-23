@@ -26,10 +26,13 @@ import numpy as np
 import torch
 from torch.utils.data._utils.collate import default_collate
 
-from monai.networks.layers.simplelayers import GaussianFilter
+from monai.config import DtypeLike
+from monai.networks.layers import AffineTransform, GaussianFilter
 from monai.utils import (
     MAX_SEED,
     BlendMode,
+    GridSampleMode,
+    GridSamplePadMode,
     NumpyPadMode,
     ensure_tuple,
     ensure_tuple_rep,
@@ -75,6 +78,8 @@ __all__ = [
     "pad_list_data_collate",
     "no_collation",
     "convert_tables_to_dicts",
+    "adjust_orientation_by_affine",
+    "adjust_spatial_shape_by_affine",
 ]
 
 
@@ -1127,3 +1132,57 @@ def convert_tables_to_dicts(
         data = [dict(d, **{k: v[i] for k, v in groups.items()}) for i, d in enumerate(data)]
 
     return data
+
+
+def adjust_orientation_by_affine(data: np.ndarray, affine: np.ndarray, target_affine: np.ndarray):
+    start_ornt = nib.orientations.io_orientation(affine)
+    target_ornt = nib.orientations.io_orientation(target_affine)
+    ornt_transform = nib.orientations.ornt_transform(start_ornt, target_ornt)
+    data_shape = data.shape
+    data = nib.orientations.apply_orientation(data, ornt_transform)
+    new_affine = affine @ nib.orientations.inv_ornt_aff(ornt_transform, data_shape)
+    return data, new_affine
+
+
+def adjust_spatial_shape_by_affine(
+    data: np.ndarray,
+    affine: np.ndarray,
+    target_affine: np.ndarray,
+    output_spatial_shape: Union[Sequence[int], np.ndarray, None] = None,
+    mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+    padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+    align_corners: bool = False,
+    dtype: DtypeLike = np.float64,
+):
+    affine_xform = AffineTransform(
+        normalized=False, mode=mode, padding_mode=padding_mode, align_corners=align_corners, reverse_indexing=True
+    )
+    transform = np.linalg.inv(affine) @ target_affine
+    if output_spatial_shape is None:
+        output_spatial_shape, _ = compute_shape_offset(data.shape, affine, target_affine)
+    output_spatial_shape_ = list(output_spatial_shape) if output_spatial_shape is not None else []
+    if data.ndim > 3:  # multi channel, resampling each channel
+        while len(output_spatial_shape_) < 3:
+            output_spatial_shape_ = output_spatial_shape_ + [1]
+        spatial_shape, channel_shape = data.shape[:3], data.shape[3:]
+        data_np = data.reshape(list(spatial_shape) + [-1])
+        data_np = np.moveaxis(data_np, -1, 0)  # channel first for pytorch
+        data_torch = affine_xform(
+            torch.as_tensor(np.ascontiguousarray(data_np).astype(dtype)).unsqueeze(0),
+            torch.as_tensor(np.ascontiguousarray(transform).astype(dtype)),
+            spatial_size=output_spatial_shape_[:3],
+        )
+        data_np = data_torch.squeeze(0).detach().cpu().numpy()
+        data_np = np.moveaxis(data_np, 0, -1)  # channel last to save file
+        data_np = data_np.reshape(list(data_np.shape[:3]) + list(channel_shape))
+    else:  # single channel image, need to expand to have batch and channel
+        while len(output_spatial_shape_) < len(data.shape):
+            output_spatial_shape_ = output_spatial_shape_ + [1]
+        data_torch = affine_xform(
+            torch.as_tensor(np.ascontiguousarray(data).astype(dtype)[None, None]),
+            torch.as_tensor(np.ascontiguousarray(transform).astype(dtype)),
+            spatial_size=output_spatial_shape_[: len(data.shape)],
+        )
+        data_np = data_torch.squeeze(0).squeeze(0).detach().cpu().numpy()
+
+    return data_np, target_affine
