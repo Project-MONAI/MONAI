@@ -135,6 +135,7 @@ def run_testsuit():
         "test_unetr_block",
         "test_vit",
         "test_handler_decollate_batch",
+        "test_itk_writer",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
