@@ -16,6 +16,8 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import one_hot
+from monai.utils.misc import dtype_convert
+from tests.utils import TEST_NDARRAYS
 
 TEST_CASE_1 = [  # single channel 2D, batch 3, shape (2, 1, 2, 2)
     {"labels": torch.tensor([[[[0, 1], [1, 2]]], [[[2, 1], [1, 0]]]]), "num_classes": 3},
@@ -44,16 +46,30 @@ TEST_CASE_4 = [  # no channel 0D, batch 3, shape (3)
 class TestToOneHot(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_shape(self, input_data, expected_shape, expected_result=None):
-        result = one_hot(**input_data)
-        self.assertEqual(result.shape, expected_shape)
-        if expected_result is not None:
-            self.assertTrue(np.allclose(expected_result, result.numpy()))
+        results = []
+        for p in TEST_NDARRAYS:
+            input_data_mod = {k: p(v) if isinstance(v, torch.Tensor) else v for k, v in input_data.items()}
+            orig_dtype = input_data_mod["labels"].dtype
+            result = one_hot(**input_data_mod)
+            self.assertEqual(result.shape, expected_shape)
+            self.assertEqual(type(result), type(input_data_mod["labels"]))
+            if isinstance(result, torch.Tensor):
+                self.assertEqual(result.device, input_data_mod["labels"].device)
+                result = result.cpu().numpy()
 
-        if "dtype" in input_data:
-            self.assertEqual(result.dtype, input_data["dtype"])
-        else:
-            # by default, expecting float type
-            self.assertEqual(result.dtype, torch.float)
+            if expected_result is not None:
+                self.assertTrue(np.allclose(expected_result, result))
+
+            self.assertEqual(input_data_mod["labels"].dtype, orig_dtype)
+            if "dtype" in input_data:
+                self.assertEqual(result.dtype, dtype_convert(input_data_mod["dtype"], type(result)))
+            else:
+                # by default, expecting float type
+                self.assertEqual(result.dtype, dtype_convert(torch.float, type(result)))
+
+            results.append(result)
+            if len(results) > 1:
+                np.testing.assert_allclose(results[0], results[-1])
 
 
 if __name__ == "__main__":

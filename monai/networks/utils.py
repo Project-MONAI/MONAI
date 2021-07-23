@@ -17,8 +17,13 @@ from collections import OrderedDict
 from contextlib import contextmanager
 from typing import Any, Callable, Mapping, Optional, Sequence, Union
 
+import numpy as np
 import torch
 import torch.nn as nn
+
+from monai.config.type_definitions import DtypeLike
+from monai.utils.enums import DataObjects
+from monai.utils.misc import dtype_convert
 
 __all__ = [
     "one_hot",
@@ -35,7 +40,9 @@ __all__ = [
 ]
 
 
-def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.float, dim: int = 1) -> torch.Tensor:
+def one_hot(
+    labels: DataObjects.Images, num_classes: int, dtype: Union[DtypeLike, torch.dtype] = torch.float, dim: int = 1
+) -> DataObjects.Images:
     """
     For every value v in `labels`, the value in the output will be either 1 or 0. Each vector along the `dim`-th
     dimension has the "one-hot" format, i.e., it has a total length of `num_classes`,
@@ -69,21 +76,29 @@ def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.f
         print(out.shape)  # torch.Size([2, 2, 2, 2, 2])
 
     """
+    dtype = dtype_convert(dtype, type(labels))
 
     # if `dim` is bigger, add singleton dim at the end
     if labels.ndim < dim + 1:
         shape = list(labels.shape) + [1] * (dim + 1 - len(labels.shape))
-        labels = torch.reshape(labels, shape)
+        labels = labels.reshape(shape)
 
     sh = list(labels.shape)
 
     if sh[dim] != 1:
         raise AssertionError("labels should have a channel with length equal to one.")
 
-    sh[dim] = num_classes
+    if isinstance(labels, np.ndarray):
+        labels = np.eye(num_classes)[labels.astype(np.longlong)]  # adds one hot to end
+        labels = labels.astype(dtype)
+        labels = labels.squeeze(dim)  # remove singleton
+        labels = np.moveaxis(labels, -1, dim)  # move one hot dim to desired index
 
-    o = torch.zeros(size=sh, dtype=dtype, device=labels.device)
-    labels = o.scatter_(dim=dim, index=labels.long(), value=1)
+    else:
+        sh[dim] = num_classes
+
+        o = torch.zeros(size=sh, dtype=dtype, device=labels.device)
+        labels = o.scatter_(dim=dim, index=labels.long(), value=1)
 
     return labels
 
