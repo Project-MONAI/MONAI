@@ -1027,11 +1027,15 @@ class RandHistogramShiftd(RandomizableTransform, MapTransform):
         if not self._do_transform:
             return d
         for key in self.key_iterator(d):
-            img_min, img_max = d[key].min(), d[key].max()
+            img_np: np.ndarray
+            img_np, orig_type, orig_device = convert_data_type(d[key], np.ndarray)  # type: ignore
+            img_min, img_max = img_np.min(), img_np.max()
             reference_control_points_scaled = self.reference_control_points * (img_max - img_min) + img_min
             floating_control_points_scaled = self.floating_control_points * (img_max - img_min) + img_min
-            dtype = d[key].dtype
-            d[key] = np.interp(d[key], reference_control_points_scaled, floating_control_points_scaled).astype(dtype)
+
+            img_np = np.interp(img_np, reference_control_points_scaled, floating_control_points_scaled)
+            out, *_ = convert_data_type(img_np, orig_type, orig_device, dtype=d[key].dtype)
+            d[key] = out
         return d
 
 

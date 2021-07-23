@@ -11,6 +11,7 @@
 
 import unittest
 
+import numpy as np
 import torch
 from parameterized import parameterized
 
@@ -80,10 +81,21 @@ for p in TEST_NDARRAYS:
 class TestVoteEnsemble(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_value(self, in_type, input_param, img, expected_value):
-        result = VoteEnsemble(**input_param)([in_type(i) for i in img])
+        if isinstance(img, list):
+            im = [in_type(i) for i in img]
+            im_type = type(im[0])
+            im_device = im[0].device if isinstance(im[0], torch.Tensor) else None
+        else:
+            im = in_type(img)
+            im_type = type(im)
+            im_device = im.device if isinstance(im, torch.Tensor) else None
+
+        result = VoteEnsemble(**input_param)(im)
+        self.assertEqual(im_type, type(result))
         if isinstance(result, torch.Tensor):
+            self.assertEqual(result.device, im_device)
             result = result.cpu()
-        torch.testing.assert_allclose(result, expected_value)
+        np.testing.assert_allclose(result, expected_value)
 
     def test_cuda_value(self):
         img = torch.stack(

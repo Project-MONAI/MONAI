@@ -1164,7 +1164,7 @@ class RandGaussianSharpen(TorchTransform, RandomizableTransform):
         return GaussianSharpen(sigma1=sigma1, sigma2=sigma2, alpha=self.a, approx=self.approx)(img)
 
 
-class RandHistogramShift(RandomizableTransform):
+class RandHistogramShift(RandomizableTransform, NumpyTransform):
     """
     Apply random nonlinear transform to the image's intensity histogram.
 
@@ -1199,16 +1199,20 @@ class RandHistogramShift(RandomizableTransform):
                 self.floating_control_points[i - 1], self.floating_control_points[i + 1]
             )
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         self.randomize()
         if not self._do_transform:
             return img
-        img_min, img_max = img.min(), img.max()
+
+        img_np: np.ndarray
+        img_np, orig_type, orig_device = convert_data_type(img, np.ndarray)  # type: ignore
+        img_min, img_max = img_np.min(), img_np.max()
         reference_control_points_scaled = self.reference_control_points * (img_max - img_min) + img_min
         floating_control_points_scaled = self.floating_control_points * (img_max - img_min) + img_min
-        return np.asarray(
-            np.interp(img, reference_control_points_scaled, floating_control_points_scaled), dtype=img.dtype
-        )
+
+        out_np = np.interp(img_np, reference_control_points_scaled, floating_control_points_scaled)
+        out, *_ = convert_data_type(out_np, orig_type, orig_device, dtype=img.dtype)
+        return out
 
 
 class RandGibbsNoise(TorchTransform, NumpyTransform, RandomizableTransform):

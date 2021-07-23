@@ -89,16 +89,17 @@ def one_hot(
         raise AssertionError("labels should have a channel with length equal to one.")
 
     if isinstance(labels, np.ndarray):
-        labels = np.eye(num_classes)[labels.astype(np.longlong)]  # adds one hot to end
-        labels = labels.astype(dtype)
-        labels = labels.squeeze(dim)  # remove singleton
-        labels = np.moveaxis(labels, -1, dim)  # move one hot dim to desired index
+        label_np: np.ndarray
+        label_np = np.eye(num_classes)[labels.astype(np.longlong)]  # adds one hot to end
+        label_np = label_np.astype(dtype)  # type: ignore
+        label_np = label_np.squeeze(dim)  # remove singleton
+        label_np = np.moveaxis(label_np, -1, dim)  # move one hot dim to desired index
+        return label_np
 
-    else:
-        sh[dim] = num_classes
+    sh[dim] = num_classes
 
-        o = torch.zeros(size=sh, dtype=dtype, device=labels.device)
-        labels = o.scatter_(dim=dim, index=labels.long(), value=1)
+    o = torch.zeros(size=sh, dtype=dtype, device=labels.device)  # type: ignore
+    labels = o.scatter_(dim=dim, index=labels.long(), value=1)
 
     return labels
 

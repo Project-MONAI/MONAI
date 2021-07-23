@@ -11,6 +11,7 @@
 
 import unittest
 
+import numpy as np
 import torch
 from parameterized import parameterized
 
@@ -92,8 +93,12 @@ class TestVoteEnsembled(unittest.TestCase):
         for k, v in img.items():
             img[k] = in_type(v)
         result = VoteEnsembled(**input_param)(img)["output"]
-        result = result.cpu() if isinstance(result, torch.Tensor) else result
-        torch.testing.assert_allclose(result, expected_value)
+        in_im = img["pred0"] if "pred0" in img else img["output"]
+        self.assertEqual(type(result), type(in_im))
+        if isinstance(result, torch.Tensor):
+            self.assertEqual(result.device, in_im.device)
+            result = result.cpu()
+        np.testing.assert_allclose(result, expected_value)
 
     def test_cuda_value(self):
         img = torch.stack(

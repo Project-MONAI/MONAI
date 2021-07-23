@@ -23,7 +23,7 @@ import torch.nn.functional as F
 
 from monai.networks import one_hot
 from monai.networks.layers import GaussianFilter
-from monai.transforms.transform import NumpyTransform, TorchTransform, Transform
+from monai.transforms.transform import NumpyTransform, TorchTransform
 from monai.transforms.utils import get_largest_connected_component_mask
 from monai.utils import ensure_tuple
 from monai.utils.enums import DataObjects
@@ -40,7 +40,24 @@ __all__ = [
 ]
 
 
-class Activations(TorchTransform):
+def _sigmoid(z):
+    if isinstance(z, torch.Tensor):
+        return torch.sigmoid(z)
+    return 1 / (1 + np.exp(-z))
+
+
+def _softmax(z, dim):
+    if isinstance(z, torch.Tensor):
+        return torch.softmax(z, dim=dim)
+
+    max = np.max(z, axis=dim, keepdims=True)  # returns max of each row and keeps same dims
+    e_x = np.exp(z - max)  # subtracts each row with its max value
+    sum = np.sum(e_x, axis=dim, keepdims=True)  # returns sum of each row and keeps same dims
+    f_x = e_x / sum
+    return f_x
+
+
+class Activations(TorchTransform, NumpyTransform):
     """
     Add activation operations to the model output, typically `Sigmoid` or `Softmax`.
 
@@ -91,24 +108,27 @@ class Activations(TorchTransform):
         if other is not None and not callable(other):
             raise TypeError(f"other must be None or callable but is {type(other).__name__}.")
 
-        img_t: torch.Tensor
-        img_t, orig_type, orig_device = convert_data_type(img, torch.Tensor, dtype=torch.float32)  # type: ignore
-
         # convert to float as activation must operate on float tensor
         if sigmoid or self.sigmoid:
-            img_t = torch.sigmoid(img_t)
+            img = _sigmoid(img)
         if softmax or self.softmax:
-            img_t = torch.softmax(img_t, dim=0)
+            img = _softmax(img, dim=0)
 
         act_func = self.other if other is None else other
         if act_func is not None:
-            img_t = act_func(img_t)
+            try:
+                img = act_func(img)
+            except TypeError as te:
+                # callable only works on torch.Tensors
+                if "must be Tensor, not numpy.ndarray" in str(te):
+                    img, *_ = convert_data_type(img, torch.Tensor)
+                    img = act_func(img)
+                    img, *_ = convert_data_type(img, np.ndarray)
 
-        out, *_ = convert_data_type(img_t, orig_type, orig_device)
-        return out
+        return img
 
 
-class AsDiscrete(TorchTransform):
+class AsDiscrete(TorchTransform, NumpyTransform):
     """
     Execute after model forward to transform model output to discrete values.
     It can complete below operations:
@@ -170,22 +190,22 @@ class AsDiscrete(TorchTransform):
                 Defaults to ``self.logit_thresh``.
 
         """
-        img_t: torch.Tensor
-        img_t, orig_type, orig_device = convert_data_type(img, torch.Tensor)  # type: ignore
-
         if argmax or self.argmax:
-            img_t = torch.argmax(img_t, dim=0, keepdim=True)
+            if isinstance(img, torch.Tensor):
+                img = torch.argmax(img, dim=0, keepdim=True)
+            else:
+                img = np.argmax(img, axis=0)[None]
 
         if to_onehot or self.to_onehot:
             _nclasses = self.n_classes if n_classes is None else n_classes
             if not isinstance(_nclasses, int):
                 raise AssertionError("One of self.n_classes or n_classes must be an integer")
-            img_t = one_hot(img_t, num_classes=_nclasses, dim=0)
+            img = one_hot(img, num_classes=_nclasses, dim=0)
 
         if threshold_values or self.threshold_values:
-            img_t = img_t >= (logit_thresh or self.logit_thresh)
+            img = img >= (logit_thresh or self.logit_thresh)
 
-        out, *_ = convert_data_type(img_t, orig_type, orig_device, dtype=float)
+        out, *_ = convert_data_type(img, dtype=torch.float32)
         return out
 
 
@@ -255,6 +275,11 @@ class KeepLargestConnectedComponent(TorchTransform):
         self.independent = independent
         self.connectivity = connectivity
 
+    @staticmethod
+    def _astype(x, dtype=torch.uint8):
+        x, *_ = convert_data_type(x, dtype=dtype)
+        return x
+
     def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Args:
@@ -263,44 +288,43 @@ class KeepLargestConnectedComponent(TorchTransform):
         Returns:
             A PyTorch Tensor with shape (C, spatial_dim1[, spatial_dim2, ...]).
         """
-        img_t: torch.Tensor
-        img_t, orig_type, orig_device = convert_data_type(img, torch.Tensor)  # type: ignore
-
-        if img_t.shape[0] == 1:
-            img_t = torch.squeeze(img_t, dim=0)
+        if img.shape[0] == 1:
+            img = img.squeeze(0)
 
             if self.independent:
                 for i in self.applied_labels:
-                    foreground = (img_t == i).type(torch.uint8)
+                    foreground = self._astype(img == i)
                     mask = get_largest_connected_component_mask(foreground, self.connectivity)
-                    img_t[foreground != mask] = 0
+                    img[foreground != mask] = 0
             else:
-                foreground = torch.zeros_like(img_t)
+                foreground = torch.zeros_like(img) if isinstance(img, torch.Tensor) else np.zeros_like(img)
                 for i in self.applied_labels:
-                    foreground += (img_t == i).type(torch.uint8)
+                    foreground += self._astype(img == i)
                 mask = get_largest_connected_component_mask(foreground, self.connectivity)
-                img_t[foreground != mask] = 0
+                img[foreground != mask] = 0
 
-            output = torch.unsqueeze(img_t, dim=0)
+            output = img[None]
         else:
             # one-hot data is assumed to have binary value in each channel
             if self.independent:
                 for i in self.applied_labels:
-                    foreground = img_t[i, ...].type(torch.uint8)
+                    foreground = self._astype(img[i, ...])
                     mask = get_largest_connected_component_mask(foreground, self.connectivity)
-                    img_t[i, ...][foreground != mask] = 0
+                    img[i, ...][foreground != mask] = 0
             else:
-                applied_img = img_t[self.applied_labels, ...].type(torch.uint8)
-                foreground = torch.any(applied_img, dim=0)
+                applied_img = self._astype(img[self.applied_labels, ...])
+                foreground = applied_img.any(0)
                 mask = get_largest_connected_component_mask(foreground, self.connectivity)
-                background_mask = torch.unsqueeze(foreground != mask, dim=0)
-                background_mask = torch.repeat_interleave(background_mask, len(self.applied_labels), dim=0)
+                background_mask = (foreground != mask)[None]
+                if isinstance(background_mask, torch.Tensor):
+                    background_mask = torch.repeat_interleave(background_mask, len(self.applied_labels), dim=0)
+                else:
+                    background_mask = np.repeat(background_mask, len(self.applied_labels), axis=0)
                 applied_img[background_mask] = 0
-                img_t[self.applied_labels, ...] = applied_img.type(img_t.type())  # type: ignore
-            output = img_t
+                img[self.applied_labels, ...] = self._astype(applied_img, img.dtype)
+            output = img
 
-        out, *_ = convert_data_type(output, orig_type, orig_device)
-        return out
+        return output
 
 
 class LabelToContour(TorchTransform):
@@ -418,7 +442,7 @@ class MeanEnsemble(TorchTransform, NumpyTransform):
         return img_.mean(0)  # type: ignore
 
 
-class VoteEnsemble(Transform):
+class VoteEnsemble(TorchTransform, NumpyTransform):
     """
     Execute vote ensemble on the input data.
     The input data can be a list or tuple of PyTorch Tensor with shape: [C[, H, W, D]],
@@ -442,26 +466,35 @@ class VoteEnsemble(Transform):
         self.num_classes = num_classes
 
     def __call__(self, img: Union[Sequence[DataObjects.Images], DataObjects.Images]) -> DataObjects.Images:
-        img_ = (
-            torch.stack([torch.as_tensor(i) for i in img]) if isinstance(img, (tuple, list)) else torch.as_tensor(img)
-        )
+        if isinstance(img, (torch.Tensor, np.ndarray)):
+            img_ = img
+        elif isinstance(img[0], torch.Tensor):
+            img_ = torch.stack(img)  # type: ignore
+        else:
+            img_ = np.stack(img)
+
         if self.num_classes is not None:
             has_ch_dim = True
-            if img_.ndimension() > 1 and img_.shape[1] > 1:
+            if img_.ndim > 1 and img_.shape[1] > 1:
                 warnings.warn("no need to specify num_classes for One-Hot format data.")
             else:
-                if img_.ndimension() == 1:
+                if img_.ndim == 1:
                     # if no channel dim, need to remove channel dim after voting
                     has_ch_dim = False
                 img_ = one_hot(img_, self.num_classes, dim=1)
 
-        img_ = torch.mean(img_.float(), dim=0)
+        img_ = torch.mean(img_.float(), dim=0) if isinstance(img_, torch.Tensor) else np.mean(img_, axis=0)
 
         if self.num_classes is not None:
             # if not One-Hot, use "argmax" to vote the most common class
-            return torch.argmax(img_, dim=0, keepdim=has_ch_dim)
+            if isinstance(img_, torch.Tensor):
+                return torch.argmax(img_, dim=0, keepdim=has_ch_dim)
+            else:
+                img_ = np.argmax(img_, axis=0)
+                img_ = np.array(img_) if np.isscalar(img_) else img_  # numpy returns scalar if input was 1d
+                return img_[None] if has_ch_dim else img_
         # for One-Hot data, round the float number to 0 or 1
-        return torch.round(img_)
+        return torch.round(img_) if isinstance(img_, torch.Tensor) else np.round(img_)
 
 
 class ProbNMS(TorchTransform):

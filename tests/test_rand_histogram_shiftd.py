@@ -12,47 +12,67 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import RandHistogramShiftD
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASES = [
-    [
-        {"keys": ("img",), "num_control_points": 5, "prob": 0.0},
-        {"img": np.arange(8).reshape((1, 2, 2, 2)), "seg": np.ones(8).reshape((1, 2, 2, 2))},
-        {"img": np.arange(8).reshape((1, 2, 2, 2)), "seg": np.ones(8).reshape((1, 2, 2, 2))},
-    ],
-    [
-        {"keys": ("img",), "num_control_points": 5, "prob": 0.9},
-        {"img": np.arange(8).reshape((1, 2, 2, 2)).astype(np.float32), "seg": np.ones(8).reshape((1, 2, 2, 2))},
-        {
-            "img": np.array(
-                [[[[0.0, 0.57227867], [1.1391707, 1.68990281]], [[2.75833219, 4.34445884], [5.70913743, 7.0]]]]
-            ),
-            "seg": np.ones(8).reshape((1, 2, 2, 2)),
-        },
-    ],
-    [
-        {"keys": ("img",), "num_control_points": (5, 20), "prob": 0.9},
-        {"img": np.arange(8).reshape((1, 2, 2, 2)).astype(np.float32), "seg": np.ones(8).reshape((1, 2, 2, 2))},
-        {
-            "img": np.array(
-                [[[[0.0, 1.17472492], [2.21553091, 2.88292011]], [[3.98407301, 5.01302123], [6.09275004, 7.0]]]]
-            ),
-            "seg": np.ones(8).reshape((1, 2, 2, 2)),
-        },
-    ],
-]
+TESTS = []
+for p in TEST_NDARRAYS:
+    TESTS.append(
+        [
+            {"keys": ("img",), "num_control_points": 5, "prob": 0.0},
+            {"img": p(np.arange(8).reshape((1, 2, 2, 2))), "seg": p(np.ones(8).reshape((1, 2, 2, 2)))},
+            {"img": np.arange(8).reshape((1, 2, 2, 2)), "seg": np.ones(8).reshape((1, 2, 2, 2))},
+        ]
+    )
+    TESTS.append(
+        [
+            {"keys": ("img",), "num_control_points": 5, "prob": 0.9},
+            {
+                "img": p(np.arange(8).reshape((1, 2, 2, 2)).astype(np.float32)),
+                "seg": p(np.ones(8).reshape((1, 2, 2, 2))),
+            },
+            {
+                "img": np.array(
+                    [[[[0.0, 0.57227867], [1.1391707, 1.68990281]], [[2.75833219, 4.34445884], [5.70913743, 7.0]]]]
+                ),
+                "seg": np.ones(8).reshape((1, 2, 2, 2)),
+            },
+        ]
+    )
+    TESTS.append(
+        [
+            {"keys": ("img",), "num_control_points": (5, 20), "prob": 0.9},
+            {
+                "img": p(np.arange(8).reshape((1, 2, 2, 2)).astype(np.float32)),
+                "seg": p(np.ones(8).reshape((1, 2, 2, 2))),
+            },
+            {
+                "img": np.array(
+                    [[[[0.0, 1.17472492], [2.21553091, 2.88292011]], [[3.98407301, 5.01302123], [6.09275004, 7.0]]]]
+                ),
+                "seg": np.ones(8).reshape((1, 2, 2, 2)),
+            },
+        ]
+    )
 
 
 class TestRandHistogramShiftD(unittest.TestCase):
-    @parameterized.expand(TEST_CASES)
+    @parameterized.expand(TESTS)
     def test_rand_histogram_shiftd(self, input_param, input_data, expected_val):
         g = RandHistogramShiftD(**input_param)
         g.set_random_state(123)
         res = g(input_data)
         for key in res:
             result = res[key]
+            im_in = input_data[key]
+            self.assertEqual(type(result), type(im_in))
+            if isinstance(result, torch.Tensor):
+                self.assertEqual(result.device, im_in.device)
+                result = result.cpu()
+
             expected = expected_val[key] if isinstance(expected_val, dict) else expected_val
             np.testing.assert_allclose(result, expected, rtol=1e-4, atol=1e-4)
 

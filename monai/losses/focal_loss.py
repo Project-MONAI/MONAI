@@ -96,7 +96,7 @@ class FocalLoss(_Loss):
             if n_pred_ch == 1:
                 warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
             else:
-                target = one_hot(target, num_classes=n_pred_ch)
+                target = one_hot(target, num_classes=n_pred_ch)  # type: ignore
 
         if not self.include_background:
             if n_pred_ch == 1:

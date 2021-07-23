@@ -11,10 +11,12 @@
 
 import unittest
 
+import numpy as np
 import torch
 from parameterized import parameterized
 
 from monai.transforms import KeepLargestConnectedComponent
+from tests.utils import TEST_NDARRAYS
 
 grid_1 = torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 1, 0], [2, 2, 0, 0, 2]]])
 grid_2 = torch.tensor([[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [1, 0, 1, 1, 2], [1, 0, 1, 2, 2], [0, 0, 0, 0, 1]]])
@@ -322,23 +324,24 @@ INVALID_CASES = [ITEST_CASE_1, ITEST_CASE_2]
 
 class TestKeepLargestConnectedComponent(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
-    def test_correct_results(self, _, args, tensor, expected):
-        converter = KeepLargestConnectedComponent(**args)
-        if torch.cuda.is_available():
-            result = converter(tensor.clone().cuda())
-            assert torch.allclose(result, expected.cuda())
-        else:
-            result = converter(tensor.clone())
-            assert torch.allclose(result, expected)
+    def test_correct_results(self, _, args, img, expected):
+        for p in TEST_NDARRAYS:
+            converter = KeepLargestConnectedComponent(**args)
+            im = p(img.clone())
+            result = converter(im)
+            self.assertEqual(type(im), type(result))
+            if isinstance(result, torch.Tensor):
+                self.assertEqual(result.device, im.device)
+                result = result.cpu()
+            np.testing.assert_allclose(result, expected)
 
     @parameterized.expand(INVALID_CASES)
-    def test_raise_exception(self, _, args, tensor, expected_error):
+    def test_raise_exception(self, _, args, img, expected_error):
         with self.assertRaises(expected_error):
-            converter = KeepLargestConnectedComponent(**args)
-            if torch.cuda.is_available():
-                _ = converter(tensor.clone().cuda())
-            else:
-                _ = converter(tensor.clone())
+            for p in TEST_NDARRAYS:
+                converter = KeepLargestConnectedComponent(**args)
+                im = p(img)
+                _ = converter(im)
 
 
 if __name__ == "__main__":

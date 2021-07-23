@@ -749,7 +749,9 @@ def generate_spatial_bounding_box(
     return box_start, box_end
 
 
-def get_largest_connected_component_mask(img: torch.Tensor, connectivity: Optional[int] = None) -> torch.Tensor:
+def get_largest_connected_component_mask(
+    img: DataObjects.Images, connectivity: Optional[int] = None
+) -> DataObjects.Images:
     """
     Gets the largest connected component mask of an image.
 
@@ -759,13 +761,16 @@ def get_largest_connected_component_mask(img: torch.Tensor, connectivity: Option
             Accepted values are ranging from  1 to input.ndim. If ``None``, a full
             connectivity of ``input.ndim`` is used.
     """
-    img_arr = img.detach().cpu().numpy()
-    largest_cc = np.zeros(shape=img_arr.shape, dtype=img_arr.dtype)
-    img_arr = measure.label(img_arr, connectivity=connectivity)
-    if img_arr.max() != 0:
-        largest_cc[...] = img_arr == (np.argmax(np.bincount(img_arr.flat)[1:]) + 1)
+    img_np: np.ndarray
+    img_np, orig_type, orig_device = convert_data_type(img, np.ndarray)  # type: ignore
+    largest_cc = np.zeros_like(img_np)
+    img_np = measure.label(img_np, connectivity=connectivity)
 
-    return torch.as_tensor(largest_cc, device=img.device)
+    if img_np.max() != 0:
+        largest_cc[...] = img_np == (np.argmax(np.bincount(img_np.flat)[1:]) + 1)
+
+    out, *_ = convert_data_type(largest_cc, orig_type, orig_device)
+    return out
 
 
 def get_extreme_points(

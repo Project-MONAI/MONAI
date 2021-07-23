@@ -58,7 +58,7 @@ TEST_CASE_6 = [
 class TestMeanEnsemble(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
     def test_value(self, input_param, img, expected_value):
-        for i, p in enumerate(TEST_NDARRAYS):
+        for p in TEST_NDARRAYS:
             if isinstance(img, list):
                 im = [p(i) for i in img]
                 im_type = type(im[0])
