@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -21,7 +22,7 @@ from monai.transforms.compose import Compose
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.inverse_batch_transform import BatchInverseTransform
 from monai.transforms.transform import Randomizable
-from monai.transforms.utils import allow_missing_keys_mode
+from monai.transforms.utils import allow_missing_keys_mode, convert_inverse_interp_mode
 from monai.utils.enums import CommonKeys, InverseKeys
 from monai.utils.module import optional_import
 
@@ -61,11 +62,11 @@ class TestTimeAugmentation:
         inferrer_fn: function to use to perform inference.
         device: device on which to perform inference.
         image_key: key used to extract image from input dictionary.
-        label_key: key used to extract label from input dictionary.
-        meta_keys: explicitly indicate the key of the expected meta data dictionary.
-            for example, for data with key `label`, the metadata by default is in `label_meta_dict`.
+        orig_key: the key of the original input data in the dict. will get the applied transform information
+            for this input data, then invert them for the expected data with `image_key`.
+        orig_meta_keys: the key of the meta data of original input data, will get the `affine`, `data_shape`, etc.
             the meta data is a dictionary object which contains: filename, original_shape, etc.
-            if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
+            if None, will try to construct meta_keys by `{orig_key}_{meta_key_postfix}`.
         meta_key_postfix: use `key_{postfix}` to to fetch the meta data according to the key data,
             default is `meta_dict`, the meta data is a dictionary object.
             For example, to handle key `image`,  read/write affine matrices from the
@@ -96,8 +97,9 @@ class TestTimeAugmentation:
         inferrer_fn: Callable,
         device: Union[str, torch.device] = "cpu",
         image_key=CommonKeys.IMAGE,
-        label_key=CommonKeys.LABEL,
-        meta_keys: Optional[str] = None,
+        orig_key=CommonKeys.LABEL,
+        nearest_interp: bool = True,
+        orig_meta_keys: Optional[str] = None,
         meta_key_postfix="meta_dict",
         return_full_data: bool = False,
         progress: bool = True,
@@ -108,8 +110,9 @@ class TestTimeAugmentation:
         self.inferrer_fn = inferrer_fn
         self.device = device
         self.image_key = image_key
-        self.label_key = label_key
-        self.meta_keys = meta_keys
+        self.orig_key = orig_key
+        self.nearest_interp = nearest_interp
+        self.orig_meta_keys = orig_meta_keys
         self.meta_key_postfix = meta_key_postfix
         self.return_full_data = return_full_data
         self.progress = progress
@@ -160,7 +163,7 @@ class TestTimeAugmentation:
         ds = Dataset(data_in, self.transform)
         dl = DataLoader(ds, self.num_workers, batch_size=self.batch_size, collate_fn=pad_list_data_collate)
 
-        label_transform_key = self.label_key + InverseKeys.KEY_SUFFIX
+        transform_key = self.orig_key + InverseKeys.KEY_SUFFIX
 
         # create inverter
         inverter = BatchInverseTransform(self.transform, dl, collate_fn=list_data_collate)
@@ -178,19 +181,27 @@ class TestTimeAugmentation:
             if isinstance(batch_output, np.ndarray):
                 batch_output = torch.Tensor(batch_output)
 
+            transform_info = batch_data[transform_key]
+            if self.nearest_interp:
+                transform_info = convert_inverse_interp_mode(
+                    trans_info=deepcopy(transform_info),
+                    mode="nearest",
+                    align_corners=None,
+                )
+
             # create a dictionary containing the inferred batch and their transforms
-            inferred_dict = {self.label_key: batch_output, label_transform_key: batch_data[label_transform_key]}
+            inferred_dict = {self.orig_key: batch_output, transform_key: transform_info}
             # if meta dict is present, add that too (required for some inverse transforms)
-            label_meta_dict_key = self.meta_keys or f"{self.label_key}_{self.meta_key_postfix}"
-            if label_meta_dict_key in batch_data:
-                inferred_dict[label_meta_dict_key] = batch_data[label_meta_dict_key]
+            meta_dict_key = self.orig_meta_keys or f"{self.orig_key}_{self.meta_key_postfix}"
+            if meta_dict_key in batch_data:
+                inferred_dict[meta_dict_key] = batch_data[meta_dict_key]
 
             # do inverse transformation (allow missing keys as only inverting label)
             with allow_missing_keys_mode(self.transform):  # type: ignore
                 inv_batch = inverter(inferred_dict)
 
             # append
-            outputs.append(inv_batch[self.label_key])
+            outputs.append(inv_batch[self.orig_key])
 
         # output
         output: np.ndarray = np.concatenate(outputs)
