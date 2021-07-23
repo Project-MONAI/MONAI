@@ -388,11 +388,13 @@ def weighted_patch_samples(
     if (v < 0).any():
         v -= np.min(v)  # shifting to non-negative
     v = v.cumsum(0)
+    idx: DataObjects.Images
     if not v[-1] or not torch.as_tensor(v[-1]).isfinite() or v[-1] < 0:  # uniform sampling
         idx = r_state.randint(0, len(v), size=n_samples)
         if isinstance(v, torch.Tensor):
             idx = torch.as_tensor(idx, device=v.device)
     else:
+        r: DataObjects.Images
         r = r_state.random(n_samples)
         if isinstance(v, np.ndarray):
             idx = v.searchsorted(r * v[-1], side="right")
@@ -400,6 +402,7 @@ def weighted_patch_samples(
             r = torch.as_tensor(r, device=v.device)
             idx = torch.searchsorted(v, r * v[-1], right=True)
     # compensate 'valid' mode
+    diff: DataObjects.Images
     diff = np.minimum(win_size, img_size) // 2
     if isinstance(v, torch.Tensor):
         diff = torch.as_tensor(diff, device=v.device)
