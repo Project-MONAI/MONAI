@@ -196,7 +196,7 @@ class TestTimeAugmentation:
             if meta_dict_key in batch_data:
                 inferred_dict[meta_dict_key] = batch_data[meta_dict_key]
 
-            # do inverse transformation (allow missing keys as only inverting label)
+            # do inverse transformation (allow missing keys as only inverting the orig_key)
             with allow_missing_keys_mode(self.transform):  # type: ignore
                 inv_batch = inverter(inferred_dict)
 
