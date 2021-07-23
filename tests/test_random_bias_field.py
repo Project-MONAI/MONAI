@@ -20,17 +20,12 @@ from tests.utils import TEST_NDARRAYS
 
 TEST_CASES_2D = [{}, (3, 32, 32)]
 TEST_CASES_3D = [{}, (3, 32, 32, 32)]
-TEST_CASES_2D_ZERO_RANGE = [{"coeff_range": (0.0, 0.0)}, (3, 32, 32)]
-TEST_CASES_2D_ONES = [{"coeff_range": (1.0, 1.0)}, np.asarray([[[2, -2], [2, 10]]])]
+TEST_CASES_2D_ZERO_RANGE = [{"coeff_range": (0.0, 0.0)}, (2, 3, 3)]
+TEST_CASES_2D_ONES = [{"coeff_range": (1.0, 1.0)}, np.asarray([[[7.389056, 0.1353353], [7.389056, 22026.46]]])]
 
 
 class TestRandBiasField(unittest.TestCase):
-    @parameterized.expand(
-        [
-            TEST_CASES_2D,
-            TEST_CASES_3D,
-        ]
-    )
+    @parameterized.expand([TEST_CASES_2D, TEST_CASES_3D])
     def test_output_shape(self, class_args, img_shape):
         for p in TEST_NDARRAYS:
             for degree in [1, 2, 3]:

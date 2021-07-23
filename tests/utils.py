@@ -252,7 +252,6 @@ class DistCall:
         self.timeout = datetime.timedelta(0, timeout)
         self.daemon = daemon
         self.method = method
-        self._original_method = torch.multiprocessing.get_start_method(allow_none=False)
         self.verbose = verbose
 
     def run_process(self, func, local_rank, args, kwargs, results):
@@ -312,30 +311,19 @@ class DistCall:
 
         @functools.wraps(obj)
         def _wrapper(*args, **kwargs):
-            if self.method:
-                try:
-                    torch.multiprocessing.set_start_method(self.method, force=True)
-                except (RuntimeError, ValueError):
-                    pass
+            tmp = torch.multiprocessing.get_context(self.method)
             processes = []
-            results = torch.multiprocessing.Queue()
+            results = tmp.Queue()
             func = _call_original_func
             args = [obj.__name__, obj.__module__] + list(args)
             for proc_rank in range(self.nproc_per_node):
-                p = torch.multiprocessing.Process(
-                    target=self.run_process, args=(func, proc_rank, args, kwargs, results)
+                p = tmp.Process(
+                    target=self.run_process, args=(func, proc_rank, args, kwargs, results), daemon=self.daemon
                 )
-                if self.daemon is not None:
-                    p.daemon = self.daemon
                 p.start()
                 processes.append(p)
             for p in processes:
                 p.join()
-                if self.method:
-                    try:
-                        torch.multiprocessing.set_start_method(self._original_method, force=True)
-                    except (RuntimeError, ValueError):
-                        pass
                 assert results.get(), "Distributed call failed."
 
         return _wrapper
@@ -373,7 +361,6 @@ class TimedCall:
         self.force_quit = force_quit
         self.skip_timing = skip_timing
         self.method = method
-        self._original_method = torch.multiprocessing.get_start_method(allow_none=False)  # remember the default method
 
     @staticmethod
     def run_process(func, args, kwargs, results):
@@ -393,18 +380,11 @@ class TimedCall:
 
         @functools.wraps(obj)
         def _wrapper(*args, **kwargs):
-
-            if self.method:
-                try:
-                    torch.multiprocessing.set_start_method(self.method, force=True)
-                except (RuntimeError, ValueError):
-                    pass
+            tmp = torch.multiprocessing.get_context(self.method)
             func = _call_original_func
             args = [obj.__name__, obj.__module__] + list(args)
-            results = torch.multiprocessing.Queue()
-            p = torch.multiprocessing.Process(target=TimedCall.run_process, args=(func, args, kwargs, results))
-            if self.daemon is not None:
-                p.daemon = self.daemon
+            results = tmp.Queue()
+            p = tmp.Process(target=TimedCall.run_process, args=(func, args, kwargs, results), daemon=self.daemon)
             p.start()
 
             p.join(timeout=self.timeout_seconds)
@@ -431,12 +411,6 @@ class TimedCall:
                 res = results.get(block=False)
             except queue.Empty:  # no result returned, took too long
                 pass
-            finally:
-                if self.method:
-                    try:
-                        torch.multiprocessing.set_start_method(self._original_method, force=True)
-                    except (RuntimeError, ValueError):
-                        pass
             if isinstance(res, Exception):  # other errors from obj
                 if hasattr(res, "traceback"):
                     raise RuntimeError(res.traceback) from res
@@ -586,7 +560,7 @@ def query_memory(n=2):
         ids = np.lexsort(free_memory)[:n]
     except (FileNotFoundError, TypeError, IndexError):
         ids = range(n) if isinstance(n, int) else []
-    return ",".join([f"{int(x)}" for x in ids])
+    return ",".join(f"{int(x)}" for x in ids)
 
 
 TEST_NDARRAYS: Tuple[Callable] = (np.array, torch.as_tensor)  # type: ignore

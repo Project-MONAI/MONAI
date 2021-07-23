@@ -86,6 +86,7 @@ def write_png(
     if data_np.dtype not in (np.uint8, np.uint16):  # type: ignore
         data_np = data_np.astype(np.uint8)
 
+    data_np = np.moveaxis(data_np, 0, 1)
     img = Image.fromarray(data_np)
     img.save(file_name, "PNG")
     return

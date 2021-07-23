@@ -35,6 +35,7 @@ class TestPngWrite(unittest.TestCase):
             img_save_val = (255 * img).astype(np.uint8)
             write_png(in_type(img), image_name, scale=255)
             out = np.asarray(Image.open(image_name))
+            out = np.moveaxis(out, 0, 1)
             np.testing.assert_allclose(out, img_save_val)
 
     @parameterized.expand(TESTS)
@@ -45,6 +46,7 @@ class TestPngWrite(unittest.TestCase):
             img_save_val = (65535 * img).astype(np.uint16)
             write_png(in_type(img), image_name, scale=65535)
             out = np.asarray(Image.open(image_name))
+            out = np.moveaxis(out, 0, 1)
             np.testing.assert_allclose(out, img_save_val)
 
     @parameterized.expand(TESTS)
@@ -55,6 +57,7 @@ class TestPngWrite(unittest.TestCase):
             img_save_val = (255 * img).astype(np.uint8).squeeze(2)
             write_png(in_type(img), image_name, scale=255)
             out = np.asarray(Image.open(image_name))
+            out = np.moveaxis(out, 0, 1)
             np.testing.assert_allclose(out, img_save_val)
 
     @parameterized.expand(TESTS)
@@ -65,6 +68,7 @@ class TestPngWrite(unittest.TestCase):
             img_save_val = (255 * img).astype(np.uint8)
             write_png(in_type(img), image_name, scale=255)
             out = np.asarray(Image.open(image_name))
+            out = np.moveaxis(out, 0, 1)
             np.testing.assert_allclose(out, img_save_val)
 
     @parameterized.expand(TESTS)
@@ -75,6 +79,7 @@ class TestPngWrite(unittest.TestCase):
             img_save_val = (255 * img).astype(np.uint8)
             write_png(in_type(img), image_name, scale=255)
             out = np.asarray(Image.open(image_name))
+            out = np.moveaxis(out, 0, 1)
             np.testing.assert_allclose(out, img_save_val)
 
     @parameterized.expand(TESTS)

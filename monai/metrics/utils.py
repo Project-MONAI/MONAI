@@ -16,7 +16,6 @@ import torch
 
 from monai.transforms.croppad.array import SpatialCrop
 from monai.transforms.utils import generate_spatial_bounding_box
-from monai.utils import MetricReduction, look_up_option, optional_import
 from monai.utils.enums import DataObjects
 
 binary_erosion, _ = optional_import("scipy.ndimage.morphology", name="binary_erosion")

@@ -20,16 +20,14 @@ from monai.transforms import RandBiasFieldd
 TEST_CASES_2D = [{}, (3, 32, 32)]
 TEST_CASES_3D = [{}, (3, 32, 32, 32)]
 TEST_CASES_2D_ZERO_RANGE = [{"coeff_range": (0.0, 0.0)}, (3, 32, 32)]
-TEST_CASES_2D_ONES = [{"coeff_range": (1.0, 1.0)}, np.asarray([[[2, -2], [2, 10]]])]
+TEST_CASES_2D_ONES = [
+    {"coeff_range": (1.0, 1.0)},
+    np.asarray([[[7.3890562e00, 1.3533528e-01], [7.3890562e00, 2.2026465e04]]]),
+]
 
 
 class TestRandBiasFieldd(unittest.TestCase):
-    @parameterized.expand(
-        [
-            TEST_CASES_2D,
-            TEST_CASES_3D,
-        ]
-    )
+    @parameterized.expand([TEST_CASES_2D, TEST_CASES_3D])
     def test_output_shape(self, class_args, img_shape):
         key = "img"
         bias_field = RandBiasFieldd(keys=[key], **class_args)
@@ -48,7 +46,7 @@ class TestRandBiasFieldd(unittest.TestCase):
     def test_zero_range(self, class_args, img_shape):
         key = "img"
         bias_field = RandBiasFieldd(keys=[key], **class_args)
-        img = np.random.rand(*img_shape)
+        img = np.ones(img_shape)
         output = bias_field({key: img})
 
         self.assertEqual(type(img), type(output[key]))

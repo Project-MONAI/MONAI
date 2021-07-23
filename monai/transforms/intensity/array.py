@@ -451,22 +451,19 @@ class RandBiasField(RandomizableTransform, TorchTransform, NumpyTransform):
         self.coeff_range = coeff_range
         self.dtype = dtype
 
-    def _generate_random_field(
-        self,
-        spatial_shape: Tuple[int, ...],
-        rank: int,
-        degree: int,
-        coeff: Tuple[int, ...],
-    ):
+        self._coeff = [1.0]
+
+    def _generate_random_field(self, spatial_shape: Sequence[int], degree: int, coeff: Sequence[float]):
         """
         products of polynomials as bias field estimations
         """
+        rank = len(spatial_shape)
         coeff_mat = np.zeros((degree + 1,) * rank)
         coords = [np.linspace(-1.0, 1.0, dim, dtype=np.float32) for dim in spatial_shape]
         if rank == 2:
             coeff_mat[np.tril_indices(degree + 1)] = coeff
-            field = np.polynomial.legendre.leggrid2d(coords[0], coords[1], coeff_mat)
-        elif rank == 3:
+            return np.polynomial.legendre.leggrid2d(coords[0], coords[1], coeff_mat)
+        if rank == 3:
             pts: List[List[int]] = [[0, 0, 0]]
             for i in range(degree + 1):
                 for j in range(degree + 1 - i):
@@ -476,16 +473,12 @@ class RandBiasField(RandomizableTransform, TorchTransform, NumpyTransform):
                 pts = pts[1:]
             np_pts = np.stack(pts)
             coeff_mat[np_pts[:, 0], np_pts[:, 1], np_pts[:, 2]] = coeff
-            field = np.polynomial.legendre.leggrid3d(coords[0], coords[1], coords[2], coeff_mat)
-        else:
-            raise NotImplementedError("only supports 2D or 3D fields")
-        return field
+            return np.polynomial.legendre.leggrid3d(coords[0], coords[1], coords[2], coeff_mat)
+        raise NotImplementedError("only supports 2D or 3D fields")
 
     def randomize(self, data: DataObjects.Images) -> None:
         super().randomize(None)
-        self.spatial_shape = data.shape[1:]
-        self.rank = len(self.spatial_shape)
-        n_coeff = int(np.prod([(self.degree + k) / k for k in range(1, self.rank + 1)]))
+        n_coeff = int(np.prod([(self.degree + k) / k for k in range(1, len(data.shape[1:]) + 1)]))
         self._coeff = self.R.uniform(*self.coeff_range, n_coeff).tolist()
 
     def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
@@ -495,13 +488,11 @@ class RandBiasField(RandomizableTransform, TorchTransform, NumpyTransform):
         self.randomize(data=img)
         if not self._do_transform:
             return img
-        num_channels = img.shape[0]
+        num_channels, *spatial_shape = img.shape
         _bias_fields: DataObjects.Images
         _bias_fields = np.stack(
             [
-                self._generate_random_field(
-                    spatial_shape=self.spatial_shape, rank=self.rank, degree=self.degree, coeff=self._coeff
-                )
+                self._generate_random_field(spatial_shape=spatial_shape, degree=self.degree, coeff=self._coeff)
                 for _ in range(num_channels)
             ],
             axis=0,
