@@ -10,4 +10,11 @@
 # limitations under the License.
 
 from .array import ExtractHEStains, NormalizeHEStains
-from .dictionary import ExtractHEStainsD, NormalizeHEStainsD
+from .dictionary import (
+    ExtractHEStainsd,
+    ExtractHEStainsD,
+    ExtractHEStainsDict,
+    NormalizeHEStainsd,
+    NormalizeHEStainsD,
+    NormalizeHEStainsDict,
+)

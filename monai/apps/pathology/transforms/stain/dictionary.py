@@ -116,3 +116,7 @@ class NormalizeHEStainsD(MapTransform):
         for key in self.key_iterator(d):
             d[key] = self.normalizer(d[key])
         return d
+
+
+ExtractHEStainsDict = ExtractHEStainsd = ExtractHEStainsD
+NormalizeHEStainsDict = NormalizeHEStainsd = NormalizeHEStainsD
