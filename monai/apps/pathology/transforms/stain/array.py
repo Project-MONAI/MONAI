@@ -31,8 +31,9 @@ class ExtractHEStains(Transform):
         For more information refer to:
         - the original paper: Macenko et al., 2009 http://wwwx.cs.unc.edu/~mn/sites/default/files/macenko2009.pdf
         - the previous implementations:
-            - MATLAB: https://github.com/mitkovetta/staining-normalization
-            - Python: https://github.com/schaugf/HEnorm_python
+
+          - MATLAB: https://github.com/mitkovetta/staining-normalization
+          - Python: https://github.com/schaugf/HEnorm_python
     """
 
     def __init__(
@@ -129,6 +130,7 @@ class NormalizeHEStains(Transform):
         For more information refer to:
         - the original paper: Macenko et al., 2009 http://wwwx.cs.unc.edu/~mn/sites/default/files/macenko2009.pdf
         - the previous implementations:
+
             - MATLAB: https://github.com/mitkovetta/staining-normalization
             - Python: https://github.com/schaugf/HEnorm_python
     """

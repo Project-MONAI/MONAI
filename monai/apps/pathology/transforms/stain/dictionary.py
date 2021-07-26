@@ -40,12 +40,6 @@ class ExtractHEStainsD(MapTransform):
             Defaults to None.
         allow_missing_keys: don't raise exception if key is missing.
 
-    Note:
-        For more information refer to:
-        - the original paper: Macenko et al., 2009 http://wwwx.cs.unc.edu/~mn/sites/default/files/macenko2009.pdf
-        - the previous implementations:
-            - MATLAB: https://github.com/mitkovetta/staining-normalization
-            - Python: https://github.com/schaugf/HEnorm_python
     """
 
     def __init__(
@@ -70,7 +64,7 @@ class ExtractHEStainsD(MapTransform):
 class NormalizeHEStainsD(MapTransform):
     """Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.NormalizeHEStains`.
 
-    Class to normalize patches/images to a reference or target image stain (see Note).
+    Class to normalize patches/images to a reference or target image stain.
 
     Performs stain deconvolution of the source image using the ExtractHEStains
     class, to obtain the stain matrix and calculate the stain concentration matrix
@@ -91,12 +85,6 @@ class NormalizeHEStainsD(MapTransform):
             Defaults to None.
         allow_missing_keys: don't raise exception if key is missing.
 
-    Note:
-        For more information refer to:
-        - the original paper: Macenko et al., 2009 http://wwwx.cs.unc.edu/~mn/sites/default/files/macenko2009.pdf
-        - the previous implementations:
-            - MATLAB: https://github.com/mitkovetta/staining-normalization
-            - Python: https://github.com/schaugf/HEnorm_python
     """
 
     def __init__(
