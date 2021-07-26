@@ -19,14 +19,14 @@ from typing import TYPE_CHECKING, Dict, Hashable, Mapping
 
 import numpy as np
 
-from .array import ExtractHEStains, NormalizeStainsMacenko
+from .array import ExtractHEStains, NormalizeHEStains
 from monai.config import KeysCollection
 from monai.transforms.transform import MapTransform
 
 
-class ExtractHEStainsd(MapTransform):
+class ExtractHEStainsD(MapTransform):
     """Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.ExtractHEStains`.
-    Class to extract a target stain from an image, using the Macenko method for stain deconvolution.
+    Class to extract a target stain from an image, using stain deconvolution.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -66,10 +66,10 @@ class ExtractHEStainsd(MapTransform):
         return d
 
 
-class NormalizeStainsMacenkod(MapTransform):
-    """Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.NormalizeStainsMacenko`.
+class NormalizeHEStainsD(MapTransform):
+    """Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.NormalizeHEStains`.
 
-    Class to normalize patches/images to a reference or target image stain, using the Macenko method.
+    Class to normalize patches/images to a reference or target image stain (see Note).
 
     Performs stain deconvolution of the source image using the ExtractHEStains
     class, to obtain the stain matrix and calculate the stain concentration matrix
@@ -109,9 +109,7 @@ class NormalizeStainsMacenkod(MapTransform):
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.normalizer = NormalizeStainsMacenko(
-            tli=tli, alpha=alpha, beta=beta, target_he=target_he, max_cref=max_cref
-        )
+        self.normalizer = NormalizeHEStains(tli=tli, alpha=alpha, beta=beta, target_he=target_he, max_cref=max_cref)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)

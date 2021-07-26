@@ -14,8 +14,8 @@ from .handlers import ProbMapProducer
 from .metrics import LesionFROC
 from .transforms.stain import (
     ExtractHEStains,
-    ExtractHEStainsd,
-    NormalizeStainsMacenko,
-    NormalizeStainsMacenkod,
+    ExtractHEStainsD,
+    NormalizeHEStains,
+    NormalizeHEStainsD,
 )
 from .utils import PathologyProbNMS, compute_isolated_tumor_cells, compute_multi_instance_mask

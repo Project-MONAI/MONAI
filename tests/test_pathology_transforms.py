@@ -15,7 +15,7 @@ import numpy as np
 
 from parameterized import parameterized
 
-from monai.apps.pathology.transforms import ExtractHEStains, NormalizeStainsMacenko
+from monai.apps.pathology.transforms import ExtractHEStains, NormalizeHEStains
 
 
 EXTRACT_STAINS_TEST_CASE_1 = (None,)
@@ -100,7 +100,7 @@ class TestExtractHEStains(unittest.TestCase):
     @parameterized.expand([EXTRACT_STAINS_TEST_CASE_1])
     def test_transparent_image(self, image):
         """
-        Test Macenko stain extraction on an image that comprises
+        Test HE stain extraction on an image that comprises
         only transparent pixels - pixels with absorbance below the
         beta absorbance threshold. A ValueError should be raised,
         since once the transparent pixels are removed, there are no
@@ -116,7 +116,7 @@ class TestExtractHEStains(unittest.TestCase):
     @parameterized.expand([EXTRACT_STAINS_TEST_CASE_2, EXTRACT_STAINS_TEST_CASE_3])
     def test_identical_result_vectors(self, image):
         """
-        Test Macenko stain extraction on input images that are
+        Test HE stain extraction on input images that are
         uniformly filled with pixels that have absorbance above the
         beta absorbance threshold. Since input image is uniformly filled,
         the two extracted stains should have the same RGB values. So,
@@ -166,14 +166,14 @@ class TestExtractHEStains(unittest.TestCase):
             np.testing.assert_allclose(result, expected_data)
 
 
-class TestNormalizeStainsMacenko(unittest.TestCase):
+class TestNormalizeHEStains(unittest.TestCase):
     def setUp(self):
         prepare_test_data()
 
     @parameterized.expand([NORMALIZE_STAINS_TEST_CASE_1])
     def test_transparent_image(self, image):
         """
-        Test Macenko stain normalization on an image that comprises
+        Test HE stain normalization on an image that comprises
         only transparent pixels - pixels with absorbance below the
         beta absorbance threshold. A ValueError should be raised,
         since once the transparent pixels are removed, there are no
@@ -181,10 +181,10 @@ class TestNormalizeStainsMacenko(unittest.TestCase):
         """
         if image is None:
             with self.assertRaises(TypeError):
-                NormalizeStainsMacenko()(image)
+                NormalizeHEStains()(image)
         else:
             with self.assertRaises(ValueError):
-                NormalizeStainsMacenko()(image)
+                NormalizeHEStains()(image)
 
     @parameterized.expand([NORMALIZE_STAINS_TEST_CASE_2, NORMALIZE_STAINS_TEST_CASE_3, NORMALIZE_STAINS_TEST_CASE_4])
     def test_result_value(self, argments, image, expected_data):
@@ -234,9 +234,9 @@ class TestNormalizeStainsMacenko(unittest.TestCase):
         """
         if image is None:
             with self.assertRaises(TypeError):
-                NormalizeStainsMacenko()(image)
+                NormalizeHEStains()(image)
         else:
-            result = NormalizeStainsMacenko(**argments)(image)
+            result = NormalizeHEStains(**argments)(image)
             np.testing.assert_allclose(result, expected_data)
 
 

@@ -13,7 +13,7 @@ import unittest
 
 from parameterized import parameterized
 
-from monai.apps.pathology.transforms import ExtractHEStainsd, NormalizeStainsMacenkod
+from monai.apps.pathology.transforms import ExtractHEStainsD, NormalizeHEStainsD
 from monai.utils import optional_import
 
 cp, has_cp = optional_import("cupy")
@@ -94,7 +94,7 @@ def prepare_test_data():
     ]
 
 
-class TestExtractHEStainsd(unittest.TestCase):
+class TestExtractHEStainsD(unittest.TestCase):
     @unittest.skipUnless(has_cp, "Requires CuPy")
     def setUp(self):
         prepare_test_data()
@@ -102,7 +102,7 @@ class TestExtractHEStainsd(unittest.TestCase):
     @parameterized.expand([EXTRACT_STAINS_TEST_CASE_1])
     def test_transparent_image(self, image):
         """
-        Test Macenko stain extraction on an image that comprises
+        Test HE stain extraction on an image that comprises
         only transparent pixels - pixels with absorbance below the
         beta absorbance threshold. A ValueError should be raised,
         since once the transparent pixels are removed, there are no
@@ -111,15 +111,15 @@ class TestExtractHEStainsd(unittest.TestCase):
         key = "image"
         if image is None:
             with self.assertRaises(TypeError):
-                ExtractHEStainsd([key])({key: image})
+                ExtractHEStainsD([key])({key: image})
         else:
             with self.assertRaises(ValueError):
-                ExtractHEStainsd([key])({key: image})
+                ExtractHEStainsD([key])({key: image})
 
     @parameterized.expand([EXTRACT_STAINS_TEST_CASE_2, EXTRACT_STAINS_TEST_CASE_3])
     def test_identical_result_vectors(self, image):
         """
-        Test Macenko stain extraction on input images that are
+        Test HE stain extraction on input images that are
         uniformly filled with pixels that have absorbance above the
         beta absorbance threshold. Since input image is uniformly filled,
         the two extracted stains should have the same RGB values. So,
@@ -129,9 +129,9 @@ class TestExtractHEStainsd(unittest.TestCase):
         key = "image"
         if image is None:
             with self.assertRaises(TypeError):
-                ExtractHEStainsd([key])({key: image})
+                ExtractHEStainsD([key])({key: image})
         else:
-            result = ExtractHEStainsd([key])({key: image})
+            result = ExtractHEStainsD([key])({key: image})
             cp.testing.assert_array_equal(result[key][:, 0], result[key][:, 1])
 
     @parameterized.expand([EXTRACT_STAINS_TEST_CASE_4, EXTRACT_STAINS_TEST_CASE_5])
@@ -165,13 +165,13 @@ class TestExtractHEStainsd(unittest.TestCase):
         key = "image"
         if image is None:
             with self.assertRaises(TypeError):
-                ExtractHEStainsd([key])({key: image})
+                ExtractHEStainsD([key])({key: image})
         else:
-            result = ExtractHEStainsd([key])({key: image})
+            result = ExtractHEStainsD([key])({key: image})
             cp.testing.assert_allclose(result[key], expected_data)
 
 
-class TestNormalizeStainsMacenkod(unittest.TestCase):
+class TestNormalizeHEStainsD(unittest.TestCase):
     @unittest.skipUnless(has_cp, "Requires CuPy")
     def setUp(self):
         prepare_test_data()
@@ -179,7 +179,7 @@ class TestNormalizeStainsMacenkod(unittest.TestCase):
     @parameterized.expand([NORMALIZE_STAINS_TEST_CASE_1])
     def test_transparent_image(self, image):
         """
-        Test Macenko stain normalization on an image that comprises
+        Test HE stain normalization on an image that comprises
         only transparent pixels - pixels with absorbance below the
         beta absorbance threshold. A ValueError should be raised,
         since once the transparent pixels are removed, there are no
@@ -188,10 +188,10 @@ class TestNormalizeStainsMacenkod(unittest.TestCase):
         key = "image"
         if image is None:
             with self.assertRaises(TypeError):
-                NormalizeStainsMacenkod([key])({key: image})
+                NormalizeHEStainsD([key])({key: image})
         else:
             with self.assertRaises(ValueError):
-                NormalizeStainsMacenkod([key])({key: image})
+                NormalizeHEStainsD([key])({key: image})
 
     @parameterized.expand([NORMALIZE_STAINS_TEST_CASE_2, NORMALIZE_STAINS_TEST_CASE_3, NORMALIZE_STAINS_TEST_CASE_4])
     def test_result_value(self, argments, image, expected_data):
@@ -242,9 +242,9 @@ class TestNormalizeStainsMacenkod(unittest.TestCase):
         key = "image"
         if image is None:
             with self.assertRaises(TypeError):
-                NormalizeStainsMacenkod([key])({key: image})
+                NormalizeHEStainsD([key])({key: image})
         else:
-            result = NormalizeStainsMacenkod([key], **argments)({key: image})
+            result = NormalizeHEStainsD([key], **argments)({key: image})
             cp.testing.assert_allclose(result[key], expected_data)
 
 

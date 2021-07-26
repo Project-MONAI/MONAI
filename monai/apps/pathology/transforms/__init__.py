@@ -9,5 +9,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .stain.array import ExtractHEStains, NormalizeStainsMacenko
-from .stain.dictionary import ExtractHEStainsd, NormalizeStainsMacenkod
+from .stain.array import ExtractHEStains, NormalizeHEStains
+from .stain.dictionary import ExtractHEStainsD, NormalizeHEStainsD

@@ -16,7 +16,7 @@ from monai.transforms.transform import Transform
 
 
 class ExtractHEStains(Transform):
-    """Class to extract a target stain from an image, using the Macenko method for stain deconvolution.
+    """Class to extract a target stain from an image, using stain deconvolution (see Note).
 
     Args:
         tli: transmitted light intensity. Defaults to 240.
@@ -44,7 +44,7 @@ class ExtractHEStains(Transform):
             self.max_cref = np.array([1.9705, 1.0308])
 
     def _deconvolution_extract_stain(self, img: np.ndarray) -> np.ndarray:
-        """Perform Stain Deconvolution using the Macenko Method, and return stain matrix for the image.
+        """Perform Stain Deconvolution and return stain matrix for the image.
 
         Args:
             img: uint8 RGB image to perform stain deconvolution of
@@ -100,8 +100,8 @@ class ExtractHEStains(Transform):
         return target_he
 
 
-class NormalizeStainsMacenko(Transform):
-    """Class to normalize patches/images to a reference or target image stain, using the Macenko method.
+class NormalizeHEStains(Transform):
+    """Class to normalize patches/images to a reference or target image stain (see Note).
 
     Performs stain deconvolution of the source image using the ExtractHEStains
     class, to obtain the stain matrix and calculate the stain concentration matrix
