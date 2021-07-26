@@ -12,6 +12,10 @@
 from .datasets import MaskedInferenceWSIDataset, PatchWSIDataset, SmartCacheDataset
 from .handlers import ProbMapProducer
 from .metrics import LesionFROC
-from .transforms import ExtractHEStains, NormalizeStainsMacenko
-from .transforms import ExtractHEStainsd, NormalizeStainsMacenkod
+from .transforms.stain import (
+    ExtractHEStains,
+    ExtractHEStainsd,
+    NormalizeStainsMacenko,
+    NormalizeStainsMacenkod,
+)
 from .utils import PathologyProbNMS, compute_isolated_tumor_cells, compute_multi_instance_mask
