@@ -117,6 +117,49 @@ TEST_CASE_6 = [  # 4-channel 3D, batch 16, LeakyReLU activation explicit
 
 CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6]
 
+ILL_CASES = [
+    [
+        {  # len(channels) < 2
+            "dimensions": 2,
+            "in_channels": 1,
+            "out_channels": 3,
+            "channels": (16,),
+            "strides": (2, 2),
+            "num_res_units": 0,
+        }
+    ],
+    [
+        {  # len(strides) < len(channels) - 1
+            "dimensions": 2,
+            "in_channels": 1,
+            "out_channels": 3,
+            "channels": (8, 8, 8),
+            "strides": (2,),
+            "num_res_units": 0,
+        }
+    ],
+    [
+        {  # len(kernel_size) = 3, dimensions = 2
+            "dimensions": 2,
+            "in_channels": 1,
+            "out_channels": 3,
+            "channels": (8, 8, 8),
+            "strides": (2, 2),
+            "kernel_size": (3, 3, 3),
+        }
+    ],
+    [
+        {  # len(up_kernel_size) = 2, dimensions = 3
+            "dimensions": 3,
+            "in_channels": 1,
+            "out_channels": 3,
+            "channels": (8, 8, 8),
+            "strides": (2, 2),
+            "up_kernel_size": (3, 3),
+        }
+    ],
+]
+
 
 class TestUNET(unittest.TestCase):
     @parameterized.expand(CASES)
@@ -155,6 +198,11 @@ class TestUNET(unittest.TestCase):
         with eval_mode(net):
             with self.assertRaisesRegex(RuntimeError, "Sizes of tensors must match"):
                 net.forward(torch.randn(2, 1, 16, 5))
+
+    @parameterized.expand(ILL_CASES)
+    def test_ill_input_hyper_params(self, input_param):
+        with self.assertRaises(ValueError):
+            net = UNet(**input_param)
 
 
 if __name__ == "__main__":

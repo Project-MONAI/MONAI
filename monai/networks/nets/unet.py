@@ -9,7 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Union
+import warnings
+from typing import Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -35,8 +36,8 @@ class UNet(nn.Module):
         kernel_size: Union[Sequence[int], int] = 3,
         up_kernel_size: Union[Sequence[int], int] = 3,
         num_res_units: int = 0,
-        act=Act.PRELU,
-        norm=Norm.INSTANCE,
+        act: Union[Tuple, str] = Act.PRELU,
+        norm: Union[Tuple, str] = Norm.INSTANCE,
         dropout=0.0,
     ) -> None:
         """
@@ -49,10 +50,12 @@ class UNet(nn.Module):
             dimensions: number of spatial dimensions.
             in_channels: number of input channels.
             out_channels: number of output channels.
-            channels: sequence of channels. Top block first.
-            strides: convolution stride.
-            kernel_size: convolution kernel size. Defaults to 3.
-            up_kernel_size: upsampling convolution kernel size. Defaults to 3.
+            channels: sequence of channels. Top block first. The length of `channels` should be no less than 2.
+            strides: sequence of convolution strides. The length of `stride` should equal to `len(channels) - 1`.
+            kernel_size: convolution kernel size, the value(s) should be odd. If sequence,
+                its length should equal to dimensions. Defaults to 3.
+            up_kernel_size: upsampling convolution kernel size, the value(s) should be odd. If sequence,
+                its length should equal to dimensions. Defaults to 3.
             num_res_units: number of residual units. Defaults to 0.
             act: activation type and arguments. Defaults to PReLU.
             norm: feature normalization type and arguments. Defaults to instance norm.
@@ -65,6 +68,22 @@ class UNet(nn.Module):
 
         """
         super().__init__()
+
+        if len(channels) < 2:
+            raise ValueError("the length of `channels` should be no less than 2.")
+        if len(strides) < len(channels) - 1:
+            raise ValueError("the length of `strides` should equal to `len(channels) - 1`.")
+        if len(strides) >= len(channels):
+            warn_msg = "`len(strides) >= len(channels)`, the stride values {} in {} will not be used.".format(
+                strides[len(channels) - 1 :], strides
+            )
+            warnings.warn(warn_msg)
+        if isinstance(kernel_size, Sequence):
+            if len(kernel_size) != dimensions:
+                raise ValueError("the length of `kernel_size` should equal to `dimensions`.")
+        if isinstance(up_kernel_size, Sequence):
+            if len(up_kernel_size) != dimensions:
+                raise ValueError("the length of `up_kernel_size` should equal to `dimensions`.")
 
         self.dimensions = dimensions
         self.in_channels = in_channels
