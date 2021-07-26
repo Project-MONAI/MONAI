@@ -72,7 +72,7 @@ class UNet(nn.Module):
         if len(channels) < 2:
             raise ValueError("the length of `channels` should be no less than 2.")
         delta = len(strides) - len(channels)
-        if delta < - 1:
+        if delta < -1:
             raise ValueError("the length of `strides` should equal to `len(channels) - 1`.")
         if delta >= 0:
             warnings.warn(f"`len(strides) >= len(channels)`, the last {delta + 1} values of strides will not be used.")
