@@ -13,6 +13,7 @@ import os
 import tempfile
 import unittest
 
+import numpy as np
 import torch
 
 from monai.data import ITKWriter
@@ -22,12 +23,12 @@ class TestITKWriter(unittest.TestCase):
     def test_saved_content(self):
         with tempfile.TemporaryDirectory() as tempdir:
 
-            writer = ITKWriter(output_dir=tempdir, output_postfix="seg", output_ext=".nii.gz")
+            writer = ITKWriter(output_dir=tempdir, output_postfix="seg", output_ext=".dcm", output_dtype=np.uint8)
 
             meta_data = {"filename_or_obj": ["testfile" + str(i) + ".nii" for i in range(8)]}
-            writer.write_batch(torch.zeros(8, 1, 2, 2), meta_data)
+            writer.write_batch(torch.zeros(8, 1, 2, 3, 4), meta_data)
             for i in range(8):
-                filepath = os.path.join("testfile" + str(i), "testfile" + str(i) + "_seg.nii.gz")
+                filepath = os.path.join("testfile" + str(i), "testfile" + str(i) + "_seg.dcm")
                 self.assertTrue(os.path.exists(os.path.join(tempdir, filepath)))
 
 

@@ -132,7 +132,7 @@ class ITKWriter(ImageWriter):
         dtype = self.dtype or data.dtype
         sr = min(data.ndim, 3)
         if affine is None:
-            affine = np.eye(4, dtype=np.float64)
+            affine = np.eye(sr + 1, dtype=np.float64)
         affine = to_affine_nd(sr, affine)
 
         if target_affine is None:
@@ -154,6 +154,9 @@ class ITKWriter(ImageWriter):
                 )
 
         itk_np_view = itk.image_view_from_array(data.astype(self.output_dtype))
-        # TODO: need to set affine matrix into file header
-        # itk_np_view.SetMatrix(to_affine_nd(3, affine))
+        # set affine matrix into file header
+        spacing = np.linalg.norm(affine[:-1, :-1] @ np.eye(sr), axis=0)
+        itk_np_view.SetSpacing(spacing)
+        itk_np_view.SetDirection(affine[:-1, :-1] @ np.diag(1 / spacing))
+        itk_np_view.SetOrigin(affine[:-1, -1])
         itk.imwrite(itk_np_view, filename)
