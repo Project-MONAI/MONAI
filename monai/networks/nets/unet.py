@@ -61,10 +61,10 @@ class UNet(nn.Module):
             norm: feature normalization type and arguments. Defaults to instance norm.
             dropout: dropout ratio. Defaults to no dropout.
 
-        Note: Usually, UNet will decrease the spatial size of feature maps in every down block based on
-            the `strides` arg, please ensure the spatial size of input data can be divided by the product of `strides`,
-            for example, `strides=[2, 2, 2]` and input data shape can be `[16, 1, 16, 8]`. Typically, applying
-            `resize`, `pad` or `crop` transforms to adjust the spatial size.
+        Note: The acceptable spatial size of input data depends on the parameters of the network,
+            to set appropriate spatial size, please check the tutorial for more details:
+            https://github.com/Project-MONAI/tutorials/blob/master/modules/UNet_input_size_constrains.ipynb.
+            Typically, applying `resize`, `pad` or `crop` transforms can help adjust the spatial size of input data.
 
         """
         super().__init__()
