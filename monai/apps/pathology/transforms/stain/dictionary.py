@@ -17,15 +17,11 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 from typing import TYPE_CHECKING, Dict, Hashable, Mapping
 
-from monai.apps.pathology.transforms.array import ExtractHEStains, NormalizeStainsMacenko
+import numpy as np
+
+from .array import ExtractHEStains, NormalizeStainsMacenko
 from monai.config import KeysCollection
 from monai.transforms.transform import MapTransform
-from monai.utils import optional_import
-
-if TYPE_CHECKING:
-    from cupy import ndarray as cp_ndarray
-else:
-    cp_ndarray, _ = optional_import("cupy", name="ndarray")
 
 
 class ExtractHEStainsd(MapTransform):
@@ -57,13 +53,13 @@ class ExtractHEStainsd(MapTransform):
         tli: float = 240,
         alpha: float = 1,
         beta: float = 0.15,
-        max_cref: cp_ndarray = None,
+        max_cref: np.ndarray = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.extractor = ExtractHEStains(tli=tli, alpha=alpha, beta=beta, max_cref=max_cref)
 
-    def __call__(self, data: Mapping[Hashable, cp_ndarray]) -> Dict[Hashable, cp_ndarray]:
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.extractor(d[key])
@@ -108,8 +104,8 @@ class NormalizeStainsMacenkod(MapTransform):
         tli: float = 240,
         alpha: float = 1,
         beta: float = 0.15,
-        target_he: cp_ndarray = None,
-        max_cref: cp_ndarray = None,
+        target_he: np.ndarray = None,
+        max_cref: np.ndarray = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -117,7 +113,7 @@ class NormalizeStainsMacenkod(MapTransform):
             tli=tli, alpha=alpha, beta=beta, target_he=target_he, max_cref=max_cref
         )
 
-    def __call__(self, data: Mapping[Hashable, cp_ndarray]) -> Dict[Hashable, cp_ndarray]:
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.normalizer(d[key])
