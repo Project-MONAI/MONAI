@@ -13,7 +13,7 @@ import unittest
 
 from parameterized import parameterized
 
-from monai.apps.pathology.transforms.dictionary import ExtractHEStainsd, NormalizeStainsMacenkod
+from monai.apps.pathology.transforms import ExtractHEStainsd, NormalizeStainsMacenkod
 from monai.utils import optional_import
 
 cp, has_cp = optional_import("cupy")
