@@ -80,10 +80,6 @@ class ImageWriter(ABC):
         if self.print_log:
             print(f"file written: {path}.")
 
-    def write_batch(self, batch_data: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None) -> None:
-        for i, data in enumerate(batch_data):  # write a batch of data to files
-            self.write(data=data, meta_data={k: meta_data[k][i] for k in meta_data} if meta_data is not None else None)
-
     @abstractmethod
     def _write_file(self, data: np.ndarray, filename: str, meta_data: Optional[Dict] = None):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
@@ -153,10 +149,13 @@ class ITKWriter(ImageWriter):
                     dtype=dtype,
                 )
 
-        itk_np_view = itk.image_view_from_array(data.astype(self.output_dtype))
+        itk_view = itk.image_view_from_array(data.astype(self.output_dtype))
+        # nibabel to itk affine
+        flip_diag = [[-1, 1], [-1, -1, 1], [-1, -1, 1, 1]][sr - 1]
+        affine = np.diag(flip_diag) @ affine
         # set affine matrix into file header
         spacing = np.linalg.norm(affine[:-1, :-1] @ np.eye(sr), axis=0)
-        itk_np_view.SetSpacing(spacing)
-        itk_np_view.SetDirection(affine[:-1, :-1] @ np.diag(1 / spacing))
-        itk_np_view.SetOrigin(affine[:-1, -1])
-        itk.imwrite(itk_np_view, filename)
+        itk_view.SetSpacing(spacing)
+        itk_view.SetDirection(affine[:-1, :-1] @ np.diag(1 / spacing))
+        itk_view.SetOrigin(affine[:-1, -1])
+        itk.imwrite(itk_view, filename)
