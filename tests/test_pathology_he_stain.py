@@ -12,11 +12,9 @@
 import unittest
 
 import numpy as np
-
 from parameterized import parameterized
 
 from monai.apps.pathology.transforms import ExtractHEStains, NormalizeHEStains
-
 
 EXTRACT_STAINS_TEST_CASE_1 = (None,)
 EXTRACT_STAINS_TEST_CASE_2 = (None,)

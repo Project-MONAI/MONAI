@@ -15,13 +15,14 @@ defined in :py:class:`monai.apps.pathology.transforms.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import TYPE_CHECKING, Dict, Hashable, Mapping
+from typing import Dict, Hashable, Mapping, Optional
 
 import numpy as np
 
-from .array import ExtractHEStains, NormalizeHEStains
 from monai.config import KeysCollection
 from monai.transforms.transform import MapTransform
+
+from .array import ExtractHEStains, NormalizeHEStains
 
 
 class ExtractHEStainsD(MapTransform):
@@ -53,7 +54,7 @@ class ExtractHEStainsD(MapTransform):
         tli: float = 240,
         alpha: float = 1,
         beta: float = 0.15,
-        max_cref: np.ndarray = None,
+        max_cref: Optional[np.ndarray] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -104,8 +105,8 @@ class NormalizeHEStainsD(MapTransform):
         tli: float = 240,
         alpha: float = 1,
         beta: float = 0.15,
-        target_he: np.ndarray = None,
-        max_cref: np.ndarray = None,
+        target_he: Optional[np.ndarray] = None,
+        max_cref: Optional[np.ndarray] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)

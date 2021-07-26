@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
 
 import numpy as np
 
@@ -34,7 +35,13 @@ class ExtractHEStains(Transform):
             - Python: https://github.com/schaugf/HEnorm_python
     """
 
-    def __init__(self, tli: float = 240, alpha: float = 1, beta: float = 0.15, max_cref: np.ndarray = None) -> None:
+    def __init__(
+        self,
+        tli: float = 240,
+        alpha: float = 1,
+        beta: float = 0.15,
+        max_cref: Optional[np.ndarray] = None,
+    ) -> None:
         self.tli = tli
         self.alpha = alpha
         self.beta = beta
@@ -43,7 +50,7 @@ class ExtractHEStains(Transform):
         if self.max_cref is None:
             self.max_cref = np.array([1.9705, 1.0308])
 
-    def _deconvolution_extract_stain(self, img: np.ndarray) -> np.ndarray:
+    def _deconvolution_extract_stain(self, image: np.ndarray) -> np.ndarray:
         """Perform Stain Deconvolution and return stain matrix for the image.
 
         Args:
@@ -52,11 +59,10 @@ class ExtractHEStains(Transform):
         Return:
             he: H&E absorbance matrix for the image (first column is H, second column is E, rows are RGB values)
         """
-        # reshape image
-        img = img.reshape((-1, 3))
-
-        # calculate absorbance
-        absorbance = -np.log(np.clip(img.astype(np.float32) + 1, a_max=self.tli) / self.tli)
+        # reshape image and calculate absorbance
+        image = image.reshape((-1, 3))
+        image = image.astype(np.float32) + 1.0
+        absorbance = -np.log(image.clip(a_max=self.tli) / self.tli)
 
         # remove transparent pixels
         absorbance_hat = absorbance[np.all(absorbance > self.beta, axis=1)]
@@ -132,14 +138,14 @@ class NormalizeHEStains(Transform):
         tli: float = 240,
         alpha: float = 1,
         beta: float = 0.15,
-        target_he: np.ndarray = None,
-        max_cref: np.ndarray = None,
+        target_he: Optional[np.ndarray] = None,
+        max_cref: Optional[np.ndarray] = None,
     ) -> None:
         self.tli = tli
 
+        if target_he is None:
+            target_he = np.array([[0.5626, 0.2159], [0.7201, 0.8012], [0.4062, 0.5581]])
         self.target_he = target_he
-        if self.target_he is None:
-            self.target_he = np.array([[0.5626, 0.2159], [0.7201, 0.8012], [0.4062, 0.5581]])
 
         self.max_cref = max_cref
         if self.max_cref is None:
@@ -166,7 +172,8 @@ class NormalizeHEStains(Transform):
 
         # reshape image and calculate absorbance
         image = image.reshape((-1, 3))
-        absorbance = -np.log(np.clip(image.astype(np.float32) + 1, a_max=self.tli) / self.tli)
+        image = image.astype(np.float32) + 1.0
+        absorbance = -np.log(image.clip(a_max=self.tli) / self.tli)
 
         # rows correspond to channels (RGB), columns to absorbance values
         y = np.reshape(absorbance, (-1, 3)).T
@@ -179,7 +186,7 @@ class NormalizeHEStains(Transform):
         tmp = np.divide(max_conc, self.max_cref, dtype=np.float32)
         image_c = np.divide(conc, tmp[:, np.newaxis], dtype=np.float32)
 
-        image_norm = np.multiply(self.tli, np.exp(-self.target_he.dot(image_c)), dtype=np.float32)
+        image_norm: np.ndarray = np.multiply(self.tli, np.exp(-self.target_he.dot(image_c)), dtype=np.float32)
         image_norm[image_norm > 255] = 254
         image_norm = np.reshape(image_norm.T, (h, w, 3)).astype(np.uint8)
         return image_norm
