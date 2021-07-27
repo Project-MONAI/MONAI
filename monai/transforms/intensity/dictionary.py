@@ -1341,11 +1341,17 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
             See also: :py:class:`monai.transforms.compose.MapTransform`
         holes: number of regions to dropout, if `max_holes` is not None, use this arg as the minimum number to
             randomly select the expected number of regions.
-        spatial_size: spatial size of the regions to dropput, if `max_spatial_size` is not None, use this arg
+        spatial_size: spatial size of the regions to dropout, if `max_spatial_size` is not None, use this arg
             as the minimum spatial size to randomly select size for every region.
+            if some components of the `spatial_size` are non-positive values, the transform will use the
+            corresponding components of input img size. For example, `spatial_size=(32, -1)` will be adapted
+            to `(32, 64)` if the second spatial dimension size of img is `64`.
         fill_value: target value to fill the dropout regions.
         max_holes: if not None, define the maximum number to randomly select the expected number of regions.
         max_spatial_size: if not None, define the maximum spatial size to randomly select size for every region.
+            if some components of the `max_spatial_size` are non-positive values, the transform will use the
+            corresponding components of input img size. For example, `max_spatial_size=(32, -1)` will be adapted
+            to `(32, 64)` if the second spatial dimension size of img is `64`.
         prob: probability of applying the transform.
         allow_missing_keys: don't raise exception if key is missing.
 
@@ -1377,10 +1383,11 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
         super().randomize(None)
         size = fall_back_tuple(self.spatial_size, img_size)
         self.hole_coords = []  # clear previously computed coords
-        for _ in range(self.holes if self.max_holes is None else self.R.randint(self.holes, self.max_holes + 1)):
+        num_holes = self.holes if self.max_holes is None else self.R.randint(self.holes, self.max_holes + 1)
+        for _ in range(num_holes):
             if self.max_spatial_size is not None:
                 max_size = fall_back_tuple(self.max_spatial_size, img_size)
-                size = tuple([self.R.randint(low=size[i], high=max_size[i] + 1) for i in range(len(img_size))])
+                size = tuple(self.R.randint(low=size[i], high=max_size[i] + 1) for i in range(len(img_size)))
             valid_size = get_valid_patch_size(img_size, size)
             self.hole_coords.append((slice(None),) + get_random_patch(img_size, valid_size, self.R))
 
