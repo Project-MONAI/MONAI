@@ -88,6 +88,7 @@ from .intensity.array import (
     NormalizeIntensity,
     RandAdjustContrast,
     RandBiasField,
+    RandCoarseDropout,
     RandGaussianNoise,
     RandGaussianSharpen,
     RandGaussianSmooth,

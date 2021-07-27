@@ -274,38 +274,44 @@ Intensity
     :special-members: __call__
 
 `RandHistogramShift`
-"""""""""""""""""""""
+""""""""""""""""""""
 .. autoclass:: RandHistogramShift
     :members:
     :special-members: __call__
 
 `DetectEnvelope`
-"""""""""""""""""""""
+""""""""""""""""
 .. autoclass:: DetectEnvelope
     :members:
     :special-members: __call__
 
 `GibbsNoise`
-""""""""""""""
+""""""""""""
 .. autoclass:: GibbsNoise
     :members:
     :special-members: __call__
 
 `RandGibbsNoise`
-"""""""""""""""""
+""""""""""""""""
 .. autoclass:: RandGibbsNoise
     :members:
     :special-members: __call__
 
 `KSpaceSpikeNoise`
-""""""""""""""""""""
+""""""""""""""""""
 .. autoclass:: KSpaceSpikeNoise
     :members:
     :special-members: __call__
 
 `RandKSpaceSpikeNoise`
-""""""""""""""""""""""""
+""""""""""""""""""""""
  .. autoclass:: RandKSpaceSpikeNoise
+     :members:
+     :special-members: __call__
+
+`RandCoarseDropout`
+"""""""""""""""""""
+ .. autoclass:: RandCoarseDropout
      :members:
      :special-members: __call__
 
