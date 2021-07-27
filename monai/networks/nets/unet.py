@@ -64,7 +64,10 @@ class UNet(nn.Module):
         Note: The acceptable spatial size of input data depends on the parameters of the network,
             to set appropriate spatial size, please check the tutorial for more details:
             https://github.com/Project-MONAI/tutorials/blob/master/modules/UNet_input_size_constrains.ipynb.
-            Typically, applying `resize`, `pad` or `crop` transforms can help adjust the spatial size of input data.
+            Typically, when using a stride of 2 in down / up sampling, the output dimensions are either half of the
+            input when downsampling, and twice when upsampling, so if have N numbers of layers in the network,
+            the inputs must have spatial dimensions that are all multiples of 2^N.
+            Usually, applying `resize`, `pad` or `crop` transforms can help adjust the spatial size of input data.
 
         """
         super().__init__()
