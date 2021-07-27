@@ -1659,9 +1659,8 @@ class RandCoarseDropout(RandomizableTransform):
 
     def __call__(self, img: np.ndarray):
         self.randomize(img.shape[1:])
-        if not self._do_transform:
-            return img
-        for h in self.hole_coords:
-            img[h] = self.fill_value
+        if self._do_transform:
+            for h in self.hole_coords:
+                img[h] = self.fill_value
 
         return img
