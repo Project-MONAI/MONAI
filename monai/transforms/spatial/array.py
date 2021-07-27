@@ -1811,25 +1811,22 @@ class LongestRescale(Transform):
     of the initial image. Implemented using :py:class:`torch.nn.functional.interpolate`.
 
     Args:
-        spatial_size: expected shape of spatial dimensions after resize operation.
-            if the components of the `spatial_size` are non-positive values, the transform will use the
-            corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
-            to `(32, 64)` if the second spatial dimension size of img is `64`.
+        spatial_size: expected spatial size of the longest side after rescale operation.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
         align_corners: This only has an effect when mode is
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
-    """
 
+    """
     def __init__(
         self,
-        spatial_size: Union[Sequence[int], int],
+        spatial_size: int,
         mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
     ) -> None:
-        self.spatial_size = ensure_tuple(spatial_size)
+        self.spatial_size = spatial_size
         self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
         self.align_corners = align_corners
 
@@ -1848,9 +1845,6 @@ class LongestRescale(Transform):
             align_corners: This only has an effect when mode is
                 'linear', 'bilinear', 'bicubic' or 'trilinear'. Defaults to ``self.align_corners``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
-
-        Raises:
-            ValueError: When ``self.spatial_size`` length is less than ``img`` spatial dimensions.
 
         """
         input_ndim = img.ndim - 1  # spatial ndim
