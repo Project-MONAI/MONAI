@@ -22,6 +22,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike, KeysCollection
+from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.intensity.array import (
     AdjustContrast,
     GaussianSharpen,
@@ -41,7 +42,7 @@ from monai.transforms.intensity.array import (
     ThresholdIntensity,
 )
 from monai.transforms.transform import MapTransform, RandomizableTransform
-from monai.utils import dtype_torch_to_numpy, ensure_tuple_rep, ensure_tuple_size
+from monai.utils import dtype_torch_to_numpy, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
 
 __all__ = [
     "RandGaussianNoised",
@@ -69,6 +70,7 @@ __all__ = [
     "KSpaceSpikeNoised",
     "RandKSpaceSpikeNoised",
     "RandHistogramShiftd",
+    "RandCoarseDropoutd",
     "RandGaussianNoiseD",
     "RandGaussianNoiseDict",
     "ShiftIntensityD",
@@ -117,13 +119,16 @@ __all__ = [
     "RandHistogramShiftDict",
     "RandRicianNoiseD",
     "RandRicianNoiseDict",
+    "RandCoarseDropoutD",
+    "RandCoarseDropoutDict",
 ]
 
 
 class RandGaussianNoised(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandGaussianNoise`.
-    Add Gaussian noise to image. This transform assumes all the expected fields have same shape.
+    Add Gaussian noise to image. This transform assumes all the expected fields have same shape, if want to add
+    different noise for every field, please use this transform separately.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -172,7 +177,8 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
 class RandRicianNoised(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandRicianNoise`.
-    Add Rician noise to image. This transform assumes all the expected fields have same shape.
+    Add Rician noise to image. This transform assumes all the expected fields have same shape, if want to add
+    different noise for every field, please use this transform separately.
 
     Args:
         keys: Keys of the corresponding items to be transformed.
@@ -1324,6 +1330,71 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
         return d_numpy
 
 
+class RandCoarseDropoutd(RandomizableTransform, MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.RandCoarseDropout`.
+    Expect all the data specified by `keys` have same spatial shape and will randomly dropout the same regions
+    for every key, if want to dropout differently for every key, please use this transform separately.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        holes: number of regions to dropout, if `max_holes` is not None, use this arg as the minimum number to
+            randomly select the expected number of regions.
+        spatial_size: spatial size of the regions to dropput, if `max_spatial_size` is not None, use this arg
+            as the minimum spatial size to randomly select size for every region.
+        fill_value: target value to fill the dropout regions.
+        max_holes: if not None, define the maximum number to randomly select the expected number of regions.
+        max_spatial_size: if not None, define the maximum spatial size to randomly select size for every region.
+        prob: probability of applying the transform.
+        allow_missing_keys: don't raise exception if key is missing.
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        holes: int,
+        spatial_size: Union[Sequence[int], int],
+        fill_value: Union[float, int] = 0,
+        max_holes: Optional[int] = None,
+        max_spatial_size: Optional[Union[Sequence[int], int]] = None,
+        prob: float = 0.1,
+        allow_missing_keys: bool = False,
+    ):
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+        if holes < 1:
+            raise ValueError("number of holes must be greater than 0.")
+        self.holes = holes
+        self.spatial_size = spatial_size
+        self.fill_value = fill_value
+        self.max_holes = max_holes
+        self.max_spatial_size = max_spatial_size
+        self.hole_coords: List = []
+
+    def randomize(self, img_size: Sequence[int]) -> None:
+        super().randomize(None)
+        size = fall_back_tuple(self.spatial_size, img_size)
+        self.hole_coords = []  # clear previously computed coords
+        for _ in range(self.holes if self.max_holes is None else self.R.randint(self.holes, self.max_holes + 1)):
+            if self.max_spatial_size is not None:
+                max_size = fall_back_tuple(self.max_spatial_size, img_size)
+                size = tuple([self.R.randint(low=size[i], high=max_size[i] + 1) for i in range(len(img_size))])
+            valid_size = get_valid_patch_size(img_size, size)
+            self.hole_coords.append((slice(None),) + get_random_patch(img_size, valid_size, self.R))
+
+    def __call__(self, data):
+        d = dict(data)
+        # expect all the specified keys have same spatial shape
+        self.randomize(d[self.keys[0]].shape[1:])
+        if self._do_transform:
+            for key in self.key_iterator(d):
+                for h in self.hole_coords:
+                    d[key][h] = self.fill_value
+        return d
+
+
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
 RandRicianNoiseD = RandRicianNoiseDict = RandRicianNoised
 ShiftIntensityD = ShiftIntensityDict = ShiftIntensityd
@@ -1349,3 +1420,4 @@ RandGibbsNoiseD = RandGibbsNoiseDict = RandGibbsNoised
 GibbsNoiseD = GibbsNoiseDict = GibbsNoised
 KSpaceSpikeNoiseD = KSpaceSpikeNoiseDict = KSpaceSpikeNoised
 RandKSpaceSpikeNoiseD = RandKSpaceSpikeNoiseDict = RandKSpaceSpikeNoised
+RandCoarseDropoutD = RandCoarseDropoutDict = RandCoarseDropoutd

@@ -895,6 +895,12 @@ Intensity (Dict)
     :members:
     :special-members: __call__
 
+`RandCoarseDropoutd`
+""""""""""""""""""""
+.. autoclass:: RandCoarseDropoutd
+    :members:
+    :special-members: __call__
+
 IO (Dict)
 ^^^^^^^^^
 
