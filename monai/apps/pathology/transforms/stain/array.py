@@ -63,7 +63,7 @@ class ExtractHEStains(Transform):
         # reshape image and calculate absorbance
         image = image.reshape((-1, 3))
         image = image.astype(np.float32) + 1.0
-        absorbance = -np.log(image.clip(a_max=self.tli) / self.tli)
+        absorbance = -np.log(image.clip(max=self.tli) / self.tli)
 
         # remove transparent pixels
         absorbance_hat = absorbance[np.all(absorbance > self.beta, axis=1)]
@@ -175,7 +175,7 @@ class NormalizeHEStains(Transform):
         # reshape image and calculate absorbance
         image = image.reshape((-1, 3))
         image = image.astype(np.float32) + 1.0
-        absorbance = -np.log(image.clip(a_max=self.tli) / self.tli)
+        absorbance = -np.log(image.clip(max=self.tli) / self.tli)
 
         # rows correspond to channels (RGB), columns to absorbance values
         y = np.reshape(absorbance, (-1, 3)).T
