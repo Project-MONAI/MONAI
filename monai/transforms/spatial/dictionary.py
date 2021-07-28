@@ -32,7 +32,6 @@ from monai.transforms.spatial.array import (
     Affine,
     AffineGrid,
     Flip,
-    LongestRescale,
     Orientation,
     Rand2DElastic,
     Rand3DElastic,
