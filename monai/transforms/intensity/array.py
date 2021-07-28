@@ -498,7 +498,6 @@ class RandBiasField(RandomizableTransform, TorchTransform, NumpyTransform):
         if not self._do_transform:
             return img
         num_channels, *spatial_shape = img.shape
-        _bias_fields: DataObjects.Images
         _bias_fields = np.stack(
             [
                 self._generate_random_field(spatial_shape=spatial_shape, degree=self.degree, coeff=self._coeff)
@@ -506,10 +505,13 @@ class RandBiasField(RandomizableTransform, TorchTransform, NumpyTransform):
             ],
             axis=0,
         )
-        _bias_fields, *_ = convert_data_type(
-            _bias_fields, type(img), dtype=self.dtype, device=img.device if isinstance(img, torch.Tensor) else None
+
+        _bias_fields_exp: DataObjects.Images
+        _bias_fields_exp = np.exp(_bias_fields)
+        _bias_fields_exp, *_ = convert_data_type(
+            _bias_fields_exp, type(img), dtype=self.dtype, device=img.device if isinstance(img, torch.Tensor) else None
         )
-        out = img * _bias_fields
+        out = img * _bias_fields_exp
         out, *_ = convert_data_type(out, dtype=self.dtype)
         return out
 

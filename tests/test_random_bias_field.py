@@ -49,14 +49,14 @@ class TestRandBiasField(unittest.TestCase):
     def test_zero_range(self, class_args, img_shape):
         for p in TEST_NDARRAYS:
             bias_field = RandBiasField(**class_args)
-            img = p(np.random.rand(*img_shape))
+            img = p(np.ones(img_shape))
             output = bias_field(img)
 
             self.assertEqual(type(img), type(output))
             if isinstance(output, torch.Tensor):
                 self.assertEqual(output.device, img.device)
                 output = output.cpu().numpy()
-            np.testing.assert_equal(output, np.zeros(img_shape))
+            np.testing.assert_allclose(output, np.ones(img_shape), rtol=1e-3)
 
     @parameterized.expand([TEST_CASES_2D_ONES])
     def test_one_range_input(self, class_args, expected):
@@ -68,7 +68,7 @@ class TestRandBiasField(unittest.TestCase):
             if isinstance(output, torch.Tensor):
                 self.assertEqual(output.device, img.device)
                 output = output.cpu().numpy()
-            np.testing.assert_equal(output, expected.astype(bias_field.dtype))
+            np.testing.assert_allclose(output, expected.astype(bias_field.dtype), rtol=1e-3)
 
     def test_zero_prob(self):
         for p in TEST_NDARRAYS:
