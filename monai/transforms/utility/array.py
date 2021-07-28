@@ -25,6 +25,7 @@ import torch
 from monai.config import DtypeLike
 from monai.transforms.transform import NumpyTransform, Randomizable, TorchTransform, Transform
 from monai.transforms.utils import (
+    _unravel_index,
     convert_to_numpy,
     convert_to_tensor,
     extreme_points_to_image,
@@ -702,7 +703,7 @@ class LabelToMask(TorchTransform, NumpyTransform):
         return data
 
 
-class FgBgToIndices(Transform):
+class FgBgToIndices(TorchTransform, NumpyTransform):
     def __init__(self, image_threshold: float = 0.0, output_shape: Optional[Sequence[int]] = None) -> None:
         """
         Compute foreground and background of the input label data, return the indices.
@@ -722,8 +723,8 @@ class FgBgToIndices(Transform):
 
     def __call__(
         self,
-        label: np.ndarray,
-        image: Optional[np.ndarray] = None,
+        label: DataObjects.Images,
+        image: Optional[DataObjects.Images] = None,
         output_shape: Optional[Sequence[int]] = None,
     ) -> Tuple[DataObjects.Images, DataObjects.Images]:
         """
@@ -738,8 +739,9 @@ class FgBgToIndices(Transform):
             output_shape = self.output_shape
         fg_indices, bg_indices = map_binary_to_indices(label, image, self.image_threshold)
         if output_shape is not None:
-            fg_indices = np.stack([np.unravel_index(i, output_shape) for i in fg_indices])
-            bg_indices = np.stack([np.unravel_index(i, output_shape) for i in bg_indices])
+            stack = np.stack if isinstance(label, np.ndarray) else torch.stack
+            fg_indices = stack([_unravel_index(i, output_shape) for i in fg_indices])  # type: ignore
+            bg_indices = stack([_unravel_index(i, output_shape) for i in bg_indices])  # type: ignore
 
         return fg_indices, bg_indices
 

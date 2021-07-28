@@ -282,6 +282,9 @@ def map_binary_to_indices(
     fg_indices = _nonzero(label_flat)
     if image is not None:
         img_flat = (image > image_threshold).any(0).ravel()
+        img_flat, *_ = convert_data_type(
+            img_flat, type(label), device=label.device if isinstance(label, torch.Tensor) else None
+        )
         bg_indices = _nonzero(img_flat & ~label_flat)
     else:
         bg_indices = _nonzero(~label_flat)

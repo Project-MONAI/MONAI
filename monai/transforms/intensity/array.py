@@ -30,7 +30,6 @@ from monai.transforms.utils import rescale_array
 from monai.utils import (
     PT_BEFORE_1_7,
     InvalidPyTorchVersionError,
-    dtype_torch_to_numpy,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,

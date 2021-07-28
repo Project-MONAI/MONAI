@@ -42,7 +42,7 @@ from monai.transforms.intensity.array import (
     ThresholdIntensity,
 )
 from monai.transforms.transform import MapTransform, RandomizableTransform
-from monai.utils import dtype_torch_to_numpy, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
+from monai.utils import ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
 from monai.utils.enums import DataObjects
 from monai.utils.misc import convert_data_type
 
