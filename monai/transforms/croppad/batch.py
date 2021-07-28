@@ -14,16 +14,15 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 from copy import deepcopy
-from typing import Any, Union
+from typing import Any, Sequence, Union
 
 import numpy as np
 import torch
 
 from monai.data.utils import list_data_collate
-from monai.transforms.compose import Compose
 from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.utility.array import ToTensor
+from monai.transforms.transform import NumpyTransform, TorchTransform
 from monai.utils.enums import DataObjects, InverseKeys, Method, NumpyPadMode
 
 __all__ = [
@@ -39,11 +38,14 @@ def replace_element(to_replace, batch, idx, key_or_idx):
         batch[idx] = tuple(batch_idx_list)
     # else, replace
     else:
-        batch[idx][key_or_idx] = to_replace
+        if key_or_idx is not None:
+            batch[idx][key_or_idx] = to_replace
+        else:
+            batch[idx] = to_replace
     return batch
 
 
-class PadListDataCollate(InvertibleTransform):
+class PadListDataCollate(InvertibleTransform, TorchTransform, NumpyTransform):
     """
     Same as MONAI's ``list_data_collate``, except any tensors are centrally padded to match the shape of the biggest
     tensor in each dimension. This transform is useful if some of the applied transforms generate batch data of
@@ -75,6 +77,35 @@ class PadListDataCollate(InvertibleTransform):
         self.mode = mode
         self.np_kwargs = np_kwargs
 
+    def replace_batch_element(self, batch, key_or_idx, is_list_of_dicts):
+        # calculate max size of each dimension
+        max_shapes = []
+        for elem in batch:
+            im = elem[key_or_idx] if key_or_idx is not None else elem
+            if not isinstance(im, (torch.Tensor, np.ndarray)):
+                return batch
+            max_shapes.append(im.shape[1:])
+        max_shape = np.array(max_shapes).max(axis=0)
+        # If all same size, skip
+        if np.all(np.array(max_shapes).min(axis=0) == max_shape):
+            return batch
+
+        # Use `SpatialPad` to match sizes
+        # Default params are central padding, padding with 0's
+        padder = SpatialPad(spatial_size=max_shape, method=self.method, mode=self.mode, **self.np_kwargs)
+
+        for idx, elem in enumerate(batch):
+            im = elem[key_or_idx] if key_or_idx is not None else elem
+            orig_size = im.shape[1:]
+            padded = padder(im)
+            batch = replace_element(padded, batch, idx, key_or_idx)
+
+            # If we have a dictionary of data, append to list
+            if is_list_of_dicts:
+                self.push_transform(batch[idx], key_or_idx, orig_size=orig_size)
+
+        return batch
+
     def __call__(self, batch: Any):
         """
         Args:
@@ -82,40 +113,17 @@ class PadListDataCollate(InvertibleTransform):
         """
         # data is either list of dicts or list of lists
         is_list_of_dicts = isinstance(batch[0], dict)
-        # loop over items inside of each element in a batch
-        for key_or_idx in batch[0].keys() if is_list_of_dicts else range(len(batch[0])):
-            # calculate max size of each dimension
-            max_shapes = []
-            for elem in batch:
-                if not isinstance(elem[key_or_idx], (torch.Tensor, np.ndarray)):
-                    break
-                max_shapes.append(elem[key_or_idx].shape[1:])
-            # len > 0 if objects were arrays, else skip as no padding to be done
-            if not max_shapes:
-                continue
-            max_shape = np.array(max_shapes).max(axis=0)
-            # If all same size, skip
-            if np.all(np.array(max_shapes).min(axis=0) == max_shape):
-                continue
-            # Do we need to convert output to Tensor?
-            output_to_tensor = isinstance(batch[0][key_or_idx], torch.Tensor)
-
-            # Use `SpatialPadd` or `SpatialPad` to match sizes
-            # Default params are central padding, padding with 0's
-            # If input is dictionary, use the dictionary version so that the transformation is recorded
-
-            padder = SpatialPad(spatial_size=max_shape, method=self.method, mode=self.mode, **self.np_kwargs)
-            transform = padder if not output_to_tensor else Compose([padder, ToTensor()])
-
-            for idx, batch_i in enumerate(batch):
-                im = batch_i[key_or_idx]
-                orig_size = im.shape[1:]
-                padded = transform(batch_i[key_or_idx])
-                batch = replace_element(padded, batch, idx, key_or_idx)
-
-                # If we have a dictionary of data, append to list
-                if is_list_of_dicts:
-                    self.push_transform(batch[idx], key_or_idx, orig_size=orig_size)
+        # if data is a list of dictionaries, loop over keys
+        if is_list_of_dicts:
+            for key in batch[0].keys():
+                batch = self.replace_batch_element(batch, key, is_list_of_dicts)
+        # elif is a list of lists/tuples
+        elif isinstance(batch[0], Sequence):
+            for idx in range(len(batch[0])):
+                batch = self.replace_batch_element(batch, idx, is_list_of_dicts)
+        # elif there's only one element per batch, either a torcn.Tensor or np.ndarray
+        elif isinstance(batch[0], (torch.Tensor, np.ndarray)):
+            batch = self.replace_batch_element(batch, None, is_list_of_dicts)
 
         # After padding, use default list collator
         return list_data_collate(batch)

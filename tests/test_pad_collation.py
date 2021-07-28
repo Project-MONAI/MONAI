@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import random
 import unittest
 from typing import List, Tuple
 
@@ -18,6 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.data import CacheDataset, DataLoader
+from monai.data.dataset import Dataset
 from monai.data.utils import decollate_batch, pad_list_data_collate
 from monai.transforms import (
     PadListDataCollate,
@@ -30,58 +30,72 @@ from monai.transforms import (
     RandZoom,
     RandZoomd,
 )
-from monai.utils import set_determinism
+from tests.utils import TEST_NDARRAYS
 
 TESTS: List[Tuple] = []
 
-for pad_collate in [
-    lambda x: pad_list_data_collate(batch=x, method="end", mode="constant", constant_values=1),
-    PadListDataCollate(method="end", mode="constant", constant_values=1),
-]:
-    TESTS.append((dict, pad_collate, RandSpatialCropd("image", roi_size=[8, 7], random_size=True)))
-    TESTS.append((dict, pad_collate, RandRotated("image", prob=1, range_x=np.pi, keep_size=False)))
-    TESTS.append((dict, pad_collate, RandZoomd("image", prob=1, min_zoom=1.1, max_zoom=2.0, keep_size=False)))
-    TESTS.append((dict, pad_collate, RandRotate90d("image", prob=1, max_k=2)))
+for p in TEST_NDARRAYS:
+    for include_label in (True, False):
+        for pad_collate in [
+            lambda x: pad_list_data_collate(batch=x, method="end", mode="constant", constant_values=1),
+            PadListDataCollate(method="end", mode="constant", constant_values=1),
+        ]:
+            TESTS.append(
+                (dict, p, include_label, pad_collate, RandSpatialCropd("im", roi_size=[8, 7], random_size=True))
+            )
+            TESTS.append(
+                (dict, p, include_label, pad_collate, RandRotated("im", prob=1, range_x=np.pi, keep_size=False))
+            )
+            TESTS.append(
+                (
+                    dict,
+                    p,
+                    include_label,
+                    pad_collate,
+                    RandZoomd("im", prob=1, min_zoom=1.1, max_zoom=2.0, keep_size=False),
+                )
+            )
+            TESTS.append((dict, p, include_label, pad_collate, RandRotate90d("im", prob=1, max_k=2)))
 
-    TESTS.append((list, pad_collate, RandSpatialCrop(roi_size=[8, 7], random_size=True)))
-    TESTS.append((list, pad_collate, RandRotate(prob=1, range_x=np.pi, keep_size=False)))
-    TESTS.append((list, pad_collate, RandZoom(prob=1, min_zoom=1.1, max_zoom=2.0, keep_size=False)))
-    TESTS.append((list, pad_collate, RandRotate90(prob=1, max_k=2)))
+            TESTS.append((list, p, include_label, pad_collate, RandSpatialCrop(roi_size=[8, 7], random_size=True)))
+            TESTS.append((list, p, include_label, pad_collate, RandRotate(prob=1, range_x=np.pi, keep_size=False)))
+            TESTS.append(
+                (list, p, include_label, pad_collate, RandZoom(prob=1, min_zoom=1.1, max_zoom=2.0, keep_size=False))
+            )
+            TESTS.append((list, p, include_label, pad_collate, RandRotate90(prob=1, max_k=2)))
 
 
-class _Dataset(torch.utils.data.Dataset):
-    def __init__(self, images, labels, transforms):
-        self.images = images
-        self.labels = labels
-        self.transforms = transforms
-
-    def __len__(self):
-        return len(self.images)
-
+class TupleDataset(Dataset):
     def __getitem__(self, index):
-        return self.transforms(self.images[index]), self.labels[index]
+        return self.transform(self.data[index][0]), self.data[index][1]
 
 
 class TestPadCollation(unittest.TestCase):
-    def setUp(self) -> None:
-        set_determinism(seed=0)
+    @staticmethod
+    def get_data(t_type, im_type, include_label):
         # image is non square to throw rotation errors
-        im = np.arange(0, 10 * 9).reshape(1, 10, 9)
+        im = im_type(np.arange(0, 10 * 9).reshape(1, 10, 9))
         num_elements = 20
-        self.dict_data = [{"image": im} for _ in range(num_elements)]
-        self.list_data = [im for _ in range(num_elements)]
-        self.list_labels = [random.randint(0, 1) for _ in range(num_elements)]
-
-    def tearDown(self) -> None:
-        set_determinism(None)
+        out = []
+        for _ in range(num_elements):
+            label = np.random.randint(0, 1)
+            if t_type is dict:
+                out.append({"im": im, "label": label} if include_label else {"im": im})
+            else:
+                out.append((im, label) if include_label else im)
+        return out
 
     @parameterized.expand(TESTS)
-    def test_pad_collation(self, t_type, collate_method, transform):
+    def test_pad_collation(self, t_type, im_type, include_label, collate_method, transform):
 
-        if t_type == dict:
-            dataset = CacheDataset(self.dict_data, transform, progress=False)
+        input_data = self.get_data(t_type, im_type, include_label)
+
+        if t_type is dict:
+            dataset = CacheDataset(input_data, transform, progress=False)
+        elif isinstance(input_data[0], tuple):
+            dataset = TupleDataset(input_data, transform)
         else:
-            dataset = _Dataset(self.list_data, self.list_labels, transform)
+            dataset = Dataset(input_data, transform)
 
         # Default collation should raise an error
         loader_fail = DataLoader(dataset, batch_size=10)
@@ -93,8 +107,14 @@ class TestPadCollation(unittest.TestCase):
         loader = DataLoader(dataset, batch_size=10, collate_fn=collate_method)
         # check collation in forward direction
         for data in loader:
-            if t_type == dict:
-                decollated_data = decollate_batch(data)
+            d = data["im"] if isinstance(data, dict) else data
+            i = input_data[0]["im"] if isinstance(data, dict) else input_data[0]
+            if isinstance(i, torch.Tensor):
+                self.assertEqual(d.device, i.device)
+
+            decollated_data = decollate_batch(data)
+            # if a dictionary, do the inverse
+            if t_type is dict:
                 for d in decollated_data:
                     PadListDataCollate.inverse(d)
 
