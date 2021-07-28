@@ -1824,6 +1824,7 @@ class LongestRescale(Transform):
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
 
     """
+
     def __init__(
         self,
         spatial_size: int,

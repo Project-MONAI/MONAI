@@ -1084,6 +1084,12 @@ Spatial (Dict)
     :members:
     :special-members: __call__
 
+`LongestRescaled`
+"""""""""""""""""
+.. autoclass:: LongestRescaled
+    :members:
+    :special-members: __call__
+
 Utility (Dict)
 ^^^^^^^^^^^^^^
 

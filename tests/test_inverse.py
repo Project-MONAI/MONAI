@@ -36,6 +36,7 @@ from monai.transforms import (
     Flipd,
     InvertibleTransform,
     LoadImaged,
+    LongestRescaled,
     Orientationd,
     RandAffined,
     RandAxisFlipd,
@@ -251,15 +252,6 @@ TESTS.append(
 
 TESTS.append(
     (
-        "Flipd 3d",
-        "3D",
-        0,
-        Flipd(KEYS, [1, 2]),
-    )
-)
-
-TESTS.append(
-    (
         "RandFlipd 3d",
         "3D",
         0,
@@ -318,6 +310,10 @@ TESTS.append(("Spacingd 3d", "3D", 3e-2, Spacingd(KEYS, [0.5, 0.7, 0.9], diagona
 TESTS.append(("Resized 2d", "2D", 2e-1, Resized(KEYS, [50, 47])))
 
 TESTS.append(("Resized 3d", "3D", 5e-2, Resized(KEYS, [201, 150, 78])))
+
+TESTS.append(("LongestRescaled 2d", "2D", 2e-1, LongestRescaled(KEYS, 47, "area")))
+
+TESTS.append(("LongestRescaled 3d", "3D", 5e-2, LongestRescaled(KEYS, 201, "trilinear", True)))
 
 
 TESTS.append(
