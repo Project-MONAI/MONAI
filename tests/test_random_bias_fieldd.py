@@ -54,7 +54,7 @@ class TestRandBiasFieldd(unittest.TestCase):
             self.assertEqual(output[key].device, img.device)
             output = output[key].cpu().numpy()
 
-        np.testing.assert_equal(output[key], np.zeros(img_shape))
+        np.testing.assert_allclose(output[key], np.ones(img_shape), rtol=1e-3)
 
     @parameterized.expand([TEST_CASES_2D_ONES])
     def test_one_range_input(self, class_args, expected):
