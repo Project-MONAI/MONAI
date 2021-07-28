@@ -1447,6 +1447,7 @@ class KSpaceSpikeNoise(TorchTransform, NumpyTransform):
 
         n_dims = len(img.shape[1:])
         data_type = type(img)
+        lib = np if isinstance(img, np.ndarray) else torch
 
         # FT
         k = self._shift_fourier(img, n_dims, data_type)
