@@ -23,7 +23,7 @@ from monai import transforms
 from monai.config import KeysCollection
 from monai.utils import MAX_SEED, ensure_tuple
 
-__all__ = ["ThreadUnsafe", "apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
+__all__ = ["ThreadUnsafe", "apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform", "Fourier"]
 
 ReturnType = TypeVar("ReturnType")
 
@@ -365,3 +365,37 @@ class MapTransform(Transform):
                 yield (key,) + tuple(_ex_iters) if extra_iterables else key
             elif not self.allow_missing_keys:
                 raise KeyError(f"Key was missing ({key}) and allow_missing_keys==False")
+
+class Fourier:
+    """
+    Helper class storing Fourier mappings
+    """
+    
+    @staticmethod
+    def shift_fourier(x: Union[torch.Tensor, np.ndarray], n_dims: int) -> Union[torch.Tensor, np.ndarray]:
+        """
+        Applies fourier transform and shifts its output.
+        Only the spatial dimensions get transformed.
+
+        Args:
+            x (np.ndarray): tensor to fourier transform.
+        """
+        # argument is dim if torch, else axes
+        mod, arg = (torch, "dim") if type(x) is torch.Tensor else (np, "axes")
+        arg_dict = {arg: tuple(range(-n_dims, 0))}
+        out =  mod.fft.fftshift(mod.fft.fftn(x, **arg_dict), **arg_dict)
+        return out
+
+    @staticmethod
+    def inv_shift_fourier(k: Union[torch.Tensor, np.ndarray], n_dims: int) -> Union[torch.Tensor, np.ndarray]:
+        """
+        Applies inverse shift and fourier transform. Only the spatial
+        dimensions are transformed.
+        """
+        dims = tuple(range(-n_dims, 0))
+
+        if type(k) is torch.Tensor:
+            out = torch.fft.ifftn(torch.fft.ifftshift(k, dim=dims), dim=dims)
+        else:
+            out = np.fft.ifftn(np.fft.ifftshift(k, axes=dims), axes=dims)
+        return out.real
