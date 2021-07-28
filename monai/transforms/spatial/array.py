@@ -1861,4 +1861,5 @@ class LongestRescale(Transform):
             mode=look_up_option(self.mode if mode is None else mode, InterpolateMode).value,
             align_corners=self.align_corners if align_corners is None else align_corners,
         )
-        return resized.squeeze(0).detach().cpu().numpy()
+        resized = resized.squeeze(0).detach().cpu().numpy()
+        return np.asarray(resized)
