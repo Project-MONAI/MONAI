@@ -23,10 +23,19 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike
+from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
 from monai.transforms.transform import NumpyTransform, RandomizableTransform, TorchTransform
 from monai.transforms.utils import rescale_array
-from monai.utils import PT_BEFORE_1_7, InvalidPyTorchVersionError, ensure_tuple, ensure_tuple_rep, ensure_tuple_size
+from monai.utils import (
+    PT_BEFORE_1_7,
+    InvalidPyTorchVersionError,
+    dtype_torch_to_numpy,
+    ensure_tuple,
+    ensure_tuple_rep,
+    ensure_tuple_size,
+    fall_back_tuple,
+)
 from monai.utils.enums import DataObjects
 from monai.utils.misc import convert_data_type, dtype_convert
 
@@ -58,6 +67,7 @@ __all__ = [
     "RandGibbsNoise",
     "KSpaceSpikeNoise",
     "RandKSpaceSpikeNoise",
+    "RandCoarseDropout",
 ]
 
 
@@ -1665,3 +1675,74 @@ class RandKSpaceSpikeNoise(RandomizableTransform, TorchTransform, NumpyTransform
         shifted_means = mod.mean(log_abs, axis=tuple(range(-n_dims, 0))) * 2.5  # type: ignore
         intensity_sequence = tuple((i * 0.95, i * 1.1) for i in shifted_means)
         return intensity_sequence
+
+    def _to_numpy(self, img: Union[np.ndarray, torch.Tensor]) -> Tuple[np.ndarray, torch.device]:
+        if isinstance(img, torch.Tensor):
+            return img.cpu().detach().numpy(), img.device
+        else:
+            return img, torch.device("cpu")
+
+
+class RandCoarseDropout(RandomizableTransform):
+    """
+    Randomly coarse dropout regions in the image, then fill in the rectangular regions with specified value.
+    Refer to: https://arxiv.org/abs/1708.04552 and:
+    https://albumentations.ai/docs/api_reference/augmentations/transforms/
+    #albumentations.augmentations.transforms.CoarseDropout.
+
+    Args:
+        holes: number of regions to dropout, if `max_holes` is not None, use this arg as the minimum number to
+            randomly select the expected number of regions.
+        spatial_size: spatial size of the regions to dropout, if `max_spatial_size` is not None, use this arg
+            as the minimum spatial size to randomly select size for every region.
+            if some components of the `spatial_size` are non-positive values, the transform will use the
+            corresponding components of input img size. For example, `spatial_size=(32, -1)` will be adapted
+            to `(32, 64)` if the second spatial dimension size of img is `64`.
+        fill_value: target value to fill the dropout regions.
+        max_holes: if not None, define the maximum number to randomly select the expected number of regions.
+        max_spatial_size: if not None, define the maximum spatial size to randomly select size for every region.
+            if some components of the `max_spatial_size` are non-positive values, the transform will use the
+            corresponding components of input img size. For example, `max_spatial_size=(32, -1)` will be adapted
+            to `(32, 64)` if the second spatial dimension size of img is `64`.
+        prob: probability of applying the transform.
+
+    """
+
+    def __init__(
+        self,
+        holes: int,
+        spatial_size: Union[Sequence[int], int],
+        fill_value: Union[float, int] = 0,
+        max_holes: Optional[int] = None,
+        max_spatial_size: Optional[Union[Sequence[int], int]] = None,
+        prob: float = 0.1,
+    ) -> None:
+        RandomizableTransform.__init__(self, prob)
+        if holes < 1:
+            raise ValueError("number of holes must be greater than 0.")
+        self.holes = holes
+        self.spatial_size = spatial_size
+        self.fill_value = fill_value
+        self.max_holes = max_holes
+        self.max_spatial_size = max_spatial_size
+        self.hole_coords: List = []
+
+    def randomize(self, img_size: Sequence[int]) -> None:
+        super().randomize(None)
+        size = fall_back_tuple(self.spatial_size, img_size)
+        self.hole_coords = []  # clear previously computed coords
+        num_holes = self.holes if self.max_holes is None else self.R.randint(self.holes, self.max_holes + 1)
+        for _ in range(num_holes):
+            if self.max_spatial_size is not None:
+                max_size = fall_back_tuple(self.max_spatial_size, img_size)
+                size = tuple(self.R.randint(low=size[i], high=max_size[i] + 1) for i in range(len(img_size)))
+            valid_size = get_valid_patch_size(img_size, size)
+            self.hole_coords.append((slice(None),) + get_random_patch(img_size, valid_size, self.R))
+
+    def __call__(self, img: np.ndarray):
+        self.randomize(img.shape[1:])
+        if self._do_transform:
+            for h in self.hole_coords:
+                img[h] = self.fill_value
+
+        return img

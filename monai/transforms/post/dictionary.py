@@ -428,7 +428,6 @@ class Invertd(MapTransform):
         to_tensor: Union[bool, Sequence[bool]] = True,
         device: Union[Union[str, torch.device], Sequence[Union[str, torch.device]]] = "cpu",
         post_func: Union[Callable, Sequence[Callable]] = lambda x: x,
-        num_workers: Optional[int] = 0,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -464,9 +463,6 @@ class Invertd(MapTransform):
                 each matches to the `keys` data.
             post_func: post processing for the inverted data, should be a callable function.
                 it also can be a list of callable, each matches to the `keys` data.
-            num_workers: number of workers when run data loader for inverse transforms,
-                default to 0 as only run one iteration and multi-processing may be even slower.
-                Set to `None`, to use the `num_workers` of the input transform data loader.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
