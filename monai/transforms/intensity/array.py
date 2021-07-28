@@ -1501,9 +1501,9 @@ class KSpaceSpikeNoise(TorchTransform, NumpyTransform):
             else:
                 k[idx] = val
         elif len(k.shape) == 4 and len(idx) == 3:
-            k[:, idx[0], idx[1], idx[2]] = val
+            k[:, idx[0], idx[1], idx[2]] = val  # type: ignore
         elif len(k.shape) == 3 and len(idx) == 2:
-            k[:, idx[0], idx[1]] = val
+            k[:, idx[0], idx[1]] = val  # type: ignore
 
     def _shift_fourier(self, x: DataObjects.Images, n_dims: int, data_type: type) -> DataObjects.Images:
         """
