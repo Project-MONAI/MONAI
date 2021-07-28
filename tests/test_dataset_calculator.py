@@ -17,7 +17,8 @@ import unittest
 import nibabel as nib
 import numpy as np
 
-from monai.data import DatasetCalculator, create_test_image_3d
+from monai.data import Dataset, DatasetCalculator, create_test_image_3d
+from monai.transforms import LoadImaged
 from monai.utils import set_determinism
 
 
@@ -27,7 +28,7 @@ class TestDatasetCalculator(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
 
             for i in range(5):
-                im, seg = create_test_image_3d(32, 32, 32, num_seg_classes=1, num_objs=3, rad_max=6, channel_dim=-1)
+                im, seg = create_test_image_3d(32, 32, 32, num_seg_classes=1, num_objs=3, rad_max=6, channel_dim=0)
                 n = nib.Nifti1Image(im, np.eye(4))
                 nib.save(n, os.path.join(tempdir, f"img{i:d}.nii.gz"))
                 n = nib.Nifti1Image(seg, np.eye(4))
@@ -39,11 +40,18 @@ class TestDatasetCalculator(unittest.TestCase):
                 {"image": image_name, "label": label_name} for image_name, label_name in zip(train_images, train_labels)
             ]
 
-            calculator = DatasetCalculator(data_dicts, num_processes=2)
-            target_spacing = calculator._get_target_spacing(anisotropic_threshold=3, percentile=10.0)
+            dataset = Dataset(data=data_dicts, transform=LoadImaged(keys=["image", "label"]))
+
+            calculator = DatasetCalculator(dataset, num_workers=4)
+
+            target_spacing = calculator.get_target_spacing()
             self.assertEqual(target_spacing, (1.0, 1.0, 1.0))
-            intensity_stats = calculator._get_intensity_stats(lower=0.5, upper=99.5)
-            self.assertEqual(intensity_stats, (0.56, 1.0, 0.89, 0.13))
+            calculator.calculate_statistics()
+            np.testing.assert_allclose(calculator.data_mean, 0.892599, rtol=1e-5, atol=1e-5)
+            np.testing.assert_allclose(calculator.data_std, 0.131731, rtol=1e-5, atol=1e-5)
+            calculator.calculate_percentiles(sampling_flag=True, interval=2)
+            self.assertEqual(calculator.data_max_percentile, 1.0)
+            np.testing.assert_allclose(calculator.data_min_percentile, 0.556411, rtol=1e-5, atol=1e-5)
 
 
 if __name__ == "__main__":

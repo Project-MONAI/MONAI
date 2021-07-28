@@ -9,20 +9,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import itertools
-import multiprocessing as mp
-from typing import Dict, Sequence
+from itertools import chain
+from typing import List, Optional
 
 import numpy as np
+import torch
 
-from monai.transforms import LoadImaged
+from monai.data.dataloader import DataLoader
+from monai.data.dataset import Dataset
 
 
 class DatasetCalculator:
     """
     This class provides a way to calculate a reasonable output voxel spacing according to
     the input dataset. The achieved values can used to resample the input in 3d segmentation tasks
-    (like using as the `pixel` parameter in `monai.transforms.Spacingd`).
+    (like using as the `pixdim` parameter in `monai.transforms.Spacingd`).
     In addition, it also supports to count the mean, std, min and max intensities of the input,
     and these statistics are helpful for image normalization
     (like using in `monai.transforms.ScaleIntensityRanged` and `monai.transforms.NormalizeIntensityd`).
@@ -34,95 +35,142 @@ class DatasetCalculator:
 
     def __init__(
         self,
-        datalist: Sequence[Dict],
-        image_key: str = "image",
-        label_key: str = "label",
+        dataset: Dataset,
+        image_key: Optional[str] = "image",
+        label_key: Optional[str] = "label",
         meta_key_postfix: str = "meta_dict",
-        num_processes: int = 1,
+        num_workers: int = 0,
+        **kwargs,
     ):
         """
         Args:
-            datalist: a list that contains the path of all images and labels. The list is
-                consisted with dictionaries, and each dictionary contains the image and label
-                path of one sample. For datasets that have Decathlon format, datalist can be
-                achieved by calling `monai.data.load_decathlon_datalist`.
-            image_key: the key name of images. Defaults to `image`.
-            label_key: the key name of labels. Defaults to `label`.
-            meta_key_postfix: for nifti images, use `{image_key}_{meta_key_postfix}` to
-                store the metadata of images.
-            num_workers: the maximum number of processes can be used in data loading.
+            dataset: dataset from which to load the data.
+            image_key: key name of images (default: ``image``).
+            label_key: key name of labels (default: ``label``).
+            meta_key_postfix: use `{image_key}_{meta_key_postfix}` to fetch the meta data from dict,
+                the meta data is a dictionary object (default: ``meta_dict``).
+            num_workers: how many subprocesses to use for data loading.
+                ``0`` means that the data will be loaded in the main process (default: ``0``).
+            kwargs: other parameters (except batch_size) for DataLoader (this class forces to use ``batch_size=1``).
 
         """
 
-        self.datalist = datalist
+        self.data_loader = DataLoader(dataset=dataset, batch_size=1, num_workers=num_workers, **kwargs)
+
         self.image_key = image_key
         self.label_key = label_key
-        self.meta_key_postfix = meta_key_postfix
-        self.num_processes = num_processes
-        self.loader = LoadImaged(keys=[image_key, label_key], meta_key_postfix=meta_key_postfix)
+        if image_key:
+            self.meta_key = "{}_{}".format(image_key, meta_key_postfix)
+        self.all_meta_data: List = []
 
-    def _run_parallel(self, function):
+    def collect_meta_data(self):
         """
-        Parallelly running the function for all data in the datalist.
-
+        This function is used to collect the meta data for all images of the dataset.
         """
-        with mp.Pool(processes=self.num_processes) as pool:
-            result = pool.map(function, self.datalist)
-            return result
+        if not self.meta_key:
+            raise ValueError("To collect meta data for the dataset, `meta_key` should exist.")
 
-    def _load_spacing(self, path_dict: Dict):
-        """
-        Load spacing from a data's dictionary. Assume that the original image file has `pixdim`
-        in its metadata.
+        for data in self.data_loader:
+            self.all_meta_data.append(data[self.meta_key])
 
-        """
-        data = self.loader(path_dict)
-        meta_key = "{}_{}".format(self.image_key, self.meta_key_postfix)
-        spacing = data[meta_key]["pixdim"][1:4].tolist()
-
-        return spacing
-
-    def _get_target_spacing(self, anisotropic_threshold: int = 3, percentile: float = 10.0):
+    def get_target_spacing(self, spacing_key: str = "pixdim", anisotropic_threshold: int = 3, percentile: float = 10.0):
         """
         Calculate the target spacing according to all spacings.
         If the target spacing is very anisotropic,
         decrease the spacing value of the maximum axis according to percentile.
 
+        Args:
+            spacing_key: key of spacing in meta data (default: ``pixdim``).
+            anisotropic_threshold: threshold to decide if the target spacing is anisotropic (default: ``3``).
+            percentile: for anisotropic target spacing, use the percentile of all spacings of the anisotropic axis to
+                replace that axis.
+
         """
-        spacing = self._run_parallel(self._load_spacing)
-        spacing = np.array(spacing)
-        target_spacing = np.median(spacing, axis=0)
+        if len(self.all_meta_data) == 0:
+            self.collect_meta_data()
+        if spacing_key not in self.all_meta_data[0]:
+            raise ValueError("The provided spacing_key is not in self.all_meta_data.")
+
+        all_spacings = torch.vstack([data[spacing_key][:, 1:4] for data in self.all_meta_data]).numpy()
+
+        target_spacing = np.median(all_spacings, axis=0)
         if max(target_spacing) / min(target_spacing) >= anisotropic_threshold:
             largest_axis = np.argmax(target_spacing)
-            target_spacing[largest_axis] = np.percentile(spacing[:, largest_axis], percentile)
+            target_spacing[largest_axis] = np.percentile(all_spacings[:, largest_axis], percentile)
 
         output = list(target_spacing)
-        output = [round(value, 2) for value in output]
 
         return tuple(output)
 
-    def _load_intensity(self, path_dict: Dict):
+    def calculate_statistics(self, foreground_threshold: int = 0):
         """
-        Load intensity from a data's dictionary.
+        This function is used to calculate the maximum, minimum, mean and standard deviation of intensities of
+        the input dataset.
 
-        """
-        data = self.loader(path_dict)
-        image = data[self.image_key]
-        foreground_idx = np.where(data[self.label_key] > 0)
-
-        return image[foreground_idx].tolist()
-
-    def _get_intensity_stats(self, lower: float = 0.5, upper: float = 99.5):
-        """
-        Calculate min, max, mean and std of all intensities. The minimal and maximum
-        values will be processed according to the provided percentiles.
+        Args:
+            foreground_threshold: the threshold to distinguish if a voxel belongs to foreground, this parameter
+                is used to select the foreground of images for calculation. Normally, `label > 0` means the corresponding
+                voxel belongs to foreground, thus if you need to calculate the statistics for whole images, you can set
+                the threshold to ``-1`` (default: ``0``).
 
         """
-        intensity = self._run_parallel(self._load_intensity)
-        intensity = np.array(list(itertools.chain.from_iterable(intensity)))
-        min_value, max_value = np.percentile(intensity, [lower, upper])
-        mean_value, std_value = np.mean(intensity), np.std(intensity)
-        output = [min_value, max_value, mean_value, std_value]
-        output = [round(value, 2) for value in output]
+        voxel_sum = torch.as_tensor(0.0)
+        voxel_square_sum = torch.as_tensor(0.0)
+        voxel_max, voxel_min = [], []
+        voxel_ct = 0
 
-        return tuple(output)
+        for data in self.data_loader:
+            if self.image_key and self.label_key:
+                image, label = data[self.image_key], data[self.label_key]
+            else:
+                image, label = data
+            voxel_max.append(image.max().item())
+            voxel_min.append(image.min().item())
+
+            image_foreground = image[torch.where(label > foreground_threshold)]
+            voxel_ct += len(image_foreground)
+            voxel_sum += image_foreground.sum()
+            voxel_square_sum += torch.square(image_foreground).sum()
+
+        self.data_max, self.data_min = max(voxel_max), min(voxel_min)
+        self.data_mean = (voxel_sum / voxel_ct).item()
+        self.data_std = (torch.sqrt(voxel_square_sum / voxel_ct - self.data_mean ** 2)).item()
+
+    def calculate_percentiles(
+        self,
+        foreground_threshold: int = 0,
+        sampling_flag: bool = True,
+        interval: int = 10,
+        min_percentile: float = 0.5,
+        max_percentile: float = 99.5,
+    ):
+        """
+        This function is used to calculate the percentiles of intensities (and median) of the input dataset. To get
+        the required values, all voxels need to be accumulated. To reduce the memory used, this function can be set
+        to accumulate only a part of the voxels.
+
+        Args:
+            foreground_threshold: the threshold to distinguish if a voxel belongs to foreground, this parameter
+                is used to select the foreground of images for calculation. Normally, `label > 0` means the corresponding
+                voxel belongs to foreground, thus if you need to calculate the statistics for whole images, you can set
+                the threshold to ``-1`` (default: ``0``).
+            sampling_flag: whether to sample only a part of the voxels (default: ``True``).
+            interval: the sampling interval for accumulating voxels (default: ``10``).
+            min_percentile: minimal percentile (default: ``0.5``).
+            max_percentile: maximal percentile (default: ``99.5``).
+
+        """
+        all_intensities = []
+        for data in self.data_loader:
+
+            image, label = data[self.image_key], data[self.label_key]
+            intensities = image[torch.where(label > foreground_threshold)].tolist()
+            if sampling_flag:
+                intensities = intensities[::interval]
+            all_intensities.append(intensities)
+
+        all_intensities = list(chain(*all_intensities))
+        self.data_min_percentile, self.data_max_percentile = np.percentile(
+            all_intensities, [min_percentile, max_percentile]
+        )
+        self.data_median = np.median(all_intensities)
