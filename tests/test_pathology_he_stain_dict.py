@@ -20,7 +20,7 @@ from monai.apps.pathology.transforms import ExtractHEStainsD, NormalizeHEStainsD
 EXTRACT_STAINS_TEST_CASE_0 = (None,)
 EXTRACT_STAINS_TEST_CASE_00 = (None, None)
 NORMALIZE_STAINS_TEST_CASE_0 = (None,)
-NORMALIZE_STAINS_TEST_CASE_00 = ({}, None, None)
+NORMALIZE_STAINS_TEST_CASE_00: tuple = ({}, None, None)
 
 # input pixels all transparent and below the beta absorbance threshold
 EXTRACT_STAINS_TEST_CASE_1 = [np.full((3, 2, 3), 240)]
@@ -100,7 +100,13 @@ class TestExtractHEStainsD(unittest.TestCase):
             result = ExtractHEStainsD([key])({key: image})
             np.testing.assert_array_equal(result[key][:, 0], result[key][:, 1])
 
-    @parameterized.expand([EXTRACT_STAINS_TEST_CASE_00, EXTRACT_STAINS_TEST_CASE_4, EXTRACT_STAINS_TEST_CASE_5])
+    @parameterized.expand(
+        [
+            EXTRACT_STAINS_TEST_CASE_00,
+            EXTRACT_STAINS_TEST_CASE_4,
+            EXTRACT_STAINS_TEST_CASE_5,
+        ]
+    )
     def test_result_value(self, image, expected_data):
         """
         Test that an input image returns an expected stain matrix.
