@@ -504,6 +504,12 @@ Spatial
     :members:
     :special-members: __call__
 
+`LongestRescale`
+""""""""""""""""
+.. autoclass:: LongestRescale
+    :members:
+    :special-members: __call__
+
 Utility
 ^^^^^^^
 

@@ -72,6 +72,7 @@ __all__ = [
     "Rand2DElastic",
     "Rand3DElastic",
     "AddCoordinateChannels",
+    "LongestRescale",
 ]
 
 RandRange = Optional[Union[Sequence[Union[Tuple[float, float], float]], float]]
@@ -1810,6 +1811,8 @@ class LongestRescale(Transform):
     """
     Rescale an image so that maximum side is equal to specified spatial size, keeping the aspect ratio
     of the initial image. Implemented using :py:class:`torch.nn.functional.interpolate`.
+    Refer to: https://albumentations.ai/docs/api_reference/augmentations/geometric/resize/
+    #albumentations.augmentations.geometric.resize.LongestMaxSize.
 
     Args:
         spatial_size: expected spatial size of the longest side after rescale operation.

@@ -235,6 +235,7 @@ from .spatial.array import (
     Affine,
     AffineGrid,
     Flip,
+    LongestRescale,
     Orientation,
     Rand2DElastic,
     Rand3DElastic,
