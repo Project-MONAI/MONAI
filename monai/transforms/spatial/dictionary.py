@@ -555,7 +555,11 @@ class Resized(MapTransform, InvertibleTransform):
             mode = transform[InverseKeys.EXTRA_INFO]["mode"]
             align_corners = transform[InverseKeys.EXTRA_INFO]["align_corners"]
             # Create inverse transform
-            inverse_transform = Resize(orig_size, mode, None if align_corners == "none" else align_corners)
+            inverse_transform = Resize(
+                spatial_size=orig_size,
+                mode=mode,
+                align_corners=None if align_corners == "none" else align_corners,
+            )
             # Apply inverse transform
             d[key] = inverse_transform(d[key])
             # Remove the applied transform
