@@ -124,6 +124,7 @@ class DatasetCalculator:
                 image, label = data[self.image_key], data[self.label_key]
             else:
                 image, label = data
+
             voxel_max.append(image.max().item())
             voxel_min.append(image.min().item())
 
@@ -162,8 +163,11 @@ class DatasetCalculator:
         """
         all_intensities = []
         for data in self.data_loader:
+            if self.image_key and self.label_key:
+                image, label = data[self.image_key], data[self.label_key]
+            else:
+                image, label = data
 
-            image, label = data[self.image_key], data[self.label_key]
             intensities = image[torch.where(label > foreground_threshold)].tolist()
             if sampling_flag:
                 intensities = intensities[::interval]
