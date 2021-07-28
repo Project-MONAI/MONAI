@@ -11,95 +11,61 @@
 
 import unittest
 
+import numpy as np
 from parameterized import parameterized
 
 from monai.apps.pathology.transforms import ExtractHEStainsD, NormalizeHEStainsD
-from monai.utils import optional_import
 
-cp, has_cp = optional_import("cupy")
+# None inputs
+EXTRACT_STAINS_TEST_CASE_0 = (None,)
+EXTRACT_STAINS_TEST_CASE_00 = (None, None)
+NORMALIZE_STAINS_TEST_CASE_0 = (None,)
+NORMALIZE_STAINS_TEST_CASE_00 = ({}, None, None)
 
+# input pixels all transparent and below the beta absorbance threshold
+EXTRACT_STAINS_TEST_CASE_1 = [np.full((3, 2, 3), 240)]
 
-EXTRACT_STAINS_TEST_CASE_1 = (None,)
-EXTRACT_STAINS_TEST_CASE_2 = (None,)
-EXTRACT_STAINS_TEST_CASE_3 = (None,)
-EXTRACT_STAINS_TEST_CASE_4 = (None, None)
-EXTRACT_STAINS_TEST_CASE_5 = (None, None)
-NORMALIZE_STAINS_TEST_CASE_1 = (None,)
-NORMALIZE_STAINS_TEST_CASE_2 = (None, None, None)
-NORMALIZE_STAINS_TEST_CASE_3 = (None, None, None)
-NORMALIZE_STAINS_TEST_CASE_4 = (None, None, None)
+# input pixels uniformly filled, but above beta absorbance threshold
+EXTRACT_STAINS_TEST_CASE_2 = [np.full((3, 2, 3), 100)]
 
+# input pixels uniformly filled (different value), but above beta absorbance threshold
+EXTRACT_STAINS_TEST_CASE_3 = [np.full((3, 2, 3), 150)]
 
-def prepare_test_data():
-    # input pixels all transparent and below the beta absorbance threshold
-    global EXTRACT_STAINS_TEST_CASE_1
-    EXTRACT_STAINS_TEST_CASE_1 = [
-        cp.full((3, 2, 3), 240),
-    ]
+# input pixels uniformly filled with zeros, leading to two identical stains extracted
+EXTRACT_STAINS_TEST_CASE_4 = [
+    np.zeros((3, 2, 3)),
+    np.array([[0.0, 0.0], [0.70710678, 0.70710678], [0.70710678, 0.70710678]]),
+]
 
-    # input pixels uniformly filled, but above beta absorbance threshold
-    global EXTRACT_STAINS_TEST_CASE_2
-    EXTRACT_STAINS_TEST_CASE_2 = [
-        cp.full((3, 2, 3), 100),
-    ]
+# input pixels not uniformly filled, leading to two different stains extracted
+EXTRACT_STAINS_TEST_CASE_5 = [
+    np.array([[[100, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]]]),
+    np.array([[0.70710677, 0.18696113], [0.0, 0.0], [0.70710677, 0.98236734]]),
+]
 
-    # input pixels uniformly filled (different value), but above beta absorbance threshold
-    global EXTRACT_STAINS_TEST_CASE_3
-    EXTRACT_STAINS_TEST_CASE_3 = [
-        cp.full((3, 2, 3), 150),
-    ]
+# input pixels all transparent and below the beta absorbance threshold
+NORMALIZE_STAINS_TEST_CASE_1 = [np.full((3, 2, 3), 240)]
 
-    # input pixels uniformly filled with zeros, leading to two identical stains extracted
-    global EXTRACT_STAINS_TEST_CASE_4
-    EXTRACT_STAINS_TEST_CASE_4 = [
-        cp.zeros((3, 2, 3)),
-        cp.array([[0.0, 0.0], [0.70710678, 0.70710678], [0.70710678, 0.70710678]]),
-    ]
+# input pixels uniformly filled with zeros, and target stain matrix provided
+NORMALIZE_STAINS_TEST_CASE_2 = [{"target_he": np.full((3, 2), 1)}, np.zeros((3, 2, 3)), np.full((3, 2, 3), 11)]
 
-    # input pixels not uniformly filled, leading to two different stains extracted
-    global EXTRACT_STAINS_TEST_CASE_5
-    EXTRACT_STAINS_TEST_CASE_5 = [
-        cp.array([[[100, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]]]),
-        cp.array([[0.70710677, 0.18696113], [0.0, 0.0], [0.70710677, 0.98236734]]),
-    ]
+# input pixels uniformly filled with zeros, and target stain matrix not provided
+NORMALIZE_STAINS_TEST_CASE_3 = [
+    {},
+    np.zeros((3, 2, 3)),
+    np.array([[[63, 25, 60], [63, 25, 60]], [[63, 25, 60], [63, 25, 60]], [[63, 25, 60], [63, 25, 60]]]),
+]
 
-    # input pixels all transparent and below the beta absorbance threshold
-    global NORMALIZE_STAINS_TEST_CASE_1
-    NORMALIZE_STAINS_TEST_CASE_1 = [
-        cp.full((3, 2, 3), 240),
-    ]
-
-    # input pixels uniformly filled with zeros, and target stain matrix provided
-    global NORMALIZE_STAINS_TEST_CASE_2
-    NORMALIZE_STAINS_TEST_CASE_2 = [
-        {"target_he": cp.full((3, 2), 1)},
-        cp.zeros((3, 2, 3)),
-        cp.full((3, 2, 3), 11),
-    ]
-
-    # input pixels uniformly filled with zeros, and target stain matrix not provided
-    global NORMALIZE_STAINS_TEST_CASE_3
-    NORMALIZE_STAINS_TEST_CASE_3 = [
-        {},
-        cp.zeros((3, 2, 3)),
-        cp.array([[[63, 25, 60], [63, 25, 60]], [[63, 25, 60], [63, 25, 60]], [[63, 25, 60], [63, 25, 60]]]),
-    ]
-
-    # input pixels not uniformly filled
-    global NORMALIZE_STAINS_TEST_CASE_4
-    NORMALIZE_STAINS_TEST_CASE_4 = [
-        {"target_he": cp.full((3, 2), 1)},
-        cp.array([[[100, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]]]),
-        cp.array([[[87, 87, 87], [33, 33, 33]], [[33, 33, 33], [33, 33, 33]], [[33, 33, 33], [33, 33, 33]]]),
-    ]
+# input pixels not uniformly filled
+NORMALIZE_STAINS_TEST_CASE_4 = [
+    {"target_he": np.full((3, 2), 1)},
+    np.array([[[100, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]]]),
+    np.array([[[87, 87, 87], [33, 33, 33]], [[33, 33, 33], [33, 33, 33]], [[33, 33, 33], [33, 33, 33]]]),
+]
 
 
 class TestExtractHEStainsD(unittest.TestCase):
-    @unittest.skipUnless(has_cp, "Requires CuPy")
-    def setUp(self):
-        prepare_test_data()
-
-    @parameterized.expand([EXTRACT_STAINS_TEST_CASE_1])
+    @parameterized.expand([EXTRACT_STAINS_TEST_CASE_0, EXTRACT_STAINS_TEST_CASE_1])
     def test_transparent_image(self, image):
         """
         Test HE stain extraction on an image that comprises
@@ -116,7 +82,7 @@ class TestExtractHEStainsD(unittest.TestCase):
             with self.assertRaises(ValueError):
                 ExtractHEStainsD([key])({key: image})
 
-    @parameterized.expand([EXTRACT_STAINS_TEST_CASE_2, EXTRACT_STAINS_TEST_CASE_3])
+    @parameterized.expand([EXTRACT_STAINS_TEST_CASE_0, EXTRACT_STAINS_TEST_CASE_2, EXTRACT_STAINS_TEST_CASE_3])
     def test_identical_result_vectors(self, image):
         """
         Test HE stain extraction on input images that are
@@ -132,9 +98,9 @@ class TestExtractHEStainsD(unittest.TestCase):
                 ExtractHEStainsD([key])({key: image})
         else:
             result = ExtractHEStainsD([key])({key: image})
-            cp.testing.assert_array_equal(result[key][:, 0], result[key][:, 1])
+            np.testing.assert_array_equal(result[key][:, 0], result[key][:, 1])
 
-    @parameterized.expand([EXTRACT_STAINS_TEST_CASE_4, EXTRACT_STAINS_TEST_CASE_5])
+    @parameterized.expand([EXTRACT_STAINS_TEST_CASE_00, EXTRACT_STAINS_TEST_CASE_4, EXTRACT_STAINS_TEST_CASE_5])
     def test_result_value(self, image, expected_data):
         """
         Test that an input image returns an expected stain matrix.
@@ -168,15 +134,11 @@ class TestExtractHEStainsD(unittest.TestCase):
                 ExtractHEStainsD([key])({key: image})
         else:
             result = ExtractHEStainsD([key])({key: image})
-            cp.testing.assert_allclose(result[key], expected_data)
+            np.testing.assert_allclose(result[key], expected_data)
 
 
 class TestNormalizeHEStainsD(unittest.TestCase):
-    @unittest.skipUnless(has_cp, "Requires CuPy")
-    def setUp(self):
-        prepare_test_data()
-
-    @parameterized.expand([NORMALIZE_STAINS_TEST_CASE_1])
+    @parameterized.expand([NORMALIZE_STAINS_TEST_CASE_0, NORMALIZE_STAINS_TEST_CASE_1])
     def test_transparent_image(self, image):
         """
         Test HE stain normalization on an image that comprises
@@ -193,7 +155,14 @@ class TestNormalizeHEStainsD(unittest.TestCase):
             with self.assertRaises(ValueError):
                 NormalizeHEStainsD([key])({key: image})
 
-    @parameterized.expand([NORMALIZE_STAINS_TEST_CASE_2, NORMALIZE_STAINS_TEST_CASE_3, NORMALIZE_STAINS_TEST_CASE_4])
+    @parameterized.expand(
+        [
+            NORMALIZE_STAINS_TEST_CASE_00,
+            NORMALIZE_STAINS_TEST_CASE_2,
+            NORMALIZE_STAINS_TEST_CASE_3,
+            NORMALIZE_STAINS_TEST_CASE_4,
+        ]
+    )
     def test_result_value(self, argments, image, expected_data):
         """
         Test that an input image returns an expected normalized image.
@@ -245,7 +214,7 @@ class TestNormalizeHEStainsD(unittest.TestCase):
                 NormalizeHEStainsD([key])({key: image})
         else:
             result = NormalizeHEStainsD([key], **argments)({key: image})
-            cp.testing.assert_allclose(result[key], expected_data)
+            np.testing.assert_allclose(result[key], expected_data)
 
 
 if __name__ == "__main__":
