@@ -72,7 +72,6 @@ __all__ = [
     "Rand2DElastic",
     "Rand3DElastic",
     "AddCoordinateChannels",
-    "LongestRescale",
 ]
 
 RandRange = Optional[Union[Sequence[Union[Tuple[float, float], float]], float]]
@@ -342,6 +341,11 @@ class Resize(Transform):
             if some components of the `spatial_size` are non-positive values, the transform will use the
             corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
             to `(32, 64)` if the second spatial dimension size of img is `64`.
+        size_mode: should be "all" or "longest", if "all", will use `spatial_size` for all the spatial dims,
+            if "longest", rescale the image so that only the longest side is equal to specified `spatial_size`,
+            which must be an int number in this case, keeping the aspect ratio of the initial image, refer to:
+            https://albumentations.ai/docs/api_reference/augmentations/geometric/resize/
+            #albumentations.augmentations.geometric.resize.LongestMaxSize.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
@@ -353,10 +357,16 @@ class Resize(Transform):
     def __init__(
         self,
         spatial_size: Union[Sequence[int], int],
+        size_mode: str = "all",
         mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
     ) -> None:
-        self.spatial_size = ensure_tuple(spatial_size)
+        if size_mode not in ["all", "longest"]:
+            raise ValueError(f"size_mode must be 'all' or 'longest', but got: {size_mode}.")
+        if size_mode == "longest" and not isinstance(spatial_size, int):
+            raise ValueError("spatial_size must be an int number if size_mode is 'longest'.")
+        self.spatial_size = spatial_size
+        self.size_mode = size_mode
         self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
         self.align_corners = align_corners
 
@@ -380,20 +390,25 @@ class Resize(Transform):
             ValueError: When ``self.spatial_size`` length is less than ``img`` spatial dimensions.
 
         """
-        input_ndim = img.ndim - 1  # spatial ndim
-        output_ndim = len(self.spatial_size)
-        if output_ndim > input_ndim:
-            input_shape = ensure_tuple_size(img.shape, output_ndim + 1, 1)
-            img = img.reshape(input_shape)
-        elif output_ndim < input_ndim:
-            raise ValueError(
-                "len(spatial_size) must be greater or equal to img spatial dimensions, "
-                f"got spatial_size={output_ndim} img={input_ndim}."
-            )
-        spatial_size = fall_back_tuple(self.spatial_size, img.shape[1:])
+        if self.size_mode == "all":
+            input_ndim = img.ndim - 1  # spatial ndim
+            output_ndim = len(self.spatial_size)
+            if output_ndim > input_ndim:
+                input_shape = ensure_tuple_size(img.shape, output_ndim + 1, 1)
+                img = img.reshape(input_shape)
+            elif output_ndim < input_ndim:
+                raise ValueError(
+                    "len(spatial_size) must be greater or equal to img spatial dimensions, "
+                    f"got spatial_size={output_ndim} img={input_ndim}."
+                )
+            spatial_size_ = fall_back_tuple(self.spatial_size, img.shape[1:])
+        else:  # for the "longest" mode
+            img_size = img.shape[1:]
+            scale = self.spatial_size / max(img_size)
+            spatial_size_ = [ceil(s * scale) for s in img_size]
         resized = torch.nn.functional.interpolate(  # type: ignore
             input=torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0),
-            size=spatial_size,
+            size=spatial_size_,
             mode=look_up_option(self.mode if mode is None else mode, InterpolateMode).value,
             align_corners=self.align_corners if align_corners is None else align_corners,
         )
@@ -1805,61 +1820,3 @@ class AddCoordinateChannels(Transform):
         # but user input is 1-based (because channel dim is 0)
         coord_channels = coord_channels[[s - 1 for s in self.spatial_channels]]
         return np.concatenate((img, coord_channels), axis=0)
-
-
-class LongestRescale(Transform):
-    """
-    Rescale an image so that maximum side is equal to specified spatial size, keeping the aspect ratio
-    of the initial image. Implemented using :py:class:`torch.nn.functional.interpolate`.
-    Refer to: https://albumentations.ai/docs/api_reference/augmentations/geometric/resize/
-    #albumentations.augmentations.geometric.resize.LongestMaxSize.
-
-    Args:
-        spatial_size: expected spatial size of the longest side after rescale operation.
-        mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
-            The interpolation mode. Defaults to ``"area"``.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
-        align_corners: This only has an effect when mode is
-            'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
-
-    """
-
-    def __init__(
-        self,
-        spatial_size: int,
-        mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
-        align_corners: Optional[bool] = None,
-    ) -> None:
-        self.spatial_size = spatial_size
-        self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
-        self.align_corners = align_corners
-
-    def __call__(
-        self,
-        img: np.ndarray,
-        mode: Optional[Union[InterpolateMode, str]] = None,
-        align_corners: Optional[bool] = None,
-    ) -> np.ndarray:
-        """
-        Args:
-            img: channel first array, must have shape: (num_channels, H[, W, ..., ]).
-            mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
-                The interpolation mode. Defaults to ``self.mode``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
-            align_corners: This only has an effect when mode is
-                'linear', 'bilinear', 'bicubic' or 'trilinear'. Defaults to ``self.align_corners``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
-
-        """
-        img_size = img.shape[1:]
-        scale = self.spatial_size / max(img_size)
-        new_size = [ceil(s * scale) for s in img_size]
-        resized = torch.nn.functional.interpolate(  # type: ignore
-            input=torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0),
-            size=new_size,
-            mode=look_up_option(self.mode if mode is None else mode, InterpolateMode).value,
-            align_corners=self.align_corners if align_corners is None else align_corners,
-        )
-        resized = resized.squeeze(0).detach().cpu().numpy()
-        return np.asarray(resized)

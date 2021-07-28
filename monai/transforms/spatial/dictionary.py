@@ -76,7 +76,6 @@ __all__ = [
     "RandRotated",
     "Zoomd",
     "RandZoomd",
-    "LongestRescaled",
     "SpacingD",
     "SpacingDict",
     "OrientationD",
@@ -111,8 +110,6 @@ __all__ = [
     "RandZoomDict",
     "AddCoordinateChannelsD",
     "AddCoordinateChannelsDict",
-    "LongestRescaleD",
-    "LongestRescaleDict",
 ]
 
 GridSampleModeSequence = Union[Sequence[Union[GridSampleMode, str]], GridSampleMode, str]
@@ -507,6 +504,11 @@ class Resized(MapTransform, InvertibleTransform):
             if some components of the `spatial_size` are non-positive values, the transform will use the
             corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
             to `(32, 64)` if the second spatial dimension size of img is `64`.
+        size_mode: should be "all" or "longest", if "all", will use `spatial_size` for all the spatial dims,
+            if "longest", rescale the image so that only the longest side is equal to specified `spatial_size`,
+            which must be an int number in this case, keeping the aspect ratio of the initial image, refer to:
+            https://albumentations.ai/docs/api_reference/augmentations/geometric/resize/
+            #albumentations.augmentations.geometric.resize.LongestMaxSize.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
@@ -522,6 +524,7 @@ class Resized(MapTransform, InvertibleTransform):
         self,
         keys: KeysCollection,
         spatial_size: Union[Sequence[int], int],
+        size_mode: str = "all",
         mode: InterpolateModeSequence = InterpolateMode.AREA,
         align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
         allow_missing_keys: bool = False,
@@ -529,7 +532,7 @@ class Resized(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
-        self.resizer = Resize(spatial_size=spatial_size)
+        self.resizer = Resize(spatial_size=spatial_size, size_mode=size_mode)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
@@ -1703,69 +1706,6 @@ class AddCoordinateChannelsd(MapTransform):
         return d
 
 
-class LongestRescaled(MapTransform, InvertibleTransform):
-    """
-    Dictionary-based wrapper of :py:class:`monai.transforms.LongestRescale`.
-
-    Args:
-        keys: keys of the corresponding items to be transformed.
-            See also: :py:class:`monai.transforms.compose.MapTransform`
-        spatial_size: expected spatial size of the longest side after rescale operation.
-        mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
-            The interpolation mode. Defaults to ``"area"``.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
-            It also can be a sequence of string, each element corresponds to a key in ``keys``.
-        align_corners: This only has an effect when mode is
-            'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
-            See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
-            It also can be a sequence of bool or None, each element corresponds to a key in ``keys``.
-        allow_missing_keys: don't raise exception if key is missing.
-    """
-
-    def __init__(
-        self,
-        keys: KeysCollection,
-        spatial_size: int,
-        mode: InterpolateModeSequence = InterpolateMode.AREA,
-        align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
-        allow_missing_keys: bool = False,
-    ) -> None:
-        super().__init__(keys, allow_missing_keys)
-        self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
-        self.rescaler = LongestRescale(spatial_size=spatial_size)
-
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
-        d = dict(data)
-        for key, mode, align_corners in self.key_iterator(d, self.mode, self.align_corners):
-            self.push_transform(
-                d,
-                key,
-                extra_info={
-                    "mode": mode.value if isinstance(mode, Enum) else mode,
-                    "align_corners": align_corners if align_corners is not None else "none",
-                },
-            )
-            d[key] = self.rescaler(d[key], mode=mode, align_corners=align_corners)
-        return d
-
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
-        d = deepcopy(dict(data))
-        for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            orig_size = transform[InverseKeys.ORIG_SIZE]
-            mode = transform[InverseKeys.EXTRA_INFO]["mode"]
-            align_corners = transform[InverseKeys.EXTRA_INFO]["align_corners"]
-            # Create inverse transform
-            inverse_transform = Resize(orig_size, mode, None if align_corners == "none" else align_corners)
-            # Apply inverse transform
-            d[key] = inverse_transform(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
-        return d
-
-
 SpacingD = SpacingDict = Spacingd
 OrientationD = OrientationDict = Orientationd
 Rotate90D = Rotate90Dict = Rotate90d
@@ -1783,4 +1723,3 @@ RandRotateD = RandRotateDict = RandRotated
 ZoomD = ZoomDict = Zoomd
 RandZoomD = RandZoomDict = RandZoomd
 AddCoordinateChannelsD = AddCoordinateChannelsDict = AddCoordinateChannelsd
-LongestRescaleD = LongestRescaleDict = LongestRescaled

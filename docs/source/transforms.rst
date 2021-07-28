@@ -504,12 +504,6 @@ Spatial
     :members:
     :special-members: __call__
 
-`LongestRescale`
-""""""""""""""""
-.. autoclass:: LongestRescale
-    :members:
-    :special-members: __call__
-
 Utility
 ^^^^^^^
 
@@ -1081,12 +1075,6 @@ Spatial (Dict)
 `AddCoordinateChannelsd`
 """"""""""""""""""""""""
 .. autoclass:: AddCoordinateChannelsd
-    :members:
-    :special-members: __call__
-
-`LongestRescaled`
-"""""""""""""""""
-.. autoclass:: LongestRescaled
     :members:
     :special-members: __call__
 
