@@ -27,7 +27,8 @@ for shape in ((128, 64), (64, 48, 80)):
         for as_tensor_input in (True, False):
             TEST_CASES.append((shape, as_tensor_output, as_tensor_input))
 
-@SkipIfBeforePyTorchVersion((1, 7))
+
+@SkipIfBeforePyTorchVersion((1, 8))
 @SkipIfNoModule("torch.fft")
 class TestRandGibbsNoise(unittest.TestCase):
     def setUp(self):

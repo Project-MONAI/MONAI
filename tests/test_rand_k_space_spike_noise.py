@@ -28,7 +28,8 @@ for shape in ((128, 64), (64, 48, 80)):
             for channel_wise in (True, False):
                 TEST_CASES.append((shape, as_tensor_output, as_tensor_input, channel_wise))
 
-@SkipIfBeforePyTorchVersion((1, 7))
+
+@SkipIfBeforePyTorchVersion((1, 8))
 @SkipIfNoModule("torch.fft")
 class TestRandKSpaceSpikeNoise(unittest.TestCase):
     def setUp(self):

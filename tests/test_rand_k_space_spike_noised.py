@@ -30,7 +30,7 @@ for shape in ((128, 64), (64, 48, 80)):
 KEYS = ["image", "label"]
 
 
-@SkipIfBeforePyTorchVersion((1, 7))
+@SkipIfBeforePyTorchVersion((1, 8))
 @SkipIfNoModule("torch.fft")
 class TestKSpaceSpikeNoised(unittest.TestCase):
     def setUp(self):
