@@ -22,6 +22,7 @@ from monai.networks.utils import eval_mode, train_mode
 from monai.transforms import Transform
 from monai.utils import ForwardMode, ensure_tuple, min_version, optional_import
 from monai.utils.enums import CommonKeys as Keys
+from monai.utils.module import look_up_option
 
 if TYPE_CHECKING:
     from ignite.engine import Engine, EventEnum
@@ -109,7 +110,7 @@ class Evaluator(Workflow):
             event_to_attr=event_to_attr,
             decollate=decollate,
         )
-        mode = ForwardMode(mode)
+        self.mode = look_up_option(mode, ForwardMode)
         if mode == ForwardMode.EVAL:
             self.mode = eval_mode
         elif mode == ForwardMode.TRAIN:

@@ -21,6 +21,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike
+from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
 from monai.transforms.transform import RandomizableTransform, Transform
 from monai.transforms.utils import rescale_array
@@ -31,6 +32,7 @@ from monai.utils import (
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
+    fall_back_tuple,
 )
 
 __all__ = [
@@ -61,6 +63,7 @@ __all__ = [
     "RandGibbsNoise",
     "KSpaceSpikeNoise",
     "RandKSpaceSpikeNoise",
+    "RandCoarseDropout",
 ]
 
 
@@ -431,22 +434,19 @@ class RandBiasField(RandomizableTransform):
         self.coeff_range = coeff_range
         self.dtype = dtype
 
-    def _generate_random_field(
-        self,
-        spatial_shape: Tuple[int, ...],
-        rank: int,
-        degree: int,
-        coeff: Tuple[int, ...],
-    ):
+        self._coeff = [1.0]
+
+    def _generate_random_field(self, spatial_shape: Sequence[int], degree: int, coeff: Sequence[float]):
         """
         products of polynomials as bias field estimations
         """
+        rank = len(spatial_shape)
         coeff_mat = np.zeros((degree + 1,) * rank)
         coords = [np.linspace(-1.0, 1.0, dim, dtype=np.float32) for dim in spatial_shape]
         if rank == 2:
             coeff_mat[np.tril_indices(degree + 1)] = coeff
-            field = np.polynomial.legendre.leggrid2d(coords[0], coords[1], coeff_mat)
-        elif rank == 3:
+            return np.polynomial.legendre.leggrid2d(coords[0], coords[1], coeff_mat)
+        if rank == 3:
             pts: List[List[int]] = [[0, 0, 0]]
             for i in range(degree + 1):
                 for j in range(degree + 1 - i):
@@ -456,16 +456,12 @@ class RandBiasField(RandomizableTransform):
                 pts = pts[1:]
             np_pts = np.stack(pts)
             coeff_mat[np_pts[:, 0], np_pts[:, 1], np_pts[:, 2]] = coeff
-            field = np.polynomial.legendre.leggrid3d(coords[0], coords[1], coords[2], coeff_mat)
-        else:
-            raise NotImplementedError("only supports 2D or 3D fields")
-        return field
+            return np.polynomial.legendre.leggrid3d(coords[0], coords[1], coords[2], coeff_mat)
+        raise NotImplementedError("only supports 2D or 3D fields")
 
     def randomize(self, data: np.ndarray) -> None:
         super().randomize(None)
-        self.spatial_shape = data.shape[1:]
-        self.rank = len(self.spatial_shape)
-        n_coeff = int(np.prod([(self.degree + k) / k for k in range(1, self.rank + 1)]))
+        n_coeff = int(np.prod([(self.degree + k) / k for k in range(1, len(data.shape[1:]) + 1)]))
         self._coeff = self.R.uniform(*self.coeff_range, n_coeff).tolist()
 
     def __call__(self, img: np.ndarray):
@@ -475,17 +471,15 @@ class RandBiasField(RandomizableTransform):
         self.randomize(data=img)
         if not self._do_transform:
             return img
-        num_channels = img.shape[0]
+        num_channels, *spatial_shape = img.shape
         _bias_fields = np.stack(
             [
-                self._generate_random_field(
-                    spatial_shape=self.spatial_shape, rank=self.rank, degree=self.degree, coeff=self._coeff
-                )
+                self._generate_random_field(spatial_shape=spatial_shape, degree=self.degree, coeff=self._coeff)
                 for _ in range(num_channels)
             ],
             axis=0,
         )
-        return (img * _bias_fields).astype(self.dtype)
+        return (img * np.exp(_bias_fields)).astype(self.dtype)
 
 
 class NormalizeIntensity(Transform):
@@ -1612,3 +1606,68 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
             return img.cpu().detach().numpy(), img.device
         else:
             return img, torch.device("cpu")
+
+
+class RandCoarseDropout(RandomizableTransform):
+    """
+    Randomly coarse dropout regions in the image, then fill in the rectangular regions with specified value.
+    Refer to: https://arxiv.org/abs/1708.04552 and:
+    https://albumentations.ai/docs/api_reference/augmentations/transforms/
+    #albumentations.augmentations.transforms.CoarseDropout.
+
+    Args:
+        holes: number of regions to dropout, if `max_holes` is not None, use this arg as the minimum number to
+            randomly select the expected number of regions.
+        spatial_size: spatial size of the regions to dropout, if `max_spatial_size` is not None, use this arg
+            as the minimum spatial size to randomly select size for every region.
+            if some components of the `spatial_size` are non-positive values, the transform will use the
+            corresponding components of input img size. For example, `spatial_size=(32, -1)` will be adapted
+            to `(32, 64)` if the second spatial dimension size of img is `64`.
+        fill_value: target value to fill the dropout regions.
+        max_holes: if not None, define the maximum number to randomly select the expected number of regions.
+        max_spatial_size: if not None, define the maximum spatial size to randomly select size for every region.
+            if some components of the `max_spatial_size` are non-positive values, the transform will use the
+            corresponding components of input img size. For example, `max_spatial_size=(32, -1)` will be adapted
+            to `(32, 64)` if the second spatial dimension size of img is `64`.
+        prob: probability of applying the transform.
+
+    """
+
+    def __init__(
+        self,
+        holes: int,
+        spatial_size: Union[Sequence[int], int],
+        fill_value: Union[float, int] = 0,
+        max_holes: Optional[int] = None,
+        max_spatial_size: Optional[Union[Sequence[int], int]] = None,
+        prob: float = 0.1,
+    ) -> None:
+        RandomizableTransform.__init__(self, prob)
+        if holes < 1:
+            raise ValueError("number of holes must be greater than 0.")
+        self.holes = holes
+        self.spatial_size = spatial_size
+        self.fill_value = fill_value
+        self.max_holes = max_holes
+        self.max_spatial_size = max_spatial_size
+        self.hole_coords: List = []
+
+    def randomize(self, img_size: Sequence[int]) -> None:
+        super().randomize(None)
+        size = fall_back_tuple(self.spatial_size, img_size)
+        self.hole_coords = []  # clear previously computed coords
+        num_holes = self.holes if self.max_holes is None else self.R.randint(self.holes, self.max_holes + 1)
+        for _ in range(num_holes):
+            if self.max_spatial_size is not None:
+                max_size = fall_back_tuple(self.max_spatial_size, img_size)
+                size = tuple(self.R.randint(low=size[i], high=max_size[i] + 1) for i in range(len(img_size)))
+            valid_size = get_valid_patch_size(img_size, size)
+            self.hole_coords.append((slice(None),) + get_random_patch(img_size, valid_size, self.R))
+
+    def __call__(self, img: np.ndarray):
+        self.randomize(img.shape[1:])
+        if self._do_transform:
+            for h in self.hole_coords:
+                img[h] = self.fill_value
+
+        return img

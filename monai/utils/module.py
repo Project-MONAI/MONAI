@@ -8,13 +8,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import enum
 import sys
 import warnings
 from importlib import import_module
 from pkgutil import walk_packages
 from re import match
-from typing import Any, Callable, List, Tuple
+from typing import Any, Callable, Collection, Hashable, Iterable, List, Mapping, Tuple, cast
 
 import torch
 
@@ -25,6 +25,8 @@ __all__ = [
     "OptionalImportError",
     "exact_version",
     "export",
+    "damerau_levenshtein_distance",
+    "look_up_option",
     "min_version",
     "optional_import",
     "load_submodules",
@@ -34,6 +36,114 @@ __all__ = [
     "PT_BEFORE_1_7",
     "version_leq",
 ]
+
+
+def look_up_option(opt_str, supported: Collection, default="no_default"):
+    """
+    Look up the option in the supported collection and return the matched item.
+    Raise a value error possibly with a guess of the closest match.
+
+    Args:
+        opt_str: The option string or Enum to look up.
+        supported: The collection of supported options, it can be list, tuple, set, dict, or Enum.
+        default: If it is given, this method will return `default` when `opt_str` is not found,
+            instead of raising a `ValueError`. Otherwise, it defaults to `"no_default"`,
+            so that the method may raise a `ValueError`.
+
+    Examples:
+
+    .. code-block:: python
+
+        from enum import Enum
+        from monai.utils import look_up_option
+        class Color(Enum):
+            RED = "red"
+            BLUE = "blue"
+        look_up_option("red", Color)  # <Color.RED: 'red'>
+        look_up_option(Color.RED, Color)  # <Color.RED: 'red'>
+        look_up_option("read", Color)
+        # ValueError: By 'read', did you mean 'red'?
+        # 'read' is not a valid option.
+        # Available options are {'blue', 'red'}.
+        look_up_option("red", {"red", "blue"})  # "red"
+
+    Adapted from https://github.com/NifTK/NiftyNet/blob/v0.6.0/niftynet/utilities/util_common.py#L249
+    """
+    if not isinstance(opt_str, Hashable):
+        raise ValueError(f"Unrecognized option type: {type(opt_str)}:{opt_str}.")
+    if isinstance(opt_str, str):
+        opt_str = opt_str.strip()
+    if isinstance(supported, enum.EnumMeta):
+        if isinstance(opt_str, str) and opt_str in {item.value for item in cast(Iterable[enum.Enum], supported)}:
+            # such as: "example" in MyEnum
+            return supported(opt_str)
+        if isinstance(opt_str, enum.Enum) and opt_str in supported:
+            # such as: MyEnum.EXAMPLE in MyEnum
+            return opt_str
+    elif isinstance(supported, Mapping) and opt_str in supported:
+        # such as: MyDict[key]
+        return supported[opt_str]
+    elif isinstance(supported, Collection) and opt_str in supported:
+        return opt_str
+
+    if default != "no_default":
+        return default
+
+    # find a close match
+    set_to_check: set
+    if isinstance(supported, enum.EnumMeta):
+        set_to_check = {item.value for item in cast(Iterable[enum.Enum], supported)}
+    else:
+        set_to_check = set(supported) if supported is not None else set()
+    if not set_to_check:
+        raise ValueError(f"No options available: {supported}.")
+    edit_dists = {}
+    opt_str = f"{opt_str}"
+    for key in set_to_check:
+        edit_dist = damerau_levenshtein_distance(f"{key}", opt_str)
+        if edit_dist <= 3:
+            edit_dists[key] = edit_dist
+
+    supported_msg = f"Available options are {set_to_check}.\n"
+    if edit_dists:
+        guess_at_spelling = min(edit_dists, key=edit_dists.get)  # type: ignore
+        raise ValueError(
+            f"By '{opt_str}', did you mean '{guess_at_spelling}'?\n"
+            + f"'{opt_str}' is not a valid option.\n"
+            + supported_msg
+        )
+    raise ValueError(f"Unsupported option '{opt_str}', " + supported_msg)
+
+
+def damerau_levenshtein_distance(s1: str, s2: str):
+    """
+    Calculates the Damerau–Levenshtein distance between two strings for spelling correction.
+    https://en.wikipedia.org/wiki/Damerau–Levenshtein_distance
+    """
+    if s1 == s2:
+        return 0
+    string_1_length = len(s1)
+    string_2_length = len(s2)
+    if not s1:
+        return string_2_length
+    if not s2:
+        return string_1_length
+    d = {(i, -1): i + 1 for i in range(-1, string_1_length + 1)}
+    for j in range(-1, string_2_length + 1):
+        d[(-1, j)] = j + 1
+
+    for i, s1i in enumerate(s1):
+        for j, s2j in enumerate(s2):
+            cost = 0 if s1i == s2j else 1
+            d[(i, j)] = min(
+                d[(i - 1, j)] + 1,  # deletion
+                d[(i, j - 1)] + 1,  # insertion
+                d[(i - 1, j - 1)] + cost,  # substitution
+            )
+            if i and j and s1i == s2[j - 1] and s1[i - 1] == s2j:
+                d[(i, j)] = min(d[(i, j)], d[i - 2, j - 2] + cost)  # transposition
+
+    return d[string_1_length - 1, string_2_length - 1]
 
 
 def export(modname):

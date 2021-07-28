@@ -29,14 +29,12 @@ if TYPE_CHECKING:
     import itk  # type: ignore
     import nibabel as nib
     import openslide
-    from itk import Image  # type: ignore
     from nibabel.nifti1 import Nifti1Image
     from PIL import Image as PILImage
 
     has_itk = has_nib = has_pil = has_cim = has_osl = True
 else:
     itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
-    Image, _ = optional_import("itk", allow_namespace_pkg=True, name="Image")
     nib, has_nib = optional_import("nibabel")
     Nifti1Image, _ = optional_import("nibabel.nifti1", name="Nifti1Image")
     PILImage, has_pil = optional_import("PIL.Image")
@@ -85,7 +83,7 @@ class ImageReader(ABC):
         This function must return 2 objects, first is numpy array of image data, second is dict of meta data.
 
         Args:
-            img: an image object loaded from a image file or a list of image objects.
+            img: an image object loaded from an image file or a list of image objects.
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
@@ -132,19 +130,25 @@ class ITKReader(ImageReader):
     array index order will be `CDWH`.
 
     Args:
+        channel_dim: the channel dimension of the input image, default is None.
+            This is used to set original_channel_dim in the meta data, EnsureChannelFirstD reads this field.
+            If None, original_channel_dim will be either `no_channel` or `-1`.
+
+                - Nifti file is usually "channel last", so there is no need to specify this argument.
+                - PNG file usually has `GetNumberOfComponentsPerPixel()==3`, so there is no need to specify this argument.
+
+        series_name: the name of the DICOM series if there are multiple ones.
+            used when loading DICOM series.
         kwargs: additional args for `itk.imread` API. more details about available args:
-            https://github.com/InsightSoftwareConsortium/ITK/blob/master/Wrapping/Generators/Python/itkExtras.py
+            https://github.com/InsightSoftwareConsortium/ITK/blob/master/Wrapping/Generators/Python/itk/support/extras.py
 
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, channel_dim: Optional[int] = None, series_name: str = "", **kwargs):
         super().__init__()
         self.kwargs = kwargs
-        if has_itk and int(itk.Version.GetITKMajorVersion()) == 5 and int(itk.Version.GetITKMinorVersion()) < 2:
-            # warning the ITK LazyLoading mechanism was not threadsafe until version 5.2.0,
-            # requesting access to the itk.imread function triggers the lazy loading of the relevant itk modules
-            # before the parallel use of the function.
-            _ = itk.imread
+        self.channel_dim = channel_dim
+        self.series_name = series_name
 
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
         """
@@ -169,26 +173,26 @@ class ITKReader(ImageReader):
                 https://github.com/InsightSoftwareConsortium/ITK/blob/master/Wrapping/Generators/Python/itkExtras.py
 
         """
-        img_: List[Image] = []
+        img_ = []
 
         filenames: Sequence[str] = ensure_tuple(data)
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
             if os.path.isdir(name):
-                # read DICOM series of 1 image in a folder, refer to: https://github.com/RSIP-Vision/medio
+                # read DICOM series
+                # https://itk.org/ITKExamples/src/IO/GDCM/ReadDICOMSeriesAndWrite3DImage
                 names_generator = itk.GDCMSeriesFileNames.New()
                 names_generator.SetUseSeriesDetails(True)
                 names_generator.AddSeriesRestriction("0008|0021")  # Series Date
                 names_generator.SetDirectory(name)
                 series_uid = names_generator.GetSeriesUIDs()
 
-                if len(series_uid) == 0:
+                if len(series_uid) < 1:
                     raise FileNotFoundError(f"no DICOMs in: {name}.")
                 if len(series_uid) > 1:
-                    raise OSError(f"the directory: {name} contains more than one DICOM series.")
-
-                series_identifier = series_uid[0]
+                    warnings.warn(f"the directory: {name} contains more than one DICOM series.")
+                series_identifier = series_uid[0] if not self.series_name else self.series_name
                 name = names_generator.GetFileNames(series_identifier)
 
             img_.append(itk.imread(name, **kwargs_))
@@ -197,26 +201,29 @@ class ITKReader(ImageReader):
     def get_data(self, img):
         """
         Extract data array and meta data from loaded image and return them.
-        This function returns 2 objects, first is numpy array of image data, second is dict of meta data.
-        It constructs `affine`, `original_affine`, and `spatial_shape` and stores in meta dict.
-        If loading a list of files, stack them together and add a new dimension as first dimension,
-        and use the meta data of the first image to represent the stacked result.
+        This function returns two objects, first is numpy array of image data, second is dict of meta data.
+        It constructs `affine`, `original_affine`, and `spatial_shape` and stores them in meta dict.
+        When loading a list of files, they are concatenated together at a new dimension as the first dimension,
+        and the meta data of the first image is used to represent the output meta data.
 
         Args:
-            img: a ITK image object loaded from a image file or a list of ITK image objects.
+            img: an ITK image object loaded from an image file or a list of ITK image objects.
 
         """
         img_array: List[np.ndarray] = []
         compatible_meta: Dict = {}
 
         for i in ensure_tuple(img):
+            data = self._get_array_data(i)
+            img_array.append(data)
             header = self._get_meta_dict(i)
             header["original_affine"] = self._get_affine(i)
             header["affine"] = header["original_affine"].copy()
             header["spatial_shape"] = self._get_spatial_shape(i)
-            data = self._get_array_data(i)
-            img_array.append(data)
-            header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else -1
+            if self.channel_dim is None:  # default to "no_channel" or -1
+                header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else -1
+            else:
+                header["original_channel_dim"] = self.channel_dim
             _copy_compatible_dict(header, compatible_meta)
 
         return _stack_images(img_array, compatible_meta), compatible_meta
@@ -226,40 +233,22 @@ class ITKReader(ImageReader):
         Get all the meta data of the image and convert to dict type.
 
         Args:
-            img: a ITK image object loaded from a image file.
+            img: an ITK image object loaded from an image file.
 
         """
         img_meta_dict = img.GetMetaDataDictionary()
-        meta_dict = {}
-        for key in img_meta_dict.GetKeys():
-            # ignore deprecated, legacy members that cause issues
-            if key.startswith("ITK_original_"):
-                continue
-            if (
-                key == "NRRD_measurement frame"
-                and int(itk.Version.GetITKMajorVersion()) == 5
-                and int(itk.Version.GetITKMinorVersion()) < 2
-            ):
-                warnings.warn(
-                    "Ignoring 'measurement frame' field. "
-                    "Correct reading of NRRD05 files requires ITK >= 5.2: `pip install --upgrade --pre itk`"
-                )
-                continue
-            meta_dict[key] = img_meta_dict[key]
-        meta_dict["origin"] = np.asarray(img.GetOrigin())
+        meta_dict = {key: img_meta_dict[key] for key in img_meta_dict.GetKeys() if not key.startswith("ITK_")}
+
         meta_dict["spacing"] = np.asarray(img.GetSpacing())
-        meta_dict["direction"] = itk.array_from_matrix(img.GetDirection())
         return meta_dict
 
     def _get_affine(self, img):
         """
         Get or construct the affine matrix of the image, it can be used to correct
         spacing, orientation or execute spatial transforms.
-        Construct Affine matrix based on direction, spacing, origin information.
-        Refer to: https://github.com/RSIP-Vision/medio
 
         Args:
-            img: a ITK image object loaded from a image file.
+            img: an ITK image object loaded from an image file.
 
         """
         direction = itk.array_from_matrix(img.GetDirection())
@@ -267,23 +256,32 @@ class ITKReader(ImageReader):
         origin = np.asarray(img.GetOrigin())
 
         direction = np.asarray(direction)
-        affine: np.ndarray = np.eye(direction.shape[0] + 1)
-        affine[(slice(-1), slice(-1))] = direction @ np.diag(spacing)
-        affine[(slice(-1), -1)] = origin
+        sr = min(max(direction.shape[0], 1), 3)
+        affine: np.ndarray = np.eye(sr + 1)
+        affine[:sr, :sr] = direction[:sr, :sr] @ np.diag(spacing[:sr])
+        affine[:sr, -1] = origin[:sr]
+        flip_diag = [[-1, 1], [-1, -1, 1], [-1, -1, 1, 1]][sr - 1]  # itk to nibabel affine
+        affine = np.diag(flip_diag) @ affine
         return affine
 
     def _get_spatial_shape(self, img):
         """
-        Get the spatial shape of image data, it doesn't contain the channel dim.
+        Get the spatial shape of `img`.
 
         Args:
-            img: a ITK image object loaded from a image file.
+            img: an ITK image object loaded from an image file.
 
         """
-        # the img data should have no channel dim or the last dim is channel
-        shape = list(itk.size(img))
-        shape.reverse()
-        return np.asarray(shape)
+        # the img data should have no channel dim
+
+        sr = itk.array_from_matrix(img.GetDirection()).shape[0]
+        sr = max(min(sr, 3), 1)
+        _size = list(itk.size(img))
+        if self.channel_dim is not None:
+            # channel_dim is given in the numpy convention, which is different from ITK
+            # size is reversed
+            _size.pop(-self.channel_dim)
+        return np.asarray(_size[:sr])
 
     def _get_array_data(self, img):
         """
@@ -294,21 +292,16 @@ class ITKReader(ImageReader):
         The first axis of the returned array is the channel axis.
 
         Args:
-            img: a ITK image object loaded from a image file.
+            img: an ITK image object loaded from an image file.
 
         """
         channels = img.GetNumberOfComponentsPerPixel()
+        np_data = itk.array_view_from_image(img).T
         if channels == 1:
-            return itk.array_view_from_image(img, keep_axes=False)
-        # The memory layout of itk.Image has all pixel's channels adjacent
-        # in memory, i.e. R1G1B1R2G2B2R3G3B3. For PyTorch/MONAI, we need
-        # channels to be contiguous, i.e. R1R2R3G1G2G3B1B2B3.
-        arr = itk.array_view_from_image(img, keep_axes=False)
-        dest = list(range(img.ndim))
-        source = dest.copy()
-        end = source.pop()
-        source.insert(0, end)
-        return np.moveaxis(arr, source, dest)
+            return np_data
+        if channels != np_data.shape[0]:
+            warnings.warn("itk_img.GetNumberOfComponentsPerPixel != numpy data channels")
+        return np.moveaxis(np_data, 0, -1)  # channel last is compatible with `write_nifti`
 
 
 class NibabelReader(ImageReader):
@@ -366,13 +359,13 @@ class NibabelReader(ImageReader):
     def get_data(self, img):
         """
         Extract data array and meta data from loaded image and return them.
-        This function returns 2 objects, first is numpy array of image data, second is dict of meta data.
-        It constructs `affine`, `original_affine`, and `spatial_shape` and stores in meta dict.
-        If loading a list of files, stack them together and add a new dimension as first dimension,
-        and use the meta data of the first image to represent the stacked result.
+        This function returns two objects, first is numpy array of image data, second is dict of meta data.
+        It constructs `affine`, `original_affine`, and `spatial_shape` and stores them in meta dict.
+        When loading a list of files, they are concatenated together at a new dimension as the first dimension,
+        and the meta data of the first image is used to present the output meta data.
 
         Args:
-            img: a Nibabel image object loaded from a image file or a list of Nibabel image objects.
+            img: a Nibabel image object loaded from an image file or a list of Nibabel image objects.
 
         """
         img_array: List[np.ndarray] = []
@@ -399,7 +392,7 @@ class NibabelReader(ImageReader):
         Get the all the meta data of the image and convert to dict type.
 
         Args:
-            img: a Nibabel image object loaded from a image file.
+            img: a Nibabel image object loaded from an image file.
 
         """
         # swap to little endian as PyTorch doesn't support big endian
@@ -412,7 +405,7 @@ class NibabelReader(ImageReader):
         spacing, orientation or execute spatial transforms.
 
         Args:
-            img: a Nibabel image object loaded from a image file.
+            img: a Nibabel image object loaded from an image file.
 
         """
         return np.array(img.affine, copy=True)
@@ -422,7 +415,7 @@ class NibabelReader(ImageReader):
         Get the spatial shape of image data, it doesn't contain the channel dim.
 
         Args:
-            img: a Nibabel image object loaded from a image file.
+            img: a Nibabel image object loaded from an image file.
 
         """
         # swap to little endian as PyTorch doesn't support big endian
@@ -437,7 +430,7 @@ class NibabelReader(ImageReader):
         Get the raw array data of the image, converted to Numpy array.
 
         Args:
-            img: a Nibabel image object loaded from a image file.
+            img: a Nibabel image object loaded from an image file.
 
         """
         _array = np.array(img.get_fdata(dtype=self.dtype))
@@ -508,11 +501,11 @@ class NumpyReader(ImageReader):
 
     def get_data(self, img):
         """
-        Extract data array and meta data from loaded data and return them.
-        This function returns 2 objects, first is numpy array of image data, second is dict of meta data.
-        It constructs `spatial_shape=data.shape` and stores in meta dict if the data is numpy array.
-        If loading a list of files, stack them together and add a new dimension as first dimension,
-        and use the meta data of the first image to represent the stacked result.
+        Extract data array and meta data from loaded image and return them.
+        This function returns two objects, first is numpy array of image data, second is dict of meta data.
+        It constructs `affine`, `original_affine`, and `spatial_shape` and stores them in meta dict.
+        When loading a list of files, they are concatenated together at a new dimension as the first dimension,
+        and the meta data of the first image is used to represent the output meta data.
 
         Args:
             img: a Numpy array loaded from a file or a list of Numpy arrays.
@@ -588,11 +581,11 @@ class PILReader(ImageReader):
 
     def get_data(self, img):
         """
-        Extract data array and meta data from loaded data and return them.
-        This function returns 2 objects, first is numpy array of image data, second is dict of meta data.
-        It constructs `spatial_shape` and stores in meta dict.
-        If loading a list of files, stack them together and add a new dimension as first dimension,
-        and use the meta data of the first image to represent the stacked result.
+        Extract data array and meta data from loaded image and return them.
+        This function returns two objects, first is numpy array of image data, second is dict of meta data.
+        It computes `spatial_shape` and stores it in meta dict.
+        When loading a list of files, they are concatenated together at a new dimension as the first dimension,
+        and the meta data of the first image is used to represent the output meta data.
 
         Args:
             img: a PIL Image object loaded from a file or a list of PIL Image objects.
@@ -604,7 +597,7 @@ class PILReader(ImageReader):
         for i in ensure_tuple(img):
             header = self._get_meta_dict(i)
             header["spatial_shape"] = self._get_spatial_shape(i)
-            data = np.asarray(i)
+            data = np.moveaxis(np.asarray(i), 0, 1)
             img_array.append(data)
             header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else -1
             _copy_compatible_dict(header, compatible_meta)
@@ -615,7 +608,7 @@ class PILReader(ImageReader):
         """
         Get the all the meta data of the image and convert to dict type.
         Args:
-            img: a PIL Image object loaded from a image file.
+            img: a PIL Image object loaded from an image file.
 
         """
         return {
@@ -629,9 +622,8 @@ class PILReader(ImageReader):
         """
         Get the spatial shape of image data, it doesn't contain the channel dim.
         Args:
-            img: a PIL Image object loaded from a image file.
+            img: a PIL Image object loaded from an image file.
         """
-        # the img data should have no channel dim or the last dim is channel
         return np.asarray((img.width, img.height))
 
 

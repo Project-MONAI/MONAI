@@ -11,8 +11,8 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import os
-import sys
 import subprocess
+import sys
 
 sys.path.insert(0, os.path.abspath(".."))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
@@ -68,12 +68,6 @@ def generate_apidocs(*args):
     )
 
 
-def setup(app):
-    # Hook to allow for automatic generation of API docs
-    # before doc deployment begins.
-    app.connect("builder-inited", generate_apidocs)
-
-
 # -- General configuration ---------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be
@@ -94,8 +88,10 @@ extensions = [
 
 autoclass_content = "both"
 add_module_names = True
+source_encoding = "utf-8"
 autosectionlabel_prefix_document = True
 napoleon_use_param = True
+napoleon_include_init_with_doc = True
 set_type_checking_flag = True
 
 # Add any paths that contain templates here, relative to this directory.
@@ -106,29 +102,55 @@ templates_path = ["_templates"]
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = "sphinx_rtd_theme"
+html_theme = "pydata_sphinx_theme"
 # html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 html_theme_options = {
+    "external_links": [{"url": "https://github.com/Project-MONAI/tutorials", "name": "Tutorials"}],
     "collapse_navigation": True,
-    "display_version": True,
-    "sticky_navigation": True,  # Set to False to disable the sticky nav while scrolling.
-    "logo_only": True,  # if we have a html_logo below, this shows /only/ the logo with no title text
-    "style_nav_header_background": "#FBFBFB",
+    "icon_links": [
+        {
+            "name": "GitHub",
+            "url": "https://github.com/project-monai/monai",
+            "icon": "fab fa-github-square",
+        },
+        {
+            "name": "Twitter",
+            "url": "https://twitter.com/projectmonai",
+            "icon": "fab fa-twitter-square",
+        },
+    ],
+    "collapse_navigation": True,
+    "navigation_depth": 3,
+    "show_toc_level": 1,
+    "footer_items": ["copyright"],
+    "navbar_align": "content",
 }
 html_context = {
-    "display_github": True,
     "github_user": "Project-MONAI",
     "github_repo": "MONAI",
     "github_version": "dev",
+    "doc_path": "docs/",
     "conf_py_path": "/docs/",
+    "VERSION": version,
 }
 html_scaled_image_link = False
 html_show_sourcelink = True
 html_favicon = "../images/favicon.ico"
 html_logo = "../images/MONAI-logo-color.png"
+html_sidebars = {"**": ["search-field", "sidebar-nav-bs"]}
+pygments_style = "sphinx"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["../_static"]
 html_css_files = ["custom.css"]
+html_title = f"{project} {version} Documentation"
+
+# -- Auto-convert markdown pages to demo --------------------------------------
+
+
+def setup(app):
+    # Hook to allow for automatic generation of API docs
+    # before doc deployment begins.
+    app.connect("builder-inited", generate_apidocs)

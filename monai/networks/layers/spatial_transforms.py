@@ -15,7 +15,7 @@ import torch
 import torch.nn as nn
 
 from monai.networks import to_norm_affine
-from monai.utils import GridSampleMode, GridSamplePadMode, ensure_tuple, optional_import
+from monai.utils import GridSampleMode, GridSamplePadMode, ensure_tuple, look_up_option, optional_import
 
 _C, _ = optional_import("monai._C")
 
@@ -455,8 +455,8 @@ class AffineTransform(nn.Module):
         super().__init__()
         self.spatial_size = ensure_tuple(spatial_size) if spatial_size is not None else None
         self.normalized = normalized
-        self.mode: GridSampleMode = GridSampleMode(mode)
-        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
+        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
         self.align_corners = align_corners
         self.reverse_indexing = reverse_indexing
 
