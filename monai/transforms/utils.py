@@ -481,10 +481,12 @@ def generate_pos_neg_label_crop_centers(
         rand_state = np.random.random.__self__  # type: ignore
 
     centers = []
-    if fg_indices.size == 0 and bg_indices.size == 0:
+    fg_indices = np.asarray(fg_indices) if isinstance(fg_indices, Sequence) else fg_indices
+    bg_indices = np.asarray(bg_indices) if isinstance(bg_indices, Sequence) else bg_indices
+    if len(fg_indices) == 0 and len(bg_indices) == 0:
         raise ValueError("No sampling location available.")
 
-    if fg_indices.size == 0 or bg_indices.size == 0:
+    if len(fg_indices) == 0 or len(bg_indices) == 0:
         warnings.warn(
             f"N foreground {len(fg_indices)}, N  background {len(bg_indices)},"
             "unable to generate class balanced samples."
@@ -495,8 +497,7 @@ def generate_pos_neg_label_crop_centers(
         indices_to_use = fg_indices if rand_state.rand() < pos_ratio else bg_indices
         random_int = rand_state.randint(len(indices_to_use))
         idx = indices_to_use[random_int]
-        idx = idx.cpu() if isinstance(idx, torch.Tensor) else idx
-        center = np.unravel_index(idx, label_spatial_shape)
+        center = _unravel_index(idx, label_spatial_shape)
         # shift center to range of valid centers
         center_ori = list(center)
         centers.append(correct_crop_centers(center_ori, spatial_size, label_spatial_shape))
