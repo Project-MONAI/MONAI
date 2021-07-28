@@ -1235,12 +1235,12 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
             dictionary provided it is realized that the noise will be applied
             to the dictionary.
         intensity_ranges: Dictionary with intensity
-            ranges to sample for each key. Given a dictionary value of `(a, b)` the 
+            ranges to sample for each key. Given a dictionary value of `(a, b)` the
             transform will sample the log-intensity from the interval `(a, b)` uniformly for all
             channels of the respective key. If a sequence of intevals `((a0, b0), (a1, b1), ...)`
             is given, then the transform will sample from each interval for each
-            respective channel. In the second case, the number of 2-tuples must 
-            match the number of channels. Default ranges is `(0.95x, 1.10x)` 
+            respective channel. In the second case, the number of 2-tuples must
+            match the number of channels. Default ranges is `(0.95x, 1.10x)`
             where `x` is the mean log-intensity for each channel.
         channel_wise: treat each channel independently. True by
             default.
@@ -1279,8 +1279,14 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
         self.as_tensor_output = as_tensor_output
         # the spikes artifact is amplitude dependent so we instantiate one per key
         self.transforms = {}
-        for k in self.keys:
-            self.transforms[k] = RandKSpaceSpikeNoise(prob, intensity_ranges[k], channel_wise, self.as_tensor_output)
+        if isinstance(intensity_ranges, Mapping):
+            for k in self.keys:
+                self.transforms[k] = RandKSpaceSpikeNoise(
+                    prob, intensity_ranges[k], channel_wise, self.as_tensor_output
+                )
+        else:
+            for k in self.keys:
+                self.transforms[k] = RandKSpaceSpikeNoise(prob, None, channel_wise, self.as_tensor_output)
 
     def __call__(
         self, data: Mapping[Hashable, Union[torch.Tensor, np.ndarray]]
@@ -1320,7 +1326,6 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
         self.set_random_state(seed, state)
         for key in self.keys:
             self.transforms[key].set_random_state(seed, state)
-
 
     def _to_numpy(self, d: Union[torch.Tensor, np.ndarray]) -> np.ndarray:
         if isinstance(d, torch.Tensor):

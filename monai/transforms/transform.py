@@ -23,7 +23,15 @@ from monai import transforms
 from monai.config import KeysCollection
 from monai.utils import MAX_SEED, ensure_tuple
 
-__all__ = ["ThreadUnsafe", "apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform", "Fourier"]
+__all__ = [
+    "ThreadUnsafe",
+    "apply_transform",
+    "Randomizable",
+    "RandomizableTransform",
+    "Transform",
+    "MapTransform",
+    "Fourier",
+]
 
 ReturnType = TypeVar("ReturnType")
 
@@ -366,36 +374,42 @@ class MapTransform(Transform):
             elif not self.allow_missing_keys:
                 raise KeyError(f"Key was missing ({key}) and allow_missing_keys==False")
 
+
 class Fourier:
     """
     Helper class storing Fourier mappings
     """
-    
+
     @staticmethod
-    def shift_fourier(x: Union[torch.Tensor, np.ndarray], n_dims: int) -> Union[torch.Tensor, np.ndarray]:
+    def shift_fourier(x: torch.Tensor, n_dims: int) -> torch.Tensor:
         """
-        Applies fourier transform and shifts its output.
-        Only the spatial dimensions get transformed.
+        Applies fourier transform and shifts the zero-frequency component to the
+        center of the spectrum. Only the spatial dimensions get transformed.
 
         Args:
-            x (np.ndarray): tensor to fourier transform.
+            x: image to transform.
+            n_dims: number of spatial dimensions.
+        Returns
+            k: k-space data.
         """
-        # argument is dim if torch, else axes
-        mod, arg = (torch, "dim") if type(x) is torch.Tensor else (np, "axes")
-        arg_dict = {arg: tuple(range(-n_dims, 0))}
-        out =  mod.fft.fftshift(mod.fft.fftn(x, **arg_dict), **arg_dict)
-        return out
+        k: torch.Tensor = torch.fft.fftshift(
+            torch.fft.fftn(x, dim=tuple(range(-n_dims, 0))), dim=tuple(range(-n_dims, 0))
+        )
+        return k
 
     @staticmethod
-    def inv_shift_fourier(k: Union[torch.Tensor, np.ndarray], n_dims: int) -> Union[torch.Tensor, np.ndarray]:
+    def inv_shift_fourier(k: torch.Tensor, n_dims: int) -> torch.Tensor:
         """
         Applies inverse shift and fourier transform. Only the spatial
         dimensions are transformed.
-        """
-        dims = tuple(range(-n_dims, 0))
 
-        if type(k) is torch.Tensor:
-            out = torch.fft.ifftn(torch.fft.ifftshift(k, dim=dims), dim=dims)
-        else:
-            out = np.fft.ifftn(np.fft.ifftshift(k, axes=dims), axes=dims)
-        return out.real
+        Args:
+            k: k-space data.
+            n_dims: number of spatial dimensions.
+        Returns:
+            x: tensor in image space.
+        """
+        x: torch.Tensor = torch.fft.ifftn(
+            torch.fft.ifftshift(k, dim=tuple(range(-n_dims, 0))), dim=tuple(range(-n_dims, 0))
+        ).real
+        return x

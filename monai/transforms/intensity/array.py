@@ -23,7 +23,7 @@ import torch
 from monai.config import DtypeLike
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
-from monai.transforms.transform import RandomizableTransform, Transform, Fourier
+from monai.transforms.transform import Fourier, RandomizableTransform, Transform
 from monai.transforms.utils import rescale_array
 from monai.utils import (
     PT_BEFORE_1_7,
@@ -1402,9 +1402,9 @@ class KSpaceSpikeNoise(Transform, Fourier):
             else:
                 k[idx] = val
         elif len(k.shape) == 4 and len(idx) == 3:
-            k[:, idx[0], idx[1], idx[2]] = val
+            k[:, idx[0], idx[1], idx[2]] = val  # type: ignore
         elif len(k.shape) == 3 and len(idx) == 2:
-            k[:, idx[0], idx[1]] = val
+            k[:, idx[0], idx[1]] = val  # type: ignore
 
 
 class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
@@ -1486,7 +1486,7 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
 
         if not isinstance(img, torch.Tensor):
             img = torch.Tensor(img)
-            
+
         intensity_range = self._make_sequence(img)
         self._randomize(img, intensity_range)
 
@@ -1521,9 +1521,9 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
                 spatial = tuple(self.R.randint(0, k) for k in img.shape[1:])
                 self.sampled_locs = [(i,) + spatial for i in range(img.shape[0])]
                 if isinstance(intensity_range[0], Sequence):
-                    self.sampled_k_intensity = [self.R.uniform(*p) for p in intensity_range]  
+                    self.sampled_k_intensity = [self.R.uniform(*p) for p in intensity_range]
                 else:
-                    self.sampled_k_intensity = [self.R.uniform(*self.intensity_range)] * len(img)  
+                    self.sampled_k_intensity = [self.R.uniform(*self.intensity_range)] * len(img)
 
     def _make_sequence(self, x: torch.Tensor) -> Sequence[Sequence[float]]:
         """

@@ -19,6 +19,7 @@ from parameterized import parameterized
 from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 from monai.transforms import RandKSpaceSpikeNoised
 from monai.utils.misc import set_determinism
+from tests.utils import SkipIfBeforePyTorchVersion, SkipIfNoModule
 
 TEST_CASES = []
 for shape in ((128, 64), (64, 48, 80)):
@@ -29,6 +30,8 @@ for shape in ((128, 64), (64, 48, 80)):
 KEYS = ["image", "label"]
 
 
+@SkipIfBeforePyTorchVersion((1, 7))
+@SkipIfNoModule("torch.fft")
 class TestKSpaceSpikeNoised(unittest.TestCase):
     def setUp(self):
         set_determinism(0)
@@ -50,7 +53,7 @@ class TestKSpaceSpikeNoised(unittest.TestCase):
 
         data = self.get_data(im_shape, as_tensor_input)
 
-        intensity_ranges = {"image":(13, 15), "label":(13,15)}
+        intensity_ranges = {"image": (13, 15), "label": (13, 15)}
         t = RandKSpaceSpikeNoised(
             KEYS,
             global_prob=1.0,
@@ -72,7 +75,7 @@ class TestKSpaceSpikeNoised(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_0_prob(self, im_shape, as_tensor_output, as_tensor_input):
         data = self.get_data(im_shape, as_tensor_input)
-        intensity_ranges = {"image":(13, 15), "label":(13,15)}
+        intensity_ranges = {"image": (13, 15), "label": (13, 15)}
         t1 = RandKSpaceSpikeNoised(
             KEYS,
             global_prob=0.0,
@@ -101,7 +104,7 @@ class TestKSpaceSpikeNoised(unittest.TestCase):
     def test_intensity(self, im_shape, as_tensor_output, as_tensor_input):
 
         data = self.get_data(im_shape, as_tensor_input)
-        intensity_ranges = {"image":(13, 13.1), "label":(13,13.1)}
+        intensity_ranges = {"image": (13, 13.1), "label": (13, 13.1)}
         t = RandKSpaceSpikeNoised(
             KEYS,
             global_prob=1.0,
@@ -123,7 +126,7 @@ class TestKSpaceSpikeNoised(unittest.TestCase):
         # use same image for both dictionary entries to check same trans is applied to them
         data = {KEYS[0]: deepcopy(data[KEYS[0]]), KEYS[1]: deepcopy(data[KEYS[0]])}
 
-        intensity_ranges = {"image":(13, 15), "label":(13,15)}
+        intensity_ranges = {"image": (13, 15), "label": (13, 15)}
         # use common_sampling = True to ask for the same transformation
         t = RandKSpaceSpikeNoised(
             KEYS,
