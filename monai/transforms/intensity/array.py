@@ -1682,7 +1682,7 @@ class RandKSpaceSpikeNoise(RandomizableTransform, TorchTransform, NumpyTransform
             return img, torch.device("cpu")
 
 
-class RandCoarseDropout(RandomizableTransform):
+class RandCoarseDropout(RandomizableTransform, TorchTransform, NumpyTransform):
     """
     Randomly coarse dropout regions in the image, then fill in the rectangular regions with specified value.
     Refer to: https://arxiv.org/abs/1708.04552 and:
@@ -1738,7 +1738,7 @@ class RandCoarseDropout(RandomizableTransform):
             valid_size = get_valid_patch_size(img_size, size)
             self.hole_coords.append((slice(None),) + get_random_patch(img_size, valid_size, self.R))
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         self.randomize(img.shape[1:])
         if self._do_transform:
             for h in self.hole_coords:
