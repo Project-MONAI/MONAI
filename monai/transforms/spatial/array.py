@@ -362,8 +362,6 @@ class Resize(Transform):
         align_corners: Optional[bool] = None,
     ) -> None:
         self.size_mode = look_up_option(size_mode, ["all", "longest"])
-        if size_mode == "longest" and not isinstance(spatial_size, int):
-            raise ValueError("spatial_size must be an int number if size_mode is 'longest'.")
         self.spatial_size = spatial_size
         self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
         self.align_corners = align_corners
@@ -402,8 +400,10 @@ class Resize(Transform):
             spatial_size_ = fall_back_tuple(self.spatial_size, img.shape[1:])
         else:  # for the "longest" mode
             img_size = img.shape[1:]
+            if not isinstance(self.spatial_size, int):
+                raise ValueError("spatial_size must be an int number if size_mode is 'longest'.")
             scale = self.spatial_size / max(img_size)
-            spatial_size_ = [ceil(s * scale) for s in img_size]
+            spatial_size_ = tuple(ceil(s * scale) for s in img_size)
         resized = torch.nn.functional.interpolate(  # type: ignore
             input=torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0),
             size=spatial_size_,
