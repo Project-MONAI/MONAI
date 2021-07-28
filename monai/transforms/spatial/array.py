@@ -361,12 +361,10 @@ class Resize(Transform):
         mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
     ) -> None:
-        if size_mode not in ["all", "longest"]:
-            raise ValueError(f"size_mode must be 'all' or 'longest', but got: {size_mode}.")
+        self.size_mode = look_up_option(size_mode, ["all", "longest"])
         if size_mode == "longest" and not isinstance(spatial_size, int):
             raise ValueError("spatial_size must be an int number if size_mode is 'longest'.")
         self.spatial_size = spatial_size
-        self.size_mode = size_mode
         self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
         self.align_corners = align_corners
 
@@ -392,7 +390,7 @@ class Resize(Transform):
         """
         if self.size_mode == "all":
             input_ndim = img.ndim - 1  # spatial ndim
-            output_ndim = len(self.spatial_size)
+            output_ndim = len(ensure_tuple(self.spatial_size))
             if output_ndim > input_ndim:
                 input_shape = ensure_tuple_size(img.shape, output_ndim + 1, 1)
                 img = img.reshape(input_shape)
