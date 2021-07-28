@@ -149,9 +149,9 @@ class NormalizeHEStains(Transform):
             target_he = np.array([[0.5626, 0.2159], [0.7201, 0.8012], [0.4062, 0.5581]])
         self.target_he = target_he
 
+        if max_cref is None:
+            max_cref = np.array([1.9705, 1.0308])
         self.max_cref = max_cref
-        if self.max_cref is None:
-            self.max_cref = np.array([1.9705, 1.0308])
 
         self.stain_extractor = ExtractHEStains(tli=self.tli, alpha=alpha, beta=beta, max_cref=self.max_cref)
 
