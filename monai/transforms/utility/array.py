@@ -797,7 +797,7 @@ class ClassesToIndices(TorchTransform, NumpyTransform):
         return indices
 
 
-class ConvertToMultiChannelBasedOnBratsClasses(Transform):
+class ConvertToMultiChannelBasedOnBratsClasses(TorchTransform, NumpyTransform):
     """
     Convert labels to multi channels based on brats18 classes:
     label 1 is the necrotic and non-enhancing tumor core
@@ -807,19 +807,21 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
     and ET (Enhancing tumor).
     """
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         # if img has channel dim, squeeze it
         if img.ndim == 4 and img.shape[0] == 1:
-            img = np.squeeze(img, axis=0)
+            img = img.squeeze(0)
 
         result = []
         # merge labels 1 (tumor non-enh) and 4 (tumor enh) to TC
-        result.append(np.logical_or(img == 1, img == 4))
+        result.append((img == 1) | (img == 4))  # | is np.logical_or
         # merge labels 1 (tumor non-enh) and 4 (tumor enh) and 2 (large edema) to WT
-        result.append(np.logical_or(np.logical_or(img == 1, img == 4), img == 2))
+        result.append((img == 1) | (img == 4) | (img == 2))
         # label 4 is ET
         result.append(img == 4)
-        return np.stack(result, axis=0)
+        if isinstance(img, np.ndarray):
+            return np.stack(result, axis=0)
+        return torch.stack(result, dim=0)
 
 
 class AddExtremePointsChannel(Randomizable, TorchTransform):

@@ -12,22 +12,39 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import ConvertToMultiChannelBasedOnBratsClassesd
+from tests.utils import TEST_NDARRAYS
 
-TEST_CASE = [
-    {"keys": "label"},
-    {"label": np.array([[0, 1, 2], [1, 2, 4], [0, 1, 4]])},
-    np.array([[[0, 1, 0], [1, 0, 1], [0, 1, 1]], [[0, 1, 1], [1, 1, 1], [0, 1, 1]], [[0, 0, 0], [0, 0, 1], [0, 0, 1]]]),
-]
+TESTS = []
+for p in TEST_NDARRAYS:
+    TESTS.append(
+        [
+            {"keys": "label"},
+            {"label": p(np.array([[0, 1, 2], [1, 2, 4], [0, 1, 4]]))},
+            np.array(
+                [
+                    [[0, 1, 0], [1, 0, 1], [0, 1, 1]],
+                    [[0, 1, 1], [1, 1, 1], [0, 1, 1]],
+                    [[0, 0, 0], [0, 0, 1], [0, 0, 1]],
+                ]
+            ),
+        ]
+    )
 
 
 class TestConvertToMultiChanneld(unittest.TestCase):
-    @parameterized.expand([TEST_CASE])
+    @parameterized.expand(TESTS)
     def test_type_shape(self, keys, data, expected_result):
-        result = ConvertToMultiChannelBasedOnBratsClassesd(**keys)(data)
-        np.testing.assert_equal(result["label"], expected_result)
+        result = ConvertToMultiChannelBasedOnBratsClassesd(**keys)(data)["label"]
+        self.assertEqual(type(result), type(data["label"]))
+        if isinstance(result, torch.Tensor):
+            self.assertEqual(result.device, data["label"].device)
+            result = result.cpu().numpy()
+        np.testing.assert_equal(result, expected_result)
+        self.assertEqual(f"{result.dtype}", "bool")
 
 
 if __name__ == "__main__":
