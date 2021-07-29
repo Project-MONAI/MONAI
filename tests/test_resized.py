@@ -18,6 +18,17 @@ from parameterized import parameterized
 from monai.transforms import Resized
 from tests.utils import NumpyImageTestCase2D
 
+TEST_CASE_0 = [{"keys": "img", "spatial_size": 15}, (6, 11, 15)]
+
+TEST_CASE_1 = [{"keys": "img", "spatial_size": 15, "mode": "area"}, (6, 11, 15)]
+
+TEST_CASE_2 = [{"keys": "img", "spatial_size": 6, "mode": "trilinear", "align_corners": True}, (3, 5, 6)]
+
+TEST_CASE_3 = [
+    {"keys": ["img", "label"], "spatial_size": 6, "mode": ["trilinear", "nearest"], "align_corners": [True, None]},
+    (3, 5, 6),
+]
+
 
 class TestResized(NumpyImageTestCase2D):
     def test_invalid_inputs(self):
@@ -31,7 +42,7 @@ class TestResized(NumpyImageTestCase2D):
 
     @parameterized.expand([((32, -1), "area"), ((64, 64), "area"), ((32, 32, 32), "area"), ((256, 256), "bilinear")])
     def test_correct_results(self, spatial_size, mode):
-        resize = Resized("img", spatial_size, mode)
+        resize = Resized("img", spatial_size, mode=mode)
         _order = 0
         if mode.endswith("linear"):
             _order = 1
@@ -47,6 +58,18 @@ class TestResized(NumpyImageTestCase2D):
         expected = np.stack(expected).astype(np.float32)
         out = resize({"img": self.imt[0]})["img"]
         np.testing.assert_allclose(out, expected, atol=0.9)
+
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    def test_longest_shape(self, input_param, expected_shape):
+        input_data = {
+            "img": np.random.randint(0, 2, size=[3, 4, 7, 10]),
+            "label": np.random.randint(0, 2, size=[3, 4, 7, 10]),
+        }
+        input_param["size_mode"] = "longest"
+        rescaler = Resized(**input_param)
+        result = rescaler(input_data)
+        for k in rescaler.keys:
+            np.testing.assert_allclose(result[k].shape[1:], expected_shape)
 
 
 if __name__ == "__main__":
