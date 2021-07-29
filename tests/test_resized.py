@@ -59,6 +59,18 @@ class TestResized(NumpyImageTestCase2D):
             out = out.cpu()
         np.testing.assert_allclose(out, expected, atol=0.9)
 
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    def test_longest_shape(self, input_param, expected_shape):
+        input_data = {
+            "img": np.random.randint(0, 2, size=[3, 4, 7, 10]),
+            "label": np.random.randint(0, 2, size=[3, 4, 7, 10]),
+        }
+        input_param["size_mode"] = "longest"
+        rescaler = Resized(**input_param)
+        result = rescaler(input_data)
+        for k in rescaler.keys:
+            np.testing.assert_allclose(result[k].shape[1:], expected_shape)
+
 
 if __name__ == "__main__":
     unittest.main()

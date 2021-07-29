@@ -27,6 +27,12 @@ for p in TEST_NDARRAYS:
     TESTS.append((p, (32, 32, 32), "trilinear"))
     TESTS.append((p, (256, 256), "bilinear"))
 
+TEST_CASE_0 = [{"spatial_size": 15}, (6, 11, 15)]
+
+TEST_CASE_1 = [{"spatial_size": 15, "mode": "area"}, (6, 11, 15)]
+
+TEST_CASE_2 = [{"spatial_size": 6, "mode": "trilinear", "align_corners": True}, (3, 5, 6)]
+
 
 class TestResize(NumpyImageTestCase2D):
     def test_invalid_inputs(self):
@@ -61,6 +67,13 @@ class TestResize(NumpyImageTestCase2D):
             self.assertEqual(im.device, out.device)
             out = out.cpu()
         np.testing.assert_allclose(out, expected, atol=0.9)
+
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2])
+    def test_longest_shape(self, input_param, expected_shape):
+        input_data = np.random.randint(0, 2, size=[3, 4, 7, 10])
+        input_param["size_mode"] = "longest"
+        result = Resize(**input_param)(input_data)
+        np.testing.assert_allclose(result.shape[1:], expected_shape)
 
 
 if __name__ == "__main__":
