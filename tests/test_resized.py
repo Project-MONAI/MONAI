@@ -59,7 +59,7 @@ class TestResized(NumpyImageTestCase2D):
             out = out.cpu()
         np.testing.assert_allclose(out, expected, atol=0.9)
 
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    @parameterized.expand(TESTS)
     def test_longest_shape(self, input_param, expected_shape):
         input_data = {
             "img": np.random.randint(0, 2, size=[3, 4, 7, 10]),

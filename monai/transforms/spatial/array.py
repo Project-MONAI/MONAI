@@ -14,8 +14,8 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 import warnings
-from math import ceil
 from copy import deepcopy
+from math import ceil
 from typing import Any, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -404,20 +404,27 @@ class Resize(TorchTransform):
         """
         img_t: torch.Tensor
         img_t, orig_type, orig_device = convert_data_type(img, torch.Tensor, dtype=float)  # type: ignore
-        input_ndim = img_t.ndim - 1  # spatial ndim
-        output_ndim = len(self.spatial_size)
-        if output_ndim > input_ndim:
-            input_shape = ensure_tuple_size(img_t.shape, output_ndim + 1, 1)
-            img_t = img_t.reshape(input_shape)
-        elif output_ndim < input_ndim:
-            raise ValueError(
-                "len(spatial_size) must be greater or equal to img spatial dimensions, "
-                f"got spatial_size={output_ndim} img={input_ndim}."
-            )
-        spatial_size = fall_back_tuple(self.spatial_size, img_t.shape[1:])
+        if self.size_mode == "all":
+            input_ndim = img_t.ndim - 1  # spatial ndim
+            output_ndim = len(ensure_tuple(self.spatial_size))
+            if output_ndim > input_ndim:
+                input_shape = ensure_tuple_size(img_t.shape, output_ndim + 1, 1)
+                img_t = img_t.reshape(input_shape)
+            elif output_ndim < input_ndim:
+                raise ValueError(
+                    "len(spatial_size) must be greater or equal to img spatial dimensions, "
+                    f"got spatial_size={output_ndim} img={input_ndim}."
+                )
+            spatial_size_ = fall_back_tuple(self.spatial_size, img_t.shape[1:])
+        else:
+            img_size = img.shape[1:]
+            if not isinstance(self.spatial_size, int):
+                raise ValueError("spatial_size must be an int number if size_mode is 'longest'.")
+            scale = self.spatial_size / max(img_size)
+            spatial_size_ = tuple(ceil(s * scale) for s in img_size)
         resized = torch.nn.functional.interpolate(
             input=img_t.unsqueeze(0),
-            size=spatial_size,
+            size=spatial_size_,
             mode=look_up_option(self.mode if mode is None else mode, InterpolateMode).value,
             align_corners=self.align_corners if align_corners is None else align_corners,
         )
