@@ -42,11 +42,26 @@ __all__ = [
 ]
 
 
+def _one_hot_pre_process(labels, dim):
+    # if `dim` is bigger, add singleton dim at the end
+    if labels.ndim < dim + 1:
+        shape = list(labels.shape) + [1] * (dim + 1 - len(labels.shape))
+        labels = labels.reshape(shape)
+
+    sh = list(labels.shape)
+
+    if sh[dim] != 1:
+        raise AssertionError("labels should have a channel with length equal to one.")
+    return labels, sh
+
+
 def one_hot_np(labels: np.ndarray, num_classes: int, dtype: DtypeLike = np.float32, dim: int = 1) -> np.ndarray:
     """
     Numpy implementation of `one_hot`.
     See also: :py:meth:`monai.networks.utils.one_hot`.
     """
+    labels, _ = _one_hot_pre_process(labels, dim)
+
     label: np.ndarray
     label = np.eye(num_classes)[labels.astype(np.longlong)]  # adds one hot to end
     label = label.astype(dtype)
@@ -62,15 +77,7 @@ def one_hot_torch(
     Torch implementation of `one_hot`.
     See also: :py:meth:`monai.networks.utils.one_hot`.
     """
-    # if `dim` is bigger, add singleton dim at the end
-    if labels.ndim < dim + 1:
-        shape = list(labels.shape) + [1] * (dim + 1 - len(labels.shape))
-        labels = torch.reshape(labels, shape)
-
-    sh = list(labels.shape)
-
-    if sh[dim] != 1:
-        raise AssertionError("labels should have a channel with length equal to one.")
+    labels, sh = _one_hot_pre_process(labels, dim)
 
     sh[dim] = num_classes
 
