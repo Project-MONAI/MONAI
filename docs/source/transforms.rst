@@ -38,6 +38,12 @@ Generic Interfaces
     :members:
     :special-members: __call__
 
+`RandCompose`
+^^^^^^^^^^^^^
+.. autoclass:: RandCompose
+    :members:
+    :special-members: __call__
+
 `InvertibleTransform`
 ^^^^^^^^^^^^^^^^^^^^^
 .. autoclass:: InvertibleTransform
