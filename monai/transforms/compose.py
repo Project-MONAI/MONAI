@@ -27,7 +27,7 @@ from monai.transforms.transform import (  # noqa: F401
     Transform,
     apply_transform,
 )
-from monai.utils import MAX_SEED, ensure_tuple, get_seed
+from monai.utils import MAX_SEED, ensure_tuple, ensure_tuple_rep, get_seed
 
 __all__ = ["Compose"]
 
@@ -159,8 +159,12 @@ class Compose(Randomizable, InvertibleTransform):
             input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items)
         return input_
 
+    def _get_applied_transforms(self):
+        return self.flatten().transforms
+
     def inverse(self, data):
-        invertible_transforms = [t for t in self.flatten().transforms if isinstance(t, InvertibleTransform)]
+        invertible_transforms = [t for t in self._get_applied_transforms() if isinstance(t, InvertibleTransform)]
+        
         if not invertible_transforms:
             warnings.warn("inverse has been called but no invertible transforms have been supplied")
 
@@ -168,3 +172,31 @@ class Compose(Randomizable, InvertibleTransform):
         for t in reversed(invertible_transforms):
             data = apply_transform(t.inverse, data, self.map_items, self.unpack_items)
         return data
+
+
+class RandCompose(Compose):
+    def __init__(
+        self,
+        prob: Union[Sequence[float], float],
+        transforms: Optional[Union[Sequence[Callable], Callable]] = None,
+        map_items: bool = True,
+        unpack_items: bool = False,
+    ) -> None:
+        super().__init__(transforms=transforms, map_items=map_items, unpack_items=unpack_items)
+        self.prob = ensure_tuple_rep(prob, len(self.transforms))
+        self.applied: List[Callable] = []
+    
+    def flatten(self):
+        return self
+    
+    def __call__(self, input_):
+        rands = self.R.rand(len(self))
+        self.applied = []
+        for _transform, r, p in enumerate(self.transforms, rands, self.prob):
+            if r < min(max(p, 0.0), 1.0):
+                input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items)
+                self.applied.append(_transform)
+        return input_
+
+    def _get_applied_transforms(self):
+        return self.applied
