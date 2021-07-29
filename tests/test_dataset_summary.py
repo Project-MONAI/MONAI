@@ -17,12 +17,12 @@ import unittest
 import nibabel as nib
 import numpy as np
 
-from monai.data import Dataset, DatasetCalculator, create_test_image_3d
+from monai.data import Dataset, DatasetSummary, create_test_image_3d
 from monai.transforms import LoadImaged
 from monai.utils import set_determinism
 
 
-class TestDatasetCalculator(unittest.TestCase):
+class TestDatasetSummary(unittest.TestCase):
     def test_spacing_intensity(self):
         set_determinism(seed=0)
         with tempfile.TemporaryDirectory() as tempdir:
@@ -42,7 +42,7 @@ class TestDatasetCalculator(unittest.TestCase):
 
             dataset = Dataset(data=data_dicts, transform=LoadImaged(keys=["image", "label"]))
 
-            calculator = DatasetCalculator(dataset, num_workers=4)
+            calculator = DatasetSummary(dataset, num_workers=4)
 
             target_spacing = calculator.get_target_spacing()
             self.assertEqual(target_spacing, (1.0, 1.0, 1.0))
@@ -52,6 +52,40 @@ class TestDatasetCalculator(unittest.TestCase):
             calculator.calculate_percentiles(sampling_flag=True, interval=2)
             self.assertEqual(calculator.data_max_percentile, 1.0)
             np.testing.assert_allclose(calculator.data_min_percentile, 0.556411, rtol=1e-5, atol=1e-5)
+
+    def test_anisotropic_spacing(self):
+        set_determinism(seed=0)
+        with tempfile.TemporaryDirectory() as tempdir:
+
+            pixdims = [
+                [1.0, 1.0, 5.0],
+                [1.0, 1.0, 4.0],
+                [1.0, 1.0, 4.5],
+                [1.0, 1.0, 2.0],
+                [1.0, 1.0, 1.0],
+            ]
+            for i in range(5):
+                im, seg = create_test_image_3d(32, 32, 32, num_seg_classes=1, num_objs=3, rad_max=6, channel_dim=0)
+                n = nib.Nifti1Image(im, np.eye(4))
+                n.header["pixdim"][1:4] = pixdims[i]
+                nib.save(n, os.path.join(tempdir, f"img{i:d}.nii.gz"))
+                n = nib.Nifti1Image(seg, np.eye(4))
+                n.header["pixdim"][1:4] = pixdims[i]
+                nib.save(n, os.path.join(tempdir, f"seg{i:d}.nii.gz"))
+
+                train_images = sorted(glob.glob(os.path.join(tempdir, "img*.nii.gz")))
+                train_labels = sorted(glob.glob(os.path.join(tempdir, "seg*.nii.gz")))
+                data_dicts = [
+                    {"image": image_name, "label": label_name}
+                    for image_name, label_name in zip(train_images, train_labels)
+                ]
+
+                dataset = Dataset(data=data_dicts, transform=LoadImaged(keys=["image", "label"]))
+
+                calculator = DatasetSummary(dataset, num_workers=4)
+
+                target_spacing = calculator.get_target_spacing(anisotropic_threshold=4.0, percentile=20.0)
+                self.assertEqual(target_spacing, (1.0, 1.0, 1.8))
 
 
 if __name__ == "__main__":

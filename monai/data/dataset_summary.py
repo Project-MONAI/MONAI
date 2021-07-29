@@ -19,7 +19,7 @@ from monai.data.dataloader import DataLoader
 from monai.data.dataset import Dataset
 
 
-class DatasetCalculator:
+class DatasetSummary:
     """
     This class provides a way to calculate a reasonable output voxel spacing according to
     the input dataset. The achieved values can used to resample the input in 3d segmentation tasks
@@ -78,6 +78,8 @@ class DatasetCalculator:
         Calculate the target spacing according to all spacings.
         If the target spacing is very anisotropic,
         decrease the spacing value of the maximum axis according to percentile.
+        So far, this function only supports NIFTI images which store spacings in headers with key "pixdim". After loading
+        with `monai.DataLoader`, "pixdim" is in the form of `torch.Tensor` with size `(batch_size, 8)`.
 
         Args:
             spacing_key: key of spacing in meta data (default: ``pixdim``).

@@ -23,7 +23,7 @@ from .dataset import (
     SmartCacheDataset,
     ZipDataset,
 )
-from .dataset_calculator import DatasetCalculator
+from .dataset_summary import DatasetSummary
 from .decathlon_datalist import load_decathlon_datalist, load_decathlon_properties
 from .grid_dataset import GridPatchDataset, PatchDataset, PatchIter
 from .image_dataset import ImageDataset
