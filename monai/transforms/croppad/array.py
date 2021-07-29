@@ -359,7 +359,7 @@ class SpatialCrop(TorchTransform, NumpyTransform):
                 roi_center = torch.as_tensor(roi_center, dtype=torch.int16)
                 roi_size = torch.as_tensor(roi_size, dtype=torch.int16, device=roi_center.device)
                 roi_start = torch.maximum(
-                    roi_center - torch.div(roi_size, 2, rounding_mode="floor"),
+                    roi_center - torch.floor(roi_size / 2),
                     torch.tensor(0, device=roi_center.device),
                 )
                 roi_end = torch.maximum(roi_start + roi_size, roi_start)
@@ -371,9 +371,9 @@ class SpatialCrop(TorchTransform, NumpyTransform):
                 roi_end = torch.maximum(torch.as_tensor(roi_end, dtype=torch.int16), roi_start)
             # convert to slices (accounting for 1d)
             if roi_start.numel() == 1:
-                self.slices = [slice(roi_start, roi_end)]
+                self.slices = [slice(int(roi_start.item()), int(roi_end.item()))]
             else:
-                self.slices = [slice(s, e) for s, e in zip(roi_start, roi_end)]
+                self.slices = [slice(int(s.item()), int(e.item())) for s, e in zip(roi_start, roi_end)]
 
     def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
