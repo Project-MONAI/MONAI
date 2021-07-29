@@ -54,7 +54,6 @@ class TestDatasetSummary(unittest.TestCase):
             np.testing.assert_allclose(calculator.data_min_percentile, 0.556411, rtol=1e-5, atol=1e-5)
 
     def test_anisotropic_spacing(self):
-        set_determinism(seed=0)
         with tempfile.TemporaryDirectory() as tempdir:
 
             pixdims = [
@@ -73,19 +72,18 @@ class TestDatasetSummary(unittest.TestCase):
                 n.header["pixdim"][1:4] = pixdims[i]
                 nib.save(n, os.path.join(tempdir, f"seg{i:d}.nii.gz"))
 
-                train_images = sorted(glob.glob(os.path.join(tempdir, "img*.nii.gz")))
-                train_labels = sorted(glob.glob(os.path.join(tempdir, "seg*.nii.gz")))
-                data_dicts = [
-                    {"image": image_name, "label": label_name}
-                    for image_name, label_name in zip(train_images, train_labels)
-                ]
+            train_images = sorted(glob.glob(os.path.join(tempdir, "img*.nii.gz")))
+            train_labels = sorted(glob.glob(os.path.join(tempdir, "seg*.nii.gz")))
+            data_dicts = [
+                {"image": image_name, "label": label_name} for image_name, label_name in zip(train_images, train_labels)
+            ]
 
-                dataset = Dataset(data=data_dicts, transform=LoadImaged(keys=["image", "label"]))
+            dataset = Dataset(data=data_dicts, transform=LoadImaged(keys=["image", "label"]))
 
-                calculator = DatasetSummary(dataset, num_workers=4)
+            calculator = DatasetSummary(dataset, num_workers=4)
 
-                target_spacing = calculator.get_target_spacing(anisotropic_threshold=4.0, percentile=20.0)
-                self.assertEqual(target_spacing, (1.0, 1.0, 1.8))
+            target_spacing = calculator.get_target_spacing(anisotropic_threshold=4.0, percentile=20.0)
+            np.testing.assert_allclose(target_spacing, (1.0, 1.0, 1.8))
 
 
 if __name__ == "__main__":
