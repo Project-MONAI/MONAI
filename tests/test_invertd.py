@@ -84,7 +84,6 @@ class TestInvertd(unittest.TestCase):
             nearest_interp=True,
             to_tensor=[True, False, False],
             device="cpu",
-            num_workers=num_workers,
         )
 
         # execute 1 epoch

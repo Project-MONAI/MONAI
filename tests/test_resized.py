@@ -21,11 +21,28 @@ from monai.transforms import Resized
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D
 
 TESTS: List[Tuple] = []
+TEST_LONGEST: List[Tuple] = []
 for p in TEST_NDARRAYS:
     TESTS.append((p, (32, -1), "area"))
     TESTS.append((p, (64, 64), "area"))
     TESTS.append((p, (32, 32, 32), "area"))
     TESTS.append((p, (256, 256), "bilinear"))
+
+    TEST_LONGEST.append((p, {"keys": "img", "spatial_size": 15}, (6, 11, 15)))
+    TEST_LONGEST.append((p, {"keys": "img", "spatial_size": 15, "mode": "area"}, (6, 11, 15)))
+    TEST_LONGEST.append((p, {"keys": "img", "spatial_size": 6, "mode": "trilinear", "align_corners": True}, (3, 5, 6)))
+    TEST_LONGEST.append(
+        (
+            p,
+            {
+                "keys": ["img", "label"],
+                "spatial_size": 6,
+                "mode": ["trilinear", "nearest"],
+                "align_corners": [True, None],
+            },
+            (3, 5, 6),
+        )
+    )
 
 
 class TestResized(NumpyImageTestCase2D):
@@ -40,7 +57,7 @@ class TestResized(NumpyImageTestCase2D):
 
     @parameterized.expand(TESTS)
     def test_correct_results(self, in_type, spatial_size, mode):
-        resize = Resized("img", spatial_size, mode)
+        resize = Resized("img", spatial_size, mode=mode)
         _order = 0
         if mode.endswith("linear"):
             _order = 1
@@ -59,11 +76,11 @@ class TestResized(NumpyImageTestCase2D):
             out = out.cpu()
         np.testing.assert_allclose(out, expected, atol=0.9)
 
-    @parameterized.expand(TESTS)
-    def test_longest_shape(self, input_param, expected_shape):
+    @parameterized.expand(TEST_LONGEST)
+    def test_longest_shape(self, in_type, input_param, expected_shape):
         input_data = {
-            "img": np.random.randint(0, 2, size=[3, 4, 7, 10]),
-            "label": np.random.randint(0, 2, size=[3, 4, 7, 10]),
+            "img": in_type(np.random.randint(0, 2, size=[3, 4, 7, 10])),
+            "label": in_type(np.random.randint(0, 2, size=[3, 4, 7, 10])),
         }
         input_param["size_mode"] = "longest"
         rescaler = Resized(**input_param)
