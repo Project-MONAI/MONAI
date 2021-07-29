@@ -14,6 +14,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 import warnings
+from math import ceil
 from typing import Any, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -340,6 +341,11 @@ class Resize(Transform):
             if some components of the `spatial_size` are non-positive values, the transform will use the
             corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
             to `(32, 64)` if the second spatial dimension size of img is `64`.
+        size_mode: should be "all" or "longest", if "all", will use `spatial_size` for all the spatial dims,
+            if "longest", rescale the image so that only the longest side is equal to specified `spatial_size`,
+            which must be an int number in this case, keeping the aspect ratio of the initial image, refer to:
+            https://albumentations.ai/docs/api_reference/augmentations/geometric/resize/
+            #albumentations.augmentations.geometric.resize.LongestMaxSize.
         mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
@@ -351,10 +357,12 @@ class Resize(Transform):
     def __init__(
         self,
         spatial_size: Union[Sequence[int], int],
+        size_mode: str = "all",
         mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
     ) -> None:
-        self.spatial_size = ensure_tuple(spatial_size)
+        self.size_mode = look_up_option(size_mode, ["all", "longest"])
+        self.spatial_size = spatial_size
         self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
         self.align_corners = align_corners
 
@@ -378,20 +386,27 @@ class Resize(Transform):
             ValueError: When ``self.spatial_size`` length is less than ``img`` spatial dimensions.
 
         """
-        input_ndim = img.ndim - 1  # spatial ndim
-        output_ndim = len(self.spatial_size)
-        if output_ndim > input_ndim:
-            input_shape = ensure_tuple_size(img.shape, output_ndim + 1, 1)
-            img = img.reshape(input_shape)
-        elif output_ndim < input_ndim:
-            raise ValueError(
-                "len(spatial_size) must be greater or equal to img spatial dimensions, "
-                f"got spatial_size={output_ndim} img={input_ndim}."
-            )
-        spatial_size = fall_back_tuple(self.spatial_size, img.shape[1:])
+        if self.size_mode == "all":
+            input_ndim = img.ndim - 1  # spatial ndim
+            output_ndim = len(ensure_tuple(self.spatial_size))
+            if output_ndim > input_ndim:
+                input_shape = ensure_tuple_size(img.shape, output_ndim + 1, 1)
+                img = img.reshape(input_shape)
+            elif output_ndim < input_ndim:
+                raise ValueError(
+                    "len(spatial_size) must be greater or equal to img spatial dimensions, "
+                    f"got spatial_size={output_ndim} img={input_ndim}."
+                )
+            spatial_size_ = fall_back_tuple(self.spatial_size, img.shape[1:])
+        else:  # for the "longest" mode
+            img_size = img.shape[1:]
+            if not isinstance(self.spatial_size, int):
+                raise ValueError("spatial_size must be an int number if size_mode is 'longest'.")
+            scale = self.spatial_size / max(img_size)
+            spatial_size_ = tuple(ceil(s * scale) for s in img_size)
         resized = torch.nn.functional.interpolate(  # type: ignore
             input=torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0),
-            size=spatial_size,
+            size=spatial_size_,
             mode=look_up_option(self.mode if mode is None else mode, InterpolateMode).value,
             align_corners=self.align_corners if align_corners is None else align_corners,
         )
