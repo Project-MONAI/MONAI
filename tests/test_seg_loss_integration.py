@@ -18,7 +18,7 @@ import torch.optim as optim
 from parameterized import parameterized
 
 from monai.losses import DiceLoss, FocalLoss, GeneralizedDiceLoss, TverskyLoss
-from monai.networks import one_hot
+from monai.networks.utils import one_hot_torch
 
 TEST_CASES = [
     [DiceLoss, {"to_onehot_y": True, "squared_pred": True, "smooth_nr": 1e-4, "smooth_dr": 1e-4}, {}],
@@ -86,7 +86,7 @@ class TestSegLossIntegration(unittest.TestCase):
         num_classes = 2
         num_voxels = 3 * 4 * 4
 
-        target_onehot = one_hot(target_seg, num_classes=num_classes)
+        target_onehot = one_hot_torch(target_seg, num_classes=num_classes)
 
         # define a one layer model
         class OnelayerNet(nn.Module):

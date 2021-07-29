@@ -27,6 +27,8 @@ from monai.utils.misc import dtype_convert
 
 __all__ = [
     "one_hot",
+    "one_hot_np",
+    "one_hot_torch",
     "slice_channels",
     "predict_segmentation",
     "normalize_transform",
@@ -38,6 +40,44 @@ __all__ = [
     "train_mode",
     "copy_model_state",
 ]
+
+
+def one_hot_np(labels: np.ndarray, num_classes: int, dtype: DtypeLike = np.float32, dim: int = 1) -> np.ndarray:
+    """
+    Numpy implementation of `one_hot`.
+    See also: :py:meth:`monai.networks.utils.one_hot`.
+    """
+    label: np.ndarray
+    label = np.eye(num_classes)[labels.astype(np.longlong)]  # adds one hot to end
+    label = label.astype(dtype)
+    label = label.squeeze(dim)  # remove singleton
+    label = np.moveaxis(label, -1, dim)  # move one hot dim to desired index
+    return label
+
+
+def one_hot_torch(
+    labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.float, dim: int = 1
+) -> torch.Tensor:
+    """
+    Torch implementation of `one_hot`.
+    See also: :py:meth:`monai.networks.utils.one_hot`.
+    """
+    # if `dim` is bigger, add singleton dim at the end
+    if labels.ndim < dim + 1:
+        shape = list(labels.shape) + [1] * (dim + 1 - len(labels.shape))
+        labels = torch.reshape(labels, shape)
+
+    sh = list(labels.shape)
+
+    if sh[dim] != 1:
+        raise AssertionError("labels should have a channel with length equal to one.")
+
+    sh[dim] = num_classes
+
+    o = torch.zeros(size=sh, dtype=dtype, device=labels.device)
+    labels = o.scatter_(dim=dim, index=labels.long(), value=1)
+
+    return labels
 
 
 def one_hot(
@@ -74,34 +114,11 @@ def one_hot(
         a = torch.randint(0, 2, size=(2, 1, 2, 2, 2))
         out = one_hot(a, num_classes=2, dim=1)
         print(out.shape)  # torch.Size([2, 2, 2, 2, 2])
-
     """
     dtype = dtype_convert(dtype, type(labels))
-
-    # if `dim` is bigger, add singleton dim at the end
-    if labels.ndim < dim + 1:
-        shape = list(labels.shape) + [1] * (dim + 1 - len(labels.shape))
-        labels = labels.reshape(shape)
-
-    sh = list(labels.shape)
-
-    if sh[dim] != 1:
-        raise AssertionError("labels should have a channel with length equal to one.")
-
     if isinstance(labels, np.ndarray):
-        label_np: np.ndarray
-        label_np = np.eye(num_classes)[labels.astype(np.longlong)]  # adds one hot to end
-        label_np = label_np.astype(dtype)  # type: ignore
-        label_np = label_np.squeeze(dim)  # remove singleton
-        label_np = np.moveaxis(label_np, -1, dim)  # move one hot dim to desired index
-        return label_np
-
-    sh[dim] = num_classes
-
-    o = torch.zeros(size=sh, dtype=dtype, device=labels.device)  # type: ignore
-    labels = o.scatter_(dim=dim, index=labels.long(), value=1)
-
-    return labels
+        return one_hot_np(labels, num_classes, dtype, dim)  # type: ignore
+    return one_hot_torch(labels, num_classes, dtype, dim)  # type: ignore
 
 
 def slice_channels(tensor: torch.Tensor, *slicevals: Optional[int]) -> torch.Tensor:

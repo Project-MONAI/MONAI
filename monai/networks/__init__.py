@@ -16,6 +16,8 @@ from .utils import (
     normal_init,
     normalize_transform,
     one_hot,
+    one_hot_np,
+    one_hot_torch,
     pixelshuffle,
     predict_segmentation,
     slice_channels,

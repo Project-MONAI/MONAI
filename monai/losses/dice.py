@@ -20,7 +20,7 @@ from torch.nn.modules.loss import _Loss
 
 from monai.losses.focal_loss import FocalLoss
 from monai.losses.spatial_mask import MaskedLoss
-from monai.networks import one_hot
+from monai.networks.utils import one_hot_torch
 from monai.utils import LossReduction, Weight, look_up_option
 from monai.utils.enums import DataObjects
 
@@ -130,7 +130,7 @@ class DiceLoss(_Loss):
             if n_pred_ch == 1:
                 warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
             else:
-                target = one_hot(target, num_classes=n_pred_ch)  # type: ignore
+                target = one_hot_torch(target, num_classes=n_pred_ch)
 
         if not self.include_background:
             if n_pred_ch == 1:
@@ -306,7 +306,7 @@ class GeneralizedDiceLoss(_Loss):
             if n_pred_ch == 1:
                 warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
             else:
-                target = one_hot(target, num_classes=n_pred_ch)  # type: ignore
+                target = one_hot_torch(target, num_classes=n_pred_ch)
 
         if not self.include_background:
             if n_pred_ch == 1:

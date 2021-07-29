@@ -16,7 +16,7 @@ import torch
 import torch.nn.functional as F
 from torch.nn.modules.loss import _Loss
 
-from monai.networks import one_hot
+from monai.networks.utils import one_hot_torch
 from monai.utils import LossReduction
 
 
@@ -96,7 +96,7 @@ class FocalLoss(_Loss):
             if n_pred_ch == 1:
                 warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
             else:
-                target = one_hot(target, num_classes=n_pred_ch)  # type: ignore
+                target = one_hot_torch(target, num_classes=n_pred_ch)
 
         if not self.include_background:
             if n_pred_ch == 1:

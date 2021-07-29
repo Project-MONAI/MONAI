@@ -16,7 +16,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from monai.losses import FocalLoss
-from monai.networks import one_hot
+from monai.networks.utils import one_hot_torch
 from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
 
 
@@ -60,7 +60,7 @@ class TestFocalLoss(unittest.TestCase):
                 x = x.cuda()
                 l = l.cuda()
             output0 = focal_loss(x, l)
-            output1 = ce(x, one_hot(l, num_classes=class_num))
+            output1 = ce(x, one_hot_torch(l, num_classes=class_num))
             a = float(output0.cpu().detach())
             b = float(output1.cpu().detach())
             if abs(a - b) > max_error:
@@ -84,7 +84,7 @@ class TestFocalLoss(unittest.TestCase):
                 x = x.cuda()
                 l = l.cuda()
             output0 = focal_loss(x, l)
-            output1 = ce(x, one_hot(l, num_classes=class_num))
+            output1 = ce(x, one_hot_torch(l, num_classes=class_num))
             a = float(output0.cpu().detach())
             b = float(output1.cpu().detach())
             if abs(a - b) > max_error:
@@ -108,7 +108,7 @@ class TestFocalLoss(unittest.TestCase):
                 x = x.cuda()
                 l = l.cuda()
             output0 = focal_loss(x, l)
-            output1 = ce(x, one_hot(l, num_classes=class_num))
+            output1 = ce(x, one_hot_torch(l, num_classes=class_num))
             a = float(output0.cpu().detach())
             b = float(output1.cpu().detach())
             if abs(a - b) > max_error:
