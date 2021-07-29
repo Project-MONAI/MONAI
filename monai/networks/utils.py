@@ -42,7 +42,7 @@ __all__ = [
 ]
 
 
-def _one_hot_pre_process(labels, dim):
+def _one_hot_pre_process(labels, dim: int):
     # if `dim` is bigger, add singleton dim at the end
     if labels.ndim < dim + 1:
         shape = list(labels.shape) + [1] * (dim + 1 - len(labels.shape))
