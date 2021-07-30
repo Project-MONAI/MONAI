@@ -36,7 +36,7 @@ from monai.transforms.utils import (
 )
 from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple, look_up_option
 from monai.utils.enums import DataObjects
-from monai.utils.misc import convert_data_type
+from monai.utils.misc import convert_data_type, is_module_ver_at_least
 
 __all__ = [
     "Pad",
@@ -332,6 +332,21 @@ class SpatialCrop(TorchTransform, NumpyTransform):
         - the start and end coordinates of the ROI
     """
 
+    @staticmethod
+    def _maximum(a, b):
+        if isinstance(a, np.ndarray):
+            return np.maximum(a, b)
+        # is torch and has torch.maximum (pt>1.6)
+        if hasattr(torch, "maximum"):
+            return torch.maximum(a, b)
+        return np.maximum(a.cpu(), b.cpu())
+
+    @staticmethod
+    def _floor_div(a, b):
+        if is_module_ver_at_least(torch, (1, 7, 0)):
+            return torch.div(a, b, rounding_mode="floor")
+        return torch.floor_divide(a, b)
+
     def __init__(
         self,
         roi_center: Optional[Union[Sequence[int], DataObjects.Images]] = None,
@@ -358,22 +373,22 @@ class SpatialCrop(TorchTransform, NumpyTransform):
             if roi_center is not None and roi_size is not None:
                 roi_center = torch.as_tensor(roi_center, dtype=torch.int16)
                 roi_size = torch.as_tensor(roi_size, dtype=torch.int16, device=roi_center.device)
-                roi_start = torch.maximum(
-                    roi_center - torch.floor(roi_size / 2),
+                roi_start_torch = self._maximum(
+                    roi_center - self._floor_div(roi_size, 2),
                     torch.tensor(0, device=roi_center.device),
                 )
-                roi_end = torch.maximum(roi_start + roi_size, roi_start)
+                roi_end_torch = self._maximum(roi_start_torch + roi_size, roi_start_torch)
             else:
                 if roi_start is None or roi_end is None:
                     raise ValueError("Please specify either roi_center, roi_size or roi_start, roi_end.")
-                roi_start = torch.as_tensor(roi_start, dtype=torch.int16)
-                roi_start = torch.maximum(roi_start, torch.tensor(0, device=roi_start.device))
-                roi_end = torch.maximum(torch.as_tensor(roi_end, dtype=torch.int16), roi_start)
+                roi_start_torch = torch.as_tensor(roi_start, dtype=torch.int16)
+                roi_start_torch = self._maximum(roi_start_torch, torch.tensor(0, device=roi_start_torch.device))
+                roi_end_torch = self._maximum(torch.as_tensor(roi_end, dtype=torch.int16), roi_start_torch)
             # convert to slices (accounting for 1d)
-            if roi_start.numel() == 1:
-                self.slices = [slice(int(roi_start.item()), int(roi_end.item()))]
+            if roi_start_torch.numel() == 1:
+                self.slices = [slice(int(roi_start_torch.item()), int(roi_end_torch.item()))]
             else:
-                self.slices = [slice(int(s.item()), int(e.item())) for s, e in zip(roi_start, roi_end)]
+                self.slices = [slice(int(s.item()), int(e.item())) for s, e in zip(roi_start_torch, roi_end_torch)]
 
     def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """

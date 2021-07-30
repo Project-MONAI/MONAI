@@ -36,7 +36,7 @@ from monai.utils import (
     optional_import,
 )
 from monai.utils.enums import DataObjects
-from monai.utils.misc import convert_data_type
+from monai.utils.misc import convert_data_type, is_module_ver_at_least
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 cp, has_cp = optional_import("cupy")
@@ -727,6 +727,10 @@ def generate_spatial_bounding_box(
             of image. if None, select foreground on the whole image.
         margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
     """
+    # argmax changed for more recent pytorch versions
+    if isinstance(img, torch.Tensor) and not is_module_ver_at_least(torch, (1, 7, 0)):
+        img = img.cpu().numpy()
+
     data = img[list(ensure_tuple(channel_indices))] if channel_indices is not None else img
     data = select_fn(data).any(0)
     ndim = len(data.shape)

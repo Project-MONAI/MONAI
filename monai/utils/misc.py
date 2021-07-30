@@ -24,7 +24,7 @@ import torch
 
 from monai.config.type_definitions import DtypeLike
 from monai.utils.enums import DataObjects
-from monai.utils.module import get_torch_version_tuple
+from monai.utils.module import get_torch_version_tuple, version_leq
 
 __all__ = [
     "zip_with",
@@ -48,6 +48,7 @@ __all__ = [
     "copy_to_device",
     "ImageMetaKey",
     "convert_data_type",
+    "is_module_ver_at_least",
 ]
 
 _seed = None
@@ -464,3 +465,8 @@ def has_option(obj, keywords: Union[str, Sequence[str]]) -> bool:
         return False
     sig = inspect.signature(obj)
     return all(key in sig.parameters for key in ensure_tuple(keywords))
+
+
+def is_module_ver_at_least(module, required_version_tuple):
+    test_ver = ".".join(map(str, required_version_tuple))
+    return module.__version__ != test_ver and version_leq(test_ver, module.__version__)
