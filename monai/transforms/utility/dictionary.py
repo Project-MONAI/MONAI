@@ -877,23 +877,26 @@ class Lambdad(MapTransform, InvertibleTransform):
         self.overwrite = ensure_tuple_rep(overwrite, len(self.keys))
         self._lambd = Lambda()
 
+    def _transform(self, data: Any, func: Callable):
+        return self._lambd(data, func=func)
+
     def __call__(self, data):
         d = dict(data)
         for key, func, overwrite in self.key_iterator(d, self.func, self.overwrite):
-            ret = self._lambd(d[key], func=func)
+            ret = self._transform(data=d[key], func=func)
             if overwrite:
                 d[key] = ret
             self.push_transform(d, key)
         return d
 
-    def _inverse_transform(self, transform: Dict, data: Any, func: Callable):
+    def _inverse_transform(self, transform_info: Dict, data: Any, func: Callable):
         return self._lambd(data, func=func)
 
     def inverse(self, data):
         d = deepcopy(dict(data))
         for key, inv_func, overwrite in self.key_iterator(d, self.inv_func, self.overwrite):
             transform = self.get_most_recent_transform(d, key)
-            ret = self._inverse_transform(transform=transform, data=d[key], func=inv_func)
+            ret = self._inverse_transform(transform_info=transform, data=d[key], func=inv_func)
             if overwrite:
                 d[key] = ret
             self.pop_transform(d, key)
@@ -944,12 +947,15 @@ class RandLambdad(Lambdad, RandomizableTransform):
         )
         RandomizableTransform.__init__(self=self, prob=prob, do_transform=True)
 
+    def _transform(self, data: Any, func: Callable):
+        return self._lambd(data, func=func) if self._do_transform else data
+
     def __call__(self, data):
         self.randomize(data)
-        return super().__call__(data) if self._do_transform else data
+        return super().__call__(data)
 
-    def _inverse_transform(self, transform: Dict, data: Any, func: Callable):
-        return self._lambd(data, func=func) if transform[InverseKeys.DO_TRANSFORM] else data
+    def _inverse_transform(self, transform_info: Dict, data: Any, func: Callable):
+        return self._lambd(data, func=func) if transform_info[InverseKeys.DO_TRANSFORM] else data
 
 
 class LabelToMaskd(MapTransform):

@@ -323,7 +323,7 @@ TESTS.append(
         "RandLambdad 3d",
         "3D",
         5e-2,
-        Lambdad(KEYS, func=lambda x: x * 10, inv_func=lambda x: x / 10, overwrite=True),
+        RandLambdad(KEYS, func=lambda x: x * 10, inv_func=lambda x: x / 10, overwrite=True, prob=0.5),
     )
 )
 
