@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from .adaptors import FunctionSignature, adaptor, apply_alias, to_kwargs
-from .compose import Compose, RandCompose
+from .compose import Compose
 from .croppad.array import (
     BorderPad,
     BoundingRect,
