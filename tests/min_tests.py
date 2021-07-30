@@ -111,6 +111,7 @@ def run_testsuit():
         "test_handler_metrics_saver",
         "test_handler_metrics_saver_dist",
         "test_handler_classification_saver_dist",
+        "test_dataset_summary",
         "test_deepgrow_transforms",
         "test_deepgrow_interaction",
         "test_deepgrow_dataset",
