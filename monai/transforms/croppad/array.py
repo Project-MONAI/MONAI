@@ -343,7 +343,7 @@ class SpatialCrop(TorchTransform, NumpyTransform):
 
     @staticmethod
     def _floor_div(a, b):
-        if is_module_ver_at_least(torch, (1, 7, 0)):
+        if is_module_ver_at_least(torch, (1, 8, 0)):
             return torch.div(a, b, rounding_mode="floor")
         return torch.floor_divide(a, b)
 
