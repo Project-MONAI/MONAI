@@ -15,7 +15,7 @@ defined in :py:class:`monai.apps.pathology.transforms.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Dict, Hashable, Mapping, Optional
+from typing import Dict, Hashable, Mapping, Union
 
 import numpy as np
 
@@ -25,7 +25,7 @@ from monai.transforms.transform import MapTransform
 from .array import ExtractHEStains, NormalizeHEStains
 
 
-class ExtractHEStainsD(MapTransform):
+class ExtractHEStainsd(MapTransform):
     """Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.ExtractHEStains`.
     Class to extract a target stain from an image, using stain deconvolution.
 
@@ -37,7 +37,7 @@ class ExtractHEStainsD(MapTransform):
             and pseudo-max (100 - alpha percentile). Defaults to 1.
         beta: absorbance threshold for transparent pixels. Defaults to 0.15
         max_cref: reference maximum stain concentrations for Hematoxylin & Eosin (H&E).
-            Defaults to None.
+            Defaults to (1.9705, 1.0308).
         allow_missing_keys: don't raise exception if key is missing.
 
     """
@@ -48,7 +48,7 @@ class ExtractHEStainsD(MapTransform):
         tli: float = 240,
         alpha: float = 1,
         beta: float = 0.15,
-        max_cref: Optional[np.ndarray] = None,
+        max_cref: Union[tuple, np.ndarray] = (1.9705, 1.0308),
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -61,7 +61,7 @@ class ExtractHEStainsD(MapTransform):
         return d
 
 
-class NormalizeHEStainsD(MapTransform):
+class NormalizeHEStainsd(MapTransform):
     """Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.NormalizeHEStains`.
 
     Class to normalize patches/images to a reference or target image stain.
@@ -93,8 +93,8 @@ class NormalizeHEStainsD(MapTransform):
         tli: float = 240,
         alpha: float = 1,
         beta: float = 0.15,
-        target_he: Optional[np.ndarray] = None,
-        max_cref: Optional[np.ndarray] = None,
+        target_he: Union[tuple, np.ndarray] = ((0.5626, 0.2159), (0.7201, 0.8012), (0.4062, 0.5581)),
+        max_cref: Union[tuple, np.ndarray] = (1.9705, 1.0308),
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -107,5 +107,5 @@ class NormalizeHEStainsD(MapTransform):
         return d
 
 
-ExtractHEStainsDict = ExtractHEStainsd = ExtractHEStainsD
-NormalizeHEStainsDict = NormalizeHEStainsd = NormalizeHEStainsD
+ExtractHEStainsDict = ExtractHEStainsD = ExtractHEStainsd
+NormalizeHEStainsDict = NormalizeHEStainsD = NormalizeHEStainsd

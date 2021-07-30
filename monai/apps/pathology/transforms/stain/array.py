@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
+from typing import Union
 
 import numpy as np
 
@@ -25,7 +25,7 @@ class ExtractHEStains(Transform):
             and pseudo-max (100 - alpha percentile). Defaults to 1.
         beta: absorbance threshold for transparent pixels. Defaults to 0.15
         max_cref: reference maximum stain concentrations for Hematoxylin & Eosin (H&E).
-            Defaults to None.
+            Defaults to (1.9705, 1.0308).
 
     Note:
         For more information refer to:
@@ -41,21 +41,18 @@ class ExtractHEStains(Transform):
         tli: float = 240,
         alpha: float = 1,
         beta: float = 0.15,
-        max_cref: Optional[np.ndarray] = None,
+        max_cref: Union[tuple, np.ndarray] = (1.9705, 1.0308),
     ) -> None:
         self.tli = tli
         self.alpha = alpha
         self.beta = beta
-
-        self.max_cref = max_cref
-        if self.max_cref is None:
-            self.max_cref = np.array([1.9705, 1.0308])
+        self.max_cref = np.array(max_cref)
 
     def _deconvolution_extract_stain(self, image: np.ndarray) -> np.ndarray:
         """Perform Stain Deconvolution and return stain matrix for the image.
 
         Args:
-            img: uint8 RGB image to perform stain deconvolution of
+            img: uint8 RGB image to perform stain deconvolution on
 
         Return:
             he: H&E absorbance matrix for the image (first column is H, second column is E, rows are RGB values)
@@ -122,9 +119,9 @@ class NormalizeHEStains(Transform):
         alpha: tolerance in percentile for the pseudo-min (alpha percentile) and
             pseudo-max (100 - alpha percentile). Defaults to 1.
         beta: absorbance threshold for transparent pixels. Defaults to 0.15.
-        target_he: target stain matrix. Defaults to None.
+        target_he: target stain matrix. Defaults to ((0.5626, 0.2159), (0.7201, 0.8012), (0.4062, 0.5581)).
         max_cref: reference maximum stain concentrations for Hematoxylin & Eosin (H&E).
-            Defaults to None.
+            Defaults to [1.9705, 1.0308].
 
     Note:
         For more information refer to:
@@ -140,19 +137,12 @@ class NormalizeHEStains(Transform):
         tli: float = 240,
         alpha: float = 1,
         beta: float = 0.15,
-        target_he: Optional[np.ndarray] = None,
-        max_cref: Optional[np.ndarray] = None,
+        target_he: Union[tuple, np.ndarray] = ((0.5626, 0.2159), (0.7201, 0.8012), (0.4062, 0.5581)),
+        max_cref: Union[tuple, np.ndarray] = (1.9705, 1.0308),
     ) -> None:
         self.tli = tli
-
-        if target_he is None:
-            target_he = np.array([[0.5626, 0.2159], [0.7201, 0.8012], [0.4062, 0.5581]])
-        self.target_he = target_he
-
-        if max_cref is None:
-            max_cref = np.array([1.9705, 1.0308])
-        self.max_cref = max_cref
-
+        self.target_he = np.array(target_he)
+        self.max_cref = np.array(max_cref)
         self.stain_extractor = ExtractHEStains(tli=self.tli, alpha=alpha, beta=beta, max_cref=self.max_cref)
 
     def __call__(self, image: np.ndarray) -> np.ndarray:
