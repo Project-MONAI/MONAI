@@ -57,6 +57,14 @@ class ExtractHEStains(Transform):
         Return:
             he: H&E absorbance matrix for the image (first column is H, second column is E, rows are RGB values)
         """
+        # check image type and vlues
+        if not isinstance(image, np.ndarray):
+            raise TypeError("Image must be of type numpy.ndarray.")
+        if image.min() < 0:
+            raise ValueError("Image should not have negative values.")
+        if image.max() > 255:
+            raise ValueError("Image should not have values greater than 255.")
+
         # reshape image and calculate absorbance
         image = image.reshape((-1, 3))
         image = image.astype(np.float32) + 1.0
@@ -149,20 +157,24 @@ class NormalizeHEStains(Transform):
         """Perform stain normalization.
 
         Args:
-            image: uint8 RGB image/patch to stain normalize
+            image: uint8 RGB image/patch to be stain normalized, pixel values between 0 and 255
 
         Return:
             image_norm: stain normalized image/patch
         """
+        # check image type and vlues
         if not isinstance(image, np.ndarray):
             raise TypeError("Image must be of type numpy.ndarray.")
+        if image.min() < 0:
+            raise ValueError("Image should not have negative values.")
+        if image.max() > 255:
+            raise ValueError("Image should not have values greater than 255.")
 
         # extract stain of the image
         he = self.stain_extractor(image)
 
-        h, w, _ = image.shape
-
         # reshape image and calculate absorbance
+        h, w, _ = image.shape
         image = image.reshape((-1, 3))
         image = image.astype(np.float32) + 1.0
         absorbance = -np.log(image.clip(max=self.tli) / self.tli)
