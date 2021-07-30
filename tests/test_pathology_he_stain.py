@@ -22,6 +22,12 @@ EXTRACT_STAINS_TEST_CASE_00 = (None, None)
 NORMALIZE_STAINS_TEST_CASE_0 = (None,)
 NORMALIZE_STAINS_TEST_CASE_00: tuple = ({}, None, None)
 
+# input pixels with negative values
+NEGATIVE_VALUE_TEST_CASE = [np.full((3, 2, 3), -1)]
+
+# input pixels with greater than 255 values
+INVALID_VALUE_TEST_CASE = [np.full((3, 2, 3), 256)]
+
 # input pixels all transparent and below the beta absorbance threshold
 EXTRACT_STAINS_TEST_CASE_1 = [np.full((3, 2, 3), 240)]
 
@@ -42,6 +48,7 @@ EXTRACT_STAINS_TEST_CASE_5 = [
     np.array([[[100, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]], [[0, 0, 0], [0, 0, 0]]]),
     np.array([[0.70710677, 0.18696113], [0.0, 0.0], [0.70710677, 0.98236734]]),
 ]
+
 
 # input pixels all transparent and below the beta absorbance threshold
 NORMALIZE_STAINS_TEST_CASE_1 = [np.full((3, 2, 3), 240)]
@@ -65,7 +72,14 @@ NORMALIZE_STAINS_TEST_CASE_4 = [
 
 
 class TestExtractHEStains(unittest.TestCase):
-    @parameterized.expand([EXTRACT_STAINS_TEST_CASE_0, EXTRACT_STAINS_TEST_CASE_1])
+    @parameterized.expand(
+        [
+            NEGATIVE_VALUE_TEST_CASE,
+            INVALID_VALUE_TEST_CASE,
+            EXTRACT_STAINS_TEST_CASE_0,
+            EXTRACT_STAINS_TEST_CASE_1,
+        ]
+    )
     def test_transparent_image(self, image):
         """
         Test HE stain extraction on an image that comprises
@@ -141,7 +155,14 @@ class TestExtractHEStains(unittest.TestCase):
 
 
 class TestNormalizeHEStains(unittest.TestCase):
-    @parameterized.expand([NORMALIZE_STAINS_TEST_CASE_0, NORMALIZE_STAINS_TEST_CASE_1])
+    @parameterized.expand(
+        [
+            NEGATIVE_VALUE_TEST_CASE,
+            INVALID_VALUE_TEST_CASE,
+            NORMALIZE_STAINS_TEST_CASE_0,
+            NORMALIZE_STAINS_TEST_CASE_1,
+        ]
+    )
     def test_transparent_image(self, image):
         """
         Test HE stain normalization on an image that comprises
