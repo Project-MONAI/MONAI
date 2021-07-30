@@ -24,6 +24,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike, KeysCollection, NdarrayTensor
+from monai.data.utils import no_collation
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utility.array import (
@@ -867,7 +868,7 @@ class Lambdad(MapTransform, InvertibleTransform):
         self,
         keys: KeysCollection,
         func: Union[Sequence[Callable], Callable],
-        inv_func: Union[Sequence[Callable], Callable] = lambda x: x,
+        inv_func: Union[Sequence[Callable], Callable] = no_collation,
         overwrite: Union[Sequence[bool], bool] = True,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -932,7 +933,7 @@ class RandLambdad(Lambdad, RandomizableTransform):
         self,
         keys: KeysCollection,
         func: Union[Sequence[Callable], Callable],
-        inv_func: Union[Sequence[Callable], Callable] = lambda x: x,
+        inv_func: Union[Sequence[Callable], Callable] = no_collation,
         overwrite: Union[Sequence[bool], bool] = True,
         prob: float = 1.0,
         allow_missing_keys: bool = False,
