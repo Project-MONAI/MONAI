@@ -35,7 +35,7 @@ from monai.transforms.utils import (
 )
 from monai.utils import ensure_tuple, min_version, optional_import
 from monai.utils.enums import DataObjects
-from monai.utils.misc import convert_data_type, dtype_convert
+from monai.utils.misc import convert_data_type, dtype_convert, is_module_ver_at_least
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
@@ -683,7 +683,6 @@ class LabelToMask(TorchTransform, NumpyTransform):
             merge_channels: whether to use `np.any()` to merge the result on channel dim. if yes,
                 will return a single channel mask with binary data.
         """
-
         if select_labels is None:
             select_labels = self.select_labels
         else:
@@ -693,13 +692,16 @@ class LabelToMask(TorchTransform, NumpyTransform):
             data = img[[*select_labels]]
         else:
             where = np.where if isinstance(img, np.ndarray) else torch.where
-            data = where(self._in1d(img, select_labels), True, False).reshape(img.shape)
+            if isinstance(img, np.ndarray) or is_module_ver_at_least(torch, (1, 8, 0)):
+                data = where(self._in1d(img, select_labels), True, False).reshape(img.shape)
+            else:
+                data = where(self._in1d(img, select_labels), 1, 0).reshape(img.shape)
 
         if merge_channels or self.merge_channels:
-            if isinstance(data, np.ndarray):
-                return np.any(data, axis=0, keepdims=True)  # type: ignore
+            if isinstance(img, np.ndarray) or is_module_ver_at_least(torch, (1, 8, 0)):
+                return data.any(0)[None]
             else:
-                return torch.any(data, dim=0, keepdim=True)
+                return data.to(torch.uint8).any(0)[None].to(bool)  # type: ignore
         return data
 
 
