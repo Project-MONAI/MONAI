@@ -880,8 +880,8 @@ class Lambdad(MapTransform):
 
 class RandLambdad(Lambdad, RandomizableTransform):
     """
-    Randomizable version :py:class:`monai.transforms.Lambdad`, the input `func` contains random logic.
-    It's a randomizable transform so `CacheDataset` will not execute it and cache the results.
+    Randomizable version :py:class:`monai.transforms.Lambdad`, the input `func` may contain random logic,
+    or randomly execute the function based on `prob`. so `CacheDataset` will not execute it and cache the results.
 
     Args:
         keys: keys of the corresponding items to be transformed.

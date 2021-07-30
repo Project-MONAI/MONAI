@@ -620,7 +620,8 @@ class Lambda(Transform):
 
 class RandLambda(Lambda, RandomizableTransform):
     """
-    Randomizable version :py:class:`monai.transforms.Lambda`, the input `func` contains random logic.
+    Randomizable version :py:class:`monai.transforms.Lambda`, the input `func` may contain random logic,
+    or randomly execute the function based on `prob`.
 
     Args:
         func: Lambda/function to be applied.
