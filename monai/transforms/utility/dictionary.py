@@ -897,6 +897,7 @@ class RandLambdad(Lambdad, RandomizableTransform):
     For more details, please check :py:class:`monai.transforms.Lambdad`.
 
     """
+
     def __init__(
         self,
         keys: KeysCollection,

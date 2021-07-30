@@ -161,7 +161,6 @@ class Compose(Randomizable, InvertibleTransform):
 
     def inverse(self, data):
         invertible_transforms = [t for t in self.flatten().transforms if isinstance(t, InvertibleTransform)]
-
         if not invertible_transforms:
             warnings.warn("inverse has been called but no invertible transforms have been supplied")
 

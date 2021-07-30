@@ -617,6 +617,7 @@ class Lambda(Transform):
             return self.func(img)
         raise ValueError("Incompatible values: func=None and self.func=None.")
 
+
 class RandLambda(Lambda, RandomizableTransform):
     """
     Randomizable version :py:class:`monai.transforms.Lambda`, the input `func` contains random logic.
@@ -628,6 +629,7 @@ class RandLambda(Lambda, RandomizableTransform):
     For more details, please check :py:class:`monai.transforms.Lambda`.
 
     """
+
     def __init__(self, func: Optional[Callable] = None, prob: float = 1.0) -> None:
         Lambda.__init__(self=self, func=func)
         RandomizableTransform.__init__(self=self, prob=prob)
