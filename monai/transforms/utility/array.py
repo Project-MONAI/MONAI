@@ -22,9 +22,8 @@ from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Uni
 import numpy as np
 import torch
 
-from monai.config import DtypeLike, NdarrayTensor
-from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
-from monai.transforms.transform import NumpyTransform, Randomizable, TorchTransform, Transform
+from monai.config import DtypeLike
+from monai.transforms.transform import NumpyTransform, Randomizable, RandomizableTransform, TorchTransform, Transform
 from monai.transforms.utils import (
     _unravel_index,
     convert_to_numpy,
