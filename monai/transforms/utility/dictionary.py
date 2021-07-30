@@ -25,7 +25,7 @@ import torch
 
 from monai.config import DtypeLike, KeysCollection, NdarrayTensor
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.transform import MapTransform, Randomizable
+from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utility.array import (
     AddChannel,
     AsChannelFirst,
@@ -878,7 +878,7 @@ class Lambdad(MapTransform):
         return d
 
 
-class RandLambdad(Lambdad, Randomizable):
+class RandLambdad(Lambdad, RandomizableTransform):
     """
     Randomizable version :py:class:`monai.transforms.Lambdad`, the input `func` contains random logic.
     It's a randomizable transform so `CacheDataset` will not execute it and cache the results.
@@ -890,13 +890,27 @@ class RandLambdad(Lambdad, Randomizable):
             each element corresponds to a key in ``keys``.
         overwrite: whether to overwrite the original data in the input dictionary with lamdbda function output.
             default to True. it also can be a sequence of bool, each element corresponds to a key in ``keys``.
+        prob: probability of executing the random function, default to 1.0, with 100% probability to execute.
+            note that all the data specified by `keys` will share the same random probability to execute or not.
+        allow_missing_keys: don't raise exception if key is missing.
 
     For more details, please check :py:class:`monai.transforms.Lambdad`.
 
     """
+    def __init__(
+        self,
+        keys: KeysCollection,
+        func: Union[Sequence[Callable], Callable],
+        overwrite: Union[Sequence[bool], bool] = True,
+        prob: float = 1.0,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        Lambdad.__init__(self=self, keys=keys, func=func, overwrite=overwrite, allow_missing_keys=allow_missing_keys)
+        RandomizableTransform.__init__(self=self, prob=prob, do_transform=True)
 
-    def randomize(self, data: Any) -> None:
-        pass
+    def __call__(self, data):
+        self.randomize(data)
+        return super().__call__(data) if self._do_transform else data
 
 
 class LabelToMaskd(MapTransform):
