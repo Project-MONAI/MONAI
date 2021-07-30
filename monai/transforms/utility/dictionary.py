@@ -23,9 +23,10 @@ from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Seque
 import numpy as np
 import torch
 
-from monai.config import DtypeLike, KeysCollection
+from monai.config import DtypeLike, KeysCollection, NdarrayTensor
+from monai.data.utils import no_collation
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.transform import MapTransform, Randomizable
+from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utility.array import (
     AddChannel,
     AsChannelFirst,
@@ -827,7 +828,7 @@ class ConcatItemsd(MapTransform):
         return d
 
 
-class Lambdad(MapTransform):
+class Lambdad(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Lambda`.
 
@@ -846,51 +847,110 @@ class Lambdad(MapTransform):
             See also: :py:class:`monai.transforms.compose.MapTransform`
         func: Lambda/function to be applied. It also can be a sequence of Callable,
             each element corresponds to a key in ``keys``.
+        inv_func: Lambda/function of inverse operation if want to invert transforms, default to `lambda x: x`.
+            It also can be a sequence of Callable, each element corresponds to a key in ``keys``.
         overwrite: whether to overwrite the original data in the input dictionary with lamdbda function output.
             default to True. it also can be a sequence of bool, each element corresponds to a key in ``keys``.
         allow_missing_keys: don't raise exception if key is missing.
+
+    Note: The inverse operation doesn't allow to define `extra_info` or access other information, such as the
+        image's original size. If need these complicated information, please write a new InvertibleTransform directly.
+
     """
 
     def __init__(
         self,
         keys: KeysCollection,
         func: Union[Sequence[Callable], Callable],
+        inv_func: Union[Sequence[Callable], Callable] = no_collation,
         overwrite: Union[Sequence[bool], bool] = True,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.func = ensure_tuple_rep(func, len(self.keys))
+        self.inv_func = ensure_tuple_rep(inv_func, len(self.keys))
         self.overwrite = ensure_tuple_rep(overwrite, len(self.keys))
         self._lambd = Lambda()
+
+    def _transform(self, data: Any, func: Callable):
+        return self._lambd(data, func=func)
 
     def __call__(self, data):
         d = dict(data)
         for key, func, overwrite in self.key_iterator(d, self.func, self.overwrite):
-            ret = self._lambd(d[key], func=func)
+            ret = self._transform(data=d[key], func=func)
             if overwrite:
                 d[key] = ret
+            self.push_transform(d, key)
+        return d
+
+    def _inverse_transform(self, transform_info: Dict, data: Any, func: Callable):
+        return self._lambd(data, func=func)
+
+    def inverse(self, data):
+        d = deepcopy(dict(data))
+        for key, inv_func, overwrite in self.key_iterator(d, self.inv_func, self.overwrite):
+            transform = self.get_most_recent_transform(d, key)
+            ret = self._inverse_transform(transform_info=transform, data=d[key], func=inv_func)
+            if overwrite:
+                d[key] = ret
+            self.pop_transform(d, key)
         return d
 
 
-class RandLambdad(Lambdad, Randomizable):
+class RandLambdad(Lambdad, RandomizableTransform):
     """
-    Randomizable version :py:class:`monai.transforms.Lambdad`, the input `func` contains random logic.
-    It's a randomizable transform so `CacheDataset` will not execute it and cache the results.
+    Randomizable version :py:class:`monai.transforms.Lambdad`, the input `func` may contain random logic,
+    or randomly execute the function based on `prob`. so `CacheDataset` will not execute it and cache the results.
 
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         func: Lambda/function to be applied. It also can be a sequence of Callable,
             each element corresponds to a key in ``keys``.
+        inv_func: Lambda/function of inverse operation if want to invert transforms, default to `lambda x: x`.
+            It also can be a sequence of Callable, each element corresponds to a key in ``keys``.
         overwrite: whether to overwrite the original data in the input dictionary with lamdbda function output.
             default to True. it also can be a sequence of bool, each element corresponds to a key in ``keys``.
+        prob: probability of executing the random function, default to 1.0, with 100% probability to execute.
+            note that all the data specified by `keys` will share the same random probability to execute or not.
+        allow_missing_keys: don't raise exception if key is missing.
 
     For more details, please check :py:class:`monai.transforms.Lambdad`.
 
+    Note: The inverse operation doesn't allow to define `extra_info` or access other information, such as the
+        image's original size. If need these complicated information, please write a new InvertibleTransform directly.
+
     """
 
-    def randomize(self, data: Any) -> None:
-        pass
+    def __init__(
+        self,
+        keys: KeysCollection,
+        func: Union[Sequence[Callable], Callable],
+        inv_func: Union[Sequence[Callable], Callable] = no_collation,
+        overwrite: Union[Sequence[bool], bool] = True,
+        prob: float = 1.0,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        Lambdad.__init__(
+            self=self,
+            keys=keys,
+            func=func,
+            inv_func=inv_func,
+            overwrite=overwrite,
+            allow_missing_keys=allow_missing_keys,
+        )
+        RandomizableTransform.__init__(self=self, prob=prob, do_transform=True)
+
+    def _transform(self, data: Any, func: Callable):
+        return self._lambd(data, func=func) if self._do_transform else data
+
+    def __call__(self, data):
+        self.randomize(data)
+        return super().__call__(data)
+
+    def _inverse_transform(self, transform_info: Dict, data: Any, func: Callable):
+        return self._lambd(data, func=func) if transform_info[InverseKeys.DO_TRANSFORM] else data
 
 
 class LabelToMaskd(MapTransform):

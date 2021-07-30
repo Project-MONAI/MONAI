@@ -22,7 +22,8 @@ from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Uni
 import numpy as np
 import torch
 
-from monai.config import DtypeLike
+from monai.config import DtypeLike, NdarrayTensor
+from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
 from monai.transforms.transform import NumpyTransform, Randomizable, TorchTransform, Transform
 from monai.transforms.utils import (
     _unravel_index,
@@ -61,6 +62,7 @@ __all__ = [
     "DataStats",
     "SimulateDelay",
     "Lambda",
+    "RandLambda",
     "LabelToMask",
     "FgBgToIndices",
     "ClassesToIndices",
@@ -633,6 +635,28 @@ class Lambda(Transform):
         if self.func is not None:
             return self.func(img)
         raise ValueError("Incompatible values: func=None and self.func=None.")
+
+
+class RandLambda(Lambda, RandomizableTransform):
+    """
+    Randomizable version :py:class:`monai.transforms.Lambda`, the input `func` may contain random logic,
+    or randomly execute the function based on `prob`.
+
+    Args:
+        func: Lambda/function to be applied.
+        prob: probability of executing the random function, default to 1.0, with 100% probability to execute.
+
+    For more details, please check :py:class:`monai.transforms.Lambda`.
+
+    """
+
+    def __init__(self, func: Optional[Callable] = None, prob: float = 1.0) -> None:
+        Lambda.__init__(self=self, func=func)
+        RandomizableTransform.__init__(self=self, prob=prob)
+
+    def __call__(self, img: Union[np.ndarray, torch.Tensor], func: Optional[Callable] = None):
+        self.randomize(img)
+        return super().__call__(img=img, func=func) if self._do_transform else img
 
 
 class LabelToMask(TorchTransform, NumpyTransform):
