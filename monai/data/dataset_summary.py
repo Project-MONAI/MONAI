@@ -93,7 +93,7 @@ class DatasetSummary:
         if spacing_key not in self.all_meta_data[0]:
             raise ValueError("The provided spacing_key is not in self.all_meta_data.")
 
-        all_spacings = torch.vstack([data[spacing_key][:, 1:4] for data in self.all_meta_data]).numpy()
+        all_spacings = torch.cat([data[spacing_key][:, 1:4] for data in self.all_meta_data], dim=0).numpy()
 
         target_spacing = np.median(all_spacings, axis=0)
         if max(target_spacing) / min(target_spacing) >= anisotropic_threshold:
