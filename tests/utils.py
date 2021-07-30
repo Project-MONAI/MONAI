@@ -113,6 +113,7 @@ class SkipIfBeforePyTorchVersion:
     with PyTorch versions older than that given."""
 
     def __init__(self, pytorch_version_tuple):
+        self.min_version = pytorch_version_tuple
         self.version_too_old = not is_module_ver_at_least(torch, pytorch_version_tuple)
 
     def __call__(self, obj):
