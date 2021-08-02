@@ -1234,16 +1234,14 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
         prob: probability to add spike artifact to each item in the
             dictionary provided it is realized that the noise will be applied
             to the dictionary.
-        img_intensity_range: Intensity
-            range to sample for ``"image"`` key. Pass a tuple `(a, b)` to sample
-            the log-intensity from the interval `(a, b)` uniformly for all
-            channels. Or pass sequence of intervals `((a0, b0), (a1, b1), ...)`
-            to sample for each respective channel. In the second case, the
-            number of 2-tuples must match the number of channels.
-            Default ranges is `(0.95x, 1.10x)` where `x` is the mean
-            log-intensity for each channel.
-        label_intensity_range: Intensity range to sample for ``"label"`` key. Same
-            as behavior as ``img_intensity_range`` but ``"label"`` key.
+        intensity_ranges: Dictionary with intensity
+            ranges to sample for each key. Given a dictionary value of `(a, b)` the
+            transform will sample the log-intensity from the interval `(a, b)` uniformly for all
+            channels of the respective key. If a sequence of intevals `((a0, b0), (a1, b1), ...)`
+            is given, then the transform will sample from each interval for each
+            respective channel. In the second case, the number of 2-tuples must
+            match the number of channels. Default ranges is `(0.95x, 1.10x)`
+            where `x` is the mean log-intensity for each channel.
         channel_wise: treat each channel independently. True by
             default.
         common_sampling: If ``True`` same values for location and log-intensity
@@ -1257,7 +1255,7 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
         To apply `k`-space spikes randomly on the image only, with probability
         0.5, and log-intensity sampled from the interval [13, 15] for each
         channel independently, one uses
-        ``RandKSpaceSpikeNoised("image", prob=0.5, img_intensity_range=(13,15), channel_wise=True)``.
+        ``RandKSpaceSpikeNoised("image", prob=0.5, intensity_ranges={"image":(13,15)}, channel_wise=True)``.
     """
 
     def __init__(
@@ -1265,8 +1263,7 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
         keys: KeysCollection,
         global_prob: float = 1.0,
         prob: float = 0.1,
-        img_intensity_range: Optional[Sequence[Union[Sequence[float], float]]] = None,
-        label_intensity_range: Optional[Sequence[Union[Sequence[float], float]]] = None,
+        intensity_ranges: Optional[Mapping[Hashable, Sequence[Union[Sequence[float], float]]]] = None,
         channel_wise: bool = True,
         common_sampling: bool = False,
         common_seed: int = 42,
@@ -1281,8 +1278,15 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
         self.common_seed = common_seed
         self.as_tensor_output = as_tensor_output
         # the spikes artifact is amplitude dependent so we instantiate one per key
-        self.t_img = RandKSpaceSpikeNoise(prob, img_intensity_range, channel_wise, self.as_tensor_output)
-        self.t_label = RandKSpaceSpikeNoise(prob, label_intensity_range, channel_wise, self.as_tensor_output)
+        self.transforms = {}
+        if isinstance(intensity_ranges, Mapping):
+            for k in self.keys:
+                self.transforms[k] = RandKSpaceSpikeNoise(
+                    prob, intensity_ranges[k], channel_wise, self.as_tensor_output
+                )
+        else:
+            for k in self.keys:
+                self.transforms[k] = RandKSpaceSpikeNoise(prob, None, channel_wise, self.as_tensor_output)
 
     def __call__(
         self, data: Mapping[Hashable, Union[torch.Tensor, np.ndarray]]
@@ -1297,13 +1301,12 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
 
         # In case the same spikes are desired for both image and label.
         if self.common_sampling:
-            self.t_img.set_random_state(self.common_seed)
-            self.t_label.set_random_state(self.common_seed)
+            for k in self.keys:
+                self.transforms[k].set_random_state(self.common_seed)
 
-        for key in self.key_iterator(d):
+        for key, t in self.key_iterator(d, self.transforms):
             if self._do_transform:
-                transform = self.t_img if key == "image" else self.t_label
-                d[key] = transform(d[key])
+                d[key] = self.transforms[t](d[key])
             else:
                 if isinstance(d[key], np.ndarray) and self.as_tensor_output:
                     d[key] = torch.Tensor(d[key])
@@ -1321,8 +1324,8 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
             state: set the random state with a `np.random.RandomState` object."""
 
         self.set_random_state(seed, state)
-        self.t_img.set_random_state(seed, state)
-        self.t_label.set_random_state(seed, state)
+        for key in self.keys:
+            self.transforms[key].set_random_state(seed, state)
 
     def _to_numpy(self, d: Union[torch.Tensor, np.ndarray]) -> np.ndarray:
         if isinstance(d, torch.Tensor):
