@@ -604,6 +604,12 @@ Utility
     :members:
     :special-members: __call__
 
+`RandLambda`
+""""""""""""
+.. autoclass:: RandLambda
+    :members:
+    :special-members: __call__
+
 `LabelToMask`
 """""""""""""
 .. autoclass:: LabelToMask

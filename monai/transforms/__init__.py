@@ -331,6 +331,7 @@ from .utility.array import (
     LabelToMask,
     Lambda,
     MapLabelValue,
+    RandLambda,
     RemoveRepeatedChannel,
     RepeatChannel,
     SimulateDelay,

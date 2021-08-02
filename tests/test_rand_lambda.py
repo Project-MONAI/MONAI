@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 
 from monai.transforms.transform import Randomizable
-from monai.transforms.utility.dictionary import RandLambdad
+from monai.transforms.utility.array import RandLambda
 
 
 class RandTest(Randomizable):
@@ -30,27 +30,23 @@ class RandTest(Randomizable):
         return data + self._a
 
 
-class TestRandLambdad(unittest.TestCase):
+class TestRandLambda(unittest.TestCase):
     def test_rand_lambdad_identity(self):
         img = np.zeros((10, 10))
-        data = {"img": img, "prop": 1.0}
 
         test_func = RandTest()
         test_func.set_random_state(seed=134)
-        expected = {"img": test_func(data["img"]), "prop": 1.0}
+        expected = test_func(img)
         test_func.set_random_state(seed=134)
-        ret = RandLambdad(keys=["img", "prop"], func=test_func, overwrite=[True, False])(data)
-        np.testing.assert_allclose(expected["img"], ret["img"])
-        np.testing.assert_allclose(expected["prop"], ret["prop"])
-        ret = RandLambdad(keys=["img", "prop"], func=test_func, prob=0.0)(data)
-        np.testing.assert_allclose(data["img"], ret["img"])
-        np.testing.assert_allclose(data["prop"], ret["prop"])
+        ret = RandLambda(func=test_func)(img)
+        np.testing.assert_allclose(expected, ret)
+        ret = RandLambda(func=test_func, prob=0.0)(img)
+        np.testing.assert_allclose(img, ret)
 
-        trans = RandLambdad(keys=["img", "prop"], func=test_func, prob=0.5)
+        trans = RandLambda(func=test_func, prob=0.5)
         trans.set_random_state(seed=123)
-        ret = trans(data)
-        np.testing.assert_allclose(data["img"], ret["img"])
-        np.testing.assert_allclose(data["prop"], ret["prop"])
+        ret = trans(img)
+        np.testing.assert_allclose(img, ret)
 
 
 if __name__ == "__main__":
