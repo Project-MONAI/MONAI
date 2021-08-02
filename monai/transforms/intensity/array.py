@@ -1523,7 +1523,7 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
                 if isinstance(intensity_range[0], Sequence):
                     self.sampled_k_intensity = [self.R.uniform(p[0], p[1]) for p in intensity_range]
                 else:
-                    self.sampled_k_intensity = [self.R.uniform(intensity_range[0], intensity_range[1])] * len(img) # type: ignore
+                    self.sampled_k_intensity = [self.R.uniform(intensity_range[0], intensity_range[1])] * len(img)  # type: ignore
 
     def _make_sequence(self, x: torch.Tensor) -> Sequence[Sequence[float]]:
         """
