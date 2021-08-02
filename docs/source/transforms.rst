@@ -53,6 +53,10 @@ Generic Interfaces
 .. autoclass:: Decollated
     :members:
 
+`Fourier`
+^^^^^^^^^^^^^
+.. autoclass:: Fourier
+    :members:
 
 Vanilla Transforms
 ------------------

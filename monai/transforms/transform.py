@@ -387,10 +387,10 @@ class Fourier:
         center of the spectrum. Only the spatial dimensions get transformed.
 
         Args:
-            x: image to transform.
-            n_dims: number of spatial dimensions.
+            x: Image to transform.
+            n_dims: Number of spatial dimensions.
         Returns
-            k: k-space data.
+            k: K-space data.
         """
         k: torch.Tensor = torch.fft.fftshift(
             torch.fft.fftn(x, dim=tuple(range(-n_dims, 0))), dim=tuple(range(-n_dims, 0))
@@ -404,10 +404,10 @@ class Fourier:
         dimensions are transformed.
 
         Args:
-            k: k-space data.
-            n_dims: number of spatial dimensions.
+            k: K-space data.
+            n_dims: Number of spatial dimensions.
         Returns:
-            x: tensor in image space.
+            x: Tensor in image space.
         """
         x: torch.Tensor = torch.fft.ifftn(
             torch.fft.ifftshift(k, dim=tuple(range(-n_dims, 0))), dim=tuple(range(-n_dims, 0))
