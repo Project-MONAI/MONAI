@@ -991,23 +991,24 @@ class IntensityStats(Transform):
         if meta_data is None:
             meta_data = {}
 
+        img_: np.ndarray = img
         if mask is not None:
             if mask.shape != img.shape or mask.dtype != bool:
                 raise TypeError("mask must be bool array with the same shape as input `img`.")
-            img = img[mask]
+            img_ = img[mask]
 
-        def _compute(op: Callable, img: np.ndarray):
+        def _compute(op: Callable, data: np.ndarray):
             if self.channel_wise:
-                return [op(c) for c in img]
+                return [op(c) for c in data]
             else:
-                return op(img)
+                return op(data)
 
         custom_index = 0
         for o in self.ops:
             if isinstance(o, str):
-                meta_data[self.key_prefix + "_" + o] = _compute(self.supported_ops[o], img)
+                meta_data[self.key_prefix + "_" + o] = _compute(self.supported_ops[o], img_)
             elif callable(o):
-                meta_data[self.key_prefix + "_custom_" + str(custom_index)] = _compute(o, img)
+                meta_data[self.key_prefix + "_custom_" + str(custom_index)] = _compute(o, img_)
                 custom_index += 1
 
         return img, meta_data
