@@ -28,7 +28,6 @@ from monai.transforms.intensity.array import (
     GaussianSharpen,
     GaussianSmooth,
     GibbsNoise,
-    IntensityStats,
     KSpaceSpikeNoise,
     MaskIntensity,
     NormalizeIntensity,
@@ -72,7 +71,6 @@ __all__ = [
     "RandKSpaceSpikeNoised",
     "RandHistogramShiftd",
     "RandCoarseDropoutd",
-    "IntensityStatsd",
     "RandGaussianNoiseD",
     "RandGaussianNoiseDict",
     "ShiftIntensityD",
@@ -123,8 +121,6 @@ __all__ = [
     "RandRicianNoiseDict",
     "RandCoarseDropoutD",
     "RandCoarseDropoutDict",
-    "IntensityStatsD",
-    "IntensityStatsDict",
 ]
 
 
@@ -1468,62 +1464,6 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
         return d
 
 
-class IntensityStatsd(MapTransform):
-    """
-    Dictionary-based wrapper of :py:class:`monai.transforms.IntensityStats`.
-    Compute statistics for the intensity values of input image and store into the meta data dictionary.
-    For example: if `ops=[lambda x: np.mean(x), "max"]` and `key_prefix="orig"`, may generate below stats:
-    `{"orig_custom_0": 1.5, "orig_max": 3.0}`.
-
-    Args:
-        keys: keys of the corresponding items to be transformed.
-            See also: :py:class:`monai.transforms.compose.MapTransform`
-        ops: expected operations to compute statistics for the intensity.
-            if a string, will map to the predefined operations, supported: ["mean", "median", "max", "min", "std"]
-            mapping to `np.nanmean`, `np.nanmedian`, `np.nanmax`, `np.nanmin`, `np.nanstd`.
-            if a callable function, will execute the function on input image.
-        key_prefix: the prefix to combine with `ops` name to generate the key to store the results in the
-            meta data dictionary. if some `ops` are callable functions, will use "{key_prefix}_custom_{index}"
-            as the key, where index counts from 0.
-        channel_wise: whether to compute statistics for every channel of input image separately.
-            if True, return a list of values for every operation, default to False.
-        meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
-            used to store the computed statistics to the meta dict.
-            for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-            the meta data is a dictionary object which contains: filename, original_shape, etc.
-            it can be a sequence of string, map to the `keys`.
-            if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
-            to the key data, default is `meta_dict`, the meta data is a dictionary object.
-            used to store the computed statistics to the meta dict.
-        allow_missing_keys: don't raise exception if key is missing.
-
-    """
-
-    def __init__(
-        self,
-        keys: KeysCollection,
-        ops: Sequence[Union[str, Callable]],
-        key_prefix: str,
-        channel_wise: bool = False,
-        meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = "meta_dict",
-        allow_missing_keys: bool = False,
-    ) -> None:
-        super().__init__(keys, allow_missing_keys)
-        self.stats = IntensityStats(ops=ops, key_prefix=key_prefix, channel_wise=channel_wise)
-        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
-        if len(self.keys) != len(self.meta_keys):
-            raise ValueError("meta_keys should have the same length as keys.")
-        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
-
-    def __call__(self, data) -> Dict[Hashable, np.ndarray]:
-        d = dict(data)
-        for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
-            meta_key = meta_key or f"{key}_{meta_key_postfix}"
-            d[key], d[meta_key] = self.stats(d[key], d.get(meta_key))
-        return d
-
 
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
 RandRicianNoiseD = RandRicianNoiseDict = RandRicianNoised
@@ -1551,4 +1491,3 @@ GibbsNoiseD = GibbsNoiseDict = GibbsNoised
 KSpaceSpikeNoiseD = KSpaceSpikeNoiseDict = KSpaceSpikeNoised
 RandKSpaceSpikeNoiseD = RandKSpaceSpikeNoiseDict = RandKSpaceSpikeNoised
 RandCoarseDropoutD = RandCoarseDropoutDict = RandCoarseDropoutd
-IntensityStatsD = IntensityStatsDict = IntensityStatsd

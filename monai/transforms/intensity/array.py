@@ -14,7 +14,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 from collections.abc import Iterable
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 from warnings import warn
 
 import numpy as np
@@ -64,7 +64,6 @@ __all__ = [
     "KSpaceSpikeNoise",
     "RandKSpaceSpikeNoise",
     "RandCoarseDropout",
-    "IntensityStats",
 ]
 
 
@@ -1627,58 +1626,3 @@ class RandCoarseDropout(RandomizableTransform):
                 img[h] = self.fill_value
 
         return img
-
-
-class IntensityStats(Transform):
-    """
-    Compute statistics for the intensity values of input image and store into the meta data dictionary.
-    For example: if `ops=[lambda x: np.mean(x), "max"]` and `key_prefix="orig"`, may generate below stats:
-    `{"orig_custom_0": 1.5, "orig_max": 3.0}`.
-
-    Args:
-        ops: expected operations to compute statistics for the intensity.
-            if a string, will map to the predefined operations, supported: ["mean", "median", "max", "min", "std"]
-            mapping to `np.nanmean`, `np.nanmedian`, `np.nanmax`, `np.nanmin`, `np.nanstd`.
-            if a callable function, will execute the function on input image.
-        key_prefix: the prefix to combine with `ops` name to generate the key to store the results in the
-            meta data dictionary. if some `ops` are callable functions, will use "{key_prefix}_custom_{index}"
-            as the key, where index counts from 0.
-        channel_wise: whether to compute statistics for every channel of input image separately.
-            if True, return a list of values for every operation, default to False.
-
-    """
-
-    def __init__(self, ops: Sequence[Union[str, Callable]], key_prefix: str, channel_wise: bool = False) -> None:
-        self.supported_ops = {
-            "mean": lambda x: np.nanmean(x),
-            "median": lambda x: np.nanmedian(x),
-            "max": lambda x: np.nanmax(x),
-            "min": lambda x: np.nanmin(x),
-            "std": lambda x: np.nanstd(x),
-        }
-        self.ops = ensure_tuple(ops)
-        for o in self.ops:
-            if isinstance(o, str) and o not in self.supported_ops:
-                raise ValueError(f"unsupported operation: {o}.")
-        self.key_prefix = key_prefix
-        self.channel_wise = channel_wise
-
-    def __call__(self, img: np.ndarray, meta_data: Optional[Dict] = None) -> Tuple[np.ndarray, Dict]:
-        if meta_data is None:
-            meta_data = {}
-
-        def _compute(op: Callable, img: np.ndarray):
-            if self.channel_wise:
-                return [op(c) for c in img]
-            else:
-                return op(img)
-
-        custom_index = 0
-        for o in self.ops:
-            if isinstance(o, str):
-                meta_data[self.key_prefix + "_" + o] = _compute(self.supported_ops[o], img)
-            elif callable(o):
-                meta_data[self.key_prefix + "_custom_" + str(custom_index)] = _compute(o, img)
-                custom_index += 1
-
-        return img, meta_data
