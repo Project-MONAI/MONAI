@@ -17,7 +17,7 @@ from parameterized import parameterized
 from monai.transforms import IntensityStatsd
 
 TEST_CASE_1 = [
-    {"keys": "img", "ops": ["max", "mean"], "key_prefix": "orig", "meta_key": "test_meta"},
+    {"keys": "img", "ops": ["max", "mean"], "key_prefix": "orig", "meta_keys": "test_meta"},
     {"img": np.array([[[0.0, 1.0], [2.0, 3.0]]]), "test_meta": {"affine": None}},
     "test_meta",
     {"orig_max": 3.0, "orig_mean": 1.5},
