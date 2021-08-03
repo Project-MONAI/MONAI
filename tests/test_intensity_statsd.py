@@ -10,10 +10,12 @@
 # limitations under the License.
 
 import unittest
+import sys
 
 import numpy as np
 from parameterized import parameterized
 
+from monai.data import DataLoader, Dataset
 from monai.transforms import IntensityStatsd
 
 TEST_CASE_1 = [
@@ -52,6 +54,19 @@ class TestIntensityStatsd(unittest.TestCase):
         for k, v in expected.items():
             self.assertTrue(k in meta)
             np.testing.assert_allclose(v, meta[k], atol=1e-3)
+
+    def test_dataloader(self):
+        dataset = Dataset(
+            data=[{"img": np.array([[[0.0, 1.0], [2.0, 3.0]]])}, {"img": np.array([[[0.0, 1.0], [2.0, 3.0]]])}],
+            transform=IntensityStatsd(keys="img", ops=["max", "mean"], key_prefix="orig")
+        )
+        # set num workers = 0 for mac / win
+        num_workers = 2 if sys.platform == "linux" else 0
+        dataloader = DataLoader(dataset=dataset, num_workers=num_workers, batch_size=2)
+        for d in dataloader:
+            meta = d["img_meta_dict"]
+            np.testing.assert_allclose(meta["orig_max"], [3.0, 3.0], atol=1e-3)
+            np.testing.assert_allclose(meta["orig_mean"], [1.5, 1.5], atol=1e-3)
 
 
 if __name__ == "__main__":
