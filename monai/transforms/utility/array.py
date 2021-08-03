@@ -961,14 +961,7 @@ class IntensityStats(Transform):
     """
 
     def __init__(self, ops: Sequence[Union[str, Callable]], key_prefix: str, channel_wise: bool = False) -> None:
-        self.supported_ops = {
-            "mean": lambda x: np.nanmean(x),
-            "median": lambda x: np.nanmedian(x),
-            "max": lambda x: np.nanmax(x),
-            "min": lambda x: np.nanmin(x),
-            "std": lambda x: np.nanstd(x),
-        }
-        self.ops = [o if callable(o) else look_up_option(o, self.supported_ops.keys()) for o in ensure_tuple(ops)]
+        self.ops = ops
         self.key_prefix = key_prefix
         self.channel_wise = channel_wise
 
@@ -997,6 +990,14 @@ class IntensityStats(Transform):
                 raise TypeError("mask must be bool array with the same shape as input `img`.")
             img_ = img[mask]
 
+        supported_ops = {
+            "mean": lambda x: np.nanmean(x),
+            "median": lambda x: np.nanmedian(x),
+            "max": lambda x: np.nanmax(x),
+            "min": lambda x: np.nanmin(x),
+            "std": lambda x: np.nanstd(x),
+        }
+
         def _compute(op: Callable, data: np.ndarray):
             if self.channel_wise:
                 return [op(c) for c in data]
@@ -1006,7 +1007,8 @@ class IntensityStats(Transform):
         custom_index = 0
         for o in self.ops:
             if isinstance(o, str):
-                meta_data[self.key_prefix + "_" + o] = _compute(self.supported_ops[o], img_)
+                o = look_up_option(o, supported_ops.keys())
+                meta_data[self.key_prefix + "_" + o] = _compute(supported_ops[o], img_)
             elif callable(o):
                 meta_data[self.key_prefix + "_custom_" + str(custom_index)] = _compute(o, img_)
                 custom_index += 1
