@@ -43,7 +43,7 @@ from monai.transforms.intensity.array import (
     ThresholdIntensity,
 )
 from monai.transforms.transform import MapTransform, RandomizableTransform
-from monai.utils import dtype_torch_to_numpy, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
+from monai.utils import dtype_torch_to_numpy, ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
 
 __all__ = [
     "RandGaussianNoised",
@@ -236,21 +236,53 @@ class ShiftIntensityd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.ShiftIntensity`.
     """
 
-    def __init__(self, keys: KeysCollection, offset: float, allow_missing_keys: bool = False) -> None:
+    def __init__(
+        self,
+        keys: KeysCollection,
+        offset: float,
+        factor_key: Optional[str] = None,
+        meta_keys: Optional[KeysCollection] = None,
+        meta_key_postfix: str = "meta_dict",
+        allow_missing_keys: bool = False,
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             offset: offset value to shift the intensity of image.
+            factor_key: if not None, use it as the key to extract a value from the corresponding
+                meta data dictionary of `key` at runtime, and multiply the `offset` to shift intensity.
+                Usually, `IntensityStatsd` transform can pre-compute statistics of intensity values
+                and store in the meta data.
+                it also can be a sequence of strings, map to `keys`.
+            meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+                used to extract the factor value is `factor_key` is not None.
+                for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+                the meta data is a dictionary object which contains: filename, original_shape, etc.
+                it can be a sequence of string, map to the `keys`.
+                if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
+            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+                to the key data, default is `meta_dict`, the meta data is a dictionary object.
+                used to extract the factor value is `factor_key` is not None.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
+        self.factor_key = ensure_tuple_rep(factor_key, len(self.keys))
+        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.shifter = ShiftIntensity(offset)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        for key in self.key_iterator(d):
-            d[key] = self.shifter(d[key])
+        for key, factor_key, meta_key, meta_key_postfix in self.key_iterator(
+            d, self.factor_key, self.meta_keys, self.meta_key_postfix
+        ):
+            meta_key = meta_key or f"{key}_{meta_key_postfix}"
+            factor: Optional[float] = d[meta_key].get(factor_key) if meta_key in d else None
+            offset = None if factor is None else self.shifter.offset * factor
+            d[key] = self.shifter(d[key], offset=offset)
         return d
 
 
@@ -263,6 +295,9 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
         self,
         keys: KeysCollection,
         offsets: Union[Tuple[float, float], float],
+        factor_key: Optional[str] = None,
+        meta_keys: Optional[KeysCollection] = None,
+        meta_key_postfix: str = "meta_dict",
         prob: float = 0.1,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -272,6 +307,20 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             offsets: offset range to randomly shift.
                 if single number, offset value is picked from (-offsets, offsets).
+            factor_key: if not None, use it as the key to extract a value from the corresponding
+                meta data dictionary of `key` at runtime, and multiply the random `offset` to shift intensity.
+                Usually, `IntensityStatsd` transform can pre-compute statistics of intensity values
+                and store in the meta data.
+                it also can be a sequence of strings, map to `keys`.
+            meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+                used to extract the factor value is `factor_key` is not None.
+                for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+                the meta data is a dictionary object which contains: filename, original_shape, etc.
+                it can be a sequence of string, map to the `keys`.
+                if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
+            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to to fetch the meta data according
+                to the key data, default is `meta_dict`, the meta data is a dictionary object.
+                used to extract the factor value is `factor_key` is not None.
             prob: probability of rotating.
                 (Default 0.1, with 10% probability it returns a rotated array.)
             allow_missing_keys: don't raise exception if key is missing.
@@ -286,19 +335,29 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
                 raise AssertionError("offsets should be a number or pair of numbers.")
             self.offsets = (min(offsets), max(offsets))
         self._offset = self.offsets[0]
+        self.factor_key = ensure_tuple_rep(factor_key, len(self.keys))
+        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
+        self.shifter = ShiftIntensity(self._offset)
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
         super().randomize(None)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         self.randomize()
         if not self._do_transform:
             return d
-        shifter = ShiftIntensity(self._offset)
-        for key in self.key_iterator(d):
-            d[key] = shifter(d[key])
+        for key, factor_key, meta_key, meta_key_postfix in self.key_iterator(
+            d, self.factor_key, self.meta_keys, self.meta_key_postfix
+        ):
+            meta_key = meta_key or f"{key}_{meta_key_postfix}"
+            factor: Optional[float] = d[meta_key].get(factor_key) if meta_key in d else None
+            offset = self._offset if factor is None else self._offset * factor
+            d[key] = self.shifter(d[key], offset=offset)
         return d
 
 
@@ -1440,6 +1499,7 @@ class IntensityStatsd(MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
 
     """
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -1457,7 +1517,7 @@ class IntensityStatsd(MapTransform):
             raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
             meta_key = meta_key or f"{key}_{meta_key_postfix}"

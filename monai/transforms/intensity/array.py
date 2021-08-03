@@ -1647,6 +1647,7 @@ class IntensityStats(Transform):
             if True, return a list of values for every operation, default to False.
 
     """
+
     def __init__(self, ops: Sequence[Union[str, Callable]], key_prefix: str, channel_wise: bool = False) -> None:
         self.supported_ops = {
             "mean": lambda x: np.nanmean(x),
@@ -1662,7 +1663,7 @@ class IntensityStats(Transform):
         self.key_prefix = key_prefix
         self.channel_wise = channel_wise
 
-    def __call__(self, img: np.ndarray, meta_data: Optional[Dict] = None) -> np.ndarray:
+    def __call__(self, img: np.ndarray, meta_data: Optional[Dict] = None) -> Tuple[np.ndarray, Dict]:
         if meta_data is None:
             meta_data = {}
 
