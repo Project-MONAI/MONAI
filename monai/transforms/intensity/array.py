@@ -188,11 +188,13 @@ class ShiftIntensity(Transform):
     def __init__(self, offset: float) -> None:
         self.offset = offset
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: np.ndarray, offset: Optional[float] = None) -> np.ndarray:
         """
         Apply the transform to `img`.
         """
-        return np.asarray((img + self.offset), dtype=img.dtype)
+
+        offset = self.offset if offset is None else offset
+        return np.asarray((img + offset), dtype=img.dtype)
 
 
 class RandShiftIntensity(RandomizableTransform):
@@ -215,20 +217,26 @@ class RandShiftIntensity(RandomizableTransform):
                 raise AssertionError("offsets should be a number or pair of numbers.")
             self.offsets = (min(offsets), max(offsets))
         self._offset = self.offsets[0]
+        self._shfiter = ShiftIntensity(self._offset)
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
         super().randomize(None)
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: np.ndarray, factor: Optional[float] = None) -> np.ndarray:
         """
         Apply the transform to `img`.
+
+        Args:
+            img: input image to shift intensity.
+            factor: a factor to multiply the random offset, then shift.
+                can be some image specific value at runtime, like: max(img), etc.
+
         """
         self.randomize()
         if not self._do_transform:
             return img
-        shifter = ShiftIntensity(self._offset)
-        return shifter(img)
+        return self._shfiter(img, self._offset if factor is None else self._offset * factor)
 
 
 class StdShiftIntensity(Transform):
@@ -1622,6 +1630,23 @@ class RandCoarseDropout(RandomizableTransform):
 
 
 class IntensityStats(Transform):
+    """
+    Compute statistics for the intensity values of input image and store into the meta data dictionary.
+    For example: if `ops=[lambda x: np.mean(x), "max"]` and `key_prefix="orig"`, may generate below stats:
+    `{"orig_custom_0": 1.5, "orig_max": 3.0}`.
+
+    Args:
+        ops: expected operations to compute statistics for the intensity.
+            if a string, will map to the predefined operations, supported: ["mean", "median", "max", "min", "std"]
+            mapping to `np.nanmean`, `np.nanmedian`, `np.nanmax`, `np.nanmin`, `np.nanstd`.
+            if a callable function, will execute the function on input image.
+        key_prefix: the prefix to combine with `ops` name to generate the key to store the results in the
+            meta data dictionary. if some `ops` are callable functions, will use "{key_prefix}_custom_{index}"
+            as the key, where index counts from 0.
+        channel_wise: whether to compute statistics for every channel of input image separately.
+            if True, return a list of values for every operation, default to False.
+
+    """
     def __init__(self, ops: Sequence[Union[str, Callable]], key_prefix: str, channel_wise: bool = False) -> None:
         self.supported_ops = {
             "mean": lambda x: np.nanmean(x),

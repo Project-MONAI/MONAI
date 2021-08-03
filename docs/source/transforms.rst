@@ -917,6 +917,12 @@ Intensity (Dict)
     :members:
     :special-members: __call__
 
+`IntensityStatsd`
+"""""""""""""""""
+.. autoclass:: IntensityStatsd
+    :members:
+    :special-members: __call__
+
 IO (Dict)
 ^^^^^^^^^
 
