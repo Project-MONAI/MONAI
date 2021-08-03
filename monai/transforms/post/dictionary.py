@@ -22,12 +22,14 @@ from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Seque
 import numpy as np
 import torch
 
-from monai.config import KeysCollection
+from monai.config import KeysCollection, NdarrayTensor
 from monai.data.csv_saver import CSVSaver
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.post.array import (
     Activations,
     AsDiscrete,
+    FillHoles,
+    Filter,
     KeepLargestConnectedComponent,
     LabelToContour,
     MeanEnsemble,
@@ -41,34 +43,40 @@ from monai.utils import ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import InverseKeys
 
 __all__ = [
-    "Activationsd",
-    "AsDiscreted",
-    "KeepLargestConnectedComponentd",
-    "LabelToContourd",
-    "Ensembled",
-    "MeanEnsembled",
-    "VoteEnsembled",
     "ActivationsD",
     "ActivationsDict",
+    "Activationsd",
     "AsDiscreteD",
     "AsDiscreteDict",
+    "AsDiscreted",
+    "Ensembled",
+    "FillHolesD",
+    "FillHolesDict",
+    "FillHolesd",
+    "FilterD",
+    "FilterDict",
+    "Filterd",
     "InvertD",
     "InvertDict",
     "Invertd",
     "KeepLargestConnectedComponentD",
     "KeepLargestConnectedComponentDict",
+    "KeepLargestConnectedComponentd",
     "LabelToContourD",
     "LabelToContourDict",
+    "LabelToContourd",
     "MeanEnsembleD",
     "MeanEnsembleDict",
-    "VoteEnsembleD",
-    "VoteEnsembleDict",
-    "ProbNMSd",
+    "MeanEnsembled",
     "ProbNMSD",
     "ProbNMSDict",
-    "SaveClassificationd",
+    "ProbNMSd",
     "SaveClassificationD",
     "SaveClassificationDict",
+    "SaveClassificationd",
+    "VoteEnsembleD",
+    "VoteEnsembleDict",
+    "VoteEnsembled",
 ]
 
 
@@ -202,6 +210,69 @@ class KeepLargestConnectedComponentd(MapTransform):
         self.converter = KeepLargestConnectedComponent(applied_labels, independent, connectivity)
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.converter(d[key])
+        return d
+
+
+class Filterd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.Filter`.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        applied_labels: Union[Sequence[int], int],
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            applied_labels (Union[Sequence[int], int]): Label(s) to filter on.
+            allow_missing_keys: don't raise exception if key is missing.
+
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.converter = Filter(applied_labels)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.converter(d[key])
+        return d
+
+
+class FillHolesd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.FillHoles`.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        connectivity: Optional[int] = None,
+        applied_labels: Optional[Union[Sequence[int], int]] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            connectivity (int, optional): Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
+                Accepted values are ranging from  1 to input.ndim. Defaults to a full
+                connectivity of ``input.ndim``.
+            applied_labels (Optional[Union[Sequence[int], int]], optional): Labels for which to fill holes. Defaults to None,
+                that is filling holes for all labels.
+            allow_missing_keys: don't raise exception if key is missing.
+
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.converter = FillHoles(connectivity, applied_labels)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -620,10 +691,12 @@ class SaveClassificationd(MapTransform):
 
 ActivationsD = ActivationsDict = Activationsd
 AsDiscreteD = AsDiscreteDict = AsDiscreted
+FillHolesD = FillHolesDict = FillHolesd
+FilterD = FilterDict = Filterd
+InvertD = InvertDict = Invertd
 KeepLargestConnectedComponentD = KeepLargestConnectedComponentDict = KeepLargestConnectedComponentd
 LabelToContourD = LabelToContourDict = LabelToContourd
 MeanEnsembleD = MeanEnsembleDict = MeanEnsembled
 ProbNMSD = ProbNMSDict = ProbNMSd
-VoteEnsembleD = VoteEnsembleDict = VoteEnsembled
-InvertD = InvertDict = Invertd
 SaveClassificationD = SaveClassificationDict = SaveClassificationd
+VoteEnsembleD = VoteEnsembleDict = VoteEnsembled

@@ -20,20 +20,23 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
+from monai.config import NdarrayTensor
 from monai.networks import one_hot
 from monai.networks.layers import GaussianFilter
 from monai.transforms.transform import Transform
-from monai.transforms.utils import get_largest_connected_component_mask
+from monai.transforms.utils import get_filled_holes, get_largest_connected_component_mask
 from monai.utils import ensure_tuple
 
 __all__ = [
     "Activations",
     "AsDiscrete",
+    "FillHoles",
+    "Filter",
     "KeepLargestConnectedComponent",
     "LabelToContour",
     "MeanEnsemble",
-    "VoteEnsemble",
     "ProbNMS",
+    "VoteEnsemble",
 ]
 
 
@@ -287,6 +290,142 @@ class KeepLargestConnectedComponent(Transform):
             output = img
 
         return output
+
+
+class Filter:
+    """
+    This transform filters out labels and can be used as a processing step to view only certain labels.
+
+    The list of applied labels defines which labels will be kept.
+
+    Note:
+        All labels which do not match the `applied_labels` are set to the background label (0).
+
+    For example:
+
+    Use Filter with applied_labels=[1, 5, 9]::
+
+        [1, 2, 3]         [1, 0, 0]
+        [4, 5, 6]    =>   [0, 5 ,0]
+        [7, 8, 9]         [0, 0, 9]
+    """
+
+    def __init__(self, applied_labels: Union[Sequence[int], int]) -> None:
+        """
+        Initialize the Filter class with the labels to filter on.
+
+        Args:
+            applied_labels (Union[Sequence[int], int]): Label(s) to filter on.
+        """
+        self.applied_labels = ensure_tuple(applied_labels)
+
+    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
+        """
+        Filter the image on the `applied_labels`.
+
+        Args:
+            img (NdarrayTensor): Pytorch tensor or numpy array of any shape.
+
+        Raises:
+            NotImplementedError: The provided image was not a Pytorch Tensor or numpy array.
+
+        Returns:
+            Union[np.ndarray, torch.Tensor]: Pytorch tensor or numpy array of the same shape as the input.
+        """
+        if isinstance(img, np.ndarray):
+            return np.asarray(np.where(np.isin(img, self.applied_labels), img, 0))
+        elif isinstance(img, torch.Tensor):
+            img_arr = img.detach().cpu().numpy()
+            img_arr = self(img_arr)
+            return torch.as_tensor(img_arr, device=img.device)
+        else:
+            raise NotImplementedError(f"{self.__class__} can not handle data of type {type(img)}.")
+
+
+class FillHoles(Transform):
+    r"""
+    This transform fills holes in the image and can be used to remove artifacts inside segments.
+
+    An enclosed hole is defined as a background pixel/voxel which is only enclosed by a single class.
+    The definition of enclosed can be defined with the connectivity parameter::
+
+        1-connectivity     2-connectivity     diagonal connection close-up
+
+             [ ]           [ ]  [ ]  [ ]             [ ]
+              |               \  |  /                 |  <- hop 2
+        [ ]--[x]--[ ]      [ ]--[x]--[ ]        [x]--[ ]
+              |               /  |  \             hop 1
+             [ ]           [ ]  [ ]  [ ]
+
+    It is possible to define for which labels the hole filling should be applied.
+    The input image is assumed to be a PyTorch Tensor or numpy array
+    with shape [batch_size, 1, spatial_dim1[, spatial_dim2, ...]] and the values correspond to expected labels.
+
+    Note:
+        The label 0 will be treated as background and the enclosed holes will be set to the neighboring class label.
+
+    For example:
+
+    Use FillHoles with default parameters::
+
+        [1, 1, 1, 2, 2, 2, 3, 3]         [1, 1, 1, 2, 2, 2, 3, 3]
+        [1, 0, 1, 2, 0, 0, 3, 0]    =>   [1, 1 ,1, 2, 0, 0, 3, 0]
+        [1, 1, 1, 2, 2, 2, 3, 3]         [1, 1, 1, 2, 2, 2, 3, 3]
+
+    The hole in label 1 is fully enclosed and therefore filled with label 1.
+    The background label near label 2 and 3 is not fully enclosed and therefore not filled.
+    """
+
+    def __init__(
+        self, connectivity: Optional[int] = None, applied_labels: Optional[Union[Sequence[int], int]] = None
+    ) -> None:
+        """
+        Initialize the connectivity and limit the labels for which holes are filled.
+
+        Args:
+            connectivity (int, optional): Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
+                Accepted values are ranging from  1 to input.ndim. Defaults to a full
+                connectivity of ``input.ndim``.
+            applied_labels (Optional[Union[Sequence[int], int]], optional): Labels for which to fill holes. Defaults to None,
+                that is filling holes for all labels.
+        """
+        super().__init__()
+        self.connectivity = connectivity
+        self.applied_labels = ensure_tuple(applied_labels) if applied_labels else None
+
+    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
+        """
+        Fill the holes in the provided image.
+
+        Note:
+            The value 0 is assumed as background label.
+
+        Args:
+            img (NdarrayTensor): Pytorch Tensor or numpy array
+            of shape [batch_size, num_channel, spatial_dim1[, spatial_dim2, ...]].
+
+        Raises:
+            NotImplementedError: The provided image was not a Pytorch Tensor or numpy array.
+
+        Returns:
+            Union[np.ndarray, torch.Tensor]: Pytorch Tensor or numpy array
+            of shape [batch_size, num_channel, spatial_dim1[, spatial_dim2, ...]].
+        """
+        if isinstance(img, np.ndarray):
+            channel_axis = 1
+            img_arr = np.squeeze(img, axis=channel_axis)
+            output = get_filled_holes(img_arr, self.connectivity)
+            if self.applied_labels:
+                output = Filter(self.applied_labels)(output)
+            output = np.expand_dims(output, axis=channel_axis)
+            output = img_arr + output
+            return output
+        elif isinstance(img, torch.Tensor):
+            img_arr = img.detach().cpu().numpy()
+            img_arr = self(img_arr)
+            return torch.as_tensor(img_arr, device=img.device)
+        else:
+            raise NotImplementedError(f"{self.__class__} can not handle data of type {type(img)}.")
 
 
 class LabelToContour(Transform):

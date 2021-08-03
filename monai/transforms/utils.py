@@ -37,6 +37,7 @@ from monai.utils import (
 )
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
+ndimage, _ = optional_import("scipy.ndimage")
 cp, has_cp = optional_import("cupy")
 cp_ndarray, _ = optional_import("cupy", name="ndarray")
 
@@ -66,6 +67,7 @@ __all__ = [
     "create_translate",
     "generate_spatial_bounding_box",
     "get_largest_connected_component_mask",
+    "get_filled_holes",
     "get_extreme_points",
     "extreme_points_to_image",
     "map_spatial_axes",
@@ -730,6 +732,50 @@ def get_largest_connected_component_mask(img: torch.Tensor, connectivity: Option
         largest_cc[...] = img_arr == (np.argmax(np.bincount(img_arr.flat)[1:]) + 1)
 
     return torch.as_tensor(largest_cc, device=img.device)
+
+
+def get_filled_holes(img_arr: np.ndarray, connectivity: Optional[int] = None) -> np.ndarray:
+    """
+    Fill the holes in the provided image.
+
+    The label 0 will be treated as background and the enclosed holes will be set to the neighboring class label.
+    What is considered to be an enclosed hole is defined by the connectivity.
+    Holes on the edge are always considered to be open (not enclosed).
+
+    Args:
+        img_arr (np.ndarray): numpy array of shape [batch_size, spatial_dim1[, spatial_dim2, ...]].
+        connectivity (Optional[int], optional): connectivity (int, optional): Maximum number of orthogonal hops to
+            consider a pixel/voxel as a neighbor. Accepted values are ranging from  1 to input.ndim.
+            Defaults to a full connectivity of ``input.ndim``.
+
+    Returns:
+        np.ndarray: numpy array of shape [batch_size, spatial_dim1[, spatial_dim2, ...]].
+    """
+    ndim = img_arr.ndim - 1
+    if not connectivity:
+        connectivity = ndim
+
+    footprint = ndimage.generate_binary_structure(ndim, connectivity)
+
+    background_label = 0
+    filled_holes = np.zeros_like(img_arr)
+    for i, item in enumerate(img_arr):
+        background_mask = item == background_label
+        components, num_components = ndimage.label(background_mask, structure=footprint)
+
+        for component_label in range(1, num_components + 1):
+            component_mask = components == component_label
+            # Pad with -1 to detect edge voxels
+            component_neighborhood = np.pad(item, 1, constant_values=-1)[
+                ndimage.binary_dilation(np.pad(component_mask, 1), structure=footprint)
+            ]
+
+            neighbor_labels = np.unique(component_neighborhood)
+            if len(neighbor_labels) == 2 and -1 not in neighbor_labels:
+                neighbor_label = neighbor_labels[1]
+                filled_holes[i, component_mask] = neighbor_label
+
+    return filled_holes
 
 
 def get_extreme_points(
