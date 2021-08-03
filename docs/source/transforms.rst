@@ -319,6 +319,12 @@ Intensity
      :members:
      :special-members: __call__
 
+`IntensityStats`
+""""""""""""""""
+ .. autoclass:: IntensityStats
+     :members:
+     :special-members: __call__
+
 
 IO
 ^^

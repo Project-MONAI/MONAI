@@ -83,6 +83,7 @@ from .intensity.array import (
     GaussianSharpen,
     GaussianSmooth,
     GibbsNoise,
+    IntensityStats,
     KSpaceSpikeNoise,
     MaskIntensity,
     NormalizeIntensity,
