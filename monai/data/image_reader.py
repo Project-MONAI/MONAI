@@ -131,14 +131,16 @@ class ITKReader(ImageReader):
 
     Args:
         channel_dim: the channel dimension of the input image, default is None.
-            This is used to set `original_channel_dim` in the meta data, `EnsureChannelFirstD` reads this field.
-            If None, `original_channel_dim` will be either `no_channel` or `-1`.
-            - Nifti file is usually "channel last", so there is no need to specify this argument.
-            - PNG file usually has `GetNumberOfComponentsPerPixel()==3`, so there is no need to specify this argument.
+            This is used to set original_channel_dim in the meta data, EnsureChannelFirstD reads this field.
+            If None, original_channel_dim will be either `no_channel` or `-1`.
+
+                - Nifti file is usually "channel last", so there is no need to specify this argument.
+                - PNG file usually has `GetNumberOfComponentsPerPixel()==3`, so there is no need to specify this argument.
+
         series_name: the name of the DICOM series if there are multiple ones.
             used when loading DICOM series.
         kwargs: additional args for `itk.imread` API. more details about available args:
-            https://github.com/InsightSoftwareConsortium/ITK/blob/master/Wrapping/Generators/Python/itkExtras.py
+            https://github.com/InsightSoftwareConsortium/ITK/blob/master/Wrapping/Generators/Python/itk/support/extras.py
 
     """
 
