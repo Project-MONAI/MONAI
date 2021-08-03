@@ -84,7 +84,6 @@ class TestInvertd(unittest.TestCase):
             nearest_interp=True,
             to_tensor=[True, False, False],
             device="cpu",
-            num_workers=0 if sys.platform == "darwin" or torch.cuda.is_available() else 2,
         )
 
         # execute 1 epoch

@@ -88,6 +88,7 @@ from .intensity.array import (
     NormalizeIntensity,
     RandAdjustContrast,
     RandBiasField,
+    RandCoarseDropout,
     RandGaussianNoise,
     RandGaussianSharpen,
     RandGaussianSmooth,
@@ -134,6 +135,9 @@ from .intensity.dictionary import (
     RandBiasFieldd,
     RandBiasFieldD,
     RandBiasFieldDict,
+    RandCoarseDropoutd,
+    RandCoarseDropoutD,
+    RandCoarseDropoutDict,
     RandGaussianNoised,
     RandGaussianNoiseD,
     RandGaussianNoiseDict,
@@ -302,7 +306,15 @@ from .spatial.dictionary import (
     ZoomD,
     ZoomDict,
 )
-from .transform import MapTransform, Randomizable, RandomizableTransform, ThreadUnsafe, Transform, apply_transform
+from .transform import (
+    Fourier,
+    MapTransform,
+    Randomizable,
+    RandomizableTransform,
+    ThreadUnsafe,
+    Transform,
+    apply_transform,
+)
 from .utility.array import (
     AddChannel,
     AddExtremePointsChannel,
@@ -319,6 +331,7 @@ from .utility.array import (
     LabelToMask,
     Lambda,
     MapLabelValue,
+    RandLambda,
     RemoveRepeatedChannel,
     RepeatChannel,
     SimulateDelay,
