@@ -68,6 +68,13 @@ class TestIntensityStatsd(unittest.TestCase):
             np.testing.assert_allclose(meta["orig_max"], [3.0, 3.0], atol=1e-3)
             np.testing.assert_allclose(meta["orig_mean"], [1.5, 1.5], atol=1e-3)
 
+    def test_mask(self):
+        data = {"img": np.array([[[0.0, 1.0], [2.0, 3.0]]]), "img_mask": np.array([[[1, 0], [1, 0]]], dtype=bool)}
+        stats = IntensityStatsd(keys="img", ops=["max", "mean"], mask_keys="img_mask", key_prefix="orig")
+        meta = stats(data)["img_meta_dict"]
+        np.testing.assert_allclose(meta["orig_max"], 2.0, atol=1e-3)
+        np.testing.assert_allclose(meta["orig_mean"], 1.0, atol=1e-3)
+
 
 if __name__ == "__main__":
     unittest.main()

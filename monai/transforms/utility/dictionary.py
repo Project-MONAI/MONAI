@@ -1303,6 +1303,9 @@ class IntensityStatsd(MapTransform):
         key_prefix: the prefix to combine with `ops` name to generate the key to store the results in the
             meta data dictionary. if some `ops` are callable functions, will use "{key_prefix}_custom_{index}"
             as the key, where index counts from 0.
+        mask_keys: if not None, specify the mask array for the image to extract only the interested area to compute
+            statistics, mask must have the same shape as the image.
+            it should be a sequence of strings or None, map to the `keys`.
         channel_wise: whether to compute statistics for every channel of input image separately.
             if True, return a list of values for every operation, default to False.
         meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
@@ -1323,6 +1326,7 @@ class IntensityStatsd(MapTransform):
         keys: KeysCollection,
         ops: Sequence[Union[str, Callable]],
         key_prefix: str,
+        mask_keys: Optional[KeysCollection] = None,
         channel_wise: bool = False,
         meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
@@ -1330,6 +1334,7 @@ class IntensityStatsd(MapTransform):
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.stats = IntensityStats(ops=ops, key_prefix=key_prefix, channel_wise=channel_wise)
+        self.mask_keys = ensure_tuple_rep(None, len(self.keys)) if mask_keys is None else ensure_tuple(mask_keys)
         self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
         if len(self.keys) != len(self.meta_keys):
             raise ValueError("meta_keys should have the same length as keys.")
@@ -1337,9 +1342,15 @@ class IntensityStatsd(MapTransform):
 
     def __call__(self, data) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
-        for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
+        for key, mask_key, meta_key, meta_key_postfix in self.key_iterator(
+            d, self.mask_keys, self.meta_keys, self.meta_key_postfix
+        ):
             meta_key = meta_key or f"{key}_{meta_key_postfix}"
-            d[key], d[meta_key] = self.stats(d[key], d.get(meta_key))
+            d[key], d[meta_key] = self.stats(
+                img=d[key],
+                meta_data=d.get(meta_key),
+                mask=d.get(mask_key) if mask_key is not None else None,
+            )
         return d
 
 

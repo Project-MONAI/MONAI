@@ -972,9 +972,29 @@ class IntensityStats(Transform):
         self.key_prefix = key_prefix
         self.channel_wise = channel_wise
 
-    def __call__(self, img: np.ndarray, meta_data: Optional[Dict] = None) -> Tuple[np.ndarray, Dict]:
+    def __call__(
+        self,
+        img: np.ndarray,
+        meta_data: Optional[Dict] = None,
+        mask: Optional[np.ndarray] = None,
+    ) -> Tuple[np.ndarray, Dict]:
+        """
+        Compute statistics for the intensity of input image.
+
+        Args:
+            img: input image to compute intensity stats.
+            meta_data: meta data dictionary to store the statistics data, if None, will create an empty dictionary.
+            mask: if not None, mask the image to extract only the interested area to compute statistics.
+                mask must have the same shape as input `img`.
+
+        """
         if meta_data is None:
             meta_data = {}
+        
+        if mask is not None:
+            if mask.shape != img.shape or mask.dtype != bool:
+                raise TypeError("mask must be bool array with the same shape as input `img`.")
+            img = img[mask]
 
         def _compute(op: Callable, img: np.ndarray):
             if self.channel_wise:
