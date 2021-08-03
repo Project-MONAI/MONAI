@@ -32,7 +32,7 @@ from monai.transforms.utils import (
     map_binary_to_indices,
     map_classes_to_indices,
 )
-from monai.utils import ensure_tuple, issequenceiterable, min_version, optional_import
+from monai.utils import ensure_tuple, issequenceiterable, look_up_option, min_version, optional_import
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
@@ -968,10 +968,7 @@ class IntensityStats(Transform):
             "min": lambda x: np.nanmin(x),
             "std": lambda x: np.nanstd(x),
         }
-        self.ops = ensure_tuple(ops)
-        for o in self.ops:
-            if isinstance(o, str) and o not in self.supported_ops:
-                raise ValueError(f"unsupported operation: {o}.")
+        self.ops = [o if callable(o) else look_up_option(o, self.supported_ops.keys()) for o in ensure_tuple(ops)]
         self.key_prefix = key_prefix
         self.channel_wise = channel_wise
 

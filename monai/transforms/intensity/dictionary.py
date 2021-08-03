@@ -1464,7 +1464,6 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
         return d
 
 
-
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
 RandRicianNoiseD = RandRicianNoiseDict = RandRicianNoised
 ShiftIntensityD = ShiftIntensityDict = ShiftIntensityd
