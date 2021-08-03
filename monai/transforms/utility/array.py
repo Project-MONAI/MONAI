@@ -976,7 +976,6 @@ class IntensityStats(Transform):
 
         Args:
             img: input image to compute intensity stats.
-
             meta_data: meta data dictionary to store the statistics data, if None, will create an empty dictionary.
             mask: if not None, mask the image to extract only the interested area to compute statistics.
                 mask must have the same shape as input `img`.

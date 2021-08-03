@@ -64,12 +64,15 @@ class TestIntensityStatsd(unittest.TestCase):
         # set num workers = 0 for mac / win
         num_workers = 2 if sys.platform == "linux" else 0
         dataloader = DataLoader(dataset=dataset, num_workers=num_workers, batch_size=2)
+        orig_method = mp.get_start_method()
         mp.set_start_method("spawn", force=True)
 
         for d in dataloader:
             meta = d["img_meta_dict"]
             np.testing.assert_allclose(meta["orig_max"], [3.0, 3.0], atol=1e-3)
             np.testing.assert_allclose(meta["orig_mean"], [1.5, 1.5], atol=1e-3)
+        # restore the mp method
+        mp.set_start_method(orig_method, force=True)
 
     def test_mask(self):
         data = {"img": np.array([[[0.0, 1.0], [2.0, 3.0]]]), "img_mask": np.array([[[1, 0], [1, 0]]], dtype=bool)}
