@@ -1630,10 +1630,10 @@ class IntensityStats(Transform):
             "min": lambda x: np.nanmin(x),
             "std": lambda x: np.nanstd(x),
         }
-        for o in ops:
+        self.ops = ensure_tuple(ops)
+        for o in self.ops:
             if isinstance(o, str) and o not in self.supported_ops:
                 raise ValueError(f"unsupported operation: {o}.")
-        self.ops = ops
         self.key_prefix = key_prefix
         self.channel_wise = channel_wise
 
@@ -1652,7 +1652,7 @@ class IntensityStats(Transform):
             if isinstance(o, str):
                 meta_data[self.key_prefix + "_" + o] = _compute(self.supported_ops[o], img)
             elif callable(o):
-                meta_data[self.key_prefix + "_custom_" + custom_index] = _compute(o, img)
+                meta_data[self.key_prefix + "_custom_" + str(custom_index)] = _compute(o, img)
                 custom_index += 1
 
         return img, meta_data
