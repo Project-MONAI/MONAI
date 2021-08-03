@@ -1012,5 +1012,7 @@ class IntensityStats(Transform):
             elif callable(o):
                 meta_data[self.key_prefix + "_custom_" + str(custom_index)] = _compute(o, img_)
                 custom_index += 1
+            else:
+                raise ValueError("ops must be key string for predefined operations or callable function.")
 
         return img, meta_data
