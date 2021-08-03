@@ -9,8 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
 import sys
+import unittest
 
 import numpy as np
 from parameterized import parameterized
@@ -58,7 +58,7 @@ class TestIntensityStatsd(unittest.TestCase):
     def test_dataloader(self):
         dataset = Dataset(
             data=[{"img": np.array([[[0.0, 1.0], [2.0, 3.0]]])}, {"img": np.array([[[0.0, 1.0], [2.0, 3.0]]])}],
-            transform=IntensityStatsd(keys="img", ops=["max", "mean"], key_prefix="orig")
+            transform=IntensityStatsd(keys="img", ops=["max", "mean"], key_prefix="orig"),
         )
         # set num workers = 0 for mac / win
         num_workers = 2 if sys.platform == "linux" else 0

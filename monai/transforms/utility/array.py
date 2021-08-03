@@ -990,7 +990,7 @@ class IntensityStats(Transform):
         """
         if meta_data is None:
             meta_data = {}
-        
+
         if mask is not None:
             if mask.shape != img.shape or mask.dtype != bool:
                 raise TypeError("mask must be bool array with the same shape as input `img`.")
