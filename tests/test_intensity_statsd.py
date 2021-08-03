@@ -64,7 +64,7 @@ class TestIntensityStatsd(unittest.TestCase):
         # set num workers = 0 for mac / win
         num_workers = 2 if sys.platform == "linux" else 0
         dataloader = DataLoader(dataset=dataset, num_workers=num_workers, batch_size=2)
-        mp.set_start_method('spawn', force=True)
+        mp.set_start_method("spawn", force=True)
 
         for d in dataloader:
             meta = d["img_meta_dict"]
