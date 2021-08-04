@@ -187,11 +187,13 @@ class ShiftIntensity(Transform):
     def __init__(self, offset: float) -> None:
         self.offset = offset
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: np.ndarray, offset: Optional[float] = None) -> np.ndarray:
         """
         Apply the transform to `img`.
         """
-        return np.asarray((img + self.offset), dtype=img.dtype)
+
+        offset = self.offset if offset is None else offset
+        return np.asarray((img + offset), dtype=img.dtype)
 
 
 class RandShiftIntensity(RandomizableTransform):
@@ -214,20 +216,26 @@ class RandShiftIntensity(RandomizableTransform):
                 raise AssertionError("offsets should be a number or pair of numbers.")
             self.offsets = (min(offsets), max(offsets))
         self._offset = self.offsets[0]
+        self._shfiter = ShiftIntensity(self._offset)
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
         super().randomize(None)
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: np.ndarray, factor: Optional[float] = None) -> np.ndarray:
         """
         Apply the transform to `img`.
+
+        Args:
+            img: input image to shift intensity.
+            factor: a factor to multiply the random offset, then shift.
+                can be some image specific value at runtime, like: max(img), etc.
+
         """
         self.randomize()
         if not self._do_transform:
             return img
-        shifter = ShiftIntensity(self._offset)
-        return shifter(img)
+        return self._shfiter(img, self._offset if factor is None else self._offset * factor)
 
 
 class StdShiftIntensity(Transform):
@@ -1457,7 +1465,7 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
         self.intensity_range = intensity_range
         self.channel_wise = channel_wise
         self.as_tensor_output = as_tensor_output
-        self.sampled_k_intensity: List[float] = []
+        self.sampled_k_intensity: List = []
         self.sampled_locs: List[Tuple] = []
 
         if intensity_range is not None:
@@ -1523,7 +1531,7 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
                 if isinstance(intensity_range[0], Sequence):
                     self.sampled_k_intensity = [self.R.uniform(p[0], p[1]) for p in intensity_range]
                 else:
-                    self.sampled_k_intensity = [self.R.uniform(intensity_range[0], intensity_range[1])] * len(img)  # type: ignore
+                    self.sampled_k_intensity = [self.R.uniform(intensity_range[0], intensity_range[1])] * len(img)
 
     def _make_sequence(self, x: torch.Tensor) -> Sequence[Sequence[float]]:
         """
