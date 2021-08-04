@@ -79,7 +79,7 @@ TEST_CASES = [
     [
         dict(translate_params=[0.5, 0.5], translate_percent=True, as_tensor_output=False, device=None),
         {"img": np.arange(8).reshape((1, 2, 2, 2))},
-        np.array([[[[6., 7.], [4., 5.]], [[2., 3.], [0., 1.]]]]),
+        np.array([[[[6.0, 7.0], [4.0, 5.0]], [[2.0, 3.0], [0.0, 1.0]]]]),
     ],
 ]
 

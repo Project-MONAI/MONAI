@@ -1096,10 +1096,10 @@ class RandAffineGrid(Randomizable, Transform):
         self.translate_percent = translate_percent
         self.scale_range = ensure_tuple(scale_range)
 
-        self.rotate_params: Optional[List[float]] = None
-        self.shear_params: Optional[List[float]] = None
-        self.translate_params: Optional[List[float]] = None
-        self.scale_params: Optional[List[float]] = None
+        self.rotate_params: List[float]
+        self.shear_params: List[float]
+        self.translate_params: List[float]
+        self.scale_params: List[float]
 
         self.as_tensor_output = as_tensor_output
         self.device = device
@@ -1146,7 +1146,6 @@ class RandAffineGrid(Randomizable, Transform):
         else:
             translate_params = self.translate_params
 
-            
         affine_grid = AffineGrid(
             rotate_params=self.rotate_params,
             shear_params=self.shear_params,
@@ -1404,8 +1403,9 @@ class Affine(Transform):
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         """
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
-        if self.translate_percent:
-            translate_params = [t * img.shape[1:][i] for i, t in enumerate(self.translate_params)]
+        translate_params: Optional[Union[Sequence[float], float]]
+        if self.translate_percent and self.translate_params is not None:
+            translate_params = [t * img.shape[1:][i] for i, t in enumerate(ensure_tuple(self.translate_params))]
         else:
             translate_params = self.translate_params
         affine_grid = AffineGrid(
