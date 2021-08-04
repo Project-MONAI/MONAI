@@ -53,6 +53,10 @@ Generic Interfaces
 .. autoclass:: Decollated
     :members:
 
+`Fourier`
+^^^^^^^^^^^^^
+.. autoclass:: Fourier
+    :members:
 
 Vanilla Transforms
 ------------------
@@ -274,38 +278,44 @@ Intensity
     :special-members: __call__
 
 `RandHistogramShift`
-"""""""""""""""""""""
+""""""""""""""""""""
 .. autoclass:: RandHistogramShift
     :members:
     :special-members: __call__
 
 `DetectEnvelope`
-"""""""""""""""""""""
+""""""""""""""""
 .. autoclass:: DetectEnvelope
     :members:
     :special-members: __call__
 
 `GibbsNoise`
-""""""""""""""
+""""""""""""
 .. autoclass:: GibbsNoise
     :members:
     :special-members: __call__
 
 `RandGibbsNoise`
-"""""""""""""""""
+""""""""""""""""
 .. autoclass:: RandGibbsNoise
     :members:
     :special-members: __call__
 
 `KSpaceSpikeNoise`
-""""""""""""""""""""
+""""""""""""""""""
 .. autoclass:: KSpaceSpikeNoise
     :members:
     :special-members: __call__
 
 `RandKSpaceSpikeNoise`
-""""""""""""""""""""""""
+""""""""""""""""""""""
  .. autoclass:: RandKSpaceSpikeNoise
+     :members:
+     :special-members: __call__
+
+`RandCoarseDropout`
+"""""""""""""""""""
+ .. autoclass:: RandCoarseDropout
      :members:
      :special-members: __call__
 
@@ -598,6 +608,12 @@ Utility
     :members:
     :special-members: __call__
 
+`RandLambda`
+""""""""""""
+.. autoclass:: RandLambda
+    :members:
+    :special-members: __call__
+
 `LabelToMask`
 """""""""""""
 .. autoclass:: LabelToMask
@@ -645,6 +661,13 @@ Utility
 .. autoclass:: EnsureType
     :members:
     :special-members: __call__
+
+`IntensityStats`
+""""""""""""""""
+ .. autoclass:: IntensityStats
+     :members:
+     :special-members: __call__
+
 
 Dictionary Transforms
 ---------------------
@@ -888,6 +911,13 @@ Intensity (Dict)
 .. autoclass:: RandHistogramShiftd
     :members:
     :special-members: __call__
+
+`RandCoarseDropoutd`
+""""""""""""""""""""
+.. autoclass:: RandCoarseDropoutd
+    :members:
+    :special-members: __call__
+
 
 IO (Dict)
 ^^^^^^^^^
@@ -1242,6 +1272,13 @@ Utility (Dict)
 .. autoclass:: EnsureTyped
     :members:
     :special-members: __call__
+
+`IntensityStatsd`
+"""""""""""""""""
+.. autoclass:: IntensityStatsd
+    :members:
+    :special-members: __call__
+
 
 Transform Adaptors
 ------------------

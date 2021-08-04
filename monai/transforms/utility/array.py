@@ -17,13 +17,13 @@ import logging
 import sys
 import time
 import warnings
-from typing import Callable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
 from monai.config import DtypeLike, NdarrayTensor
-from monai.transforms.transform import Randomizable, Transform
+from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (
     convert_to_numpy,
     convert_to_tensor,
@@ -32,7 +32,7 @@ from monai.transforms.utils import (
     map_binary_to_indices,
     map_classes_to_indices,
 )
-from monai.utils import ensure_tuple, issequenceiterable, min_version, optional_import
+from monai.utils import ensure_tuple, issequenceiterable, look_up_option, min_version, optional_import
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
@@ -58,6 +58,7 @@ __all__ = [
     "DataStats",
     "SimulateDelay",
     "Lambda",
+    "RandLambda",
     "LabelToMask",
     "FgBgToIndices",
     "ClassesToIndices",
@@ -65,6 +66,7 @@ __all__ = [
     "AddExtremePointsChannel",
     "TorchVision",
     "MapLabelValue",
+    "IntensityStats",
 ]
 
 
@@ -617,6 +619,28 @@ class Lambda(Transform):
         raise ValueError("Incompatible values: func=None and self.func=None.")
 
 
+class RandLambda(Lambda, RandomizableTransform):
+    """
+    Randomizable version :py:class:`monai.transforms.Lambda`, the input `func` may contain random logic,
+    or randomly execute the function based on `prob`.
+
+    Args:
+        func: Lambda/function to be applied.
+        prob: probability of executing the random function, default to 1.0, with 100% probability to execute.
+
+    For more details, please check :py:class:`monai.transforms.Lambda`.
+
+    """
+
+    def __init__(self, func: Optional[Callable] = None, prob: float = 1.0) -> None:
+        Lambda.__init__(self=self, func=func)
+        RandomizableTransform.__init__(self=self, prob=prob)
+
+    def __call__(self, img: Union[np.ndarray, torch.Tensor], func: Optional[Callable] = None):
+        self.randomize(img)
+        return super().__call__(img=img, func=func) if self._do_transform else img
+
+
 class LabelToMask(Transform):
     """
     Convert labels to mask for other tasks. A typical usage is to convert segmentation labels
@@ -915,3 +939,80 @@ class MapLabelValue:
             np.place(out_flat, img_flat == o, t)
 
         return out_flat.reshape(img.shape)
+
+
+class IntensityStats(Transform):
+    """
+    Compute statistics for the intensity values of input image and store into the meta data dictionary.
+    For example: if `ops=[lambda x: np.mean(x), "max"]` and `key_prefix="orig"`, may generate below stats:
+    `{"orig_custom_0": 1.5, "orig_max": 3.0}`.
+
+    Args:
+        ops: expected operations to compute statistics for the intensity.
+            if a string, will map to the predefined operations, supported: ["mean", "median", "max", "min", "std"]
+            mapping to `np.nanmean`, `np.nanmedian`, `np.nanmax`, `np.nanmin`, `np.nanstd`.
+            if a callable function, will execute the function on input image.
+        key_prefix: the prefix to combine with `ops` name to generate the key to store the results in the
+            meta data dictionary. if some `ops` are callable functions, will use "{key_prefix}_custom_{index}"
+            as the key, where index counts from 0.
+        channel_wise: whether to compute statistics for every channel of input image separately.
+            if True, return a list of values for every operation, default to False.
+
+    """
+
+    def __init__(self, ops: Sequence[Union[str, Callable]], key_prefix: str, channel_wise: bool = False) -> None:
+        self.ops = ensure_tuple(ops)
+        self.key_prefix = key_prefix
+        self.channel_wise = channel_wise
+
+    def __call__(
+        self,
+        img: np.ndarray,
+        meta_data: Optional[Dict] = None,
+        mask: Optional[np.ndarray] = None,
+    ) -> Tuple[np.ndarray, Dict]:
+        """
+        Compute statistics for the intensity of input image.
+
+        Args:
+            img: input image to compute intensity stats.
+            meta_data: meta data dictionary to store the statistics data, if None, will create an empty dictionary.
+            mask: if not None, mask the image to extract only the interested area to compute statistics.
+                mask must have the same shape as input `img`.
+
+        """
+        if meta_data is None:
+            meta_data = {}
+
+        img_: np.ndarray = img
+        if mask is not None:
+            if mask.shape != img.shape or mask.dtype != bool:
+                raise TypeError("mask must be bool array with the same shape as input `img`.")
+            img_ = img[mask]
+
+        supported_ops = {
+            "mean": lambda x: np.nanmean(x),
+            "median": lambda x: np.nanmedian(x),
+            "max": lambda x: np.nanmax(x),
+            "min": lambda x: np.nanmin(x),
+            "std": lambda x: np.nanstd(x),
+        }
+
+        def _compute(op: Callable, data: np.ndarray):
+            if self.channel_wise:
+                return [op(c) for c in data]
+            else:
+                return op(data)
+
+        custom_index = 0
+        for o in self.ops:
+            if isinstance(o, str):
+                o = look_up_option(o, supported_ops.keys())
+                meta_data[self.key_prefix + "_" + o] = _compute(supported_ops[o], img_)
+            elif callable(o):
+                meta_data[self.key_prefix + "_custom_" + str(custom_index)] = _compute(o, img_)
+                custom_index += 1
+            else:
+                raise ValueError("ops must be key string for predefined operations or callable function.")
+
+        return img, meta_data

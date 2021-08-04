@@ -607,7 +607,15 @@ def create_shear(spatial_dims: int, coefs: Union[Sequence[float], float]) -> np.
 
     Args:
         spatial_dims: spatial rank
-        coefs: shearing factors, defaults to 0.
+        coefs: shearing factors, a tuple of 2 floats for 2D, a tuple of 6 floats for 3D),
+            take a 3D affine as example::
+
+                [
+                    [1.0, coefs[0], coefs[1], 0.0],
+                    [coefs[2], 1.0, coefs[3], 0.0],
+                    [coefs[4], coefs[5], 1.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ]
 
     Raises:
         NotImplementedError: When ``spatial_dims`` is not one of [2, 3].
@@ -635,7 +643,7 @@ def create_scale(spatial_dims: int, scaling_factor: Union[Sequence[float], float
 
     Args:
         spatial_dims: spatial rank
-        scaling_factor: scaling factors, defaults to 1.
+        scaling_factor: scaling factors for every spatial dim, defaults to 1.
     """
     scaling_factor = ensure_tuple_size(scaling_factor, dim=spatial_dims, pad_val=1.0)
     return np.diag(scaling_factor[:spatial_dims] + (1.0,))
@@ -647,7 +655,7 @@ def create_translate(spatial_dims: int, shift: Union[Sequence[float], float]) ->
 
     Args:
         spatial_dims: spatial rank
-        shift: translate factors, defaults to 0.
+        shift: translate pixel/voxel for every spatial dim, defaults to 0.
     """
     shift = ensure_tuple(shift)
     affine = np.eye(spatial_dims + 1)
