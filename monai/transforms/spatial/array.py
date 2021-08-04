@@ -944,7 +944,6 @@ class RandZoom(RandomizableTransform):
 class AffineGrid(Transform):
     """
     Affine transforms on the coordinates.
-    More details about affine matrix definition: https://www.slicer.org/wiki/Coordinate_systems.
 
     Args:
         rotate_params: a rotation angle in radians, a scalar for 2D image, a tuple of 3 floats for 3D.
@@ -1042,7 +1041,7 @@ class AffineGrid(Transform):
 class RandAffineGrid(Randomizable, Transform):
     """
     Generate randomised affine grid.
-    More details about affine matrix definition: https://www.slicer.org/wiki/Coordinate_systems.
+
     """
 
     def __init__(
@@ -1298,7 +1297,6 @@ class Resample(Transform):
 class Affine(Transform):
     """
     Transform ``img`` given the affine parameters.
-    More details about affine matrix definition: https://www.slicer.org/wiki/Coordinate_systems.
     A tutorial is available: https://github.com/Project-MONAI/tutorials/blob/0.6.0/modules/transforms_demo_2d.ipynb.
 
     """
@@ -1399,7 +1397,6 @@ class Affine(Transform):
 class RandAffine(RandomizableTransform):
     """
     Random affine transform.
-    More details about affine matrix definition: https://www.slicer.org/wiki/Coordinate_systems.
     A tutorial is available: https://github.com/Project-MONAI/tutorials/blob/0.6.0/modules/transforms_demo_2d.ipynb.
 
     """
@@ -1573,7 +1570,6 @@ class RandAffine(RandomizableTransform):
 class Rand2DElastic(RandomizableTransform):
     """
     Random elastic deformation and affine in 2D.
-    More details about affine matrix definition: https://www.slicer.org/wiki/Coordinate_systems.
     A tutorial is available: https://github.com/Project-MONAI/tutorials/blob/0.6.0/modules/transforms_demo_2d.ipynb.
 
     """
@@ -1712,7 +1708,6 @@ class Rand2DElastic(RandomizableTransform):
 class Rand3DElastic(RandomizableTransform):
     """
     Random elastic deformation and affine in 3D.
-    More details about affine matrix definition: https://www.slicer.org/wiki/Coordinate_systems.
     A tutorial is available: https://github.com/Project-MONAI/tutorials/blob/0.6.0/modules/transforms_demo_2d.ipynb.
 
     """
