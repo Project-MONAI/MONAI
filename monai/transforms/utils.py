@@ -609,12 +609,13 @@ def create_shear(spatial_dims: int, coefs: Union[Sequence[float], float]) -> np.
         spatial_dims: spatial rank
         coefs: shearing factors, a tuple of 2 floats for 2D, a tuple of 6 floats for 3D),
             take a 3D affine as example::
-            [
-                [1.0, coefs[0], coefs[1], 0.0],
-                [coefs[2], 1.0, coefs[3], 0.0],
-                [coefs[4], coefs[5], 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0],
-            ]
+
+                [
+                    [1.0, coefs[0], coefs[1], 0.0],
+                    [coefs[2], 1.0, coefs[3], 0.0],
+                    [coefs[4], coefs[5], 1.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ]
 
     Raises:
         NotImplementedError: When ``spatial_dims`` is not one of [2, 3].

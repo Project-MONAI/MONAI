@@ -593,17 +593,19 @@ class Affined(MapTransform, InvertibleTransform):
             rotate_params: a rotation angle in radians, a scalar for 2D image, a tuple of 3 floats for 3D.
                 Defaults to no rotation.
             shear_params: shearing factors for affine matrix, take a 3D affine as example::
-            [
-                [1.0, params[0], params[1], 0.0],
-                [params[2], 1.0, params[3], 0.0],
-                [params[4], params[5], 1.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0],
-            ]
-            a tuple of 2 floats for 2D, a tuple of 6 floats for 3D. Defaults to no shearing.
+
+                [
+                    [1.0, params[0], params[1], 0.0],
+                    [params[2], 1.0, params[3], 0.0],
+                    [params[4], params[5], 1.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ]
+
+                a tuple of 2 floats for 2D, a tuple of 6 floats for 3D. Defaults to no shearing.
             translate_params: a tuple of 2 floats for 2D, a tuple of 3 floats for 3D. Translation is in
                 pixel/voxel relative to the center of the input image. Defaults to no translation.
             scale_params: scale factor for every spatial dims. a tuple of 2 floats for 2D,
-                a tuple of 3 floats for 3D. Defaults to `1.0`(no scaling).
+                a tuple of 3 floats for 3D. Defaults to `1.0`.
             spatial_size: output image spatial size.
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
@@ -727,12 +729,14 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             shear_range: shear range with format matching `rotate_range`, it defines the range to randomly select
                 shearing factors(a tuple of 2 floats for 2D, a tuple of 6 floats for 3D) for affine matrix,
                 take a 3D affine as example::
-                [
-                    [1.0, params[0], params[1], 0.0],
-                    [params[2], 1.0, params[3], 0.0],
-                    [params[4], params[5], 1.0, 0.0],
-                    [0.0, 0.0, 0.0, 1.0],
-                ]
+
+                    [
+                        [1.0, params[0], params[1], 0.0],
+                        [params[2], 1.0, params[3], 0.0],
+                        [params[4], params[5], 1.0, 0.0],
+                        [0.0, 0.0, 0.0, 1.0],
+                    ]
+
             translate_range: translate range with format matching `rotate_range`, it defines the range to randomly
                 select pixel/voxel to translate for every spatial dims.
             scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
@@ -902,11 +906,13 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
                 and nothing for the remaining dimensions.
             shear_range: shear range with format matching `rotate_range`, it defines the range to randomly select
                 shearing factors(a tuple of 2 floats for 2D) for affine matrix, take a 2D affine as example::
-                [
-                    [1.0, params[0], 0.0],
-                    [params[1], 1.0, 0.0],
-                    [0.0, 0.0, 1.0],
-                ]
+
+                    [
+                        [1.0, params[0], 0.0],
+                        [params[1], 1.0, 0.0],
+                        [0.0, 0.0, 1.0],
+                    ]
+
             translate_range: translate range with format matching `rotate_range`, it defines the range to randomly
                 select pixel to translate for every spatial dims.
             scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
@@ -1030,12 +1036,14 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
                 and nothing for the remaining dimensions.
             shear_range: shear range with format matching `rotate_range`, it defines the range to randomly select
                 shearing factors(a tuple of 6 floats for 3D) for affine matrix, take a 3D affine as example::
-                [
-                    [1.0, params[0], params[1], 0.0],
-                    [params[2], 1.0, params[3], 0.0],
-                    [params[4], params[5], 1.0, 0.0],
-                    [0.0, 0.0, 0.0, 1.0],
-                ]
+
+                    [
+                        [1.0, params[0], params[1], 0.0],
+                        [params[2], 1.0, params[3], 0.0],
+                        [params[4], params[5], 1.0, 0.0],
+                        [0.0, 0.0, 0.0, 1.0],
+                    ]
+
             translate_range: translate range with format matching `rotate_range`, it defines the range to randomly
                 select voxel to translate for every spatial dims.
             scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
