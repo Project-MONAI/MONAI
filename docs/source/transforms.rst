@@ -662,6 +662,13 @@ Utility
     :members:
     :special-members: __call__
 
+`IntensityStats`
+""""""""""""""""
+ .. autoclass:: IntensityStats
+     :members:
+     :special-members: __call__
+
+
 Dictionary Transforms
 ---------------------
 
@@ -910,6 +917,7 @@ Intensity (Dict)
 .. autoclass:: RandCoarseDropoutd
     :members:
     :special-members: __call__
+
 
 IO (Dict)
 ^^^^^^^^^
@@ -1264,6 +1272,13 @@ Utility (Dict)
 .. autoclass:: EnsureTyped
     :members:
     :special-members: __call__
+
+`IntensityStatsd`
+"""""""""""""""""
+.. autoclass:: IntensityStatsd
+    :members:
+    :special-members: __call__
+
 
 Transform Adaptors
 ------------------
