@@ -185,6 +185,21 @@ TEST_CASES = [
             "seg": np.array([[[19.0, 20.0, 12.0], [27.0, 28.0, 20.0], [35.0, 36.0, 29.0]]]),
         },
     ],
+    [
+        dict(
+            keys="img",
+            prob=0.9,
+            rotate_range=(np.pi / 2,),
+            shear_range=[1, 2],
+            translate_range=[0.5, -0.5],
+            translate_percent=True,
+            as_tensor_output=True,
+            spatial_size=(2, 2, 2),
+            device=None,
+        ),
+        {"img": torch.ones((1, 3, 3, 3))},
+        {"img": torch.tensor([[[[1.0000, 1.0000], [1.0000, 1.0000]], [[1.0000, 1.0000], [1.0000, 1.0000]]]])},
+    ],
 ]
 
 

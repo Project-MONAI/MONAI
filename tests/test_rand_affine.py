@@ -100,6 +100,20 @@ TEST_CASES = [
         {"img": torch.arange(64).reshape((1, 8, 8))},
         torch.tensor([[[18.7362, 15.5820, 12.4278], [27.3988, 24.2446, 21.0904], [36.0614, 32.9072, 29.7530]]]),
     ],
+    [
+        dict(
+            prob=0.9,
+            rotate_range=(np.pi / 2,),
+            shear_range=[1, 2],
+            translate_range=[0.5, -0.5],
+            translate_percent=True,
+            as_tensor_output=True,
+            spatial_size=(2, 2, 2),
+            device=None,
+        ),
+        {"img": torch.ones((1, 3, 3, 3)), "mode": "bilinear"},
+        torch.tensor([[[[1.0000, 1.0000], [1.0000, 1.0000]], [[1.0000, 1.0000], [1.0000, 1.0000]]]]),
+    ],
 ]
 
 ARR_NUMPY = np.arange(9 * 10).reshape(1, 9, 10)

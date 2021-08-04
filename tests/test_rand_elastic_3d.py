@@ -65,6 +65,20 @@ TEST_CASES = [
         {"img": torch.arange(27).reshape((1, 3, 3, 3)), "mode": "bilinear"},
         np.array([[[[5.0069294, 9.463932], [9.287769, 13.739735]], [[12.319424, 16.777205], [16.594296, 21.045748]]]]),
     ],
+    [
+        {
+            "magnitude_range": (0.3, 0.3),
+            "sigma_range": (1.0, 2.0),
+            "prob": 0.9,
+            "translate_range": [0.1, 0.1, 0.1],
+            "translate_percent": True,
+            "as_tensor_output": False,
+            "device": "cuda" if torch.cuda.is_available() else "cpu",
+            "spatial_size": (2, 2, 2),
+        },
+        {"img": torch.arange(27).reshape((1, 3, 3, 3)), "mode": "bilinear"},
+        np.array([[[[7.119943, 8.128898], [10.144359, 11.148856]], [[16.138384, 17.14955], [19.157475, 20.16247]]]]),
+    ],
 ]
 
 

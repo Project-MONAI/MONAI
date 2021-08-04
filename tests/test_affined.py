@@ -85,6 +85,11 @@ TEST_CASES = [
             ]
         ),
     ],
+    [
+        dict(keys="img", translate_params=[0.5, 0.5], translate_percent=True, as_tensor_output=False, device=None),
+        {"img": np.arange(8).reshape((1, 2, 2, 2))},
+        np.array([[[[6., 7.], [4., 5.]], [[2., 3.], [0., 1.]]]]),
+    ],
 ]
 
 

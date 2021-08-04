@@ -86,6 +86,27 @@ TEST_CASES = [
             ]
         ),
     ],
+    [
+        {
+            "spacing": (1.0, 1.0),
+            "magnitude_range": (1.0, 1.0),
+            "translate_range": [0.2, 0.5],
+            "translate_percent": True,
+            "prob": 1.0,
+            "padding_mode": "border",
+            "as_tensor_output": True,
+            "device": None,
+            "spatial_size": (2, 2),
+        },
+        {"img": torch.arange(27).reshape((3, 3, 3))},
+        torch.tensor(
+            [
+                [[ 2.2469,  0.8962], [ 5.0849,  6.9136]],
+                [[11.2469,  9.8962], [14.0849, 15.9136]],
+                [[20.2469, 18.8962], [23.0849, 24.9136]],
+            ]
+        ),
+    ],
 ]
 
 
