@@ -946,23 +946,23 @@ class AffineGrid(Transform):
     Affine transforms on the coordinates.
 
     Args:
-        rotate_params: angle range in radians. rotate_params[0] with be used to generate the 1st rotation
-            parameter from `uniform[-rotate_params[0], rotate_params[0])`. Similarly, `rotate_params[1]` and
-            `rotate_params[2]` are used in 3D affine for the range of 2nd and 3rd axes.
-        shear_params: shear_params[0] with be used to generate the 1st shearing parameter from
-            `uniform[-shear_params[0], shear_params[0])`. Similarly, `shear_params[1]` to
-            `shear_params[N]` controls the range of the uniform distribution used to generate the 2nd to
-            N-th parameter.
-        translate_params : translate_params[0] with be used to generate the 1st shift parameter from
-            `uniform[-translate_params[0], translate_params[0])`. Similarly, `translate_params[1]`
-            to `translate_params[N]` controls the range of the uniform distribution used to generate
-            the 2nd to N-th parameter.
-        scale_params: scale_params[0] with be used to generate the 1st scaling factor from
-            `uniform[-scale_params[0], scale_params[0]) + 1.0`. Similarly, `scale_params[1]` to
-            `scale_params[N]` controls the range of the uniform distribution used to generate the 2nd to
-            N-th parameter.
-        as_tensor_output: whether to output tensor instead of numpy array.
-            defaults to True.
+        rotate_params: a rotation angle in radians, a scalar for 2D image, a tuple of 3 floats for 3D.
+            Defaults to no rotation.
+        shear_params: shearing factors for affine matrix, take a 3D affine as example::
+
+            [
+                [1.0, params[0], params[1], 0.0],
+                [params[2], 1.0, params[3], 0.0],
+                [params[4], params[5], 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ]
+
+            a tuple of 2 floats for 2D, a tuple of 6 floats for 3D. Defaults to no shearing.
+        translate_params: a tuple of 2 floats for 2D, a tuple of 3 floats for 3D. Translation is in
+            pixel/voxel relative to the center of the input image. Defaults to no translation.
+        scale_params: scale factor for every spatial dims. a tuple of 2 floats for 2D,
+            a tuple of 3 floats for 3D. Defaults to `1.0`.
+        as_tensor_output: whether to output tensor instead of numpy array, defaults to True.
         device: device to store the output grid data.
         affine: If applied, ignore the params (`rotate_params`, etc.) and use the
             supplied matrix. Should be square with each side = num of image spatial
@@ -1041,6 +1041,7 @@ class AffineGrid(Transform):
 class RandAffineGrid(Randomizable, Transform):
     """
     Generate randomised affine grid.
+
     """
 
     def __init__(
@@ -1054,16 +1055,28 @@ class RandAffineGrid(Randomizable, Transform):
     ) -> None:
         """
         Args:
-            rotate_range: angle range in radians. If element `i` is iterable, then
+            rotate_range: angle range in radians. If element `i` is a pair of (min, max) values, then
                 `uniform[-rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
-                for the ith dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used. This can
-                be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be in range
-                `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]` for dim0
-                and nothing for the remaining dimensions.
-            shear_range: shear_range with format matching `rotate_range`.
-            translate_range: translate_range with format matching `rotate_range`.
-            scale_range: scaling_range with format matching `rotate_range`. A value of 1.0 is added to the result.
-                This allows 0 to correspond to no change (i.e., a scaling of 1).
+                for the `i`th spatial dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used.
+                This can be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be
+                in range `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]`
+                for dim0 and nothing for the remaining dimensions.
+            shear_range: shear range with format matching `rotate_range`, it defines the range to randomly select
+                shearing factors(a tuple of 2 floats for 2D, a tuple of 6 floats for 3D) for affine matrix,
+                take a 3D affine as example::
+
+                    [
+                        [1.0, params[0], params[1], 0.0],
+                        [params[2], 1.0, params[3], 0.0],
+                        [params[4], params[5], 1.0, 0.0],
+                        [0.0, 0.0, 0.0, 1.0],
+                    ]
+
+            translate_range: translate range with format matching `rotate_range`, it defines the range to randomly
+                select voxels to translate for every spatial dims.
+            scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
+                the scale factor to translate for every spatial dims. A value of 1.0 is added to the result.
+                This allows 0 to correspond to no change (i.e., a scaling of 1.0).
             as_tensor_output: whether to output tensor instead of numpy array.
                 defaults to True.
             device: device to store the output grid data.
@@ -1284,6 +1297,8 @@ class Resample(Transform):
 class Affine(Transform):
     """
     Transform ``img`` given the affine parameters.
+    A tutorial is available: https://github.com/Project-MONAI/tutorials/blob/0.6.0/modules/transforms_demo_2d.ipynb.
+
     """
 
     def __init__(
@@ -1305,10 +1320,20 @@ class Affine(Transform):
         Args:
             rotate_params: a rotation angle in radians, a scalar for 2D image, a tuple of 3 floats for 3D.
                 Defaults to no rotation.
-            shear_params: a tuple of 2 floats for 2D, a tuple of 6 floats for 3D. Defaults to no shearing.
+            shear_params: shearing factors for affine matrix, take a 3D affine as example::
+
+                [
+                    [1.0, params[0], params[1], 0.0],
+                    [params[2], 1.0, params[3], 0.0],
+                    [params[4], params[5], 1.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ]
+
+                a tuple of 2 floats for 2D, a tuple of 6 floats for 3D. Defaults to no shearing.
             translate_params: a tuple of 2 floats for 2D, a tuple of 3 floats for 3D. Translation is in
                 pixel/voxel relative to the center of the input image. Defaults to no translation.
-            scale_params: a tuple of 2 floats for 2D, a tuple of 3 floats for 3D. Defaults to no scaling.
+            scale_params: scale factor for every spatial dims. a tuple of 2 floats for 2D,
+                a tuple of 3 floats for 3D. Defaults to `1.0`.
             spatial_size: output image spatial size.
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
@@ -1372,6 +1397,8 @@ class Affine(Transform):
 class RandAffine(RandomizableTransform):
     """
     Random affine transform.
+    A tutorial is available: https://github.com/Project-MONAI/tutorials/blob/0.6.0/modules/transforms_demo_2d.ipynb.
+
     """
 
     def __init__(
@@ -1392,16 +1419,28 @@ class RandAffine(RandomizableTransform):
         Args:
             prob: probability of returning a randomized affine grid.
                 defaults to 0.1, with 10% chance returns a randomized grid.
-            rotate_range: angle range in radians. If element `i` is iterable, then
+            rotate_range: angle range in radians. If element `i` is a pair of (min, max) values, then
                 `uniform[-rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
-                for the ith dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used. This can
-                be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be in range
-                `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]` for dim0
-                and nothing for the remaining dimensions.
-            shear_range: shear_range with format matching `rotate_range`.
-            translate_range: translate_range with format matching `rotate_range`.
-            scale_range: scaling_range with format matching `rotate_range`. A value of 1.0 is added to the result.
-                This allows 0 to correspond to no change (i.e., a scaling of 1).
+                for the `i`th spatial dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used.
+                This can be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be
+                in range `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]`
+                for dim0 and nothing for the remaining dimensions.
+            shear_range: shear range with format matching `rotate_range`, it defines the range to randomly select
+                shearing factors(a tuple of 2 floats for 2D, a tuple of 6 floats for 3D) for affine matrix,
+                take a 3D affine as example::
+
+                    [
+                        [1.0, params[0], params[1], 0.0],
+                        [params[2], 1.0, params[3], 0.0],
+                        [params[4], params[5], 1.0, 0.0],
+                        [0.0, 0.0, 0.0, 1.0],
+                    ]
+
+            translate_range: translate range with format matching `rotate_range`, it defines the range to randomly
+                select pixel/voxel to translate for every spatial dims.
+            scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
+                the scale factor to translate for every spatial dims. A value of 1.0 is added to the result.
+                This allows 0 to correspond to no change (i.e., a scaling of 1.0).
             spatial_size: output image spatial size.
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
@@ -1530,7 +1569,9 @@ class RandAffine(RandomizableTransform):
 
 class Rand2DElastic(RandomizableTransform):
     """
-    Random elastic deformation and affine in 2D
+    Random elastic deformation and affine in 2D.
+    A tutorial is available: https://github.com/Project-MONAI/tutorials/blob/0.6.0/modules/transforms_demo_2d.ipynb.
+
     """
 
     def __init__(
@@ -1555,16 +1596,26 @@ class Rand2DElastic(RandomizableTransform):
             prob: probability of returning a randomized elastic transform.
                 defaults to 0.1, with 10% chance returns a randomized elastic transform,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
-            rotate_range: angle range in radians. If element `i` is iterable, then
+            rotate_range: angle range in radians. If element `i` is a pair of (min, max) values, then
                 `uniform[-rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
-                for the ith dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used. This can
-                be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be in range
-                `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]` for dim0
-                and nothing for the remaining dimensions.
-            shear_range: shear_range with format matching `rotate_range`.
-            translate_range: translate_range with format matching `rotate_range`.
-            scale_range: scaling_range with format matching `rotate_range`. A value of 1.0 is added to the result.
-                This allows 0 to correspond to no change (i.e., a scaling of 1).
+                for the `i`th spatial dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used.
+                This can be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be
+                in range `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]`
+                for dim0 and nothing for the remaining dimensions.
+            shear_range: shear range with format matching `rotate_range`, it defines the range to randomly select
+                shearing factors(a tuple of 2 floats for 2D) for affine matrix, take a 2D affine as example::
+
+                    [
+                        [1.0, params[0], 0.0],
+                        [params[1], 1.0, 0.0],
+                        [0.0, 0.0, 1.0],
+                    ]
+
+            translate_range: translate range with format matching `rotate_range`, it defines the range to randomly
+                select pixel to translate for every spatial dims.
+            scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
+                the scale factor to translate for every spatial dims. A value of 1.0 is added to the result.
+                This allows 0 to correspond to no change (i.e., a scaling of 1.0).
             spatial_size: specifying output image spatial size [h, w].
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
@@ -1656,7 +1707,9 @@ class Rand2DElastic(RandomizableTransform):
 
 class Rand3DElastic(RandomizableTransform):
     """
-    Random elastic deformation and affine in 3D
+    Random elastic deformation and affine in 3D.
+    A tutorial is available: https://github.com/Project-MONAI/tutorials/blob/0.6.0/modules/transforms_demo_2d.ipynb.
+
     """
 
     def __init__(
@@ -1683,16 +1736,27 @@ class Rand3DElastic(RandomizableTransform):
             prob: probability of returning a randomized elastic transform.
                 defaults to 0.1, with 10% chance returns a randomized elastic transform,
                 otherwise returns a ``spatial_size`` centered area extracted from the input image.
-            rotate_range: angle range in radians. If element `i` is iterable, then
+            rotate_range: angle range in radians. If element `i` is a pair of (min, max) values, then
                 `uniform[-rotate_range[i][0], rotate_range[i][1])` will be used to generate the rotation parameter
-                for the ith dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used. This can
-                be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be in range
-                `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]` for dim0
-                and nothing for the remaining dimensions.
-            shear_range: shear_range with format matching `rotate_range`.
-            translate_range: translate_range with format matching `rotate_range`.
-            scale_range: scaling_range with format matching `rotate_range`. A value of 1.0 is added to the result.
-                This allows 0 to correspond to no change (i.e., a scaling of 1).
+                for the `i`th spatial dimension. If not, `uniform[-rotate_range[i], rotate_range[i])` will be used.
+                This can be altered on a per-dimension basis. E.g., `((0,3), 1, ...)`: for dim0, rotation will be
+                in range `[0, 3]`, and for dim1 `[-1, 1]` will be used. Setting a single value will use `[-x, x]`
+                for dim0 and nothing for the remaining dimensions.
+            shear_range: shear range with format matching `rotate_range`, it defines the range to randomly select
+                shearing factors(a tuple of 6 floats for 3D) for affine matrix, take a 3D affine as example::
+
+                    [
+                        [1.0, params[0], params[1], 0.0],
+                        [params[2], 1.0, params[3], 0.0],
+                        [params[4], params[5], 1.0, 0.0],
+                        [0.0, 0.0, 0.0, 1.0],
+                    ]
+
+            translate_range: translate range with format matching `rotate_range`, it defines the range to randomly
+                select voxel to translate for every spatial dims.
+            scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
+                the scale factor to translate for every spatial dims. A value of 1.0 is added to the result.
+                This allows 0 to correspond to no change (i.e., a scaling of 1.0).
             spatial_size: specifying output image spatial size [h, w, d].
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
