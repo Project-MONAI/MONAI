@@ -86,7 +86,6 @@ grid_7 = torch.tensor(
     ]
 )
 
-
 TEST_CASE_0 = [
     "enclosed_default_full_connectivity_default_applied_labels",
     {},
@@ -213,6 +212,27 @@ TEST_CASE_17 = [
     torch.tensor([[[grid_1_raw, grid_1_raw, grid_3_raw]]]),
 ]
 
+TEST_CASE_18 = [
+    "enclosed_full_connectivity_applied_labels_with_background",
+    {"connectivity": 2, "applied_labels": [0, 1]},
+    grid_1,
+    grid_3,
+]
+
+TEST_CASE_19 = [
+    "enclosed_full_connectivity_applied_labels_only_background",
+    {"connectivity": 2, "applied_labels": [0]},
+    grid_1,
+    grid_1,
+]
+
+TEST_CASE_20 = [
+    "batch_enclosed_connectivity_1_default_applied_labels",
+    {"connectivity": 1},
+    torch.tensor([[grid_1_raw], [grid_2_raw]]),
+    torch.tensor([[grid_3_raw], [grid_4_raw]]),
+]
+
 VALID_CASES = [
     TEST_CASE_0,
     TEST_CASE_1,
@@ -232,6 +252,9 @@ VALID_CASES = [
     TEST_CASE_15,
     TEST_CASE_16,
     TEST_CASE_17,
+    TEST_CASE_18,
+    TEST_CASE_19,
+    TEST_CASE_20,
 ]
 
 ITEST_CASE_1 = ["invalid_image_data_type", {}, [[[[1, 1, 1]]]], NotImplementedError]

@@ -14,7 +14,7 @@ import random
 import re
 import warnings
 from contextlib import contextmanager
-from typing import Callable, List, Optional, Sequence, Tuple, Union
+from typing import Callable, Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -734,7 +734,9 @@ def get_largest_connected_component_mask(img: torch.Tensor, connectivity: Option
     return torch.as_tensor(largest_cc, device=img.device)
 
 
-def get_filled_holes(img_arr: np.ndarray, connectivity: Optional[int] = None) -> np.ndarray:
+def fill_holes(
+    img_arr: np.ndarray, applied_labels: Optional[Iterable[int]] = None, connectivity: Optional[int] = None
+) -> np.ndarray:
     """
     Fill the holes in the provided image.
 
@@ -742,8 +744,15 @@ def get_filled_holes(img_arr: np.ndarray, connectivity: Optional[int] = None) ->
     What is considered to be an enclosed hole is defined by the connectivity.
     Holes on the edge are always considered to be open (not enclosed).
 
+    Note:
+        The performance of this method heavily depends on the number of labels.
+        It is a bit faster if the list of `applied_labels` is provided.
+        Limiting the number of `applied_labels` results in a big decrease in processing time.
+
     Args:
         img_arr (np.ndarray): numpy array of shape [batch_size, spatial_dim1[, spatial_dim2, ...]].
+        applied_labels (Optional[Iterable[int]], optional): Labels for which to fill holes. Defaults to None,
+            that is filling holes for all labels.
         connectivity (Optional[int], optional): connectivity (int, optional): Maximum number of orthogonal hops to
             consider a pixel/voxel as a neighbor. Accepted values are ranging from  1 to input.ndim.
             Defaults to a full connectivity of ``input.ndim``.
@@ -751,31 +760,30 @@ def get_filled_holes(img_arr: np.ndarray, connectivity: Optional[int] = None) ->
     Returns:
         np.ndarray: numpy array of shape [batch_size, spatial_dim1[, spatial_dim2, ...]].
     """
-    ndim = img_arr.ndim - 1
-    if not connectivity:
-        connectivity = ndim
+    # Ignore batch dimension in structure (window for dilation steps)
+    spatial_dims = img_arr.ndim - 1
+    structure = np.zeros((3, *[3] * spatial_dims))
+    structure[1, ...] = ndimage.generate_binary_structure(spatial_dims, connectivity or spatial_dims)
 
-    footprint = ndimage.generate_binary_structure(ndim, connectivity)
-
+    # Get labels if not provided. Exclude background label.
+    applied_labels = set(applied_labels or np.unique(img_arr))
     background_label = 0
-    filled_holes = np.zeros_like(img_arr)
-    for i, item in enumerate(img_arr):
-        background_mask = item == background_label
-        components, num_components = ndimage.label(background_mask, structure=footprint)
+    applied_labels.discard(background_label)
 
-        for component_label in range(1, num_components + 1):
-            component_mask = components == component_label
-            # Pad with -1 to detect edge voxels
-            component_neighborhood = np.pad(item, 1, constant_values=-1)[
-                ndimage.binary_dilation(np.pad(component_mask, 1), structure=footprint)
-            ]
+    for label in applied_labels:
+        tmp = np.zeros(img_arr.shape, dtype=bool)
+        ndimage.binary_dilation(
+            tmp,
+            structure=structure,
+            iterations=-1,
+            mask=img_arr != label,
+            origin=0,
+            border_value=1,
+            output=tmp,
+        )
+        img_arr[np.logical_not(tmp)] = label
 
-            neighbor_labels = np.unique(component_neighborhood)
-            if len(neighbor_labels) == 2 and -1 not in neighbor_labels:
-                neighbor_label = neighbor_labels[1]
-                filled_holes[i, component_mask] = neighbor_label
-
-    return filled_holes
+    return img_arr
 
 
 def get_extreme_points(

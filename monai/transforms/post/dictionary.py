@@ -17,7 +17,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 import warnings
 from copy import deepcopy
-from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Union
+from typing import Any, Callable, Dict, Hashable, Iterable, List, Mapping, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -253,24 +253,25 @@ class FillHolesd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
+        applied_labels: Optional[Union[Iterable[int], int]] = None,
         connectivity: Optional[int] = None,
-        applied_labels: Optional[Union[Sequence[int], int]] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         """
+        Initialize the connectivity and limit the labels for which holes are filled.
+
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
+            applied_labels (Optional[Union[Iterable[int], int]], optional): Labels for which to fill holes. Defaults to None,
+                that is filling holes for all labels.
             connectivity (int, optional): Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
                 Accepted values are ranging from  1 to input.ndim. Defaults to a full
                 connectivity of ``input.ndim``.
-            applied_labels (Optional[Union[Sequence[int], int]], optional): Labels for which to fill holes. Defaults to None,
-                that is filling holes for all labels.
             allow_missing_keys: don't raise exception if key is missing.
-
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = FillHoles(connectivity, applied_labels)
+        self.converter = FillHoles(applied_labels=applied_labels, connectivity=connectivity)
 
     def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
         d = dict(data)

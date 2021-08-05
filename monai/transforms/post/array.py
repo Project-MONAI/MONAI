@@ -14,7 +14,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 import warnings
-from typing import Callable, Optional, Sequence, Union
+from typing import Callable, Iterable, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -24,7 +24,7 @@ from monai.config import NdarrayTensor
 from monai.networks import one_hot
 from monai.networks.layers import GaussianFilter
 from monai.transforms.transform import Transform
-from monai.transforms.utils import get_filled_holes, get_largest_connected_component_mask
+from monai.transforms.utils import fill_holes, get_largest_connected_component_mask
 from monai.utils import ensure_tuple
 
 __all__ = [
@@ -362,36 +362,41 @@ class FillHoles(Transform):
     with shape [batch_size, 1, spatial_dim1[, spatial_dim2, ...]] and the values correspond to expected labels.
 
     Note:
+
         The label 0 will be treated as background and the enclosed holes will be set to the neighboring class label.
+
+        The performance of this method heavily depends on the number of labels.
+        It is a bit faster if the list of `applied_labels` is provided.
+        Limiting the number of `applied_labels` results in a big decrease in processing time.
 
     For example:
 
-    Use FillHoles with default parameters::
+        Use FillHoles with default parameters::
 
-        [1, 1, 1, 2, 2, 2, 3, 3]         [1, 1, 1, 2, 2, 2, 3, 3]
-        [1, 0, 1, 2, 0, 0, 3, 0]    =>   [1, 1 ,1, 2, 0, 0, 3, 0]
-        [1, 1, 1, 2, 2, 2, 3, 3]         [1, 1, 1, 2, 2, 2, 3, 3]
+            [1, 1, 1, 2, 2, 2, 3, 3]         [1, 1, 1, 2, 2, 2, 3, 3]
+            [1, 0, 1, 2, 0, 0, 3, 0]    =>   [1, 1 ,1, 2, 0, 0, 3, 0]
+            [1, 1, 1, 2, 2, 2, 3, 3]         [1, 1, 1, 2, 2, 2, 3, 3]
 
-    The hole in label 1 is fully enclosed and therefore filled with label 1.
-    The background label near label 2 and 3 is not fully enclosed and therefore not filled.
+        The hole in label 1 is fully enclosed and therefore filled with label 1.
+        The background label near label 2 and 3 is not fully enclosed and therefore not filled.
     """
 
     def __init__(
-        self, connectivity: Optional[int] = None, applied_labels: Optional[Union[Sequence[int], int]] = None
+        self, applied_labels: Optional[Union[Iterable[int], int]] = None, connectivity: Optional[int] = None
     ) -> None:
         """
         Initialize the connectivity and limit the labels for which holes are filled.
 
         Args:
+            applied_labels (Optional[Union[Iterable[int], int]], optional): Labels for which to fill holes. Defaults to None,
+                that is filling holes for all labels.
             connectivity (int, optional): Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
                 Accepted values are ranging from  1 to input.ndim. Defaults to a full
                 connectivity of ``input.ndim``.
-            applied_labels (Optional[Union[Sequence[int], int]], optional): Labels for which to fill holes. Defaults to None,
-                that is filling holes for all labels.
         """
         super().__init__()
-        self.connectivity = connectivity
         self.applied_labels = ensure_tuple(applied_labels) if applied_labels else None
+        self.connectivity = connectivity
 
     def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
         """
@@ -414,11 +419,8 @@ class FillHoles(Transform):
         if isinstance(img, np.ndarray):
             channel_axis = 1
             img_arr = np.squeeze(img, axis=channel_axis)
-            output = get_filled_holes(img_arr, self.connectivity)
-            if self.applied_labels:
-                output = LabelFilter(self.applied_labels)(output)
+            output = fill_holes(img_arr, self.applied_labels, self.connectivity)
             output = np.expand_dims(output, axis=channel_axis)
-            output = img_arr + output
             return output
         elif isinstance(img, torch.Tensor):
             img_arr = img.detach().cpu().numpy()
