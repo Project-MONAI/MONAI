@@ -11,31 +11,42 @@
 
 
 import math
-from typing import Tuple, Union
+from typing import Tuple
 
+import numpy as np
 import torch
 import torch.nn as nn
 
-from monai.utils import optional_import
+from monai.networks.layers import Conv
+from monai.utils import ensure_tuple_rep, optional_import
+from monai.utils.module import look_up_option
 
 Rearrange, _ = optional_import("einops.layers.torch", name="Rearrange")
+SUPPORTED_EMBEDDING_TYPES = {"conv", "perceptron"}
 
 
 class PatchEmbeddingBlock(nn.Module):
     """
     A patch embedding block, based on: "Dosovitskiy et al.,
     An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale <https://arxiv.org/abs/2010.11929>"
+
+    Example::
+
+        >>> from monai.networks.blocks import PatchEmbeddingBlock
+        >>> PatchEmbeddingBlock(in_channels=4, img_size=32, patch_size=8, hidden_size=32, num_heads=4, pos_embed="conv")
+
     """
 
     def __init__(
         self,
         in_channels: int,
-        img_size: Tuple[int, int, int],
-        patch_size: Tuple[int, int, int],
+        img_size: Tuple[int, ...],
+        patch_size: Tuple[int, ...],
         hidden_size: int,
         num_heads: int,
         pos_embed: str,
         dropout_rate: float = 0.0,
+        spatial_dims: int = 3,
     ) -> None:
         """
         Args:
@@ -46,47 +57,44 @@ class PatchEmbeddingBlock(nn.Module):
             num_heads: number of attention heads.
             pos_embed: position embedding layer type.
             dropout_rate: faction of the input units to drop.
+            spatial_dims: number of spatial dimensions
+
 
         """
 
-        super().__init__()
+        super(PatchEmbeddingBlock, self).__init__()
 
         if not (0 <= dropout_rate <= 1):
-            raise AssertionError("dropout_rate should be between 0 and 1.")
+            raise ValueError("dropout_rate should be between 0 and 1.")
 
         if hidden_size % num_heads != 0:
-            raise AssertionError("hidden size should be divisible by num_heads.")
+            raise ValueError("hidden size should be divisible by num_heads.")
 
+        self.pos_embed = look_up_option(pos_embed, SUPPORTED_EMBEDDING_TYPES)
+
+        img_size = ensure_tuple_rep(img_size, spatial_dims)
+        patch_size = ensure_tuple_rep(patch_size, spatial_dims)
         for m, p in zip(img_size, patch_size):
             if m < p:
-                raise AssertionError("patch_size should be smaller than img_size.")
+                raise ValueError("patch_size should be smaller than img_size.")
+            if self.pos_embed == "perceptron" and m % p != 0:
+                raise ValueError("patch_size should be divisible by img_size for perceptron.")
+        self.n_patches = np.prod([im_d // p_d for im_d, p_d in zip(img_size, patch_size)])
+        self.patch_dim = in_channels * np.prod(patch_size)
 
-        if pos_embed not in ["conv", "perceptron"]:
-            raise KeyError(f"Position embedding layer of type {pos_embed} is not supported.")
-
-        if pos_embed == "perceptron":
-            if img_size[0] % patch_size[0] != 0:
-                raise AssertionError("img_size should be divisible by patch_size for perceptron patch embedding.")
-
-        self.n_patches = (
-            (img_size[0] // patch_size[0]) * (img_size[1] // patch_size[1]) * (img_size[2] // patch_size[2])
-        )
-        self.patch_dim = in_channels * patch_size[0] * patch_size[1] * patch_size[2]
-
-        self.pos_embed = pos_embed
-        self.patch_embeddings: Union[nn.Conv3d, nn.Sequential]
+        self.patch_embeddings: nn.Module
         if self.pos_embed == "conv":
-            self.patch_embeddings = nn.Conv3d(
+            self.patch_embeddings = Conv[Conv.CONV, spatial_dims](
                 in_channels=in_channels, out_channels=hidden_size, kernel_size=patch_size, stride=patch_size
             )
         elif self.pos_embed == "perceptron":
+            # for 3d: "b c (h p1) (w p2) (d p3)-> b (h w d) (p1 p2 p3 c)"
+            chars = (("h", "p1"), ("w", "p2"), ("d", "p3"))[:spatial_dims]
+            from_chars = "b c " + " ".join(f"({k} {v})" for k, v in chars)
+            to_chars = f"b ({' '.join([c[0] for c in chars])}) ({' '.join([c[1] for c in chars])} c)"
+            axes_len = {f"p{i+1}": p for i, p in enumerate(patch_size)}
             self.patch_embeddings = nn.Sequential(
-                Rearrange(
-                    "b c (h p1) (w p2) (d p3)-> b (h w d) (p1 p2 p3 c)",
-                    p1=patch_size[0],
-                    p2=patch_size[1],
-                    p3=patch_size[2],
-                ),
+                Rearrange(f"{from_chars} -> {to_chars}", **axes_len),
                 nn.Linear(self.patch_dim, hidden_size),
             )
         self.position_embeddings = nn.Parameter(torch.zeros(1, self.n_patches, hidden_size))
@@ -121,12 +129,9 @@ class PatchEmbeddingBlock(nn.Module):
             return tensor
 
     def forward(self, x):
+        x = self.patch_embeddings(x)
         if self.pos_embed == "conv":
-            x = self.patch_embeddings(x)
-            x = x.flatten(2)
-            x = x.transpose(-1, -2)
-        elif self.pos_embed == "perceptron":
-            x = self.patch_embeddings(x)
+            x = x.flatten(2).transpose(-1, -2)
         embeddings = x + self.position_embeddings
         embeddings = self.dropout(embeddings)
         return embeddings
