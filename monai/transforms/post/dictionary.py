@@ -29,8 +29,8 @@ from monai.transforms.post.array import (
     Activations,
     AsDiscrete,
     FillHoles,
-    Filter,
     KeepLargestConnectedComponent,
+    LabelFilter,
     LabelToContour,
     MeanEnsemble,
     ProbNMS,
@@ -53,15 +53,15 @@ __all__ = [
     "FillHolesD",
     "FillHolesDict",
     "FillHolesd",
-    "FilterD",
-    "FilterDict",
-    "Filterd",
     "InvertD",
     "InvertDict",
     "Invertd",
     "KeepLargestConnectedComponentD",
     "KeepLargestConnectedComponentDict",
     "KeepLargestConnectedComponentd",
+    "LabelFilterD",
+    "LabelFilterDict",
+    "LabelFilterd",
     "LabelToContourD",
     "LabelToContourDict",
     "LabelToContourd",
@@ -216,9 +216,9 @@ class KeepLargestConnectedComponentd(MapTransform):
         return d
 
 
-class Filterd(MapTransform):
+class LabelFilterd(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.Filter`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.LabelFilter`.
     """
 
     def __init__(
@@ -236,7 +236,7 @@ class Filterd(MapTransform):
 
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = Filter(applied_labels)
+        self.converter = LabelFilter(applied_labels)
 
     def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
         d = dict(data)
@@ -692,9 +692,9 @@ class SaveClassificationd(MapTransform):
 ActivationsD = ActivationsDict = Activationsd
 AsDiscreteD = AsDiscreteDict = AsDiscreted
 FillHolesD = FillHolesDict = FillHolesd
-FilterD = FilterDict = Filterd
 InvertD = InvertDict = Invertd
 KeepLargestConnectedComponentD = KeepLargestConnectedComponentDict = KeepLargestConnectedComponentd
+LabelFilterD = LabelFilterDict = LabelFilterd
 LabelToContourD = LabelToContourDict = LabelToContourd
 MeanEnsembleD = MeanEnsembleDict = MeanEnsembled
 ProbNMSD = ProbNMSDict = ProbNMSd

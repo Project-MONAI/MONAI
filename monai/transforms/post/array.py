@@ -31,8 +31,8 @@ __all__ = [
     "Activations",
     "AsDiscrete",
     "FillHoles",
-    "Filter",
     "KeepLargestConnectedComponent",
+    "LabelFilter",
     "LabelToContour",
     "MeanEnsemble",
     "ProbNMS",
@@ -292,7 +292,7 @@ class KeepLargestConnectedComponent(Transform):
         return output
 
 
-class Filter:
+class LabelFilter:
     """
     This transform filters out labels and can be used as a processing step to view only certain labels.
 
@@ -303,7 +303,7 @@ class Filter:
 
     For example:
 
-    Use Filter with applied_labels=[1, 5, 9]::
+    Use LabelFilter with applied_labels=[1, 5, 9]::
 
         [1, 2, 3]         [1, 0, 0]
         [4, 5, 6]    =>   [0, 5 ,0]
@@ -312,7 +312,7 @@ class Filter:
 
     def __init__(self, applied_labels: Union[Sequence[int], int]) -> None:
         """
-        Initialize the Filter class with the labels to filter on.
+        Initialize the LabelFilter class with the labels to filter on.
 
         Args:
             applied_labels (Union[Sequence[int], int]): Label(s) to filter on.
@@ -416,7 +416,7 @@ class FillHoles(Transform):
             img_arr = np.squeeze(img, axis=channel_axis)
             output = get_filled_holes(img_arr, self.connectivity)
             if self.applied_labels:
-                output = Filter(self.applied_labels)(output)
+                output = LabelFilter(self.applied_labels)(output)
             output = np.expand_dims(output, axis=channel_axis)
             output = img_arr + output
             return output

@@ -356,9 +356,9 @@ Post-processing
     :members:
     :special-members: __call__
 
-`Filter`
+`LabelFilter`
 """""""""""""""""""""""""""""""
-.. autoclass:: Filter
+.. autoclass:: LabelFilter
     :members:
     :special-members: __call__
 
@@ -967,9 +967,9 @@ Post-processing (Dict)
     :members:
     :special-members: __call__
 
-`Filterd`
+`LabelFilterd`
 """"""""""""""""""""""""""""""""
-.. autoclass:: Filterd
+.. autoclass:: LabelFilterd
     :members:
     :special-members: __call__
 
