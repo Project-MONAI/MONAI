@@ -75,7 +75,13 @@ class ViT(nn.Module):
 
         self.classification = classification
         self.patch_embedding = PatchEmbeddingBlock(
-            in_channels, img_size, patch_size, hidden_size, num_heads, pos_embed, dropout_rate
+            in_channels=in_channels,
+            img_size=img_size,
+            patch_size=patch_size,
+            hidden_size=hidden_size,
+            num_heads=num_heads,
+            pos_embed=pos_embed,
+            dropout_rate=dropout_rate,
         )
         self.blocks = nn.ModuleList(
             [TransformerBlock(hidden_size, mlp_dim, num_heads, dropout_rate) for i in range(num_layers)]
