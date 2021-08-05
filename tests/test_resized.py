@@ -18,15 +18,15 @@ from parameterized import parameterized
 from monai.transforms import Resized
 from tests.utils import NumpyImageTestCase2D
 
-TEST_CASE_0 = [{"keys": "img", "spatial_size": 15}, (6, 11, 15)]
+TEST_CASE_0 = [{"keys": "img", "spatial_size": 15}, (6, 10, 15)]
 
-TEST_CASE_1 = [{"keys": "img", "spatial_size": 15, "mode": "area"}, (6, 11, 15)]
+TEST_CASE_1 = [{"keys": "img", "spatial_size": 15, "mode": "area"}, (6, 10, 15)]
 
-TEST_CASE_2 = [{"keys": "img", "spatial_size": 6, "mode": "trilinear", "align_corners": True}, (3, 5, 6)]
+TEST_CASE_2 = [{"keys": "img", "spatial_size": 6, "mode": "trilinear", "align_corners": True}, (2, 4, 6)]
 
 TEST_CASE_3 = [
     {"keys": ["img", "label"], "spatial_size": 6, "mode": ["trilinear", "nearest"], "align_corners": [True, None]},
-    (3, 5, 6),
+    (2, 4, 6),
 ]
 
 
