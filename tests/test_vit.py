@@ -48,7 +48,7 @@ for dropout_rate in [0.6]:
                                                 (2, (img_size // patch_size) ** nd, hidden_size),
                                             ]
                                             if nd == 2:
-                                                test_case[0]["spatial_dims"] = 2
+                                                test_case[0]["spatial_dims"] = 2  # type: ignore
                                             TEST_CASE_Vit.append(test_case)
 
 
