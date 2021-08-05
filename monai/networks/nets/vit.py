@@ -10,7 +10,7 @@
 # limitations under the License.
 
 
-from typing import Tuple
+from typing import Sequence, Union
 
 import torch.nn as nn
 
@@ -27,8 +27,8 @@ class ViT(nn.Module):
     def __init__(
         self,
         in_channels: int,
-        img_size: Tuple[int, ...],
-        patch_size: Tuple[int, ...],
+        img_size: Union[Sequence[int], int],
+        patch_size: Union[Sequence[int], int],
         hidden_size: int = 768,
         mlp_dim: int = 3072,
         num_layers: int = 12,

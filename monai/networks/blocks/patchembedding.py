@@ -11,7 +11,7 @@
 
 
 import math
-from typing import Tuple
+from typing import Sequence, Union
 
 import numpy as np
 import torch
@@ -40,8 +40,8 @@ class PatchEmbeddingBlock(nn.Module):
     def __init__(
         self,
         in_channels: int,
-        img_size: Tuple[int, ...],
-        patch_size: Tuple[int, ...],
+        img_size: Union[Sequence[int], int],
+        patch_size: Union[Sequence[int], int],
         hidden_size: int,
         num_heads: int,
         pos_embed: str,

@@ -20,7 +20,7 @@ from monai.networks.blocks.unetr_block import UnetrBasicBlock, UnetrPrUpBlock, U
 from tests.utils import test_script_save
 
 TEST_CASE_UNETR_BASIC_BLOCK = []
-for spatial_dims in range(2, 4):
+for spatial_dims in range(1, 4):
     for kernel_size in [1, 3]:
         for stride in [2]:
             for norm_name in [("GROUP", {"num_groups": 16}), ("batch", {"track_running_stats": False}), "instance"]:
@@ -45,34 +45,32 @@ for spatial_dims in range(2, 4):
 
 TEST_UP_BLOCK = []
 in_channels, out_channels = 4, 2
-for spatial_dims in range(2, 4):
+for spatial_dims in range(1, 4):
     for kernel_size in [1, 3]:
-        for stride in [1, 2]:
-            for res_block in [False, True]:
-                for norm_name in ["instance"]:
-                    for in_size in [15, 16]:
-                        out_size = in_size * stride
-                        test_case = [
-                            {
-                                "spatial_dims": spatial_dims,
-                                "in_channels": in_channels,
-                                "out_channels": out_channels,
-                                "kernel_size": kernel_size,
-                                "norm_name": norm_name,
-                                "stride": stride,
-                                "res_block": res_block,
-                                "upsample_kernel_size": stride,
-                            },
-                            (1, in_channels, *([in_size] * spatial_dims)),
-                            (1, out_channels, *([out_size] * spatial_dims)),
-                            (1, out_channels, *([in_size * stride] * spatial_dims)),
-                        ]
-                        TEST_UP_BLOCK.append(test_case)
+        for res_block in [False, True]:
+            for norm_name in ["instance"]:
+                for in_size in [15, 16]:
+                    out_size = in_size * stride
+                    test_case = [
+                        {
+                            "spatial_dims": spatial_dims,
+                            "in_channels": in_channels,
+                            "out_channels": out_channels,
+                            "kernel_size": kernel_size,
+                            "norm_name": norm_name,
+                            "res_block": res_block,
+                            "upsample_kernel_size": stride,
+                        },
+                        (1, in_channels, *([in_size] * spatial_dims)),
+                        (1, out_channels, *([out_size] * spatial_dims)),
+                        (1, out_channels, *([in_size * stride] * spatial_dims)),
+                    ]
+                    TEST_UP_BLOCK.append(test_case)
 
 
 TEST_PRUP_BLOCK = []
 in_channels, out_channels = 4, 2
-for spatial_dims in range(2, 4):
+for spatial_dims in range(1, 4):
     for kernel_size in [1, 3]:
         for upsample_kernel_size in [2, 3]:
             for stride in [1, 2]:
@@ -81,7 +79,7 @@ for spatial_dims in range(2, 4):
                         for in_size in [15, 16]:
                             for num_layer in [0, 2]:
                                 in_size_tmp = in_size
-                                for _num in range(num_layer + 1):
+                                for _ in range(num_layer + 1):
                                     out_size = in_size_tmp * upsample_kernel_size
                                     in_size_tmp = out_size
                             test_case = [
