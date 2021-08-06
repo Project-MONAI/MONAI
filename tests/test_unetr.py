@@ -28,27 +28,28 @@ for dropout_rate in [0.4]:
                             for mlp_dim in [3072]:
                                 for norm_name in ["instance"]:
                                     for pos_embed in ["perceptron"]:
-                                        for conv_block in [True]:
-                                            for res_block in [False]:
-                                                test_case = [
-                                                    {
-                                                        "in_channels": in_channels,
-                                                        "out_channels": out_channels,
-                                                        "img_size": (img_size, img_size, img_size),
-                                                        "hidden_size": hidden_size,
-                                                        "feature_size": feature_size,
-                                                        "norm_name": norm_name,
-                                                        "mlp_dim": mlp_dim,
-                                                        "num_heads": num_heads,
-                                                        "pos_embed": pos_embed,
-                                                        "dropout_rate": dropout_rate,
-                                                        "conv_block": conv_block,
-                                                        "res_block": res_block,
-                                                    },
-                                                    (2, in_channels, img_size, *([img_size] * 2)),
-                                                    (2, out_channels, img_size, *([img_size] * 2)),
-                                                ]
-                                                TEST_CASE_UNETR.append(test_case)
+                                        for nd in (2, 3):
+                                            test_case = [
+                                                {
+                                                    "in_channels": in_channels,
+                                                    "out_channels": out_channels,
+                                                    "img_size": (img_size,) * nd,
+                                                    "hidden_size": hidden_size,
+                                                    "feature_size": feature_size,
+                                                    "norm_name": norm_name,
+                                                    "mlp_dim": mlp_dim,
+                                                    "num_heads": num_heads,
+                                                    "pos_embed": pos_embed,
+                                                    "dropout_rate": dropout_rate,
+                                                    "conv_block": True,
+                                                    "res_block": False,
+                                                },
+                                                (2, in_channels, *([img_size] * nd)),
+                                                (2, out_channels, *([img_size] * nd)),
+                                            ]
+                                            if nd == 2:
+                                                test_case[0]["spatial_dims"] = 2  # type: ignore
+                                            TEST_CASE_UNETR.append(test_case)
 
 
 class TestPatchEmbeddingBlock(unittest.TestCase):
@@ -60,7 +61,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
             self.assertEqual(result.shape, expected_shape)
 
     def test_ill_arg(self):
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             UNETR(
                 in_channels=1,
                 out_channels=3,
@@ -74,7 +75,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 dropout_rate=5.0,
             )
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             UNETR(
                 in_channels=1,
                 out_channels=4,
@@ -88,7 +89,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 dropout_rate=0.5,
             )
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             UNETR(
                 in_channels=1,
                 out_channels=3,
@@ -102,7 +103,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 dropout_rate=0.4,
             )
 
-        with self.assertRaises(KeyError):
+        with self.assertRaises(ValueError):
             UNETR(
                 in_channels=1,
                 out_channels=4,
