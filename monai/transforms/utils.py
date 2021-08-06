@@ -750,15 +750,15 @@ def fill_holes(
         Limiting the number of `applied_labels` results in a big decrease in processing time.
 
     Args:
-        img_arr (np.ndarray): numpy array of shape [batch_size, spatial_dim1[, spatial_dim2, ...]].
-        applied_labels (Optional[Iterable[int]], optional): Labels for which to fill holes. Defaults to None,
+        img_arr: numpy array of shape [batch_size, spatial_dim1[, spatial_dim2, ...]].
+        applied_labels: Labels for which to fill holes. Defaults to None,
             that is filling holes for all labels.
-        connectivity (Optional[int], optional): connectivity (int, optional): Maximum number of orthogonal hops to
+        connectivity: connectivity (int, optional): Maximum number of orthogonal hops to
             consider a pixel/voxel as a neighbor. Accepted values are ranging from  1 to input.ndim.
             Defaults to a full connectivity of ``input.ndim``.
 
     Returns:
-        np.ndarray: numpy array of shape [batch_size, spatial_dim1[, spatial_dim2, ...]].
+        numpy array of shape [batch_size, spatial_dim1[, spatial_dim2, ...]].
     """
     # Ignore batch dimension in structure (window for dilation steps)
     spatial_dims = img_arr.ndim - 1

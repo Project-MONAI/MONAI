@@ -357,13 +357,13 @@ Post-processing
     :special-members: __call__
 
 `LabelFilter`
-"""""""""""""""""""""""""""""""
+"""""""""""""
 .. autoclass:: LabelFilter
     :members:
     :special-members: __call__
 
 `FillHoles`
-"""""""""""""""""""""""""""""""
+"""""""""""
 .. autoclass:: FillHoles
     :members:
     :special-members: __call__
@@ -968,13 +968,13 @@ Post-processing (Dict)
     :special-members: __call__
 
 `LabelFilterd`
-""""""""""""""""""""""""""""""""
+""""""""""""""
 .. autoclass:: LabelFilterd
     :members:
     :special-members: __call__
 
 `FillHolesd`
-""""""""""""""""""""""""""""""""
+""""""""""""
 .. autoclass:: FillHolesd
     :members:
     :special-members: __call__

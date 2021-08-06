@@ -231,7 +231,7 @@ class LabelFilterd(MapTransform):
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            applied_labels (Union[Sequence[int], int]): Label(s) to filter on.
+            applied_labels: Label(s) to filter on.
             allow_missing_keys: don't raise exception if key is missing.
 
         """

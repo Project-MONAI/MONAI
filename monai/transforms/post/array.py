@@ -315,7 +315,7 @@ class LabelFilter:
         Initialize the LabelFilter class with the labels to filter on.
 
         Args:
-            applied_labels (Union[Sequence[int], int]): Label(s) to filter on.
+            applied_labels: Label(s) to filter on.
         """
         self.applied_labels = ensure_tuple(applied_labels)
 
@@ -324,13 +324,13 @@ class LabelFilter:
         Filter the image on the `applied_labels`.
 
         Args:
-            img (NdarrayTensor): Pytorch tensor or numpy array of any shape.
+            img: Pytorch tensor or numpy array of any shape.
 
         Raises:
             NotImplementedError: The provided image was not a Pytorch Tensor or numpy array.
 
         Returns:
-            Union[np.ndarray, torch.Tensor]: Pytorch tensor or numpy array of the same shape as the input.
+            Pytorch tensor or numpy array of the same shape as the input.
         """
         if isinstance(img, np.ndarray):
             return np.asarray(np.where(np.isin(img, self.applied_labels), img, 0))
@@ -388,11 +388,9 @@ class FillHoles(Transform):
         Initialize the connectivity and limit the labels for which holes are filled.
 
         Args:
-            applied_labels (Optional[Union[Iterable[int], int]], optional): Labels for which to fill holes. Defaults to None,
-                that is filling holes for all labels.
-            connectivity (int, optional): Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
-                Accepted values are ranging from  1 to input.ndim. Defaults to a full
-                connectivity of ``input.ndim``.
+            applied_labels: Labels for which to fill holes. Defaults to None, that is filling holes for all labels.
+            connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
+                Accepted values are ranging from  1 to input.ndim. Defaults to a full connectivity of ``input.ndim``.
         """
         super().__init__()
         self.applied_labels = ensure_tuple(applied_labels) if applied_labels else None
@@ -406,15 +404,13 @@ class FillHoles(Transform):
             The value 0 is assumed as background label.
 
         Args:
-            img (NdarrayTensor): Pytorch Tensor or numpy array
-            of shape [batch_size, num_channel, spatial_dim1[, spatial_dim2, ...]].
+            img: Pytorch Tensor or numpy array of shape [batch_size, num_channel, spatial_dim1[, spatial_dim2, ...]].
 
         Raises:
             NotImplementedError: The provided image was not a Pytorch Tensor or numpy array.
 
         Returns:
-            Union[np.ndarray, torch.Tensor]: Pytorch Tensor or numpy array
-            of shape [batch_size, num_channel, spatial_dim1[, spatial_dim2, ...]].
+            Pytorch Tensor or numpy array of shape [batch_size, num_channel, spatial_dim1[, spatial_dim2, ...]].
         """
         if isinstance(img, np.ndarray):
             channel_axis = 1
