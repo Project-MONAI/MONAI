@@ -180,7 +180,7 @@ TEST_CASES = [
     ],
     [
         {"rotate_range": (1, 2), "translate_range": (0.1, 0.1, 0.1), "translate_percent": True},
-        {"grid": torch.arange(0, 27).reshape((3, 3, 3)), "orig_spatial_size": [30, 30, 30]},
+        {"grid": torch.arange(0, 27).reshape((3, 3, 3)), "spatial_size": [30, 30, 30]},
         torch.tensor(
             np.array(
                 [
