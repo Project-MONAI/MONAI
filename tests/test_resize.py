@@ -18,11 +18,11 @@ from parameterized import parameterized
 from monai.transforms import Resize
 from tests.utils import NumpyImageTestCase2D
 
-TEST_CASE_0 = [{"spatial_size": 15}, (6, 11, 15)]
+TEST_CASE_0 = [{"spatial_size": 15}, (6, 10, 15)]
 
-TEST_CASE_1 = [{"spatial_size": 15, "mode": "area"}, (6, 11, 15)]
+TEST_CASE_1 = [{"spatial_size": 15, "mode": "area"}, (6, 10, 15)]
 
-TEST_CASE_2 = [{"spatial_size": 6, "mode": "trilinear", "align_corners": True}, (3, 5, 6)]
+TEST_CASE_2 = [{"spatial_size": 6, "mode": "trilinear", "align_corners": True}, (2, 4, 6)]
 
 
 class TestResize(NumpyImageTestCase2D):
@@ -62,6 +62,11 @@ class TestResize(NumpyImageTestCase2D):
         input_param["size_mode"] = "longest"
         result = Resize(**input_param)(input_data)
         np.testing.assert_allclose(result.shape[1:], expected_shape)
+
+    def test_longest_infinite_decimals(self):
+        resize = Resize(spatial_size=1008, size_mode="longest", mode="bilinear", align_corners=False)
+        ret = resize(np.random.randint(0, 2, size=[1, 2544, 3032]))
+        self.assertTupleEqual(ret.shape, (1, 846, 1008))
 
 
 if __name__ == "__main__":

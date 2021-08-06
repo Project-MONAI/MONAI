@@ -14,7 +14,6 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 import warnings
-from math import ceil
 from typing import Any, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -403,7 +402,7 @@ class Resize(Transform):
             if not isinstance(self.spatial_size, int):
                 raise ValueError("spatial_size must be an int number if size_mode is 'longest'.")
             scale = self.spatial_size / max(img_size)
-            spatial_size_ = tuple(ceil(s * scale) for s in img_size)
+            spatial_size_ = tuple(int(round(s * scale)) for s in img_size)
         resized = torch.nn.functional.interpolate(  # type: ignore
             input=torch.as_tensor(np.ascontiguousarray(img), dtype=torch.float).unsqueeze(0),
             size=spatial_size_,
