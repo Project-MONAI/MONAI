@@ -42,22 +42,20 @@ grid_4_raw = [
     [0, 1, 0],
 ]
 
-grid_1 = torch.tensor([[grid_1_raw]])
+grid_1 = torch.tensor([grid_1_raw])
 
-grid_2 = torch.tensor([[grid_2_raw]])
+grid_2 = torch.tensor([grid_2_raw])
 
-grid_3 = torch.tensor([[grid_3_raw]])
+grid_3 = torch.tensor([grid_3_raw])
 
-grid_4 = torch.tensor([[grid_4_raw]])
+grid_4 = torch.tensor([grid_4_raw])
 
 grid_5 = torch.tensor(
     [
         [
-            [
-                [1, 1, 1],
-                [1, 0, 0],
-                [1, 1, 1],
-            ]
+            [1, 1, 1],
+            [1, 0, 0],
+            [1, 1, 1],
         ]
     ]
 )
@@ -65,11 +63,9 @@ grid_5 = torch.tensor(
 grid_6 = torch.tensor(
     [
         [
-            [
-                [1, 1, 2, 2, 2],
-                [1, 0, 2, 0, 2],
-                [1, 1, 2, 2, 2],
-            ]
+            [1, 1, 2, 2, 2],
+            [1, 0, 2, 0, 2],
+            [1, 1, 2, 2, 2],
         ]
     ]
 )
@@ -77,11 +73,9 @@ grid_6 = torch.tensor(
 grid_7 = torch.tensor(
     [
         [
-            [
-                [1, 1, 2, 2, 2],
-                [1, 0, 2, 2, 2],
-                [1, 1, 2, 2, 2],
-            ]
+            [1, 1, 2, 2, 2],
+            [1, 0, 2, 2, 2],
+            [1, 1, 2, 2, 2],
         ]
     ]
 )
@@ -187,29 +181,29 @@ TEST_CASE_13 = [
 TEST_CASE_14 = [
     "3D_enclosed_full_connectivity_default_applied_labels",
     {"connectivity": 3},
-    torch.tensor([[[grid_3_raw, grid_1_raw, grid_3_raw]]]),
-    torch.tensor([[[grid_3_raw, grid_3_raw, grid_3_raw]]]),
+    torch.tensor([[grid_3_raw, grid_1_raw, grid_3_raw]]),
+    torch.tensor([[grid_3_raw, grid_3_raw, grid_3_raw]]),
 ]
 
 TEST_CASE_15 = [
     "3D_enclosed_connectivity_1_default_applied_labels",
     {"connectivity": 1},
-    torch.tensor([[[grid_4_raw, grid_2_raw, grid_4_raw]]]),
-    torch.tensor([[[grid_4_raw, grid_4_raw, grid_4_raw]]]),
+    torch.tensor([[grid_4_raw, grid_2_raw, grid_4_raw]]),
+    torch.tensor([[grid_4_raw, grid_4_raw, grid_4_raw]]),
 ]
 
 TEST_CASE_16 = [
     "3D_open_full_connectivity_default_applied_labels",
     {"connectivity": 3},
-    torch.tensor([[[grid_4_raw, grid_2_raw, grid_4_raw]]]),
-    torch.tensor([[[grid_4_raw, grid_2_raw, grid_4_raw]]]),
+    torch.tensor([[grid_4_raw, grid_2_raw, grid_4_raw]]),
+    torch.tensor([[grid_4_raw, grid_2_raw, grid_4_raw]]),
 ]
 
 TEST_CASE_17 = [
     "3D_open_to_edge_connectivity_1_default_applied_labels",
     {"connectivity": 1},
-    torch.tensor([[[grid_1_raw, grid_1_raw, grid_3_raw]]]),
-    torch.tensor([[[grid_1_raw, grid_1_raw, grid_3_raw]]]),
+    torch.tensor([[grid_1_raw, grid_1_raw, grid_3_raw]]),
+    torch.tensor([[grid_1_raw, grid_1_raw, grid_3_raw]]),
 ]
 
 TEST_CASE_18 = [
@@ -227,10 +221,24 @@ TEST_CASE_19 = [
 ]
 
 TEST_CASE_20 = [
-    "batch_enclosed_connectivity_1_default_applied_labels",
+    "one-hot_enclosed_connectivity_1_default_applied_labels",
     {"connectivity": 1},
-    torch.tensor([[grid_1_raw], [grid_2_raw]]),
-    torch.tensor([[grid_3_raw], [grid_4_raw]]),
+    torch.tensor([grid_1_raw, grid_1_raw, grid_2_raw]),
+    torch.tensor([grid_1_raw, grid_3_raw, grid_4_raw]),
+]
+
+TEST_CASE_21 = [
+    "one-hot_enclosed_connectivity_1_applied_labels_2",
+    {"connectivity": 1, "applied_labels": [2]},
+    torch.tensor([grid_1_raw, grid_1_raw, grid_2_raw]),
+    torch.tensor([grid_1_raw, grid_1_raw, grid_4_raw]),
+]
+
+TEST_CASE_22 = [
+    "one-hot_full_connectivity_applied_labels_2",
+    {"connectivity": 2},
+    torch.tensor([grid_1_raw, grid_1_raw, grid_2_raw]),
+    torch.tensor([grid_1_raw, grid_3_raw, grid_2_raw]),
 ]
 
 VALID_CASES = [
@@ -255,6 +263,8 @@ VALID_CASES = [
     TEST_CASE_18,
     TEST_CASE_19,
     TEST_CASE_20,
+    TEST_CASE_21,
+    TEST_CASE_22,
 ]
 
 ITEST_CASE_1 = ["invalid_image_data_type", {}, [[[[1, 1, 1]]]], NotImplementedError]

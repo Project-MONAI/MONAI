@@ -310,7 +310,7 @@ class LabelFilter:
         [7, 8, 9]         [0, 0, 9]
     """
 
-    def __init__(self, applied_labels: Union[Sequence[int], int]) -> None:
+    def __init__(self, applied_labels: Union[Iterable[int], int]) -> None:
         """
         Initialize the LabelFilter class with the labels to filter on.
 
@@ -358,8 +358,9 @@ class FillHoles(Transform):
              [ ]           [ ]  [ ]  [ ]
 
     It is possible to define for which labels the hole filling should be applied.
-    The input image is assumed to be a PyTorch Tensor or numpy array
-    with shape [batch_size, 1, spatial_dim1[, spatial_dim2, ...]] and the values correspond to expected labels.
+    The input image is assumed to be a PyTorch Tensor or numpy array with shape [C, spatial_dim1[, spatial_dim2, ...]].
+    If C = 1, then the values correspond to expected labels.
+    If C > 1, then a one-hot-encoding is expected where the index of C matches the label indexing.
 
     Note:
 
@@ -404,20 +405,16 @@ class FillHoles(Transform):
             The value 0 is assumed as background label.
 
         Args:
-            img: Pytorch Tensor or numpy array of shape [batch_size, num_channel, spatial_dim1[, spatial_dim2, ...]].
+            img: Pytorch Tensor or numpy array of shape [C, spatial_dim1[, spatial_dim2, ...]].
 
         Raises:
             NotImplementedError: The provided image was not a Pytorch Tensor or numpy array.
 
         Returns:
-            Pytorch Tensor or numpy array of shape [batch_size, num_channel, spatial_dim1[, spatial_dim2, ...]].
+            Pytorch Tensor or numpy array of shape [C, spatial_dim1[, spatial_dim2, ...]].
         """
         if isinstance(img, np.ndarray):
-            channel_axis = 1
-            img_arr = np.squeeze(img, axis=channel_axis)
-            output = fill_holes(img_arr, self.applied_labels, self.connectivity)
-            output = np.expand_dims(output, axis=channel_axis)
-            return output
+            return fill_holes(img, self.applied_labels, self.connectivity)
         elif isinstance(img, torch.Tensor):
             img_arr = img.detach().cpu().numpy()
             img_arr = self(img_arr)

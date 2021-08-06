@@ -745,43 +745,50 @@ def fill_holes(
     Holes on the edge are always considered to be open (not enclosed).
 
     Note:
+
         The performance of this method heavily depends on the number of labels.
         It is a bit faster if the list of `applied_labels` is provided.
         Limiting the number of `applied_labels` results in a big decrease in processing time.
 
+        If the image is one-hot-encoded, then the `applied_labels` need to match the channel index.
+
     Args:
-        img_arr: numpy array of shape [batch_size, spatial_dim1[, spatial_dim2, ...]].
+        img_arr: numpy array of shape [C, spatial_dim1[, spatial_dim2, ...]].
         applied_labels: Labels for which to fill holes. Defaults to None,
             that is filling holes for all labels.
-        connectivity: connectivity (int, optional): Maximum number of orthogonal hops to
+        connectivity: Maximum number of orthogonal hops to
             consider a pixel/voxel as a neighbor. Accepted values are ranging from  1 to input.ndim.
             Defaults to a full connectivity of ``input.ndim``.
 
     Returns:
-        numpy array of shape [batch_size, spatial_dim1[, spatial_dim2, ...]].
+        numpy array of shape [C, spatial_dim1[, spatial_dim2, ...]].
     """
-    # Ignore batch dimension in structure (window for dilation steps)
+    channel_axis = 0
+    num_channels = img_arr.shape[channel_axis]
+    is_one_hot = num_channels > 1
     spatial_dims = img_arr.ndim - 1
-    structure = np.zeros((3, *[3] * spatial_dims))
-    structure[1, ...] = ndimage.generate_binary_structure(spatial_dims, connectivity or spatial_dims)
+    structure = ndimage.generate_binary_structure(spatial_dims, connectivity or spatial_dims)
 
     # Get labels if not provided. Exclude background label.
-    applied_labels = set(applied_labels or np.unique(img_arr))
+    applied_labels = set(applied_labels or (range(num_channels) if is_one_hot else np.unique(img_arr)))
     background_label = 0
     applied_labels.discard(background_label)
 
     for label in applied_labels:
-        tmp = np.zeros(img_arr.shape, dtype=bool)
+        tmp = np.zeros(img_arr.shape[1:], dtype=bool)
         ndimage.binary_dilation(
             tmp,
             structure=structure,
             iterations=-1,
-            mask=img_arr != label,
+            mask=np.logical_not(img_arr[label]) if is_one_hot else img_arr[0] != label,
             origin=0,
             border_value=1,
             output=tmp,
         )
-        img_arr[np.logical_not(tmp)] = label
+        if is_one_hot:
+            img_arr[label] = np.logical_not(tmp)
+        else:
+            img_arr[0, np.logical_not(tmp)] = label
 
     return img_arr
 
