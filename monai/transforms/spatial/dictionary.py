@@ -605,8 +605,8 @@ class Affined(MapTransform, InvertibleTransform):
                 a tuple of 2 floats for 2D, a tuple of 6 floats for 3D. Defaults to no shearing.
             translate_params: a tuple of 2 floats for 2D, a tuple of 3 floats for 3D. Translation is in
                 pixel/voxel relative to the center of the input image. Defaults to no translation.
-            translate_percent: if True, `translate_params` will be the percentage of input image spatial size to
-                translate, default to False.
+            translate_percent: if True, `translate_params` will be the percentage of image spatial size to translate,
+                default to False.
             scale_params: scale factor for every spatial dims. a tuple of 2 floats for 2D,
                 a tuple of 3 floats for 3D. Defaults to `1.0`.
             spatial_size: output image spatial size.
@@ -744,8 +744,8 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
 
             translate_range: translate range with format matching `rotate_range`, it defines the range to randomly
                 select pixel/voxel or percentage of spatial size to translate for every spatial dims.
-            translate_percent: if True, `translate_range` will be the percentage of input image spatial size to
-                translate, default to False.
+            translate_percent: if True, `translate_range` will be the percentage of image spatial size to translate,
+                default to False.
             scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
                 the scale factor to translate for every spatial dims. A value of 1.0 is added to the result.
                 This allows 0 to correspond to no change (i.e., a scaling of 1.0).
@@ -813,7 +813,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         if do_resampling:  # need to prepare grid
             grid = self.rand_affine.get_identity_grid(sp_size)
             if self._do_transform:  # add some random factors
-                grid = self.rand_affine.rand_affine_grid(grid=grid, orig_spatial_size=d[self.keys[0]].shape[1:])
+                grid = self.rand_affine.rand_affine_grid(spatial_size=sp_size, grid=grid)
                 affine = self.rand_affine.rand_affine_grid.get_transformation_matrix()  # type: ignore[assignment]
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
@@ -924,8 +924,8 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
 
             translate_range: translate range with format matching `rotate_range`, it defines the range to randomly
                 select pixel or percentage of spatial size to translate for every spatial dims.
-            translate_percent: if True, `translate_range` will be the percentage of input image spatial size to
-                translate, default to False.
+            translate_percent: if True, `translate_range` will be the percentage of image spatial size to translate,
+                default to False.
             scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
                 the scale factor to translate for every spatial dims. A value of 1.0 is added to the result.
                 This allows 0 to correspond to no change (i.e., a scaling of 1.0).
@@ -985,7 +985,7 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
 
         if self._do_transform:
             grid = self.rand_2d_elastic.deform_grid(spatial_size=sp_size)
-            grid = self.rand_2d_elastic.rand_affine_grid(grid=grid, orig_spatial_size=d[self.keys[0]].shape[1:])
+            grid = self.rand_2d_elastic.rand_affine_grid(spatial_size=sp_size, grid=grid)
             grid = torch.nn.functional.interpolate(  # type: ignore
                 recompute_scale_factor=True,
                 input=grid.unsqueeze(0),
@@ -1059,8 +1059,8 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
 
             translate_range: translate range with format matching `rotate_range`, it defines the range to randomly
                 select voxel or percentage of spatial size to translate for every spatial dims.
-            translate_percent: if True, `translate_range` will be the percentage of input image spatial size to
-                translate, default to False.
+            translate_percent: if True, `translate_range` will be the percentage of image spatial size to translate,
+                default to False.
             scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
                 the scale factor to translate for every spatial dims. A value of 1.0 is added to the result.
                 This allows 0 to correspond to no change (i.e., a scaling of 1.0).
@@ -1124,7 +1124,7 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
             gaussian = GaussianFilter(spatial_dims=3, sigma=self.rand_3d_elastic.sigma, truncated=3.0).to(device)
             offset = torch.tensor(self.rand_3d_elastic.rand_offset, device=device).unsqueeze(0)
             grid[:3] += gaussian(offset)[0] * self.rand_3d_elastic.magnitude
-            grid = self.rand_3d_elastic.rand_affine_grid(grid=grid, orig_spatial_size=d[self.keys[0]].shape[1:])
+            grid = self.rand_3d_elastic.rand_affine_grid(spatial_size=sp_size, grid=grid)
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             d[key] = self.rand_3d_elastic.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)

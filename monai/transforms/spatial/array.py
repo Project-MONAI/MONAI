@@ -1074,8 +1074,8 @@ class RandAffineGrid(Randomizable, Transform):
 
             translate_range: translate range with format matching `rotate_range`, it defines the range to randomly
                 select pixel/voxel or percentage of spatial size to translate for every spatial dims.
-            translate_percent: if True, `translate_range` will be the percentage of input image spatial size to
-                translate, default to False.
+            translate_percent: if True, `translate_range` will be the percentage of image spatial size to translate,
+                default to False.
             scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
                 the scale factor to translate for every spatial dims. A value of 1.0 is added to the result.
                 This allows 0 to correspond to no change (i.e., a scaling of 1.0).
@@ -1125,23 +1125,21 @@ class RandAffineGrid(Randomizable, Transform):
         self,
         spatial_size: Optional[Sequence[int]] = None,
         grid: Optional[Union[np.ndarray, torch.Tensor]] = None,
-        orig_spatial_size: Optional[Sequence[int]] = None,
     ) -> Union[np.ndarray, torch.Tensor]:
         """
         Args:
-            spatial_size: output grid size.
+            spatial_size: output grid size if `grid` is None. if `translate_percent=True`, also need to provide
+                the spatial size of expected output and compute the pixel/voxel to translate.
             grid: grid to be transformed. Shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
-            orig_spatial_size: if `translate_percent=True`, need to provide the spatial size of orignal input image
-                and compute the pixel/voxel to translate.
 
         Returns:
             a 2D (3xHxW) or 3D (4xHxWxD) grid.
         """
         self.randomize()
         if self.translate_percent:
-            if orig_spatial_size is None:
-                raise ValueError("if `translate_percent=True`, must provide the spatial size of input image.")
-            translate_params = [t * orig_spatial_size[i] for i, t in enumerate(self.translate_params)]
+            if spatial_size is None:
+                raise ValueError("if `translate_percent=True`, must provide the expected spatial size of output.")
+            translate_params = [t * spatial_size[i] for i, t in enumerate(self.translate_params)]
         else:
             translate_params = self.translate_params
 
@@ -1346,8 +1344,8 @@ class Affine(Transform):
                 a tuple of 2 floats for 2D, a tuple of 6 floats for 3D. Defaults to no shearing.
             translate_params: a tuple of 2 floats for 2D, a tuple of 3 floats for 3D. Translation is in
                 pixel/voxel relative to the center of the input image. Defaults to no translation.
-            translate_percent: if True, `translate_params` will be the percentage of input image spatial size to
-                translate, default to False.
+            translate_percent: if True, `translate_params` will be the percentage of image spatial size to translate,
+                default to False.
             scale_params: scale factor for every spatial dims. a tuple of 2 floats for 2D,
                 a tuple of 3 floats for 3D. Defaults to `1.0`.
             spatial_size: output image spatial size.
@@ -1404,7 +1402,7 @@ class Affine(Transform):
         sp_size = fall_back_tuple(spatial_size or self.spatial_size, img.shape[1:])
         translate_params: Optional[Union[Sequence[float], float]]
         if self.translate_percent and self.translate_params is not None:
-            translate_params = [t * img.shape[1:][i] for i, t in enumerate(ensure_tuple(self.translate_params))]
+            translate_params = [t * sp_size[i] for i, t in enumerate(ensure_tuple(self.translate_params))]
         else:
             translate_params = self.translate_params
         affine_grid = AffineGrid(
@@ -1466,8 +1464,8 @@ class RandAffine(RandomizableTransform):
 
             translate_range: translate range with format matching `rotate_range`, it defines the range to randomly
                 select pixel/voxel or percentage of spatial size to translate for every spatial dims.
-            translate_percent: if True, `translate_range` will be the percentage of input image spatial size to
-                translate, default to False.
+            translate_percent: if True, `translate_range` will be the percentage of image spatial size to translate,
+                default to False.
             scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
                 the scale factor to translate for every spatial dims. A value of 1.0 is added to the result.
                 This allows 0 to correspond to no change (i.e., a scaling of 1.0).
@@ -1592,7 +1590,7 @@ class RandAffine(RandomizableTransform):
             return torch.Tensor(img) if self.resampler.as_tensor_output else np.array(img)
         grid = self.get_identity_grid(sp_size)
         if self._do_transform:
-            grid = self.rand_affine_grid(grid=grid, orig_spatial_size=img.shape[1:])
+            grid = self.rand_affine_grid(spatial_size=sp_size, grid=grid)
         return self.resampler(
             img=img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
         )
@@ -1645,8 +1643,8 @@ class Rand2DElastic(RandomizableTransform):
 
             translate_range: translate range with format matching `rotate_range`, it defines the range to randomly
                 select pixel or percentage of spatial size to translate for every spatial dims.
-            translate_percent: if True, `translate_range` will be the percentage of input image spatial size to
-                translate, default to False.
+            translate_percent: if True, `translate_range` will be the percentage of image spatial size to translate,
+                default to False.
             scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
                 the scale factor to translate for every spatial dims. A value of 1.0 is added to the result.
                 This allows 0 to correspond to no change (i.e., a scaling of 1.0).
@@ -1726,7 +1724,7 @@ class Rand2DElastic(RandomizableTransform):
         self.randomize(spatial_size=sp_size)
         if self._do_transform:
             grid = self.deform_grid(spatial_size=sp_size)
-            grid = self.rand_affine_grid(grid=grid, orig_spatial_size=img.shape[1:])
+            grid = self.rand_affine_grid(spatial_size=sp_size, grid=grid)
             grid = torch.nn.functional.interpolate(  # type: ignore
                 recompute_scale_factor=True,
                 input=torch.as_tensor(grid).unsqueeze(0),
@@ -1790,8 +1788,8 @@ class Rand3DElastic(RandomizableTransform):
 
             translate_range: translate range with format matching `rotate_range`, it defines the range to randomly
                 select voxel or percentage of spatial size to translate for every spatial dims.
-            translate_percent: if True, `translate_range` will be the percentage of input image spatial size to
-                translate, default to False.
+            translate_percent: if True, `translate_range` will be the percentage of image spatial size to translate,
+                default to False.
             scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
                 the scale factor to translate for every spatial dims. A value of 1.0 is added to the result.
                 This allows 0 to correspond to no change (i.e., a scaling of 1.0).
@@ -1883,7 +1881,7 @@ class Rand3DElastic(RandomizableTransform):
             gaussian = GaussianFilter(3, self.sigma, 3.0).to(device=self.device)
             offset = torch.as_tensor(self.rand_offset, device=self.device).unsqueeze(0)
             grid[:3] += gaussian(offset)[0] * self.magnitude
-            grid = self.rand_affine_grid(grid=grid, orig_spatial_size=img.shape[1:])
+            grid = self.rand_affine_grid(spatial_size=sp_size, grid=grid)
         return self.resampler(img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode)
 
 
