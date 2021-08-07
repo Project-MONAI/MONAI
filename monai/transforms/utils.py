@@ -490,7 +490,7 @@ def generate_label_classes_crop_centers(
     ratios_: List[Union[float, int]] = ([1] * len(indices)) if ratios is None else ratios
     if len(ratios_) != len(indices):
         raise ValueError("random crop radios must match the number of indices of classes.")
-    if any([i < 0 for i in ratios_]):
+    if any(i < 0 for i in ratios_):
         raise ValueError("ratios should not contain negative number.")
 
     # ensure indices are numpy array
