@@ -356,6 +356,18 @@ Post-processing
     :members:
     :special-members: __call__
 
+`LabelFilter`
+"""""""""""""
+.. autoclass:: LabelFilter
+    :members:
+    :special-members: __call__
+
+`FillHoles`
+"""""""""""
+.. autoclass:: FillHoles
+    :members:
+    :special-members: __call__
+
 `LabelToContour`
 """"""""""""""""
 .. autoclass:: LabelToContour
@@ -952,6 +964,18 @@ Post-processing (Dict)
 `KeepLargestConnectedComponentd`
 """"""""""""""""""""""""""""""""
 .. autoclass:: KeepLargestConnectedComponentd
+    :members:
+    :special-members: __call__
+
+`LabelFilterd`
+""""""""""""""
+.. autoclass:: LabelFilterd
+    :members:
+    :special-members: __call__
+
+`FillHolesd`
+""""""""""""
+.. autoclass:: FillHolesd
     :members:
     :special-members: __call__
 
