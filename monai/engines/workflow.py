@@ -149,7 +149,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         self.prepare_batch = prepare_batch
         self.metric_cmp_fn = metric_cmp_fn
         self.amp = amp
-        self.scaler = None
+        self.scaler: Optional[torch.cuda.amp.GradScaler] = None
 
         if event_names is None:
             event_names = [IterationEvents]
