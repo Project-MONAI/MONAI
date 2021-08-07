@@ -47,7 +47,7 @@ class TestKSpaceSpikeNoised(unittest.TestCase):
         ims = create_test_image(*im_shape, rad_max=20, noise_max=0.0, num_seg_classes=5)
         ims = [im[None] for im in ims]
         ims = [torch.Tensor(im) for im in ims] if as_tensor_input else ims
-        return {k: v for k, v in zip(KEYS, ims)}
+        return dict(zip(KEYS, ims))
 
     @parameterized.expand(TEST_CASES)
     def test_same_result(self, im_shape, as_tensor_output, as_tensor_input):
