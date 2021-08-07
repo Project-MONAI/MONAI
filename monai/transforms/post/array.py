@@ -334,12 +334,11 @@ class LabelFilter:
         """
         if isinstance(img, np.ndarray):
             return np.asarray(np.where(np.isin(img, self.applied_labels), img, 0))
-        elif isinstance(img, torch.Tensor):
+        if isinstance(img, torch.Tensor):
             img_arr = img.detach().cpu().numpy()
             img_arr = self(img_arr)
             return torch.as_tensor(img_arr, device=img.device)
-        else:
-            raise NotImplementedError(f"{self.__class__} can not handle data of type {type(img)}.")
+        raise NotImplementedError(f"{self.__class__} can not handle data of type {type(img)}.")
 
 
 class FillHoles(Transform):
@@ -415,12 +414,11 @@ class FillHoles(Transform):
         """
         if isinstance(img, np.ndarray):
             return fill_holes(img, self.applied_labels, self.connectivity)
-        elif isinstance(img, torch.Tensor):
+        if isinstance(img, torch.Tensor):
             img_arr = img.detach().cpu().numpy()
             img_arr = self(img_arr)
             return torch.as_tensor(img_arr, device=img.device)
-        else:
-            raise NotImplementedError(f"{self.__class__} can not handle data of type {type(img)}.")
+        raise NotImplementedError(f"{self.__class__} can not handle data of type {type(img)}.")
 
 
 class LabelToContour(Transform):
