@@ -1330,7 +1330,7 @@ class KSpaceSpikeNoise(Transform, Fourier):
                 raise AssertionError(
                     "If a sequence is passed to k_intensity, then a sequence of locations must be passed to loc"
                 )
-            elif len(k_intensity) != len(loc):
+            if len(k_intensity) != len(loc):
                 raise AssertionError("There must be one intensity_factor value for each tuple of indices in loc.")
         if isinstance(self.loc[0], Sequence) and k_intensity is not None:
             if not isinstance(self.k_intensity, Sequence):
