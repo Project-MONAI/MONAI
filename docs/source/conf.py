@@ -106,7 +106,6 @@ html_theme = "pydata_sphinx_theme"
 # html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 html_theme_options = {
     "external_links": [{"url": "https://github.com/Project-MONAI/tutorials", "name": "Tutorials"}],
-    "collapse_navigation": True,
     "icon_links": [
         {
             "name": "GitHub",
