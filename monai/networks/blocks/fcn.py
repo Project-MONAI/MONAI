@@ -191,25 +191,24 @@ class FCN(nn.Module):
             fs3 = self.refine8(self.up_conv(fs2) + gcfm4)
             fs4 = self.refine9(self.up_conv(fs3) + gcfm5)
             return self.refine10(self.up_conv(fs4))
-        else:
-            fs1 = self.refine6(
-                F.interpolate(gcfm1, fm3.size()[2:], mode=self.upsample_mode, align_corners=True) + gcfm2
+        fs1 = self.refine6(
+            F.interpolate(gcfm1, fm3.size()[2:], mode=self.upsample_mode, align_corners=True) + gcfm2
+        )
+        fs2 = self.refine7(F.interpolate(fs1, fm2.size()[2:], mode=self.upsample_mode, align_corners=True) + gcfm3)
+        fs3 = self.refine8(
+            F.interpolate(fs2, pool_x.size()[2:], mode=self.upsample_mode, align_corners=True) + gcfm4
+        )
+        fs4 = self.refine9(
+            F.interpolate(fs3, conv_x.size()[2:], mode=self.upsample_mode, align_corners=True) + gcfm5
+        )
+        return self.refine10(
+            F.interpolate(
+                fs4,
+                org_input.size()[2:],
+                mode=self.upsample_mode,
+                align_corners=True,
             )
-            fs2 = self.refine7(F.interpolate(fs1, fm2.size()[2:], mode=self.upsample_mode, align_corners=True) + gcfm3)
-            fs3 = self.refine8(
-                F.interpolate(fs2, pool_x.size()[2:], mode=self.upsample_mode, align_corners=True) + gcfm4
-            )
-            fs4 = self.refine9(
-                F.interpolate(fs3, conv_x.size()[2:], mode=self.upsample_mode, align_corners=True) + gcfm5
-            )
-            return self.refine10(
-                F.interpolate(
-                    fs4,
-                    org_input.size()[2:],
-                    mode=self.upsample_mode,
-                    align_corners=True,
-                )
-            )
+        )
 
 
 class MCFCN(FCN):

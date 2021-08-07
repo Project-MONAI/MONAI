@@ -1541,8 +1541,7 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
             if not isinstance(self.intensity_range[0], Sequence):
                 intensity_range = (ensure_tuple(self.intensity_range),) * x.shape[0]
                 return intensity_range
-            else:
-                return ensure_tuple(self.intensity_range)
+            return ensure_tuple(self.intensity_range)
         else:
             # set default range if one not provided
             return self._set_default_range(x)
