@@ -403,7 +403,7 @@ def rep_scalar_to_batch(batch_data: Union[List, Dict]) -> Union[List, Dict]:
                 dict_batch[k] = v
 
         return dict_batch
-    elif isinstance(batch_data, list):
+    if isinstance(batch_data, list):
         batch_size = _detect_batch_size(batch_data)
         list_batch = []
         for b in batch_data:

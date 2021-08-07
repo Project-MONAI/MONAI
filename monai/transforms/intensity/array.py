@@ -1330,7 +1330,7 @@ class KSpaceSpikeNoise(Transform, Fourier):
                 raise AssertionError(
                     "If a sequence is passed to k_intensity, then a sequence of locations must be passed to loc"
                 )
-            elif len(k_intensity) != len(loc):
+            if len(k_intensity) != len(loc):
                 raise AssertionError("There must be one intensity_factor value for each tuple of indices in loc.")
         if isinstance(self.loc[0], Sequence) and k_intensity is not None:
             if not isinstance(self.k_intensity, Sequence):
@@ -1541,8 +1541,7 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
             if not isinstance(self.intensity_range[0], Sequence):
                 intensity_range = (ensure_tuple(self.intensity_range),) * x.shape[0]
                 return intensity_range
-            else:
-                return ensure_tuple(self.intensity_range)
+            return ensure_tuple(self.intensity_range)
         else:
             # set default range if one not provided
             return self._set_default_range(x)
