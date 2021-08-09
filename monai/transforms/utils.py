@@ -490,7 +490,7 @@ def generate_label_classes_crop_centers(
     ratios_: List[Union[float, int]] = ([1] * len(indices)) if ratios is None else ratios
     if len(ratios_) != len(indices):
         raise ValueError("random crop radios must match the number of indices of classes.")
-    if any([i < 0 for i in ratios_]):
+    if any(i < 0 for i in ratios_):
         raise ValueError("ratios should not contain negative number.")
 
     # ensure indices are numpy array
@@ -1043,7 +1043,7 @@ def convert_to_tensor(data):
     """
     if isinstance(data, torch.Tensor):
         return data.contiguous()
-    elif isinstance(data, np.ndarray):
+    if isinstance(data, np.ndarray):
         # skip array of string classes and object, refer to:
         # https://github.com/pytorch/pytorch/blob/v1.9.0/torch/utils/data/_utils/collate.py#L13
         if re.search(r"[SaUO]", data.dtype.str) is None:
@@ -1107,11 +1107,11 @@ def tensor_to_numpy(data):
     if isinstance(data, torch.Tensor):
         # invert Tensor to numpy, if scalar data, convert to number
         return data.item() if data.ndim == 0 else np.ascontiguousarray(data.detach().cpu().numpy())
-    elif isinstance(data, dict):
+    if isinstance(data, dict):
         return {k: tensor_to_numpy(v) for k, v in data.items()}
-    elif isinstance(data, list):
+    if isinstance(data, list):
         return [tensor_to_numpy(i) for i in data]
-    elif isinstance(data, tuple):
+    if isinstance(data, tuple):
         return tuple(tensor_to_numpy(i) for i in data)
 
     return data

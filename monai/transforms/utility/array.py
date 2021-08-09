@@ -1001,8 +1001,7 @@ class IntensityStats(Transform):
         def _compute(op: Callable, data: np.ndarray):
             if self.channel_wise:
                 return [op(c) for c in data]
-            else:
-                return op(data)
+            return op(data)
 
         custom_index = 0
         for o in self.ops:
