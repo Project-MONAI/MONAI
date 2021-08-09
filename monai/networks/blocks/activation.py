@@ -117,4 +117,4 @@ class Mish(nn.Module):
     """
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
-        return input * torch.tanh(torch.nn.functional.softplus(input))
+        return F.mish(input) if if torch.__version__ >= '1.9' else input * torch.tanh(torch.nn.functional.softplus(input))
