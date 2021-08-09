@@ -98,3 +98,15 @@ Clara MMARs
 .. autofunction:: compute_isolated_tumor_cells
 .. autoclass:: PathologyProbNMS
     :members:
+
+.. automodule:: monai.apps.pathology.transforms.stain.array
+.. autoclass:: ExtractHEStains
+    :members:
+.. autoclass:: NormalizeHEStains
+    :members:
+
+.. automodule:: monai.apps.pathology.transforms.stain.dictionary
+.. autoclass:: ExtractHEStainsd
+    :members:
+.. autoclass:: NormalizeHEStainsd
+    :members:

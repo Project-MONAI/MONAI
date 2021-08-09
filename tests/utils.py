@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import copy
 import datetime
 import functools
 import importlib
@@ -29,6 +30,7 @@ import numpy as np
 import torch
 import torch.distributed as dist
 
+from monai.config import NdarrayTensor
 from monai.config.deviceconfig import USE_COMPILED
 from monai.data import create_test_image_2d, create_test_image_3d
 from monai.utils import ensure_tuple, optional_import, set_determinism
@@ -37,6 +39,42 @@ from monai.utils.module import version_leq
 nib, _ = optional_import("nibabel")
 
 quick_test_var = "QUICKTEST"
+
+
+def clone(data: NdarrayTensor) -> NdarrayTensor:
+    """
+    Clone data independent of type.
+
+    Args:
+        data (NdarrayTensor): This can be a Pytorch Tensor or numpy array.
+
+    Returns:
+        Any: Cloned data object
+    """
+    return copy.deepcopy(data)
+
+
+def allclose(a: NdarrayTensor, b: NdarrayTensor) -> bool:
+    """
+    Check if all values of two data objects are close.
+
+    Note:
+        This method also checks that both data objects are either Pytorch Tensors or numpy arrays.
+
+    Args:
+        a (NdarrayTensor): Pytorch Tensor or numpy array for comparison
+        b (NdarrayTensor): Pytorch Tensor or numpy array to compare against
+
+    Returns:
+        bool: If both data objects are close.
+    """
+    if isinstance(a, np.ndarray) and isinstance(b, np.ndarray):
+        return np.allclose(a, b)
+
+    if isinstance(a, torch.Tensor) and isinstance(b, torch.Tensor):
+        return torch.allclose(a, b)
+
+    return False
 
 
 def test_pretrained_networks(network, input_param, device):
