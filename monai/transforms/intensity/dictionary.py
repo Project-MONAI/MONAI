@@ -16,7 +16,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
 from collections.abc import Iterable
-from typing import Any, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -42,6 +42,7 @@ from monai.transforms.intensity.array import (
     ThresholdIntensity,
 )
 from monai.transforms.transform import MapTransform, RandomizableTransform
+from monai.transforms.utils import is_positive
 from monai.utils import dtype_torch_to_numpy, ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
 
 __all__ = [
@@ -808,11 +809,14 @@ class MaskIntensityd(MapTransform):
             See also: :py:class:`monai.transforms.compose.MapTransform`
         mask_data: if mask data is single channel, apply to every channel
             of input image. if multiple channels, the channel number must
-            match input data. mask_data will be converted to `bool` values
-            by `mask_data > 0` before applying transform to input image.
-            if None, will extract the mask data from input data based on `mask_key`.
+            match input data. the intensity values of input image corresponding
+            to the selected values in the mask data will keep the original value,
+            others will be set to `0`. if None, will extract the mask data from
+            input data based on `mask_key`.
         mask_key: the key to extract mask data from input dictionary, only works
             when `mask_data` is None.
+        select_fn: function to select valid values of the `mask_data`, default is
+            to select `values > 0`.
         allow_missing_keys: don't raise exception if key is missing.
 
     """
@@ -822,10 +826,11 @@ class MaskIntensityd(MapTransform):
         keys: KeysCollection,
         mask_data: Optional[np.ndarray] = None,
         mask_key: Optional[str] = None,
+        select_fn: Callable = is_positive,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.converter = MaskIntensity(mask_data)
+        self.converter = MaskIntensity(mask_data=mask_data, select_fn=select_fn)
         self.mask_key = mask_key if mask_data is None else None
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
