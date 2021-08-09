@@ -789,8 +789,8 @@ class MaskIntensity(Transform):
     """
     Mask the intensity values of input image with the specified mask data.
     Mask data must have the same spatial size as the input image, and all
-    the intensity values of input image corresponding to selected values in
-    the mask data will keep the original value, others will be set to `0`.
+    the intensity values of input image corresponding to the selected values
+    in the mask data will keep the original value, others will be set to `0`.
 
     Args:
         mask_data: if `mask_data` is single channel, apply to every channel
