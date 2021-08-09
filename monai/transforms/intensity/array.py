@@ -14,7 +14,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 from collections.abc import Iterable
-from typing import Any, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 from warnings import warn
 
 import numpy as np
@@ -24,7 +24,7 @@ from monai.config import DtypeLike
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
 from monai.transforms.transform import Fourier, RandomizableTransform, Transform
-from monai.transforms.utils import rescale_array
+from monai.transforms.utils import is_positive, rescale_array
 from monai.utils import (
     PT_BEFORE_1_7,
     InvalidPyTorchVersionError,
@@ -789,19 +789,23 @@ class MaskIntensity(Transform):
     """
     Mask the intensity values of input image with the specified mask data.
     Mask data must have the same spatial size as the input image, and all
-    the intensity values of input image corresponding to `0` in the mask
-    data will be set to `0`, others will keep the original value.
+    the intensity values of input image corresponding to selected values in
+    the mask data will keep the original value, others will be set to `0`.
 
     Args:
         mask_data: if `mask_data` is single channel, apply to every channel
             of input image. if multiple channels, the number of channels must
-            match the input data. `mask_data` will be converted to `bool` values
-            by `mask_data > 0` before applying transform to input image.
+            match the input data. the intensity values of input image corresponding
+            to the selected values in the mask data will keep the original value,
+            others will be set to `0`.
+        select_fn: function to select valid values of the `mask_data`, default is
+            to select `values > 0`.
 
     """
 
-    def __init__(self, mask_data: Optional[np.ndarray]) -> None:
+    def __init__(self, mask_data: Optional[np.ndarray], select_fn: Callable = is_positive) -> None:
         self.mask_data = mask_data
+        self.select_fn = select_fn
 
     def __call__(self, img: np.ndarray, mask_data: Optional[np.ndarray] = None) -> np.ndarray:
         """
@@ -816,21 +820,18 @@ class MaskIntensity(Transform):
             - ValueError: When ``mask_data`` and ``img`` channels differ and ``mask_data`` is not single channel.
 
         """
-        if self.mask_data is None and mask_data is None:
-            raise ValueError("Unknown mask_data.")
-        mask_data_ = np.array([[1]])
-        if self.mask_data is not None and mask_data is None:
-            mask_data_ = self.mask_data > 0
-        if mask_data is not None:
-            mask_data_ = mask_data > 0
-        mask_data_ = np.asarray(mask_data_)
-        if mask_data_.shape[0] != 1 and mask_data_.shape[0] != img.shape[0]:
+        mask_data = self.mask_data if mask_data is None else mask_data
+        if mask_data is None:
+            raise ValueError("must provide the mask_data when initializing the transform or at runtime.")
+
+        mask_data = np.asarray(self.select_fn(mask_data))
+        if mask_data.shape[0] != 1 and mask_data.shape[0] != img.shape[0]:
             raise ValueError(
                 "When mask_data is not single channel, mask_data channels must match img, "
-                f"got img={img.shape[0]} mask_data={mask_data_.shape[0]}."
+                f"got img channels={img.shape[0]} mask_data channels={mask_data.shape[0]}."
             )
 
-        return np.asarray(img * mask_data_)
+        return np.asarray(img * mask_data)
 
 
 class SavitzkyGolaySmooth(Transform):
