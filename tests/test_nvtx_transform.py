@@ -15,15 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.transforms import (
-    Compose,
-    Flip,
-    RandFlip,
-    RandFlipD,
-    ToTensor,
-    ToTensorD,
-    Randomizable,
-)
+from monai.transforms import Compose, Flip, RandFlip, RandFlipD, Randomizable, ToTensor, ToTensorD
 from monai.transforms.nvtx import (
     Mark,
     MarkD,
