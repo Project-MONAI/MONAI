@@ -13,7 +13,7 @@ import unittest
 
 import numpy as np
 from parameterized import parameterized
-from torch import Tensor
+import torch
 
 from monai.transforms import Compose, Flip, RandFlip, RandFlipD, ToTensor, ToTensorD
 from monai.transforms.nvtx import (
@@ -43,8 +43,8 @@ TEST_CASE_1 = [
 
 
 class TestNVTXTransforms(unittest.TestCase):
-    @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX!")
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1])
+    @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX!")
     def test_nvtx_transfroms_alone(self, input):
         transforms = Compose(
             [
@@ -59,8 +59,8 @@ class TestNVTXTransforms(unittest.TestCase):
         output = transforms(input)
         self.assertEqual(id(input), id(output))
 
-    @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX!")
     @parameterized.expand([TEST_CASE_0])
+    @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX!")
     def test_nvtx_transfroms_array(self, input):
         transforms = Compose(
             [
@@ -75,14 +75,14 @@ class TestNVTXTransforms(unittest.TestCase):
             ]
         )
         output = transforms(input)
-        self.assertIsInstance(output, Tensor)
+        self.assertIsInstance(output, torch.Tensor)
         try:
             np.testing.assert_array_equal(input, output)
         except AssertionError:
             np.testing.assert_array_equal(input, Flip()(output.numpy()))
 
-    @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX!")
     @parameterized.expand([TEST_CASE_1])
+    @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX!")
     def test_nvtx_transfromsd(self, input):
         transforms = Compose(
             [
@@ -97,7 +97,7 @@ class TestNVTXTransforms(unittest.TestCase):
             ]
         )
         output = transforms(input)
-        self.assertIsInstance(output["image"], Tensor)
+        self.assertIsInstance(output["image"], torch.Tensor)
         try:
             np.testing.assert_array_equal(input["image"], output["image"])
         except AssertionError:
