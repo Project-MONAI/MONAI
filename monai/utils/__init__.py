@@ -19,6 +19,7 @@ from .enums import (
     BlendMode,
     ChannelMatching,
     CommonKeys,
+    DataObjects,
     ForwardMode,
     GridSampleMode,
     GridSamplePadMode,

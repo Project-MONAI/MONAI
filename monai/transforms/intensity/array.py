@@ -23,7 +23,7 @@ import torch
 from monai.config import DtypeLike
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
-from monai.transforms.transform import Fourier, RandomizableTransform, Transform
+from monai.transforms.transform import Fourier, NumpyTransform, RandomizableTransform, TorchTransform, Transform
 from monai.transforms.utils import is_positive, rescale_array
 from monai.utils import (
     PT_BEFORE_1_7,
@@ -34,6 +34,8 @@ from monai.utils import (
     ensure_tuple_size,
     fall_back_tuple,
 )
+from monai.utils.enums import DataObjects
+from monai.utils.misc import convert_data_type
 
 __all__ = [
     "RandGaussianNoise",
@@ -67,7 +69,7 @@ __all__ = [
 ]
 
 
-class RandGaussianNoise(RandomizableTransform):
+class RandGaussianNoise(TorchTransform, NumpyTransform, RandomizableTransform):
     """
     Add Gaussian noise to image.
 
@@ -87,7 +89,7 @@ class RandGaussianNoise(RandomizableTransform):
         super().randomize(None)
         self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
 
-    def __call__(self, img: Union[torch.Tensor, np.ndarray]) -> Union[torch.Tensor, np.ndarray]:
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Apply the transform to `img`.
         """
@@ -96,8 +98,10 @@ class RandGaussianNoise(RandomizableTransform):
             raise AssertionError
         if not self._do_transform:
             return img
-        dtype = dtype_torch_to_numpy(img.dtype) if isinstance(img, torch.Tensor) else img.dtype
-        return img + self._noise.astype(dtype)
+        noise, *_ = convert_data_type(
+            self._noise, type(img), dtype=img.dtype, device=img.device if isinstance(img, torch.Tensor) else None
+        )
+        return img + noise
 
 
 class RandRicianNoise(RandomizableTransform):
@@ -834,7 +838,7 @@ class MaskIntensity(Transform):
         return np.asarray(img * mask_data)
 
 
-class SavitzkyGolaySmooth(Transform):
+class SavitzkyGolaySmooth(TorchTransform):
     """
     Smooth the input data along the given axis using a Savitzky-Golay filter.
 
@@ -856,20 +860,23 @@ class SavitzkyGolaySmooth(Transform):
         self.axis = axis
         self.mode = mode
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
         """
         Args:
-            img: numpy.ndarray containing input data. Must be real and in shape [channels, spatial1, spatial2, ...].
+            img: array containing input data. Must be real and in shape [channels, spatial1, spatial2, ...].
 
         Returns:
-            np.ndarray containing smoothed result.
+            array containing smoothed result.
 
         """
+        img_t: torch.Tensor
+        img_t, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
+
         # add one to transform axis because a batch axis will be added at dimension 0
         savgol_filter = SavitzkyGolayFilter(self.window_length, self.order, self.axis + 1, self.mode)
         # convert to Tensor and add Batch axis expected by HilbertTransform
-        input_data = torch.as_tensor(np.ascontiguousarray(img)).unsqueeze(0)
-        return savgol_filter(input_data).squeeze(0).numpy()
+        out: torch.Tensor = savgol_filter(img_t.unsqueeze(0)).squeeze(0)
+        return out
 
 
 class DetectEnvelope(Transform):

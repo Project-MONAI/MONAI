@@ -14,7 +14,7 @@ A collection of generic interfaces for MONAI transforms.
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Generator, Hashable, Iterable, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Callable, Generator, Hashable, Iterable, List, Optional, Tuple, TypeVar, Union
 
 import numpy as np
 import torch
@@ -22,6 +22,7 @@ import torch
 from monai import transforms
 from monai.config import KeysCollection
 from monai.utils import MAX_SEED, ensure_tuple
+from monai.utils.enums import DataObjects
 
 __all__ = [
     "ThreadUnsafe",
@@ -31,6 +32,8 @@ __all__ = [
     "Transform",
     "MapTransform",
     "Fourier",
+    "TorchTransform",
+    "NumpyTransform",
 ]
 
 ReturnType = TypeVar("ReturnType")
@@ -241,6 +244,21 @@ class Transform(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
+class TorchTransform(Transform):
+    """Most transforms use torch. If the transforms inherits from this class, then that is the case.
+    If the input is not torch, convert to torch and then convert back at the end."""
+
+    pass
+
+
+class NumpyTransform(Transform):
+    """Most transforms use torch. Transforms that inherit from this class, however, use numpy under the hood.
+    This means that if the input image is `torch.Tensor`, it will be converted to numpy and then reverted
+    at the end."""
+
+    pass
+
+
 class RandomizableTransform(Randomizable, Transform):
     """
     An interface for handling random state locally, currently based on a class variable `R`,
@@ -351,7 +369,7 @@ class MapTransform(Transform):
 
     def key_iterator(
         self,
-        data: Dict[Hashable, Any],
+        data: DataObjects.Dict,
         *extra_iterables: Optional[Iterable],
     ) -> Generator:
         """

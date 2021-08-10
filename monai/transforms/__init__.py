@@ -317,9 +317,11 @@ from .spatial.dictionary import (
 from .transform import (
     Fourier,
     MapTransform,
+    NumpyTransform,
     Randomizable,
     RandomizableTransform,
     ThreadUnsafe,
+    TorchTransform,
     Transform,
     apply_transform,
 )

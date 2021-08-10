@@ -43,7 +43,9 @@ from monai.transforms.intensity.array import (
 )
 from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.transforms.utils import is_positive
-from monai.utils import dtype_torch_to_numpy, ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
+from monai.utils import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
+from monai.utils.enums import DataObjects
+from monai.utils.misc import convert_data_type
 
 __all__ = [
     "RandGaussianNoised",
@@ -160,7 +162,7 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         for m in self.mean:
             self._noise.append(self.R.normal(m, self.R.uniform(0, self.std), size=im_shape))
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
         d = dict(data)
 
         image_shape = d[self.keys[0]].shape  # image shape from the first data key
@@ -170,8 +172,13 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         if not self._do_transform:
             return d
         for key, noise in self.key_iterator(d, self._noise):
-            dtype = dtype_torch_to_numpy(d[key].dtype) if isinstance(d[key], torch.Tensor) else d[key].dtype
-            d[key] = d[key] + noise.astype(dtype)
+            noise, *_ = convert_data_type(
+                noise,
+                type(d[key]),
+                dtype=d[key].dtype,
+                device=d[key].device if isinstance(d[key], torch.Tensor) else None,
+            )
+            d[key] = d[key] + noise
         return d
 
 
