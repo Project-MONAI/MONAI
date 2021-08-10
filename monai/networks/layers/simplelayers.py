@@ -25,6 +25,7 @@ from monai.utils import (
     InvalidPyTorchVersionError,
     SkipMode,
     ensure_tuple_rep,
+    look_up_option,
     optional_import,
 )
 
@@ -75,7 +76,7 @@ class ChannelPad(nn.Module):
         self.pad = None
         if in_channels == out_channels:
             return
-        mode = ChannelMatching(mode)
+        mode = look_up_option(mode, ChannelMatching)
         if mode == ChannelMatching.PROJECT:
             conv_type = Conv[Conv.CONV, spatial_dims]
             self.project = conv_type(in_channels, out_channels, kernel_size=1)
@@ -119,7 +120,7 @@ class SkipConnection(nn.Module):
         super().__init__()
         self.submodule = submodule
         self.dim = dim
-        self.mode = SkipMode(mode).value
+        self.mode = look_up_option(mode, SkipMode).value
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         y = self.submodule(x)

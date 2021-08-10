@@ -200,12 +200,11 @@ def plot_engine_status(
                                 image = image_fn(k, v)
                                 if image is not None:
                                     imagemap[f"{k}_{i}"] = image
-                    else:
+                    elif isinstance(s, torch.Tensor):
                         label = "Batch" if src is engine.state.batch else "Output"
-                        if isinstance(s, torch.Tensor):
-                            image = image_fn(label, s)
-                            if image is not None:
-                                imagemap[f"{label}_{i}"] = image
+                        image = image_fn(label, s)
+                        if image is not None:
+                            imagemap[f"{label}_{i}"] = image
 
     axes = plot_metric_images(fig, title, graphmap, imagemap, yscale, avg_keys, window_fraction)
 
@@ -225,8 +224,7 @@ def _get_loss_from_output(output: Union[Dict[str, torch.Tensor], torch.Tensor]):
 
     if isinstance(output, list):
         return _get_loss(output[0])
-    else:
-        return _get_loss(output)
+    return _get_loss(output)
 
 
 class StatusMembers(Enum):

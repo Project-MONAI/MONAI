@@ -27,6 +27,7 @@ from monai.transforms.transform import Transform
 from monai.utils import GridSampleMode, GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
 from monai.utils import InterpolateMode, ensure_tuple, optional_import
+from monai.utils.module import look_up_option
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
@@ -44,7 +45,7 @@ def switch_endianness(data, new="<"):
     """
     if isinstance(data, np.ndarray):
         # default to system endian
-        sys_native = ((sys.byteorder == "little") and "<") or ">"
+        sys_native = "<" if (sys.byteorder == "little") else ">"
         current_ = sys_native if data.dtype.byteorder not in ("<", ">") else data.dtype.byteorder
         if new not in ("<", ">"):
             raise NotImplementedError(f"Not implemented option new={new}.")
@@ -108,10 +109,8 @@ class LoadImage(Transform):
                     "itkreader": ITKReader,
                     "numpyreader": NumpyReader,
                 }
-                reader = reader.lower()
-                if reader not in supported_readers:
-                    raise ValueError(f"unsupported reader type: {reader}, available options: {supported_readers}.")
-                self.register(supported_readers[reader](*args, **kwargs))
+                the_reader = look_up_option(reader.lower(), supported_readers)
+                self.register(the_reader(*args, **kwargs))
             else:
                 self.register(reader)
 
@@ -233,6 +232,9 @@ class SaveImage(Transform):
             output_dir: /output,
             data_root_dir: /foo/bar,
             output will be: /output/test1/image/image_seg.nii.gz
+        separate_folder: whether to save every file in a separate folder, for example: if input filename is
+            `image.nii`, postfix is `seg` and folder_path is `output`, if `True`, save as:
+            `output/image/image_seg.nii`, if `False`, save as `output/image_seg.nii`. default to `True`.
         print_log: whether to print log about the saved file path, etc. default to `True`.
 
     """
@@ -250,6 +252,7 @@ class SaveImage(Transform):
         output_dtype: DtypeLike = np.float32,
         squeeze_end_dims: bool = True,
         data_root_dir: str = "",
+        separate_folder: bool = True,
         print_log: bool = True,
     ) -> None:
         self.saver: Union[NiftiSaver, PNGSaver]
@@ -265,6 +268,7 @@ class SaveImage(Transform):
                 output_dtype=output_dtype,
                 squeeze_end_dims=squeeze_end_dims,
                 data_root_dir=data_root_dir,
+                separate_folder=separate_folder,
                 print_log=print_log,
             )
         elif output_ext == ".png":
@@ -276,6 +280,7 @@ class SaveImage(Transform):
                 mode=InterpolateMode(mode),
                 scale=scale,
                 data_root_dir=data_root_dir,
+                separate_folder=separate_folder,
                 print_log=print_log,
             )
         else:
@@ -289,3 +294,5 @@ class SaveImage(Transform):
 
         """
         self.saver.save(img, meta_data)
+
+        return img

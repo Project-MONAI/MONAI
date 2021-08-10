@@ -259,9 +259,7 @@ class PersistentDataset(Dataset):
             try:
                 return torch.load(hashfile)
             except PermissionError as e:
-                if sys.platform == "win32":
-                    pass  # windows machine multiprocessing not efficiently supported
-                else:
+                if sys.platform != "win32":
                     raise e
 
         _item_transformed = self._pre_transform(deepcopy(item_transformed))  # keep the original hashed
@@ -413,7 +411,11 @@ class LMDBDataset(PersistentDataset):
         self.lmdb_kwargs = lmdb_kwargs or {}
         if not self.lmdb_kwargs.get("map_size", 0):
             self.lmdb_kwargs["map_size"] = 1024 ** 4  # default map_size
+        # lmdb is single-writer multi-reader by default
+        # the cache is created without multi-threading
         self._read_env = None
+        # this runs on the primary thread/process
+        self._fill_cache_start_reader(show_progress=self.progress)
         print(f"Accessing lmdb file: {self.db_file.absolute()}.")
 
     def set_data(self, data: Sequence):
@@ -422,43 +424,53 @@ class LMDBDataset(PersistentDataset):
 
         """
         super().set_data(data=data)
-        self._read_env = None
+        self._read_env = self._fill_cache_start_reader(show_progress=self.progress)
 
-    def _fill_cache_start_reader(self):
+    def _fill_cache_start_reader(self, show_progress=True):
+        """
+        Check the LMDB cache and write the cache if needed. py-lmdb doesn't have a good support for concurrent write.
+        This method can be used with multiple processes, but it may have a negative impact on the performance.
+
+        Args:
+            show_progress: whether to show the progress bar if possible.
+        """
         # create cache
         self.lmdb_kwargs["readonly"] = False
         env = lmdb.open(path=f"{self.db_file}", subdir=False, **self.lmdb_kwargs)
-        if self.progress and not has_tqdm:
+        if show_progress and not has_tqdm:
             warnings.warn("LMDBDataset: tqdm is not installed. not displaying the caching progress.")
-        for item in tqdm(self.data) if has_tqdm and self.progress else self.data:
-            key = self.hash_func(item)
-            done, retry, val = False, 5, None
-            while not done and retry > 0:
-                try:
-                    with env.begin(write=True) as txn:
-                        with txn.cursor() as cursor:
+        with env.begin(write=False) as search_txn:
+            for item in tqdm(self.data) if has_tqdm and show_progress else self.data:
+                key = self.hash_func(item)
+                done, retry, val = False, 5, None
+                while not done and retry > 0:
+                    try:
+                        with search_txn.cursor() as cursor:
                             done = cursor.set_key(key)
-                            if done:
-                                continue
+                        if done:
+                            continue
                         if val is None:
                             val = self._pre_transform(deepcopy(item))  # keep the original hashed
                             val = pickle.dumps(val, protocol=self.pickle_protocol)
-                        txn.put(key, val)
-                    done = True
-                except lmdb.MapFullError:
-                    done, retry = False, retry - 1
+                        with env.begin(write=True) as txn:
+                            txn.put(key, val)
+                        done = True
+                    except lmdb.MapFullError:
+                        done, retry = False, retry - 1
+                        size = env.info()["map_size"]
+                        new_size = size * 2
+                        warnings.warn(
+                            f"Resizing the cache database from {int(size) >> 20}MB" f" to {int(new_size) >> 20}MB."
+                        )
+                        env.set_mapsize(new_size)
+                    except lmdb.MapResizedError:
+                        # the mapsize is increased by another process
+                        # set_mapsize with a size of 0 to adopt the new size
+                        env.set_mapsize(0)
+                if not done:  # still has the map full error
                     size = env.info()["map_size"]
-                    new_size = size * 2
-                    warnings.warn(f"Resizing the cache database from {int(size) >> 20}MB to {int(new_size) >> 20}MB.")
-                    env.set_mapsize(new_size)
-                except lmdb.MapResizedError:
-                    # the mapsize is increased by another process
-                    # set_mapsize with a size of 0 to adopt the new size,
-                    env.set_mapsize(0)
-            if not done:  # still has the map full error
-                size = env.info()["map_size"]
-                env.close()
-                raise ValueError(f"LMDB map size reached, increase size above current size of {size}.")
+                    env.close()
+                    raise ValueError(f"LMDB map size reached, increase size above current size of {size}.")
         size = env.info()["map_size"]
         env.close()
         # read-only database env
@@ -476,7 +488,8 @@ class LMDBDataset(PersistentDataset):
 
         """
         if self._read_env is None:
-            self._read_env = self._fill_cache_start_reader()
+            # this runs on multiple processes, each one should have its own env.
+            self._read_env = self._fill_cache_start_reader(show_progress=False)
         with self._read_env.begin(write=False) as txn:
             data = txn.get(self.hash_func(item_transformed))
         if data is None:
@@ -582,7 +595,7 @@ class CacheDataset(Dataset):
         """
         Set the input data and run deterministic transforms to generate cache content.
 
-        Note: should call this func after an entire epoch and must set `persisten_workers=False`
+        Note: should call this func after an entire epoch and must set `persistent_workers=False`
         in PyTorch DataLoader, because it needs to create new worker processes based on new
         generated cache content.
 
@@ -1130,10 +1143,10 @@ class NPZDictItemDataset(Dataset):
 class CSVDataset(Dataset):
     """
     Dataset to load data from CSV files and generate a list of dictionaries,
-    every dictionay maps to a row of the CSV file, and the keys of dictionary
+    every dictionary maps to a row of the CSV file, and the keys of dictionary
     map to the column names of the CSV file.
 
-    It can load multiple CSV files and join the tables with addtional `kwargs` arg.
+    It can load multiple CSV files and join the tables with additional `kwargs` arg.
     Support to only load specific rows and columns.
     And it can also group several loaded columns to generate a new column, for example,
     set `col_groups={"meta": ["meta_0", "meta_1", "meta_2"]}`, output can be::

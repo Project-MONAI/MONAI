@@ -13,6 +13,7 @@ from .checkpoint_loader import CheckpointLoader
 from .checkpoint_saver import CheckpointSaver
 from .classification_saver import ClassificationSaver
 from .confusion_matrix import ConfusionMatrix
+from .decollate_batch import DecollateBatch
 from .earlystop_handler import EarlyStopHandler
 from .garbage_collector import GarbageCollector
 from .hausdorff_distance import HausdorffDistance

@@ -129,7 +129,6 @@ class MedNISTDataset(Randomizable, CacheDataset):
             image_class.extend([i] * num_each[i])
             class_name.extend([class_names[i]] * num_each[i])
 
-        data = []
         length = len(image_files_list)
         indices = np.arange(length)
         self.randomize(indices)
@@ -147,10 +146,14 @@ class MedNISTDataset(Randomizable, CacheDataset):
                 f'Unsupported section: {self.section}, available options are ["training", "validation", "test"].'
             )
 
-        for i in section_indices:
-            data.append({"image": image_files_list[i], "label": image_class[i], "class_name": class_name[i]})
-
-        return data
+        return [
+            {
+                "image": image_files_list[i],
+                "label": image_class[i],
+                "class_name": class_name[i],
+            }
+            for i in section_indices
+        ]
 
 
 class DecathlonDataset(Randomizable, CacheDataset):

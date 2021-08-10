@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import copy
 import datetime
 import functools
 import importlib
@@ -29,6 +30,7 @@ import numpy as np
 import torch
 import torch.distributed as dist
 
+from monai.config import NdarrayTensor
 from monai.config.deviceconfig import USE_COMPILED
 from monai.data import create_test_image_2d, create_test_image_3d
 from monai.utils import ensure_tuple, optional_import, set_determinism
@@ -37,6 +39,42 @@ from monai.utils.module import version_leq
 nib, _ = optional_import("nibabel")
 
 quick_test_var = "QUICKTEST"
+
+
+def clone(data: NdarrayTensor) -> NdarrayTensor:
+    """
+    Clone data independent of type.
+
+    Args:
+        data (NdarrayTensor): This can be a Pytorch Tensor or numpy array.
+
+    Returns:
+        Any: Cloned data object
+    """
+    return copy.deepcopy(data)
+
+
+def allclose(a: NdarrayTensor, b: NdarrayTensor) -> bool:
+    """
+    Check if all values of two data objects are close.
+
+    Note:
+        This method also checks that both data objects are either Pytorch Tensors or numpy arrays.
+
+    Args:
+        a (NdarrayTensor): Pytorch Tensor or numpy array for comparison
+        b (NdarrayTensor): Pytorch Tensor or numpy array to compare against
+
+    Returns:
+        bool: If both data objects are close.
+    """
+    if isinstance(a, np.ndarray) and isinstance(b, np.ndarray):
+        return np.allclose(a, b)
+
+    if isinstance(a, torch.Tensor) and isinstance(b, torch.Tensor):
+        return torch.allclose(a, b)
+
+    return False
 
 
 def test_pretrained_networks(network, input_param, device):
@@ -251,7 +289,6 @@ class DistCall:
         self.timeout = datetime.timedelta(0, timeout)
         self.daemon = daemon
         self.method = method
-        self._original_method = torch.multiprocessing.get_start_method(allow_none=False)
         self.verbose = verbose
 
     def run_process(self, func, local_rank, args, kwargs, results):
@@ -311,30 +348,19 @@ class DistCall:
 
         @functools.wraps(obj)
         def _wrapper(*args, **kwargs):
-            if self.method:
-                try:
-                    torch.multiprocessing.set_start_method(self.method, force=True)
-                except (RuntimeError, ValueError):
-                    pass
+            tmp = torch.multiprocessing.get_context(self.method)
             processes = []
-            results = torch.multiprocessing.Queue()
+            results = tmp.Queue()
             func = _call_original_func
             args = [obj.__name__, obj.__module__] + list(args)
             for proc_rank in range(self.nproc_per_node):
-                p = torch.multiprocessing.Process(
-                    target=self.run_process, args=(func, proc_rank, args, kwargs, results)
+                p = tmp.Process(
+                    target=self.run_process, args=(func, proc_rank, args, kwargs, results), daemon=self.daemon
                 )
-                if self.daemon is not None:
-                    p.daemon = self.daemon
                 p.start()
                 processes.append(p)
             for p in processes:
                 p.join()
-                if self.method:
-                    try:
-                        torch.multiprocessing.set_start_method(self._original_method, force=True)
-                    except (RuntimeError, ValueError):
-                        pass
                 assert results.get(), "Distributed call failed."
 
         return _wrapper
@@ -372,7 +398,6 @@ class TimedCall:
         self.force_quit = force_quit
         self.skip_timing = skip_timing
         self.method = method
-        self._original_method = torch.multiprocessing.get_start_method(allow_none=False)  # remember the default method
 
     @staticmethod
     def run_process(func, args, kwargs, results):
@@ -392,18 +417,11 @@ class TimedCall:
 
         @functools.wraps(obj)
         def _wrapper(*args, **kwargs):
-
-            if self.method:
-                try:
-                    torch.multiprocessing.set_start_method(self.method, force=True)
-                except (RuntimeError, ValueError):
-                    pass
+            tmp = torch.multiprocessing.get_context(self.method)
             func = _call_original_func
             args = [obj.__name__, obj.__module__] + list(args)
-            results = torch.multiprocessing.Queue()
-            p = torch.multiprocessing.Process(target=TimedCall.run_process, args=(func, args, kwargs, results))
-            if self.daemon is not None:
-                p.daemon = self.daemon
+            results = tmp.Queue()
+            p = tmp.Process(target=TimedCall.run_process, args=(func, args, kwargs, results), daemon=self.daemon)
             p.start()
 
             p.join(timeout=self.timeout_seconds)
@@ -430,12 +448,6 @@ class TimedCall:
                 res = results.get(block=False)
             except queue.Empty:  # no result returned, took too long
                 pass
-            finally:
-                if self.method:
-                    try:
-                        torch.multiprocessing.set_start_method(self._original_method, force=True)
-                    except (RuntimeError, ValueError):
-                        pass
             if isinstance(res, Exception):  # other errors from obj
                 if hasattr(res, "traceback"):
                     raise RuntimeError(res.traceback) from res
@@ -473,7 +485,9 @@ class NumpyImageTestCase2D(unittest.TestCase):
     num_classes = 3
 
     def setUp(self):
-        im, msk = create_test_image_2d(self.im_shape[0], self.im_shape[1], 4, 20, 0, self.num_classes)
+        im, msk = create_test_image_2d(
+            self.im_shape[0], self.im_shape[1], num_objs=4, rad_max=20, noise_max=0.0, num_seg_classes=self.num_classes
+        )
 
         self.imt = im[None, None]
         self.seg1 = (msk[None, None] > 0).astype(np.float32)
@@ -495,7 +509,15 @@ class NumpyImageTestCase3D(unittest.TestCase):
     num_classes = 3
 
     def setUp(self):
-        im, msk = create_test_image_3d(self.im_shape[0], self.im_shape[1], self.im_shape[2], 4, 20, 0, self.num_classes)
+        im, msk = create_test_image_3d(
+            self.im_shape[0],
+            self.im_shape[1],
+            self.im_shape[2],
+            num_objs=4,
+            rad_max=20,
+            noise_max=0.0,
+            num_seg_classes=self.num_classes,
+        )
 
         self.imt = im[None, None]
         self.seg1 = (msk[None, None] > 0).astype(np.float32)
@@ -575,7 +597,7 @@ def query_memory(n=2):
         ids = np.lexsort(free_memory)[:n]
     except (FileNotFoundError, TypeError, IndexError):
         ids = range(n) if isinstance(n, int) else []
-    return ",".join([f"{int(x)}" for x in ids])
+    return ",".join(f"{int(x)}" for x in ids)
 
 
 if __name__ == "__main__":

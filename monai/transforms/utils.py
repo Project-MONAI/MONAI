@@ -11,9 +11,10 @@
 
 import itertools
 import random
+import re
 import warnings
 from contextlib import contextmanager
-from typing import Callable, List, Optional, Sequence, Tuple, Union
+from typing import Callable, Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -36,36 +37,45 @@ from monai.utils import (
 )
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
+ndimage, _ = optional_import("scipy.ndimage")
+cp, has_cp = optional_import("cupy")
+cp_ndarray, _ = optional_import("cupy", name="ndarray")
 
 __all__ = [
-    "rand_choice",
+    "allow_missing_keys_mode",
+    "compute_divisible_spatial_size",
+    "convert_inverse_interp_mode",
+    "convert_to_numpy",
+    "convert_to_tensor",
+    "copypaste_arrays",
+    "create_control_grid",
+    "create_grid",
+    "create_rotate",
+    "create_scale",
+    "create_shear",
+    "create_translate",
+    "extreme_points_to_image",
+    "fill_holes",
+    "generate_label_classes_crop_centers",
+    "generate_pos_neg_label_crop_centers",
+    "generate_spatial_bounding_box",
+    "get_extreme_points",
+    "get_largest_connected_component_mask",
     "img_bounds",
     "in_bounds",
     "is_empty",
     "is_positive",
-    "zero_margins",
-    "rescale_array",
-    "rescale_instance_array",
-    "rescale_array_int_max",
-    "copypaste_arrays",
-    "compute_divisible_spatial_size",
-    "resize_center",
     "map_binary_to_indices",
-    "weighted_patch_samples",
-    "generate_pos_neg_label_crop_centers",
-    "create_grid",
-    "create_control_grid",
-    "create_rotate",
-    "create_shear",
-    "create_scale",
-    "create_translate",
-    "generate_spatial_bounding_box",
-    "get_largest_connected_component_mask",
-    "get_extreme_points",
-    "extreme_points_to_image",
+    "map_classes_to_indices",
     "map_spatial_axes",
-    "allow_missing_keys_mode",
-    "convert_inverse_interp_mode",
+    "rand_choice",
+    "rescale_array",
+    "rescale_array_int_max",
+    "rescale_instance_array",
+    "resize_center",
+    "tensor_to_numpy",
+    "weighted_patch_samples",
+    "zero_margins",
 ]
 
 
@@ -264,7 +274,55 @@ def map_binary_to_indices(
         bg_indices = np.nonzero(np.logical_and(img_flat, ~label_flat))[0]
     else:
         bg_indices = np.nonzero(~label_flat)[0]
+
     return fg_indices, bg_indices
+
+
+def map_classes_to_indices(
+    label: np.ndarray,
+    num_classes: Optional[int] = None,
+    image: Optional[np.ndarray] = None,
+    image_threshold: float = 0.0,
+) -> List[np.ndarray]:
+    """
+    Filter out indices of every class of the input label data, return the indices after fattening.
+    It can handle both One-Hot format label and Argmax format label, must provide `num_classes` for
+    Argmax label.
+
+    For example:
+    ``label = np.array([[[0, 1, 2], [2, 0, 1], [1, 2, 0]]])`` and `num_classes=3`, will return a list
+    which contains the indices of the 3 classes:
+    ``[np.array([0, 4, 8]), np.array([1, 5, 6]), np.array([2, 3, 7])]``
+
+    Args:
+        label: use the label data to get the indices of every class.
+        num_classes: number of classes for argmax label, not necessary for One-Hot label.
+        image: if image is not None, only return the indices of every class that are within the valid
+            region of the image (``image > image_threshold``).
+        image_threshold: if enabled `image`, use ``image > image_threshold`` to
+            determine the valid image content area and select class indices only in this area.
+
+    """
+    img_flat: Optional[np.ndarray] = None
+    if image is not None:
+        img_flat = np.any(image > image_threshold, axis=0).ravel()
+
+    indices: List[np.ndarray] = []
+    # assuming the first dimension is channel
+    channels = len(label)
+
+    num_classes_: int = channels
+    if channels == 1:
+        if num_classes is None:
+            raise ValueError("if not One-Hot format label, must provide the num_classes.")
+        num_classes_ = num_classes
+
+    for c in range(num_classes_):
+        label_flat = np.any(label[c : c + 1] if channels > 1 else label == c, axis=0).ravel()
+        label_flat = np.logical_and(img_flat, label_flat) if img_flat is not None else label_flat
+        indices.append(np.nonzero(label_flat)[0])
+
+    return indices
 
 
 def weighted_patch_samples(
@@ -311,6 +369,44 @@ def weighted_patch_samples(
     return [np.unravel_index(i, v_size) + diff for i in np.asarray(idx, dtype=int)]
 
 
+def correct_crop_centers(
+    centers: List[np.ndarray], spatial_size: Union[Sequence[int], int], label_spatial_shape: Sequence[int]
+) -> List[np.ndarray]:
+    """
+    Utility to correct the crop center if the crop size is bigger than the image size.
+
+    Args:
+        ceters: pre-computed crop centers, will correct based on the valid region.
+        spatial_size: spatial size of the ROIs to be sampled.
+        label_spatial_shape: spatial shape of the original label data to compare with ROI.
+
+    """
+    spatial_size = fall_back_tuple(spatial_size, default=label_spatial_shape)
+    if not (np.subtract(label_spatial_shape, spatial_size) >= 0).all():
+        raise ValueError("The size of the proposed random crop ROI is larger than the image size.")
+
+    # Select subregion to assure valid roi
+    valid_start = np.floor_divide(spatial_size, 2)
+    # add 1 for random
+    valid_end = np.subtract(label_spatial_shape + np.array(1), spatial_size / np.array(2)).astype(np.uint16)
+    # int generation to have full range on upper side, but subtract unfloored size/2 to prevent rounded range
+    # from being too high
+    for i, valid_s in enumerate(valid_start):
+        # need this because np.random.randint does not work with same start and end
+        if valid_s == valid_end[i]:
+            valid_end[i] += 1
+
+    for i, c in enumerate(centers):
+        center_i = c
+        if c < valid_start[i]:
+            center_i = valid_start[i]
+        if c >= valid_end[i]:
+            center_i = valid_end[i] - 1
+        centers[i] = center_i
+
+    return centers
+
+
 def generate_pos_neg_label_crop_centers(
     spatial_size: Union[Sequence[int], int],
     num_samples: int,
@@ -340,33 +436,6 @@ def generate_pos_neg_label_crop_centers(
     """
     if rand_state is None:
         rand_state = np.random.random.__self__  # type: ignore
-    spatial_size = fall_back_tuple(spatial_size, default=label_spatial_shape)
-    if not (np.subtract(label_spatial_shape, spatial_size) >= 0).all():
-        raise ValueError("The size of the proposed random crop ROI is larger than the image size.")
-
-    # Select subregion to assure valid roi
-    valid_start = np.floor_divide(spatial_size, 2)
-    # add 1 for random
-    valid_end = np.subtract(label_spatial_shape + np.array(1), spatial_size / np.array(2)).astype(np.uint16)
-    # int generation to have full range on upper side, but subtract unfloored size/2 to prevent rounded range
-    # from being too high
-    for i, valid_s in enumerate(
-        valid_start
-    ):  # need this because np.random.randint does not work with same start and end
-        if valid_s == valid_end[i]:
-            valid_end[i] += 1
-
-    def _correct_centers(
-        center_ori: List[np.ndarray], valid_start: np.ndarray, valid_end: np.ndarray
-    ) -> List[np.ndarray]:
-        for i, c in enumerate(center_ori):
-            center_i = c
-            if c < valid_start[i]:
-                center_i = valid_start[i]
-            if c >= valid_end[i]:
-                center_i = valid_end[i] - 1
-            center_ori[i] = center_i
-        return center_ori
 
     centers = []
     fg_indices, bg_indices = np.asarray(fg_indices), np.asarray(bg_indices)
@@ -386,7 +455,61 @@ def generate_pos_neg_label_crop_centers(
         center = np.unravel_index(indices_to_use[random_int], label_spatial_shape)
         # shift center to range of valid centers
         center_ori = list(center)
-        centers.append(_correct_centers(center_ori, valid_start, valid_end))
+        centers.append(correct_crop_centers(center_ori, spatial_size, label_spatial_shape))
+
+    return centers
+
+
+def generate_label_classes_crop_centers(
+    spatial_size: Union[Sequence[int], int],
+    num_samples: int,
+    label_spatial_shape: Sequence[int],
+    indices: List[np.ndarray],
+    ratios: Optional[List[Union[float, int]]] = None,
+    rand_state: Optional[np.random.RandomState] = None,
+) -> List[List[np.ndarray]]:
+    """
+    Generate valid sample locations based on the specified ratios of label classes.
+    Valid: samples sitting entirely within image, expected input shape: [C, H, W, D] or [C, H, W]
+
+    Args:
+        spatial_size: spatial size of the ROIs to be sampled.
+        num_samples: total sample centers to be generated.
+        label_spatial_shape: spatial shape of the original label data to unravel selected centers.
+        indices: sequence of pre-computed foreground indices of every class in 1 dimension.
+        ratios: ratios of every class in the label to generate crop centers, including background class.
+            if None, every class will have the same ratio to generate crop centers.
+        rand_state: numpy randomState object to align with other modules.
+
+    """
+    if rand_state is None:
+        rand_state = np.random.random.__self__  # type: ignore
+
+    if num_samples < 1:
+        raise ValueError("num_samples must be an int number and greater than 0.")
+    ratios_: List[Union[float, int]] = ([1] * len(indices)) if ratios is None else ratios
+    if len(ratios_) != len(indices):
+        raise ValueError("random crop radios must match the number of indices of classes.")
+    if any(i < 0 for i in ratios_):
+        raise ValueError("ratios should not contain negative number.")
+
+    # ensure indices are numpy array
+    indices = [np.asarray(i) for i in indices]
+    for i, array in enumerate(indices):
+        if len(array) == 0:
+            warnings.warn(f"no available indices of class {i} to crop, set the crop ratio of this class to zero.")
+            ratios_[i] = 0
+
+    centers = []
+    classes = rand_state.choice(len(ratios_), size=num_samples, p=np.asarray(ratios_) / np.sum(ratios_))
+    for i in classes:
+        # randomly select the indices of a class based on the ratios
+        indices_to_use = indices[i]
+        random_int = rand_state.randint(len(indices_to_use))
+        center = np.unravel_index(indices_to_use[random_int], label_spatial_shape)
+        # shift center to range of valid centers
+        center_ori = list(center)
+        centers.append(correct_crop_centers(center_ori, spatial_size, label_spatial_shape))
 
     return centers
 
@@ -486,7 +609,15 @@ def create_shear(spatial_dims: int, coefs: Union[Sequence[float], float]) -> np.
 
     Args:
         spatial_dims: spatial rank
-        coefs: shearing factors, defaults to 0.
+        coefs: shearing factors, a tuple of 2 floats for 2D, a tuple of 6 floats for 3D),
+            take a 3D affine as example::
+
+                [
+                    [1.0, coefs[0], coefs[1], 0.0],
+                    [coefs[2], 1.0, coefs[3], 0.0],
+                    [coefs[4], coefs[5], 1.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ]
 
     Raises:
         NotImplementedError: When ``spatial_dims`` is not one of [2, 3].
@@ -514,7 +645,7 @@ def create_scale(spatial_dims: int, scaling_factor: Union[Sequence[float], float
 
     Args:
         spatial_dims: spatial rank
-        scaling_factor: scaling factors, defaults to 1.
+        scaling_factor: scaling factors for every spatial dim, defaults to 1.
     """
     scaling_factor = ensure_tuple_size(scaling_factor, dim=spatial_dims, pad_val=1.0)
     return np.diag(scaling_factor[:spatial_dims] + (1.0,))
@@ -526,7 +657,7 @@ def create_translate(spatial_dims: int, shift: Union[Sequence[float], float]) ->
 
     Args:
         spatial_dims: spatial rank
-        shift: translate factors, defaults to 0.
+        shift: translate pixel/voxel for every spatial dim, defaults to 0.
     """
     shift = ensure_tuple(shift)
     affine = np.eye(spatial_dims + 1)
@@ -601,6 +732,65 @@ def get_largest_connected_component_mask(img: torch.Tensor, connectivity: Option
         largest_cc[...] = img_arr == (np.argmax(np.bincount(img_arr.flat)[1:]) + 1)
 
     return torch.as_tensor(largest_cc, device=img.device)
+
+
+def fill_holes(
+    img_arr: np.ndarray, applied_labels: Optional[Iterable[int]] = None, connectivity: Optional[int] = None
+) -> np.ndarray:
+    """
+    Fill the holes in the provided image.
+
+    The label 0 will be treated as background and the enclosed holes will be set to the neighboring class label.
+    What is considered to be an enclosed hole is defined by the connectivity.
+    Holes on the edge are always considered to be open (not enclosed).
+
+    Note:
+
+        The performance of this method heavily depends on the number of labels.
+        It is a bit faster if the list of `applied_labels` is provided.
+        Limiting the number of `applied_labels` results in a big decrease in processing time.
+
+        If the image is one-hot-encoded, then the `applied_labels` need to match the channel index.
+
+    Args:
+        img_arr: numpy array of shape [C, spatial_dim1[, spatial_dim2, ...]].
+        applied_labels: Labels for which to fill holes. Defaults to None,
+            that is filling holes for all labels.
+        connectivity: Maximum number of orthogonal hops to
+            consider a pixel/voxel as a neighbor. Accepted values are ranging from  1 to input.ndim.
+            Defaults to a full connectivity of ``input.ndim``.
+
+    Returns:
+        numpy array of shape [C, spatial_dim1[, spatial_dim2, ...]].
+    """
+    channel_axis = 0
+    num_channels = img_arr.shape[channel_axis]
+    is_one_hot = num_channels > 1
+    spatial_dims = img_arr.ndim - 1
+    structure = ndimage.generate_binary_structure(spatial_dims, connectivity or spatial_dims)
+
+    # Get labels if not provided. Exclude background label.
+    applied_labels = set(applied_labels or (range(num_channels) if is_one_hot else np.unique(img_arr)))
+    background_label = 0
+    applied_labels.discard(background_label)
+
+    for label in applied_labels:
+        tmp = np.zeros(img_arr.shape[1:], dtype=bool)
+        ndimage.binary_dilation(
+            tmp,
+            structure=structure,
+            iterations=-1,
+            mask=np.logical_not(img_arr[label]) if is_one_hot else img_arr[0] != label,
+            origin=0,
+            border_value=1,
+            output=tmp,
+        )
+        if is_one_hot:
+            img_arr[label] = np.logical_not(tmp)
+        else:
+            img_arr[0, np.logical_not(tmp)] = label
+
+    return img_arr
 
 
 def get_extreme_points(
@@ -726,7 +916,8 @@ def map_spatial_axes(
 
     """
     if spatial_axes is None:
-        spatial_axes_ = list(range(1, img_ndim) if channel_first else range(0, img_ndim - 1))
+        spatial_axes_ = list(range(1, img_ndim) if channel_first else range(img_ndim - 1))
+
     else:
         spatial_axes_ = []
         for a in ensure_tuple(spatial_axes):
@@ -837,3 +1028,90 @@ def compute_divisible_spatial_size(spatial_shape: Sequence[int], k: Union[Sequen
         new_size.append(new_dim)
 
     return new_size
+
+
+def convert_to_tensor(data):
+    """
+    Utility to convert the input data to a PyTorch Tensor. If passing a dictionary, list or tuple,
+    recursively check every item and convert it to PyTorch Tensor.
+
+    Args:
+        data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
+            will convert Tensor, Numpy array, float, int, bool to Tensors, strings and objects keep the original.
+            for dictionary, list or tuple, convert every item to a Tensor if applicable.
+
+    """
+    if isinstance(data, torch.Tensor):
+        return data.contiguous()
+    if isinstance(data, np.ndarray):
+        # skip array of string classes and object, refer to:
+        # https://github.com/pytorch/pytorch/blob/v1.9.0/torch/utils/data/_utils/collate.py#L13
+        if re.search(r"[SaUO]", data.dtype.str) is None:
+            # numpy array with 0 dims is also sequence iterable,
+            # `ascontiguousarray` will add 1 dim if img has no dim, so we only apply on data with dims
+            return torch.as_tensor(data if data.ndim == 0 else np.ascontiguousarray(data))
+    elif isinstance(data, (float, int, bool)):
+        return torch.as_tensor(data)
+    elif isinstance(data, dict):
+        return {k: convert_to_tensor(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [convert_to_tensor(i) for i in data]
+    elif isinstance(data, tuple):
+        return tuple(convert_to_tensor(i) for i in data)
+
+    return data
+
+
+def convert_to_numpy(data):
+    """
+    Utility to convert the input data to a numpy array. If passing a dictionary, list or tuple,
+    recursively check every item and convert it to numpy array.
+
+    Args:
+        data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
+            will convert Tensor, Numpy array, float, int, bool to numpy arrays, strings and objects keep the original.
+            for dictionary, list or tuple, convert every item to a numpy array if applicable.
+
+    """
+    if isinstance(data, torch.Tensor):
+        data = data.detach().cpu().numpy()
+    elif has_cp and isinstance(data, cp_ndarray):
+        data = cp.asnumpy(data)
+    elif isinstance(data, (float, int, bool)):
+        data = np.asarray(data)
+    elif isinstance(data, dict):
+        return {k: convert_to_numpy(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [convert_to_numpy(i) for i in data]
+    elif isinstance(data, tuple):
+        return tuple([convert_to_numpy(i) for i in data])
+
+    if isinstance(data, np.ndarray) and data.ndim > 0:
+        data = np.ascontiguousarray(data)
+
+    return data
+
+
+def tensor_to_numpy(data):
+    """
+    Utility to convert the input PyTorch Tensor data to numpy array, if scalar Tensor, convert to regular number.
+    If passing a dictionary, list or tuple, recursively check every PyTorch Tensor item and convert it to numpy arrays.
+
+    Args:
+        data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
+            will convert the Tensor data to numpy array, others keep the original. for dictionary, list or tuple,
+            convert every Tensor item to numpy array if applicable.
+
+    """
+
+    if isinstance(data, torch.Tensor):
+        # invert Tensor to numpy, if scalar data, convert to number
+        return data.item() if data.ndim == 0 else np.ascontiguousarray(data.detach().cpu().numpy())
+    if isinstance(data, dict):
+        return {k: tensor_to_numpy(v) for k, v in data.items()}
+    if isinstance(data, list):
+        return [tensor_to_numpy(i) for i in data]
+    if isinstance(data, tuple):
+        return tuple(tensor_to_numpy(i) for i in data)
+
+    return data

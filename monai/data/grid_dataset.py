@@ -18,7 +18,7 @@ from torch.utils.data import IterableDataset
 from monai.data.dataset import Dataset
 from monai.data.utils import iter_patch
 from monai.transforms import apply_transform
-from monai.utils import NumpyPadMode, ensure_tuple
+from monai.utils import NumpyPadMode, ensure_tuple, look_up_option
 
 __all__ = ["PatchDataset", "GridPatchDataset", "PatchIter"]
 
@@ -57,7 +57,7 @@ class PatchIter:
         """
         self.patch_size = (None,) + tuple(patch_size)
         self.start_pos = ensure_tuple(start_pos)
-        self.mode: NumpyPadMode = NumpyPadMode(mode)
+        self.mode: NumpyPadMode = look_up_option(mode, NumpyPadMode)
         self.pad_opts = pad_opts
 
     def __call__(self, array):
@@ -146,7 +146,7 @@ class GridPatchDataset(IterableDataset):
         if worker_info is not None:
             # split workload
             per_worker = int(np.ceil((iter_end - iter_start) / float(worker_info.num_workers)))
-            iter_start = iter_start + worker_info.id * per_worker
+            iter_start += worker_info.id * per_worker
             iter_end = min(iter_start + per_worker, iter_end)
 
         for index in range(iter_start, iter_end):

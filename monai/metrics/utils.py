@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
 from typing import Tuple, Union
 
 import numpy as np
@@ -17,7 +16,7 @@ import torch
 
 from monai.transforms.croppad.array import SpatialCrop
 from monai.transforms.utils import generate_spatial_bounding_box
-from monai.utils import MetricReduction, optional_import
+from monai.utils import MetricReduction, look_up_option, optional_import
 
 binary_erosion, _ = optional_import("scipy.ndimage.morphology", name="binary_erosion")
 distance_transform_edt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_edt")
@@ -70,7 +69,7 @@ def do_metric_reduction(
     not_nans = (~nans).float()
 
     t_zero = torch.zeros(1, device=f.device, dtype=f.dtype)
-    reduction = MetricReduction(reduction)
+    reduction = look_up_option(reduction, MetricReduction)
     if reduction == MetricReduction.NONE:
         return f, not_nans
 
@@ -188,19 +187,21 @@ def get_surface_distance(
             - ``"euclidean"``, uses Exact Euclidean distance transform.
             - ``"chessboard"``, uses `chessboard` metric in chamfer type of transform.
             - ``"taxicab"``, uses `taxicab` metric in chamfer type of transform.
+
+    Note:
+        If seg_pred or seg_gt is all 0, may result in nan/inf distance.
+
     """
 
     if not np.any(seg_gt):
         dis = np.inf * np.ones_like(seg_gt)
-        warnings.warn("ground truth is all 0, this may result in nan/inf distance.")
     else:
         if not np.any(seg_pred):
             dis = np.inf * np.ones_like(seg_gt)
-            warnings.warn("prediction is all 0, this may result in nan/inf distance.")
             return np.asarray(dis[seg_gt])
         if distance_metric == "euclidean":
             dis = distance_transform_edt(~seg_gt)
-        elif distance_metric in ["chessboard", "taxicab"]:
+        elif distance_metric in {"chessboard", "taxicab"}:
             dis = distance_transform_cdt(~seg_gt, metric=distance_metric)
         else:
             raise ValueError(f"distance_metric {distance_metric} is not implemented.")

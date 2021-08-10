@@ -35,12 +35,15 @@ from monai.transforms import (
     DivisiblePadd,
     Flipd,
     InvertibleTransform,
+    Lambdad,
     LoadImaged,
     Orientationd,
     RandAffined,
     RandAxisFlipd,
+    RandCropByLabelClassesd,
     RandCropByPosNegLabeld,
     RandFlipd,
+    RandLambdad,
     Randomizable,
     RandRotate90d,
     RandRotated,
@@ -250,15 +253,6 @@ TESTS.append(
 
 TESTS.append(
     (
-        "Flipd 3d",
-        "3D",
-        0,
-        Flipd(KEYS, [1, 2]),
-    )
-)
-
-TESTS.append(
-    (
         "RandFlipd 3d",
         "3D",
         0,
@@ -318,6 +312,20 @@ TESTS.append(("Resized 2d", "2D", 2e-1, Resized(KEYS, [50, 47])))
 
 TESTS.append(("Resized 3d", "3D", 5e-2, Resized(KEYS, [201, 150, 78])))
 
+TESTS.append(("Resized longest 2d", "2D", 2e-1, Resized(KEYS, 47, "longest", "area")))
+
+TESTS.append(("Resized longest 3d", "3D", 5e-2, Resized(KEYS, 201, "longest", "trilinear", True)))
+
+TESTS.append(("Lambdad 2d", "2D", 5e-2, Lambdad(KEYS, func=lambda x: x + 5, inv_func=lambda x: x - 5, overwrite=True)))
+
+TESTS.append(
+    (
+        "RandLambdad 3d",
+        "3D",
+        5e-2,
+        RandLambdad(KEYS, func=lambda x: x * 10, inv_func=lambda x: x / 10, overwrite=True, prob=0.5),
+    )
+)
 
 TESTS.append(
     (
@@ -447,6 +455,15 @@ TESTS.append(
 
 TESTS.append(
     (
+        "RandCropByLabelClassesd 2d",
+        "2D",
+        1e-7,
+        RandCropByLabelClassesd(KEYS, "label", (99, 96), ratios=[1, 2, 3, 4, 5], num_classes=5, num_samples=10),
+    )
+)
+
+TESTS.append(
+    (
         "RandCropByPosNegLabeld 2d",
         "2D",
         1e-7,
@@ -478,6 +495,7 @@ TESTS = TESTS + TESTS_COMPOSE_X2  # type: ignore
 
 NUM_SAMPLES = 5
 N_SAMPLES_TESTS = [
+    [RandCropByLabelClassesd(KEYS, "label", (110, 99), [1, 2, 3, 4, 5], num_classes=5, num_samples=NUM_SAMPLES)],
     [RandCropByPosNegLabeld(KEYS, "label", (110, 99), num_samples=NUM_SAMPLES)],
     [RandSpatialCropSamplesd(KEYS, (90, 91), num_samples=NUM_SAMPLES, random_size=False)],
     [RandWeightedCropd(KEYS, "label", (90, 91), num_samples=NUM_SAMPLES)],
@@ -612,7 +630,7 @@ class TestInverse(unittest.TestCase):
                     self.check_inverse(name, data.keys(), forwards[-i - 2], fwd_bck, forwards[-1], acceptable_diff)
 
     # skip this test if multiprocessing uses 'spawn', as the check is only basic anyway
-    @skipUnless(torch.multiprocessing.get_start_method(allow_none=False) == "spawn", "requires spawn")
+    @skipUnless(torch.multiprocessing.get_start_method() == "spawn", "requires spawn")
     def test_fail(self):
 
         t1 = SpatialPadd("image", [10, 5])

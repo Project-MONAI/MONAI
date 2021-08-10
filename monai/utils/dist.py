@@ -34,7 +34,7 @@ def get_dist_device():
         backend = dist.get_backend()
         if backend == "nccl" and torch.cuda.is_available():
             return torch.device(f"cuda:{torch.cuda.current_device()}")
-        elif backend == "gloo":
+        if backend == "gloo":
             return torch.device("cpu")
     return None
 
@@ -85,7 +85,7 @@ def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = True):
         # all gather across all processes
         output = [torch.zeros_like(data) for _ in range(dist.get_world_size())]
         dist.all_gather(output, data)
-        # remove the padding items, if all the input data doesn't have batch dim, suqeeze the first dim
+        # remove the padding items, if all the input data doesn't have batch dim, squeeze the first dim
         return [(o.squeeze(0) if ndims == 0 else o[:l, ...]).to(orig_device) for o, l in zip(output, all_lens_)]
 
     def _ignite_all_gather(data: torch.Tensor) -> List[torch.Tensor]:

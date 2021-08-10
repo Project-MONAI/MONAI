@@ -17,15 +17,22 @@ import logging
 import sys
 import time
 import warnings
-from typing import Callable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
 from monai.config import DtypeLike, NdarrayTensor
-from monai.transforms.transform import Randomizable, Transform
-from monai.transforms.utils import extreme_points_to_image, get_extreme_points, map_binary_to_indices
-from monai.utils import ensure_tuple, issequenceiterable, min_version, optional_import
+from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
+from monai.transforms.utils import (
+    convert_to_numpy,
+    convert_to_tensor,
+    extreme_points_to_image,
+    get_extreme_points,
+    map_binary_to_indices,
+    map_classes_to_indices,
+)
+from monai.utils import ensure_tuple, issequenceiterable, look_up_option, min_version, optional_import
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
@@ -38,6 +45,7 @@ __all__ = [
     "AsChannelLast",
     "AddChannel",
     "EnsureChannelFirst",
+    "EnsureType",
     "RepeatChannel",
     "RemoveRepeatedChannel",
     "SplitChannel",
@@ -50,12 +58,15 @@ __all__ = [
     "DataStats",
     "SimulateDelay",
     "Lambda",
+    "RandLambda",
     "LabelToMask",
     "FgBgToIndices",
+    "ClassesToIndices",
     "ConvertToMultiChannelBasedOnBratsClasses",
     "AddExtremePointsChannel",
     "TorchVision",
     "MapLabelValue",
+    "IntensityStats",
 ]
 
 
@@ -316,6 +327,37 @@ class ToTensor(Transform):
         return torch.as_tensor(img)
 
 
+class EnsureType(Transform):
+    """
+    Ensure the input data to be a PyTorch Tensor or numpy array, support: `numpy array`, `PyTorch Tensor`,
+    `float`, `int`, `bool`, `string` and `object` keep the original.
+    If passing a dictionary, list or tuple, still return dictionary, list or tuple and recursively convert
+    every item to the expected data type.
+
+    Args:
+        data_type: target data type to convert, should be "tensor" or "numpy".
+
+    """
+
+    def __init__(self, data_type: str = "tensor") -> None:
+        data_type = data_type.lower()
+        if data_type not in ("tensor", "numpy"):
+            raise ValueError("`data type` must be 'tensor' or 'numpy'.")
+
+        self.data_type = data_type
+
+    def __call__(self, data):
+        """
+        Args:
+            data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
+                will ensure Tensor, Numpy array, float, int, bool as Tensors or numpy arrays, strings and
+                objects keep the original. for dictionary, list or tuple, ensure every item as expected type
+                if applicable.
+
+        """
+        return convert_to_tensor(data) if self.data_type == "tensor" else convert_to_numpy(data)
+
+
 class ToNumpy(Transform):
     """
     Converts the input data to numpy array, can support list or tuple of numbers and PyTorch Tensor.
@@ -326,10 +368,12 @@ class ToNumpy(Transform):
         Apply the transform to `img` and make it contiguous.
         """
         if isinstance(img, torch.Tensor):
-            img = img.detach().cpu().numpy()  # type: ignore
+            img = img.detach().cpu().numpy()
         elif has_cp and isinstance(img, cp_ndarray):
-            img = cp.asnumpy(img)  # type: ignore
-        return np.ascontiguousarray(img)
+            img = cp.asnumpy(img)
+
+        array: np.ndarray = np.asarray(img)
+        return np.ascontiguousarray(array) if array.ndim > 0 else array
 
 
 class ToCupy(Transform):
@@ -342,7 +386,7 @@ class ToCupy(Transform):
         Apply the transform to `img` and make it contiguous.
         """
         if isinstance(img, torch.Tensor):
-            img = img.detach().cpu().numpy()  # type: ignore
+            img = img.detach().cpu().numpy()
         return cp.ascontiguousarray(cp.asarray(img))
 
 
@@ -575,6 +619,28 @@ class Lambda(Transform):
         raise ValueError("Incompatible values: func=None and self.func=None.")
 
 
+class RandLambda(Lambda, RandomizableTransform):
+    """
+    Randomizable version :py:class:`monai.transforms.Lambda`, the input `func` may contain random logic,
+    or randomly execute the function based on `prob`.
+
+    Args:
+        func: Lambda/function to be applied.
+        prob: probability of executing the random function, default to 1.0, with 100% probability to execute.
+
+    For more details, please check :py:class:`monai.transforms.Lambda`.
+
+    """
+
+    def __init__(self, func: Optional[Callable] = None, prob: float = 1.0) -> None:
+        Lambda.__init__(self=self, func=func)
+        RandomizableTransform.__init__(self=self, prob=prob)
+
+    def __call__(self, img: Union[np.ndarray, torch.Tensor], func: Optional[Callable] = None):
+        self.randomize(img)
+        return super().__call__(img=img, func=func) if self._do_transform else img
+
+
 class LabelToMask(Transform):
     """
     Convert labels to mask for other tasks. A typical usage is to convert segmentation labels
@@ -666,6 +732,54 @@ class FgBgToIndices(Transform):
             bg_indices = np.stack([np.unravel_index(i, output_shape) for i in bg_indices])
 
         return fg_indices, bg_indices
+
+
+class ClassesToIndices(Transform):
+    def __init__(
+        self,
+        num_classes: Optional[int] = None,
+        image_threshold: float = 0.0,
+        output_shape: Optional[Sequence[int]] = None,
+    ) -> None:
+        """
+        Compute indices of every class of the input label data, return a list of indices.
+        If no output_shape specified, output data will be 1 dim indices after flattening.
+        This transform can help pre-compute indices of the class regions for other transforms.
+        A typical usage is to randomly select indices of classes to crop.
+        The main logic is based on :py:class:`monai.transforms.utils.map_classes_to_indices`.
+
+        Args:
+            num_classes: number of classes for argmax label, not necessary for One-Hot label.
+            image_threshold: if enabled `image` at runtime, use ``image > image_threshold`` to
+                determine the valid image content area and select only the indices of classes in this area.
+            output_shape: expected shape of output indices. if not None, unravel indices to specified shape.
+
+        """
+        self.num_classes = num_classes
+        self.image_threshold = image_threshold
+        self.output_shape = output_shape
+
+    def __call__(
+        self,
+        label: np.ndarray,
+        image: Optional[np.ndarray] = None,
+        output_shape: Optional[Sequence[int]] = None,
+    ) -> List[np.ndarray]:
+        """
+        Args:
+            label: input data to compute the indices of every class.
+            image: if image is not None, use ``image > image_threshold`` to define valid region, and only select
+                the indices within the valid region.
+            output_shape: expected shape of output indices. if None, use `self.output_shape` instead.
+
+        """
+        if output_shape is None:
+            output_shape = self.output_shape
+        indices = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
+        if output_shape is not None:
+            indices = [np.stack([np.unravel_index(i, output_shape) for i in array]) for array in indices]
+
+        return indices
 
 
 class ConvertToMultiChannelBasedOnBratsClasses(Transform):
@@ -825,3 +939,79 @@ class MapLabelValue:
             np.place(out_flat, img_flat == o, t)
 
         return out_flat.reshape(img.shape)
+
+
+class IntensityStats(Transform):
+    """
+    Compute statistics for the intensity values of input image and store into the meta data dictionary.
+    For example: if `ops=[lambda x: np.mean(x), "max"]` and `key_prefix="orig"`, may generate below stats:
+    `{"orig_custom_0": 1.5, "orig_max": 3.0}`.
+
+    Args:
+        ops: expected operations to compute statistics for the intensity.
+            if a string, will map to the predefined operations, supported: ["mean", "median", "max", "min", "std"]
+            mapping to `np.nanmean`, `np.nanmedian`, `np.nanmax`, `np.nanmin`, `np.nanstd`.
+            if a callable function, will execute the function on input image.
+        key_prefix: the prefix to combine with `ops` name to generate the key to store the results in the
+            meta data dictionary. if some `ops` are callable functions, will use "{key_prefix}_custom_{index}"
+            as the key, where index counts from 0.
+        channel_wise: whether to compute statistics for every channel of input image separately.
+            if True, return a list of values for every operation, default to False.
+
+    """
+
+    def __init__(self, ops: Sequence[Union[str, Callable]], key_prefix: str, channel_wise: bool = False) -> None:
+        self.ops = ensure_tuple(ops)
+        self.key_prefix = key_prefix
+        self.channel_wise = channel_wise
+
+    def __call__(
+        self,
+        img: np.ndarray,
+        meta_data: Optional[Dict] = None,
+        mask: Optional[np.ndarray] = None,
+    ) -> Tuple[np.ndarray, Dict]:
+        """
+        Compute statistics for the intensity of input image.
+
+        Args:
+            img: input image to compute intensity stats.
+            meta_data: meta data dictionary to store the statistics data, if None, will create an empty dictionary.
+            mask: if not None, mask the image to extract only the interested area to compute statistics.
+                mask must have the same shape as input `img`.
+
+        """
+        if meta_data is None:
+            meta_data = {}
+
+        img_: np.ndarray = img
+        if mask is not None:
+            if mask.shape != img.shape or mask.dtype != bool:
+                raise TypeError("mask must be bool array with the same shape as input `img`.")
+            img_ = img[mask]
+
+        supported_ops = {
+            "mean": lambda x: np.nanmean(x),
+            "median": lambda x: np.nanmedian(x),
+            "max": lambda x: np.nanmax(x),
+            "min": lambda x: np.nanmin(x),
+            "std": lambda x: np.nanstd(x),
+        }
+
+        def _compute(op: Callable, data: np.ndarray):
+            if self.channel_wise:
+                return [op(c) for c in data]
+            return op(data)
+
+        custom_index = 0
+        for o in self.ops:
+            if isinstance(o, str):
+                o = look_up_option(o, supported_ops.keys())
+                meta_data[self.key_prefix + "_" + o] = _compute(supported_ops[o], img_)
+            elif callable(o):
+                meta_data[self.key_prefix + "_custom_" + str(custom_index)] = _compute(o, img_)
+                custom_index += 1
+            else:
+                raise ValueError("ops must be key string for predefined operations or callable function.")
+
+        return img, meta_data

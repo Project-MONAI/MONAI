@@ -420,15 +420,28 @@ EXPECTED_ANSWERS = [
                 0.03577899932861328,
             ],
         },
+        "integration_segmentation_3d": {  # for the mixed readers
+            "losses": [
+                0.5645154356956482,
+                0.4984356611967087,
+                0.472334086894989,
+                0.47419720590114595,
+                0.45881829261779783,
+                0.43097741305828097,
+            ],
+            "best_metric": 0.9325698614120483,
+            "infer_metric": 0.9326590299606323,
+        },
     },
 ]
 
 
 def test_integration_value(test_name, key, data, rtol=1e-2):
-    for expected in EXPECTED_ANSWERS:
+    for (idx, expected) in enumerate(EXPECTED_ANSWERS):
         if test_name not in expected:
             continue
         value = expected[test_name][key]
         if np.allclose(data, value, rtol=rtol):
+            print(f"matched {idx} result of {test_name}, {key}, {rtol}.")
             return True
     raise ValueError(f"no matched results for {test_name}, {key}. {data}.")

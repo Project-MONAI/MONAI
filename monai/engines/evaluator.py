@@ -22,6 +22,7 @@ from monai.networks.utils import eval_mode, train_mode
 from monai.transforms import Transform
 from monai.utils import ForwardMode, ensure_tuple, min_version, optional_import
 from monai.utils.enums import CommonKeys as Keys
+from monai.utils.module import look_up_option
 
 if TYPE_CHECKING:
     from ignite.engine import Engine, EventEnum
@@ -67,8 +68,8 @@ class Evaluator(Workflow):
             for more details, check: https://pytorch.org/ignite/generated/ignite.engine.engine.Engine.html
             #ignite.engine.engine.Engine.register_events.
         decollate: whether to decollate the batch-first data to a list of data after model computation,
-            default to `True`. if `False`, postprocessing will be ignored as the `monai.transforms` module
-            assumes channel-first data.
+            recommend `decollate=True` when `postprocessing` uses components from `monai.transforms`.
+            default to `True`.
 
     """
 
@@ -109,7 +110,7 @@ class Evaluator(Workflow):
             event_to_attr=event_to_attr,
             decollate=decollate,
         )
-        mode = ForwardMode(mode)
+        self.mode = look_up_option(mode, ForwardMode)
         if mode == ForwardMode.EVAL:
             self.mode = eval_mode
         elif mode == ForwardMode.TRAIN:
@@ -170,8 +171,8 @@ class SupervisedEvaluator(Evaluator):
             for more details, check: https://pytorch.org/ignite/generated/ignite.engine.engine.Engine.html
             #ignite.engine.engine.Engine.register_events.
         decollate: whether to decollate the batch-first data to a list of data after model computation,
-            default to `True`. if `False`, postprocessing will be ignored as the `monai.transforms` module
-            assumes channel-first data.
+            recommend `decollate=True` when `postprocessing` uses components from `monai.transforms`.
+            default to `True`.
 
     """
 
@@ -298,8 +299,8 @@ class EnsembleEvaluator(Evaluator):
             for more details, check: https://pytorch.org/ignite/generated/ignite.engine.engine.Engine.html
             #ignite.engine.engine.Engine.register_events.
         decollate: whether to decollate the batch-first data to a list of data after model computation,
-            default to `True`. if `False`, postprocessing will be ignored as the `monai.transforms` module
-            assumes channel-first data.
+            recommend `decollate=True` when `postprocessing` uses components from `monai.transforms`.
+            default to `True`.
 
     """
 

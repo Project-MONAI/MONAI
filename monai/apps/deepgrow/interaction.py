@@ -12,6 +12,7 @@ from typing import Callable, Dict, Sequence, Union
 
 import torch
 
+from monai.data import decollate_batch, list_data_collate
 from monai.engines import SupervisedEvaluator, SupervisedTrainer
 from monai.engines.utils import IterationEvents
 from monai.transforms import Compose
@@ -71,9 +72,16 @@ class Interaction:
             engine.fire_event(IterationEvents.INNER_ITERATION_COMPLETED)
 
             batchdata.update({CommonKeys.PRED: predictions})
-            batchdata[self.key_probability] = torch.as_tensor(
-                ([1.0 - ((1.0 / self.max_interactions) * j)] if self.train else [1.0]) * len(inputs)
-            )
-            batchdata = self.transforms(batchdata)
+
+            # decollate batch data to execute click transforms
+            batchdata_list = decollate_batch(batchdata, detach=True)
+            for i in range(len(batchdata_list)):
+                batchdata_list[i][self.key_probability] = (
+                    (1.0 - ((1.0 / self.max_interactions) * j)) if self.train else 1.0
+                )
+                batchdata_list[i] = self.transforms(batchdata_list[i])
+
+            # collate list into a batch for next round interaction
+            batchdata = list_data_collate(batchdata_list)
 
         return engine._iteration(engine, batchdata)

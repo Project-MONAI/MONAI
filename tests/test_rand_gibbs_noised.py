@@ -19,6 +19,7 @@ from parameterized import parameterized
 from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 from monai.transforms import RandGibbsNoised
 from monai.utils.misc import set_determinism
+from tests.utils import SkipIfBeforePyTorchVersion, SkipIfNoModule
 
 TEST_CASES = []
 for shape in ((128, 64), (64, 48, 80)):
@@ -29,6 +30,8 @@ for shape in ((128, 64), (64, 48, 80)):
 KEYS = ["im", "label"]
 
 
+@SkipIfBeforePyTorchVersion((1, 8))
+@SkipIfNoModule("torch.fft")
 class TestRandGibbsNoised(unittest.TestCase):
     def setUp(self):
         set_determinism(0)
@@ -40,9 +43,9 @@ class TestRandGibbsNoised(unittest.TestCase):
     @staticmethod
     def get_data(im_shape, as_tensor_input):
         create_test_image = create_test_image_2d if len(im_shape) == 2 else create_test_image_3d
-        ims = create_test_image(*im_shape, 4, 20, 0, 5)
+        ims = create_test_image(*im_shape, rad_max=20, noise_max=0.0, num_seg_classes=5)
         ims = [torch.Tensor(im) for im in ims] if as_tensor_input else ims
-        return {k: v for k, v in zip(KEYS, ims)}
+        return dict(zip(KEYS, ims))
 
     @parameterized.expand(TEST_CASES)
     def test_0_prob(self, im_shape, as_tensor_output, as_tensor_input):

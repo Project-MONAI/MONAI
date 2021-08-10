@@ -18,8 +18,8 @@ from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
 from monai.config import IgniteInfo
-from monai.data import decollate_batch, rep_scalar_to_batch
 from monai.engines.utils import IterationEvents, default_metric_cmp_fn, default_prepare_batch
+from monai.transforms import Decollated, Transform
 from monai.utils import ensure_tuple, min_version, optional_import
 
 from .utils import engine_apply_transform
@@ -75,8 +75,8 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             for more details, check: https://pytorch.org/ignite/generated/ignite.engine.engine.Engine.html
             #ignite.engine.engine.Engine.register_events.
         decollate: whether to decollate the batch-first data to a list of data after model computation,
-            default to `True`. if `False`, postprocessing will be ignored as the `monai.transforms` module
-            assumes channel-first data.
+            recommend `decollate=True` when `postprocessing` uses components from `monai.transforms`.
+            default to `True`.
 
     Raises:
         TypeError: When ``device`` is not a ``torch.Device``.
@@ -149,6 +149,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         self.prepare_batch = prepare_batch
         self.metric_cmp_fn = metric_cmp_fn
         self.amp = amp
+        self.scaler: Optional[torch.cuda.amp.GradScaler] = None
 
         if event_names is None:
             event_names = [IterationEvents]
@@ -166,9 +167,11 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
 
         if decollate:
             self._register_decollate()
-            # postprocessing can only work if `decollate=True`
-            if postprocessing is not None:
-                self._register_postprocessing(postprocessing)
+
+        if postprocessing is not None:
+            if not decollate and isinstance(postprocessing, Transform):
+                warnings.warn("MONAI transforms expect `channel-first` data, `decollate=False` may not work here.")
+            self._register_postprocessing(postprocessing)
         if key_metric is not None:
             self._register_metrics(key_metric, additional_metrics)
         if handlers is not None:
@@ -176,15 +179,16 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
 
     def _register_decollate(self):
         """
-        Register the decollate operation for batch data, will execure after model forward and loss forward.
+        Register the decollate operation for batch data, will execute after model forward and loss forward.
 
         """
 
         @self.on(IterationEvents.MODEL_COMPLETED)
         def _decollate_data(engine: Engine) -> None:
             # replicate the scalar values to make sure all the items have batch dimension, then decollate
-            engine.state.batch = decollate_batch(rep_scalar_to_batch(engine.state.batch), detach=True)
-            engine.state.output = decollate_batch(rep_scalar_to_batch(engine.state.output), detach=True)
+            transform = Decollated(keys=None, detach=True)
+            engine.state.batch = transform(engine.state.batch)
+            engine.state.output = transform(engine.state.output)
 
     def _register_postprocessing(self, posttrans: Callable):
         """
@@ -195,7 +199,11 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         @self.on(IterationEvents.MODEL_COMPLETED)
         def _run_postprocessing(engine: Engine) -> None:
             if not isinstance(engine.state.batch, list) or not isinstance(engine.state.output, list):
-                warnings.warn("postprocessing requires `engine.state.batch` and `engine.state.outout` to be lists.")
+                engine.state.batch, engine.state.output = engine_apply_transform(
+                    batch=engine.state.batch,
+                    output=engine.state.output,
+                    transform=posttrans,
+                )
             else:
                 for i, (b, o) in enumerate(zip(engine.state.batch, engine.state.output)):
                     engine.state.batch[i], engine.state.output[i] = engine_apply_transform(b, o, posttrans)

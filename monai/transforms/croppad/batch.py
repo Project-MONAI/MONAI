@@ -60,15 +60,20 @@ class PadListDataCollate(InvertibleTransform):
     Args:
         method: padding method (see :py:class:`monai.transforms.SpatialPad`)
         mode: padding mode (see :py:class:`monai.transforms.SpatialPad`)
+        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
+            more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+
     """
 
     def __init__(
         self,
         method: Union[Method, str] = Method.SYMMETRIC,
         mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+        **np_kwargs,
     ) -> None:
         self.method = method
         self.mode = mode
+        self.np_kwargs = np_kwargs
 
     def __call__(self, batch: Any):
         """
@@ -86,7 +91,7 @@ class PadListDataCollate(InvertibleTransform):
                     break
                 max_shapes.append(elem[key_or_idx].shape[1:])
             # len > 0 if objects were arrays, else skip as no padding to be done
-            if len(max_shapes) == 0:
+            if not max_shapes:
                 continue
             max_shape = np.array(max_shapes).max(axis=0)
             # If all same size, skip
@@ -99,7 +104,7 @@ class PadListDataCollate(InvertibleTransform):
             # Default params are central padding, padding with 0's
             # If input is dictionary, use the dictionary version so that the transformation is recorded
 
-            padder = SpatialPad(max_shape, self.method, self.mode)  # type: ignore
+            padder = SpatialPad(spatial_size=max_shape, method=self.method, mode=self.mode, **self.np_kwargs)
             transform = padder if not output_to_tensor else Compose([padder, ToTensor()])
 
             for idx, batch_i in enumerate(batch):
@@ -121,9 +126,9 @@ class PadListDataCollate(InvertibleTransform):
             raise RuntimeError("Inverse can only currently be applied on dictionaries.")
 
         d = deepcopy(data)
-        for key in d.keys():
+        for key in d:
             transform_key = str(key) + InverseKeys.KEY_SUFFIX
-            if transform_key in d.keys():
+            if transform_key in d:
                 transform = d[transform_key][-1]
                 if transform[InverseKeys.CLASS_NAME] == PadListDataCollate.__name__:
                     d[key] = CenterSpatialCrop(transform["orig_size"])(d[key])

@@ -25,7 +25,7 @@ TEST_CASE_1 = [
 
 # pad all dimensions to be divisible by 5
 TEST_CASE_2 = [
-    {"k": 5, "mode": "constant"},
+    {"k": 5, "mode": "constant", "method": "end"},
     np.zeros((3, 10, 5, 17)),
     np.zeros((3, 10, 5, 20)),
 ]

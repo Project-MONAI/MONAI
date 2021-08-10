@@ -41,14 +41,13 @@ class TestSaveImage(unittest.TestCase):
                 output_dir=tempdir,
                 output_ext=output_ext,
                 resample=resample,
+                # test saving into the same folder
+                separate_folder=False,
             )
             trans(test_data, meta_data)
 
-            if meta_data is not None:
-                filepath = os.path.join("testfile0", "testfile0" + "_trans" + output_ext)
-            else:
-                filepath = os.path.join("0", "0" + "_trans" + output_ext)
-            self.assertTrue(os.path.exists(os.path.join(tempdir, filepath)))
+            filepath = "testfile0" if meta_data is not None else "0"
+            self.assertTrue(os.path.exists(os.path.join(tempdir, filepath + "_trans" + output_ext)))
 
 
 if __name__ == "__main__":

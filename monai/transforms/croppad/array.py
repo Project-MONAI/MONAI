@@ -25,13 +25,15 @@ from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import (
     compute_divisible_spatial_size,
+    generate_label_classes_crop_centers,
     generate_pos_neg_label_crop_centers,
     generate_spatial_bounding_box,
     is_positive,
     map_binary_to_indices,
+    map_classes_to_indices,
     weighted_patch_samples,
 )
-from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
+from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple, look_up_option
 
 __all__ = [
     "SpatialPad",
@@ -46,6 +48,7 @@ __all__ = [
     "CropForeground",
     "RandWeightedCrop",
     "RandCropByPosNegLabel",
+    "RandCropByLabelClasses",
     "ResizeWithPadOrCrop",
     "BoundingRect",
 ]
@@ -64,7 +67,7 @@ class SpatialPad(Transform):
             (no padding). for example: if the spatial size of input data is [30, 30, 30] and
             `spatial_size=[32, 25, -1]`, the spatial size of output data will be [32, 30, 30].
         method: {``"symmetric"``, ``"end"``}
-            Pad image symmetric on every side or only pad at the end sides. Defaults to ``"symmetric"``.
+            Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
         mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
             ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
             One of the listed string values or a user supplied function. Defaults to ``"constant"``.
@@ -82,8 +85,8 @@ class SpatialPad(Transform):
         **np_kwargs,
     ) -> None:
         self.spatial_size = spatial_size
-        self.method: Method = Method(method)
-        self.mode: NumpyPadMode = NumpyPadMode(mode)
+        self.method: Method = look_up_option(method, Method)
+        self.mode: NumpyPadMode = look_up_option(mode, NumpyPadMode)
         self.np_kwargs = np_kwargs
 
     def _determine_data_pad_width(self, data_shape: Sequence[int]) -> List[Tuple[int, int]]:
@@ -112,7 +115,7 @@ class SpatialPad(Transform):
             # all zeros, skip padding
             return img
 
-        mode = self.mode.value if mode is None else NumpyPadMode(mode).value
+        mode = look_up_option(self.mode if mode is None else mode, NumpyPadMode).value
         img = np.pad(img, all_pad_width, mode=mode, **self.np_kwargs)
         return img
 
@@ -149,7 +152,7 @@ class BorderPad(Transform):
         **np_kwargs,
     ) -> None:
         self.spatial_border = spatial_border
-        self.mode: NumpyPadMode = NumpyPadMode(mode)
+        self.mode: NumpyPadMode = look_up_option(mode, NumpyPadMode)
         self.np_kwargs = np_kwargs
 
     def __call__(self, img: np.ndarray, mode: Optional[Union[NumpyPadMode, str]] = None):
@@ -186,7 +189,7 @@ class BorderPad(Transform):
                 f"[1, len(spatial_shape)={len(spatial_shape)}, 2*len(spatial_shape)={2*len(spatial_shape)}]."
             )
 
-        mode = self.mode.value if mode is None else NumpyPadMode(mode).value
+        mode = look_up_option(self.mode if mode is None else mode, NumpyPadMode).value
         return np.pad(img, [(0, 0)] + data_pad_width, mode=mode, **self.np_kwargs)
 
 
@@ -199,6 +202,7 @@ class DivisiblePad(Transform):
         self,
         k: Union[Sequence[int], int],
         mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+        method: Union[Method, str] = Method.SYMMETRIC,
         **np_kwargs,
     ) -> None:
         """
@@ -210,6 +214,8 @@ class DivisiblePad(Transform):
                 ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            method: {``"symmetric"``, ``"end"``}
+                Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
             np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
                 more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
 
@@ -217,6 +223,7 @@ class DivisiblePad(Transform):
         """
         self.k = k
         self.mode: NumpyPadMode = NumpyPadMode(mode)
+        self.method: Method = Method(method)
         self.np_kwargs = np_kwargs
 
     def __call__(self, img: np.ndarray, mode: Optional[Union[NumpyPadMode, str]] = None) -> np.ndarray:
@@ -232,7 +239,7 @@ class DivisiblePad(Transform):
         new_size = compute_divisible_spatial_size(spatial_shape=img.shape[1:], k=self.k)
         spatial_pad = SpatialPad(
             spatial_size=new_size,
-            method=Method.SYMMETRIC,
+            method=self.method,
             mode=mode or self.mode,
             **self.np_kwargs,
         )
@@ -395,7 +402,7 @@ class RandSpatialCrop(Randomizable, Transform):
         self._size = fall_back_tuple(self.roi_size, img_size)
         if self.random_size:
             max_size = img_size if self.max_roi_size is None else fall_back_tuple(self.max_roi_size, img_size)
-            if any([i > j for i, j in zip(self._size, max_size)]):
+            if any(i > j for i, j in zip(self._size, max_size)):
                 raise ValueError(f"min ROI size: {self._size} is bigger than max ROI size: {max_size}.")
             self._size = tuple((self.R.randint(low=self._size[i], high=max_size[i] + 1) for i in range(len(img_size))))
         if self.random_center:
@@ -586,7 +593,7 @@ class CropForeground(Transform):
         self.margin = margin
         self.return_coords = return_coords
         self.k_divisible = k_divisible
-        self.mode: NumpyPadMode = NumpyPadMode(mode)
+        self.mode: NumpyPadMode = look_up_option(mode, NumpyPadMode)
 
     def compute_bounding_box(self, img: np.ndarray):
         """
@@ -766,7 +773,11 @@ class RandCropByPosNegLabel(Randomizable, Transform):
     ) -> None:
         self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
         if fg_indices is None or bg_indices is None:
-            fg_indices_, bg_indices_ = map_binary_to_indices(label, image, self.image_threshold)
+            if self.fg_indices is not None and self.bg_indices is not None:
+                fg_indices_ = self.fg_indices
+                bg_indices_ = self.bg_indices
+            else:
+                fg_indices_, bg_indices_ = map_binary_to_indices(label, image, self.image_threshold)
         else:
             fg_indices_ = fg_indices
             bg_indices_ = bg_indices
@@ -802,13 +813,141 @@ class RandCropByPosNegLabel(Randomizable, Transform):
             raise ValueError("label should be provided.")
         if image is None:
             image = self.image
-        if fg_indices is None or bg_indices is None:
-            if self.fg_indices is not None and self.bg_indices is not None:
-                fg_indices = self.fg_indices
-                bg_indices = self.bg_indices
-            else:
-                fg_indices, bg_indices = map_binary_to_indices(label, image, self.image_threshold)
+
         self.randomize(label, fg_indices, bg_indices, image)
+        results: List[np.ndarray] = []
+        if self.centers is not None:
+            for center in self.centers:
+                cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)  # type: ignore
+                results.append(cropper(img))
+
+        return results
+
+
+class RandCropByLabelClasses(Randomizable, Transform):
+    """
+    Crop random fixed sized regions with the center being a class based on the specified ratios of every class.
+    The label data can be One-Hot format array or Argmax data. And will return a list of arrays for all the
+    cropped images. For example, crop two (3 x 3) arrays from (5 x 5) array with `ratios=[1, 2, 3, 1]`::
+
+        image = np.array([
+            [[0.0, 0.3, 0.4, 0.2, 0.0],
+            [0.0, 0.1, 0.2, 0.1, 0.4],
+            [0.0, 0.3, 0.5, 0.2, 0.0],
+            [0.1, 0.2, 0.1, 0.1, 0.0],
+            [0.0, 0.1, 0.2, 0.1, 0.0]]
+        ])
+        label = np.array([
+            [[0, 0, 0, 0, 0],
+            [0, 1, 2, 1, 0],
+            [0, 1, 3, 0, 0],
+            [0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0]]
+        ])
+        cropper = RandCropByLabelClasses(
+            spatial_size=[3, 3],
+            ratios=[1, 2, 3, 1],
+            num_classes=4,
+            num_samples=2,
+        )
+        label_samples = cropper(img=label, label=label, image=image)
+
+        The 2 randomly cropped samples of `label` can be:
+        [[0, 1, 2],     [[0, 0, 0],
+         [0, 1, 3],      [1, 2, 1],
+         [0, 0, 0]]      [1, 3, 0]]
+
+    If a dimension of the expected spatial size is bigger than the input image size,
+    will not crop that dimension. So the cropped result may be smaller than expected size, and the cropped
+    results of several images may not have exactly same shape.
+
+    Args:
+        spatial_size: the spatial size of the crop region e.g. [224, 224, 128].
+            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
+            if its components have non-positive values, the corresponding size of `label` will be used.
+            for example: if the spatial size of input data is [40, 40, 40] and `spatial_size=[32, 64, -1]`,
+            the spatial size of output data will be [32, 40, 40].
+        ratios: specified ratios of every class in the label to generate crop centers, including background class.
+            if None, every class will have the same ratio to generate crop centers.
+        label: the label image that is used for finding every classes, if None, must set at `self.__call__`.
+        num_classes: number of classes for argmax label, not necessary for One-Hot label.
+        num_samples: number of samples (crop regions) to take in each list.
+        image: if image is not None, only return the indices of every class that are within the valid
+            region of the image (``image > image_threshold``).
+        image_threshold: if enabled `image`, use ``image > image_threshold`` to
+            determine the valid image content area and select class indices only in this area.
+        indices: if provided pre-computed indices of every class, will ignore above `image` and
+            `image_threshold`, and randomly select crop centers based on them, expect to be 1 dim array
+            of spatial indices after flattening. a typical usage is to call `ClassesToIndices` transform first
+            and cache the results for better performance.
+
+    """
+
+    def __init__(
+        self,
+        spatial_size: Union[Sequence[int], int],
+        ratios: Optional[List[Union[float, int]]] = None,
+        label: Optional[np.ndarray] = None,
+        num_classes: Optional[int] = None,
+        num_samples: int = 1,
+        image: Optional[np.ndarray] = None,
+        image_threshold: float = 0.0,
+        indices: Optional[List[np.ndarray]] = None,
+    ) -> None:
+        self.spatial_size = ensure_tuple(spatial_size)
+        self.ratios = ratios
+        self.label = label
+        self.num_classes = num_classes
+        self.num_samples = num_samples
+        self.image = image
+        self.image_threshold = image_threshold
+        self.centers: Optional[List[List[np.ndarray]]] = None
+        self.indices = indices
+
+    def randomize(
+        self,
+        label: np.ndarray,
+        indices: Optional[List[np.ndarray]] = None,
+        image: Optional[np.ndarray] = None,
+    ) -> None:
+        self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
+        indices_: List[np.ndarray]
+        if indices is None:
+            if self.indices is not None:
+                indices_ = self.indices
+            else:
+                indices_ = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
+        else:
+            indices_ = indices
+        self.centers = generate_label_classes_crop_centers(
+            self.spatial_size, self.num_samples, label.shape[1:], indices_, self.ratios, self.R
+        )
+
+    def __call__(
+        self,
+        img: np.ndarray,
+        label: Optional[np.ndarray] = None,
+        image: Optional[np.ndarray] = None,
+        indices: Optional[List[np.ndarray]] = None,
+    ) -> List[np.ndarray]:
+        """
+        Args:
+            img: input data to crop samples from based on the ratios of every class, assumes `img` is a
+                channel-first array.
+            label: the label image that is used for finding indices of every class, if None, use `self.label`.
+            image: optional image data to help select valid area, can be same as `img` or another image array.
+                use ``image > image_threshold`` to select the centers only in valid region. if None, use `self.image`.
+            indices: list of indices for every class in the image, used to randomly select crop centers.
+
+        """
+        if label is None:
+            label = self.label
+        if label is None:
+            raise ValueError("label should be provided.")
+        if image is None:
+            image = self.image
+
+        self.randomize(label, indices, image)
         results: List[np.ndarray] = []
         if self.centers is not None:
             for center in self.centers:
@@ -832,6 +971,10 @@ class ResizeWithPadOrCrop(Transform):
             ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
             One of the listed string values or a user supplied function for padding. Defaults to ``"constant"``.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        method: {``"symmetric"``, ``"end"``}
+            Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
+        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
+            more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
 
     """
 
@@ -839,8 +982,10 @@ class ResizeWithPadOrCrop(Transform):
         self,
         spatial_size: Union[Sequence[int], int],
         mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+        method: Union[Method, str] = Method.SYMMETRIC,
+        **np_kwargs,
     ):
-        self.padder = SpatialPad(spatial_size=spatial_size, mode=mode)
+        self.padder = SpatialPad(spatial_size=spatial_size, method=method, mode=mode, **np_kwargs)
         self.cropper = CenterSpatialCrop(roi_size=spatial_size)
 
     def __call__(self, img: np.ndarray, mode: Optional[Union[NumpyPadMode, str]] = None) -> np.ndarray:

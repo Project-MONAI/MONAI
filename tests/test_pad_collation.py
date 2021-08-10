@@ -34,7 +34,10 @@ from monai.utils import set_determinism
 
 TESTS: List[Tuple] = []
 
-for pad_collate in [pad_list_data_collate, PadListDataCollate()]:
+for pad_collate in [
+    lambda x: pad_list_data_collate(batch=x, method="end", mode="constant", constant_values=1),
+    PadListDataCollate(method="end", mode="constant", constant_values=1),
+]:
     TESTS.append((dict, pad_collate, RandSpatialCropd("image", roi_size=[8, 7], random_size=True)))
     TESTS.append((dict, pad_collate, RandRotated("image", prob=1, range_x=np.pi, keep_size=False)))
     TESTS.append((dict, pad_collate, RandZoomd("image", prob=1, min_zoom=1.1, max_zoom=2.0, keep_size=False)))

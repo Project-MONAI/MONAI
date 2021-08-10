@@ -43,7 +43,7 @@ class CSVSaver:
             output_dir: output CSV file directory.
             filename: name of the saved CSV file name.
             overwrite: whether to overwriting existing CSV file content, if True, will clear the file before saving.
-                otherwise, will apend new content to the CSV file.
+                otherwise, will append new content to the CSV file.
             flush: whether to write the cache data to CSV file immediately when `save_batch` and clear the cache.
                 default to False.
 
@@ -87,7 +87,6 @@ class CSVSaver:
         """
         save_key = meta_data[Key.FILENAME_OR_OBJ] if meta_data else str(self._data_index)
         self._data_index += 1
-        data_: np.ndarray
         if isinstance(data, torch.Tensor):
             data = data.detach().cpu().numpy()
         self._cache_dict[save_key] = np.asarray(data, dtype=float)

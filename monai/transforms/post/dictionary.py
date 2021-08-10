@@ -17,18 +17,20 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 import warnings
 from copy import deepcopy
-from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Union
+from typing import Any, Callable, Dict, Hashable, Iterable, List, Mapping, Optional, Sequence, Union
 
 import numpy as np
 import torch
 
-from monai.config import KeysCollection
+from monai.config import KeysCollection, NdarrayTensor
 from monai.data.csv_saver import CSVSaver
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.post.array import (
     Activations,
     AsDiscrete,
+    FillHoles,
     KeepLargestConnectedComponent,
+    LabelFilter,
     LabelToContour,
     MeanEnsemble,
     ProbNMS,
@@ -41,34 +43,40 @@ from monai.utils import ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import InverseKeys
 
 __all__ = [
-    "Activationsd",
-    "AsDiscreted",
-    "KeepLargestConnectedComponentd",
-    "LabelToContourd",
-    "Ensembled",
-    "MeanEnsembled",
-    "VoteEnsembled",
     "ActivationsD",
     "ActivationsDict",
+    "Activationsd",
     "AsDiscreteD",
     "AsDiscreteDict",
+    "AsDiscreted",
+    "Ensembled",
+    "FillHolesD",
+    "FillHolesDict",
+    "FillHolesd",
     "InvertD",
     "InvertDict",
     "Invertd",
     "KeepLargestConnectedComponentD",
     "KeepLargestConnectedComponentDict",
+    "KeepLargestConnectedComponentd",
+    "LabelFilterD",
+    "LabelFilterDict",
+    "LabelFilterd",
     "LabelToContourD",
     "LabelToContourDict",
+    "LabelToContourd",
     "MeanEnsembleD",
     "MeanEnsembleDict",
-    "VoteEnsembleD",
-    "VoteEnsembleDict",
-    "ProbNMSd",
+    "MeanEnsembled",
     "ProbNMSD",
     "ProbNMSDict",
-    "SaveClassificationd",
+    "ProbNMSd",
     "SaveClassificationD",
     "SaveClassificationDict",
+    "SaveClassificationd",
+    "VoteEnsembleD",
+    "VoteEnsembleDict",
+    "VoteEnsembled",
 ]
 
 
@@ -202,6 +210,70 @@ class KeepLargestConnectedComponentd(MapTransform):
         self.converter = KeepLargestConnectedComponent(applied_labels, independent, connectivity)
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.converter(d[key])
+        return d
+
+
+class LabelFilterd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.LabelFilter`.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        applied_labels: Union[Sequence[int], int],
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            applied_labels: Label(s) to filter on.
+            allow_missing_keys: don't raise exception if key is missing.
+
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.converter = LabelFilter(applied_labels)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.converter(d[key])
+        return d
+
+
+class FillHolesd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.FillHoles`.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        applied_labels: Optional[Union[Iterable[int], int]] = None,
+        connectivity: Optional[int] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Initialize the connectivity and limit the labels for which holes are filled.
+
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            applied_labels (Optional[Union[Iterable[int], int]], optional): Labels for which to fill holes. Defaults to None,
+                that is filling holes for all labels.
+            connectivity (int, optional): Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
+                Accepted values are ranging from  1 to input.ndim. Defaults to a full
+                connectivity of ``input.ndim``.
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.converter = FillHoles(applied_labels=applied_labels, connectivity=connectivity)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -429,7 +501,6 @@ class Invertd(MapTransform):
         to_tensor: Union[bool, Sequence[bool]] = True,
         device: Union[Union[str, torch.device], Sequence[Union[str, torch.device]]] = "cpu",
         post_func: Union[Callable, Sequence[Callable]] = lambda x: x,
-        num_workers: Optional[int] = 0,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -465,9 +536,6 @@ class Invertd(MapTransform):
                 each matches to the `keys` data.
             post_func: post processing for the inverted data, should be a callable function.
                 it also can be a list of callable, each matches to the `keys` data.
-            num_workers: number of workers when run data loader for inverse transforms,
-                default to 0 as only run one iteration and multi-processing may be even slower.
-                Set to `None`, to use the `num_workers` of the input transform data loader.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
@@ -575,7 +643,7 @@ class SaveClassificationd(MapTransform):
                 the meta data is a dictionary object which contains: filename, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-                will extract the filename of input image to save classifcation results.
+                will extract the filename of input image to save classification results.
             meta_key_postfix: `key_{postfix}` was used to store the metadata in `LoadImaged`.
                 so need the key to extract the metadata of input image, like filename, etc. default is `meta_dict`.
                 for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
@@ -586,7 +654,7 @@ class SaveClassificationd(MapTransform):
             output_dir: if `saver=None`, specify the directory to save the CSV file.
             filename: if `saver=None`, specify the name of the saved CSV file.
             overwrite: if `saver=None`, indicate whether to overwriting existing CSV file content, if True,
-                will clear the file before saving. otherwise, will apend new content to the CSV file.
+                will clear the file before saving. otherwise, will append new content to the CSV file.
             flush: if `saver=None`, indicate whether to write the cache data to CSV file immediately
                 in this transform and clear the cache. default to True.
                 If False, may need user to call `saver.finalize()` manually or use `ClassificationSaver` handler.
@@ -624,10 +692,12 @@ class SaveClassificationd(MapTransform):
 
 ActivationsD = ActivationsDict = Activationsd
 AsDiscreteD = AsDiscreteDict = AsDiscreted
+FillHolesD = FillHolesDict = FillHolesd
+InvertD = InvertDict = Invertd
 KeepLargestConnectedComponentD = KeepLargestConnectedComponentDict = KeepLargestConnectedComponentd
+LabelFilterD = LabelFilterDict = LabelFilterd
 LabelToContourD = LabelToContourDict = LabelToContourd
 MeanEnsembleD = MeanEnsembleDict = MeanEnsembled
 ProbNMSD = ProbNMSDict = ProbNMSd
-VoteEnsembleD = VoteEnsembleDict = VoteEnsembled
-InvertD = InvertDict = Invertd
 SaveClassificationD = SaveClassificationDict = SaveClassificationd
+VoteEnsembleD = VoteEnsembleDict = VoteEnsembled

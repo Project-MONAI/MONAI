@@ -182,9 +182,9 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
     train_handlers = [
         LrScheduleHandler(lr_scheduler=lr_scheduler, print_lr=True),
         ValidationHandler(validator=evaluator, interval=2, epoch_level=True),
-        StatsHandler(tag_name="train_loss", output_transform=lambda x: x[0]["loss"]),
+        StatsHandler(tag_name="train_loss", output_transform=from_engine("loss", first=True)),
         TensorBoardStatsHandler(
-            summary_writer=summary_writer, tag_name="train_loss", output_transform=lambda x: x[0]["loss"]
+            summary_writer=summary_writer, tag_name="train_loss", output_transform=from_engine("loss", first=True)
         ),
         CheckpointSaver(save_dir=root_dir, save_dict={"net": net, "opt": opt}, save_interval=2, epoch_level=True),
         _TestTrainIterEvents(),
@@ -202,6 +202,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         key_train_metric={"train_acc": Accuracy(output_transform=from_engine(["pred", "label"]))},
         train_handlers=train_handlers,
         amp=True if amp else False,
+        optim_set_to_none=True,
     )
     trainer.run()
 
