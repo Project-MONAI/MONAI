@@ -17,7 +17,32 @@ from monai.utils import optional_import
 
 _nvtx, _ = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")
 
-__all__ = ["RangePush", "RandRangePush", "RangePop", "RandRangePop", "Mark", "RandMark"]
+__all__ = [
+    "Mark",
+    "Markd",
+    "MarkD",
+    "MarkDict",
+    "RandMark",
+    "RandMarkd",
+    "RandMarkD",
+    "RandMarkDict",
+    "RandRangePop",
+    "RandRangePopd",
+    "RandRangePopD",
+    "RandRangePopDict",
+    "RandRangePush",
+    "RandRangePushd",
+    "RandRangePushD",
+    "RandRangePushDict",
+    "RangePop",
+    "RangePopd",
+    "RangePopD",
+    "RangePopDict",
+    "RangePush",
+    "RangePushd",
+    "RangePushD",
+    "RangePushDict",
+]
 
 
 class RangePush(Transform):
@@ -38,7 +63,7 @@ class RangePush(Transform):
         return data
 
 
-class RandRangePush(RandomizableTransform):
+class RandRangePush(RangePush, RandomizableTransform):
     """
     Pushes a range onto a stack of nested range span (RandomizableTransform).
     Stores zero-based depth of the range that is started.
@@ -46,15 +71,6 @@ class RandRangePush(RandomizableTransform):
     Args:
         msg: ASCII message to associate with range
     """
-
-    def __init__(self, msg: str) -> None:
-        super().__init__()
-        self.msg = msg
-        self.depth = None
-
-    def __call__(self, data):
-        self.depth = _nvtx.rangePushA(self.msg)
-        return data
 
 
 class RangePop(Transform):
@@ -68,18 +84,11 @@ class RangePop(Transform):
         return data
 
 
-class RandRangePop(RandomizableTransform):
+class RandRangePop(RangePop, RandomizableTransform):
     """
     Pops a range off of a stack of nested range spans (RandomizableTransform).
     Stores zero-based depth of the range that is ended.
     """
-
-    def __init__(self):
-        super().__init__()
-
-    def __call__(self, data):
-        _nvtx.rangePop()
-        return data
 
 
 class Mark(Transform):
@@ -98,7 +107,7 @@ class Mark(Transform):
         return data
 
 
-class RandMark(RandomizableTransform):
+class RandMark(Mark, RandomizableTransform):
     """
     Mark an instantaneous event that occurred at some point.
     (RandomizableTransform)
@@ -106,14 +115,6 @@ class RandMark(RandomizableTransform):
     Args:
         msg: ASCII message to associate with the event.
     """
-
-    def __init__(self, msg: str) -> None:
-        super().__init__()
-        self.msg = msg
-
-    def __call__(self, data):
-        _nvtx.markA(self.msg)
-        return data
 
 
 MarkDict = MarkD = Markd = Mark
