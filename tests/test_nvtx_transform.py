@@ -10,21 +10,12 @@
 # limitations under the License.
 
 import unittest
-import sys
 
 import numpy as np
-from numpy.lib.arraysetops import isin
 from parameterized import parameterized
-
 from torch import Tensor
-from monai.transforms import (
-    Compose,
-    Flip,
-    RandFlip,
-    RandFlipD,
-    ToTensor,
-    ToTensorD,
-)
+
+from monai.transforms import Compose, Flip, RandFlip, RandFlipD, ToTensor, ToTensorD
 from monai.transforms.nvtx import Mark, RandMark, RandRangePop, RandRangePush, RangePop, RangePush
 from monai.utils import optional_import
 
