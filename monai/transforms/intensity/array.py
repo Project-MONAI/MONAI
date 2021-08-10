@@ -64,6 +64,7 @@ __all__ = [
     "KSpaceSpikeNoise",
     "RandKSpaceSpikeNoise",
     "RandCoarseDropout",
+    "HistogramNormalize",
 ]
 
 
@@ -1626,3 +1627,37 @@ class RandCoarseDropout(RandomizableTransform):
                 img[h] = self.fill_value
 
         return img
+
+
+class HistogramNormalize(Transform):
+    """
+    Apply the histogram normalization to input image.
+    Refer to: https://github.com/facebookresearch/CovidPrognosis/blob/master/covidprognosis/data/transforms.py#L83.
+
+    Args:
+        bins: number of the bins to use in histogram, default to `256`. for more details:
+            https://numpy.org/doc/stable/reference/generated/numpy.histogram.html.
+        max: the max value to normalize input image, default to `255`.
+        dtype: data type of the output, default to `float32`.
+
+    """
+
+    def __init__(self, bins: int = 256, max: int = 255, dtype: DtypeLike = np.float32) -> None:
+        self.bins = bins
+        self.max = max
+        self.dtype = dtype
+
+    def __call__(self, img: np.ndarray) -> np.ndarray:
+        """
+        Apply the transform to `img`, assuming `img` is a channel-first array if `self.channel_wise` is True,
+        """
+        orig_shape = img.shape
+        hist, bins = np.histogram(img.flatten(), self.bins, density=True)
+        cum = hist.cumsum()
+        # normalize the cumulative result
+        cum = self.max * cum / cum[-1]
+
+        # apply linear interpolation
+        img = np.interp(img.flatten(), bins[:-1], cum)
+
+        return img.reshape(orig_shape).astype(self.dtype)

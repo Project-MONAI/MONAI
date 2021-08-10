@@ -28,6 +28,7 @@ from monai.transforms.intensity.array import (
     GaussianSharpen,
     GaussianSmooth,
     GibbsNoise,
+    HistogramNormalize,
     KSpaceSpikeNoise,
     MaskIntensity,
     NormalizeIntensity,
@@ -72,6 +73,7 @@ __all__ = [
     "RandKSpaceSpikeNoised",
     "RandHistogramShiftd",
     "RandCoarseDropoutd",
+    "HistogramNormalized",
     "RandGaussianNoiseD",
     "RandGaussianNoiseDict",
     "ShiftIntensityD",
@@ -122,6 +124,8 @@ __all__ = [
     "RandRicianNoiseDict",
     "RandCoarseDropoutD",
     "RandCoarseDropoutDict",
+    "HistogramNormalizeD",
+    "HistogramNormalizeDict",
 ]
 
 
@@ -1469,6 +1473,39 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
         return d
 
 
+class HistogramNormalized(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.HistogramNormalize`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        bins: number of the bins to use in histogram, default to `256`. for more details:
+            https://numpy.org/doc/stable/reference/generated/numpy.histogram.html.
+        max: the max value to normalize input image, default to `255`.
+        dtype: data type of the output, default to `float32`.
+        allow_missing_keys: do not raise exception if key is missing.
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        bins: int = 256,
+        max: int = 255,
+        dtype: DtypeLike = np.float32,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.transform = HistogramNormalize(bins=bins, max=max, dtype=dtype)
+
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.transform(d[key])
+        return d
+
+
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
 RandRicianNoiseD = RandRicianNoiseDict = RandRicianNoised
 ShiftIntensityD = ShiftIntensityDict = ShiftIntensityd
@@ -1495,3 +1532,4 @@ GibbsNoiseD = GibbsNoiseDict = GibbsNoised
 KSpaceSpikeNoiseD = KSpaceSpikeNoiseDict = KSpaceSpikeNoised
 RandKSpaceSpikeNoiseD = RandKSpaceSpikeNoiseDict = RandKSpaceSpikeNoised
 RandCoarseDropoutD = RandCoarseDropoutDict = RandCoarseDropoutd
+HistogramNormalizeD = HistogramNormalizeDict = HistogramNormalized
