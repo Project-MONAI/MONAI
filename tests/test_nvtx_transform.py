@@ -16,7 +16,20 @@ from parameterized import parameterized
 from torch import Tensor
 
 from monai.transforms import Compose, Flip, RandFlip, RandFlipD, ToTensor, ToTensorD
-from monai.transforms.nvtx import Mark, RandMark, RandRangePop, RandRangePush, RangePop, RangePush
+from monai.transforms.nvtx import (
+    Mark,
+    MarkD,
+    RandMark,
+    RandMarkD,
+    RandRangePop,
+    RandRangePopD,
+    RandRangePush,
+    RandRangePushD,
+    RangePop,
+    RangePopD,
+    RangePush,
+    RangePushD,
+)
 from monai.utils import optional_import
 
 _, has_nvtx = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")
@@ -48,7 +61,7 @@ class TestNVTXTransforms(unittest.TestCase):
 
     @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX!")
     @parameterized.expand([TEST_CASE_0])
-    def test_nvtx_transfroms(self, input):
+    def test_nvtx_transfroms_array(self, input):
         transforms = Compose(
             [
                 RandMark("Mark: Transform Starts!"),
@@ -73,14 +86,14 @@ class TestNVTXTransforms(unittest.TestCase):
     def test_nvtx_transfromsd(self, input):
         transforms = Compose(
             [
-                RandMark("Mark: Transform Starts!"),
-                RandRangePush("Range: RandFlipD"),
+                RandMarkD("Mark: Transform Starts!"),
+                RandRangePushD("Range: RandFlipD"),
                 RandFlipD(keys="image", prob=0.5),
-                RandRangePop(),
-                RangePush("Range: ToTensorD"),
+                RandRangePopD(),
+                RangePushD("Range: ToTensorD"),
                 ToTensorD(keys=("image")),
-                RangePop(),
-                Mark("Mark: Transform Ends!"),
+                RangePopD(),
+                MarkD("Mark: Transform Ends!"),
             ]
         )
         output = transforms(input)

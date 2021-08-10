@@ -114,3 +114,11 @@ class RandMark(RandomizableTransform):
     def __call__(self, data):
         _nvtx.markA(self.msg)
         return data
+
+
+MarkDict = MarkD = Markd = Mark
+RandMarkDict = RandMarkD = RandMarkd = RandMark
+RandRangePopDict = RandRangePopD = RandRangePopd = RandRangePop
+RandRangePushDict = RandRangePushD = RandRangePushd = RandRangePush
+RangePopDict = RangePopD = RangePopd = RangePop
+RangePushDict = RangePushD = RangePushd = RangePush
