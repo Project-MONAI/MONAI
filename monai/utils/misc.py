@@ -338,7 +338,7 @@ def dtype_numpy_to_torch(dtype):
 def dtype_convert(dtype, data_type):
     """Convert to the `dtype` that corresponds to `data_type`.
     Example:
-        im = torch.Tensor((1))
+        im = torch.tensor(1)
         dtype = dtype_convert(np.float32, type(im))
     """
     if data_type is torch.Tensor:
