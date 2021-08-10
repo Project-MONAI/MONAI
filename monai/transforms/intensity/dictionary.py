@@ -41,7 +41,7 @@ from monai.transforms.intensity.array import (
     StdShiftIntensity,
     ThresholdIntensity,
 )
-from monai.transforms.transform import MapTransform, RandomizableTransform
+from monai.transforms.transform import MapTransform, NumpyTransform, RandomizableTransform, TorchTransform
 from monai.transforms.utils import is_positive
 from monai.utils import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
 from monai.utils.enums import DataObjects
@@ -127,7 +127,7 @@ __all__ = [
 ]
 
 
-class RandGaussianNoised(RandomizableTransform, MapTransform):
+class RandGaussianNoised(RandomizableTransform, MapTransform, NumpyTransform, TorchTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandGaussianNoise`.
     Add Gaussian noise to image. This transform assumes all the expected fields have same shape, if want to add
