@@ -12,11 +12,38 @@
 import sys
 import unittest
 
+import numpy as np
+
 from monai.data import DataLoader, Dataset
 from monai.transforms import AddChannel, Compose
-from monai.transforms.transform import Randomizable
+from monai.transforms.transform import NumpyTransform, Randomizable, TorchTransform, Transform
 from monai.utils import set_determinism
+from parameterized import parameterized
+import math
 
+
+class Tr(Transform):
+    def __call__(self, x):
+        return x
+
+class N(Tr, NumpyTransform):
+    pass
+class T(Tr, TorchTransform):
+    pass
+class NT(Tr, NumpyTransform, TorchTransform):
+    pass
+
+
+TEST_NUMBER_CONVERSIONS = [
+    ((N(), N()), 0),
+    ((T(), T()), 0),
+    ((NT(), NT()), 0),
+    ((N(), T()), 1),
+    ((N(), T(), N()), 2),
+    ((N(), NT(), T(), T(), NT(), NT(), N()), 2),
+    ((N(), NT(), T(), Compose([T(), NT(), NT(), N()])), 2),
+    ((Tr(), N(), T()), math.nan),
+]
 
 class _RandXform(Randomizable):
     def randomize(self):
@@ -216,6 +243,15 @@ class TestCompose(unittest.TestCase):
 
     def test_backwards_compatible_imports(self):
         from monai.transforms.compose import MapTransform, RandomizableTransform, Transform  # noqa: F401
+
+    @parameterized.expand(TEST_NUMBER_CONVERSIONS)
+    def test_get_number_of_conversions(self, transforms, expected):
+        tr = Compose(transforms)
+        n = tr.get_number_np_torch_conversions()
+        if math.isnan(expected):
+            self.assertTrue(math.isnan(n))
+        else:
+            self.assertEqual(n, expected)
 
 
 if __name__ == "__main__":

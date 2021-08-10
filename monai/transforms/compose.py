@@ -12,6 +12,7 @@
 A collection of generic interfaces for MONAI transforms.
 """
 
+import math
 import warnings
 from typing import Any, Callable, Optional, Sequence, Union
 
@@ -22,8 +23,10 @@ from monai.transforms.inverse import InvertibleTransform
 # For backwards compatibility (so this still works: from monai.transforms.compose import MapTransform)
 from monai.transforms.transform import (  # noqa: F401
     MapTransform,
+    NumpyTransform,
     Randomizable,
     RandomizableTransform,
+    TorchTransform,
     Transform,
     apply_transform,
 )
@@ -168,3 +171,23 @@ class Compose(Randomizable, InvertibleTransform):
         for t in reversed(invertible_transforms):
             data = apply_transform(t.inverse, data, self.map_items, self.unpack_items)
         return data
+
+    def get_number_np_torch_conversions(self):
+        """Get the number of times that the data need to be converted from numpy to torch or vice versa.
+        Returns `math.nan` if any of transforms are neither `NumpyTransform` nor `TorchTransform`."""
+        num_conversions = 0
+        tr = self.flatten().transforms
+        # if any are unknown, return math.nan
+        if not all([isinstance(t, (NumpyTransform, TorchTransform)) for t in tr]):
+            return math.nan
+        # ignore torch or numpy transforms as they are ambivalent
+        tr = [t for t in tr if not (isinstance(t, NumpyTransform) and isinstance(t, TorchTransform))]
+        if len(tr) > 0:
+            t_prev = tr[0]
+            for t in tr[1:]:
+                if isinstance(t, NumpyTransform) and isinstance(t_prev, TorchTransform):
+                    num_conversions += 1
+                elif isinstance(t, TorchTransform) and isinstance(t_prev, NumpyTransform):
+                    num_conversions += 1
+                t_prev = t
+        return num_conversions
