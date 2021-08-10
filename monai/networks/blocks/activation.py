@@ -12,7 +12,18 @@
 import torch
 from torch import nn
 
-from monai.utils import get_torch_version_tuple
+from monai.utils import optional_import
+
+if optional_import("torch.nn.functional", name="mish")[1]:
+
+    def monai_mish(x):
+        return torch.nn.functional.mish(x, inplace=True)
+
+
+else:
+
+    def monai_mish(x):
+        return x * torch.tanh(torch.nn.functional.softplus(x))
 
 
 class Swish(nn.Module):
@@ -125,8 +136,4 @@ class Mish(nn.Module):
     """
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
-        return (
-            nn.functional.mish(input)
-            if get_torch_version_tuple() >= (1, 9)
-            else input * torch.tanh(torch.nn.functional.softplus(input))
-        )
+        return monai_mish(input)
