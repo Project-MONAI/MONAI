@@ -48,6 +48,7 @@ class RandRangePush(RandomizableTransform):
     """
 
     def __init__(self, msg: str) -> None:
+        super().__init__()
         self.msg = msg
         self.depth = None
 
@@ -72,6 +73,9 @@ class RandRangePop(RandomizableTransform):
     Pops a range off of a stack of nested range spans (RandomizableTransform).
     Stores zero-based depth of the range that is ended.
     """
+
+    def __init__(self):
+        super().__init__()
 
     def __call__(self, data):
         _nvtx.rangePop()
@@ -104,6 +108,7 @@ class RandMark(RandomizableTransform):
     """
 
     def __init__(self, msg: str) -> None:
+        super().__init__()
         self.msg = msg
 
     def __call__(self, data):
