@@ -12,6 +12,8 @@
 import torch
 from torch import nn
 
+from monai.utils import get_torch_version_tuple
+
 
 class Swish(nn.Module):
     r"""Applies the element-wise function:
@@ -30,6 +32,8 @@ class Swish(nn.Module):
 
     Examples::
 
+        >>> import torch
+        >>> from monai.networks.layers.factories import Act
         >>> m = Act['swish']()
         >>> input = torch.randn(2)
         >>> output = m(input)
@@ -85,6 +89,8 @@ class MemoryEfficientSwish(nn.Module):
 
     Examples::
 
+        >>> import torch
+        >>> from monai.networks.layers.factories import Act
         >>> m = Act['memswish']()
         >>> input = torch.randn(2)
         >>> output = m(input)
@@ -111,10 +117,16 @@ class Mish(nn.Module):
 
     Examples::
 
+        >>> import torch
+        >>> from monai.networks.layers.factories import Act
         >>> m = Act['mish']()
         >>> input = torch.randn(2)
         >>> output = m(input)
     """
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
-        return F.mish(input) if torch.__version__ >= '1.9' else input * torch.tanh(torch.nn.functional.softplus(input))
+        return (
+            nn.functional.mish(input)
+            if get_torch_version_tuple() >= (1, 9)
+            else input * torch.tanh(torch.nn.functional.softplus(input))
+        )
