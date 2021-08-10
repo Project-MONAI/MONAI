@@ -199,6 +199,7 @@ class OneOf(Compose):
         if len(weights) != len(self.transforms):
             raise AssertionError("transforms and weights should be same size if both specified as sequences.")
         self.weights = ensure_tuple(self._normalize_probabilities(weights))
+        self.index = None
 
     def _normalize_probabilities(self, weights):
         if len(weights) == 0:
@@ -211,18 +212,6 @@ class OneOf(Compose):
                 raise AssertionError("At least one probability must be greater than zero.")
             weights = weights / weights.sum()
             return list(weights)
-
-    def __call__(self, input_):
-        if len(self.transforms) == 0:
-            return input_
-        else:
-            index = self.R.multinomial(1, self.weights).argmax()
-            _transform = self.transforms[index]
-            input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items)
-            return input_
-
-    def inverse(self, data):
-        raise NotImplementedError("inverse method not yet implemented for OneOf class.")
 
     def flatten(self):
         transforms = []
@@ -239,3 +228,22 @@ class OneOf(Compose):
                 transforms.append(t)
                 weights.append(w)
         return OneOf(transforms, weights, self.map_items, self.unpack_items)
+
+    def __call__(self, input_):
+        if len(self.transforms) == 0:
+            return input_
+        else:
+            index = self.R.multinomial(1, self.weights).argmax()
+            self.index = index
+            _transform = self.transforms[index]
+            input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items)
+            return input_
+
+    def inverse(self, data):
+        index = self.index
+        if index is None:
+            return data
+        t = self.transforms[index]
+        if isinstance(t, InvertibleTransform):
+            data = apply_transform(t.inverse, data, self.map_items, self.unpack_items)
+        return data
