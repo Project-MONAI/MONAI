@@ -223,3 +223,19 @@ class OneOf(Compose):
 
     def inverse(self, data):
         raise NotImplementedError("inverse method not yet implemented for OneOf class.")
+
+    def flatten(self):
+        transforms = []
+        weights = []
+        for t, w in zip(self.transforms, self.weights):
+            # if nested, probability is the current weight multiplied by the nested weights,
+            # and so on recursively
+            if isinstance(t, OneOf):
+                tr = t.flatten()
+                for t_, w_ in zip(tr.transforms, tr.weights):
+                    transforms.append(t_)
+                    weights.append(w_ * w)
+            else:
+                transforms.append(t)
+                weights.append(w)
+        return OneOf(transforms, weights, self.map_items, self.unpack_items)
