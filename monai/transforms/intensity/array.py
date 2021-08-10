@@ -14,16 +14,17 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 from collections.abc import Iterable
-from typing import Any, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 from warnings import warn
 
 import numpy as np
 import torch
 
 from monai.config import DtypeLike
+from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
-from monai.transforms.transform import RandomizableTransform, Transform
-from monai.transforms.utils import rescale_array
+from monai.transforms.transform import Fourier, RandomizableTransform, Transform
+from monai.transforms.utils import is_positive, rescale_array
 from monai.utils import (
     PT_BEFORE_1_7,
     InvalidPyTorchVersionError,
@@ -31,6 +32,7 @@ from monai.utils import (
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
+    fall_back_tuple,
 )
 
 __all__ = [
@@ -61,6 +63,7 @@ __all__ = [
     "RandGibbsNoise",
     "KSpaceSpikeNoise",
     "RandKSpaceSpikeNoise",
+    "RandCoarseDropout",
 ]
 
 
@@ -184,11 +187,13 @@ class ShiftIntensity(Transform):
     def __init__(self, offset: float) -> None:
         self.offset = offset
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: np.ndarray, offset: Optional[float] = None) -> np.ndarray:
         """
         Apply the transform to `img`.
         """
-        return np.asarray((img + self.offset), dtype=img.dtype)
+
+        offset = self.offset if offset is None else offset
+        return np.asarray((img + offset), dtype=img.dtype)
 
 
 class RandShiftIntensity(RandomizableTransform):
@@ -211,20 +216,26 @@ class RandShiftIntensity(RandomizableTransform):
                 raise AssertionError("offsets should be a number or pair of numbers.")
             self.offsets = (min(offsets), max(offsets))
         self._offset = self.offsets[0]
+        self._shfiter = ShiftIntensity(self._offset)
 
     def randomize(self, data: Optional[Any] = None) -> None:
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
         super().randomize(None)
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: np.ndarray, factor: Optional[float] = None) -> np.ndarray:
         """
         Apply the transform to `img`.
+
+        Args:
+            img: input image to shift intensity.
+            factor: a factor to multiply the random offset, then shift.
+                can be some image specific value at runtime, like: max(img), etc.
+
         """
         self.randomize()
         if not self._do_transform:
             return img
-        shifter = ShiftIntensity(self._offset)
-        return shifter(img)
+        return self._shfiter(img, self._offset if factor is None else self._offset * factor)
 
 
 class StdShiftIntensity(Transform):
@@ -431,22 +442,19 @@ class RandBiasField(RandomizableTransform):
         self.coeff_range = coeff_range
         self.dtype = dtype
 
-    def _generate_random_field(
-        self,
-        spatial_shape: Tuple[int, ...],
-        rank: int,
-        degree: int,
-        coeff: Tuple[int, ...],
-    ):
+        self._coeff = [1.0]
+
+    def _generate_random_field(self, spatial_shape: Sequence[int], degree: int, coeff: Sequence[float]):
         """
         products of polynomials as bias field estimations
         """
+        rank = len(spatial_shape)
         coeff_mat = np.zeros((degree + 1,) * rank)
         coords = [np.linspace(-1.0, 1.0, dim, dtype=np.float32) for dim in spatial_shape]
         if rank == 2:
             coeff_mat[np.tril_indices(degree + 1)] = coeff
-            field = np.polynomial.legendre.leggrid2d(coords[0], coords[1], coeff_mat)
-        elif rank == 3:
+            return np.polynomial.legendre.leggrid2d(coords[0], coords[1], coeff_mat)
+        if rank == 3:
             pts: List[List[int]] = [[0, 0, 0]]
             for i in range(degree + 1):
                 for j in range(degree + 1 - i):
@@ -456,16 +464,12 @@ class RandBiasField(RandomizableTransform):
                 pts = pts[1:]
             np_pts = np.stack(pts)
             coeff_mat[np_pts[:, 0], np_pts[:, 1], np_pts[:, 2]] = coeff
-            field = np.polynomial.legendre.leggrid3d(coords[0], coords[1], coords[2], coeff_mat)
-        else:
-            raise NotImplementedError("only supports 2D or 3D fields")
-        return field
+            return np.polynomial.legendre.leggrid3d(coords[0], coords[1], coords[2], coeff_mat)
+        raise NotImplementedError("only supports 2D or 3D fields")
 
     def randomize(self, data: np.ndarray) -> None:
         super().randomize(None)
-        self.spatial_shape = data.shape[1:]
-        self.rank = len(self.spatial_shape)
-        n_coeff = int(np.prod([(self.degree + k) / k for k in range(1, self.rank + 1)]))
+        n_coeff = int(np.prod([(self.degree + k) / k for k in range(1, len(data.shape[1:]) + 1)]))
         self._coeff = self.R.uniform(*self.coeff_range, n_coeff).tolist()
 
     def __call__(self, img: np.ndarray):
@@ -475,17 +479,15 @@ class RandBiasField(RandomizableTransform):
         self.randomize(data=img)
         if not self._do_transform:
             return img
-        num_channels = img.shape[0]
+        num_channels, *spatial_shape = img.shape
         _bias_fields = np.stack(
             [
-                self._generate_random_field(
-                    spatial_shape=self.spatial_shape, rank=self.rank, degree=self.degree, coeff=self._coeff
-                )
+                self._generate_random_field(spatial_shape=spatial_shape, degree=self.degree, coeff=self._coeff)
                 for _ in range(num_channels)
             ],
             axis=0,
         )
-        return (img * _bias_fields).astype(self.dtype)
+        return (img * np.exp(_bias_fields)).astype(self.dtype)
 
 
 class NormalizeIntensity(Transform):
@@ -787,19 +789,23 @@ class MaskIntensity(Transform):
     """
     Mask the intensity values of input image with the specified mask data.
     Mask data must have the same spatial size as the input image, and all
-    the intensity values of input image corresponding to `0` in the mask
-    data will be set to `0`, others will keep the original value.
+    the intensity values of input image corresponding to the selected values
+    in the mask data will keep the original value, others will be set to `0`.
 
     Args:
         mask_data: if `mask_data` is single channel, apply to every channel
             of input image. if multiple channels, the number of channels must
-            match the input data. `mask_data` will be converted to `bool` values
-            by `mask_data > 0` before applying transform to input image.
+            match the input data. the intensity values of input image corresponding
+            to the selected values in the mask data will keep the original value,
+            others will be set to `0`.
+        select_fn: function to select valid values of the `mask_data`, default is
+            to select `values > 0`.
 
     """
 
-    def __init__(self, mask_data: Optional[np.ndarray]) -> None:
+    def __init__(self, mask_data: Optional[np.ndarray], select_fn: Callable = is_positive) -> None:
         self.mask_data = mask_data
+        self.select_fn = select_fn
 
     def __call__(self, img: np.ndarray, mask_data: Optional[np.ndarray] = None) -> np.ndarray:
         """
@@ -814,21 +820,18 @@ class MaskIntensity(Transform):
             - ValueError: When ``mask_data`` and ``img`` channels differ and ``mask_data`` is not single channel.
 
         """
-        if self.mask_data is None and mask_data is None:
-            raise ValueError("Unknown mask_data.")
-        mask_data_ = np.array([[1]])
-        if self.mask_data is not None and mask_data is None:
-            mask_data_ = self.mask_data > 0
-        if mask_data is not None:
-            mask_data_ = mask_data > 0
-        mask_data_ = np.asarray(mask_data_)
-        if mask_data_.shape[0] != 1 and mask_data_.shape[0] != img.shape[0]:
+        mask_data = self.mask_data if mask_data is None else mask_data
+        if mask_data is None:
+            raise ValueError("must provide the mask_data when initializing the transform or at runtime.")
+
+        mask_data = np.asarray(self.select_fn(mask_data))
+        if mask_data.shape[0] != 1 and mask_data.shape[0] != img.shape[0]:
             raise ValueError(
                 "When mask_data is not single channel, mask_data channels must match img, "
-                f"got img={img.shape[0]} mask_data={mask_data_.shape[0]}."
+                f"got img channels={img.shape[0]} mask_data channels={mask_data.shape[0]}."
             )
 
-        return np.asarray(img * mask_data_)
+        return np.asarray(img * mask_data)
 
 
 class SavitzkyGolaySmooth(Transform):
@@ -1202,7 +1205,7 @@ class RandGibbsNoise(RandomizableTransform):
         self.sampled_alpha = self.R.uniform(self.alpha[0], self.alpha[1])
 
 
-class GibbsNoise(Transform):
+class GibbsNoise(Transform, Fourier):
     """
     The transform applies Gibbs noise to 2D/3D MRI images. Gibbs artifacts
     are one of the common type of type artifacts appearing in MRI scans.
@@ -1210,15 +1213,17 @@ class GibbsNoise(Transform):
     The transform is applied to all the channels in the data.
 
     For general information on Gibbs artifacts, please refer to:
-    https://pubs.rsna.org/doi/full/10.1148/rg.313105115
-    https://pubs.rsna.org/doi/full/10.1148/radiographics.22.4.g02jl14949
 
+    `An Image-based Approach to Understanding the Physics of MR Artifacts
+    <https://pubs.rsna.org/doi/full/10.1148/rg.313105115>`_.
+
+    `The AAPM/RSNA Physics Tutorial for Residents
+    <https://pubs.rsna.org/doi/full/10.1148/radiographics.22.4.g02jl14949>`_
 
     Args:
-        alpha (float): Parametrizes the intensity of the Gibbs noise filter applied. Takes
+        alpha: Parametrizes the intensity of the Gibbs noise filter applied. Takes
             values in the interval [0,1] with alpha = 0 acting as the identity mapping.
-        as_tensor_output: if true return torch.Tensor, else return np.array. default: True.
-
+        as_tensor_output: if true return torch.Tensor, else return np.array. Default: True.
     """
 
     def __init__(self, alpha: float = 0.5, as_tensor_output: bool = True) -> None:
@@ -1227,47 +1232,22 @@ class GibbsNoise(Transform):
             raise AssertionError("alpha must take values in the interval [0,1].")
         self.alpha = alpha
         self.as_tensor_output = as_tensor_output
-        self._device = torch.device("cpu")
 
     def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> Union[torch.Tensor, np.ndarray]:
         n_dims = len(img.shape[1:])
 
-        # convert to ndarray to work with np.fft
-        _device = None
-        if isinstance(img, torch.Tensor):
-            _device = img.device
-            img = img.cpu().detach().numpy()
-
+        if isinstance(img, np.ndarray):
+            img = torch.Tensor(img)
         # FT
-        k = self._shift_fourier(img, n_dims)
+        k = self.shift_fourier(img, n_dims)
         # build and apply mask
         k = self._apply_mask(k)
         # map back
-        img = self._inv_shift_fourier(k, n_dims)
-        return torch.Tensor(img).to(_device or self._device) if self.as_tensor_output else img
+        img = self.inv_shift_fourier(k, n_dims)
 
-    def _shift_fourier(self, x: Union[np.ndarray, torch.Tensor], n_dims: int) -> np.ndarray:
-        """
-        Applies fourier transform and shifts its output.
-        Only the spatial dimensions get transformed.
+        return img if self.as_tensor_output else img.cpu().detach().numpy()
 
-        Args:
-            x (np.ndarray): tensor to fourier transform.
-        """
-        out: np.ndarray = np.fft.fftshift(np.fft.fftn(x, axes=tuple(range(-n_dims, 0))), axes=tuple(range(-n_dims, 0)))
-        return out
-
-    def _inv_shift_fourier(self, k: Union[np.ndarray, torch.Tensor], n_dims: int) -> np.ndarray:
-        """
-        Applies inverse shift and fourier transform. Only the spatial
-        dimensions are transformed.
-        """
-        out: np.ndarray = np.fft.ifftn(
-            np.fft.ifftshift(k, axes=tuple(range(-n_dims, 0))), axes=tuple(range(-n_dims, 0))
-        ).real
-        return out
-
-    def _apply_mask(self, k: np.ndarray) -> np.ndarray:
+    def _apply_mask(self, k: torch.Tensor) -> torch.Tensor:
         """Builds and applies a mask on the spatial dimensions.
 
         Args:
@@ -1293,11 +1273,11 @@ class GibbsNoise(Transform):
         mask = np.repeat(mask[None], k.shape[0], axis=0)
 
         # apply binary mask
-        k_masked: np.ndarray = k * mask
+        k_masked = k * torch.tensor(mask, device=k.device)
         return k_masked
 
 
-class KSpaceSpikeNoise(Transform):
+class KSpaceSpikeNoise(Transform, Fourier):
     """
     Apply localized spikes in `k`-space at the given locations and intensities.
     Spike (Herringbone) artifact is a type of data acquisition artifact which
@@ -1351,7 +1331,7 @@ class KSpaceSpikeNoise(Transform):
                 raise AssertionError(
                     "If a sequence is passed to k_intensity, then a sequence of locations must be passed to loc"
                 )
-            elif len(k_intensity) != len(loc):
+            if len(k_intensity) != len(loc):
                 raise AssertionError("There must be one intensity_factor value for each tuple of indices in loc.")
         if isinstance(self.loc[0], Sequence) and k_intensity is not None:
             if not isinstance(self.k_intensity, Sequence):
@@ -1360,7 +1340,7 @@ class KSpaceSpikeNoise(Transform):
     def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> Union[torch.Tensor, np.ndarray]:
         """
         Args:
-            img (np.array or torch.tensor): image with dimensions (C, H, W) or (C, H, W, D)
+            img: image with dimensions (C, H, W) or (C, H, W, D)
         """
         # checking that tuples in loc are consistent with img size
         self._check_indices(img)
@@ -1374,22 +1354,17 @@ class KSpaceSpikeNoise(Transform):
 
         n_dims = len(img.shape[1:])
 
-        # convert to ndarray to work with np.fft
-        if isinstance(img, torch.Tensor):
-            device = img.device
-            img = img.cpu().detach().numpy()
-        else:
-            device = torch.device("cpu")
-
+        if isinstance(img, np.ndarray):
+            img = torch.Tensor(img)
         # FT
-        k = self._shift_fourier(img, n_dims)
-        log_abs = np.log(np.absolute(k) + 1e-10)
-        phase = np.angle(k)
+        k = self.shift_fourier(img, n_dims)
+        log_abs = torch.log(torch.absolute(k) + 1e-10)
+        phase = torch.angle(k)
 
         k_intensity = self.k_intensity
         # default log intensity
         if k_intensity is None:
-            k_intensity = tuple(np.mean(log_abs, axis=tuple(range(-n_dims, 0))) * 2.5)
+            k_intensity = tuple(torch.mean(log_abs, dim=tuple(range(-n_dims, 0))) * 2.5)
 
         # highlight
         if isinstance(self.loc[0], Sequence):
@@ -1398,9 +1373,10 @@ class KSpaceSpikeNoise(Transform):
         else:
             self._set_spike(log_abs, self.loc, k_intensity)
         # map back
-        k = np.exp(log_abs) * np.exp(1j * phase)
-        img = self._inv_shift_fourier(k, n_dims)
-        return torch.Tensor(img, device=device) if self.as_tensor_output else img
+        k = torch.exp(log_abs) * torch.exp(1j * phase)
+        img = self.inv_shift_fourier(k, n_dims)
+
+        return img if self.as_tensor_output else img.cpu().detach().numpy()
 
     def _check_indices(self, img) -> None:
         """Helper method to check consistency of self.loc and input image.
@@ -1420,14 +1396,14 @@ class KSpaceSpikeNoise(Transform):
                     f"The index value at position {i} of one of the tuples in loc = {self.loc} is out of bounds for current image."
                 )
 
-    def _set_spike(self, k: np.ndarray, idx: Tuple, val: Union[Sequence[float], float]):
+    def _set_spike(self, k: torch.Tensor, idx: Tuple, val: Union[Sequence[float], float]):
         """
         Helper function to introduce a given intensity at given location.
 
         Args:
-            k (np.array): intensity array to alter.
-            idx (tuple): index of location where to apply change.
-            val (float): value of intensity to write in.
+            k: intensity array to alter.
+            idx: index of location where to apply change.
+            val: value of intensity to write in.
         """
         if len(k.shape) == len(idx):
             if isinstance(val, Sequence):
@@ -1435,33 +1411,12 @@ class KSpaceSpikeNoise(Transform):
             else:
                 k[idx] = val
         elif len(k.shape) == 4 and len(idx) == 3:
-            k[:, idx[0], idx[1], idx[2]] = val
+            k[:, idx[0], idx[1], idx[2]] = val  # type: ignore
         elif len(k.shape) == 3 and len(idx) == 2:
-            k[:, idx[0], idx[1]] = val
-
-    def _shift_fourier(self, x: Union[np.ndarray, torch.Tensor], n_dims: int) -> np.ndarray:
-        """
-        Applies fourier transform and shifts its output.
-        Only the spatial dimensions get transformed.
-
-        Args:
-            x (np.ndarray): tensor to fourier transform.
-        """
-        out: np.ndarray = np.fft.fftshift(np.fft.fftn(x, axes=tuple(range(-n_dims, 0))), axes=tuple(range(-n_dims, 0)))
-        return out
-
-    def _inv_shift_fourier(self, k: Union[np.ndarray, torch.Tensor], n_dims: int) -> np.ndarray:
-        """
-        Applies inverse shift and fourier transform. Only the spatial
-        dimensions are transformed.
-        """
-        out: np.ndarray = np.fft.ifftn(
-            np.fft.ifftshift(k, axes=tuple(range(-n_dims, 0))), axes=tuple(range(-n_dims, 0))
-        ).real
-        return out
+            k[:, idx[0], idx[1]] = val  # type: ignore
 
 
-class RandKSpaceSpikeNoise(RandomizableTransform):
+class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
     """
     Naturalistic data augmentation via spike artifacts. The transform applies
     localized spikes in `k`-space, and it is the random version of
@@ -1482,7 +1437,7 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
             channels at once, or channel-wise if ``channel_wise = True``.
         intensity_range: pass a tuple
             (a, b) to sample the log-intensity from the interval (a, b)
-            uniformly for all channels. Or pass sequence of intervals
+            uniformly for all channels. Or pass sequence of intevals
             ((a0, b0), (a1, b1), ...) to sample for each respective channel.
             In the second case, the number of 2-tuples must match the number of
             channels.
@@ -1511,7 +1466,7 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
         self.intensity_range = intensity_range
         self.channel_wise = channel_wise
         self.as_tensor_output = as_tensor_output
-        self.sampled_k_intensity: List[float] = []
+        self.sampled_k_intensity: List = []
         self.sampled_locs: List[Tuple] = []
 
         if intensity_range is not None:
@@ -1527,7 +1482,7 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
         Apply transform to `img`. Assumes data is in channel-first form.
 
         Args:
-            img (np.array or torch.tensor): image with dimensions (C, H, W) or (C, H, W, D)
+            img: image with dimensions (C, H, W) or (C, H, W, D)
         """
         if self.intensity_range is not None:
             if isinstance(self.intensity_range[0], Sequence) and len(self.intensity_range) != img.shape[0]:
@@ -1538,19 +1493,20 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
         self.sampled_k_intensity = []
         self.sampled_locs = []
 
-        # convert to ndarray to work with np.fft
-        x, device = self._to_numpy(img)
-        intensity_range = self._make_sequence(x)
-        self._randomize(x, intensity_range)
+        if not isinstance(img, torch.Tensor):
+            img = torch.Tensor(img)
 
-        # build/apply transform only if there are spike locations
+        intensity_range = self._make_sequence(img)
+        self._randomize(img, intensity_range)
+
+        # build/appy transform only if there are spike locations
         if self.sampled_locs:
             transform = KSpaceSpikeNoise(self.sampled_locs, self.sampled_k_intensity, self.as_tensor_output)
-            return transform(x)
+            return transform(img)
 
-        return torch.Tensor(x, device=device) if self.as_tensor_output else x
+        return img if self.as_tensor_output else img.detach().numpy()
 
-    def _randomize(self, img: np.ndarray, intensity_range: Sequence[Sequence[float]]) -> None:
+    def _randomize(self, img: torch.Tensor, intensity_range: Sequence[Sequence[float]]) -> None:
         """
         Helper method to sample both the location and intensity of the spikes.
         When not working channel wise (channel_wise=False) it use the random
@@ -1574,11 +1530,11 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
                 spatial = tuple(self.R.randint(0, k) for k in img.shape[1:])
                 self.sampled_locs = [(i,) + spatial for i in range(img.shape[0])]
                 if isinstance(intensity_range[0], Sequence):
-                    self.sampled_k_intensity = [self.R.uniform(*p) for p in intensity_range]  # type: ignore
+                    self.sampled_k_intensity = [self.R.uniform(p[0], p[1]) for p in intensity_range]
                 else:
-                    self.sampled_k_intensity = [self.R.uniform(*self.intensity_range)] * len(img)  # type: ignore
+                    self.sampled_k_intensity = [self.R.uniform(intensity_range[0], intensity_range[1])] * len(img)
 
-    def _make_sequence(self, x: np.ndarray) -> Sequence[Sequence[float]]:
+    def _make_sequence(self, x: torch.Tensor) -> Sequence[Sequence[float]]:
         """
         Formats the sequence of intensities ranges to Sequence[Sequence[float]].
         """
@@ -1586,29 +1542,87 @@ class RandKSpaceSpikeNoise(RandomizableTransform):
             if not isinstance(self.intensity_range[0], Sequence):
                 intensity_range = (ensure_tuple(self.intensity_range),) * x.shape[0]
                 return intensity_range
-            else:
-                return ensure_tuple(self.intensity_range)
+            return ensure_tuple(self.intensity_range)
         else:
             # set default range if one not provided
             return self._set_default_range(x)
 
-    def _set_default_range(self, x: np.ndarray) -> Sequence[Sequence[float]]:
+    def _set_default_range(self, img: torch.Tensor) -> Sequence[Sequence[float]]:
         """
         Sets default intensity ranges to be sampled.
 
         Args:
-            x (np.ndarray): tensor to fourier transform.
+            img: image to transform.
         """
-        n_dims = len(x.shape[1:])
+        n_dims = len(img.shape[1:])
 
-        k = np.fft.fftshift(np.fft.fftn(x, axes=tuple(range(-n_dims, 0))), axes=tuple(range(-n_dims, 0)))
-        log_abs = np.log(np.absolute(k) + 1e-10)
-        shifted_means = np.mean(log_abs, axis=tuple(range(-n_dims, 0))) * 2.5
+        k = self.shift_fourier(img, n_dims)
+        log_abs = torch.log(torch.absolute(k) + 1e-10)
+        shifted_means = torch.mean(log_abs, dim=tuple(range(-n_dims, 0))) * 2.5
         intensity_sequence = tuple((i * 0.95, i * 1.1) for i in shifted_means)
         return intensity_sequence
 
-    def _to_numpy(self, img: Union[np.ndarray, torch.Tensor]) -> Tuple[np.ndarray, torch.device]:
-        if isinstance(img, torch.Tensor):
-            return img.cpu().detach().numpy(), img.device
-        else:
-            return img, torch.device("cpu")
+
+class RandCoarseDropout(RandomizableTransform):
+    """
+    Randomly coarse dropout regions in the image, then fill in the rectangular regions with specified value.
+    Refer to: https://arxiv.org/abs/1708.04552 and:
+    https://albumentations.ai/docs/api_reference/augmentations/transforms/
+    #albumentations.augmentations.transforms.CoarseDropout.
+
+    Args:
+        holes: number of regions to dropout, if `max_holes` is not None, use this arg as the minimum number to
+            randomly select the expected number of regions.
+        spatial_size: spatial size of the regions to dropout, if `max_spatial_size` is not None, use this arg
+            as the minimum spatial size to randomly select size for every region.
+            if some components of the `spatial_size` are non-positive values, the transform will use the
+            corresponding components of input img size. For example, `spatial_size=(32, -1)` will be adapted
+            to `(32, 64)` if the second spatial dimension size of img is `64`.
+        fill_value: target value to fill the dropout regions.
+        max_holes: if not None, define the maximum number to randomly select the expected number of regions.
+        max_spatial_size: if not None, define the maximum spatial size to randomly select size for every region.
+            if some components of the `max_spatial_size` are non-positive values, the transform will use the
+            corresponding components of input img size. For example, `max_spatial_size=(32, -1)` will be adapted
+            to `(32, 64)` if the second spatial dimension size of img is `64`.
+        prob: probability of applying the transform.
+
+    """
+
+    def __init__(
+        self,
+        holes: int,
+        spatial_size: Union[Sequence[int], int],
+        fill_value: Union[float, int] = 0,
+        max_holes: Optional[int] = None,
+        max_spatial_size: Optional[Union[Sequence[int], int]] = None,
+        prob: float = 0.1,
+    ) -> None:
+        RandomizableTransform.__init__(self, prob)
+        if holes < 1:
+            raise ValueError("number of holes must be greater than 0.")
+        self.holes = holes
+        self.spatial_size = spatial_size
+        self.fill_value = fill_value
+        self.max_holes = max_holes
+        self.max_spatial_size = max_spatial_size
+        self.hole_coords: List = []
+
+    def randomize(self, img_size: Sequence[int]) -> None:
+        super().randomize(None)
+        size = fall_back_tuple(self.spatial_size, img_size)
+        self.hole_coords = []  # clear previously computed coords
+        num_holes = self.holes if self.max_holes is None else self.R.randint(self.holes, self.max_holes + 1)
+        for _ in range(num_holes):
+            if self.max_spatial_size is not None:
+                max_size = fall_back_tuple(self.max_spatial_size, img_size)
+                size = tuple(self.R.randint(low=size[i], high=max_size[i] + 1) for i in range(len(img_size)))
+            valid_size = get_valid_patch_size(img_size, size)
+            self.hole_coords.append((slice(None),) + get_random_patch(img_size, valid_size, self.R))
+
+    def __call__(self, img: np.ndarray):
+        self.randomize(img.shape[1:])
+        if self._do_transform:
+            for h in self.hole_coords:
+                img[h] = self.fill_value
+
+        return img

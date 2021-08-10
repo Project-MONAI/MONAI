@@ -402,7 +402,7 @@ class RandSpatialCrop(Randomizable, Transform):
         self._size = fall_back_tuple(self.roi_size, img_size)
         if self.random_size:
             max_size = img_size if self.max_roi_size is None else fall_back_tuple(self.max_roi_size, img_size)
-            if any([i > j for i, j in zip(self._size, max_size)]):
+            if any(i > j for i, j in zip(self._size, max_size)):
                 raise ValueError(f"min ROI size: {self._size} is bigger than max ROI size: {max_size}.")
             self._size = tuple((self.R.randint(low=self._size[i], high=max_size[i] + 1) for i in range(len(img_size))))
         if self.random_center:
