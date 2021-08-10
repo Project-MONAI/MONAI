@@ -357,7 +357,9 @@ def convert_data_type(
     device: Optional[torch.device] = None,
     dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
 ) -> Tuple[DataObjects.Images, type, Optional[torch.device]]:
-    """Convert to `torch.Tensor`/`np.ndarray` from `torch.Tensor`/`np.ndarray`/`float`/`int` etc.
+    """
+    Convert to `torch.Tensor`/`np.ndarray` from `torch.Tensor`/`np.ndarray`/`float`/`int` etc.
+
     Args:
         data: data to be converted
         output_type: `torch.Tensor` or `np.ndarray` (if blank, unchanged)
