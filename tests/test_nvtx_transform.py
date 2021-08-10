@@ -15,7 +15,15 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.transforms import Compose, Flip, RandFlip, RandFlipD, ToTensor, ToTensorD
+from monai.transforms import (
+    Compose,
+    Flip,
+    RandFlip,
+    RandFlipD,
+    ToTensor,
+    ToTensorD,
+    Randomizable,
+)
 from monai.transforms.nvtx import (
     Mark,
     MarkD,
@@ -34,39 +42,59 @@ from monai.utils import optional_import
 
 _, has_nvtx = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")
 
-TEST_CASE_0 = [
+
+TEST_CASE_ARRAY_0 = [
     np.random.randn(3, 3),
 ]
-TEST_CASE_1 = [
+TEST_CASE_ARRAY_1 = [
+    np.random.randn(3, 10, 10),
+]
+TEST_CASE_DICT_0 = [
     {"image": np.random.randn(3, 3)},
+]
+TEST_CASE_DICT_1 = [
+    {"image": np.random.randn(3, 10, 10)},
 ]
 
 
 class TestNVTXTransforms(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1])
+    @parameterized.expand(
+        [
+            TEST_CASE_ARRAY_0,
+            TEST_CASE_ARRAY_1,
+            TEST_CASE_DICT_0,
+            TEST_CASE_DICT_1,
+        ]
+    )
     @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX!")
     def test_nvtx_transfroms_alone(self, input):
         transforms = Compose(
             [
-                RandMark("Mark: Transform Starts!"),
-                RandRangePush("Range: RandFlipD"),
-                RandRangePop(),
-                RangePush("Range: ToTensorD"),
+                Mark("Mark: Transform Starts!"),
+                RangePush("Range: RandFlipD"),
                 RangePop(),
-                Mark("Mark: Transform Ends!"),
+                RandRangePush("Range: ToTensorD"),
+                RandRangePop(),
+                RandMark("Mark: Transform Ends!"),
             ]
         )
         output = transforms(input)
         self.assertEqual(id(input), id(output))
 
-    @parameterized.expand([TEST_CASE_0])
+        # Check if chain of randomizable/non-randomizable transforms is not broken
+        for tran in transforms.transforms:
+            if isinstance(tran, Randomizable):
+                self.assertIsInstance(tran, RangePush)
+                break
+
+    @parameterized.expand([TEST_CASE_ARRAY_0, TEST_CASE_ARRAY_1])
     @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX!")
     def test_nvtx_transfroms_array(self, input):
         transforms = Compose(
             [
                 RandMark("Mark: Transform Starts!"),
                 RandRangePush("Range: RandFlip"),
-                RandFlip(prob=0.5),
+                RandFlip(prob=0.0),
                 RandRangePop(),
                 RangePush("Range: ToTensor"),
                 ToTensor(),
@@ -76,19 +104,32 @@ class TestNVTXTransforms(unittest.TestCase):
         )
         output = transforms(input)
         self.assertIsInstance(output, torch.Tensor)
-        try:
-            np.testing.assert_array_equal(input, output)
-        except AssertionError:
-            np.testing.assert_array_equal(input, Flip()(output.numpy()))
+        np.testing.assert_array_equal(input, output)
 
-    @parameterized.expand([TEST_CASE_1])
+        transforms = Compose(
+            [
+                RandMark("Mark: Transform Starts!"),
+                RandRangePush("Range: RandFlip"),
+                RandFlip(prob=1.0),
+                RandRangePop(),
+                RangePush("Range: ToTensor"),
+                ToTensor(),
+                RangePop(),
+                Mark("Mark: Transform Ends!"),
+            ]
+        )
+        output = transforms(input)
+        self.assertIsInstance(output, torch.Tensor)
+        np.testing.assert_array_equal(input, Flip()(output.numpy()))
+
+    @parameterized.expand([TEST_CASE_DICT_0, TEST_CASE_DICT_1])
     @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX!")
     def test_nvtx_transfromsd(self, input):
         transforms = Compose(
             [
                 RandMarkD("Mark: Transform Starts!"),
                 RandRangePushD("Range: RandFlipD"),
-                RandFlipD(keys="image", prob=0.5),
+                RandFlipD(keys="image", prob=0.0),
                 RandRangePopD(),
                 RangePushD("Range: ToTensorD"),
                 ToTensorD(keys=("image")),
@@ -98,10 +139,23 @@ class TestNVTXTransforms(unittest.TestCase):
         )
         output = transforms(input)
         self.assertIsInstance(output["image"], torch.Tensor)
-        try:
-            np.testing.assert_array_equal(input["image"], output["image"])
-        except AssertionError:
-            np.testing.assert_array_equal(input["image"], Flip()(output["image"].numpy()))
+        np.testing.assert_array_equal(input["image"], output["image"])
+
+        transforms = Compose(
+            [
+                RandMarkD("Mark: Transform Starts!"),
+                RandRangePushD("Range: RandFlipD"),
+                RandFlipD(keys="image", prob=1.0),
+                RandRangePopD(),
+                RangePushD("Range: ToTensorD"),
+                ToTensorD(keys=("image")),
+                RangePopD(),
+                MarkD("Mark: Transform Ends!"),
+            ]
+        )
+        output = transforms(input)
+        self.assertIsInstance(output["image"], torch.Tensor)
+        np.testing.assert_array_equal(input["image"], Flip()(output["image"].numpy()))
 
 
 if __name__ == "__main__":
