@@ -14,7 +14,7 @@ import random
 import re
 import warnings
 from contextlib import contextmanager
-from typing import Callable, List, Optional, Sequence, Tuple, Union
+from typing import Callable, Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -37,43 +37,45 @@ from monai.utils import (
 )
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
+ndimage, _ = optional_import("scipy.ndimage")
 cp, has_cp = optional_import("cupy")
 cp_ndarray, _ = optional_import("cupy", name="ndarray")
 
 __all__ = [
-    "rand_choice",
+    "allow_missing_keys_mode",
+    "compute_divisible_spatial_size",
+    "convert_inverse_interp_mode",
+    "convert_to_numpy",
+    "convert_to_tensor",
+    "copypaste_arrays",
+    "create_control_grid",
+    "create_grid",
+    "create_rotate",
+    "create_scale",
+    "create_shear",
+    "create_translate",
+    "extreme_points_to_image",
+    "fill_holes",
+    "generate_label_classes_crop_centers",
+    "generate_pos_neg_label_crop_centers",
+    "generate_spatial_bounding_box",
+    "get_extreme_points",
+    "get_largest_connected_component_mask",
     "img_bounds",
     "in_bounds",
     "is_empty",
     "is_positive",
-    "zero_margins",
-    "rescale_array",
-    "rescale_instance_array",
-    "rescale_array_int_max",
-    "copypaste_arrays",
-    "compute_divisible_spatial_size",
-    "resize_center",
     "map_binary_to_indices",
     "map_classes_to_indices",
-    "weighted_patch_samples",
-    "generate_pos_neg_label_crop_centers",
-    "generate_label_classes_crop_centers",
-    "create_grid",
-    "create_control_grid",
-    "create_rotate",
-    "create_shear",
-    "create_scale",
-    "create_translate",
-    "generate_spatial_bounding_box",
-    "get_largest_connected_component_mask",
-    "get_extreme_points",
-    "extreme_points_to_image",
     "map_spatial_axes",
-    "allow_missing_keys_mode",
-    "convert_inverse_interp_mode",
-    "convert_to_tensor",
-    "convert_to_numpy",
+    "rand_choice",
+    "rescale_array",
+    "rescale_array_int_max",
+    "rescale_instance_array",
+    "resize_center",
     "tensor_to_numpy",
+    "weighted_patch_samples",
+    "zero_margins",
 ]
 
 
@@ -488,7 +490,7 @@ def generate_label_classes_crop_centers(
     ratios_: List[Union[float, int]] = ([1] * len(indices)) if ratios is None else ratios
     if len(ratios_) != len(indices):
         raise ValueError("random crop radios must match the number of indices of classes.")
-    if any([i < 0 for i in ratios_]):
+    if any(i < 0 for i in ratios_):
         raise ValueError("ratios should not contain negative number.")
 
     # ensure indices are numpy array
@@ -730,6 +732,65 @@ def get_largest_connected_component_mask(img: torch.Tensor, connectivity: Option
         largest_cc[...] = img_arr == (np.argmax(np.bincount(img_arr.flat)[1:]) + 1)
 
     return torch.as_tensor(largest_cc, device=img.device)
+
+
+def fill_holes(
+    img_arr: np.ndarray, applied_labels: Optional[Iterable[int]] = None, connectivity: Optional[int] = None
+) -> np.ndarray:
+    """
+    Fill the holes in the provided image.
+
+    The label 0 will be treated as background and the enclosed holes will be set to the neighboring class label.
+    What is considered to be an enclosed hole is defined by the connectivity.
+    Holes on the edge are always considered to be open (not enclosed).
+
+    Note:
+
+        The performance of this method heavily depends on the number of labels.
+        It is a bit faster if the list of `applied_labels` is provided.
+        Limiting the number of `applied_labels` results in a big decrease in processing time.
+
+        If the image is one-hot-encoded, then the `applied_labels` need to match the channel index.
+
+    Args:
+        img_arr: numpy array of shape [C, spatial_dim1[, spatial_dim2, ...]].
+        applied_labels: Labels for which to fill holes. Defaults to None,
+            that is filling holes for all labels.
+        connectivity: Maximum number of orthogonal hops to
+            consider a pixel/voxel as a neighbor. Accepted values are ranging from  1 to input.ndim.
+            Defaults to a full connectivity of ``input.ndim``.
+
+    Returns:
+        numpy array of shape [C, spatial_dim1[, spatial_dim2, ...]].
+    """
+    channel_axis = 0
+    num_channels = img_arr.shape[channel_axis]
+    is_one_hot = num_channels > 1
+    spatial_dims = img_arr.ndim - 1
+    structure = ndimage.generate_binary_structure(spatial_dims, connectivity or spatial_dims)
+
+    # Get labels if not provided. Exclude background label.
+    applied_labels = set(applied_labels or (range(num_channels) if is_one_hot else np.unique(img_arr)))
+    background_label = 0
+    applied_labels.discard(background_label)
+
+    for label in applied_labels:
+        tmp = np.zeros(img_arr.shape[1:], dtype=bool)
+        ndimage.binary_dilation(
+            tmp,
+            structure=structure,
+            iterations=-1,
+            mask=np.logical_not(img_arr[label]) if is_one_hot else img_arr[0] != label,
+            origin=0,
+            border_value=1,
+            output=tmp,
+        )
+        if is_one_hot:
+            img_arr[label] = np.logical_not(tmp)
+        else:
+            img_arr[0, np.logical_not(tmp)] = label
+
+    return img_arr
 
 
 def get_extreme_points(
@@ -982,7 +1043,7 @@ def convert_to_tensor(data):
     """
     if isinstance(data, torch.Tensor):
         return data.contiguous()
-    elif isinstance(data, np.ndarray):
+    if isinstance(data, np.ndarray):
         # skip array of string classes and object, refer to:
         # https://github.com/pytorch/pytorch/blob/v1.9.0/torch/utils/data/_utils/collate.py#L13
         if re.search(r"[SaUO]", data.dtype.str) is None:
@@ -1046,11 +1107,11 @@ def tensor_to_numpy(data):
     if isinstance(data, torch.Tensor):
         # invert Tensor to numpy, if scalar data, convert to number
         return data.item() if data.ndim == 0 else np.ascontiguousarray(data.detach().cpu().numpy())
-    elif isinstance(data, dict):
+    if isinstance(data, dict):
         return {k: tensor_to_numpy(v) for k, v in data.items()}
-    elif isinstance(data, list):
+    if isinstance(data, list):
         return [tensor_to_numpy(i) for i in data]
-    elif isinstance(data, tuple):
+    if isinstance(data, tuple):
         return tuple(tensor_to_numpy(i) for i in data)
 
     return data
