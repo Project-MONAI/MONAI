@@ -1639,18 +1639,33 @@ class HistogramNormalize(Transform):
             https://numpy.org/doc/stable/reference/generated/numpy.histogram.html.
         min: the min value to normalize input image, default to `0`.
         max: the max value to normalize input image, default to `255`.
+        mask: if provided, must be ndarray of bools or 0s and 1s, and same shape as `image`.
+            only points at which `mask==True` are used for the equalization.
+            can also provide the mask along with img at runtime.
         dtype: data type of the output, default to `float32`.
 
     """
 
-    def __init__(self, num_bins: int = 256, min: int = 0, max: int = 255, dtype: DtypeLike = np.float32) -> None:
+    def __init__(
+        self,
+        num_bins: int = 256,
+        min: int = 0,
+        max: int = 255,
+        mask: Optional[np.ndarray] = None,
+        dtype: DtypeLike = np.float32,
+    ) -> None:
         self.num_bins = num_bins
         self.min = min
         self.max = max
+        self.mask = mask
         self.dtype = dtype
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
-        """
-        Apply the transform to `img`, assuming `img` is a channel-first array if `self.channel_wise` is True,
-        """
-        return equalize_hist(img=img, num_bins=self.num_bins, min=self.min, max=self.max, dtype=self.dtype)
+    def __call__(self, img: np.ndarray, mask: Optional[np.ndarray] = None) -> np.ndarray:
+        return equalize_hist(
+            img=img,
+            mask=mask if mask is not None else self.mask,
+            num_bins=self.num_bins,
+            min=self.min,
+            max=self.max,
+            dtype=self.dtype,
+        )

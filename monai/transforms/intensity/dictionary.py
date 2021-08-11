@@ -1484,6 +1484,10 @@ class HistogramNormalized(MapTransform):
             https://numpy.org/doc/stable/reference/generated/numpy.histogram.html.
         min: the min value to normalize input image, default to `255`.
         max: the max value to normalize input image, default to `255`.
+        mask: if provided, must be ndarray of bools or 0s and 1s, and same shape as `image`.
+            only points at which `mask==True` are used for the equalization.
+            can also provide the mask by `mask_key` at runtime.
+        mask_key: if mask is None, will try to get the mask with `mask_key`.
         dtype: data type of the output, default to `float32`.
         allow_missing_keys: do not raise exception if key is missing.
 
@@ -1495,16 +1499,20 @@ class HistogramNormalized(MapTransform):
         num_bins: int = 256,
         min: int = 0,
         max: int = 255,
+        mask: Optional[np.ndarray] = None,
+        mask_key: Optional[str] = None,
         dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.transform = HistogramNormalize(num_bins=num_bins, min=min, max=max, dtype=dtype)
+        self.transform = HistogramNormalize(num_bins=num_bins, min=min, max=max, mask=mask, dtype=dtype)
+        self.mask_key = mask_key if mask is None else None
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         for key in self.key_iterator(d):
-            d[key] = self.transform(d[key])
+            d[key] = self.transform(d[key], d[self.mask_key]) if self.mask_key is not None else self.transform(d[key])
+
         return d
 
 

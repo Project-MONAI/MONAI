@@ -40,6 +40,7 @@ measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 ndimage, _ = optional_import("scipy.ndimage")
 cp, has_cp = optional_import("cupy")
 cp_ndarray, _ = optional_import("cupy", name="ndarray")
+exposure, has_skimage = optional_import("skimage.exposure")
 
 __all__ = [
     "allow_missing_keys_mode",
@@ -1120,6 +1121,7 @@ def tensor_to_numpy(data):
 
 def equalize_hist(
     img: np.ndarray,
+    mask: Optional[np.ndarray] = None,
     num_bins: int = 256,
     min: int = 0,
     max: int = 255,
@@ -1127,9 +1129,13 @@ def equalize_hist(
 ) -> np.ndarray:
     """
     Utility to equalize input image based on the histogram.
+    If `skimage` installed, will leverage `skimage.exposure.histogram`, otherwise, use
+    `np.histogram` instead.
 
     Args:
         img: input image to equalize.
+        mask: if provided, must be ndarray of bools or 0s and 1s, and same shape as `image`.
+            only points at which `mask==True` are used for the equalization.
         num_bins: number of the bins to use in histogram, default to `256`. for more details:
             https://numpy.org/doc/stable/reference/generated/numpy.histogram.html.
         min: the min value to normalize input image, default to `0`.
@@ -1138,12 +1144,18 @@ def equalize_hist(
 
     """
     orig_shape = img.shape
-    hist, bins = np.histogram(img.flatten(), num_bins, density=True)
+    hist_img = img[np.array(mask, dtype=bool)] if mask is not None else img
+    if has_skimage:
+        hist, bins = exposure.histogram(hist_img.flatten(), num_bins)
+    else:
+        hist, bins = np.histogram(hist_img.flatten(), num_bins)
+        bins = (bins[:-1] + bins[1:]) / 2
+
     cum = hist.cumsum()
     # normalize the cumulative result
     cum = rescale_array(arr=cum, minv=min, maxv=max)
 
     # apply linear interpolation
-    img = np.interp(img.flatten(), bins[:-1], cum)
+    img = np.interp(img.flatten(), bins, cum)
 
     return img.reshape(orig_shape).astype(dtype)
