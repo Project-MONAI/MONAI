@@ -28,9 +28,8 @@ class UnetrUpBlock(nn.Module):
         self,
         spatial_dims: int,
         in_channels: int,
-        out_channels: int,  # type: ignore
+        out_channels: int,
         kernel_size: Union[Sequence[int], int],
-        stride: Union[Sequence[int], int],
         upsample_kernel_size: Union[Sequence[int], int],
         norm_name: Union[Tuple, str],
         res_block: bool = False,
@@ -41,7 +40,6 @@ class UnetrUpBlock(nn.Module):
             in_channels: number of input channels.
             out_channels: number of output channels.
             kernel_size: convolution kernel size.
-            stride: convolution stride.
             upsample_kernel_size: convolution kernel size for transposed convolution layers.
             norm_name: feature normalization type and arguments.
             res_block: bool argument to determine if residual block is used.
@@ -148,7 +146,7 @@ class UnetrPrUpBlock(nn.Module):
                                 is_transposed=True,
                             ),
                             UnetResBlock(
-                                spatial_dims=3,
+                                spatial_dims=spatial_dims,
                                 in_channels=out_channels,
                                 out_channels=out_channels,
                                 kernel_size=kernel_size,
@@ -173,7 +171,7 @@ class UnetrPrUpBlock(nn.Module):
                                 is_transposed=True,
                             ),
                             UnetBasicBlock(
-                                spatial_dims=3,
+                                spatial_dims=spatial_dims,
                                 in_channels=out_channels,
                                 out_channels=out_channels,
                                 kernel_size=kernel_size,
@@ -257,5 +255,4 @@ class UnetrBasicBlock(nn.Module):
             )
 
     def forward(self, inp):
-        out = self.layer(inp)
-        return out
+        return self.layer(inp)

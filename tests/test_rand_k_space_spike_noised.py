@@ -19,6 +19,7 @@ from parameterized import parameterized
 from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 from monai.transforms import RandKSpaceSpikeNoised
 from monai.utils.misc import set_determinism
+from tests.utils import SkipIfBeforePyTorchVersion, SkipIfNoModule
 
 TEST_CASES = []
 for shape in ((128, 64), (64, 48, 80)):
@@ -29,6 +30,8 @@ for shape in ((128, 64), (64, 48, 80)):
 KEYS = ["image", "label"]
 
 
+@SkipIfBeforePyTorchVersion((1, 8))
+@SkipIfNoModule("torch.fft")
 class TestKSpaceSpikeNoised(unittest.TestCase):
     def setUp(self):
         set_determinism(0)
@@ -43,20 +46,19 @@ class TestKSpaceSpikeNoised(unittest.TestCase):
         ims = create_test_image(*im_shape, rad_max=20, noise_max=0.0, num_seg_classes=5)
         ims = [im[None] for im in ims]
         ims = [torch.Tensor(im) for im in ims] if as_tensor_input else ims
-        return {k: v for k, v in zip(KEYS, ims)}
+        return dict(zip(KEYS, ims))
 
     @parameterized.expand(TEST_CASES)
     def test_same_result(self, im_shape, as_tensor_output, as_tensor_input):
 
         data = self.get_data(im_shape, as_tensor_input)
 
-        intensity_range = (13, 15)
+        intensity_ranges = {"image": (13, 15), "label": (13, 15)}
         t = RandKSpaceSpikeNoised(
             KEYS,
             global_prob=1.0,
             prob=1.0,
-            img_intensity_range=intensity_range,
-            label_intensity_range=intensity_range,
+            intensity_ranges=intensity_ranges,
             channel_wise=True,
             as_tensor_output=as_tensor_output,
         )
@@ -73,13 +75,12 @@ class TestKSpaceSpikeNoised(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_0_prob(self, im_shape, as_tensor_output, as_tensor_input):
         data = self.get_data(im_shape, as_tensor_input)
-        intensity_range = (13, 15)
+        intensity_ranges = {"image": (13, 15), "label": (13, 15)}
         t1 = RandKSpaceSpikeNoised(
             KEYS,
             global_prob=0.0,
             prob=1.0,
-            img_intensity_range=intensity_range,
-            label_intensity_range=intensity_range,
+            intensity_ranges=intensity_ranges,
             channel_wise=True,
             as_tensor_output=as_tensor_output,
         )
@@ -88,8 +89,7 @@ class TestKSpaceSpikeNoised(unittest.TestCase):
             KEYS,
             global_prob=0.0,
             prob=1.0,
-            img_intensity_range=intensity_range,
-            label_intensity_range=intensity_range,
+            intensity_ranges=intensity_ranges,
             channel_wise=True,
             as_tensor_output=as_tensor_output,
         )
@@ -104,23 +104,21 @@ class TestKSpaceSpikeNoised(unittest.TestCase):
     def test_intensity(self, im_shape, as_tensor_output, as_tensor_input):
 
         data = self.get_data(im_shape, as_tensor_input)
-        image_range = (15, 15.1)
-        label_range = (14, 14.1)
+        intensity_ranges = {"image": (13, 13.1), "label": (13, 13.1)}
         t = RandKSpaceSpikeNoised(
             KEYS,
             global_prob=1.0,
             prob=1.0,
-            img_intensity_range=image_range,
-            label_intensity_range=label_range,
+            intensity_ranges=intensity_ranges,
             channel_wise=True,
             as_tensor_output=True,
         )
 
         _ = t(data)
-        self.assertGreaterEqual(t.t_img.sampled_k_intensity[0], 15)
-        self.assertLessEqual(t.t_img.sampled_k_intensity[0], 15.1)
-        self.assertGreaterEqual(t.t_label.sampled_k_intensity[0], 14)
-        self.assertLessEqual(t.t_label.sampled_k_intensity[0], 14.1)
+        self.assertGreaterEqual(t.transforms["image"].sampled_k_intensity[0], 13)
+        self.assertLessEqual(t.transforms["image"].sampled_k_intensity[0], 13.1)
+        self.assertGreaterEqual(t.transforms["label"].sampled_k_intensity[0], 13)
+        self.assertLessEqual(t.transforms["label"].sampled_k_intensity[0], 13.1)
 
     @parameterized.expand(TEST_CASES)
     def test_same_transformation(self, im_shape, _, as_tensor_input):
@@ -128,14 +126,13 @@ class TestKSpaceSpikeNoised(unittest.TestCase):
         # use same image for both dictionary entries to check same trans is applied to them
         data = {KEYS[0]: deepcopy(data[KEYS[0]]), KEYS[1]: deepcopy(data[KEYS[0]])}
 
-        image_range = label_range = (15, 15.1)
+        intensity_ranges = {"image": (13, 15), "label": (13, 15)}
         # use common_sampling = True to ask for the same transformation
         t = RandKSpaceSpikeNoised(
             KEYS,
             global_prob=1.0,
             prob=1.0,
-            img_intensity_range=image_range,
-            label_intensity_range=label_range,
+            intensity_ranges=intensity_ranges,
             channel_wise=True,
             common_sampling=True,
             as_tensor_output=True,
