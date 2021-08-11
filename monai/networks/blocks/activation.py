@@ -135,5 +135,5 @@ class Mish(nn.Module):
         >>> output = m(input)
     """
 
-    def forward(self, input: torch.Tensor) -> torch.Tensor:
+    def forward(self, input: torch.Tensor):
         return monai_mish(input)
