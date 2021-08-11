@@ -128,6 +128,7 @@ class LoadImage(Transform):
                 self.register(SUPPORTED_READERS[r](*args, **kwargs))
             except TypeError:  # the reader doesn't have the corresponding args/kwargs
                 warnings.warn(f"{r} is not supported with the given parameters {args} {kwargs}.")
+                self.register(SUPPORTED_READERS[r]())
         if reader is None:
             return  # no user-specified reader, no need to register
 

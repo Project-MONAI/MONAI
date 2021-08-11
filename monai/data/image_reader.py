@@ -45,16 +45,30 @@ __all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReade
 
 
 class ImageReader(ABC):
-    """Abstract class to define interface APIs to load image files.
-    users need to call `read` to load image and then use `get_data`
-    to get the image data and properties from meta data.
+    """
+    An abstract class defines APIs to load image files.
+
+    Typical usage of an implementation of this class is:
+
+    .. code-block:: python
+
+        image_reader = MyImageReader()
+        img_obj = image_reader.read(path_to_image)
+        img_data, meta_data = image_reader.get_data(img_obj)
+
+    - The `read` call converts image filenames into image objects,
+    - The `get_data` call fetches the image data, as well as meta data.
+    - A reader should implement `verify_suffix` with the logic of checking the input filename
+      by the filename extensions.
 
     """
 
     @abstractmethod
     def verify_suffix(self, filename: Union[Sequence[str], str]) -> bool:
         """
-        Verify whether the specified file or files format is supported by current reader.
+        Verify whether the specified `filename` is supported by the current reader.
+        This method should return True if the reader is able to read the format suggested by the
+        `filename`.
 
         Args:
             filename: file name or a list of file names to read.
@@ -67,7 +81,7 @@ class ImageReader(ABC):
     def read(self, data: Union[Sequence[str], str], **kwargs) -> Union[Sequence[Any], Any]:
         """
         Read image data from specified file or files.
-        Note that it returns the raw data, so different readers return different image data type.
+        Note that it returns a data object or a sequence of data objects.
 
         Args:
             data: file name or a list of file names to read.
@@ -80,7 +94,8 @@ class ImageReader(ABC):
     def get_data(self, img) -> Tuple[np.ndarray, Dict]:
         """
         Extract data array and meta data from loaded image and return them.
-        This function must return 2 objects, first is numpy array of image data, second is dict of meta data.
+        This function must return two objects, the first is a numpy array of image data,
+        the second is a dictionary of meta data.
 
         Args:
             img: an image object loaded from an image file or a list of image objects.
@@ -124,7 +139,7 @@ def _stack_images(image_list: List, meta_dict: Dict):
 class ITKReader(ImageReader):
     """
     Load medical images based on ITK library.
-    All the supported image formats can be found:
+    All the supported image formats can be found at:
     https://github.com/InsightSoftwareConsortium/ITK/tree/master/Modules/IO
     The loaded data array will be in C order, for example, a 3D image NumPy
     array index order will be `CDWH`.

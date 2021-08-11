@@ -21,7 +21,24 @@ from parameterized import parameterized
 from PIL import Image
 
 from monai.data import ITKReader, NibabelReader
-from monai.transforms import LoadImage
+from monai.transforms import SUPPORTED_READERS, LoadImage
+
+
+class _MiniReader:
+    """a test case customised reader"""
+
+    def __init__(self, is_compatible=False):
+        self.is_compatible = is_compatible
+
+    def verify_suffix(self, _name):
+        return self.is_compatible
+
+    def read(self, name):
+        return name
+
+    def get_data(self, _obj):
+        return np.zeros((1, 1, 1)), {"name": "my test"}
+
 
 TEST_CASE_1 = [{"image_only": True}, ["test_image.nii.gz"], (128, 128, 128)]
 
@@ -33,7 +50,7 @@ TEST_CASE_3 = [
     (3, 128, 128, 128),
 ]
 
-TEST_CASE_3_1 = [
+TEST_CASE_3_1 = [  # .mgz format
     {"image_only": True, "reader": "nibabelreader"},
     ["test_image.mgz", "test_image2.mgz", "test_image3.mgz"],
     (3, 128, 128, 128),
@@ -41,6 +58,12 @@ TEST_CASE_3_1 = [
 
 TEST_CASE_4 = [
     {"image_only": False},
+    ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
+    (3, 128, 128, 128),
+]
+
+TEST_CASE_4_1 = [  # additional parameter
+    {"image_only": False, "mmap": False},
     ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
     (3, 128, 128, 128),
 ]
@@ -81,7 +104,9 @@ TEST_CASE_11 = [
 
 
 class TestLoadImage(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_3_1, TEST_CASE_4, TEST_CASE_5])
+    @parameterized.expand(
+        [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_3_1, TEST_CASE_4, TEST_CASE_4_1, TEST_CASE_5]
+    )
     def test_nibabel_reader(self, input_param, filenames, expected_shape):
         test_image = np.random.rand(128, 128, 128)
         with tempfile.TemporaryDirectory() as tempdir:
@@ -192,6 +217,19 @@ class TestLoadImage(unittest.TestCase):
             result_raw, header_raw = reader.get_data(img)
             np.testing.assert_allclose(header["spatial_shape"], header_raw["spatial_shape"])
             self.assertTupleEqual(result.shape, result_raw.shape)
+
+    def test_my_reader(self):
+        """test customised readers"""
+        out = LoadImage(reader=_MiniReader, is_compatible=True)("test")
+        self.assertEqual(out[1]["name"], "my test")
+        out = LoadImage(reader=_MiniReader, is_compatible=False)("test")
+        self.assertEqual(out[1]["name"], "my test")
+        SUPPORTED_READERS["minireader"] = _MiniReader
+        for item in ("minireader", _MiniReader, _MiniReader(is_compatible=False)):
+            out = LoadImage(reader=item)("test")
+            self.assertEqual(out[1]["name"], "my test")
+        out = LoadImage()("test", reader=_MiniReader(is_compatible=False))
+        self.assertEqual(out[1]["name"], "my test")
 
 
 if __name__ == "__main__":
