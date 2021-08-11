@@ -143,7 +143,7 @@ class Compose(Randomizable, InvertibleTransform):
         """
         new_transforms = []
         for t in self.transforms:
-            if isinstance(t, Compose):
+            if isinstance(t, Compose) and not isinstance(t, OneOf):
                 new_transforms += t.flatten().transforms
             else:
                 new_transforms.append(t)

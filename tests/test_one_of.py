@@ -14,6 +14,7 @@ import unittest
 from parameterized import parameterized
 
 from monai.transforms import InvertibleTransform, OneOf, Randomizable, Transform
+from monai.transforms.compose import Compose
 
 
 class X(Transform):
@@ -79,9 +80,23 @@ class TestOneOf(unittest.TestCase):
         self.assertEqual(len(p), len(expected_order))
         self.assertTupleEqual(p.flatten().weights, expected_weights)
 
+    def test_compose_flatten_does_not_affect_one_of(self):
+        p = Compose([A(), B(), OneOf([C(), Inv(), Compose([X(), Y()])])])
+        f = p.flatten()
+        # in this case the flattened transform should be the same.
+
+        def _match(a, b):
+            self.assertEqual(type(a), type(b))
+            for a_, b_ in zip(a.transforms, b.transforms):
+                self.assertEqual(type(a_), type(b_))
+                if isinstance(a_, (Compose, OneOf)):
+                    _match(a_, b_)
+
+        _match(p, f)
+
     def test_inverse(self):
         p = OneOf((OneOf((Inv(), NonInv())), Inv(), NonInv()))
-        for _i in range(20):
+        for _ in range(20):
             out = p(2.0)
             inverted = p.inverse(out)
             if p.index == 0 and p.transforms[0].index == 0 or p.index == 1:
