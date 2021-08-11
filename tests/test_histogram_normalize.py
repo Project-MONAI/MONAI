@@ -17,21 +17,21 @@ from parameterized import parameterized
 from monai.transforms import HistogramNormalize
 
 TEST_CASE_1 = [
-    {"bins": 4, "max": 4},
+    {"num_bins": 4, "min": 1, "max": 5},
     np.array([0, 1, 2, 3, 4]),
-    np.array([0.8, 1.6, 2.4, 4.0, 4.0]),
+    np.array([1.0, 2.0, 3.0, 5.0, 5.0]),
 ]
 
 TEST_CASE_2 = [
-    {"bins": 4, "max": 4, "dtype": np.uint8},
+    {"num_bins": 4, "max": 4, "dtype": np.uint8},
     np.array([0, 1, 2, 3, 4]),
     np.array([0, 1, 2, 4, 4]),
 ]
 
 TEST_CASE_3 = [
-    {"bins": 256, "max": 255, "dtype": np.uint8},
+    {"num_bins": 256, "max": 255, "dtype": np.uint8},
     np.array([[[100, 200], [150, 250]]]),
-    np.array([[[63, 191], [127, 255]]]),
+    np.array([[[0, 169], [85, 255]]]),
 ]
 
 

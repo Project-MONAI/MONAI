@@ -24,7 +24,7 @@ from monai.config import DtypeLike
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
 from monai.transforms.transform import Fourier, RandomizableTransform, Transform
-from monai.transforms.utils import is_positive, rescale_array
+from monai.transforms.utils import equalize_hist, is_positive, rescale_array
 from monai.utils import (
     PT_BEFORE_1_7,
     InvalidPyTorchVersionError,
@@ -1635,15 +1635,17 @@ class HistogramNormalize(Transform):
     Refer to: https://github.com/facebookresearch/CovidPrognosis/blob/master/covidprognosis/data/transforms.py#L83.
 
     Args:
-        bins: number of the bins to use in histogram, default to `256`. for more details:
+        num_bins: number of the bins to use in histogram, default to `256`. for more details:
             https://numpy.org/doc/stable/reference/generated/numpy.histogram.html.
+        min: the min value to normalize input image, default to `0`.
         max: the max value to normalize input image, default to `255`.
         dtype: data type of the output, default to `float32`.
 
     """
 
-    def __init__(self, bins: int = 256, max: int = 255, dtype: DtypeLike = np.float32) -> None:
-        self.bins = bins
+    def __init__(self, num_bins: int = 256, min: int = 0, max: int = 255, dtype: DtypeLike = np.float32) -> None:
+        self.num_bins = num_bins
+        self.min = min
         self.max = max
         self.dtype = dtype
 
@@ -1651,13 +1653,4 @@ class HistogramNormalize(Transform):
         """
         Apply the transform to `img`, assuming `img` is a channel-first array if `self.channel_wise` is True,
         """
-        orig_shape = img.shape
-        hist, bins = np.histogram(img.flatten(), self.bins, density=True)
-        cum = hist.cumsum()
-        # normalize the cumulative result
-        cum = self.max * cum / cum[-1]
-
-        # apply linear interpolation
-        img = np.interp(img.flatten(), bins[:-1], cum)
-
-        return img.reshape(orig_shape).astype(self.dtype)
+        return equalize_hist(img=img, num_bins=self.num_bins, min=self.min, max=self.max, dtype=self.dtype)

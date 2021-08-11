@@ -1480,8 +1480,9 @@ class HistogramNormalized(MapTransform):
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
-        bins: number of the bins to use in histogram, default to `256`. for more details:
+        num_bins: number of the bins to use in histogram, default to `256`. for more details:
             https://numpy.org/doc/stable/reference/generated/numpy.histogram.html.
+        min: the min value to normalize input image, default to `255`.
         max: the max value to normalize input image, default to `255`.
         dtype: data type of the output, default to `float32`.
         allow_missing_keys: do not raise exception if key is missing.
@@ -1491,13 +1492,14 @@ class HistogramNormalized(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        bins: int = 256,
+        num_bins: int = 256,
+        min: int = 0,
         max: int = 255,
         dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.transform = HistogramNormalize(bins=bins, max=max, dtype=dtype)
+        self.transform = HistogramNormalize(num_bins=num_bins, min=min, max=max, dtype=dtype)
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)

@@ -471,6 +471,7 @@ from .utils import (
     create_scale,
     create_shear,
     create_translate,
+    equalize_hist,
     extreme_points_to_image,
     generate_label_classes_crop_centers,
     generate_pos_neg_label_crop_centers,

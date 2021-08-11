@@ -76,6 +76,7 @@ __all__ = [
     "tensor_to_numpy",
     "weighted_patch_samples",
     "zero_margins",
+    "equalize_hist",
 ]
 
 
@@ -1115,3 +1116,34 @@ def tensor_to_numpy(data):
         return tuple(tensor_to_numpy(i) for i in data)
 
     return data
+
+
+def equalize_hist(
+    img: np.ndarray,
+    num_bins: int = 256,
+    min: int = 0,
+    max: int = 255,
+    dtype: DtypeLike = np.float32,
+) -> np.ndarray:
+    """
+    Utility to equalize input image based on the histogram.
+
+    Args:
+        img: input image to equalize.
+        num_bins: number of the bins to use in histogram, default to `256`. for more details:
+            https://numpy.org/doc/stable/reference/generated/numpy.histogram.html.
+        min: the min value to normalize input image, default to `0`.
+        max: the max value to normalize input image, default to `255`.
+        dtype: data type of the output, default to `float32`.
+
+    """
+    orig_shape = img.shape
+    hist, bins = np.histogram(img.flatten(), num_bins, density=True)
+    cum = hist.cumsum()
+    # normalize the cumulative result
+    cum = rescale_array(arr=cum, minv=min, maxv=max)
+
+    # apply linear interpolation
+    img = np.interp(img.flatten(), bins[:-1], cum)
+
+    return img.reshape(orig_shape).astype(dtype)
