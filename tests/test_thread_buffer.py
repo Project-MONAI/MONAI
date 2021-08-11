@@ -48,6 +48,8 @@ class TestDataLoader(unittest.TestCase):
         for d in dataloader:
             self.assertEqual(d["image"][0], "spleen_19.nii.gz")
             self.assertEqual(d["image"][1], "spleen_31.nii.gz")
+        
+        for d in dataloader:
             self.assertEqual(d["label"][0], "spleen_label_19.nii.gz")
             self.assertEqual(d["label"][1], "spleen_label_31.nii.gz")
 
