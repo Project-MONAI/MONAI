@@ -19,7 +19,7 @@ from collections import defaultdict
 from copy import deepcopy
 from functools import reduce
 from itertools import product, starmap
-from pathlib import PurePath
+from pathlib import Path, PurePath
 from typing import Any, Dict, Generator, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -679,7 +679,7 @@ def to_affine_nd(r: Union[np.ndarray, int], affine: np.ndarray) -> np.ndarray:
 def create_file_basename(
     postfix: str,
     input_file_name: str,
-    folder_path: str,
+    folder_path: Union[Path, str],
     data_root_dir: str = "",
     separate_folder: bool = True,
     patch_index: Optional[int] = None,
