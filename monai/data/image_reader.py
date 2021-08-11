@@ -396,7 +396,10 @@ class NibabelReader(ImageReader):
 
         """
         # swap to little endian as PyTorch doesn't support big endian
-        header = img.header.as_byteswapped("<")
+        try:
+            header = img.header.as_byteswapped("<")
+        except ValueError:
+            header = img.header
         return dict(header)
 
     def _get_affine(self, img):
@@ -419,11 +422,18 @@ class NibabelReader(ImageReader):
 
         """
         # swap to little endian as PyTorch doesn't support big endian
-        header = img.header.as_byteswapped("<")
-        ndim = header["dim"][0]
+        try:
+            header = img.header.as_byteswapped("<")
+        except ValueError:
+            header = img.header
+        dim = header.get("dim", None)
+        if dim is None:
+            dim = header.get("dims")  # mgh format?
+            dim = np.insert(dim, 0, 3)
+        ndim = dim[0]
         spatial_rank = min(ndim, 3)
         # the img data should have no channel dim or the last dim is channel
-        return np.asarray(header["dim"][1 : spatial_rank + 1])
+        return np.asarray(dim[1 : spatial_rank + 1])
 
     def _get_array_data(self, img):
         """

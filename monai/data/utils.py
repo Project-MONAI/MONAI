@@ -492,6 +492,8 @@ def correct_nifti_header_if_necessary(img_nii):
     Args:
         img_nii: nifti image object
     """
+    if img_nii.header.get("dim") is None:
+        return img_nii  # not nifti?
     dim = img_nii.header["dim"][0]
     if dim >= 5:
         return img_nii  # do nothing for high-dimensional array

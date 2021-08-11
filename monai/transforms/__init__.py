@@ -189,7 +189,7 @@ from .intensity.dictionary import (
 )
 from .inverse import InvertibleTransform
 from .inverse_batch_transform import BatchInverseTransform, Decollated
-from .io.array import LoadImage, SaveImage
+from .io.array import SUPPORTED_READERS, LoadImage, SaveImage
 from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict
 from .post.array import (
     Activations,
