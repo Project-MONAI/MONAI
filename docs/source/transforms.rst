@@ -319,6 +319,12 @@ Intensity
      :members:
      :special-members: __call__
 
+`HistogramNormalize`
+""""""""""""""""""""
+ .. autoclass:: HistogramNormalize
+     :members:
+     :special-members: __call__
+
 
 IO
 ^^
@@ -958,6 +964,12 @@ Intensity (Dict)
 .. autoclass:: RandCoarseDropoutd
     :members:
     :special-members: __call__
+
+`HistogramNormalized`
+"""""""""""""""""""""
+ .. autoclass:: HistogramNormalized
+     :members:
+     :special-members: __call__
 
 
 IO (Dict)
