@@ -135,7 +135,11 @@ class LoadImage(Transform):
         for _r in ensure_tuple(reader):
             if isinstance(_r, str):
                 the_reader = look_up_option(_r.lower(), SUPPORTED_READERS)
-                self.register(the_reader(*args, **kwargs))
+                try:
+                    self.register(the_reader(*args, **kwargs))
+                except TypeError:  # the reader doesn't have the corresponding args/kwargs
+                    warnings.warn(f"{r} is not supported with the given parameters {args} {kwargs}.")
+                    self.register(the_reader())
             elif inspect.isclass(_r):
                 self.register(_r(*args, **kwargs))
             else:
