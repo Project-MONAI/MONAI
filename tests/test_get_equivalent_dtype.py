@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.utils.misc import dtype_convert
+from monai.utils.type_conversion import get_equivalent_dtype
 from tests.utils import TEST_NDARRAYS
 
 DTYPES = [torch.float32, np.float32, np.dtype(np.float32)]
@@ -29,7 +29,7 @@ for p in TEST_NDARRAYS:
 class TestDtypeConvert(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_dtype_convert(self, im, input_dtype):
-        out_dtype = dtype_convert(input_dtype, type(im))
+        out_dtype = get_equivalent_dtype(input_dtype, type(im))
         self.assertEqual(out_dtype, im.dtype)
 
 

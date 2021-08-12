@@ -46,7 +46,7 @@ from monai.transforms.transform import MapTransform, NumpyTransform, Randomizabl
 from monai.transforms.utils import is_positive
 from monai.utils import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
 from monai.utils.enums import DataObjects
-from monai.utils.misc import convert_data_type
+from monai.utils.type_conversion import convert_data_type
 
 __all__ = [
     "RandGaussianNoised",

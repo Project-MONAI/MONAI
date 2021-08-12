@@ -16,7 +16,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.utils.misc import convert_data_type
+from monai.utils.type_conversion import convert_data_type
 from tests.utils import TEST_NDARRAYS
 
 TESTS: List[Tuple] = []

@@ -35,7 +35,7 @@ from monai.utils import (
     fall_back_tuple,
 )
 from monai.utils.enums import DataObjects
-from monai.utils.misc import convert_data_type
+from monai.utils.type_conversion import convert_data_type
 
 __all__ = [
     "RandGaussianNoise",
