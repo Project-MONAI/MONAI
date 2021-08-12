@@ -13,7 +13,7 @@ A collection of generic interfaces for MONAI transforms.
 """
 
 import warnings
-from typing import Any, Callable, Optional, Sequence, Union
+from typing import Any, Callable, Mapping, Optional, Sequence, Union
 
 import numpy as np
 
@@ -28,6 +28,7 @@ from monai.transforms.transform import (  # noqa: F401
     apply_transform,
 )
 from monai.utils import MAX_SEED, ensure_tuple, get_seed
+from monai.utils.enums import InverseKeys
 
 __all__ = ["Compose", "OneOf"]
 
@@ -199,7 +200,6 @@ class OneOf(Compose):
         if len(weights) != len(self.transforms):
             raise AssertionError("transforms and weights should be same size if both specified as sequences.")
         self.weights = ensure_tuple(self._normalize_probabilities(weights))
-        self.index = None
 
     def _normalize_probabilities(self, weights):
         if len(weights) == 0:
@@ -229,21 +229,41 @@ class OneOf(Compose):
                 weights.append(w)
         return OneOf(transforms, weights, self.map_items, self.unpack_items)
 
-    def __call__(self, input_):
+    def __call__(self, data):
         if len(self.transforms) == 0:
-            return input_
+            return data
         else:
             index = self.R.multinomial(1, self.weights).argmax()
-            self.index = index
             _transform = self.transforms[index]
-            input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items)
-            return input_
+            data = apply_transform(_transform, data, self.map_items, self.unpack_items)
+            # if the data is a mapping (dictionary), append the OneOf transform to the end
+            if isinstance(data, Mapping):
+                for key in data.keys():
+                    if key + InverseKeys.KEY_SUFFIX in data:
+                        self.push_transform(data, key, extra_info={"index": index})
+            return data
 
     def inverse(self, data):
-        index = self.index
-        if index is None:
+        if len(self.transforms) == 0:
             return data
-        t = self.transforms[index]
-        if isinstance(t, InvertibleTransform):
-            data = apply_transform(t.inverse, data, self.map_items, self.unpack_items)
-        return data
+        if not isinstance(data, Mapping):
+            raise RuntimeError("Inverse only implemented for Mapping (dictionary) data")
+
+        # loop until we get an index and then break (since they'll all be the same)
+        index = None
+        for key in data.keys():
+            if key + InverseKeys.KEY_SUFFIX in data:
+                # get the index of the applied OneOf transform
+                index = self.get_most_recent_transform(data, key)[InverseKeys.EXTRA_INFO]["index"]
+                # and then remove the OneOf transform
+                self.pop_transform(data, key)
+        if index is None:
+            raise RuntimeError("No invertible transforms have been applied")
+
+        # if applied transform is not InvertibleTransform, throw error
+        _transform = self.transforms[index]
+        if not isinstance(_transform, InvertibleTransform):
+            raise RuntimeError(f"Applied OneOf transform is not invertible (applied index: {index}).")
+
+        # apply the inverse
+        return _transform.inverse(data)

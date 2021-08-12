@@ -10,11 +10,14 @@
 # limitations under the License.
 
 import unittest
+from copy import deepcopy
 
 from parameterized import parameterized
 
-from monai.transforms import InvertibleTransform, OneOf, Randomizable, Transform
+from monai.transforms import InvertibleTransform, OneOf, Transform
 from monai.transforms.compose import Compose
+from monai.transforms.transform import MapTransform
+from monai.utils.enums import InverseKeys
 
 
 class X(Transform):
@@ -42,21 +45,64 @@ class C(Transform):
         return x + 3
 
 
-class Inv(InvertibleTransform):
-    def __call__(self, x):
-        return x + 1
+class MapBase(MapTransform):
+    def __init__(self, keys):
+        super().__init__(keys)
+        self.fwd_fn, self.inv_fn = None, None
 
-    def inverse(self, x):
-        return x - 1
+    def __call__(self, data):
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            d[key] = self.fwd_fn(d[key])
+        return d
 
 
-class NonInv(Randomizable):
-    def __call__(self, x):
-        return x + self.R.uniform(-1, 1)
+class NonInv(MapBase):
+    def __init__(self, keys):
+        super().__init__(keys)
+        self.fwd_fn = lambda x: x * 2
+
+
+class Inv(MapBase, InvertibleTransform):
+    def __call__(self, data):
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            d[key] = self.fwd_fn(d[key])
+            self.push_transform(d, key)
+        return d
+
+    def inverse(self, data):
+        d = deepcopy(dict(data))
+        for key in self.key_iterator(d):
+            d[key] = self.inv_fn(d[key])
+            self.pop_transform(d, key)
+        return d
+
+
+class InvA(Inv):
+    def __init__(self, keys):
+        super().__init__(keys)
+        self.fwd_fn = lambda x: x + 1
+        self.inv_fn = lambda x: x - 1
+
+
+class InvB(Inv):
+    def __init__(self, keys):
+        super().__init__(keys)
+        self.fwd_fn = lambda x: x + 100
+        self.inv_fn = lambda x: x - 100
 
 
 TESTS = [
     ((X(), Y(), X()), (1, 2, 1), (0.25, 0.5, 0.25)),
+]
+
+KEYS = ["x", "y"]
+TEST_INVERSES = [
+    (OneOf((InvA(KEYS), InvB(KEYS))), True),
+    (OneOf((OneOf((InvA(KEYS), InvB(KEYS))), OneOf((InvB(KEYS), InvA(KEYS))))), True),
+    (OneOf((Compose((InvA(KEYS), InvB(KEYS))), Compose((InvB(KEYS), InvA(KEYS))))), True),
+    (OneOf((NonInv(KEYS), NonInv(KEYS))), False),
 ]
 
 
@@ -81,7 +127,7 @@ class TestOneOf(unittest.TestCase):
         self.assertTupleEqual(p.flatten().weights, expected_weights)
 
     def test_compose_flatten_does_not_affect_one_of(self):
-        p = Compose([A(), B(), OneOf([C(), Inv(), Compose([X(), Y()])])])
+        p = Compose([A(), B(), OneOf([C(), Inv(KEYS), Compose([X(), Y()])])])
         f = p.flatten()
         # in this case the flattened transform should be the same.
 
@@ -94,16 +140,31 @@ class TestOneOf(unittest.TestCase):
 
         _match(p, f)
 
-    def test_inverse(self):
-        p = OneOf((OneOf((Inv(), NonInv())), Inv(), NonInv()))
-        for _ in range(20):
-            out = p(2.0)
-            inverted = p.inverse(out)
-            if p.index == 0 and p.transforms[0].index == 0 or p.index == 1:
-                self.assertEqual(out, 3.0)
-                self.assertEqual(inverted, 2.0)
-            else:
-                self.assertEqual(inverted, out)
+    @parameterized.expand(TEST_INVERSES)
+    def test_inverse(self, transform, should_be_ok):
+        data = {k: (i + 1) * 10.0 for i, k in enumerate(KEYS)}
+        fwd_data = transform(data)
+        if not should_be_ok:
+            with self.assertRaises(RuntimeError):
+                transform.inverse(fwd_data)
+            return
+
+        for k in KEYS:
+            t = fwd_data[k + InverseKeys.KEY_SUFFIX][-1]
+            # make sure the OneOf index was stored
+            self.assertEqual(t[InverseKeys.CLASS_NAME], OneOf.__name__)
+            # make sure index exists and is in bounds
+            self.assertTrue(0 <= t[InverseKeys.EXTRA_INFO]["index"] < len(transform))
+
+        # call the inverse
+        fwd_inv_data = transform.inverse(fwd_data)
+
+        for k in KEYS:
+            # check transform was removed
+            self.assertTrue(len(fwd_inv_data[k + InverseKeys.KEY_SUFFIX]) < len(fwd_data[k + InverseKeys.KEY_SUFFIX]))
+            # check data is same as original (and different from forward)
+            self.assertEqual(fwd_inv_data[k], data[k])
+            self.assertNotEqual(fwd_inv_data[k], fwd_data[k])
 
     def test_one_of(self):
         p = OneOf((A(), B(), C()), (1, 2, 1))
