@@ -59,7 +59,7 @@ TEST_CASE_3 = [
 ]
 
 TEST_CASE_4 = [
-    {"keys": "pred", "round_values": True},
+    {"keys": "pred", "rounding": "torchrounding"},
     {"pred": torch.tensor([[[0.123, 1.345], [2.567, 3.789]]])},
     {"pred": torch.tensor([[[0.0, 1.0], [3.0, 4.0]]])},
     (1, 2, 2),

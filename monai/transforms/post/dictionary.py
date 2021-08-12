@@ -134,7 +134,7 @@ class AsDiscreted(MapTransform):
         n_classes: Optional[Union[Sequence[int], int]] = None,
         threshold_values: Union[Sequence[bool], bool] = False,
         logit_thresh: Union[Sequence[float], float] = 0.5,
-        round_values: Union[Sequence[bool], bool] = False,
+        rounding: Union[Sequence[Optional[str]], Optional[str]] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -151,8 +151,9 @@ class AsDiscreted(MapTransform):
                 it also can be a sequence of bool, each element corresponds to a key in ``keys``.
             logit_thresh: the threshold value for thresholding operation, default is 0.5.
                 it also can be a sequence of float, each element corresponds to a key in ``keys``.
-            round_values: if true, round the data to the closest integer.
-                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
+            rounding: if not None, round the data according to the specified option,
+                available options: ["torchrounding"]. it also can be a sequence of str or None,
+                each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
@@ -162,13 +163,13 @@ class AsDiscreted(MapTransform):
         self.n_classes = ensure_tuple_rep(n_classes, len(self.keys))
         self.threshold_values = ensure_tuple_rep(threshold_values, len(self.keys))
         self.logit_thresh = ensure_tuple_rep(logit_thresh, len(self.keys))
-        self.round_values = ensure_tuple_rep(round_values, len(self.keys))
+        self.rounding = ensure_tuple_rep(rounding, len(self.keys))
         self.converter = AsDiscrete()
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
-        for key, argmax, to_onehot, n_classes, threshold_values, logit_thresh, round_values in self.key_iterator(
-            d, self.argmax, self.to_onehot, self.n_classes, self.threshold_values, self.logit_thresh, self.round_values
+        for key, argmax, to_onehot, n_classes, threshold_values, logit_thresh, rounding in self.key_iterator(
+            d, self.argmax, self.to_onehot, self.n_classes, self.threshold_values, self.logit_thresh, self.rounding
         ):
             d[key] = self.converter(
                 d[key],
@@ -177,7 +178,7 @@ class AsDiscreted(MapTransform):
                 n_classes,
                 threshold_values,
                 logit_thresh,
-                round_values,
+                rounding,
             )
         return d
 

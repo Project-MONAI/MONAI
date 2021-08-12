@@ -45,7 +45,7 @@ TEST_CASE_4 = [
 ]
 
 TEST_CASE_5 = [
-    {"round_values": True},
+    {"rounding": "torchrounding"},
     torch.tensor([[[0.123, 1.345], [2.567, 3.789]]]),
     torch.tensor([[[0.0, 1.0], [3.0, 4.0]]]),
     (1, 2, 2),
