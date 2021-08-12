@@ -77,7 +77,7 @@ Clara MMARs
 `Pathology`
 -----------
 
-.. automodule:: monai.apps.pathology.datasets
+.. automodule:: monai.apps.pathology.data
 .. autoclass:: PatchWSIDataset
     :members:
 .. autoclass:: SmartCachePatchWSIDataset
