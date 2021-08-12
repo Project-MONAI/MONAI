@@ -32,8 +32,6 @@ __all__ = [
     "Transform",
     "MapTransform",
     "Fourier",
-    "TorchTransform",
-    "NumpyTransform",
 ]
 
 ReturnType = TypeVar("ReturnType")
@@ -215,6 +213,8 @@ class Transform(ABC):
         :py:class:`monai.transforms.Compose`
     """
 
+    backend: List[str] = []
+
     @abstractmethod
     def __call__(self, data: Any):
         """
@@ -242,21 +242,6 @@ class Transform(ABC):
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
-
-
-class TorchTransform(Transform):
-    """Most transforms use torch. If the transforms inherits from this class, then that is the case.
-    If the input is not torch, convert to torch and then convert back at the end."""
-
-    pass
-
-
-class NumpyTransform(Transform):
-    """Most transforms use torch. Transforms that inherit from this class, however, use numpy under the hood.
-    This means that if the input image is `torch.Tensor`, it will be converted to numpy and then reverted
-    at the end."""
-
-    pass
 
 
 class RandomizableTransform(Randomizable, Transform):

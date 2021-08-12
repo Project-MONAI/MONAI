@@ -23,7 +23,7 @@ import torch
 from monai.config import DtypeLike
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
-from monai.transforms.transform import Fourier, NumpyTransform, RandomizableTransform, TorchTransform, Transform
+from monai.transforms.transform import Fourier, RandomizableTransform, Transform
 from monai.transforms.utils import equalize_hist, is_positive, rescale_array
 from monai.utils import (
     PT_BEFORE_1_7,
@@ -70,7 +70,7 @@ __all__ = [
 ]
 
 
-class RandGaussianNoise(TorchTransform, NumpyTransform, RandomizableTransform):
+class RandGaussianNoise(RandomizableTransform):
     """
     Add Gaussian noise to image.
 
@@ -79,6 +79,8 @@ class RandGaussianNoise(TorchTransform, NumpyTransform, RandomizableTransform):
         mean: Mean or “centre” of the distribution.
         std: Standard deviation (spread) of distribution.
     """
+
+    backend = ["torch", "numpy"]
 
     def __init__(self, prob: float = 0.1, mean: Union[Sequence[float], float] = 0.0, std: float = 0.1) -> None:
         RandomizableTransform.__init__(self, prob)
@@ -839,7 +841,7 @@ class MaskIntensity(Transform):
         return np.asarray(img * mask_data)
 
 
-class SavitzkyGolaySmooth(TorchTransform):
+class SavitzkyGolaySmooth(Transform):
     """
     Smooth the input data along the given axis using a Savitzky-Golay filter.
 
@@ -850,6 +852,8 @@ class SavitzkyGolaySmooth(TorchTransform):
         mode: Optional padding mode, passed to convolution class. ``'zeros'``, ``'reflect'``, ``'replicate'``
             or ``'circular'``. Default: ``'zeros'``. See ``torch.nn.Conv1d()`` for more information.
     """
+
+    backend = ["numpy"]
 
     def __init__(self, window_length: int, order: int, axis: int = 1, mode: str = "zeros"):
 
