@@ -112,7 +112,8 @@ class AsDiscrete(Transform):
 
         -  execute `argmax` for input logits values.
         -  threshold input value to 0.0 or 1.0.
-        -  convert input value to One-Hot format
+        -  convert input value to One-Hot format.
+        -  round the value to the closest integer.
 
     Args:
         argmax: whether to execute argmax function on input data before transform.
@@ -125,6 +126,7 @@ class AsDiscrete(Transform):
             Defaults to ``False``.
         logit_thresh: the threshold value for thresholding operation..
             Defaults to ``0.5``.
+        round_values: if true, round the data to the closest integer.
 
     """
 
@@ -135,12 +137,14 @@ class AsDiscrete(Transform):
         n_classes: Optional[int] = None,
         threshold_values: bool = False,
         logit_thresh: float = 0.5,
+        round_values: bool = False,
     ) -> None:
         self.argmax = argmax
         self.to_onehot = to_onehot
         self.n_classes = n_classes
         self.threshold_values = threshold_values
         self.logit_thresh = logit_thresh
+        self.round_values = round_values
 
     def __call__(
         self,
@@ -150,6 +154,7 @@ class AsDiscrete(Transform):
         n_classes: Optional[int] = None,
         threshold_values: Optional[bool] = None,
         logit_thresh: Optional[float] = None,
+        round_values: Optional[bool] = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -165,6 +170,7 @@ class AsDiscrete(Transform):
                 Defaults to ``self.threshold_values``.
             logit_thresh: the threshold value for thresholding operation..
                 Defaults to ``self.logit_thresh``.
+            round_values: if true, round the data to the closest integer.
 
         """
         if argmax or self.argmax:
@@ -178,6 +184,10 @@ class AsDiscrete(Transform):
 
         if threshold_values or self.threshold_values:
             img = img >= (self.logit_thresh if logit_thresh is None else logit_thresh)
+
+        round_values = self.round_values if round_values is None else round_values
+        if round_values:
+            img = torch.round(img)
 
         return img.float()
 
