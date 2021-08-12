@@ -99,7 +99,7 @@ class RandRangePop(RangePop, RandomizableTransform):
 
 class Range(Transform):
     """
-    Pushes an NVTX range at the before a transfrom, and pops it afterwards.
+    Pushes an NVTX range before a transform, and pops it afterwards.
     Stores zero-based depth of the range that is started.
 
     Args:
