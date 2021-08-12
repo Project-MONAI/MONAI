@@ -341,6 +341,35 @@ IO
     :members:
     :special-members: __call__
 
+
+NVIDIA Tool Extension (NVTX)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+`RangePush`
+"""""""""""
+.. autoclass:: RangePush
+
+`RandRangePush`
+"""""""""""""""
+.. autoclass:: RandRangePush
+
+`RangePop`
+""""""""""
+.. autoclass:: RangePop
+
+`RandRangePop`
+""""""""""""""
+.. autoclass:: RandRangePop
+
+`Mark`
+""""""
+.. autoclass:: Mark
+
+`RandMark`
+""""""""""
+.. autoclass:: RandMark
+
+
 Post-processing
 ^^^^^^^^^^^^^^^
 
