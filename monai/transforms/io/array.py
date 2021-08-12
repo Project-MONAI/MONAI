@@ -45,7 +45,7 @@ def switch_endianness(data, new="<"):
     """
     if isinstance(data, np.ndarray):
         # default to system endian
-        sys_native = ((sys.byteorder == "little") and "<") or ">"
+        sys_native = "<" if (sys.byteorder == "little") else ">"
         current_ = sys_native if data.dtype.byteorder not in ("<", ">") else data.dtype.byteorder
         if new not in ("<", ">"):
             raise NotImplementedError(f"Not implemented option new={new}.")
