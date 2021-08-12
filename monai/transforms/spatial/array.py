@@ -12,7 +12,8 @@
 A collection of "vanilla" transforms for spatial operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
-
+import copy
+import random
 import warnings
 from typing import Any, List, Optional, Sequence, Tuple, Union
 
@@ -71,6 +72,7 @@ __all__ = [
     "Rand2DElastic",
     "Rand3DElastic",
     "AddCoordinateChannels",
+    "LocalPatchShuffling"
 ]
 
 RandRange = Optional[Union[Sequence[Union[Tuple[float, float], float]], float]]
@@ -1881,3 +1883,98 @@ class AddCoordinateChannels(Transform):
         # but user input is 1-based (because channel dim is 0)
         coord_channels = coord_channels[[s - 1 for s in self.spatial_channels]]
         return np.concatenate((img, coord_channels), axis=0)
+
+class LocalPatchShuffling(RandomizableTransform):
+    """
+    Takes a 3D image and based on input of the local patch size, shuffles the pixels of the local patch within it.
+    This process is repeated a for N number of times where every time a different random block is selected for local
+    pixel shuffling.
+
+    Kang, Guoliang, et al. "Patchshuffle regularization." arXiv preprint arXiv:1707.07103 (2017).
+    """
+
+    def __init__(
+        self,
+        prob: float=1.0,
+        number_blocks: int = 1000,
+        blocksize_ratio: int = 10,
+        channel_wise: bool = True,
+        device: Optional[torch.device] = None,
+        image_only: bool = False,
+    ) -> None:
+        RandomizableTransform.__init__(self, prob)
+        self.prob = prob
+        self.number_blocks = number_blocks
+        self.blocksize_ratio = blocksize_ratio
+        self.channel_wise = channel_wise
+
+        """
+        Args:
+            prob: The chance of this transform occuring on the given volume
+            number_blocks: Total number of time a random 3D block will be selected for local shuffling of pixels/voxels
+            contained in the block
+            blocksize_ratio: This ratio can be used to estimate the local 3D block sizes that will be selected
+
+            as_tensor_output: the computation is implemented using pytorch tensors, this option specifies
+                whether to convert it back to numpy arrays.
+            device: device on which the tensor will be allocated.
+            image_only: if True return only the image volume, otherwise return (image, affine).
+        """
+
+    def _local_patch_shuffle(self, img: Union[torch.Tensor, np.ndarray], number_blocks: int, blocksize_ratio: int):
+        im_shape = img.shape
+        img_copy = copy.deepcopy(img)
+        for each_block in range(number_blocks):
+
+            block_size_x = random.randint(1, im_shape[1]//blocksize_ratio)
+            block_size_y = random.randint(1, im_shape[2]//blocksize_ratio)
+            block_size_z = random.randint(1, im_shape[3]//blocksize_ratio)
+
+            noise_x = random.randint(0, im_shape[1] - block_size_x)
+            noise_y = random.randint(0, im_shape[2] - block_size_y)
+            noise_z = random.randint(0, im_shape[3] - block_size_z)
+
+            local_patch = img[0, noise_x:noise_x + block_size_x,
+                                 noise_y:noise_y + block_size_y,
+                                 noise_z:noise_z + block_size_z,
+                                 ]
+
+            local_patch = local_patch.flatten()
+            np.random.shuffle(local_patch)
+            local_patch = local_patch.reshape((block_size_x,
+                                               block_size_y,
+                                               block_size_z))
+
+            img_copy[0, noise_x:noise_x + block_size_x,
+                        noise_y:noise_y + block_size_y,
+                        noise_z:noise_z + block_size_z] = local_patch
+
+        shuffled_image = img_copy
+        return shuffled_image
+
+
+    def __call__(
+        self,
+        img: Union[np.ndarray, torch.Tensor],
+        #spatial_size: Optional[Union[Sequence[int], int]] = None,
+        #mode: Optional[Union[GridSampleMode, str]] = None,
+        #padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+    ):
+        """
+        Args:
+            img: shape must be (num_channels, H, W[, D]),
+
+        """
+
+        super().randomize(None)
+        if not self._do_transform:
+            return img
+
+        if self.channel_wise:
+            #img = self._local_patch_shuffle(img=img)
+            for i, d in enumerate(img):
+                img[i] = self._local_patch_shuffle(img=img[i])
+        else:
+            raise AssertionError("If channel_wise is False, the image needs to be set to channel first")
+        return img
+
