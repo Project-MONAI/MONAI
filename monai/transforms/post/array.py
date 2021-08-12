@@ -25,7 +25,7 @@ from monai.networks import one_hot
 from monai.networks.layers import GaussianFilter
 from monai.transforms.transform import Transform
 from monai.transforms.utils import fill_holes, get_largest_connected_component_mask
-from monai.utils import ensure_tuple
+from monai.utils import ensure_tuple, look_up_option
 
 __all__ = [
     "Activations",
@@ -189,10 +189,8 @@ class AsDiscrete(Transform):
 
         rounding = self.rounding if rounding is None else rounding
         if rounding is not None:
-            if rounding == "torchrounding":
-                img = torch.round(img)
-            else:
-                raise ValueError(f"unsupported rounding option: {rounding}.")
+            rounding = look_up_option(rounding, ["torchrounding"])
+            img = torch.round(img)
 
         return img.float()
 
