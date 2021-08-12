@@ -21,7 +21,7 @@ from parameterized import parameterized
 from PIL import Image
 
 from monai.data import ITKReader, NibabelReader
-from monai.transforms import SUPPORTED_READERS, LoadImage
+from monai.transforms import LoadImage
 
 
 class _MiniReader:
@@ -224,8 +224,7 @@ class TestLoadImage(unittest.TestCase):
         self.assertEqual(out[1]["name"], "my test")
         out = LoadImage(reader=_MiniReader, is_compatible=False)("test")
         self.assertEqual(out[1]["name"], "my test")
-        SUPPORTED_READERS["minireader"] = _MiniReader
-        for item in ("minireader", _MiniReader, _MiniReader(is_compatible=False)):
+        for item in (_MiniReader, _MiniReader(is_compatible=False)):
             out = LoadImage(reader=item)("test")
             self.assertEqual(out[1]["name"], "my test")
         out = LoadImage()("test", reader=_MiniReader(is_compatible=False))
