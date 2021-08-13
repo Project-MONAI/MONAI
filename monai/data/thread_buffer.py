@@ -88,6 +88,5 @@ class ThreadDataLoader(DataLoader):
         super().__init__(dataset, num_workers, **kwargs)
 
     def __iter__(self):
-        # ThreadBuffer will use the inherited __iter__ instead of the one defined below
         buffer = ThreadBuffer(super().__iter__())
         yield from buffer
