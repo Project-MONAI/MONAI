@@ -960,7 +960,7 @@ def partition_dataset_classes(
         [[2, 8, 4, 1, 3, 6, 5, 11, 12], [10, 13, 7, 9, 14]]
 
     """
-    if not classes or len(classes) != len(data):
+    if not issequenceiterable(classes) or len(classes) != len(data):
         raise ValueError(f"length of classes {classes} must match the dataset length {len(data)}.")
     datasets = []
     class_indices = defaultdict(list)
