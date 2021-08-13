@@ -19,7 +19,7 @@ from collections import defaultdict
 from copy import deepcopy
 from functools import reduce
 from itertools import product, starmap
-from pathlib import PurePath
+from pathlib import Path, PurePath
 from typing import Any, Dict, Generator, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -492,6 +492,8 @@ def correct_nifti_header_if_necessary(img_nii):
     Args:
         img_nii: nifti image object
     """
+    if img_nii.header.get("dim") is None:
+        return img_nii  # not nifti?
     dim = img_nii.header["dim"][0]
     if dim >= 5:
         return img_nii  # do nothing for high-dimensional array
@@ -677,7 +679,7 @@ def to_affine_nd(r: Union[np.ndarray, int], affine: np.ndarray) -> np.ndarray:
 def create_file_basename(
     postfix: str,
     input_file_name: str,
-    folder_path: str,
+    folder_path: Union[Path, str],
     data_root_dir: str = "",
     separate_folder: bool = True,
     patch_index: Optional[int] = None,
