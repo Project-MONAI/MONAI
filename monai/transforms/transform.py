@@ -205,7 +205,8 @@ class Transform(ABC):
            thread-unsafe transforms should inherit :py:class:`monai.transforms.ThreadUnsafe`.
         #. ``data`` content unused by this transform may still be used in the
            subsequent transforms in a composed transform.
-        #. storing too much information in ``data`` may not scale.
+        #. storing too much information in ``data`` may cause some memory issue or IPC sync issue,
+           especially in the multi-processing environment of PyTorch DataLoader.
 
     See Also
 
