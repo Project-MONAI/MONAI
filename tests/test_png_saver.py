@@ -12,6 +12,7 @@
 import os
 import tempfile
 import unittest
+from pathlib import Path
 
 import torch
 
@@ -33,7 +34,7 @@ class TestPNGSaver(unittest.TestCase):
     def test_saved_content_three_channel(self):
         with tempfile.TemporaryDirectory() as tempdir:
 
-            saver = PNGSaver(output_dir=tempdir, output_postfix="seg", output_ext=".png", scale=255)
+            saver = PNGSaver(output_dir=Path(tempdir), output_postfix="seg", output_ext=".png", scale=255)
 
             meta_data = {"filename_or_obj": ["testfile" + str(i) + ".jpg" for i in range(8)]}
             saver.save_batch(torch.randint(1, 200, (8, 3, 2, 2)), meta_data)
