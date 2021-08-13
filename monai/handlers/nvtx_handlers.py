@@ -12,17 +12,17 @@
 Wrapper around NVIDIA Tools Extension for profiling MONAI ignite workflow
 """
 
-from typing import TYPE_CHECKING, Union, Tuple, Optional, Sequence
+from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union
 
 from monai.config import IgniteInfo
 from monai.utils import min_version, optional_import
 
 _nvtx, _ = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")
-Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
     from ignite.engine import Engine, Events
 else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
+    Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 
 
 __all__ = ["RangeHandler", "RangePushHandler", "RangePopHandler", "MarkHandler"]
@@ -68,9 +68,9 @@ class RangeHandler:
             if len(events) != 2:
                 raise ValueError(f"Exactly two Ignite events should be provided [received {len(events)}].")
             if not isinstance(events[0], Events):
-                raise ValueError(f"The provided first event is not an Ignite event!")
+                raise ValueError("The provided first event is not an Ignite event!")
             if not isinstance(events[1], Events):
-                raise ValueError(f"The provided second event is not an Ignite event!")
+                raise ValueError("The provided second event is not an Ignite event!")
             self.events = events
         else:
             raise ValueError("The start/end events should either be a string or tuple/list of two Ignite events.")
@@ -102,9 +102,12 @@ class RangePushHandler:
     """
 
     def __init__(self, event: Events, msg: Optional[str] = None) -> None:
+        if isinstance(event, str):
+            event = getattr(Events, event)
         if msg is None:
             msg = event.name
         self.msg = msg
+        self.event = event
         self.depth = None
 
     def attach(self, engine: Engine) -> None:
@@ -128,6 +131,11 @@ class RangePopHandler:
         msg: ASCII message to associate with range
     """
 
+    def __init__(self, event: Events) -> None:
+        if isinstance(event, str):
+            event = getattr(Events, event)
+        self.event = event
+
     def attach(self, engine: Engine) -> None:
         """
         Pop an NVTX range at a specific Ignite event
@@ -149,10 +157,12 @@ class MarkHandler:
     """
 
     def __init__(self, event: Events, msg: Optional[str] = None) -> None:
+        if isinstance(event, str):
+            event = getattr(Events, event)
         if msg is None:
             msg = event.name
         self.msg = msg
-        self.depth = None
+        self.event = event
 
     def attach(self, engine: Engine) -> None:
         """
