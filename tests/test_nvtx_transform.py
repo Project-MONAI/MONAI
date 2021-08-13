@@ -21,6 +21,8 @@ from monai.transforms.nvtx import (
     MarkD,
     RandMark,
     RandMarkD,
+    RandRange,
+    RandRangeD,
     RandRangePop,
     RandRangePopD,
     RandRangePush,
@@ -153,8 +155,6 @@ class TestNVTXTransforms(unittest.TestCase):
         self.assertIsInstance(output["image"], torch.Tensor)
         np.testing.assert_array_equal(input["image"], Flip()(output["image"].numpy()))
 
-    # ---------------------
-
     @parameterized.expand([TEST_CASE_ARRAY_0, TEST_CASE_ARRAY_1])
     @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX!")
     def test_nvtx_range_array(self, input):
@@ -162,7 +162,7 @@ class TestNVTXTransforms(unittest.TestCase):
         transforms = Compose(
             [
                 RandMark("Mark: Transforms (p=0) Start!"),
-                Range(RandFlip(prob=0.0)),
+                RandRange(RandFlip(prob=0.0)),
                 Range(ToTensor()),
                 Mark("Mark: Transforms (p=0) End!"),
             ]
@@ -174,7 +174,7 @@ class TestNVTXTransforms(unittest.TestCase):
         transforms = Compose(
             [
                 RandMark("Mark: Transforms (p=1) Start!"),
-                Range(RandFlip(prob=1.0)),
+                RandRange(RandFlip(prob=1.0)),
                 Range(ToTensor()),
                 Mark("Mark: Transforms (p=1) End!"),
             ]
@@ -190,7 +190,7 @@ class TestNVTXTransforms(unittest.TestCase):
         transforms = Compose(
             [
                 RandMarkD("Mark: Transforms (p=0) Start!"),
-                RangeD(RandFlipD(keys="image", prob=0.0)),
+                RandRangeD(RandFlipD(keys="image", prob=0.0)),
                 RangeD(ToTensorD(keys=("image"))),
                 MarkD("Mark: Transforms (p=0) End!"),
             ]
@@ -202,7 +202,7 @@ class TestNVTXTransforms(unittest.TestCase):
         transforms = Compose(
             [
                 RandMarkD("Mark: Transforms (p=1) Start!"),
-                RangeD(RandFlipD(keys="image", prob=1.0)),
+                RandRangeD(RandFlipD(keys="image", prob=1.0)),
                 RangeD(ToTensorD(keys=("image"))),
                 MarkD("Mark: Transforms (p=1) End!"),
             ]
