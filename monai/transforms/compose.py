@@ -13,7 +13,7 @@ A collection of generic interfaces for MONAI transforms.
 """
 
 import warnings
-from typing import Any, Callable, Optional, Sequence, Union
+from typing import Any, Callable, Mapping, Optional, Sequence, Union
 
 import numpy as np
 
@@ -28,8 +28,9 @@ from monai.transforms.transform import (  # noqa: F401
     apply_transform,
 )
 from monai.utils import MAX_SEED, ensure_tuple, get_seed
+from monai.utils.enums import InverseKeys
 
-__all__ = ["Compose"]
+__all__ = ["Compose", "OneOf"]
 
 
 class Compose(Randomizable, InvertibleTransform):
@@ -143,7 +144,7 @@ class Compose(Randomizable, InvertibleTransform):
         """
         new_transforms = []
         for t in self.transforms:
-            if isinstance(t, Compose):
+            if isinstance(t, Compose) and not isinstance(t, OneOf):
                 new_transforms += t.flatten().transforms
             else:
                 new_transforms.append(t)
@@ -168,3 +169,101 @@ class Compose(Randomizable, InvertibleTransform):
         for t in reversed(invertible_transforms):
             data = apply_transform(t.inverse, data, self.map_items, self.unpack_items)
         return data
+
+
+class OneOf(Compose):
+    """
+    ``OneOf`` provides the ability to radomly choose one transform out of a
+    list of callables with predfined probabilities for each.
+
+    Args:
+        transforms: sequence of callables.
+        weights: probabilities corresponding to each callable in transforms.
+            Probabilities are normalized to sum to one.
+
+    OneOf inherits from Compose and uses args map_items and unpack_items in
+    the same way.
+    """
+
+    def __init__(
+        self,
+        transforms: Optional[Union[Sequence[Callable], Callable]] = None,
+        weights: Optional[Union[Sequence[float], float]] = None,
+        map_items: bool = True,
+        unpack_items: bool = False,
+    ) -> None:
+        super().__init__(transforms, map_items, unpack_items)
+        if len(self.transforms) == 0:
+            weights = []
+        elif weights is None or isinstance(weights, float):
+            weights = [1.0 / len(self.transforms)] * len(self.transforms)
+        if len(weights) != len(self.transforms):
+            raise AssertionError("transforms and weights should be same size if both specified as sequences.")
+        self.weights = ensure_tuple(self._normalize_probabilities(weights))
+
+    def _normalize_probabilities(self, weights):
+        if len(weights) == 0:
+            return weights
+        else:
+            weights = np.array(weights)
+            if np.any(weights < 0):
+                raise AssertionError("Probabilities must be greater than or equal to zero.")
+            if np.all(weights == 0):
+                raise AssertionError("At least one probability must be greater than zero.")
+            weights = weights / weights.sum()
+            return list(weights)
+
+    def flatten(self):
+        transforms = []
+        weights = []
+        for t, w in zip(self.transforms, self.weights):
+            # if nested, probability is the current weight multiplied by the nested weights,
+            # and so on recursively
+            if isinstance(t, OneOf):
+                tr = t.flatten()
+                for t_, w_ in zip(tr.transforms, tr.weights):
+                    transforms.append(t_)
+                    weights.append(w_ * w)
+            else:
+                transforms.append(t)
+                weights.append(w)
+        return OneOf(transforms, weights, self.map_items, self.unpack_items)
+
+    def __call__(self, data):
+        if len(self.transforms) == 0:
+            return data
+        else:
+            index = self.R.multinomial(1, self.weights).argmax()
+            _transform = self.transforms[index]
+            data = apply_transform(_transform, data, self.map_items, self.unpack_items)
+            # if the data is a mapping (dictionary), append the OneOf transform to the end
+            if isinstance(data, Mapping):
+                for key in data.keys():
+                    if key + InverseKeys.KEY_SUFFIX in data:
+                        self.push_transform(data, key, extra_info={"index": index})
+            return data
+
+    def inverse(self, data):
+        if len(self.transforms) == 0:
+            return data
+        if not isinstance(data, Mapping):
+            raise RuntimeError("Inverse only implemented for Mapping (dictionary) data")
+
+        # loop until we get an index and then break (since they'll all be the same)
+        index = None
+        for key in data.keys():
+            if key + InverseKeys.KEY_SUFFIX in data:
+                # get the index of the applied OneOf transform
+                index = self.get_most_recent_transform(data, key)[InverseKeys.EXTRA_INFO]["index"]
+                # and then remove the OneOf transform
+                self.pop_transform(data, key)
+        if index is None:
+            raise RuntimeError("No invertible transforms have been applied")
+
+        # if applied transform is not InvertibleTransform, throw error
+        _transform = self.transforms[index]
+        if not isinstance(_transform, InvertibleTransform):
+            raise RuntimeError(f"Applied OneOf transform is not invertible (applied index: {index}).")
+
+        # apply the inverse
+        return _transform.inverse(data)
