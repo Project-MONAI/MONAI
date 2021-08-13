@@ -45,7 +45,6 @@ from monai.transforms.intensity.array import (
 from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.transforms.utils import is_positive
 from monai.utils import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
-from monai.utils.enums import DataObjects
 from monai.utils.type_conversion import convert_data_type
 
 __all__ = [
@@ -168,7 +167,7 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         for m in self.mean:
             self._noise.append(self.R.normal(m, self.R.uniform(0, self.std), size=im_shape))
 
-    def __call__(self, data: DataObjects.Mapping) -> DataObjects.Dict:
+    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
         d = dict(data)
 
         image_shape = d[self.keys[0]].shape  # image shape from the first data key

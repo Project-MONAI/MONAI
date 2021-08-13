@@ -10,10 +10,6 @@
 # limitations under the License.
 
 from enum import Enum
-from typing import Any, Dict, Hashable, Mapping, Union
-
-import numpy as np
-import torch
 
 __all__ = [
     "NumpyPadMode",
@@ -33,7 +29,6 @@ __all__ = [
     "InverseKeys",
     "CommonKeys",
     "ForwardMode",
-    "DataObjects",
 ]
 
 
@@ -238,11 +233,3 @@ class CommonKeys:
     LABEL = "label"
     PRED = "pred"
     LOSS = "loss"
-
-
-class DataObjects:
-    """Common classes used for arrays/tensors and then their usage in dict/mappings."""
-
-    Images = Union[torch.Tensor, np.ndarray]
-    Dict = Dict[Hashable, Any]
-    Mapping = Mapping[Hashable, Any]

@@ -21,6 +21,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike
+from monai.config.type_definitions import NdarrayTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
 from monai.transforms.transform import Fourier, RandomizableTransform, Transform
@@ -34,7 +35,6 @@ from monai.utils import (
     ensure_tuple_size,
     fall_back_tuple,
 )
-from monai.utils.enums import DataObjects
 from monai.utils.type_conversion import convert_data_type
 
 __all__ = [
@@ -92,7 +92,7 @@ class RandGaussianNoise(RandomizableTransform):
         super().randomize(None)
         self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
 
-    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
+    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
         """
         Apply the transform to `img`.
         """
@@ -865,7 +865,7 @@ class SavitzkyGolaySmooth(Transform):
         self.axis = axis
         self.mode = mode
 
-    def __call__(self, img: DataObjects.Images) -> DataObjects.Images:
+    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
         """
         Args:
             img: array containing input data. Must be real and in shape [channels, spatial1, spatial2, ...].

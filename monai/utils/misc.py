@@ -124,7 +124,7 @@ def ensure_tuple_rep(tup: Any, dim: int) -> Tuple[Any, ...]:
 
     """
     if isinstance(tup, torch.Tensor):
-        tup = tup.cpu().numpy()
+        tup = tup.detach().cpu().numpy()
     if isinstance(tup, np.ndarray):
         tup = tup.tolist()
     if not issequenceiterable(tup):

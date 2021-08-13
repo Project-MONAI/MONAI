@@ -19,7 +19,6 @@ from .enums import (
     BlendMode,
     ChannelMatching,
     CommonKeys,
-    DataObjects,
     ForwardMode,
     GridSampleMode,
     GridSamplePadMode,
@@ -75,6 +74,8 @@ from .profiling import PerfContext, torch_profiler_full, torch_profiler_time_cpu
 from .state_cacher import StateCacher
 from .type_conversion import (
     convert_data_type,
+    convert_to_numpy,
+    convert_to_tensor,
     dtype_numpy_to_torch,
     dtype_torch_to_numpy,
     get_dtype,

@@ -39,6 +39,10 @@ class TestConvertDataType(unittest.TestCase):
         if isinstance(in_type, (np.ndarray, torch.Tensor)):
             self.assertEqual(converted_im.dtype, im_out.dtype)
 
+    def test_neg_stride(self):
+        neg_stride_arr = np.array((1, 2))[::-1]
+        _ = convert_data_type(np.array((1, 2))[::-1], torch.Tensor)
+
 
 if __name__ == "__main__":
     unittest.main()

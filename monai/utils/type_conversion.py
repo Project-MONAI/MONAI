@@ -1,10 +1,14 @@
+import re
 from typing import Any, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
-from monai.config.type_definitions import DtypeLike
-from monai.utils.enums import DataObjects
+from monai.config.type_definitions import DtypeLike, NdarrayTensor
+from monai.utils import optional_import
+
+cp, has_cp = optional_import("cupy")
+cp_ndarray, _ = optional_import("cupy", name="ndarray")
 
 __all__ = [
     "dtype_torch_to_numpy",
@@ -12,6 +16,8 @@ __all__ = [
     "get_equivalent_dtype",
     "convert_data_type",
     "get_dtype",
+    "convert_to_numpy",
+    "convert_to_tensor",
 ]
 
 
@@ -73,12 +79,74 @@ def get_dtype(data: Any):
     return type(data)
 
 
+def convert_to_tensor(data):
+    """
+    Utility to convert the input data to a PyTorch Tensor. If passing a dictionary, list or tuple,
+    recursively check every item and convert it to PyTorch Tensor.
+
+    Args:
+        data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
+            will convert Tensor, Numpy array, float, int, bool to Tensors, strings and objects keep the original.
+            for dictionary, list or tuple, convert every item to a Tensor if applicable.
+
+    """
+    if isinstance(data, torch.Tensor):
+        return data.contiguous()
+    if isinstance(data, np.ndarray):
+        # skip array of string classes and object, refer to:
+        # https://github.com/pytorch/pytorch/blob/v1.9.0/torch/utils/data/_utils/collate.py#L13
+        if re.search(r"[SaUO]", data.dtype.str) is None:
+            # numpy array with 0 dims is also sequence iterable,
+            # `ascontiguousarray` will add 1 dim if img has no dim, so we only apply on data with dims
+            return torch.as_tensor(data if data.ndim == 0 else np.ascontiguousarray(data))
+    elif isinstance(data, (float, int, bool)):
+        return torch.as_tensor(data)
+    elif isinstance(data, dict):
+        return {k: convert_to_tensor(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [convert_to_tensor(i) for i in data]
+    elif isinstance(data, tuple):
+        return tuple(convert_to_tensor(i) for i in data)
+
+    return data
+
+
+def convert_to_numpy(data):
+    """
+    Utility to convert the input data to a numpy array. If passing a dictionary, list or tuple,
+    recursively check every item and convert it to numpy array.
+
+    Args:
+        data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
+            will convert Tensor, Numpy array, float, int, bool to numpy arrays, strings and objects keep the original.
+            for dictionary, list or tuple, convert every item to a numpy array if applicable.
+
+    """
+    if isinstance(data, torch.Tensor):
+        data = data.detach().cpu().numpy()
+    elif has_cp and isinstance(data, cp_ndarray):
+        data = cp.asnumpy(data)
+    elif isinstance(data, (float, int, bool)):
+        data = np.asarray(data)
+    elif isinstance(data, dict):
+        return {k: convert_to_numpy(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [convert_to_numpy(i) for i in data]
+    elif isinstance(data, tuple):
+        return tuple([convert_to_numpy(i) for i in data])
+
+    if isinstance(data, np.ndarray) and data.ndim > 0:
+        data = np.ascontiguousarray(data)
+
+    return data
+
+
 def convert_data_type(
     data: Any,
     output_type: Optional[type] = None,
     device: Optional[torch.device] = None,
     dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
-) -> Tuple[DataObjects.Images, type, Optional[torch.device]]:
+) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
     """
     Convert to `torch.Tensor`/`np.ndarray` from `torch.Tensor`/`np.ndarray`/`float`/`int` etc.
 
@@ -100,19 +168,13 @@ def convert_data_type(
     dtype = get_equivalent_dtype(dtype or get_dtype(data), output_type)
 
     if output_type is torch.Tensor:
-        if orig_type is np.ndarray:
-            if (np.array(data.strides) < 0).any():  # copy if -ve stride
-                data = data.copy()
-            data = torch.as_tensor(data if data.ndim == 0 else np.ascontiguousarray(data))
-        else:
-            data = torch.as_tensor(data)
+        if orig_type is not torch.Tensor:
+            data = convert_to_tensor(data)
         if dtype != data.dtype:
             data = data.to(dtype)  # type: ignore
     elif output_type is np.ndarray:
-        if orig_type is torch.Tensor:
-            data = data.detach().cpu().numpy()  # type: ignore
-        else:
-            data = np.array(data)
+        if orig_type is not np.ndarray:
+            data = convert_to_numpy(data)
         if dtype != data.dtype:
             data = data.astype(dtype)  # type: ignore
 

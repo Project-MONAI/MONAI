@@ -14,7 +14,7 @@ A collection of generic interfaces for MONAI transforms.
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Generator, Hashable, Iterable, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Callable, Dict, Generator, Hashable, Iterable, List, Optional, Tuple, TypeVar, Union
 
 import numpy as np
 import torch
@@ -22,7 +22,6 @@ import torch
 from monai import transforms
 from monai.config import KeysCollection
 from monai.utils import MAX_SEED, ensure_tuple
-from monai.utils.enums import DataObjects
 
 __all__ = [
     "ThreadUnsafe",
@@ -213,6 +212,9 @@ class Transform(ABC):
         :py:class:`monai.transforms.Compose`
     """
 
+    """Transforms should add data types to this list if they are capable of performing a transform without
+    modifying the input type. For example, [\"torch.Tensor\", \"np.ndarray\"] means that no copies of the data
+    are required if the input is either \"torch.Tensor\" or \"np.ndarray\"."""
     backend: List[str] = []
 
     @abstractmethod
@@ -354,7 +356,7 @@ class MapTransform(Transform):
 
     def key_iterator(
         self,
-        data: DataObjects.Dict,
+        data: Dict[Hashable, Any],
         *extra_iterables: Optional[Iterable],
     ) -> Generator:
         """
