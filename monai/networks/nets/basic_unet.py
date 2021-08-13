@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Union
+from typing import Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -92,6 +92,9 @@ class UpCat(nn.Module):
         norm: Union[str, tuple],
         dropout: Union[float, tuple] = 0.0,
         upsample: str = "deconv",
+        pre_conv: Optional[str] = "default",
+        interp_mode: str = "linear",
+        align_corners: Optional[bool] = True,
         halves: bool = True,
     ):
         """
@@ -105,12 +108,30 @@ class UpCat(nn.Module):
             dropout: dropout ratio. Defaults to no dropout.
             upsample: upsampling mode, available options are
                 ``"deconv"``, ``"pixelshuffle"``, ``"nontrainable"``.
+            pre_conv: a conv block applied before upsampling.
+                Only used in the "nontrainable" or "pixelshuffle" mode.
+            interp_mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``}
+                Only used in the "nontrainable" mode.
+            align_corners: set the align_corners parameter for upsample. Defaults to True.
+                Only used in the "nontrainable" mode.
             halves: whether to halve the number of channels during upsampling.
+                This parameter does not work on ``nontrainable`` mode if ``pre_conv`` is `None`.
         """
         super().__init__()
-
-        up_chns = in_chns // 2 if halves else in_chns
-        self.upsample = UpSample(dim, in_chns, up_chns, 2, mode=upsample)
+        if upsample == "nontrainable" and pre_conv is None:
+            up_chns = in_chns
+        else:
+            up_chns = in_chns // 2 if halves else in_chns
+        self.upsample = UpSample(
+            dim,
+            in_chns,
+            up_chns,
+            2,
+            mode=upsample,
+            pre_conv=pre_conv,
+            interp_mode=interp_mode,
+            align_corners=align_corners,
+        )
         self.convs = TwoConv(dim, cat_chns + up_chns, out_chns, act, norm, dropout)
 
     def forward(self, x: torch.Tensor, x_e: torch.Tensor):
@@ -134,6 +155,85 @@ class UpCat(nn.Module):
         return x
 
 
+class BasicUNetDecoder(nn.Module):
+    def __init__(
+        self,
+        dim: int,
+        encoder_channels: Sequence[int],
+        decoder_channels: Sequence[int],
+        act: Union[str, tuple],
+        norm: Union[str, tuple],
+        dropout: Union[float, tuple],
+        upsample: str,
+        pre_conv: Optional[str],
+        interp_mode: str,
+        align_corners: Optional[bool],
+    ):
+        """
+        Decoder of BasicUNet.
+        This class refers to `segmentation_models.pytorch
+        <https://github.com/qubvel/segmentation_models.pytorch>`_.
+
+        Args:
+            dim: number of spatial dimensions.
+            encoder_channels: number of output channels for all feature maps in encoder.
+                `len(encoder_channels)` should be no less than 2.
+            decoder_channels: number of output channels for all feature maps in decoder.
+                `len(decoder_channels)` should equal to `len(encoder_channels) - 1`.
+            act: activation type and arguments.
+            norm: feature normalization type and arguments.
+            dropout: dropout ratio.
+            upsample: upsampling mode, available options are
+                ``"deconv"``, ``"pixelshuffle"``, ``"nontrainable"``.
+            pre_conv: a conv block applied before upsampling.
+                Only used in the "nontrainable" or "pixelshuffle" mode.
+            interp_mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``}
+                Only used in the "nontrainable" mode.
+            align_corners: set the align_corners parameter for upsample. Defaults to True.
+                Only used in the "nontrainable" mode.
+
+        """
+        super().__init__()
+        if len(encoder_channels) < 2:
+            raise ValueError("the length of `encoder_channels` should be no less than 2")
+        if len(decoder_channels) != len(encoder_channels) - 1:
+            raise ValueError("`len(decoder_channels)` should equal to `len(encoder_channels) - 1`")
+
+        in_channels = [encoder_channels[-1]] + list(decoder_channels[:-1])
+        skip_channels = list(encoder_channels[:-1][::-1])
+        halves = [True] * (len(skip_channels) - 1)
+        halves.append(False)
+        blocks = []
+        for in_chn, skip_chn, out_chn, halve in zip(in_channels, skip_channels, decoder_channels, halves):
+            blocks.append(
+                UpCat(
+                    dim=dim,
+                    in_chns=in_chn,
+                    cat_chns=skip_chn,
+                    out_chns=out_chn,
+                    act=act,
+                    norm=norm,
+                    dropout=dropout,
+                    upsample=upsample,
+                    pre_conv=pre_conv,
+                    interp_mode=interp_mode,
+                    align_corners=align_corners,
+                    halves=halve,
+                )
+            )
+        self.blocks = nn.ModuleList(blocks)
+
+    def forward(self, *feature_maps: Sequence[torch.Tensor]):
+        
+        feature_maps = feature_maps[0][::-1]
+        skips = feature_maps[1:]
+        x = feature_maps[0]
+        for i, block in enumerate(self.blocks):
+            x = block(x, skips[i])
+
+        return x
+
+
 class BasicUNet(nn.Module):
     def __init__(
         self,
@@ -145,6 +245,9 @@ class BasicUNet(nn.Module):
         norm: Union[str, tuple] = ("instance", {"affine": True}),
         dropout: Union[float, tuple] = 0.0,
         upsample: str = "deconv",
+        pre_conv: Optional[str] = "default",
+        interp_mode: str = "linear",
+        align_corners: Optional[bool] = True,
     ):
         """
         A UNet implementation with 1D/2D/3D supports.
@@ -161,24 +264,25 @@ class BasicUNet(nn.Module):
             out_channels: number of output channels. Defaults to 2.
             features: six integers as numbers of features.
                 Defaults to ``(32, 32, 64, 128, 256, 32)``,
-
                 - the first five values correspond to the five-level encoder feature sizes.
                 - the last value corresponds to the feature size after the last upsampling.
-
             act: activation type and arguments. Defaults to LeakyReLU.
             norm: feature normalization type and arguments. Defaults to instance norm.
             dropout: dropout ratio. Defaults to no dropout.
             upsample: upsampling mode, available options are
                 ``"deconv"``, ``"pixelshuffle"``, ``"nontrainable"``.
+            pre_conv: a conv block applied before upsampling.
+                Only used in the "nontrainable" or "pixelshuffle" mode.
+            interp_mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``}
+                Only used in the "nontrainable" mode.
+            align_corners: set the align_corners parameter for upsample. Defaults to True.
+                Only used in the "nontrainable" mode.
 
         Examples::
-
             # for spatial 2D
             >>> net = BasicUNet(dimensions=2, features=(64, 128, 256, 512, 1024, 128))
-
             # for spatial 2D, with group norm
             >>> net = BasicUNet(dimensions=2, features=(64, 128, 256, 512, 1024, 128), norm=("group", {"num_groups": 4}))
-
             # for spatial 3D
             >>> net = BasicUNet(dimensions=3, features=(32, 32, 64, 128, 256, 32))
 
@@ -192,6 +296,9 @@ class BasicUNet(nn.Module):
 
         fea = ensure_tuple_rep(features, 6)
         print(f"BasicUNet features: {fea}.")
+        encoder_channels = list(features[:-1])
+        decoder_channels = list(features[1:-2][::-1])
+        decoder_channels.append(fea[-1])
 
         self.conv_0 = TwoConv(dimensions, in_channels, features[0], act, norm, dropout)
         self.down_1 = Down(dimensions, fea[0], fea[1], act, norm, dropout)
@@ -199,10 +306,18 @@ class BasicUNet(nn.Module):
         self.down_3 = Down(dimensions, fea[2], fea[3], act, norm, dropout)
         self.down_4 = Down(dimensions, fea[3], fea[4], act, norm, dropout)
 
-        self.upcat_4 = UpCat(dimensions, fea[4], fea[3], fea[3], act, norm, dropout, upsample)
-        self.upcat_3 = UpCat(dimensions, fea[3], fea[2], fea[2], act, norm, dropout, upsample)
-        self.upcat_2 = UpCat(dimensions, fea[2], fea[1], fea[1], act, norm, dropout, upsample)
-        self.upcat_1 = UpCat(dimensions, fea[1], fea[0], fea[5], act, norm, dropout, upsample, halves=False)
+        self.decoder = BasicUNetDecoder(
+            dim=dimensions,
+            encoder_channels=encoder_channels,
+            decoder_channels=decoder_channels,
+            act=act,
+            norm=norm,
+            dropout=dropout,
+            upsample=upsample,
+            pre_conv=pre_conv,
+            interp_mode=interp_mode,
+            align_corners=align_corners,
+        )
 
         self.final_conv = Conv["conv", dimensions](fea[5], out_channels, kernel_size=1)
 
@@ -225,10 +340,7 @@ class BasicUNet(nn.Module):
         x3 = self.down_3(x2)
         x4 = self.down_4(x3)
 
-        u4 = self.upcat_4(x4, x3)
-        u3 = self.upcat_3(u4, x2)
-        u2 = self.upcat_2(u3, x1)
-        u1 = self.upcat_1(u2, x0)
+        u1 = self.decoder([x0, x1, x2, x3, x4])
 
         logits = self.final_conv(u1)
         return logits

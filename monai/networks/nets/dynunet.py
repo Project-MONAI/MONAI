@@ -26,7 +26,7 @@ class DynUNetSkipLayer(nn.Module):
     Defines a layer in the UNet topology which combines the downsample and upsample pathways with the skip connection.
     The member `next_layer` may refer to instances of this class or the final bottleneck layer at the bottom the UNet
     structure. The purpose of using a recursive class like this is to get around the Torchscript restrictions on
-    looping over lists of layers and accumulating lists of output tensors which much be indexed. The `heads` list is
+    looping over lists of layers and accumulating lists of output tensors which must be indexed. The `heads` list is
     shared amongst all the instances of this class and is used to store the output from the supervision heads during
     forward passes of the network.
     """
