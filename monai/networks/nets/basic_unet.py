@@ -199,7 +199,7 @@ class BasicUNet(nn.Module):
 
             # for spatial 2D, with group norm
             >>> net = BasicUNet(dimensions=2, features=(64, 128, 256, 512, 1024, 128), norm=("group", {"num_groups": 4}))
-            
+
             # for spatial 3D
             >>> net = BasicUNet(dimensions=3, features=(32, 32, 64, 128, 256, 32))
 
@@ -240,6 +240,11 @@ class BasicUNet(nn.Module):
             ``(Batch, out_channels, dim_0[, dim_1, ..., dim_N])``.
         """
         x0 = self.conv_0(x)
+
+        x1 = self.down_1(x0)
+        x2 = self.down_2(x1)
+        x3 = self.down_3(x2)
+        x4 = self.down_4(x3)
 
         u4 = self.upcat_4(x4, x3)
         u3 = self.upcat_3(u4, x2)
