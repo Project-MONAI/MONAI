@@ -105,7 +105,9 @@ class UpSample(nn.Sequential):
             elif pre_conv is not None and pre_conv != "default":
                 self.add_module("preconv", pre_conv)  # type: ignore
             elif pre_conv is None and (out_channels != in_channels):
-                raise ValueError(f"in the nontrainable mode, if not setting pre_conv, out_channels should equal to in_channels.")
+                raise ValueError(
+                    "in the nontrainable mode, if not setting pre_conv, out_channels should equal to in_channels."
+                )
 
             interp_mode = InterpolateMode(interp_mode)
             linear_mode = [InterpolateMode.LINEAR, InterpolateMode.BILINEAR, InterpolateMode.TRILINEAR]
