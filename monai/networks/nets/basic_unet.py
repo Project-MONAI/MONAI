@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Union
+from typing import Optional, Sequence, Union
 
 import torch
 import torch.nn as nn
@@ -92,6 +92,9 @@ class UpCat(nn.Module):
         norm: Union[str, tuple],
         dropout: Union[float, tuple] = 0.0,
         upsample: str = "deconv",
+        pre_conv: Optional[Union[nn.Module, str]] = "default",
+        interp_mode: str = "linear",
+        align_corners: Optional[bool] = True,
         halves: bool = True,
     ):
         """
@@ -105,12 +108,30 @@ class UpCat(nn.Module):
             dropout: dropout ratio. Defaults to no dropout.
             upsample: upsampling mode, available options are
                 ``"deconv"``, ``"pixelshuffle"``, ``"nontrainable"``.
+            pre_conv: a conv block applied before upsampling.
+                Only used in the "nontrainable" or "pixelshuffle" mode.
+            interp_mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``}
+                Only used in the "nontrainable" mode.
+            align_corners: set the align_corners parameter for upsample. Defaults to True.
+                Only used in the "nontrainable" mode.
             halves: whether to halve the number of channels during upsampling.
+                This parameter does not work on ``nontrainable`` mode if ``pre_conv`` is `None`.
         """
         super().__init__()
-
-        up_chns = in_chns // 2 if halves else in_chns
-        self.upsample = UpSample(dim, in_chns, up_chns, 2, mode=upsample)
+        if upsample == "nontrainable" and pre_conv is None:
+            up_chns = in_chns
+        else:
+            up_chns = in_chns // 2 if halves else in_chns
+        self.upsample = UpSample(
+            dim,
+            in_chns,
+            up_chns,
+            2,
+            mode=upsample,
+            pre_conv=pre_conv,
+            interp_mode=interp_mode,
+            align_corners=align_corners,
+        )
         self.convs = TwoConv(dim, cat_chns + up_chns, out_chns, act, norm, dropout)
 
     def forward(self, x: torch.Tensor, x_e: torch.Tensor):
