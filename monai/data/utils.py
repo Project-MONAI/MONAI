@@ -19,7 +19,7 @@ from collections import defaultdict
 from copy import deepcopy
 from functools import reduce
 from itertools import product, starmap
-from pathlib import PurePath
+from pathlib import Path, PurePath
 from typing import Any, Dict, Generator, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -492,6 +492,8 @@ def correct_nifti_header_if_necessary(img_nii):
     Args:
         img_nii: nifti image object
     """
+    if img_nii.header.get("dim") is None:
+        return img_nii  # not nifti?
     dim = img_nii.header["dim"][0]
     if dim >= 5:
         return img_nii  # do nothing for high-dimensional array
@@ -677,7 +679,7 @@ def to_affine_nd(r: Union[np.ndarray, int], affine: np.ndarray) -> np.ndarray:
 def create_file_basename(
     postfix: str,
     input_file_name: str,
-    folder_path: str,
+    folder_path: Union[Path, str],
     data_root_dir: str = "",
     separate_folder: bool = True,
     patch_index: Optional[int] = None,
@@ -958,7 +960,7 @@ def partition_dataset_classes(
         [[2, 8, 4, 1, 3, 6, 5, 11, 12], [10, 13, 7, 9, 14]]
 
     """
-    if not classes or len(classes) != len(data):
+    if not issequenceiterable(classes) or len(classes) != len(data):
         raise ValueError(f"length of classes {classes} must match the dataset length {len(data)}.")
     datasets = []
     class_indices = defaultdict(list)

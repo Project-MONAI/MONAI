@@ -74,7 +74,7 @@ Generic Interfaces
 .. autoclass:: ImageDataset
   :members:
   :special-members: __getitem__
-  
+
 `NPZDictItemDataset`
 ~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: NPZDictItemDataset
@@ -107,6 +107,11 @@ Patch-based dataset
 
 Image reader
 ------------
+
+ImageReader
+~~~~~~~~~~~
+.. autoclass:: ImageReader
+  :members:
 
 ITKReader
 ~~~~~~~~~
