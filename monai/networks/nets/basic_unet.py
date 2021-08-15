@@ -31,6 +31,7 @@ class TwoConv(nn.Sequential):
         out_chns: int,
         act: Union[str, tuple],
         norm: Union[str, tuple],
+        bias: bool,
         dropout: Union[float, tuple] = 0.0,
     ):
         """
@@ -40,12 +41,14 @@ class TwoConv(nn.Sequential):
             out_chns: number of output channels.
             act: activation type and arguments.
             norm: feature normalization type and arguments.
+            bias: whether to have a bias term in convolution blocks.
             dropout: dropout ratio. Defaults to no dropout.
+
         """
         super().__init__()
 
-        conv_0 = Convolution(dim, in_chns, out_chns, act=act, norm=norm, dropout=dropout, padding=1)
-        conv_1 = Convolution(dim, out_chns, out_chns, act=act, norm=norm, dropout=dropout, padding=1)
+        conv_0 = Convolution(dim, in_chns, out_chns, act=act, norm=norm, dropout=dropout, bias=bias, padding=1)
+        conv_1 = Convolution(dim, out_chns, out_chns, act=act, norm=norm, dropout=dropout, bias=bias, padding=1)
         self.add_module("conv_0", conv_0)
         self.add_module("conv_1", conv_1)
 
@@ -60,6 +63,7 @@ class Down(nn.Sequential):
         out_chns: int,
         act: Union[str, tuple],
         norm: Union[str, tuple],
+        bias: bool,
         dropout: Union[float, tuple] = 0.0,
     ):
         """
@@ -69,12 +73,14 @@ class Down(nn.Sequential):
             out_chns: number of output channels.
             act: activation type and arguments.
             norm: feature normalization type and arguments.
+            bias: whether to have a bias term in convolution blocks.
             dropout: dropout ratio. Defaults to no dropout.
+
         """
         super().__init__()
 
         max_pooling = Pool["MAX", dim](kernel_size=2)
-        convs = TwoConv(dim, in_chns, out_chns, act, norm, dropout)
+        convs = TwoConv(dim, in_chns, out_chns, act, norm, bias, dropout)
         self.add_module("max_pooling", max_pooling)
         self.add_module("convs", convs)
 
@@ -90,6 +96,7 @@ class UpCat(nn.Module):
         out_chns: int,
         act: Union[str, tuple],
         norm: Union[str, tuple],
+        bias: bool,
         dropout: Union[float, tuple] = 0.0,
         upsample: str = "deconv",
         pre_conv: Optional[Union[nn.Module, str]] = "default",
@@ -105,6 +112,7 @@ class UpCat(nn.Module):
             out_chns: number of output channels.
             act: activation type and arguments.
             norm: feature normalization type and arguments.
+            bias: whether to have a bias term in convolution blocks.
             dropout: dropout ratio. Defaults to no dropout.
             upsample: upsampling mode, available options are
                 ``"deconv"``, ``"pixelshuffle"``, ``"nontrainable"``.
@@ -132,9 +140,9 @@ class UpCat(nn.Module):
             interp_mode=interp_mode,
             align_corners=align_corners,
         )
-        self.convs = TwoConv(dim, cat_chns + up_chns, out_chns, act, norm, dropout)
+        self.convs = TwoConv(dim, cat_chns + up_chns, out_chns, act, norm, bias, dropout)
 
-    def forward(self, x: torch.Tensor, x_e: torch.Tensor):
+    def forward(self, x: torch.Tensor, x_e: Optional[torch.Tensor]):
         """
 
         Args:
@@ -143,15 +151,18 @@ class UpCat(nn.Module):
         """
         x_0 = self.upsample(x)
 
-        # handling spatial shapes due to the 2x maxpooling with odd edge lengths.
-        dimensions = len(x.shape) - 2
-        sp = [0] * (dimensions * 2)
-        for i in range(dimensions):
-            if x_e.shape[-i - 1] != x_0.shape[-i - 1]:
-                sp[i * 2 + 1] = 1
-        x_0 = torch.nn.functional.pad(x_0, sp, "replicate")
+        if x_e is not None:
+            # handling spatial shapes due to the 2x maxpooling with odd edge lengths.
+            dimensions = len(x.shape) - 2
+            sp = [0] * (dimensions * 2)
+            for i in range(dimensions):
+                if x_e.shape[-i - 1] != x_0.shape[-i - 1]:
+                    sp[i * 2 + 1] = 1
+            x_0 = torch.nn.functional.pad(x_0, sp, "replicate")
+            x = self.convs(torch.cat([x_e, x_0], dim=1))  # input channels: (cat_chns + up_chns)
+        else:
+            x = self.convs(x_0)
 
-        x = self.convs(torch.cat([x_e, x_0], dim=1))  # input channels: (cat_chns + up_chns)
         return x
 
 
@@ -164,6 +175,7 @@ class BasicUNet(nn.Module):
         features: Sequence[int] = (32, 32, 64, 128, 256, 32),
         act: Union[str, tuple] = ("LeakyReLU", {"negative_slope": 0.1, "inplace": True}),
         norm: Union[str, tuple] = ("instance", {"affine": True}),
+        bias: bool = True,
         dropout: Union[float, tuple] = 0.0,
         upsample: str = "deconv",
     ):
@@ -188,6 +200,9 @@ class BasicUNet(nn.Module):
 
             act: activation type and arguments. Defaults to LeakyReLU.
             norm: feature normalization type and arguments. Defaults to instance norm.
+            bias: whether to have a bias term in convolution blocks. Defaults to True.
+                According to `Performance Tuning Guide <https://pytorch.org/tutorials/recipes/recipes/tuning_guide.html>`_,
+                if a conv layer is directly followed by a batch norm layer, bias should be False.
             dropout: dropout ratio. Defaults to no dropout.
             upsample: upsampling mode, available options are
                 ``"deconv"``, ``"pixelshuffle"``, ``"nontrainable"``.
@@ -214,16 +229,16 @@ class BasicUNet(nn.Module):
         fea = ensure_tuple_rep(features, 6)
         print(f"BasicUNet features: {fea}.")
 
-        self.conv_0 = TwoConv(dimensions, in_channels, features[0], act, norm, dropout)
-        self.down_1 = Down(dimensions, fea[0], fea[1], act, norm, dropout)
-        self.down_2 = Down(dimensions, fea[1], fea[2], act, norm, dropout)
-        self.down_3 = Down(dimensions, fea[2], fea[3], act, norm, dropout)
-        self.down_4 = Down(dimensions, fea[3], fea[4], act, norm, dropout)
+        self.conv_0 = TwoConv(dimensions, in_channels, features[0], act, norm, bias, dropout)
+        self.down_1 = Down(dimensions, fea[0], fea[1], act, norm, bias, dropout)
+        self.down_2 = Down(dimensions, fea[1], fea[2], act, norm, bias, dropout)
+        self.down_3 = Down(dimensions, fea[2], fea[3], act, norm, bias, dropout)
+        self.down_4 = Down(dimensions, fea[3], fea[4], act, norm, bias, dropout)
 
-        self.upcat_4 = UpCat(dimensions, fea[4], fea[3], fea[3], act, norm, dropout, upsample)
-        self.upcat_3 = UpCat(dimensions, fea[3], fea[2], fea[2], act, norm, dropout, upsample)
-        self.upcat_2 = UpCat(dimensions, fea[2], fea[1], fea[1], act, norm, dropout, upsample)
-        self.upcat_1 = UpCat(dimensions, fea[1], fea[0], fea[5], act, norm, dropout, upsample, halves=False)
+        self.upcat_4 = UpCat(dimensions, fea[4], fea[3], fea[3], act, norm, bias, dropout, upsample)
+        self.upcat_3 = UpCat(dimensions, fea[3], fea[2], fea[2], act, norm, bias, dropout, upsample)
+        self.upcat_2 = UpCat(dimensions, fea[2], fea[1], fea[1], act, norm, bias, dropout, upsample)
+        self.upcat_1 = UpCat(dimensions, fea[1], fea[0], fea[5], act, norm, bias, dropout, upsample, halves=False)
 
         self.final_conv = Conv["conv", dimensions](fea[5], out_channels, kernel_size=1)
 
