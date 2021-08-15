@@ -57,7 +57,14 @@ def _make_nconv(spatial_dims: int, nchan: int, depth: int, act: Union[Tuple[str,
 
 
 class InputTransition(nn.Module):
-    def __init__(self, spatial_dims: int, in_channels: int, out_channels: int, act: Union[Tuple[str, Dict], str], bias: bool = False):
+    def __init__(
+        self,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
+        act: Union[Tuple[str, Dict], str],
+        bias: bool = False,
+    ):
         super(InputTransition, self).__init__()
 
         if 16 % in_channels != 0:
@@ -159,7 +166,14 @@ class UpTransition(nn.Module):
 
 
 class OutputTransition(nn.Module):
-    def __init__(self, spatial_dims: int, in_channels: int, out_channels: int, act: Union[Tuple[str, Dict], str], bias: bool = False):
+    def __init__(
+        self,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
+        act: Union[Tuple[str, Dict], str],
+        bias: bool = False,
+    ):
         super(OutputTransition, self).__init__()
 
         conv_type: Type[Union[nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
