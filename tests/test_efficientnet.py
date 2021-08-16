@@ -75,7 +75,15 @@ def get_block_args():
     ]
 
 
-def make_shape_cases(models, spatial_dims, batches, pretrained, in_channels=3, num_classes=1000):
+def make_shape_cases(
+    models,
+    spatial_dims,
+    batches,
+    pretrained,
+    in_channels=3,
+    num_classes=1000,
+    norm=("batch", {"eps": 1e-3, "momentum": 0.01}),
+):
     ret_tests = []
     for spatial_dim in spatial_dims:  # selected spatial_dims
         for batch in batches:  # check single batch as well as multiple batch input
@@ -88,6 +96,7 @@ def make_shape_cases(models, spatial_dims, batches, pretrained, in_channels=3, n
                         "spatial_dims": spatial_dim,
                         "in_channels": in_channels,
                         "num_classes": num_classes,
+                        "norm": norm,
                     }
                     ret_tests.append(
                         [
@@ -115,10 +124,22 @@ CASES_1D = make_shape_cases(
 
 # 2D and 3D models are expensive so use selected models
 CASES_2D = make_shape_cases(
-    models=SEL_MODELS, spatial_dims=[2], batches=[1, 4], pretrained=[False], in_channels=3, num_classes=1000
+    models=SEL_MODELS,
+    spatial_dims=[2],
+    batches=[1, 4],
+    pretrained=[False],
+    in_channels=3,
+    num_classes=1000,
+    norm="instance",
 )
 CASES_3D = make_shape_cases(
-    models=[SEL_MODELS[0]], spatial_dims=[3], batches=[1], pretrained=[False], in_channels=3, num_classes=1000
+    models=[SEL_MODELS[0]],
+    spatial_dims=[3],
+    batches=[1],
+    pretrained=[False],
+    in_channels=3,
+    num_classes=1000,
+    norm="batch",
 )
 
 # pretrained=True cases
@@ -134,6 +155,7 @@ CASES_KITTY_TRAINED = [
             "spatial_dims": 2,
             "in_channels": 3,
             "num_classes": 1000,
+            "norm": ("batch", {"eps": 1e-3, "momentum": 0.01}),
         },
         os.path.join(os.path.dirname(__file__), "testing_data", "kitty_test.jpg"),
         282,  # ~ tiger cat
@@ -209,7 +231,6 @@ class TestEFFICIENTNET(unittest.TestCase):
     @parameterized.expand(CASES_1D + CASES_2D + CASES_3D + CASES_VARIATIONS)
     def test_shape(self, input_param, input_shape, expected_shape):
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        print(input_param)
 
         # initialize model
         net = EfficientNetBN(**input_param).to(device)
@@ -224,7 +245,6 @@ class TestEFFICIENTNET(unittest.TestCase):
     @parameterized.expand(CASES_1D + CASES_2D)
     def test_non_default_shapes(self, input_param, input_shape, expected_shape):
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        print(input_param)
 
         # initialize model
         net = EfficientNetBN(**input_param).to(device)
@@ -234,7 +254,6 @@ class TestEFFICIENTNET(unittest.TestCase):
         non_default_sizes = [128, 256, 512]
         for candidate_size in non_default_sizes:
             input_shape = input_shape[0:2] + (candidate_size,) * num_dims
-            print(input_shape)
             # run inference with random tensor
             with eval_mode(net):
                 result = net(torch.randn(input_shape).to(device))
