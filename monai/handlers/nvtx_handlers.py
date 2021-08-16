@@ -15,7 +15,7 @@ Wrapper around NVIDIA Tools Extension for profiling MONAI ignite workflow
 from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union
 
 from monai.config import IgniteInfo
-from monai.utils import min_version, optional_import
+from monai.utils import min_version, optional_import, ensure_tuple
 
 _nvtx, _ = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")
 if TYPE_CHECKING:
@@ -46,35 +46,50 @@ class RangeHandler:
             If not provided, the name of first event will be assigned to the NVTX range.
     """
 
-    def __init__(self, events: Union[str, Tuple[Events, Events]], msg: Optional[str] = None) -> None:
+    def __init__(
+        self, events: Union[str, Tuple[Union[str, Events], Union[str, Events]]], msg: Optional[str] = None
+    ) -> None:
+        self.events = self.resolve_events(events)
         if msg is None:
+            # assign the prefix of the events
             if isinstance(events, str):
                 msg = events
             else:
-                msg = events[0].strip("_")[0]
+                msg = "/".join([e.name for e in self.events])
         self.msg = msg
-        if isinstance(events, str):
-            if events.upper() in ["ENGINE", ""]:
-                event_name = ""
-            elif events.upper() == "BATCH":
-                event_name = "GET_BATCH_"
-            else:
-                event_name = events.upper() + "_"
-            self.events = (
-                getattr(Events, event_name + "STARTED"),
-                getattr(Events, event_name + "COMPLETED"),
-            )
-        elif isinstance(events, Sequence):
-            if len(events) != 2:
-                raise ValueError(f"Exactly two Ignite events should be provided [received {len(events)}].")
-            if not isinstance(events[0], Events):
-                raise ValueError("The provided first event is not an Ignite event!")
-            if not isinstance(events[1], Events):
-                raise ValueError("The provided second event is not an Ignite event!")
-            self.events = events
-        else:
-            raise ValueError("The start/end events should either be a string or tuple/list of two Ignite events.")
         self.depth = None
+
+    def resolve_events(self, events) -> Tuple[Events, Events]:
+        events = ensure_tuple(events)
+        if len(events) == 1:
+            return self.create_paired_events(events[0])
+        if len(events) == 2:
+            return (
+                self.get_event(events[0]),
+                self.get_event(events[1]),
+            )
+        if len(events) > 2:
+            raise ValueError(f"Exactly two Ignite events should be provided [received {len(events)}].")
+
+    def create_paired_events(self, event: str) -> Tuple[Events, Events]:
+        event = event.upper()
+        event_prefix = {
+            "": "",
+            "ENGINE": "",
+            "EPOCH": "EPOCH_",
+            "ITERATION": "ITERATION_",
+            "BATCH": "GET_BATCH_",
+        }
+        return (
+            self.get_event(event_prefix[event] + "STARTED"),
+            self.get_event(event_prefix[event] + "COMPLETED"),
+        )
+
+    def get_event(self, event: Union[str, Events]) -> Events:
+        if isinstance(event, str):
+            return Events[event.upper()]
+        if isinstance(event, Events):
+            return event
 
     def attach(self, engine: Engine) -> None:
         """
