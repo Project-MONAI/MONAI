@@ -863,7 +863,7 @@ class SavitzkyGolaySmooth(Transform):
         self.order = order
         self.axis = axis
         self.mode = mode
-        self.img_t: torch.Tensor = torch.Tensor(0.0)
+        self.img_t: torch.Tensor = torch.tensor(0.0)
 
     def __call__(self, img: NdarrayTensor) -> torch.Tensor:
         """
