@@ -16,7 +16,7 @@ from ignite.engine import Events
 from parameterized import parameterized
 
 from monai.engines import SupervisedEvaluator
-from monai.handlers import StatsHandler
+from monai.handlers import StatsHandler, from_engine
 from monai.handlers.nvtx_handlers import MarkHandler, RangeHandler, RangePopHandler, RangePushHandler
 from monai.utils import optional_import
 
@@ -60,21 +60,26 @@ class TestHandlerDecollateBatch(unittest.TestCase):
     )
     @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX!")
     def test_compute(self, data, expected):
-
         # Set up handlers
         handlers = [
             # Mark with Ignite Event
             MarkHandler(Events.STARTED),
             # Mark with literal
             MarkHandler("EPOCH_STARTED"),
-            # Define a range between BATCH_STARTED and BATCH_COMPLETED
+            # Define a range using one prefix (between BATCH_STARTED and BATCH_COMPLETED)
             RangeHandler("Batch"),
+            # Define a range using a pair of events
+            RangeHandler((Events.STARTED, Events.COMPLETED)),
+            # Define a range using a pair of literals
+            RangeHandler(("GET_BATCH_STARTED", "GET_BATCH_COMPLETED")),
+            # Define a range using a pair of literal and events
+            RangeHandler(("GET_BATCH_STARTED", Events.COMPLETED)),
             # Define the start of range using literal
             RangePushHandler("ITERATION_STARTED"),
             # Define the end of range using Ignite Event
             RangePopHandler(Events.ITERATION_COMPLETED),
             # Other handlers
-            StatsHandler(tag_name="train"),
+            StatsHandler(tag_name="train", output_transform=from_engine(["label"], first=True)),
         ]
 
         # Set up an engine
