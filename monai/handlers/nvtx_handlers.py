@@ -35,10 +35,13 @@ class RangeHandler:
     Stores zero-based depth of the range that is started.
 
     Args:
-        event: a string or pair of Ignite events to attach a range to
+        events: a string, pair of Ignite events, pair of Ignite event literals, or pair of Ignite events and literals.
             If a single string is provided, it should  describe the base name of a pair of default Ignite events
-            with _STARTED and _COMPLETED postfix (like "EPOCH" for EPOCH_STARTED and EPOCH_COMPLETED).
-            The common accepted events are: BATCH, ITERATION, EPOCH, and ENGINE.
+            with _STARTED and _COMPLETED postfix (like "EPOCH" for Events.EPOCH_STARTED and Events.EPOCH_COMPLETED).
+            The accepted events are: BATCH, ITERATION, EPOCH, and ENGINE.
+            If pair of literals, each should be the literal equivalent of an Ignite event, fo instance:
+            ("EPOCH_STARTED" and "EPOCH_COMPLETED").
+            One can combine events and literals, like (Events.EPOCH_STARTED and "EPOCH_COMPLETED").
             For the complete list of Events,
             check https://pytorch.org/ignite/generated/ignite.engine.events.Events.html.
 
