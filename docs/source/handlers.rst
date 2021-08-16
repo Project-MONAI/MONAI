@@ -166,7 +166,7 @@ Decollate batch
     :members:
 
 NVTX Handlers
----------------
+-------------
 .. automodule:: monai.handlers.nvtx_handlers
   :members:
 
