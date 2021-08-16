@@ -148,7 +148,7 @@ def convert_to_numpy(data):
 def convert_data_type(
     data: Any,
     output_type: Optional[type] = None,
-    device: Union[torch.device, str, None] = None,
+    device: Optional[torch.device] = None,
     dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
 ) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
     """
