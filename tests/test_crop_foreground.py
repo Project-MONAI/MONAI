@@ -53,7 +53,7 @@ TEST_CASE_6 = [
 ]
 
 TEST_CASE_7 = [
-    {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 0, "k_divisible": 10},
+    {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 0, "k_divisible": 10, "constant_values": 2},
     np.array([[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]]),
     np.zeros((1, 0, 0)),
 ]
