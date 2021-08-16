@@ -546,6 +546,9 @@ class Zoom(Transform):
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
         keep_size: Should keep original size (padding/slicing if needed), default is True.
+        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
+            more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+
     """
 
     def __init__(
@@ -555,12 +558,14 @@ class Zoom(Transform):
         padding_mode: Union[NumpyPadMode, str] = NumpyPadMode.EDGE,
         align_corners: Optional[bool] = None,
         keep_size: bool = True,
+        **np_kwargs,
     ) -> None:
         self.zoom = zoom
         self.mode: InterpolateMode = InterpolateMode(mode)
         self.padding_mode: NumpyPadMode = NumpyPadMode(padding_mode)
         self.align_corners = align_corners
         self.keep_size = keep_size
+        self.np_kwargs = np_kwargs
 
     def __call__(
         self,
@@ -607,7 +612,7 @@ class Zoom(Transform):
                 slice_vec[idx] = slice(half, half + od)
 
         padding_mode = look_up_option(self.padding_mode if padding_mode is None else padding_mode, NumpyPadMode)
-        zoomed = np.pad(zoomed, pad_vec, mode=padding_mode.value)  # type: ignore
+        zoomed = np.pad(zoomed, pad_vec, mode=padding_mode.value, **self.np_kwargs)  # type: ignore
         return zoomed[tuple(slice_vec)]
 
 
@@ -868,6 +873,9 @@ class RandZoom(RandomizableTransform):
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
         keep_size: Should keep original size (pad if needed), default is True.
+        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
+            more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+
     """
 
     def __init__(
@@ -879,6 +887,7 @@ class RandZoom(RandomizableTransform):
         padding_mode: Union[NumpyPadMode, str] = NumpyPadMode.EDGE,
         align_corners: Optional[bool] = None,
         keep_size: bool = True,
+        **np_kwargs,
     ) -> None:
         RandomizableTransform.__init__(self, prob)
         self.min_zoom = ensure_tuple(min_zoom)
@@ -889,6 +898,7 @@ class RandZoom(RandomizableTransform):
         self.padding_mode: NumpyPadMode = look_up_option(padding_mode, NumpyPadMode)
         self.align_corners = align_corners
         self.keep_size = keep_size
+        self.np_kwargs = np_kwargs
 
         self._zoom: Sequence[float] = [1.0]
 
@@ -928,7 +938,7 @@ class RandZoom(RandomizableTransform):
         elif len(self._zoom) == 2 and img.ndim > 3:
             # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
             self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 2) + ensure_tuple(self._zoom[-1])
-        zoomer = Zoom(self._zoom, keep_size=self.keep_size)
+        zoomer = Zoom(self._zoom, keep_size=self.keep_size, **self.np_kwargs)
         return np.asarray(
             zoomer(
                 img,
