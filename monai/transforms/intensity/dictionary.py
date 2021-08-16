@@ -16,8 +16,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
 from collections.abc import Iterable
-from monai.config.type_definitions import NdarrayTensor
-from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, TypeVar, Union
+from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
