@@ -12,10 +12,10 @@
 Wrapper around NVIDIA Tools Extension for profiling MONAI ignite workflow
 """
 
-from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Tuple, Union
 
 from monai.config import IgniteInfo
-from monai.utils import min_version, optional_import, ensure_tuple
+from monai.utils import ensure_tuple, min_version, optional_import
 
 _nvtx, _ = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")
 if TYPE_CHECKING:
@@ -50,7 +50,9 @@ class RangeHandler:
     """
 
     def __init__(
-        self, events: Union[str, Tuple[Union[str, Events], Union[str, Events]]], msg: Optional[str] = None
+        self,
+        events: Union[str, Tuple[Union[str, Events], Union[str, Events]]],
+        msg: Optional[str] = None,
     ) -> None:
         self.events = self.resolve_events(events)
         if msg is None:
@@ -62,7 +64,10 @@ class RangeHandler:
         self.msg = msg
         self.depth = None
 
-    def resolve_events(self, events) -> Tuple[Events, Events]:
+    def resolve_events(self, events: Union[str, Tuple]) -> Tuple[Events, Events]:
+        """
+        Resolve the input events to create a pair of Ignite events
+        """
         events = ensure_tuple(events)
         if len(events) == 1:
             return self.create_paired_events(events[0])
@@ -71,10 +76,12 @@ class RangeHandler:
                 self.get_event(events[0]),
                 self.get_event(events[1]),
             )
-        if len(events) > 2:
-            raise ValueError(f"Exactly two Ignite events should be provided [received {len(events)}].")
+        raise ValueError(f"Exactly two Ignite events should be provided [received {len(events)}].")
 
     def create_paired_events(self, event: str) -> Tuple[Events, Events]:
+        """
+        Create pair of Ignite events from a event prefix name
+        """
         event = event.upper()
         event_prefix = {
             "": "",
