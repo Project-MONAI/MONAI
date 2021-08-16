@@ -34,7 +34,7 @@ def get_dist_device():
         backend = dist.get_backend()
         if backend == "nccl" and torch.cuda.is_available():
             return torch.device(f"cuda:{torch.cuda.current_device()}")
-        elif backend == "gloo":
+        if backend == "gloo":
             return torch.device("cpu")
     return None
 
