@@ -435,6 +435,7 @@ class EfficientNetBN(EfficientNet):
         spatial_dims: int = 2,
         in_channels: int = 3,
         num_classes: int = 1000,
+        norm: Union[str, tuple] = ("batch", {"eps": 1e-3, "momentum": 0.01}),
     ) -> None:
         """
         Generic wrapper around EfficientNet, used to initialize EfficientNet-B0 to EfficientNet-B7 models
@@ -443,11 +444,13 @@ class EfficientNetBN(EfficientNet):
 
         Args:
             model_name: name of model to initialize, can be from [efficientnet-b0, ..., efficientnet-b7].
-            pretrained: whether to initialize pretrained ImageNet weights, only available for spatial_dims=2.
+            pretrained: whether to initialize pretrained ImageNet weights, only available for spatial_dims=2 and batch
+                norm is used.
             progress: whether to show download progress for pretrained weights download.
             spatial_dims: number of spatial dimensions.
             in_channels: number of input channels.
             num_classes: number of output classes.
+            norm: feature normalization type and arguments. Defaults to batch norm.
 
         Examples::
 
@@ -501,6 +504,7 @@ class EfficientNetBN(EfficientNet):
             dropout_rate=dropout_rate,
             image_size=image_size,
             drop_connect_rate=dropconnect_rate,
+            norm=norm,
         )
 
         # attempt to load pretrained
@@ -513,12 +517,6 @@ class EfficientNetBN(EfficientNet):
 
             # only pretrained for when `spatial_dims` is 2
             _load_state_dict(self, model_name, progress, load_fc)
-        else:
-            print(
-                "Skipping loading pretrained weights for non-default {}, pretrained={}, is_default_model={}".format(
-                    model_name, pretrained, is_default_model
-                )
-            )
 
 
 def get_efficientnet_image_size(model_name: str) -> int:
