@@ -128,7 +128,7 @@ class RangePushHandler:
 
     def __init__(self, event: Events, msg: Optional[str] = None) -> None:
         if isinstance(event, str):
-            event = getattr(Events, event)
+            event = Events[event]
         if msg is None:
             msg = event.name
         self.msg = msg
@@ -158,7 +158,7 @@ class RangePopHandler:
 
     def __init__(self, event: Events) -> None:
         if isinstance(event, str):
-            event = getattr(Events, event)
+            event = Events[event]
         self.event = event
 
     def attach(self, engine: Engine) -> None:
@@ -183,7 +183,7 @@ class MarkHandler:
 
     def __init__(self, event: Events, msg: Optional[str] = None) -> None:
         if isinstance(event, str):
-            event = getattr(Events, event)
+            event = Events[event]
         if msg is None:
             msg = event.name
         self.msg = msg
