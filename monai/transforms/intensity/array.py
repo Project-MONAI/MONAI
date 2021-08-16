@@ -29,13 +29,14 @@ from monai.transforms.utils import equalize_hist, is_positive, rescale_array
 from monai.utils import (
     PT_BEFORE_1_7,
     InvalidPyTorchVersionError,
+    convert_data_type,
+    convert_same_type,
     dtype_torch_to_numpy,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
     fall_back_tuple,
 )
-from monai.utils.type_conversion import convert_data_type
 
 __all__ = [
     "RandGaussianNoise",
@@ -98,13 +99,11 @@ class RandGaussianNoise(RandomizableTransform):
         """
         self.randomize(img.shape)
         if self._noise is None:
-            raise AssertionError
+            raise RuntimeError("randomized factor should not be None.")
         if not self._do_transform:
             return img
-        noise, *_ = convert_data_type(
-            self._noise, type(img), dtype=img.dtype, device=img.device if isinstance(img, torch.Tensor) else None
-        )
-        return img + noise
+        noise, *_ = convert_same_type(self._noise, img)
+        return img + noise  # type: ignore
 
 
 class RandRicianNoise(RandomizableTransform):
@@ -864,7 +863,7 @@ class SavitzkyGolaySmooth(Transform):
         self.order = order
         self.axis = axis
         self.mode = mode
-        self.img_t: torch.Tensor = None
+        self.img_t: torch.Tensor = torch.Tensor(0.0)
 
     def __call__(self, img: NdarrayTensor) -> torch.Tensor:
         """
@@ -875,7 +874,7 @@ class SavitzkyGolaySmooth(Transform):
             array containing smoothed result.
 
         """
-        self.img_t, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
+        self.img_t, *_ = convert_data_type(img, torch.Tensor)
 
         # add one to transform axis because a batch axis will be added at dimension 0
         savgol_filter = SavitzkyGolayFilter(self.window_length, self.order, self.axis + 1, self.mode)

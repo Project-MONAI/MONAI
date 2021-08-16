@@ -56,11 +56,7 @@ container must be iterable.
 """
 
 
-DtypeLike = Union[
-    np.dtype,
-    type,
-    None,
-]
+DtypeLike = Union[np.dtype, type, None]
 """Type of datatypes
 adapted from https://github.com/numpy/numpy/blob/master/numpy/typing/_dtype_like.py
 """

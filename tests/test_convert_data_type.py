@@ -16,7 +16,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.utils.type_conversion import convert_data_type
+from monai.utils.type_conversion import convert_data_type, convert_same_type
 from tests.utils import TEST_NDARRAYS
 
 TESTS: List[Tuple] = []
@@ -40,8 +40,27 @@ class TestConvertDataType(unittest.TestCase):
             self.assertEqual(converted_im.dtype, im_out.dtype)
 
     def test_neg_stride(self):
-        neg_stride_arr = np.array((1, 2))[::-1]
         _ = convert_data_type(np.array((1, 2))[::-1], torch.Tensor)
+
+    def test_ill_arg(self):
+        with self.assertRaises(ValueError):
+            convert_data_type(None, torch.Tensor)
+        convert_data_type(None, np.ndarray)
+
+
+class TestConvertDataSame(unittest.TestCase):
+    @parameterized.expand(TESTS)
+    def test_convert_data_type(self, in_image, im_out):
+        converted_im, orig_type, orig_device = convert_same_type(in_image, im_out)
+        # check input is unchanged
+        self.assertEqual(type(in_image), orig_type)
+        if isinstance(in_image, torch.Tensor):
+            self.assertEqual(in_image.device, orig_device)
+        # check output is desired type
+        self.assertEqual(type(converted_im), type(im_out))
+        # check dtype is unchanged
+        if isinstance(in_type, (np.ndarray, torch.Tensor)):
+            self.assertEqual(converted_im.dtype, im_out.dtype)
 
 
 if __name__ == "__main__":

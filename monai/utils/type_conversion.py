@@ -18,6 +18,7 @@ __all__ = [
     "get_dtype",
     "convert_to_numpy",
     "convert_to_tensor",
+    "convert_same_type",
 ]
 
 
@@ -39,6 +40,8 @@ _np_to_torch_dtype = {value: key for key, value in _torch_to_np_dtype.items()}
 
 def dtype_torch_to_numpy(dtype):
     """Convert a torch dtype to its numpy equivalent."""
+    if dtype not in _torch_to_np_dtype:
+        raise ValueError(f"Unsupported torch to numpy dtype '{dtype}'.")
     return _torch_to_np_dtype[dtype]
 
 
@@ -46,6 +49,8 @@ def dtype_numpy_to_torch(dtype):
     """Convert a numpy dtype to its torch equivalent."""
     # np dtypes can be given as np.float32 and np.dtype(np.float32) so unify them
     dtype = np.dtype(dtype) if type(dtype) is type else dtype
+    if dtype not in _np_to_torch_dtype:
+        raise ValueError(f"Unsupported numpy to torch dtype '{dtype}'.")
     return _np_to_torch_dtype[dtype]
 
 
@@ -59,10 +64,9 @@ def get_equivalent_dtype(dtype, data_type):
         if type(dtype) is torch.dtype:
             return dtype
         return dtype_numpy_to_torch(dtype)
-    else:
-        if type(dtype) is not torch.dtype:
-            return dtype
-        return dtype_torch_to_numpy(dtype)
+    if type(dtype) is not torch.dtype:
+        return dtype
+    return dtype_torch_to_numpy(dtype)
 
 
 def get_dtype(data: Any):
@@ -133,7 +137,7 @@ def convert_to_numpy(data):
     elif isinstance(data, list):
         return [convert_to_numpy(i) for i in data]
     elif isinstance(data, tuple):
-        return tuple([convert_to_numpy(i) for i in data])
+        return tuple(convert_to_numpy(i) for i in data)
 
     if isinstance(data, np.ndarray) and data.ndim > 0:
         data = np.ascontiguousarray(data)
@@ -144,7 +148,7 @@ def convert_to_numpy(data):
 def convert_data_type(
     data: Any,
     output_type: Optional[type] = None,
-    device: Optional[torch.device] = None,
+    device: Union[torch.device, str, None] = None,
     dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
 ) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
     """
@@ -175,10 +179,23 @@ def convert_data_type(
     elif output_type is np.ndarray:
         if orig_type is not np.ndarray:
             data = convert_to_numpy(data)
-        if dtype != data.dtype:
+        if data is not None and dtype != data.dtype:
             data = data.astype(dtype)  # type: ignore
 
     if isinstance(data, torch.Tensor) and device is not None:
         data = data.to(device)
 
     return data, orig_type, orig_device
+
+
+def convert_same_type(src: Any, dst: NdarrayTensor) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
+    """
+    Convert `src` to the same `torch.Tensor`/`np.ndarray` and data type as `dst`.
+
+    See Also:
+        :func:`convert_data_type`
+    """
+    device = None
+    if isinstance(dst, torch.Tensor):
+        device = dst.device
+    return convert_data_type(data=src, output_type=type(dst), device=device, dtype=dst.dtype)
