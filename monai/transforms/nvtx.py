@@ -12,6 +12,8 @@
 Wrapper around NVIDIA Tools Extension for profiling MONAI transformations
 """
 
+from typing import Optional
+
 from monai.transforms.transform import RandomizableTransform, Transform
 from monai.utils import optional_import
 
@@ -26,6 +28,10 @@ __all__ = [
     "RandMarkd",
     "RandMarkD",
     "RandMarkDict",
+    "RandRange",
+    "RandRanged",
+    "RandRangeD",
+    "RandRangeDict",
     "RandRangePop",
     "RandRangePopd",
     "RandRangePopD",
@@ -34,6 +40,10 @@ __all__ = [
     "RandRangePushd",
     "RandRangePushD",
     "RandRangePushDict",
+    "Range",
+    "Ranged",
+    "RangeD",
+    "RangeDict",
     "RangePop",
     "RangePopd",
     "RangePopD",
@@ -91,6 +101,36 @@ class RandRangePop(RangePop, RandomizableTransform):
     """
 
 
+class Range(Transform):
+    """
+    Pushes an NVTX range before a transform, and pops it afterwards.
+    Stores zero-based depth of the range that is started.
+
+    Args:
+        msg: ASCII message to associate with range
+    """
+
+    def __init__(self, transform: Transform, msg: Optional[str] = None) -> None:
+        if msg is None:
+            msg = type(transform).__name__
+        self.msg = msg
+        self.transform = transform
+        self.depth = None
+
+    def __call__(self, data):
+        self.depth = _nvtx.rangePushA(self.msg)
+        data = self.transform(data)
+        _nvtx.rangePop()
+        return data
+
+
+class RandRange(Range, RandomizableTransform):
+    """
+    Pushes an NVTX range at the before a transfrom, and pops it afterwards.(RandomizableTransform).
+    Stores zero-based depth of the range that is ended.
+    """
+
+
 class Mark(Transform):
     """
     Mark an instantaneous event that occurred at some point.
@@ -117,9 +157,14 @@ class RandMark(Mark, RandomizableTransform):
     """
 
 
+RangePushDict = RangePushD = RangePushd = RangePush
+RandRangePushDict = RandRangePushD = RandRangePushd = RandRangePush
+
+RangePopDict = RangePopD = RangePopd = RangePop
+RandRangePopDict = RandRangePopD = RandRangePopd = RandRangePop
+
+RangeDict = RangeD = Ranged = Range
+RandRangeDict = RandRangeD = RandRanged = RandRange
+
 MarkDict = MarkD = Markd = Mark
 RandMarkDict = RandMarkD = RandMarkd = RandMark
-RandRangePopDict = RandRangePopD = RandRangePopd = RandRangePop
-RandRangePushDict = RandRangePushD = RandRangePushd = RandRangePush
-RangePopDict = RangePopD = RangePopd = RangePop
-RangePushDict = RangePushD = RangePushd = RangePush

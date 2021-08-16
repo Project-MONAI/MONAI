@@ -41,7 +41,14 @@ class TestRandZoom(NumpyImageTestCase2D):
         np.testing.assert_allclose(zoomed, expected, atol=1.0)
 
     def test_keep_size(self):
-        random_zoom = RandZoom(prob=1.0, min_zoom=0.6, max_zoom=0.7, keep_size=True)
+        random_zoom = RandZoom(
+            prob=1.0,
+            min_zoom=0.6,
+            max_zoom=0.7,
+            keep_size=True,
+            padding_mode="constant",
+            constant_values=2,
+        )
         zoomed = random_zoom(self.imt[0])
         self.assertTrue(np.array_equal(zoomed.shape, self.imt.shape[1:]))
         zoomed = random_zoom(self.imt[0])
