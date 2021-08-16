@@ -71,13 +71,15 @@ class TestHandlerDecollateBatch(unittest.TestCase):
             # Define a range using a pair of events
             RangeHandler((Events.STARTED, Events.COMPLETED)),
             # Define a range using a pair of literals
-            RangeHandler(("GET_BATCH_STARTED", "GET_BATCH_COMPLETED")),
+            RangeHandler(("GET_BATCH_STARTED", "GET_BATCH_COMPLETED"), msg="Batching!"),
             # Define a range using a pair of literal and events
             RangeHandler(("GET_BATCH_STARTED", Events.COMPLETED)),
             # Define the start of range using literal
             RangePushHandler("ITERATION_STARTED"),
+            RangePushHandler("EPOCH_STARTED", "EPOCH 2"),
             # Define the end of range using Ignite Event
             RangePopHandler(Events.ITERATION_COMPLETED),
+            RangePopHandler(Events.EPOCH_COMPLETED),
             # Other handlers
             StatsHandler(tag_name="train", output_transform=from_engine(["label"], first=True)),
         ]
