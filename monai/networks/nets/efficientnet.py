@@ -19,7 +19,8 @@ import torch
 from torch import nn
 from torch.utils import model_zoo
 
-from monai.networks.layers.factories import Act, Conv, Norm, Pad, Pool
+from monai.networks.layers.factories import Act, Conv, Pad, Pool
+from monai.networks.layers.utils import get_norm_layer
 
 __all__ = ["EfficientNet", "EfficientNetBN", "get_efficientnet_image_size", "drop_connect"]
 
@@ -48,8 +49,7 @@ class MBConvBlock(nn.Module):
         expand_ratio: int,
         se_ratio: Optional[float],
         id_skip: Optional[bool] = True,
-        batch_norm_momentum: float = 0.99,
-        batch_norm_epsilon: float = 1e-3,
+        norm: Union[str, tuple] = ("batch", {"eps": 1e-3, "momentum": 0.01}),
         drop_connect_rate: Optional[float] = 0.2,
     ) -> None:
         """
@@ -65,8 +65,7 @@ class MBConvBlock(nn.Module):
             expand_ratio: expansion ratio for inverted bottleneck.
             se_ratio: squeeze-excitation ratio for se layers.
             id_skip: whether to use skip connection.
-            batch_norm_momentum: momentum for batch norm.
-            batch_norm_epsilon: epsilon for batch norm.
+            norm: feature normalization type and arguments. Defaults to batch norm.
             drop_connect_rate: dropconnect rate for drop connection (individual weights) layers.
 
         References:
@@ -79,7 +78,6 @@ class MBConvBlock(nn.Module):
         # select the type of N-Dimensional layers to use
         # these are based on spatial dims and selected from MONAI factories
         conv_type = Conv["conv", spatial_dims]
-        batchnorm_type = Norm["batch", spatial_dims]
         adaptivepool_type = Pool["adaptiveavg", spatial_dims]
 
         self.in_channels = in_channels
@@ -95,9 +93,6 @@ class MBConvBlock(nn.Module):
         else:
             self.has_se = False
 
-        bn_mom = 1.0 - batch_norm_momentum  # pytorch"s difference from tensorflow
-        bn_eps = batch_norm_epsilon
-
         # Expansion phase (Inverted Bottleneck)
         inp = in_channels  # number of input channels
         oup = in_channels * expand_ratio  # number of output channels
@@ -105,7 +100,7 @@ class MBConvBlock(nn.Module):
             self._expand_conv = conv_type(in_channels=inp, out_channels=oup, kernel_size=1, bias=False)
             self._expand_conv_padding = _make_same_padder(self._expand_conv, image_size)
 
-            self._bn0 = batchnorm_type(num_features=oup, momentum=bn_mom, eps=bn_eps)
+            self._bn0 = get_norm_layer(name=norm, spatial_dims=spatial_dims, channels=oup)
         else:
             # need to have the following to fix JIT error:
             #   "Module 'MBConvBlock' has no attribute '_expand_conv'"
@@ -125,7 +120,7 @@ class MBConvBlock(nn.Module):
             bias=False,
         )
         self._depthwise_conv_padding = _make_same_padder(self._depthwise_conv, image_size)
-        self._bn1 = batchnorm_type(num_features=oup, momentum=bn_mom, eps=bn_eps)
+        self._bn1 = get_norm_layer(name=norm, spatial_dims=spatial_dims, channels=oup)
         image_size = _calculate_output_image_size(image_size, self.stride)
 
         # Squeeze and Excitation layer, if desired
@@ -141,7 +136,7 @@ class MBConvBlock(nn.Module):
         final_oup = out_channels
         self._project_conv = conv_type(in_channels=oup, out_channels=final_oup, kernel_size=1, bias=False)
         self._project_conv_padding = _make_same_padder(self._project_conv, image_size)
-        self._bn2 = batchnorm_type(num_features=final_oup, momentum=bn_mom, eps=bn_eps)
+        self._bn2 = get_norm_layer(name=norm, spatial_dims=spatial_dims, channels=final_oup)
 
         # swish activation to use - using memory efficient swish by default
         # can be switched to normal swish using self.set_swish() function call
@@ -207,8 +202,7 @@ class EfficientNet(nn.Module):
         depth_coefficient: float = 1.0,
         dropout_rate: float = 0.2,
         image_size: int = 224,
-        batch_norm_momentum: float = 0.99,
-        batch_norm_epsilon: float = 1e-3,
+        norm: Union[str, tuple] = ("batch", {"eps": 1e-3, "momentum": 0.01}),
         drop_connect_rate: float = 0.2,
         depth_divisor: int = 8,
     ) -> None:
@@ -226,8 +220,7 @@ class EfficientNet(nn.Module):
             depth_coefficient: depth multiplier coefficient (d in paper).
             dropout_rate: dropout rate for dropout layers.
             image_size: input image resolution.
-            batch_norm_momentum: momentum for batch norm.
-            batch_norm_epsilon: epsilon for batch norm.
+            norm: feature normalization type and arguments. Defaults to batch norm.
             drop_connect_rate: dropconnect rate for drop connection (individual weights) layers.
             depth_divisor: depth divisor for channel rounding.
         """
@@ -239,7 +232,6 @@ class EfficientNet(nn.Module):
         # select the type of N-Dimensional layers to use
         # these are based on spatial dims and selected from MONAI factories
         conv_type: Type[Union[nn.Conv1d, nn.Conv2d, nn.Conv3d]] = Conv["conv", spatial_dims]
-        batchnorm_type: Type[Union[nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d]] = Norm["batch", spatial_dims]
         adaptivepool_type: Type[Union[nn.AdaptiveAvgPool1d, nn.AdaptiveAvgPool2d, nn.AdaptiveAvgPool3d]] = Pool[
             "adaptiveavg", spatial_dims
         ]
@@ -262,16 +254,12 @@ class EfficientNet(nn.Module):
         # expand input image dimensions to list
         current_image_size = [image_size] * spatial_dims
 
-        # parameters for batch norm
-        bn_mom = 1 - batch_norm_momentum  # 1 - bn_m to convert tensorflow's arg to pytorch bn compatible
-        bn_eps = batch_norm_epsilon
-
         # Stem
         stride = 2
         out_channels = _round_filters(32, width_coefficient, depth_divisor)  # number of output channels
         self._conv_stem = conv_type(self.in_channels, out_channels, kernel_size=3, stride=stride, bias=False)
         self._conv_stem_padding = _make_same_padder(self._conv_stem, current_image_size)
-        self._bn0 = batchnorm_type(num_features=out_channels, momentum=bn_mom, eps=bn_eps)
+        self._bn0 = get_norm_layer(name=norm, spatial_dims=spatial_dims, channels=out_channels)
         current_image_size = _calculate_output_image_size(current_image_size, stride)
 
         # build MBConv blocks
@@ -312,8 +300,7 @@ class EfficientNet(nn.Module):
                     expand_ratio=block_args.expand_ratio,
                     se_ratio=block_args.se_ratio,
                     id_skip=block_args.id_skip,
-                    batch_norm_momentum=batch_norm_momentum,
-                    batch_norm_epsilon=batch_norm_epsilon,
+                    norm=norm,
                     drop_connect_rate=blk_drop_connect_rate,
                 ),
             )
@@ -344,8 +331,7 @@ class EfficientNet(nn.Module):
                         expand_ratio=block_args.expand_ratio,
                         se_ratio=block_args.se_ratio,
                         id_skip=block_args.id_skip,
-                        batch_norm_momentum=batch_norm_momentum,
-                        batch_norm_epsilon=batch_norm_epsilon,
+                        norm=norm,
                         drop_connect_rate=blk_drop_connect_rate,
                     ),
                 )
@@ -360,7 +346,7 @@ class EfficientNet(nn.Module):
         out_channels = _round_filters(1280, width_coefficient, depth_divisor)
         self._conv_head = conv_type(head_in_channels, out_channels, kernel_size=1, bias=False)
         self._conv_head_padding = _make_same_padder(self._conv_head, current_image_size)
-        self._bn1 = batchnorm_type(num_features=out_channels, momentum=bn_mom, eps=bn_eps)
+        self._bn1 = get_norm_layer(name=norm, spatial_dims=spatial_dims, channels=out_channels)
 
         # final linear layer
         self._avg_pooling = adaptivepool_type(1)
