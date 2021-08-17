@@ -45,7 +45,7 @@ class Compose(Randomizable, InvertibleTransform):
        ndarray / tensor / tensor-like parameter.
     #. With a series of transforms that accept and return a dictionary that
        contains one or more parameters. Such transforms must have pass-through
-       semantics; unused values in the dictionary must be copied to the return
+       semantics that unused values in the dictionary must be copied to the return
        dictionary. It is required that the dictionary is copied between input
        and output of each transform.
 
