@@ -803,13 +803,13 @@ class MaskIntensity(Transform):
             of input image. if multiple channels, the number of channels must
             match the input data. the intensity values of input image corresponding
             to the selected values in the mask data will keep the original value,
-            others will be set to `0`.
+            others will be set to `0`. if None, must specify the `mask_data` at runtime.
         select_fn: function to select valid values of the `mask_data`, default is
             to select `values > 0`.
 
     """
 
-    def __init__(self, mask_data: Optional[np.ndarray], select_fn: Callable = is_positive) -> None:
+    def __init__(self, mask_data: Optional[np.ndarray] = None, select_fn: Callable = is_positive) -> None:
         self.mask_data = mask_data
         self.select_fn = select_fn
 
