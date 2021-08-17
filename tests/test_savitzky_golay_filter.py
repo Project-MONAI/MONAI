@@ -150,3 +150,7 @@ class TestSavitzkyGolayGPUREP(unittest.TestCase):
     def test_value(self, arguments, image, expected_data, atol):
         result = SavitzkyGolayFilter(**arguments)(image.to(device="cuda"))
         np.testing.assert_allclose(result.cpu(), expected_data, atol=atol)
+
+
+if __name__ == "__main__":
+    unittest.main()

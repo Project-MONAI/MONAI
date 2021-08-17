@@ -18,17 +18,12 @@ from monai.transforms import RandBiasField
 
 TEST_CASES_2D = [{}, (3, 32, 32)]
 TEST_CASES_3D = [{}, (3, 32, 32, 32)]
-TEST_CASES_2D_ZERO_RANGE = [{"coeff_range": (0.0, 0.0)}, (3, 32, 32)]
-TEST_CASES_2D_ONES = [{"coeff_range": (1.0, 1.0)}, np.asarray([[[2, -2], [2, 10]]])]
+TEST_CASES_2D_ZERO_RANGE = [{"coeff_range": (0.0, 0.0)}, (2, 3, 3)]
+TEST_CASES_2D_ONES = [{"coeff_range": (1.0, 1.0)}, np.asarray([[[7.389056, 0.1353353], [7.389056, 22026.46]]])]
 
 
 class TestRandBiasField(unittest.TestCase):
-    @parameterized.expand(
-        [
-            TEST_CASES_2D,
-            TEST_CASES_3D,
-        ]
-    )
+    @parameterized.expand([TEST_CASES_2D, TEST_CASES_3D])
     def test_output_shape(self, class_args, img_shape):
         for degree in [1, 2, 3]:
             bias_field = RandBiasField(degree=degree, **class_args)
@@ -44,16 +39,16 @@ class TestRandBiasField(unittest.TestCase):
     @parameterized.expand([TEST_CASES_2D_ZERO_RANGE])
     def test_zero_range(self, class_args, img_shape):
         bias_field = RandBiasField(**class_args)
-        img = np.random.rand(*img_shape)
+        img = np.ones(img_shape)
         output = bias_field(img)
-        np.testing.assert_equal(output, np.zeros(img_shape))
+        np.testing.assert_allclose(output, np.ones(img_shape), rtol=1e-3)
 
     @parameterized.expand([TEST_CASES_2D_ONES])
     def test_one_range_input(self, class_args, expected):
         bias_field = RandBiasField(**class_args)
         img = np.ones([1, 2, 2])
         output = bias_field(img)
-        np.testing.assert_equal(output, expected.astype(bias_field.dtype))
+        np.testing.assert_allclose(output, expected.astype(bias_field.dtype), rtol=1e-3)
 
     def test_zero_prob(self):
         bias_field = RandBiasField(prob=0.0)
