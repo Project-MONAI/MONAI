@@ -54,6 +54,7 @@ __all__ = [
     "create_translate",
     "extreme_points_to_image",
     "fill_holes",
+    "Fourier",
     "generate_label_classes_crop_centers",
     "generate_pos_neg_label_crop_centers",
     "generate_spatial_bounding_box",
@@ -1068,3 +1069,43 @@ def equalize_hist(
     img = np.interp(img.flatten(), bins, cum)
 
     return img.reshape(orig_shape).astype(dtype)
+
+
+class Fourier:
+    """
+    Helper class storing Fourier mappings
+    """
+
+    @staticmethod
+    def shift_fourier(x: torch.Tensor, n_dims: int) -> torch.Tensor:
+        """
+        Applies fourier transform and shifts the zero-frequency component to the
+        center of the spectrum. Only the spatial dimensions get transformed.
+
+        Args:
+            x: Image to transform.
+            n_dims: Number of spatial dimensions.
+        Returns
+            k: K-space data.
+        """
+        k: torch.Tensor = torch.fft.fftshift(
+            torch.fft.fftn(x, dim=tuple(range(-n_dims, 0))), dim=tuple(range(-n_dims, 0))
+        )
+        return k
+
+    @staticmethod
+    def inv_shift_fourier(k: torch.Tensor, n_dims: int) -> torch.Tensor:
+        """
+        Applies inverse shift and fourier transform. Only the spatial
+        dimensions are transformed.
+
+        Args:
+            k: K-space data.
+            n_dims: Number of spatial dimensions.
+        Returns:
+            x: Tensor in image space.
+        """
+        x: torch.Tensor = torch.fft.ifftn(
+            torch.fft.ifftshift(k, dim=tuple(range(-n_dims, 0))), dim=tuple(range(-n_dims, 0))
+        ).real
+        return x

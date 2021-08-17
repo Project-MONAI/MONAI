@@ -30,7 +30,6 @@ __all__ = [
     "RandomizableTransform",
     "Transform",
     "MapTransform",
-    "Fourier",
 ]
 
 ReturnType = TypeVar("ReturnType")
@@ -379,43 +378,3 @@ class MapTransform(Transform):
                 yield (key,) + tuple(_ex_iters) if extra_iterables else key
             elif not self.allow_missing_keys:
                 raise KeyError(f"Key was missing ({key}) and allow_missing_keys==False")
-
-
-class Fourier:
-    """
-    Helper class storing Fourier mappings
-    """
-
-    @staticmethod
-    def shift_fourier(x: torch.Tensor, n_dims: int) -> torch.Tensor:
-        """
-        Applies fourier transform and shifts the zero-frequency component to the
-        center of the spectrum. Only the spatial dimensions get transformed.
-
-        Args:
-            x: Image to transform.
-            n_dims: Number of spatial dimensions.
-        Returns
-            k: K-space data.
-        """
-        k: torch.Tensor = torch.fft.fftshift(
-            torch.fft.fftn(x, dim=tuple(range(-n_dims, 0))), dim=tuple(range(-n_dims, 0))
-        )
-        return k
-
-    @staticmethod
-    def inv_shift_fourier(k: torch.Tensor, n_dims: int) -> torch.Tensor:
-        """
-        Applies inverse shift and fourier transform. Only the spatial
-        dimensions are transformed.
-
-        Args:
-            k: K-space data.
-            n_dims: Number of spatial dimensions.
-        Returns:
-            x: Tensor in image space.
-        """
-        x: torch.Tensor = torch.fft.ifftn(
-            torch.fft.ifftshift(k, dim=tuple(range(-n_dims, 0))), dim=tuple(range(-n_dims, 0))
-        ).real
-        return x
