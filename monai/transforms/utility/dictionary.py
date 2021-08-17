@@ -49,6 +49,7 @@ from monai.transforms.utility.array import (
     SplitChannel,
     SqueezeDim,
     ToCupy,
+    ToDevice,
     ToNumpy,
     ToPIL,
     TorchVision,
@@ -141,6 +142,9 @@ __all__ = [
     "ToCupyD",
     "ToCupyDict",
     "ToCupyd",
+    "ToDeviced",
+    "ToDeviceD",
+    "ToDeviceDict",
     "ToNumpyD",
     "ToNumpyDict",
     "ToNumpyd",
@@ -1354,6 +1358,34 @@ class IntensityStatsd(MapTransform):
         return d
 
 
+class ToDeviced(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.ToDevice`.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        device: Union[torch.device, str],
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            device: target device to move the Tensor, for example: "cuda:1".
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.converter = ToDevice(device=device)
+
+    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.converter(d[key])
+        return d
+
+
 IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
@@ -1389,3 +1421,4 @@ RandTorchVisionD = RandTorchVisionDict = RandTorchVisiond
 RandLambdaD = RandLambdaDict = RandLambdad
 MapLabelValueD = MapLabelValueDict = MapLabelValued
 IntensityStatsD = IntensityStatsDict = IntensityStatsd
+ToDeviceD = ToDeviceDict = ToDeviced
