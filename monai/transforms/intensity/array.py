@@ -21,13 +21,16 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike
+from monai.config.type_definitions import NdarrayTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
-from monai.transforms.transform import Fourier, RandomizableTransform, Transform
-from monai.transforms.utils import equalize_hist, is_positive, rescale_array
+from monai.transforms.transform import RandomizableTransform, Transform
+from monai.transforms.utils import Fourier, equalize_hist, is_positive, rescale_array
 from monai.utils import (
     PT_BEFORE_1_7,
     InvalidPyTorchVersionError,
+    convert_data_type,
+    convert_to_dst_type,
     dtype_torch_to_numpy,
     ensure_tuple,
     ensure_tuple_rep,
@@ -78,6 +81,8 @@ class RandGaussianNoise(RandomizableTransform):
         std: Standard deviation (spread) of distribution.
     """
 
+    backend = ["torch", "numpy"]
+
     def __init__(self, prob: float = 0.1, mean: Union[Sequence[float], float] = 0.0, std: float = 0.1) -> None:
         RandomizableTransform.__init__(self, prob)
         self.mean = mean
@@ -88,17 +93,17 @@ class RandGaussianNoise(RandomizableTransform):
         super().randomize(None)
         self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
 
-    def __call__(self, img: Union[torch.Tensor, np.ndarray]) -> Union[torch.Tensor, np.ndarray]:
+    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
         """
         Apply the transform to `img`.
         """
         self.randomize(img.shape)
         if self._noise is None:
-            raise AssertionError
+            raise RuntimeError("randomized factor should not be None.")
         if not self._do_transform:
             return img
-        dtype = dtype_torch_to_numpy(img.dtype) if isinstance(img, torch.Tensor) else img.dtype
-        return img + self._noise.astype(dtype)
+        noise, *_ = convert_to_dst_type(self._noise, img)
+        return img + noise  # type: ignore
 
 
 class RandRicianNoise(RandomizableTransform):
@@ -149,7 +154,7 @@ class RandRicianNoise(RandomizableTransform):
         self._noise1 = self.R.normal(mean, _std, size=im_shape)
         self._noise2 = self.R.normal(mean, _std, size=im_shape)
         if self._noise1 is None or self._noise2 is None:
-            raise AssertionError
+            raise RuntimeError("noise should not be None.")
         dtype = dtype_torch_to_numpy(img.dtype) if isinstance(img, torch.Tensor) else img.dtype
         return np.sqrt((img + self._noise1.astype(dtype)) ** 2 + self._noise2.astype(dtype) ** 2)
 
@@ -167,12 +172,12 @@ class RandRicianNoise(RandomizableTransform):
                 img[i] = self._add_noise(d, mean=_mean[i], std=_std[i] * d.std() if self.relative else _std[i])
         else:
             if not isinstance(self.mean, (int, float)):
-                raise AssertionError("If channel_wise is False, mean must be a float or int number.")
+                raise RuntimeError("If channel_wise is False, mean must be a float or int number.")
             if not isinstance(self.std, (int, float)):
-                raise AssertionError("If channel_wise is False, std must be a float or int number.")
+                raise RuntimeError("If channel_wise is False, std must be a float or int number.")
             std = self.std * img.std() if self.relative else self.std
             if not isinstance(std, (int, float)):
-                raise AssertionError
+                raise RuntimeError("std must be a float or int number.")
             img = self._add_noise(img, mean=self.mean, std=std)
         return img
 
@@ -212,9 +217,9 @@ class RandShiftIntensity(RandomizableTransform):
         RandomizableTransform.__init__(self, prob)
         if isinstance(offsets, (int, float)):
             self.offsets = (min(-offsets, offsets), max(-offsets, offsets))
+        elif len(offsets) != 2:
+            raise ValueError("offsets should be a number or pair of numbers.")
         else:
-            if len(offsets) != 2:
-                raise AssertionError("offsets should be a number or pair of numbers.")
             self.offsets = (min(offsets), max(offsets))
         self._offset = self.offsets[0]
         self._shfiter = ShiftIntensity(self._offset)
@@ -310,9 +315,9 @@ class RandStdShiftIntensity(RandomizableTransform):
         RandomizableTransform.__init__(self, prob)
         if isinstance(factors, (int, float)):
             self.factors = (min(-factors, factors), max(-factors, factors))
+        elif len(factors) != 2:
+            raise ValueError("factors should be a number or pair of numbers.")
         else:
-            if len(factors) != 2:
-                raise AssertionError("factors should be a number or pair of numbers.")
             self.factors = (min(factors), max(factors))
         self.factor = self.factors[0]
         self.nonzero = nonzero
@@ -388,9 +393,9 @@ class RandScaleIntensity(RandomizableTransform):
         RandomizableTransform.__init__(self, prob)
         if isinstance(factors, (int, float)):
             self.factors = (min(-factors, factors), max(-factors, factors))
+        elif len(factors) != 2:
+            raise ValueError("factors should be a number or pair of numbers.")
         else:
-            if len(factors) != 2:
-                raise AssertionError("factors should be a number or pair of numbers.")
             self.factors = (min(factors), max(factors))
         self.factor = self.factors[0]
 
@@ -576,7 +581,7 @@ class ThresholdIntensity(Transform):
 
     def __init__(self, threshold: float, above: bool = True, cval: float = 0.0) -> None:
         if not isinstance(threshold, (int, float)):
-            raise AssertionError("threshold must be a float or int number.")
+            raise ValueError("threshold must be a float or int number.")
         self.threshold = threshold
         self.above = above
         self.cval = cval
@@ -637,7 +642,7 @@ class AdjustContrast(Transform):
 
     def __init__(self, gamma: float) -> None:
         if not isinstance(gamma, (int, float)):
-            raise AssertionError("gamma must be a float or int number.")
+            raise ValueError("gamma must be a float or int number.")
         self.gamma = gamma
 
     def __call__(self, img: np.ndarray):
@@ -667,13 +672,13 @@ class RandAdjustContrast(RandomizableTransform):
 
         if isinstance(gamma, (int, float)):
             if gamma <= 0.5:
-                raise AssertionError(
+                raise ValueError(
                     "if gamma is single number, must greater than 0.5 and value is picked from (0.5, gamma)"
                 )
             self.gamma = (0.5, gamma)
+        elif len(gamma) != 2:
+            raise ValueError("gamma should be a number or pair of numbers.")
         else:
-            if len(gamma) != 2:
-                raise AssertionError("gamma should be a number or pair of numbers.")
             self.gamma = (min(gamma), max(gamma))
 
         self.gamma_value: float
@@ -688,7 +693,7 @@ class RandAdjustContrast(RandomizableTransform):
         """
         self.randomize()
         if self.gamma_value is None:
-            raise AssertionError
+            raise ValueError("gamma_value is not set.")
         if not self._do_transform:
             return img
         adjuster = AdjustContrast(self.gamma_value)
@@ -754,9 +759,9 @@ class ScaleIntensityRangePercentiles(Transform):
         self, lower: float, upper: float, b_min: float, b_max: float, clip: bool = False, relative: bool = False
     ) -> None:
         if lower < 0.0 or lower > 100.0:
-            raise AssertionError("Percentiles must be in the range [0, 100]")
+            raise ValueError("Percentiles must be in the range [0, 100]")
         if upper < 0.0 or upper > 100.0:
-            raise AssertionError("Percentiles must be in the range [0, 100]")
+            raise ValueError("Percentiles must be in the range [0, 100]")
         self.lower = lower
         self.upper = upper
         self.b_min = b_min
@@ -847,6 +852,8 @@ class SavitzkyGolaySmooth(Transform):
             or ``'circular'``. Default: ``'zeros'``. See ``torch.nn.Conv1d()`` for more information.
     """
 
+    backend = ["numpy"]
+
     def __init__(self, window_length: int, order: int, axis: int = 1, mode: str = "zeros"):
 
         if axis < 0:
@@ -856,21 +863,24 @@ class SavitzkyGolaySmooth(Transform):
         self.order = order
         self.axis = axis
         self.mode = mode
+        self.img_t: torch.Tensor = torch.tensor(0.0)
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: NdarrayTensor) -> torch.Tensor:
         """
         Args:
-            img: numpy.ndarray containing input data. Must be real and in shape [channels, spatial1, spatial2, ...].
+            img: array containing input data. Must be real and in shape [channels, spatial1, spatial2, ...].
 
         Returns:
-            np.ndarray containing smoothed result.
+            array containing smoothed result.
 
         """
+        self.img_t, *_ = convert_data_type(img, torch.Tensor)
+
         # add one to transform axis because a batch axis will be added at dimension 0
         savgol_filter = SavitzkyGolayFilter(self.window_length, self.order, self.axis + 1, self.mode)
         # convert to Tensor and add Batch axis expected by HilbertTransform
-        input_data = torch.as_tensor(np.ascontiguousarray(img)).unsqueeze(0)
-        return savgol_filter(input_data).squeeze(0).numpy()
+        out: torch.Tensor = savgol_filter(self.img_t.unsqueeze(0)).squeeze(0)
+        return out
 
 
 class DetectEnvelope(Transform):
@@ -1113,13 +1123,13 @@ class RandHistogramShift(RandomizableTransform):
 
         if isinstance(num_control_points, int):
             if num_control_points <= 2:
-                raise AssertionError("num_control_points should be greater than or equal to 3")
+                raise ValueError("num_control_points should be greater than or equal to 3")
             self.num_control_points = (num_control_points, num_control_points)
         else:
             if len(num_control_points) != 2:
-                raise AssertionError("num_control points should be a number or a pair of numbers")
+                raise ValueError("num_control points should be a number or a pair of numbers")
             if min(num_control_points) <= 2:
-                raise AssertionError("num_control_points should be greater than or equal to 3")
+                raise ValueError("num_control_points should be greater than or equal to 3")
             self.num_control_points = (min(num_control_points), max(num_control_points))
 
     def randomize(self, data: Optional[Any] = None) -> None:
@@ -1169,11 +1179,11 @@ class RandGibbsNoise(RandomizableTransform):
     def __init__(self, prob: float = 0.1, alpha: Sequence[float] = (0.0, 1.0), as_tensor_output: bool = True) -> None:
 
         if len(alpha) != 2:
-            raise AssertionError("alpha length must be 2.")
+            raise ValueError("alpha length must be 2.")
         if alpha[1] > 1 or alpha[0] < 0:
-            raise AssertionError("alpha must take values in the interval [0,1]")
+            raise ValueError("alpha must take values in the interval [0,1]")
         if alpha[0] > alpha[1]:
-            raise AssertionError("When alpha = [a,b] we need a < b.")
+            raise ValueError("When alpha = [a,b] we need a < b.")
 
         self.alpha = alpha
         self.sampled_alpha = -1.0  # stores last alpha sampled by randomize()
@@ -1230,7 +1240,7 @@ class GibbsNoise(Transform, Fourier):
     def __init__(self, alpha: float = 0.5, as_tensor_output: bool = True) -> None:
 
         if alpha > 1 or alpha < 0:
-            raise AssertionError("alpha must take values in the interval [0,1].")
+            raise ValueError("alpha must take values in the interval [0,1].")
         self.alpha = alpha
         self.as_tensor_output = as_tensor_output
 
@@ -1329,14 +1339,13 @@ class KSpaceSpikeNoise(Transform, Fourier):
         # assert one-to-one relationship between factors and locations
         if isinstance(k_intensity, Sequence):
             if not isinstance(loc[0], Sequence):
-                raise AssertionError(
+                raise ValueError(
                     "If a sequence is passed to k_intensity, then a sequence of locations must be passed to loc"
                 )
             if len(k_intensity) != len(loc):
-                raise AssertionError("There must be one intensity_factor value for each tuple of indices in loc.")
-        if isinstance(self.loc[0], Sequence) and k_intensity is not None:
-            if not isinstance(self.k_intensity, Sequence):
-                raise AssertionError("There must be one intensity_factor value for each tuple of indices in loc.")
+                raise ValueError("There must be one intensity_factor value for each tuple of indices in loc.")
+        if isinstance(self.loc[0], Sequence) and k_intensity is not None and not isinstance(self.k_intensity, Sequence):
+            raise ValueError("There must be one intensity_factor value for each tuple of indices in loc.")
 
     def __call__(self, img: Union[np.ndarray, torch.Tensor]) -> Union[torch.Tensor, np.ndarray]:
         """
@@ -1347,11 +1356,11 @@ class KSpaceSpikeNoise(Transform, Fourier):
         self._check_indices(img)
 
         if len(img.shape) < 3:
-            raise AssertionError("Image needs a channel direction.")
+            raise RuntimeError("Image needs a channel direction.")
         if isinstance(self.loc[0], int) and len(img.shape) == 4 and len(self.loc) == 2:
-            raise AssertionError("Input images of dimension 4 need location tuple to be length 3 or 4")
+            raise RuntimeError("Input images of dimension 4 need location tuple to be length 3 or 4")
         if isinstance(self.loc[0], Sequence) and len(img.shape) == 4 and min(map(lambda x: len(x), self.loc)) == 2:
-            raise AssertionError("Input images of dimension 4 need location tuple to be length 3 or 4")
+            raise RuntimeError("Input images of dimension 4 need location tuple to be length 3 or 4")
 
         n_dims = len(img.shape[1:])
 
@@ -1392,8 +1401,8 @@ class KSpaceSpikeNoise(Transform, Fourier):
                 loc[i] = [0] + list(loc[i])
 
         for i in range(len(img.shape)):
-            if img.shape[i] <= max([x[i] for x in loc]):
-                raise AssertionError(
+            if img.shape[i] <= max(x[i] for x in loc):
+                raise ValueError(
                     f"The index value at position {i} of one of the tuples in loc = {self.loc} is out of bounds for current image."
                 )
 
@@ -1407,10 +1416,7 @@ class KSpaceSpikeNoise(Transform, Fourier):
             val: value of intensity to write in.
         """
         if len(k.shape) == len(idx):
-            if isinstance(val, Sequence):
-                k[idx] = val[idx[0]]
-            else:
-                k[idx] = val
+            k[idx] = val[idx[0]] if isinstance(val, Sequence) else val
         elif len(k.shape) == 4 and len(idx) == 3:
             k[:, idx[0], idx[1], idx[2]] = val  # type: ignore
         elif len(k.shape) == 3 and len(idx) == 2:
@@ -1470,11 +1476,8 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
         self.sampled_k_intensity: List = []
         self.sampled_locs: List[Tuple] = []
 
-        if intensity_range is not None:
-            if isinstance(intensity_range[0], Sequence) and not channel_wise:
-                raise AssertionError(
-                    "When channel_wise = False, intensity_range should be a 2-tuple (low, high) or None."
-                )
+        if intensity_range is not None and isinstance(intensity_range[0], Sequence) and not channel_wise:
+            raise ValueError("When channel_wise = False, intensity_range should be a 2-tuple (low, high) or None.")
 
         super().__init__(prob)
 
@@ -1485,11 +1488,14 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
         Args:
             img: image with dimensions (C, H, W) or (C, H, W, D)
         """
-        if self.intensity_range is not None:
-            if isinstance(self.intensity_range[0], Sequence) and len(self.intensity_range) != img.shape[0]:
-                raise AssertionError(
-                    "If intensity_range is a sequence of sequences, then there must be one (low, high) tuple for each channel."
-                )
+        if (
+            self.intensity_range is not None
+            and isinstance(self.intensity_range[0], Sequence)
+            and len(self.intensity_range) != img.shape[0]
+        ):
+            raise RuntimeError(
+                "If intensity_range is a sequence of sequences, then there must be one (low, high) tuple for each channel."
+            )
 
         self.sampled_k_intensity = []
         self.sampled_locs = []
@@ -1539,14 +1545,13 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
         """
         Formats the sequence of intensities ranges to Sequence[Sequence[float]].
         """
-        if self.intensity_range is not None:
-            if not isinstance(self.intensity_range[0], Sequence):
-                intensity_range = (ensure_tuple(self.intensity_range),) * x.shape[0]
-                return intensity_range
-            return ensure_tuple(self.intensity_range)
-        else:
+        if self.intensity_range is None:
             # set default range if one not provided
             return self._set_default_range(x)
+
+        if not isinstance(self.intensity_range[0], Sequence):
+            return (ensure_tuple(self.intensity_range),) * x.shape[0]
+        return ensure_tuple(self.intensity_range)
 
     def _set_default_range(self, img: torch.Tensor) -> Sequence[Sequence[float]]:
         """
@@ -1560,8 +1565,7 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
         k = self.shift_fourier(img, n_dims)
         log_abs = torch.log(torch.absolute(k) + 1e-10)
         shifted_means = torch.mean(log_abs, dim=tuple(range(-n_dims, 0))) * 2.5
-        intensity_sequence = tuple((i * 0.95, i * 1.1) for i in shifted_means)
-        return intensity_sequence
+        return tuple((i * 0.95, i * 1.1) for i in shifted_means)
 
 
 class RandCoarseDropout(RandomizableTransform):

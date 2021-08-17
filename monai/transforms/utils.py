@@ -11,7 +11,6 @@
 
 import itertools
 import random
-import re
 import warnings
 from contextlib import contextmanager
 from typing import Callable, Iterable, List, Optional, Sequence, Tuple, Union
@@ -46,8 +45,6 @@ __all__ = [
     "allow_missing_keys_mode",
     "compute_divisible_spatial_size",
     "convert_inverse_interp_mode",
-    "convert_to_numpy",
-    "convert_to_tensor",
     "copypaste_arrays",
     "create_control_grid",
     "create_grid",
@@ -57,6 +54,7 @@ __all__ = [
     "create_translate",
     "extreme_points_to_image",
     "fill_holes",
+    "Fourier",
     "generate_label_classes_crop_centers",
     "generate_pos_neg_label_crop_centers",
     "generate_spatial_bounding_box",
@@ -74,7 +72,6 @@ __all__ = [
     "rescale_array_int_max",
     "rescale_instance_array",
     "resize_center",
-    "tensor_to_numpy",
     "weighted_patch_samples",
     "zero_margins",
     "equalize_hist",
@@ -1032,93 +1029,6 @@ def compute_divisible_spatial_size(spatial_shape: Sequence[int], k: Union[Sequen
     return new_size
 
 
-def convert_to_tensor(data):
-    """
-    Utility to convert the input data to a PyTorch Tensor. If passing a dictionary, list or tuple,
-    recursively check every item and convert it to PyTorch Tensor.
-
-    Args:
-        data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
-            will convert Tensor, Numpy array, float, int, bool to Tensors, strings and objects keep the original.
-            for dictionary, list or tuple, convert every item to a Tensor if applicable.
-
-    """
-    if isinstance(data, torch.Tensor):
-        return data.contiguous()
-    if isinstance(data, np.ndarray):
-        # skip array of string classes and object, refer to:
-        # https://github.com/pytorch/pytorch/blob/v1.9.0/torch/utils/data/_utils/collate.py#L13
-        if re.search(r"[SaUO]", data.dtype.str) is None:
-            # numpy array with 0 dims is also sequence iterable,
-            # `ascontiguousarray` will add 1 dim if img has no dim, so we only apply on data with dims
-            return torch.as_tensor(data if data.ndim == 0 else np.ascontiguousarray(data))
-    elif isinstance(data, (float, int, bool)):
-        return torch.as_tensor(data)
-    elif isinstance(data, dict):
-        return {k: convert_to_tensor(v) for k, v in data.items()}
-    elif isinstance(data, list):
-        return [convert_to_tensor(i) for i in data]
-    elif isinstance(data, tuple):
-        return tuple(convert_to_tensor(i) for i in data)
-
-    return data
-
-
-def convert_to_numpy(data):
-    """
-    Utility to convert the input data to a numpy array. If passing a dictionary, list or tuple,
-    recursively check every item and convert it to numpy array.
-
-    Args:
-        data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
-            will convert Tensor, Numpy array, float, int, bool to numpy arrays, strings and objects keep the original.
-            for dictionary, list or tuple, convert every item to a numpy array if applicable.
-
-    """
-    if isinstance(data, torch.Tensor):
-        data = data.detach().cpu().numpy()
-    elif has_cp and isinstance(data, cp_ndarray):
-        data = cp.asnumpy(data)
-    elif isinstance(data, (float, int, bool)):
-        data = np.asarray(data)
-    elif isinstance(data, dict):
-        return {k: convert_to_numpy(v) for k, v in data.items()}
-    elif isinstance(data, list):
-        return [convert_to_numpy(i) for i in data]
-    elif isinstance(data, tuple):
-        return tuple([convert_to_numpy(i) for i in data])
-
-    if isinstance(data, np.ndarray) and data.ndim > 0:
-        data = np.ascontiguousarray(data)
-
-    return data
-
-
-def tensor_to_numpy(data):
-    """
-    Utility to convert the input PyTorch Tensor data to numpy array, if scalar Tensor, convert to regular number.
-    If passing a dictionary, list or tuple, recursively check every PyTorch Tensor item and convert it to numpy arrays.
-
-    Args:
-        data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
-            will convert the Tensor data to numpy array, others keep the original. for dictionary, list or tuple,
-            convert every Tensor item to numpy array if applicable.
-
-    """
-
-    if isinstance(data, torch.Tensor):
-        # invert Tensor to numpy, if scalar data, convert to number
-        return data.item() if data.ndim == 0 else np.ascontiguousarray(data.detach().cpu().numpy())
-    if isinstance(data, dict):
-        return {k: tensor_to_numpy(v) for k, v in data.items()}
-    if isinstance(data, list):
-        return [tensor_to_numpy(i) for i in data]
-    if isinstance(data, tuple):
-        return tuple(tensor_to_numpy(i) for i in data)
-
-    return data
-
-
 def equalize_hist(
     img: np.ndarray,
     mask: Optional[np.ndarray] = None,
@@ -1159,3 +1069,43 @@ def equalize_hist(
     img = np.interp(img.flatten(), bins, cum)
 
     return img.reshape(orig_shape).astype(dtype)
+
+
+class Fourier:
+    """
+    Helper class storing Fourier mappings
+    """
+
+    @staticmethod
+    def shift_fourier(x: torch.Tensor, n_dims: int) -> torch.Tensor:
+        """
+        Applies fourier transform and shifts the zero-frequency component to the
+        center of the spectrum. Only the spatial dimensions get transformed.
+
+        Args:
+            x: Image to transform.
+            n_dims: Number of spatial dimensions.
+        Returns
+            k: K-space data.
+        """
+        k: torch.Tensor = torch.fft.fftshift(
+            torch.fft.fftn(x, dim=tuple(range(-n_dims, 0))), dim=tuple(range(-n_dims, 0))
+        )
+        return k
+
+    @staticmethod
+    def inv_shift_fourier(k: torch.Tensor, n_dims: int) -> torch.Tensor:
+        """
+        Applies inverse shift and fourier transform. Only the spatial
+        dimensions are transformed.
+
+        Args:
+            k: K-space data.
+            n_dims: Number of spatial dimensions.
+        Returns:
+            x: Tensor in image space.
+        """
+        x: torch.Tensor = torch.fft.ifftn(
+            torch.fft.ifftshift(k, dim=tuple(range(-n_dims, 0))), dim=tuple(range(-n_dims, 0))
+        ).real
+        return x
