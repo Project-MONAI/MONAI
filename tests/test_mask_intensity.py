@@ -50,6 +50,14 @@ class TestMaskIntensity(unittest.TestCase):
         result = MaskIntensity(**argments)(image)
         np.testing.assert_allclose(result, expected_data)
 
+    def test_runtime_mask(self):
+        mask_data = np.array([[[0, 0, 0], [0, 1, 0], [0, 0, 0]]])
+        img = np.array([[[1, 1, 1], [2, 2, 2], [3, 3, 3]], [[4, 4, 4], [5, 5, 5], [6, 6, 6]]])
+        expected = np.array([[[0, 0, 0], [0, 2, 0], [0, 0, 0]], [[0, 0, 0], [0, 5, 0], [0, 0, 0]]])
+
+        result = MaskIntensity()(img=img, mask_data=mask_data)
+        np.testing.assert_allclose(result, expected)
+
 
 if __name__ == "__main__":
     unittest.main()
