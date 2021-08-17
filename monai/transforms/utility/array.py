@@ -1018,7 +1018,7 @@ class IntensityStats(Transform):
         return img, meta_data
 
 
-class ToDevice:
+class ToDevice(Transform):
     """
     Move PyTorch Tensor to the specified device.
     It can help cache data into GPU and execute following logic on GPU directly.
