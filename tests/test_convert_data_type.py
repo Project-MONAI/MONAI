@@ -16,7 +16,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.utils.type_conversion import convert_data_type, convert_same_type
+from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 from tests.utils import TEST_NDARRAYS
 
 TESTS: List[Tuple] = []
@@ -51,7 +51,7 @@ class TestConvertDataType(unittest.TestCase):
 class TestConvertDataSame(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_convert_data_type(self, in_image, im_out):
-        converted_im, orig_type, orig_device = convert_same_type(in_image, im_out)
+        converted_im, orig_type, orig_device = convert_to_dst_type(in_image, im_out)
         # check input is unchanged
         self.assertEqual(type(in_image), orig_type)
         if isinstance(in_image, torch.Tensor):

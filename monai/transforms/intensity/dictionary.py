@@ -44,7 +44,7 @@ from monai.transforms.intensity.array import (
 )
 from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.transforms.utils import is_positive
-from monai.utils import convert_same_type, ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
+from monai.utils import convert_to_dst_type, ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
 
 __all__ = [
     "RandGaussianNoised",
@@ -176,7 +176,7 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         if not self._do_transform:
             return d
         for key, noise in self.key_iterator(d, self._noise):
-            noise, *_ = convert_same_type(noise, d[key])
+            noise, *_ = convert_to_dst_type(noise, d[key])
             d[key] = d[key] + noise
         return d
 

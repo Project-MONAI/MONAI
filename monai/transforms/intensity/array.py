@@ -30,7 +30,7 @@ from monai.utils import (
     PT_BEFORE_1_7,
     InvalidPyTorchVersionError,
     convert_data_type,
-    convert_same_type,
+    convert_to_dst_type,
     dtype_torch_to_numpy,
     ensure_tuple,
     ensure_tuple_rep,
@@ -102,7 +102,7 @@ class RandGaussianNoise(RandomizableTransform):
             raise RuntimeError("randomized factor should not be None.")
         if not self._do_transform:
             return img
-        noise, *_ = convert_same_type(self._noise, img)
+        noise, *_ = convert_to_dst_type(self._noise, img)
         return img + noise  # type: ignore
 
 

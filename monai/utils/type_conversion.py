@@ -188,7 +188,7 @@ def convert_data_type(
     return data, orig_type, orig_device
 
 
-def convert_same_type(src: Any, dst: NdarrayTensor) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
+def convert_to_dst_type(src: Any, dst: NdarrayTensor) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
     """
     Convert `src` to the same `torch.Tensor`/`np.ndarray` and data type as `dst`.
 
