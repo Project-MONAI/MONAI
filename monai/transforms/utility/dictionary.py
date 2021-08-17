@@ -1379,7 +1379,7 @@ class ToDeviced(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = ToDevice(device=device)
 
-    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
