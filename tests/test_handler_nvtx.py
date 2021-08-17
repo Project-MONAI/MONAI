@@ -66,6 +66,8 @@ class TestHandlerDecollateBatch(unittest.TestCase):
             MarkHandler(Events.STARTED),
             # Mark with literal
             MarkHandler("EPOCH_STARTED"),
+            # Mark with literal and providing the message
+            MarkHandler("EPOCH_STARTED", "Start of the epoch"),
             # Define a range using one prefix (between BATCH_STARTED and BATCH_COMPLETED)
             RangeHandler("Batch"),
             # Define a range using a pair of events
@@ -76,10 +78,15 @@ class TestHandlerDecollateBatch(unittest.TestCase):
             RangeHandler(("GET_BATCH_STARTED", Events.COMPLETED)),
             # Define the start of range using literal
             RangePushHandler("ITERATION_STARTED"),
-            RangePushHandler("EPOCH_STARTED", "EPOCH 2"),
+            # Define the start of range using event
+            RangePushHandler(Events.ITERATION_STARTED, "Iteration 2"),
+            # Define the start of range using literals and providing message
+            RangePushHandler("EPOCH_STARTED", "Epoch 2"),
             # Define the end of range using Ignite Event
             RangePopHandler(Events.ITERATION_COMPLETED),
             RangePopHandler(Events.EPOCH_COMPLETED),
+            # Define the end of range using literal
+            RangePopHandler("ITERATION_COMPLETED"),
             # Other handlers
             StatsHandler(tag_name="train", output_transform=from_engine(["label"], first=True)),
         ]
