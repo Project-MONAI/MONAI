@@ -72,7 +72,7 @@ class DynUNet(nn.Module):
     Therefore, pleasure ensure that the length of input sequences (``kernel_size`` and ``strides``)
     is no less than 3 in order to have at least one downsample and upsample blocks.
 
-    To meet to requirements of the structure, the input size for each spatial dimension should be divisible
+    To meet the requirements of the structure, the input size for each spatial dimension should be divisible
     by `2 * the product of all strides in the corresponding dimension`. The output size for each spatial dimension
     equals to the input size of the correponding dimension divided by the stride in strides[0].
     For example, if `strides=((1, 2, 4), 2, 1, 1)`, the minimal spatial size of the input is `(8, 16, 32)`, and
