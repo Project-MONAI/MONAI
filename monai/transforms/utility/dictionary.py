@@ -55,8 +55,8 @@ from monai.transforms.utility.array import (
     ToTensor,
     Transpose,
 )
-from monai.transforms.utils import extreme_points_to_image, get_extreme_points, tensor_to_numpy
-from monai.utils import ensure_tuple, ensure_tuple_rep
+from monai.transforms.utils import extreme_points_to_image, get_extreme_points
+from monai.utils import convert_to_numpy, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import InverseKeys
 
 __all__ = [
@@ -489,7 +489,7 @@ class EnsureTyped(MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             # FIXME: currently, only convert tensor data to numpy array or scalar number,
             # need to also invert numpy array but it's not easy to determine the previous data type
-            d[key] = tensor_to_numpy(d[key])
+            d[key] = convert_to_numpy(d[key])
             # Remove the applied transform
             self.pop_transform(d, key)
         return d
