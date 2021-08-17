@@ -56,10 +56,11 @@ class RangeHandler:
     ) -> None:
         self.events = self.resolve_events(events)
         if msg is None:
-            # assign the prefix of the events
             if isinstance(events, str):
+                # assign the prefix of the events
                 msg = events
             else:
+                # combine events' names
                 msg = "/".join([e.name for e in self.events])
         self.msg = msg
         self.depth = None
@@ -97,9 +98,8 @@ class RangeHandler:
 
     def get_event(self, event: Union[str, Events]) -> Events:
         if isinstance(event, str):
-            return Events[event.upper()]
-        if isinstance(event, Events):
-            return event
+            event = event.upper()
+        return Events[event]
 
     def attach(self, engine: Engine) -> None:
         """
@@ -128,11 +128,11 @@ class RangePushHandler:
 
     def __init__(self, event: Events, msg: Optional[str] = None) -> None:
         if isinstance(event, str):
-            event = Events[event]
+            event = event.upper()
+        self.event = Events[event]
         if msg is None:
-            msg = event.name
+            msg = self.event.name
         self.msg = msg
-        self.event = event
         self.depth = None
 
     def attach(self, engine: Engine) -> None:
@@ -158,8 +158,8 @@ class RangePopHandler:
 
     def __init__(self, event: Events) -> None:
         if isinstance(event, str):
-            event = Events[event]
-        self.event = event
+            event = event.upper()
+        self.event = Events[event]
 
     def attach(self, engine: Engine) -> None:
         """
@@ -183,11 +183,11 @@ class MarkHandler:
 
     def __init__(self, event: Events, msg: Optional[str] = None) -> None:
         if isinstance(event, str):
-            event = Events[event]
+            event = event.upper()
+        self.event = Events[event]
         if msg is None:
-            msg = event.name
+            msg = self.event.name
         self.msg = msg
-        self.event = event
 
     def attach(self, engine: Engine) -> None:
         """
