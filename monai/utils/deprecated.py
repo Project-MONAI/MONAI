@@ -100,9 +100,8 @@ def deprecated(
 
         if is_func:
             return _wrapper
-        else:
-            obj.__init__ = _wrapper
-            return obj
+        obj.__init__ = _wrapper
+        return obj
 
     return _decorator
 

@@ -15,6 +15,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import KeepLargestConnectedComponent
+from tests.utils import allclose, clone
 
 grid_1 = torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 1, 0], [2, 2, 0, 0, 2]]])
 grid_2 = torch.tensor([[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [1, 0, 1, 1, 2], [1, 0, 1, 2, 2], [0, 0, 0, 0, 1]]])
@@ -322,23 +323,23 @@ INVALID_CASES = [ITEST_CASE_1, ITEST_CASE_2]
 
 class TestKeepLargestConnectedComponent(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
-    def test_correct_results(self, _, args, tensor, expected):
+    def test_correct_results(self, _, args, input_image, expected):
         converter = KeepLargestConnectedComponent(**args)
-        if torch.cuda.is_available():
-            result = converter(tensor.clone().cuda())
-            assert torch.allclose(result, expected.cuda())
+        if isinstance(input_image, torch.Tensor) and torch.cuda.is_available():
+            result = converter(clone(input_image).cuda())
+            assert allclose(result, expected.cuda())
         else:
-            result = converter(tensor.clone())
-            assert torch.allclose(result, expected)
+            result = converter(clone(input_image))
+            assert allclose(result, expected)
 
     @parameterized.expand(INVALID_CASES)
-    def test_raise_exception(self, _, args, tensor, expected_error):
+    def test_raise_exception(self, _, args, input_image, expected_error):
         with self.assertRaises(expected_error):
             converter = KeepLargestConnectedComponent(**args)
-            if torch.cuda.is_available():
-                _ = converter(tensor.clone().cuda())
+            if isinstance(input_image, torch.Tensor) and torch.cuda.is_available():
+                _ = converter(clone(input_image).cuda())
             else:
-                _ = converter(tensor.clone())
+                _ = converter(clone(input_image).clone())
 
 
 if __name__ == "__main__":

@@ -35,7 +35,7 @@ class MLPBlock(nn.Module):
         super().__init__()
 
         if not (0 <= dropout_rate <= 1):
-            raise AssertionError("dropout_rate should be between 0 and 1.")
+            raise ValueError("dropout_rate should be between 0 and 1.")
 
         self.linear1 = nn.Linear(hidden_size, mlp_dim)
         self.linear2 = nn.Linear(mlp_dim, hidden_size)

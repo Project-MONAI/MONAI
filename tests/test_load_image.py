@@ -12,6 +12,7 @@
 import os
 import tempfile
 import unittest
+from pathlib import Path
 
 import itk
 import nibabel as nib
@@ -21,6 +22,23 @@ from PIL import Image
 
 from monai.data import ITKReader, NibabelReader
 from monai.transforms import LoadImage
+
+
+class _MiniReader:
+    """a test case customised reader"""
+
+    def __init__(self, is_compatible=False):
+        self.is_compatible = is_compatible
+
+    def verify_suffix(self, _name):
+        return self.is_compatible
+
+    def read(self, name):
+        return name
+
+    def get_data(self, _obj):
+        return np.zeros((1, 1, 1)), {"name": "my test"}
+
 
 TEST_CASE_1 = [{"image_only": True}, ["test_image.nii.gz"], (128, 128, 128)]
 
@@ -32,8 +50,20 @@ TEST_CASE_3 = [
     (3, 128, 128, 128),
 ]
 
+TEST_CASE_3_1 = [  # .mgz format
+    {"image_only": True, "reader": "nibabelreader"},
+    ["test_image.mgz", "test_image2.mgz", "test_image3.mgz"],
+    (3, 128, 128, 128),
+]
+
 TEST_CASE_4 = [
     {"image_only": False},
+    ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
+    (3, 128, 128, 128),
+]
+
+TEST_CASE_4_1 = [  # additional parameter
+    {"image_only": False, "mmap": False},
     ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
     (3, 128, 128, 128),
 ]
@@ -74,7 +104,9 @@ TEST_CASE_11 = [
 
 
 class TestLoadImage(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
+    @parameterized.expand(
+        [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_3_1, TEST_CASE_4, TEST_CASE_4_1, TEST_CASE_5]
+    )
     def test_nibabel_reader(self, input_param, filenames, expected_shape):
         test_image = np.random.rand(128, 128, 128)
         with tempfile.TemporaryDirectory() as tempdir:
@@ -135,7 +167,7 @@ class TestLoadImage(unittest.TestCase):
             filename = os.path.join(tempdir, "test_image.png")
             itk_np_view = itk.image_view_from_array(test_image, is_vector=True)
             itk.imwrite(itk_np_view, filename)
-            result, header = LoadImage(reader=ITKReader())(filename)
+            result, header = LoadImage(reader=ITKReader())(Path(filename))
 
             self.assertTupleEqual(tuple(header["spatial_shape"]), (224, 256))
             np.testing.assert_allclose(result[:, :, 0], test_image[:, :, 0].T)
@@ -169,7 +201,6 @@ class TestLoadImage(unittest.TestCase):
 
     def test_kwargs(self):
         spatial_size = (32, 64, 128)
-        expected_shape = (128, 64, 32)
         test_image = np.random.rand(*spatial_size)
         with tempfile.TemporaryDirectory() as tempdir:
             filename = os.path.join(tempdir, "test_image.nii.gz")
@@ -186,6 +217,18 @@ class TestLoadImage(unittest.TestCase):
             result_raw, header_raw = reader.get_data(img)
             np.testing.assert_allclose(header["spatial_shape"], header_raw["spatial_shape"])
             self.assertTupleEqual(result.shape, result_raw.shape)
+
+    def test_my_reader(self):
+        """test customised readers"""
+        out = LoadImage(reader=_MiniReader, is_compatible=True)("test")
+        self.assertEqual(out[1]["name"], "my test")
+        out = LoadImage(reader=_MiniReader, is_compatible=False)("test")
+        self.assertEqual(out[1]["name"], "my test")
+        for item in (_MiniReader, _MiniReader(is_compatible=False)):
+            out = LoadImage(reader=item)("test")
+            self.assertEqual(out[1]["name"], "my test")
+        out = LoadImage()("test", reader=_MiniReader(is_compatible=False))
+        self.assertEqual(out[1]["name"], "my test")
 
 
 if __name__ == "__main__":

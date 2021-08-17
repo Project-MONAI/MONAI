@@ -1,4 +1,4 @@
-# Installation guide
+# Installation Guide
 
 ## Table of Contents
 1. [From PyPI](#from-pypi)

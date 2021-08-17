@@ -539,7 +539,7 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
         self._size = fall_back_tuple(self.roi_size, img_size)
         if self.random_size:
             max_size = img_size if self.max_roi_size is None else fall_back_tuple(self.max_roi_size, img_size)
-            if any([i > j for i, j in zip(self._size, max_size)]):
+            if any(i > j for i, j in zip(self._size, max_size)):
                 raise ValueError(f"min ROI size: {self._size} is bigger than max ROI size: {max_size}.")
             self._size = [self.R.randint(low=self._size[i], high=max_size[i] + 1) for i in range(len(img_size))]
         if self.random_center:
@@ -794,6 +794,7 @@ class CropForegroundd(MapTransform, InvertibleTransform):
         start_coord_key: str = "foreground_start_coord",
         end_coord_key: str = "foreground_end_coord",
         allow_missing_keys: bool = False,
+        **np_kwargs,
     ) -> None:
         """
         Args:
@@ -813,6 +814,9 @@ class CropForegroundd(MapTransform, InvertibleTransform):
             start_coord_key: key to record the start coordinate of spatial bounding box for foreground.
             end_coord_key: key to record the end coordinate of spatial bounding box for foreground.
             allow_missing_keys: don't raise exception if key is missing.
+            np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
+                more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+
         """
         super().__init__(keys, allow_missing_keys)
         self.source_key = source_key
@@ -824,6 +828,7 @@ class CropForegroundd(MapTransform, InvertibleTransform):
             margin=margin,
             k_divisible=k_divisible,
             mode=mode,
+            **np_kwargs,
         )
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
