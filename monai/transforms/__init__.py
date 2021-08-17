@@ -352,15 +352,7 @@ from .spatial.dictionary import (
     ZoomD,
     ZoomDict,
 )
-from .transform import (
-    Fourier,
-    MapTransform,
-    Randomizable,
-    RandomizableTransform,
-    ThreadUnsafe,
-    Transform,
-    apply_transform,
-)
+from .transform import MapTransform, Randomizable, RandomizableTransform, ThreadUnsafe, Transform, apply_transform
 from .utility.array import (
     AddChannel,
     AddExtremePointsChannel,
@@ -497,11 +489,10 @@ from .utility.dictionary import (
     TransposeDict,
 )
 from .utils import (
+    Fourier,
     allow_missing_keys_mode,
     compute_divisible_spatial_size,
     convert_inverse_interp_mode,
-    convert_to_numpy,
-    convert_to_tensor,
     copypaste_arrays,
     create_control_grid,
     create_grid,
@@ -528,7 +519,6 @@ from .utils import (
     rescale_array_int_max,
     rescale_instance_array,
     resize_center,
-    tensor_to_numpy,
     weighted_patch_samples,
     zero_margins,
 )
