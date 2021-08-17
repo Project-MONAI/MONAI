@@ -318,8 +318,8 @@ class AHNet(nn.Module):
     ``"transpose"`` rather than linear interpolations is faster. Therefore, this implementation sets ``"transpose"``
     as the default upsampling method.
 
-    To meet to requirements of the structure, for ``transpose`` mode, the input size of the first ``dim-1`` dimensions  should
-    be divisible by 2 ** (psp_block_num + 3) and no less than 32. For other modes, the input size of the first
+    To meet to requirements of the structure, for ``transpose`` mode, the input size of the first ``dim-1`` spatial dimensions
+    should be divisible by 2 ** (psp_block_num + 3) and no less than 32. For other modes, the input size of the first
     ``dim-1`` dimensions should be divisible by 32 and no less than 2 ** (psp_block_num + 3). In addition, at least one
     dimension should have a no less than 64 size.
 

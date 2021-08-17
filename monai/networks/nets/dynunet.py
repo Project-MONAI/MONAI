@@ -70,7 +70,13 @@ class DynUNet(nn.Module):
     The first and last kernel and stride values of the input sequences are used for input block and
     bottleneck respectively, and the rest value(s) are used for downsample and upsample blocks.
     Therefore, pleasure ensure that the length of input sequences (``kernel_size`` and ``strides``)
-    is no less than 3 in order to have at least one downsample upsample blocks.
+    is no less than 3 in order to have at least one downsample and upsample blocks.
+
+    To meet to requirements of the structure, the input size for each spatial dimension should be divisible
+    by `2 * the product of all strides in the corresponding dimension`. The output size for each spatial dimension
+    equals to the input size of the correponding dimension divided by the stride in strides[0].
+    For example, if `strides=((1, 2, 4), 2, 1, 1)`, the minimal spatial size of the input is `(8, 16, 32)`, and
+    the spatial size of the output is `(8, 8, 8)`.
 
     Args:
         spatial_dims: number of spatial dimensions.
@@ -78,7 +84,8 @@ class DynUNet(nn.Module):
         out_channels: number of output channels.
         kernel_size: convolution kernel size.
         strides: convolution strides for each blocks.
-        upsample_kernel_size: convolution kernel size for transposed convolution layers.
+        upsample_kernel_size: convolution kernel size for transposed convolution layers. The values should
+            equal to strides[1:].
         norm_name: feature normalization type and arguments. Defaults to ``INSTANCE``.
         deep_supervision: whether to add deep supervision head before output. Defaults to ``False``.
             If ``True``, in training mode, the forward function will output not only the last feature
