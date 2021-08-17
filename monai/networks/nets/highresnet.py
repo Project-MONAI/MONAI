@@ -90,6 +90,7 @@ class HighResBlock(nn.Module):
                     kernel_size=kernel_size,
                     dilation=dilation,
                     bias=bias,
+                    conv_only=True,
                 )
             )
             _in_chns = _out_chns
