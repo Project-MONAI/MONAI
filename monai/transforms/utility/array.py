@@ -1031,16 +1031,19 @@ class ToDevice(Transform):
 
     """
 
-    def __init__(self, device: Union[torch.device, str]) -> None:
+    def __init__(self, device: Union[torch.device, str], **kwargs) -> None:
         """
         Args:
             device: target device to move the Tensor, for example: "cuda:1".
+            kwargs: other args for the PyTorch `Tensor.to()` API, for more details:
+                https://pytorch.org/docs/stable/generated/torch.Tensor.to.html.
 
         """
         self.device = device
+        self.kwargs = kwargs
 
     def __call__(self, img: torch.Tensor):
         if not isinstance(img, torch.Tensor):
             raise ValueError("img must be PyTorch Tensor, consider converting img by `EnsureType` transform first.")
 
-        return img.to(self.device)
+        return img.to(self.device, **self.kwargs)

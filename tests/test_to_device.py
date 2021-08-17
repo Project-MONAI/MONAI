@@ -30,7 +30,7 @@ TEST_CASE_4 = ["cpu"]
 class TestToDevice(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_value(self, device):
-        converter = ToDevice(device=device)
+        converter = ToDevice(device=device, non_blocking=True)
         data = torch.tensor([1, 2, 3, 4])
         ret = converter(data)
         torch.testing.assert_allclose(ret, data.to(device))

@@ -23,7 +23,11 @@ class TestToDeviced(unittest.TestCase):
     def test_value(self):
         device = "cuda:0"
         data = [{"img": torch.tensor(i)} for i in range(4)]
-        dataset = CacheDataset(data=data, transform=ToDeviced(keys="img", device=device), cache_rate=1.0)
+        dataset = CacheDataset(
+            data=data,
+            transform=ToDeviced(keys="img", device=device, non_blocking=True),
+            cache_rate=1.0,
+        )
         dataloader = ThreadDataLoader(dataset=dataset, num_workers=0, batch_size=1)
         for i, d in enumerate(dataloader):
             torch.testing.assert_allclose(d["img"], torch.tensor([i], device=device))
