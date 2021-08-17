@@ -21,7 +21,7 @@ from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Seque
 import numpy as np
 import torch
 
-from monai.config import DtypeLike, KeysCollection
+from monai.config import DtypeLike, KeysCollection, NdarrayTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.intensity.array import (
     AdjustContrast,
@@ -166,7 +166,7 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         for m in self.mean:
             self._noise.append(self.R.normal(m, self.R.uniform(0, self.std), size=im_shape))
 
-    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
         d = dict(data)
 
         image_shape = d[self.keys[0]].shape  # image shape from the first data key

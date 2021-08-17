@@ -18,7 +18,7 @@ __all__ = [
     "get_dtype",
     "convert_to_numpy",
     "convert_to_tensor",
-    "convert_same_type",
+    "convert_to_dst_type",
 ]
 
 
