@@ -21,7 +21,7 @@ from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Seque
 import numpy as np
 import torch
 
-from monai.config import DtypeLike, KeysCollection
+from monai.config import DtypeLike, KeysCollection, NdarrayTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.intensity.array import (
     AdjustContrast,
@@ -44,7 +44,7 @@ from monai.transforms.intensity.array import (
 )
 from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.transforms.utils import is_positive
-from monai.utils import dtype_torch_to_numpy, ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
+from monai.utils import convert_to_dst_type, ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
 
 __all__ = [
     "RandGaussianNoised",
@@ -144,6 +144,8 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = ["torch", "numpy"]
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -164,18 +166,18 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         for m in self.mean:
             self._noise.append(self.R.normal(m, self.R.uniform(0, self.std), size=im_shape))
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
         d = dict(data)
 
         image_shape = d[self.keys[0]].shape  # image shape from the first data key
         self.randomize(image_shape)
         if len(self._noise) != len(self.keys):
-            raise AssertionError
+            raise RuntimeError("inconsistent noise items and keys.")
         if not self._do_transform:
             return d
         for key, noise in self.key_iterator(d, self._noise):
-            dtype = dtype_torch_to_numpy(d[key].dtype) if isinstance(d[key], torch.Tensor) else d[key].dtype
-            d[key] = d[key] + noise.astype(dtype)
+            noise, *_ = convert_to_dst_type(noise, d[key])
+            d[key] = d[key] + noise
         return d
 
 
@@ -333,7 +335,7 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
             self.offsets = (min(-offsets, offsets), max(-offsets, offsets))
         else:
             if len(offsets) != 2:
-                raise AssertionError("offsets should be a number or pair of numbers.")
+                raise ValueError("offsets should be a number or pair of numbers.")
             self.offsets = (min(offsets), max(offsets))
         self._offset = self.offsets[0]
         self.factor_key = ensure_tuple_rep(factor_key, len(self.keys))
@@ -429,9 +431,9 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
 
         if isinstance(factors, (int, float)):
             self.factors = (min(-factors, factors), max(-factors, factors))
+        elif len(factors) != 2:
+            raise ValueError("factors should be a number or pair of numbers.")
         else:
-            if len(factors) != 2:
-                raise AssertionError("factors should be a number or pair of numbers.")
             self.factors = (min(factors), max(factors))
         self.factor = self.factors[0]
         self.nonzero = nonzero
@@ -517,9 +519,9 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
 
         if isinstance(factors, (int, float)):
             self.factors = (min(-factors, factors), max(-factors, factors))
+        elif len(factors) != 2:
+            raise ValueError("factors should be a number or pair of numbers.")
         else:
-            if len(factors) != 2:
-                raise AssertionError("factors should be a number or pair of numbers.")
             self.factors = (min(factors), max(factors))
         self.factor = self.factors[0]
 
@@ -739,13 +741,13 @@ class RandAdjustContrastd(RandomizableTransform, MapTransform):
 
         if isinstance(gamma, (int, float)):
             if gamma <= 0.5:
-                raise AssertionError(
+                raise ValueError(
                     "if gamma is single number, must greater than 0.5 and value is picked from (0.5, gamma)"
                 )
             self.gamma = (0.5, gamma)
+        elif len(gamma) != 2:
+            raise ValueError("gamma should be a number or pair of numbers.")
         else:
-            if len(gamma) != 2:
-                raise AssertionError("gamma should be a number or pair of numbers.")
             self.gamma = (min(gamma), max(gamma))
 
         self.gamma_value: Optional[float] = None
@@ -758,7 +760,7 @@ class RandAdjustContrastd(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize()
         if self.gamma_value is None:
-            raise AssertionError
+            raise RuntimeError("gamma_value is not set.")
         if not self._do_transform:
             return d
         adjuster = AdjustContrast(self.gamma_value)
@@ -1067,13 +1069,13 @@ class RandHistogramShiftd(RandomizableTransform, MapTransform):
         RandomizableTransform.__init__(self, prob)
         if isinstance(num_control_points, int):
             if num_control_points <= 2:
-                raise AssertionError("num_control_points should be greater than or equal to 3")
+                raise ValueError("num_control_points should be greater than or equal to 3")
             self.num_control_points = (num_control_points, num_control_points)
         else:
             if len(num_control_points) != 2:
-                raise AssertionError("num_control points should be a number or a pair of numbers")
+                raise ValueError("num_control points should be a number or a pair of numbers")
             if min(num_control_points) <= 2:
-                raise AssertionError("num_control_points should be greater than or equal to 3")
+                raise ValueError("num_control_points should be greater than or equal to 3")
             self.num_control_points = (min(num_control_points), max(num_control_points))
 
     def randomize(self, data: Optional[Any] = None) -> None:
