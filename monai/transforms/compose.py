@@ -173,7 +173,8 @@ class Compose(Randomizable, InvertibleTransform):
 
     def get_number_image_type_conversions(self, test_data, key: Optional[Hashable] = None):
         """
-        Get the number of times that the data need to be converted (e.g., from numpy to torch or vice versa).
+        Get the number of times that the data need to be converted (e.g., numpy to torch).
+        Conversions between different devices are also counted (e.g., CPU to GPU).
 
         Args:
             test_data: data to be used to count the number of conversions
