@@ -13,7 +13,7 @@ Decorators for NVIDIA Tools Extension to profile MONAI components
 """
 
 from functools import wraps
-from typing import TYPE_CHECKING, Callable, Optional, Tuple, Union
+from typing import Callable, Optional, Union
 
 import torch.nn as nn
 
@@ -26,14 +26,15 @@ __all__ = ["Range"]
 
 class Range:
     """
-    Enclose a callable (e.g. Transforms) or Modules (e.g. Network, Loss, etc.) with NVTX (NVIDIA Tools Extension) range
-    to enable profiling of those components using some profilers like NVIDIA Nsight Systems.
+    A decorator and context manager for NVIDIA Tools Extension (NVTX) Range for profiling.
+    When used as a decorator it encloses a specific method of the object with an NVTX Range.
+    When used as a context manager, it encloses the runtime context (created by with statement) with an NVTX Range.
 
     Args:
         name: the name to be associated to the range
-        method: the method to be wrapped by NVTX range. If not provided (None), the method will be inferred
-            based on the object's class for Callable objects (like Transforms), nn.Module objects
-            (like Networks, Losses, etc.), and Dataloaders. Method resolve order is:
+        method: (only when used as decorator) the method to be wrapped by NVTX range. If not provided (None),
+            the method will be inferred based on the object's class for Callable objects (like Transforms),
+            nn.Module objects (like Networks, Losses, etc.), and Dataloaders. Method resolve order is:
             - __call__()
             - forward()
             - __next__()
@@ -42,7 +43,7 @@ class Range:
 
     no_name_counter = 0
 
-    def __init__(self, name: str = None, method: str = None) -> None:
+    def __init__(self, name: Optional[str] = None, method: Optional[str] = None) -> None:
         self.name = name
         self.method = method
 
@@ -65,8 +66,8 @@ class Range:
             if self.method is None:
                 raise ValueError(
                     f"The method to be wrapped for this object [{type(obj)}] is not recognized."
-                    "The name of the method should be provied or it should have one of following methods:"
-                    "{method_list}"
+                    "The name of the method should be provied or the object should have one of these methods:"
+                    f"{method_list}"
                 )
 
         # Get the method to be wrapped
@@ -87,6 +88,7 @@ class Range:
 
     def __enter__(self):
         if self.name is None:
+            # Number the range with class variable counter to avoid duplicate names.
             self.name = "Range_" + str(self.no_name_counter)
             self.no_name_counter += 1
 
