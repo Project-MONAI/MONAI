@@ -528,9 +528,9 @@ class CacheDataset(Dataset):
     Users can set the cache rate or number of items to cache.
     It is recommended to experiment with different `cache_num` or `cache_rate` to identify the best training speed.
 
-    The transforms which are supposed to be cached must inherrit `monai.transforms.Transform`
-    or its subclass but should not be `Randomizable`. This dataset will cache until the first
-    transform that is subclass of `Randomizable` or is not subclass of `Transform`.
+    The transforms which are supposed to be cached must implement the `monai.transforms.Transform`
+    interface and should not be `Randomizable`. This dataset will cache the outcomes before the first
+   `Randomizable` `Transform` within a `Compose` instance.
     So to improve the caching efficiency, please always put as many as possible non-random transforms
     before the randomized ones when composing the chain of transforms.
     If passing slicing indices, will return a PyTorch Subset, for example: `data: Subset = dataset[1:4]`,
