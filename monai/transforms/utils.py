@@ -1116,6 +1116,7 @@ class Fourier:
 
 def print_transform_backends():
     """Prints a list of backends of all MONAI transforms."""
+
     class Colours:
         red = "91"
         green = "92"
