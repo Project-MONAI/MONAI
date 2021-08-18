@@ -97,51 +97,51 @@ class Dataset(_TorchDataset):
 
 class PersistentDataset(Dataset):
     """
-    Persistent storage of pre-computed values to efficiently manage larger than memory dictionary format data,
-    it can operate transforms for specific fields.  Results from the non-random transform components are computed
-    when first used, and stored in the `cache_dir` for rapid retrieval on subsequent uses.
-    If passing slicing indices, will return a PyTorch Subset, for example: `data: Subset = dataset[1:4]`,
-    for more details, please check: https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset
+     Persistent storage of pre-computed values to efficiently manage larger than memory dictionary format data,
+     it can operate transforms for specific fields.  Results from the non-random transform components are computed
+     when first used, and stored in the `cache_dir` for rapid retrieval on subsequent uses.
+     If passing slicing indices, will return a PyTorch Subset, for example: `data: Subset = dataset[1:4]`,
+     for more details, please check: https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset
 
-    The transforms which are supposed to be cached must implement the `monai.transforms.Transform` 
-    interface and should not be `Randomizable`. This dataset will cache the outcomes before the first
-   `Randomizable` `Transform` within a `Compose` instance.
+     The transforms which are supposed to be cached must implement the `monai.transforms.Transform`
+     interface and should not be `Randomizable`. This dataset will cache the outcomes before the first
+    `Randomizable` `Transform` within a `Compose` instance.
 
-    For example, typical input data can be a list of dictionaries::
+     For example, typical input data can be a list of dictionaries::
 
-        [{                            {                            {
-             'image': 'image1.nii.gz',    'image': 'image2.nii.gz',    'image': 'image3.nii.gz',
-             'label': 'label1.nii.gz',    'label': 'label2.nii.gz',    'label': 'label3.nii.gz',
-             'extra': 123                 'extra': 456                 'extra': 789
-         },                           },                           }]
+         [{                            {                            {
+              'image': 'image1.nii.gz',    'image': 'image2.nii.gz',    'image': 'image3.nii.gz',
+              'label': 'label1.nii.gz',    'label': 'label2.nii.gz',    'label': 'label3.nii.gz',
+              'extra': 123                 'extra': 456                 'extra': 789
+          },                           },                           }]
 
-    For a composite transform like
+     For a composite transform like
 
-    .. code-block:: python
+     .. code-block:: python
 
-        [ LoadImaged(keys=['image', 'label']),
-          Orientationd(keys=['image', 'label'], axcodes='RAS'),
-          ScaleIntensityRanged(keys=['image'], a_min=-57, a_max=164, b_min=0.0, b_max=1.0, clip=True),
-          RandCropByPosNegLabeld(keys=['image', 'label'], label_key='label', spatial_size=(96, 96, 96),
-                                 pos=1, neg=1, num_samples=4, image_key='image', image_threshold=0),
-          ToTensord(keys=['image', 'label'])]
+         [ LoadImaged(keys=['image', 'label']),
+           Orientationd(keys=['image', 'label'], axcodes='RAS'),
+           ScaleIntensityRanged(keys=['image'], a_min=-57, a_max=164, b_min=0.0, b_max=1.0, clip=True),
+           RandCropByPosNegLabeld(keys=['image', 'label'], label_key='label', spatial_size=(96, 96, 96),
+                                  pos=1, neg=1, num_samples=4, image_key='image', image_threshold=0),
+           ToTensord(keys=['image', 'label'])]
 
-    Upon first use a filename based dataset will be processed by the transform for the
-    [LoadImaged, Orientationd, ScaleIntensityRanged] and the resulting tensor written to
-    the `cache_dir` before applying the remaining random dependant transforms
-    [RandCropByPosNegLabeld, ToTensord] elements for use in the analysis.
+     Upon first use a filename based dataset will be processed by the transform for the
+     [LoadImaged, Orientationd, ScaleIntensityRanged] and the resulting tensor written to
+     the `cache_dir` before applying the remaining random dependant transforms
+     [RandCropByPosNegLabeld, ToTensord] elements for use in the analysis.
 
-    Subsequent uses of a dataset directly read pre-processed results from `cache_dir`
-    followed by applying the random dependant parts of transform processing.
+     Subsequent uses of a dataset directly read pre-processed results from `cache_dir`
+     followed by applying the random dependant parts of transform processing.
 
-    During training call `set_data()` to update input data and recompute cache content.
+     During training call `set_data()` to update input data and recompute cache content.
 
-    Note:
-        The input data must be a list of file paths and will hash them as cache keys.
+     Note:
+         The input data must be a list of file paths and will hash them as cache keys.
 
-        When loading persistent cache content, it can't guarantee the cached data matches current
-        transform chain, so please make sure to use exactly the same non-random transforms and the
-        args as the cache content, otherwise, it may cause unexpected errors.
+         When loading persistent cache content, it can't guarantee the cached data matches current
+         transform chain, so please make sure to use exactly the same non-random transforms and the
+         args as the cache content, otherwise, it may cause unexpected errors.
 
     """
 
@@ -519,51 +519,51 @@ class LMDBDataset(PersistentDataset):
 
 class CacheDataset(Dataset):
     """
-    Dataset with cache mechanism that can load data and cache deterministic transforms' result during training.
+     Dataset with cache mechanism that can load data and cache deterministic transforms' result during training.
 
-    By caching the results of non-random preprocessing transforms, it accelerates the training data pipeline.
-    If the requested data is not in the cache, all transforms will run normally
-    (see also :py:class:`monai.data.dataset.Dataset`).
+     By caching the results of non-random preprocessing transforms, it accelerates the training data pipeline.
+     If the requested data is not in the cache, all transforms will run normally
+     (see also :py:class:`monai.data.dataset.Dataset`).
 
-    Users can set the cache rate or number of items to cache.
-    It is recommended to experiment with different `cache_num` or `cache_rate` to identify the best training speed.
+     Users can set the cache rate or number of items to cache.
+     It is recommended to experiment with different `cache_num` or `cache_rate` to identify the best training speed.
 
-    The transforms which are supposed to be cached must implement the `monai.transforms.Transform`
-    interface and should not be `Randomizable`. This dataset will cache the outcomes before the first
-   `Randomizable` `Transform` within a `Compose` instance.
-    So to improve the caching efficiency, please always put as many as possible non-random transforms
-    before the randomized ones when composing the chain of transforms.
-    If passing slicing indices, will return a PyTorch Subset, for example: `data: Subset = dataset[1:4]`,
-    for more details, please check: https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset
+     The transforms which are supposed to be cached must implement the `monai.transforms.Transform`
+     interface and should not be `Randomizable`. This dataset will cache the outcomes before the first
+    `Randomizable` `Transform` within a `Compose` instance.
+     So to improve the caching efficiency, please always put as many as possible non-random transforms
+     before the randomized ones when composing the chain of transforms.
+     If passing slicing indices, will return a PyTorch Subset, for example: `data: Subset = dataset[1:4]`,
+     for more details, please check: https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset
 
-    For example, if the transform is a `Compose` of::
+     For example, if the transform is a `Compose` of::
 
-        transforms = Compose([
-            LoadImaged(),
-            AddChanneld(),
-            Spacingd(),
-            Orientationd(),
-            ScaleIntensityRanged(),
-            RandCropByPosNegLabeld(),
-            ToTensord()
-        ])
+         transforms = Compose([
+             LoadImaged(),
+             AddChanneld(),
+             Spacingd(),
+             Orientationd(),
+             ScaleIntensityRanged(),
+             RandCropByPosNegLabeld(),
+             ToTensord()
+         ])
 
-    when `transforms` is used in a multi-epoch training pipeline, before the first training epoch,
-    this dataset will cache the results up to ``ScaleIntensityRanged``, as
-    all non-random transforms `LoadImaged`, `AddChanneld`, `Spacingd`, `Orientationd`, `ScaleIntensityRanged`
-    can be cached. During training, the dataset will load the cached results and run
-    ``RandCropByPosNegLabeld`` and ``ToTensord``, as ``RandCropByPosNegLabeld`` is a randomized transform
-    and the outcome not cached.
+     when `transforms` is used in a multi-epoch training pipeline, before the first training epoch,
+     this dataset will cache the results up to ``ScaleIntensityRanged``, as
+     all non-random transforms `LoadImaged`, `AddChanneld`, `Spacingd`, `Orientationd`, `ScaleIntensityRanged`
+     can be cached. During training, the dataset will load the cached results and run
+     ``RandCropByPosNegLabeld`` and ``ToTensord``, as ``RandCropByPosNegLabeld`` is a randomized transform
+     and the outcome not cached.
 
-    During training call `set_data()` to update input data and recompute cache content, note that it requires
-    `persistent_workers=False` in the PyTorch DataLoader.
+     During training call `set_data()` to update input data and recompute cache content, note that it requires
+     `persistent_workers=False` in the PyTorch DataLoader.
 
-    Note:
-        `CacheDataset` executes non-random transforms and prepares cache content in the main process before
-        the first epoch, then all the subprocesses of DataLoader will read the same cache content in the main process
-        during training. it may take a long time to prepare cache content according to the size of expected cache data.
-        So to debug or verify the program before real training, users can set `cache_rate=0.0` or `cache_num=0` to
-        temporarily skip caching.
+     Note:
+         `CacheDataset` executes non-random transforms and prepares cache content in the main process before
+         the first epoch, then all the subprocesses of DataLoader will read the same cache content in the main process
+         during training. it may take a long time to prepare cache content according to the size of expected cache data.
+         So to debug or verify the program before real training, users can set `cache_rate=0.0` or `cache_num=0` to
+         temporarily skip caching.
 
     """
 
