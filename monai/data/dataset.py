@@ -103,9 +103,9 @@ class PersistentDataset(Dataset):
     If passing slicing indices, will return a PyTorch Subset, for example: `data: Subset = dataset[1:4]`,
     for more details, please check: https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset
 
-    The transforms which are supposed to be cached must inherrit `monai.transforms.Transform` or its subclass
-    but should not be `Randomizable`. This dataset will cache until the first transform that is subclass of
-    `Randomizable` or is not subclass of `Transform`.
+    The transforms which are supposed to be cached must implement the `monai.transforms.Transform` 
+    interface and should not be `Randomizable`. This dataset will cache the outcomes before the first
+   `Randomizable` `Transform` within a `Compose` instance.
 
     For example, typical input data can be a list of dictionaries::
 
