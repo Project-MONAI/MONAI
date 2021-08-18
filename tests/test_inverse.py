@@ -35,6 +35,7 @@ from monai.transforms import (
     DivisiblePadd,
     Flipd,
     InvertibleTransform,
+    Lambdad,
     LoadImaged,
     Orientationd,
     RandAffined,
@@ -42,6 +43,7 @@ from monai.transforms import (
     RandCropByLabelClassesd,
     RandCropByPosNegLabeld,
     RandFlipd,
+    RandLambdad,
     Randomizable,
     RandRotate90d,
     RandRotated,
@@ -251,15 +253,6 @@ TESTS.append(
 
 TESTS.append(
     (
-        "Flipd 3d",
-        "3D",
-        0,
-        Flipd(KEYS, [1, 2]),
-    )
-)
-
-TESTS.append(
-    (
         "RandFlipd 3d",
         "3D",
         0,
@@ -319,6 +312,20 @@ TESTS.append(("Resized 2d", "2D", 2e-1, Resized(KEYS, [50, 47])))
 
 TESTS.append(("Resized 3d", "3D", 5e-2, Resized(KEYS, [201, 150, 78])))
 
+TESTS.append(("Resized longest 2d", "2D", 2e-1, Resized(KEYS, 47, "longest", "area")))
+
+TESTS.append(("Resized longest 3d", "3D", 5e-2, Resized(KEYS, 201, "longest", "trilinear", True)))
+
+TESTS.append(("Lambdad 2d", "2D", 5e-2, Lambdad(KEYS, func=lambda x: x + 5, inv_func=lambda x: x - 5, overwrite=True)))
+
+TESTS.append(
+    (
+        "RandLambdad 3d",
+        "3D",
+        5e-2,
+        RandLambdad(KEYS, func=lambda x: x * 10, inv_func=lambda x: x / 10, overwrite=True, prob=0.5),
+    )
+)
 
 TESTS.append(
     (

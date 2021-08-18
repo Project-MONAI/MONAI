@@ -14,7 +14,7 @@ import torch.nn as nn
 
 from monai.utils import optional_import
 
-einops, has_einops = optional_import("einops")
+einops, _ = optional_import("einops")
 
 
 class SABlock(nn.Module):
@@ -37,13 +37,13 @@ class SABlock(nn.Module):
 
         """
 
-        super().__init__()
+        super(SABlock, self).__init__()
 
         if not (0 <= dropout_rate <= 1):
-            raise AssertionError("dropout_rate should be between 0 and 1.")
+            raise ValueError("dropout_rate should be between 0 and 1.")
 
         if hidden_size % num_heads != 0:
-            raise AssertionError("hidden size should be divisible by num_heads.")
+            raise ValueError("hidden size should be divisible by num_heads.")
 
         self.num_heads = num_heads
         self.out_proj = nn.Linear(hidden_size, hidden_size)
@@ -52,17 +52,13 @@ class SABlock(nn.Module):
         self.drop_weights = nn.Dropout(dropout_rate)
         self.head_dim = hidden_size // num_heads
         self.scale = self.head_dim ** -0.5
-        if has_einops:
-            self.rearrange = einops.rearrange
-        else:
-            raise ValueError('"Requires einops.')
 
     def forward(self, x):
-        q, k, v = self.rearrange(self.qkv(x), "b h (qkv l d) -> qkv b l h d", qkv=3, l=self.num_heads)
+        q, k, v = einops.rearrange(self.qkv(x), "b h (qkv l d) -> qkv b l h d", qkv=3, l=self.num_heads)
         att_mat = (torch.einsum("blxd,blyd->blxy", q, k) * self.scale).softmax(dim=-1)
         att_mat = self.drop_weights(att_mat)
         x = torch.einsum("bhxy,bhyd->bhxd", att_mat, v)
-        x = self.rearrange(x, "b h l d -> b l (h d)")
+        x = einops.rearrange(x, "b h l d -> b l (h d)")
         x = self.out_proj(x)
         x = self.drop_output(x)
         return x

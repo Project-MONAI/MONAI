@@ -34,12 +34,29 @@ TEST_CASE_3 = [
     np.array([[[0, 0, 0], [0, 2, 0], [0, 0, 0]], [[0, 4, 0], [0, 5, 0], [0, 6, 0]]]),
 ]
 
+TEST_CASE_4 = [
+    {
+        "mask_data": np.array([[[1, 2, 3], [4, 5, 6], [7, 8, 9]]]),
+        "select_fn": lambda x: np.where((x > 3) & (x < 7), True, False),
+    },
+    np.array([[[1, 1, 1], [2, 2, 2], [3, 3, 3]], [[4, 4, 4], [5, 5, 5], [6, 6, 6]]]),
+    np.array([[[0, 0, 0], [2, 2, 2], [0, 0, 0]], [[0, 0, 0], [5, 5, 5], [0, 0, 0]]]),
+]
+
 
 class TestMaskIntensity(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_value(self, argments, image, expected_data):
         result = MaskIntensity(**argments)(image)
         np.testing.assert_allclose(result, expected_data)
+
+    def test_runtime_mask(self):
+        mask_data = np.array([[[0, 0, 0], [0, 1, 0], [0, 0, 0]]])
+        img = np.array([[[1, 1, 1], [2, 2, 2], [3, 3, 3]], [[4, 4, 4], [5, 5, 5], [6, 6, 6]]])
+        expected = np.array([[[0, 0, 0], [0, 2, 0], [0, 0, 0]], [[0, 0, 0], [0, 5, 0], [0, 0, 0]]])
+
+        result = MaskIntensity()(img=img, mask_data=mask_data)
+        np.testing.assert_allclose(result, expected)
 
 
 if __name__ == "__main__":

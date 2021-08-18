@@ -103,24 +103,28 @@ class PersistentDataset(Dataset):
     If passing slicing indices, will return a PyTorch Subset, for example: `data: Subset = dataset[1:4]`,
     for more details, please check: https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset
 
+    The transforms which are supposed to be cached must implement the `monai.transforms.Transform`
+    interface and should not be `Randomizable`. This dataset will cache the outcomes before the first
+    `Randomizable` `Transform` within a `Compose` instance.
+
     For example, typical input data can be a list of dictionaries::
 
         [{                            {                            {
-             'image': 'image1.nii.gz',    'image': 'image2.nii.gz',    'image': 'image3.nii.gz',
-             'label': 'label1.nii.gz',    'label': 'label2.nii.gz',    'label': 'label3.nii.gz',
-             'extra': 123                 'extra': 456                 'extra': 789
-         },                           },                           }]
+            'image': 'image1.nii.gz',    'image': 'image2.nii.gz',    'image': 'image3.nii.gz',
+            'label': 'label1.nii.gz',    'label': 'label2.nii.gz',    'label': 'label3.nii.gz',
+            'extra': 123                 'extra': 456                 'extra': 789
+        },                           },                           }]
 
     For a composite transform like
 
     .. code-block:: python
 
         [ LoadImaged(keys=['image', 'label']),
-          Orientationd(keys=['image', 'label'], axcodes='RAS'),
-          ScaleIntensityRanged(keys=['image'], a_min=-57, a_max=164, b_min=0.0, b_max=1.0, clip=True),
-          RandCropByPosNegLabeld(keys=['image', 'label'], label_key='label', spatial_size=(96, 96, 96),
-                                 pos=1, neg=1, num_samples=4, image_key='image', image_threshold=0),
-          ToTensord(keys=['image', 'label'])]
+        Orientationd(keys=['image', 'label'], axcodes='RAS'),
+        ScaleIntensityRanged(keys=['image'], a_min=-57, a_max=164, b_min=0.0, b_max=1.0, clip=True),
+        RandCropByPosNegLabeld(keys=['image', 'label'], label_key='label', spatial_size=(96, 96, 96),
+                                pos=1, neg=1, num_samples=4, image_key='image', image_threshold=0),
+        ToTensord(keys=['image', 'label'])]
 
     Upon first use a filename based dataset will be processed by the transform for the
     [LoadImaged, Orientationd, ScaleIntensityRanged] and the resulting tensor written to
@@ -524,7 +528,10 @@ class CacheDataset(Dataset):
     Users can set the cache rate or number of items to cache.
     It is recommended to experiment with different `cache_num` or `cache_rate` to identify the best training speed.
 
-    To improve the caching efficiency, please always put as many as possible non-random transforms
+    The transforms which are supposed to be cached must implement the `monai.transforms.Transform`
+    interface and should not be `Randomizable`. This dataset will cache the outcomes before the first
+    `Randomizable` `Transform` within a `Compose` instance.
+    So to improve the caching efficiency, please always put as many as possible non-random transforms
     before the randomized ones when composing the chain of transforms.
     If passing slicing indices, will return a PyTorch Subset, for example: `data: Subset = dataset[1:4]`,
     for more details, please check: https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset
