@@ -718,6 +718,12 @@ Utility
      :members:
      :special-members: __call__
 
+`ToDevice`
+""""""""""
+ .. autoclass:: ToDevice
+     :members:
+     :special-members: __call__
+
 
 Dictionary Transforms
 ---------------------
@@ -1346,6 +1352,12 @@ Utility (Dict)
 .. autoclass:: IntensityStatsd
     :members:
     :special-members: __call__
+
+`ToDeviced`
+"""""""""""
+ .. autoclass:: ToDeviced
+     :members:
+     :special-members: __call__
 
 
 Transform Adaptors
