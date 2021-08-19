@@ -13,10 +13,9 @@ A collection of generic interfaces for MONAI transforms.
 """
 
 import warnings
-from typing import Any, Callable, Hashable, Mapping, Optional, Sequence, Union
+from typing import Any, Callable, Mapping, Optional, Sequence, Union
 
 import numpy as np
-import torch
 
 from monai.transforms.inverse import InvertibleTransform
 
