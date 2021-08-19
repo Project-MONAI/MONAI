@@ -167,7 +167,7 @@ def convert_data_type(
     orig_type = type(data)
     orig_device = data.device if isinstance(data, torch.Tensor) else None
 
-    output_type = cast(Type[NdarrayTensor], output_type or orig_type)
+    output_type = output_type or orig_type
 
     dtype = get_equivalent_dtype(dtype or get_dtype(data), output_type)
 
@@ -178,13 +178,13 @@ def convert_data_type(
             data = data.to(dtype)  # type: ignore
         if device is not None:
             data = data.to(device)
-        return cast(NdarrayTensor, data), orig_type, orig_device
+        return cast(NdarrayTensor, data), orig_type, orig_device  # pytype: disable=invalid-annotation
     if output_type is np.ndarray:
         if orig_type is not np.ndarray:
             data = convert_to_numpy(data)
         if data is not None and dtype != data.dtype:
             data = data.astype(dtype)  # type: ignore
-        return cast(NdarrayTensor, data), orig_type, orig_device
+        return cast(NdarrayTensor, data), orig_type, orig_device  # pytype: disable=invalid-annotation
     raise ValueError(f"Unsupported output type: {output_type}")
 
 
