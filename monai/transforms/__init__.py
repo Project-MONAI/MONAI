@@ -273,6 +273,7 @@ from .spatial.array import (
     Affine,
     AffineGrid,
     Flip,
+    LocalPatchShuffling,
     Orientation,
     Rand2DElastic,
     Rand3DElastic,
