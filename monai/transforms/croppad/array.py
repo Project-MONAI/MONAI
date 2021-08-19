@@ -86,8 +86,7 @@ class Pad(Transform):
         self.np_kwargs = np_kwargs
 
     @staticmethod
-    def _np_pad(img: NdarrayTensor, all_pad_width, mode, **np_kwargs) -> NdarrayTensor:
-        img_np: np.ndarray
+    def _np_pad(img: np.ndarray, all_pad_width, mode, **np_kwargs) -> np.ndarray:
         img_np, *_ = convert_data_type(img, np.ndarray)
         return np.pad(img_np, all_pad_width, mode=mode, **np_kwargs)  # type: ignore
 
@@ -114,7 +113,7 @@ class Pad(Transform):
         if isinstance(img, torch.Tensor) and mode == "constant" and not self.np_kwargs:
             pad = self._pt_pad
         else:
-            pad = self._np_pad
+            pad = self._np_pad  # type: ignore
         return pad(img, self.to_pad, mode, **self.np_kwargs)
 
 

@@ -1,5 +1,5 @@
 import re
-from typing import Any, Optional, Sequence, Tuple, Union
+from typing import Any, Optional, Sequence, Tuple, Type, Union, cast
 
 import numpy as np
 import torch
@@ -147,7 +147,7 @@ def convert_to_numpy(data):
 
 def convert_data_type(
     data: Any,
-    output_type: Optional[type] = None,
+    output_type: Optional[Type[NdarrayTensor]] = None,
     device: Optional[torch.device] = None,
     dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
 ) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
@@ -167,7 +167,7 @@ def convert_data_type(
     orig_type = type(data)
     orig_device = data.device if isinstance(data, torch.Tensor) else None
 
-    output_type = output_type or orig_type
+    output_type = cast(Type[NdarrayTensor], output_type or orig_type)
 
     dtype = get_equivalent_dtype(dtype or get_dtype(data), output_type)
 
@@ -176,16 +176,16 @@ def convert_data_type(
             data = convert_to_tensor(data)
         if dtype != data.dtype:
             data = data.to(dtype)  # type: ignore
-    elif output_type is np.ndarray:
+        if device is not None:
+            data = data.to(device)
+        return cast(NdarrayTensor, data), orig_type, orig_device
+    if output_type is np.ndarray:
         if orig_type is not np.ndarray:
             data = convert_to_numpy(data)
         if data is not None and dtype != data.dtype:
             data = data.astype(dtype)  # type: ignore
-
-    if isinstance(data, torch.Tensor) and device is not None:
-        data = data.to(device)
-
-    return data, orig_type, orig_device
+        return cast(NdarrayTensor, data), orig_type, orig_device
+    raise ValueError(f"Unsupported output type: {output_type}")
 
 
 def convert_to_dst_type(src: Any, dst: NdarrayTensor) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:

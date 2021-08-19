@@ -14,7 +14,6 @@ import random
 import warnings
 from contextlib import contextmanager
 from inspect import getmembers, isclass
-from typing import Callable, Iterable, List, Optional, Sequence, Tuple, Union
 from typing import Any, Callable, Hashable, Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
