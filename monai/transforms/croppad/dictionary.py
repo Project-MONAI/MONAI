@@ -539,7 +539,7 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
         self._size = fall_back_tuple(self.roi_size, img_size)
         if self.random_size:
             max_size = img_size if self.max_roi_size is None else fall_back_tuple(self.max_roi_size, img_size)
-            if any([i > j for i, j in zip(self._size, max_size)]):
+            if any(i > j for i, j in zip(self._size, max_size)):
                 raise ValueError(f"min ROI size: {self._size} is bigger than max ROI size: {max_size}.")
             self._size = [self.R.randint(low=self._size[i], high=max_size[i] + 1) for i in range(len(img_size))]
         if self.random_center:
@@ -794,6 +794,7 @@ class CropForegroundd(MapTransform, InvertibleTransform):
         start_coord_key: str = "foreground_start_coord",
         end_coord_key: str = "foreground_end_coord",
         allow_missing_keys: bool = False,
+        **np_kwargs,
     ) -> None:
         """
         Args:
@@ -813,6 +814,9 @@ class CropForegroundd(MapTransform, InvertibleTransform):
             start_coord_key: key to record the start coordinate of spatial bounding box for foreground.
             end_coord_key: key to record the end coordinate of spatial bounding box for foreground.
             allow_missing_keys: don't raise exception if key is missing.
+            np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
+                more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+
         """
         super().__init__(keys, allow_missing_keys)
         self.source_key = source_key
@@ -824,6 +828,7 @@ class CropForegroundd(MapTransform, InvertibleTransform):
             margin=margin,
             k_divisible=k_divisible,
             mode=mode,
+            **np_kwargs,
         )
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
@@ -1091,8 +1096,8 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
         d = dict(data)
         label = d[self.label_key]
         image = d[self.image_key] if self.image_key else None
-        fg_indices = d.get(self.fg_indices_key) if self.fg_indices_key is not None else None
-        bg_indices = d.get(self.bg_indices_key) if self.bg_indices_key is not None else None
+        fg_indices = d.pop(self.fg_indices_key, None) if self.fg_indices_key is not None else None
+        bg_indices = d.pop(self.bg_indices_key, None) if self.bg_indices_key is not None else None
 
         self.randomize(label, fg_indices, bg_indices, image)
         if not isinstance(self.spatial_size, tuple):
@@ -1101,12 +1106,12 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
             raise ValueError("no available ROI centers to crop.")
 
         # initialize returned list with shallow copy to preserve key ordering
-        results: List[Dict[Hashable, np.ndarray]] = [dict(data) for _ in range(self.num_samples)]
+        results: List[Dict[Hashable, np.ndarray]] = [dict(d) for _ in range(self.num_samples)]
 
         for i, center in enumerate(self.centers):
             # fill in the extra keys with unmodified data
-            for key in set(data.keys()).difference(set(self.keys)):
-                results[i][key] = deepcopy(data[key])
+            for key in set(d.keys()).difference(set(self.keys)):
+                results[i][key] = deepcopy(d[key])
             for key in self.key_iterator(d):
                 img = d[key]
                 cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)  # type: ignore
@@ -1271,7 +1276,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
         d = dict(data)
         label = d[self.label_key]
         image = d[self.image_key] if self.image_key else None
-        indices = d.get(self.indices_key) if self.indices_key is not None else None
+        indices = d.pop(self.indices_key, None) if self.indices_key is not None else None
 
         self.randomize(label, indices, image)
         if not isinstance(self.spatial_size, tuple):
@@ -1280,12 +1285,12 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
             raise ValueError("no available ROI centers to crop.")
 
         # initialize returned list with shallow copy to preserve key ordering
-        results: List[Dict[Hashable, np.ndarray]] = [dict(data) for _ in range(self.num_samples)]
+        results: List[Dict[Hashable, np.ndarray]] = [dict(d) for _ in range(self.num_samples)]
 
         for i, center in enumerate(self.centers):
             # fill in the extra keys with unmodified data
-            for key in set(data.keys()).difference(set(self.keys)):
-                results[i][key] = deepcopy(data[key])
+            for key in set(d.keys()).difference(set(self.keys)):
+                results[i][key] = deepcopy(d[key])
             for key in self.key_iterator(d):
                 img = d[key]
                 cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)  # type: ignore
