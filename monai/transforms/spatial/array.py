@@ -72,7 +72,7 @@ __all__ = [
     "Rand2DElastic",
     "Rand3DElastic",
     "AddCoordinateChannels",
-    "LocalPatchShuffling"
+    "LocalPatchShuffling",
 ]
 
 RandRange = Optional[Union[Sequence[Union[Tuple[float, float], float]], float]]
@@ -1884,6 +1884,7 @@ class AddCoordinateChannels(Transform):
         coord_channels = coord_channels[[s - 1 for s in self.spatial_channels]]
         return np.concatenate((img, coord_channels), axis=0)
 
+
 class LocalPatchShuffling(RandomizableTransform):
     """
     Takes a 3D image and based on input of the local patch size, shuffles the pixels of the local patch within it.
@@ -1895,7 +1896,7 @@ class LocalPatchShuffling(RandomizableTransform):
 
     def __init__(
         self,
-        prob: float=1.0,
+        prob: float = 1.0,
         number_blocks: int = 1000,
         blocksize_ratio: int = 10,
         channel_wise: bool = True,
@@ -1924,41 +1925,39 @@ class LocalPatchShuffling(RandomizableTransform):
     def _local_patch_shuffle(self, img: Union[torch.Tensor, np.ndarray], number_blocks: int, blocksize_ratio: int):
         im_shape = img.shape
         img_copy = copy.deepcopy(img)
-        for each_block in range(number_blocks):
+        for _each_block in range(number_blocks):
 
-            block_size_x = random.randint(1, im_shape[1]//blocksize_ratio)
-            block_size_y = random.randint(1, im_shape[2]//blocksize_ratio)
-            block_size_z = random.randint(1, im_shape[3]//blocksize_ratio)
+            block_size_x = random.randint(1, im_shape[0] // blocksize_ratio)
+            block_size_y = random.randint(1, im_shape[1] // blocksize_ratio)
+            block_size_z = random.randint(1, im_shape[2] // blocksize_ratio)
 
-            noise_x = random.randint(0, im_shape[1] - block_size_x)
-            noise_y = random.randint(0, im_shape[2] - block_size_y)
-            noise_z = random.randint(0, im_shape[3] - block_size_z)
+            noise_x = random.randint(0, im_shape[0] - block_size_x)
+            noise_y = random.randint(0, im_shape[1] - block_size_y)
+            noise_z = random.randint(0, im_shape[2] - block_size_z)
 
-            local_patch = img[0, noise_x:noise_x + block_size_x,
-                                 noise_y:noise_y + block_size_y,
-                                 noise_z:noise_z + block_size_z,
-                                 ]
+            local_patch = img[
+                noise_x : noise_x + block_size_x,
+                noise_y : noise_y + block_size_y,
+                noise_z : noise_z + block_size_z,
+            ]
 
             local_patch = local_patch.flatten()
             np.random.shuffle(local_patch)
-            local_patch = local_patch.reshape((block_size_x,
-                                               block_size_y,
-                                               block_size_z))
+            local_patch = local_patch.reshape((block_size_x, block_size_y, block_size_z))
 
-            img_copy[0, noise_x:noise_x + block_size_x,
-                        noise_y:noise_y + block_size_y,
-                        noise_z:noise_z + block_size_z] = local_patch
+            img_copy[
+                noise_x : noise_x + block_size_x, noise_y : noise_y + block_size_y, noise_z : noise_z + block_size_z
+            ] = local_patch
 
         shuffled_image = img_copy
         return shuffled_image
 
-
     def __call__(
         self,
         img: Union[np.ndarray, torch.Tensor],
-        #spatial_size: Optional[Union[Sequence[int], int]] = None,
-        #mode: Optional[Union[GridSampleMode, str]] = None,
-        #padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+        # spatial_size: Optional[Union[Sequence[int], int]] = None,
+        # mode: Optional[Union[GridSampleMode, str]] = None,
+        # padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
     ):
         """
         Args:
@@ -1971,10 +1970,11 @@ class LocalPatchShuffling(RandomizableTransform):
             return img
 
         if self.channel_wise:
-            #img = self._local_patch_shuffle(img=img)
-            for i, d in enumerate(img):
-                img[i] = self._local_patch_shuffle(img=img[i])
+            # img = self._local_patch_shuffle(img=img)
+            for i, _d in enumerate(img):
+                img[i] = self._local_patch_shuffle(
+                    img=img[i], blocksize_ratio=self.blocksize_ratio, number_blocks=self.number_blocks
+                )
         else:
             raise AssertionError("If channel_wise is False, the image needs to be set to channel first")
         return img
-

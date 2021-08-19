@@ -41,7 +41,6 @@ from monai.transforms.spatial.array import (
     Rotate90,
     Spacing,
     Zoom,
-    LocalPatchShuffling
 )
 from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.transforms.utils import create_grid
