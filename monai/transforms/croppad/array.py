@@ -36,6 +36,7 @@ from monai.transforms.utils import (
     weighted_patch_samples,
 )
 from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple, look_up_option
+from monai.utils.enums import TransformBackends
 from monai.utils.type_conversion import convert_data_type
 
 __all__ = [
@@ -72,7 +73,7 @@ class Pad(Transform):
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
     """
 
-    backend = ["torch", "numpy"]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
         self,
@@ -144,7 +145,7 @@ class SpatialPad(Transform):
 
     """
 
-    backend = ["torch", "numpy"]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
         self,
@@ -214,7 +215,7 @@ class BorderPad(Transform):
 
     """
 
-    backend = ["torch", "numpy"]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
         self,
@@ -271,7 +272,7 @@ class DivisiblePad(Transform):
     Pad the input data, so that the spatial sizes are divisible by `k`.
     """
 
-    backend = ["torch", "numpy"]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
         self,
