@@ -20,6 +20,7 @@ from parameterized import parameterized
 from monai.transforms import Compose
 from monai.transforms.compose import OneOf
 from monai.transforms.transform import Transform
+from monai.transforms.utils import get_number_image_type_conversions
 from monai.utils import convert_to_numpy, convert_to_tensor
 
 NP_ARR = np.ones((10, 10, 10))
@@ -105,13 +106,13 @@ class TestComposeNumConversions(unittest.TestCase):
     def test_get_number_of_conversions(self, transforms, is_dict, input, expected):
         input = input if not is_dict else {KEY: input, "Other": NP_ARR}
         tr = Compose(transforms)
-        n = tr.get_number_image_type_conversions(input, key=KEY if is_dict else None)
+        n = get_number_image_type_conversions(tr, input, key=KEY if is_dict else None)
         self.assertEqual(n, expected)
 
     def test_raises(self):
         tr = Compose([N(), OneOf([T(), T()])])
         with self.assertRaises(RuntimeError):
-            tr.get_number_image_type_conversions(NP_ARR)
+            get_number_image_type_conversions(tr, NP_ARR)
 
 
 if __name__ == "__main__":
