@@ -45,6 +45,7 @@ from monai.transforms.intensity.array import (
 from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.transforms.utils import is_positive
 from monai.utils import convert_to_dst_type, ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
+from monai.utils.enums import TransformBackends
 
 __all__ = [
     "RandGaussianNoised",
@@ -144,7 +145,7 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
-    backend = ["torch", "numpy"]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
         self,
