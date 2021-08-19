@@ -13,15 +13,17 @@ import itertools
 import random
 import warnings
 from contextlib import contextmanager
+from inspect import getmembers, isclass
 from typing import Callable, Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
+import monai
 from monai.config import DtypeLike, IndexSelection
 from monai.networks.layers import GaussianFilter
 from monai.transforms.compose import Compose
-from monai.transforms.transform import MapTransform
+from monai.transforms.transform import MapTransform, Transform
 from monai.utils import (
     GridSampleMode,
     InterpolateMode,
@@ -75,6 +77,7 @@ __all__ = [
     "weighted_patch_samples",
     "zero_margins",
     "equalize_hist",
+    "print_transform_backends",
 ]
 
 
@@ -1109,3 +1112,59 @@ class Fourier:
             torch.fft.ifftshift(k, dim=tuple(range(-n_dims, 0))), dim=tuple(range(-n_dims, 0))
         ).real
         return x
+
+
+def print_transform_backends():
+    """Prints a list of backends of all MONAI transforms."""
+
+    class Colours:
+        red = "91"
+        green = "92"
+        yellow = "93"
+
+    def print_colour(t, colour):
+        print(f"\033[{colour}m{t}\033[00m")
+
+    tr_total = 0
+    tr_t_or_np = 0
+    tr_t = 0
+    tr_np = 0
+    tr_uncategorised = 0
+    unique_transforms = []
+    for n, obj in getmembers(monai.transforms):
+        # skip aliases
+        if obj in unique_transforms:
+            continue
+        unique_transforms.append(obj)
+
+        if isclass(obj) and issubclass(obj, Transform):
+            if n in [
+                "Transform",
+                "InvertibleTransform",
+                "Lambda",
+                "LambdaD",
+                "Compose",
+                "RandomizableTransform",
+                "OneOf",
+                "BatchInverseTransform",
+                "InverteD",
+            ]:
+                continue
+            tr_total += 1
+            if obj.backend == ["torch", "numpy"]:
+                tr_t_or_np += 1
+                print_colour(f"TorchOrNumpy:  {n}", Colours.green)
+            elif obj.backend == ["torch"]:
+                tr_t += 1
+                print_colour(f"Torch:         {n}", Colours.green)
+            elif obj.backend == ["numpy"]:
+                tr_np += 1
+                print_colour(f"Numpy:         {n}", Colours.yellow)
+            else:
+                tr_uncategorised += 1
+                print_colour(f"Uncategorised: {n}", Colours.red)
+    print("Total number of transforms:", tr_total)
+    print_colour(f"Number transforms allowing both torch and numpy: {tr_t_or_np}", Colours.green)
+    print_colour(f"Number of TorchTransform: {tr_t}", Colours.green)
+    print_colour(f"Number of NumpyTransform: {tr_np}", Colours.yellow)
+    print_colour(f"Number of uncategorised: {tr_uncategorised}", Colours.red)

@@ -37,6 +37,7 @@ from monai.utils import (
     ensure_tuple_size,
     fall_back_tuple,
 )
+from monai.utils.enums import TransformBackends
 
 __all__ = [
     "RandGaussianNoise",
@@ -81,7 +82,7 @@ class RandGaussianNoise(RandomizableTransform):
         std: Standard deviation (spread) of distribution.
     """
 
-    backend = ["torch", "numpy"]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(self, prob: float = 0.1, mean: Union[Sequence[float], float] = 0.0, std: float = 0.1) -> None:
         RandomizableTransform.__init__(self, prob)
@@ -852,7 +853,7 @@ class SavitzkyGolaySmooth(Transform):
             or ``'circular'``. Default: ``'zeros'``. See ``torch.nn.Conv1d()`` for more information.
     """
 
-    backend = ["numpy"]
+    backend = [TransformBackends.NUMPY]
 
     def __init__(self, window_length: int, order: int, axis: int = 1, mode: str = "zeros"):
 

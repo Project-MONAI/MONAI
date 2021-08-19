@@ -514,6 +514,7 @@ from .utils import (
     map_binary_to_indices,
     map_classes_to_indices,
     map_spatial_axes,
+    print_transform_backends,
     rand_choice,
     rescale_array,
     rescale_array_int_max,
