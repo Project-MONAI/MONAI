@@ -507,6 +507,7 @@ from .utils import (
     generate_spatial_bounding_box,
     get_extreme_points,
     get_largest_connected_component_mask,
+    get_number_image_type_conversions,
     img_bounds,
     in_bounds,
     is_empty,
