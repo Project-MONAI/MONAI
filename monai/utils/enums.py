@@ -29,6 +29,7 @@ __all__ = [
     "InverseKeys",
     "CommonKeys",
     "ForwardMode",
+    "TransformBackends",
 ]
 
 
@@ -233,3 +234,12 @@ class CommonKeys:
     LABEL = "label"
     PRED = "pred"
     LOSS = "loss"
+
+
+class TransformBackends(Enum):
+    """
+    Transform backends.
+    """
+
+    TORCH = "torch"
+    NUMPY = "numpy"
