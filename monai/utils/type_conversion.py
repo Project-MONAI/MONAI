@@ -58,7 +58,7 @@ def get_equivalent_dtype(dtype, data_type):
     """Convert to the `dtype` that corresponds to `data_type`.
     Example:
         im = torch.tensor(1)
-        dtype = dtype_convert(np.float32, type(im))
+        dtype = get_equivalent_dtype(np.float32, type(im))
     """
     if data_type is torch.Tensor:
         if type(dtype) is torch.dtype:
