@@ -15,14 +15,16 @@ import warnings
 from contextlib import contextmanager
 from inspect import getmembers, isclass
 from typing import Callable, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Hashable, Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
 import monai
+import monai.transforms.transform
 from monai.config import DtypeLike, IndexSelection
 from monai.networks.layers import GaussianFilter
-from monai.transforms.compose import Compose
+from monai.transforms.compose import Compose, OneOf
 from monai.transforms.transform import MapTransform, Transform
 from monai.utils import (
     GridSampleMode,
@@ -77,6 +79,7 @@ __all__ = [
     "weighted_patch_samples",
     "zero_margins",
     "equalize_hist",
+    "get_number_image_type_conversions",
     "print_transform_backends",
 ]
 
@@ -1112,6 +1115,44 @@ class Fourier:
             torch.fft.ifftshift(k, dim=tuple(range(-n_dims, 0))), dim=tuple(range(-n_dims, 0))
         ).real
         return x
+
+
+def get_number_image_type_conversions(transform: Compose, test_data: Any, key: Optional[Hashable] = None) -> int:
+    """
+    Get the number of times that the data need to be converted (e.g., numpy to torch).
+    Conversions between different devices are also counted (e.g., CPU to GPU).
+
+    Args:
+        transform: composed transforms to be tested
+        test_data: data to be used to count the number of conversions
+        key: if using dictionary transforms, this key will be used to check the number of conversions.
+    """
+
+    def _get_data(obj, key):
+        return obj if key is None else obj[key]
+
+    # if the starting point is a string (e.g., input to LoadImage), start
+    # at -1 since we don't want to count the string -> image conversion.
+    num_conversions = 0 if not isinstance(_get_data(test_data, key), str) else -1
+
+    tr = transform.flatten().transforms
+
+    if isinstance(transform, OneOf) or any(isinstance(i, OneOf) for i in tr):
+        raise RuntimeError("Not compatible with `OneOf`, as the applied transform is deterministically chosen.")
+
+    for _transform in tr:
+        prev_data = _get_data(test_data, key)
+        prev_type = type(prev_data)
+        prev_device = prev_data.device if isinstance(prev_data, torch.Tensor) else None
+        test_data = monai.transforms.transform.apply_transform(
+            _transform, test_data, transform.map_items, transform.unpack_items
+        )
+        # every time the type or device changes, increment the counter
+        curr_data = _get_data(test_data, key)
+        curr_device = curr_data.device if isinstance(curr_data, torch.Tensor) else None
+        if not isinstance(curr_data, prev_type) or curr_device != prev_device:
+            num_conversions += 1
+    return num_conversions
 
 
 def print_transform_backends():
