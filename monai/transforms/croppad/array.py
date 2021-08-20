@@ -691,7 +691,13 @@ class CropForeground(Transform):
         box_end_ = box_start_ + spatial_size
         return box_start_, box_end_
 
-    def crop_pad(self, img: np.ndarray, box_start: np.ndarray, box_end: np.ndarray):
+    def crop_pad(
+        self,
+        img: np.ndarray,
+        box_start: np.ndarray,
+        box_end: np.ndarray,
+        mode: Optional[Union[NumpyPadMode, str]] = None,
+    ):
         """
         Crop and pad based on the bounding box.
 
@@ -700,15 +706,15 @@ class CropForeground(Transform):
         pad_to_start = np.maximum(-box_start, 0)
         pad_to_end = np.maximum(box_end - np.asarray(img.shape[1:]), 0)
         pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
-        return BorderPad(spatial_border=pad, mode=self.mode, **self.np_kwargs)(cropped)
+        return BorderPad(spatial_border=pad, mode=mode or self.mode, **self.np_kwargs)(cropped)
 
-    def __call__(self, img: np.ndarray):
+    def __call__(self, img: np.ndarray, mode: Optional[Union[NumpyPadMode, str]] = None):
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't change the channel dim.
         """
         box_start, box_end = self.compute_bounding_box(img)
-        cropped = self.crop_pad(img, box_start, box_end)
+        cropped = self.crop_pad(img, box_start, box_end, mode)
 
         if self.return_coords:
             return cropped, box_start, box_end
