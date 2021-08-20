@@ -325,6 +325,11 @@ Intensity
      :members:
      :special-members: __call__
 
+`LocalPatchShuffling`
+""""""""""""""""""""
+.. autoclass:: LocalPatchShuffling
+    :members:
+    :special-members: __call__
 
 IO
 ^^

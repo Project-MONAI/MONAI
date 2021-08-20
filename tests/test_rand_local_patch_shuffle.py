@@ -22,22 +22,19 @@ TEST_CASES = [
         {"img": np.arange(8).reshape((1, 2, 2, 2))},
         np.arange(8).reshape((1, 2, 2, 2)),
     ],
-]
-
-"""
     [
-        {"number_blocks": 10000, "blocksize_ratio": 10, "prob": 1.0},
-        {"img": np.arange(125000).reshape((1, 50, 50, 50))},
-        np.arange(125000).reshape((1, 50, 50, 50)),
+        {"number_blocks": 10, "blocksize_ratio": 2, "prob": 1.0},
+        {"img": np.arange(64).reshape((1, 4, 4, 4))},
+        np.arange(64).reshape((1, 4, 4, 4)),
     ],
-"""
+]
 
 
 class TestLocalPatchShuffle(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_local_patch_shuffle(self, input_param, input_data, expected_val):
         g = LocalPatchShuffling(**input_param)
-        g.set_random_state(123)
+        g.set_random_state(seed=12)
         result = g(**input_data)
         np.testing.assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
 
