@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-Decorators for NVIDIA Tools Extension to profile MONAI components
+Decorators and context managers for NVIDIA Tools Extension to profile MONAI components
 """
 
 from functools import wraps
