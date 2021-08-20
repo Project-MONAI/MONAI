@@ -188,7 +188,7 @@ class MBConvBlock(nn.Module):
         Args:
             memory_efficient (bool): Whether to use memory-efficient version of swish.
         """
-        self._swish = Act["memswish"]() if memory_efficient else Act["swish"](alpha=1.0)
+        self._swish = Act["memswish"](inplace=True) if memory_efficient else Act["swish"](alpha=1.0)
 
 
 class EfficientNet(nn.Module):
