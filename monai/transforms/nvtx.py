@@ -12,8 +12,6 @@
 Wrapper around NVIDIA Tools Extension for profiling MONAI transformations
 """
 
-from typing import Optional
-
 from monai.transforms.transform import RandomizableTransform, Transform
 from monai.utils import optional_import
 
