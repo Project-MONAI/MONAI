@@ -58,7 +58,7 @@ from monai.transforms.utility.array import (
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.utils import convert_to_numpy, ensure_tuple, ensure_tuple_rep
-from monai.utils.enums import InverseKeys, TransformBackends
+from monai.utils.enums import InverseKeys
 
 __all__ = [
     "AddChannelD",
@@ -393,7 +393,7 @@ class CastToTyped(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.CastToType`.
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = CastToType.backend
 
     def __init__(
         self,
