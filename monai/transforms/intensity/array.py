@@ -16,7 +16,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 from collections.abc import Iterable
 from copy import deepcopy
 from functools import partial
-from typing import Any, Callable, Generic, List, Optional, Protocol, Sequence, Tuple, Union
+from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 from warnings import warn
 
 import numpy as np
