@@ -30,6 +30,7 @@ from .enums import (
     NumpyPadMode,
     PytorchPadMode,
     SkipMode,
+    TransformBackends,
     UpsampleMode,
     Weight,
 )

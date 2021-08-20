@@ -11,26 +11,12 @@
 
 import unittest
 
-import numpy as np
-import torch
-from parameterized import parameterized
-
-from monai.utils.type_conversion import get_equivalent_dtype
-from tests.utils import TEST_NDARRAYS
-
-DTYPES = [torch.float32, np.float32, np.dtype(np.float32)]
-
-TESTS = []
-for p in TEST_NDARRAYS:
-    for im_dtype in DTYPES:
-        TESTS.append((p(np.array(1.0, dtype=np.float32)), im_dtype))
+from monai.transforms.utils import print_transform_backends
 
 
-class TestGetEquivalentDtype(unittest.TestCase):
-    @parameterized.expand(TESTS)
-    def test_get_equivalent_dtype(self, im, input_dtype):
-        out_dtype = get_equivalent_dtype(input_dtype, type(im))
-        self.assertEqual(out_dtype, im.dtype)
+class TestPrintTransformBackends(unittest.TestCase):
+    def test_get_number_of_conversions(self):
+        print_transform_backends()
 
 
 if __name__ == "__main__":

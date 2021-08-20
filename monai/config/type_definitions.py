@@ -58,13 +58,16 @@ container must be iterable.
 
 DtypeLike = Union[np.dtype, type, None]
 """Type of datatypes
-adapted from https://github.com/numpy/numpy/blob/master/numpy/typing/_dtype_like.py
+
+Adapted from https://github.com/numpy/numpy/blob/master/numpy/typing/_dtype_like.py
 """
 
-# Generic type which can represent either a numpy.ndarray or a torch.Tensor
-# Unlike Union can create a dependence between parameter(s) / return(s)
 NdarrayTensor = TypeVar("NdarrayTensor", np.ndarray, torch.Tensor)
+"""NdarrayTensor
 
+Generic type which can represent either a numpy.ndarray or a torch.Tensor
+Unlike Union can create a dependence between parameter(s) / return(s)
+"""
 
 TensorOrList = Union[torch.Tensor, Sequence[torch.Tensor]]
 """TensorOrList
