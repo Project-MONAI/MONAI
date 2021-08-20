@@ -14,10 +14,12 @@ Decorators and context managers for NVIDIA Tools Extension to profile MONAI comp
 
 from functools import wraps
 from typing import Callable, Optional, Union
+from collections import defaultdict
 
 import torch.nn as nn
 
-from monai.utils import optional_import
+
+from monai.utils import optional_import, MethodReplacer
 
 _nvtx, _ = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")
 
@@ -35,13 +37,13 @@ class Range:
         method: (only when used as decorator) the method to be wrapped by NVTX range. If not provided (None),
             the method will be inferred based on the object's class for Callable objects (like Transforms),
             nn.Module objects (like Networks, Losses, etc.), and Dataloaders. Method resolve order is:
-            - __call__()
             - forward()
+            - __call__()
             - __next__()
 
     """
 
-    no_name_counter = 0
+    name_counter = defaultdict(int)
 
     def __init__(self, name: Optional[str] = None, method: Optional[str] = None) -> None:
         self.name = name
@@ -50,13 +52,15 @@ class Range:
     def __call__(self, obj: Union[Callable, nn.Module]):
         # Define the name to be associated to the range if not provided
         if self.name is None:
-            self.name = type(obj).__name__
+            name = type(obj).__name__
+            self.name_counter[name] += 1
+            self.name = f"{name}_{self.name_counter[name]}"
 
         # Define the method to be wrapped if not provided
         if self.method is None:
             method_list = [
-                "__call__",  # Callable
                 "forward",  # nn.Module
+                "__call__",  # Callable
                 "__next__",  # Dataloader
             ]
             for method in method_list:
@@ -70,8 +74,14 @@ class Range:
                     f"{method_list}"
                 )
 
+        # Get the class for special functions
+        if self.method.startswith("__"):
+            owner = type(obj)
+        else:
+            owner = obj
+
         # Get the method to be wrapped
-        _temp_func = getattr(obj, self.method)
+        _temp_func = getattr(owner, self.method)
 
         # Wrap the method with NVTX range (range push/pop)
         @wraps(_temp_func)
@@ -82,15 +92,15 @@ class Range:
             return output
 
         # Replace the method with the wrapped version
-        setattr(obj, self.method, range_wrapper)
+        setattr(owner, self.method, range_wrapper)
 
         return obj
 
     def __enter__(self):
         if self.name is None:
             # Number the range with class variable counter to avoid duplicate names.
-            self.name = "Range_" + str(self.no_name_counter)
-            self.no_name_counter += 1
+            self.name_counter["context"] += 1
+            self.name = f"context_{self.name_counter['context']}"
 
         _nvtx.rangePushA(self.name)
 
