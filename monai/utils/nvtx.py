@@ -12,14 +12,13 @@
 Decorators and context managers for NVIDIA Tools Extension to profile MONAI components
 """
 
-from functools import wraps
-from typing import Callable, Optional, Union
 from collections import defaultdict
+from functools import wraps
+from typing import Any, Optional
 
 import torch.nn as nn
 
-
-from monai.utils import optional_import, MethodReplacer
+from monai.utils import optional_import
 
 _nvtx, _ = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")
 
@@ -43,13 +42,13 @@ class Range:
 
     """
 
-    name_counter = defaultdict(int)
+    name_counter: dict = defaultdict(int)
 
     def __init__(self, name: Optional[str] = None, method: Optional[str] = None) -> None:
         self.name = name
         self.method = method
 
-    def __call__(self, obj: Union[Callable, nn.Module]):
+    def __call__(self, obj: Any):
         # Define the name to be associated to the range if not provided
         if self.name is None:
             name = type(obj).__name__
