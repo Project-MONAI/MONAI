@@ -81,9 +81,9 @@ class TestNVTXRangeDecorator(unittest.TestCase):
         self.assertIsInstance(output1, torch.Tensor)
         self.assertIsInstance(output2, torch.Tensor)
         self.assertIsInstance(output3, torch.Tensor)
-        torch.testing.assert_equal(output, output1)
-        torch.testing.assert_equal(output, output2)
-        torch.testing.assert_equal(output, output3)
+        np.testing.assert_equal(output.numpy(), output1.numpy())
+        np.testing.assert_equal(output.numpy(), output1.numpy())
+        np.testing.assert_equal(output.numpy(), output3.numpy())
 
     @parameterized.expand([TEST_CASE_DICT_0, TEST_CASE_DICT_1])
     @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX Range!")
@@ -112,9 +112,9 @@ class TestNVTXRangeDecorator(unittest.TestCase):
         self.assertIsInstance(output1, torch.Tensor)
         self.assertIsInstance(output2, torch.Tensor)
         self.assertIsInstance(output3, torch.Tensor)
-        torch.testing.assert_equal(output, output1)
-        torch.testing.assert_equal(output, output2)
-        torch.testing.assert_equal(output, output3)
+        np.testing.assert_equal(output.numpy(), output1.numpy())
+        np.testing.assert_equal(output.numpy(), output2.numpy())
+        np.testing.assert_equal(output.numpy(), output3.numpy())
 
     @parameterized.expand([TEST_CASE_ARRAY_1])
     @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX Range!")
@@ -147,9 +147,9 @@ class TestNVTXRangeDecorator(unittest.TestCase):
         self.assertIsInstance(output1, torch.Tensor)
         self.assertIsInstance(output2, torch.Tensor)
         self.assertIsInstance(output3, torch.Tensor)
-        torch.testing.assert_equal(output, output1)
-        torch.testing.assert_equal(output, output2)
-        torch.testing.assert_equal(output, output3)
+        np.testing.assert_equal(output.numpy(), output1.numpy())
+        np.testing.assert_equal(output.numpy(), output2.numpy())
+        np.testing.assert_equal(output.numpy(), output3.numpy())
 
         # Check if the first randomized is RandAdjustContrast
         for tran in transforms.transforms:
@@ -184,9 +184,9 @@ class TestNVTXRangeDecorator(unittest.TestCase):
         self.assertIsInstance(output1, torch.Tensor)
         self.assertIsInstance(output2, torch.Tensor)
         self.assertIsInstance(output3, torch.Tensor)
-        torch.testing.assert_equal(output, output1)
-        torch.testing.assert_equal(output, output2)
-        torch.testing.assert_equal(output, output3)
+        np.testing.assert_equal(output.numpy(), output1.numpy())
+        np.testing.assert_equal(output.numpy(), output2.numpy())
+        np.testing.assert_equal(output.numpy(), output3.numpy())
 
     @parameterized.expand([TEST_CASE_TORCH_0, TEST_CASE_TORCH_1])
     @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX Range!")
@@ -215,9 +215,9 @@ class TestNVTXRangeDecorator(unittest.TestCase):
         self.assertIsInstance(output1, torch.Tensor)
         self.assertIsInstance(output2, torch.Tensor)
         self.assertIsInstance(output3, torch.Tensor)
-        torch.testing.assert_equal(output, output1)
-        torch.testing.assert_equal(output, output2)
-        torch.testing.assert_equal(output, output3)
+        np.testing.assert_equal(output.numpy(), output1.numpy())
+        np.testing.assert_equal(output.numpy(), output2.numpy())
+        np.testing.assert_equal(output.numpy(), output3.numpy())
 
     @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX Range!")
     def test_context_manager(self):
