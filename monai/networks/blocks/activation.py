@@ -12,18 +12,30 @@
 import torch
 from torch import nn
 
-from monai.utils import optional_import
+from monai.utils import PT_BEFORE_1_7, PT_BEFORE_1_9
 
-if optional_import("torch.nn.functional", name="mish")[1]:
+if PT_BEFORE_1_9:
 
-    def monai_mish(x):
-        return torch.nn.functional.mish(x, inplace=True)
+    def monai_mish(x, inplace: bool = False):
+        return x * torch.tanh(torch.nn.functional.softplus(x))
 
 
 else:
 
-    def monai_mish(x):
-        return x * torch.tanh(torch.nn.functional.softplus(x))
+    def monai_mish(x, inplace: bool = False):
+        return torch.nn.functional.mish(x, inplace=inplace)
+
+
+if PT_BEFORE_1_7:
+
+    def monai_swish(x, inplace: bool = False):
+        return SwishImplementation.apply(x)
+
+
+else:
+
+    def monai_swish(x, inplace: bool = False):
+        return torch.nn.functional.silu(x, inplace=inplace)
 
 
 class Swish(nn.Module):
@@ -92,6 +104,9 @@ class MemoryEfficientSwish(nn.Module):
 
     Citation: Searching for Activation Functions, Ramachandran et al., 2017, https://arxiv.org/abs/1710.05941.
 
+    From Pytorch 1.7.0+, the optimized version of `Swish` named `SiLU` is implemented,
+    this class will utilize `torch.nn.functional.silu` to do the calculation if meets the version.
+
     Shape:
         - Input: :math:`(N, *)` where `*` means, any number of additional
           dimensions
@@ -107,8 +122,13 @@ class MemoryEfficientSwish(nn.Module):
         >>> output = m(input)
     """
 
+    def __init__(self, inplace: bool = False):
+        super(MemoryEfficientSwish, self).__init__()
+        # inplace only works when using torch.nn.functional.silu
+        self.inplace = inplace
+
     def forward(self, input: torch.Tensor):
-        return SwishImplementation.apply(input)
+        return monai_swish(input, self.inplace)
 
 
 class Mish(nn.Module):
@@ -119,6 +139,8 @@ class Mish(nn.Module):
 
     Citation: Mish: A Self Regularized Non-Monotonic Activation Function, Diganta Misra, 2019, https://arxiv.org/abs/1908.08681.
 
+    From Pytorch 1.9.0+, the optimized version of `Mish` is implemented,
+    this class will utilize `torch.nn.functional.mish` to do the calculation if meets the version.
 
     Shape:
         - Input: :math:`(N, *)` where `*` means, any number of additional
@@ -135,5 +157,10 @@ class Mish(nn.Module):
         >>> output = m(input)
     """
 
+    def __init__(self, inplace: bool = False):
+        super(Mish, self).__init__()
+        # inplace only works when using torch.nn.functional.mish
+        self.inplace = inplace
+
     def forward(self, input: torch.Tensor):
-        return monai_mish(input)
+        return monai_mish(input, self.inplace)

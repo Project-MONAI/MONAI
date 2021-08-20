@@ -34,6 +34,7 @@ __all__ = [
     "get_package_version",
     "get_torch_version_tuple",
     "PT_BEFORE_1_7",
+    "PT_BEFORE_1_9",
     "version_leq",
 ]
 
@@ -406,3 +407,8 @@ try:
     PT_BEFORE_1_7 = torch.__version__ != "1.7.0" and version_leq(torch.__version__, "1.7.0")
 except (AttributeError, TypeError):
     PT_BEFORE_1_7 = True
+
+try:
+    PT_BEFORE_1_9 = torch.__version__ != "1.9.0" and version_leq(torch.__version__, "1.9.0")
+except (AttributeError, TypeError):
+    PT_BEFORE_1_9 = True

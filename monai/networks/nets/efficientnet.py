@@ -140,7 +140,7 @@ class MBConvBlock(nn.Module):
 
         # swish activation to use - using memory efficient swish by default
         # can be switched to normal swish using self.set_swish() function call
-        self._swish = Act["memswish"]()
+        self._swish = Act["memswish"](inplace=True)
 
     def forward(self, inputs: torch.Tensor):
         """MBConvBlock"s forward function.
