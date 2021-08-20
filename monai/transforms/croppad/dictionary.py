@@ -25,6 +25,7 @@ from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Seque
 import numpy as np
 
 from monai.config import IndexSelection, KeysCollection
+from monai.config.type_definitions import NdarrayTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.croppad.array import (
     BorderPad,
@@ -49,7 +50,7 @@ from monai.transforms.utils import (
 )
 from monai.utils import ImageMetaKey as Key
 from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
-from monai.utils.enums import InverseKeys
+from monai.utils.enums import InverseKeys, TransformBackends
 
 __all__ = [
     "NumpyPadModeSequence",
@@ -106,6 +107,8 @@ class SpatialPadd(MapTransform, InvertibleTransform):
     Performs padding to the data, symmetric for all sides or all on one side for each dimension.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -140,7 +143,7 @@ class SpatialPadd(MapTransform, InvertibleTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padder = SpatialPad(spatial_size, method, **np_kwargs)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
         d = dict(data)
         for key, m in self.key_iterator(d, self.mode):
             self.push_transform(d, key, extra_info={"mode": m.value if isinstance(m, Enum) else m})
@@ -173,6 +176,8 @@ class BorderPadd(MapTransform, InvertibleTransform):
     Pad the input data by adding specified borders to every dimension.
     Dictionary-based wrapper of :py:class:`monai.transforms.BorderPad`.
     """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
         self,
@@ -211,7 +216,7 @@ class BorderPadd(MapTransform, InvertibleTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padder = BorderPad(spatial_border=spatial_border, **np_kwargs)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
         d = dict(data)
         for key, m in self.key_iterator(d, self.mode):
             self.push_transform(d, key, extra_info={"mode": m.value if isinstance(m, Enum) else m})
@@ -249,6 +254,8 @@ class DivisiblePadd(MapTransform, InvertibleTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.DivisiblePad`.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -283,7 +290,7 @@ class DivisiblePadd(MapTransform, InvertibleTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padder = DivisiblePad(k=k, method=method, **np_kwargs)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
         d = dict(data)
         for key, m in self.key_iterator(d, self.mode):
             self.push_transform(d, key, extra_info={"mode": m.value if isinstance(m, Enum) else m})
@@ -790,7 +797,7 @@ class CropForegroundd(MapTransform, InvertibleTransform):
         channel_indices: Optional[IndexSelection] = None,
         margin: Union[Sequence[int], int] = 0,
         k_divisible: Union[Sequence[int], int] = 1,
-        mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+        mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT,
         start_coord_key: str = "foreground_start_coord",
         end_coord_key: str = "foreground_end_coord",
         allow_missing_keys: bool = False,
@@ -811,6 +818,7 @@ class CropForegroundd(MapTransform, InvertibleTransform):
                 ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
                 one of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 see also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                it also can be a sequence of string, each element corresponds to a key in ``keys``.
             start_coord_key: key to record the start coordinate of spatial bounding box for foreground.
             end_coord_key: key to record the end coordinate of spatial bounding box for foreground.
             allow_missing_keys: don't raise exception if key is missing.
@@ -827,18 +835,18 @@ class CropForegroundd(MapTransform, InvertibleTransform):
             channel_indices=channel_indices,
             margin=margin,
             k_divisible=k_divisible,
-            mode=mode,
             **np_kwargs,
         )
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d = dict(data)
         box_start, box_end = self.cropper.compute_bounding_box(img=d[self.source_key])
         d[self.start_coord_key] = box_start
         d[self.end_coord_key] = box_end
-        for key in self.key_iterator(d):
+        for key, m in self.key_iterator(d, self.mode):
             self.push_transform(d, key, extra_info={"box_start": box_start, "box_end": box_end})
-            d[key] = self.cropper.crop_pad(d[key], box_start, box_end)
+            d[key] = self.cropper.crop_pad(img=d[key], box_start=box_start, box_end=box_end, mode=m)
         return d
 
     def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
