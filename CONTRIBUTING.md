@@ -257,6 +257,7 @@ All code review comments should be specific, constructive, and actionable.
 1. Make in-line comments to specific code segments, [request for changes](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-request-reviews) if needed.
 1. Review any further code changes until all comments addressed by the contributors.
 1. Comment to trigger `/black` and/or `/integration-test` for optional auto code formatting and [integration tests](.github/workflows/integration.yml).
+1. [Maintainers] Review the changes and comment `/build` to trigger internal full tests.
 1. Merge the pull request to the dev branch.
 1. Close the corresponding task ticket on [the issue list][monai issue list].
 
