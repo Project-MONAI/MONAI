@@ -16,8 +16,6 @@ from collections import defaultdict
 from functools import wraps
 from typing import Any, Optional
 
-import torch.nn as nn
-
 from monai.utils import optional_import
 
 _nvtx, _ = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")
