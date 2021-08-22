@@ -1,21 +1,11 @@
-# Copyright 2020 - 2021 MONAI Consortium
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#     http://www.apache.org/licenses/LICENSE-2.0
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import json
 import logging
-from typing import Dict, Tuple
+from typing import Dict, Hashable, Mapping, Tuple
 
 import numpy as np
 
-from monai.transforms.transform import Randomizable, Transform
+from monai.config import KeysCollection
+from monai.transforms.transform import MapTransform, Randomizable, Transform
 
 logger = logging.getLogger(__name__)
 
@@ -24,16 +14,19 @@ from monai.utils import optional_import
 distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_cdt")
 
 
-class DiscardAddGuidanced(Transform):
-    def __init__(self, image: str = "image", probability: float = 1.0):
+class DiscardAddGuidanced(MapTransform):
+    def __init__(
+        self,
+        keys: KeysCollection,
+        probability: float = 1.0,
+        allow_missing_keys: bool = False,
+    ):
         """
         Discard positive and negative points randomly or Add the two channels for inference time
 
-        :param image: image key
-        :param batched: Is it batched (if used during training and data is batched as interaction transform)
         :param probability: Discard probability; For inference it will be always 1.0
         """
-        self.image = image
+        super().__init__(keys, allow_missing_keys)
         self.probability = probability
 
     def _apply(self, image):
@@ -46,9 +39,13 @@ class DiscardAddGuidanced(Transform):
                 image = np.concatenate((image, signal, signal), axis=0)
         return image
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d: Dict = dict(data)
-        d[self.image] = self._apply(d[self.image])
+        for key in self.key_iterator(d):
+            if key == "image":
+                d[key] = self._apply(d[key])
+            else:
+                print("This transform only applies to the image")
         return d
 
 
