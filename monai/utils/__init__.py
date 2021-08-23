@@ -57,7 +57,6 @@ from .misc import (
 )
 from .module import (
     PT_BEFORE_1_7,
-    PT_BEFORE_1_9,
     InvalidPyTorchVersionError,
     OptionalImportError,
     damerau_levenshtein_distance,

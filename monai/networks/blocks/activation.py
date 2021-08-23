@@ -12,30 +12,30 @@
 import torch
 from torch import nn
 
-from monai.utils import PT_BEFORE_1_7, PT_BEFORE_1_9
+from monai.utils import optional_import
 
-if PT_BEFORE_1_9:
-
-    def monai_mish(x, inplace: bool = False):
-        return x * torch.tanh(torch.nn.functional.softplus(x))
-
-
-else:
+if optional_import("torch.nn.functional", name="mish")[1]:
 
     def monai_mish(x, inplace: bool = False):
         return torch.nn.functional.mish(x, inplace=inplace)
 
 
-if PT_BEFORE_1_7:
+else:
+
+    def monai_mish(x, inplace: bool = False):
+        return x * torch.tanh(torch.nn.functional.softplus(x))
+
+
+if optional_import("torch.nn.functional", name="silu")[1]:
 
     def monai_swish(x, inplace: bool = False):
-        return SwishImplementation.apply(x)
+        return torch.nn.functional.silu(x, inplace=inplace)
 
 
 else:
 
     def monai_swish(x, inplace: bool = False):
-        return torch.nn.functional.silu(x, inplace=inplace)
+        return SwishImplementation.apply(x)
 
 
 class Swish(nn.Module):
