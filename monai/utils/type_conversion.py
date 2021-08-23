@@ -4,7 +4,7 @@ from typing import Any, Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
 
-from monai.config.type_definitions import DtypeLike, NdarrayTensorUnion
+from monai.config.type_definitions import DtypeLike, NdarrayOrTensor
 from monai.utils import optional_import
 
 cp, has_cp = optional_import("cupy")
@@ -150,7 +150,7 @@ def convert_data_type(
     output_type: Optional[type] = None,
     device: Optional[torch.device] = None,
     dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
-) -> Tuple[NdarrayTensorUnion, type, Optional[torch.device]]:
+) -> Tuple[NdarrayOrTensor, type, Optional[torch.device]]:
     """
     Convert to `torch.Tensor`/`np.ndarray` from `torch.Tensor`/`np.ndarray`/`float`/`int` etc.
 
@@ -188,7 +188,7 @@ def convert_data_type(
     return data, orig_type, orig_device
 
 
-def convert_to_dst_type(src: Any, dst: NdarrayTensorUnion) -> Tuple[NdarrayTensorUnion, type, Optional[torch.device]]:
+def convert_to_dst_type(src: Any, dst: NdarrayOrTensor) -> Tuple[NdarrayOrTensor, type, Optional[torch.device]]:
     """
     Convert `src` to the same `torch.Tensor`/`np.ndarray` and data type as `dst`.
 

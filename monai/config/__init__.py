@@ -19,4 +19,4 @@ from .deviceconfig import (
     print_gpu_info,
     print_system_info,
 )
-from .type_definitions import DtypeLike, IndexSelection, KeysCollection, NdarrayTensor, NdarrayTensorUnion, TensorOrList
+from .type_definitions import DtypeLike, IndexSelection, KeysCollection, NdarrayTensor, NdarrayOrTensor, TensorOrList

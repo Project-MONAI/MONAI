@@ -24,7 +24,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike, KeysCollection, NdarrayTensor
-from monai.config.type_definitions import NdarrayTensorUnion
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.utils import no_collation
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
@@ -416,7 +416,7 @@ class CastToTyped(MapTransform):
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.converter = CastToType()
 
-    def __call__(self, data: Mapping[Hashable, NdarrayTensorUnion]) -> Dict[Hashable, NdarrayTensorUnion]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, dtype in self.key_iterator(d, self.dtype):
             d[key] = self.converter(d[key], dtype=dtype)

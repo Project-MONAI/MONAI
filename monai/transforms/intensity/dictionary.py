@@ -22,7 +22,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike, KeysCollection, NdarrayTensor
-from monai.config.type_definitions import NdarrayTensorUnion
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.intensity.array import (
     AdjustContrast,
@@ -400,7 +400,7 @@ class StdShiftIntensityd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.shifter = StdShiftIntensity(factor, nonzero, channel_wise, dtype)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayTensorUnion]) -> Dict[Hashable, NdarrayTensorUnion]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.shifter(d[key])
@@ -454,7 +454,7 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
         super().randomize(None)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayTensorUnion]) -> Dict[Hashable, NdarrayTensorUnion]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize()
         if not self._do_transform:

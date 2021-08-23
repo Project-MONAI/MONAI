@@ -23,7 +23,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike
-from monai.config.type_definitions import NdarrayTensor, NdarrayTensorUnion
+from monai.config.type_definitions import NdarrayTensor, NdarrayOrTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
 from monai.transforms.transform import RandomizableTransform, Transform
@@ -96,7 +96,7 @@ class RandGaussianNoise(RandomizableTransform):
         super().randomize(None)
         self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
 
-    def __call__(self, img: NdarrayTensorUnion) -> NdarrayTensorUnion:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
@@ -150,8 +150,8 @@ class RandRicianNoise(RandomizableTransform):
         self.channel_wise = channel_wise
         self.relative = relative
         self.sample_std = sample_std
-        self._noise1: NdarrayTensorUnion
-        self._noise2: NdarrayTensorUnion
+        self._noise1: NdarrayOrTensor
+        self._noise2: NdarrayOrTensor
 
     def _add_noise(self, img: NdarrayTensor, mean: float, std: float):
         dtype_np = get_equivalent_dtype(img.dtype, np.ndarray)
@@ -203,7 +203,7 @@ class ShiftIntensity(Transform):
     def __init__(self, offset: float) -> None:
         self.offset = offset
 
-    def __call__(self, img: NdarrayTensorUnion, offset: Optional[float] = None) -> NdarrayTensorUnion:
+    def __call__(self, img: NdarrayOrTensor, offset: Optional[float] = None) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
@@ -243,7 +243,7 @@ class RandShiftIntensity(RandomizableTransform):
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
         super().randomize(None)
 
-    def __call__(self, img: NdarrayTensorUnion, factor: Optional[float] = None) -> NdarrayTensorUnion:
+    def __call__(self, img: NdarrayOrTensor, factor: Optional[float] = None) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
 
@@ -284,7 +284,7 @@ class StdShiftIntensity(Transform):
         self.channel_wise = channel_wise
         self.dtype = dtype
 
-    def _stdshift(self, img: NdarrayTensorUnion) -> NdarrayTensorUnion:
+    def _stdshift(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         ones: Callable
         std: Callable
         if isinstance(img, torch.Tensor):
@@ -296,13 +296,11 @@ class StdShiftIntensity(Transform):
 
         slices = (img != 0) if self.nonzero else ones(img.shape, dtype=bool)
         if slices.any():
-            out = deepcopy(img)
-            offset = self.factor * std(out[slices])
-            out[slices] = out[slices] + offset
-            return out
+            offset = self.factor * std(img[slices])
+            img[slices] = img[slices] + offset
         return img
 
-    def __call__(self, img: NdarrayTensorUnion) -> NdarrayTensorUnion:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
@@ -357,7 +355,7 @@ class RandStdShiftIntensity(RandomizableTransform):
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
         super().randomize(None)
 
-    def __call__(self, img: NdarrayTensorUnion) -> NdarrayTensorUnion:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
@@ -894,7 +892,7 @@ class SavitzkyGolaySmooth(Transform):
         self.mode = mode
         self.img_t: torch.Tensor = torch.tensor(0.0)
 
-    def __call__(self, img: NdarrayTensorUnion) -> torch.Tensor:
+    def __call__(self, img: NdarrayOrTensor) -> torch.Tensor:
         """
         Args:
             img: array containing input data. Must be real and in shape [channels, spatial1, spatial2, ...].
