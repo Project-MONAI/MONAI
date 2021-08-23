@@ -1,10 +1,10 @@
 import re
-from typing import Any, Optional, Sequence, Tuple, Type, Union, cast
+from typing import Any, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
-from monai.config.type_definitions import DtypeLike, NdarrayTensor
+from monai.config.type_definitions import DtypeLike, NdarrayOrTensor
 from monai.utils import optional_import
 
 cp, has_cp = optional_import("cupy")
@@ -147,10 +147,10 @@ def convert_to_numpy(data):
 
 def convert_data_type(
     data: Any,
-    output_type: Optional[Type[NdarrayTensor]] = None,
+    output_type: Optional[type] = None,
     device: Optional[torch.device] = None,
     dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
-) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
+) -> Tuple[NdarrayOrTensor, type, Optional[torch.device]]:
     """
     Convert to `torch.Tensor`/`np.ndarray` from `torch.Tensor`/`np.ndarray`/`float`/`int` etc.
 
@@ -175,20 +175,20 @@ def convert_data_type(
         if orig_type is not torch.Tensor:
             data = convert_to_tensor(data)
         if dtype != data.dtype:
-            data = data.to(dtype)  # type: ignore
+            data = data.to(dtype)
         if device is not None:
             data = data.to(device)
-        return cast(NdarrayTensor, data), orig_type, orig_device  # pytype: disable=invalid-annotation
-    if output_type is np.ndarray:
+    elif output_type is np.ndarray:
         if orig_type is not np.ndarray:
             data = convert_to_numpy(data)
         if data is not None and dtype != data.dtype:
-            data = data.astype(dtype)  # type: ignore
-        return cast(NdarrayTensor, data), orig_type, orig_device  # pytype: disable=invalid-annotation
-    raise ValueError(f"Unsupported output type: {output_type}")
+            data = data.astype(dtype)
+    else:
+        raise ValueError(f"Unsupported output type: {output_type}")
+    return data, orig_type, orig_device
 
 
-def convert_to_dst_type(src: Any, dst: NdarrayTensor) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
+def convert_to_dst_type(src: Any, dst: NdarrayOrTensor) -> Tuple[NdarrayOrTensor, type, Optional[torch.device]]:
     """
     Convert `src` to the same `torch.Tensor`/`np.ndarray` and data type as `dst`.
 

@@ -14,7 +14,7 @@ from typing import Collection, Hashable, Iterable, Sequence, TypeVar, Union
 import numpy as np
 import torch
 
-__all__ = ["KeysCollection", "IndexSelection", "DtypeLike", "NdarrayTensor", "TensorOrList"]
+__all__ = ["KeysCollection", "IndexSelection", "DtypeLike", "NdarrayTensor", "NdarrayOrTensor", "TensorOrList"]
 
 """Commonly used concepts
 This module provides naming and type specifications for commonly used concepts
@@ -67,6 +67,12 @@ NdarrayTensor = TypeVar("NdarrayTensor", np.ndarray, torch.Tensor)
 
 Generic type which can represent either a numpy.ndarray or a torch.Tensor
 Unlike Union can create a dependence between parameter(s) / return(s)
+"""
+
+NdarrayOrTensor = Union[np.ndarray, torch.Tensor]
+"""NdarrayOrTensor
+
+Union of numpy.ndarray and torch.Tensor to be used for typing
 """
 
 TensorOrList = Union[torch.Tensor, Sequence[torch.Tensor]]
