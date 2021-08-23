@@ -14,9 +14,15 @@ Decorators and context managers for NVIDIA Tools Extension to profile MONAI comp
 
 from collections import defaultdict
 from functools import wraps
-from typing import Any, Optional
+from typing import Any, Optional, Tuple, Union
 
-from monai.utils import optional_import
+from torch.autograd import Function
+from torch.nn import Module
+from torch.optim import Optimizer
+from torch.utils.data import DataLoader, Dataset
+
+# from monai.transforms.transform import Transform
+from monai.utils import ensure_tuple, optional_import
 
 _nvtx, _ = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")
 
@@ -31,20 +37,27 @@ class Range:
 
     Args:
         name: the name to be associated to the range
-        method: (only when used as decorator) the method to be wrapped by NVTX range. If not provided (None),
-            the method will be inferred based on the object's class for Callable objects (like Transforms),
-            nn.Module objects (like Networks, Losses, etc.), and Dataloaders. Method resolve order is:
-            - forward()
-            - __call__()
-            - __next__()
+        methods: (only when used as decorator) the name of a method (or a list of the name of the methods)
+            to be wrapped by NVTX range.
+            If None (default), the method(s) will be inferred based on the object's type for various MONAI components,
+            such as Networks, Losses, Optimizers, Functions, Transforms, Datasets, and Dataloaders.
+            Otherwise, it look up predefined methods: "forward", "__call__", "__next__", "__getitem__"
+        append_method_name: if append the name of the methods to be decorated to the range's name
+            If None (default), it appends the method's name only if we are annotating more than one method.
 
     """
 
     name_counter: dict = defaultdict(int)
 
-    def __init__(self, name: Optional[str] = None, method: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        name: Optional[str] = None,
+        methods: Optional[Union[str, Tuple[str, ...]]] = None,
+        append_method_name: Optional[bool] = None,
+    ) -> None:
         self.name = name
-        self.method = method
+        self.methods = methods
+        self.append_method_name = append_method_name
 
     def __call__(self, obj: Any):
         # Define the name to be associated to the range if not provided
@@ -53,45 +66,76 @@ class Range:
             self.name_counter[name] += 1
             self.name = f"{name}_{self.name_counter[name]}"
 
-        # Define the method to be wrapped if not provided
-        if self.method is None:
-            method_list = [
-                "forward",  # nn.Module
-                "__call__",  # Callable
-                "__next__",  # Dataloader
-            ]
-            for method in method_list:
-                if hasattr(obj, method):
-                    self.method = method
-                    break
-            if self.method is None:
-                raise ValueError(
-                    f"The method to be wrapped for this object [{type(obj)}] is not recognized."
-                    "The name of the method should be provied or the object should have one of these methods:"
-                    f"{method_list}"
-                )
+        # Define the methods to be wrapped if not provided
+        if self.methods is None:
+            self.methods = self._get_method(obj)
+        else:
+            self.methods = ensure_tuple(self.methods)
+
+        # Check if to append method's name to the range's name
+        if self.append_method_name is None:
+            if len(self.methods) > 1:
+                self.append_method_name = True
+            else:
+                self.append_method_name = False
+
+        # Decorate the methods
+        for method in self.methods:
+            self._decorate_method(obj, method, self.append_method_name)
+
+        return obj
+
+    def _decorate_method(self, obj, method, append_method_name):
+        # Append the method's name to the range's name
+        if append_method_name:
+            name = f"{self.name}.{method}"
+        else:
+            name = self.name
 
         # Get the class for special functions
-        if self.method.startswith("__"):
+        if method.startswith("__"):
             owner = type(obj)
         else:
             owner = obj
 
         # Get the method to be wrapped
-        _temp_func = getattr(owner, self.method)
+        _temp_func = getattr(owner, method)
 
         # Wrap the method with NVTX range (range push/pop)
         @wraps(_temp_func)
         def range_wrapper(*args, **kwargs):
-            _nvtx.rangePushA(self.name)
+            _nvtx.rangePushA(name)
             output = _temp_func(*args, **kwargs)
             _nvtx.rangePop()
             return output
 
         # Replace the method with the wrapped version
-        setattr(owner, self.method, range_wrapper)
+        setattr(owner, method, range_wrapper)
 
-        return obj
+    def _get_method(self, obj: Any) -> tuple:
+        if isinstance(obj, Module):
+            method_list = ["forward", "_call_impl"]
+        elif isinstance(obj, Optimizer):
+            method_list = ["step"]
+        elif isinstance(obj, Function):
+            method_list = ["forward", "backward"]
+        elif isinstance(obj, Dataset):
+            method_list = ["__getitem__"]
+        elif isinstance(obj, DataLoader):
+            method_list = ["_next_data"]
+        else:
+            default_methods = ["forward", "__call__", "__next__", "__getitem__"]
+            method_list = []
+            for method in default_methods:
+                if hasattr(obj, method):
+                    method_list.append(method)
+            if len(method_list) < 1:
+                raise ValueError(
+                    f"The method to be wrapped for this object [{type(obj)}] is not recognized."
+                    "The name of the method should be provied or the object should have one of these methods:"
+                    f"{default_methods}"
+                )
+        return ensure_tuple(method_list)
 
     def __enter__(self):
         if self.name is None:
