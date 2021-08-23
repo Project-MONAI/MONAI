@@ -69,7 +69,7 @@ class TestNVTXRangeDecorator(unittest.TestCase):
         # Decorate with NVTX Range
         transforms1 = Range()(transforms)
         transforms2 = Range("Transforms2")(transforms)
-        transforms3 = Range(name="Transforms3", method="__call__")(transforms)
+        transforms3 = Range(name="Transforms3", methods="__call__")(transforms)
 
         # Apply transforms with Range
         output1 = transforms1(input)
@@ -100,7 +100,7 @@ class TestNVTXRangeDecorator(unittest.TestCase):
         # Decorate with NVTX Range
         transforms1 = Range()(transforms)
         transforms2 = Range("Transforms2")(transforms)
-        transforms3 = Range(name="Transforms3", method="__call__")(transforms)
+        transforms3 = Range(name="Transforms3", methods="__call__")(transforms)
 
         # Apply transforms with Range
         output1 = transforms1(input)["image"]
@@ -135,7 +135,7 @@ class TestNVTXRangeDecorator(unittest.TestCase):
         # Decorate with NVTX Range
         transforms1 = Range()(transforms)
         transforms2 = Range("Transforms2")(transforms)
-        transforms3 = Range(name="Transforms3", method="__call__")(transforms)
+        transforms3 = Range(name="Transforms3", methods="__call__")(transforms)
 
         # Apply transforms with Range
         output1 = transforms1(input)
@@ -172,7 +172,7 @@ class TestNVTXRangeDecorator(unittest.TestCase):
         # Decorate with NVTX Range
         model1 = Range()(model)
         model2 = Range("Model2")(model)
-        model3 = Range(name="Model3", method="forward")(model)
+        model3 = Range(name="Model3", methods="forward")(model)
 
         # Forward with Range
         output1 = model1(input)
@@ -203,7 +203,7 @@ class TestNVTXRangeDecorator(unittest.TestCase):
         # Decorate with NVTX Range
         loss1 = Range()(loss)
         loss2 = Range("Loss2")(loss)
-        loss3 = Range(name="Loss3", method="forward")(loss)
+        loss3 = Range(name="Loss3", methods="forward")(loss)
 
         # Loss evaluation with Range
         output1 = loss1(pred, target)
