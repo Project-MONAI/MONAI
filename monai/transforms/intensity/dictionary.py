@@ -22,6 +22,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike, KeysCollection, NdarrayTensor
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.intensity.array import (
     AdjustContrast,
@@ -33,6 +34,7 @@ from monai.transforms.intensity.array import (
     MaskIntensity,
     NormalizeIntensity,
     RandBiasField,
+    RandGaussianNoise,
     RandKSpaceSpikeNoise,
     RandRicianNoise,
     ScaleIntensity,
@@ -45,7 +47,6 @@ from monai.transforms.intensity.array import (
 from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.transforms.utils import is_positive
 from monai.utils import convert_to_dst_type, ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
-from monai.utils.enums import TransformBackends
 
 __all__ = [
     "RandGaussianNoised",
@@ -145,7 +146,7 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = RandGaussianNoise.backend
 
     def __init__(
         self,
@@ -207,6 +208,8 @@ class RandRicianNoised(RandomizableTransform, MapTransform):
         allow_missing_keys: Don't raise exception if key is missing.
     """
 
+    backend = RandRicianNoise.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -223,9 +226,11 @@ class RandRicianNoised(RandomizableTransform, MapTransform):
         RandomizableTransform.__init__(self, global_prob)
         self.rand_rician_noise = RandRicianNoise(prob, mean, std, channel_wise, relative, sample_std)
 
-    def __call__(
-        self, data: Mapping[Hashable, Union[torch.Tensor, np.ndarray]]
-    ) -> Dict[Hashable, Union[torch.Tensor, np.ndarray]]:
+    def set_random_state(self, seed=None, state=None):
+        super().set_random_state(seed, state)
+        self.rand_rician_noise.set_random_state(seed, state)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
         d = dict(data)
         super().randomize(None)
         if not self._do_transform:
@@ -370,6 +375,8 @@ class StdShiftIntensityd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.StdShiftIntensity`.
     """
 
+    backend = StdShiftIntensity.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -393,7 +400,7 @@ class StdShiftIntensityd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.shifter = StdShiftIntensity(factor, nonzero, channel_wise, dtype)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.shifter(d[key])
@@ -404,6 +411,8 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandStdShiftIntensity`.
     """
+
+    backend = StdShiftIntensity.backend
 
     def __init__(
         self,
@@ -445,7 +454,7 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
         super().randomize(None)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize()
         if not self._do_transform:
