@@ -93,7 +93,7 @@ class Range:
             name = self.name
 
         # Get the class for special functions
-        if method.startswith("__"):
+        if method.startswith("_"):
             owner = type(obj)
         else:
             owner = obj
@@ -102,8 +102,11 @@ class Range:
         _temp_func = getattr(owner, method)
 
         # Wrap the method with NVTX range (range push/pop)
+        print(f">>>> add ({method})", flush=True)
+
         @wraps(_temp_func)
         def range_wrapper(*args, **kwargs):
+            print(f">>>> with ({method})", flush=True)
             _nvtx.rangePushA(name)
             output = _temp_func(*args, **kwargs)
             _nvtx.rangePop()
@@ -114,7 +117,7 @@ class Range:
 
     def _get_method(self, obj: Any) -> tuple:
         if isinstance(obj, Module):
-            method_list = ["forward", "_call_impl"]
+            method_list = ["forward", "__call__"]
         elif isinstance(obj, Optimizer):
             method_list = ["step"]
         elif isinstance(obj, Function):
