@@ -35,6 +35,7 @@ efficientnet_params = {
     "efficientnet-b6": (1.8, 2.6, 528, 0.5, 0.2),
     "efficientnet-b7": (2.0, 3.1, 600, 0.5, 0.2),
     "efficientnet-b8": (2.2, 3.6, 672, 0.5, 0.2),
+    "efficientnet-l2": (4.3, 5.3, 800, 0.5, 0.2),
 }
 
 
@@ -450,6 +451,7 @@ class EfficientNetBN(EfficientNet):
         in_channels: int = 3,
         num_classes: int = 1000,
         norm: Union[str, tuple] = ("batch", {"eps": 1e-3, "momentum": 0.01}),
+        adv_prop: bool = False,
     ) -> None:
         """
         Generic wrapper around EfficientNet, used to initialize EfficientNet-B0 to EfficientNet-B7 models
@@ -457,7 +459,7 @@ class EfficientNetBN(EfficientNet):
         it needs the N in [0, 1, 2, 3, 4, 5, 6, 7, 8] to be a model
 
         Args:
-            model_name: name of model to initialize, can be from [efficientnet-b0, ..., efficientnet-b8].
+            model_name: name of model to initialize, can be from [efficientnet-b0, ..., efficientnet-l2].
             pretrained: whether to initialize pretrained ImageNet weights, only available for spatial_dims=2 and batch
                 norm is used.
             progress: whether to show download progress for pretrained weights download.
@@ -465,6 +467,8 @@ class EfficientNetBN(EfficientNet):
             in_channels: number of input channels.
             num_classes: number of output classes.
             norm: feature normalization type and arguments.
+            adv_prop: whether to use weights trained with adversarial examples.
+                This argument only works when `pretrained` is `True`.
 
         Examples::
 
@@ -485,7 +489,7 @@ class EfficientNetBN(EfficientNet):
             >>> model = EfficientNetBN("efficientnet-b7", spatial_dims=2)
 
         """
-        # block args for EfficientNet-B0 to EfficientNet-B8
+        # block args
         blocks_args_str = [
             "r1_k3_s11_e1_i32_o16_se0.25",
             "r2_k3_s22_e6_i16_o24_se0.25",
@@ -523,7 +527,7 @@ class EfficientNetBN(EfficientNet):
 
         # only pretrained for when `spatial_dims` is 2
         if pretrained and (spatial_dims == 2):
-            _load_state_dict(self, model_name, progress, in_channels)
+            _load_state_dict(self, model_name, progress, in_channels, adv_prop)
 
 
 class EfficientNetBNFeatures(EfficientNet):
@@ -536,6 +540,7 @@ class EfficientNetBNFeatures(EfficientNet):
         in_channels: int = 3,
         num_classes: int = 1000,
         norm: Union[str, tuple] = ("batch", {"eps": 1e-3, "momentum": 0.01}),
+        adv_prop: bool = False,
     ) -> None:
         """
         Initialize EfficientNet-B0 to EfficientNet-B7 models as a backbone, the backbone can
@@ -582,7 +587,7 @@ class EfficientNetBNFeatures(EfficientNet):
 
         # only pretrained for when `spatial_dims` is 2
         if pretrained and (spatial_dims == 2):
-            _load_state_dict(self, model_name, progress, in_channels)
+            _load_state_dict(self, model_name, progress, in_channels, adv_prop)
 
     def forward(self, inputs: torch.Tensor):
         """
@@ -676,7 +681,8 @@ def drop_connect(inputs: torch.Tensor, p: float, training: bool) -> torch.Tensor
     return output
 
 
-def _load_state_dict(model: nn.Module, model_name: str, progress: bool, in_channels: int) -> None:
+def _load_state_dict(model: nn.Module, model_name: str, progress: bool, in_channels: int, adv_prop: bool) -> None:
+
     url_map = {
         "efficientnet-b0": "https://github.com/lukemelas/EfficientNet-PyTorch/releases/download/1.0/efficientnet-b0-355c32eb.pth",
         "efficientnet-b1": "https://github.com/lukemelas/EfficientNet-PyTorch/releases/download/1.0/efficientnet-b1-f1951068.pth",
@@ -686,7 +692,19 @@ def _load_state_dict(model: nn.Module, model_name: str, progress: bool, in_chann
         "efficientnet-b5": "https://github.com/lukemelas/EfficientNet-PyTorch/releases/download/1.0/efficientnet-b5-b6417697.pth",
         "efficientnet-b6": "https://github.com/lukemelas/EfficientNet-PyTorch/releases/download/1.0/efficientnet-b6-c76e70fd.pth",
         "efficientnet-b7": "https://github.com/lukemelas/EfficientNet-PyTorch/releases/download/1.0/efficientnet-b7-dcc49843.pth",
+        "efficientnet-b0-ap": "https://github.com/lukemelas/EfficientNet-PyTorch/releases/download/1.0/adv-efficientnet-b0-b64d5a18.pth",
+        "efficientnet-b1-ap": "https://github.com/lukemelas/EfficientNet-PyTorch/releases/download/1.0/adv-efficientnet-b1-0f3ce85a.pth",
+        "efficientnet-b2-ap": "https://github.com/lukemelas/EfficientNet-PyTorch/releases/download/1.0/adv-efficientnet-b2-6e9d97e5.pth",
+        "efficientnet-b3-ap": "https://github.com/lukemelas/EfficientNet-PyTorch/releases/download/1.0/adv-efficientnet-b3-cdd7c0f4.pth",
+        "efficientnet-b4-ap": "https://github.com/lukemelas/EfficientNet-PyTorch/releases/download/1.0/adv-efficientnet-b4-44fb3a87.pth",
+        "efficientnet-b5-ap": "https://github.com/lukemelas/EfficientNet-PyTorch/releases/download/1.0/adv-efficientnet-b5-86493f6b.pth",
+        "efficientnet-b6-ap": "https://github.com/lukemelas/EfficientNet-PyTorch/releases/download/1.0/adv-efficientnet-b6-ac80338e.pth",
+        "efficientnet-b7-ap": "https://github.com/lukemelas/EfficientNet-PyTorch/releases/download/1.0/adv-efficientnet-b7-4652b6dd.pth",
+        "efficientnet-b8-ap": "https://github.com/lukemelas/EfficientNet-PyTorch/releases/download/1.0/adv-efficientnet-b8-22a8fe65.pth",
     }
+
+    if adv_prop:
+        model_name += "-ap"
     if model_name not in url_map:
         print("pretrained weights of {} is not provided".format(model_name))
     else:

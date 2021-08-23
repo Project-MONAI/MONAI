@@ -162,6 +162,7 @@ CASES_KITTY_TRAINED = [
             "in_channels": 3,
             "num_classes": 1000,
             "norm": ("batch", {"eps": 1e-3, "momentum": 0.01}),
+            "adv_prop": False,
         },
         os.path.join(os.path.dirname(__file__), "testing_data", "kitty_test.jpg"),
         282,  # ~ tiger cat
@@ -236,10 +237,11 @@ CASE_EXTRACT_FEATURES = [
     (
         {
             "model_name": "efficientnet-b8",
-            "pretrained": False,
+            "pretrained": True,
             "progress": False,
             "spatial_dims": 2,
             "in_channels": 2,
+            "adv_prop": True,
         },
         [1, 2, 224, 224],
         ([1, 32, 112, 112], [1, 56, 56, 56], [1, 88, 28, 28], [1, 248, 14, 14], [1, 704, 7, 7]),
