@@ -20,6 +20,7 @@ import numpy as np
 import torch
 
 from monai.config import USE_COMPILED, DtypeLike
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.utils import compute_shape_offset, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.transforms.croppad.array import CenterSpatialCrop
@@ -45,6 +46,7 @@ from monai.utils import (
     issequenceiterable,
     optional_import,
 )
+from monai.utils.enums import TransformBackends
 from monai.utils.module import look_up_option
 
 nib, _ = optional_import("nibabel")
@@ -317,17 +319,18 @@ class Flip(Transform):
 
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, spatial_axis: Optional[Union[Sequence[int], int]] = None) -> None:
         self.spatial_axis = spatial_axis
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-
-        result: np.ndarray = np.flip(img, map_spatial_axes(img.ndim, self.spatial_axis))
-        return result.astype(img.dtype)
+        flip = np.flip if isinstance(img, np.ndarray) else torch.flip
+        return flip(img, map_spatial_axes(img.ndim, self.spatial_axis))  # type: ignore
 
 
 class Resize(Transform):
@@ -800,11 +803,13 @@ class RandFlip(RandomizableTransform):
         spatial_axis: Spatial axes along which to flip over. Default is None.
     """
 
+    backend = Flip.backend
+
     def __init__(self, prob: float = 0.1, spatial_axis: Optional[Union[Sequence[int], int]] = None) -> None:
         RandomizableTransform.__init__(self, prob)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -826,15 +831,17 @@ class RandAxisFlip(RandomizableTransform):
 
     """
 
+    backend = Flip.backend
+
     def __init__(self, prob: float = 0.1) -> None:
         RandomizableTransform.__init__(self, prob)
         self._axis: Optional[int] = None
 
-    def randomize(self, data: np.ndarray) -> None:
+    def randomize(self, data: NdarrayOrTensor) -> None:
         super().randomize(None)
         self._axis = self.R.randint(data.ndim - 1)
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
