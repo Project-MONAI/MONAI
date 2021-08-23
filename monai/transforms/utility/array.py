@@ -23,6 +23,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike, NdarrayTensor
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (
     extreme_points_to_image,
@@ -299,7 +300,7 @@ class CastToType(Transform):
         """
         self.dtype = dtype
 
-    def __call__(self, img: NdarrayTensor, dtype: Optional[Union[DtypeLike, torch.dtype]] = None) -> NdarrayTensor:
+    def __call__(self, img: NdarrayOrTensor, dtype: Optional[Union[DtypeLike, torch.dtype]] = None) -> NdarrayOrTensor:
         """
         Apply the transform to `img`, assuming `img` is a numpy array or PyTorch Tensor.
 
