@@ -21,13 +21,13 @@ from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D
 class TestRandStdShiftIntensity(NumpyImageTestCase2D):
     def test_value(self):
         for p in TEST_NDARRAYS:
-            shifter = RandStdShiftIntensity(factors=1.0, prob=1.0)
-            shifter.set_random_state(seed=0)
-            result = shifter(p(self.imt))
             np.random.seed(0)
             factor = np.random.uniform(low=-1.0, high=1.0)
             offset = factor * np.std(self.imt)
             expected = p(self.imt + offset)
+            shifter = RandStdShiftIntensity(factors=1.0, prob=1.0)
+            shifter.set_random_state(seed=0)
+            result = shifter(p(self.imt))
             torch.testing.assert_allclose(result, expected, atol=0, rtol=1e-5)
 
 
