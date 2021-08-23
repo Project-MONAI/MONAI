@@ -23,7 +23,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike
-from monai.config.type_definitions import NdarrayTensor
+from monai.config.type_definitions import NdarrayTensor, NdarrayTensorUnion
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
 from monai.transforms.transform import RandomizableTransform, Transform
@@ -39,7 +39,7 @@ from monai.utils import (
     fall_back_tuple,
 )
 from monai.utils.enums import TransformBackends
-from monai.utils.type_conversion import get_equivalent_dtype
+from monai.utils.type_conversion import convert_to_tensor, get_equivalent_dtype
 
 __all__ = [
     "RandGaussianNoise",
@@ -96,7 +96,7 @@ class RandGaussianNoise(RandomizableTransform):
         super().randomize(None)
         self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
 
-    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
+    def __call__(self, img: NdarrayTensorUnion) -> NdarrayTensorUnion:
         """
         Apply the transform to `img`.
         """
@@ -106,7 +106,7 @@ class RandGaussianNoise(RandomizableTransform):
         if not self._do_transform:
             return img
         noise, *_ = convert_to_dst_type(self._noise, img)
-        return img + noise  # type: ignore
+        return img + noise
 
 
 class RandRicianNoise(RandomizableTransform):
@@ -150,8 +150,8 @@ class RandRicianNoise(RandomizableTransform):
         self.channel_wise = channel_wise
         self.relative = relative
         self.sample_std = sample_std
-        self._noise1: NdarrayTensor
-        self._noise2: NdarrayTensor
+        self._noise1: NdarrayTensorUnion
+        self._noise2: NdarrayTensorUnion
 
     def _add_noise(self, img: NdarrayTensor, mean: float, std: float):
         dtype_np = get_equivalent_dtype(img.dtype, np.ndarray)
@@ -203,7 +203,7 @@ class ShiftIntensity(Transform):
     def __init__(self, offset: float) -> None:
         self.offset = offset
 
-    def __call__(self, img: NdarrayTensor, offset: Optional[float] = None) -> NdarrayTensor:
+    def __call__(self, img: NdarrayTensorUnion, offset: Optional[float] = None) -> NdarrayTensorUnion:
         """
         Apply the transform to `img`.
         """
@@ -211,7 +211,7 @@ class ShiftIntensity(Transform):
         offset = self.offset if offset is None else offset
         out = img + offset
         if isinstance(out, torch.Tensor):
-            return out.type(img.dtype)  # type: ignore
+            return out.type(img.dtype)
         return out.astype(img.dtype)  # type: ignore
 
 
@@ -243,7 +243,7 @@ class RandShiftIntensity(RandomizableTransform):
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
         super().randomize(None)
 
-    def __call__(self, img: NdarrayTensor, factor: Optional[float] = None) -> NdarrayTensor:
+    def __call__(self, img: NdarrayTensorUnion, factor: Optional[float] = None) -> NdarrayTensorUnion:
         """
         Apply the transform to `img`.
 
@@ -284,7 +284,7 @@ class StdShiftIntensity(Transform):
         self.channel_wise = channel_wise
         self.dtype = dtype
 
-    def _stdshift(self, img: NdarrayTensor) -> NdarrayTensor:
+    def _stdshift(self, img: NdarrayTensorUnion) -> NdarrayTensorUnion:
         ones: Callable
         std: Callable
         if isinstance(img, torch.Tensor):
@@ -302,14 +302,14 @@ class StdShiftIntensity(Transform):
             return out
         return img
 
-    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
+    def __call__(self, img: NdarrayTensorUnion) -> NdarrayTensorUnion:
         """
         Apply the transform to `img`.
         """
         img, *_ = convert_data_type(img, dtype=self.dtype)
         if self.channel_wise:
             for i, d in enumerate(img):
-                img[i] = self._stdshift(d)
+                img[i] = self._stdshift(d)  # type: ignore
         else:
             img = self._stdshift(img)
         return img
@@ -357,7 +357,7 @@ class RandStdShiftIntensity(RandomizableTransform):
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
         super().randomize(None)
 
-    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
+    def __call__(self, img: NdarrayTensorUnion) -> NdarrayTensorUnion:
         """
         Apply the transform to `img`.
         """
@@ -894,7 +894,7 @@ class SavitzkyGolaySmooth(Transform):
         self.mode = mode
         self.img_t: torch.Tensor = torch.tensor(0.0)
 
-    def __call__(self, img: NdarrayTensor) -> torch.Tensor:
+    def __call__(self, img: NdarrayTensorUnion) -> torch.Tensor:
         """
         Args:
             img: array containing input data. Must be real and in shape [channels, spatial1, spatial2, ...].
@@ -903,7 +903,7 @@ class SavitzkyGolaySmooth(Transform):
             array containing smoothed result.
 
         """
-        self.img_t, *_ = convert_data_type(img, torch.Tensor)
+        self.img_t = convert_to_tensor(img)
 
         # add one to transform axis because a batch axis will be added at dimension 0
         savgol_filter = SavitzkyGolayFilter(self.window_length, self.order, self.axis + 1, self.mode)
