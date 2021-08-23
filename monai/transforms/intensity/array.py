@@ -14,7 +14,6 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 from collections.abc import Iterable
-from copy import deepcopy
 from functools import partial
 from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 from warnings import warn
@@ -23,7 +22,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike
-from monai.config.type_definitions import NdarrayTensor, NdarrayOrTensor
+from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
 from monai.transforms.transform import RandomizableTransform, Transform
