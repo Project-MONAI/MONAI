@@ -14,6 +14,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 from collections.abc import Iterable
+from functools import partial
 from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
 from warnings import warn
 
@@ -21,7 +22,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike
-from monai.config.type_definitions import NdarrayTensor
+from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
 from monai.transforms.transform import RandomizableTransform, Transform
@@ -31,13 +32,13 @@ from monai.utils import (
     InvalidPyTorchVersionError,
     convert_data_type,
     convert_to_dst_type,
-    dtype_torch_to_numpy,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
     fall_back_tuple,
 )
 from monai.utils.enums import TransformBackends
+from monai.utils.type_conversion import convert_to_tensor, get_equivalent_dtype
 
 __all__ = [
     "RandGaussianNoise",
@@ -94,7 +95,7 @@ class RandGaussianNoise(RandomizableTransform):
         super().randomize(None)
         self._noise = self.R.normal(self.mean, self.R.uniform(0, self.std), size=im_shape)
 
-    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
@@ -104,7 +105,7 @@ class RandGaussianNoise(RandomizableTransform):
         if not self._do_transform:
             return img
         noise, *_ = convert_to_dst_type(self._noise, img)
-        return img + noise  # type: ignore
+        return img + noise
 
 
 class RandRicianNoise(RandomizableTransform):
@@ -130,6 +131,8 @@ class RandRicianNoise(RandomizableTransform):
             uniformly from 0 to std.
     """
 
+    backends = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(
         self,
         prob: float = 0.1,
@@ -146,20 +149,23 @@ class RandRicianNoise(RandomizableTransform):
         self.channel_wise = channel_wise
         self.relative = relative
         self.sample_std = sample_std
-        self._noise1: np.ndarray
-        self._noise2: np.ndarray
+        self._noise1: NdarrayOrTensor
+        self._noise2: NdarrayOrTensor
 
-    def _add_noise(self, img: Union[torch.Tensor, np.ndarray], mean: float, std: float):
+    def _add_noise(self, img: NdarrayTensor, mean: float, std: float):
+        dtype_np = get_equivalent_dtype(img.dtype, np.ndarray)
         im_shape = img.shape
         _std = self.R.uniform(0, std) if self.sample_std else std
-        self._noise1 = self.R.normal(mean, _std, size=im_shape)
-        self._noise2 = self.R.normal(mean, _std, size=im_shape)
-        if self._noise1 is None or self._noise2 is None:
-            raise RuntimeError("noise should not be None.")
-        dtype = dtype_torch_to_numpy(img.dtype) if isinstance(img, torch.Tensor) else img.dtype
-        return np.sqrt((img + self._noise1.astype(dtype)) ** 2 + self._noise2.astype(dtype) ** 2)
+        self._noise1 = self.R.normal(mean, _std, size=im_shape).astype(dtype_np)
+        self._noise2 = self.R.normal(mean, _std, size=im_shape).astype(dtype_np)
+        if isinstance(img, torch.Tensor):
+            n1 = torch.tensor(self._noise1, device=img.device)
+            n2 = torch.tensor(self._noise2, device=img.device)
+            return torch.sqrt((img + n1) ** 2 + n2 ** 2)
 
-    def __call__(self, img: Union[torch.Tensor, np.ndarray]) -> Union[torch.Tensor, np.ndarray]:
+        return np.sqrt((img + self._noise1) ** 2 + self._noise2 ** 2)
+
+    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
         """
         Apply the transform to `img`.
         """
@@ -191,22 +197,29 @@ class ShiftIntensity(Transform):
         offset: offset value to shift the intensity of image.
     """
 
+    backends = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(self, offset: float) -> None:
         self.offset = offset
 
-    def __call__(self, img: np.ndarray, offset: Optional[float] = None) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor, offset: Optional[float] = None) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
 
         offset = self.offset if offset is None else offset
-        return np.asarray((img + offset), dtype=img.dtype)
+        out = img + offset
+        if isinstance(out, torch.Tensor):
+            return out.type(img.dtype)
+        return out.astype(img.dtype)  # type: ignore
 
 
 class RandShiftIntensity(RandomizableTransform):
     """
     Randomly shift intensity with randomly picked offset.
     """
+
+    backends = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(self, offsets: Union[Tuple[float, float], float], prob: float = 0.1) -> None:
         """
@@ -229,7 +242,7 @@ class RandShiftIntensity(RandomizableTransform):
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
         super().randomize(None)
 
-    def __call__(self, img: np.ndarray, factor: Optional[float] = None) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor, factor: Optional[float] = None) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
 
@@ -260,6 +273,8 @@ class StdShiftIntensity(Transform):
         dtype: output data type, defaults to float32.
     """
 
+    backends = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(
         self, factor: float, nonzero: bool = False, channel_wise: bool = False, dtype: DtypeLike = np.float32
     ) -> None:
@@ -268,22 +283,30 @@ class StdShiftIntensity(Transform):
         self.channel_wise = channel_wise
         self.dtype = dtype
 
-    def _stdshift(self, img: np.ndarray) -> np.ndarray:
-        slices = (img != 0) if self.nonzero else np.ones(img.shape, dtype=bool)
-        if not np.any(slices):
-            return img
-        offset = self.factor * np.std(img[slices])
-        img[slices] = img[slices] + offset
+    def _stdshift(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+        ones: Callable
+        std: Callable
+        if isinstance(img, torch.Tensor):
+            ones = torch.ones
+            std = partial(torch.std, unbiased=False)
+        else:
+            ones = np.ones
+            std = np.std
+
+        slices = (img != 0) if self.nonzero else ones(img.shape, dtype=bool)
+        if slices.any():
+            offset = self.factor * std(img[slices])
+            img[slices] = img[slices] + offset
         return img
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
-        img = img.astype(self.dtype)
+        img, *_ = convert_data_type(img, dtype=self.dtype)
         if self.channel_wise:
             for i, d in enumerate(img):
-                img[i] = self._stdshift(d)
+                img[i] = self._stdshift(d)  # type: ignore
         else:
             img = self._stdshift(img)
         return img
@@ -294,6 +317,8 @@ class RandStdShiftIntensity(RandomizableTransform):
     Shift intensity for the image with a factor and the standard deviation of the image
     by: ``v = v + factor * std(v)`` where the `factor` is randomly picked.
     """
+
+    backends = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
         self,
@@ -329,7 +354,7 @@ class RandStdShiftIntensity(RandomizableTransform):
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
         super().randomize(None)
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
@@ -866,7 +891,7 @@ class SavitzkyGolaySmooth(Transform):
         self.mode = mode
         self.img_t: torch.Tensor = torch.tensor(0.0)
 
-    def __call__(self, img: NdarrayTensor) -> torch.Tensor:
+    def __call__(self, img: NdarrayOrTensor) -> torch.Tensor:
         """
         Args:
             img: array containing input data. Must be real and in shape [channels, spatial1, spatial2, ...].
@@ -875,7 +900,7 @@ class SavitzkyGolaySmooth(Transform):
             array containing smoothed result.
 
         """
-        self.img_t, *_ = convert_data_type(img, torch.Tensor)
+        self.img_t = convert_to_tensor(img)
 
         # add one to transform axis because a batch axis will be added at dimension 0
         savgol_filter = SavitzkyGolayFilter(self.window_length, self.order, self.axis + 1, self.mode)

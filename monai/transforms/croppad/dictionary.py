@@ -50,7 +50,7 @@ from monai.transforms.utils import (
 )
 from monai.utils import ImageMetaKey as Key
 from monai.utils import Method, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
-from monai.utils.enums import InverseKeys, TransformBackends
+from monai.utils.enums import InverseKeys
 
 __all__ = [
     "NumpyPadModeSequence",
@@ -107,7 +107,7 @@ class SpatialPadd(MapTransform, InvertibleTransform):
     Performs padding to the data, symmetric for all sides or all on one side for each dimension.
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = SpatialPad.backend
 
     def __init__(
         self,
@@ -177,7 +177,7 @@ class BorderPadd(MapTransform, InvertibleTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.BorderPad`.
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = BorderPad.backend
 
     def __init__(
         self,
@@ -254,7 +254,7 @@ class DivisiblePadd(MapTransform, InvertibleTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.DivisiblePad`.
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = DivisiblePad.backend
 
     def __init__(
         self,
