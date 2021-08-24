@@ -12,10 +12,9 @@
 import unittest
 
 import numpy as np
-import torch
 
 from monai.transforms import RandAxisFlip
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, allclose
 
 
 class TestRandAxisFlip(NumpyImageTestCase2D):
@@ -23,13 +22,10 @@ class TestRandAxisFlip(NumpyImageTestCase2D):
         for p in TEST_NDARRAYS:
             flip = RandAxisFlip(prob=1.0)
             result = flip(p(self.imt[0]))
-            if isinstance(result, torch.Tensor):
-                result = result.cpu()
-
             expected = []
             for channel in self.imt[0]:
                 expected.append(np.flip(channel, flip._axis))
-            self.assertTrue(np.allclose(np.stack(expected), result))
+            self.assertTrue(allclose(np.stack(expected), result))
 
 
 if __name__ == "__main__":

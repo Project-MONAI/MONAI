@@ -327,10 +327,10 @@ class TestKeepLargestConnectedComponent(unittest.TestCase):
         converter = KeepLargestConnectedComponent(**args)
         if isinstance(input_image, torch.Tensor) and torch.cuda.is_available():
             result = converter(clone(input_image).cuda())
-            assert allclose(result, expected.cuda())
+
         else:
             result = converter(clone(input_image))
-            assert allclose(result, expected)
+        self.assertTrue(allclose(result, expected.cuda()))
 
     @parameterized.expand(INVALID_CASES)
     def test_raise_exception(self, _, args, input_image, expected_error):

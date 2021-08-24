@@ -33,6 +33,7 @@ import torch.distributed as dist
 
 from monai.config import NdarrayTensor
 from monai.config.deviceconfig import USE_COMPILED
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.data import create_test_image_2d, create_test_image_3d
 from monai.utils import ensure_tuple, optional_import, set_determinism
 from monai.utils.module import version_leq
@@ -55,7 +56,7 @@ def clone(data: NdarrayTensor) -> NdarrayTensor:
     return copy.deepcopy(data)
 
 
-def allclose(a: NdarrayTensor, b: NdarrayTensor) -> bool:
+def allclose(a: NdarrayOrTensor, b: NdarrayOrTensor, rtol=1.0e-5, atol=1.0e-8, equal_nan=False) -> bool:
     """
     Check if all values of two data objects are close.
 
@@ -63,19 +64,15 @@ def allclose(a: NdarrayTensor, b: NdarrayTensor) -> bool:
         This method also checks that both data objects are either Pytorch Tensors or numpy arrays.
 
     Args:
-        a (NdarrayTensor): Pytorch Tensor or numpy array for comparison
-        b (NdarrayTensor): Pytorch Tensor or numpy array to compare against
+        a (NdarrayOrTensor): Pytorch Tensor or numpy array for comparison
+        b (NdarrayOrTensor): Pytorch Tensor or numpy array to compare against
 
     Returns:
         bool: If both data objects are close.
     """
-    if isinstance(a, np.ndarray) and isinstance(b, np.ndarray):
-        return np.allclose(a, b)
-
-    if isinstance(a, torch.Tensor) and isinstance(b, torch.Tensor):
-        return torch.allclose(a, b)
-
-    return False
+    a = a.cpu() if isinstance(a, torch.Tensor) else a
+    b = b.cpu() if isinstance(b, torch.Tensor) else b
+    return np.allclose(a, b, rtol, atol, equal_nan)
 
 
 def test_pretrained_networks(network, input_param, device):

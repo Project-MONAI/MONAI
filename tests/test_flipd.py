@@ -12,11 +12,10 @@
 import unittest
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.transforms import Flipd
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, allclose
 
 INVALID_CASES = [("wrong_axis", ["s", 1], TypeError), ("not_numbers", "s", TypeError)]
 
@@ -39,9 +38,7 @@ class TestFlipd(NumpyImageTestCase2D):
                 expected.append(np.flip(channel, spatial_axis))
             expected = np.stack(expected)
             result = flip({"img": p(self.imt[0])})["img"]
-            if isinstance(result, torch.Tensor):
-                result = result.cpu()
-            assert np.allclose(expected, result)
+            self.assertTrue(allclose(expected, result))
 
 
 if __name__ == "__main__":
