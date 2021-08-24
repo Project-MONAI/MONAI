@@ -329,8 +329,10 @@ class Flip(Transform):
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-        flip = np.flip if isinstance(img, np.ndarray) else torch.flip
-        return flip(img, map_spatial_axes(img.ndim, self.spatial_axis))  # type: ignore
+        if isinstance(img, np.ndarray):
+            return np.ascontiguousarray(np.flip(img, map_spatial_axes(img.ndim, self.spatial_axis)))
+        else:
+            return torch.flip(img, map_spatial_axes(img.ndim, self.spatial_axis))
 
 
 class Resize(Transform):
