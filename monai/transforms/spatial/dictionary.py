@@ -23,6 +23,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike, KeysCollection
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.networks.layers import AffineTransform
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
@@ -1128,6 +1129,8 @@ class Flipd(MapTransform, InvertibleTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = Flip.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -1137,20 +1140,17 @@ class Flipd(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             self.push_transform(d, key)
             d[key] = self.flipper(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             _ = self.get_most_recent_transform(d, key)
-            # Might need to convert to numpy
-            if isinstance(d[key], torch.Tensor):
-                d[key] = torch.Tensor(d[key]).cpu().numpy()
             # Inverse is same as forward
             d[key] = self.flipper(d[key])
             # Remove the applied transform
@@ -1173,6 +1173,8 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = Flip.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -1186,7 +1188,7 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
 
         self.flipper = Flip(spatial_axis=spatial_axis)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         self.randomize(None)
         d = dict(data)
         for key in self.key_iterator(d):
@@ -1195,15 +1197,12 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
             self.push_transform(d, key)
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Check if random transform was actually performed (based on `prob`)
             if transform[InverseKeys.DO_TRANSFORM]:
-                # Might need to convert to numpy
-                if isinstance(d[key], torch.Tensor):
-                    d[key] = torch.Tensor(d[key]).cpu().numpy()
                 # Inverse is same as forward
                 d[key] = self.flipper(d[key])
             # Remove the applied transform
@@ -1225,16 +1224,18 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
 
     """
 
+    backend = Flip.backend
+
     def __init__(self, keys: KeysCollection, prob: float = 0.1, allow_missing_keys: bool = False) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
         self._axis: Optional[int] = None
 
-    def randomize(self, data: np.ndarray) -> None:
+    def randomize(self, data: NdarrayOrTensor) -> None:
         super().randomize(None)
         self._axis = self.R.randint(data.ndim - 1)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         self.randomize(data=data[self.keys[0]])
         flipper = Flip(spatial_axis=self._axis)
 
@@ -1245,16 +1246,13 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
             self.push_transform(d, key, extra_info={"axis": self._axis})
         return d
 
-    def inverse(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Check if random transform was actually performed (based on `prob`)
             if transform[InverseKeys.DO_TRANSFORM]:
                 flipper = Flip(spatial_axis=transform[InverseKeys.EXTRA_INFO]["axis"])
-                # Might need to convert to numpy
-                if isinstance(d[key], torch.Tensor):
-                    d[key] = torch.Tensor(d[key]).cpu().numpy()
                 # Inverse is same as forward
                 d[key] = flipper(d[key])
             # Remove the applied transform

@@ -12,10 +12,11 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import RandFlip
-from tests.utils import NumpyImageTestCase2D
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D
 
 INVALID_CASES = [("wrong_axis", ["s", 1], TypeError), ("not_numbers", "s", TypeError)]
 
@@ -31,12 +32,17 @@ class TestRandFlip(NumpyImageTestCase2D):
 
     @parameterized.expand(VALID_CASES)
     def test_correct_results(self, _, spatial_axis):
-        flip = RandFlip(prob=1.0, spatial_axis=spatial_axis)
-        expected = []
-        for channel in self.imt[0]:
-            expected.append(np.flip(channel, spatial_axis))
-        expected = np.stack(expected)
-        self.assertTrue(np.allclose(expected, flip(self.imt[0])))
+        for p in TEST_NDARRAYS:
+            im = p(self.imt[0])
+            flip = RandFlip(prob=1.0, spatial_axis=spatial_axis)
+            expected = []
+            for channel in self.imt[0]:
+                expected.append(np.flip(channel, spatial_axis))
+            expected = np.stack(expected)
+            result = flip(im)
+            if isinstance(result, torch.Tensor):
+                result = result.cpu()
+            self.assertTrue(np.allclose(expected, result))
 
 
 if __name__ == "__main__":
