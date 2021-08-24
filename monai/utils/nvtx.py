@@ -19,9 +19,8 @@ from typing import Any, Optional, Tuple, Union
 from torch.autograd import Function
 from torch.nn import Module
 from torch.optim import Optimizer
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import Dataset
 
-# from monai.transforms.transform import Transform
 from monai.utils import ensure_tuple, optional_import
 
 _nvtx, _ = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")
@@ -40,7 +39,7 @@ class Range:
         methods: (only when used as decorator) the name of a method (or a list of the name of the methods)
             to be wrapped by NVTX range.
             If None (default), the method(s) will be inferred based on the object's type for various MONAI components,
-            such as Networks, Losses, Optimizers, Functions, Transforms, Datasets, and Dataloaders.
+            such as Networks, Losses, Functions, Transforms, and Datasets.
             Otherwise, it look up predefined methods: "forward", "__call__", "__next__", "__getitem__"
         append_method_name: if append the name of the methods to be decorated to the range's name
             If None (default), it appends the method's name only if we are annotating more than one method.
@@ -114,15 +113,13 @@ class Range:
 
     def _get_method(self, obj: Any) -> tuple:
         if isinstance(obj, Module):
-            method_list = ["forward", "__call__"]
+            method_list = ["forward"]
         elif isinstance(obj, Optimizer):
             method_list = ["step"]
         elif isinstance(obj, Function):
             method_list = ["forward", "backward"]
         elif isinstance(obj, Dataset):
             method_list = ["__getitem__"]
-        elif isinstance(obj, DataLoader):
-            method_list = ["_next_data"]
         else:
             default_methods = ["forward", "__call__", "__next__", "__getitem__"]
             method_list = []
