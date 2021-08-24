@@ -612,11 +612,13 @@ class NormalizeIntensityd(MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
+    backend = NormalizeIntensity.backend
+
     def __init__(
         self,
         keys: KeysCollection,
-        subtrahend: Optional[np.ndarray] = None,
-        divisor: Optional[np.ndarray] = None,
+        subtrahend: Optional[NdarrayOrTensor] = None,
+        divisor: Optional[NdarrayOrTensor] = None,
         nonzero: bool = False,
         channel_wise: bool = False,
         dtype: DtypeLike = np.float32,
@@ -625,7 +627,7 @@ class NormalizeIntensityd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.normalizer = NormalizeIntensity(subtrahend, divisor, nonzero, channel_wise, dtype)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.normalizer(d[key])
