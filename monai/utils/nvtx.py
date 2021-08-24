@@ -19,7 +19,7 @@ from typing import Any, Optional, Tuple, Union
 from torch.autograd import Function
 from torch.nn import Module
 from torch.optim import Optimizer
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import Dataset
 
 # from monai.transforms.transform import Transform
 from monai.utils import ensure_tuple, optional_import
