@@ -15,7 +15,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import RandFlip
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, allclose
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 INVALID_CASES = [("wrong_axis", ["s", 1], TypeError), ("not_numbers", "s", TypeError)]
 
@@ -39,7 +39,7 @@ class TestRandFlip(NumpyImageTestCase2D):
                 expected.append(np.flip(channel, spatial_axis))
             expected = np.stack(expected)
             result = flip(im)
-            self.assertTrue(allclose(expected, result))
+            assert_allclose(expected, result)
 
 
 if __name__ == "__main__":

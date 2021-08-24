@@ -56,23 +56,17 @@ def clone(data: NdarrayTensor) -> NdarrayTensor:
     return copy.deepcopy(data)
 
 
-def allclose(a: NdarrayOrTensor, b: NdarrayOrTensor, rtol=1.0e-5, atol=1.0e-8, equal_nan=False) -> bool:
+def assert_allclose(a: NdarrayOrTensor, b: NdarrayOrTensor, *args, **kwargs):
     """
-    Check if all values of two data objects are close.
-
-    Note:
-        This method also checks that both data objects are either Pytorch Tensors or numpy arrays.
+    Assert that all values of two data objects are close.
 
     Args:
         a (NdarrayOrTensor): Pytorch Tensor or numpy array for comparison
         b (NdarrayOrTensor): Pytorch Tensor or numpy array to compare against
-
-    Returns:
-        bool: If both data objects are close.
     """
     a = a.cpu() if isinstance(a, torch.Tensor) else a
     b = b.cpu() if isinstance(b, torch.Tensor) else b
-    return np.allclose(a, b, rtol, atol, equal_nan)
+    np.testing.assert_allclose(a, b, *args, **kwargs)
 
 
 def test_pretrained_networks(network, input_param, device):

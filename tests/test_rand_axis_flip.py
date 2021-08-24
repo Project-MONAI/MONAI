@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 
 from monai.transforms import RandAxisFlip
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, allclose
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestRandAxisFlip(NumpyImageTestCase2D):
@@ -25,7 +25,7 @@ class TestRandAxisFlip(NumpyImageTestCase2D):
             expected = []
             for channel in self.imt[0]:
                 expected.append(np.flip(channel, flip._axis))
-            self.assertTrue(allclose(np.stack(expected), result))
+            assert_allclose(np.stack(expected), result)
 
 
 if __name__ == "__main__":

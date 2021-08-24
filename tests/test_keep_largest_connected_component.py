@@ -15,7 +15,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import KeepLargestConnectedComponent
-from tests.utils import allclose, clone
+from tests.utils import assert_allclose, clone
 
 grid_1 = torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 1, 0], [2, 2, 0, 0, 2]]])
 grid_2 = torch.tensor([[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [1, 0, 1, 1, 2], [1, 0, 1, 2, 2], [0, 0, 0, 0, 1]]])
@@ -330,7 +330,7 @@ class TestKeepLargestConnectedComponent(unittest.TestCase):
 
         else:
             result = converter(clone(input_image))
-        self.assertTrue(allclose(result, expected.cuda()))
+        assert_allclose(result, expected)
 
     @parameterized.expand(INVALID_CASES)
     def test_raise_exception(self, _, args, input_image, expected_error):

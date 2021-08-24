@@ -15,7 +15,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import RandFlipd
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, allclose
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 VALID_CASES = [("no_axis", None), ("one_axis", 1), ("many_axis", [0, 1])]
 
@@ -30,7 +30,7 @@ class TestRandFlipd(NumpyImageTestCase2D):
             for channel in self.imt[0]:
                 expected.append(np.flip(channel, spatial_axis))
             expected = np.stack(expected)
-            self.assertTrue(allclose(expected, result))
+            assert_allclose(expected, result)
 
 
 if __name__ == "__main__":

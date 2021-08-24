@@ -16,7 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import LabelFilter
-from tests.utils import allclose, clone
+from tests.utils import assert_allclose, clone
 
 grid_1 = torch.tensor(
     [
@@ -110,7 +110,7 @@ class TestLabelFilter(unittest.TestCase):
             result = converter(clone(input_image).cuda())
         else:
             result = converter(clone(input_image))
-        self.assertTrue(allclose(result, expected))
+        assert_allclose(result, expected)
 
     @parameterized.expand(INVALID_CASES)
     def test_raise_exception(self, _, args, input_image, expected_error):
