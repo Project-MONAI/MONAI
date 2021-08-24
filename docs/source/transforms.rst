@@ -356,14 +356,6 @@ NVIDIA Tool Extension (NVTX)
 """"""""""""""
 .. autoclass:: RandRangePop
 
-`Range`
-"""""""
-.. autoclass:: Range
-
-`RandRange`
-"""""""""""
-.. autoclass:: RandRange
-
 `Mark`
 """"""
 .. autoclass:: Mark
