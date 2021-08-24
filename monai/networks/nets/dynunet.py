@@ -86,7 +86,7 @@ class DynUNet(nn.Module):
         strides: convolution strides for each blocks.
         upsample_kernel_size: convolution kernel size for transposed convolution layers. The values should
             equal to strides[1:].
-        norm_name: feature normalization type and arguments. Defaults to ``INSTANCE``.
+        norm_name: feature normalization type and arguments. Defaults to ``("INSTANCE", {"affine": True})``.
         deep_supervision: whether to add deep supervision head before output. Defaults to ``False``.
             If ``True``, in training mode, the forward function will output not only the last feature
             map, but also the previous feature maps that come from the intermediate up sample layers.

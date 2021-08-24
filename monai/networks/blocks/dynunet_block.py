@@ -32,8 +32,8 @@ class UnetResBlock(nn.Module):
         out_channels: number of output channels.
         kernel_size: convolution kernel size.
         stride: convolution stride.
-        norm_name: feature normalization type and arguments.
-
+        norm_name: feature normalization type and arguments. Defaults to ``("INSTANCE", {"affine": True})``, which is
+            used in the referred papers.
     """
 
     def __init__(
@@ -43,7 +43,7 @@ class UnetResBlock(nn.Module):
         out_channels: int,
         kernel_size: Union[Sequence[int], int],
         stride: Union[Sequence[int], int],
-        norm_name: Union[Tuple, str],
+        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
     ):
         super(UnetResBlock, self).__init__()
         self.conv1 = get_conv_layer(
@@ -106,7 +106,8 @@ class UnetBasicBlock(nn.Module):
         out_channels: number of output channels.
         kernel_size: convolution kernel size.
         stride: convolution stride.
-        norm_name: feature normalization type and arguments.
+        norm_name: feature normalization type and arguments. Defaults to ``("INSTANCE", {"affine": True})``, which is
+            used in the referred papers.
 
     """
 
@@ -117,7 +118,7 @@ class UnetBasicBlock(nn.Module):
         out_channels: int,
         kernel_size: Union[Sequence[int], int],
         stride: Union[Sequence[int], int],
-        norm_name: Union[Tuple, str],
+        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
     ):
         super(UnetBasicBlock, self).__init__()
         self.conv1 = get_conv_layer(
@@ -163,7 +164,8 @@ class UnetUpBlock(nn.Module):
         kernel_size: convolution kernel size.
         stride: convolution stride.
         upsample_kernel_size: convolution kernel size for transposed convolution layers.
-        norm_name: feature normalization type and arguments.
+        norm_name: feature normalization type and arguments. Defaults to ``("INSTANCE", {"affine": True})``, which is
+            used in the referred papers.
 
     """
 
@@ -175,7 +177,7 @@ class UnetUpBlock(nn.Module):
         kernel_size: Union[Sequence[int], int],
         stride: Union[Sequence[int], int],
         upsample_kernel_size: Union[Sequence[int], int],
-        norm_name: Union[Tuple, str],
+        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
     ):
         super(UnetUpBlock, self).__init__()
         upsample_stride = upsample_kernel_size
