@@ -32,8 +32,10 @@ class UnetResBlock(nn.Module):
         out_channels: number of output channels.
         kernel_size: convolution kernel size.
         stride: convolution stride.
-        norm_name: feature normalization type and arguments. Defaults to ``("INSTANCE", {"affine": True})``, which is
-            used in the referred papers.
+        norm_name: feature normalization type and arguments. If you need to use `"group"` or `"instance"` and want to
+            maintain the consistency with previous version v0.5.3, please set `affine=True`. For example:
+            `norm_name=("instance", {"affine": True})`.
+
     """
 
     def __init__(
@@ -43,7 +45,7 @@ class UnetResBlock(nn.Module):
         out_channels: int,
         kernel_size: Union[Sequence[int], int],
         stride: Union[Sequence[int], int],
-        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
+        norm_name: Union[Tuple, str],
     ):
         super(UnetResBlock, self).__init__()
         self.conv1 = get_conv_layer(
@@ -106,8 +108,9 @@ class UnetBasicBlock(nn.Module):
         out_channels: number of output channels.
         kernel_size: convolution kernel size.
         stride: convolution stride.
-        norm_name: feature normalization type and arguments. Defaults to ``("INSTANCE", {"affine": True})``, which is
-            used in the referred papers.
+        norm_name: feature normalization type and arguments. If you need to use `"group"` or `"instance"` and want to
+            maintain the consistency with previous version v0.5.3, please set `affine=True`. For example:
+            `norm_name=("instance", {"affine": True})`.
 
     """
 
@@ -118,7 +121,7 @@ class UnetBasicBlock(nn.Module):
         out_channels: int,
         kernel_size: Union[Sequence[int], int],
         stride: Union[Sequence[int], int],
-        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
+        norm_name: Union[Tuple, str],
     ):
         super(UnetBasicBlock, self).__init__()
         self.conv1 = get_conv_layer(
@@ -164,8 +167,9 @@ class UnetUpBlock(nn.Module):
         kernel_size: convolution kernel size.
         stride: convolution stride.
         upsample_kernel_size: convolution kernel size for transposed convolution layers.
-        norm_name: feature normalization type and arguments. Defaults to ``("INSTANCE", {"affine": True})``, which is
-            used in the referred papers.
+        norm_name: feature normalization type and arguments. If you need to use `"group"` or `"instance"` and want to
+            maintain the consistency with previous version v0.5.3, please set `affine=True`. For example:
+            `norm_name=("instance", {"affine": True})`.
 
     """
 
@@ -177,7 +181,7 @@ class UnetUpBlock(nn.Module):
         kernel_size: Union[Sequence[int], int],
         stride: Union[Sequence[int], int],
         upsample_kernel_size: Union[Sequence[int], int],
-        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
+        norm_name: Union[Tuple, str],
     ):
         super(UnetUpBlock, self).__init__()
         upsample_stride = upsample_kernel_size
@@ -215,7 +219,8 @@ class UnetOutBlock(nn.Module):
         )
 
     def forward(self, inp):
-        return self.conv(inp)
+        out = self.conv(inp)
+        return out
 
 
 def get_conv_layer(
