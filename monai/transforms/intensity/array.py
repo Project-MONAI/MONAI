@@ -373,6 +373,8 @@ class ScaleIntensity(Transform):
     If `minv` and `maxv` not provided, use `factor` to scale image by ``v = v * (1 + factor)``.
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(
         self, minv: Optional[float] = 0.0, maxv: Optional[float] = 1.0, factor: Optional[float] = None
     ) -> None:
@@ -387,7 +389,7 @@ class ScaleIntensity(Transform):
         self.maxv = maxv
         self.factor = factor
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
 
@@ -396,9 +398,11 @@ class ScaleIntensity(Transform):
 
         """
         if self.minv is not None and self.maxv is not None:
-            return np.asarray(rescale_array(img, self.minv, self.maxv, img.dtype))
+            return rescale_array(img, self.minv, self.maxv, img.dtype)
         if self.factor is not None:
-            return np.asarray(img * (1 + self.factor), dtype=img.dtype)
+            out = img * (1 + self.factor)
+            out, *_ = convert_data_type(out, dtype=img.dtype)
+            return out
         raise ValueError("Incompatible values: minv=None or maxv=None and factor=None.")
 
 
@@ -407,6 +411,8 @@ class RandScaleIntensity(RandomizableTransform):
     Randomly scale the intensity of input image by ``v = v * (1 + factor)`` where the `factor`
     is randomly picked.
     """
+
+    backend = ScaleIntensity.backend
 
     def __init__(self, factors: Union[Tuple[float, float], float], prob: float = 0.1) -> None:
         """
@@ -429,7 +435,7 @@ class RandScaleIntensity(RandomizableTransform):
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
         super().randomize(None)
 
-    def __call__(self, img: np.ndarray) -> np.ndarray:
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """

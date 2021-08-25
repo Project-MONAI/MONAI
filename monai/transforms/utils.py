@@ -22,6 +22,7 @@ import torch
 import monai
 import monai.transforms.transform
 from monai.config import DtypeLike, IndexSelection
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.networks.layers import GaussianFilter
 from monai.transforms.compose import Compose, OneOf
 from monai.transforms.transform import MapTransform, Transform
@@ -37,6 +38,7 @@ from monai.utils import (
     min_version,
     optional_import,
 )
+from monai.utils.type_conversion import convert_data_type
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 ndimage, _ = optional_import("scipy.ndimage")
@@ -130,15 +132,17 @@ def zero_margins(img: np.ndarray, margin: int) -> bool:
     return not np.any(img[:, :margin, :]) and not np.any(img[:, -margin:, :])
 
 
-def rescale_array(arr: np.ndarray, minv: float = 0.0, maxv: float = 1.0, dtype: DtypeLike = np.float32):
+def rescale_array(
+    arr: NdarrayOrTensor, minv: float = 0.0, maxv: float = 1.0, dtype: Union[DtypeLike, torch.dtype] = np.float32
+) -> NdarrayOrTensor:
     """
     Rescale the values of numpy array `arr` to be from `minv` to `maxv`.
     """
     if dtype is not None:
-        arr = arr.astype(dtype)
+        arr, *_ = convert_data_type(arr, dtype=dtype)
 
-    mina = np.min(arr)
-    maxa = np.max(arr)
+    mina = arr.min()
+    maxa = arr.max()
 
     if mina == maxa:
         return arr * minv

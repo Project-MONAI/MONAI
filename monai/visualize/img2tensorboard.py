@@ -188,7 +188,7 @@ def plot_2d_or_3d_image(
     d: np.ndarray = data_index.detach().cpu().numpy() if isinstance(data_index, torch.Tensor) else data_index
 
     if d.ndim == 2:
-        d = rescale_array(d, 0, 1)
+        d = rescale_array(d, 0, 1)  # type: ignore
         dataformats = "HW"
         writer.add_image(f"{tag}_{dataformats}", d, step, dataformats=dataformats)
         return
