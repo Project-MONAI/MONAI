@@ -53,7 +53,7 @@ TEST_CASE_3 = [
 
 TEST_CASE_4 = [
     {"keys": "img", "holes": 2, "spatial_size": [2, 2, 2], "fill_value": (0.2, 0.6), "prob": 1.0},
-    {"img": np.random.rand((3, 3, 3, 4))},
+    {"img": np.random.rand(3, 3, 3, 4)},
 ]
 
 
