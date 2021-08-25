@@ -13,9 +13,10 @@ import unittest
 
 import numpy as np
 from parameterized import parameterized
+import torch
 
 from monai.transforms import AsChannelFirst
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
 for p in TEST_NDARRAYS:
@@ -26,10 +27,15 @@ for p in TEST_NDARRAYS:
 
 class TestAsChannelFirst(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_shape(self, in_type, input_param, expected_shape):
+    def test_value(self, in_type, input_param, expected_shape):
         test_data = in_type(np.random.randint(0, 2, size=[1, 2, 3, 4]))
         result = AsChannelFirst(**input_param)(test_data)
         self.assertTupleEqual(result.shape, expected_shape)
+        if isinstance(test_data, torch.Tensor):
+            test_data = test_data.cpu().numpy()
+        expected = np.moveaxis(test_data, input_param["channel_dim"], 0)
+        assert_allclose(expected, result)
+
 
 
 if __name__ == "__main__":

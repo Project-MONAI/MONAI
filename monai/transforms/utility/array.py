@@ -31,6 +31,9 @@ from monai.transforms.utils import (
     map_binary_to_indices,
     map_classes_to_indices,
 )
+from monai.transforms.utils_pytorch_numpy_unification import (
+    moveaxis,
+)
 from monai.utils import (
     convert_to_numpy,
     convert_to_tensor,
@@ -123,12 +126,7 @@ class AsChannelFirst(Transform):
         """
         Apply the transform to `img`.
         """
-        # old versions of pytorch don't have moveaxis
-        if isinstance(img, torch.Tensor) and hasattr(torch, "moveaxis"):
-            return torch.moveaxis(img, self.channel_dim, 0)
-
-        img, *_ = convert_data_type(img, np.ndarray)
-        return np.moveaxis(img, self.channel_dim, 0)  # type: ignore
+        return moveaxis(img, self.channel_dim, 0)
 
 
 class AsChannelLast(Transform):
@@ -157,13 +155,7 @@ class AsChannelLast(Transform):
         """
         Apply the transform to `img`.
         """
-        # old versions of pytorch don't have moveaxis
-        if isinstance(img, torch.Tensor) and hasattr(torch, "moveaxis"):
-            return torch.moveaxis(img, self.channel_dim, -1)
-
-        img, *_ = convert_data_type(img, np.ndarray)
-        return np.moveaxis(img, self.channel_dim, -1)  # type: ignore
-
+        return moveaxis(img, self.channel_dim, -1)
 
 class AddChannel(Transform):
     """
