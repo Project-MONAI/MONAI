@@ -20,6 +20,7 @@ from torch.hub import load_state_dict_from_url
 from monai.networks.blocks.convolutions import Convolution
 from monai.networks.blocks.squeeze_and_excitation import SEBottleneck, SEResNetBottleneck, SEResNeXtBottleneck
 from monai.networks.layers.factories import Act, Conv, Dropout, Norm, Pool
+from monai.utils.module import look_up_option
 
 __all__ = ["SENet", "SENet154", "SEResNet50", "SEResNet101", "SEResNet152", "SEResNeXt50", "SEResNext101"]
 
@@ -249,7 +250,7 @@ class SENet(nn.Module):
         return x
 
 
-def _load_state_dict(model, arch, progress):
+def _load_state_dict(model: nn.Module, arch: str, progress: bool):
     """
     This function is used to load pretrained models.
     """
@@ -261,48 +262,47 @@ def _load_state_dict(model, arch, progress):
         "se_resnext50_32x4d": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnext50_32x4d-a260b3a4.pth",
         "se_resnext101_32x4d": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnext101_32x4d-3b2fe3d8.pth",
     }
-    if arch in model_urls:
-        model_url = model_urls[arch]
-    else:
+    model_url = look_up_option(arch, model_urls, None)
+    if model_url is None:
         raise ValueError(
             "only 'senet154', 'se_resnet50', 'se_resnet101',  'se_resnet152', 'se_resnext50_32x4d', "
             + "and se_resnext101_32x4d are supported to load pretrained weights."
         )
+    else:
+        pattern_conv = re.compile(r"^(layer[1-4]\.\d\.(?:conv)\d\.)(\w*)$")
+        pattern_bn = re.compile(r"^(layer[1-4]\.\d\.)(?:bn)(\d\.)(\w*)$")
+        pattern_se = re.compile(r"^(layer[1-4]\.\d\.)(?:se_module.fc1.)(\w*)$")
+        pattern_se2 = re.compile(r"^(layer[1-4]\.\d\.)(?:se_module.fc2.)(\w*)$")
+        pattern_down_conv = re.compile(r"^(layer[1-4]\.\d\.)(?:downsample.0.)(\w*)$")
+        pattern_down_bn = re.compile(r"^(layer[1-4]\.\d\.)(?:downsample.1.)(\w*)$")
 
-    pattern_conv = re.compile(r"^(layer[1-4]\.\d\.(?:conv)\d\.)(\w*)$")
-    pattern_bn = re.compile(r"^(layer[1-4]\.\d\.)(?:bn)(\d\.)(\w*)$")
-    pattern_se = re.compile(r"^(layer[1-4]\.\d\.)(?:se_module.fc1.)(\w*)$")
-    pattern_se2 = re.compile(r"^(layer[1-4]\.\d\.)(?:se_module.fc2.)(\w*)$")
-    pattern_down_conv = re.compile(r"^(layer[1-4]\.\d\.)(?:downsample.0.)(\w*)$")
-    pattern_down_bn = re.compile(r"^(layer[1-4]\.\d\.)(?:downsample.1.)(\w*)$")
+        state_dict = load_state_dict_from_url(model_url, progress=progress)
+        for key in list(state_dict.keys()):
+            new_key = None
+            if pattern_conv.match(key):
+                new_key = re.sub(pattern_conv, r"\1conv.\2", key)
+            elif pattern_bn.match(key):
+                new_key = re.sub(pattern_bn, r"\1conv\2adn.N.\3", key)
+            elif pattern_se.match(key):
+                state_dict[key] = state_dict[key].squeeze()
+                new_key = re.sub(pattern_se, r"\1se_layer.fc.0.\2", key)
+            elif pattern_se2.match(key):
+                state_dict[key] = state_dict[key].squeeze()
+                new_key = re.sub(pattern_se2, r"\1se_layer.fc.2.\2", key)
+            elif pattern_down_conv.match(key):
+                new_key = re.sub(pattern_down_conv, r"\1project.conv.\2", key)
+            elif pattern_down_bn.match(key):
+                new_key = re.sub(pattern_down_bn, r"\1project.adn.N.\2", key)
+            if new_key:
+                state_dict[new_key] = state_dict[key]
+                del state_dict[key]
 
-    state_dict = load_state_dict_from_url(model_url, progress=progress)
-    for key in list(state_dict.keys()):
-        new_key = None
-        if pattern_conv.match(key):
-            new_key = re.sub(pattern_conv, r"\1conv.\2", key)
-        elif pattern_bn.match(key):
-            new_key = re.sub(pattern_bn, r"\1conv\2adn.N.\3", key)
-        elif pattern_se.match(key):
-            state_dict[key] = state_dict[key].squeeze()
-            new_key = re.sub(pattern_se, r"\1se_layer.fc.0.\2", key)
-        elif pattern_se2.match(key):
-            state_dict[key] = state_dict[key].squeeze()
-            new_key = re.sub(pattern_se2, r"\1se_layer.fc.2.\2", key)
-        elif pattern_down_conv.match(key):
-            new_key = re.sub(pattern_down_conv, r"\1project.conv.\2", key)
-        elif pattern_down_bn.match(key):
-            new_key = re.sub(pattern_down_bn, r"\1project.adn.N.\2", key)
-        if new_key:
-            state_dict[new_key] = state_dict[key]
-            del state_dict[key]
-
-    model_dict = model.state_dict()
-    state_dict = {
-        k: v for k, v in state_dict.items() if (k in model_dict) and (model_dict[k].shape == state_dict[k].shape)
-    }
-    model_dict.update(state_dict)
-    model.load_state_dict(model_dict)
+        model_dict = model.state_dict()
+        state_dict = {
+            k: v for k, v in state_dict.items() if (k in model_dict) and (model_dict[k].shape == state_dict[k].shape)
+        }
+        model_dict.update(state_dict)
+        model.load_state_dict(model_dict)
 
 
 class SENet154(SENet):

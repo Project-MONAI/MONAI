@@ -21,6 +21,7 @@ from torch.utils import model_zoo
 
 from monai.networks.layers.factories import Act, Conv, Pad, Pool
 from monai.networks.layers.utils import get_norm_layer
+from monai.utils.module import look_up_option
 
 __all__ = ["EfficientNet", "EfficientNetBN", "get_efficientnet_image_size", "drop_connect"]
 
@@ -480,7 +481,7 @@ class EfficientNetBN(EfficientNet):
         it needs the N in [0, 1, 2, 3, 4, 5, 6, 7, 8] to be a model
 
         Args:
-            model_name: name of model to initialize, can be from [efficientnet-b0, ..., efficientnet-l2].
+            model_name: name of model to initialize, can be from [efficientnet-b0, ..., efficientnet-b8, efficientnet-l2].
             pretrained: whether to initialize pretrained ImageNet weights, only available for spatial_dims=2 and batch
                 norm is used.
             progress: whether to show download progress for pretrained weights download.
@@ -702,14 +703,15 @@ def drop_connect(inputs: torch.Tensor, p: float, training: bool) -> torch.Tensor
     return output
 
 
-def _load_state_dict(model: nn.Module, model_name: str, progress: bool, in_channels: int, adv_prop: bool) -> None:
+def _load_state_dict(model: nn.Module, arch: str, progress: bool, in_channels: int, adv_prop: bool) -> None:
     if adv_prop:
-        model_name = model_name.split("efficientnet-")[-1] + "-ap"
-    if model_name not in url_map:
-        print("pretrained weights of {} is not provided".format(model_name))
+        arch = arch.split("efficientnet-")[-1] + "-ap"
+    model_url = look_up_option(arch, url_map, None)
+    if model_url is None:
+        print("pretrained weights of {} is not provided".format(arch))
     else:
         # load state dict from url
-        model_url = url_map[model_name]
+        model_url = url_map[arch]
         pretrain_state_dict = model_zoo.load_url(model_url, progress=progress)
         model_state_dict = model.state_dict()
 
