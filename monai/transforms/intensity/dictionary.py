@@ -472,6 +472,8 @@ class ScaleIntensityd(MapTransform):
     If `minv` and `maxv` not provided, use `factor` to scale image by ``v = v * (1 + factor)``.
     """
 
+    backend = ScaleIntensity.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -494,7 +496,7 @@ class ScaleIntensityd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.scaler = ScaleIntensity(minv, maxv, factor)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.scaler(d[key])
@@ -505,6 +507,8 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandScaleIntensity`.
     """
+
+    backend = ScaleIntensity.backend
 
     def __init__(
         self,
@@ -539,7 +543,7 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
         self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
         super().randomize(None)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize()
         if not self._do_transform:

@@ -76,7 +76,7 @@ def create_test_image_2d(
     labels = np.ceil(image).astype(np.int32)
 
     norm = rs.uniform(0, num_seg_classes * noise_max, size=image.shape)
-    noisyimage = rescale_array(np.maximum(image, norm))
+    noisyimage: np.ndarray = rescale_array(np.maximum(image, norm))  # type: ignore
 
     if channel_dim is not None:
         if not (isinstance(channel_dim, int) and channel_dim in (-1, 0, 2)):
@@ -151,7 +151,7 @@ def create_test_image_3d(
     labels = np.ceil(image).astype(np.int32)
 
     norm = rs.uniform(0, num_seg_classes * noise_max, size=image.shape)
-    noisyimage = rescale_array(np.maximum(image, norm))
+    noisyimage: np.ndarray = rescale_array(np.maximum(image, norm))  # type: ignore
 
     if channel_dim is not None:
         if not (isinstance(channel_dim, int) and channel_dim in (-1, 0, 3)):
