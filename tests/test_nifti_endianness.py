@@ -12,6 +12,7 @@
 import os
 import tempfile
 import unittest
+from pathlib import Path
 from typing import TYPE_CHECKING, List, Tuple
 from unittest.case import skipUnless
 
@@ -84,6 +85,9 @@ class TestNiftiEndianness(unittest.TestCase):
 
         with self.assertRaises(NotImplementedError):
             switch_endianness(np.zeros((2, 1)), "=")
+
+        with self.assertRaises(RuntimeError):
+            switch_endianness(Path("test"), "<")
 
     @skipUnless(has_pil, "Requires PIL")
     def test_pil(self):

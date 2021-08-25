@@ -30,6 +30,7 @@ from .enums import (
     NumpyPadMode,
     PytorchPadMode,
     SkipMode,
+    TransformBackends,
     UpsampleMode,
     Weight,
 )
@@ -38,8 +39,6 @@ from .misc import (
     MAX_SEED,
     ImageMetaKey,
     copy_to_device,
-    dtype_numpy_to_torch,
-    dtype_torch_to_numpy,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
@@ -72,5 +71,16 @@ from .module import (
     optional_import,
     version_leq,
 )
+from .nvtx import Range
 from .profiling import PerfContext, torch_profiler_full, torch_profiler_time_cpu_gpu, torch_profiler_time_end_to_end
 from .state_cacher import StateCacher
+from .type_conversion import (
+    convert_data_type,
+    convert_to_dst_type,
+    convert_to_numpy,
+    convert_to_tensor,
+    dtype_numpy_to_torch,
+    dtype_torch_to_numpy,
+    get_dtype,
+    get_equivalent_dtype,
+)

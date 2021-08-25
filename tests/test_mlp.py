@@ -44,7 +44,7 @@ class TestMLPBlock(unittest.TestCase):
             self.assertEqual(result.shape, expected_shape)
 
     def test_ill_arg(self):
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             MLPBlock(hidden_size=128, mlp_dim=512, dropout_rate=5.0)
 
 
