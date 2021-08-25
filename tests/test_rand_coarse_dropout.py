@@ -38,7 +38,7 @@ TEST_CASE_3 = [
 ]
 
 TEST_CASE_4 = [
-    {"holes": 2, "spatial_size": [2, 2, 2], "fill_value": (3.5, 6.0), "prob": 1.0},
+    {"holes": 2, "spatial_size": [2, 2, 2], "fill_value": (3, 6), "prob": 1.0},
     np.random.randint(0, 2, size=[3, 3, 3, 4]),
 ]
 
@@ -65,6 +65,7 @@ class TestRandCoarseDropout(unittest.TestCase):
             if isinstance(fill_value, (int, float)):
                 np.testing.assert_allclose(data, fill_value)
             else:
+                print("hole data:", data)
                 print("hole data:", data)
                 min_value = data.min()
                 max_value = data.max()
