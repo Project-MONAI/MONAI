@@ -245,6 +245,8 @@ class ShiftIntensityd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.ShiftIntensity`.
     """
 
+    backend = ShiftIntensity.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -283,7 +285,7 @@ class ShiftIntensityd(MapTransform):
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.shifter = ShiftIntensity(offset)
 
-    def __call__(self, data) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, factor_key, meta_key, meta_key_postfix in self.key_iterator(
             d, self.factor_key, self.meta_keys, self.meta_key_postfix
@@ -299,6 +301,8 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandShiftIntensity`.
     """
+
+    backend = ShiftIntensity.backend
 
     def __init__(
         self,
@@ -355,7 +359,7 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
         super().randomize(None)
 
-    def __call__(self, data) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize()
         if not self._do_transform:
