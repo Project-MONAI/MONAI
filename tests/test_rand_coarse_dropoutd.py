@@ -70,7 +70,15 @@ class TestRandCoarseDropoutd(unittest.TestCase):
 
         for h in dropout.hole_coords:
             data = result[h]
-            np.testing.assert_allclose(data, input_param.get("fill_value", 0))
+            fill_value = input_param.get("fill_value", 0)
+            if isinstance(fill_value, (int, float)):
+                np.testing.assert_allclose(data, fill_value)
+            else:
+                min_value = data.min()
+                max_value = data.max()
+                self.assertGreaterEqual(max_value, min_value)
+                self.assertGreaterEqual(min_value, fill_value[0])
+                self.assertLess(max_value, fill_value[1])
             if max_spatial_size is None:
                 self.assertTupleEqual(data.shape[1:], tuple(spatial_size))
             else:

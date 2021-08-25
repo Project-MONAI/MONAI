@@ -1431,7 +1431,8 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
             if some components of the `spatial_size` are non-positive values, the transform will use the
             corresponding components of input img size. For example, `spatial_size=(32, -1)` will be adapted
             to `(32, 64)` if the second spatial dimension size of img is `64`.
-        fill_value: target value to fill the dropout regions.
+        fill_value: target value to fill the dropout regions, if providing a tuple for the `min` and `max`,
+            will randomly select value for every pixel / voxel from the range `[min, max)`.
         max_holes: if not None, define the maximum number to randomly select the expected number of regions.
         max_spatial_size: if not None, define the maximum spatial size to randomly select size for every region.
             if some components of the `max_spatial_size` are non-positive values, the transform will use the
@@ -1447,7 +1448,7 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
         keys: KeysCollection,
         holes: int,
         spatial_size: Union[Sequence[int], int],
-        fill_value: Union[float, int] = 0,
+        fill_value: Union[Tuple[Union[float, int]], Union[float, int]] = 0,
         max_holes: Optional[int] = None,
         max_spatial_size: Optional[Union[Sequence[int], int]] = None,
         prob: float = 0.1,
@@ -1483,7 +1484,12 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
         if self._do_transform:
             for key in self.key_iterator(d):
                 for h in self.hole_coords:
-                    d[key][h] = self.fill_value
+                    if isinstance(self.fill_value, (tuple, list)):
+                        if len(self.fill_value) != 2:
+                            raise ValueError("fill_value should contain 2 numbers if providing the `min` and `max`.")
+                        d[key][h] = self.R.uniform(self.fill_value[0], self.fill_value[1], size=d[key][h].shape)
+                    else:
+                        d[key][h] = self.fill_value
         return d
 
 

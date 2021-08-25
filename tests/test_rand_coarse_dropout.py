@@ -65,7 +65,6 @@ class TestRandCoarseDropout(unittest.TestCase):
             if isinstance(fill_value, (int, float)):
                 np.testing.assert_allclose(data, fill_value)
             else:
-                print("hole data:", data)
                 min_value = data.min()
                 max_value = data.max()
                 self.assertGreaterEqual(max_value, min_value)
