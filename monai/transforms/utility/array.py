@@ -31,9 +31,7 @@ from monai.transforms.utils import (
     map_binary_to_indices,
     map_classes_to_indices,
 )
-from monai.transforms.utils_pytorch_numpy_unification import (
-    moveaxis,
-)
+from monai.transforms.utils_pytorch_numpy_unification import moveaxis
 from monai.utils import (
     convert_to_numpy,
     convert_to_tensor,
@@ -156,6 +154,7 @@ class AsChannelLast(Transform):
         Apply the transform to `img`.
         """
         return moveaxis(img, self.channel_dim, -1)
+
 
 class AddChannel(Transform):
     """

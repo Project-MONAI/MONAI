@@ -12,8 +12,8 @@
 import unittest
 
 import numpy as np
-from parameterized import parameterized
 import torch
+from parameterized import parameterized
 
 from monai.transforms import AsChannelFirst
 from tests.utils import TEST_NDARRAYS, assert_allclose
@@ -35,7 +35,6 @@ class TestAsChannelFirst(unittest.TestCase):
             test_data = test_data.cpu().numpy()
         expected = np.moveaxis(test_data, input_param["channel_dim"], 0)
         assert_allclose(expected, result)
-
 
 
 if __name__ == "__main__":

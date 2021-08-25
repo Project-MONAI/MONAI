@@ -9,11 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import torch
 import numpy as np
+import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
-
 
 __all__ = [
     "moveaxis",
@@ -34,4 +33,3 @@ def moveaxis(x: NdarrayOrTensor, src: int, dst: int) -> NdarrayOrTensor:
     elif isinstance(x, np.ndarray):
         return np.moveaxis(x, src, dst)
     raise RuntimeError()
-

@@ -517,7 +517,4 @@ from .utils import (
     weighted_patch_samples,
     zero_margins,
 )
-
-from .utils_pytorch_numpy_unification import (
-    moveaxis,
-)
+from .utils_pytorch_numpy_unification import moveaxis
