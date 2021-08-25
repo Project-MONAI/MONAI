@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import itertools
-from monai.utils.enums import TransformBackends
 import random
 import warnings
 from contextlib import contextmanager
@@ -39,6 +38,7 @@ from monai.utils import (
     min_version,
     optional_import,
 )
+from monai.utils.enums import TransformBackends
 from monai.utils.type_conversion import convert_data_type
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
@@ -1159,6 +1159,7 @@ def get_number_image_type_conversions(transform: Compose, test_data: Any, key: O
             num_conversions += 1
     return num_conversions
 
+
 def get_transform_backends() -> dict[str, List]:
     """Get the backends of all MONAI transforms.
 
@@ -1200,6 +1201,7 @@ def get_transform_backends() -> dict[str, List]:
 
 def print_transform_backends():
     """Prints a list of backends of all MONAI transforms."""
+
     class Colors:
         none = ""
         red = "91"
@@ -1236,6 +1238,7 @@ def print_transform_backends():
     print_color(f"Number of TorchTransform: {n_t}", Colors.green)
     print_color(f"Number of NumpyTransform: {n_np}", Colors.yellow)
     print_color(f"Number of uncategorised: {n_uncategorized}", Colors.red)
+
 
 if __name__ == "__main__":
     print_transform_backends()
