@@ -19,7 +19,7 @@ repos:
       - id: check-toml
       - id: check-case-conflict
       - id: check-added-large-files
-        args: ['--maxkb=350', '--enforce-all']
+        args: ['--maxkb=1024']
       - id: detect-private-key
 
   #- repo: https://github.com/asottile/pyupgrade
@@ -41,11 +41,11 @@ repos:
   #    - id: isort
   #      name: Format imports
 
-  #- repo: https://github.com/psf/black
-  #  rev: 21.7b0
-  #  hooks:
-  #    - id: black
-  #      name: Format code
+  - repo: https://github.com/psf/black
+    rev: 21.7b0
+    hooks:
+      - id: black
+        name: Format code
 
   #- repo: https://github.com/executablebooks/mdformat
   #  rev: 0.7.8
