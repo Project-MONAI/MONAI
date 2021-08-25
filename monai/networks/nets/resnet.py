@@ -162,7 +162,7 @@ class ResNet(nn.Module):
         no_max_pool: bool argument to determine if to use maxpool layer.
         shortcut_type: which downsample block to use.
         widen_factor: widen output for each layer.
-        n_classes: number of output (classifications)
+        num_classes: number of output (classifications)
     """
 
     def __init__(
@@ -177,7 +177,7 @@ class ResNet(nn.Module):
         no_max_pool: bool = False,
         shortcut_type: str = "B",
         widen_factor: float = 1.0,
-        n_classes: int = 400,
+        num_classes: int = 400,
         feed_forward: bool = True,
     ) -> None:
 
@@ -215,7 +215,7 @@ class ResNet(nn.Module):
         self.avgpool = avgp_type(block_avgpool[spatial_dims])
 
         if feed_forward:
-            self.fc = nn.Linear(block_inplanes[3] * block.expansion, n_classes)
+            self.fc = nn.Linear(block_inplanes[3] * block.expansion, num_classes)
 
         for m in self.modules():
             if isinstance(m, conv_type):

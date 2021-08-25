@@ -120,7 +120,7 @@ class AsDiscrete(Transform):
             Defaults to ``False``.
         to_onehot: whether to convert input data into the one-hot format.
             Defaults to ``False``.
-        n_classes: the number of classes to convert to One-Hot format.
+        num_classes: the number of classes to convert to One-Hot format.
             Defaults to ``None``.
         threshold_values: whether threshold the float value to int number 0 or 1.
             Defaults to ``False``.
@@ -135,14 +135,14 @@ class AsDiscrete(Transform):
         self,
         argmax: bool = False,
         to_onehot: bool = False,
-        n_classes: Optional[int] = None,
+        num_classes: Optional[int] = None,
         threshold_values: bool = False,
         logit_thresh: float = 0.5,
         rounding: Optional[str] = None,
     ) -> None:
         self.argmax = argmax
         self.to_onehot = to_onehot
-        self.n_classes = n_classes
+        self.num_classes = num_classes
         self.threshold_values = threshold_values
         self.logit_thresh = logit_thresh
         self.rounding = rounding
@@ -152,7 +152,7 @@ class AsDiscrete(Transform):
         img: torch.Tensor,
         argmax: Optional[bool] = None,
         to_onehot: Optional[bool] = None,
-        n_classes: Optional[int] = None,
+        num_classes: Optional[int] = None,
         threshold_values: Optional[bool] = None,
         logit_thresh: Optional[float] = None,
         rounding: Optional[str] = None,
@@ -165,8 +165,8 @@ class AsDiscrete(Transform):
                 Defaults to ``self.argmax``.
             to_onehot: whether to convert input data into the one-hot format.
                 Defaults to ``self.to_onehot``.
-            n_classes: the number of classes to convert to One-Hot format.
-                Defaults to ``self.n_classes``.
+            num_classes: the number of classes to convert to One-Hot format.
+                Defaults to ``self.num_classes``.
             threshold_values: whether threshold the float value to int number 0 or 1.
                 Defaults to ``self.threshold_values``.
             logit_thresh: the threshold value for thresholding operation..
@@ -179,9 +179,9 @@ class AsDiscrete(Transform):
             img = torch.argmax(img, dim=0, keepdim=True)
 
         if to_onehot or self.to_onehot:
-            _nclasses = self.n_classes if n_classes is None else n_classes
+            _nclasses = self.num_classes if num_classes is None else num_classes
             if not isinstance(_nclasses, int):
-                raise AssertionError("One of self.n_classes or n_classes must be an integer")
+                raise AssertionError("One of self.num_classes or num_classes must be an integer")
             img = one_hot(img, num_classes=_nclasses, dim=0)
 
         if threshold_values or self.threshold_values:

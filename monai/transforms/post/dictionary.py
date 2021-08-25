@@ -131,7 +131,7 @@ class AsDiscreted(MapTransform):
         keys: KeysCollection,
         argmax: Union[Sequence[bool], bool] = False,
         to_onehot: Union[Sequence[bool], bool] = False,
-        n_classes: Optional[Union[Sequence[int], int]] = None,
+        num_classes: Optional[Union[Sequence[int], int]] = None,
         threshold_values: Union[Sequence[bool], bool] = False,
         logit_thresh: Union[Sequence[float], float] = 0.5,
         rounding: Union[Sequence[Optional[str]], Optional[str]] = None,
@@ -145,7 +145,7 @@ class AsDiscreted(MapTransform):
                 it also can be a sequence of bool, each element corresponds to a key in ``keys``.
             to_onehot: whether to convert input data into the one-hot format. Defaults to False.
                 it also can be a sequence of bool, each element corresponds to a key in ``keys``.
-            n_classes: the number of classes to convert to One-Hot format. it also can be a
+            num_classes: the number of classes to convert to One-Hot format. it also can be a
                 sequence of int, each element corresponds to a key in ``keys``.
             threshold_values: whether threshold the float value to int number 0 or 1, default is False.
                 it also can be a sequence of bool, each element corresponds to a key in ``keys``.
@@ -160,7 +160,7 @@ class AsDiscreted(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.argmax = ensure_tuple_rep(argmax, len(self.keys))
         self.to_onehot = ensure_tuple_rep(to_onehot, len(self.keys))
-        self.n_classes = ensure_tuple_rep(n_classes, len(self.keys))
+        self.num_classes = ensure_tuple_rep(num_classes, len(self.keys))
         self.threshold_values = ensure_tuple_rep(threshold_values, len(self.keys))
         self.logit_thresh = ensure_tuple_rep(logit_thresh, len(self.keys))
         self.rounding = ensure_tuple_rep(rounding, len(self.keys))
@@ -168,14 +168,14 @@ class AsDiscreted(MapTransform):
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
-        for key, argmax, to_onehot, n_classes, threshold_values, logit_thresh, rounding in self.key_iterator(
-            d, self.argmax, self.to_onehot, self.n_classes, self.threshold_values, self.logit_thresh, self.rounding
+        for key, argmax, to_onehot, num_classes, threshold_values, logit_thresh, rounding in self.key_iterator(
+            d, self.argmax, self.to_onehot, self.num_classes, self.threshold_values, self.logit_thresh, self.rounding
         ):
             d[key] = self.converter(
                 d[key],
                 argmax,
                 to_onehot,
-                n_classes,
+                num_classes,
                 threshold_values,
                 logit_thresh,
                 rounding,

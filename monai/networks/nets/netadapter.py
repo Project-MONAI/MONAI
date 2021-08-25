@@ -26,7 +26,7 @@ class NetAdapter(torch.nn.Module):
         model: a PyTorch model, support both 2D and 3D models. typically, it can be a pretrained model in Torchvision,
             like: ``resnet18``, ``resnet34m``, ``resnet50``, ``resnet101``, ``resnet152``, etc.
             more details: https://pytorch.org/vision/stable/models.html.
-        n_classes: number of classes for the last classification layer. Default to 1.
+        num_classes: number of classes for the last classification layer. Default to 1.
         dim: number of spatial dimensions, default to 2.
         in_channels: number of the input channels of last layer. if None, get it from `in_features` of last layer.
         use_conv: whether use convolutional layer to replace the last layer, default to False.
@@ -41,7 +41,7 @@ class NetAdapter(torch.nn.Module):
     def __init__(
         self,
         model: torch.nn.Module,
-        n_classes: int = 1,
+        num_classes: int = 1,
         dim: int = 2,
         in_channels: Optional[int] = None,
         use_conv: bool = False,
@@ -74,7 +74,7 @@ class NetAdapter(torch.nn.Module):
             # add 1x1 conv (it behaves like a FC layer)
             self.fc = Conv[Conv.CONV, dim](
                 in_channels=in_channels_,
-                out_channels=n_classes,
+                out_channels=num_classes,
                 kernel_size=1,
                 bias=bias,
             )
@@ -84,7 +84,7 @@ class NetAdapter(torch.nn.Module):
             # replace the out_features of FC layer
             self.fc = torch.nn.Linear(
                 in_features=in_channels_,
-                out_features=n_classes,
+                out_features=num_classes,
                 bias=bias,
             )
         self.use_conv = use_conv
