@@ -14,24 +14,26 @@ import unittest
 import numpy as np
 
 from monai.transforms import ScaleIntensity
-from tests.utils import NumpyImageTestCase2D
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestScaleIntensity(NumpyImageTestCase2D):
     def test_range_scale(self):
-        scaler = ScaleIntensity(minv=1.0, maxv=2.0)
-        result = scaler(self.imt)
-        mina = np.min(self.imt)
-        maxa = np.max(self.imt)
-        norm = (self.imt - mina) / (maxa - mina)
-        expected = (norm * (2.0 - 1.0)) + 1.0
-        np.testing.assert_allclose(result, expected)
+        for p in TEST_NDARRAYS:
+            scaler = ScaleIntensity(minv=1.0, maxv=2.0)
+            result = scaler(p(self.imt))
+            mina = self.imt.min()
+            maxa = self.imt.max()
+            norm = (self.imt - mina) / (maxa - mina)
+            expected = p((norm * (2.0 - 1.0)) + 1.0)
+            assert_allclose(result, expected, rtol=1e-7, atol=0)
 
     def test_factor_scale(self):
-        scaler = ScaleIntensity(minv=None, maxv=None, factor=0.1)
-        result = scaler(self.imt)
-        expected = (self.imt * (1 + 0.1)).astype(np.float32)
-        np.testing.assert_allclose(result, expected)
+        for p in TEST_NDARRAYS:
+            scaler = ScaleIntensity(minv=None, maxv=None, factor=0.1)
+            result = scaler(p(self.imt))
+            expected = p((self.imt * (1 + 0.1)).astype(np.float32))
+            assert_allclose(result, expected, rtol=1e-7, atol=0)
 
 
 if __name__ == "__main__":
