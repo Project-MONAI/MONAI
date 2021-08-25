@@ -1160,7 +1160,7 @@ def get_number_image_type_conversions(transform: Compose, test_data: Any, key: O
     return num_conversions
 
 
-def get_transform_backends() -> dict[str, List]:
+def get_transform_backends():
     """Get the backends of all MONAI transforms.
 
     Returns:
