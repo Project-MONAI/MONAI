@@ -1688,7 +1688,7 @@ class RandCoarseDropout(RandomizableTransform):
                         raise ValueError("fill_value should contain 2 numbers if providing the `min` and `max`.")
                     img[h] = self.R.uniform(self.fill_value[0], self.fill_value[1], size=img[h].shape)
                 else:
-                    img[h] = self.fill_value
+                    img[h] = self.fill_value  # type: ignore
 
         return img
 

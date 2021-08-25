@@ -51,9 +51,14 @@ TEST_CASE_3 = [
     {"img": np.random.randint(0, 2, size=[3, 3, 3, 4])},
 ]
 
+TEST_CASE_4 = [
+    {"keys": "img", "holes": 2, "spatial_size": [2, 2, 2], "fill_value": (0.2, 0.6), "prob": 1.0},
+    {"img": np.random.rand((3, 3, 3, 4))},
+]
+
 
 class TestRandCoarseDropoutd(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_value(self, input_param, input_data):
         dropout = RandCoarseDropoutd(**input_param)
         result = dropout(input_data)["img"]
@@ -74,6 +79,7 @@ class TestRandCoarseDropoutd(unittest.TestCase):
             if isinstance(fill_value, (int, float)):
                 np.testing.assert_allclose(data, fill_value)
             else:
+                print("hole data:", data)
                 min_value = data.min()
                 max_value = data.max()
                 self.assertGreaterEqual(max_value, min_value)

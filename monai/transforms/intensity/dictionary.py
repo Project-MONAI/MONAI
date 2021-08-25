@@ -1489,7 +1489,7 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
                             raise ValueError("fill_value should contain 2 numbers if providing the `min` and `max`.")
                         d[key][h] = self.R.uniform(self.fill_value[0], self.fill_value[1], size=d[key][h].shape)
                     else:
-                        d[key][h] = self.fill_value
+                        d[key][h] = self.fill_value  # type: ignore
         return d
 
 
