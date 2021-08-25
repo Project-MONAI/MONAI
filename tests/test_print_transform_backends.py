@@ -11,13 +11,17 @@
 
 import unittest
 
-from monai.transforms.utils import print_transform_backends
+from monai.transforms.utils import get_transform_backends, print_transform_backends
 
 
 class TestPrintTransformBackends(unittest.TestCase):
     def test_get_number_of_conversions(self):
+        tr_t_or_np, *_ = get_transform_backends()
+        self.assertGreater(len(tr_t_or_np), 0)
         print_transform_backends()
 
 
 if __name__ == "__main__":
-    unittest.main()
+    # unittest.main()
+    a = TestPrintTransformBackends()
+    a.test_get_number_of_conversions()
