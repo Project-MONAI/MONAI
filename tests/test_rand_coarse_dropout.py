@@ -42,9 +42,14 @@ TEST_CASE_4 = [
     np.random.randint(0, 2, size=[3, 3, 3, 4]),
 ]
 
+TEST_CASE_5 = [
+    {"holes": 2, "spatial_size": [2, 2, 2], "fill_value": None, "prob": 1.0},
+    np.random.randint(0, 2, size=[3, 3, 3, 4]),
+]
+
 
 class TestRandCoarseDropout(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_value(self, input_param, input_data):
         dropout = RandCoarseDropout(**input_param)
         result = dropout(input_data)
@@ -61,15 +66,16 @@ class TestRandCoarseDropout(unittest.TestCase):
 
         for h in dropout.hole_coords:
             data = result[h]
-            fill_value = input_param.get("fill_value", 0)
+            fill_value = input_param.get("fill_value", None)
             if isinstance(fill_value, (int, float)):
                 np.testing.assert_allclose(data, fill_value)
-            else:
+            elif fill_value is not None:
                 min_value = data.min()
                 max_value = data.max()
                 self.assertGreaterEqual(max_value, min_value)
                 self.assertGreaterEqual(min_value, fill_value[0])
                 self.assertLess(max_value, fill_value[1])
+
             if max_spatial_size is None:
                 self.assertTupleEqual(data.shape[1:], tuple(spatial_size))
             else:
