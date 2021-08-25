@@ -22,7 +22,7 @@ if optional_import("torch.nn.functional", name="mish")[1]:
 
 else:
 
-    def monai_mish(x, _inplace: bool = False):
+    def monai_mish(x, inplace: bool = False):
         return x * torch.tanh(torch.nn.functional.softplus(x))
 
 
@@ -34,7 +34,7 @@ if optional_import("torch.nn.functional", name="silu")[1]:
 
 else:
 
-    def monai_swish(x, _inplace: bool = False):
+    def monai_swish(x, inplace: bool = False):
         return SwishImplementation.apply(x)
 
 

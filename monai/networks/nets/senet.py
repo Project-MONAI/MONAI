@@ -297,12 +297,12 @@ def _load_state_dict(model: nn.Module, arch: str, progress: bool):
             state_dict[new_key] = state_dict[key]
             del state_dict[key]
 
-        model_dict = model.state_dict()
-        state_dict = {
-            k: v for k, v in state_dict.items() if (k in model_dict) and (model_dict[k].shape == state_dict[k].shape)
-        }
-        model_dict.update(state_dict)
-        model.load_state_dict(model_dict)
+    model_dict = model.state_dict()
+    state_dict = {
+        k: v for k, v in state_dict.items() if (k in model_dict) and (model_dict[k].shape == state_dict[k].shape)
+    }
+    model_dict.update(state_dict)
+    model.load_state_dict(model_dict)
 
 
 class SENet154(SENet):
