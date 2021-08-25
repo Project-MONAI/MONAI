@@ -144,7 +144,7 @@ class SpatialPad(Transform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = Pad.backend
 
     def __init__(
         self,
@@ -214,7 +214,7 @@ class BorderPad(Transform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = Pad.backend
 
     def __init__(
         self,
@@ -271,7 +271,7 @@ class DivisiblePad(Transform):
     Pad the input data, so that the spatial sizes are divisible by `k`.
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = SpatialPad.backend
 
     def __init__(
         self,

@@ -24,6 +24,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike, KeysCollection, NdarrayTensor
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.utils import no_collation
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
@@ -58,7 +59,7 @@ from monai.transforms.utility.array import (
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.utils import convert_to_numpy, ensure_tuple, ensure_tuple_rep
-from monai.utils.enums import InverseKeys, TransformBackends
+from monai.utils.enums import InverseKeys
 
 __all__ = [
     "AddChannelD",
@@ -393,7 +394,7 @@ class CastToTyped(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.CastToType`.
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = CastToType.backend
 
     def __init__(
         self,
@@ -415,7 +416,7 @@ class CastToTyped(MapTransform):
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.converter = CastToType()
 
-    def __call__(self, data: Mapping[Hashable, NdarrayTensor]) -> Dict[Hashable, NdarrayTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, dtype in self.key_iterator(d, self.dtype):
             d[key] = self.converter(d[key], dtype=dtype)
