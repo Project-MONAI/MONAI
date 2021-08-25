@@ -500,6 +500,7 @@ from .utils import (
     get_extreme_points,
     get_largest_connected_component_mask,
     get_number_image_type_conversions,
+    get_transform_backends,
     img_bounds,
     in_bounds,
     is_empty,
