@@ -14,18 +14,19 @@ import unittest
 import numpy as np
 
 from monai.transforms import IntensityStatsd, RandShiftIntensityd
-from tests.utils import NumpyImageTestCase2D
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestRandShiftIntensityd(NumpyImageTestCase2D):
     def test_value(self):
-        key = "img"
-        shifter = RandShiftIntensityd(keys=[key], offsets=1.0, prob=1.0)
-        shifter.set_random_state(seed=0)
-        result = shifter({key: self.imt})
-        np.random.seed(0)
-        expected = self.imt + np.random.uniform(low=-1.0, high=1.0)
-        np.testing.assert_allclose(result[key], expected)
+        for p in TEST_NDARRAYS:
+            key = "img"
+            shifter = RandShiftIntensityd(keys=[key], offsets=1.0, prob=1.0)
+            shifter.set_random_state(seed=0)
+            result = shifter({key: p(self.imt)})
+            np.random.seed(0)
+            expected = self.imt + np.random.uniform(low=-1.0, high=1.0)
+            assert_allclose(result[key], expected)
 
     def test_factor(self):
         key = "img"

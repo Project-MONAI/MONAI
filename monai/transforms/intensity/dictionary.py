@@ -245,6 +245,8 @@ class ShiftIntensityd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.ShiftIntensity`.
     """
 
+    backend = ShiftIntensity.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -283,7 +285,7 @@ class ShiftIntensityd(MapTransform):
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.shifter = ShiftIntensity(offset)
 
-    def __call__(self, data) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, factor_key, meta_key, meta_key_postfix in self.key_iterator(
             d, self.factor_key, self.meta_keys, self.meta_key_postfix
@@ -299,6 +301,8 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandShiftIntensity`.
     """
+
+    backend = ShiftIntensity.backend
 
     def __init__(
         self,
@@ -355,7 +359,7 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
         self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
         super().randomize(None)
 
-    def __call__(self, data) -> Dict[Hashable, np.ndarray]:
+    def __call__(self, data) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         self.randomize()
         if not self._do_transform:
@@ -1435,7 +1439,10 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
             if some components of the `spatial_size` are non-positive values, the transform will use the
             corresponding components of input img size. For example, `spatial_size=(32, -1)` will be adapted
             to `(32, 64)` if the second spatial dimension size of img is `64`.
-        fill_value: target value to fill the dropout regions.
+        fill_value: target value to fill the dropout regions, if providing a number, will use it as constant
+            value to fill all the regions. if providing a tuple for the `min` and `max`, will randomly select
+            value for every pixel / voxel from the range `[min, max)`. if None, will compute the `min` and `max`
+            value of input image then randomly select value to fill, default to None.
         max_holes: if not None, define the maximum number to randomly select the expected number of regions.
         max_spatial_size: if not None, define the maximum spatial size to randomly select size for every region.
             if some components of the `max_spatial_size` are non-positive values, the transform will use the
@@ -1451,7 +1458,7 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
         keys: KeysCollection,
         holes: int,
         spatial_size: Union[Sequence[int], int],
-        fill_value: Union[float, int] = 0,
+        fill_value: Optional[Union[Tuple[float, float], float]] = None,
         max_holes: Optional[int] = None,
         max_spatial_size: Optional[Union[Sequence[int], int]] = None,
         prob: float = 0.1,
@@ -1487,7 +1494,13 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
         if self._do_transform:
             for key in self.key_iterator(d):
                 for h in self.hole_coords:
-                    d[key][h] = self.fill_value
+                    fill_value = (d[key].min(), d[key].max()) if self.fill_value is None else self.fill_value
+                    if isinstance(fill_value, (tuple, list)):
+                        if len(fill_value) != 2:
+                            raise ValueError("fill_value should contain 2 numbers if providing the `min` and `max`.")
+                        d[key][h] = self.R.uniform(fill_value[0], fill_value[1], size=d[key][h].shape)
+                    else:
+                        d[key][h] = fill_value
         return d
 
 
