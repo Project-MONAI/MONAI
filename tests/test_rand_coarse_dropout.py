@@ -20,31 +20,32 @@ from monai.utils import fall_back_tuple
 TEST_CASE_0 = [
     {"holes": 2, "spatial_size": [2, 2, 2], "fill_value": 5, "prob": 1.0},
     np.random.randint(0, 2, size=[3, 3, 3, 4]),
-    (3, 3, 3, 4),
 ]
 
 TEST_CASE_1 = [
     {"holes": 1, "spatial_size": [1, 2, 3], "fill_value": 5, "max_holes": 5, "prob": 1.0},
     np.random.randint(0, 2, size=[3, 3, 3, 4]),
-    (3, 3, 3, 4),
 ]
 
 TEST_CASE_2 = [
     {"holes": 2, "spatial_size": [2, 2, 2], "fill_value": 5, "max_spatial_size": [4, 4, 3], "prob": 1.0},
     np.random.randint(0, 2, size=[3, 3, 3, 4]),
-    (3, 3, 3, 4),
 ]
 
 TEST_CASE_3 = [
     {"holes": 2, "spatial_size": [2, -1, 2], "fill_value": 5, "max_spatial_size": [4, 4, -1], "prob": 1.0},
     np.random.randint(0, 2, size=[3, 3, 3, 4]),
-    (3, 3, 3, 4),
+]
+
+TEST_CASE_4 = [
+    {"holes": 2, "spatial_size": [2, 2, 2], "fill_value": (3, 6), "prob": 1.0},
+    np.random.randint(0, 2, size=[3, 3, 3, 4]),
 ]
 
 
 class TestRandCoarseDropout(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
-    def test_value(self, input_param, input_data, expected_shape):
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
+    def test_value(self, input_param, input_data):
         dropout = RandCoarseDropout(**input_param)
         result = dropout(input_data)
         holes = input_param.get("holes")
