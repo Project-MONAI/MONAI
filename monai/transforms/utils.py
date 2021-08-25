@@ -38,6 +38,7 @@ from monai.utils import (
     min_version,
     optional_import,
 )
+from monai.utils.enums import TransformBackends
 from monai.utils.type_conversion import convert_data_type
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
@@ -81,6 +82,7 @@ __all__ = [
     "zero_margins",
     "equalize_hist",
     "get_number_image_type_conversions",
+    "get_transform_backends",
     "print_transform_backends",
 ]
 
@@ -1158,22 +1160,17 @@ def get_number_image_type_conversions(transform: Compose, test_data: Any, key: O
     return num_conversions
 
 
-def print_transform_backends():
-    """Prints a list of backends of all MONAI transforms."""
+def get_transform_backends():
+    """Get the backends of all MONAI transforms.
 
-    class Colours:
-        red = "91"
-        green = "92"
-        yellow = "93"
-
-    def print_colour(t, colour):
-        print(f"\033[{colour}m{t}\033[00m")
-
-    tr_total = 0
-    tr_t_or_np = 0
-    tr_t = 0
-    tr_np = 0
-    tr_uncategorised = 0
+    Returns:
+        Dictionary, where each key is a transform, and its
+        corresponding values are a boolean list, stating
+        whether that transform supports (1) `torch.Tensor`,
+        and (2) `np.ndarray` as input without needing to
+        convert.
+    """
+    backends = {}
     unique_transforms = []
     for n, obj in getmembers(monai.transforms):
         # skip aliases
@@ -1194,21 +1191,54 @@ def print_transform_backends():
                 "InverteD",
             ]:
                 continue
-            tr_total += 1
-            if obj.backend == ["torch", "numpy"]:
-                tr_t_or_np += 1
-                print_colour(f"TorchOrNumpy:  {n}", Colours.green)
-            elif obj.backend == ["torch"]:
-                tr_t += 1
-                print_colour(f"Torch:         {n}", Colours.green)
-            elif obj.backend == ["numpy"]:
-                tr_np += 1
-                print_colour(f"Numpy:         {n}", Colours.yellow)
-            else:
-                tr_uncategorised += 1
-                print_colour(f"Uncategorised: {n}", Colours.red)
-    print("Total number of transforms:", tr_total)
-    print_colour(f"Number transforms allowing both torch and numpy: {tr_t_or_np}", Colours.green)
-    print_colour(f"Number of TorchTransform: {tr_t}", Colours.green)
-    print_colour(f"Number of NumpyTransform: {tr_np}", Colours.yellow)
-    print_colour(f"Number of uncategorised: {tr_uncategorised}", Colours.red)
+
+            backends[n] = [
+                TransformBackends.TORCH in obj.backend,
+                TransformBackends.NUMPY in obj.backend,
+            ]
+    return backends
+
+
+def print_transform_backends():
+    """Prints a list of backends of all MONAI transforms."""
+
+    class Colors:
+        none = ""
+        red = "91"
+        green = "92"
+        yellow = "93"
+
+    def print_color(t, color):
+        print(f"\033[{color}m{t}\033[00m")
+
+    def print_table_column(name, torch, numpy, color=Colors.none):
+        print_color("{:<50} {:<8} {:<8}".format(name, torch, numpy), color)
+
+    backends = get_transform_backends()
+    n_total = len(backends)
+    n_t_or_np, n_t, n_np, n_uncategorized = 0, 0, 0, 0
+    print_table_column("Transform", "Torch?", "Numpy?")
+    for k, v in backends.items():
+        if all(v):
+            color = Colors.green
+            n_t_or_np += 1
+        elif v[0]:
+            color = Colors.green
+            n_t += 1
+        elif v[1]:
+            color = Colors.yellow
+            n_np += 1
+        else:
+            color = Colors.red
+            n_uncategorized += 1
+        print_table_column(k, *v, color)
+
+    print("Total number of transforms:", n_total)
+    print_color(f"Number transforms allowing both torch and numpy: {n_t_or_np}", Colors.green)
+    print_color(f"Number of TorchTransform: {n_t}", Colors.green)
+    print_color(f"Number of NumpyTransform: {n_np}", Colors.yellow)
+    print_color(f"Number of uncategorised: {n_uncategorized}", Colors.red)
+
+
+if __name__ == "__main__":
+    print_transform_backends()
