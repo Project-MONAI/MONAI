@@ -66,8 +66,8 @@ class TestRandCoarseDropout(unittest.TestCase):
                 np.testing.assert_allclose(data, fill_value)
             else:
                 print("hole data:", data)
-                min_value = min(data)
-                max_value = max(data)
+                min_value = data.min()
+                max_value = data.max()
                 self.assertGreaterEqual(max_value, min_value)
                 self.assertGreaterEqual(min_value, fill_value[0])
                 self.assertLess(max_value, fill_value[1])
