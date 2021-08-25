@@ -266,25 +266,25 @@ def _load_state_dict(model: nn.Module, arch: str, progress: bool):
         raise ValueError(
             "only 'densenet121', 'densenet169' and 'densenet201' are supported to load pretrained weights."
         )
-    else:
-        pattern = re.compile(
-            r"^(.*denselayer\d+)(\.(?:norm|relu|conv))\.((?:[12])\.(?:weight|bias|running_mean|running_var))$"
-        )
 
-        state_dict = load_state_dict_from_url(model_url, progress=progress)
-        for key in list(state_dict.keys()):
-            res = pattern.match(key)
-            if res:
-                new_key = res.group(1) + ".layers" + res.group(2) + res.group(3)
-                state_dict[new_key] = state_dict[key]
-                del state_dict[key]
+    pattern = re.compile(
+        r"^(.*denselayer\d+)(\.(?:norm|relu|conv))\.((?:[12])\.(?:weight|bias|running_mean|running_var))$"
+    )
 
-        model_dict = model.state_dict()
-        state_dict = {
-            k: v for k, v in state_dict.items() if (k in model_dict) and (model_dict[k].shape == state_dict[k].shape)
-        }
-        model_dict.update(state_dict)
-        model.load_state_dict(model_dict)
+    state_dict = load_state_dict_from_url(model_url, progress=progress)
+    for key in list(state_dict.keys()):
+        res = pattern.match(key)
+        if res:
+            new_key = res.group(1) + ".layers" + res.group(2) + res.group(3)
+            state_dict[new_key] = state_dict[key]
+            del state_dict[key]
+
+    model_dict = model.state_dict()
+    state_dict = {
+        k: v for k, v in state_dict.items() if (k in model_dict) and (model_dict[k].shape == state_dict[k].shape)
+    }
+    model_dict.update(state_dict)
+    model.load_state_dict(model_dict)
 
 
 class DenseNet121(DenseNet):

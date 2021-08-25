@@ -268,34 +268,34 @@ def _load_state_dict(model: nn.Module, arch: str, progress: bool):
             "only 'senet154', 'se_resnet50', 'se_resnet101',  'se_resnet152', 'se_resnext50_32x4d', "
             + "and se_resnext101_32x4d are supported to load pretrained weights."
         )
-    else:
-        pattern_conv = re.compile(r"^(layer[1-4]\.\d\.(?:conv)\d\.)(\w*)$")
-        pattern_bn = re.compile(r"^(layer[1-4]\.\d\.)(?:bn)(\d\.)(\w*)$")
-        pattern_se = re.compile(r"^(layer[1-4]\.\d\.)(?:se_module.fc1.)(\w*)$")
-        pattern_se2 = re.compile(r"^(layer[1-4]\.\d\.)(?:se_module.fc2.)(\w*)$")
-        pattern_down_conv = re.compile(r"^(layer[1-4]\.\d\.)(?:downsample.0.)(\w*)$")
-        pattern_down_bn = re.compile(r"^(layer[1-4]\.\d\.)(?:downsample.1.)(\w*)$")
 
-        state_dict = load_state_dict_from_url(model_url, progress=progress)
-        for key in list(state_dict.keys()):
-            new_key = None
-            if pattern_conv.match(key):
-                new_key = re.sub(pattern_conv, r"\1conv.\2", key)
-            elif pattern_bn.match(key):
-                new_key = re.sub(pattern_bn, r"\1conv\2adn.N.\3", key)
-            elif pattern_se.match(key):
-                state_dict[key] = state_dict[key].squeeze()
-                new_key = re.sub(pattern_se, r"\1se_layer.fc.0.\2", key)
-            elif pattern_se2.match(key):
-                state_dict[key] = state_dict[key].squeeze()
-                new_key = re.sub(pattern_se2, r"\1se_layer.fc.2.\2", key)
-            elif pattern_down_conv.match(key):
-                new_key = re.sub(pattern_down_conv, r"\1project.conv.\2", key)
-            elif pattern_down_bn.match(key):
-                new_key = re.sub(pattern_down_bn, r"\1project.adn.N.\2", key)
-            if new_key:
-                state_dict[new_key] = state_dict[key]
-                del state_dict[key]
+    pattern_conv = re.compile(r"^(layer[1-4]\.\d\.(?:conv)\d\.)(\w*)$")
+    pattern_bn = re.compile(r"^(layer[1-4]\.\d\.)(?:bn)(\d\.)(\w*)$")
+    pattern_se = re.compile(r"^(layer[1-4]\.\d\.)(?:se_module.fc1.)(\w*)$")
+    pattern_se2 = re.compile(r"^(layer[1-4]\.\d\.)(?:se_module.fc2.)(\w*)$")
+    pattern_down_conv = re.compile(r"^(layer[1-4]\.\d\.)(?:downsample.0.)(\w*)$")
+    pattern_down_bn = re.compile(r"^(layer[1-4]\.\d\.)(?:downsample.1.)(\w*)$")
+
+    state_dict = load_state_dict_from_url(model_url, progress=progress)
+    for key in list(state_dict.keys()):
+        new_key = None
+        if pattern_conv.match(key):
+            new_key = re.sub(pattern_conv, r"\1conv.\2", key)
+        elif pattern_bn.match(key):
+            new_key = re.sub(pattern_bn, r"\1conv\2adn.N.\3", key)
+        elif pattern_se.match(key):
+            state_dict[key] = state_dict[key].squeeze()
+            new_key = re.sub(pattern_se, r"\1se_layer.fc.0.\2", key)
+        elif pattern_se2.match(key):
+            state_dict[key] = state_dict[key].squeeze()
+            new_key = re.sub(pattern_se2, r"\1se_layer.fc.2.\2", key)
+        elif pattern_down_conv.match(key):
+            new_key = re.sub(pattern_down_conv, r"\1project.conv.\2", key)
+        elif pattern_down_bn.match(key):
+            new_key = re.sub(pattern_down_bn, r"\1project.adn.N.\2", key)
+        if new_key:
+            state_dict[new_key] = state_dict[key]
+            del state_dict[key]
 
         model_dict = model.state_dict()
         state_dict = {

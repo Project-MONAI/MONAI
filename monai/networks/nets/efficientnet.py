@@ -549,7 +549,7 @@ class EfficientNetBN(EfficientNet):
 
         # only pretrained for when `spatial_dims` is 2
         if pretrained and (spatial_dims == 2):
-            _load_state_dict(self, model_name, progress, in_channels, adv_prop)
+            _load_state_dict(self, model_name, progress, adv_prop)
 
 
 class EfficientNetBNFeatures(EfficientNet):
@@ -609,7 +609,7 @@ class EfficientNetBNFeatures(EfficientNet):
 
         # only pretrained for when `spatial_dims` is 2
         if pretrained and (spatial_dims == 2):
-            _load_state_dict(self, model_name, progress, in_channels, adv_prop)
+            _load_state_dict(self, model_name, progress, adv_prop)
 
     def forward(self, inputs: torch.Tensor):
         """
@@ -703,7 +703,7 @@ def drop_connect(inputs: torch.Tensor, p: float, training: bool) -> torch.Tensor
     return output
 
 
-def _load_state_dict(model: nn.Module, arch: str, progress: bool, in_channels: int, adv_prop: bool) -> None:
+def _load_state_dict(model: nn.Module, arch: str, progress: bool, adv_prop: bool) -> None:
     if adv_prop:
         arch = arch.split("efficientnet-")[-1] + "-ap"
     model_url = look_up_option(arch, url_map, None)
@@ -718,9 +718,8 @@ def _load_state_dict(model: nn.Module, arch: str, progress: bool, in_channels: i
         pattern = re.compile(r"(.+)\.\d+(\.\d+\..+)")
         for key, value in model_state_dict.items():
             pretrain_key = re.sub(pattern, r"\1\2", key)
-            if pretrain_key in pretrain_state_dict:
-                if value.shape == pretrain_state_dict[pretrain_key].shape:
-                    model_state_dict[key] = pretrain_state_dict[pretrain_key]
+            if pretrain_key in pretrain_state_dict and value.shape == pretrain_state_dict[pretrain_key].shape:
+                model_state_dict[key] = pretrain_state_dict[pretrain_key]
 
         model.load_state_dict(model_state_dict)
 
