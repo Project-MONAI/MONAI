@@ -291,7 +291,7 @@ class CastToType(Transform):
     specified PyTorch data type.
     """
 
-    backends = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(self, dtype=np.float32) -> None:
         """

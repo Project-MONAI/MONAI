@@ -131,7 +131,7 @@ class RandRicianNoise(RandomizableTransform):
             uniformly from 0 to std.
     """
 
-    backends = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
         self,
@@ -197,7 +197,7 @@ class ShiftIntensity(Transform):
         offset: offset value to shift the intensity of image.
     """
 
-    backends = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(self, offset: float) -> None:
         self.offset = offset
@@ -219,7 +219,7 @@ class RandShiftIntensity(RandomizableTransform):
     Randomly shift intensity with randomly picked offset.
     """
 
-    backends = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(self, offsets: Union[Tuple[float, float], float], prob: float = 0.1) -> None:
         """
@@ -273,7 +273,7 @@ class StdShiftIntensity(Transform):
         dtype: output data type, defaults to float32.
     """
 
-    backends = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
         self, factor: float, nonzero: bool = False, channel_wise: bool = False, dtype: DtypeLike = np.float32
@@ -318,7 +318,7 @@ class RandStdShiftIntensity(RandomizableTransform):
     by: ``v = v + factor * std(v)`` where the `factor` is randomly picked.
     """
 
-    backends = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
         self,
